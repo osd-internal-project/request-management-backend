@@ -1,0 +1,906 @@
+// Single Prisma schema for the whole monorepo. The generated client is
+// consumed through libs/prisma by every service in services/*.
+//
+// Models follow the CTD Foundation Sprint spec §10. Rules that hold
+// throughout, and that reviews should enforce:
+//
+//   * every transactional table carries companyId + created/updated audit columns
+//   * transactional data is NEVER hard-deleted — status columns only
+//   * per-request form data is Json validated against the JSON Schema declared
+//     in RequestType, so adding a request type needs no migration
+//   * OrgClosure is recomputed on org edits, never traversed at query time
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum OrgUnitKind {
+  COMPANY
+  DEPARTMENT
+  TEAM
+}
+
+/// How a role reached a user: mapped from a Keycloak claim (ROLE-03) or bound
+/// by hand in the admin screen (ROLE-02). Mapped grants are re-evaluated on
+/// every login; manual ones persist until removed.
+enum RoleGrantSource {
+  KEYCLOAK_MAPPING
+  MANUAL
+}
+
+/// §6.1 data scope levels.
+enum ScopeLevel {
+  own
+  team
+  department
+  company
+  all
+}
+
+/// §7.1 request state machine. Transitions outside the declared paths must be
+/// impossible through every channel, including direct API calls.
+enum RequestStatus {
+  draft
+  submitted
+  returned
+  pending_approval
+  approved
+  rejected
+  in_progress
+  completed
+  cancelled
+}
+
+/// REQ-10: requests raised by an integration are marked, so "who started
+/// this" is answerable without guessing.
+enum RequestSource {
+  USER
+  SYSTEM
+}
+
+enum ApprovalCaseStatus {
+  pending
+  approved
+  rejected
+  returned
+  voided
+  cancelled
+}
+
+enum ApprovalStepStatus {
+  waiting
+  pending
+  approved
+  rejected
+  returned
+  skipped
+}
+
+enum ApprovalDecision {
+  approve
+  reject
+  return
+}
+
+enum SlaState {
+  running
+  paused
+  met
+  breached
+  cancelled
+}
+
+enum NotificationChannel {
+  in_app
+  email
+}
+
+enum DeliveryStatus {
+  queued
+  sent
+  failed
+}
+
+// ---------------------------------------------------------------------------
+// Identity & Org
+// ---------------------------------------------------------------------------
+
+/// D-11: multi-company from day one. `docPrefix` feeds the request number
+/// (REQ-02, e.g. the OSD in OSD-DSC-202608-0042).
+model Company {
+  id           String   @id @default(uuid())
+  code         String   @unique
+  name         String
+  docPrefix    String
+  baseCurrency String   @default("THB")
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  users            UserCompany[]
+  primaryUsers     User[]                @relation("PrimaryCompany")
+  orgUnits         OrgUnit[]
+  roles            Role[]
+  userRoles        UserRole[]
+  keycloakMappings KeycloakRoleMapping[]
+  requestTypes     RequestTypeCompany[]
+  requests         Request[]
+  docNumberConfigs DocNumberConfig[]
+  docNumberCounter DocNumberCounter[]
+  approvalMatrices ApprovalMatrix[]
+  approvalCases    ApprovalCase[]
+  delegations      Delegation[]
+  slaConfigs       SlaConfig[]
+  holidayCalendar  HolidayCalendar?
+  notifications    Notification[]
+  auditLogs        AuditLog[]
+
+  @@map("companies")
+}
+
+/// Local mirror of the Keycloak-authenticated user (AUTH-04, JIT-provisioned
+/// on first login). Keycloak owns credentials and roles; org placement —
+/// `orgUnitId` and `supervisorUserId` — is owned *here* and edited through the
+/// admin screen, because LDAP is used for authentication only (D-07/D-08).
+model User {
+  id          String     @id @default(uuid())
+  keycloakId  String     @unique
+  username    String     @unique
+  email       String?    @unique
+  displayName String
+  firstName   String?
+  lastName    String?
+  status      UserStatus @default(ACTIVE)
+
+  primaryCompanyId String?
+  primaryCompany   Company? @relation("PrimaryCompany", fields: [primaryCompanyId], references: [id])
+
+  /// Null until an admin assigns the user — these are the "รอจัดสังกัด" queue.
+  orgUnitId String?
+  orgUnit   OrgUnit? @relation("OrgUnitMembers", fields: [orgUnitId], references: [id])
+
+  supervisorUserId String?
+  supervisor       User?   @relation("Supervision", fields: [supervisorUserId], references: [id])
+  subordinates     User[]  @relation("Supervision")
+
+  /// Realm roles seen on the token at the last login (ROLE-03).
+  ///
+  /// Cached here so screen A3 can show "role จาก Keycloak: sales" for someone
+  /// who has not been assigned yet — it comes free from the token and needs no
+  /// Admin API call. Never authoritative: permissions always resolve through
+  /// keycloak_role_mappings, this is display only.
+  keycloakRoles String[] @default([])
+
+  firstLoginAt DateTime?
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  companies      UserCompany[]
+  roles          UserRole[]          @relation("RoleHolder")
+  grantedRoles   UserRole[]          @relation("RoleGranter")
+  managedUnits   OrgUnit[]           @relation("OrgUnitManager")
+  requests       Request[]           @relation("Requester")
+  requestEvents  RequestEvent[]
+  attachments    RequestAttachment[]
+  approvalSteps  ApprovalStep[]      @relation("StepApprover")
+  decidedSteps   ApprovalStep[]      @relation("StepDecider")
+  delegationsOut Delegation[]        @relation("Delegator")
+  delegationsIn  Delegation[]        @relation("Delegate")
+  notifications  Notification[]
+  auditLogs      AuditLog[]
+
+  @@index([orgUnitId])
+  @@index([supervisorUserId])
+  @@map("users")
+}
+
+/// AUTH-05: one person can belong to several companies, with exactly one
+/// primary. Roles are held per company (ROLE-04), never globally.
+model UserCompany {
+  id        String   @id @default(uuid())
+  userId    String
+  companyId String
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id])
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([userId, companyId])
+  @@index([companyId])
+  @@map("user_companies")
+}
+
+/// The org chart, maintained in this system (D-08). It is the source of truth
+/// for "who reports to whom", which drives data scope (§6), approval step 1
+/// (§8.1), and escalation (SUP-02).
+model OrgUnit {
+  id        String      @id @default(uuid())
+  companyId String
+  code      String
+  name      String
+  kind      OrgUnitKind @default(TEAM)
+
+  parentId String?
+  parent   OrgUnit?  @relation("OrgTree", fields: [parentId], references: [id])
+  children OrgUnit[] @relation("OrgTree")
+
+  managerUserId String?
+  manager       User?   @relation("OrgUnitManager", fields: [managerUserId], references: [id])
+
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  createdBy String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  company       Company       @relation(fields: [companyId], references: [id])
+  members       User[]        @relation("OrgUnitMembers")
+  ancestors     OrgClosure[]  @relation("ClosureDescendant")
+  descendants   OrgClosure[]  @relation("ClosureAncestor")
+  receivedTypes RequestType[] @relation("ReceiverUnit")
+
+  @@unique([companyId, code])
+  @@index([parentId])
+  @@map("org_units")
+}
+
+/// Transitive closure of `OrgUnit`, recomputed inside the same transaction as
+/// any org edit. Scope `team` and `department` resolve to an `IN (…)` against
+/// this table rather than walking the tree per query (§6.2 note) — the reason
+/// list endpoints can still meet NFR-02 at 100k rows.
+model OrgClosure {
+  ancestorId   String
+  descendantId String
+  depth        Int
+
+  ancestor   OrgUnit @relation("ClosureAncestor", fields: [ancestorId], references: [id], onDelete: Cascade)
+  descendant OrgUnit @relation("ClosureDescendant", fields: [descendantId], references: [id], onDelete: Cascade)
+
+  @@id([ancestorId, descendantId])
+  @@index([descendantId])
+  @@map("org_closure")
+}
+
+/// ROLE-02. `companyId` null means a group-wide template role; bound roles are
+/// deactivated, never deleted.
+model Role {
+  id          String  @id @default(uuid())
+  companyId   String?
+  code        String
+  name        String
+  description String?
+  /// Seed roles from §5.2 — cannot be renamed away or removed.
+  isSystem    Boolean @default(false)
+  active      Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  createdBy String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  company          Company?              @relation(fields: [companyId], references: [id])
+  permissions      RolePermission[]
+  users            UserRole[]
+  scopeRules       ScopeRule[]
+  keycloakMappings KeycloakRoleMapping[]
+
+  @@unique([companyId, code])
+  @@map("roles")
+}
+
+/// Mirror of the code-declared catalog in `libs/share/src/policy/permissions.ts`,
+/// synced at boot. The table exists for referential integrity only — admins
+/// compose roles from these but cannot create new ones (§11.3).
+model Permission {
+  code        String  @id
+  module      String
+  description String?
+
+  roles RolePermission[]
+
+  @@index([module])
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId         String
+  permissionCode String
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionCode], references: [code], onDelete: Cascade)
+
+  @@id([roleId, permissionCode])
+  @@map("role_permissions")
+}
+
+/// ROLE-04: a role binding is always scoped to one company.
+model UserRole {
+  id        String          @id @default(uuid())
+  userId    String
+  roleId    String
+  companyId String
+  source    RoleGrantSource @default(MANUAL)
+
+  grantedByUserId String?
+  grantedAt       DateTime @default(now())
+
+  user      User    @relation("RoleHolder", fields: [userId], references: [id])
+  role      Role    @relation(fields: [roleId], references: [id])
+  company   Company @relation(fields: [companyId], references: [id])
+  grantedBy User?   @relation("RoleGranter", fields: [grantedByUserId], references: [id])
+
+  @@unique([userId, roleId, companyId])
+  @@index([companyId, userId])
+  @@map("user_roles")
+}
+
+/// ROLE-03: "Keycloak role → role in this system", per company. Re-evaluated
+/// on every login and refresh, so revoking in Keycloak revokes here within one
+/// access-token lifetime.
+model KeycloakRoleMapping {
+  id           String   @id @default(uuid())
+  keycloakRole String
+  roleId       String
+  companyId    String
+  createdAt    DateTime @default(now())
+  createdBy    String?
+
+  role    Role    @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([keycloakRole, roleId, companyId])
+  @@index([companyId])
+  @@map("keycloak_role_mappings")
+}
+
+/// SCOPE-01: (role, resource) → scope level, editable from the admin screen
+/// with no deploy.
+model ScopeRule {
+  id       String     @id @default(uuid())
+  roleId   String
+  resource String
+  scope    ScopeLevel
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, resource])
+  @@map("scope_rules")
+}
+
+/// SCOPE-04: which fields of which resource are sensitive, and the permission
+/// that unmasks them. Enforced on the API response, not just the UI.
+model SensitiveFieldRule {
+  id                  String @id @default(uuid())
+  resource            String
+  field               String
+  visibleToPermission String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  @@unique([resource, field])
+  @@map("sensitive_field_rules")
+}
+
+// ---------------------------------------------------------------------------
+// Request
+// ---------------------------------------------------------------------------
+
+/// REQ-01: a request type is *configuration*, not code. Adding the 3rd..30th
+/// type is an admin screen action.
+model RequestType {
+  id                String  @id @default(uuid())
+  code              String  @unique
+  name              String
+  receiverOrgUnitId String?
+
+  /// JSON Schema for the request form.
+  formSchema        Json
+  /// [{ code, name }] — attachments that block submit (REQ-03).
+  requiredDocs      Json @default("[]")
+  /// [{ code, label }] — the standard return reasons (REQ-04).
+  returnReasonCodes Json @default("[]")
+  /// { mode: "standard_chain", amount_field: "deal_value" } — how APV-02
+  /// derives the approval chain.
+  approvalPolicy    Json
+
+  slaHours         Int?
+  slaBusinessHours Boolean @default(true)
+
+  active    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  createdBy String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  receiverOrgUnit OrgUnit?             @relation("ReceiverUnit", fields: [receiverOrgUnitId], references: [id])
+  companies       RequestTypeCompany[]
+  requests        Request[]
+
+  @@map("request_types")
+}
+
+/// Which companies have a given request type switched on.
+model RequestTypeCompany {
+  requestTypeId String
+  companyId     String
+  active        Boolean @default(true)
+
+  requestType RequestType @relation(fields: [requestTypeId], references: [id], onDelete: Cascade)
+  company     Company     @relation(fields: [companyId], references: [id])
+
+  @@id([requestTypeId, companyId])
+  @@map("request_type_companies")
+}
+
+model Request {
+  id String @id @default(uuid())
+
+  /// Issued at submit, never before (REQ-02). Null while draft.
+  requestNo String? @unique
+
+  requestTypeId String
+  typeCode      String
+  companyId     String
+
+  requesterId        String
+  /// Snapshotted at submit so later org moves do not rewrite history or
+  /// silently change who can see the row.
+  requesterOrgUnitId String?
+
+  status   RequestStatus @default(draft)
+  formData Json          @default("{}")
+
+  /// REQ-06: link back to the originating entity (deal, customer, …).
+  refType String?
+  refId   String?
+
+  /// The RequestType config as it stood at submit — a running request keeps
+  /// its rules even after an admin edits the type (REQ-01).
+  typeSnapshot Json?
+
+  source RequestSource @default(USER)
+
+  submittedAt  DateTime?
+  dueAt        DateTime?
+  completedAt  DateTime?
+  cancelledAt  DateTime?
+  cancelReason String?
+
+  createdAt DateTime @default(now())
+  createdBy String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  requestType   RequestType           @relation(fields: [requestTypeId], references: [id])
+  company       Company               @relation(fields: [companyId], references: [id])
+  requester     User                  @relation("Requester", fields: [requesterId], references: [id])
+  attachments   RequestAttachment[]
+  events        RequestEvent[]
+  returnReasons RequestReturnReason[]
+  approvalCases ApprovalCase[]
+  slaClock      SlaClock?
+
+  @@index([companyId, status])
+  @@index([companyId, requesterId])
+  @@index([companyId, requesterOrgUnitId])
+  @@index([companyId, dueAt])
+  @@index([refType, refId])
+  @@map("requests")
+}
+
+model RequestAttachment {
+  id        String  @id @default(uuid())
+  requestId String
+  /// Matches a code in RequestType.requiredDocs, or null for extra files.
+  docCode   String?
+
+  fileName   String
+  mimeType   String
+  sizeBytes  Int
+  storageKey String
+
+  uploadedById String
+  uploadedAt   DateTime  @default(now())
+  /// Soft delete — draft/returned only; the row survives for the audit trail.
+  deletedAt    DateTime?
+
+  request    Request @relation(fields: [requestId], references: [id])
+  uploadedBy User    @relation(fields: [uploadedById], references: [id])
+
+  @@index([requestId])
+  @@map("request_attachments")
+}
+
+/// REQ-04: return reasons are picked from a standard list, not free text, so
+/// "why do requests bounce" is a reportable question.
+model RequestReturnReason {
+  id        String   @id @default(uuid())
+  requestId String
+  eventId   String?
+  code      String
+  note      String?
+  createdAt DateTime @default(now())
+  createdBy String?
+
+  request Request       @relation(fields: [requestId], references: [id])
+  event   RequestEvent? @relation(fields: [eventId], references: [id])
+
+  @@index([requestId])
+  @@index([code])
+  @@map("request_return_reasons")
+}
+
+/// REQ-07: the append-only timeline. No update or delete path exists for these
+/// rows — that is the acceptance criterion, not an implementation detail.
+model RequestEvent {
+  id        String @id @default(uuid())
+  requestId String
+  seq       Int
+
+  type       String
+  actorId    String?
+  /// Set when the actor is the system (escalation, auto-transition).
+  actorLabel String?
+
+  fromStatus RequestStatus?
+  toStatus   RequestStatus?
+  data       Json?
+
+  createdAt DateTime @default(now())
+
+  request       Request               @relation(fields: [requestId], references: [id])
+  actor         User?                 @relation(fields: [actorId], references: [id])
+  returnReasons RequestReturnReason[]
+
+  @@unique([requestId, seq])
+  @@index([requestId, createdAt])
+  @@map("request_events")
+}
+
+/// D-02/D-19 + REQ-02: the number format is configuration per company and
+/// document type, e.g. `{PREFIX}-{TYPE}-{YYYYMM}-{SEQ}`.
+model DocNumberConfig {
+  id         String  @id @default(uuid())
+  companyId  String
+  typeCode   String
+  pattern    String  @default("{PREFIX}-{TYPE}-{YYYYMM}-{SEQ}")
+  seqPadding Int     @default(4)
+  active     Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, typeCode])
+  @@map("doc_number_configs")
+}
+
+/// The sequence itself, reset every month. Incremented inside the submit
+/// transaction under a row lock — this is what makes 50 concurrent submits
+/// produce 50 distinct numbers (REQ-02, NFR-03).
+model DocNumberCounter {
+  id        String @id @default(uuid())
+  companyId String
+  typeCode  String
+  /// `YYYYMM`, e.g. 202608.
+  yearMonth Int
+  lastSeq   Int    @default(0)
+
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, typeCode, yearMonth])
+  @@map("doc_number_counters")
+}
+
+// ---------------------------------------------------------------------------
+// Approval  (D-31: a central service, callable without a Platform Request)
+// ---------------------------------------------------------------------------
+
+/// APV-01. Published versions are immutable — a change is a new version with
+/// its own effective date, so a running case keeps the rules it started under
+/// (D-18: each company has its own set).
+model ApprovalMatrix {
+  id          String @id @default(uuid())
+  companyId   String
+  subjectType String
+  currency    String @default("THB")
+  version     Int
+
+  /// [{ upto: "100000.00" | null, chain: ["team_lead","cfo"] }] ordered by
+  /// ceiling ascending; `upto: null` is the top tier.
+  tiers Json
+
+  effectiveFrom DateTime
+  publishedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  createdBy     String?
+
+  company Company        @relation(fields: [companyId], references: [id])
+  cases   ApprovalCase[]
+
+  @@unique([companyId, subjectType, version])
+  @@index([companyId, subjectType, effectiveFrom])
+  @@map("approval_matrices")
+}
+
+/// One thing awaiting approval. `subjectType`/`subjectId` keep this generic:
+/// APV-07 lets any module raise a case without creating a Request.
+model ApprovalCase {
+  id          String @id @default(uuid())
+  companyId   String
+  subjectType String
+  subjectId   String
+
+  /// Null for subjects with no monetary dimension (e.g. lead handover).
+  amount   Decimal? @db.Decimal(18, 2)
+  currency String?
+
+  /// APV-05: hash of the approved payload. A material edit voids approvals.
+  snapshotHash    String
+  snapshotVersion Int    @default(1)
+
+  matrixId      String?
+  matrixVersion Int?
+
+  status      ApprovalCaseStatus @default(pending)
+  currentStep Int                @default(1)
+
+  /// APV-07: event name published when the outcome lands.
+  callbackEvent String?
+  payload       Json?
+
+  requestId String?
+
+  createdAt DateTime  @default(now())
+  createdBy String?
+  decidedAt DateTime?
+
+  company Company         @relation(fields: [companyId], references: [id])
+  matrix  ApprovalMatrix? @relation(fields: [matrixId], references: [id])
+  request Request?        @relation(fields: [requestId], references: [id])
+  steps   ApprovalStep[]
+
+  @@index([companyId, status])
+  @@index([subjectType, subjectId])
+  @@index([requestId])
+  @@map("approval_cases")
+}
+
+/// The resolved chain, frozen at submit (APV-02). Changing the matrix later
+/// does not reroute a case already in flight.
+model ApprovalStep {
+  id     String @id @default(uuid())
+  caseId String
+  stepNo Int
+
+  /// Position in the matrix chain: `team_lead`, `cfo`, `ceo`, …
+  approverRole   String
+  /// The person that position resolved to at submit time.
+  approverUserId String?
+
+  status   ApprovalStepStatus @default(waiting)
+  decision ApprovalDecision?
+  note     String?
+
+  /// APV-03: set when someone decided under a delegation — the history shows
+  /// both names, never just the delegate's.
+  decidedByUserId String?
+  delegationId    String?
+
+  dueAt     DateTime?
+  decidedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  case       ApprovalCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  approver   User?        @relation("StepApprover", fields: [approverUserId], references: [id])
+  decidedBy  User?        @relation("StepDecider", fields: [decidedByUserId], references: [id])
+  delegation Delegation?  @relation(fields: [delegationId], references: [id])
+
+  @@unique([caseId, stepNo])
+  @@index([approverUserId, status])
+  @@map("approval_steps")
+}
+
+/// APV-03: temporary hand-over of approval authority. Sub-delegation is
+/// rejected, and overlapping windows for the same delegator are rejected.
+model Delegation {
+  id              String   @id @default(uuid())
+  companyId       String
+  delegatorUserId String
+  delegateUserId  String
+  fromDate        DateTime
+  toDate          DateTime
+  note            String?
+  active          Boolean  @default(true)
+
+  createdAt DateTime  @default(now())
+  createdBy String?
+  revokedAt DateTime?
+
+  company   Company        @relation(fields: [companyId], references: [id])
+  delegator User           @relation("Delegator", fields: [delegatorUserId], references: [id])
+  delegate  User           @relation("Delegate", fields: [delegateUserId], references: [id])
+  steps     ApprovalStep[]
+
+  @@index([companyId, delegatorUserId, fromDate, toDate])
+  @@map("delegations")
+}
+
+// ---------------------------------------------------------------------------
+// Support  (SLA / notification / audit — minimum viable per §09)
+// ---------------------------------------------------------------------------
+
+/// D-09/SUP-01: SLA is configuration, never hardcoded.
+model SlaConfig {
+  id              String  @id @default(uuid())
+  companyId       String
+  requestTypeCode String
+  hours           Int
+  businessHours   Boolean @default(true)
+  warnBeforeHours Int     @default(4)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, requestTypeCode])
+  @@map("sla_configs")
+}
+
+/// SUP-01: the clock stops while a request sits returned with the requester,
+/// so the elapsed time reported in REQ-09 is time the request was actually
+/// somebody's to act on.
+model SlaClock {
+  id        String @id @default(uuid())
+  requestId String @unique
+
+  startedAt     DateTime
+  pausedAt      DateTime?
+  accumulatedMs Int       @default(0)
+  dueAt         DateTime
+  state         SlaState  @default(running)
+  warnedAt      DateTime?
+  breachedAt    DateTime?
+  escalatedAt   DateTime?
+
+  updatedAt DateTime @updatedAt
+
+  request Request @relation(fields: [requestId], references: [id])
+
+  @@index([state, dueAt])
+  @@map("sla_clocks")
+}
+
+/// One working-hours + holiday set per company for this sprint; shifts and
+/// multiple calendars are explicitly out of scope (§09).
+model HolidayCalendar {
+  id        String @id @default(uuid())
+  companyId String @unique
+  name      String @default("default")
+
+  /// Minutes from midnight, e.g. 540 = 09:00.
+  workdayStartMinute Int   @default(540)
+  workdayEndMinute   Int   @default(1080)
+  /// ISO weekday numbers that are working days (1 = Monday).
+  workingWeekdays    Int[] @default([1, 2, 3, 4, 5])
+  /// ["2026-01-01", …]
+  holidays           Json  @default("[]")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@map("holiday_calendars")
+}
+
+model Notification {
+  id        String @id @default(uuid())
+  userId    String
+  companyId String
+
+  eventType String
+  title     String
+  body      String
+
+  resourceType String?
+  resourceId   String?
+
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user       User                      @relation(fields: [userId], references: [id])
+  company    Company                   @relation(fields: [companyId], references: [id])
+  deliveries NotificationDeliveryLog[]
+
+  @@index([userId, readAt])
+  @@map("notifications")
+}
+
+/// SUP-03: every send is logged, which is what settles "I never got notified".
+model NotificationDeliveryLog {
+  id             String              @id @default(uuid())
+  notificationId String
+  channel        NotificationChannel
+  target         String
+  status         DeliveryStatus      @default(queued)
+  error          String?
+  sentAt         DateTime?
+  createdAt      DateTime            @default(now())
+
+  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@index([notificationId])
+  @@map("notification_delivery_logs")
+}
+
+/// SUP-04: one append-only log for permission changes, status transitions,
+/// approvals, sensitive-field reads, and admin configuration. There is no API
+/// that updates or deletes a row here, by design.
+model AuditLog {
+  id        String  @id @default(uuid())
+  companyId String?
+
+  actorId       String?
+  actorUsername String?
+
+  eventType    String
+  resourceType String?
+  resourceId   String?
+
+  before Json?
+  after  Json?
+
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  company Company? @relation(fields: [companyId], references: [id])
+  actor   User?    @relation(fields: [actorId], references: [id])
+
+  @@index([actorId, createdAt])
+  @@index([eventType, createdAt])
+  @@index([resourceType, resourceId])
+  @@index([companyId, createdAt])
+  @@map("audit_logs")
+}
+
+/// NFR-03: replay protection for state-changing POSTs carrying an
+/// `Idempotency-Key`.
+model IdempotencyKey {
+  key         String   @id
+  requestHash String
+  response    Json?
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  @@index([expiresAt])
+  @@map("idempotency_keys")
+}

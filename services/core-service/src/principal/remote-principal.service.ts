@@ -1,0 +1,111 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { AppError, Principal } from '@request-management/share';
+import { createHash } from 'node:crypto';
+
+interface CacheEntry {
+  principal: Principal;
+  expiresAt: number;
+}
+
+/**
+ * How long a resolved principal is reused.
+ *
+ * Deliberately far shorter than the access token: ROLE-03 wants a role
+ * revoked in Keycloak to lose effect within one token lifetime, and SCOPE-01
+ * wants an admin's scope change to apply without a deploy. A minute keeps the
+ * per-request hop off the hot path while staying well inside both.
+ */
+const CACHE_TTL_MS = 60_000;
+
+/**
+ * Resolves the caller by asking `user-service`, which owns identity, roles,
+ * and scope (§03: services own their data and talk over internal APIs — no
+ * cross-service table reads).
+ *
+ * Token verification is delegated too. `/internal/policy/resolve` sits behind
+ * `user-service`'s JWKS guard, so a forged or expired token fails there and
+ * this service never sees a principal for it. That keeps one JWKS
+ * verification path in the system instead of two that can drift.
+ */
+@Injectable()
+export class RemotePrincipalService {
+  private readonly logger = new Logger(RemotePrincipalService.name);
+  private readonly cache = new Map<string, CacheEntry>();
+
+  constructor(private readonly config: ConfigService) {}
+
+  async resolve(authorization: string, companyId?: string): Promise<Principal> {
+    const key = createHash('sha256')
+      .update(`${authorization}|${companyId ?? ''}`)
+      .digest('hex');
+
+    const cached = this.cache.get(key);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.principal;
+    }
+
+    const principal = await this.fetchPrincipal(authorization, companyId);
+
+    this.cache.set(key, {
+      principal,
+      expiresAt: Date.now() + CACHE_TTL_MS,
+    });
+    this.evictExpired();
+
+    return principal;
+  }
+
+  private async fetchPrincipal(
+    authorization: string,
+    companyId?: string,
+  ): Promise<Principal> {
+    const baseUrl = this.config.get<string>('userServiceUrl')!;
+    const url = `${baseUrl}/api/internal/policy/resolve`;
+
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        headers: {
+          authorization,
+          ...(companyId ? { 'x-company-id': companyId } : {}),
+        },
+        signal: AbortSignal.timeout(5_000),
+      });
+    } catch (error) {
+      this.logger.error(
+        `Cannot reach user-service at ${url}: ${
+          error instanceof Error ? error.message : 'unknown error'
+        }`,
+      );
+      throw new AppError('UNKNOWN', 'ไม่สามารถตรวจสอบสิทธิ์ได้ในขณะนี้');
+    }
+
+    if (response.status === 401) {
+      throw new AppError('UNAUTHORIZED', 'ต้องเข้าสู่ระบบก่อนใช้งาน');
+    }
+
+    if (response.status === 403) {
+      throw new AppError(
+        'COMPANY_FORBIDDEN',
+        'ไม่มีสิทธิ์เข้าถึงข้อมูลของบริษัทนี้',
+      );
+    }
+
+    if (!response.ok) {
+      this.logger.error(`user-service resolve returned ${response.status}`);
+      throw new AppError('UNKNOWN', 'ไม่สามารถตรวจสอบสิทธิ์ได้ในขณะนี้');
+    }
+
+    return (await response.json()) as Principal;
+  }
+
+  /** Keeps the map from growing without bound on a long-running process. */
+  private evictExpired(): void {
+    const now = Date.now();
+
+    for (const [key, entry] of this.cache) {
+      if (entry.expiresAt <= now) this.cache.delete(key);
+    }
+  }
+}
