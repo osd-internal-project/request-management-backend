@@ -123,6 +123,11 @@ permissions" from "waiting for an admin".
 | `GET/PUT /admin/scope-rules` | `admin.role.manage` | `{role_id, resource, scope}` — effective immediately, no deploy (SCOPE-01) | ✅ |
 | `GET/PUT /admin/sensitive-field-rules` | `admin.role.manage` | `{resource, fields[], visible_to_permission}` (SCOPE-04) | ✅ |
 | `GET /internal/policy/resolve` | any signed-in user | how `core-service` resolves a caller without reading identity tables | ✅ |
+| `GET /admin/org-units/:id/members` | `admin.org.manage` | A3 member panel: system roles (with id), effective scope, supervisor, cached Keycloak roles | ✅ |
+| `GET /admin/keycloak/roles` \| `/groups` \| `/users?q=` | `admin.identity.manage` | realm data for the A3 pickers | ✅ |
+| `GET /admin/keycloak/users/:username/identity` | `admin.identity.manage` | that member's realm roles and groups | ✅ |
+| `POST/DELETE /admin/keycloak/users/:username/roles/:role` | `admin.identity.manage` | grant / revoke a realm role. Refuses `realm-management` roles and `realm-admin` — see `KEYCLOAK_ROLE_FORBIDDEN` | ✅ |
+| `PUT/DELETE /admin/keycloak/users/:username/groups/:groupId` | `admin.identity.manage` | group membership | ✅ |
 
 ---
 
@@ -243,6 +248,8 @@ Extensions beyond §11.9, needed by the admin surface:
 | `ROLE_IN_USE` | 409 | a role with holders may be deactivated, not deleted |
 | `ORG_UNIT_CYCLE` | 422 | re-parenting would put a unit under its own descendant |
 | `IDEMPOTENCY_KEY_REUSED` | 409 | same key replayed with a different body |
+| `KEYCLOAK_ADMIN_UNAVAILABLE` | 503 | the Admin API is unreachable, or the service account lacks its `realm-management` roles. A distinct code so the UI can say "not configured" — Keycloak data enriches screen A3, it is never a dependency |
+| `KEYCLOAK_ROLE_FORBIDDEN` | 403 | refusing to grant a role that would confer control of Keycloak itself |
 
 ---
 

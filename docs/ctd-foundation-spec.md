@@ -5,8 +5,13 @@ Source artifact: `CTD Foundation Sprint.html` (Claude artifact
 `2c8d2bf3-2a7a-402f-8439-b3ddcb8db5e8`). This file is the in-repo canonical
 index — every requirement code, what it demands, and how it is accepted.
 
-**Delivery status legend:** ✅ implemented · 🟡 scaffolded (route + permission
-exist, handler pending) · ⬜ not started
+**Delivery status legend:** ✅ implemented *and verified against running code* ·
+🟡 scaffolded (route + permission exist, handler pending) · ⬜ not started
+
+> **Re-audited 25 Aug 2026.** The marks below were previously written from
+> intent rather than from the code, and four S1 requirements were claimed ✅
+> while unimplemented (SCOPE-04, SCOPE-05, AUTH-06, ROLE-03). They have since
+> been built and verified. Do not mark a row ✅ without exercising it.
 
 ---
 
@@ -89,17 +94,19 @@ rather than reading `user-service` tables.
 | **AUTH-03** | Logout clears the app session **and** the Keycloak session (single logout). A disabled account loses access within one access-token lifetime. | Old token rejected after logout; disabled test account dead within 15 min. | ✅ |
 | **AUTH-04** | JIT-provision the profile on first login from token claims. Org placement and supervisor are maintained here by an admin. Unassigned users land in a "รอจัดสังกัด" queue. | A new LDAP user logs in with no manual account creation; changing their unit changes scope and escalation immediately. | ✅ |
 | **AUTH-05** | One user may belong to several companies with one primary; the active company is switchable without re-login. | Switching changes data and permissions at once; single-company users see no switcher. | ✅ |
-| **AUTH-06** | Service accounts (client credentials) for system-to-system calls, scoped per client. | A service account may call only its scoped endpoints; anything else is 403. | ✅ |
+| **AUTH-06** | Service accounts (client credentials) for system-to-system calls, scoped per client. | A service account may call only its scoped endpoints; anything else is 403. | ✅ enforced by `PolicyGuard` + `@ServiceAccountOnly()`, both directions |
 | **AUTH-07** | Record login events: success/failure, time, channel, IP — readable from the admin screen. | Test logins all appear in the log. | ✅ |
 
 **Prerequisite from Infra:** realm/client admin rights on the existing Keycloak,
 corporate SMTP settings, and test accounts covering every role.
 
-> **Verified 24 Aug 2026:** the `crm-frontend` client already accepts
-> `http://localhost:3000/api/auth/callback` and PKCE S256 — Keycloak serves its
-> login page for our authorize URL. Open question C is therefore **not** a
-> blocker for local development. UAT and production redirect URIs still need
-> registering.
+> **Updated 25 Aug 2026.** The realm is now **`enterprise-request`** with the
+> confidential client **`request-form`**, which backs both login and the Admin
+> REST API. Two settings had to be corrected before anything worked:
+> `redirectUris` was `["/*"]` (relative, so the absolute callback was rejected),
+> and the service account held no `realm-management` roles (valid token, 403 on
+> every admin call). Open question C is closed for local development; UAT and
+> production redirect URIs still need registering.
 
 ---
 
@@ -131,7 +138,7 @@ Roles are configuration, never hardcoded.
 |---|---|---|---|
 | **ROLE-01** | Every endpoint declares its required permission and is checked at the backend. No endpoint is open by default. | Calling without the permission is 403, every time; tests cover every endpoint. | ✅ |
 | **ROLE-02** | Admin screen for roles and permissions. A role with holders may be deactivated, never deleted. | A new role can be created and bound with no code change; it takes effect on the next call. | ✅ |
-| **ROLE-03** | Map Keycloak role → system role, per company; re-evaluated on every login/refresh. | Revoking in Keycloak revokes here within one token lifetime, with an audit entry. | ✅ |
+| **ROLE-03** | Map Keycloak role → system role, per company; re-evaluated on every login/refresh. | Revoking in Keycloak revokes here within one token lifetime, with an audit entry. | ✅ realm roles + mappings created by `yarn keycloak:provision`; verified by granting and revoking `team_lead` on a live user |
 | **ROLE-04** | Roles are per company; permissions resolve against the active company only. | A manager in company A acting in company B has no manager rights there. | ✅ |
 | **ROLE-05** | Every permission change is audited: who, what, to whom, when, before → after. | Five sampled changes answer all of those. | ✅ |
 | **ROLE-06** | After login the frontend fetches permissions + scope once and composes the menu from them. | A user without approval rights sees no approval menu and gets 403 if they call it directly. | ✅ |
@@ -155,8 +162,8 @@ Two people with identical permissions may legitimately see different rows.
 | **SCOPE-01** | Scope is configured per (role, resource) from the admin screen. | Changing `own` → `team` changes query results with no deploy. | ✅ |
 | **SCOPE-02** | Enforced in **one** query filter layer — lists, single reads, and dashboard counts share it. No screen writes its own condition. | Out-of-scope access by URL/API gives 404 or 403; summary numbers always agree with the visible rows. | ✅ |
 | **SCOPE-03** | The company boundary is absolute: every query is pinned to the active company except scope `all`. | A company-A user cannot find company-B data by guessing ids; a regression test guards it. | ✅ |
-| **SCOPE-04** | Sensitive fields are declared per resource with the permission that reveals them. Masking happens in the **API response**, not just the UI. | Without the permission the field is absent/masked in the response; with it, the real value. | ✅ |
-| **SCOPE-05** | Opening sensitive data is audited (who saw whose, when) — the hook PDPA builds on later. | Viewing a record with sensitive fields produces a log entry. | ✅ |
+| **SCOPE-04** | Sensitive fields are declared per resource with the permission that reveals them. Masking happens in the **API response**, not just the UI. | Without the permission the field is absent/masked in the response; with it, the real value. | ✅ `SensitiveFieldInterceptor`, registered globally; fields are **deleted**, not nulled |
+| **SCOPE-05** | Opening sensitive data is audited (who saw whose, when) — the hook PDPA builds on later. | Viewing a record with sensitive fields produces a log entry. | ✅ emitted by the interceptor when a field is unmasked |
 | **SCOPE-06** | Anyone in a record's approval chain can always see it, even outside their normal scope; access ends with the case, except their own history. | A cross-department approver can open what awaits them; unrelated records stay invisible. | ✅ |
 
 > **Technical note (§6.2):** `team`/`department` resolve against a precomputed

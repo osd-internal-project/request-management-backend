@@ -9,7 +9,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { Permissions } from '@request-management/share';
+import { Permissions, ServiceAccountOnly } from '@request-management/share';
 import { notImplemented } from '../common/not-implemented';
 
 /**
@@ -113,6 +113,7 @@ export class RequestsController {
   /** REQ-10 / AUTH-06: raised by a system, via a service account. */
   @Post('integrations/requests')
   @Permissions('integration.request.create')
+  @ServiceAccountOnly()
   createFromIntegration(@Body() _body: unknown) {
     return notImplemented('REQ-10');
   }

@@ -69,6 +69,13 @@ export class PrincipalService {
       this.config.get<string>('keycloak.clientId') ?? '',
     );
 
+    // A machine credential is not a person: provisioning one would add it to
+    // the users table and the "รอจัดสังกัด" queue, where an admin would be
+    // invited to assign a team to a robot.
+    if (this.isServiceAccount(payload)) {
+      return this.serviceAccountPrincipal(payload);
+    }
+
     const user = await this.provision(payload, keycloakRoles);
 
     const memberships = await this.org.companiesForUser(user.id);
@@ -102,11 +109,13 @@ export class PrincipalService {
     const roleIds = userRoles.map((userRole) => userRole.roleId);
     const permissions = RolesService.permissionsOf(userRoles);
 
-    const [scopes, sensitiveFieldsVisible, scopeSets] = await Promise.all([
-      this.policy.resolveScopes(roleIds),
-      this.policy.resolveVisibleSensitiveFields(permissions),
-      this.org.scopeSetsFor(user),
-    ]);
+    const [scopes, sensitiveFieldsVisible, sensitiveFieldsAll, scopeSets] =
+      await Promise.all([
+        this.policy.resolveScopes(roleIds),
+        this.policy.resolveVisibleSensitiveFields(permissions),
+        this.policy.listAllSensitiveFieldKeys(),
+        this.org.scopeSetsFor(user),
+      ]);
 
     return {
       userId: user.id,
@@ -124,6 +133,7 @@ export class PrincipalService {
       permissions,
       scopes: scopes,
       sensitiveFieldsVisible,
+      sensitiveFieldsAll,
       isServiceAccount: this.isServiceAccount(payload),
       pendingOrgAssignment: user.orgUnitId === null,
     };
@@ -195,13 +205,63 @@ export class PrincipalService {
       permissions: [] as Permission[],
       scopes: {},
       sensitiveFieldsVisible: [],
+      sensitiveFieldsAll: [],
       isServiceAccount: this.isServiceAccount(payload),
       pendingOrgAssignment: true,
     };
   }
 
-  /** AUTH-06: Keycloak marks client-credentials tokens with this claim. */
+  /**
+   * A principal for a machine credential — no local profile, no company.
+   *
+   * Permissions come from the client's own realm roles rather than a company
+   * role binding, because a service account has no org placement to resolve
+   * against. `PolicyGuard` additionally confines it to `@ServiceAccountOnly()`
+   * endpoints.
+   */
+  private serviceAccountPrincipal(payload: KeycloakJwtPayload): Principal {
+    const username = payload.preferred_username ?? 'service-account';
+
+    return {
+      userId: payload.sub,
+      keycloakId: payload.sub,
+      username,
+      displayName: username,
+      email: null,
+      companies: [],
+      activeCompanyId: '',
+      orgUnitId: null,
+      supervisorUserId: null,
+      teamOrgUnitIds: [],
+      departmentOrgUnitIds: [],
+      roles: [],
+      permissions: keycloakRolesOf(
+        payload,
+        typeof payload['client_id'] === 'string' ? payload['client_id'] : '',
+      ) as Principal['permissions'],
+      scopes: {},
+      sensitiveFieldsVisible: [],
+      sensitiveFieldsAll: [],
+      isServiceAccount: true,
+      pendingOrgAssignment: false,
+    };
+  }
+
+  /**
+   * AUTH-06: is this a client-credentials token rather than a person?
+   *
+   * Keycloak emits the claim as `client_id` (snake_case) and names the
+   * principal `service-account-<clientId>`. An earlier version checked a
+   * camelCase `clientId` that Keycloak never sends, so this always returned
+   * false and the service-account boundary was never actually enforced —
+   * requests were only refused later, by the permission check, which happened
+   * to 403 for unrelated reasons.
+   */
   private isServiceAccount(payload: KeycloakJwtPayload): boolean {
-    return typeof payload['clientId'] === 'string' && !payload.email;
+    const username = payload.preferred_username ?? '';
+    return (
+      typeof payload['client_id'] === 'string' ||
+      username.startsWith('service-account-')
+    );
   }
 }

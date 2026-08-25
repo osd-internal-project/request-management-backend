@@ -73,6 +73,12 @@ export class PolicyService {
    * SCOPE-04: which sensitive fields this permission set unmasks. Anything not
    * listed stays masked in the API response, not merely hidden in the UI.
    */
+  /** Every declared sensitive field as `resource.field` — what to mask against. */
+  async listAllSensitiveFieldKeys(option?: TxOption): Promise<string[]> {
+    const rules = await this.sensitiveFields.findAll(option);
+    return rules.map((rule) => `${rule.resource}.${rule.field}`);
+  }
+
   async resolveVisibleSensitiveFields(
     permissions: readonly Permission[],
     option?: TxOption,

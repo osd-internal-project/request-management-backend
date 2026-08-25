@@ -4,13 +4,17 @@ import {
   AppError,
   AUTHENTICATED_KEY,
   PERMISSIONS_KEY,
+  SERVICE_ACCOUNT_ONLY_KEY,
   PolicyGuard,
   Principal,
   PUBLIC_KEY,
   setPrincipal,
 } from '@request-management/share';
 
-function principalWith(permissions: string[]): Principal {
+function principalWith(
+  permissions: string[],
+  isServiceAccount = false,
+): Principal {
   return {
     userId: 'u_1',
     keycloakId: 'kc_1',
@@ -27,7 +31,8 @@ function principalWith(permissions: string[]): Principal {
     permissions: permissions as Principal['permissions'],
     scopes: {},
     sensitiveFieldsVisible: [],
-    isServiceAccount: false,
+    sensitiveFieldsAll: [],
+    isServiceAccount,
     pendingOrgAssignment: false,
   };
 }
@@ -110,6 +115,45 @@ describe('ROLE-01 PolicyGuard', () => {
     const guard = new PolicyGuard(reflectorReturning({}));
 
     expect(() => guard.canActivate(contextFor(principalWith([])))).toThrow(
+      expect.objectContaining({ code: 'FORBIDDEN' }),
+    );
+  });
+});
+
+/**
+ * AUTH-06 — the flag used to be computed and never enforced, so a machine
+ * credential could drive the admin screens and a person could post as an
+ * integration.
+ */
+describe('AUTH-06 service-account boundary', () => {
+  const integration = {
+    [PERMISSIONS_KEY]: ['integration.request.create'],
+    [SERVICE_ACCOUNT_ONLY_KEY]: true,
+  };
+
+  it('lets a service account call an integration endpoint', () => {
+    const guard = new PolicyGuard(reflectorReturning(integration));
+    const principal = principalWith(['integration.request.create'], true);
+
+    expect(guard.canActivate(contextFor(principal))).toBe(true);
+  });
+
+  it('refuses a person on an integration endpoint', () => {
+    const guard = new PolicyGuard(reflectorReturning(integration));
+    const principal = principalWith(['integration.request.create'], false);
+
+    expect(() => guard.canActivate(contextFor(principal))).toThrow(
+      expect.objectContaining({ code: 'FORBIDDEN' }),
+    );
+  });
+
+  it('refuses a service account everywhere else, even with the permission', () => {
+    const guard = new PolicyGuard(
+      reflectorReturning({ [PERMISSIONS_KEY]: ['admin.role.manage'] }),
+    );
+    const principal = principalWith(['admin.role.manage'], true);
+
+    expect(() => guard.canActivate(contextFor(principal))).toThrow(
       expect.objectContaining({ code: 'FORBIDDEN' }),
     );
   });

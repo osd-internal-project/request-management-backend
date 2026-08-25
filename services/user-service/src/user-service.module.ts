@@ -1,10 +1,12 @@
 import { Module } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import {
   CompanyGuard,
   PolicyGuard,
   PrismaModule,
+  SENSITIVE_READ_RECORDER,
+  SensitiveFieldInterceptor,
 } from '@request-management/share';
 import { UserServiceController } from './user-service.controller';
 import { UserServiceService } from './user-service.service';
@@ -14,6 +16,7 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { KeycloakAdminModule } from './keycloak-admin/keycloak-admin.module';
 import { OrgModule } from './org/org.module';
 import { PolicyModule } from './policy/policy.module';
+import { PolicyService } from './policy/policy.service';
 import { PrincipalGuard } from './principal/principal.guard';
 import { PrincipalModule } from './principal/principal.module';
 import { RolesModule } from './roles/roles.module';
@@ -57,6 +60,10 @@ import configs from './configs';
     { provide: APP_GUARD, useClass: PrincipalGuard },
     { provide: APP_GUARD, useClass: CompanyGuard },
     { provide: APP_GUARD, useClass: PolicyGuard },
+    // SCOPE-04: strips fields the caller may not see from the response body.
+    { provide: APP_INTERCEPTOR, useClass: SensitiveFieldInterceptor },
+    // SCOPE-05: the interceptor records an unmasked read through this.
+    { provide: SENSITIVE_READ_RECORDER, useExisting: PolicyService },
   ],
 })
 export class UserServiceModule {}

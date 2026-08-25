@@ -7,6 +7,7 @@ import {
   AUTHENTICATED_KEY,
   PERMISSIONS_KEY,
   PUBLIC_KEY,
+  SERVICE_ACCOUNT_ONLY_KEY,
 } from './policy.decorators';
 
 /**
@@ -36,6 +37,25 @@ export class PolicyGuard implements CanActivate {
 
     if (!principal) {
       throw new AppError('UNAUTHORIZED', 'ต้องเข้าสู่ระบบก่อนใช้งาน');
+    }
+
+    // AUTH-06 — enforced in both directions before permissions are considered.
+    const serviceAccountOnly =
+      this.reflector.getAllAndOverride<boolean>(
+        SERVICE_ACCOUNT_ONLY_KEY,
+        targets,
+      ) ?? false;
+
+    if (serviceAccountOnly && !principal.isServiceAccount) {
+      throw new AppError('FORBIDDEN', 'endpoint นี้สำหรับระบบภายในเท่านั้น', [
+        { field: 'principal', reason: 'not a service account' },
+      ]);
+    }
+
+    if (principal.isServiceAccount && !serviceAccountOnly) {
+      throw new AppError('FORBIDDEN', 'บัญชีบริการเรียก endpoint นี้ไม่ได้', [
+        { field: 'principal', reason: 'service account outside its scope' },
+      ]);
     }
 
     const required = this.reflector.getAllAndOverride<Permission[]>(

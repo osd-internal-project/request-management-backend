@@ -8,7 +8,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { Permissions } from '@request-management/share';
+import { Permissions, ServiceAccountOnly } from '@request-management/share';
 import { notImplemented } from '../common/not-implemented';
 
 /**
@@ -98,6 +98,7 @@ export class ApprovalMatrixAdminController {
 export class ApprovalIntegrationController {
   @Post()
   @Permissions('integration.approval.create')
+  @ServiceAccountOnly()
   create(@Body() _body: unknown) {
     return notImplemented('APV-07');
   }

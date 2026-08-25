@@ -182,7 +182,10 @@ export class KeycloakAdminService {
 
   /** Realm roles currently granted to a user. */
   listUserRoles(userId: string): Promise<KeycloakRole[]> {
-    return this.call<KeycloakRole[]>('get', `/users/${userId}/role-mappings/realm`);
+    return this.call<KeycloakRole[]>(
+      'get',
+      `/users/${userId}/role-mappings/realm`,
+    );
   }
 
   async grantRealmRole(userId: string, roleName: string): Promise<void> {

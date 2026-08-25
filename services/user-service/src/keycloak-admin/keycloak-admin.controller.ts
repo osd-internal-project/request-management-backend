@@ -10,7 +10,11 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { AppError, CurrentPrincipal, Permissions } from '@request-management/share';
+import {
+  AppError,
+  CurrentPrincipal,
+  Permissions,
+} from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import { AuditService } from '../audit/audit.service';
 import { AuditEvent } from '../audit/audit-events';

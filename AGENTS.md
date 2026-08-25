@@ -56,8 +56,31 @@ Data access goes through repositories extending `BaseRepository`, provided by
 the feature module that owns them — never `PrismaService` directly from a
 service class.
 
-`libs/share` is consumed as built `dist`, so it compiles first. `make` encodes
-that ordering; don't bypass it.
+`libs/share` is consumed as TypeScript **source** — no build step, no ordering.
+See "Build traps" below for the four config pieces that make that work.
+
+## Identity and Keycloak
+
+**The Keycloak admin token never leaves `KeycloakAdminService`.** Nothing else
+in the codebase calls `/admin/realms/…`, and no endpoint returns that token.
+
+**Every identity write is audited** (SUP-04) — `identity.*` events, through the
+existing `AuditService`.
+
+**Escalation is refused, not discouraged.** `admin.identity.manage` administers
+*this system's* identities. It must never become a route to administering
+Keycloak: the assign endpoints reject `realm-management` roles and
+`realm-admin` outright. Without that guard an application admin could promote
+themselves to full Keycloak administrator in a realm shared with other
+projects.
+
+**Keycloak roles grant nothing until they are mapped.** `yarn keycloak:provision`
+creates the realm roles and seeds `keycloak_role_mappings`; a fresh environment
+that skips it has every user resolving to no roles at all.
+
+**The org tree lives in this database** (D-08), not in Keycloak groups. It is
+the source of truth for supervisors, which drives data scope, approval step 1,
+and escalation — none of which a Keycloak group can express.
 
 ## Build traps (each of these has bitten once)
 
@@ -115,7 +138,10 @@ message text.
 
 ## Current state
 
-**S1 is implemented** (AUTH, ROLE, SCOPE, SUP-04). **S2 and S3 are scaffolded**:
+**S1 is implemented and re-audited against the code (25 Aug 2026)** — AUTH,
+ROLE, SCOPE, SUP-04, including the four requirements that were previously
+claimed done but were not: SCOPE-04 masking, SCOPE-05 read auditing, AUTH-06
+service-account scoping, and ROLE-03 role mapping. **S2 and S3 are scaffolded**:
 routes and permissions are declared and appear in the OpenAPI, but handlers
 throw `501` naming their requirement. The domain rules most at risk of drifting
 are already written and unit-tested:
