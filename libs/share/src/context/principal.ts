@@ -49,6 +49,14 @@ export interface Principal {
   readonly scopes: Readonly<Record<string, ScopeLevel>>;
   /** Sensitive fields this caller may see unmasked (SCOPE-04). */
   readonly sensitiveFieldsVisible: readonly string[];
+  /**
+   * Every field declared sensitive, as `resource.field`.
+   *
+   * The interceptor masks `sensitiveFieldsAll − sensitiveFieldsVisible`. Both
+   * lists are needed: knowing only what a caller *may* see cannot tell you
+   * what to hide, since an ordinary field would then look like a withheld one.
+   */
+  readonly sensitiveFieldsAll: readonly string[];
 
   /** True when the caller is a service account rather than a person. */
   readonly isServiceAccount: boolean;

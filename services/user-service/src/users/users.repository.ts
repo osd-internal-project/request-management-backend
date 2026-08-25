@@ -131,7 +131,6 @@ export class UsersRepository extends BaseRepository<PrismaService['user']> {
       orgUnitId?: string | null;
       supervisorUserId?: string | null;
       primaryCompanyId?: string | null;
-      updatedBy?: string;
     },
     option?: TxOption,
   ): Promise<User> {

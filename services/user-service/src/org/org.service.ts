@@ -291,7 +291,6 @@ export class OrgService {
           ...(dto.primary_company_id
             ? { primaryCompanyId: dto.primary_company_id }
             : {}),
-          updatedBy: actor.userId,
         },
         option,
       );
