@@ -12,6 +12,7 @@ import {
 import { CoreServiceController } from './core-service.controller';
 import { CoreServiceService } from './core-service.service';
 import { ApprovalsModule } from './approvals/approvals.module';
+import { BiModule } from './bi/bi.module';
 import { HealthModule } from './health/health.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PrincipalModule } from './principal/principal.module';
@@ -44,6 +45,7 @@ import configs from './configs';
     ApprovalsModule,
     SlaModule,
     NotificationsModule,
+    BiModule,
   ],
   controllers: [CoreServiceController],
   providers: [

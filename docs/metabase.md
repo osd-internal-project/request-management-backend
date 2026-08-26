@@ -73,6 +73,21 @@ docker compose -f infra/metabase/docker-compose.yml up -d
 | ใกล้ครบกำหนดใน 24 ชม. | ตาราง | `SELECT request_no, type_code, due_at FROM reporting.sla_clocks WHERE state = 'running' AND due_at BETWEEN now() AND now() + interval '24 hours' ORDER BY due_at` |
 | คอขวด: เวลาเฉลี่ยระหว่างขั้น ต่อประเภท | ตาราง/heatmap | `SELECT type_code, event_type, round(avg(hours_since_previous)::numeric,1) AS avg_hours FROM reporting.request_events WHERE hours_since_previous IS NOT NULL GROUP BY 1,2 ORDER BY 3 DESC` |
 
+## ฝังเข้าเมนูของระบบ (ใช้ login ของระบบ ไม่ต้อง login Metabase ซ้ำ)
+
+ระบบเสิร์ฟเมนู BI ที่ `GET /bi/menu` (core-service) ตามหลัก ROLE-06 — เมนูประกอบจาก permission:
+
+- `report.dashboard.read` → เห็นรายการแดชบอร์ดพร้อม **embed URL แบบ signed อายุ 10 นาที** เอาไปใส่ `<iframe>` ได้เลย (seed ให้ role ผู้จัดการฝ่าย / ผู้บริหาร / ผู้ตรวจสอบ)
+- `admin.bi.manage` → ได้ `settings_url` ลิงก์เข้า Metabase สำหรับตั้งค่า (seed ให้ role ผู้ดูแลระบบ)
+
+ตั้งค่าครั้งเดียว:
+
+1. Metabase: Admin → Settings → **Embedding** → เปิด Static embedding แล้วคัดลอก secret key
+2. เปิด embedding รายแดชบอร์ด: หน้า dashboard → Sharing → Embed → Publish (ทั้ง 3 ชุด)
+3. เติมใน `.env` ของ backend: `METABASE_SITE_URL`, `METABASE_EMBED_SECRET`, `METABASE_DASHBOARD_REQUEST/APPROVAL/SLA` (เลข id จาก URL ของแดชบอร์ด)
+
+การควบคุมสิทธิ์อยู่ที่ระบบเราทั้งหมด: PolicyGuard ตัดสินก่อน แล้วค่อยเซ็น token — token หมดอายุเองใน 10 นาที และผู้ใช้ทั่วไปไม่มีบัญชี Metabase เลย
+
 ## กติกา
 
 - **ห้ามต่อ Metabase ด้วย role อื่นนอกจาก `metabase_ro`** และห้าม grant อะไรเพิ่มให้ role นี้นอก schema `reporting`

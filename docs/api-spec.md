@@ -160,6 +160,7 @@ permissions" from "waiting for an admin".
 | `POST /requests/{id}/resume` | `request.hold` | on_hold only; clock resumes owing the same remaining hours | 🟡 |
 | `POST /requests/{id}/complete` | `request.complete` | | 🟡 |
 | `GET /reports/request-bottleneck` | `report.request.read` | REQ-09 | 🟡 |
+| `GET /bi/menu` | `report.dashboard.read` | CD-92: BI menu — dashboards as short-lived signed Metabase embed URLs; `settings_url` only for `admin.bi.manage` | ✅ |
 | `POST /integrations/requests` | `integration.request.create` | service accounts; `"source":"system"` (REQ-10) | 🟡 |
 | `GET/POST /admin/request-types`, `PATCH /admin/request-types/{code}` | `admin.request-type.manage` | edits apply to new requests only | 🟡 |
 

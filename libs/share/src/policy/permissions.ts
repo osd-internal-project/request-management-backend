@@ -22,7 +22,11 @@ export const PERMISSIONS = {
     'request.sensitive.read',
   ],
   approval: ['approval.decide', 'approval.delegate', 'approval.history.read'],
-  report: ['report.request.read'],
+  report: [
+    'report.request.read',
+    /** CD-92: see the embedded Metabase dashboards (menu + signed URLs). */
+    'report.dashboard.read',
+  ],
   user: ['user.read'],
   notification: ['notification.read'],
   audit: ['audit.read'],
@@ -32,6 +36,8 @@ export const PERMISSIONS = {
     'admin.request-type.manage',
     'admin.approval-matrix.manage',
     'admin.sla.manage',
+    /** CD-92: the "Metabase settings" menu item — a link into the BI admin UI. */
+    'admin.bi.manage',
     /**
      * Read and write Keycloak users, realm roles, and groups. Deliberately
      * separate from `admin.role.manage`: this reaches outside our database
