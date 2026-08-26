@@ -16,6 +16,8 @@ export const PERMISSIONS = {
     'request.cancel.any',
     'request.complete',
     'request.return',
+    /** §7.1 amendment: park / resume work waiting on an external factor. */
+    'request.hold',
     /** SCOPE-04: unmasks margin, discount, and other flagged fields. */
     'request.sensitive.read',
   ],

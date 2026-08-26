@@ -22,7 +22,9 @@ import { RequestsService } from './requests.service';
 import {
   CancelRequestDto,
   CreateRequestDto,
+  HoldRequestDto,
   ListRequestsQueryDto,
+  ResumeRequestDto,
   ReturnRequestDto,
   UpdateRequestDto,
 } from './dto/request.dto';
@@ -141,6 +143,28 @@ export class RequestsController {
     @Headers('authorization') authorization: string,
   ) {
     return this.requests.submit(id, principal, authorization);
+  }
+
+  /** §7.1 amendment — parked while waiting on an external factor. */
+  @Post('requests/:id/hold')
+  @Permissions('request.hold')
+  hold(
+    @Param('id') id: string,
+    @Body() dto: HoldRequestDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.requests.hold(id, dto, principal);
+  }
+
+  /** §7.1 amendment — resumes held work; the clock owes what it owed. */
+  @Post('requests/:id/resume')
+  @Permissions('request.hold')
+  resume(
+    @Param('id') id: string,
+    @Body() dto: ResumeRequestDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.requests.resume(id, dto, principal);
   }
 
   /** REQ-05 — cancelled with a reason. Never deleted. */

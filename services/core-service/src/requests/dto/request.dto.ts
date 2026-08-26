@@ -77,6 +77,23 @@ export class CancelRequestDto {
   reason!: string;
 }
 
+/** §7.1 amendment: what external factor the work is waiting on. */
+export class HoldRequestDto {
+  @ApiProperty({ maxLength: 2000, example: 'รอใบเสนอราคาจาก vendor' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(2000)
+  reason!: string;
+}
+
+export class ResumeRequestDto {
+  @ApiPropertyOptional({ maxLength: 2000 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  note?: string;
+}
+
 /**
  * Extends `PageQueryDto` rather than being intersected with it at the call
  * site.

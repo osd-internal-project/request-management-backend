@@ -156,6 +156,8 @@ permissions" from "waiting for an admin".
 | `POST /requests/{id}/return` | `request.return` | needs ≥1 reason code (REQ-04); pauses the clock | 🟡 |
 | `POST /requests/{id}/resubmit` | `request.create` | same number, clock resumes | 🟡 |
 | `POST /requests/{id}/cancel` | `request.cancel.own` / `.any` | reason required (REQ-05) | 🟡 |
+| `POST /requests/{id}/hold` | `request.hold` | §7.1 amendment; in_progress only; reason required; pauses the clock | 🟡 |
+| `POST /requests/{id}/resume` | `request.hold` | on_hold only; clock resumes owing the same remaining hours | 🟡 |
 | `POST /requests/{id}/complete` | `request.complete` | | 🟡 |
 | `GET /reports/request-bottleneck` | `report.request.read` | REQ-09 | 🟡 |
 | `POST /integrations/requests` | `integration.request.create` | service accounts; `"source":"system"` (REQ-10) | 🟡 |

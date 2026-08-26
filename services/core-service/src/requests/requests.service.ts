@@ -25,7 +25,9 @@ import { NotificationsService } from '../notifications/notifications.service';
 import {
   CancelRequestDto,
   CreateRequestDto,
+  HoldRequestDto,
   ListRequestsQueryDto,
+  ResumeRequestDto,
   ReturnRequestDto,
   UpdateRequestDto,
 } from './dto/request.dto';
@@ -352,6 +354,104 @@ export class RequestsService {
           resourceId: id,
           before: { status: before.status },
           after: { status: 'cancelled', reason: dto.reason },
+        },
+        { prisma },
+      );
+
+      return updated;
+    });
+  }
+
+  // --- §7.1 amendment: hold and resume ------------------------------------
+
+  /**
+   * Parks work that is waiting on an external factor. Only `in_progress` can
+   * be held (§7.1 amendment) — a request awaiting approval is somebody's
+   * queue, not an external wait.
+   */
+  async hold(id: string, dto: HoldRequestDto, actor: Principal) {
+    const before = await this.require(id, actor);
+
+    assertTransition(before.status, 'on_hold');
+
+    return this.transactions.execute(async (prisma) => {
+      const updated = await prisma.request.update({
+        where: { id },
+        data: { status: 'on_hold', updatedBy: actor.userId },
+      });
+
+      await this.recordEvent(prisma, {
+        requestId: id,
+        type: 'request.held',
+        actor,
+        fromStatus: before.status,
+        toStatus: 'on_hold',
+        data: { reason: dto.reason },
+      });
+
+      // SUP-01: the wait is on an external factor, not the receiving team —
+      // same reasoning as the pause on return.
+      await this.sla.pause(prisma, id);
+
+      await this.audit.record(
+        {
+          eventType: 'request.held',
+          companyId: before.companyId,
+          ...auditActor(actor),
+          resourceType: 'request',
+          resourceId: id,
+          before: { status: before.status },
+          after: { status: 'on_hold', reason: dto.reason },
+        },
+        { prisma },
+      );
+
+      return updated;
+    });
+  }
+
+  /** Resumes held work; the clock owes the same remaining hours as before. */
+  async resume(id: string, dto: ResumeRequestDto, actor: Principal) {
+    const before = await this.require(id, actor);
+
+    // `submitted → in_progress` is also a legal transition, so the state
+    // machine alone would let /resume double as a start button. It only
+    // undoes a hold.
+    if (before.status !== 'on_hold') {
+      throw new AppError(
+        'REQ_STATE_INVALID',
+        'ไม่สามารถเปลี่ยนสถานะคำขอจากสถานะปัจจุบันได้',
+        [{ field: 'status', reason: `${before.status} → in_progress` }],
+      );
+    }
+    assertTransition(before.status, 'in_progress');
+
+    return this.transactions.execute(async (prisma) => {
+      const updated = await prisma.request.update({
+        where: { id },
+        data: { status: 'in_progress', updatedBy: actor.userId },
+      });
+
+      await this.recordEvent(prisma, {
+        requestId: id,
+        type: 'request.resumed',
+        actor,
+        fromStatus: before.status,
+        toStatus: 'in_progress',
+        data: { note: dto.note ?? null },
+      });
+
+      await this.sla.resume(prisma, id);
+
+      await this.audit.record(
+        {
+          eventType: 'request.resumed',
+          companyId: before.companyId,
+          ...auditActor(actor),
+          resourceType: 'request',
+          resourceId: id,
+          before: { status: before.status },
+          after: { status: 'in_progress' },
         },
         { prisma },
       );
