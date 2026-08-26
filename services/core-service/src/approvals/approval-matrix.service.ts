@@ -1,5 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { AppError, auditActor, AuditWriter } from '@request-management/share';
+import {
+  AppError,
+  auditActor,
+  AuditWriter,
+  resolveTargetCompany,
+} from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import type { ApprovalMatrix, Prisma } from '@prisma/client';
 import { MatrixTier } from './approval-chain';
@@ -69,12 +74,17 @@ export class ApprovalMatrixService {
 
     assertValidTiers(tiers);
 
+    // The company comes from the body so one administrator can configure any
+    // company they belong to from a single screen (§16 A1 draws a tab each) —
+    // which is precisely why it has to be checked rather than trusted.
+    const companyId = resolveTargetCompany(actor, dto.company_id);
+
     const version =
-      (await this.matrices.latestVersion(dto.company_id, dto.subject_type)) + 1;
+      (await this.matrices.latestVersion(companyId, dto.subject_type)) + 1;
 
     const published = await this.matrices.create({
       data: {
-        companyId: dto.company_id,
+        companyId,
         subjectType: dto.subject_type,
         currency: dto.currency ?? 'THB',
         version,
@@ -89,7 +99,7 @@ export class ApprovalMatrixService {
 
     await this.audit.record({
       eventType: 'approval.matrix.published',
-      companyId: dto.company_id,
+      companyId,
       ...auditActor(actor),
       resourceType: 'approval_matrix',
       resourceId: published.id,

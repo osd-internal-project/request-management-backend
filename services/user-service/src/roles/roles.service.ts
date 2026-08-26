@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import {
   ALL_PERMISSIONS,
   AppError,
+  assertCompanyMember,
   Permission,
   permissionModule,
   Principal,
@@ -92,6 +93,11 @@ export class RolesService implements OnModuleInit {
     dto: CreateRoleDto,
     actor: Principal,
   ): Promise<RoleWithPermissions> {
+    // An absent company means a role every company shares, so this validates
+    // only what was named — without it an admin could define a role inside a
+    // company they have no membership in.
+    if (dto.company_id) assertCompanyMember(actor, dto.company_id);
+
     return this.transactions.execute(async (prisma) => {
       const option = { prisma };
 
@@ -263,6 +269,8 @@ export class RolesService implements OnModuleInit {
     dto: ReplaceKeycloakMappingsDto,
     actor: Principal,
   ): Promise<KeycloakRoleMapping[]> {
+    assertCompanyMember(actor, dto.company_id);
+
     return this.transactions.execute(async (prisma) => {
       const option = { prisma };
 

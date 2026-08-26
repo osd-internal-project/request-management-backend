@@ -15,6 +15,7 @@ import {
   CurrentPrincipal,
   PageQueryDto,
   Permissions,
+  resolveTargetCompany,
   SensitiveResource,
   ServiceAccountOnly,
 } from '@request-management/share';
@@ -142,7 +143,7 @@ export class ApprovalMatrixAdminController {
     @Query('subject_type') subjectType?: string,
   ) {
     return this.matrix.list(
-      companyId ?? principal.activeCompanyId,
+      resolveTargetCompany(principal, companyId),
       subjectType,
     );
   }

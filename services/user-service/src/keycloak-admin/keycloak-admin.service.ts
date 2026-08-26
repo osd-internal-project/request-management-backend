@@ -169,9 +169,17 @@ export class KeycloakAdminService {
     return users[0] ?? null;
   }
 
-  searchUsers(query: string, max = 50): Promise<KeycloakUser[]> {
+  searchUsers(query: string, first = 0, max = 50): Promise<KeycloakUser[]> {
     const search = query ? `search=${encodeURIComponent(query)}&` : '';
-    return this.call<KeycloakUser[]>('get', `/users?${search}max=${max}`);
+    return this.call<KeycloakUser[]>(
+      'get',
+      `/users?${search}first=${first}&max=${max}`,
+    );
+  }
+
+  countUsers(query: string): Promise<number> {
+    const search = query ? `?search=${encodeURIComponent(query)}` : '';
+    return this.call<number>('get', `/users/count${search}`);
   }
 
   // --- realm roles -------------------------------------------------------

@@ -12,7 +12,11 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { CurrentPrincipal, Permissions } from '@request-management/share';
+import {
+  CurrentPrincipal,
+  Permissions,
+  resolveTargetCompany,
+} from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import { RolesService } from './roles.service';
 import {
@@ -42,7 +46,9 @@ export class RolesController {
     @CurrentPrincipal() principal: Principal,
     @Query('company_id') companyId?: string,
   ) {
-    return this.rolesService.listRoles(companyId ?? principal.activeCompanyId);
+    return this.rolesService.listRoles(
+      resolveTargetCompany(principal, companyId),
+    );
   }
 
   @Post('roles')
@@ -92,7 +98,7 @@ export class RolesController {
     return this.rolesService.revokeRole(
       userId,
       roleId,
-      companyId ?? principal.activeCompanyId,
+      resolveTargetCompany(principal, companyId),
       principal,
     );
   }
@@ -104,7 +110,7 @@ export class RolesController {
     @Query('company_id') companyId?: string,
   ) {
     return this.rolesService.listMappings(
-      companyId ?? principal.activeCompanyId,
+      resolveTargetCompany(principal, companyId),
     );
   }
 

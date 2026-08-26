@@ -8,7 +8,9 @@ import {
   toSkipTake,
 } from '@request-management/share';
 import type { Prisma, User } from '@prisma/client';
+import { KeycloakAdminService, KeycloakUser } from '../keycloak-admin/keycloak-admin.service';
 import { UsersRepository } from './users.repository';
+import { SearchKeycloakUsersDto } from './dto/search-keycloak-users.dto';
 import { SearchUsersDto } from './dto/search-users.dto';
 
 /** The columns on `users` that scope resolution keys off. */
@@ -20,7 +22,10 @@ const USER_SCOPE_COLUMNS = {
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly usersRepository: UsersRepository) {}
+  constructor(
+    private readonly usersRepository: UsersRepository,
+    private readonly keycloak: KeycloakAdminService,
+  ) {}
 
   /**
    * §11.2 `GET /users` — the picker used when choosing a colleague.
@@ -78,6 +83,20 @@ export class UsersService {
     const [rows, total] = await Promise.all([
       this.usersRepository.search(where, toSkipTake(query)),
       this.usersRepository.countWhere(where),
+    ]);
+
+    return paginated(rows, query, total);
+  }
+
+  /** Read-only Keycloak directory, exposed only to callers with `user.read`. */
+  async searchKeycloak(
+    query: SearchKeycloakUsersDto,
+  ): Promise<Paginated<KeycloakUser>> {
+    const { skip, take } = toSkipTake(query);
+    const search = query.q?.trim() ?? '';
+    const [rows, total] = await Promise.all([
+      this.keycloak.searchUsers(search, skip, take),
+      this.keycloak.countUsers(search),
     ]);
 
     return paginated(rows, query, total);

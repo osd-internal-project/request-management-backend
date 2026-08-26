@@ -12,6 +12,7 @@ import {
   Authenticated,
   CurrentPrincipal,
   Permissions,
+  resolveTargetCompany,
   ServiceAccountAllowed,
 } from '@request-management/share';
 import type { Principal } from '@request-management/share';
@@ -38,7 +39,7 @@ export class OrgController {
     @Query('company_id') companyId?: string,
   ) {
     return this.orgService.listUnitsWithDetail(
-      companyId ?? principal.activeCompanyId,
+      resolveTargetCompany(principal, companyId),
     );
   }
 
@@ -52,7 +53,7 @@ export class OrgController {
   ) {
     return this.orgService.listMembers(
       id,
-      companyId ?? principal.activeCompanyId,
+      resolveTargetCompany(principal, companyId),
     );
   }
 
@@ -116,7 +117,7 @@ export class OrgInternalController {
   ) {
     return this.approvalContext.resolve(
       userId ?? principal.userId,
-      companyId ?? principal.activeCompanyId,
+      resolveTargetCompany(principal, companyId),
     );
   }
 }

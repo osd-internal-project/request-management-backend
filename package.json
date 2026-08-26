@@ -19,7 +19,7 @@
     "start:core-service": "yarn workspace @request-management/core-service start",
     "start:core-service:dev": "yarn workspace @request-management/core-service start:dev",
     "start:core-service:debug": "yarn workspace @request-management/core-service start:debug",
-    "test": "yarn workspace @request-management/user-service test && yarn workspace @request-management/core-service test",
+    "test": "yarn workspace @request-management/share test && yarn workspace @request-management/user-service test && yarn workspace @request-management/core-service test",
     "test:e2e:user-service": "yarn workspace @request-management/user-service test:e2e",
     "test:e2e:core-service": "yarn workspace @request-management/core-service test:e2e",
     "lint": "eslint \"{libs,services}/**/*.ts\" --fix",
