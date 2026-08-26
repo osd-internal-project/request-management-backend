@@ -3,46 +3,73 @@ import {
   Controller,
   Delete,
   Get,
+  Headers,
   Param,
   Patch,
   Post,
   Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { Permissions, ServiceAccountOnly } from '@request-management/share';
+import {
+  CurrentPrincipal,
+  Permissions,
+  SensitiveResource,
+  ServiceAccountOnly,
+} from '@request-management/share';
+import type { Principal } from '@request-management/share';
 import { notImplemented } from '../common/not-implemented';
+import { RequestsService } from './requests.service';
+import {
+  CancelRequestDto,
+  CreateRequestDto,
+  ListRequestsQueryDto,
+  ReturnRequestDto,
+  UpdateRequestDto,
+} from './dto/request.dto';
 
 /**
- * §11.4 group C — Platform Request. Delivered in **S3**.
+ * §11.4 group C — Platform Request (S3).
  *
- * Routes and permissions are final; the bodies are not. See
- * `request-state-machine.ts` for the transitions these will enforce.
+ * Screens: §16 หน้าที่ 2 (งานค้างของฉัน), หน้าที่ 3 (ยื่นคำขอ),
+ * หน้าที่ 4 (รายละเอียด + ไทม์ไลน์). State transitions live in
+ * `request-state-machine.ts`.
  */
 @ApiTags('requests')
 @ApiBearerAuth()
 @Controller()
 export class RequestsController {
+  constructor(private readonly requests: RequestsService) {}
+
+  /** REQ-01: types are configuration — the form comes from `formSchema`. */
   @Get('request-types')
   @Permissions('request.create')
-  listTypes() {
-    return notImplemented('REQ-01');
+  listTypes(@CurrentPrincipal() principal: Principal) {
+    return this.requests.listTypes(principal);
   }
 
   @Post('requests')
   @Permissions('request.create')
-  createDraft(@Body() _body: unknown) {
-    return notImplemented('REQ-01');
+  create(
+    @Body() dto: CreateRequestDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.requests.create(dto, principal);
   }
 
   @Patch('requests/:id')
   @Permissions('request.create')
-  updateDraft(@Param('id') _id: string, @Body() _body: unknown) {
-    return notImplemented('REQ-01');
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateRequestDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.requests.update(id, dto, principal);
   }
 
   @Post('requests/:id/attachments')
   @Permissions('request.create')
-  addAttachment(@Param('id') _id: string) {
+  addAttachment(@Param('id') _id: string, @Body() _body: unknown) {
+    // REQ-03: needs the object-storage backend named in open question G.
     return notImplemented('REQ-03');
   }
 
@@ -55,52 +82,81 @@ export class RequestsController {
     return notImplemented('REQ-03');
   }
 
-  /** Issues the request number and starts the SLA clock (REQ-02, SUP-01). */
+  /**
+   * REQ-02/03 + APV-02 + SUP-01 — issues the number, computes the chain and
+   * starts the clock. Missing fields or documents stop it before anything is
+   * reserved.
+   */
   @Post('requests/:id/submit')
   @Permissions('request.create')
-  submit(@Param('id') _id: string) {
-    return notImplemented('REQ-02');
+  submit(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+    @Headers('authorization') authorization: string,
+  ) {
+    return this.requests.submit(id, principal, authorization);
   }
 
+  /** REQ-08 — งานค้างของฉัน (§16 หน้าที่ 2). */
   @Get('requests')
   @Permissions('request.read')
-  list(@Query() _query: unknown) {
-    return notImplemented('REQ-08');
+  list(
+    @CurrentPrincipal() principal: Principal,
+    @Query() query: ListRequestsQueryDto,
+  ) {
+    return this.requests.list(principal, query);
   }
 
+  /** Margin is stripped for callers without `request.sensitive.read`. */
   @Get('requests/:id')
   @Permissions('request.read')
-  findOne(@Param('id') _id: string) {
-    return notImplemented('REQ-07');
+  @SensitiveResource('request:DSC')
+  findOne(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.requests.findOne(id, principal);
   }
 
+  /** REQ-07 — the append-only timeline behind §16 หน้าที่ 4. */
   @Get('requests/:id/events')
   @Permissions('request.read')
-  timeline(@Param('id') _id: string) {
-    return notImplemented('REQ-07');
+  events(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.requests.events(id, principal);
   }
 
+  /** REQ-04 — bounced back with a reason from the type's standard list. */
   @Post('requests/:id/return')
   @Permissions('request.return')
-  returnToRequester(@Param('id') _id: string, @Body() _body: unknown) {
-    return notImplemented('REQ-04');
+  returnToRequester(
+    @Param('id') id: string,
+    @Body() dto: ReturnRequestDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.requests.returnToRequester(id, dto, principal);
   }
 
   @Post('requests/:id/resubmit')
   @Permissions('request.create')
-  resubmit(@Param('id') _id: string) {
-    return notImplemented('REQ-04');
+  resubmit(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+    @Headers('authorization') authorization: string,
+  ) {
+    return this.requests.submit(id, principal, authorization);
   }
 
+  /** REQ-05 — cancelled with a reason. Never deleted. */
   @Post('requests/:id/cancel')
   @Permissions('request.cancel.own')
-  cancel(@Param('id') _id: string, @Body() _body: unknown) {
-    return notImplemented('REQ-05');
+  cancel(
+    @Param('id') id: string,
+    @Body() dto: CancelRequestDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.requests.cancel(id, dto, principal);
   }
 
   @Post('requests/:id/complete')
   @Permissions('request.complete')
-  complete(@Param('id') _id: string, @Body() _body: unknown) {
+  complete(@Param('id') _id: string) {
     return notImplemented('REQ-08');
   }
 
@@ -119,15 +175,17 @@ export class RequestsController {
   }
 }
 
-/** §11.4 request-type administration (screen A2). */
+/** §11.4 request-type administration (§16 A2). */
 @ApiTags('admin/request-types')
 @ApiBearerAuth()
 @Controller('admin/request-types')
-export class RequestTypesAdminController {
+export class RequestTypeAdminController {
+  constructor(private readonly requests: RequestsService) {}
+
   @Get()
   @Permissions('admin.request-type.manage')
-  list() {
-    return notImplemented('REQ-01');
+  list(@CurrentPrincipal() principal: Principal) {
+    return this.requests.listTypes(principal);
   }
 
   @Post()

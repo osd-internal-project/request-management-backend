@@ -82,6 +82,48 @@ that skips it has every user resolving to no roles at all.
 the source of truth for supervisors, which drives data scope, approval step 1,
 and escalation — none of which a Keycloak group can express.
 
+## หน้าจอ: อ่าน §16 ก่อนเขียนเสมอ
+
+**ทุกหน้าจอต้องอ้าง `docs/ctd-foundation-spec.md` §16** ซึ่งระบุเมนู คอลัมน์
+ตาราง ป้ายสถานะ และข้อความจริงของทั้ง 8 หน้า อย่าออกแบบหน้าจอจาก requirement
+text — §16 มีของจริงอยู่แล้ว
+
+**ตรวจความครบของเอกสารด้วยการนับหัวข้อ ไม่ใช่ไล่รหัส** — สารบัญต้นฉบับมี 16
+หัวข้อ `grep -c '^## ' docs/ctd-foundation-spec.md` ต้องได้ 16 การ audit ที่ไล่
+เฉพาะรหัส requirement มองไม่เห็น §16 เพราะ mockup ไม่มีรหัส และนั่นคือเหตุผลที่
+มันหายไปโดยไม่มีใครจับได้หลายรอบ
+
+**ไฟล์ artifact ที่แนบมาคือเปลือก** เนื้อหาจริงอยู่ใน
+`<artifact>_files/saved_resource.html` อ่านเปลือกจะได้แต่ CSS กับ script
+
+## Approval Engine (S2)
+
+**Never reimplement the chain rules.** `approval-chain.ts` encodes §8.1 —
+including the rule that nobody approves their own request. `matrix-rules.ts`
+validates a ladder before publish. Both are unit-tested; a second copy of
+either will drift.
+
+**A published matrix version is immutable.** There is no update route. Editing
+means publishing version N+1, which is what lets a case in flight keep the
+ceilings it was routed under.
+
+**A delegation is resolved at decision time, not at submit.** That is what makes
+work *already sitting* in a queue re-route to whoever is covering. The history
+keeps both names: `approverUserId` is who the chain named, `decidedByUserId` is
+who acted.
+
+**Batch decisions are one transaction each.** An approver acting on twenty
+cases must not lose nineteen good decisions because the twentieth was already
+decided.
+
+**A service account has no `User` row.** Use `auditActor(principal)` for audit
+entries — writing its Keycloak subject to `actorId` violates a foreign key and
+fails the whole transaction.
+
+**Masking is registered in both services.** `SensitiveFieldInterceptor` runs in
+core-service as well as user-service, and masks nested containers (`payload`,
+`form_data`) — a sensitive field is almost never at the top level.
+
 ## Build traps (each of these has bitten once)
 
 **yarn only — never npm.** `yarn.lock` is the lockfile and `packageManager` is
@@ -141,7 +183,9 @@ message text.
 **S1 is implemented and re-audited against the code (25 Aug 2026)** — AUTH,
 ROLE, SCOPE, SUP-04, including the four requirements that were previously
 claimed done but were not: SCOPE-04 masking, SCOPE-05 read auditing, AUTH-06
-service-account scoping, and ROLE-03 role mapping. **S2 and S3 are scaffolded**:
+service-account scoping, and ROLE-03 role mapping. **S2 (Approval Engine) is delivered
+and verified live** — APV-01…05 and APV-07 complete, SUP-03 in-app complete
+(email blocked on SMTP). **S3 is scaffolded**:
 routes and permissions are declared and appear in the OpenAPI, but handlers
 throw `501` naming their requirement. The domain rules most at risk of drifting
 are already written and unit-tested:

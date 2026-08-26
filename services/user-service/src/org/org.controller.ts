@@ -8,9 +8,15 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { CurrentPrincipal, Permissions } from '@request-management/share';
+import {
+  Authenticated,
+  CurrentPrincipal,
+  Permissions,
+  ServiceAccountAllowed,
+} from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import { OrgService } from './org.service';
+import { ApprovalContextService } from './approval-context.service';
 import {
   AssignUserOrgDto,
   CreateOrgUnitDto,
@@ -83,5 +89,34 @@ export class OrgController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.orgService.assignUser(id, dto, principal);
+  }
+}
+
+/**
+ * The identity facts core-service needs to build an approval chain.
+ *
+ * Internal, and `@Authenticated()` rather than permission-gated for the same
+ * reason as `/internal/policy/resolve`: it discloses nothing the caller could
+ * not already infer, and gating it on a business permission would mean the
+ * approval engine needed one.
+ */
+@ApiTags('internal')
+@ApiBearerAuth()
+@Controller('internal/org')
+export class OrgInternalController {
+  constructor(private readonly approvalContext: ApprovalContextService) {}
+
+  @Get('approval-context')
+  @Authenticated()
+  @ServiceAccountAllowed()
+  resolve(
+    @CurrentPrincipal() principal: Principal,
+    @Query('user_id') userId?: string,
+    @Query('company_id') companyId?: string,
+  ) {
+    return this.approvalContext.resolve(
+      userId ?? principal.userId,
+      companyId ?? principal.activeCompanyId,
+    );
   }
 }

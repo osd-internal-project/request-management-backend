@@ -5,6 +5,7 @@ export const PERMISSIONS_KEY = 'ctd:permissions';
 export const AUTHENTICATED_KEY = 'ctd:authenticated';
 export const PUBLIC_KEY = 'ctd:public';
 export const SERVICE_ACCOUNT_ONLY_KEY = 'ctd:service-account-only';
+export const SERVICE_ACCOUNT_ALLOWED_KEY = 'ctd:service-account-allowed';
 
 /**
  * Declares the permissions an endpoint requires. The caller must hold **all**
@@ -36,3 +37,17 @@ export const Public = () => SetMetadata(PUBLIC_KEY, true);
  */
 export const ServiceAccountOnly = () =>
   SetMetadata(SERVICE_ACCOUNT_ONLY_KEY, true);
+
+/**
+ * Permits **both** a person and a service account.
+ *
+ * Reserved for infrastructure endpoints that sit underneath the business
+ * surface — principal resolution and the org lookups the approval engine needs.
+ * A service account has to be able to resolve itself, or AUTH-06 would forbid
+ * the very integrations it exists to make possible.
+ *
+ * Not a general-purpose escape hatch: business endpoints stay on one side of
+ * the line or the other.
+ */
+export const ServiceAccountAllowed = () =>
+  SetMetadata(SERVICE_ACCOUNT_ALLOWED_KEY, true);

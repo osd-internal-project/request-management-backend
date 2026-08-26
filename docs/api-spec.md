@@ -136,6 +136,15 @@ permissions" from "waiting for an admin".
 | Endpoint | Permission | Requirement | Status |
 |---|---|---|---|
 | `GET /request-types` | `request.create` | REQ-01 | 🟡 |
+
+> **Group D approval endpoints are delivered.** `GET /approvals/inbox` (includes
+> work covered under a delegation), `GET /approvals/{caseId}` (margin masked
+> unless the caller holds `request.sensitive.read`), `POST
+> /approvals/{caseId}/decide` (rejection requires a reason),
+> `POST /approvals/batch-decide` (per-case results),
+> `GET/POST/DELETE /approvals/delegations`, `GET /approvals/history`,
+> `GET/POST /admin/approval-matrix` (publish-only; no update path), and
+> `POST /integrations/approval-cases` (service account only).
 | `POST /requests` | `request.create` | draft; no number yet | 🟡 |
 | `PATCH /requests/{id}` | `request.create` | draft/returned only, else `409 REQ_STATE_INVALID` | 🟡 |
 | `POST /requests/{id}/attachments` | `request.create` | REQ-03 | 🟡 |
@@ -248,6 +257,9 @@ Extensions beyond §11.9, needed by the admin surface:
 | `ROLE_IN_USE` | 409 | a role with holders may be deactivated, not deleted |
 | `ORG_UNIT_CYCLE` | 422 | re-parenting would put a unit under its own descendant |
 | `IDEMPOTENCY_KEY_REUSED` | 409 | same key replayed with a different body |
+| `APV_MATRIX_NOT_FOUND` | 422 | no published, effective ladder for this company and subject type |
+| `APV_NOT_YOUR_TURN` | 409 | you are not the current approver, and hold no delegation from them |
+| `APV_NO_SUBDELEGATION` | 422 | a delegate may not delegate onward (APV-03) |
 | `KEYCLOAK_ADMIN_UNAVAILABLE` | 503 | the Admin API is unreachable, or the service account lacks its `realm-management` roles. A distinct code so the UI can say "not configured" — Keycloak data enriches screen A3, it is never a dependency |
 | `KEYCLOAK_ROLE_FORBIDDEN` | 403 | refusing to grant a role that would confer control of Keycloak itself |
 

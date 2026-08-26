@@ -5,22 +5,29 @@ import { RolesModule } from '../roles/roles.module';
 import { UsersModule } from '../users/users.module';
 import { CompanyRepository } from './company.repository';
 import { OrgClosureRepository } from './org-closure.repository';
-import { OrgController } from './org.controller';
+import { OrgController, OrgInternalController } from './org.controller';
+import { ApprovalContextService } from './approval-context.service';
 import { OrgService } from './org.service';
 import { OrgUnitRepository } from './org-unit.repository';
 import { UserCompanyRepository } from './user-company.repository';
 
 @Module({
   imports: [UsersModule, RolesModule, PolicyModule],
-  controllers: [OrgController],
+  controllers: [OrgController, OrgInternalController],
   providers: [
     OrgService,
+    ApprovalContextService,
     CompanyRepository,
     OrgUnitRepository,
     OrgClosureRepository,
     UserCompanyRepository,
     PrismaTransactionService,
   ],
-  exports: [OrgService, CompanyRepository, UserCompanyRepository],
+  exports: [
+    OrgService,
+    ApprovalContextService,
+    CompanyRepository,
+    UserCompanyRepository,
+  ],
 })
 export class OrgModule {}

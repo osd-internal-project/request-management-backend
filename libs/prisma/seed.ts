@@ -321,6 +321,9 @@ async function seedApprovalMatrix(companyId: string) {
       currency: 'THB',
       version: 1,
       effectiveFrom: new Date('2026-01-01T00:00:00Z'),
+      // Published, or `findEffective` would never return it and no case could
+      // ever be routed — a draft matrix is deliberately inert.
+      publishedAt: new Date('2026-01-01T00:00:00Z'),
       tiers: [
         { upto: '100000.00', chain: ['team_lead'] },
         { upto: '1000000.00', chain: ['team_lead', 'cfo'] },
@@ -331,6 +334,136 @@ async function seedApprovalMatrix(companyId: string) {
   });
 
   console.log('  approval matrix: v1 with PLACEHOLDER ceilings (see §15.2 A)');
+}
+
+/**
+ * The two pilot request types (§1). Configuration, not code — REQ-01 requires
+ * that the 3rd..30th type needs no migration and no deploy, so everything
+ * about a type lives in these columns.
+ *
+ * ขอส่วนลด carries an amount and exercises the full T1/T2 approval ladder;
+ * ส่งต่อโอกาสการขาย has no monetary dimension, so `selectTier` returns the
+ * lowest tier and it runs step 1 only. Between them they cover both shapes the
+ * approval engine has to handle.
+ */
+async function seedRequestTypes(companies: { id: string; code: string }[]) {
+  const osdRoot = await prisma.orgUnit.findFirst({
+    where: { companyId: companies[0].id, code: 'PRICING' },
+  });
+  const sales = await prisma.orgUnit.findFirst({
+    where: { companyId: companies[0].id, code: 'SALES' },
+  });
+
+  const types = [
+    {
+      code: 'DSC',
+      name: 'ขอส่วนลด',
+      receiverOrgUnitId: osdRoot?.id ?? null,
+      formSchema: {
+        type: 'object',
+        required: ['customer_name', 'deal_value', 'discount_pct', 'reason'],
+        properties: {
+          customer_name: { type: 'string', title: 'ลูกค้า' },
+          deal_value: { type: 'number', title: 'มูลค่าดีล (บาท)', minimum: 0 },
+          discount_pct: {
+            type: 'number',
+            title: 'ส่วนลด (%)',
+            minimum: 0,
+            maximum: 100,
+          },
+          // Sensitive (SCOPE-04) — the seeded request:DSC rules name this and
+          // discount_pct, so only request.sensitive.read sees the values.
+          est_margin_pct: {
+            type: 'number',
+            title: 'มาร์จิ้นโดยประมาณ (%)',
+            'x-sensitive': true,
+          },
+          reason: { type: 'string', title: 'เหตุผล', maxLength: 2000 },
+        },
+      },
+      requiredDocs: [
+        { code: 'QUOTE_DRAFT', name: 'ใบเสนอราคาฉบับร่าง' },
+      ],
+      returnReasonCodes: [
+        { code: 'DOC_INCOMPLETE', label: 'เอกสารไม่ครบ' },
+        { code: 'PRICE_UNCLEAR', label: 'ราคา/ส่วนลดไม่ชัดเจน' },
+        { code: 'NEED_APPROVAL_ABOVE', label: 'ต้องขออนุมัติระดับสูงกว่า' },
+        { code: 'OTHER', label: 'อื่น ๆ' },
+      ],
+      // The amount field is what APV-02 measures against the matrix ceilings.
+      approvalPolicy: { mode: 'standard_chain', amount_field: 'deal_value' },
+      slaHours: 24,
+    },
+    {
+      code: 'LEAD',
+      name: 'ส่งต่อโอกาสการขาย',
+      receiverOrgUnitId: sales?.id ?? null,
+      formSchema: {
+        type: 'object',
+        required: ['customer_name', 'to_team', 'reason'],
+        properties: {
+          customer_name: { type: 'string', title: 'ลูกค้า' },
+          to_team: { type: 'string', title: 'ส่งต่อให้ทีม' },
+          contact: { type: 'string', title: 'ผู้ติดต่อ' },
+          reason: { type: 'string', title: 'เหตุผล', maxLength: 2000 },
+        },
+      },
+      requiredDocs: [],
+      returnReasonCodes: [
+        { code: 'INFO_INCOMPLETE', label: 'ข้อมูลไม่ครบ' },
+        { code: 'WRONG_TEAM', label: 'ส่งผิดทีม' },
+        { code: 'OTHER', label: 'อื่น ๆ' },
+      ],
+      // No amount_field: selectTier takes the lowest tier, so step 1 only.
+      approvalPolicy: { mode: 'standard_chain', amount_field: null },
+      slaHours: 8,
+    },
+  ];
+
+  for (const type of types) {
+    const saved = await prisma.requestType.upsert({
+      where: { code: type.code },
+      update: {
+        name: type.name,
+        receiverOrgUnitId: type.receiverOrgUnitId,
+        formSchema: type.formSchema,
+        requiredDocs: type.requiredDocs,
+        returnReasonCodes: type.returnReasonCodes,
+        approvalPolicy: type.approvalPolicy,
+        slaHours: type.slaHours,
+        active: true,
+        updatedBy: 'seed',
+      },
+      create: {
+        code: type.code,
+        name: type.name,
+        receiverOrgUnitId: type.receiverOrgUnitId,
+        formSchema: type.formSchema,
+        requiredDocs: type.requiredDocs,
+        returnReasonCodes: type.returnReasonCodes,
+        approvalPolicy: type.approvalPolicy,
+        slaHours: type.slaHours,
+        active: true,
+        createdBy: 'seed',
+      },
+    });
+
+    // Available in every company (D-11); a company can deactivate its own.
+    for (const company of companies) {
+      await prisma.requestTypeCompany.upsert({
+        where: {
+          requestTypeId_companyId: {
+            requestTypeId: saved.id,
+            companyId: company.id,
+          },
+        },
+        update: {},
+        create: { requestTypeId: saved.id, companyId: company.id },
+      });
+    }
+  }
+
+  console.log(`  request types: ${types.map((t) => t.code).join(', ')}`);
 }
 
 async function main() {
@@ -350,6 +483,7 @@ async function main() {
 
   await seedOrgTree(osd.id);
   await seedSensitiveFields();
+  await seedRequestTypes(companies);
   await seedApprovalMatrix(osd.id);
 
   console.log('Done.');

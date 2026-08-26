@@ -42,6 +42,29 @@ export class UserRoleRepository extends BaseRepository<
     ) as Promise<UserRoleWithRole[]>;
   }
 
+  /**
+   * Everyone holding a role code in one company (ROLE-04).
+   *
+   * Ordered oldest-grant-first so the answer is stable between calls — an
+   * approval chain that named a different CFO on each submit would be
+   * impossible to reason about afterwards.
+   */
+  async holdersOfRole(
+    companyId: string,
+    roleCode: string,
+    option?: TxOption,
+  ): Promise<string[]> {
+    const client = option?.prisma ?? this.prisma;
+
+    const rows = await client.userRole.findMany({
+      where: { companyId, role: { code: roleCode } },
+      orderBy: { grantedAt: 'asc' },
+      select: { userId: true },
+    });
+
+    return rows.map((row) => row.userId);
+  }
+
   grant(
     input: {
       userId: string;

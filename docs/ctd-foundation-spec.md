@@ -1,13 +1,38 @@
 # CTD Foundation Sprint — requirement index
 
 Connect the Dot · Requirement Specification **v1.3** (24 Aug 2026).
-Source artifact: `CTD Foundation Sprint.html` (Claude artifact
-`2c8d2bf3-2a7a-402f-8439-b3ddcb8db5e8`). This file is the in-repo canonical
-index — every requirement code, what it demands, and how it is accepted.
+
+**แหล่งที่มา:** `CTD Foundation Sprint_files/saved_resource.html` — เนื้อหาจริง
+ของ artifact ไฟล์ `CTD Foundation Sprint.html` ที่มักถูกแนบมาคือ **เปลือก**
+(artifact shell) ที่มีแต่ `<iframe>` ชี้ไปยังไฟล์ข้างบน อ่านเปลือกจะได้แต่ CSS
+กับ script ไม่ได้เนื้อหา
+
+> **สารบัญต้นฉบับมี 16 หัวข้อ — ไฟล์นี้ต้องมีครบ 16**
+> ตรวจด้วย `grep -c '^## ' docs/ctd-foundation-spec.md` ต้องได้ 16
+>
+> v1.3 ระบุที่หัวเอกสารว่า *"สถานะ เพิ่ม Mockup หน้าจอ (หัวข้อ 16)"* — การ
+> extract ครั้งแรกตัด §16 ทิ้ง ทำให้หน้าจอทุกหน้าถูกสร้างจากการเดาอยู่นาน
+> จึงต้องนับหัวข้อทุกครั้งที่แตะไฟล์นี้
+
+ไฟล์นี้คือดัชนีหลักใน repo ครอบคลุม **ทั้งข้อกำหนด (requirement code) และ
+หน้าจอ (§16)** — การตรวจความครบถ้วนด้วยการไล่เฉพาะรหัส `AUTH-*`/`REQ-*` มองไม่
+เห็น §16 เพราะ mockup ไม่มีรหัส
 
 **Delivery status legend:** ✅ implemented *and verified against running code* ·
 🟡 scaffolded (route + permission exist, handler pending) · ⬜ not started
 
+> **S3 core delivered 26 Aug 2026** — a request now runs submit → number →
+> chain → approve → close entirely in the database. Verified by querying
+> `requests`, `approval_cases`, `approval_steps`, `sla_clocks` and
+> `request_events`, not by a screen rendering. Still open in S3: REQ-06,
+> REQ-09, REQ-10, SUP-02, and attachment upload (needs the storage backend of
+> open question G).
+>
+> **S2 delivered 25 Aug 2026** — the Approval Engine is implemented and
+> verified against a running system, driven through APV-07. Two items remain
+> partial and are marked 🟡 rather than ✅: SUP-03's email half cannot be
+> verified without SMTP, and APV-06 has no export yet.
+>
 > **Re-audited 25 Aug 2026.** The marks below were previously written from
 > intent rather than from the code, and four S1 requirements were claimed ✅
 > while unimplemented (SCOPE-04, SCOPE-05, AUTH-06, ROLE-03). They have since
@@ -194,14 +219,14 @@ impossible through every channel, including direct API calls.
 
 | Code | Requirement | Status |
 |---|---|---|
-| **REQ-01** | Request types are configuration: receiving team, form schema, required documents, approval route, SLA, enabled companies — editable without deploy. A running request keeps the config it was submitted under. | 🟡 |
-| **REQ-02** | Number issued at submit, `{PREFIX}-{TYPE}-{YYYYMM}-{SEQ}`, sequence resets monthly, unique under concurrency. | 🟡 |
-| **REQ-03** | Required fields and documents block submit, naming what is missing. | 🟡 |
-| **REQ-04** | Returns pick from a standard reason list (plus free text) so bounce causes are reportable. | 🟡 |
-| **REQ-05** | Cancel by the requester or someone above them, with a reason. Never deleted. | 🟡 |
+| **REQ-01** | Request types are configuration: receiving team, form schema, required documents, approval route, SLA, enabled companies — editable without deploy. A running request keeps the config it was submitted under. | ✅ types are configuration; form comes from `formSchema` |
+| **REQ-02** | Number issued at submit, `{PREFIX}-{TYPE}-{YYYYMM}-{SEQ}`, sequence resets monthly, unique under concurrency. | ✅ `OSD-DSC-202608-0042`; 20 concurrent submits → 20 unique numbers, no gaps |
+| **REQ-03** | Required fields and documents block submit, naming what is missing. | ✅ blocks submit naming the field/document; nothing reserved on failure |
+| **REQ-04** | Returns pick from a standard reason list (plus free text) so bounce causes are reportable. | ✅ reason must come from the type's list; clock pauses |
+| **REQ-05** | Cancel by the requester or someone above them, with a reason. Never deleted. | ✅ cancelled with a reason, row retained |
 | **REQ-06** | Requests can reference an originating entity (`ref_type`/`ref_id`) and prefill from it. | 🟡 |
-| **REQ-07** | Append-only timeline of every status change: time, actor, before → after. | 🟡 |
-| **REQ-08** | One screen for "my requests" and "awaiting my approval" across all types, with filters and due badges. | 🟡 |
+| **REQ-07** | Append-only timeline of every status change: time, actor, before → after. | ✅ append-only `request_events`, verified across a full cycle |
+| **REQ-08** | One screen for "my requests" and "awaiting my approval" across all types, with filters and due badges. | ✅ `view=mine|involved` through `buildScopeWhere` |
 | **REQ-09** | Bottleneck report: real time per step by type, approver, period — counting only time the clock ran. | 🟡 |
 | **REQ-10** | API for systems to raise requests via a service account; marked as system-sourced. | 🟡 |
 | **REQ-11** | Both pilot types configured and running end to end on UAT. | ⬜ |
@@ -228,13 +253,13 @@ org chart cannot submit. Requests with no amount use step 1 only.
 
 | Code | Requirement | Status |
 |---|---|---|
-| **APV-01** | Central matrix of ceilings and approvers per (company, subject type, amount band + currency), versioned with effective dates. Published versions are immutable. | 🟡 |
-| **APV-02** | The chain is computed by the system at submit; the requester cannot choose approvers; nobody approves their own request (team lead escalates to their own supervisor, a named office is skipped). | 🟡 |
-| **APV-03** | Temporary delegation with a date window; pending and new work routes to the delegate; history names both people; no sub-delegation. | 🟡 |
-| **APV-04** | Batch approval for cases sharing a reference, with per-case results and logs. | 🟡 |
-| **APV-05** | A decision is bound to a data snapshot; a material edit voids the approval and forces a new route. | 🟡 |
-| **APV-06** | Authority-usage report, exportable, restricted by permission. | 🟡 |
-| **APV-07** | Any module may raise an approval case with no Platform Request behind it; the result is published as an event. | 🟡 |
+| **APV-01** | Central matrix of ceilings and approvers per (company, subject type, amount band + currency), versioned with effective dates. Published versions are immutable. | ✅ versioned + immutable; malformed ladders refused at publish |
+| **APV-02** | The chain is computed by the system at submit; the requester cannot choose approvers; nobody approves their own request (team lead escalates to their own supervisor, a named office is skipped). | ✅ verified live on all three tiers, incl. self-approval skip |
+| **APV-03** | Temporary delegation with a date window; pending and new work routes to the delegate; history names both people; no sub-delegation. | ✅ pending work re-routes; history names both; no sub-delegation |
+| **APV-04** | Batch approval for cases sharing a reference, with per-case results and logs. | ✅ per-case results — one failure does not roll back the rest |
+| **APV-05** | A decision is bound to a data snapshot; a material edit voids the approval and forces a new route. | ✅ `snapshotHash` binding; voided on a material edit |
+| **APV-06** | Authority-usage report, exportable, restricted by permission. | 🟡 history endpoint delivered; export not yet |
+| **APV-07** | Any module may raise an approval case with no Platform Request behind it; the result is published as an event. | ✅ raises a case with no request behind it (service account only) |
 
 Approval is a click with an audit trail (D-16). The approval screen must show
 requester, amount, reason, attachments, and margin (if permitted) before the
@@ -250,9 +275,9 @@ full versions can replace without touching Request or Approval.
 
 | Code | Requirement | Status |
 |---|---|---|
-| **SUP-01** | SLA clock per request type (configurable). Starts at submit, pauses on return, resumes on resubmit. One holiday calendar per company. | 🟡 |
+| **SUP-01** | SLA clock per request type (configurable). Starts at submit, pauses on return, resumes on resubmit. One holiday calendar per company. | ✅ starts at submit, pauses on return, **resumes** on resubmit (deadline pushed by the pause) |
 | **SUP-02** | Overdue escalation to the owner plus one level up, recorded. | 🟡 |
-| **SUP-03** | In-app + email (corporate SMTP) for: awaiting approval, returned, decision made, nearing due, overdue. Every send logged. | 🟡 |
+| **SUP-03** | In-app + email (corporate SMTP) for: awaiting approval, returned, decision made, nearing due, overdue. Every send logged. | 🟡 in-app delivered and logged; **email unverified — no SMTP (open question B)** |
 | **SUP-04** | One append-only audit log for permissions, request status, approvals, sensitive reads, and admin configuration; searchable by actor, event type, period. No update or delete API exists. | ✅ |
 
 ---
@@ -330,3 +355,151 @@ See [`open-questions.md`](./open-questions.md).
 foundation work could start before the business modules. All SLA figures,
 amounts, and seed roles are proposals to start development against and must be
 confirmed with the process owners before go-live (D-09).*
+
+---
+
+## 16. Mockup หน้าจอแต่ละ Process
+
+ภาพหน้าจอ **8 หน้า** ครอบคลุม flow ผู้ใช้ (หน้าที่ 1–5) และงานตั้งค่าของผู้ดูแล
+(A1–A3) ข้อมูลในภาพ (ชื่อคน เลขคำขอ วงเงิน) เป็นข้อมูลสมมติชุดเดียวกันทุกหน้า
+เพื่อให้ไล่ตาม flow ได้
+
+> **นี่คือหัวข้อที่ v1.3 เพิ่มเข้ามา** และเป็นหัวข้อที่หายไปจากไฟล์นี้ตั้งแต่การ
+> extract ครั้งแรก ทำให้หน้าจอทั้งหมดถูกสร้างจากการเดา ก่อนเขียนหน้าจอใด ๆ
+> ต้องอ่านหัวข้อนี้ก่อน
+
+### เมนูซ้าย (ทุกหน้า)
+
+```
+งานค้างของฉัน
+ยื่นคำขอใหม่
+รออนุมัติของฉัน        (n)     ← badge จำนวนงานค้าง
+รายงานคอขวด
+ผู้ดูแลระบบ                     ← เฉพาะผู้มีสิทธิ์ admin.*
+  ตารางอำนาจอนุมัติ
+  ประเภทคำขอ
+  ผังทีมและสิทธิ์
+  Audit Log
+```
+
+Header: `บริษัท: OSD` + ตัวสลับบริษัท · กระดิ่งแจ้งเตือนพร้อมจำนวน ·
+ชื่อผู้ใช้ + ทีม (เช่น `สมชาย ก.` / `ทีมขาย Getter 1`)
+
+### หน้าที่ 1 — เข้าสู่ระบบ (SSO) · AUTH-01, AUTH-04
+
+ปุ่มเดียว SSO ผ่าน Keycloak (LDAP ยืนยันตัวตน) **ไม่มีฟอร์มรหัสผ่านในระบบ** ·
+ล็อกอินครั้งแรกระบบสร้างโปรไฟล์อัตโนมัติแล้วเข้าคิวรอจัดสังกัด
+
+### หน้าที่ 2 — งานค้างของฉัน · REQ-08
+
+**หน้าแรกหลังล็อกอิน** แท็บ `คำขอของฉัน · n` / `รออนุมัติของฉัน · n` ข้ามทุก
+ประเภทคำขอ · รายการกรองตาม data scope ที่ backend
+
+- ปุ่ม `ยื่นคำขอใหม่` มุมขวาบน
+- ฟิลเตอร์: ค้นหา `เลขที่ / ลูกค้า / ดีล` · `สถานะ: ทั้งหมด` ·
+  `ประเภท: ทั้งหมด` · checkbox `เฉพาะเกินกำหนด`
+- ตาราง: `เลขที่คำขอ | ประเภท · อ้างอิง | สถานะ | ขั้นปัจจุบัน | ครบกำหนด`
+
+ตัวอย่างแถวจาก mockup:
+
+```
+OSD-DSC-202608-0042   ขอส่วนลด 12.5%              รออนุมัติ   ขั้น 2/2 · CFO           เกิน 3 ชม.
+                      ดีล D-501 · บจก. ตัวอย่าง
+OSD-DSC-202608-0038   ขอส่วนลด 8%                  ตีกลับ      รอฉันแก้ไข · ขาดใบเสนอราคา  นาฬิกาหยุด
+                      ดีล D-497 · บมจ. สยามเน็ต
+OSD-LEAD-202608-0104  ส่งต่อโอกาสการขาย           …
+```
+
+ป้าย SLA มีสามสถานะ: **เกินกำหนด** (`เกิน 3 ชม.`), **ใกล้ครบ** (`เหลือ 5 ชม.`),
+และ **นาฬิกาหยุด** เมื่อคำขอถูกตีกลับ
+
+### หน้าที่ 3 — ยื่นคำขอ (ขอส่วนลด) · REQ-01, REQ-02, REQ-03, APV-02
+
+ฟอร์มมาจาก **form schema ของประเภทคำขอ** ไม่ใช่โค้ด · ยื่นไม่ได้ถ้าฟิลด์/เอกสาร
+บังคับไม่ครบ · **แสดงเส้นทางอนุมัติที่คำนวณจากวงเงินก่อนกดยื่น** · เลขคำขอออก
+ตอนกดยื่น
+
+- แถบสถานะบนสุด: `สถานะ: ร่าง — เลขคำขอจะออกเมื่อกดยื่น`
+- ฟิลด์: `ประเภทคำขอ *` · `อ้างอิงดีล *` · `มูลค่าดีล (THB) *` ·
+  `% ส่วนลดที่ขอ *` · `margin โดยประมาณ` (ฟิลด์อ่อนไหว) · `เหตุผล *`
+- เอกสารแนบบังคับตามประเภท
+
+### หน้าที่ 4 — รายละเอียดคำขอ + ไทม์ไลน์ · REQ-07, SCOPE-04, SUP-02
+
+ไทม์ไลน์ **append-only** ทุกการเปลี่ยนสถานะ รวมการเร่งงานอัตโนมัติ ·
+**margin ถูกปกปิดจากผู้ไม่มีสิทธิ์** (แสดงเป็น `••••••`) · stepper เส้นทาง
+อนุมัติพร้อมเหตุผลที่ได้เส้นทางนี้
+
+- หัวเรื่อง `OSD-DSC-202608-0042 · ขอส่วนลด 12.5%` + `รออนุมัติ · ขั้น 2/2`
+  + ป้าย `เกินกำหนด 3 ชม.`
+- ปุ่ม `ยกเลิกคำขอ`
+- กล่อง **ข้อมูลคำขอ**: `ผู้ยื่น` (ชื่อ · ทีม) · `ยื่นเมื่อ` · `อ้างอิง` ·
+  `มูลค่าดีล` · `% ส่วนลดที่ขอ` · `margin โดยประมาณ` · `เหตุผล` ·
+  `เอกสารแนบ (n)` พร้อมชื่อไฟล์และขนาด
+- กล่อง **ไทม์ไลน์ (บันทึกทุกการเปลี่ยนสถานะ)**
+
+### หน้าที่ 5 — อนุมัติ (มุมมอง CFO) · REQ-04, APV-03, APV-04, APV-05
+
+**คิวเรียงตามความเร่ง** · อนุมัติเป็นชุดของดีลเดียวกัน · **ตีกลับต้องเลือกเหตุผล
+มาตรฐาน ปฏิเสธบังคับใส่ความเห็น** · แบนเนอร์รับมอบอำนาจ · การตัดสินผูกกับ
+snapshot version
+
+เค้าโครงเป็น **two-pane** ไม่ใช่ list + modal:
+
+- **แบนเนอร์รับมอบอำนาจ** (เมื่อกำลังรับมอบอำนาจ):
+  *"คุณกำลังรับมอบอำนาจแทน สมปอง ว. (CFO บริษัท B) ช่วง 21–28 ส.ค. 2569 —
+  ทุกการอนุมัติจะบันทึกว่า 'อนุมัติแทน'"*
+- **ซ้าย — คิว**: `คิวรออนุมัติ · n รายการ` + ปุ่ม `อนุมัติเป็นชุด` + checkbox
+  เลือกหลายรายการ แต่ละแถว: เลขที่ + ป้ายความเร่ง, บรรทัดสรุป
+  (`ขอส่วนลด 12.5% · ดีล D-501 · 800,000 THB`), และ
+  `ยื่นโดย สมชาย ก. · ขั้น 2/2` พร้อมหมายเหตุ `ดีลเดียวกับ 0045` เมื่ออ้างดีลเดียวกัน
+- **ขวา — รายละเอียด**: `มูลค่าดีล` · `% ส่วนลด` ·
+  `margin หลังส่วนลด` พร้อมเกณฑ์ (`18.0% (เกณฑ์ขั้นต่ำ 15%)`) ·
+  `ขั้น 1 หัวหน้าทีมอนุมัติแล้ว`
+
+### A1 — ตารางอำนาจอนุมัติ (ผู้ดูแล) · APV-01, APV-02
+
+เส้นทางมาตรฐาน หัวหน้าทีม → CFO (เกิน T1) → CEO (เกิน T2) · **แยกชุดต่อบริษัท
+ตาม D-18** · **แก้เป็นเวอร์ชันใหม่ ห้ามแก้ทับ** · ตัวเลขวงเงินเป็นค่าสมมติ
+รอฝ่ายการเงินยืนยัน
+
+- แท็บบริษัท: `บริษัท OSD` / `บริษัท B` / `บริษัท C`
+- ตัวเลือก `ประเภทงาน: ขอส่วนลด (request:DSC)`
+- ปุ่ม `สร้างเวอร์ชันใหม่`
+- หัวเวอร์ชัน: `เวอร์ชัน 2 (ปัจจุบัน)` · `มีผลตั้งแต่ 1 มิ.ย. 2569` ·
+  `สกุลเงิน THB · สร้างโดย admin` พร้อมข้อความ
+  **"เวอร์ชันที่ประกาศแล้วแก้ทับไม่ได้ — ต้องสร้างเวอร์ชันใหม่"**
+- ตาราง `ระดับ | ช่วงวงเงิน (THB) | ลำดับชั้นผู้อนุมัติ | ความหมาย`
+
+```
+T0   ≤ 100,000              1 · หัวหน้าทีมของผู้ยื่น            ตรวจสิทธิ์การยื่น จบในทีม
+T1   100,001 – 1,000,000    1 · หัวหน้าทีม → 2 · CFO            เกินเพดานระดับ 1 — เพิ่ม CFO
+T2   > 1,000,000            1 · หัวหน้าทีม → 2 · CFO → 3 · CEO  เกินเพดานระดับ 2
+```
+
+### A2 — ประเภทคำขอ (ผู้ดูแล) · REQ-01
+
+ประเภทคำขอเป็น **ข้อมูลตั้งค่า ไม่ใช่โค้ด**: ฟิลด์ฟอร์ม เอกสารบังคับ เหตุผล
+ตีกลับ SLA และเส้นทางอนุมัติ แก้จากหน้าจอ · **มีผลเฉพาะคำขอใหม่**
+
+- ซ้าย: รายการประเภททั้งหมดพร้อมสถานะ `เปิดใช้` / `ยังไม่เปิด`
+
+```
+ขอส่วนลด              เปิดใช้      DSC  · Sales → Pricing    · SLA 24 ชม.ทำการ
+ส่งต่อโอกาสการขาย      เปิดใช้      LEAD · CRM → Sales        · SLA 4 ชม.ทำการ
+ขอจัดทำ NDA           ยังไม่เปิด   NDA  · ทุกทีม → Legal      · รอ sprint ถัดไป
+ขอ Solution ฯ         ยังไม่เปิด   SOL  · Sales → Pre-Sales   · รอ sprint ถัดไป
+```
+
+- ขวา: `แก้ไข: ขอส่วนลด (DSC)` + ปุ่ม `ปิดใช้งาน` / `บันทึก`
+  - `ชื่อประเภท` · `ทีมผู้รับ` · `SLA (ชั่วโมงทำการ)`
+  - **ฟิลด์ฟอร์ม (form schema)** แต่ละฟิลด์ระบุชนิดและเงื่อนไข:
+    `มูลค่าดีล` (จำนวนเงิน + สกุลเงิน, บังคับ) ·
+    `% ส่วนลดที่ขอ` (ตัวเลข 0–100, บังคับ) ·
+    `margin โดยประมาณ` (ตัวเลข · **ฟิลด์อ่อนไหว** · จำกัดสิทธิ์) ·
+    `เหตุผล` (ข้อความยาว, บังคับ) + ปุ่ม `เพิ่มฟิลด์`
+
+### A3 — ผังทีมและสิทธิ์ (ผู้ดูแล) · AUTH-04, ROLE-03, SCOPE-01
+
+LDAP ใช้ล็อกอินเท่านั้น — **ผังทีม/หัวหน้าดูแลในระบบ** · คิว `รอจัดสังกัด`
+สำหรับผู้ล็อกอินครั้งแรก · **role หลักมาจาก Keycloak, scope ปรับในระบบ**

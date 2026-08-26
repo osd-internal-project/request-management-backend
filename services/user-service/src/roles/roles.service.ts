@@ -71,6 +71,15 @@ export class RolesService implements OnModuleInit {
     return this.roles.findForCompany(companyId);
   }
 
+  /** Who holds a role code in this company — used to resolve approval chains. */
+  holdersOfRole(
+    companyId: string,
+    roleCode: string,
+    option?: TxOption,
+  ): Promise<string[]> {
+    return this.userRoles.holdersOfRole(companyId, roleCode, option);
+  }
+
   rolesForUser(
     userId: string,
     companyId: string,

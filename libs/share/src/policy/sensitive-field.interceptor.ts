@@ -44,6 +44,29 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 }
 
 /**
+ * Containers that hold a record's own field values.
+ *
+ * A sensitive field is rarely at the top level: a request keeps its answers in
+ * `formData`, an approval case keeps the data a decision binds to in
+ * `payload`. Masking only the top level leaves the margin one nesting level
+ * away — visibly handled, actually exposed.
+ *
+ * Both spellings are listed because the two halves of the system disagree:
+ * Prisma hands back `formData`, while the §11.1 API contract serialises
+ * `form_data`. Covering only one is how a field stays masked on one endpoint
+ * and leaks on another.
+ */
+const NESTED_CONTAINERS = [
+  'formData',
+  'form_data',
+  'payload',
+  'typeSnapshot',
+  'type_snapshot',
+  'snapshot',
+  'data',
+];
+
+/**
  * SCOPE-04 — removes sensitive fields the caller may not see, **from the
  * response body**.
  *
@@ -131,11 +154,14 @@ export class SensitiveFieldInterceptor implements NestInterceptor {
 
     for (const field of masked) {
       delete result[field];
-      // Form payloads nest the values the rules name.
-      if (isPlainObject(result.form_data)) {
-        const formData = { ...result.form_data };
-        delete formData[field];
-        result.form_data = formData;
+
+      for (const container of NESTED_CONTAINERS) {
+        const nested = result[container];
+        if (!isPlainObject(nested)) continue;
+
+        const copy = { ...nested };
+        delete copy[field];
+        result[container] = copy;
       }
     }
 
@@ -152,8 +178,14 @@ export class SensitiveFieldInterceptor implements NestInterceptor {
   ): void {
     if (!this.recorder || !visible.length) return;
 
-    const formData = isPlainObject(body.form_data) ? body.form_data : {};
-    const seen = visible.filter((field) => field in body || field in formData);
+    const nested = NESTED_CONTAINERS.map((container) => body[container]).filter(
+      isPlainObject,
+    );
+
+    const seen = visible.filter(
+      (field) =>
+        field in body || nested.some((container) => field in container),
+    );
 
     if (!seen.length) return;
 

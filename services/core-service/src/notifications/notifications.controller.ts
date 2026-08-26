@@ -10,8 +10,15 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { Authenticated, Permissions } from '@request-management/share';
+import {
+  Authenticated,
+  CurrentPrincipal,
+  PageQueryDto,
+  Permissions,
+} from '@request-management/share';
+import type { Principal } from '@request-management/share';
 import { notImplemented } from '../common/not-implemented';
+import { NotificationsService } from './notifications.service';
 
 /**
  * §11.6 group E (notification half) — in-app plus SMTP email, delivered in
@@ -22,24 +29,26 @@ import { notImplemented } from '../common/not-implemented';
 @ApiBearerAuth()
 @Controller('notifications')
 export class NotificationsController {
+  constructor(private readonly notifications: NotificationsService) {}
+
   @Get()
   @Permissions('notification.read')
-  list(@Query('unread') _unread?: string) {
-    return notImplemented('SUP-03');
+  list(@CurrentPrincipal() principal: Principal, @Query() query: PageQueryDto) {
+    return this.notifications.list(principal, query);
   }
 
   @Post(':id/read')
   @Permissions('notification.read')
   @HttpCode(HttpStatus.NO_CONTENT)
-  markRead(@Param('id') _id: string) {
-    return notImplemented('SUP-03');
+  markRead(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.notifications.markRead(id, principal);
   }
 
   @Post('read-all')
   @Permissions('notification.read')
   @HttpCode(HttpStatus.NO_CONTENT)
-  markAllRead() {
-    return notImplemented('SUP-03');
+  markAllRead(@CurrentPrincipal() principal: Principal) {
+    return this.notifications.markAllRead(principal);
   }
 
   /** In-app cannot be switched off; only the email channel is optional. */

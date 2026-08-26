@@ -2,7 +2,7 @@ import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { AppError } from '../errors/app-error';
 import { PUBLIC_KEY } from '../policy/policy.decorators';
-import { getPrincipal, RequestWithPrincipal } from './principal';
+import { getPrincipal, RequestWithPrincipal, setPrincipal } from './principal';
 
 export const COMPANY_HEADER = 'x-company-id';
 
@@ -38,6 +38,21 @@ export class CompanyGuard implements CanActivate {
 
     const requested = request.headers[COMPANY_HEADER];
     if (typeof requested !== 'string' || requested.length === 0) return true;
+
+    /**
+     * AUTH-06: a service account has no company *membership* — it is a system
+     * integration, not a person, and legitimately raises work on behalf of any
+     * company. Its boundary is the client grant plus `@ServiceAccountOnly()`,
+     * which `PolicyGuard` has already confined it to, so membership is the
+     * wrong test here and would simply make integrations impossible.
+     *
+     * It must still name a company: the header becomes its active company, and
+     * every query stays pinned to it exactly as for a person (SCOPE-03).
+     */
+    if (principal.isServiceAccount) {
+      setPrincipal(request, { ...principal, activeCompanyId: requested });
+      return true;
+    }
 
     const isMember = principal.companies.some(
       (company) => company.id === requested,

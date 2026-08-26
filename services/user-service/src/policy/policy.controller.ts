@@ -4,6 +4,7 @@ import {
   Authenticated,
   CurrentPrincipal,
   Permissions,
+  ServiceAccountAllowed,
 } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import { PolicyService } from './policy.service';
@@ -63,6 +64,7 @@ export class PolicyController {
 export class InternalPolicyController {
   @Get('resolve')
   @Authenticated()
+  @ServiceAccountAllowed()
   resolve(@CurrentPrincipal() principal: Principal): Principal {
     return principal;
   }

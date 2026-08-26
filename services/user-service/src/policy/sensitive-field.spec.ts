@@ -111,6 +111,38 @@ describe('SCOPE-04 sensitive field masking', () => {
     expect(result).not.toHaveProperty('discount_pct');
   });
 
+  /**
+   * An approval case binds its decision to `payload`; a request keeps answers
+   * in `form_data`. Masking only the top level would leave the value one
+   * nesting level away — the exact shape of a leak that looks handled.
+   */
+  it('masks inside payload, where an approval case carries them', async () => {
+    const result = (await run(
+      interceptorFor(RESOURCE),
+      contextFor(principalWith([])),
+      { id: 'ap_1', payload: { deal_value: 800000, est_margin_pct: 18 } },
+    )) as { payload: Record<string, unknown> };
+
+    expect(result.payload.deal_value).toBe(800000);
+    expect(result.payload).not.toHaveProperty('est_margin_pct');
+  });
+
+  /**
+   * Prisma returns `formData`; the API contract serialises `form_data`. A
+   * request read leaked the margin because only the snake_case spelling was
+   * covered — so both are tested.
+   */
+  it('masks inside formData, the shape Prisma actually returns', async () => {
+    const result = (await run(
+      interceptorFor(RESOURCE),
+      contextFor(principalWith([])),
+      { id: 'rq_1', formData: { deal_value: 800000, est_margin_pct: 18 } },
+    )) as { formData: Record<string, unknown> };
+
+    expect(result.formData.deal_value).toBe(800000);
+    expect(result.formData).not.toHaveProperty('est_margin_pct');
+  });
+
   it('masks inside form_data, where request payloads actually carry them', async () => {
     const result = (await run(
       interceptorFor(RESOURCE),

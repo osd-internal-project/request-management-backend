@@ -1,8 +1,11 @@
 import { Module } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import {
+  AuditModule,
   CompanyGuard,
+  SENSITIVE_READ_RECORDER,
+  SensitiveFieldInterceptor,
   PolicyGuard,
   PrismaModule,
 } from '@request-management/share';
@@ -15,6 +18,7 @@ import { PrincipalModule } from './principal/principal.module';
 import { RemotePrincipalGuard } from './principal/remote-principal.guard';
 import { RequestsModule } from './requests/requests.module';
 import { SlaModule } from './sla/sla.module';
+import { SensitiveReadAuditRecorder } from './policy/sensitive-read.recorder';
 import configs from './configs';
 
 /**
@@ -33,6 +37,7 @@ import configs from './configs';
       load: [configs],
     }),
     PrismaModule,
+    AuditModule,
     PrincipalModule,
     HealthModule,
     RequestsModule,
@@ -46,6 +51,15 @@ import configs from './configs';
     { provide: APP_GUARD, useClass: RemotePrincipalGuard },
     { provide: APP_GUARD, useClass: CompanyGuard },
     { provide: APP_GUARD, useClass: PolicyGuard },
+    // SCOPE-04: strips fields the caller may not see from the response body.
+    // Registered here as well as in user-service — masking that only one
+    // service performs is not masking.
+    { provide: APP_INTERCEPTOR, useClass: SensitiveFieldInterceptor },
+    SensitiveReadAuditRecorder,
+    {
+      provide: SENSITIVE_READ_RECORDER,
+      useExisting: SensitiveReadAuditRecorder,
+    },
   ],
 })
 export class CoreServiceModule {}

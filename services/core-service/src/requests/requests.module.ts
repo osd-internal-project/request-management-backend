@@ -1,11 +1,28 @@
 import { Module } from '@nestjs/common';
+import { PrismaTransactionService } from '@request-management/share';
 import {
-  RequestTypesAdminController,
   RequestsController,
+  RequestTypeAdminController,
 } from './requests.controller';
+import { RequestsService } from './requests.service';
+import { RequestRepository } from './request.repository';
+import { RequestTypeRepository } from './request-type.repository';
+import { DocNumberService } from './doc-number.service';
+import { ApprovalsModule } from '../approvals/approvals.module';
+import { NotificationsModule } from '../notifications/notifications.module';
+import { SlaModule } from '../sla/sla.module';
 
-/** S3. Repositories and services land here as the handlers are filled in. */
+/** S3 — Platform Request (§16 หน้าที่ 2–4, A2). */
 @Module({
-  controllers: [RequestsController, RequestTypesAdminController],
+  imports: [ApprovalsModule, NotificationsModule, SlaModule],
+  controllers: [RequestsController, RequestTypeAdminController],
+  providers: [
+    RequestsService,
+    RequestRepository,
+    RequestTypeRepository,
+    DocNumberService,
+    PrismaTransactionService,
+  ],
+  exports: [RequestsService],
 })
 export class RequestsModule {}

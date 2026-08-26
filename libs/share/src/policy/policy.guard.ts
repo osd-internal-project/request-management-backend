@@ -7,6 +7,7 @@ import {
   AUTHENTICATED_KEY,
   PERMISSIONS_KEY,
   PUBLIC_KEY,
+  SERVICE_ACCOUNT_ALLOWED_KEY,
   SERVICE_ACCOUNT_ONLY_KEY,
 } from './policy.decorators';
 
@@ -52,7 +53,17 @@ export class PolicyGuard implements CanActivate {
       ]);
     }
 
-    if (principal.isServiceAccount && !serviceAccountOnly) {
+    const serviceAccountAllowed =
+      this.reflector.getAllAndOverride<boolean>(
+        SERVICE_ACCOUNT_ALLOWED_KEY,
+        targets,
+      ) ?? false;
+
+    if (
+      principal.isServiceAccount &&
+      !serviceAccountOnly &&
+      !serviceAccountAllowed
+    ) {
       throw new AppError('FORBIDDEN', 'บัญชีบริการเรียก endpoint นี้ไม่ได้', [
         { field: 'principal', reason: 'service account outside its scope' },
       ]);
