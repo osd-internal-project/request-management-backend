@@ -181,16 +181,25 @@ One engine for all 30 request types, driven by configuration. Two enabled now.
 
 ```
 draft ──submit──▶ submitted ──▶ pending_approval ──▶ approved ──▶ in_progress ──▶ completed
-                      │                  │
-                      │                  └──reject──▶ rejected
-                      └──return──▶ returned ──resubmit──▶ submitted
+                      │                  │                            │  ▲
+                      │                  └──reject──▶ rejected    hold│  │resume
+                      └──return──▶ returned ──resubmit──▶ submitted   ▼  │
+                                                                    on_hold
 
 anything before completed ──cancel (with reason)──▶ cancelled
 ```
 
 The number is issued and the SLA clock starts at **submitted**. The clock pauses
-while the request sits `returned`. Transitions outside this table must be
-impossible through every channel, including direct API calls.
+while the request sits `returned` or `on_hold`. Transitions outside this table
+must be impossible through every channel, including direct API calls.
+
+> **Amendment (26 Aug 2026):** `on_hold` added — a request parked
+> mid-execution waiting on an external factor. Reachable only from
+> `in_progress`; leaves by resuming to `in_progress` or by cancel. Not
+> editable, not terminal, clock paused. Motivated by the interim Excel request
+> logs (`ON_HOLD` status/action), whose backfill must not collapse held work
+> into `in_progress`. Implemented in `request-state-machine.ts` + migration
+> `20260826040000_request_on_hold`.
 
 | Code | Requirement | Status |
 |---|---|---|
