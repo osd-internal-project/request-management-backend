@@ -30,10 +30,10 @@ export class ApprovalContextClient {
   ): Promise<ApprovalContext> {
     const base =
       this.config.get<string>('services.userServiceUrl') ??
-      'http://localhost:3001';
+      'http://localhost:3001/api/v1';
 
     const url =
-      `${base}/api/internal/org/approval-context` +
+      `${base}/internal/org/approval-context` +
       `?user_id=${encodeURIComponent(userId)}` +
       `&company_id=${encodeURIComponent(companyId)}`;
 

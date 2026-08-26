@@ -61,7 +61,7 @@ export class RemotePrincipalService {
     companyId?: string,
   ): Promise<Principal> {
     const baseUrl = this.config.get<string>('userServiceUrl')!;
-    const url = `${baseUrl}/api/internal/policy/resolve`;
+    const url = `${baseUrl}/internal/policy/resolve`;
 
     let response: Response;
     try {
