@@ -128,7 +128,7 @@ export class ApprovalsController {
   }
 }
 
-/** §11.5 authority-matrix administration (screen A4). */
+/** §11.5 authority-matrix administration (§16 A1). */
 @ApiTags('admin/approval-matrix')
 @ApiBearerAuth()
 @Controller('admin/approval-matrix')

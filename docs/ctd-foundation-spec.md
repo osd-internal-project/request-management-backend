@@ -302,9 +302,228 @@ See [`data-model.md`](./data-model.md). Rules that hold throughout:
 
 ## 11. API
 
-See [`api-spec.md`](./api-spec.md) for conventions, and the generated OpenAPI at
-`/api/docs` on each service for the live contract. The spec requires OpenAPI
-**generated from code**, never hand-maintained alongside it.
+The full contract. Every endpoint below is from the source document; anything
+this codebase adds beyond it must be justified in the PR that adds it.
+
+**Deliverable alongside the code:** OpenAPI 3.1 **generated from the code**
+(never hand-written beside it) covering every endpoint here, plus a
+Postman/Bruno collection for QA.
+
+### 11.1 Conventions shared by every endpoint
+
+| | |
+|---|---|
+| Base URL | `/api/v1` — REST + JSON (UTF-8) |
+| Auth | `Authorization: Bearer <access_token>` (Keycloak JWT) on **every** endpoint, no exceptions |
+| Company | `X-Company-Id` on every request; the backend verifies membership or answers `403 COMPANY_FORBIDDEN` |
+| Pagination | `page` (from 1), `page_size` (default 20, max 100) |
+| Sort / filter | `sort=field` or `sort=-field`; filters are query params named after the field |
+| Time | ISO 8601 UTC — `2026-08-24T07:30:00Z` |
+| Money | decimal **string** plus a separate currency field: `{"amount":"150000.00","currency":"THB"}` |
+| Idempotency | every state-changing POST accepts `Idempotency-Key`; replaying a key returns the original result and creates nothing new (NFR-03) |
+
+Every list response uses one envelope:
+
+```json
+{ "data": [ ... ], "page": 1, "page_size": 20, "total": 137 }
+```
+
+Every error uses one shape:
+
+```json
+{ "code": "REQ_DOC_MISSING", "message": "เอกสารบังคับยังไม่ครบ",
+  "details": [ { "field": "attachments", "reason": "ต้องแนบใบเสนอราคาฉบับร่าง" } ] }
+```
+
+| Status | Used when |
+|---|---|
+| 200 / 201 | success / created (201 returns the full resource with its `id`) |
+| 400 | malformed request (unparseable, wrong type) |
+| 401 | missing or expired token |
+| 403 | authenticated but not permitted (permission, or wrong company) |
+| 404 | not found **or outside the caller's data scope** — 404 rather than 403 so existence is not disclosed (SCOPE-02) |
+| 409 | conflicts with current state (transition off the state machine, stale version) |
+| 422 | well-formed but fails a business rule (missing required field or document) |
+
+### 11.2 Group A — Auth & Identity
+
+| Endpoint | Permission | Notes |
+|---|---|---|
+| `GET /auth/me` | any signed-in user | identity + every company they belong to + active company + roles + permissions + scope per resource. The frontend calls this once after login (ROLE-06) |
+| `POST /auth/switch-company` | any signed-in user | `{"company_id"}` — returns the same payload as `/auth/me` for the new company (AUTH-05) |
+| `POST /auth/logout` | any signed-in user | revokes the app session **and** calls Keycloak end-session (AUTH-03) |
+| `GET /users?q=&org_unit_id=` | `user.read` | user search, filtered by scope and active company |
+| `GET`/`POST /admin/org-units`, `PATCH /admin/org-units/{id}` | `admin.org.manage` | `{"name","parent_id","manager_user_id"}` — every write recomputes `org_closure` immediately (AUTH-04) |
+| `PATCH /admin/users/{id}/org` | `admin.org.manage` | `{"org_unit_id","supervisor_user_id","companies":[...]}` |
+| `GET /admin/users/unassigned` | `admin.org.manage` | signed in once but not yet placed — the "รอจัดสังกัด" queue |
+
+`GET /auth/me` response:
+
+```json
+{ "user": { "id": "u_1024", "username": "somchai.k", "display_name": "สมชาย ก.",
+    "email": "somchai.k@company.co.th",
+    "org_unit": { "id": "ou_55", "name": "ทีมขาย Getter 1" },
+    "supervisor": { "id": "u_87", "display_name": "สมหญิง จ." } },
+  "companies": [ { "id": "c_osd", "name": "OSD", "doc_prefix": "OSD", "is_primary": true } ],
+  "active_company_id": "c_osd",
+  "roles": [ "employee", "sales" ],
+  "permissions": [ "request.create", "request.read", "request.cancel.own", "notification.read" ],
+  "scopes": { "request": "own", "approval_case": "own" },
+  "sensitive_fields_visible": [] }
+```
+
+### 11.3 Group B — Roles · Scope · permission configuration (admin)
+
+| Endpoint | Permission | Notes |
+|---|---|---|
+| `GET /admin/permissions` | `admin.role.manage` | the whole catalog, read-only — it is declared in code |
+| `GET`/`POST /admin/roles`, `PATCH /admin/roles/{id}` | `admin.role.manage` | `{"name","description","permissions":[...],"active":true}` · **no delete**, only deactivate (ROLE-02); a role that still has holders accepts only `PATCH active:false` |
+| `POST /admin/users/{id}/roles`, `DELETE /admin/users/{id}/roles/{roleId}` | `admin.role.manage` | `{"role_id","company_id"}` — audited every time (ROLE-05) |
+| `GET`/`PUT /admin/keycloak-role-mappings` | `admin.role.manage` | `{"keycloak_role":"crm-sales","role_id":"r_sales","company_id":"c_osd"}` — re-evaluated on every login/refresh (ROLE-03) |
+| `GET`/`PUT /admin/scope-rules` | `admin.role.manage` | `{"role_id","resource":"request","scope":"team"}` — effective immediately, no deploy (SCOPE-01) |
+| `GET`/`PUT /admin/sensitive-field-rules` | `admin.role.manage` | `{"resource":"request:DSC","fields":["discount_pct","margin_pct"],"visible_to_permission":"request.sensitive.read"}` (SCOPE-04) |
+
+### 11.4 Group C — Request Service
+
+| Endpoint | Permission | Notes |
+|---|---|---|
+| `GET /request-types` | `request.create` | types this user may raise in the active company, **with form schema, required documents and SLA** — the frontend renders the form from this (REQ-01) |
+| `POST /requests` | `request.create` | `{"type_code","form_data":{...},"ref_type","ref_id"}` — a draft. No number yet, freely editable |
+| `PATCH /requests/{id}` | draft owner | `form_data` editable **only** in `draft` and `returned`; anything else is `409 REQ_STATE_INVALID` |
+| `POST /requests/{id}/attachments`, `DELETE .../{attId}` | draft owner | multipart upload, type/size limited by config; deletable only in draft/returned |
+| `POST /requests/{id}/submit` | draft owner | **the point the number is issued**, the SLA clock starts and the approval case opens. Required fields/documents are checked first, else `422` listing what is missing (REQ-02, REQ-03). No supervisor in the org chart → `422 ORG_SUPERVISOR_MISSING` |
+| `GET /requests?view=mine\|involved` | `request.read` | scoped list; filters `status`, `type_code`, `due_before`, `overdue=true` (REQ-08) |
+| `GET /requests/{id}` | `request.read` + scope | full detail + approval chain state + sensitive fields masked by permission; outside scope → 404 |
+| `GET /requests/{id}/events` | `request.read` + scope | the append-only timeline (REQ-07) |
+| `POST /requests/{id}/return` | current receiver/approver | `{"reason_codes":["DOC_INCOMPLETE"],"note"}` — at least one code required (REQ-04) · **the SLA clock stops** |
+| `POST /requests/{id}/resubmit` | owner | from `returned` · **same number, the clock resumes** |
+| `POST /requests/{id}/cancel` | owner (`request.cancel.own`) or `request.cancel.any` | `{"reason"}` required; allowed in any state before `completed` (REQ-05) |
+| `POST /requests/{id}/complete` | the receiving team's owner | `in_progress` → `completed` with an outcome summary |
+| `GET /reports/request-bottleneck` | `report.request.read` | mean/max time per step by type, approver and period — **excluding time the clock was stopped** (REQ-09) |
+| `POST /integrations/requests` | service account, `integration.request.create` | create + submit in one call; the response carries `"source":"system"` (REQ-10, AUTH-06) |
+
+Submitting a discount request:
+
+```
+POST /requests
+{ "type_code": "DSC", "ref_type": "deal", "ref_id": "d_501",
+  "form_data": { "customer_name": "บจก. ตัวอย่าง",
+    "deal_value": {"amount":"800000.00","currency":"THB"},
+    "discount_pct": 12.5, "est_margin_pct": 18.0,
+    "reason": "ลูกค้าเทียบราคาคู่แข่ง" } }
+→ 201 { "id": "rq_9001", "status": "draft", ... }
+
+POST /requests/rq_9001/attachments      (ใบเสนอราคาฉบับร่าง)
+POST /requests/rq_9001/submit
+→ 200 { "id": "rq_9001", "request_no": "OSD-DSC-202608-0042",
+        "status": "pending_approval", "due_at": "2026-08-25T10:00:00Z",
+        "approval": { "case_id": "ac_331", "chain": [
+          { "step": 1, "approver_role": "team_lead",
+            "approver": {"id":"u_87","display_name":"สมหญิง จ."}, "status": "pending" },
+          { "step": 2, "approver_role": "cfo", "status": "waiting" } ] } }
+```
+
+Documents missing:
+
+```json
+→ 422 { "code": "REQ_DOC_MISSING", "message": "เอกสารบังคับยังไม่ครบ",
+        "details": [ { "field": "attachments", "reason": "ใบเสนอราคาฉบับร่าง" } ] }
+```
+
+**Request types (admin)** — `GET`/`POST /admin/request-types`,
+`PATCH /admin/request-types/{code}`, permission `admin.request-type.manage`.
+A whole type is created and edited from the screen (REQ-01):
+
+```json
+{ "code": "DSC", "name": "ขอส่วนลด", "receiver_org_unit_id": "...",
+  "form_schema": { /* JSON Schema */ },
+  "required_docs": [ { "code": "...", "name": "..." } ],
+  "return_reason_codes": [ ... ],
+  "sla": { "hours": 24, "business_hours": true },
+  "approval_policy": { "mode": "standard_chain", "amount_field": "deal_value" },
+  "companies": ["c_osd"], "active": true }
+```
+
+Edits apply to **new requests only** — a request already submitted keeps the
+configuration it was submitted under.
+
+### 11.5 Group D — Approval Service
+
+| Endpoint | Permission | Notes |
+|---|---|---|
+| `GET /approvals/inbox` | `approval.decide` | "รออนุมัติของฉัน" across every type, **including delegated work**, ordered by `due_at`, badged near/over deadline (REQ-08) |
+| `GET /approvals/{caseId}` | in the chain + scope | subject, the snapshot as submitted, every rung with its outcome (SCOPE-06) |
+| `POST /approvals/{caseId}/decide` | current approver (or their delegate) | `{"decision":"approve\|reject\|return","note","snapshot_version"}` · reject/return require `note` · stale `snapshot_version` → `409 APV_VERSION_STALE` (APV-05) · not your rung → `409 APV_NOT_YOUR_TURN` |
+| `POST /approvals/batch-decide` | `approval.decide` | `{"case_ids":[...],"decision":"approve","note"}` — only cases on the **same reference** waiting on the **same person**; each is recorded separately (APV-04) |
+| `GET`/`POST /approvals/delegations`, `DELETE .../{id}` | `approval.decide` | `{"delegate_user_id","from","to","note"}` · overlapping an existing window → `409` · sub-delegation → `422 APV_NO_SUBDELEGATION` (APV-03) |
+| `GET /admin/approval-matrix?company_id=`, `POST /admin/approval-matrix` | `admin.approval-matrix.manage` | publishes a whole new version per (company, subject type). Old versions stay readable; **editing in place is forbidden** (APV-01) |
+| `GET /approvals/history` | `approval.history.read` (auditor/executive) | authority-usage report: filter by approver, period, type, amount, including approvals made on someone's behalf · CSV export (APV-06) |
+| `POST /integrations/approval-cases` | service, `integration.approval.create` | another module raises an approval without a Platform Request: `{"subject_type","subject_id","company_id","amount","currency","payload","callback_event"}` — the outcome is published to `callback_event` (APV-07) |
+
+Matrix body:
+
+```json
+{ "company_id": "c_osd", "subject_type": "request:DSC", "currency": "THB",
+  "tiers": [ { "upto": "100000.00",  "chain": ["team_lead"] },
+             { "upto": "1000000.00", "chain": ["team_lead","cfo"] },
+             { "upto": null,         "chain": ["team_lead","cfo","ceo"] } ],
+  "effective_from": "2026-09-01" }
+```
+
+**How the chain is computed, server-side, at submit:** read the matrix version
+in force on the submission date for (company, subject_type) → take the first
+tier where `amount ≤ upto` → resolve each position to a person: `team_lead` is
+the requester's supervisor from the org chart, `cfo`/`ceo` are the holders of
+that role in the active company → **drop any rung that is the requester
+themselves, promoting the rest** (APV-02) → persist as fixed `approval_step`
+rows together with the matrix version used, so a later matrix change cannot
+touch a case already running.
+
+### 11.6 Group E — SLA · Notification (minimum)
+
+| Endpoint | Permission | Notes |
+|---|---|---|
+| `GET`/`PUT /admin/sla-configs` | `admin.sla.manage` | `{"request_type_code","company_id","hours":24,"business_hours":true,"warn_before_hours":4}` (SUP-01, D-09) |
+| `GET /admin/holiday-calendars`, `PUT /admin/holiday-calendars/{companyId}` | `admin.sla.manage` | holidays and working hours per company (one set per company this sprint) |
+| `GET /notifications?unread=true` | any signed-in user | own in-app notifications · `POST /notifications/{id}/read`, `POST /notifications/read-all` |
+| `GET`/`PUT /notifications/preferences` | any signed-in user | email on/off per event — **in-app cannot be turned off** |
+
+### 11.7 Group F — Audit Log
+
+| Endpoint | Permission | Notes |
+|---|---|---|
+| `GET /audit-logs` | `audit.read` (auditor) | filters `actor_id`, `event_type`, `resource_type`, `resource_id`, `from`, `to` · **read-only — there is no update or delete endpoint** (SUP-04) |
+
+### 11.8 Internal events (for Notification and future modules)
+
+| Event | Raised when · main payload |
+|---|---|
+| `request.submitted` | `{request_id, request_no, type_code, company_id, requester_id}` |
+| `request.returned` / `request.resubmitted` | includes `reason_codes` |
+| `request.cancelled` / `request.completed` | cancelled / closed |
+| `approval.step.pending` | a new approver's turn · `{case_id, step, approver_id}` — **this is what triggers "you have work waiting"** |
+| `approval.completed` / `approval.rejected` / `approval.voided` | outcome, or voided because the data changed (APV-05) |
+| `sla.warning` / `sla.breached` | near / past deadline — `sla.breached` triggers escalation (SUP-02) |
+
+Every consumer must be idempotent (events may be delivered more than once).
+Ordering is guaranteed only within a single request. The notification service is
+the first consumer; the event → message/channel mapping is configuration.
+
+### 11.9 Business error codes
+
+| Code | HTTP | Meaning |
+|---|---|---|
+| `COMPANY_FORBIDDEN` | 403 | caller does not belong to the company in `X-Company-Id` |
+| `REQ_FIELD_MISSING` | 422 | required form-schema fields absent (listed in `details`) |
+| `REQ_DOC_MISSING` | 422 | required attachments absent |
+| `REQ_STATE_INVALID` | 409 | action does not match the current state |
+| `REQ_TYPE_INACTIVE` | 422 | the request type is disabled in this company |
+| `ORG_SUPERVISOR_MISSING` | 422 | the requester has no supervisor in the org chart |
+| `APV_NOT_YOUR_TURN` | 409 | not the caller's rung, or already decided |
+| `APV_VERSION_STALE` | 409 | `snapshot_version` no longer matches — reload before deciding |
+| `APV_MATRIX_NOT_FOUND` | 422 | no effective matrix for (company, subject type) |
+| `APV_NO_SUBDELEGATION` | 422 | a delegate may not delegate onward |
+| `DELEGATION_OVERLAP` | 409 | the window overlaps an existing delegation |
 
 ---
 
@@ -431,7 +650,27 @@ OSD-LEAD-202608-0104  ส่งต่อโอกาสการขาย       
 - แถบสถานะบนสุด: `สถานะ: ร่าง — เลขคำขอจะออกเมื่อกดยื่น`
 - ฟิลด์: `ประเภทคำขอ *` · `อ้างอิงดีล *` · `มูลค่าดีล (THB) *` ·
   `% ส่วนลดที่ขอ *` · `margin โดยประมาณ` (ฟิลด์อ่อนไหว) · `เหตุผล *`
-- เอกสารแนบบังคับตามประเภท
+- เอกสารแนบบังคับตามประเภท — แถวไฟล์แสดง `quote-D501-v2.pdf · 1.2 MB` + `ลบ`
+  และพื้นที่ `ลากไฟล์มาวาง หรือกดเพื่อแนบเอกสารเพิ่มเติม`
+- ท้ายฟอร์ม: `บันทึกร่างอัตโนมัติล่าสุด 10:42 น.` · ปุ่ม `บันทึกร่าง` และ `ยื่นคำขอ`
+- `margin โดยประมาณ (%) *` มีป้ายกำกับ **`เห็นเฉพาะสายอนุมัติ`** ติดอยู่กับฟิลด์
+- `ลูกค้า` เติมอัตโนมัติ: `บจก. ตัวอย่าง (ดึงจากดีลอัตโนมัติ)` (REQ-06)
+
+**แผงขวา `เส้นทางอนุมัติที่จะใช้`** — คำนวณก่อนกดยื่น พร้อมเหตุผลรายชั้น:
+
+```
+คำนวณอัตโนมัติจากวงเงิน 800,000 บาท (เกินเพดานระดับ 1)
+— ผู้ยื่นเลือกผู้อนุมัติเองไม่ได้
+
+  1  หัวหน้าทีม — สมหญิง จ.    ตรวจสิทธิ์การยื่นและความสมเหตุสมผล
+  2  CFO — วรัญญา ส.           วงเงินเกิน 100,000 บาท
+
+CEO ไม่อยู่ในเส้นทาง — วงเงินไม่เกินเพดานระดับ 2 (1,000,000 บาท)
+```
+
+**แผงขวา `กำหนดเวลา (SLA)`**: `24 ชั่วโมงทำการ` ·
+*"นาฬิกาเริ่มเดินเมื่อยื่น หยุดเมื่อถูกตีกลับให้แก้ · เกินกำหนดระบบเร่งงานถึง
+ผู้บังคับบัญชาอัตโนมัติ"*
 
 ### หน้าที่ 4 — รายละเอียดคำขอ + ไทม์ไลน์ · REQ-07, SCOPE-04, SUP-02
 
@@ -445,7 +684,26 @@ OSD-LEAD-202608-0104  ส่งต่อโอกาสการขาย       
 - กล่อง **ข้อมูลคำขอ**: `ผู้ยื่น` (ชื่อ · ทีม) · `ยื่นเมื่อ` · `อ้างอิง` ·
   `มูลค่าดีล` · `% ส่วนลดที่ขอ` · `margin โดยประมาณ` · `เหตุผล` ·
   `เอกสารแนบ (n)` พร้อมชื่อไฟล์และขนาด
-- กล่อง **ไทม์ไลน์ (บันทึกทุกการเปลี่ยนสถานะ)**
+- กล่อง **ไทม์ไลน์ (บันทึกทุกการเปลี่ยนสถานะ)** — ทุกแถวมี ผู้กระทำ · เวลา ·
+  ผลที่เกิด รวมรายการที่ **ระบบ** เป็นผู้กระทำ:
+
+```
+หัวหน้าทีมอนุมัติ (ขั้น 1/2)  — สมหญิง จ. · 23 ส.ค. 16:40 น.
+                                "ข้อมูลครบ เห็นควรส่งต่อ"
+เข้าคิว CFO (ขั้น 2/2)        — ระบบ · 23 ส.ค. 16:40 น.
+                                แจ้งเตือนส่งแล้ว (in-app + อีเมล)
+ยื่นคำขอ · ออกเลข OSD-DSC-202608-0042
+                              — สมชาย ก. · 23 ส.ค. 14:05 น. · นาฬิกา SLA เริ่มเดิน
+เกินกำหนด — เร่งงานอัตโนมัติ  — ระบบ · วันนี้ 11:05 น.
+                                แจ้ง CFO และผู้บังคับบัญชา 1 ระดับ
+```
+
+- กล่อง **เส้นทางอนุมัติ** (stepper) แต่ละขั้นแสดงชื่อ ตำแหน่ง และผล:
+  `ขั้น 1 · หัวหน้าทีม / สมหญิง จ. / อนุมัติแล้ว · 23 ส.ค. 16:40` ·
+  `ขั้น 2 · CFO / วรัญญา ส. / รอพิจารณา · เกินกำหนด 3 ชม.`
+- ใต้ stepper สองบรรทัดที่ต้องมี:
+  *"เส้นทางคำนวณจากวงเงิน 800,000 บาท (เกิน T1, ไม่เกิน T2) · ตารางอำนาจเวอร์ชัน 2"*
+  และ *"แก้ไขสาระสำคัญหลังอนุมัติจะทำให้การอนุมัติเป็นโมฆะและต้องเริ่มเส้นทางใหม่"*
 
 ### หน้าที่ 5 — อนุมัติ (มุมมอง CFO) · REQ-04, APV-03, APV-04, APV-05
 
@@ -464,7 +722,20 @@ snapshot version
   `ยื่นโดย สมชาย ก. · ขั้น 2/2` พร้อมหมายเหตุ `ดีลเดียวกับ 0045` เมื่ออ้างดีลเดียวกัน
 - **ขวา — รายละเอียด**: `มูลค่าดีล` · `% ส่วนลด` ·
   `margin หลังส่วนลด` พร้อมเกณฑ์ (`18.0% (เกณฑ์ขั้นต่ำ 15%)`) ·
-  `ขั้น 1 หัวหน้าทีมอนุมัติแล้ว`
+  `ขั้น 1 หัวหน้าทีมอนุมัติแล้ว` · `เหตุผลผู้ยื่น: …` ·
+  ลิงก์ `เปิดดูคำขอฉบับเต็มและเอกสารแนบ (2)`
+- **ประกาศ snapshot** เหนือปุ่มตัดสิน:
+  *"การตัดสินผูกกับข้อมูลเวอร์ชันนี้ (snapshot v1) — ถ้าผู้ยื่นแก้ข้อมูลระหว่างนี้
+  ระบบจะให้โหลดใหม่ก่อนตัดสิน"* (APV-05)
+- **แบบฟอร์มตัดสิน**:
+  - `ความเห็นประกอบการตัดสิน (บังคับเมื่อปฏิเสธหรือตีกลับ)` — placeholder
+    `พิมพ์ความเห็น…`
+  - `กรณีตีกลับ — เลือกสิ่งที่ต้องแก้ (อย่างน้อย 1 ข้อ)`:
+    `เอกสารไม่ครบ` · `ตัวเลข margin ไม่ถูกต้อง` · `เหตุผลไม่เพียงพอ` ·
+    `อื่น ๆ (ระบุ)` (REQ-04)
+  - ปุ่มสามปุ่ม: `ปฏิเสธ` · `ตีกลับให้แก้` · `อนุมัติ`
+- หัวคิวแสดงผู้ใช้ปัจจุบัน `วรัญญา ส. · CFO` และเมนู `รออนุมัติของฉัน 3`
+  มีตัวเลขค้างอยู่บนเมนู
 
 ### A1 — ตารางอำนาจอนุมัติ (ผู้ดูแล) · APV-01, APV-02
 

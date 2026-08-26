@@ -9,7 +9,7 @@ import { CoreServiceModule } from './core-service.module';
 async function bootstrap() {
   const app = await NestFactory.create(CoreServiceModule);
 
-  app.setGlobalPrefix('api');
+  app.setGlobalPrefix('api/v1');
   app.enableCors();
   app.use(helmet());
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));

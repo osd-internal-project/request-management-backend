@@ -20,10 +20,16 @@ import { AppError } from '@request-management/share';
  * anything before completed ──cancel──▶ cancelled
  * ```
  *
- * §7.1 amendment (26 Aug 2026): `on_hold` — a request parked mid-execution
- * waiting on an external factor. Reachable only from `in_progress`, resumes
- * to `in_progress`, or is cancelled. Added to carry over ON_HOLD rows from
- * the interim Excel request logs; documented in the spec next to §7.1.
+ * `on_hold` (26 Aug 2026) — a request parked mid-execution waiting on an
+ * external factor. Reachable only from `in_progress`, resumes to
+ * `in_progress`, or is cancelled. Added to carry over ON_HOLD rows from the
+ * interim Excel request logs.
+ *
+ * **This state is not in §7.1 of the source specification.** It is a
+ * deliberate local amendment awaiting PO sign-off — §2 requires that any
+ * design conflicting with the agreed document go through the PO. Do not cite
+ * §7.1 as its authority; if the PO declines it, this row, the enum value and
+ * migration `20260826040000_request_on_hold` all come back out.
  */
 export const REQUEST_TRANSITIONS: Readonly<
   Record<RequestStatus, readonly RequestStatus[]>
