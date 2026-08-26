@@ -61,6 +61,7 @@ enum RequestStatus {
   approved
   rejected
   in_progress
+  on_hold
   completed
   cancelled
 }

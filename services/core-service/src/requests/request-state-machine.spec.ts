@@ -3,6 +3,7 @@ import { AppError } from '@request-management/share';
 import {
   assertTransition,
   canTransition,
+  CLOCK_PAUSED_IN,
   EDITABLE_STATUSES,
   REQUEST_TRANSITIONS,
   TERMINAL_STATUSES,
@@ -31,17 +32,41 @@ describe('§7.1 request state machine', () => {
         'pending_approval',
         'approved',
         'in_progress',
+        'on_hold',
       ];
 
       for (const status of cancellable) {
         expect(canTransition(status, 'cancelled')).toBe(true);
       }
     });
+
+    it('allows the hold → resume loop only around in_progress (§7.1 amendment)', () => {
+      expect(canTransition('in_progress', 'on_hold')).toBe(true);
+      expect(canTransition('on_hold', 'in_progress')).toBe(true);
+    });
   });
 
   describe('REQ-07: transitions outside the declared paths are impossible', () => {
     it('cannot skip approval by jumping draft → approved', () => {
       expect(canTransition('draft', 'approved')).toBe(false);
+    });
+
+    it('cannot hold a request that is not being worked on', () => {
+      const notHoldable: RequestStatus[] = [
+        'draft',
+        'submitted',
+        'returned',
+        'pending_approval',
+        'approved',
+      ];
+
+      for (const status of notHoldable) {
+        expect(canTransition(status, 'on_hold')).toBe(false);
+      }
+    });
+
+    it('cannot complete straight from on_hold — resume first', () => {
+      expect(canTransition('on_hold', 'completed')).toBe(false);
     });
 
     it('cannot reopen a terminal request', () => {
@@ -70,6 +95,16 @@ describe('§7.1 request state machine', () => {
     it('only allows form edits before the request is anyone else’s to act on', () => {
       expect(EDITABLE_STATUSES).toEqual(['draft', 'returned']);
       expect(EDITABLE_STATUSES).not.toContain('pending_approval');
+      expect(EDITABLE_STATUSES).not.toContain('on_hold');
+    });
+  });
+
+  describe('SUP-01: clock pauses', () => {
+    it('pauses while waiting on the requester or an external factor', () => {
+      expect(CLOCK_PAUSED_IN).toContain('returned');
+      expect(CLOCK_PAUSED_IN).toContain('on_hold');
+      expect(CLOCK_PAUSED_IN).not.toContain('in_progress');
+      expect(CLOCK_PAUSED_IN).not.toContain('pending_approval');
     });
   });
 });

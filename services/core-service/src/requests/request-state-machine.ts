@@ -12,12 +12,18 @@ import { AppError } from '@request-management/share';
  *
  * ```
  * draft ──submit──▶ submitted ──▶ pending_approval ──▶ approved ──▶ in_progress ──▶ completed
- *                       │                  │
- *                       │                  └──reject──▶ rejected
- *                       └──return──▶ returned ──resubmit──▶ submitted
+ *                       │                  │                            │  ▲
+ *                       │                  └──reject──▶ rejected    hold│  │resume
+ *                       └──return──▶ returned ──resubmit──▶ submitted   ▼  │
+ *                                                                     on_hold
  *
  * anything before completed ──cancel──▶ cancelled
  * ```
+ *
+ * §7.1 amendment (26 Aug 2026): `on_hold` — a request parked mid-execution
+ * waiting on an external factor. Reachable only from `in_progress`, resumes
+ * to `in_progress`, or is cancelled. Added to carry over ON_HOLD rows from
+ * the interim Excel request logs; documented in the spec next to §7.1.
  */
 export const REQUEST_TRANSITIONS: Readonly<
   Record<RequestStatus, readonly RequestStatus[]>
@@ -28,7 +34,8 @@ export const REQUEST_TRANSITIONS: Readonly<
   pending_approval: ['approved', 'rejected', 'returned', 'cancelled'],
   approved: ['in_progress', 'cancelled'],
   rejected: [],
-  in_progress: ['completed', 'cancelled'],
+  in_progress: ['completed', 'on_hold', 'cancelled'],
+  on_hold: ['in_progress', 'cancelled'],
   completed: [],
   cancelled: [],
 };
@@ -46,9 +53,14 @@ export const NUMBER_ISSUED_ON: RequestStatus = 'submitted';
 /**
  * SUP-01: while a request sits with the requester after a return, the clock
  * is paused — the elapsed time in the bottleneck report should only count
- * time the request was actually somebody's to act on.
+ * time the request was actually somebody's to act on. `on_hold` pauses it for
+ * the same reason: the wait is on an external factor, not the receiving team.
  */
-export const CLOCK_PAUSED_IN: readonly RequestStatus[] = ['returned', 'draft'];
+export const CLOCK_PAUSED_IN: readonly RequestStatus[] = [
+  'returned',
+  'draft',
+  'on_hold',
+];
 
 /** REQ-01/REQ-03: form data is only editable before it is anyone else's problem. */
 export const EDITABLE_STATUSES: readonly RequestStatus[] = [
