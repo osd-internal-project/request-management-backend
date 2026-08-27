@@ -34,6 +34,8 @@
     "postinstall": "yarn prisma:generate",
     "prisma:seed": "ts-node --compiler-options '{\"module\":\"commonjs\"}' libs/prisma/seed.ts",
     "admin:grant": "ts-node --compiler-options '{\"module\":\"commonjs\"}' libs/prisma/grant-admin.ts",
+    "uat:seed": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/seed-uat.ts",
+    "uat:users": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/seed-uat-users.ts",
     "keycloak:provision": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/keycloak-provision.ts",
     "openapi": "ts-node --project scripts/tsconfig.openapi.json -r tsconfig-paths/register -r dotenv/config scripts/generate-openapi.ts",
     "spec:extract": "ts-node --compiler-options '{\"module\":\"commonjs\"}' scripts/extract-spec.ts",

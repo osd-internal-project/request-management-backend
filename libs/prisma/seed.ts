@@ -24,6 +24,7 @@ const PERMISSIONS: Record<string, string[]> = {
     'request.cancel.any',
     'request.complete',
     'request.return',
+    'request.hold',
     'request.sensitive.read',
   ],
   approval: ['approval.decide', 'approval.delegate', 'approval.history.read'],
@@ -107,6 +108,45 @@ const SEED_ROLES: {
     code: 'executive',
     name: 'ผู้บริหาร',
     description: 'ผู้อำนวยการ / C-level',
+    permissions: [
+      'request.read',
+      'request.sensitive.read',
+      'approval.decide',
+      'approval.delegate',
+      'approval.history.read',
+      'report.request.read',
+      'report.dashboard.read',
+      'notification.read',
+      'user.read',
+    ],
+    scopes: { request: 'company', approval_case: 'company', user: 'company' },
+  },
+  {
+    // §8.1 names `cfo` and `ceo` as approval offices above T1 and T2, and
+    // `roleHolders()` looks them up by exactly these codes. Without them the
+    // executive fallback answers for both, so a three-tier ladder resolves to
+    // the same person twice — which reads as an approved request that only one
+    // person actually judged.
+    code: 'cfo',
+    name: 'ประธานเจ้าหน้าที่ฝ่ายการเงิน',
+    description: 'ผู้อนุมัติชั้นที่ 2 — วงเงินเกินเพดานระดับ 1',
+    permissions: [
+      'request.read',
+      'request.sensitive.read',
+      'approval.decide',
+      'approval.delegate',
+      'approval.history.read',
+      'report.request.read',
+      'report.dashboard.read',
+      'notification.read',
+      'user.read',
+    ],
+    scopes: { request: 'company', approval_case: 'company', user: 'company' },
+  },
+  {
+    code: 'ceo',
+    name: 'ประธานเจ้าหน้าที่บริหาร',
+    description: 'ผู้อนุมัติชั้นที่ 3 — วงเงินเกินเพดานระดับ 2',
     permissions: [
       'request.read',
       'request.sensitive.read',

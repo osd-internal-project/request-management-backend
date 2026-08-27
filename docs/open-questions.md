@@ -21,7 +21,7 @@ CTD spec §15, plus what this implementation pass settled or uncovered.
 | **B** | SMTP settings (host, port, sending account) and any automated-send limits | Infra | SUP-03 real-world testing | 🔴 open |
 | **C** | Realm/client admin rights on Keycloak, and agreed role naming | Infra | Was "S1 day one" | 🟢 **resolved 25 Aug 2026 — see below** |
 | **D** | Who owns keeping "who reports to whom" current in the system | PO + HR | SCOPE-*, approval step 1, S3 UAT | 🔴 open |
-| **E** | Test accounts per role and company for UAT, including stand-in CFO/CEO | PO + IT | UAT every sprint | 🔴 open |
+| **E** | Test accounts per role and company for UAT, including stand-in CFO/CEO | PO + IT | UAT every sprint | 🟡 **unblocked for OSD** — `yarn uat:users` provisions all seven roles with a real supervisor chain and distinct CFO/CEO. Still open: whether business users test with these or with their own accounts, and the same set for company BCO |
 
 ### C — RESOLVED (25 Aug 2026)
 
@@ -77,3 +77,4 @@ owner question, not an engineering one.
 | **I** | Retention and archival of `AuditLog` beyond the initial 2 years (NFR-04) | The table grows without bound; no archival job exists | Partition by month, decide archival before production |
 | **J** | The Keycloak group `บริษัท OSD` duplicates the `ROOT` org unit | Two places now describe the same company. Nothing reads the group — the org tree lives in the database (D-08) — so the duplication is inert, but it will confuse whoever finds it | Delete the group, or repurpose it to bundle roles. Decide before anything starts reading groups |
 | **K** | The service account holds `manage-realm` | Lets the application change realm configuration, not only users — a wider blast radius than the feature strictly needs | Either accept it for `keycloak:provision`, or create realm roles manually and drop the role |
+| **L** | `uat_superadmin` breaks the §5.4 separation-of-duties guardrail on purpose | One UAT account holds `admin.*` together with `approval.decide` and `request.sensitive.read` — exactly the combination §5.4 refuses. Contained: created only by `yarn uat:seed` (blocked under `NODE_ENV=production`, needs `UAT_SEED_ALLOW=1`), and `assertSeparationOfDuties` is unchanged so no API path can produce it | Keep it out of production. If UAT needs an approving admin permanently, §5.4 has to be renegotiated with the PO rather than worked around |

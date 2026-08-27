@@ -19,6 +19,12 @@ them is not. These rules exist because all four were broken in the same sprint.
 - A phase is not done while an unchecked `- [ ]` remains under it in `PROGRESS.md`.
 - Tick `PROGRESS.md` **before** reporting, not after.
 - Report closed/outstanding counts. "Done" without a count is how 9/11 got reported as 11.
+- The checklist posted in chat mirrors `PROGRESS.md` item for item — same wording, same order.
+  Two different lists is how the chat said 11 while the file still held 9 unchecked boxes.
+- Tick `PROGRESS.md` first, then the chat line reporting it. Never the other way round.
+- Report each item **as it closes**, in the next message, not batched into the final summary.
+  A phase here takes dozens of tool calls; a checklist ticked only at the end leaves the whole
+  run invisible, which is exactly the state these rules were written to end.
 
 ## Non-negotiables
 
@@ -56,6 +62,23 @@ say so explicitly in the PR rather than doing it quietly.
 
 8. **Keycloak is a backend concern.** Only the backend holds realm and client
    configuration. There is no code path anywhere that accepts a password.
+
+### The one declared exception: `uat_superadmin`
+
+§5.4's separation-of-duties guardrail forbids a role holding both `admin.*` and
+`approval.decide` / `request.sensitive.read`. The `uat_superadmin` role breaks
+that rule deliberately, so that one UAT account can walk every screen. Stated
+here rather than done quietly, as the rules above require.
+
+It is contained rather than excused:
+
+- created **only** by `yarn uat:seed`, which writes Prisma directly and refuses
+  to run under `NODE_ENV=production` or without `UAT_SEED_ALLOW=1`
+- `assertSeparationOfDuties` is **untouched**. Every API path still enforces
+  §5.4, so this role can never be created — or re-saved — from the admin screen.
+  Saving it from the Roles page answers 422, which is the intended outcome.
+- it must not exist in production. If you find it there, delete the role row;
+  nothing else depends on it.
 
 ## Where things go
 

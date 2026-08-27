@@ -4,24 +4,37 @@ Five scenarios covering the flow end to end. Each step names **what to check in
 the database**, not just what the screen shows — the Definition of Done treats a
 rendered page as unproven until a row backs it.
 
-**Status: written, not yet run with business users.** Open question E (test
-accounts per role, including stand-in CFO/CEO) blocks a real run. What is
-recorded below under "already proven" was verified during development with
-`uatadmin`; the rest is waiting on accounts.
+**Status: written, not yet run with business users.** Every role now has an
+account, so nothing blocks a run. What is recorded below under "already proven"
+was verified during development with `uatadmin`.
 
 ---
 
-## Accounts needed (open question E)
+## Accounts
 
-| Role | Purpose | Have it? |
+Provisioned by `UAT_SEED_ALLOW=1 UAT_DEFAULT_PASSWORD=… yarn uat:users`, which
+creates them in Keycloak, places them in the mockup A3 org tree, and wires the
+supervisor chain that approval step 1 resolves against. Re-runnable.
+
+| Role | Purpose | Account |
 |---|---|---|
-| Sales employee | submit a discount request | ✅ `somchai.k` |
-| Team lead | approval step 1 | ✅ `somying.j` |
-| Receiver (Pricing) | return, complete | ⬜ needs an account |
-| CFO | approve above T1 | ⬜ stand-in needed |
-| CEO | approve above T2 | ⬜ stand-in needed |
+| Sales employee | submit a discount request | ✅ `uat.somchai` (GETTER1) |
+| Team lead | approval step 1 | ✅ `uat.somying` (GETTER1, heads it) |
+| Department manager | department-level scope | ✅ `uat.wichai` (SALES) |
+| Receiver (Pricing) | return, complete | ✅ `uat.pricing` (PRICING) |
+| CFO | approve above T1 | ✅ `uat.cfo` (FIN) |
+| CEO | approve above T2 | ✅ `uat.ceo` (ROOT) |
 | Admin | configuration | ✅ `uatadmin` |
-| Auditor | read the audit log | ⬜ needs an account |
+| Auditor | read the audit log | ✅ `uat.auditor` (ROOT) |
+
+`uat.somchai` → `uat.somying` → `uat.wichai` → `uat.cfo` → `uat.ceo` is the
+supervisor chain, so a discount request above the T2 ceiling routes to three
+different people rather than resolving the same executive twice.
+
+One further account, `uatadmin`, can be widened to every screen and every row
+with `UAT_SEED_ALLOW=1 yarn uat:seed`. That grants the `uat_superadmin` role,
+which breaks the §5.4 separation-of-duties guardrail on purpose — see open
+question L. Use it to walk the UI, never to judge whether a permission works.
 
 ---
 

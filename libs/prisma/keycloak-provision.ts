@@ -26,6 +26,11 @@ const REALM_ROLES: { name: string; description: string }[] = [
   { name: 'team_lead', description: 'หัวหน้าทีม — อนุมัติชั้นแรก' },
   { name: 'department_manager', description: 'ผู้จัดการฝ่าย' },
   { name: 'executive', description: 'ผู้บริหาร' },
+  { name: 'cfo', description: 'CFO — อนุมัติชั้นที่ 2 (§8.1)' },
+  { name: 'ceo', description: 'CEO — อนุมัติชั้นที่ 3 (§8.1)' },
+  // §5.2 seeds `receiver` as a system role but this list omitted it, so the
+  // destination team resolved to no roles on login and REQ-08 had no holder.
+  { name: 'receiver', description: 'ทีมผู้รับคำขอ — ตีกลับและปิดงาน' },
   { name: 'admin', description: 'ผู้ดูแลระบบ' },
   { name: 'auditor', description: 'ผู้ตรวจสอบ — อ่านอย่างเดียว' },
 ];
@@ -121,8 +126,9 @@ async function createRealmRoles(env: Env, token: string): Promise<void> {
   const existing = (await existingResponse.json()) as { name: string }[];
   const have = new Set(existing.map((role) => role.name));
 
-  // The six §5.2 system roles, plus the integration scopes AUTH-06 grants to
-  // the service account rather than to any person.
+  // The §5.2 system roles and the two §8.1 approval offices, plus the
+  // integration scopes AUTH-06 grants to the service account rather than to
+  // any person.
   const wanted = [...REALM_ROLES, ...INTEGRATION_ROLES];
 
   let created = 0;
