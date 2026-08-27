@@ -9,15 +9,17 @@
 # reporting.sql — apply that file to the app DB first, then register the
 # connection in Metabase's admin UI (see docs/metabase.md).
 #
-# Port 3300 on purpose: 3000 is reserved for the frontend SPA (Keycloak
-# redirect URIs already point there) and 3001/3002 are the services.
+# Default port 3300 on purpose: 3000 is reserved for the frontend SPA
+# (Keycloak redirect URIs already point there) and 3001/3002 are the services.
+# Override with METABASE_PORT where 3300 is taken — on 192.168.31.51 it
+# belongs to Loki, so Metabase runs there as 3400.
 
 services:
   metabase:
     image: metabase/metabase:v0.50.26
     container_name: ctd-metabase
     ports:
-      - "3300:3000"
+      - "${METABASE_PORT:-3300}:3000"
     environment:
       MB_DB_TYPE: postgres
       MB_DB_HOST: metabase-app-db

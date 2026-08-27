@@ -88,6 +88,13 @@ docker compose -f infra/metabase/docker-compose.yml up -d
 
 การควบคุมสิทธิ์อยู่ที่ระบบเราทั้งหมด: PolicyGuard ตัดสินก่อน แล้วค่อยเซ็น token — token หมดอายุเองใน 10 นาที และผู้ใช้ทั่วไปไม่มีบัญชี Metabase เลย
 
+## บน server 192.168.31.51 (deploy แล้ว 26 ส.ค. 2026)
+
+- รันอยู่ที่ `~/metabase/` ด้วย compose ตัวเดียวกันนี้ · **port 3400** (3300 บน server เป็นของ Loki) → http://192.168.31.51:3400
+- `~/metabase/.env` มี `METABASE_PORT=3400` + `METABASE_APP_DB_PASSWORD`
+- ตั้งค่าเริ่มต้นแล้ว: บัญชีแอดมิน, เปิด static embedding, generate secret แล้ว
+- ยังไม่ได้ต่อ database ของระบบ (CTD ยังไม่ deploy) — เมื่อ database จริงพร้อม: รัน `reporting.sql` ใส่มัน → Admin → Databases → เพิ่ม connection ด้วย `metabase_ro` → สร้างแดชบอร์ดซ้ำด้วย `python3 infra/metabase/build_dashboards.py` (ดู docstring) → เอา dashboard ids + secret ไปใส่ `.env` ของ core-service
+
 ## กติกา
 
 - **ห้ามต่อ Metabase ด้วย role อื่นนอกจาก `metabase_ro`** และห้าม grant อะไรเพิ่มให้ role นี้นอก schema `reporting`
