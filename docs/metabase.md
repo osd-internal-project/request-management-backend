@@ -73,6 +73,42 @@ docker compose -f infra/metabase/docker-compose.yml up -d
 | ใกล้ครบกำหนดใน 24 ชม. | ตาราง | `SELECT request_no, type_code, due_at FROM reporting.sla_clocks WHERE state = 'running' AND due_at BETWEEN now() AND now() + interval '24 hours' ORDER BY due_at` |
 | คอขวด: เวลาเฉลี่ยระหว่างขั้น ต่อประเภท | ตาราง/heatmap | `SELECT type_code, event_type, round(avg(hours_since_previous)::numeric,1) AS avg_hours FROM reporting.request_events WHERE hours_since_previous IS NOT NULL GROUP BY 1,2 ORDER BY 3 DESC` |
 
+## Dashboard 4–5 — Adoption (workshop, จากชีต 01_REQUEST_LOG + 02_ACTION_LOG)
+
+แดชบอร์ดผู้บริหารสองชุดที่วัด **การรับ-ใช้ระบบของ 13 ทีม** (ไม่ใช่งานปฏิบัติการ
+เหมือน 3 ชุดบน) — ใครเปิดคำขอ ใครถูกขอให้ทำงาน ใครบันทึก Action Log และคำขอ
+ไหลข้ามแผนกอย่างไร อ่านจาก schema `workshop` (แยกจาก `reporting` ที่อ่าน
+ตารางแอปจริง) ผ่าน view `reporting.adoption_*`
+
+1. **สรุปสถานะการใช้งานระบบ Request ของแต่ละทีม** — ตารางทีมที่เปิดแล้ว/ยังไม่เปิด
+2. **OSD Request Log · Executive Summary** — ภาพรวม 92 คำขอ สถานะ ผู้เปิด/ผู้รับ
+   flow ข้ามแผนก Target Date และภาระงานรายผู้รับผิดชอบ
+
+ข้อมูลชุดนี้เป็น **sample ที่ seed ให้ตรงตัวเลขใน mockup** (workshop v1.6 ยังไม่มี
+ในฐานข้อมูลจริง) — ตัวเลขหลักตรงเป๊ะ ส่วนเซลล์รองคำนวณจากข้อมูลจริง เมื่อมีไฟล์
+`<แผนก>_Request_Log_2569_v1.6.xlsx` จริงให้แทนที่ข้อมูลใน `workshop.*` แล้ว view/
+แดชบอร์ดใช้ต่อได้ทันที
+
+**ติดตั้ง (ต่อจากขั้น reporting.sql ปกติ):**
+
+```bash
+# 1) schema + master data (13 ทีม) — idempotent
+psql "$DATABASE_URL" -f infra/metabase/workshop_schema.sql
+# 2) ข้อมูลตัวอย่าง 92 คำขอ + 51 action log (สร้างซ้ำได้จาก generator)
+python3 infra/metabase/gen_workshop_seed.py > infra/metabase/workshop_seed.sql
+psql "$DATABASE_URL" -f infra/metabase/workshop_seed.sql
+# 3) reporting views + grant ให้ metabase_ro
+psql "$DATABASE_URL" -f infra/metabase/reporting_adoption.sql
+# 4) สร้างแดชบอร์ดใน Metabase (auto-detect database ที่มี schema reporting)
+MB_URL=http://localhost:3300 MB_SESSION=<session id> \
+  python3 infra/metabase/build_adoption_dashboards.py
+```
+
+`gen_workshop_seed.py` deterministic — assertion ในตัวการันตีว่า opened ต่อทีม
+(64/8/6/5/4/3/2=92), received, action log 51, ปิดงาน 24 และข้ามแผนก 26 ตรง mockup
+เสมอ; วันที่อ้างอิง (ครบกำหนด/เลยกำหนด) เทียบกับ `reporting.adoption_asof` = 24 ส.ค.
+2569 แก้ที่ view เดียวเมื่อเลื่อน snapshot
+
 ## ฝังเข้าเมนูของระบบ (ใช้ login ของระบบ ไม่ต้อง login Metabase ซ้ำ)
 
 ระบบเสิร์ฟเมนู BI ที่ `GET /bi/menu` (core-service) ตามหลัก ROLE-06 — เมนูประกอบจาก permission:
