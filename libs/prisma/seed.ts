@@ -427,26 +427,59 @@ async function seedRequestTypes(companies: { id: string; code: string }[]) {
       code: 'DSC',
       name: 'ขอส่วนลด',
       receiverOrgUnitId: osdRoot?.id ?? null,
+      /**
+       * Titles are the exact strings §16 หน้าที่ 3 shows — the screen renders
+       * them verbatim, so a reworded title here silently reworders the screen.
+       *
+       * `x-order` is not decoration. `formSchema` is stored as `jsonb`, which
+       * does **not** preserve key order: Postgres returns keys sorted by length
+       * then bytes, so authoring order here reached the browser as
+       * reason → deal_value → discount_pct → customer_name → est_margin_pct.
+       * JSON Schema has no ordering of its own, so the order has to be a value.
+       */
       formSchema: {
         type: 'object',
-        required: ['customer_name', 'deal_value', 'discount_pct', 'reason'],
+        required: [
+          'customer_name',
+          'deal_value',
+          'discount_pct',
+          'est_margin_pct',
+          'reason',
+        ],
         properties: {
-          customer_name: { type: 'string', title: 'ลูกค้า' },
-          deal_value: { type: 'number', title: 'มูลค่าดีล (บาท)', minimum: 0 },
+          deal_value: {
+            type: 'number',
+            title: 'มูลค่าดีล (THB)',
+            minimum: 0,
+            'x-order': 10,
+          },
           discount_pct: {
             type: 'number',
-            title: 'ส่วนลด (%)',
+            title: '% ส่วนลดที่ขอ',
             minimum: 0,
             maximum: 100,
+            'x-order': 20,
           },
           // Sensitive (SCOPE-04) — the seeded request:DSC rules name this and
           // discount_pct, so only request.sensitive.read sees the values.
           est_margin_pct: {
             type: 'number',
-            title: 'มาร์จิ้นโดยประมาณ (%)',
+            title: 'margin โดยประมาณ (%)',
             'x-sensitive': true,
+            'x-order': 30,
           },
-          reason: { type: 'string', title: 'เหตุผล', maxLength: 2000 },
+          // §16 shows this filled from the deal and therefore unmarked. There
+          // is no deal lookup yet (REQ-06), so it stays a required field the
+          // requester types — an input that pretends to autofill and does not
+          // is worse than an honest one.
+          customer_name: { type: 'string', title: 'ลูกค้า', 'x-order': 40 },
+          reason: {
+            type: 'string',
+            title: 'เหตุผลการขอส่วนลด',
+            maxLength: 2000,
+            'x-multiline': true,
+            'x-order': 50,
+          },
         },
       },
       requiredDocs: [
@@ -470,10 +503,16 @@ async function seedRequestTypes(companies: { id: string; code: string }[]) {
         type: 'object',
         required: ['customer_name', 'to_team', 'reason'],
         properties: {
-          customer_name: { type: 'string', title: 'ลูกค้า' },
-          to_team: { type: 'string', title: 'ส่งต่อให้ทีม' },
-          contact: { type: 'string', title: 'ผู้ติดต่อ' },
-          reason: { type: 'string', title: 'เหตุผล', maxLength: 2000 },
+          customer_name: { type: 'string', title: 'ลูกค้า', 'x-order': 10 },
+          to_team: { type: 'string', title: 'ส่งต่อให้ทีม', 'x-order': 20 },
+          contact: { type: 'string', title: 'ผู้ติดต่อ', 'x-order': 30 },
+          reason: {
+            type: 'string',
+            title: 'เหตุผล',
+            maxLength: 2000,
+            'x-multiline': true,
+            'x-order': 40,
+          },
         },
       },
       requiredDocs: [],
