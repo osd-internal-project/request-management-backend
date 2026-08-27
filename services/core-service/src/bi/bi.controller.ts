@@ -1,65 +1,98 @@
-import { Controller, Get } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { ApiTags } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Post,
+  Put,
+  Query,
+} from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Permissions, CurrentPrincipal } from '@request-management/share';
 import type { Principal } from '@request-management/share';
-import { embedDashboardUrl } from './metabase-embed';
-
-interface BiMenuItem {
-  key: string;
-  title: string;
-  embed_url: string;
-}
+import { BiService } from './bi.service';
+import { CreateBiDashboardDto, UpdateBiDashboardDto } from './dto/bi.dto';
 
 /**
  * CD-92: the BI menu, composed per caller like every other menu (ROLE-06).
  *
- * `report.dashboard.read` gates the endpoint; the Metabase settings link is
- * added only for callers who also hold `admin.bi.manage`. Embed URLs are
+ * `report.dashboard.read` gates the endpoint; which dashboards appear is then
+ * decided by the `bi_dashboards` configuration — each row optionally scoped
+ * to org units, so different teams see different menus. Embed URLs are
  * short-lived signed tokens — sharing one around dies within minutes, and
  * nothing here ever proxies Metabase credentials.
  */
 @ApiTags('bi')
 @Controller('bi')
 export class BiController {
-  constructor(private readonly config: ConfigService) {}
+  constructor(private readonly bi: BiService) {}
 
   @Get('menu')
   @Permissions('report.dashboard.read')
   menu(@CurrentPrincipal() principal: Principal) {
-    const siteUrl = this.config.get<string>('metabase.siteUrl') ?? '';
-    const secret = this.config.get<string>('metabase.embedSecret') ?? '';
-    const ids = {
-      requestOverview:
-        this.config.get<number>('metabase.dashboards.requestOverview') ?? 0,
-      approval: this.config.get<number>('metabase.dashboards.approval') ?? 0,
-      sla: this.config.get<number>('metabase.dashboards.sla') ?? 0,
-    };
+    return this.bi.menu(principal);
+  }
+}
 
-    const configured = Boolean(siteUrl && secret);
-    const titles: Record<keyof typeof ids, string> = {
-      requestOverview: 'ภาพรวมคำขอ',
-      approval: 'การอนุมัติ',
-      sla: 'SLA',
-    };
+/**
+ * CD-92 v2 — dashboard configuration, editable without a deploy.
+ *
+ * `GET org-units` exists so the audience picker does not require
+ * `admin.org.manage`: a BI admin needs unit names to scope a dashboard, not
+ * the power to edit the org chart.
+ */
+@ApiTags('admin/bi')
+@ApiBearerAuth()
+@Controller('admin/bi')
+export class BiAdminController {
+  constructor(private readonly bi: BiService) {}
 
-    const dashboards: BiMenuItem[] = configured
-      ? (Object.keys(ids) as (keyof typeof ids)[])
-          .filter((key) => ids[key] > 0)
-          .map((key) => ({
-            key,
-            title: titles[key],
-            embed_url: embedDashboardUrl(siteUrl, secret, ids[key]),
-          }))
-      : [];
+  @Get('dashboards')
+  @Permissions('admin.bi.manage')
+  list(
+    @CurrentPrincipal() principal: Principal,
+    @Query('company_id') companyId?: string,
+  ) {
+    return this.bi.listAdmin(principal, companyId);
+  }
 
-    return {
-      configured,
-      dashboards,
-      // หน้า setting ของ Metabase — โผล่ในเมนูเฉพาะแอดมิน BI
-      settings_url: principal.permissions.includes('admin.bi.manage')
-        ? siteUrl || null
-        : null,
-    };
+  @Post('dashboards')
+  @Permissions('admin.bi.manage')
+  create(
+    @Body() dto: CreateBiDashboardDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.bi.create(dto, principal);
+  }
+
+  @Put('dashboards/:id')
+  @Permissions('admin.bi.manage')
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateBiDashboardDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.bi.update(id, dto, principal);
+  }
+
+  @Delete('dashboards/:id')
+  @HttpCode(204)
+  @Permissions('admin.bi.manage')
+  async remove(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    await this.bi.deactivate(id, principal);
+  }
+
+  @Get('org-units')
+  @Permissions('admin.bi.manage')
+  listOrgUnits(
+    @CurrentPrincipal() principal: Principal,
+    @Query('company_id') companyId?: string,
+  ) {
+    return this.bi.listOrgUnits(principal, companyId);
   }
 }

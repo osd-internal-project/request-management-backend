@@ -149,6 +149,7 @@ model Company {
   holidayCalendar  HolidayCalendar?
   notifications    Notification[]
   auditLogs        AuditLog[]
+  biDashboards     BiDashboard[]
 
   @@map("companies")
   notificationPreferences NotificationPreference[]
@@ -257,6 +258,7 @@ model OrgUnit {
   ancestors     OrgClosure[]  @relation("ClosureDescendant")
   descendants   OrgClosure[]  @relation("ClosureAncestor")
   receivedTypes RequestType[] @relation("ReceiverUnit")
+  biAudiences   BiDashboardAudience[]
 
   @@unique([companyId, code])
   @@index([parentId])
@@ -916,6 +918,46 @@ model AuditLog {
   @@index([resourceType, resourceId])
   @@index([companyId, createdAt])
   @@map("audit_logs")
+}
+
+/// CD-92 v2: BI dashboards are configuration rows, not env constants — an
+/// admin adds or retires dashboards and scopes each to org units without a
+/// deploy (configuration over code). `active` is the soft-delete flag; a
+/// retired dashboard stays findable, per the no-hard-delete rule.
+model BiDashboard {
+  id        String @id @default(uuid())
+  companyId String
+  title     String
+  /// The numeric id Metabase shows in the dashboard URL.
+  metabaseDashboardId Int
+  sortOrder           Int     @default(0)
+  active              Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  createdBy String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  company   Company               @relation(fields: [companyId], references: [id])
+  audiences BiDashboardAudience[]
+
+  @@index([companyId])
+  @@map("bi_dashboards")
+}
+
+/// Which org units may see a dashboard. No rows = the whole company sees it.
+/// An assigned unit covers its entire subtree (`OrgClosure`), so a department
+/// row includes every team beneath it — the same maths as data scope (§6.2).
+model BiDashboardAudience {
+  dashboardId String
+  orgUnitId   String
+
+  dashboard BiDashboard @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+  orgUnit   OrgUnit     @relation(fields: [orgUnitId], references: [id], onDelete: Cascade)
+
+  @@id([dashboardId, orgUnitId])
+  @@index([orgUnitId])
+  @@map("bi_dashboard_audiences")
 }
 
 /// NFR-03: replay protection for state-changing POSTs carrying an
