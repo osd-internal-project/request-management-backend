@@ -5,6 +5,21 @@ This service implements the **CTD Foundation Sprint** specification. Start at
 codes it defines (`AUTH-01`, `SCOPE-03`, `REQ-02`, …) are referenced throughout
 the code and in test names.
 
+## Working to the plan
+
+Multi-phase work is tracked in two files: the plan (under `~/.claude/plans/`) and
+[`../PROGRESS.md`](../PROGRESS.md) at the repo parent. Both are authoritative; memory of
+them is not. These rules exist because all four were broken in the same sprint.
+
+- Open the plan file and quote the phase heading before starting that phase. Never work
+  from a remembered plan — the file has been rewritten mid-sprint before.
+- Work phases in the written order. Reordering or skipping needs saying so first, with the
+  reason. Phase 6 was built before Phase 1, and the screens that stalled were exactly the
+  ones Phase 1 was supposed to supply.
+- A phase is not done while an unchecked `- [ ]` remains under it in `PROGRESS.md`.
+- Tick `PROGRESS.md` **before** reporting, not after.
+- Report closed/outstanding counts. "Done" without a count is how 9/11 got reported as 11.
+
 ## Non-negotiables
 
 These come from the spec, not from taste. Breaking one is a spec violation, so
@@ -103,6 +118,14 @@ including the rule that nobody approves their own request. `matrix-rules.ts`
 validates a ladder before publish. Both are unit-tested; a second copy of
 either will drift.
 
+**Routing is proved possible before a submit writes anything.** The chain is
+resolved across a service boundary and cannot join the request's transaction,
+so `submit` calls `assertRoutable` *first*. Without it, a submit that fails at
+routing leaves a request that consumed a document number, moved to `submitted`
+and started its clock, yet sits in nobody's queue and refuses to be submitted
+again — invisible to the requester and non-existent to every approver. This
+was a real defect, found by raising a type that had no published matrix.
+
 **A published matrix version is immutable.** There is no update route. Editing
 means publishing version N+1, which is what lets a case in flight keep the
 ceilings it was routed under.
@@ -155,7 +178,7 @@ the service still reports a healthy start. The same `webpack.config.js` marks
 Prisma external. Don't remove that.
 
 Quickest check that the database is genuinely wired up:
-`curl localhost:3002/api/health` must report `"database":"up"` — user-service's
+`curl localhost:3002/api/v1/health` must report `"database":"up"` — user-service's
 health endpoint is static and will say `ok` either way. That distinction is how
 the Prisma failure went unnoticed.
 

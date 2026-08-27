@@ -52,6 +52,27 @@ export function selectTier(
 }
 
 /**
+ * The amount a request must exceed before this position joins the chain.
+ *
+ * §16 หน้าที่ 3 explains an absent approver rather than leaving a gap — "CEO
+ * ไม่อยู่ในเส้นทาง — วงเงินไม่เกินเพดานระดับ 2 (1,000,000 บาท)". That number is
+ * the ceiling of the tier *below* the first one this position appears in.
+ *
+ * `null` means the position never appears in this ladder at all, which is a
+ * different statement and must not be shown as a threshold of zero.
+ */
+export function ceilingIntroducing(
+  tiers: readonly MatrixTier[],
+  position: ApproverPosition,
+): string | null {
+  const index = tiers.findIndex((tier) => tier.chain.includes(position));
+
+  if (index <= 0) return null;
+
+  return tiers[index - 1]?.upto ?? null;
+}
+
+/**
  * APV-02: turns a tier's chain into concrete approvers, then drops any step
  * the requester would be approving for themselves.
  *

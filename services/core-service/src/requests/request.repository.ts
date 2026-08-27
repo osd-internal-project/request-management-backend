@@ -9,7 +9,6 @@ import type {
   Prisma,
   Request,
   RequestAttachment,
-  RequestEvent,
   RequestType,
 } from '@prisma/client';
 
@@ -35,9 +34,47 @@ export type RequestListRow = RequestWithType & {
   }[];
 };
 
-export type RequestDetail = RequestWithType & {
-  events: RequestEvent[];
-};
+/**
+ * What §16 หน้าที่ 4 needs, derived from the query rather than restated.
+ *
+ * Writing this shape by hand meant keeping two declarations in step, and they
+ * drifted the first time the query changed. `GetPayload` makes the include the
+ * single source of truth.
+ */
+export const REQUEST_DETAIL_INCLUDE = {
+  requestType: true,
+  attachments: true,
+  approvalCases: {
+    orderBy: { createdAt: 'desc' },
+    take: 1,
+    select: {
+      currentStep: true,
+      matrixVersion: true,
+      amount: true,
+      steps: {
+        orderBy: { stepNo: 'asc' },
+        select: {
+          stepNo: true,
+          approverRole: true,
+          approverUserId: true,
+          status: true,
+          decision: true,
+          decidedAt: true,
+          approver: { select: { displayName: true } },
+        },
+      },
+    },
+  },
+  events: {
+    orderBy: { createdAt: 'asc' },
+    // The timeline names people, not ids — a UUID there is unreadable.
+    include: { actor: { select: { displayName: true } } },
+  },
+} satisfies Prisma.RequestInclude;
+
+export type RequestDetail = Prisma.RequestGetPayload<{
+  include: typeof REQUEST_DETAIL_INCLUDE;
+}>;
 
 @Injectable()
 export class RequestRepository extends BaseRepository<
@@ -60,17 +97,13 @@ export class RequestRepository extends BaseRepository<
     });
   }
 
-  /** REQ-07: the request plus its append-only timeline, oldest first. */
+  /** REQ-07: the request plus everything §16 หน้าที่ 4 draws. */
   findDetail(id: string, option?: TxOption): Promise<RequestDetail | null> {
     const client = option?.prisma ?? this.prisma;
 
     return client.request.findUnique({
       where: { id },
-      include: {
-        requestType: true,
-        attachments: true,
-        events: { orderBy: { createdAt: 'asc' } },
-      },
+      include: REQUEST_DETAIL_INCLUDE,
     });
   }
 

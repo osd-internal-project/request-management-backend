@@ -343,17 +343,30 @@ export class OrgService {
   }
 
   /** Walks up the closure to the closest DEPARTMENT (or COMPANY) ancestor. */
+  /**
+   * The nearest department (or company) above a unit.
+   *
+   * Both the ancestors and their rows are fetched **once**. Looking each
+   * ancestor up inside the loop was one round trip per level of the org
+   * chart, on the path that resolves *every* request's principal — measured
+   * at seconds against a remote database, which is what made core-service's
+   * five-second resolve timeout fire on a cold call.
+   */
   private async nearestDepartmentId(orgUnitId: string): Promise<string | null> {
     const ancestors = await this.closure.ancestorsOf(orgUnitId);
+    if (!ancestors.length) return null;
 
-    for (const { ancestorId } of ancestors) {
-      const unit = await this.orgUnits.findById(ancestorId);
-      if (unit && (unit.kind === 'DEPARTMENT' || unit.kind === 'COMPANY')) {
-        return unit.id;
-      }
-    }
+    const ids = ancestors.map(({ ancestorId }) => ancestorId);
 
-    return null;
+    const units = await this.orgUnits.findMany({
+      where: { id: { in: ids }, kind: { in: ['DEPARTMENT', 'COMPANY'] } },
+      select: { id: true },
+    });
+
+    const eligible = new Set(units.map((unit) => unit.id));
+
+    // `ancestorsOf` is ordered nearest-first, so the first hit is the nearest.
+    return ids.find((id) => eligible.has(id)) ?? null;
   }
 
   private async rebuildClosure(

@@ -1,18 +1,22 @@
 # CTD Foundation Sprint — requirement index
 
-Connect the Dot · Requirement Specification **v1.3** (24 Aug 2026).
+Connect the Dot · Requirement Specification **v1.5** (25 Aug 2026).
+v1.5 adds §5.4 (the seed permission matrix per role) and screen **A4**.
 
-**แหล่งที่มา:** `CTD Foundation Sprint_files/saved_resource.html` — เนื้อหาจริง
-ของ artifact ไฟล์ `CTD Foundation Sprint.html` ที่มักถูกแนบมาคือ **เปลือก**
-(artifact shell) ที่มีแต่ `<iframe>` ชี้ไปยังไฟล์ข้างบน อ่านเปลือกจะได้แต่ CSS
-กับ script ไม่ได้เนื้อหา
+**แหล่งที่มา:** `docs/source/CTD Foundation Sprint_files/saved_resource.html` —
+เนื้อหาจริงของ artifact ไฟล์ `docs/source/CTD Foundation Sprint.html` คือ
+**เปลือก** (artifact shell) ที่มีแต่ `<iframe>` ชี้ไปยังไฟล์ข้างบน อ่านเปลือก
+จะได้แต่ CSS กับ script ไม่ได้เนื้อหา — แปลงเป็น text แล้วได้ 6 บรรทัด และ
+`grep "หน้าที่"` ได้ 0
 
-> **สารบัญต้นฉบับมี 16 หัวข้อ — ไฟล์นี้ต้องมีครบ 16**
-> ตรวจด้วย `grep -c '^## ' docs/ctd-foundation-spec.md` ต้องได้ 16
+> **อย่าอ่านต้นฉบับด้วยตาเปล่า — ใช้คำสั่ง**
 >
-> v1.3 ระบุที่หัวเอกสารว่า *"สถานะ เพิ่ม Mockup หน้าจอ (หัวข้อ 16)"* — การ
-> extract ครั้งแรกตัด §16 ทิ้ง ทำให้หน้าจอทุกหน้าถูกสร้างจากการเดาอยู่นาน
-> จึงต้องนับหัวข้อทุกครั้งที่แตะไฟล์นี้
+>     yarn spec:extract   # เปลือก → docs/source/spec.txt (fail ถ้าได้ < 500 บรรทัด)
+>     yarn spec:check     # เทียบหัวข้อ · หน้าจอ §16 · ข้อค้างใน PROGRESS.md
+>
+> สคริปต์นี้มีเพราะการ "ตรวจเอกสารแล้ว" สามรอบติดกันรายงานว่าครบ ทั้งที่ §5.4
+> และหน้า A4 หายไปทั้งหัวข้อ · คำบรรยายตรวจสอบไม่ได้ output ตรวจสอบได้
+> **ขอ output ของ `yarn spec:check` แทนคำว่า "ตรวจแล้ว"**
 
 ไฟล์นี้คือดัชนีหลักใน repo ครอบคลุม **ทั้งข้อกำหนด (requirement code) และ
 หน้าจอ (§16)** — การตรวจความครบถ้วนด้วยการไล่เฉพาะรหัส `AUTH-*`/`REQ-*` มองไม่
@@ -156,6 +160,7 @@ Roles are configuration, never hardcoded.
 | หัวหน้าทีม | first-line supervisor | see the team's requests, approve step 1 |
 | ผู้จัดการฝ่าย | department manager | see the department, approve per matrix, department bottleneck report |
 | ผู้บริหาร | director / C-level | see across the company, approve high amounts, all reports |
+| ทีมผู้รับคำขอ (Receiver) | the destination team, e.g. Pricing for discount requests | see their team's queue, return with a reason, **complete work**, read sensitive fields of the types their team receives |
 | ผู้ดูแลระบบ | configuration team | roles, request types, matrix, SLA, audit log — **no approval authority** |
 | ผู้ตรวจสอบ | internal audit | read everything including the audit log; read-only, cross-company |
 
@@ -167,6 +172,54 @@ Roles are configuration, never hardcoded.
 | **ROLE-04** | Roles are per company; permissions resolve against the active company only. | A manager in company A acting in company B has no manager rights there. | ✅ |
 | **ROLE-05** | Every permission change is audited: who, what, to whom, when, before → after. | Five sampled changes answer all of those. | ✅ |
 | **ROLE-06** | After login the frontend fetches permissions + scope once and composes the menu from them. | A user without approval rights sees no approval menu and gets 403 if they call it directly. | ✅ |
+
+### §5.4 Seed permissions per role, and how to change them
+
+The permission catalog is declared in code (`GET /admin/permissions`). This
+table is the **seed** that must ship with the system; admins add and remove
+from the screen without a deploy.
+
+`✓*` means *granted, but a positional check still applies on top* — a team lead
+holds `request.return`, yet may only return a request that is actually waiting
+on them.
+
+| Permission | พนักงาน | หัวหน้าทีม | ทีมผู้รับ | ผู้จัดการฝ่าย | ผู้บริหาร | Admin | Auditor |
+|---|---|---|---|---|---|---|---|
+| `request.create` | ✓ | ✓ | ✓ | ✓ | ✓ | — | — |
+| `request.read` (+scope) | ✓ own | ✓ team | ✓ own queue | ✓ department | ✓ company | ✓ company | ✓ all |
+| `request.cancel.own` | ✓ | ✓ | ✓ | ✓ | ✓ | — | — |
+| `request.cancel.any` | — | — | — | ✓ | ✓ | — | — |
+| `request.return` | — | ✓* | ✓* | ✓* | ✓* | — | — |
+| `request.complete` | — | — | ✓* | — | — | — | — |
+| `request.sensitive.read` | — (own entries only) | ✓* | ✓ types their team receives | ✓* | ✓ | — | ✓ |
+| `approval.decide` | — | ✓* | — | ✓* | ✓* | — | — |
+| `approval.history.read` | — | — | — | — | ✓ | — | ✓ |
+| `report.request.read` | — | ✓ team | ✓ team | ✓ department | ✓ company | — | ✓ |
+| `user.read` | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `admin.*` (org · role · request-type · approval-matrix · sla) | — | — | — | — | — | ✓ | — |
+| `audit.read` | — | — | — | — | — | ✓ | ✓ |
+| `integration.*` | service accounts only (AUTH-06) — **never bound to a person's role** | | | | | | |
+
+#### Two separate layers of change
+
+| Goal | Where · who | Effective when |
+|---|---|---|
+| Add or remove a **person** from a role | **Keycloak** — the IT team holding the realm. Mapping applies per ROLE-03. In an emergency an admin may bind or unbind by hand (ROLE-02) | Via Keycloak: within one access-token lifetime (≤15 min). By hand: immediately. Both are audited |
+| Add or remove a **permission inside a role** | **Admin › Roles** screen (A4) — tick from the catalog and save (ROLE-02); may differ per company (ROLE-04) | Immediately on the next API call — the backend checks live. The frontend menu follows within one token lifetime |
+| Change the **visibility level** (own → team → department → company) | **Admin › Scope Rules** — the (role, resource) pair (SCOPE-01) | Immediately, no deploy |
+| Add a **new permission to the catalog** | **Code only** — declared alongside its endpoint, then deployed. Admins cannot invent one, which is what prevents orphan permissions nothing actually enforces | Next release |
+
+#### Guardrails the system must enforce
+
+1. **Separation of duties** — a role holding `admin.*` may not also hold
+   `approval.decide` or `request.sensitive.read`. The system refuses the grant;
+   an admin cannot tick it for themselves.
+2. **A role with holders cannot be deleted**, only deactivated.
+3. **Every role / permission / scope change is audited** with before → after
+   (ROLE-05).
+4. **Removing a role must not strand work** — if the person removed is the
+   current approver of a live case, the system moves it to the next holder of
+   that role, or to their supervisor per the org chart, and notifies.
 
 ---
 
@@ -588,8 +641,9 @@ confirmed with the process owners before go-live (D-09).*
 
 ## 16. Mockup หน้าจอแต่ละ Process
 
-ภาพหน้าจอ **8 หน้า** ครอบคลุม flow ผู้ใช้ (หน้าที่ 1–5) และงานตั้งค่าของผู้ดูแล
-(A1–A3) ข้อมูลในภาพ (ชื่อคน เลขคำขอ วงเงิน) เป็นข้อมูลสมมติชุดเดียวกันทุกหน้า
+ภาพหน้าจอ **9 หน้า** ครอบคลุม flow ผู้ใช้ (หน้าที่ 1–5) และงานตั้งค่าของผู้ดูแล
+(A1–A4) — **A3 กับ A4 เป็นสองแท็บของหน้าเดียวกัน** (`ผังทีมและสิทธิ์`)
+ข้อมูลในภาพ (ชื่อคน เลขคำขอ วงเงิน) เป็นข้อมูลสมมติชุดเดียวกันทุกหน้า
 เพื่อให้ไล่ตาม flow ได้
 
 > **นี่คือหัวข้อที่ v1.3 เพิ่มเข้ามา** และเป็นหัวข้อที่หายไปจากไฟล์นี้ตั้งแต่การ
@@ -617,6 +671,29 @@ Header: `บริษัท: OSD` + ตัวสลับบริษัท · �
 
 ปุ่มเดียว SSO ผ่าน Keycloak (LDAP ยืนยันตัวตน) **ไม่มีฟอร์มรหัสผ่านในระบบ** ·
 ล็อกอินครั้งแรกระบบสร้างโปรไฟล์อัตโนมัติแล้วเข้าคิวรอจัดสังกัด
+
+**ฝั่งซ้าย — แนะนำระบบ**
+
+- โลโก้ + ชื่อ `Connect the Dot`
+- headline สามบรรทัด:
+  `คำขอข้ามทีมทุกใบ` / `มีเจ้าของ มีกำหนดเวลา` / `ตรวจย้อนได้เสมอ`
+- คำโปรย: *"แพลตฟอร์มคำขอและการอนุมัติกลางของกลุ่มบริษัท เลิกไล่งานในอีเมลและแชท"*
+- สามข้อ (มี icon นำหน้าแต่ละข้อ):
+  - `เลขอ้างอิงทุกคำขอ ออกทันทีที่ยื่น`
+  - `เส้นทางอนุมัติอัตโนมัติตามวงเงิน`
+  - `นาฬิกา SLA เดินเอง เร่งงานเองเมื่อเกินกำหนด`
+- ท้ายคอลัมน์: `Foundation Sprint · v1.2`
+
+**ฝั่งขวา — กล่องเข้าสู่ระบบ**
+
+- หัวข้อ `เข้าสู่ระบบ` · คำอธิบาย
+  *"ใช้บัญชีองค์กรของคุณ ไม่ต้องสมัครหรือตั้งรหัสผ่านใหม่"*
+- ปุ่มเดียว: `เข้าสู่ระบบด้วยบัญชีองค์กร (SSO)`
+- ใต้ปุ่ม: *"ระบบจะพาไปยืนยันตัวตนผ่าน Keycloak ด้วยรหัสผ่านองค์กร (LDAP) —
+  ระบบนี้ไม่เก็บและไม่เห็นรหัสผ่านของคุณ"*
+- กล่องท้ายสุด (AUTH-04): *"เข้าระบบครั้งแรกแล้วยังไม่เห็นเมนู?
+  บัญชีของคุณกำลังรอผู้ดูแลจัดสังกัดทีม ติดต่อผู้ดูแลระบบที่
+  it-support@company.co.th"*
 
 ### หน้าที่ 2 — งานค้างของฉัน · REQ-08
 
@@ -783,3 +860,55 @@ T2   > 1,000,000            1 · หัวหน้าทีม → 2 · CFO →
 
 LDAP ใช้ล็อกอินเท่านั้น — **ผังทีม/หัวหน้าดูแลในระบบ** · คิว `รอจัดสังกัด`
 สำหรับผู้ล็อกอินครั้งแรก · **role หลักมาจาก Keycloak, scope ปรับในระบบ**
+
+> **A3 และ A4 เป็นแท็บของหน้าเดียวกัน** หัวหน้า `ผังทีมและสิทธิ์` ·
+> `บริษัท: OSD` มุมขวาบน · แท็บ `ผังทีม` · `Role และ Permission` ·
+> `Scope Rules` · `Keycloak Mapping`
+
+หัวเรื่อง `ผังทีมและสิทธิ์ — ดูแลในระบบ (LDAP ใช้ล็อกอินเท่านั้น)`
+
+- ซ้าย `โครงสร้างทีม` + ปุ่ม `เพิ่มทีม` — ต้นไม้ `บริษัท OSD` › `ฝ่ายขาย`
+  (`ผอ. ประเสริฐ ท.`) › `ทีมขาย Getter 1` (`หัวหน้า: สมหญิง จ. · 6 คน`) ·
+  `ทีมขาย Keeper 1` · `ทีม Pricing 4 คน` · `ฝ่ายการเงิน` (`CFO วรัญญา ส.`)
+  - ใต้ต้นไม้: *"ผังนี้คือแหล่งความจริงของ 'หัวหน้าของผู้ยื่น' ที่ใช้ใน Data
+    Scope, เส้นทางอนุมัติชั้นที่ 1 และการเร่งงาน"*
+- `รอจัดสังกัด · 2 คน` — *"ล็อกอินครั้งแรกแล้วแต่ยังยื่นคำขอไม่ได้จนกว่าจะมี
+  หัวหน้า"* · แต่ละแถวมีอักษรย่อ, `ชื่อ · username`,
+  `ล็อกอินครั้งแรก … · role จาก Keycloak: …` และปุ่ม `จัดสังกัด`
+- ขวา: ทีมที่เลือก + `หัวหน้าทีม: …` + ปุ่ม `เปลี่ยนหัวหน้าทีม` · สมาชิกแต่ละคน
+  แสดงตำแหน่ง, role code, `scope: …` และ `หัวหน้า:` / `รายงานตรงต่อ:`
+- ท้ายหน้า: *"role หลักมาจาก Keycloak (แก้ที่ Keycloak) · ผู้ดูแลปรับ scope และ
+  ผูก role เพิ่มในระบบได้ — ทุกการแก้ไขลง Audit Log"*
+
+### A4 — Role และ Permission (ผู้ดูแล · หน้าจอในแอป ไม่ใช่ Keycloak) · ROLE-02, ROLE-03, ROLE-05, §5.4
+
+สมาชิก role จัดการที่ Keycloak (mapping `crm-*`) — **หน้านี้กำหนดว่า role ทำ
+อะไรได้**: ติ๊ก permission จาก catalog, ผูก/ถอนมือกรณีเร่งด่วนพร้อมป้ายแหล่งที่มา,
+ปิดใช้งาน role · role ที่มีผู้ใช้ลบไม่ได้ · `admin.*` ถูกล็อกตาม guardrail
+แยกหน้าที่ (§5.4) · ทุกการแก้ลง Audit Log
+
+- **ซ้าย** `Role ทั้งหมด · 7` + ปุ่ม `สร้าง role` แต่ละแถว:
+  - `พนักงาน` — `ทุกคน · อัตโนมัติ`
+  - `หัวหน้าทีม` `เปิดใช้` — `14 คน · map จาก Keycloak: crm-team-lead`
+  - `ทีมผู้รับคำขอ (Pricing)` `เปิดใช้` — `4 คน · crm-pricing`
+  - `ผู้จัดการฝ่าย` `เปิดใช้` — `3 คน · crm-dept-manager`
+  - `ผู้บริหาร (CFO/CEO)` `เปิดใช้` — `2 คน · crm-executive`
+  - `ทีมขายชั่วคราว Q3` `ปิดใช้งาน` — `0 คน · ปิดเมื่อ 15 ส.ค. 2569`
+- **กลาง** `แก้ไข role: หัวหน้าทีม` + ป้าย `บริษัท OSD` +
+  `ลบไม่ได้ — มีผู้ใช้ 14 คน` + ปุ่ม `ปิดใช้งาน` · `บันทึก`
+  - แบนเนอร์: *"สมาชิก role จัดการที่ Keycloak (map: `crm-team-lead`) — หน้านี้
+    กำหนดเฉพาะว่า role ทำอะไรได้ · แก้แล้วมีผลทันทีกับ API call ถัดไป"*
+  - `REQUEST` — `request.create ยื่นคำขอ` · `request.return ตีกลับ` ·
+    `request.cancel.own ยกเลิกของตน` · `request.cancel.any ยกเลิกแทน` ·
+    `request.complete ปิดงาน` · `request.sensitive.read เห็น margin`
+  - `APPROVAL · REPORT` — `approval.decide อนุมัติ` ·
+    `approval.history.read ประวัติอำนาจ` · `report.request.read รายงานทีม` ·
+    `user.read ค้นผู้ใช้`
+  - `ADMIN · AUDIT` — **`admin.* — ขัด guardrail แยกหน้าที่`** (ล็อก) ·
+    `audit.read อ่าน audit log`
+- **ขวา** `ผู้ใช้ใน role นี้ · 14` + ปุ่ม `+ ผูกมือ` · แต่ละแถวมีป้ายแหล่งที่มา
+  `จาก Keycloak` หรือ `ผูกมือ` (แถวที่ผูกมือมีปุ่ม `ถอน`) · `ดูทั้งหมด 14 คน`
+- **ขวาล่าง** `การเปลี่ยนแปลงล่าสุด` —
+  `เพิ่ม report.request.read — admin · 20 ส.ค.` ·
+  `ผูกมือ กมล ต. (รักษาการถึง 31 ส.ค.) — admin · 18 ส.ค.` ·
+  *"ทุกรายการอยู่ใน Audit Log"*

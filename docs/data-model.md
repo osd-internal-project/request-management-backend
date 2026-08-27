@@ -111,8 +111,26 @@ never just the delegate.
 | `SlaClock` | `startedAt`, `pausedAt`, `accumulatedMs`, `dueAt`, state |
 | `HolidayCalendar` | one per company this sprint; no shifts (§09) |
 | `Notification`, `NotificationDeliveryLog` | in-app + email, every send logged (SUP-03) |
+| `NotificationPreference` | per user, per channel. In-app cannot be switched off (SUP-03) |
 | `AuditLog` | one append-only log for everything (SUP-04) |
 | `IdempotencyKey` | replay protection for state-changing POSTs (NFR-03) |
+
+### Three models §10 does not name
+
+`RequestTypeCompany` implements §10's "บริษัทที่เปิดใช้" on `request_type` as a
+join rather than an array, so switching a type on for one company is a row, not
+a rewrite of the type. `IdempotencyKey` backs the `Idempotency-Key` header
+§11.1 requires. `NotificationPreference` backs SUP-03's opt-out.
+
+### Audit columns are named for their domain
+
+§10 asks for `created_at/by` and `updated_at/by` on transactional tables. Some
+models spell that in the language of the thing that happened —
+`RequestAttachment` has `uploadedAt`/`uploadedById`, `UserRole` has
+`grantedAt`/`grantedByUserId` — and append-only tables (`AuditLog`,
+`RequestEvent`, `NotificationDeliveryLog`) carry no `updatedAt` because nothing
+updates them. A plain grep for `createdAt` under-reports the coverage; read the
+model before concluding a column is missing.
 
 `SlaClock` accumulates elapsed time rather than storing a single deadline
 because the clock **pauses** while a request sits returned with its requester
@@ -129,7 +147,10 @@ that is the acceptance criterion, not a nice-to-have.
 | Migration | Contents |
 |---|---|
 | `20260824064211_create_table` | the original placeholder `users` table |
-| `20260824120000_ctd_foundation` | everything above — 30 tables, 11 enums, zero destructive operations |
+| `20260824120000_ctd_foundation` | the bulk of the above — 30 tables, 11 enums, zero destructive operations |
+| `20260825093850_user_keycloak_roles` | Keycloak role claims on `User` (ROLE-03) |
+| `20260826040000_request_on_hold` | the `on_hold` status — an amendment beyond §7.1, pending PO sign-off |
+| `20260826152903_notification_preferences` | `NotificationPreference` (SUP-03) |
 
 The foundation migration only **adds**: it extends `users` with org and profile
 columns and creates the rest. It was applied against an empty `users` table, so
@@ -137,7 +158,7 @@ the non-null `displayName` and the unique `username` constraint carried no risk.
 Re-running it elsewhere against a populated `users` table would need a default
 or a backfill first.
 
-Seed with `npm run prisma:seed` — two companies, the six §5.2 roles with their
+Seed with `yarn prisma:seed` — two companies, the six §5.2 roles with their
 permissions and scope rules, the mockup org tree, the sensitive-field rules,
 and an approval matrix whose **ceilings are placeholders** pending open
 question A.

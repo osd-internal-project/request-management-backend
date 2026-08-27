@@ -51,6 +51,25 @@ export class RolesController {
     );
   }
 
+  /**
+   * Screen A4 — who holds this role in the active company.
+   *
+   * Not defined in §11.3: the mockup's "ผู้ใช้ใน role นี้" panel needs names
+   * and grant sources, and the spec's endpoint list predates that screen.
+   */
+  @Get('roles/:id/users')
+  @Permissions('admin.role.manage')
+  listRoleHolders(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+    @Query('company_id') companyId?: string,
+  ) {
+    return this.rolesService.holdersOf(
+      id,
+      resolveTargetCompany(principal, companyId),
+    );
+  }
+
   @Post('roles')
   @Permissions('admin.role.manage')
   createRole(

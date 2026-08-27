@@ -5,11 +5,27 @@ import {
   TQueryClient,
   TxOption,
 } from '@request-management/share';
-import type { Role, RolePermission, UserRole } from '@prisma/client';
+import type {
+  Role,
+  RoleGrantSource,
+  RolePermission,
+  UserRole,
+} from '@prisma/client';
 
 export type UserRoleWithRole = UserRole & {
   role: Role & { permissions: RolePermission[] };
 };
+
+/** One row of screen A4's "ผู้ใช้ใน role นี้" panel. */
+export interface RoleHolder {
+  readonly userId: string;
+  readonly username: string;
+  readonly displayName: string;
+  /** `KEYCLOAK_MAPPING` earns the "จาก Keycloak" badge; `MANUAL` gets "ผูกมือ" + ถอน. */
+  readonly source: RoleGrantSource;
+  readonly grantedAt: Date;
+  readonly grantedByDisplayName: string | null;
+}
 
 @Injectable()
 export class UserRoleRepository extends BaseRepository<
@@ -63,6 +79,42 @@ export class UserRoleRepository extends BaseRepository<
     });
 
     return rows.map((row) => row.userId);
+  }
+
+  /**
+   * Who holds one role in one company, for screen A4.
+   *
+   * Ordered so hand-bound grants surface first: they are the ones an admin can
+   * act on here, and the ones that carry a "รักษาการ" story worth reviewing —
+   * a Keycloak-mapped grant is changed in Keycloak, not on this screen.
+   */
+  async holdersOfRoleId(
+    roleId: string,
+    companyId: string,
+    option?: TxOption,
+  ): Promise<RoleHolder[]> {
+    const client = option?.prisma ?? this.prisma;
+
+    const rows = await client.userRole.findMany({
+      where: { roleId, companyId },
+      orderBy: [{ source: 'asc' }, { grantedAt: 'asc' }],
+      select: {
+        userId: true,
+        source: true,
+        grantedAt: true,
+        user: { select: { username: true, displayName: true } },
+        grantedBy: { select: { displayName: true } },
+      },
+    });
+
+    return rows.map((row) => ({
+      userId: row.userId,
+      username: row.user.username,
+      displayName: row.user.displayName,
+      source: row.source,
+      grantedAt: row.grantedAt,
+      grantedByDisplayName: row.grantedBy?.displayName ?? null,
+    }));
   }
 
   grant(

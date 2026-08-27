@@ -34,7 +34,12 @@
     "postinstall": "yarn prisma:generate",
     "prisma:seed": "ts-node --compiler-options '{\"module\":\"commonjs\"}' libs/prisma/seed.ts",
     "admin:grant": "ts-node --compiler-options '{\"module\":\"commonjs\"}' libs/prisma/grant-admin.ts",
-    "keycloak:provision": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/keycloak-provision.ts"
+    "keycloak:provision": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/keycloak-provision.ts",
+    "openapi": "ts-node --project scripts/tsconfig.openapi.json -r tsconfig-paths/register -r dotenv/config scripts/generate-openapi.ts",
+    "spec:extract": "ts-node --compiler-options '{\"module\":\"commonjs\"}' scripts/extract-spec.ts",
+    "spec:check": "ts-node --compiler-options '{\"module\":\"commonjs\"}' scripts/spec-check.ts",
+    "loadtest:seed": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config scripts/seed-load-test.ts",
+    "loadtest:clean": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config scripts/clean-load-test.ts"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",

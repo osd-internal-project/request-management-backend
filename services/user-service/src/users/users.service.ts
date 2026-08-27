@@ -8,7 +8,10 @@ import {
   toSkipTake,
 } from '@request-management/share';
 import type { Prisma, User } from '@prisma/client';
-import { KeycloakAdminService, KeycloakUser } from '../keycloak-admin/keycloak-admin.service';
+import {
+  KeycloakAdminService,
+  KeycloakUser,
+} from '../keycloak-admin/keycloak-admin.service';
 import { UsersRepository } from './users.repository';
 import { SearchKeycloakUsersDto } from './dto/search-keycloak-users.dto';
 import { SearchUsersDto } from './dto/search-users.dto';

@@ -151,6 +151,7 @@ model Company {
   auditLogs        AuditLog[]
 
   @@map("companies")
+  notificationPreferences NotificationPreference[]
 }
 
 /// Local mirror of the Keycloak-authenticated user (AUTH-04, JIT-provisioned
@@ -208,6 +209,7 @@ model User {
   @@index([orgUnitId])
   @@index([supervisorUserId])
   @@map("users")
+  notificationPreferences NotificationPreference[]
 }
 
 /// AUTH-05: one person can belong to several companies, with exactly one
@@ -843,6 +845,29 @@ model Notification {
 
   @@index([userId, readAt])
   @@map("notifications")
+}
+
+/// SUP-03: which optional channels a person wants, per company.
+///
+/// In-app delivery is deliberately **not** representable here — §09 makes it
+/// mandatory, because a request that nobody can be told about is a request
+/// that silently misses its SLA. Only email is a choice, and while SMTP is
+/// unresolved (open question B) the value is recorded and honoured by nothing.
+model NotificationPreference {
+  id        String @id @default(uuid())
+  userId    String
+  companyId String
+
+  emailEnabled Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id])
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([userId, companyId])
+  @@map("notification_preferences")
 }
 
 /// SUP-03: every send is logged, which is what settles "I never got notified".

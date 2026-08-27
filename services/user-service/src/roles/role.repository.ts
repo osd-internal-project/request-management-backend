@@ -9,6 +9,18 @@ import type { Prisma, Role, RolePermission } from '@prisma/client';
 
 export type RoleWithPermissions = Role & { permissions: RolePermission[] };
 
+/**
+ * A role plus how many people hold it **in the company being viewed**.
+ *
+ * Screen A4 leads with that number and uses it to explain why a role cannot be
+ * deleted, so it has to be the count for the active company — `UserRole` is
+ * bound per company (ROLE-04), and a group-wide role template would otherwise
+ * report everyone who holds it anywhere.
+ */
+export type RoleWithHolderCount = RoleWithPermissions & {
+  _count: { users: number };
+};
+
 @Injectable()
 export class RoleRepository extends BaseRepository<PrismaService['role']> {
   constructor(prisma: PrismaService) {
@@ -30,15 +42,21 @@ export class RoleRepository extends BaseRepository<PrismaService['role']> {
   findForCompany(
     companyId: string,
     option?: TxOption,
-  ): Promise<RoleWithPermissions[]> {
+  ): Promise<RoleWithHolderCount[]> {
     return this.findMany(
       {
         where: { OR: [{ companyId }, { companyId: null }] },
-        include: { permissions: true },
+        include: {
+          permissions: true,
+          // Counted in the same query rather than one `count` per role: the
+          // list is small today, but a per-row count is the shape that turns
+          // into an N+1 as soon as it is not.
+          _count: { select: { users: { where: { companyId } } } },
+        },
         orderBy: [{ isSystem: 'desc' }, { name: 'asc' }],
       },
       option,
-    ) as Promise<RoleWithPermissions[]>;
+    ) as Promise<RoleWithHolderCount[]>;
   }
 
   /**

@@ -1,0 +1,85 @@
+# NFR-07 — every merge runs the tests automatically.
+#
+# The gap this closes: 138 tests existed and ran only when someone remembered.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A new push to the same branch makes the previous run's answer irrelevant.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: yarn
+
+      # `--frozen-lockfile` so CI fails on a lockfile that does not match
+      # package.json rather than quietly resolving something else.
+      - name: Install
+        run: yarn install --frozen-lockfile
+
+      # `postinstall` already runs this, but a cached install skips postinstall
+      # and every later step needs the generated client to type-check.
+      - name: Generate Prisma client
+        run: yarn prisma:generate
+
+      # `yarn lint` runs eslint with --fix, which would report success after
+      # rewriting files CI then throws away. The check has to be read-only.
+      #
+      # Spec files are excluded from `--max-warnings 0`: the 18 warnings there
+      # are `any` in test assertions, and a build that is red on day one is a
+      # build everyone learns to ignore. Production code is warning-free and
+      # this keeps it that way.
+      - name: Lint
+        run: >
+          yarn eslint "{libs,services}/**/*.ts"
+          --max-warnings 0 --ignore-pattern "**/*.spec.ts"
+
+      # Reported, never blocking — so the count cannot creep up unnoticed.
+      - name: Lint tests (advisory)
+        continue-on-error: true
+        run: yarn eslint "{libs,services}/**/*.spec.ts"
+
+      - name: Build
+        run: yarn build
+
+      - name: Test
+        run: yarn test
+
+  # The audit log is append-only (SUP-04). This asserts it at the level that
+  # matters — the routes the server actually exposes — rather than trusting
+  # that nobody adds a handler.
+  audit-append-only:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: yarn
+
+      - name: Install
+        run: yarn install --frozen-lockfile
+
+      - name: Fail on any mutating audit route
+        run: |
+          if grep -rnE "@(Post|Patch|Put|Delete)\(" \
+               services/*/src/audit/*.controller.ts; then
+            echo "::error::SUP-04 violated — audit log must stay append-only"
+            exit 1
+          fi
+          echo "audit controller is read-only"

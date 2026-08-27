@@ -6,6 +6,8 @@ export interface ApprovalContext {
   supervisorUserId: string | null;
   supervisorChain: string[];
   roleHolders: Record<string, string>;
+  /** `userId` → display name, so a chain can be shown before it is opened. */
+  displayNames: Record<string, string>;
 }
 
 /**

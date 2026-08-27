@@ -2,6 +2,8 @@ import {
   Body,
   Controller,
   Delete,
+  HttpCode,
+  HttpStatus,
   Get,
   Headers,
   Param,
@@ -17,8 +19,9 @@ import {
   ServiceAccountOnly,
 } from '@request-management/share';
 import type { Principal } from '@request-management/share';
-import { notImplemented } from '../common/not-implemented';
 import { RequestsService } from './requests.service';
+import { BottleneckService } from '../reports/bottleneck.service';
+import { BottleneckQueryDto } from '../reports/dto/report.dto';
 import {
   CancelRequestDto,
   CreateRequestDto,
@@ -27,6 +30,10 @@ import {
   ResumeRequestDto,
   ReturnRequestDto,
   UpdateRequestDto,
+  AddAttachmentDto,
+  CreateIntegrationRequestDto,
+  CreateRequestTypeDto,
+  UpdateRequestTypeDto,
 } from './dto/request.dto';
 
 /**
@@ -40,7 +47,10 @@ import {
 @ApiBearerAuth()
 @Controller()
 export class RequestsController {
-  constructor(private readonly requests: RequestsService) {}
+  constructor(
+    private readonly requests: RequestsService,
+    private readonly bottleneck: BottleneckService,
+  ) {}
 
   /** REQ-01: types are configuration — the form comes from `formSchema`. */
   @Get('request-types')
@@ -68,20 +78,34 @@ export class RequestsController {
     return this.requests.update(id, dto, principal);
   }
 
+  /**
+   * REQ-03 — records a document against the request.
+   *
+   * Metadata only: open question G has not named an object store, so no bytes
+   * are accepted and there is deliberately **no download route**. The row is
+   * still what lets `assertSubmittable` count required documents, without
+   * which a type that demands one could never be submitted.
+   */
   @Post('requests/:id/attachments')
   @Permissions('request.create')
-  addAttachment(@Param('id') _id: string, @Body() _body: unknown) {
-    // REQ-03: needs the object-storage backend named in open question G.
-    return notImplemented('REQ-03');
+  addAttachment(
+    @Param('id') id: string,
+    @Body() dto: AddAttachmentDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.requests.addAttachment(id, dto, principal);
   }
 
+  /** REQ-03 — withdraws a document. Soft delete; the row stays for the trail. */
   @Delete('requests/:id/attachments/:attachmentId')
   @Permissions('request.create')
-  removeAttachment(
-    @Param('id') _id: string,
-    @Param('attachmentId') _attachmentId: string,
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async removeAttachment(
+    @Param('id') id: string,
+    @Param('attachmentId') attachmentId: string,
+    @CurrentPrincipal() principal: Principal,
   ) {
-    return notImplemented('REQ-03');
+    await this.requests.removeAttachment(id, attachmentId, principal);
   }
 
   /**
@@ -178,24 +202,33 @@ export class RequestsController {
     return this.requests.cancel(id, dto, principal);
   }
 
+  /** REQ-08 — the receiving team closes the work and the clock stops. */
   @Post('requests/:id/complete')
   @Permissions('request.complete')
-  complete(@Param('id') _id: string) {
-    return notImplemented('REQ-08');
+  complete(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.requests.complete(id, principal);
   }
 
+  /** REQ-09 — mean/max time per approval step, slowest first. */
   @Get('reports/request-bottleneck')
   @Permissions('report.request.read')
-  bottleneckReport(@Query() _query: unknown) {
-    return notImplemented('REQ-09');
+  bottleneckReport(
+    @Query() query: BottleneckQueryDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.bottleneck.report(query, principal);
   }
 
   /** REQ-10 / AUTH-06: raised by a system, via a service account. */
   @Post('integrations/requests')
   @Permissions('integration.request.create')
   @ServiceAccountOnly()
-  createFromIntegration(@Body() _body: unknown) {
-    return notImplemented('REQ-10');
+  createFromIntegration(
+    @Body() dto: CreateIntegrationRequestDto,
+    @CurrentPrincipal() principal: Principal,
+    @Headers('authorization') authorization: string,
+  ) {
+    return this.requests.createFromIntegration(dto, principal, authorization);
   }
 }
 
@@ -212,15 +245,24 @@ export class RequestTypeAdminController {
     return this.requests.listTypes(principal);
   }
 
+  /** REQ-01 — a new type. Created inactive so it can be finished first. */
   @Post()
   @Permissions('admin.request-type.manage')
-  create(@Body() _body: unknown) {
-    return notImplemented('REQ-01');
+  create(
+    @Body() dto: CreateRequestTypeDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.requests.createType(dto, principal);
   }
 
+  /** REQ-01 — edits a type. Affects **new requests only** (§7 snapshot). */
   @Patch(':code')
   @Permissions('admin.request-type.manage')
-  update(@Param('code') _code: string, @Body() _body: unknown) {
-    return notImplemented('REQ-01');
+  update(
+    @Param('code') code: string,
+    @Body() dto: UpdateRequestTypeDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.requests.updateType(code, dto, principal);
   }
 }

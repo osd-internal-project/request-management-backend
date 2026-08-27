@@ -1,0 +1,19 @@
+{
+  "//": "Used only by `yarn openapi`. It compiles the two Nest modules purely to read their decorators, so it is looser than a build config on purpose: nothing here is shipped.",
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "ES2021",
+    "moduleResolution": "node",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "strictPropertyInitialization": false,
+    "baseUrl": "..",
+    "paths": {
+      "@request-management/share": ["libs/share/src/index.ts"],
+      "@request-management/share/*": ["libs/share/src/*"]
+    }
+  }
+}

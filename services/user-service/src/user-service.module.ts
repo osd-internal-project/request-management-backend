@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import {
+  IdempotencyInterceptor,
   CompanyGuard,
   PolicyGuard,
   PrismaModule,
@@ -61,6 +62,12 @@ import configs from './configs';
     { provide: APP_GUARD, useClass: CompanyGuard },
     { provide: APP_GUARD, useClass: PolicyGuard },
     // SCOPE-04: strips fields the caller may not see from the response body.
+    /**
+     * NFR-03: registered globally but inert unless the caller sends
+     * `Idempotency-Key`, so a double-tapped submit cannot issue two document
+     * numbers while ordinary reads pay nothing.
+     */
+    { provide: APP_INTERCEPTOR, useClass: IdempotencyInterceptor },
     { provide: APP_INTERCEPTOR, useClass: SensitiveFieldInterceptor },
     // SCOPE-05: the interceptor records an unmasked read through this.
     { provide: SENSITIVE_READ_RECORDER, useExisting: PolicyService },

@@ -28,6 +28,7 @@ import {
   CreateDelegationDto,
   DecideDto,
   OpenCaseDto,
+  PreviewChainDto,
   PublishMatrixDto,
 } from './dto/approval.dto';
 
@@ -54,6 +55,25 @@ export class ApprovalsController {
     @Query() query: PageQueryDto,
   ) {
     return this.approvals.inbox(principal, query);
+  }
+
+  /**
+   * APV-02: the route a request would take, before it is submitted.
+   *
+   * A `POST` despite reading nothing, because the amount is a business figure
+   * that has no place in a URL or a proxy log. Permission is `request.create`,
+   * not `approval.decide` — the caller is the person about to raise the
+   * request, not somebody deciding on one.
+   */
+  @Post('preview')
+  @Permissions('request.create')
+  @HttpCode(HttpStatus.OK)
+  preview(
+    @Body() dto: PreviewChainDto,
+    @CurrentPrincipal() principal: Principal,
+    @Headers('authorization') authorization: string,
+  ) {
+    return this.approvals.previewChain(dto, principal, authorization);
   }
 
   // Declared before ':caseId' so the literal path is not swallowed by the

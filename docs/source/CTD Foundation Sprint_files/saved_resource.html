@@ -1,0 +1,1814 @@
+<!DOCTYPE html>
+<!-- saved from url=(0133)https://2c8d2bf3-2a7a-402f-8439-b3ddcb8db5e8.frame.claudeusercontent.com/_f/1787629541-c6a3/?__frame_v=manifest.0012e129155e2ab1.json -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><!-- frame-runtime --><!--<base href="/_f/1787629541-c6a3/">--><base href="."><script>window.__FRAME_PREAMBLE={"capabilities":{"artifact":"artifact.oqIe8shs.js","assets":"assets.DBUJcvq_.js","comments":"comments.GLuHR3zP.js","db":"db.CRhVHzSt.js","downloads":"downloads.C3GSvEDP.js","embed":"embed.CZsbekoQ.js","mcp":"mcp.D3B2EyQu.js","network":"network.B5UA9Su4.js","permissions":"permissions.BNySkLV5.js","room":"room.DE7EMui-.js","sample":"sample.BW2Uysoh.js","self":"artifact.oqIe8shs.js","user":"user.BpKav-Rf.js"},"transforms":"_transforms.h3_8GSUa.js","comments":"_comments.BOgkE6qU.js","translate":"_translate.5HCW4BJh.js"}</script><script>(function(){"use strict";var Y=["light","dark","system"],X=/^[A-Za-z0-9_-]{1,64}$/,D=/^[a-zA-Z_:][a-zA-Z0-9_:.-]{0,127}$/,G=new Set(["class","hidden","value","checked"]);function V(e){const t=e.toLowerCase();return t.startsWith("data-")||t.startsWith("aria-")||G.has(t)}var be="http://www.w3.org/1999/xhtml",Z="http://www.w3.org/2000/svg",J=new Set(["script","style","iframe","noscript","noframes","noembed","xmp","plaintext","template","title","textarea","object","embed"]),Q=new Set(["script","style"]);function ee(e){const t=e.localName.toLowerCase();return e.namespaceURI==="http://www.w3.org/1999/xhtml"?!J.has(t):e.namespaceURI===Z?!Q.has(t):!1}var te=new Set(["html","head","body","frameset"]);function re(e){return e.namespaceURI==="http://www.w3.org/1999/xhtml"&&te.has(e.localName)}function ne(e){if(e===null||typeof e!="object")return!1;const t=e;if(typeof t.target!="string"||!X.test(t.target)||t.text!==void 0&&typeof t.text!="string")return!1;if(t.attrsSet!==void 0){if(t.attrsSet===null||typeof t.attrsSet!="object")return!1;for(const[n,s]of Object.entries(t.attrsSet))if(!D.test(n)||typeof s!="string")return!1}if(t.attrsRemoved!==void 0){if(!Array.isArray(t.attrsRemoved))return!1;for(const n of t.attrsRemoved)if(typeof n!="string"||!D.test(n))return!1}return!0}function se(e,t){if(e===null||typeof e!="object")return!1;const{seq:n,elements:s}=e;if(typeof n!="number"||!Number.isSafeInteger(n)||!Array.isArray(s)||s.length===0||s.length>64)return!1;for(let o=0;o<s.length;o++)if(!t(s[o]))return!1;return!0}function ae(e){return e===null||typeof e!="object"?!1:se(e.__frame_patch,ne)}function oe(e){if(e===null||typeof e!="object")return!1;const t=e.__frame_init;return t!==null&&typeof t=="object"}function ie(e){return e!==null&&typeof e=="object"&&e.__frame_size_poke===!0}function le(e){if(e===null||typeof e!="object")return!1;const t=e.__frame_theme;if(t===null||typeof t!="object")return!1;const n=t.theme;return typeof n=="string"&&Y.includes(n)}var O="__frame_scroll",ce=150,ue=310,fe=160,pe=3e4;function de(){let e=0,t=!1,n=!1,s=!1,o=0,l=null;const c=i=>{try{sessionStorage.setItem(O,JSON.stringify({y:i}))}catch{}},f=()=>{if(clearTimeout(e),l===null)return;const i=l;l=null,c(i)},S=()=>{if(t){t=!1;return}n=!0,l=scrollY,clearTimeout(e),e=setTimeout(f,ce)};try{addEventListener("scroll",S,{passive:!0}),addEventListener("pagehide",f)}catch{}const v=()=>{let i;try{i=sessionStorage.getItem(O)}catch{return null}if(i===null)return null;let d;try{d=JSON.parse(i)}catch{d=null}const u=d?.y;if(!(typeof u=="number"&&Number.isFinite(u)&&u>=0)){try{sessionStorage.removeItem(O)}catch{}return null}return u};let b=!1;const m=i=>{try{const d=scrollY;scrollTo({top:i,left:0,behavior:"instant"}),o=i,s=!0,clearTimeout(e),l=null,c(i);const u=scrollY;u!==d&&(t=!0),u!==i&&!b&&(b=!0,addEventListener("load",()=>{try{if(scrollY===u){const h=v();m(h!==null?h:o)}}catch{}},{once:!0}))}catch{}},y=()=>{try{return!!location.hash}catch{return!0}};let g=!1;const E=()=>{try{if(g||innerWidth>ue||innerHeight>fe)return;g=!0;const i=Date.now(),d=()=>{try{removeEventListener("resize",d)}catch{}if(Date.now()-i>pe||n||y())return;const u=v();m(u!==null?u:o)};addEventListener("resize",d)}catch{}};let r=!1,p=!1;return{restore(){if(r||(r=!0,y()))return;const i=v();i!==null&&(m(i),E())},promoted(){if(p||(p=!0,y()))return;const i=v();i!==null?(m(i),E()):s&&m(o)}}}var Ee="modulepreload",Ae=function(e){return"/"+e},Re={},me=function(t,n,s){let o=Promise.resolve();function l(c){const f=new Event("vite:preloadError",{cancelable:!0});if(f.payload=c,window.dispatchEvent(f),!f.defaultPrevented)throw c}return o.then(c=>{for(const f of c||[])f.status==="rejected"&&l(f.reason);return t().catch(l)})};(function(){const e=Object.defineProperty,t=globalThis,n=["RTCPeerConnection","webkitRTCPeerConnection","RTCDataChannel","RTCIceCandidate","RTCSessionDescription","RTCRtpSender","RTCRtpReceiver"];let s=0;for(let o=0;o<n.length;o++){const l=n[o];try{e(t,l,{value:void 0,writable:!1,configurable:!1})}catch{try{delete t[l]}catch{}try{e(t,l,{value:void 0,writable:!1,configurable:!0})}catch{}}typeof t[l]=="function"&&s++}if(s&&window!==top)try{parent.postMessage({__frame_rtc_lockdown_failed:s},"*")}catch{}})();var he=1e4,_e=Object.freeze([...window.__FRAME_PREAMBLE?.origins??["https://claude.ai","https://preview.claude.ai"]]);function F(e){for(const t of _e)if(t.endsWith(":*"))try{const n=new URL(e);if(`${n.protocol}//${n.hostname}:*`===t)return!0}catch{}else if(e===t)return!0;return!1}var M=Object.freeze({...window.__FRAME_PREAMBLE?.capabilities}),j=window.__FRAME_PREAMBLE?.transforms,N=window.__FRAME_PREAMBLE?.comments,I=window.__FRAME_PREAMBLE?.translate,L=/^[\w.-]+\.js$/;function T(e){return me(()=>import("/_runtime/"+e),void 0)}function z(e,t){return{contract:e.contract,changes:new Set(e.changes??[]),flags:new Set(e.flags??[]),capabilities:e.capabilities??{},capBudgets:e.capBudgets??{},transforms:new Map,shellOrigin:t,mount:W,pipe:()=>({wrap:(n,s)=>(...o)=>{try{return s(...o)}catch(l){return Promise.reject(l)}}})}}var P=null,w=null;function q(e,t,n){try{Object.defineProperty(e,t,{value:n,writable:!1,configurable:!1,enumerable:!0})}catch{try{Object.defineProperty(e,t,{value:n,writable:!1,configurable:!0,enumerable:!0})}catch{}}}var B=!1;function ve(e,t){const n=[];for(const s of e.elements){const o=document.querySelector(`[data-id="${s.target}"]`);if(!o){parent.postMessage({__frame_patch_miss:{seq:e.seq}},t);return}if([...Object.keys(s.attrsSet??{}),...s.attrsRemoved??[]].some(l=>!V(l))){parent.postMessage({__frame_patch_miss:{seq:e.seq}},t);return}if(s.text!==void 0&&(!ee(o)||re(o))){parent.postMessage({__frame_patch_miss:{seq:e.seq}},t);return}for(const[l,c]of Object.entries(s.attrsSet??{}))if(!$(o,l)){try{o.setAttribute(l,c)}catch{}H(o,l,c)}for(const l of s.attrsRemoved??[])$(o,l)||(o.removeAttribute(l),H(o,l,null));typeof s.text=="string"&&(o.textContent=s.text),n.push(s.target)}try{document.dispatchEvent(new CustomEvent("claude:edit",{detail:{seq:e.seq,targets:n}}))}catch{}}function H(e,t,n){if(!(e instanceof HTMLInputElement))return;const s=t.toLowerCase();s==="checked"?e.checked=n!==null:s==="value"&&e.type!=="file"&&(e.value=n??"")}function $(e,t){const n=t.toLowerCase(),s=e;return n==="data-id"||(n==="value"||n==="checked")&&(s.__artifactSecret===!0||/^(password|hidden|file)$/.test(s.type??"")||/(^|\s)(cc-|one-time-code|current-password|new-password)/i.test(`${e.getAttribute("autocomplete")??""} ${s.autocomplete??""}`))}function K(e){const t=document.documentElement;e==="light"||e==="dark"?(t.dataset.theme=e,t.style.colorScheme=e,B=!0):B&&(delete t.dataset.theme,t.style.colorScheme="",B=!1)}var R=new Map;function ye(){let e;const t={u:new Promise(n=>{e=n}),r:n=>{t.done=!0,e(n)},done:!1,nulled:!1};return t}var ge=Object.freeze(Object.assign(Object.create(null),{call:Function.prototype.call,apply:Function.prototype.apply,bind:Function.prototype.bind})),W=(e,t)=>{const n=R.get(e);if(!n||n.done){n?.nulled&&w&&parent.postMessage({__frame_cap_telemetry:{kind:"cap-load-error",cap:e}},w);return}const s=typeof t=="function"?Object.setPrototypeOf(t,ge):Object.assign(Object.create(null),t);typeof s.then=="function"&&delete s.then,n.r(Object.freeze(s))},U=Object.getOwnPropertyDescriptor(window,"claude");if(window!==top&&!(U&&U.writable===!1)){const e=j&&L.test(j)?T(j).catch(()=>{}):Promise.resolve(void 0),t=r=>{if(r.type==="auxclick"&&r.button!==1)return;const p=r.target,i=p&&p.closest?p.closest("a[href],area[href]"):null;if(!i)return;const d=i.getAttribute("href");if(!d)return;let u,h;try{u=new URL(d,document.baseURI),h=new URL(document.baseURI).origin}catch{return}if((u.protocol==="http:"||u.protocol==="https:")&&u.origin!==h){r.preventDefault();const _=(i.getAttribute("target")??"").toLowerCase(),C=r.type==="auxclick"||r.metaKey||r.ctrlKey||r.shiftKey||r.altKey||!["","_self","_top","_parent"].includes(_);parent.postMessage({__frame_nav:!0,url:u.href,newTab:C},"*")}};addEventListener("click",t,!0),addEventListener("auxclick",t,!0);const n={},s=r=>{r.isTrusted&&(n.pointer=!0)},o=r=>{r.isTrusted&&(n.click=!0)};addEventListener("pointermove",s,{capture:!0,passive:!0}),addEventListener("click",o,{capture:!0,passive:!0}),e.then(r=>{r?.wireNav&&(r.wireNav(),removeEventListener("click",t,!0),removeEventListener("auxclick",t,!0),removeEventListener("pointermove",s,!0),removeEventListener("click",o,!0),r.wireEngagement?.(n))});let l=null;try{l=de()}catch{}const c=U?.value??{};q(window,"claude",c);for(const r of Object.keys(M)){if(c[r]!==void 0){q(c,r,c[r]);continue}R.set(r,ye())}if(c.use===void 0){const r=p=>{if(typeof p!="string"||!Object.hasOwn(M,p))return Promise.resolve(null);const i=R.get(p);return i?i.u:Promise.resolve(c[p]??null)};try{Object.defineProperty(c,"use",{value:r,writable:!0,configurable:!0,enumerable:!1})}catch{}}let f=null,S=null,v=0;const b=r=>{r.source!==parent||!F(r.origin)||oe(r.data)&&(f=r.data.__frame_init,w=r.origin,removeEventListener("message",b),clearTimeout(v),S?.())};addEventListener("message",b),parent.postMessage({__frame_connect:!0},"*");const m=new Promise(r=>{S=r,v=setTimeout(()=>{removeEventListener("message",b),r()},he)}),y=document.readyState==="loading"?new Promise(r=>document.addEventListener("DOMContentLoaded",()=>r(),{once:!0})):Promise.resolve();y.then(()=>{try{l?.restore()}catch{}});const g={cb:null},E=r=>{if(!(r.source!==parent||!F(r.origin))&&ie(r.data)){try{l?.promoted()}catch{}g.cb?.()}};addEventListener("message",E),m.then(async()=>{if(!f||!w){for(const a of R.values())a.nulled=!0,a.r(null);return}K(f.theme);const r=w;let p=!1,i=!1;addEventListener("message",a=>{if(a.source!==parent||a.origin!==r)return;le(a.data)&&K(a.data.__frame_theme.theme),ae(a.data)&&ve(a.data.__frame_patch,r);const k=a.data?.__fc_mode;k&&typeof k=="object"&&!p&&N&&L.test(N)&&(p=!0,T(N).then(x=>x.install?.(r,k.on===!0)).catch(()=>{}));const A=a.data?.__ft_cmd;A&&typeof A=="object"&&!i&&I&&L.test(I)&&(i=!0,T(I).then(x=>x.install?.(r,A)).catch(()=>{}))});const d=Object.keys(f.capabilities??{}).filter(a=>Object.hasOwn(M,a)).map(a=>[a,M[a]]).filter(a=>typeof a[1]=="string"&&L.test(a[1])),u=await Promise.allSettled(d.map(([,a])=>T(a))),h=await e,_=w;if(h?.buildBoot||parent.postMessage({__frame_cap_telemetry:{kind:"cap-load-error",cap:"_transforms"}},_),h?.buildBoot)try{P=h.buildBoot(f,h.TRANSFORMS??{},{shellOrigin:_,mount:W},a=>parent.postMessage({__frame_cap_telemetry:a},_))}catch{parent.postMessage({__frame_cap_telemetry:{kind:"cap-load-error",cap:"_transforms"}},_),P=z(f,_)}else P=z(f,_);const C=a=>parent.postMessage({__frame_cap_telemetry:{kind:"cap-load-error",cap:a}},_),we=P;u.forEach((a,k)=>{const A=d[k][0];if(a.status!=="fulfilled"){C(A);return}try{a.value?.install?.(we)}catch{C(A)}});for(const a of R.values())a.done||(a.nulled=!0,a.r(null));await y,parent.postMessage({__frame_ready:!0},w),e.then(a=>a?.installSizeReporter?.(_,g))})}})();</script><!-- /frame-runtime --><meta name="viewport" content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}</style></head><body>
+<title>CTD Foundation Sprint</title>
+<link rel="stylesheet" href="./css2">
+<style>
+:root{
+  --paper:#FBFAF8; --ink:#22303C; --ink-2:#4A5A68; --muted:#7B8794;
+  --accent:#C05621; --accent-soft:#F6E3D7; --steel:#33586E; --steel-soft:#E3EAEF;
+  --line:#E2DDD5; --card:#FFFFFF; --code-bg:#F1EDE6;
+  --ok:#2F7D4F; --warn:#B7791F; --danger:#B33A3A;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#171D24; --ink:#E6E1D8; --ink-2:#B8C0C9; --muted:#8A94A0;
+    --accent:#E58B4E; --accent-soft:#3A2A1E; --steel:#8FB4CC; --steel-soft:#22303C;
+    --line:#33404C; --card:#1F2731; --code-bg:#242E39;
+    --ok:#6FBF8F; --warn:#D9A44A; --danger:#D98080;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#171D24; --ink:#E6E1D8; --ink-2:#B8C0C9; --muted:#8A94A0;
+  --accent:#E58B4E; --accent-soft:#3A2A1E; --steel:#8FB4CC; --steel-soft:#22303C;
+  --line:#33404C; --card:#1F2731; --code-bg:#242E39;
+  --ok:#6FBF8F; --warn:#D9A44A; --danger:#D98080;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:"Sarabun",-apple-system,"Segoe UI",sans-serif;
+  font-size:16px; line-height:1.75;
+}
+.page{max-width:880px; margin:0 auto; padding:48px 24px 96px}
+h1,h2,h3,h4{font-family:"IBM Plex Sans Thai","Sarabun",sans-serif; line-height:1.35; text-wrap:balance; color:var(--ink)}
+h1{font-size:2rem; font-weight:700; margin:.4rem 0 .6rem}
+h2{font-size:1.35rem; font-weight:700; margin:3.2rem 0 .8rem; padding-top:1.2rem; border-top:2px solid var(--line)}
+h2 .no{color:var(--accent); font-family:"IBM Plex Mono",monospace; font-size:1.05rem; margin-right:.55rem}
+h3{font-size:1.08rem; font-weight:600; margin:2rem 0 .5rem}
+h4{font-size:1rem; font-weight:600; margin:1.4rem 0 .4rem}
+p{margin:.55rem 0}
+.eyebrow{font-family:"IBM Plex Sans Thai",sans-serif; font-size:.78rem; font-weight:600; letter-spacing:.14em; text-transform:uppercase; color:var(--accent)}
+.lede{font-size:1.06rem; color:var(--ink-2); max-width:64ch}
+.meta{display:flex; flex-wrap:wrap; gap:.5rem 1.6rem; margin:1.1rem 0 0; padding:.8rem 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); font-size:.86rem; color:var(--ink-2)}
+.meta b{color:var(--ink); font-weight:600}
+.toc{margin:1.6rem 0 0; padding:1rem 1.2rem; background:var(--card); border:1px solid var(--line); border-radius:6px}
+.toc-title{font-family:"IBM Plex Sans Thai",sans-serif; font-size:.78rem; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin:0 0 .4rem}
+.toc ol{margin:0; padding-left:1.3rem; columns:2; column-gap:2.4rem; font-size:.92rem}
+.toc li{margin:.18rem 0; break-inside:avoid}
+.toc a{color:var(--steel); text-decoration:none}
+.toc a:hover,.toc a:focus{text-decoration:underline; color:var(--accent)}
+a{color:var(--steel)}
+code,.rid{font-family:"IBM Plex Mono",monospace; font-size:.84em; background:var(--code-bg); padding:.08em .4em; border-radius:4px; white-space:nowrap}
+.rid{color:var(--accent); font-weight:500}
+.tw{overflow-x:auto; margin:1rem 0}
+table{border-collapse:collapse; width:100%; font-size:.92rem; line-height:1.6; font-variant-numeric:tabular-nums}
+th{font-family:"IBM Plex Sans Thai",sans-serif; font-size:.8rem; font-weight:600; letter-spacing:.04em; text-align:left; color:var(--steel); background:var(--steel-soft); padding:.5rem .7rem; border:1px solid var(--line); vertical-align:top}
+td{padding:.5rem .7rem; border:1px solid var(--line); vertical-align:top; background:var(--card)}
+td.id{white-space:nowrap}
+ul,ol{margin:.5rem 0; padding-left:1.5rem}
+li{margin:.22rem 0}
+.callout{margin:1.1rem 0; padding:.85rem 1.1rem; border-left:3px solid var(--accent); background:var(--accent-soft); border-radius:0 6px 6px 0; font-size:.94rem}
+.callout.info{border-left-color:var(--steel); background:var(--steel-soft)}
+.callout b{font-weight:600}
+.pill{display:inline-block; font-family:"IBM Plex Sans Thai",sans-serif; font-size:.72rem; font-weight:600; letter-spacing:.05em; padding:.1em .6em; border-radius:99px; vertical-align:middle}
+.pill.in{background:var(--accent-soft); color:var(--accent)}
+.pill.out{background:var(--code-bg); color:var(--muted)}
+.pill.ok{background:color-mix(in srgb,var(--ok) 15%,transparent); color:var(--ok)}
+.flow{font-family:"IBM Plex Mono",monospace; font-size:.82rem; line-height:2.1; background:var(--code-bg); border:1px solid var(--line); border-radius:6px; padding:1rem 1.2rem; overflow-x:auto; white-space:pre}
+.small{font-size:.86rem; color:var(--muted)}
+.grid2{display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin:1rem 0}
+@media (max-width:640px){ .grid2{grid-template-columns:1fr} .toc ol{columns:1} }
+.card{background:var(--card); border:1px solid var(--line); border-radius:6px; padding:.9rem 1.1rem}
+.card h4{margin-top:0}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+@media (prefers-reduced-motion: reduce){ *{scroll-behavior:auto!important} }
+html{scroll-behavior:smooth}
+</style>
+
+<div class="page">
+
+<header>
+  <div class="eyebrow">Connect the Dot · Requirement Specification</div>
+  <h1>Foundation Sprint — Login · Role Permission · Data Scope · Request · Approval</h1>
+  <p class="lede">เอกสารข้อกำหนดสำหรับทีมพัฒนา แยกงานรากฐานของระบบออกมาให้เริ่มพัฒนาก่อนโมดูลธุรกิจ ครอบคลุม 5 ส่วน: ระบบล็อกอินกลาง (SSO), สิทธิ์ตามบทบาท (RBAC), ขอบเขตการเห็นข้อมูล (Data Scope), โมดูลคำขอ (Platform Request) และเครื่องยนต์อนุมัติกลาง (Approval Engine)</p>
+  <div class="meta">
+    <span>เวอร์ชัน <b>1.5</b></span>
+    <span>วันที่ <b>25 สิงหาคม 2569</b></span>
+    <span>อ้างอิง <b>ข้อเสนอโครงการ Connect the Dot · หัวข้อ 04, 07, 08</b></span>
+    <span>สถานะ <b>เพิ่มหัวข้อ 5.4 (permission ต่อ role) และ mockup หน้า A4</b></span>
+  </div>
+  <nav class="toc" aria-label="สารบัญ">
+    <div class="toc-title">สารบัญ</div>
+    <ol>
+      <li><a href="https://2c8d2bf3-2a7a-402f-8439-b3ddcb8db5e8.frame.claudeusercontent.com/_f/1787629541-c6a3/#scope">ขอบเขตของงานชุดนี้</a></li>
+      <li><a href="https://2c8d2bf3-2a7a-402f-8439-b3ddcb8db5e8.frame.claudeusercontent.com/_f/1787629541-c6a3/#context">ข้อตกลงที่ผูกพันการออกแบบ</a></li>
+      <li><a href="https://2c8d2bf3-2a7a-402f-8439-b3ddcb8db5e8.frame.claudeusercontent.com/_f/1787629541-c6a3/#arch">สถาปัตยกรรมภาพรวม</a></li>
+      <li><a href="https://2c8d2bf3-2a7a-402f-8439-b3ddcb8db5e8.frame.claudeusercontent.com/_f/1787629541-c6a3/#auth">AUTH — ระบบล็อกอินกลาง</a></li>
+      <li><a href="https://2c8d2bf3-2a7a-402f-8439-b3ddcb8db5e8.frame.claudeusercontent.com/_f/1787629541-c6a3/#role">ROLE — สิทธิ์ตามบทบาท</a></li>
+      <li><a href="https://2c8d2bf3-2a7a-402f-8439-b3ddcb8db5e8.frame.claudeusercontent.com/_f/1787629541-c6a3/#dscope">SCOPE — ขอบเขตการเห็นข้อมูล</a></li>
+      <li><a href="https://2c8d2bf3-2a7a-402f-8439-b3ddcb8db5e8.frame.claudeusercontent.com/_f/1787629541-c6a3/#req">REQ — โมดูลคำขอ (Platform Request)</a></li>
+      <li><a href="https://2c8d2bf3-2a7a-402f-8439-b3ddcb8db5e8.frame.claudeusercontent.com/_f/1787629541-c6a3/#apv">APV — เครื่องยนต์อนุมัติกลาง</a></li>
+      <li><a href="https://2c8d2bf3-2a7a-402f-8439-b3ddcb8db5e8.frame.claudeusercontent.com/_f/1787629541-c6a3/#support">SUP — บริการขั้นต่ำที่ต้องมีร่วม</a></li>
+      <li><a href="https://2c8d2bf3-2a7a-402f-8439-b3ddcb8db5e8.frame.claudeusercontent.com/_f/1787629541-c6a3/#data">โครงสร้างข้อมูลหลัก</a></li>
+      <li><a href="https://2c8d2bf3-2a7a-402f-8439-b3ddcb8db5e8.frame.claudeusercontent.com/_f/1787629541-c6a3/#api">ข้อกำหนด API (API Spec)</a></li>
+      <li><a href="https://2c8d2bf3-2a7a-402f-8439-b3ddcb8db5e8.frame.claudeusercontent.com/_f/1787629541-c6a3/#nfr">ข้อกำหนดที่ไม่ใช่ฟังก์ชัน</a></li>
+      <li><a href="https://2c8d2bf3-2a7a-402f-8439-b3ddcb8db5e8.frame.claudeusercontent.com/_f/1787629541-c6a3/#plan">การแบ่ง Sprint และลำดับพัฒนา</a></li>
+      <li><a href="https://2c8d2bf3-2a7a-402f-8439-b3ddcb8db5e8.frame.claudeusercontent.com/_f/1787629541-c6a3/#dod">เกณฑ์ตรวจรับรวม (Definition of Done)</a></li>
+      <li><a href="https://2c8d2bf3-2a7a-402f-8439-b3ddcb8db5e8.frame.claudeusercontent.com/_f/1787629541-c6a3/#open">คำถามเปิดที่ต้องได้คำตอบ</a></li>
+      <li><a href="https://2c8d2bf3-2a7a-402f-8439-b3ddcb8db5e8.frame.claudeusercontent.com/_f/1787629541-c6a3/#mock">Mockup หน้าจอแต่ละ Process</a></li>
+    </ol>
+  </nav>
+</header>
+
+<!-- ============================================================ -->
+<h2 id="scope"><span class="no">01</span>ขอบเขตของงานชุดนี้</h2>
+<p>งานชุดนี้คือรากฐานที่ทุกโมดูลธุรกิจ (CRM, Sales, Pre-Sales, Pricing, Legal, PM, Engineer, Delivery, Service, HR, MACOM) ต้องเรียกใช้ร่วมกัน ตามหลักการของข้อเสนอโครงการที่ให้เริ่มระยะที่ 1 ที่ Platform Request ก่อน เพราะ<b>ถ้าสร้างโมดูลธุรกิจก่อนแล้วค่อยทำระบบคำขอทีหลัง จะต้องกลับไปแก้ทุกโมดูลที่ทำไปแล้ว</b></p>
+
+<div class="tw"><table>
+<tbody><tr><th style="width:52%">อยู่ในขอบเขต <span class="pill in">IN</span></th><th>ไม่อยู่ในขอบเขต <span class="pill out">OUT</span></th></tr>
+<tr>
+<td>
+<ul>
+<li>SSO ผ่าน Keycloak เชื่อม LDAP ของบริษัท (D-07)</li>
+<li>ซิงก์ผู้ใช้ ผังองค์กร และสายบังคับบัญชาจาก LDAP (D-08)</li>
+<li>โครงสร้างบทบาทและสิทธิ์ (RBAC) พร้อมหน้าจอผู้ดูแล</li>
+<li>Data Scope ระดับแถวข้อมูล + การปกปิดฟิลด์อ่อนไหว</li>
+<li>รองรับหลายบริษัทตั้งแต่ต้น (D-11)</li>
+<li>Platform Request ครบ 10 ฟีเจอร์ตามข้อเสนอ</li>
+<li>Approval Engine ครบ 6 ฟีเจอร์ตามข้อเสนอ (D-31)</li>
+<li>SLA-นับเวลาขั้นต่ำ + แจ้งเตือนในระบบ/อีเมลขั้นต่ำ + Audit log</li>
+<li>เปิดใช้จริง 2 ประเภทคำขอนำร่อง: <b>ขอส่วนลด</b> และ <b>ส่งต่อโอกาสการขาย</b> (เดินบนเครื่องยนต์เดียวกับอีก 28 ประเภทที่จะทยอยตั้งค่าภายหลัง)</li>
+</ul>
+</td>
+<td>
+<ul>
+<li>โมดูลธุรกิจทั้ง 11 โมดูล (แยก sprint ถัดไป)</li>
+<li>เครื่องยนต์ SLA กลางฉบับเต็ม (ปฏิทินเวลาทำการหลายบริษัท, กะ, รายงานตามกำหนดเข้า Data Mart) — sprint นี้ทำเฉพาะนาฬิกาขั้นต่ำ</li>
+<li>ศูนย์แจ้งเตือนกลางฉบับเต็ม (กติกาจากเหตุการณ์, เทมเพลตหลายบริษัท, แชทองค์กร)</li>
+<li>ระบบ PDPA กลาง (sprint นี้เตรียมเฉพาะจุดเสียบ masking)</li>
+<li>ระบบลงนามอิเล็กทรอนิกส์</li>
+<li>Odoo Connector, Reserve-phone, D-Callcenter, LLM Gateway</li>
+<li>Data Lake / Metabase</li>
+<li>ผู้ช่วย AI ทุกตัว</li>
+</ul>
+</td>
+</tr>
+</tbody></table></div>
+
+<div class="callout"><b>เหตุผลที่เลือกคำขอนำร่อง 2 ประเภทนี้:</b> ข้อเสนอโครงการกำหนดผลวัดเมื่อจบระยะที่ 1 ว่า "คำขอส่วนลดและการส่งต่อ Lead เดินในระบบทั้งหมด เลิกใช้อีเมลสำหรับสองเรื่องนี้" — คำขอส่วนลดเป็นตัวทดสอบ Approval Engine ตามวงเงินที่ดีที่สุด ส่วนการส่งต่อโอกาสการขายเป็นตัวทดสอบเส้นทางข้ามทีมที่เบาที่สุด · หมายเหตุ: ใน sprint นี้ยังไม่มีโมดูล Pricing การแสดง margin ในคำขอส่วนลดจึงเป็นช่องกรอกตัวเลขพร้อมไฟล์แนบ ยังไม่ใช่การคำนวณอัตโนมัติ</div>
+
+<!-- ============================================================ -->
+<h2 id="context"><span class="no">02</span>ข้อตกลงที่ผูกพันการออกแบบ</h2>
+<p>ข้อสรุปจากรอบทบทวนกับเจ้าของกระบวนการ (หัวข้อ 07 ของข้อเสนอ) ที่มีผลตรงต่องานชุดนี้ ทีมพัฒนาต้องยึดตามนี้ ห้ามออกแบบขัดแย้งโดยไม่ผ่าน PO:</p>
+<div class="tw"><table>
+<tbody><tr><th style="width:12%">รหัส</th><th>ข้อตกลง</th><th style="width:38%">ผลต่อการออกแบบ</th></tr>
+<tr><td class="id"><span class="rid">D-07</span></td><td>ระบบล็อกอินกลางใช้ Keycloak เชื่อมกับ LDAP ของบริษัท · <b>ยืนยันเพิ่ม (PO):</b> LDAP ใช้ยืนยันตัวตน (login) เท่านั้น — role กำหนดที่ Keycloak · มี Keycloak instance ใช้งานอยู่แล้ว</td><td>ไม่สร้างระบบจัดการรหัสผ่านเอง ทุกบริการตรวจ token จาก Keycloak เท่านั้น · role อ่านจาก claims ใน token (Keycloak roles/groups)</td></tr>
+<tr><td class="id"><span class="rid">D-08</span></td><td>ระดับอำนาจอนุมัติกำหนดในระบบ · <b>ปรับจากข้อเสนอเดิม (PO):</b> เมื่อ LDAP ใช้ล็อกอินอย่างเดียว ผังทีมและสายบังคับบัญชาจึง<b>ดูแลในระบบนี้</b>ผ่านหน้าจอผู้ดูแล ไม่ซิงก์จาก LDAP</td><td>ระบบเป็นแหล่งความจริงของ "ใครสังกัดทีมไหน ใครคือหัวหน้า" (ใช้กับ Data Scope ระดับ team และการเร่งงาน) · ตารางอำนาจอนุมัติเป็นข้อมูลของระบบนี้ แก้ผ่านหน้าจอผู้ดูแล</td></tr>
+<tr><td class="id"><span class="rid">D-09</span></td><td>กำหนดเวลา (SLA) ของคำขอเป็นค่าตั้งค่า ใส่ตัวเลขจริงตอนเตรียมเปิดใช้งาน</td><td>SLA เก็บเป็น config ต่อประเภทคำขอต่อบริษัท ห้าม hardcode</td></tr>
+<tr><td class="id"><span class="rid">D-11</span></td><td>ต้องรองรับหลายบริษัทและหลายสกุลเงินตั้งแต่ต้น</td><td>ทุก entity หลักมี <code>company_id</code> · วงเงินอนุมัติระบุสกุลเงิน</td></tr>
+<tr><td class="id"><span class="rid">D-02 / D-19</span></td><td>เลขที่เอกสารใช้ปี ค.ศ. + เดือน รีเซ็ตลำดับทุกเดือน · รหัสบริษัทในเลขเอกสารตั้งค่าได้รายประเภทเอกสาร</td><td>เครื่องออกเลขคำขอเป็นบริการกลาง รูปแบบตั้งค่าได้ เช่น <code>OSD-DSC-202608-0042</code></td></tr>
+<tr><td class="id"><span class="rid">D-16</span></td><td>การอนุมัติภายในใช้การกดอนุมัติในระบบพร้อมร่องรอยตรวจสอบ ไม่ต้องลงนามเป็นเอกสาร</td><td>ไม่ต้องรอระบบลงนามอิเล็กทรอนิกส์ — Approval Engine เริ่มได้ใน sprint นี้</td></tr>
+<tr><td class="id"><span class="rid">D-18</span></td><td>อำนาจอนุมัติหลายบริษัท แต่ละบริษัทใช้ระเบียบของตัวเอง</td><td>ตารางอำนาจอนุมัติแยกชุดตามบริษัท ไม่ใช่ชุดเดียวทั้งกลุ่ม</td></tr>
+<tr><td class="id"><span class="rid">D-31</span></td><td>แยกงานอนุมัติออกจาก Platform Request เป็นบริการกลาง</td><td>Approval Engine เป็นบริการแยก มี API ของตัวเอง ให้โมดูลอื่นเรียกใช้ได้โดยไม่ต้องสร้างคำขอ</td></tr>
+<tr><td class="id"><span class="rid">D-34</span></td><td>SLA และการแจ้งเตือนแยกเป็นบริการกลาง ตั้งค่าจากหน้าจอผู้ดูแล</td><td>Sprint นี้สร้างโครง (interface) ของทั้งสองบริการ แต่ implement เฉพาะความสามารถขั้นต่ำในหัวข้อ 09</td></tr>
+</tbody></table></div>
+
+<!-- ============================================================ -->
+<h2 id="arch"><span class="no">03</span>สถาปัตยกรรมภาพรวม</h2>
+<p>องค์ประกอบของงานชุดนี้และเส้นทางการเรียกใช้:</p>
+<div class="flow">Browser / Mobile
+   │  OIDC (Authorization Code + PKCE)
+   ▼
+Keycloak (instance ที่มีอยู่แล้ว) ──── LDAP (ยืนยันตัวตนเท่านั้น)
+   │  access token (JWT: ตัวตน + roles จาก Keycloak)
+   ▼
+API Gateway / Backend
+   ├─ Identity &amp; Org Service     ← โปรไฟล์ผู้ใช้ · ผังทีม/หัวหน้า (ดูแลในระบบ) · ทะเบียนบริษัท
+   ├─ Policy Service (RBAC+Scope) ← ทุก endpoint ต้องผ่านจุดนี้จุดเดียว
+   ├─ Request Service             ← Platform Request + เครื่องออกเลข + state machine
+   ├─ Approval Service            ← ตารางอำนาจ · เส้นทางอนุมัติ · มอบอำนาจ
+   ├─ SLA Timer (ขั้นต่ำ)         ← due date · หยุด/เดินนาฬิกา · เร่งงาน
+   ├─ Notification (ขั้นต่ำ)      ← in-app + อีเมล
+   └─ Audit Log Service           ← ทุกการเปลี่ยนสถานะ/สิทธิ์/การเข้าถึงข้อมูลอ่อนไหว</div>
+<ul>
+<li><b>หลักการข้อเดียวที่สำคัญที่สุด:</b> การตรวจสิทธิ์ (role + scope) ทำที่ชั้น backend ผ่าน Policy Service จุดเดียว — การซ่อนปุ่ม/เมนูที่ frontend เป็นเรื่องความสะดวกผู้ใช้ ไม่ใช่การควบคุมสิทธิ์</li>
+<li>ทุกบริการเป็นเจ้าของข้อมูลตัวเอง เรียกข้ามผ่าน API ภายใน ไม่อ่านตารางข้ามบริการ</li>
+<li>Frontend เดียว (SPA) เมนูและการมองเห็นประกอบจาก permission ที่ backend ส่งให้หลังล็อกอิน</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="auth"><span class="no">04</span>AUTH — ระบบล็อกอินกลาง (SSO)</h2>
+<p>เป้าหมาย: พนักงานทุกคนเข้าระบบด้วยบัญชีองค์กรเดิมผ่าน Keycloak โดยระบบรู้ตัวตน สังกัด บริษัท และบทบาท ตั้งแต่วินาทีที่ล็อกอิน</p>
+
+<div class="tw"><table>
+<tbody><tr><th style="width:12%">รหัส</th><th style="width:46%">ข้อกำหนด</th><th>เกณฑ์ตรวจรับ</th></tr>
+<tr><td class="id"><span class="rid">AUTH-01</span></td><td>ล็อกอินผ่าน Keycloak (instance ที่มีอยู่แล้ว) ด้วย OIDC Authorization Code + PKCE · Keycloak federate ไปที่ LDAP <b>เพื่อยืนยันตัวตนเท่านั้น</b> ระบบนี้ไม่เก็บและไม่เห็นรหัสผ่าน · role ทั้งหมดกำหนดที่ Keycloak ไม่อ่านกลุ่มจาก LDAP</td><td>ล็อกอินด้วยบัญชี LDAP สำเร็จ · รหัสผ่านผิดถูกปฏิเสธที่ Keycloak · ไม่มีรหัสผ่านวิ่งผ่าน backend ของระบบ · token มี roles จาก Keycloak ครบ</td></tr>
+<tr><td class="id"><span class="rid">AUTH-02</span></td><td>Session: access token อายุสั้น (แนะนำ 15 นาที) + refresh token · idle timeout และอายุ session สูงสุดตั้งค่าได้ที่ Keycloak realm</td><td>token หมดอายุแล้วเรียก API ไม่ได้ (401) · refresh ต่ออายุได้โดยผู้ใช้ไม่รู้สึกสะดุด</td></tr>
+<tr><td class="id"><span class="rid">AUTH-03</span></td><td>Logout ล้าง session ทั้งฝั่งแอปและ Keycloak (single logout) · บัญชีที่ถูกปิดใน LDAP/Keycloak ต้องใช้งานต่อไม่ได้ภายในไม่เกินอายุ access token</td><td>หลัง logout เปิด API ด้วย token เดิมไม่ได้ · ปิดบัญชีทดสอบแล้วสิ้นสิทธิ์ภายใน 15 นาที</td></tr>
+<tr><td class="id"><span class="rid">AUTH-04</span></td><td>สร้างโปรไฟล์ผู้ใช้อัตโนมัติเมื่อล็อกอินครั้งแรก (JIT provisioning) จาก claims ใน token: ชื่อ อีเมล username · <b>ผังทีม สังกัด และหัวหน้า ดูแลในระบบนี้</b>ผ่านหน้าจอผู้ดูแล (LDAP ใช้ล็อกอินอย่างเดียว) — ผู้ใช้ใหม่ที่ยังไม่ถูกจัดสังกัดขึ้นรายการ "รอจัดสังกัด" ให้ผู้ดูแลเห็น</td><td>ผู้ใช้ใหม่ใน LDAP ล็อกอินได้ทันทีโดยไม่ต้องสร้างบัญชีมือ · ผู้ดูแลย้ายสังกัด/เปลี่ยนหัวหน้าจากหน้าจอ แล้ว Data Scope และการเร่งงานเปลี่ยนตามทันที</td></tr>
+<tr><td class="id"><span class="rid">AUTH-05</span></td><td>ผู้ใช้หนึ่งคนสังกัดได้หลายบริษัท (D-11) มีบริษัทหลักหนึ่งแห่ง · ระบบจำบริษัทที่ทำงานอยู่ (active company) และให้สลับได้โดยไม่ต้องล็อกอินใหม่</td><td>ผู้ใช้สองบริษัทสลับบริษัทแล้วข้อมูลและสิทธิ์เปลี่ยนตามทันที · ผู้ใช้บริษัทเดียวไม่เห็นตัวเลือกสลับ</td></tr>
+<tr><td class="id"><span class="rid">AUTH-06</span></td><td>Service account (client credentials) สำหรับระบบที่เรียก API อัตโนมัติ เช่น การสร้างคำขอจากเหตุการณ์ (<span class="rid">REQ-10</span>) แยก client ต่อระบบ ระบุ scope ที่เรียกได้</td><td>service account เรียกได้เฉพาะ endpoint ใน scope ตน · เรียกนอก scope ได้ 403</td></tr>
+<tr><td class="id"><span class="rid">AUTH-07</span></td><td>บันทึกเหตุการณ์เข้าระบบ: ล็อกอินสำเร็จ/ล้มเหลว เวลา ช่องทาง IP — อ่านได้จากหน้าจอผู้ดูแล</td><td>เหตุการณ์ล็อกอินทดสอบปรากฏใน log ครบทุกรายการ</td></tr>
+</tbody></table></div>
+
+<div class="callout info"><b>สิ่งที่ต้องได้จากทีม Infra ก่อนเริ่ม:</b> สิทธิ์เข้าจัดการ realm/client บน Keycloak instance ที่มีอยู่ (สร้าง client, กำหนด roles), ค่าเชื่อมต่อ SMTP ของ mail server องค์กร และบัญชีทดสอบครอบคลุมทุกบทบาท — ดูหัวข้อ 15</div>
+
+<!-- ============================================================ -->
+<h2 id="role"><span class="no">05</span>ROLE — สิทธิ์ตามบทบาท (RBAC)</h2>
+<p>เป้าหมาย: อำนาจการทำงาน (ทำอะไรได้) แยกออกจากขอบเขตข้อมูล (เห็นอะไรได้ — หัวข้อ 06) · บทบาทตั้งค่าได้จากหน้าจอผู้ดูแล ไม่ฝังในโค้ด</p>
+
+<h3>5.1 โครงสร้าง</h3>
+<ul>
+<li><b>Permission</b> = โมดูล + การกระทำ เช่น <code>request.create</code>, <code>request.cancel.any</code>, <code>approval.matrix.manage</code>, <code>admin.role.manage</code></li>
+<li><b>Role</b> = ชุดของ permission ตั้งชื่อได้ เช่น "พนักงานขาย", "ผู้จัดการฝ่ายขาย" · หนึ่งผู้ใช้มีได้หลาย role ต่อบริษัท (สิทธิ์รวมแบบ union)</li>
+<li><b>การผูก role:</b> role หลักกำหนดที่ Keycloak (มากับ token เป็น claims) — ระบบ map "Keycloak role → role ในระบบ" ด้วยตาราง mapping ที่ตั้งค่าได้ และผู้ดูแลผูกมือเพิ่ม/ถอนในระบบได้ ทุกครั้งลง audit log</li>
+<li><b>ระดับอำนาจอนุมัติไม่ใช่ role</b> — เป็นข้อมูลของ Approval Engine (ตาม D-08) role เพียงกำหนดว่าใครเปิดหน้าจออนุมัติได้</li>
+</ul>
+
+<h3>5.2 บทบาทตั้งต้น (seed)</h3>
+<div class="tw"><table>
+<tbody><tr><th>บทบาท</th><th>คำอธิบาย</th><th>สิทธิ์หลักใน sprint นี้</th></tr>
+<tr><td>พนักงาน (ทุกคน)</td><td>บทบาทพื้นฐานที่ทุกผู้ใช้ได้อัตโนมัติ</td><td>ยื่นคำขอ, ดู/ยกเลิกคำขอของตัวเอง, รับแจ้งเตือน</td></tr>
+<tr><td>หัวหน้าทีม</td><td>ผู้บังคับบัญชาระดับต้น (อ่านจากผังทีมที่ดูแลในระบบ)</td><td>เห็นคำขอของลูกทีม, อนุมัติชั้นแรก (ตรวจสิทธิ์การยื่นคำขอ)</td></tr>
+<tr><td>ผู้จัดการฝ่าย</td><td>ผู้บังคับบัญชาระดับฝ่าย</td><td>เห็นคำขอทั้งฝ่าย, อนุมัติตามตารางอำนาจ, ดูรายงานคอขวดของฝ่าย</td></tr>
+<tr><td>ผู้บริหาร</td><td>ผู้อำนวยการ / C-level</td><td>เห็นข้ามฝ่ายในบริษัทตน, อนุมัติวงเงินสูง, ดูรายงานทั้งหมด</td></tr>
+<tr><td>ทีมผู้รับคำขอ (Receiver)</td><td>ผู้ปฏิบัติงานของทีมปลายทาง เช่น ทีม Pricing ที่รับคำขอส่วนลด</td><td>เห็นคิวคำขอของทีมตน, ตีกลับพร้อมเหตุผล, ปิดงาน, เห็นฟิลด์อ่อนไหวของประเภทที่ทีมตนรับ</td></tr>
+<tr><td>ผู้ดูแลระบบ (Admin)</td><td>ทีมที่ดูแลการตั้งค่า</td><td>จัดการ role/mapping, ประเภทคำขอ, ตารางอำนาจอนุมัติ, SLA, ดู audit log · <b>ไม่มีสิทธิ์อนุมัติแทนใคร</b></td></tr>
+<tr><td>ผู้ตรวจสอบ (Auditor)</td><td>ตรวจสอบภายใน</td><td>อ่านทุกอย่างรวม audit log — อ่านอย่างเดียว แก้อะไรไม่ได้</td></tr>
+</tbody></table></div>
+
+<h3>5.3 ข้อกำหนด</h3>
+<div class="tw"><table>
+<tbody><tr><th style="width:12%">รหัส</th><th style="width:46%">ข้อกำหนด</th><th>เกณฑ์ตรวจรับ</th></tr>
+<tr><td class="id"><span class="rid">ROLE-01</span></td><td>ทุก API endpoint ประกาศ permission ที่ต้องมี และตรวจที่ backend ทุกครั้ง · ไม่มี endpoint ที่ "เปิดไว้ก่อน"</td><td>เรียก endpoint โดยไม่มี permission ได้ 403 ทุกกรณี · มี test ครอบคลุมทุก endpoint</td></tr>
+<tr><td class="id"><span class="rid">ROLE-02</span></td><td>หน้าจอผู้ดูแล: สร้าง/แก้/ปิด role, กำหนด permission, ผูก/ถอน role กับผู้ใช้ · role ที่มีผู้ใช้ผูกอยู่ลบไม่ได้ (ปิดใช้งานได้)</td><td>ตั้ง role ใหม่และผูกผู้ใช้ได้จากหน้าจอโดยไม่แตะโค้ด · ผลมีผลทันทีในการเรียก API ครั้งถัดไป</td></tr>
+<tr><td class="id"><span class="rid">ROLE-03</span></td><td>Mapping อัตโนมัติจาก Keycloak role (claims ใน token) → role ในระบบ ตั้งค่าได้ต่อบริษัท · ประเมินใหม่ทุกครั้งที่ล็อกอิน/refresh token — ถอน role ที่ Keycloak แล้วสิทธิ์ในระบบหายตาม</td><td>เปลี่ยน role ใน Keycloak แล้วสิทธิ์ในระบบปรับตามภายในอายุ access token พร้อมบันทึกใน audit log</td></tr>
+<tr><td class="id"><span class="rid">ROLE-04</span></td><td>role ผูกกับบริษัท: ผู้ใช้หลายบริษัทมี role คนละชุดต่อบริษัทได้ สิทธิ์คิดตาม active company เท่านั้น</td><td>ผู้ใช้เป็นผู้จัดการบริษัท A / พนักงานบริษัท B — เมื่อ active ที่ B ใช้สิทธิ์ผู้จัดการไม่ได้</td></tr>
+<tr><td class="id"><span class="rid">ROLE-05</span></td><td>ทุกการเปลี่ยนสิทธิ์ (role ใหม่, ผูก/ถอน, mapping) ลง audit log: ใคร ทำอะไร กับใคร เมื่อไร ค่าเดิม→ค่าใหม่</td><td>สุ่มตรวจการเปลี่ยนสิทธิ์ 5 รายการ ตอบได้ครบทุกคำถาม</td></tr>
+<tr><td class="id"><span class="rid">ROLE-06</span></td><td>หลังล็อกอิน frontend ได้รายการ permission + scope ของผู้ใช้หนึ่งครั้ง ใช้ประกอบเมนู/ปุ่ม · แคชฝั่ง client ไม่เกินอายุ access token</td><td>ผู้ใช้ไม่มีสิทธิ์อนุมัติ ไม่เห็นเมนูอนุมัติ และเรียกตรงก็ได้ 403</td></tr>
+</tbody></table></div>
+
+<h3>5.4 ตาราง permission ตั้งต้นต่อ role และวิธีเพิ่ม/ลด</h3>
+<p>permission catalog ประกาศจากโค้ด (อ่านได้ที่ <code>GET /admin/permissions</code>) — ตารางนี้คือค่าตั้งต้น (seed) ที่ต้องมาพร้อมระบบ ผู้ดูแลปรับเพิ่ม/ลดได้จากหน้าจอโดยไม่ deploy · ✓* = ได้เมื่ออยู่ในตำแหน่งที่เกี่ยวข้องกับรายการนั้น (positional check ซ้อนอีกชั้นเสมอ เช่น ตีกลับได้เฉพาะคำขอที่รอตนพิจารณา)</p>
+<div class="tw"><table>
+<tbody><tr><th style="width:24%">Permission</th><th>พนักงาน</th><th>หัวหน้าทีม</th><th>ทีมผู้รับ</th><th>ผู้จัดการฝ่าย</th><th>ผู้บริหาร<br>(CFO/CEO)</th><th>Admin</th><th>Auditor</th></tr>
+<tr><td><code>request.create</code></td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
+<tr><td><code>request.read</code> (+scope)</td><td>✓ own</td><td>✓ team</td><td>✓ คิวทีมตน</td><td>✓ department</td><td>✓ company</td><td>✓ company</td><td>✓ all</td></tr>
+<tr><td><code>request.cancel.own</code></td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
+<tr><td><code>request.cancel.any</code></td><td>—</td><td>—</td><td>—</td><td>✓</td><td>✓</td><td>—</td><td>—</td></tr>
+<tr><td><code>request.return</code></td><td>—</td><td>✓*</td><td>✓*</td><td>✓*</td><td>✓*</td><td>—</td><td>—</td></tr>
+<tr><td><code>request.complete</code></td><td>—</td><td>—</td><td>✓*</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td><code>request.sensitive.read</code> (margin ฯลฯ)</td><td>—<br><span class="small">(ผู้ยื่นเห็นค่าที่ตนกรอก)</span></td><td>✓*</td><td>✓ ประเภทที่ทีมรับ</td><td>✓*</td><td>✓</td><td>—</td><td>✓</td></tr>
+<tr><td><code>approval.decide</code></td><td>—</td><td>✓*</td><td>—</td><td>✓*</td><td>✓*</td><td>—</td><td>—</td></tr>
+<tr><td><code>approval.history.read</code></td><td>—</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>—</td><td>✓</td></tr>
+<tr><td><code>report.request.read</code></td><td>—</td><td>✓ ทีม</td><td>✓ ทีม</td><td>✓ ฝ่าย</td><td>✓ บริษัท</td><td>—</td><td>✓</td></tr>
+<tr><td><code>user.read</code></td><td>—</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+<tr><td><code>admin.org.manage</code> · <code>admin.role.manage</code> · <code>admin.request-type.manage</code> · <code>admin.approval-matrix.manage</code> · <code>admin.sla.manage</code></td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>—</td></tr>
+<tr><td><code>audit.read</code></td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>✓</td></tr>
+<tr><td><code>integration.request.create</code> · <code>integration.approval.create</code></td><td colspan="7" style="text-align:center; color:var(--muted);">เฉพาะ service account (<span class="rid">AUTH-06</span>) — ห้ามผูกกับ role ของบุคคล</td></tr>
+</tbody></table></div>
+
+<h4>วิธีเพิ่ม/ลด — สองชั้นแยกกันชัดเจน</h4>
+<div class="tw"><table>
+<tbody><tr><th style="width:30%">ต้องการทำอะไร</th><th style="width:34%">ทำที่ไหน · ใครทำ</th><th>มีผลเมื่อไร</th></tr>
+<tr><td><b>เพิ่ม/ถอดคนออกจาก role</b><br>(ใครเป็นหัวหน้าทีม ใครเป็นทีมผู้รับ)</td><td><b>Keycloak</b> — ทีม IT ที่ถือ realm assign/remove Keycloak role ของผู้ใช้ → mapping ตาม <span class="rid">ROLE-03</span> ทำงานอัตโนมัติ · กรณีเร่งด่วน Admin ผูก/ถอนมือในระบบได้ (<span class="rid">ROLE-02</span>)</td><td>ทาง Keycloak: ภายในอายุ access token (≤15 นาที) · ผูกมือในระบบ: ทันที · ทั้งสองทางลง audit log</td></tr>
+<tr><td><b>เพิ่ม/ลด permission ภายใน role</b><br>(เช่น ให้หัวหน้าทีมเห็นรายงานฝ่าย)</td><td><b>หน้าจอ Admin › Roles</b> — Admin ติ๊กเพิ่ม/เอาออกจาก catalog แล้วบันทึก (<span class="rid">ROLE-02</span>) · แยกชุดต่อบริษัทได้ (<span class="rid">ROLE-04</span>)</td><td>ทันทีกับ API call ถัดไป (backend ตรวจสด) · เมนู frontend ตามใน ≤ อายุ token</td></tr>
+<tr><td><b>ปรับระดับการเห็นข้อมูล</b><br>(own → team → department → company)</td><td><b>หน้าจอ Admin › Scope Rules</b> — คู่ (role, ชนิดข้อมูล) (<span class="rid">SCOPE-01</span>)</td><td>ทันที ไม่ deploy</td></tr>
+<tr><td><b>เพิ่ม permission ใหม่เข้า catalog</b><br>(มี endpoint/ความสามารถใหม่)</td><td><b>โค้ดเท่านั้น</b> — ประกาศพร้อม endpoint แล้ว deploy · Admin เพิ่มเองไม่ได้ กัน permission กำพร้าที่ไม่มีการตรวจจริง</td><td>ตามรอบ release</td></tr>
+</tbody></table></div>
+<div class="callout"><b>Guardrails ที่ระบบต้องบังคับ:</b> (1) แยกหน้าที่ — role Admin ห้ามถือ <code>approval.decide</code> และ <code>request.sensitive.read</code> ระบบปฏิเสธการติ๊กให้ตัวเอง · (2) role ที่มีผู้ใช้ผูกอยู่ลบไม่ได้ ทำได้แค่ปิดใช้งาน · (3) ทุกการแก้ role/permission/scope ลง audit log พร้อมค่าเดิม→ใหม่ (<span class="rid">ROLE-05</span>) · (4) การถอด role ต้องไม่ทิ้งงานค้าง — ถ้าผู้ถูกถอดเป็นผู้อนุมัติชั้นปัจจุบันของ case ที่เดินอยู่ ระบบเลื่อนงานไปผู้ถือ role คนถัดไปหรือหัวหน้าตามผัง แล้วแจ้งเตือน</div>
+
+<!-- ============================================================ -->
+<h2 id="dscope"><span class="no">06</span>SCOPE — ขอบเขตการเห็นข้อมูล (Data Scope)</h2>
+<p>เป้าหมาย: คนสองคนที่มีสิทธิ์ทำงานเหมือนกัน อาจเห็นข้อมูลไม่เท่ากัน — พนักงานเห็นของตัวเอง หัวหน้าเห็นของทีม ตามหลัก "พนักงานเห็นของตัวเอง หัวหน้าเห็นของทีม" ในข้อเสนอ และเป็นชุดสิทธิ์เดียวกับที่ Metabase และผู้ช่วย AI ส่วนบุคคลจะใช้ในระยะถัดไป</p>
+
+<h3>6.1 ระดับขอบเขต</h3>
+<div class="tw"><table>
+<tbody><tr><th style="width:18%">ระดับ</th><th>ความหมาย</th><th style="width:34%">ตัวอย่าง</th></tr>
+<tr><td><code>own</code></td><td>เฉพาะรายการที่ตนเป็นเจ้าของ ผู้ยื่น หรือผู้เกี่ยวข้องโดยตรง (ผู้อนุมัติในสาย, ผู้รับมอบหมาย)</td><td>พนักงานขายเห็นเฉพาะคำขอที่ตนยื่น</td></tr>
+<tr><td><code>team</code></td><td>รายการของทุกคนใต้สายบังคับบัญชาตน (อ่านจากผังทีมที่ดูแลในระบบ, รวมหลายชั้น)</td><td>หัวหน้าทีมเห็นคำขอของลูกทีมทุกคน</td></tr>
+<tr><td><code>department</code></td><td>รายการของทั้งฝ่าย</td><td>ผู้จัดการฝ่ายขายเห็นคำขอทั้งฝ่ายขาย</td></tr>
+<tr><td><code>company</code></td><td>ทุกรายการในบริษัทที่ active</td><td>ผู้บริหารเห็นทั้งบริษัท</td></tr>
+<tr><td><code>all</code></td><td>ข้ามบริษัท (สงวนไว้สำหรับผู้บริหารกลุ่มและ Auditor)</td><td>ตรวจสอบภายในเห็นทุกบริษัท</td></tr>
+</tbody></table></div>
+
+<h3>6.2 ข้อกำหนด</h3>
+<div class="tw"><table>
+<tbody><tr><th style="width:12%">รหัส</th><th style="width:46%">ข้อกำหนด</th><th>เกณฑ์ตรวจรับ</th></tr>
+<tr><td class="id"><span class="rid">SCOPE-01</span></td><td>ขอบเขตกำหนดเป็นคู่ (role, ชนิดข้อมูล) → ระดับ scope ตั้งค่าได้จากหน้าจอผู้ดูแล · ค่าตั้งต้นตามตาราง 5.2</td><td>ปรับ scope ของ role จาก <code>own</code> เป็น <code>team</code> จากหน้าจอ แล้วผลลัพธ์ query เปลี่ยนโดยไม่ deploy ใหม่</td></tr>
+<tr><td class="id"><span class="rid">SCOPE-02</span></td><td>บังคับที่ชั้น query กลาง (query filter / policy layer จุดเดียว) — ทุกรายการ list, การเปิดดูรายตัว, ตัวเลขสรุปบนแดชบอร์ด ใช้ตัวกรองเดียวกัน · ห้ามให้แต่ละหน้าจอเขียนเงื่อนไขเอง</td><td>เข้าถึงรายการนอก scope ตรง ๆ ทาง URL/API ได้ 404 หรือ 403 · ตัวเลขสรุปกับรายการที่เห็นตรงกันเสมอ</td></tr>
+<tr><td class="id"><span class="rid">SCOPE-03</span></td><td>เส้นแบ่งบริษัทเด็ดขาด: ทุก query ผูกกับ active company เว้นแต่ scope <code>all</code> · ไม่มีกรณี "ลืมกรองบริษัท"</td><td>ผู้ใช้บริษัท A ค้น/เดา id ของบริษัท B ไม่พบข้อมูลใด ๆ · มี test อัตโนมัติกันการถดถอย</td></tr>
+<tr><td class="id"><span class="rid">SCOPE-04</span></td><td>การปกปิดฟิลด์อ่อนไหว (field-level masking): ประกาศรายการฟิลด์อ่อนไหวต่อชนิดข้อมูล (เช่น margin, วงเงิน, อัตราต้นทุนบุคลากร) พร้อม permission ที่เปิดเห็นได้ · ผู้ไม่มีสิทธิ์เห็นค่าถูกปกปิด ทั้งใน API response ไม่ใช่แค่หน้าจอ</td><td>ผู้ใช้ไม่มีสิทธิ์เห็น margin ได้ response ที่ไม่มีฟิลด์นั้น (หรือ masked) · ผู้มีสิทธิ์เห็นค่าจริง</td></tr>
+<tr><td class="id"><span class="rid">SCOPE-05</span></td><td>การเปิดดูข้อมูลอ่อนไหวลง audit log: ใครเปิดดูฟิลด์อ่อนไหวของรายการใด เมื่อไร (รองรับข้อกำหนด PDPA "บันทึกว่าใครเปิดดูข้อมูลของใคร" ที่จะต่อยอดในระยะถัดไป)</td><td>เปิดดูรายการที่มีฟิลด์อ่อนไหวแล้วมี log เกิดขึ้น</td></tr>
+<tr><td class="id"><span class="rid">SCOPE-06</span></td><td>ผู้อยู่ในเส้นทางอนุมัติเห็นคำขอนั้นได้เสมอแม้อยู่นอก scope ปกติ (สิทธิ์ตามความเกี่ยวข้องรายรายการ) และสิ้นสุดเมื่องานจบ ยกเว้นประวัติที่ตนกระทำ</td><td>ผู้อนุมัติข้ามฝ่ายเปิดคำขอที่รออนุมัติตนได้ · คำขอที่ไม่เกี่ยวกับตนยังมองไม่เห็นตาม scope</td></tr>
+</tbody></table></div>
+
+<div class="callout"><b>ข้อควรระวังเชิงเทคนิค:</b> scope <code>team</code> อิงสายบังคับบัญชาหลายชั้น — ให้เก็บ closure ของผังองค์กร (ตาราง ancestor–descendant) ที่คำนวณใหม่ทุกครั้งที่ผู้ดูแลแก้ผังทีม แทนการ traverse ตอน query เพื่อให้ list เร็วและเงื่อนไข SQL ตรงไปตรงมา</div>
+
+<!-- ============================================================ -->
+<h2 id="req"><span class="no">07</span>REQ — โมดูลคำขอ (Platform Request)</h2>
+<p>เป้าหมาย: คำขอข้ามทีมทุกประเภทเดินบนเครื่องยนต์เดียว ทุกใบมีเลขอ้างอิง ผู้รับผิดชอบ เอกสารบังคับ กำหนดเวลา และร่องรอยตรวจสอบ · เครื่องยนต์ต้องรองรับคำขอทั้ง 30 ประเภทได้ด้วย "การตั้งค่า" — sprint นี้เปิดใช้จริง 2 ประเภทนำร่อง</p>
+
+<h3>7.1 วงจรสถานะ (State Machine)</h3>
+<div class="flow">ร่าง (draft)
+  └─ ยื่น ──▶ ยื่นแล้ว (submitted)            ← ออกเลขคำขอ · นาฬิกา SLA เริ่มเดิน
+                 │
+                 ├─ ผู้รับตีกลับ ──▶ ตีกลับ (returned)   ← นาฬิกาหยุด · ระบุรายการที่ต้องแก้
+                 │                     └─ ผู้ยื่นแก้และยื่นใหม่ ──▶ submitted (นาฬิกาเดินต่อ)
+                 │
+                 ├─ เข้าเส้นทางอนุมัติ ──▶ รออนุมัติ (pending_approval)
+                 │        ├─ อนุมัติครบทุกชั้น ──▶ อนุมัติแล้ว (approved)
+                 │        └─ ปฏิเสธ ──▶ ปฏิเสธ (rejected)  ← ต้องระบุเหตุผล
+                 │
+                 └─ (ประเภทที่ไม่ต้องอนุมัติ) ──▶ กำลังดำเนินการ
+approved ──▶ กำลังดำเนินการ (in_progress) ──▶ เสร็จสิ้น (completed)
+ทุกสถานะก่อน completed ─ ผู้ยื่น/ผู้มีสิทธิ์เหนือกว่า ──▶ ยกเลิก (cancelled) + เหตุผล</div>
+<ul>
+<li>ทุกการเปลี่ยนสถานะบันทึก: เวลา ผู้กระทำ สถานะก่อน→หลัง และข้อมูลประกอบ (<span class="rid">REQ-07</span>)</li>
+<li>การเปลี่ยนสถานะนอกเส้นทางที่ประกาศไว้ต้องเป็นไปไม่ได้ในทุกช่องทาง รวมทาง API ตรง</li>
+</ul>
+
+<h3>7.2 ข้อกำหนด</h3>
+<div class="tw"><table>
+<tbody><tr><th style="width:12%">รหัส</th><th style="width:46%">ข้อกำหนด</th><th>เกณฑ์ตรวจรับ</th></tr>
+<tr><td class="id"><span class="rid">REQ-01</span></td><td><b>ประเภทคำขอเป็นข้อมูลตั้งค่า:</b> ชื่อ, ทีมผู้รับ, ฟอร์มข้อมูล (custom fields ต่อประเภท), เอกสารบังคับ, เส้นทางอนุมัติ (อ้าง Approval Engine), SLA, บริษัทที่เปิดใช้ · เพิ่ม/แก้จากหน้าจอผู้ดูแลโดยไม่ deploy</td><td>ผู้ดูแลสร้างประเภทคำขอที่ 3 ได้เองจากหน้าจอ และยื่น–อนุมัติ–ปิดได้จริงโดยทีมพัฒนาไม่แตะโค้ด</td></tr>
+<tr><td class="id"><span class="rid">REQ-02</span></td><td><b>ออกเลขคำขอทันทีที่ยื่น</b> ตามรูปแบบ D-02: <b>ยืนยันแล้ว (PO) ว่าใช้ prefix ชื่อบริษัท</b> — รูปแบบมาตรฐาน <code>{PREFIX บริษัท}-{ประเภท}-{YYYYMM}-{ลำดับ}</code> เช่น <code>OSD-DSC-202608-0042</code> ลำดับรีเซ็ตทุกเดือน · prefix ต่อบริษัทตั้งค่าในทะเบียนบริษัท · เลขไม่ซ้ำแม้ยื่นพร้อมกัน (กัน race condition)</td><td>ยื่นขนาน 50 ใบ เลขไม่ซ้ำ ไม่กระโดดผิดรูปแบบ · ขึ้นเดือนใหม่ลำดับเริ่ม 1 · คำขอของสองบริษัทได้ prefix ต่างกันถูกต้อง</td></tr>
+<tr><td class="id"><span class="rid">REQ-03</span></td><td><b>บังคับเอกสารแนบและฟิลด์บังคับตั้งแต่หน้าจอยื่น:</b> ยื่นไม่ได้จนกว่าจะครบตามที่ประเภทคำขอกำหนด พร้อมบอกว่าขาดอะไร</td><td>ยื่นคำขอส่วนลดโดยไม่แนบไฟล์บังคับ ระบบไม่รับและแจ้งรายการที่ขาด</td></tr>
+<tr><td class="id"><span class="rid">REQ-04</span></td><td><b>ตีกลับพร้อมระบุสิ่งที่ขาดเป็นรายการ</b> (เลือกจากรายการมาตรฐานของประเภทนั้น + ข้อความเพิ่มเติม) ไม่ใช่ข้อความอิสระอย่างเดียว เพื่อวัดสาเหตุตีกลับได้</td><td>ตีกลับต้องเลือกเหตุผลอย่างน้อย 1 ข้อ · รายงานสรุปเหตุผลตีกลับต่อประเภทคำขอดูได้</td></tr>
+<tr><td class="id"><span class="rid">REQ-05</span></td><td><b>ยกเลิกคำขอ:</b> ได้เฉพาะผู้ยื่นหรือผู้มีสิทธิ์เหนือกว่า ต้องระบุเหตุผล คำขอยังค้นเจอในระบบ (ไม่ลบ)</td><td>ผู้อื่นยกเลิกคำขอของคนอื่นไม่ได้ · คำขอที่ยกเลิกยังเปิดดูได้พร้อมเหตุผล</td></tr>
+<tr><td class="id"><span class="rid">REQ-06</span></td><td><b>สร้างคำขอจากบริบท:</b> โครงสร้างคำขอรองรับการอ้างอิง entity ต้นทาง (<code>ref_type</code>, <code>ref_id</code> เช่น ดีล, ลูกค้า) และดึงข้อมูลบริบทมาเติมฟอร์มอัตโนมัติ · sprint นี้ยังไม่มีโมดูลธุรกิจ ให้ทำโครงสร้างและทดสอบผ่าน API</td><td>สร้างคำขอผ่าน API พร้อม ref แล้วหน้าคำขอแสดงลิงก์บริบทได้</td></tr>
+<tr><td class="id"><span class="rid">REQ-07</span></td><td><b>บันทึกทุกการเปลี่ยนสถานะ:</b> เวลา ผู้กระทำ ค่าก่อน–หลัง อ่านได้จากหน้าไทม์ไลน์ของคำขอ · แก้ไขย้อนหลังไม่ได้ (append-only)</td><td>ตอบคำถาม "ใครอนุมัติเมื่อไร ด้วยข้อมูลชุดใด" ได้จากหน้าจอเดียว</td></tr>
+<tr><td class="id"><span class="rid">REQ-08</span></td><td><b>หน้าจอรวมงานค้าง:</b> แท็บ "คำขอของฉัน" (ที่ยื่น/เกี่ยวข้อง ทุกสถานะ) และ "รออนุมัติของฉัน" ข้ามทุกประเภทคำขอ พร้อมตัวกรอง สถานะ ประเภท วันครบกำหนด และป้ายบอกใกล้/เกินกำหนด</td><td>ผู้อนุมัติเห็นรายการรออนุมัติทั้งหมดในหน้าเดียว เรียงตามความเร่ง · จำนวนตรงกับข้อมูลจริง</td></tr>
+<tr><td class="id"><span class="rid">REQ-09</span></td><td><b>รายงานคอขวด:</b> เวลาที่ใช้จริงต่อขั้น แยกตามประเภทคำขอ ผู้อนุมัติ และช่วงเวลา · นับเฉพาะเวลาที่นาฬิกาเดิน (หักช่วงตีกลับ)</td><td>รายงานระบุได้ว่าคำขอค้างที่ขั้นใด/ที่ใครนานที่สุดในเดือนที่เลือก</td></tr>
+<tr><td class="id"><span class="rid">REQ-10</span></td><td><b>API สร้างคำขออัตโนมัติ:</b> endpoint ให้ระบบภายใน (ผ่าน service account) สร้างคำขอเมื่อเกิดเงื่อนไข เช่น สัญญาใกล้หมดอายุ · sprint นี้ส่งมอบ API + เอกสาร ยังไม่มีตัวจุดชนวน</td><td>service account สร้างคำขอผ่าน API ได้ และคำขอระบุแหล่งที่มาว่าสร้างโดยระบบ</td></tr>
+<tr><td class="id"><span class="rid">REQ-11</span></td><td><b>คำขอนำร่อง 2 ประเภท</b> ตั้งค่าพร้อมใช้: <b>ขอส่วนลด</b> (Sales → Pricing, เส้นทางมาตรฐาน 8.1: หัวหน้าทีม → CFO เมื่อเกิน T1 → CEO เมื่อเกิน T2, ฟิลด์: ดีล/ลูกค้า, มูลค่า, % ส่วนลด, margin โดยประมาณ + ไฟล์แนบ) และ <b>ส่งต่อโอกาสการขาย</b> (CRM → Sales, อนุมัติชั้นเดียวโดยหัวหน้าทีม, SLA 4 ชม.)</td><td>ทั้งสอง flow เดินจบ ยื่น→อนุมัติ→ปิด ได้จริงบน UAT โดยผู้ใช้จากทีมขาย</td></tr>
+</tbody></table></div>
+
+<!-- ============================================================ -->
+<h2 id="apv"><span class="no">08</span>APV — เครื่องยนต์อนุมัติกลาง (Approval Engine)</h2>
+<p>เป้าหมาย: อำนาจอนุมัติทั้งบริษัทอยู่ในตารางเดียว ทุกโมดูลเรียกใช้ร่วมกัน — บริการนี้แยกจาก Platform Request (D-31) และต้องเรียกใช้ได้จากงานที่ไม่ใช่คำขอ เช่น อนุมัติราคา/สัญญาในระยะถัดไป</p>
+
+<h3>8.1 เส้นทางอนุมัติมาตรฐาน (ยืนยันโดย PO)</h3>
+<p>ทุกคำขอเดินเส้นทาง 3 ชั้นตามนี้ โดยจำนวนชั้นที่ต้องผ่านจริงขึ้นกับวงเงิน:</p>
+<div class="flow">ชั้นที่ 1  หัวหน้าทีมของผู้ยื่น        ← อนุมัติเสมอทุกใบ: ตรวจว่าผู้ยื่นมีสิทธิ์ยื่นคำขอนี้และข้อมูลสมเหตุสมผล
+ชั้นที่ 2  CFO                          ← เพิ่มเมื่อวงเงินเกินเพดานระดับที่ 1 (T1)
+ชั้นที่ 3  CEO                          ← เพิ่มเมื่อวงเงินเกินเพดานระดับที่ 2 (T2)
+
+วงเงิน ≤ T1        : หัวหน้าทีม
+T1 &lt; วงเงิน ≤ T2  : หัวหน้าทีม → CFO
+วงเงิน &gt; T2       : หัวหน้าทีม → CFO → CEO</div>
+<ul>
+<li>ค่า T1 และ T2 เป็นค่าตั้งค่าในตารางอำนาจอนุมัติ แยกตามบริษัทและประเภทงาน (D-18) — <b>ตัวเลขจริงยังไม่ยืนยัน</b> (คำถามเปิดข้อ 3) ระหว่างพัฒนาให้ใช้ค่าสมมติ</li>
+<li>"หัวหน้าทีมของผู้ยื่น" อ่านจากผังทีมที่ดูแลในระบบ (<span class="rid">AUTH-04</span>) — คำขอที่ผู้ยื่นยังไม่มีหัวหน้าในผังต้องยื่นไม่ได้ พร้อมข้อความแจ้งให้ติดต่อผู้ดูแล</li>
+<li>คำขอที่ไม่มีมิติวงเงิน (เช่น ส่งต่อโอกาสการขาย) ใช้เฉพาะชั้นที่ 1 หรือผู้อนุมัติที่ประเภทคำขอกำหนด</li>
+</ul>
+
+<h3>8.2 ข้อกำหนด</h3>
+<div class="tw"><table>
+<tbody><tr><th style="width:12%">รหัส</th><th style="width:46%">ข้อกำหนด</th><th>เกณฑ์ตรวจรับ</th></tr>
+<tr><td class="id"><span class="rid">APV-01</span></td><td><b>ตารางอำนาจอนุมัติกลาง:</b> กำหนดเพดานวงเงิน T1/T2 และผู้อนุมัติแต่ละชั้นตาม (บริษัท, ประเภทงาน, ช่วงวงเงิน+สกุลเงิน) · ค่าตั้งต้นตามเส้นทางมาตรฐาน 8.1 (หัวหน้าทีม → CFO → CEO) · แยกชุดตามบริษัท (D-18) · แก้จากหน้าจอผู้ดูแล มีเวอร์ชันและวันมีผล</td><td>ตั้ง T1/T2 ของคำขอส่วนลดจากหน้าจอ แล้วคำขอจริงเดินตาม: ต่ำกว่า T1 จบที่หัวหน้าทีม เกิน T2 เดินครบสามชั้น · บริษัท A/B ใช้เพดานต่างกันได้</td></tr>
+<tr><td class="id"><span class="rid">APV-02</span></td><td><b>เลือกเส้นทางอนุมัติอัตโนมัติ:</b> ระบบคำนวณชั้นผู้อนุมัติจากประเภทงานและวงเงิน ณ ขณะยื่น ตามเส้นทาง 8.1 · <b>ผู้ยื่นเลือกผู้อนุมัติเองไม่ได้</b> · ผู้อนุมัติต้องไม่ใช่ผู้ยื่น — หัวหน้าทีมยื่นเอง ชั้นที่ 1 เลื่อนขึ้นเป็นหัวหน้าของตน · CFO/CEO ยื่นเอง ชั้นของตนถูกข้าม</td><td>เปลี่ยนวงเงินในคำขอแล้วจำนวนชั้นเปลี่ยนตามกติกา · หัวหน้าทีมยื่นเองแล้วเส้นทางเริ่มที่หัวหน้าของตน</td></tr>
+<tr><td class="id"><span class="rid">APV-03</span></td><td><b>มอบอำนาจชั่วคราว:</b> ผู้อนุมัติตั้งผู้ทำแทนพร้อมช่วงเวลา · งานที่ค้างและงานใหม่ในช่วงนั้นไปที่ผู้ทำแทน · บันทึกเสมอว่า "ใครอนุมัติแทนใคร" · ห้ามมอบต่อเป็นทอดที่สอง</td><td>ตั้งมอบอำนาจ 7 วัน งานวิ่งไปผู้ทำแทน หมดช่วงแล้วกลับสู่ปกติอัตโนมัติ · ประวัติแสดงชื่อทั้งคู่</td></tr>
+<tr><td class="id"><span class="rid">APV-04</span></td><td><b>อนุมัติเป็นชุด:</b> รวมคำขอที่อ้างอิงบริบทเดียวกัน (เช่น ดีลเดียวกัน) ให้อนุมัติพร้อมกันได้ในครั้งเดียว โดยผลการอนุมัติยังบันทึกแยกรายใบ</td><td>เลือก 3 คำขอของดีลเดียวกัน กดอนุมัติครั้งเดียว ทุกใบได้ผลและ log ของตัวเอง</td></tr>
+<tr><td class="id"><span class="rid">APV-05</span></td><td><b>อนุมัติผูกกับเวอร์ชันข้อมูล:</b> การอนุมัติบันทึก snapshot/hash ของข้อมูลที่อนุมัติ · แก้ไขสาระสำคัญหลังอนุมัติทำให้การอนุมัติเป็นโมฆะ ระบบบังคับขอใหม่</td><td>แก้มูลค่าในคำขอหลังอนุมัติ → สถานะอนุมัติถูกยกเลิกอัตโนมัติและต้องเข้าเส้นทางอนุมัติใหม่</td></tr>
+<tr><td class="id"><span class="rid">APV-06</span></td><td><b>ประวัติการใช้อำนาจ:</b> รายงานใครอนุมัติอะไร เมื่อไร วงเงินเท่าไร รวมการอนุมัติแทน · export ได้ · อ่านได้เฉพาะบทบาทที่มีสิทธิ์</td><td>Auditor ดึงรายงานการอนุมัติย้อนหลัง 1 เดือนได้ครบทุกรายการ</td></tr>
+<tr><td class="id"><span class="rid">APV-07</span></td><td><b>API แบบบริการกลาง:</b> โมดูลใดก็ได้ส่ง "เรื่องขออนุมัติ" (subject type + payload + บริบทวงเงิน) เข้ามาโดยไม่ต้องเป็นคำขอ Platform Request · ตอบกลับผ่าน callback/event เมื่อผลออก</td><td>ทดสอบส่งเรื่องอนุมัติจาก mock service เดินครบวงจรได้โดยไม่สร้าง request record</td></tr>
+</tbody></table></div>
+
+<div class="callout"><b>การกดอนุมัติ (ตาม D-16):</b> ใช้การกดยืนยันในระบบพร้อมร่องรอยตรวจสอบ ไม่ต้องลงนามอิเล็กทรอนิกส์ · หน้าจออนุมัติต้องแสดงข้อมูลสำคัญครบ (ผู้ยื่น วงเงิน เหตุผล เอกสารแนบ margin ถ้ามี) ก่อนปุ่มอนุมัติ/ปฏิเสธ/ตีกลับ และการปฏิเสธบังคับระบุเหตุผลเสมอ</div>
+
+<!-- ============================================================ -->
+<h2 id="support"><span class="no">09</span>SUP — บริการขั้นต่ำที่ต้องมีร่วม</h2>
+<p>เครื่องยนต์ SLA กลางและศูนย์แจ้งเตือนกลางฉบับเต็มเป็นงานระยะที่ 1 เช่นกัน แต่แยกคนละ sprint — sprint นี้ต้องมี "ขั้นต่ำ" เพียงพอให้คำขอและการอนุมัติทำงานได้จริง โดยออกแบบ interface ให้ถอดเปลี่ยนเป็นฉบับเต็มได้โดยไม่แก้ Request/Approval Service:</p>
+<div class="tw"><table>
+<tbody><tr><th style="width:12%">รหัส</th><th style="width:46%">ข้อกำหนด</th><th>เกณฑ์ตรวจรับ</th></tr>
+<tr><td class="id"><span class="rid">SUP-01</span></td><td><b>นาฬิกา SLA ขั้นต่ำ:</b> กำหนดเวลาต่อประเภทคำขอ (ชั่วโมง/วันทำการ ตั้งค่าได้ D-09) · เริ่มนับเมื่อยื่น หยุดเมื่อตีกลับ เดินต่อเมื่อยื่นใหม่ · ปฏิทินวันหยุดชุดเดียวต่อบริษัท (ยังไม่ทำกะ/หลายปฏิทิน)</td><td>คำขอ SLA 4 ชม. ที่ถูกตีกลับ 1 วัน ครบกำหนดถูกเลื่อนตามเวลาที่หยุดจริง</td></tr>
+<tr><td class="id"><span class="rid">SUP-02</span></td><td><b>เร่งงานอัตโนมัติ:</b> เกินกำหนดแล้วแจ้งผู้รับผิดชอบ + ผู้บังคับบัญชาหนึ่งระดับ (อ่านจากผังทีมที่ดูแลในระบบ) · บันทึกว่าเร่งไปเมื่อไรถึงใคร</td><td>ปล่อยคำขอทดสอบเกินกำหนด มีการแจ้งครบสองระดับภายใน 15 นาทีหลังครบกำหนด</td></tr>
+<tr><td class="id"><span class="rid">SUP-03</span></td><td><b>แจ้งเตือนขั้นต่ำ:</b> in-app + อีเมลผ่าน <b>SMTP ของ mail server องค์กร (ยืนยันแล้ว)</b> — ค่าเชื่อมต่อเก็บเป็น config ต่อสภาพแวดล้อม · เหตุการณ์: มีงานรออนุมัติ, ถูกตีกลับ, ผลอนุมัติออก, ใกล้ครบกำหนด (ตั้งค่าล่วงหน้าได้), เกินกำหนด · ทุกการส่งลง log (ส่งถึงใคร เมื่อไร ช่องทางใด)</td><td>ทุกเหตุการณ์ในรายการมีแจ้งเตือนทั้งสองช่องทาง · log ตอบข้อโต้แย้ง "ไม่เคยได้รับแจ้ง" ได้</td></tr>
+<tr><td class="id"><span class="rid">SUP-04</span></td><td><b>Audit Log กลาง:</b> บริการเดียวรับเหตุการณ์จากทุกบริการ (สิทธิ์, สถานะคำขอ, การอนุมัติ, การเข้าถึงข้อมูลอ่อนไหว, การตั้งค่าผู้ดูแล) · append-only · ค้นตามผู้กระทำ ชนิดเหตุการณ์ ช่วงเวลา</td><td>เหตุการณ์จากทุกหมวดค้นเจอในที่เดียว · ไม่มี API แก้/ลบ log</td></tr>
+</tbody></table></div>
+
+<!-- ============================================================ -->
+<h2 id="data"><span class="no">10</span>โครงสร้างข้อมูลหลัก</h2>
+<p>Entity หลักที่ต้องมี (ชื่อฟิลด์ให้ทีมออกแบบรายละเอียดเอง แต่ความสัมพันธ์และข้อบังคับต้องครบตามนี้):</p>
+<div class="grid2">
+<div class="card"><h4>Identity &amp; Org</h4>
+<ul>
+<li><code>company</code> — รหัส, ชื่อ, รหัสในเลขเอกสาร, สกุลเงินหลัก</li>
+<li><code>user</code> — ผูก LDAP id, บริษัทหลัก, สถานะ</li>
+<li><code>user_company</code> — สังกัดหลายบริษัท</li>
+<li><code>org_unit</code> — ทีม/ฝ่าย + หัวหน้า (ดูแลในระบบผ่านหน้าจอผู้ดูแล) + <code>org_closure</code> สำหรับ scope</li>
+<li><code>role</code>, <code>permission</code>, <code>role_permission</code>, <code>user_role</code> (ต่อบริษัท), <code>keycloak_role_mapping</code></li>
+<li><code>scope_rule</code> — (role, ชนิดข้อมูล) → ระดับ scope</li>
+<li><code>sensitive_field_rule</code> — ชนิดข้อมูล, ฟิลด์, permission ที่เห็นได้</li>
+</ul></div>
+<div class="card"><h4>Request</h4>
+<ul>
+<li><code>request_type</code> — ผู้รับ, ฟอร์ม (JSON schema), เอกสารบังคับ, SLA, เส้นทางอนุมัติอ้างอิง, บริษัทที่เปิดใช้, สถานะเปิด/ปิด</li>
+<li><code>request</code> — เลขที่, ประเภท, บริษัท, ผู้ยื่น, สถานะ, ข้อมูลฟอร์ม, <code>ref_type/ref_id</code>, วันครบกำหนด</li>
+<li><code>request_attachment</code>, <code>request_return_reason</code></li>
+<li><code>request_event</code> — ไทม์ไลน์ append-only</li>
+<li><code>doc_number_config</code> + <code>doc_number_counter</code> (ต่อบริษัท/ประเภท/เดือน)</li>
+</ul></div>
+<div class="card"><h4>Approval</h4>
+<ul>
+<li><code>approval_matrix</code> — บริษัท, ประเภทงาน, ช่วงวงเงิน, สกุลเงิน, ลำดับชั้น, เวอร์ชัน, วันมีผล</li>
+<li><code>approval_case</code> — subject type/id, snapshot hash, สถานะ</li>
+<li><code>approval_step</code> — ชั้น, ผู้อนุมัติที่คำนวณได้, ผลการพิจารณา, เวลา, อนุมัติแทนโดย</li>
+<li><code>delegation</code> — ผู้มอบ, ผู้รับ, ช่วงเวลา</li>
+</ul></div>
+<div class="card"><h4>Support</h4>
+<ul>
+<li><code>sla_config</code> (ต่อประเภท/บริษัท), <code>sla_clock</code> (เริ่ม/หยุด/สะสม), <code>holiday_calendar</code></li>
+<li><code>notification</code> + <code>notification_delivery_log</code></li>
+<li><code>audit_log</code> — append-only, index ตามผู้กระทำ/ชนิด/เวลา</li>
+</ul></div>
+</div>
+<ul>
+<li>ทุกตารางธุรกรรมมี <code>company_id</code>, <code>created_at/by</code>, <code>updated_at/by</code></li>
+<li>ห้าม hard delete ข้อมูลธุรกรรม — ใช้สถานะ</li>
+<li>ฟอร์มต่อประเภทคำขอเก็บเป็น JSON ตาม schema ที่ประกาศใน <code>request_type</code> เพื่อให้เพิ่มประเภทได้โดยไม่ migrate</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="api"><span class="no">11</span>ข้อกำหนด API (API Specification)</h2>
+
+<h3>11.1 ข้อตกลงร่วมทุก endpoint</h3>
+<ul>
+<li><b>Base URL:</b> <code>/api/v1</code> · REST + JSON (UTF-8)</li>
+<li><b>Authentication:</b> header <code>Authorization: Bearer &lt;access_token&gt;</code> (JWT จาก Keycloak) ทุก endpoint — ไม่มีข้อยกเว้น</li>
+<li><b>บริษัทที่ทำงานอยู่:</b> header <code>X-Company-Id</code> ทุก request · backend ตรวจว่าผู้ใช้สังกัดบริษัทนั้นจริง มิฉะนั้น 403 <code>COMPANY_FORBIDDEN</code></li>
+<li><b>Pagination:</b> query <code>page</code> (เริ่ม 1), <code>page_size</code> (default 20, max 100) · response ห่อรูปแบบเดียวกันเสมอ:
+<div class="flow">{ "data": [ ... ], "page": 1, "page_size": 20, "total": 137 }</div></li>
+<li><b>Sort/Filter:</b> <code>sort=field</code> หรือ <code>sort=-field</code> (desc) · filter เป็น query param ตรงชื่อฟิลด์</li>
+<li><b>Error format เดียวทั้งระบบ:</b>
+<div class="flow">{ "code": "REQ_DOC_MISSING", "message": "เอกสารบังคับยังไม่ครบ",
+  "details": [ { "field": "attachments", "reason": "ต้องแนบใบเสนอราคาฉบับร่าง" } ] }</div></li>
+<li><b>เวลา:</b> ISO 8601 UTC (<code>2026-08-24T07:30:00Z</code>) · จำนวนเงิน: string ทศนิยม + <code>currency</code> แยกฟิลด์ เช่น <code>{"amount":"150000.00","currency":"THB"}</code></li>
+<li><b>Idempotency:</b> ทุก POST ที่เปลี่ยนสถานะรองรับ header <code>Idempotency-Key</code> — ส่งซ้ำด้วย key เดิมได้ผลเดิม ไม่เกิดรายการซ้ำ (รองรับ <span class="rid">NFR-03</span>)</li>
+</ul>
+
+<h4>รหัส HTTP status ที่ใช้</h4>
+<div class="tw"><table>
+<tbody><tr><th style="width:14%">Status</th><th>ใช้เมื่อ</th></tr>
+<tr><td><code>200 / 201</code></td><td>สำเร็จ / สร้างสำเร็จ (201 คืน resource เต็มพร้อม <code>id</code>)</td></tr>
+<tr><td><code>400</code></td><td>รูปแบบ request ผิด (parse ไม่ได้, ชนิดข้อมูลผิด)</td></tr>
+<tr><td><code>401</code></td><td>ไม่มี/หมดอายุ token</td></tr>
+<tr><td><code>403</code></td><td>มีตัวตนแต่ไม่มีสิทธิ์ (permission หรือบริษัทผิด)</td></tr>
+<tr><td><code>404</code></td><td>ไม่พบ หรือ<b>อยู่นอก data scope</b> (ตอบ 404 ไม่ใช่ 403 เพื่อไม่เปิดเผยว่ามีรายการอยู่ — ตาม <span class="rid">SCOPE-02</span>)</td></tr>
+<tr><td><code>409</code></td><td>ขัดแย้งกับสถานะปัจจุบัน (เปลี่ยนสถานะนอกเส้นทาง, เวอร์ชันข้อมูลเก่า)</td></tr>
+<tr><td><code>422</code></td><td>ข้อมูลถูกรูปแบบแต่ไม่ผ่านกติกาธุรกิจ (ฟิลด์บังคับ/เอกสารขาด)</td></tr>
+</tbody></table></div>
+
+<h3>11.2 กลุ่ม A — Auth &amp; Identity</h3>
+<div class="tw"><table>
+<tbody><tr><th style="width:34%">Endpoint</th><th style="width:22%">Permission</th><th>รายละเอียด</th></tr>
+<tr><td><code>GET /auth/me</code></td><td>ล็อกอินแล้วทุกคน</td><td>ตัวตน + บริษัททั้งหมดที่สังกัด + active company + roles + permissions + scope ต่อชนิดข้อมูล · frontend เรียกครั้งเดียวหลังล็อกอิน (<span class="rid">ROLE-06</span>)</td></tr>
+<tr><td><code>POST /auth/switch-company</code></td><td>ล็อกอินแล้วทุกคน</td><td>body <code>{"company_id"}</code> · สลับ active company — ตอบชุดเดียวกับ <code>/auth/me</code> ของบริษัทใหม่ (<span class="rid">AUTH-05</span>)</td></tr>
+<tr><td><code>POST /auth/logout</code></td><td>ล็อกอินแล้วทุกคน</td><td>เพิกถอน session ฝั่งแอป + เรียก end-session ของ Keycloak (<span class="rid">AUTH-03</span>)</td></tr>
+<tr><td><code>GET /users?q=&amp;org_unit_id=</code></td><td><code>user.read</code></td><td>ค้นผู้ใช้ (ใช้เลือกผู้เกี่ยวข้อง) · ผลกรองตาม scope + active company</td></tr>
+<tr><td><code>GET /admin/org-units</code><br><code>POST /admin/org-units</code><br><code>PATCH /admin/org-units/{id}</code></td><td><code>admin.org.manage</code></td><td>ผังทีม/ฝ่าย: <code>{"name","parent_id","manager_user_id"}</code> · ทุกการแก้ recompute <code>org_closure</code> ทันที (<span class="rid">AUTH-04</span>)</td></tr>
+<tr><td><code>PATCH /admin/users/{id}/org</code></td><td><code>admin.org.manage</code></td><td>จัดสังกัด: <code>{"org_unit_id","supervisor_user_id","companies":[...]}</code></td></tr>
+<tr><td><code>GET /admin/users/unassigned</code></td><td><code>admin.org.manage</code></td><td>ผู้ใช้ล็อกอินครั้งแรกแล้วยังไม่ถูกจัดสังกัด (คิว "รอจัดสังกัด")</td></tr>
+</tbody></table></div>
+
+<p><b>ตัวอย่าง response <code>GET /auth/me</code>:</b></p>
+<div class="flow">{
+  "user": { "id": "u_1024", "username": "somchai.k", "display_name": "สมชาย ก.",
+            "email": "somchai.k@company.co.th", "org_unit": { "id": "ou_55", "name": "ทีมขาย Getter 1" },
+            "supervisor": { "id": "u_87", "display_name": "สมหญิง จ." } },
+  "companies": [ { "id": "c_osd", "name": "OSD", "doc_prefix": "OSD", "is_primary": true } ],
+  "active_company_id": "c_osd",
+  "roles": [ "employee", "sales" ],
+  "permissions": [ "request.create", "request.read", "request.cancel.own", "notification.read" ],
+  "scopes": { "request": "own", "approval_case": "own" },
+  "sensitive_fields_visible": []
+}</div>
+
+<h3>11.3 กลุ่ม B — Roles · Scope · การตั้งค่าสิทธิ์ (admin)</h3>
+<div class="tw"><table>
+<tbody><tr><th style="width:34%">Endpoint</th><th style="width:22%">Permission</th><th>รายละเอียด</th></tr>
+<tr><td><code>GET /admin/permissions</code></td><td><code>admin.role.manage</code></td><td>แคตตาล็อก permission ทั้งหมด (อ่านอย่างเดียว — ประกาศจากโค้ด)</td></tr>
+<tr><td><code>GET /admin/roles</code><br><code>POST /admin/roles</code><br><code>PATCH /admin/roles/{id}</code></td><td><code>admin.role.manage</code></td><td><code>{"name","description","permissions":[...],"active":true}</code> · ลบไม่ได้ ปิดใช้งานได้ (<span class="rid">ROLE-02</span>) · role ที่มีผู้ใช้ผูกอยู่ PATCH <code>active:false</code> ได้เท่านั้น</td></tr>
+<tr><td><code>POST /admin/users/{id}/roles</code><br><code>DELETE /admin/users/{id}/roles/{roleId}</code></td><td><code>admin.role.manage</code></td><td>ผูก/ถอน role รายบริษัท: body <code>{"role_id","company_id"}</code> · ลง audit log ทุกครั้ง (<span class="rid">ROLE-05</span>)</td></tr>
+<tr><td><code>GET /admin/keycloak-role-mappings</code><br><code>PUT /admin/keycloak-role-mappings</code></td><td><code>admin.role.manage</code></td><td>ตาราง map <code>{"keycloak_role":"crm-sales","role_id":"r_sales","company_id":"c_osd"}</code> — ประเมินใหม่ทุก login/refresh (<span class="rid">ROLE-03</span>)</td></tr>
+<tr><td><code>GET /admin/scope-rules</code><br><code>PUT /admin/scope-rules</code></td><td><code>admin.role.manage</code></td><td>กำหนด <code>{"role_id","resource":"request","scope":"team"}</code> — มีผลทันทีไม่ต้อง deploy (<span class="rid">SCOPE-01</span>)</td></tr>
+<tr><td><code>GET /admin/sensitive-field-rules</code><br><code>PUT /admin/sensitive-field-rules</code></td><td><code>admin.role.manage</code></td><td><code>{"resource":"request:DSC","fields":["discount_pct","margin_pct"],"visible_to_permission":"request.sensitive.read"}</code> (<span class="rid">SCOPE-04</span>)</td></tr>
+</tbody></table></div>
+
+<h3>11.4 กลุ่ม C — Request Service</h3>
+<div class="tw"><table>
+<tbody><tr><th style="width:34%">Endpoint</th><th style="width:22%">Permission</th><th>รายละเอียด</th></tr>
+<tr><td><code>GET /request-types</code></td><td><code>request.create</code></td><td>ประเภทคำขอที่ผู้ใช้ยื่นได้ใน active company พร้อม form schema + รายการเอกสารบังคับ + SLA — frontend ใช้ render ฟอร์ม (<span class="rid">REQ-01</span>)</td></tr>
+<tr><td><code>POST /requests</code></td><td><code>request.create</code></td><td>สร้างร่าง (draft): <code>{"type_code","form_data":{...},"ref_type","ref_id"}</code> · ยังไม่ออกเลข ยังแก้ได้อิสระ</td></tr>
+<tr><td><code>PATCH /requests/{id}</code></td><td>เจ้าของร่าง</td><td>แก้ <code>form_data</code> ได้เฉพาะสถานะ <code>draft</code> และ <code>returned</code> เท่านั้น — สถานะอื่น 409 <code>REQ_STATE_INVALID</code></td></tr>
+<tr><td><code>POST /requests/{id}/attachments</code><br><code>DELETE /requests/{id}/attachments/{attId}</code></td><td>เจ้าของร่าง</td><td>multipart upload · จำกัดชนิด/ขนาดไฟล์ตาม config · ลบได้เฉพาะ draft/returned</td></tr>
+<tr><td><code>POST /requests/{id}/submit</code></td><td>เจ้าของร่าง</td><td><b>จุดออกเลขคำขอ + เริ่มนาฬิกา SLA + สร้าง approval case</b> · ตรวจฟิลด์/เอกสารบังคับครบก่อน มิฉะนั้น 422 พร้อม <code>details</code> รายการที่ขาด (<span class="rid">REQ-02, REQ-03</span>) · ผู้ยื่นไม่มีหัวหน้าในผัง → 422 <code>ORG_SUPERVISOR_MISSING</code></td></tr>
+<tr><td><code>GET /requests?view=mine|involved</code></td><td><code>request.read</code></td><td>รายการตาม scope · filter: <code>status</code>, <code>type_code</code>, <code>due_before</code>, <code>overdue=true</code> · ใช้ทำหน้า "คำขอของฉัน" (<span class="rid">REQ-08</span>)</td></tr>
+<tr><td><code>GET /requests/{id}</code></td><td><code>request.read</code> + scope</td><td>รายละเอียดเต็ม + สถานะ approval chain + ฟิลด์อ่อนไหว mask ตามสิทธิ์ · นอก scope → 404</td></tr>
+<tr><td><code>GET /requests/{id}/events</code></td><td><code>request.read</code> + scope</td><td>ไทม์ไลน์ append-only ทุกการเปลี่ยนสถานะ (<span class="rid">REQ-07</span>)</td></tr>
+<tr><td><code>POST /requests/{id}/return</code></td><td>ผู้รับ/ผู้อนุมัติปัจจุบัน</td><td><code>{"reason_codes":["DOC_INCOMPLETE"],"note"}</code> — ต้องมี code อย่างน้อย 1 (<span class="rid">REQ-04</span>) · นาฬิกา SLA หยุด</td></tr>
+<tr><td><code>POST /requests/{id}/resubmit</code></td><td>เจ้าของ</td><td>ยื่นใหม่หลังแก้ (จาก <code>returned</code>) · นาฬิกาเดินต่อ เลขเดิม</td></tr>
+<tr><td><code>POST /requests/{id}/cancel</code></td><td>เจ้าของ (<code>request.cancel.own</code>) หรือ <code>request.cancel.any</code></td><td><code>{"reason"}</code> บังคับ · ยกเลิกได้ทุกสถานะก่อน <code>completed</code> (<span class="rid">REQ-05</span>)</td></tr>
+<tr><td><code>POST /requests/{id}/complete</code></td><td>ผู้รับผิดชอบของทีมผู้รับ</td><td>ปิดงานจาก <code>in_progress</code> → <code>completed</code> พร้อมสรุปผล</td></tr>
+<tr><td><code>GET /reports/request-bottleneck</code></td><td><code>report.request.read</code></td><td>เวลาเฉลี่ย/สูงสุดต่อขั้น แยกตามประเภท ผู้อนุมัติ ช่วงเวลา · หักเวลาที่นาฬิกาหยุด (<span class="rid">REQ-09</span>)</td></tr>
+<tr><td><code>POST /integrations/requests</code></td><td>service account scope <code>integration.request.create</code></td><td>สร้าง+ยื่นในคำขอเดียว · response ระบุ <code>"source":"system"</code> (<span class="rid">REQ-10</span>, <span class="rid">AUTH-06</span>)</td></tr>
+</tbody></table></div>
+
+<p><b>ตัวอย่าง flow ยื่นคำขอส่วนลด:</b></p>
+<div class="flow">POST /requests
+{ "type_code": "DSC", "ref_type": "deal", "ref_id": "d_501",
+  "form_data": { "customer_name": "บจก. ตัวอย่าง", "deal_value": {"amount":"800000.00","currency":"THB"},
+                 "discount_pct": 12.5, "est_margin_pct": 18.0, "reason": "ลูกค้าเทียบราคาคู่แข่ง" } }
+→ 201 { "id": "rq_9001", "status": "draft", ... }
+
+POST /requests/rq_9001/attachments   (แนบใบเสนอราคาฉบับร่าง)
+POST /requests/rq_9001/submit
+→ 200 { "id": "rq_9001", "request_no": "OSD-DSC-202608-0042", "status": "pending_approval",
+        "due_at": "2026-08-25T10:00:00Z",
+        "approval": { "case_id": "ac_331", "chain": [
+          { "step": 1, "approver_role": "team_lead", "approver": {"id":"u_87","display_name":"สมหญิง จ."}, "status": "pending" },
+          { "step": 2, "approver_role": "cfo", "status": "waiting" } ] } }
+
+กรณีเอกสารไม่ครบ:
+→ 422 { "code": "REQ_DOC_MISSING", "message": "เอกสารบังคับยังไม่ครบ",
+        "details": [ { "field": "attachments", "reason": "ใบเสนอราคาฉบับร่าง" } ] }</div>
+
+<h4>ตารางประเภทคำขอ (admin)</h4>
+<div class="tw"><table>
+<tbody><tr><th style="width:34%">Endpoint</th><th style="width:22%">Permission</th><th>รายละเอียด</th></tr>
+<tr><td><code>GET /admin/request-types</code><br><code>POST /admin/request-types</code><br><code>PATCH /admin/request-types/{code}</code></td><td><code>admin.request-type.manage</code></td><td>สร้าง/แก้ประเภทคำขอทั้งใบจากหน้าจอ (<span class="rid">REQ-01</span>): <code>{"code":"DSC","name":"ขอส่วนลด","receiver_org_unit_id","form_schema":{JSON Schema},"required_docs":[{"code","name"}],"return_reason_codes":[...],"sla":{"hours":24,"business_hours":true},"approval_policy":{"mode":"standard_chain","amount_field":"deal_value"},"companies":["c_osd"],"active":true}</code> · แก้แล้วมีผลกับคำขอใหม่เท่านั้น คำขอที่ยื่นแล้วใช้ config ณ ขณะยื่น</td></tr>
+</tbody></table></div>
+
+<h3>11.5 กลุ่ม D — Approval Service</h3>
+<div class="tw"><table>
+<tbody><tr><th style="width:34%">Endpoint</th><th style="width:22%">Permission</th><th>รายละเอียด</th></tr>
+<tr><td><code>GET /approvals/inbox</code></td><td><code>approval.decide</code></td><td>"รออนุมัติของฉัน" ข้ามทุกประเภท รวมงานที่ได้รับมอบอำนาจ · เรียงตาม due_at · badge ใกล้/เกินกำหนด (<span class="rid">REQ-08</span>)</td></tr>
+<tr><td><code>GET /approvals/{caseId}</code></td><td>ผู้อยู่ในสาย + scope</td><td>รายละเอียด case: subject, snapshot ข้อมูล ณ ขณะยื่น, chain ทุกชั้นพร้อมผล (<span class="rid">SCOPE-06</span>)</td></tr>
+<tr><td><code>POST /approvals/{caseId}/decide</code></td><td>ผู้อนุมัติชั้นปัจจุบัน (หรือผู้รับมอบอำนาจ)</td><td><code>{"decision":"approve|reject|return","note","snapshot_version"}</code> · reject/return บังคับ note · <code>snapshot_version</code> ไม่ตรงปัจจุบัน → 409 <code>APV_VERSION_STALE</code> (<span class="rid">APV-05</span>) · ไม่ใช่ชั้นปัจจุบัน → 409 <code>APV_NOT_YOUR_TURN</code></td></tr>
+<tr><td><code>POST /approvals/batch-decide</code></td><td><code>approval.decide</code></td><td><code>{"case_ids":[...],"decision":"approve","note"}</code> — เฉพาะ case ที่อ้าง ref เดียวกันและรอผู้ใช้คนเดียวกัน · ผลบันทึกแยกรายใบ (<span class="rid">APV-04</span>)</td></tr>
+<tr><td><code>GET /approvals/delegations</code><br><code>POST /approvals/delegations</code><br><code>DELETE /approvals/delegations/{id}</code></td><td><code>approval.decide</code></td><td><code>{"delegate_user_id","from":"2026-09-01","to":"2026-09-07","note"}</code> · ซ้อนช่วงกับของเดิม → 409 · มอบต่อทอดสอง → 422 <code>APV_NO_SUBDELEGATION</code> (<span class="rid">APV-03</span>)</td></tr>
+<tr><td><code>GET /admin/approval-matrix?company_id=</code><br><code>POST /admin/approval-matrix</code></td><td><code>admin.approval-matrix.manage</code></td><td>สร้างเวอร์ชันใหม่ทั้งชุดต่อ (บริษัท, ประเภทงาน): <code>{"company_id","subject_type":"request:DSC","currency":"THB","tiers":[{"upto":"100000.00","chain":["team_lead"]},{"upto":"1000000.00","chain":["team_lead","cfo"]},{"upto":null,"chain":["team_lead","cfo","ceo"]}],"effective_from":"2026-09-01"}</code> · เวอร์ชันเก่าอ่านย้อนได้ ห้ามแก้ทับ (<span class="rid">APV-01</span>)</td></tr>
+<tr><td><code>GET /approvals/history</code></td><td><code>approval.history.read</code> (Auditor/ผู้บริหาร)</td><td>รายงานการใช้อำนาจ: filter ผู้อนุมัติ ช่วงเวลา ประเภท วงเงิน รวมการอนุมัติแทน · export CSV (<span class="rid">APV-06</span>)</td></tr>
+<tr><td><code>POST /integrations/approval-cases</code></td><td>service scope <code>integration.approval.create</code></td><td>โมดูลอื่นส่งเรื่องขออนุมัติโดยไม่ผ่าน Platform Request: <code>{"subject_type":"price_approval","subject_id","company_id","amount","currency","payload","callback_event"}</code> — ผลออกแล้ว publish event ตาม <code>callback_event</code> (<span class="rid">APV-07</span>)</td></tr>
+</tbody></table></div>
+
+<p><b>การคำนวณ chain (ฝั่ง server ตอน submit):</b> อ่าน matrix เวอร์ชันที่มีผล ณ วันที่ยื่นของ (company, subject_type) → หา tier แรกที่ <code>amount ≤ upto</code> → แปลงตำแหน่งใน chain เป็นบุคคล: <code>team_lead</code> = หัวหน้าของผู้ยื่นจากผังทีม, <code>cfo</code>/<code>ceo</code> = ผู้ถือ role นั้นใน active company → ตัดชั้นที่เป็นผู้ยื่นเองออกโดยเลื่อนขึ้น (<span class="rid">APV-02</span>) → บันทึกเป็น <code>approval_step</code> ตายตัวพร้อม matrix version ที่ใช้ — เปลี่ยน matrix ภายหลังไม่กระทบ case ที่เดินอยู่</p>
+
+<h3>11.6 กลุ่ม E — SLA · Notification (ขั้นต่ำ)</h3>
+<div class="tw"><table>
+<tbody><tr><th style="width:34%">Endpoint</th><th style="width:22%">Permission</th><th>รายละเอียด</th></tr>
+<tr><td><code>GET /admin/sla-configs</code><br><code>PUT /admin/sla-configs</code></td><td><code>admin.sla.manage</code></td><td><code>{"request_type_code","company_id","hours":24,"business_hours":true,"warn_before_hours":4}</code> (<span class="rid">SUP-01</span>, D-09)</td></tr>
+<tr><td><code>GET /admin/holiday-calendars</code><br><code>PUT /admin/holiday-calendars/{companyId}</code></td><td><code>admin.sla.manage</code></td><td>วันหยุด + เวลาทำการต่อบริษัท (ชุดเดียวต่อบริษัทใน sprint นี้)</td></tr>
+<tr><td><code>GET /notifications?unread=true</code></td><td>ล็อกอินแล้วทุกคน</td><td>แจ้งเตือน in-app ของตน · <code>POST /notifications/{id}/read</code> และ <code>POST /notifications/read-all</code></td></tr>
+<tr><td><code>GET /notifications/preferences</code><br><code>PUT /notifications/preferences</code></td><td>ล็อกอินแล้วทุกคน</td><td>เปิด/ปิดอีเมลรายเหตุการณ์ (in-app ปิดไม่ได้)</td></tr>
+</tbody></table></div>
+
+<h3>11.7 กลุ่ม F — Audit Log</h3>
+<div class="tw"><table>
+<tbody><tr><th style="width:34%">Endpoint</th><th style="width:22%">Permission</th><th>รายละเอียด</th></tr>
+<tr><td><code>GET /audit-logs</code></td><td><code>audit.read</code> (Auditor)</td><td>filter: <code>actor_id</code>, <code>event_type</code>, <code>resource_type</code>, <code>resource_id</code>, <code>from</code>, <code>to</code> · อ่านอย่างเดียว — <b>ไม่มี endpoint แก้/ลบ</b> (<span class="rid">SUP-04</span>)</td></tr>
+</tbody></table></div>
+
+<h3>11.8 Event ภายใน (สำหรับ Notification และโมดูลอนาคต)</h3>
+<div class="tw"><table>
+<tbody><tr><th style="width:36%">Event</th><th>เกิดเมื่อ · payload หลัก</th></tr>
+<tr><td><code>request.submitted</code></td><td>ยื่นคำขอ · <code>{request_id, request_no, type_code, company_id, requester_id}</code></td></tr>
+<tr><td><code>request.returned</code> / <code>request.resubmitted</code></td><td>ตีกลับ/ยื่นใหม่ · รวม <code>reason_codes</code></td></tr>
+<tr><td><code>request.cancelled</code> / <code>request.completed</code></td><td>ยกเลิก/ปิดงาน</td></tr>
+<tr><td><code>approval.step.pending</code></td><td>ถึงคิวผู้อนุมัติคนใหม่ · <code>{case_id, step, approver_id}</code> — ตัวจุดชนวนแจ้งเตือน "มีงานรออนุมัติ"</td></tr>
+<tr><td><code>approval.completed</code> / <code>approval.rejected</code> / <code>approval.voided</code></td><td>ผลอนุมัติออก / โมฆะจากการแก้ข้อมูล (<span class="rid">APV-05</span>)</td></tr>
+<tr><td><code>sla.warning</code> / <code>sla.breached</code></td><td>ใกล้ครบ/เกินกำหนด — <code>sla.breached</code> จุดชนวนเร่งงาน (<span class="rid">SUP-02</span>)</td></tr>
+</tbody></table></div>
+<ul>
+<li>ทุก consumer ต้อง idempotent (event อาจส่งซ้ำ) · ลำดับรับประกันเฉพาะภายใน request เดียวกัน</li>
+<li>Notification service เป็น consumer แรก — mapping event → ข้อความ/ช่องทาง ตั้งค่าได้</li>
+</ul>
+
+<h3>11.9 รหัส error ธุรกิจ (business error codes)</h3>
+<div class="tw"><table>
+<tbody><tr><th style="width:30%">Code</th><th style="width:12%">HTTP</th><th>ความหมาย</th></tr>
+<tr><td><code>COMPANY_FORBIDDEN</code></td><td>403</td><td>ผู้ใช้ไม่สังกัดบริษัทใน <code>X-Company-Id</code></td></tr>
+<tr><td><code>REQ_FIELD_MISSING</code></td><td>422</td><td>ฟิลด์บังคับตาม form schema ไม่ครบ (รายการอยู่ใน <code>details</code>)</td></tr>
+<tr><td><code>REQ_DOC_MISSING</code></td><td>422</td><td>เอกสารแนบบังคับไม่ครบ</td></tr>
+<tr><td><code>REQ_STATE_INVALID</code></td><td>409</td><td>การกระทำไม่ตรงกับสถานะปัจจุบัน (เช่น แก้คำขอที่ยื่นแล้ว)</td></tr>
+<tr><td><code>REQ_TYPE_INACTIVE</code></td><td>422</td><td>ประเภทคำขอถูกปิดใช้งานในบริษัทนี้</td></tr>
+<tr><td><code>ORG_SUPERVISOR_MISSING</code></td><td>422</td><td>ผู้ยื่นยังไม่มีหัวหน้าในผังทีม — ให้ติดต่อผู้ดูแล</td></tr>
+<tr><td><code>APV_NOT_YOUR_TURN</code></td><td>409</td><td>ยังไม่ถึงชั้นของผู้เรียก หรือชั้นนี้ตัดสินไปแล้ว</td></tr>
+<tr><td><code>APV_VERSION_STALE</code></td><td>409</td><td><code>snapshot_version</code> ที่ส่งมาไม่ตรงข้อมูลปัจจุบัน — ให้โหลดใหม่ก่อนตัดสิน</td></tr>
+<tr><td><code>APV_MATRIX_NOT_FOUND</code></td><td>422</td><td>ไม่มี matrix ที่มีผลของ (บริษัท, ประเภทงาน) — ตั้งค่าก่อนเปิดใช้ประเภทคำขอ</td></tr>
+<tr><td><code>APV_NO_SUBDELEGATION</code></td><td>422</td><td>ผู้รับมอบอำนาจมอบต่อไม่ได้</td></tr>
+<tr><td><code>DELEGATION_OVERLAP</code></td><td>409</td><td>ช่วงเวลามอบอำนาจซ้อนกับที่มีอยู่</td></tr>
+</tbody></table></div>
+
+<div class="callout info"><b>สิ่งที่ต้องส่งมอบคู่กับโค้ด:</b> ไฟล์ OpenAPI 3.1 generate จากโค้ดจริง (ไม่เขียนมือแยก) ครอบคลุมทุก endpoint ข้างต้น + Postman/Bruno collection สำหรับ QA · endpoint ใดที่เพิ่มเกินจากตารางนี้ให้บันทึกเหตุผลใน PR</div>
+
+<!-- ============================================================ -->
+<h2 id="nfr"><span class="no">12</span>ข้อกำหนดที่ไม่ใช่ฟังก์ชัน</h2>
+<div class="tw"><table>
+<tbody><tr><th style="width:12%">รหัส</th><th style="width:22%">หมวด</th><th>ข้อกำหนด</th></tr>
+<tr><td class="id"><span class="rid">NFR-01</span></td><td>ความปลอดภัย</td><td>ตรวจ token ทุก request ที่ backend · secret เก็บใน vault/ENV ไม่อยู่ในโค้ด · input validation ทุก endpoint · ผ่าน OWASP Top 10 checklist ก่อนขึ้น UAT</td></tr>
+<tr><td class="id"><span class="rid">NFR-02</span></td><td>ประสิทธิภาพ</td><td>หน้ารายการงานค้างและ inbox อนุมัติตอบภายใน 2 วินาทีที่ข้อมูล 100,000 คำขอ · การคำนวณ scope ไม่ทำให้ list ช้าเกินเกณฑ์นี้</td></tr>
+<tr><td class="id"><span class="rid">NFR-03</span></td><td>ความถูกต้อง</td><td>การออกเลขเอกสารและการเปลี่ยนสถานะเป็น transaction — ไม่มีเลขซ้ำ/สถานะครึ่ง ๆ กลาง ๆ ภายใต้การยื่นพร้อมกัน</td></tr>
+<tr><td class="id"><span class="rid">NFR-04</span></td><td>ตรวจสอบย้อนหลัง</td><td>audit log และ request_event เป็น append-only เก็บอย่างน้อยตามนโยบายบริษัท (ตั้งต้น 2 ปี) และค้นย้อนหลังได้ตลอดช่วงเก็บ</td></tr>
+<tr><td class="id"><span class="rid">NFR-05</span></td><td>การใช้งาน</td><td>หน้าจอหลัก (ยื่นคำขอ, งานค้าง, อนุมัติ) ใช้ได้บนมือถือ (responsive) — ผู้อนุมัติส่วนใหญ่กดจากมือถือ</td></tr>
+<tr><td class="id"><span class="rid">NFR-06</span></td><td>ภาษา</td><td>UI ภาษาไทยเป็นหลัก โครงสร้างข้อความรองรับเพิ่มภาษาได้ (i18n) โดยยังไม่ต้องแปล</td></tr>
+<tr><td class="id"><span class="rid">NFR-07</span></td><td>สภาพแวดล้อม</td><td>แยก dev / UAT / production ตั้งแต่ sprint แรก พร้อม CI ที่รัน test อัตโนมัติทุก merge</td></tr>
+</tbody></table></div>
+
+<!-- ============================================================ -->
+<h2 id="plan"><span class="no">13</span>การแบ่ง Sprint และลำดับพัฒนา</h2>
+<p>เสนอแบ่งเป็น 3 sprint (sprint ละ ~2–3 สัปดาห์ ปรับตามกำลังทีมจริง) เรียงตามลำดับพึ่งพา — RBAC/Scope ต้องมาก่อนเพราะทุกบริการที่ตามมาต้องเรียกใช้:</p>
+<div class="tw"><table>
+<tbody><tr><th style="width:14%">Sprint</th><th style="width:44%">ส่งมอบ</th><th>ผลที่ demo ได้เมื่อจบ</th></tr>
+<tr><td><b>S1</b><br><span class="small">รากฐานตัวตน</span></td><td><span class="rid">AUTH-01…07</span> · <span class="rid">ROLE-01…06</span> · <span class="rid">SCOPE-01…06</span> · <span class="rid">SUP-04</span> (audit log) · โครง project, CI, สภาพแวดล้อม (<span class="rid">NFR-07</span>)</td><td>ล็อกอินด้วยบัญชีองค์กร สลับบริษัท เห็นเมนูตามสิทธิ์ · ผู้ดูแลตั้ง role/scope จากหน้าจอ · ทุกการเปลี่ยนสิทธิ์ตรวจย้อนได้</td></tr>
+<tr><td><b>S2</b><br><span class="small">เครื่องยนต์อนุมัติ</span></td><td><span class="rid">APV-01…07</span> · <span class="rid">SUP-03</span> (แจ้งเตือนขั้นต่ำ) · หน้าจอผู้ดูแลตารางอำนาจ</td><td>ตั้งกติกาอนุมัติตามวงเงินสองบริษัทต่างกัน ส่งเรื่องทดสอบเดินครบวงจร มอบอำนาจแทนได้ ประวัติครบ</td></tr>
+<tr><td><b>S3</b><br><span class="small">Platform Request</span></td><td><span class="rid">REQ-01…11</span> · <span class="rid">SUP-01, SUP-02</span> (SLA + เร่งงาน) · รายงานคอขวด</td><td>คำขอส่วนลดและส่งต่อโอกาสการขายเดินจริงจบวงจรบน UAT โดยผู้ใช้ทีมขาย — ตรงเป้าระยะที่ 1 ของข้อเสนอ</td></tr>
+</tbody></table></div>
+<div class="callout info"><b>งานคู่ขนานที่ไม่ใช่ของทีมพัฒนาแต่บล็อกงานนี้:</b> ยืนยันเพดานวงเงิน T1/T2 ของแต่ละบริษัท (งานระยะที่ 0) — S2 เริ่มพัฒนาได้ด้วยค่าสมมติ แต่เปิดใช้จริงไม่ได้จนกว่าตัวเลขจะยืนยัน · สิทธิ์จัดการ realm/client บน Keycloak ต้องพร้อมก่อน S1 เริ่ม · ข้อมูลผังทีม (ใครคือหัวหน้าใคร) ต้องมีเจ้าของข้อมูลกรอกเข้าระบบก่อนเปิด UAT ของ S3</div>
+
+<!-- ============================================================ -->
+<h2 id="dod"><span class="no">14</span>เกณฑ์ตรวจรับรวม (Definition of Done)</h2>
+<ul>
+<li>ทุกข้อกำหนดมี automated test อย่างน้อยหนึ่งรายการที่ผูกกับรหัส (AUTH-xx, ROLE-xx, …) และผ่านใน CI</li>
+<li>ชุดทดสอบสิทธิ์ต้องมี negative case ครบ: ทุก endpoint ถูกทดสอบด้วยผู้ใช้ที่ "ไม่มีสิทธิ์" และ "ผิดบริษัท" อย่างน้อยหนึ่งกรณี</li>
+<li>เอกสาร OpenAPI ตรงกับของจริง (generate จากโค้ด) และคู่มือหน้าจอผู้ดูแลฉบับย่อพร้อมใช้</li>
+<li>ผ่าน UAT script ต่อไปนี้กับผู้ใช้จริงอย่างน้อย 3 คน (พนักงานขาย, ผู้จัดการ, ผู้ดูแลระบบ):
+  <ol>
+  <li>พนักงานขายยื่นคำขอส่วนลดพร้อมไฟล์แนบ → หัวหน้าทีมได้รับแจ้งเตือน → อนุมัติจากมือถือ</li>
+  <li>คำขอที่เอกสารไม่ครบถูกตีกลับพร้อมรายการ → แก้แล้วยื่นใหม่ → นาฬิกา SLA หักช่วงตีกลับถูกต้อง</li>
+  <li>คำขอวงเงินเกิน T2 เดินครบสามชั้น (หัวหน้าทีม → CFO → CEO) → แก้ตัวเลขหลังชั้นแรกอนุมัติ → การอนุมัติเป็นโมฆะและเข้าเส้นทางใหม่</li>
+  <li>CFO ลาพักร้อน ตั้งมอบอำนาจ → งานวิ่งถึงผู้ทำแทน → ประวัติระบุการอนุมัติแทน</li>
+  <li>ผู้ใช้บริษัท A พยายามเปิดคำขอบริษัท B ทาง URL ตรง → ไม่พบข้อมูล</li>
+  </ol></li>
+<li>ผลทดสอบประสิทธิภาพตาม <span class="rid">NFR-02</span> แนบท้ายรายงานปิด sprint</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="open"><span class="no">15</span>คำถามเปิด — สถานะล่าสุด</h2>
+<p>คำตอบจาก PO (24 ส.ค. 2569) ปิดคำถามเดิมข้อ 1–6 แล้ว สรุปข้อยุติและสิ่งที่ยังค้าง:</p>
+
+<h3>15.1 ข้อยุติแล้ว <span class="pill ok">RESOLVED</span></h3>
+<div class="tw"><table>
+<tbody><tr><th style="width:8%">#</th><th style="width:44%">คำถามเดิม</th><th>ข้อยุติ</th></tr>
+<tr><td>1</td><td>บทบาทของ LDAP และแหล่งข้อมูลผังองค์กร</td><td>LDAP ใช้ยืนยันตัวตน (login) เท่านั้น · role กำหนดที่ Keycloak · ผังทีม/หัวหน้าดูแลในระบบนี้ (<span class="rid">AUTH-01</span>, <span class="rid">AUTH-04</span>, <span class="rid">ROLE-03</span>)</td></tr>
+<tr><td>2</td><td>Keycloak instance</td><td>ใช้ instance ที่มีอยู่แล้ว — ทีมพัฒนาขอสิทธิ์สร้าง client/roles ในขั้นเตรียมงาน S1</td></tr>
+<tr><td>3</td><td>โครงเส้นทางอนุมัติ</td><td>หัวหน้าทีมอนุมัติชั้นแรกทุกใบ (ตรวจสิทธิ์การยื่น) → เกินเพดานระดับ 1 เพิ่ม CFO → เกินเพดานระดับ 2 เพิ่ม CEO (หัวข้อ 8.1) · <b>ตัวเลขเพดาน T1/T2 ยังไม่ยืนยัน — ดู 15.2</b></td></tr>
+<tr><td>4</td><td>รูปแบบเลขเอกสาร</td><td>ใช้ prefix ชื่อบริษัทนำหน้า เช่น <code>OSD-DSC-202608-0042</code> (<span class="rid">REQ-02</span>)</td></tr>
+<tr><td>5</td><td>ช่องทางอีเมล</td><td>ใช้ SMTP ของ mail server องค์กร (<span class="rid">SUP-03</span>)</td></tr>
+<tr><td>6</td><td>ฟิลด์อ่อนไหวชุดแรก</td><td>ใช้ค่าตั้งต้นที่เสนอ: % ส่วนลดและ margin ในคำขอส่วนลด เห็นเฉพาะผู้ยื่นและสายอนุมัติ (<span class="rid">SCOPE-04</span>)</td></tr>
+</tbody></table></div>
+
+<h3>15.2 ยังค้าง</h3>
+<div class="tw"><table>
+<tbody><tr><th style="width:8%">#</th><th style="width:52%">คำถาม</th><th style="width:20%">ผู้ตอบ</th><th>บล็อกอะไร</th></tr>
+<tr><td>A</td><td>ตัวเลขเพดานวงเงินจริง T1 (จบที่หัวหน้าทีม) และ T2 (ต้องถึง CEO) ต่อบริษัท ต่อประเภทคำขอ อย่างน้อยของคำขอส่วนลด</td><td>ฝ่ายการเงิน / CFO</td><td>เปิดใช้จริงของ S2/S3 (พัฒนาไปก่อนด้วยค่าสมมติได้)</td></tr>
+<tr><td>B</td><td>ค่าเชื่อมต่อ SMTP (host, port, บัญชีส่ง) และข้อจำกัดการส่งอัตโนมัติ</td><td>ทีม Infra</td><td><span class="rid">SUP-03</span> ทดสอบจริง</td></tr>
+<tr><td>C</td><td>สิทธิ์จัดการ realm/client บน Keycloak instance ที่มีอยู่ + ตกลง naming ของ roles ใน Keycloak</td><td>ทีม Infra</td><td>S1 เริ่มงานวันแรก</td></tr>
+<tr><td>D</td><td>เจ้าของข้อมูลผังทีม: ใครรับผิดชอบกรอกและดูแล "ใครคือหัวหน้าใคร" ในระบบให้เป็นปัจจุบัน</td><td>PO + HR</td><td><span class="rid">SCOPE-*</span>, เส้นทางอนุมัติชั้นที่ 1, UAT ของ S3</td></tr>
+<tr><td>E</td><td>รายชื่อบัญชีทดสอบต่อบทบาท/บริษัท สำหรับ UAT (รวมบัญชีสมมติ CFO/CEO)</td><td>PO + IT</td><td>UAT ทุก sprint</td></tr>
+</tbody></table></div>
+
+
+<!-- ============================================================ -->
+<h2 id="mock"><span class="no">16</span>Mockup หน้าจอแต่ละ Process</h2>
+<p>ภาพหน้าจอทั้ง 8 หน้าครอบคลุม flow ผู้ใช้ (หน้าที่ 1–5) และงานตั้งค่าของผู้ดูแล (A1–A3) · ตัวเต็มแบบซูม/แก้ไขได้อยู่บน design canvas: <a href="https://claude.ai/code/artifact/dadb9ead-7382-4720-bcb7-bde9ff1f43f5">CTD Screen Mockups</a> · ข้อมูลในภาพ (ชื่อคน เลขคำขอ วงเงิน) เป็นข้อมูลสมมติชุดเดียวกันทุกหน้าเพื่อให้ไล่ตาม flow ได้</p>
+<style>
+.mockfig { margin: 1.8rem 0; display: flex; flex-direction: column; gap: .55rem; }
+.mockfig figcaption { font-size: .9rem; color: var(--ink-2); line-height: 1.65; }
+.mockfig figcaption b { color: var(--ink); font-family: "IBM Plex Sans Thai", sans-serif; }
+.shot { width: 832px; max-width: 100%; height: 541px; overflow: hidden; border: 1px solid var(--line); border-radius: 8px; background: #FBFAF8; }
+.shot-inner { width: 1280px; height: 832px; transform: scale(.65); transform-origin: top left; }
+
+.mkinbox .app { display: flex; width: 1280px; height: 832px; background: #F1EEE8; font-family: 'Sarabun', system-ui, sans-serif; color: #22303C; font-size: 14px; }
+.mkinbox .side { width: 232px; background: #22303C; color: #C7CDD4; display: flex; flex-direction: column; flex-shrink: 0; }
+.mkinbox .logo { display: flex; align-items: center; gap: 10px; padding: 20px; font-family: 'IBM Plex Sans Thai', sans-serif; font-weight: 700; font-size: 16px; color: #FFFFFF; }
+.mkinbox .nav { display: flex; flex-direction: column; gap: 2px; padding: 4px 12px; }
+.mkinbox .navlabel { font-size: 11px; letter-spacing: .08em; color: #8A94A0; padding: 16px 10px 6px; font-family: 'IBM Plex Sans Thai', sans-serif; }
+.mkinbox .item { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 8px; min-height: 24px; }
+.mkinbox .item.on { background: rgba(229,139,78,.16); color: #F2B084; font-weight: 600; }
+.mkinbox .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.mkinbox .top { height: 60px; background: #FBFAF8; border-bottom: 1px solid #E2DDD5; display: flex; align-items: center; gap: 14px; padding: 0 24px; flex-shrink: 0; }
+.mkinbox .content { flex: 1; padding: 22px 28px; display: flex; flex-direction: column; gap: 16px; overflow: hidden; }
+.mkinbox .card { background: #FFFFFF; border: 1px solid #E2DDD5; border-radius: 10px; padding: 0; }
+.mkinbox .h1 { font-family: 'IBM Plex Sans Thai', sans-serif; font-size: 20px; font-weight: 700; }
+.mkinbox .pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 99px; font-size: 12px; font-weight: 600; font-family: 'IBM Plex Sans Thai', sans-serif; white-space: nowrap; }
+.mkinbox th { font-family: 'IBM Plex Sans Thai', sans-serif; font-size: 12px; font-weight: 600; color: #33586E; text-align: left; padding: 10px 14px; background: #F3F0EA; border-bottom: 1px solid #E2DDD5; border-top: none; border-left: none; border-right: none; }
+.mkinbox td { padding: 12px 14px; border-bottom: 1px solid #EFEBE3; vertical-align: middle; border-top: none; border-left: none; border-right: none; background: transparent; }
+.mkcreate .app { display: flex; width: 1280px; height: 832px; background: #F1EEE8; font-family: 'Sarabun', system-ui, sans-serif; color: #22303C; font-size: 14px; }
+.mkcreate .side { width: 232px; background: #22303C; color: #C7CDD4; display: flex; flex-direction: column; flex-shrink: 0; }
+.mkcreate .logo { display: flex; align-items: center; gap: 10px; padding: 20px; font-family: 'IBM Plex Sans Thai', sans-serif; font-weight: 700; font-size: 16px; color: #FFFFFF; }
+.mkcreate .nav { display: flex; flex-direction: column; gap: 2px; padding: 4px 12px; }
+.mkcreate .item { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 8px; min-height: 24px; }
+.mkcreate .item.on { background: rgba(229,139,78,.16); color: #F2B084; font-weight: 600; }
+.mkcreate .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.mkcreate .top { height: 60px; background: #FBFAF8; border-bottom: 1px solid #E2DDD5; display: flex; align-items: center; gap: 14px; padding: 0 24px; flex-shrink: 0; }
+.mkcreate .content { flex: 1; padding: 22px 28px; display: flex; flex-direction: column; gap: 14px; overflow: hidden; }
+.mkcreate .card { background: #FFFFFF; border: 1px solid #E2DDD5; border-radius: 10px; padding: 0; }
+.mkcreate .h1 { font-family: 'IBM Plex Sans Thai', sans-serif; font-size: 20px; font-weight: 700; }
+.mkcreate .lb { font-family: 'IBM Plex Sans Thai', sans-serif; font-size: 12.5px; font-weight: 600; color: #33586E; }
+.mkcreate .inp { height: 42px; border: 1px solid #D8D2C8; border-radius: 8px; background: #FFFFFF; display: flex; align-items: center; padding: 0 12px; }
+.mkcreate .req { color: #B33A3A; }
+.mkdetail .app { display: flex; width: 1280px; height: 832px; background: #F1EEE8; font-family: 'Sarabun', system-ui, sans-serif; color: #22303C; font-size: 14px; }
+.mkdetail .side { width: 232px; background: #22303C; color: #C7CDD4; display: flex; flex-direction: column; flex-shrink: 0; }
+.mkdetail .logo { display: flex; align-items: center; gap: 10px; padding: 20px; font-family: 'IBM Plex Sans Thai', sans-serif; font-weight: 700; font-size: 16px; color: #FFFFFF; }
+.mkdetail .nav { display: flex; flex-direction: column; gap: 2px; padding: 4px 12px; }
+.mkdetail .item { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 8px; min-height: 24px; }
+.mkdetail .item.on { background: rgba(229,139,78,.16); color: #F2B084; font-weight: 600; }
+.mkdetail .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.mkdetail .top { height: 60px; background: #FBFAF8; border-bottom: 1px solid #E2DDD5; display: flex; align-items: center; gap: 14px; padding: 0 24px; flex-shrink: 0; }
+.mkdetail .content { flex: 1; padding: 22px 28px; display: flex; flex-direction: column; gap: 14px; overflow: hidden; }
+.mkdetail .card { background: #FFFFFF; border: 1px solid #E2DDD5; border-radius: 10px; padding: 0; }
+.mkdetail .lb { font-family: 'IBM Plex Sans Thai', sans-serif; font-size: 12px; font-weight: 600; color: #7B8794; }
+.mkdetail .pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 99px; font-size: 12px; font-weight: 600; font-family: 'IBM Plex Sans Thai', sans-serif; }
+.mkapprove .app { display: flex; width: 1280px; height: 832px; background: #F1EEE8; font-family: 'Sarabun', system-ui, sans-serif; color: #22303C; font-size: 14px; }
+.mkapprove .side { width: 232px; background: #22303C; color: #C7CDD4; display: flex; flex-direction: column; flex-shrink: 0; }
+.mkapprove .logo { display: flex; align-items: center; gap: 10px; padding: 20px; font-family: 'IBM Plex Sans Thai', sans-serif; font-weight: 700; font-size: 16px; color: #FFFFFF; }
+.mkapprove .nav { display: flex; flex-direction: column; gap: 2px; padding: 4px 12px; }
+.mkapprove .item { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 8px; min-height: 24px; }
+.mkapprove .item.on { background: rgba(229,139,78,.16); color: #F2B084; font-weight: 600; }
+.mkapprove .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.mkapprove .top { height: 60px; background: #FBFAF8; border-bottom: 1px solid #E2DDD5; display: flex; align-items: center; gap: 14px; padding: 0 24px; flex-shrink: 0; }
+.mkapprove .content { flex: 1; padding: 22px 28px; display: flex; flex-direction: column; gap: 14px; overflow: hidden; }
+.mkapprove .card { background: #FFFFFF; border: 1px solid #E2DDD5; border-radius: 10px; padding: 0; }
+.mkapprove .lb { font-family: 'IBM Plex Sans Thai', sans-serif; font-size: 12px; font-weight: 600; color: #7B8794; }
+.mkapprove .pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 99px; font-size: 12px; font-weight: 600; font-family: 'IBM Plex Sans Thai', sans-serif; }
+.mkapprove .row { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; border-bottom: 1px solid #EFEBE3; }
+.mkmatrix .app { display: flex; width: 1280px; height: 832px; background: #F1EEE8; font-family: 'Sarabun', system-ui, sans-serif; color: #22303C; font-size: 14px; }
+.mkmatrix .side { width: 232px; background: #22303C; color: #C7CDD4; display: flex; flex-direction: column; flex-shrink: 0; }
+.mkmatrix .logo { display: flex; align-items: center; gap: 10px; padding: 20px; font-family: 'IBM Plex Sans Thai', sans-serif; font-weight: 700; font-size: 16px; color: #FFFFFF; }
+.mkmatrix .nav { display: flex; flex-direction: column; gap: 2px; padding: 4px 12px; }
+.mkmatrix .navlabel { font-size: 11px; letter-spacing: .08em; color: #8A94A0; padding: 16px 10px 6px; font-family: 'IBM Plex Sans Thai', sans-serif; }
+.mkmatrix .item { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 8px; min-height: 24px; }
+.mkmatrix .item.on { background: rgba(229,139,78,.16); color: #F2B084; font-weight: 600; }
+.mkmatrix .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.mkmatrix .top { height: 60px; background: #FBFAF8; border-bottom: 1px solid #E2DDD5; display: flex; align-items: center; gap: 14px; padding: 0 24px; flex-shrink: 0; }
+.mkmatrix .content { flex: 1; padding: 22px 28px; display: flex; flex-direction: column; gap: 14px; overflow: hidden; }
+.mkmatrix .card { background: #FFFFFF; border: 1px solid #E2DDD5; border-radius: 10px; padding: 0; }
+.mkmatrix .pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 99px; font-size: 12px; font-weight: 600; font-family: 'IBM Plex Sans Thai', sans-serif; }
+.mkmatrix th { font-family: 'IBM Plex Sans Thai', sans-serif; font-size: 12px; font-weight: 600; color: #33586E; text-align: left; padding: 10px 14px; background: #F3F0EA; border-bottom: 1px solid #E2DDD5; border-top: none; border-left: none; border-right: none; }
+.mkmatrix td { padding: 13px 14px; border-bottom: 1px solid #EFEBE3; vertical-align: middle; border-top: none; border-left: none; border-right: none; background: transparent; }
+.mkmatrix .stepchip { display: inline-flex; align-items: center; gap: 6px; background: #E3EAEF; color: #33586E; border-radius: 99px; padding: 4px 12px; font-family: 'IBM Plex Sans Thai', sans-serif; font-weight: 600; font-size: 12.5px; }
+.mktypes .app { display: flex; width: 1280px; height: 832px; background: #F1EEE8; font-family: 'Sarabun', system-ui, sans-serif; color: #22303C; font-size: 14px; }
+.mktypes .side { width: 232px; background: #22303C; color: #C7CDD4; display: flex; flex-direction: column; flex-shrink: 0; }
+.mktypes .logo { display: flex; align-items: center; gap: 10px; padding: 20px; font-family: 'IBM Plex Sans Thai', sans-serif; font-weight: 700; font-size: 16px; color: #FFFFFF; }
+.mktypes .nav { display: flex; flex-direction: column; gap: 2px; padding: 4px 12px; }
+.mktypes .navlabel { font-size: 11px; letter-spacing: .08em; color: #8A94A0; padding: 16px 10px 6px; font-family: 'IBM Plex Sans Thai', sans-serif; }
+.mktypes .item { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 8px; min-height: 24px; }
+.mktypes .item.on { background: rgba(229,139,78,.16); color: #F2B084; font-weight: 600; }
+.mktypes .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.mktypes .top { height: 60px; background: #FBFAF8; border-bottom: 1px solid #E2DDD5; display: flex; align-items: center; gap: 14px; padding: 0 24px; flex-shrink: 0; }
+.mktypes .content { flex: 1; padding: 22px 28px; display: flex; gap: 16px; overflow: hidden; }
+.mktypes .card { background: #FFFFFF; border: 1px solid #E2DDD5; border-radius: 10px; padding: 0; }
+.mktypes .lb { font-family: 'IBM Plex Sans Thai', sans-serif; font-size: 12.5px; font-weight: 600; color: #33586E; }
+.mktypes .inp { height: 40px; border: 1px solid #D8D2C8; border-radius: 8px; background: #FFFFFF; display: flex; align-items: center; padding: 0 12px; }
+.mktypes .pill { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 99px; font-size: 12px; font-weight: 600; font-family: 'IBM Plex Sans Thai', sans-serif; }
+.mktypes .typerow { display: flex; flex-direction: column; gap: 3px; padding: 13px 16px; border-bottom: 1px solid #EFEBE3; }
+.mktypes .frow { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid #EFEBE3; border-radius: 8px; font-size: 13px; }
+.mkorg .app { display: flex; width: 1280px; height: 832px; background: #F1EEE8; font-family: 'Sarabun', system-ui, sans-serif; color: #22303C; font-size: 14px; }
+.mkorg .side { width: 232px; background: #22303C; color: #C7CDD4; display: flex; flex-direction: column; flex-shrink: 0; }
+.mkorg .logo { display: flex; align-items: center; gap: 10px; padding: 20px; font-family: 'IBM Plex Sans Thai', sans-serif; font-weight: 700; font-size: 16px; color: #FFFFFF; }
+.mkorg .nav { display: flex; flex-direction: column; gap: 2px; padding: 4px 12px; }
+.mkorg .navlabel { font-size: 11px; letter-spacing: .08em; color: #8A94A0; padding: 16px 10px 6px; font-family: 'IBM Plex Sans Thai', sans-serif; }
+.mkorg .item { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 8px; min-height: 24px; }
+.mkorg .item.on { background: rgba(229,139,78,.16); color: #F2B084; font-weight: 600; }
+.mkorg .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.mkorg .top { height: 60px; background: #FBFAF8; border-bottom: 1px solid #E2DDD5; display: flex; align-items: center; gap: 14px; padding: 0 24px; flex-shrink: 0; }
+.mkorg .content { flex: 1; padding: 22px 28px; display: flex; gap: 16px; overflow: hidden; }
+.mkorg .card { background: #FFFFFF; border: 1px solid #E2DDD5; border-radius: 10px; padding: 0; }
+.mkorg .pill { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 99px; font-size: 12px; font-weight: 600; font-family: 'IBM Plex Sans Thai', sans-serif; }
+.mkorg .tnode { display: flex; align-items: center; gap: 9px; padding: 8px 12px; border-radius: 8px; }
+.mkorg .tnode.on { background: #FDF6EF; border: 1px solid #E5B394; }
+.mkorg .avatar { width: 30px; height: 30px; border-radius: 99px; background: #33586E; color: #fff; display: flex; align-items: center; justify-content: center; font-family: 'IBM Plex Sans Thai', sans-serif; font-weight: 600; font-size: 12px; flex-shrink: 0; }
+</style>
+<figure class="mockfig">
+<figcaption><b>หน้าที่ 1 — เข้าสู่ระบบ (SSO)</b><br>ปุ่มเดียว: SSO ผ่าน Keycloak (LDAP ยืนยันตัวตน) ไม่มีฟอร์มรหัสผ่านในระบบ · ล็อกอินครั้งแรกระบบสร้างโปรไฟล์อัตโนมัติแล้วเข้าคิวรอจัดสังกัด — AUTH-01, AUTH-04</figcaption>
+<div class="shot"><div class="shot-inner mklogin">
+<div style="display: flex; width: 1280px; height: 832px; font-family: &#39;Sarabun&#39;, system-ui, sans-serif; color: #22303C; background: #FBFAF8;">
+
+  <div style="width: 520px; background: #22303C; color: #E6E1D8; display: flex; flex-direction: column; justify-content: space-between; padding: 48px; flex-shrink: 0;">
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <div style="width: 14px; height: 14px; border-radius: 99px; background: #E58B4E;"></div>
+      <div style="font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 700; font-size: 20px; color: #FFFFFF;">Connect the Dot</div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 20px;">
+      <div style="font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 700; font-size: 34px; line-height: 1.35; color: #FFFFFF;">คำขอข้ามทีมทุกใบ<br>มีเจ้าของ มีกำหนดเวลา<br>ตรวจย้อนได้เสมอ</div>
+      <div style="font-size: 16px; color: #B8C0C9; line-height: 1.7;">แพลตฟอร์มคำขอและการอนุมัติกลางของกลุ่มบริษัท<br>เลิกไล่งานในอีเมลและแชท</div>
+      <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 8px;">
+        <div style="display: flex; align-items: center; gap: 10px; color: #C7CDD4; font-size: 14px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#E58B4E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>
+          <span>เลขอ้างอิงทุกคำขอ ออกทันทีที่ยื่น</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; color: #C7CDD4; font-size: 14px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#E58B4E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>
+          <span>เส้นทางอนุมัติอัตโนมัติตามวงเงิน</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; color: #C7CDD4; font-size: 14px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#E58B4E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>
+          <span>นาฬิกา SLA เดินเอง เร่งงานเองเมื่อเกินกำหนด</span>
+        </div>
+      </div>
+    </div>
+    <div style="font-size: 12px; color: #8A94A0;">Foundation Sprint · v1.2</div>
+  </div>
+
+  <div style="flex: 1; display: flex; align-items: center; justify-content: center;">
+    <div style="width: 420px; display: flex; flex-direction: column; gap: 28px;">
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 700; font-size: 26px;">เข้าสู่ระบบ</div>
+        <div style="font-size: 15px; color: #4A5A68;">ใช้บัญชีองค์กรของคุณ ไม่ต้องสมัครหรือตั้งรหัสผ่านใหม่</div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 14px;">
+        <div style="display: flex; align-items: center; justify-content: center; gap: 12px; height: 52px; background: #C05621; color: #FFFFFF; border-radius: 10px; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 600; font-size: 16px;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+          <span>เข้าสู่ระบบด้วยบัญชีองค์กร (SSO)</span>
+        </div>
+        <div style="display: flex; align-items: flex-start; gap: 10px; padding: 14px 16px; background: #E3EAEF; border-radius: 10px; font-size: 13px; color: #33586E; line-height: 1.6;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#33586E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 2px;"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4M12 8h.01"></path></svg>
+          <span>ระบบจะพาไปยืนยันตัวตนผ่าน Keycloak ด้วยรหัสผ่านองค์กร (LDAP) — ระบบนี้ไม่เก็บและไม่เห็นรหัสผ่านของคุณ</span>
+        </div>
+      </div>
+      <div style="border-top: 1px solid #E2DDD5; padding-top: 18px; font-size: 13px; color: #7B8794; line-height: 1.7;">
+        เข้าระบบครั้งแรกแล้วยังไม่เห็นเมนู? บัญชีของคุณกำลังรอผู้ดูแลจัดสังกัดทีม<br>ติดต่อผู้ดูแลระบบที่ <a href="https://2c8d2bf3-2a7a-402f-8439-b3ddcb8db5e8.frame.claudeusercontent.com/_f/1787629541-c6a3/#">it-support@company.co.th</a>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div></div>
+</figure>
+<figure class="mockfig">
+<figcaption><b>หน้าที่ 2 — งานค้างของฉัน</b><br>แท็บ “คำขอของฉัน / รออนุมัติของฉัน” ข้ามทุกประเภทคำขอ พร้อมป้ายสถานะและ SLA (เกินกำหนด / นาฬิกาหยุดตอนตีกลับ) · รายการกรองตาม data scope ที่ backend — REQ-08</figcaption>
+<div class="shot"><div class="shot-inner mkinbox">
+<div class="app">
+
+  <div class="side">
+    <div class="logo"><div style="width: 10px; height: 10px; border-radius: 99px; background: #E58B4E;"></div><span>Connect the Dot</span></div>
+    <div class="nav">
+      <div class="item on"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"></rect><rect x="14" y="3" width="7" height="5" rx="1.5"></rect><rect x="14" y="12" width="7" height="9" rx="1.5"></rect><rect x="3" y="16" width="7" height="5" rx="1.5"></rect></svg><span>งานค้างของฉัน</span></div>
+      <div class="item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"></path></svg><span>ยื่นคำขอใหม่</span></div>
+      <div class="item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"></path><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"></path></svg><span>รออนุมัติของฉัน</span><span style="margin-left: auto; background: #C05621; color: #fff; border-radius: 99px; font-size: 11px; padding: 1px 7px; font-weight: 700;">3</span></div>
+      <div class="item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"></path><path d="M7 14l4-4 3 3 5-6"></path></svg><span>รายงานคอขวด</span></div>
+      <div class="navlabel">ผู้ดูแลระบบ</div>
+      <div class="item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M3 9h18M9 9v11"></path></svg><span>ตารางอำนาจอนุมัติ</span></div>
+      <div class="item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6"></path></svg><span>ประเภทคำขอ</span></div>
+      <div class="item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path></svg><span>ผังทีมและสิทธิ์</span></div>
+      <div class="item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg><span>Audit Log</span></div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="top">
+      <div style="display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; background: #E3EAEF; color: #33586E; border-radius: 8px; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 600; font-size: 13px;">
+        <span>บริษัท: OSD</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#33586E" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg>
+      </div>
+      <div style="flex: 1;"></div>
+      <div style="position: relative; display: flex;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4A5A68" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.7 21a2 2 0 0 1-3.4 0"></path></svg>
+        <div style="position: absolute; top: -4px; right: -6px; background: #B33A3A; color: #fff; border-radius: 99px; font-size: 10px; padding: 0 5px; font-weight: 700;">2</div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <div style="width: 34px; height: 34px; border-radius: 99px; background: #33586E; color: #fff; display: flex; align-items: center; justify-content: center; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 600; font-size: 13px;">สช</div>
+        <div style="font-size: 13px;"><div style="font-weight: 600;">สมชาย ก.</div><div style="color: #7B8794; font-size: 12px;">ทีมขาย Getter 1</div></div>
+      </div>
+    </div>
+
+    <div class="content">
+      <div style="display: flex; align-items: center; gap: 16px;">
+        <div class="h1">งานค้างของฉัน</div>
+        <div style="flex: 1;"></div>
+        <div style="display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 18px; background: #C05621; color: #fff; border-radius: 8px; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 600;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+          <span>ยื่นคำขอใหม่</span>
+        </div>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 4px; border-bottom: 1.5px solid #E2DDD5;">
+        <div style="padding: 10px 16px; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 700; color: #C05621; border-bottom: 2.5px solid #C05621; margin-bottom: -1.5px;">คำขอของฉัน · 6</div>
+        <div style="padding: 10px 16px; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 600; color: #7B8794;">รออนุมัติของฉัน · 3</div>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <div style="display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px; background: #fff; border: 1px solid #E2DDD5; border-radius: 8px; color: #7B8794; width: 280px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7B8794" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>
+          <span>ค้นหาเลขที่ / ลูกค้า / ดีล</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px; height: 40px; padding: 0 14px; background: #fff; border: 1px solid #E2DDD5; border-radius: 8px; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-size: 13px;">สถานะ: ทั้งหมด <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#4A5A68" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"></path></svg></div>
+        <div style="display: flex; align-items: center; gap: 6px; height: 40px; padding: 0 14px; background: #fff; border: 1px solid #E2DDD5; border-radius: 8px; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-size: 13px;">ประเภท: ทั้งหมด <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#4A5A68" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"></path></svg></div>
+        <div style="display: flex; align-items: center; gap: 6px; height: 40px; padding: 0 14px; background: #F6E3D7; border: 1px solid #E5B394; border-radius: 8px; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-size: 13px; color: #9C4218; font-weight: 600;">เฉพาะเกินกำหนด</div>
+      </div>
+
+      <div class="card" style="overflow: hidden;">
+        <table style="width: 100%; border-collapse: collapse;">
+          <tbody><tr><th style="width: 190px;">เลขที่คำขอ</th><th>ประเภท · อ้างอิง</th><th style="width: 140px;">สถานะ</th><th style="width: 190px;">ขั้นปัจจุบัน</th><th style="width: 150px;">ครบกำหนด</th></tr>
+          <tr>
+            <td style="font-weight: 600;">OSD-DSC-202608-0042</td>
+            <td><div style="font-weight: 600;">ขอส่วนลด 12.5%</div><div style="color: #7B8794; font-size: 13px;">ดีล D-501 · บจก. ตัวอย่าง</div></td>
+            <td><span class="pill" style="background: #FDF3E1; color: #B7791F;">รออนุมัติ</span></td>
+            <td>ขั้น 2/2 · CFO</td>
+            <td><span class="pill" style="background: #FBEAE8; color: #B33A3A;">เกิน 3 ชม.</span></td>
+          </tr>
+          <tr>
+            <td style="font-weight: 600;">OSD-DSC-202608-0038</td>
+            <td><div style="font-weight: 600;">ขอส่วนลด 8%</div><div style="color: #7B8794; font-size: 13px;">ดีล D-497 · บมจ. สยามเน็ต</div></td>
+            <td><span class="pill" style="background: #F6E3D7; color: #9C4218;">ตีกลับ</span></td>
+            <td>รอฉันแก้ไข · ขาดใบเสนอราคา</td>
+            <td><span style="color: #7B8794; font-size: 13px;">นาฬิกาหยุด</span></td>
+          </tr>
+          <tr>
+            <td style="font-weight: 600;">OSD-LEAD-202608-0104</td>
+            <td><div style="font-weight: 600;">ส่งต่อโอกาสการขาย</div><div style="color: #7B8794; font-size: 13px;">Lead L-2211 · หจก. รุ่งเรืองค้าวัสดุ</div></td>
+            <td><span class="pill" style="background: #E7F2EA; color: #2F7D4F;">อนุมัติแล้ว</span></td>
+            <td>ทีมขาย Getter รับงานแล้ว</td>
+            <td><span class="pill" style="background: #E7F2EA; color: #2F7D4F;">ทันกำหนด</span></td>
+          </tr>
+          <tr>
+            <td style="font-weight: 600;">OSD-DSC-202608-0031</td>
+            <td><div style="font-weight: 600;">ขอส่วนลด 15%</div><div style="color: #7B8794; font-size: 13px;">ดีล D-480 · บจก. เมโทรโลจิสติกส์</div></td>
+            <td><span class="pill" style="background: #FBEAE8; color: #B33A3A;">ปฏิเสธ</span></td>
+            <td>CFO · margin ต่ำกว่าเกณฑ์</td>
+            <td><span style="color: #7B8794; font-size: 13px;">ปิดแล้ว</span></td>
+          </tr>
+          <tr>
+            <td style="font-weight: 600; border-bottom: none;">— (ร่าง)</td>
+            <td style="border-bottom: none;"><div style="font-weight: 600;">ขอส่วนลด</div><div style="color: #7B8794; font-size: 13px;">ดีล D-509 · ยังไม่ยื่น</div></td>
+            <td style="border-bottom: none;"><span class="pill" style="background: #EFEBE3; color: #7B8794;">ร่าง</span></td>
+            <td style="border-bottom: none; color: #7B8794;">ยังไม่ออกเลข</td>
+            <td style="border-bottom: none; color: #7B8794; font-size: 13px;">—</td>
+          </tr>
+        </tbody></table>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 8px; color: #7B8794; font-size: 13px;">
+        <span>แสดง 5 จาก 6 รายการ</span>
+        <div style="flex: 1;"></div>
+        <span style="font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif;">หน้า 1 / 2</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div></div>
+</figure>
+<figure class="mockfig">
+<figcaption><b>หน้าที่ 3 — ยื่นคำขอ (ขอส่วนลด)</b><br>ฟอร์มมาจาก form schema ของประเภทคำขอ · ยื่นไม่ได้ถ้าฟิลด์/เอกสารบังคับไม่ครบ · แสดงเส้นทางอนุมัติที่คำนวณจากวงเงินก่อนยื่น · เลขคำขอออกตอนกดยื่น — REQ-01, REQ-02, REQ-03, APV-02</figcaption>
+<div class="shot"><div class="shot-inner mkcreate">
+<div class="app">
+
+  <div class="side">
+    <div class="logo"><div style="width: 10px; height: 10px; border-radius: 99px; background: #E58B4E;"></div><span>Connect the Dot</span></div>
+    <div class="nav">
+      <div class="item"><span>งานค้างของฉัน</span></div>
+      <div class="item on"><span>ยื่นคำขอใหม่</span></div>
+      <div class="item"><span>รออนุมัติของฉัน</span></div>
+      <div class="item"><span>รายงานคอขวด</span></div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="top">
+      <div style="display: flex; align-items: center; gap: 8px; color: #7B8794; font-size: 13px;">
+        <span>งานค้างของฉัน</span>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#B0B7BF" stroke-width="2.4" stroke-linecap="round"><path d="M9 6l6 6-6 6"></path></svg>
+        <span style="color: #22303C; font-weight: 600;">ยื่นคำขอใหม่</span>
+      </div>
+      <div style="flex: 1;"></div>
+      <div style="display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; background: #E3EAEF; color: #33586E; border-radius: 8px; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 600; font-size: 13px;">บริษัท: OSD</div>
+    </div>
+
+    <div class="content">
+      <div style="display: flex; align-items: baseline; gap: 14px;">
+        <div class="h1">ยื่นคำขอใหม่</div>
+        <div style="color: #7B8794; font-size: 13px;">สถานะ: ร่าง — เลขคำขอจะออกเมื่อกดยื่น</div>
+      </div>
+
+      <div style="display: flex; gap: 16px; flex: 1; min-height: 0;">
+
+        <div class="card" style="flex: 1; padding: 22px 24px; display: flex; flex-direction: column; gap: 16px; overflow: hidden;">
+          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 18px;">
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <div class="lb">ประเภทคำขอ <span class="req">*</span></div>
+              <div class="inp" style="justify-content: space-between; font-weight: 600;"><span>ขอส่วนลด (DSC)</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4A5A68" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"></path></svg></div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <div class="lb">อ้างอิงดีล <span class="req">*</span></div>
+              <div class="inp" style="justify-content: space-between;"><span>D-501 · บจก. ตัวอย่าง</span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7B8794" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg></div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <div class="lb">มูลค่าดีล (THB) <span class="req">*</span></div>
+              <div class="inp" style="font-variant-numeric: tabular-nums;">800,000.00</div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <div class="lb">% ส่วนลดที่ขอ <span class="req">*</span></div>
+              <div class="inp" style="font-variant-numeric: tabular-nums;">12.5</div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <div class="lb" style="display: flex; align-items: center; gap: 8px;">margin โดยประมาณ (%) <span class="req">*</span>
+                <span style="display: inline-flex; align-items: center; gap: 4px; background: #E3EAEF; color: #33586E; border-radius: 99px; padding: 1px 8px; font-size: 11px;">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#33586E" stroke-width="2.4" stroke-linecap="round"><rect x="3" y="11" width="18" height="10" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                  เห็นเฉพาะสายอนุมัติ</span>
+              </div>
+              <div class="inp" style="font-variant-numeric: tabular-nums;">18.0</div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <div class="lb">ลูกค้า</div>
+              <div class="inp" style="background: #F6F3EE; color: #4A5A68;">บจก. ตัวอย่าง (ดึงจากดีลอัตโนมัติ)</div>
+            </div>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 6px;">
+            <div class="lb">เหตุผลการขอส่วนลด <span class="req">*</span></div>
+            <div style="border: 1px solid #D8D2C8; border-radius: 8px; padding: 10px 12px; min-height: 64px; line-height: 1.6;">ลูกค้าได้รับข้อเสนอจากคู่แข่งต่ำกว่า 10% และเป็นดีลเปิดตลาดกลุ่มโลจิสติกส์ — ขอส่วนลดเพื่อปิดภายในไตรมาสนี้</div>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <div class="lb">เอกสารบังคับตามประเภทคำขอ</div>
+            <div style="display: flex; align-items: center; gap: 10px; border: 1px solid #CDE0D3; background: #F2F8F4; border-radius: 8px; padding: 10px 14px;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2F7D4F" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>
+              <span style="font-weight: 600;">ใบเสนอราคาฉบับร่าง</span>
+              <span style="color: #4A5A68; font-size: 13px;">quote-D501-v2.pdf · 1.2 MB</span>
+              <div style="flex: 1;"></div>
+              <span style="color: #B33A3A; font-size: 13px; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif;">ลบ</span>
+            </div>
+            <div style="display: flex; align-items: center; justify-content: center; gap: 8px; border: 1.5px dashed #D8D2C8; border-radius: 8px; padding: 12px; color: #7B8794; font-size: 13px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7B8794" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><path d="M17 8l-5-5-5 5M12 3v12"></path></svg>
+              <span>ลากไฟล์มาวาง หรือกดเพื่อแนบเอกสารเพิ่มเติม</span>
+            </div>
+          </div>
+
+          <div style="flex: 1;"></div>
+          <div style="display: flex; align-items: center; gap: 12px; border-top: 1px solid #EFEBE3; padding-top: 16px;">
+            <div style="color: #7B8794; font-size: 13px;">บันทึกร่างอัตโนมัติล่าสุด 10:42 น.</div>
+            <div style="flex: 1;"></div>
+            <div style="display: inline-flex; align-items: center; height: 44px; padding: 0 18px; border: 1.5px solid #C05621; color: #C05621; border-radius: 8px; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 600;">บันทึกร่าง</div>
+            <div style="display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 20px; background: #C05621; color: #fff; border-radius: 8px; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 600;">
+              <span>ยื่นคำขอ</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+            </div>
+          </div>
+        </div>
+
+        <div style="width: 320px; display: flex; flex-direction: column; gap: 14px; flex-shrink: 0;">
+          <div class="card" style="padding: 18px 20px; display: flex; flex-direction: column; gap: 12px;">
+            <div style="font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 700; font-size: 15px;">เส้นทางอนุมัติที่จะใช้</div>
+            <div style="color: #4A5A68; font-size: 13px; line-height: 1.6;">คำนวณอัตโนมัติจากวงเงิน 800,000 บาท (เกินเพดานระดับ 1) — ผู้ยื่นเลือกผู้อนุมัติเองไม่ได้</div>
+            <div style="display: flex; flex-direction: column; gap: 0;">
+              <div style="display: flex; gap: 12px;">
+                <div style="display: flex; flex-direction: column; align-items: center;"><div style="width: 26px; height: 26px; border-radius: 99px; background: #33586E; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif;">1</div><div style="width: 2px; flex: 1; background: #D8D2C8;"></div></div>
+                <div style="padding-bottom: 14px;"><div style="font-weight: 600;">หัวหน้าทีม — สมหญิง จ.</div><div style="color: #7B8794; font-size: 12.5px;">ตรวจสิทธิ์การยื่นและความสมเหตุสมผล</div></div>
+              </div>
+              <div style="display: flex; gap: 12px;">
+                <div style="display: flex; flex-direction: column; align-items: center;"><div style="width: 26px; height: 26px; border-radius: 99px; background: #33586E; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif;">2</div></div>
+                <div><div style="font-weight: 600;">CFO — วรัญญา ส.</div><div style="color: #7B8794; font-size: 12.5px;">วงเงินเกิน 100,000 บาท</div></div>
+              </div>
+            </div>
+            <div style="border-top: 1px solid #EFEBE3; padding-top: 10px; color: #7B8794; font-size: 12.5px;">CEO ไม่อยู่ในเส้นทาง — วงเงินไม่เกินเพดานระดับ 2 (1,000,000 บาท)</div>
+          </div>
+
+          <div class="card" style="padding: 18px 20px; display: flex; flex-direction: column; gap: 10px;">
+            <div style="font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 700; font-size: 15px;">กำหนดเวลา (SLA)</div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C05621" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg>
+              <span style="font-weight: 600;">24 ชั่วโมงทำการ</span>
+            </div>
+            <div style="color: #7B8794; font-size: 12.5px; line-height: 1.6;">นาฬิกาเริ่มเดินเมื่อยื่น หยุดเมื่อถูกตีกลับให้แก้ · เกินกำหนดระบบเร่งงานถึงผู้บังคับบัญชาอัตโนมัติ</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</div>
+</div></div>
+</figure>
+<figure class="mockfig">
+<figcaption><b>หน้าที่ 4 — รายละเอียดคำขอ + ไทม์ไลน์</b><br>ไทม์ไลน์ append-only ทุกการเปลี่ยนสถานะ รวมการเร่งงานอัตโนมัติ · margin ถูกปกปิดจากผู้ไม่มีสิทธิ์ · stepper เส้นทางอนุมัติพร้อมเหตุผลที่ได้เส้นทางนี้ — REQ-07, SCOPE-04, SUP-02</figcaption>
+<div class="shot"><div class="shot-inner mkdetail">
+<div class="app">
+
+  <div class="side">
+    <div class="logo"><div style="width: 10px; height: 10px; border-radius: 99px; background: #E58B4E;"></div><span>Connect the Dot</span></div>
+    <div class="nav">
+      <div class="item on"><span>งานค้างของฉัน</span></div>
+      <div class="item"><span>ยื่นคำขอใหม่</span></div>
+      <div class="item"><span>รออนุมัติของฉัน</span></div>
+      <div class="item"><span>รายงานคอขวด</span></div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="top">
+      <div style="display: flex; align-items: center; gap: 8px; color: #7B8794; font-size: 13px;">
+        <span>งานค้างของฉัน</span>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#B0B7BF" stroke-width="2.4" stroke-linecap="round"><path d="M9 6l6 6-6 6"></path></svg>
+        <span style="color: #22303C; font-weight: 600;">OSD-DSC-202608-0042</span>
+      </div>
+      <div style="flex: 1;"></div>
+      <div style="display: inline-flex; align-items: center; height: 36px; padding: 0 14px; border: 1.5px solid #B33A3A; color: #B33A3A; border-radius: 8px; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 600; font-size: 13px;">ยกเลิกคำขอ</div>
+    </div>
+
+    <div class="content">
+      <div style="display: flex; align-items: center; gap: 14px;">
+        <div style="font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-size: 20px; font-weight: 700;">OSD-DSC-202608-0042 · ขอส่วนลด 12.5%</div>
+        <span class="pill" style="background: #FDF3E1; color: #B7791F;">รออนุมัติ · ขั้น 2/2</span>
+        <div style="flex: 1;"></div>
+        <span class="pill" style="background: #FBEAE8; color: #B33A3A;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#B33A3A" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg>
+          เกินกำหนด 3 ชม.</span>
+      </div>
+
+      <div style="display: flex; gap: 16px; flex: 1; min-height: 0;">
+
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 14px; min-width: 0;">
+          <div class="card" style="padding: 20px 24px; display: flex; flex-direction: column; gap: 14px;">
+            <div style="font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 700; font-size: 15px;">ข้อมูลคำขอ</div>
+            <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 20px;">
+              <div><div class="lb">ผู้ยื่น</div><div style="font-weight: 600;">สมชาย ก. · ทีมขาย Getter 1</div></div>
+              <div><div class="lb">ยื่นเมื่อ</div><div style="font-weight: 600;">23 ส.ค. 2569 · 14:05 น.</div></div>
+              <div><div class="lb">อ้างอิง</div><div style="font-weight: 600; color: #C05621;">ดีล D-501 · บจก. ตัวอย่าง</div></div>
+              <div><div class="lb">มูลค่าดีล</div><div style="font-weight: 600; font-variant-numeric: tabular-nums;">800,000.00 THB</div></div>
+              <div><div class="lb">% ส่วนลดที่ขอ</div><div style="font-weight: 600; font-variant-numeric: tabular-nums;">12.5%</div></div>
+              <div><div class="lb" style="display: flex; align-items: center; gap: 6px;">margin โดยประมาณ
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#7B8794" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="11" width="18" height="10" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></div>
+                <div style="font-weight: 600; color: #7B8794; letter-spacing: .18em;">••••••</div></div>
+            </div>
+            <div>
+              <div class="lb">เหตุผล</div>
+              <div style="line-height: 1.65; margin-top: 3px;">ลูกค้าได้รับข้อเสนอจากคู่แข่งต่ำกว่า 10% และเป็นดีลเปิดตลาดกลุ่มโลจิสติกส์ — ขอส่วนลดเพื่อปิดภายในไตรมาสนี้</div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <div class="lb">เอกสารแนบ (2)</div>
+              <div style="display: flex; gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 8px; border: 1px solid #E2DDD5; border-radius: 8px; padding: 8px 12px; font-size: 13px;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C05621" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6"></path></svg>
+                  <span style="font-weight: 600;">quote-D501-v2.pdf</span><span style="color: #7B8794;">1.2 MB</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px; border: 1px solid #E2DDD5; border-radius: 8px; padding: 8px 12px; font-size: 13px;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C05621" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6"></path></svg>
+                  <span style="font-weight: 600;">competitor-offer.xlsx</span><span style="color: #7B8794;">86 KB</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" style="padding: 20px 24px; display: flex; flex-direction: column; gap: 12px; flex: 1; min-height: 0;">
+            <div style="font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 700; font-size: 15px;">ไทม์ไลน์ (บันทึกทุกการเปลี่ยนสถานะ)</div>
+            <div style="display: flex; flex-direction: column; gap: 12px; font-size: 13.5px;">
+              <div style="display: flex; gap: 10px;"><div style="width: 8px; height: 8px; border-radius: 99px; background: #2F7D4F; margin-top: 6px; flex-shrink: 0;"></div><div><span style="font-weight: 600;">หัวหน้าทีมอนุมัติ (ขั้น 1/2)</span> — สมหญิง จ. · 23 ส.ค. 16:40 น. <span style="color: #7B8794;">"ข้อมูลครบ เห็นควรส่งต่อ"</span></div></div>
+              <div style="display: flex; gap: 10px;"><div style="width: 8px; height: 8px; border-radius: 99px; background: #B7791F; margin-top: 6px; flex-shrink: 0;"></div><div><span style="font-weight: 600;">เข้าคิว CFO (ขั้น 2/2)</span> — ระบบ · 23 ส.ค. 16:40 น. · แจ้งเตือนส่งแล้ว (in-app + อีเมล)</div></div>
+              <div style="display: flex; gap: 10px;"><div style="width: 8px; height: 8px; border-radius: 99px; background: #33586E; margin-top: 6px; flex-shrink: 0;"></div><div><span style="font-weight: 600;">ยื่นคำขอ · ออกเลข OSD-DSC-202608-0042</span> — สมชาย ก. · 23 ส.ค. 14:05 น. · นาฬิกา SLA เริ่มเดิน</div></div>
+              <div style="display: flex; gap: 10px;"><div style="width: 8px; height: 8px; border-radius: 99px; background: #B33A3A; margin-top: 6px; flex-shrink: 0;"></div><div><span style="font-weight: 600;">เกินกำหนด — เร่งงานอัตโนมัติ</span> — ระบบ · วันนี้ 11:05 น. · แจ้ง CFO และผู้บังคับบัญชา 1 ระดับ</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div style="width: 320px; flex-shrink: 0;">
+          <div class="card" style="padding: 20px; display: flex; flex-direction: column; gap: 14px;">
+            <div style="font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 700; font-size: 15px;">เส้นทางอนุมัติ</div>
+            <div style="display: flex; flex-direction: column;">
+              <div style="display: flex; gap: 12px;">
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                  <div style="width: 28px; height: 28px; border-radius: 99px; background: #2F7D4F; display: flex; align-items: center; justify-content: center;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg></div>
+                  <div style="width: 2px; flex: 1; background: #CDE0D3;"></div>
+                </div>
+                <div style="padding-bottom: 16px;">
+                  <div style="font-weight: 700;">ขั้น 1 · หัวหน้าทีม</div>
+                  <div style="font-size: 13px;">สมหญิง จ.</div>
+                  <div style="color: #2F7D4F; font-size: 12.5px; font-weight: 600;">อนุมัติแล้ว · 23 ส.ค. 16:40</div>
+                </div>
+              </div>
+              <div style="display: flex; gap: 12px;">
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                  <div style="width: 28px; height: 28px; border-radius: 99px; background: #FFFFFF; border: 2.5px solid #B7791F; display: flex; align-items: center; justify-content: center; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 700; font-size: 13px; color: #B7791F;">2</div>
+                </div>
+                <div>
+                  <div style="font-weight: 700;">ขั้น 2 · CFO</div>
+                  <div style="font-size: 13px;">วรัญญา ส.</div>
+                  <div style="color: #B7791F; font-size: 12.5px; font-weight: 600;">รอพิจารณา · เกินกำหนด 3 ชม.</div>
+                </div>
+              </div>
+            </div>
+            <div style="border-top: 1px solid #EFEBE3; padding-top: 12px; display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; color: #7B8794; line-height: 1.6;">
+              <div>เส้นทางคำนวณจากวงเงิน 800,000 บาท (เกิน T1, ไม่เกิน T2) · ตารางอำนาจเวอร์ชัน 2</div>
+              <div>แก้ไขสาระสำคัญหลังอนุมัติจะทำให้การอนุมัติเป็นโมฆะและต้องเริ่มเส้นทางใหม่</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</div>
+</div></div>
+</figure>
+<figure class="mockfig">
+<figcaption><b>หน้าที่ 5 — อนุมัติ (มุมมอง CFO)</b><br>คิวเรียงตามความเร่ง · อนุมัติเป็นชุดของดีลเดียวกัน · ตีกลับต้องเลือกเหตุผลมาตรฐาน ปฏิเสธบังคับใส่ความเห็น · แบนเนอร์รับมอบอำนาจ · การตัดสินผูกกับ snapshot version — REQ-04, APV-03, APV-04, APV-05</figcaption>
+<div class="shot"><div class="shot-inner mkapprove">
+<div class="app">
+
+  <div class="side">
+    <div class="logo"><div style="width: 10px; height: 10px; border-radius: 99px; background: #E58B4E;"></div><span>Connect the Dot</span></div>
+    <div class="nav">
+      <div class="item"><span>งานค้างของฉัน</span></div>
+      <div class="item"><span>ยื่นคำขอใหม่</span></div>
+      <div class="item on"><span>รออนุมัติของฉัน</span><span style="margin-left: auto; background: #C05621; color: #fff; border-radius: 99px; font-size: 11px; padding: 1px 7px; font-weight: 700;">3</span></div>
+      <div class="item"><span>รายงานคอขวด</span></div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="top">
+      <div style="font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 700; font-size: 16px;">รออนุมัติของฉัน</div>
+      <div style="flex: 1;"></div>
+      <div style="display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; background: #E3EAEF; color: #33586E; border-radius: 8px; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 600; font-size: 13px;">วรัญญา ส. · CFO</div>
+    </div>
+
+    <div style="margin: 16px 28px 0; display: flex; align-items: center; gap: 10px; background: #F6E3D7; border: 1px solid #E5B394; border-radius: 10px; padding: 10px 16px; font-size: 13px; color: #9C4218;">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#9C4218" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M16 11l2 2 4-4"></path></svg>
+      <span><b>คุณกำลังรับมอบอำนาจแทน สมปอง ว. (CFO บริษัท B)</b> ช่วง 21–28 ส.ค. 2569 — ทุกการอนุมัติจะบันทึกว่า "อนุมัติแทน"</span>
+    </div>
+
+    <div class="content" style="padding-top: 14px;">
+      <div style="display: flex; gap: 16px; flex: 1; min-height: 0;">
+
+        <div class="card" style="width: 360px; flex-shrink: 0; overflow: hidden; display: flex; flex-direction: column;">
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid #E2DDD5; background: #F3F0EA;">
+            <div style="font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 700; font-size: 13.5px; color: #33586E;">คิวรออนุมัติ · 3 รายการ</div>
+            <div style="display: inline-flex; align-items: center; gap: 6px; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-size: 12.5px; color: #C05621; font-weight: 600;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#C05621" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"></path><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"></path></svg>
+              อนุมัติเป็นชุด</div>
+          </div>
+          <div class="row" style="background: #FDF6EF; border-left: 3px solid #C05621;">
+            <div style="display: flex; justify-content: space-between; align-items: center;"><span style="font-weight: 700;">OSD-DSC-202608-0042</span><span class="pill" style="background: #FBEAE8; color: #B33A3A;">เกิน 3 ชม.</span></div>
+            <div style="font-size: 13px;">ขอส่วนลด 12.5% · ดีล D-501 · 800,000 THB</div>
+            <div style="font-size: 12.5px; color: #7B8794;">ยื่นโดย สมชาย ก. · ขั้น 2/2</div>
+          </div>
+          <div class="row">
+            <div style="display: flex; justify-content: space-between; align-items: center;"><span style="font-weight: 700;">OSD-DSC-202608-0044</span><span class="pill" style="background: #FDF3E1; color: #B7791F;">เหลือ 5 ชม.</span></div>
+            <div style="font-size: 13px;">ขอส่วนลด 9% · ดีล D-503 · 450,000 THB</div>
+            <div style="font-size: 12.5px; color: #7B8794;">ยื่นโดย มานี ร. · ขั้น 2/2 · ดีลเดียวกับ 0045</div>
+          </div>
+          <div class="row" style="border-bottom: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center;"><span style="font-weight: 700;">OSD-DSC-202608-0045</span><span class="pill" style="background: #FDF3E1; color: #B7791F;">เหลือ 5 ชม.</span></div>
+            <div style="font-size: 13px;">ขอส่วนลด 5% เพิ่มเติม · ดีล D-503 · 450,000 THB</div>
+            <div style="font-size: 12.5px; color: #7B8794;">ยื่นโดย มานี ร. · ขั้น 2/2 · ดีลเดียวกับ 0044</div>
+          </div>
+        </div>
+
+        <div class="card" style="flex: 1; display: flex; flex-direction: column; min-width: 0;">
+          <div style="padding: 18px 22px; border-bottom: 1px solid #EFEBE3; display: flex; align-items: center; gap: 12px;">
+            <div style="font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 700; font-size: 16px;">OSD-DSC-202608-0042 · ขอส่วนลด 12.5%</div>
+            <span class="pill" style="background: #FDF3E1; color: #B7791F;">ขั้น 2/2 · รอฉัน</span>
+          </div>
+
+          <div style="padding: 16px 22px; display: flex; flex-direction: column; gap: 14px; flex: 1;">
+            <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 18px;">
+              <div><div class="lb">มูลค่าดีล</div><div style="font-weight: 700; font-variant-numeric: tabular-nums;">800,000.00</div></div>
+              <div><div class="lb">% ส่วนลด</div><div style="font-weight: 700; font-variant-numeric: tabular-nums;">12.5%</div></div>
+              <div><div class="lb" style="display: flex; align-items: center; gap: 5px;">margin หลังส่วนลด <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#33586E" stroke-width="2.4" stroke-linecap="round"><rect x="3" y="11" width="18" height="10" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></div><div style="font-weight: 700; color: #B7791F; font-variant-numeric: tabular-nums;">18.0% <span style="font-size: 11.5px; font-weight: 600;">(เกณฑ์ขั้นต่ำ 15%)</span></div></div>
+              <div><div class="lb">ขั้น 1</div><div style="font-weight: 600; color: #2F7D4F;">หัวหน้าทีมอนุมัติแล้ว</div></div>
+            </div>
+            <div style="background: #F6F3EE; border-radius: 8px; padding: 10px 14px; font-size: 13px; line-height: 1.6;"><b>เหตุผลผู้ยื่น:</b> ลูกค้าได้รับข้อเสนอจากคู่แข่งต่ำกว่า 10% เป็นดีลเปิดตลาดกลุ่มโลจิสติกส์ — ขอปิดภายในไตรมาสนี้ · <a href="https://2c8d2bf3-2a7a-402f-8439-b3ddcb8db5e8.frame.claudeusercontent.com/_f/1787629541-c6a3/#">เปิดดูคำขอฉบับเต็มและเอกสารแนบ (2)</a></div>
+            <div style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: #7B8794;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7B8794" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4M12 8h.01"></path></svg>
+              <span>การตัดสินผูกกับข้อมูลเวอร์ชันนี้ (snapshot v1) — ถ้าผู้ยื่นแก้ข้อมูลระหว่างนี้ ระบบจะให้โหลดใหม่ก่อนตัดสิน</span>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <div class="lb" style="color: #33586E;">ความเห็นประกอบการตัดสิน (บังคับเมื่อปฏิเสธหรือตีกลับ)</div>
+              <div style="border: 1px solid #D8D2C8; border-radius: 8px; padding: 10px 12px; min-height: 52px; color: #7B8794;">พิมพ์ความเห็น…</div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 8px; border: 1px solid #EFEBE3; border-radius: 8px; padding: 12px 14px; background: #FBFAF8;">
+              <div class="lb" style="color: #33586E;">กรณีตีกลับ — เลือกสิ่งที่ต้องแก้ (อย่างน้อย 1 ข้อ)</div>
+              <div style="display: flex; gap: 16px; font-size: 13px; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 7px;"><div style="width: 16px; height: 16px; border: 1.5px solid #B0B7BF; border-radius: 4px;"></div><span>เอกสารไม่ครบ</span></div>
+                <div style="display: flex; align-items: center; gap: 7px;"><div style="width: 16px; height: 16px; border: 1.5px solid #B0B7BF; border-radius: 4px;"></div><span>ตัวเลข margin ไม่ถูกต้อง</span></div>
+                <div style="display: flex; align-items: center; gap: 7px;"><div style="width: 16px; height: 16px; border: 1.5px solid #B0B7BF; border-radius: 4px;"></div><span>เหตุผลไม่เพียงพอ</span></div>
+                <div style="display: flex; align-items: center; gap: 7px;"><div style="width: 16px; height: 16px; border: 1.5px solid #B0B7BF; border-radius: 4px;"></div><span>อื่น ๆ (ระบุ)</span></div>
+              </div>
+            </div>
+
+            <div style="flex: 1;"></div>
+            <div style="display: flex; align-items: center; gap: 12px; border-top: 1px solid #EFEBE3; padding-top: 14px;">
+              <div style="display: inline-flex; align-items: center; height: 44px; padding: 0 16px; border: 1.5px solid #B33A3A; color: #B33A3A; border-radius: 8px; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 600;">ปฏิเสธ</div>
+              <div style="display: inline-flex; align-items: center; height: 44px; padding: 0 16px; border: 1.5px solid #B7791F; color: #B7791F; border-radius: 8px; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 600;">ตีกลับให้แก้</div>
+              <div style="flex: 1;"></div>
+              <div style="display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 22px; background: #2F7D4F; color: #fff; border-radius: 8px; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 700;">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>
+                <span>อนุมัติ</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</div>
+</div></div>
+</figure>
+<figure class="mockfig">
+<figcaption><b>หน้า A1 — ตารางอำนาจอนุมัติ (ผู้ดูแล)</b><br>เส้นทางมาตรฐาน หัวหน้าทีม → CFO (เกิน T1) → CEO (เกิน T2) · แยกชุดต่อบริษัทตาม D-18 · แก้เป็นเวอร์ชันใหม่ ห้ามแก้ทับ · ตัวเลขวงเงินเป็นค่าสมมติ รอฝ่ายการเงินยืนยัน — APV-01, APV-02</figcaption>
+<div class="shot"><div class="shot-inner mkmatrix">
+<div class="app">
+
+  <div class="side">
+    <div class="logo"><div style="width: 10px; height: 10px; border-radius: 99px; background: #E58B4E;"></div><span>Connect the Dot</span></div>
+    <div class="nav">
+      <div class="item"><span>งานค้างของฉัน</span></div>
+      <div class="navlabel">ผู้ดูแลระบบ</div>
+      <div class="item on"><span>ตารางอำนาจอนุมัติ</span></div>
+      <div class="item"><span>ประเภทคำขอ</span></div>
+      <div class="item"><span>ผังทีมและสิทธิ์</span></div>
+      <div class="item"><span>Audit Log</span></div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="top">
+      <div style="font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 700; font-size: 16px;">ตารางอำนาจอนุมัติ</div>
+      <div style="flex: 1;"></div>
+      <div style="display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; background: #E3EAEF; color: #33586E; border-radius: 8px; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 600; font-size: 13px;">ผู้ดูแลระบบ · admin</div>
+    </div>
+
+    <div class="content">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <div style="display: flex; background: #FFFFFF; border: 1px solid #E2DDD5; border-radius: 8px; overflow: hidden; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 600; font-size: 13.5px;">
+          <div style="padding: 9px 18px; background: #33586E; color: #fff;">บริษัท OSD</div>
+          <div style="padding: 9px 18px; color: #4A5A68;">บริษัท B</div>
+          <div style="padding: 9px 18px; color: #4A5A68;">บริษัท C</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px; height: 38px; padding: 0 14px; background: #fff; border: 1px solid #E2DDD5; border-radius: 8px; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-size: 13px;">ประเภทงาน: ขอส่วนลด (request:DSC) <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#4A5A68" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"></path></svg></div>
+        <div style="flex: 1;"></div>
+        <div style="display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 18px; background: #C05621; color: #fff; border-radius: 8px; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 600;">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+          <span>สร้างเวอร์ชันใหม่</span>
+        </div>
+      </div>
+
+      <div class="card" style="overflow: hidden;">
+        <div style="display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid #E2DDD5; background: #FBFAF8;">
+          <span style="font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 700;">เวอร์ชัน 2 (ปัจจุบัน)</span>
+          <span class="pill" style="background: #E7F2EA; color: #2F7D4F;">มีผลตั้งแต่ 1 มิ.ย. 2569</span>
+          <span style="color: #7B8794; font-size: 13px;">สกุลเงิน THB · สร้างโดย admin · 28 พ.ค. 2569</span>
+          <div style="flex: 1;"></div>
+          <span style="color: #7B8794; font-size: 12.5px;">เวอร์ชันที่ประกาศแล้วแก้ทับไม่ได้ — ต้องสร้างเวอร์ชันใหม่</span>
+        </div>
+        <table style="width: 100%; border-collapse: collapse;">
+          <tbody><tr><th style="width: 90px;">ระดับ</th><th style="width: 260px;">ช่วงวงเงิน (THB)</th><th>ลำดับชั้นผู้อนุมัติ</th><th style="width: 200px;">ความหมาย</th></tr>
+          <tr>
+            <td style="font-weight: 700; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif;">T0</td>
+            <td style="font-variant-numeric: tabular-nums;">≤ 100,000</td>
+            <td><span class="stepchip">1 · หัวหน้าทีมของผู้ยื่น</span></td>
+            <td style="color: #4A5A68; font-size: 13px;">ตรวจสิทธิ์การยื่น จบในทีม</td>
+          </tr>
+          <tr>
+            <td style="font-weight: 700; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif;">T1</td>
+            <td style="font-variant-numeric: tabular-nums;">100,001 – 1,000,000</td>
+            <td><div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <span class="stepchip">1 · หัวหน้าทีมของผู้ยื่น</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B0B7BF" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+              <span class="stepchip" style="background: #F6E3D7; color: #9C4218;">2 · CFO</span>
+            </div></td>
+            <td style="color: #4A5A68; font-size: 13px;">เกินเพดานระดับ 1 — เพิ่ม CFO</td>
+          </tr>
+          <tr>
+            <td style="font-weight: 700; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; border-bottom: none;">T2</td>
+            <td style="font-variant-numeric: tabular-nums; border-bottom: none;">&gt; 1,000,000</td>
+            <td style="border-bottom: none;"><div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <span class="stepchip">1 · หัวหน้าทีมของผู้ยื่น</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B0B7BF" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+              <span class="stepchip" style="background: #F6E3D7; color: #9C4218;">2 · CFO</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B0B7BF" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+              <span class="stepchip" style="background: #FBEAE8; color: #B33A3A;">3 · CEO</span>
+            </div></td>
+            <td style="color: #4A5A68; font-size: 13px; border-bottom: none;">เกินเพดานระดับ 2 — ถึง CEO</td>
+          </tr>
+        </tbody></table>
+      </div>
+
+      <div style="display: flex; gap: 14px; flex: 1; min-height: 0;">
+        <div class="card" style="flex: 1; padding: 16px 20px; display: flex; flex-direction: column; gap: 10px;">
+          <div style="font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 700; font-size: 14.5px;">กติกาที่ระบบบังคับเสมอ</div>
+          <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13.5px; color: #4A5A68; line-height: 1.6;">
+            <div style="display: flex; gap: 9px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2F7D4F" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 3px;"><path d="M20 6L9 17l-5-5"></path></svg><span>ผู้ยื่นเลือกผู้อนุมัติเองไม่ได้ — ระบบคำนวณจากตารางนี้ ณ ขณะยื่น</span></div>
+            <div style="display: flex; gap: 9px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2F7D4F" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 3px;"><path d="M20 6L9 17l-5-5"></path></svg><span>ผู้อนุมัติเป็นผู้ยื่นเอง → ชั้นนั้นเลื่อนขึ้น/ถูกข้ามอัตโนมัติ</span></div>
+            <div style="display: flex; gap: 9px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2F7D4F" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 3px;"><path d="M20 6L9 17l-5-5"></path></svg><span>คำขอที่เดินอยู่ใช้เวอร์ชัน ณ ขณะยื่น — เปลี่ยนตารางไม่กระทบงานค้าง</span></div>
+          </div>
+        </div>
+        <div class="card" style="width: 380px; flex-shrink: 0; padding: 16px 20px; display: flex; flex-direction: column; gap: 10px;">
+          <div style="font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 700; font-size: 14.5px;">ประวัติเวอร์ชัน</div>
+          <div style="display: flex; flex-direction: column; font-size: 13px;">
+            <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #EFEBE3;"><span>เวอร์ชัน 3 · ร่าง</span><span style="color: #B7791F; font-weight: 600;">รอมีผล 1 ก.ย. 2569</span></div>
+            <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #EFEBE3;"><span style="font-weight: 600;">เวอร์ชัน 2 · ปรับ T1 เป็น 100,000</span><span style="color: #2F7D4F; font-weight: 600;">มีผล 1 มิ.ย. 2569</span></div>
+            <div style="display: flex; justify-content: space-between; padding: 8px 0;"><span>เวอร์ชัน 1 · ชุดตั้งต้น</span><span style="color: #7B8794;">1 ก.พ. – 31 พ.ค.</span></div>
+          </div>
+          <div style="color: #7B8794; font-size: 12.5px;">ทุกเวอร์ชันอ่านย้อนหลังได้ · การเผยแพร่ลง Audit Log</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div></div>
+</figure>
+<figure class="mockfig">
+<figcaption><b>หน้า A2 — ประเภทคำขอ (ผู้ดูแล)</b><br>ประเภทคำขอเป็นข้อมูลตั้งค่า ไม่ใช่โค้ด: ฟิลด์ฟอร์ม เอกสารบังคับ เหตุผลตีกลับ SLA และเส้นทางอนุมัติ แก้จากหน้าจอ · มีผลเฉพาะคำขอใหม่ — REQ-01</figcaption>
+<div class="shot"><div class="shot-inner mktypes">
+<div class="app">
+
+  <div class="side">
+    <div class="logo"><div style="width: 10px; height: 10px; border-radius: 99px; background: #E58B4E;"></div><span>Connect the Dot</span></div>
+    <div class="nav">
+      <div class="item"><span>งานค้างของฉัน</span></div>
+      <div class="navlabel">ผู้ดูแลระบบ</div>
+      <div class="item"><span>ตารางอำนาจอนุมัติ</span></div>
+      <div class="item on"><span>ประเภทคำขอ</span></div>
+      <div class="item"><span>ผังทีมและสิทธิ์</span></div>
+      <div class="item"><span>Audit Log</span></div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="top">
+      <div style="font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 700; font-size: 16px;">ประเภทคำขอ — ตั้งค่าได้โดยไม่ต้องแก้โปรแกรม</div>
+      <div style="flex: 1;"></div>
+      <div style="display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px; background: #C05621; color: #fff; border-radius: 8px; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 600; font-size: 13.5px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+        <span>เพิ่มประเภทคำขอ</span>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <div class="card" style="width: 330px; flex-shrink: 0; overflow: hidden;">
+        <div style="padding: 13px 16px; border-bottom: 1px solid #E2DDD5; background: #F3F0EA; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 700; font-size: 13.5px; color: #33586E;">ประเภททั้งหมด · บริษัท OSD</div>
+        <div class="typerow" style="background: #FDF6EF; border-left: 3px solid #C05621;">
+          <div style="display: flex; justify-content: space-between; align-items: center;"><span style="font-weight: 700;">ขอส่วนลด</span><span class="pill" style="background: #E7F2EA; color: #2F7D4F;">เปิดใช้</span></div>
+          <div style="font-size: 12.5px; color: #7B8794;">DSC · Sales → Pricing · SLA 24 ชม.ทำการ</div>
+        </div>
+        <div class="typerow">
+          <div style="display: flex; justify-content: space-between; align-items: center;"><span style="font-weight: 700;">ส่งต่อโอกาสการขาย</span><span class="pill" style="background: #E7F2EA; color: #2F7D4F;">เปิดใช้</span></div>
+          <div style="font-size: 12.5px; color: #7B8794;">LEAD · CRM → Sales · SLA 4 ชม.ทำการ</div>
+        </div>
+        <div class="typerow">
+          <div style="display: flex; justify-content: space-between; align-items: center;"><span style="font-weight: 700;">ขอจัดทำ NDA</span><span class="pill" style="background: #EFEBE3; color: #7B8794;">ยังไม่เปิด</span></div>
+          <div style="font-size: 12.5px; color: #7B8794;">NDA · ทุกทีม → Legal · รอ sprint ถัดไป</div>
+        </div>
+        <div class="typerow" style="border-bottom: none;">
+          <div style="display: flex; justify-content: space-between; align-items: center;"><span style="font-weight: 700;">ขอ Solution และประเมินต้นทุน</span><span class="pill" style="background: #EFEBE3; color: #7B8794;">ยังไม่เปิด</span></div>
+          <div style="font-size: 12.5px; color: #7B8794;">SOL · Sales → Pre-Sales · รอ sprint ถัดไป</div>
+        </div>
+      </div>
+
+      <div class="card" style="flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden;">
+        <div style="display: flex; align-items: center; gap: 12px; padding: 14px 20px; border-bottom: 1px solid #E2DDD5;">
+          <span style="font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 700; font-size: 15px;">แก้ไข: ขอส่วนลด (DSC)</span>
+          <div style="flex: 1;"></div>
+          <div style="display: inline-flex; align-items: center; height: 40px; padding: 0 16px; border: 1.5px solid #C05621; color: #C05621; border-radius: 8px; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 600; font-size: 13.5px;">ปิดใช้งาน</div>
+          <div style="display: inline-flex; align-items: center; height: 40px; padding: 0 18px; background: #C05621; color: #fff; border-radius: 8px; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 600; font-size: 13.5px;">บันทึก</div>
+        </div>
+
+        <div style="padding: 18px 20px; display: flex; flex-direction: column; gap: 16px; overflow: hidden;">
+          <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 16px;">
+            <div style="display: flex; flex-direction: column; gap: 5px;"><div class="lb">ชื่อประเภท</div><div class="inp" style="font-weight: 600;">ขอส่วนลด</div></div>
+            <div style="display: flex; flex-direction: column; gap: 5px;"><div class="lb">ทีมผู้รับ</div><div class="inp" style="justify-content: space-between;">ทีม Pricing <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#4A5A68" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"></path></svg></div></div>
+            <div style="display: flex; flex-direction: column; gap: 5px;"><div class="lb">SLA (ชั่วโมงทำการ)</div><div class="inp" style="font-variant-numeric: tabular-nums;">24</div></div>
+          </div>
+
+          <div style="display: flex; gap: 16px;">
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
+              <div class="lb">ฟิลด์ฟอร์ม (form schema)</div>
+              <div class="frow"><span style="font-weight: 600; width: 150px;">มูลค่าดีล</span><span style="color: #7B8794;">จำนวนเงิน + สกุลเงิน</span><div style="flex: 1;"></div><span class="pill" style="background: #FBEAE8; color: #B33A3A;">บังคับ</span></div>
+              <div class="frow"><span style="font-weight: 600; width: 150px;">% ส่วนลดที่ขอ</span><span style="color: #7B8794;">ตัวเลข 0–100</span><div style="flex: 1;"></div><span class="pill" style="background: #FBEAE8; color: #B33A3A;">บังคับ</span></div>
+              <div class="frow"><span style="font-weight: 600; width: 150px;">margin โดยประมาณ</span><span style="color: #7B8794;">ตัวเลข · ฟิลด์อ่อนไหว</span><div style="flex: 1;"></div><span class="pill" style="background: #E3EAEF; color: #33586E;">จำกัดสิทธิ์</span></div>
+              <div class="frow"><span style="font-weight: 600; width: 150px;">เหตุผล</span><span style="color: #7B8794;">ข้อความยาว</span><div style="flex: 1;"></div><span class="pill" style="background: #FBEAE8; color: #B33A3A;">บังคับ</span></div>
+              <div style="display: flex; align-items: center; gap: 7px; color: #C05621; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 600; font-size: 13px; padding: 4px 2px;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#C05621" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg><span>เพิ่มฟิลด์</span>
+              </div>
+            </div>
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 14px;">
+              <div style="display: flex; flex-direction: column; gap: 8px;">
+                <div class="lb">เอกสารบังคับ</div>
+                <div class="frow"><span style="font-weight: 600;">ใบเสนอราคาฉบับร่าง</span><div style="flex: 1;"></div><span style="color: #B33A3A; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-size: 12.5px;">ลบ</span></div>
+                <div style="display: flex; align-items: center; gap: 7px; color: #C05621; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 600; font-size: 13px; padding: 2px;">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#C05621" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg><span>เพิ่มเอกสารบังคับ</span>
+                </div>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 8px;">
+                <div class="lb">เหตุผลตีกลับมาตรฐาน</div>
+                <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                  <span class="pill" style="background: #F6F3EE; color: #4A5A68; border: 1px solid #E2DDD5;">เอกสารไม่ครบ</span>
+                  <span class="pill" style="background: #F6F3EE; color: #4A5A68; border: 1px solid #E2DDD5;">ตัวเลข margin ไม่ถูกต้อง</span>
+                  <span class="pill" style="background: #F6F3EE; color: #4A5A68; border: 1px solid #E2DDD5;">เหตุผลไม่เพียงพอ</span>
+                  <span class="pill" style="background: #F6F3EE; color: #C05621; border: 1px dashed #C05621;">+ เพิ่ม</span>
+                </div>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 8px;">
+                <div class="lb">เส้นทางอนุมัติ</div>
+                <div style="border: 1px solid #E2DDD5; border-radius: 8px; padding: 11px 14px; font-size: 13px; line-height: 1.6; background: #FBFAF8;">
+                  <b>เส้นทางมาตรฐานตามวงเงิน</b> (หัวหน้าทีม → CFO → CEO)<br>
+                  <span style="color: #7B8794;">ฟิลด์วงเงินที่ใช้คำนวณ: <b>มูลค่าดีล</b> · อ้างตารางอำนาจอนุมัติของบริษัทที่ยื่น</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 9px; background: #E3EAEF; border-radius: 8px; padding: 10px 14px; font-size: 12.5px; color: #33586E;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#33586E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4M12 8h.01"></path></svg>
+            <span>การบันทึกมีผลกับคำขอที่ยื่นใหม่เท่านั้น — คำขอที่เดินอยู่ใช้การตั้งค่า ณ ขณะยื่น · ทุกการแก้ไขลง Audit Log</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+</div></div>
+</figure>
+<figure class="mockfig">
+<figcaption><b>หน้า A3 — ผังทีมและสิทธิ์ (ผู้ดูแล)</b><br>LDAP ใช้ล็อกอินเท่านั้น — ผังทีม/หัวหน้าดูแลในระบบ · คิว “รอจัดสังกัด” สำหรับผู้ล็อกอินครั้งแรก · role หลักมาจาก Keycloak, scope ปรับในระบบ — AUTH-04, ROLE-03, SCOPE-01</figcaption>
+<div class="shot"><div class="shot-inner mkorg">
+<div class="app">
+
+  <div class="side">
+    <div class="logo"><div style="width: 10px; height: 10px; border-radius: 99px; background: #E58B4E;"></div><span>Connect the Dot</span></div>
+    <div class="nav">
+      <div class="item"><span>งานค้างของฉัน</span></div>
+      <div class="navlabel">ผู้ดูแลระบบ</div>
+      <div class="item"><span>ตารางอำนาจอนุมัติ</span></div>
+      <div class="item"><span>ประเภทคำขอ</span></div>
+      <div class="item on"><span>ผังทีมและสิทธิ์</span></div>
+      <div class="item"><span>Audit Log</span></div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="top">
+      <div style="font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 700; font-size: 16px;">ผังทีมและสิทธิ์ — ดูแลในระบบ (LDAP ใช้ล็อกอินเท่านั้น)</div>
+      <div style="flex: 1;"></div>
+      <div style="display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; background: #E3EAEF; color: #33586E; border-radius: 8px; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 600; font-size: 13px;">บริษัท: OSD</div>
+    </div>
+
+    <div class="content">
+
+      <div class="card" style="width: 350px; flex-shrink: 0; padding: 16px; display: flex; flex-direction: column; gap: 6px; overflow: hidden;">
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 0 4px 8px;">
+          <span style="font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 700; font-size: 14px;">โครงสร้างทีม</span>
+          <span style="display: inline-flex; align-items: center; gap: 6px; color: #C05621; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 600; font-size: 12.5px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#C05621" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>เพิ่มทีม</span>
+        </div>
+        <div class="tnode"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4A5A68" stroke-width="2.2" stroke-linecap="round"><path d="M6 9l6 6 6-6"></path></svg><span style="font-weight: 700;">บริษัท OSD</span></div>
+        <div style="padding-left: 20px; display: flex; flex-direction: column; gap: 4px;">
+          <div class="tnode"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4A5A68" stroke-width="2.2" stroke-linecap="round"><path d="M6 9l6 6 6-6"></path></svg><span style="font-weight: 600;">ฝ่ายขาย</span><span style="color: #7B8794; font-size: 12.5px;">ผอ. ประเสริฐ ท.</span></div>
+          <div style="padding-left: 20px; display: flex; flex-direction: column; gap: 4px;">
+            <div class="tnode on"><span style="font-weight: 700;">ทีมขาย Getter 1</span><span style="color: #9C4218; font-size: 12.5px;">หัวหน้า: สมหญิง จ. · 6 คน</span></div>
+            <div class="tnode"><span style="font-weight: 600;">ทีมขาย Keeper 1</span><span style="color: #7B8794; font-size: 12.5px;">หัวหน้า: อดิศร พ. · 5 คน</span></div>
+          </div>
+          <div class="tnode"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4A5A68" stroke-width="2.2" stroke-linecap="round"><path d="M9 6l6 6-6 6"></path></svg><span style="font-weight: 600;">ทีม Pricing</span><span style="color: #7B8794; font-size: 12.5px;">4 คน</span></div>
+          <div class="tnode"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4A5A68" stroke-width="2.2" stroke-linecap="round"><path d="M9 6l6 6-6 6"></path></svg><span style="font-weight: 600;">ฝ่ายการเงิน</span><span style="color: #7B8794; font-size: 12.5px;">CFO วรัญญา ส.</span></div>
+        </div>
+        <div style="flex: 1;"></div>
+        <div style="border-top: 1px solid #EFEBE3; padding: 10px 4px 0; color: #7B8794; font-size: 12.5px; line-height: 1.6;">ผังนี้คือแหล่งความจริงของ "หัวหน้าของผู้ยื่น" ที่ใช้ใน Data Scope, เส้นทางอนุมัติชั้นที่ 1 และการเร่งงาน</div>
+      </div>
+
+      <div style="flex: 1; display: flex; flex-direction: column; gap: 16px; min-width: 0;">
+
+        <div class="card" style="border: 1.5px solid #E5B394; overflow: hidden;">
+          <div style="display: flex; align-items: center; gap: 10px; padding: 12px 18px; background: #F6E3D7; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 700; font-size: 13.5px; color: #9C4218;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9C4218" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9l-8.5 14.2A2 2 0 0 0 3.5 21h17a2 2 0 0 0 1.7-2.9L13.7 3.9a2 2 0 0 0-3.4 0z"></path><path d="M12 9v4M12 17h.01"></path></svg>
+            <span>รอจัดสังกัด · 2 คน — ล็อกอินครั้งแรกแล้วแต่ยังยื่นคำขอไม่ได้จนกว่าจะมีหัวหน้า</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 12px; padding: 12px 18px; border-bottom: 1px solid #EFEBE3;">
+            <div class="avatar">ปพ</div>
+            <div><div style="font-weight: 600;">ปิยะ พ. · piya.p</div><div style="color: #7B8794; font-size: 12.5px;">ล็อกอินครั้งแรก วันนี้ 09:12 · role จาก Keycloak: sales</div></div>
+            <div style="flex: 1;"></div>
+            <div style="display: inline-flex; align-items: center; height: 38px; padding: 0 16px; background: #C05621; color: #fff; border-radius: 8px; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 600; font-size: 13px;">จัดสังกัด</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 12px; padding: 12px 18px;">
+            <div class="avatar">นก</div>
+            <div><div style="font-weight: 600;">นภา ก. · napha.k</div><div style="color: #7B8794; font-size: 12.5px;">ล็อกอินครั้งแรก เมื่อวาน 16:40 · role จาก Keycloak: pricing</div></div>
+            <div style="flex: 1;"></div>
+            <div style="display: inline-flex; align-items: center; height: 38px; padding: 0 16px; background: #C05621; color: #fff; border-radius: 8px; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 600; font-size: 13px;">จัดสังกัด</div>
+          </div>
+        </div>
+
+        <div class="card" style="flex: 1; overflow: hidden; display: flex; flex-direction: column;">
+          <div style="display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid #E2DDD5;">
+            <span style="font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 700; font-size: 15px;">ทีมขาย Getter 1</span>
+            <span class="pill" style="background: #E3EAEF; color: #33586E;">หัวหน้าทีม: สมหญิง จ.</span>
+            <div style="flex: 1;"></div>
+            <span style="color: #C05621; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 600; font-size: 13px;">เปลี่ยนหัวหน้าทีม</span>
+          </div>
+          <div style="display: flex; flex-direction: column;">
+            <div style="display: flex; align-items: center; gap: 12px; padding: 11px 18px; border-bottom: 1px solid #EFEBE3;">
+              <div class="avatar" style="background: #C05621;">สจ</div>
+              <div style="width: 220px;"><div style="font-weight: 600;">สมหญิง จ.</div><div style="color: #7B8794; font-size: 12.5px;">หัวหน้าทีม</div></div>
+              <span class="pill" style="background: #F6E3D7; color: #9C4218;">team-lead</span>
+              <span class="pill" style="background: #E3EAEF; color: #33586E;">scope: team</span>
+              <div style="flex: 1;"></div>
+              <span style="color: #7B8794; font-size: 12.5px;">รายงานตรงต่อ: ผอ. ประเสริฐ ท.</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 12px; padding: 11px 18px; border-bottom: 1px solid #EFEBE3;">
+              <div class="avatar">สช</div>
+              <div style="width: 220px;"><div style="font-weight: 600;">สมชาย ก.</div><div style="color: #7B8794; font-size: 12.5px;">พนักงานขาย</div></div>
+              <span class="pill" style="background: #E3EAEF; color: #33586E;">sales</span>
+              <span class="pill" style="background: #EFEBE3; color: #7B8794;">scope: own</span>
+              <div style="flex: 1;"></div>
+              <span style="color: #7B8794; font-size: 12.5px;">หัวหน้า: สมหญิง จ.</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 12px; padding: 11px 18px;">
+              <div class="avatar">มร</div>
+              <div style="width: 220px;"><div style="font-weight: 600;">มานี ร.</div><div style="color: #7B8794; font-size: 12.5px;">พนักงานขาย</div></div>
+              <span class="pill" style="background: #E3EAEF; color: #33586E;">sales</span>
+              <span class="pill" style="background: #EFEBE3; color: #7B8794;">scope: own</span>
+              <div style="flex: 1;"></div>
+              <span style="color: #7B8794; font-size: 12.5px;">หัวหน้า: สมหญิง จ.</span>
+            </div>
+          </div>
+          <div style="flex: 1;"></div>
+          <div style="display: flex; align-items: center; gap: 9px; margin: 0 18px 14px; background: #E3EAEF; border-radius: 8px; padding: 10px 14px; font-size: 12.5px; color: #33586E;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#33586E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4M12 8h.01"></path></svg>
+            <span>role หลักมาจาก Keycloak (แก้ที่ Keycloak) · ผู้ดูแลปรับ scope และผูก role เพิ่มในระบบได้ — ทุกการแก้ไขลง Audit Log</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</div>
+</div></div>
+</figure>
+
+<style>
+.mkroles .app { display: flex; width: 1280px; height: 832px; background: #F1EEE8; font-family: 'Sarabun', system-ui, sans-serif; color: #22303C; font-size: 14px; }
+.mkroles .side { width: 232px; background: #22303C; color: #C7CDD4; display: flex; flex-direction: column; flex-shrink: 0; }
+.mkroles .logo { display: flex; align-items: center; gap: 10px; padding: 20px; font-family: 'IBM Plex Sans Thai', sans-serif; font-weight: 700; font-size: 16px; color: #FFFFFF; }
+.mkroles .nav { display: flex; flex-direction: column; gap: 2px; padding: 4px 12px; }
+.mkroles .navlabel { font-size: 11px; letter-spacing: .08em; color: #8A94A0; padding: 16px 10px 6px; font-family: 'IBM Plex Sans Thai', sans-serif; }
+.mkroles .item { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 8px; min-height: 24px; }
+.mkroles .item.on { background: rgba(229,139,78,.16); color: #F2B084; font-weight: 600; }
+.mkroles .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.mkroles .top { height: 60px; background: #FBFAF8; border-bottom: 1px solid #E2DDD5; display: flex; align-items: center; gap: 14px; padding: 0 24px; flex-shrink: 0; }
+.mkroles .content { flex: 1; padding: 18px 28px 22px; display: flex; flex-direction: column; gap: 14px; overflow: hidden; }
+.mkroles .card { background: #FFFFFF; border: 1px solid #E2DDD5; border-radius: 10px; padding: 0; }
+.mkroles .pill { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 99px; font-size: 12px; font-weight: 600; font-family: 'IBM Plex Sans Thai', sans-serif; }
+.mkroles .rolerow { display: flex; flex-direction: column; gap: 3px; padding: 12px 16px; border-bottom: 1px solid #EFEBE3; }
+.mkroles .grouplb { font-family: 'IBM Plex Sans Thai', sans-serif; font-size: 12px; font-weight: 700; color: #33586E; letter-spacing: .04em; padding: 2px 0; }
+.mkroles .perm { display: flex; align-items: center; gap: 9px; padding: 7px 10px; border: 1px solid #EFEBE3; border-radius: 8px; font-size: 13px; }
+.mkroles .ck { width: 17px; height: 17px; border-radius: 4px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.mkroles .ck.y { background: #C05621; }
+.mkroles .ck.n { border: 1.5px solid #B0B7BF; background: #fff; }
+.mkroles .ck.lock { border: 1.5px solid #E2DDD5; background: #F6F3EE; }
+</style>
+<figure class="mockfig">
+<figcaption><b>หน้า A4 — Role และ Permission (ผู้ดูแล · หน้าจอในแอป ไม่ใช่ Keycloak)</b><br>สมาชิก role จัดการที่ Keycloak (mapping crm-*) — หน้านี้กำหนดว่า role ทำอะไรได้: ติ๊ก permission จาก catalog, ผูก/ถอนมือกรณีเร่งด่วนพร้อมป้ายแหล่งที่มา, ปิดใช้งาน role · role ที่มีผู้ใช้ลบไม่ได้ · admin.* ถูกล็อกตาม guardrail แยกหน้าที่ · ทุกการแก้ลง Audit Log — ROLE-02, ROLE-03, ROLE-05, หัวข้อ 5.4</figcaption>
+<div class="shot"><div class="shot-inner mkroles">
+<div class="app">
+
+  <div class="side">
+    <div class="logo"><div style="width: 10px; height: 10px; border-radius: 99px; background: #E58B4E;"></div><span>Connect the Dot</span></div>
+    <div class="nav">
+      <div class="item"><span>งานค้างของฉัน</span></div>
+      <div class="navlabel">ผู้ดูแลระบบ</div>
+      <div class="item"><span>ตารางอำนาจอนุมัติ</span></div>
+      <div class="item"><span>ประเภทคำขอ</span></div>
+      <div class="item on"><span>ผังทีมและสิทธิ์</span></div>
+      <div class="item"><span>Audit Log</span></div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="top">
+      <div style="font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 700; font-size: 16px;">ผังทีมและสิทธิ์</div>
+      <div style="display: flex; align-items: center; gap: 2px; margin-left: 10px; background: #EFEBE3; border-radius: 8px; padding: 3px; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-size: 13px; font-weight: 600;">
+        <div style="padding: 6px 14px; border-radius: 6px; color: #4A5A68;">ผังทีม</div>
+        <div style="padding: 6px 14px; border-radius: 6px; background: #FFFFFF; color: #C05621; box-shadow: 0 1px 2px rgba(34,48,60,.08);">Role และ Permission</div>
+        <div style="padding: 6px 14px; border-radius: 6px; color: #4A5A68;">Scope Rules</div>
+        <div style="padding: 6px 14px; border-radius: 6px; color: #4A5A68;">Keycloak Mapping</div>
+      </div>
+      <div style="flex: 1;"></div>
+      <div style="display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; background: #E3EAEF; color: #33586E; border-radius: 8px; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 600; font-size: 13px;">บริษัท: OSD</div>
+    </div>
+
+    <div class="content">
+      <div style="display: flex; gap: 16px; flex: 1; min-height: 0;">
+
+        <div class="card" style="width: 300px; flex-shrink: 0; overflow: hidden; display: flex; flex-direction: column;">
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 13px 16px; border-bottom: 1px solid #E2DDD5; background: #F3F0EA;">
+            <span style="font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 700; font-size: 13.5px; color: #33586E;">Role ทั้งหมด · 7</span>
+            <span style="display: inline-flex; align-items: center; gap: 6px; color: #C05621; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 600; font-size: 12.5px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#C05621" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>สร้าง role</span>
+          </div>
+          <div class="rolerow">
+            <div style="display: flex; justify-content: space-between; align-items: center;"><span style="font-weight: 600;">พนักงาน</span><span style="color: #7B8794; font-size: 12.5px;">ทุกคน · อัตโนมัติ</span></div>
+          </div>
+          <div class="rolerow" style="background: #FDF6EF; border-left: 3px solid #C05621;">
+            <div style="display: flex; justify-content: space-between; align-items: center;"><span style="font-weight: 700;">หัวหน้าทีม</span><span class="pill" style="background: #E7F2EA; color: #2F7D4F;">เปิดใช้</span></div>
+            <div style="font-size: 12.5px; color: #7B8794;">14 คน · map จาก Keycloak: crm-team-lead</div>
+          </div>
+          <div class="rolerow">
+            <div style="display: flex; justify-content: space-between; align-items: center;"><span style="font-weight: 600;">ทีมผู้รับคำขอ (Pricing)</span><span class="pill" style="background: #E7F2EA; color: #2F7D4F;">เปิดใช้</span></div>
+            <div style="font-size: 12.5px; color: #7B8794;">4 คน · crm-pricing</div>
+          </div>
+          <div class="rolerow">
+            <div style="display: flex; justify-content: space-between; align-items: center;"><span style="font-weight: 600;">ผู้จัดการฝ่าย</span><span class="pill" style="background: #E7F2EA; color: #2F7D4F;">เปิดใช้</span></div>
+            <div style="font-size: 12.5px; color: #7B8794;">3 คน · crm-dept-manager</div>
+          </div>
+          <div class="rolerow">
+            <div style="display: flex; justify-content: space-between; align-items: center;"><span style="font-weight: 600;">ผู้บริหาร (CFO/CEO)</span><span class="pill" style="background: #E7F2EA; color: #2F7D4F;">เปิดใช้</span></div>
+            <div style="font-size: 12.5px; color: #7B8794;">2 คน · crm-executive</div>
+          </div>
+          <div class="rolerow" style="border-bottom: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center;"><span style="font-weight: 600;">ทีมขายชั่วคราว Q3</span><span class="pill" style="background: #EFEBE3; color: #7B8794;">ปิดใช้งาน</span></div>
+            <div style="font-size: 12.5px; color: #7B8794;">0 คน · ปิดเมื่อ 15 ส.ค. 2569</div>
+          </div>
+        </div>
+
+        <div class="card" style="flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden;">
+          <div style="display: flex; align-items: center; gap: 12px; padding: 13px 20px; border-bottom: 1px solid #E2DDD5;">
+            <span style="font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 700; font-size: 15px;">แก้ไข role: หัวหน้าทีม</span>
+            <span class="pill" style="background: #E3EAEF; color: #33586E;">บริษัท OSD</span>
+            <div style="flex: 1;"></div>
+            <div style="display: inline-flex; align-items: center; gap: 6px; height: 38px; padding: 0 14px; border: 1.5px solid #B0B7BF; color: #7B8794; border-radius: 8px; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 600; font-size: 13px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7B8794" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+              ลบไม่ได้ — มีผู้ใช้ 14 คน</div>
+            <div style="display: inline-flex; align-items: center; height: 38px; padding: 0 14px; border: 1.5px solid #C05621; color: #C05621; border-radius: 8px; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 600; font-size: 13px;">ปิดใช้งาน</div>
+            <div style="display: inline-flex; align-items: center; height: 38px; padding: 0 18px; background: #C05621; color: #fff; border-radius: 8px; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 600; font-size: 13px;">บันทึก</div>
+          </div>
+
+          <div style="display: flex; gap: 16px; padding: 14px 20px; flex: 1; min-height: 0;">
+
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 10px; min-width: 0;">
+              <div style="display: flex; align-items: center; gap: 9px; background: #E3EAEF; border-radius: 8px; padding: 8px 12px; font-size: 12.5px; color: #33586E;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#33586E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4M12 8h.01"></path></svg>
+                <span>สมาชิก role จัดการที่ Keycloak (map: <b>crm-team-lead</b>) — หน้านี้กำหนดเฉพาะว่า role ทำอะไรได้ · แก้แล้วมีผลทันทีกับ API call ถัดไป</span>
+              </div>
+
+              <div class="grouplb">REQUEST</div>
+              <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;">
+                <div class="perm"><div class="ck y"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg></div><span><code style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 12px;">request.create</code> ยื่นคำขอ</span></div>
+                <div class="perm"><div class="ck y"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg></div><span><code style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 12px;">request.return</code> ตีกลับ</span></div>
+                <div class="perm"><div class="ck y"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg></div><span><code style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 12px;">request.cancel.own</code> ยกเลิกของตน</span></div>
+                <div class="perm"><div class="ck n"></div><span><code style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 12px;">request.cancel.any</code> ยกเลิกแทน</span></div>
+                <div class="perm"><div class="ck n"></div><span><code style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 12px;">request.complete</code> ปิดงาน</span></div>
+                <div class="perm"><div class="ck y"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg></div><span><code style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 12px;">request.sensitive.read</code> เห็น margin</span></div>
+              </div>
+
+              <div class="grouplb">APPROVAL · REPORT</div>
+              <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;">
+                <div class="perm"><div class="ck y"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg></div><span><code style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 12px;">approval.decide</code> อนุมัติ</span></div>
+                <div class="perm"><div class="ck n"></div><span><code style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 12px;">approval.history.read</code> ประวัติอำนาจ</span></div>
+                <div class="perm"><div class="ck y"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg></div><span><code style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 12px;">report.request.read</code> รายงานทีม</span></div>
+                <div class="perm"><div class="ck y"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg></div><span><code style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 12px;">user.read</code> ค้นผู้ใช้</span></div>
+              </div>
+
+              <div class="grouplb">ADMIN · AUDIT</div>
+              <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;">
+                <div class="perm" style="background: #F6F3EE; color: #7B8794;"><div class="ck lock"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#B0B7BF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></div><span><code style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 12px;">admin.*</code> — ขัด guardrail แยกหน้าที่</span></div>
+                <div class="perm"><div class="ck n"></div><span><code style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 12px;">audit.read</code> อ่าน audit log</span></div>
+              </div>
+            </div>
+
+            <div style="width: 290px; flex-shrink: 0; display: flex; flex-direction: column; gap: 10px;">
+              <div style="border: 1px solid #E2DDD5; border-radius: 8px; overflow: hidden;">
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: #F3F0EA; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 700; font-size: 12.5px; color: #33586E;">
+                  <span>ผู้ใช้ใน role นี้ · 14</span>
+                  <span style="color: #C05621; font-weight: 600;">+ ผูกมือ</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px; padding: 9px 14px; border-bottom: 1px solid #EFEBE3; font-size: 13px;">
+                  <span style="font-weight: 600;">สมหญิง จ.</span>
+                  <span class="pill" style="background: #E3EAEF; color: #33586E; font-size: 11px;">จาก Keycloak</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px; padding: 9px 14px; border-bottom: 1px solid #EFEBE3; font-size: 13px;">
+                  <span style="font-weight: 600;">อดิศร พ.</span>
+                  <span class="pill" style="background: #E3EAEF; color: #33586E; font-size: 11px;">จาก Keycloak</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px; padding: 9px 14px; border-bottom: 1px solid #EFEBE3; font-size: 13px;">
+                  <span style="font-weight: 600;">กมล ต. <span style="color: #7B8794; font-weight: 400;">(รักษาการ)</span></span>
+                  <span class="pill" style="background: #F6E3D7; color: #9C4218; font-size: 11px;">ผูกมือ</span>
+                  <div style="flex: 1;"></div>
+                  <span style="color: #B33A3A; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-size: 12px; font-weight: 600;">ถอน</span>
+                </div>
+                <div style="padding: 8px 14px; font-size: 12.5px; color: #C05621; font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 600;">ดูทั้งหมด 14 คน</div>
+              </div>
+              <div style="border: 1px solid #E2DDD5; border-radius: 8px; padding: 11px 14px; display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; color: #4A5A68; line-height: 1.55; background: #FBFAF8;">
+                <div style="font-family: &#39;IBM Plex Sans Thai&#39;, sans-serif; font-weight: 700; font-size: 12.5px; color: #33586E;">การเปลี่ยนแปลงล่าสุด</div>
+                <div>เพิ่ม <code style="font-family: &#39;IBM Plex Mono&#39;, monospace; font-size: 11.5px;">report.request.read</code> — admin · 20 ส.ค.</div>
+                <div>ผูกมือ กมล ต. (รักษาการถึง 31 ส.ค.) — admin · 18 ส.ค.</div>
+                <div style="color: #7B8794;">ทุกรายการอยู่ใน Audit Log</div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div></div>
+</figure>
+<p class="small" style="margin-top:3rem; padding-top:1rem; border-top:1px solid var(--line)">เอกสารนี้แยกขอบเขตจากข้อเสนอโครงการ Connect the Dot (สิงหาคม 2569) เพื่อให้ทีมพัฒนาเริ่มงานรากฐานก่อนโมดูลธุรกิจ · ตัวเลข SLA, วงเงิน และบทบาทตั้งต้นทั้งหมดเป็นค่าเสนอเพื่อเริ่มพัฒนา ต้องยืนยันกับเจ้าของกระบวนการก่อนเปิดใช้งานจริงตามหลัก D-09</p>
+
+</div>
+
+</body></html>

@@ -5,7 +5,9 @@ import {
   RequestTypeAdminController,
 } from './requests.controller';
 import { RequestsService } from './requests.service';
+import { BottleneckService } from '../reports/bottleneck.service';
 import { RequestRepository } from './request.repository';
+import { AttachmentRepository } from './attachment.repository';
 import { RequestTypeRepository } from './request-type.repository';
 import { DocNumberService } from './doc-number.service';
 import { ApprovalsModule } from '../approvals/approvals.module';
@@ -18,7 +20,9 @@ import { SlaModule } from '../sla/sla.module';
   controllers: [RequestsController, RequestTypeAdminController],
   providers: [
     RequestsService,
+    BottleneckService,
     RequestRepository,
+    AttachmentRepository,
     RequestTypeRepository,
     DocNumberService,
     PrismaTransactionService,

@@ -115,6 +115,31 @@ export class UsersRepository extends BaseRepository<PrismaService['user']> {
   }
 
   /** AUTH-04: everyone who has logged in but has no org unit yet. */
+  /**
+   * Display names for a set of ids, for callers that hold ids and need labels.
+   *
+   * One query rather than a lookup per id: the approval preview resolves a
+   * whole chain at once, and a round trip per approver would make a keystroke
+   * on the amount field cost several.
+   */
+  async displayNamesOf(
+    ids: readonly string[],
+    option?: TxOption,
+  ): Promise<Record<string, string>> {
+    const unique = [...new Set(ids)];
+    if (!unique.length) return {};
+
+    const rows = (await this.findMany(
+      {
+        where: { id: { in: unique } },
+        select: { id: true, displayName: true },
+      },
+      option,
+    )) as { id: string; displayName: string }[];
+
+    return Object.fromEntries(rows.map((row) => [row.id, row.displayName]));
+  }
+
   findUnassigned(option?: TxOption): Promise<User[]> {
     return this.findMany(
       {

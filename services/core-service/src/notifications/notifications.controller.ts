@@ -17,7 +17,7 @@ import {
   Permissions,
 } from '@request-management/share';
 import type { Principal } from '@request-management/share';
-import { notImplemented } from '../common/not-implemented';
+import { UpdateNotificationPreferencesDto } from './dto/notification.dto';
 import { NotificationsService } from './notifications.service';
 
 /**
@@ -54,13 +54,16 @@ export class NotificationsController {
   /** In-app cannot be switched off; only the email channel is optional. */
   @Get('preferences')
   @Authenticated()
-  getPreferences() {
-    return notImplemented('SUP-03');
+  getPreferences(@CurrentPrincipal() principal: Principal) {
+    return this.notifications.getPreferences(principal);
   }
 
   @Put('preferences')
   @Authenticated()
-  updatePreferences(@Body() _body: unknown) {
-    return notImplemented('SUP-03');
+  updatePreferences(
+    @Body() dto: UpdateNotificationPreferencesDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.notifications.updatePreferences(principal, dto.email);
   }
 }

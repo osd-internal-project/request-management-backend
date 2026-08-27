@@ -8,10 +8,14 @@ import {
   toSkipTake,
 } from '@request-management/share';
 import type { PageQueryDto, Principal } from '@request-management/share';
-import type { Prisma } from '@prisma/client';
+import type { ApprovalMatrix, Prisma } from '@prisma/client';
 import {
+  APPROVER_POSITIONS,
+  ApproverPosition,
   MatrixTier,
+  ResolvedApprover,
   assertStepOneResolvable,
+  ceilingIntroducing,
   resolveChain,
   selectTier,
 } from './approval-chain';
@@ -22,9 +26,47 @@ import {
   CaseWithSteps,
 } from './approval-case.repository';
 import { DelegationRepository } from './delegation.repository';
-import { ApprovalContextClient } from '../principal/approval-context.client';
+import {
+  ApprovalContext,
+  ApprovalContextClient,
+} from '../principal/approval-context.client';
 import { NotificationsService } from '../notifications/notifications.service';
-import { BatchDecideDto, DecideDto, OpenCaseDto } from './dto/approval.dto';
+import { DomainEventsService } from '../events/domain-events.service';
+import { DOMAIN_EVENTS } from '../events/event-catalog';
+import {
+  BatchDecideDto,
+  DecideDto,
+  OpenCaseDto,
+  PreviewChainDto,
+} from './dto/approval.dto';
+
+/**
+ * The route a request would take, computed before it exists (§16 หน้าที่ 3).
+ *
+ * Amounts stay decimal strings all the way to the screen: they are money, and
+ * turning them into JavaScript numbers here is how a rounded ceiling starts
+ * disagreeing with the one the engine actually routed under.
+ */
+export interface ChainPreview {
+  amount: string | null;
+  currency: string;
+  /** Position of the applicable tier in the ladder, `0` being the lowest. */
+  tier_index: number;
+  tier_upto: string | null;
+  /** The ceiling this request exceeded, or `null` in the lowest tier. */
+  exceeded_upto: string | null;
+  steps: {
+    step_no: number;
+    position: ApproverPosition;
+    /** `null` when the org chart has nobody to fill this step. */
+    user_id: string | null;
+    display_name: string | null;
+  }[];
+  excluded: {
+    position: ApproverPosition;
+    appears_above: string | null;
+  }[];
+}
 
 /** One outcome inside a batch — APV-04 reports each case separately. */
 export interface BatchResult {
@@ -42,6 +84,7 @@ export class ApprovalsService {
     private readonly matrix: ApprovalMatrixService,
     private readonly context: ApprovalContextClient,
     private readonly notifications: NotificationsService,
+    private readonly domainEvents: DomainEventsService,
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
   ) {}
@@ -63,36 +106,13 @@ export class ApprovalsService {
   ): Promise<CaseWithSteps> {
     const requesterId = dto.requester_user_id ?? actor.userId;
     const companyId = actor.activeCompanyId;
-    const now = new Date();
 
-    const matrix = await this.matrix.requireEffective(
+    const { matrix, chain } = await this.planChain({
+      subjectType: dto.subject_type,
+      amount: dto.amount ?? null,
+      requesterId,
       companyId,
-      dto.subject_type,
-      now,
-    );
-
-    const tiers = matrix.tiers as unknown as MatrixTier[];
-    const tier = selectTier(tiers, dto.amount ?? null);
-
-    const context = await this.context.resolve(
       authorization,
-      requesterId,
-      companyId,
-    );
-
-    // The chain is a lookup into what user-service already told us, so the
-    // walk upward never issues another request mid-transaction.
-    const chain = resolveChain({
-      chain: tier.chain,
-      requesterId,
-      requesterSupervisorId: context.supervisorUserId,
-      roleHolders: context.roleHolders,
-      supervisorOf: (userId) => {
-        const index = [context.supervisorUserId, ...context.supervisorChain]
-          .filter((id): id is string => id !== null)
-          .indexOf(userId);
-        return index >= 0 ? (context.supervisorChain[index] ?? null) : null;
-      },
     });
 
     assertStepOneResolvable(chain);
@@ -148,7 +168,159 @@ export class ApprovalsService {
 
     await this.notifications.awaitingApproval(opened, companyId);
 
+    // §11.8 — "you have work waiting" is triggered by this, not by the
+    // notification call above: other consumers need the same signal.
+    await this.domainEvents.emit({
+      name: DOMAIN_EVENTS.approvalStepPending,
+      payload: {
+        company_id: companyId,
+        case_id: opened.id,
+        request_id: opened.requestId,
+        step: opened.currentStep,
+        approver_id: opened.steps[0]?.approverUserId ?? null,
+      },
+    });
+
     return opened;
+  }
+
+  /**
+   * Works out which tier applies and who the approvers would be.
+   *
+   * Shared by `openCase` and `previewChain` on purpose: §16 หน้าที่ 3 shows the
+   * user the route *before* they submit, and a preview computed by a second
+   * copy of this logic would start disagreeing with the real routing the
+   * moment a ceiling changed — which is exactly the promise the screen makes.
+   */
+  private async planChain(input: {
+    subjectType: string;
+    amount: string | null;
+    requesterId: string;
+    companyId: string;
+    authorization: string;
+  }): Promise<{
+    matrix: ApprovalMatrix;
+    tiers: MatrixTier[];
+    tier: MatrixTier;
+    chain: ResolvedApprover[];
+    context: ApprovalContext;
+  }> {
+    const matrix = await this.matrix.requireEffective(
+      input.companyId,
+      input.subjectType,
+      new Date(),
+    );
+
+    const tiers = matrix.tiers as unknown as MatrixTier[];
+    const tier = selectTier(tiers, input.amount);
+
+    const context = await this.context.resolve(
+      input.authorization,
+      input.requesterId,
+      input.companyId,
+    );
+
+    // The chain is a lookup into what user-service already told us, so the
+    // walk upward never issues another request mid-transaction.
+    const chain = resolveChain({
+      chain: tier.chain,
+      requesterId: input.requesterId,
+      requesterSupervisorId: context.supervisorUserId,
+      roleHolders: context.roleHolders,
+      supervisorOf: (userId) => {
+        const index = [context.supervisorUserId, ...context.supervisorChain]
+          .filter((id): id is string => id !== null)
+          .indexOf(userId);
+        return index >= 0 ? (context.supervisorChain[index] ?? null) : null;
+      },
+    });
+
+    return { matrix, tiers, tier, chain, context };
+  }
+
+  /**
+   * APV-02 preview: the route this request *would* take, without opening a
+   * case (§16 หน้าที่ 3, "เส้นทางอนุมัติที่จะใช้").
+   *
+   * Nothing is written and no notification is sent — the screen recalculates
+   * on every change to the amount. `assertStepOneResolvable` is deliberately
+   * **not** called: a requester with no supervisor should see *why* they
+   * cannot submit rather than a bare error, so the missing step is reported as
+   * data (`user_id: null`) and the submit itself is what refuses.
+   */
+  async previewChain(
+    dto: PreviewChainDto,
+    actor: Principal,
+    authorization: string,
+  ): Promise<ChainPreview> {
+    const amount = dto.amount ?? null;
+
+    const { tiers, tier, chain, context } = await this.planChain({
+      subjectType: dto.subject_type,
+      amount,
+      requesterId: actor.userId,
+      companyId: actor.activeCompanyId,
+      authorization,
+    });
+
+    const tierIndex = tiers.indexOf(tier);
+
+    return {
+      amount,
+      currency: dto.currency ?? 'THB',
+      tier_index: tierIndex,
+      tier_upto: tier.upto,
+      /** The ceiling that pushed the request past the bottom tier, if any. */
+      exceeded_upto:
+        tierIndex > 0 ? (tiers[tierIndex - 1]?.upto ?? null) : null,
+      steps: chain.map((step, index) => ({
+        step_no: index + 1,
+        position: step.position,
+        user_id: step.userId,
+        display_name: step.userId
+          ? (context.displayNames[step.userId] ?? null)
+          : null,
+      })),
+      /**
+       * Positions the ladder tops out below. The screen states this explicitly
+       * ("CEO ไม่อยู่ในเส้นทาง — วงเงินไม่เกินเพดานระดับ 2") so an approver's
+       * absence reads as a rule, not an omission.
+       */
+      excluded: APPROVER_POSITIONS.filter(
+        (position) => !chain.some((step) => step.position === position),
+      ).map((position) => ({
+        position,
+        /** The ceiling this position would first appear above. */
+        appears_above: ceilingIntroducing(tiers, position),
+      })),
+    };
+  }
+
+  /**
+   * Throws unless a case for this subject could actually be opened.
+   *
+   * `submit` calls this **before** it writes anything. The chain is resolved
+   * across a service boundary and cannot join the request's transaction, so
+   * without a pre-flight check a submit that fails at routing leaves behind a
+   * request that consumed a document number, changed status and started its
+   * clock — but sits in nobody's queue and cannot be submitted again. That
+   * state is invisible: it looks submitted to the requester and does not exist
+   * to any approver.
+   *
+   * Checking first turns those failures into a clean refusal with nothing
+   * written. A published matrix is immutable and never deleted, so the window
+   * between this check and `openCase` cannot change the answer.
+   */
+  async assertRoutable(input: {
+    subjectType: string;
+    amount: string | null;
+    requesterId: string;
+    companyId: string;
+    authorization: string;
+  }): Promise<void> {
+    const { chain } = await this.planChain(input);
+
+    assertStepOneResolvable(chain);
   }
 
   // --- APV-02 / APV-03 / APV-05: deciding ---------------------------------

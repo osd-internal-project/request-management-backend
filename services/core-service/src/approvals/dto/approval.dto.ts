@@ -158,3 +158,31 @@ export class CreateDelegationDto {
   @MaxLength(500)
   note?: string;
 }
+
+/**
+ * APV-02 preview input (§16 หน้าที่ 3).
+ *
+ * Deliberately not a subset of `OpenCaseDto`: a preview names no subject and
+ * carries no payload, because nothing is being opened. The requester is always
+ * the caller — previewing somebody else's route would leak the org chart.
+ */
+export class PreviewChainDto {
+  @ApiProperty({ example: 'request:DSC' })
+  @IsString()
+  @IsNotEmpty()
+  subject_type!: string;
+
+  @ApiPropertyOptional({
+    example: '800000.00',
+    nullable: true,
+    description: 'Decimal string. Omitted means "no monetary dimension".',
+  })
+  @IsOptional()
+  @IsNumberString()
+  amount?: string;
+
+  @ApiPropertyOptional({ example: 'THB' })
+  @IsOptional()
+  @IsString()
+  currency?: string;
+}

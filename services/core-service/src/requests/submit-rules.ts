@@ -136,3 +136,90 @@ export function assertKnownReturnReason(
     { field: 'reason_code', reason: `ต้องเป็นหนึ่งใน: ${known.join(', ')}` },
   ]);
 }
+
+/**
+ * REQ-03: an attached document must name a code the type actually asks for.
+ *
+ * Accepting anything looks harmless until it isn't: a caller that mistypes
+ * `quotation` for `QUOTE_DRAFT` gets a stored row, believes the requirement is
+ * met, and then hits "เอกสารบังคับยังไม่ครบ" at submit with nothing on screen
+ * explaining why. Failing at the point of attachment names the mistake while
+ * the user is still looking at it.
+ *
+ * An absent code is fine — that is an extra file, which REQ-03 allows.
+ */
+export function assertKnownDocCode(
+  requiredDocs: unknown,
+  code: string | undefined,
+): void {
+  if (code === undefined) return;
+
+  const known = Array.isArray(requiredDocs)
+    ? (requiredDocs as unknown[])
+        .map(asDoc)
+        .filter((doc): doc is RequiredDoc => doc !== null)
+        .map((doc) => doc.code)
+    : [];
+
+  if (known.includes(code)) return;
+
+  throw new AppError('VALIDATION_FAILED', 'รหัสเอกสารไม่ถูกต้อง', [
+    {
+      field: 'doc_code',
+      reason: known.length
+        ? `ต้องเป็นหนึ่งใน: ${known.join(', ')} หรือเว้นว่างสำหรับเอกสารเพิ่มเติม`
+        : 'ประเภทคำขอนี้ไม่ได้กำหนดเอกสารบังคับ',
+    },
+  ]);
+}
+
+/**
+ * REQ-01: a form schema an admin authored must be one this system can use.
+ *
+ * Not a JSON Schema validator — it checks the three things the code actually
+ * reads, because those are the ones whose absence produces a type that looks
+ * saved and then fails at submit:
+ *
+ * - `properties` must exist, or the form renders empty
+ * - every name in `required` must be a real property, or `assertSubmittable`
+ *   demands a field the screen never shows and the request can never be sent
+ * - a required document code must be unique, or the same document is asked
+ *   for twice and satisfied once
+ */
+export function assertUsableFormSchema(
+  schema: unknown,
+  requiredDocs?: readonly { code: string; name: string }[],
+): void {
+  const parsed = asSchema(schema);
+  const details: ErrorDetail[] = [];
+
+  if (!parsed?.properties || Object.keys(parsed.properties).length === 0) {
+    details.push({
+      field: 'form_schema.properties',
+      reason: 'ต้องมีอย่างน้อยหนึ่งฟิลด์',
+    });
+  }
+
+  for (const name of parsed?.required ?? []) {
+    if (!parsed?.properties?.[name]) {
+      details.push({
+        field: 'form_schema.required',
+        reason: `"${name}" ไม่มีอยู่ใน properties`,
+      });
+    }
+  }
+
+  const codes = (requiredDocs ?? []).map((doc) => doc.code);
+  const duplicate = codes.find((code, i) => codes.indexOf(code) !== i);
+
+  if (duplicate) {
+    details.push({
+      field: 'required_docs',
+      reason: `รหัสเอกสารซ้ำ: ${duplicate}`,
+    });
+  }
+
+  if (!details.length) return;
+
+  throw new AppError('VALIDATION_FAILED', 'โครงสร้างฟอร์มไม่ถูกต้อง', details);
+}

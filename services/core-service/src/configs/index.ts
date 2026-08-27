@@ -7,7 +7,8 @@ export default () => ({
    * Where to resolve callers. core-service holds no identity tables of its
    * own — it asks user-service (§03).
    */
-  userServiceUrl: process.env.USER_SERVICE_URL ?? 'http://localhost:3001/api/v1',
+  userServiceUrl:
+    process.env.USER_SERVICE_URL ?? 'http://localhost:3001/api/v1',
 
   /**
    * CD-92: the embedded BI menu. `siteUrl` is where browsers reach Metabase;

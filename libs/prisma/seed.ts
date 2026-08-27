@@ -121,8 +121,31 @@ const SEED_ROLES: {
     scopes: { request: 'company', approval_case: 'company', user: 'company' },
   },
   {
+    // §5.2's destination team — Pricing for a discount request. The only role
+    // §5.4 grants `request.complete`: closing the work is the receiver's call,
+    // not the approver's, so REQ-08 has no holder at all without this role.
+    code: 'receiver',
+    name: 'ทีมผู้รับคำขอ',
+    description: 'ผู้ปฏิบัติงานของทีมปลายทาง เช่น ทีม Pricing ที่รับคำขอส่วนลด',
+    permissions: [
+      'request.create',
+      'request.read',
+      'request.cancel.own',
+      'request.return',
+      'request.complete',
+      'request.sensitive.read',
+      'report.request.read',
+      'notification.read',
+      'user.read',
+    ],
+    // §5.4 reads "คิวทีมตน" — the team's own queue, so `team` rather than the
+    // department their team sits under.
+    scopes: { request: 'team', approval_case: 'team', user: 'team' },
+  },
+  {
     // §5.2 is explicit that admins configure the system but hold no approval
-    // authority — they cannot approve on anyone's behalf.
+    // authority — they cannot approve on anyone's behalf. §5.4 turns that into
+    // an enforced guardrail: see `assertSeparationOfDuties`.
     code: 'admin',
     name: 'ผู้ดูแลระบบ',
     description: 'ทีมที่ดูแลการตั้งค่า — ไม่มีสิทธิ์อนุมัติแทนใคร',

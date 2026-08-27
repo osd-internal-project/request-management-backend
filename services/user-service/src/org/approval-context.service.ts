@@ -14,6 +14,14 @@ export interface ApprovalContext {
   supervisorChain: string[];
   /** Who currently holds each named office in this company (ROLE-04). */
   roleHolders: Record<string, string>;
+  /**
+   * `userId` → display name, for every id above.
+   *
+   * The engine routes by id, but §16 หน้าที่ 3 shows the chain as
+   * "หัวหน้าทีม — สมหญิง จ." before the request is submitted. Names come from
+   * here rather than a second lookup so the identity boundary stays one call.
+   */
+  displayNames: Record<string, string>;
 }
 
 /** Stops a cycle in the org chart from hanging the request. */
@@ -38,11 +46,16 @@ export class ApprovalContextService {
     const user = await this.users.findById(userId);
     const supervisorUserId = user?.supervisorUserId ?? null;
 
-    return {
-      supervisorUserId,
-      supervisorChain: await this.climb(supervisorUserId),
-      roleHolders: await this.roleHolders(companyId),
-    };
+    const supervisorChain = await this.climb(supervisorUserId);
+    const roleHolders = await this.roleHolders(companyId);
+
+    const displayNames = await this.users.displayNamesOf([
+      ...(supervisorUserId ? [supervisorUserId] : []),
+      ...supervisorChain,
+      ...Object.values(roleHolders),
+    ]);
+
+    return { supervisorUserId, supervisorChain, roleHolders, displayNames };
   }
 
   /** Walks upward from a starting point, guarding against a cyclic chart. */

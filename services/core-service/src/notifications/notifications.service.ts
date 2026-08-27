@@ -124,6 +124,30 @@ export class NotificationsService {
 
   // --- internals ----------------------------------------------------------
 
+  /**
+   * SUP-02 — a deadline passed and somebody senior needs to know.
+   *
+   * Worded as a fact rather than a request for action: the recipient may be
+   * the owner or the rung above them, and a single message that reads
+   * correctly for both is less confusing than guessing which one this is.
+   */
+  async slaBreached(
+    userId: string,
+    companyId: string,
+    requestId: string,
+    requestNo: string | null,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'sla.breached',
+      title: 'คำขอเกินกำหนด SLA',
+      body: `คำขอ ${requestNo ?? requestId} เกินกำหนดเวลาที่ตั้งไว้แล้ว`,
+      resourceType: 'request',
+      resourceId: requestId,
+    });
+  }
+
   private async emit(entry: {
     userId: string;
     companyId: string;
@@ -189,5 +213,60 @@ export class NotificationsService {
         sentAt: configured ? new Date() : null,
       },
     });
+  }
+
+  // --- SUP-03: channel preferences ---------------------------------------
+
+  /**
+   * The caller's channel choices for the active company.
+   *
+   * Returns the default rather than `404` when nothing was ever saved: a
+   * preference row is created on first change, and a screen that had to treat
+   * "never touched" as an error state would show one to every new user.
+   *
+   * `in_app` is reported as a fixed `true` — §09 makes it mandatory, and
+   * showing it as a switch that cannot move is clearer than hiding the fact
+   * that the channel exists.
+   */
+  async getPreferences(actor: Principal) {
+    const found = await this.prisma.notificationPreference.findUnique({
+      where: {
+        userId_companyId: {
+          userId: actor.userId,
+          companyId: actor.activeCompanyId,
+        },
+      },
+    });
+
+    return {
+      in_app: true,
+      in_app_locked: true,
+      email: found?.emailEnabled ?? true,
+      /**
+       * Open question B: email is recorded but never sent, so a screen can say
+       * so instead of promising delivery that will not happen.
+       */
+      email_delivery_available: false,
+    };
+  }
+
+  /** Records the choice. Upsert, because the row only exists once changed. */
+  async updatePreferences(actor: Principal, emailEnabled: boolean) {
+    await this.prisma.notificationPreference.upsert({
+      where: {
+        userId_companyId: {
+          userId: actor.userId,
+          companyId: actor.activeCompanyId,
+        },
+      },
+      create: {
+        userId: actor.userId,
+        companyId: actor.activeCompanyId,
+        emailEnabled,
+      },
+      update: { emailEnabled },
+    });
+
+    return this.getPreferences(actor);
   }
 }

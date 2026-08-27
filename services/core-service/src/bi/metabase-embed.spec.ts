@@ -13,7 +13,14 @@ describe('CD-92: Metabase signed embedding', () => {
       typ: 'JWT',
     });
 
-    const body = JSON.parse(Buffer.from(payload, 'base64url').toString());
+    // Typed rather than left as `any`: the assertions below read three
+    // specific fields, and naming them here is what makes a change to the
+    // token shape fail at compile time instead of silently passing.
+    const body = JSON.parse(Buffer.from(payload, 'base64url').toString()) as {
+      resource: unknown;
+      params: unknown;
+      exp: number;
+    };
     expect(body.resource).toEqual({ dashboard: 42 });
     expect(body.params).toEqual({});
     expect(body.exp).toBeGreaterThan(Math.floor(Date.now() / 1000));
@@ -35,6 +42,8 @@ describe('CD-92: Metabase signed embedding', () => {
 
   it('builds the /embed/dashboard URL without a double slash', () => {
     const url = embedDashboardUrl('http://bi.local:3300/', SECRET, 3);
-    expect(url).toMatch(/^http:\/\/bi\.local:3300\/embed\/dashboard\/[\w-]+\.[\w-]+\.[\w-]+#/);
+    expect(url).toMatch(
+      /^http:\/\/bi\.local:3300\/embed\/dashboard\/[\w-]+\.[\w-]+\.[\w-]+#/,
+    );
   });
 });

@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import {
+  IdempotencyInterceptor,
   AuditModule,
   CompanyGuard,
   SENSITIVE_READ_RECORDER,
@@ -17,6 +18,7 @@ import { HealthModule } from './health/health.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PrincipalModule } from './principal/principal.module';
 import { RemotePrincipalGuard } from './principal/remote-principal.guard';
+import { EventsModule } from './events/events.module';
 import { RequestsModule } from './requests/requests.module';
 import { SlaModule } from './sla/sla.module';
 import { SensitiveReadAuditRecorder } from './policy/sensitive-read.recorder';
@@ -32,6 +34,7 @@ import configs from './configs';
  */
 @Module({
   imports: [
+    EventsModule,
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: ['.env'],
@@ -56,6 +59,12 @@ import configs from './configs';
     // SCOPE-04: strips fields the caller may not see from the response body.
     // Registered here as well as in user-service — masking that only one
     // service performs is not masking.
+    /**
+     * NFR-03: registered globally but inert unless the caller sends
+     * `Idempotency-Key`, so a double-tapped submit cannot issue two document
+     * numbers while ordinary reads pay nothing.
+     */
+    { provide: APP_INTERCEPTOR, useClass: IdempotencyInterceptor },
     { provide: APP_INTERCEPTOR, useClass: SensitiveFieldInterceptor },
     SensitiveReadAuditRecorder,
     {

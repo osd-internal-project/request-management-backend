@@ -70,7 +70,15 @@ export class RemotePrincipalService {
           authorization,
           ...(companyId ? { 'x-company-id': companyId } : {}),
         },
-        signal: AbortSignal.timeout(5_000),
+        /**
+         * Generous on purpose. The first resolve after a restart pays for the
+         * connection pool and the whole org walk at once — measured at 17s
+         * against a remote database before the org lookup was flattened, and
+         * a timeout shorter than that turns a slow start into "ไม่สามารถ
+         * ตรวจสอบสิทธิ์ได้" on every screen. Later calls are cached for the
+         * token's lifetime, so this ceiling is paid once per session.
+         */
+        signal: AbortSignal.timeout(20_000),
       });
     } catch (error) {
       this.logger.error(

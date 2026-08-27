@@ -3,6 +3,7 @@ import {
   ALL_PERMISSIONS,
   AppError,
   assertCompanyMember,
+  assertSeparationOfDuties,
   Permission,
   permissionModule,
   Principal,
@@ -17,8 +18,16 @@ import { AuditService } from '../audit/audit.service';
 import { AuditEvent } from '../audit/audit-events';
 import { KeycloakRoleMappingRepository } from './keycloak-role-mapping.repository';
 import { PermissionRepository } from './permission.repository';
-import { RoleRepository, RoleWithPermissions } from './role.repository';
-import { UserRoleRepository, UserRoleWithRole } from './user-role.repository';
+import {
+  RoleRepository,
+  RoleWithHolderCount,
+  RoleWithPermissions,
+} from './role.repository';
+import {
+  RoleHolder,
+  UserRoleRepository,
+  UserRoleWithRole,
+} from './user-role.repository';
 import {
   CreateRoleDto,
   ReplaceKeycloakMappingsDto,
@@ -68,8 +77,28 @@ export class RolesService implements OnModuleInit {
     return this.permissions.findAll();
   }
 
-  listRoles(companyId: string): Promise<RoleWithPermissions[]> {
+  listRoles(companyId: string): Promise<RoleWithHolderCount[]> {
     return this.roles.findForCompany(companyId);
+  }
+
+  /**
+   * Screen A4's right-hand panel: who holds this role in this company.
+   *
+   * The role is looked up first so an id from another company answers
+   * `NOT_FOUND` rather than an empty list, which would read as "nobody holds
+   * it" when the truth is "you are looking at the wrong company".
+   */
+  async holdersOf(
+    roleId: string,
+    companyId: string,
+  ): Promise<readonly RoleHolder[]> {
+    const role = await this.roles.findById(roleId);
+
+    if (!role || (role.companyId !== null && role.companyId !== companyId)) {
+      throw new AppError('NOT_FOUND', 'ไม่พบบทบาทที่ระบุ');
+    }
+
+    return this.userRoles.holdersOfRoleId(roleId, companyId);
   }
 
   /** Who holds a role code in this company — used to resolve approval chains. */
@@ -97,6 +126,8 @@ export class RolesService implements OnModuleInit {
     // only what was named — without it an admin could define a role inside a
     // company they have no membership in.
     if (dto.company_id) assertCompanyMember(actor, dto.company_id);
+
+    assertSeparationOfDuties(dto.permissions);
 
     return this.transactions.execute(async (prisma) => {
       const option = { prisma };
@@ -143,6 +174,15 @@ export class RolesService implements OnModuleInit {
       if (!before) {
         throw new AppError('NOT_FOUND', 'ไม่พบบทบาทที่ระบุ');
       }
+
+      // §5.4 guardrail 1. `updateRole` replaces the permission set wholesale,
+      // so `dto.permissions` is exactly what the role ends up holding.
+      //
+      // Checked only when permissions are supplied: a role seeded before this
+      // rule existed must still be renameable and — more importantly —
+      // deactivatable, which is the remedy for it. Blocking every PATCH on a
+      // legacy violation would leave it in place with no way to retire it.
+      if (dto.permissions) assertSeparationOfDuties(dto.permissions);
 
       // ROLE-02: a role with holders can be switched off but never removed,
       // so historical grants stay explainable.
