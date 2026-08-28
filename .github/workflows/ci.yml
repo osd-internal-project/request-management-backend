@@ -58,6 +58,47 @@ jobs:
       - name: Test
         run: yarn test
 
+      # `docs/spec-coverage.md` is generated. Regenerate it and fail if the
+      # result differs from what was committed — the same guarantee a lockfile
+      # check gives. Without it the committed report drifts from reality and
+      # becomes one more document claiming coverage that nothing verifies.
+      #
+      # `spec:check` exits non-zero while gaps remain, so `|| true` lets the
+      # staleness comparison below be the thing that fails. The gap list itself
+      # is enforced by the `spec-gaps` job.
+      - name: Coverage report is current
+        run: |
+          yarn spec:check || true
+          if ! git diff --quiet -- docs/spec-coverage.md; then
+            echo "::error::docs/spec-coverage.md is stale — run 'yarn spec:check' and commit the result"
+            git --no-pager diff -- docs/spec-coverage.md
+            exit 1
+          fi
+          echo "coverage report matches the committed copy"
+
+  # Differences between the source specification and this repository.
+  #
+  # Reported without blocking while the known gaps (A1, A2, หน้าที่ 2) are being
+  # closed — a job that is red on every PR from day one is a job people learn to
+  # scroll past. Flip `continue-on-error` off once `yarn spec:check` is green.
+  spec-gaps:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: yarn
+
+      - name: Install
+        run: yarn install --frozen-lockfile
+
+      - name: Scan the specification
+        continue-on-error: true
+        run: yarn spec:check
+
   # The audit log is append-only (SUP-04). This asserts it at the level that
   # matters — the routes the server actually exposes — rather than trusting
   # that nobody adds a handler.

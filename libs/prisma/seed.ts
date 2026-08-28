@@ -485,11 +485,13 @@ async function seedRequestTypes(companies: { id: string; code: string }[]) {
       requiredDocs: [
         { code: 'QUOTE_DRAFT', name: 'ใบเสนอราคาฉบับร่าง' },
       ],
+      // §16 A2 and หน้าที่ 5 both print this list; the screen offers exactly
+      // these and the server validates against them (REQ-04).
       returnReasonCodes: [
         { code: 'DOC_INCOMPLETE', label: 'เอกสารไม่ครบ' },
-        { code: 'PRICE_UNCLEAR', label: 'ราคา/ส่วนลดไม่ชัดเจน' },
-        { code: 'NEED_APPROVAL_ABOVE', label: 'ต้องขออนุมัติระดับสูงกว่า' },
-        { code: 'OTHER', label: 'อื่น ๆ' },
+        { code: 'MARGIN_WRONG', label: 'ตัวเลข margin ไม่ถูกต้อง' },
+        { code: 'REASON_INSUFFICIENT', label: 'เหตุผลไม่เพียงพอ' },
+        { code: 'OTHER', label: 'อื่น ๆ (ระบุ)' },
       ],
       // The amount field is what APV-02 measures against the matrix ceilings.
       approvalPolicy: { mode: 'standard_chain', amount_field: 'deal_value' },

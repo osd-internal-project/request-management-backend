@@ -12,7 +12,7 @@ v1.5 adds §5.4 (the seed permission matrix per role) and screen **A4**.
 > **อย่าอ่านต้นฉบับด้วยตาเปล่า — ใช้คำสั่ง**
 >
 >     yarn spec:extract   # เปลือก → docs/source/spec.txt (fail ถ้าได้ < 500 บรรทัด)
->     yarn spec:check     # เทียบหัวข้อ · หน้าจอ §16 · ข้อค้างใน PROGRESS.md
+>     yarn spec:check     # เทียบหัวข้อ · รหัสข้อกำหนด · §10/§11 · เนื้อหาหน้าจอ §16
 >
 > สคริปต์นี้มีเพราะการ "ตรวจเอกสารแล้ว" สามรอบติดกันรายงานว่าครบ ทั้งที่ §5.4
 > และหน้า A4 หายไปทั้งหัวข้อ · คำบรรยายตรวจสอบไม่ได้ output ตรวจสอบได้
@@ -443,7 +443,7 @@ Every error uses one shape:
 | `GET /request-types` | `request.create` | types this user may raise in the active company, **with form schema, required documents and SLA** — the frontend renders the form from this (REQ-01) |
 | `POST /requests` | `request.create` | `{"type_code","form_data":{...},"ref_type","ref_id"}` — a draft. No number yet, freely editable |
 | `PATCH /requests/{id}` | draft owner | `form_data` editable **only** in `draft` and `returned`; anything else is `409 REQ_STATE_INVALID` |
-| `POST /requests/{id}/attachments`, `DELETE .../{attId}` | draft owner | multipart upload, type/size limited by config; deletable only in draft/returned |
+| `POST /requests/{id}/attachments`, `DELETE /requests/{id}/attachments/{attachment_id}` | draft owner | multipart upload, type/size limited by config; deletable only in draft/returned |
 | `POST /requests/{id}/submit` | draft owner | **the point the number is issued**, the SLA clock starts and the approval case opens. Required fields/documents are checked first, else `422` listing what is missing (REQ-02, REQ-03). No supervisor in the org chart → `422 ORG_SUPERVISOR_MISSING` |
 | `GET /requests?view=mine\|involved` | `request.read` | scoped list; filters `status`, `type_code`, `due_before`, `overdue=true` (REQ-08) |
 | `GET /requests/{id}` | `request.read` + scope | full detail + approval chain state + sensitive fields masked by permission; outside scope → 404 |
@@ -508,7 +508,7 @@ configuration it was submitted under.
 | `GET /approvals/{caseId}` | in the chain + scope | subject, the snapshot as submitted, every rung with its outcome (SCOPE-06) |
 | `POST /approvals/{caseId}/decide` | current approver (or their delegate) | `{"decision":"approve\|reject\|return","note","snapshot_version"}` · reject/return require `note` · stale `snapshot_version` → `409 APV_VERSION_STALE` (APV-05) · not your rung → `409 APV_NOT_YOUR_TURN` |
 | `POST /approvals/batch-decide` | `approval.decide` | `{"case_ids":[...],"decision":"approve","note"}` — only cases on the **same reference** waiting on the **same person**; each is recorded separately (APV-04) |
-| `GET`/`POST /approvals/delegations`, `DELETE .../{id}` | `approval.decide` | `{"delegate_user_id","from","to","note"}` · overlapping an existing window → `409` · sub-delegation → `422 APV_NO_SUBDELEGATION` (APV-03) |
+| `GET`/`POST /approvals/delegations`, `DELETE /approvals/delegations/{id}` | `approval.decide` | `{"delegate_user_id","from","to","note"}` · overlapping an existing window → `409` · sub-delegation → `422 APV_NO_SUBDELEGATION` (APV-03) |
 | `GET /admin/approval-matrix?company_id=`, `POST /admin/approval-matrix` | `admin.approval-matrix.manage` | publishes a whole new version per (company, subject type). Old versions stay readable; **editing in place is forbidden** (APV-01) |
 | `GET /approvals/history` | `approval.history.read` (auditor/executive) | authority-usage report: filter by approver, period, type, amount, including approvals made on someone's behalf · CSV export (APV-06) |
 | `POST /integrations/approval-cases` | service, `integration.approval.create` | another module raises an approval without a Platform Request: `{"subject_type","subject_id","company_id","amount","currency","payload","callback_event"}` — the outcome is published to `callback_event` (APV-07) |

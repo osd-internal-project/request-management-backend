@@ -1,28 +1,48 @@
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const ROOT = join(__dirname, '..');
 const WORKSPACE = join(ROOT, '..');
 const SPEC_TXT = join(ROOT, 'docs', 'source', 'spec.txt');
 const OUR_DOC = join(ROOT, 'docs', 'ctd-foundation-spec.md');
+const CHECKLIST = join(ROOT, 'docs', 'screen-checklist.json');
+const SCHEMA = join(ROOT, 'libs', 'prisma', 'schema.prisma');
+const SEED = join(ROOT, 'libs', 'prisma', 'seed.ts');
+const CATALOG = join(ROOT, 'libs', 'share', 'src', 'errors', 'app-error.ts');
+const SERVICES = join(ROOT, 'services');
+const LIBS = join(ROOT, 'libs');
 const FRONTEND_SRC = join(WORKSPACE, 'request-management-frontend', 'src');
-const PROGRESS = join(WORKSPACE, 'PROGRESS.md');
+const REPORT = join(ROOT, 'docs', 'spec-coverage.md');
 
 /**
- * Prints the differences between the source specification and this repository.
+ * Reports where the source specification and this repository disagree.
  *
  * It exists because "I checked the document" is a claim, and a claim cannot be
- * reviewed. Three separate passes were reported as complete while §5.4 and
- * screen A4 were missing entirely. The output of this command can be read by
- * someone who does not trust the person running it — that is the point, so
- * ask for this output rather than for a description of it.
+ * reviewed. Three separate passes reported the document as covered while §5.4
+ * and screen A4 were missing entirely; a fourth reported A1 and A2 complete
+ * while both were half-built, because the only screen check was whether a
+ * marker comment existed.
  *
- * Exits non-zero when anything is missing, so CI can run it too.
+ * So every check that was once done by hand lives here instead. Ask for this
+ * output rather than for a description of it — a description is not evidence.
+ *
+ * Writes `docs/spec-coverage.md` as well, so the state is visible without
+ * running anything. Exits non-zero on any gap.
  */
 interface Report {
   readonly heading: string;
   readonly missing: readonly string[];
   readonly note?: string;
+  /** Advisory reports print but do not fail the run. */
+  readonly advisory?: boolean;
+}
+
+interface ScreenSpec {
+  readonly title: string;
+  readonly note?: string;
+  readonly ui?: readonly string[];
+  readonly seed?: readonly string[];
+  readonly sample?: readonly string[];
 }
 
 function read(path: string, label: string): string {
@@ -34,45 +54,50 @@ function read(path: string, label: string): string {
   }
 }
 
-/** Every `.tsx` under the frontend, so screen markers are found wherever they live. */
-function tsxFiles(dir: string): string[] {
+function filesUnder(dir: string, match: (name: string) => boolean): string[] {
   const found: string[] = [];
 
   for (const entry of readdirSync(dir)) {
+    if (entry === 'node_modules' || entry === 'dist' || entry === '.next') {
+      continue;
+    }
+
     const path = join(dir, entry);
 
-    if (statSync(path).isDirectory()) found.push(...tsxFiles(path));
-    else if (entry.endsWith('.tsx')) found.push(path);
+    if (statSync(path).isDirectory()) found.push(...filesUnder(path, match));
+    else if (match(entry)) found.push(path);
   }
 
   return found;
 }
 
-/**
- * Screen headings as §16 writes them: `หน้าที่ 3 — …` and `หน้า A2 — …`.
- * Normalised to `หน้าที่ 3` / `A2` so a marker in the code can match.
- */
-function screensInSource(spec: string): string[] {
-  const screens = new Set<string>();
-
-  for (const line of spec.split('\n')) {
-    const numbered = /หน้าที่ (\d+) —/.exec(line);
-    if (numbered) screens.add(`หน้าที่ ${numbered[1]}`);
-
-    const admin = /หน้า (A\d+) —/.exec(line);
-    if (admin) screens.add(admin[1]);
-  }
-
-  return [...screens];
+function concat(files: readonly string[]): string {
+  return files.map((file) => readFileSync(file, 'utf-8')).join('\n');
 }
+
+/**
+ * Source with comments removed.
+ *
+ * A screen check must look at what the page renders, not at what the code says
+ * about itself. Comments quote the mockup constantly — `as §16 writes it:
+ * \`100,001 – 1,000,000\`` — which made sample data look leaked and would let a
+ * required phrase "pass" while appearing only in a JSDoc block.
+ */
+function withoutComments(source: string): string {
+  return source
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/(^|[^:])\/\/.*$/gm, '$1');
+}
+
+// --- pass 1: top-level sections -------------------------------------------
 
 function sectionsInSource(spec: string): string[] {
   const sections = new Map<number, string>();
 
   for (const line of spec.split('\n')) {
-    // Headings are zero-padded `01 …` through `16 …`. The padding is what
-    // separates them from mockup data that also starts with two digits —
-    // `24 ชั่วโมงทำการ`, `23 ส.ค. 2569` — which an unpadded match swallows.
+    // Headings are zero-padded `01` … `16`. The padding is what separates them
+    // from mockup data that also starts with two digits — `24 ชั่วโมงทำการ`,
+    // `23 ส.ค. 2569` — which an unpadded match swallows.
     const match = /^\s*(0[1-9]|1[0-6]) (\S.*)$/.exec(line);
     if (!match) continue;
 
@@ -85,77 +110,221 @@ function sectionsInSource(spec: string): string[] {
     .map(([number, title]) => `${number}. ${title}`);
 }
 
-function subSectionsInSource(spec: string): string[] {
-  const subs: string[] = [];
-
-  for (const line of spec.split('\n')) {
-    const match = /^\s*(\d{1,2}\.\d) (\S.*)$/.exec(line);
-    if (match) subs.push(`${match[1]} ${match[2].trim()}`);
-  }
-
-  return subs;
-}
-
 function checkSections(spec: string, ours: string): Report {
   const ourNumbers = new Set(
     [...ours.matchAll(/^## (\d+)\./gm)].map((match) => Number(match[1])),
   );
+  const sections = sectionsInSource(spec);
 
-  const missing = sectionsInSource(spec).filter(
-    (section) => !ourNumbers.has(Number(section.split('.')[0])),
+  return {
+    heading: `หัวข้อหลัก — ต้นฉบับ ${sections.length} · เอกสารเรา ${ourNumbers.size}`,
+    missing: sections.filter(
+      (section) => !ourNumbers.has(Number(section.split('.')[0])),
+    ),
+  };
+}
+
+// --- pass 2 & 3: requirement codes ----------------------------------------
+
+/** Codes sit on a line of their own in the extracted text. */
+function requirementCodes(spec: string): string[] {
+  const codes = new Set<string>();
+
+  for (const line of spec.split('\n')) {
+    const match = /^\s*((?:AUTH|ROLE|SCOPE|REQ|APV|SUP|NFR)-\d{2})\s*$/.exec(
+      line,
+    );
+    if (match) codes.add(match[1]);
+  }
+
+  return [...codes].sort();
+}
+
+function checkRequirementsDocumented(spec: string, ours: string): Report {
+  const codes = requirementCodes(spec);
+
+  return {
+    heading: `ข้อกำหนด ${codes.length} ข้อ — อยู่ในเอกสารเรา`,
+    missing: codes.filter((code) => !ours.includes(code)),
+  };
+}
+
+function checkRequirementsTested(spec: string): Report {
+  const codes = requirementCodes(spec);
+  const tests = concat([
+    ...filesUnder(SERVICES, (name) => name.endsWith('.spec.ts')),
+    ...filesUnder(LIBS, (name) => name.endsWith('.spec.ts')),
+  ]);
+
+  const untested = codes.filter((code) => !tests.includes(code));
+
+  return {
+    heading: `ข้อกำหนด ${codes.length} ข้อ — ผูกกับ test แล้ว ${codes.length - untested.length}`,
+    missing: untested,
+    note: '§14 — ทุกรหัสควรมี test ที่เอ่ยชื่อรหัสนั้น',
+    // Advisory: naming a code in a test title is a documentation habit, and
+    // failing the build on it today would block every unrelated change.
+    advisory: true,
+  };
+}
+
+// --- pass 4: §10 entities --------------------------------------------------
+
+const SPEC_ENTITIES = `company user user_company org_unit org_closure role permission
+role_permission user_role keycloak_role_mapping scope_rule sensitive_field_rule
+request_type request request_attachment request_return_reason request_event
+doc_number_config doc_number_counter approval_matrix approval_case approval_step
+delegation sla_config sla_clock holiday_calendar notification
+notification_delivery_log audit_log`
+  .split(/\s+/)
+  .filter(Boolean);
+
+function checkEntities(): Report {
+  const schema = read(SCHEMA, 'schema.prisma');
+  const models = new Set(
+    [...schema.matchAll(/^model\s+(\w+)/gm)].map(([, name]) =>
+      name.replace(/(?<!^)(?=[A-Z])/g, '_').toLowerCase(),
+    ),
   );
 
   return {
-    heading: `หัวข้อหลัก — ต้นฉบับ ${sectionsInSource(spec).length} · เอกสารเรา ${ourNumbers.size}`,
-    missing,
+    heading: `§10 entity ${SPEC_ENTITIES.length} ตัว — schema มี ${models.size} model`,
+    missing: SPEC_ENTITIES.filter((entity) => !models.has(entity)),
   };
 }
 
-function checkSubSections(spec: string, ours: string): Report {
-  const missing = subSectionsInSource(spec).filter((sub) => {
-    const number = sub.split(' ')[0];
+// --- pass 5: §7.1 statuses -------------------------------------------------
 
-    return !ours.includes(`§${number}`) && !ours.includes(`### ${number}`);
-  });
+const SPEC_STATUSES = [
+  'draft',
+  'submitted',
+  'returned',
+  'pending_approval',
+  'approved',
+  'rejected',
+  'in_progress',
+  'completed',
+  'cancelled',
+];
+
+function checkStatuses(): Report {
+  const schema = read(SCHEMA, 'schema.prisma');
+  const block = /enum RequestStatus \{([\s\S]*?)\}/.exec(schema)?.[1] ?? '';
 
   return {
-    heading: 'หัวข้อย่อย — ตรวจว่าเอกสารเราอ้างถึงครบ',
-    missing,
-    note: 'ตรวจแบบหลวม: ผ่านถ้าเอกสารเราเอ่ยถึงเลขหัวข้อนั้นที่ไหนก็ได้',
+    heading: `§7.1 สถานะ ${SPEC_STATUSES.length} ตัว`,
+    missing: SPEC_STATUSES.filter(
+      (status) => !new RegExp(`\\b${status}\\b`).test(block),
+    ),
   };
 }
 
-function checkScreens(spec: string): Report {
-  const markers = tsxFiles(FRONTEND_SRC)
-    .map((file) => readFileSync(file, 'utf-8'))
-    .join('\n');
+// --- pass 6: §11.9 error codes --------------------------------------------
 
-  const missing = screensInSource(spec).filter(
-    (screen) => !markers.includes(`Screen §16 ${screen}`) &&
-      !markers.includes(`Screen ${screen}`),
+function checkErrorCodes(spec: string): Report {
+  const section = spec.slice(spec.indexOf('11.9'), spec.indexOf('\n 12 '));
+  const declared = new Set(
+    [...read(CATALOG, 'app-error.ts').matchAll(/^\s+([A-Z][A-Z_]{5,}):/gm)].map(
+      ([, code]) => code,
+    ),
   );
 
+  const inSpec = [
+    ...new Set([...section.matchAll(/\b([A-Z][A-Z_]{6,})\b/g)].map(([, c]) => c)),
+  ].sort();
+
   return {
-    heading: `หน้าจอ §16 — ประกาศไว้ ${screensInSource(spec).length} หน้า`,
-    missing,
-    note: 'นับจาก comment `Screen §16 …` ในไฟล์ .tsx — หน้าที่ไม่มี marker ถือว่ายังไม่ได้ทำ',
+    heading: `§11.9 error code ${inSpec.length} ตัว`,
+    missing: inSpec.filter((code) => !declared.has(code)),
   };
 }
 
-function checkProgress(): Report {
-  const progress = read(PROGRESS, 'PROGRESS.md');
+// --- pass 7: §11 endpoints -------------------------------------------------
 
-  const open = progress
-    .split('\n')
-    .filter((line) => /^\s*- \[ \]/.test(line))
-    .map((line) => line.trim().replace(/^- \[ \]\s*/, ''));
+function checkEndpoints(spec: string, ours: string): Report {
+  const paths = [
+    ...new Set(
+      [...spec.matchAll(/(?:GET|POST|PATCH|PUT|DELETE) (\/[a-z0-9{}/_-]+)/g)].map(
+        ([, path]) => path,
+      ),
+    ),
+  ].sort();
 
+  // Compared against our own §11 write-up rather than the controllers: the
+  // controllers split paths across a `@Controller` prefix and a method
+  // decorator, so the full path never appears as one string in the source.
+  //
+  // Compared verbatim, `{id}` included — our document writes them the same
+  // way. Stripping the braces produced `/requests//submit`, which matched
+  // nothing and reported 13 healthy endpoints as missing.
   return {
-    heading: `PROGRESS.md — งานที่ยังไม่ปิด ${open.length} ข้อ`,
-    missing: open,
-    note: 'ห้ามรายงานว่า phase เสร็จ ถ้ายังมีข้อค้างใต้ phase นั้น',
+    heading: `§11 endpoint ${paths.length} เส้น — อยู่ในเอกสารเรา`,
+    missing: paths.filter((path) => !ours.includes(path)),
   };
 }
+
+// --- pass 8: §16 screens ---------------------------------------------------
+
+function checkScreens(): {
+  readonly reports: readonly Report[];
+  readonly rows: readonly string[];
+} {
+  const checklist = JSON.parse(read(CHECKLIST, 'screen-checklist.json')) as
+    Record<string, ScreenSpec | unknown>;
+
+  const ui = withoutComments(
+    concat(
+      filesUnder(
+        FRONTEND_SRC,
+        (name) => name.endsWith('.tsx') || name.endsWith('.ts'),
+      ),
+    ),
+  );
+  const seed = read(SEED, 'seed.ts');
+
+  const reports: Report[] = [];
+  const rows: string[] = [];
+
+  for (const [key, value] of Object.entries(checklist)) {
+    if (key.startsWith('$')) continue;
+
+    const screen = value as ScreenSpec;
+    const missing: string[] = [];
+
+    for (const phrase of screen.ui ?? []) {
+      if (!ui.includes(phrase)) missing.push(`ui: ${phrase}`);
+    }
+
+    for (const phrase of screen.seed ?? []) {
+      if (!seed.includes(phrase)) missing.push(`seed: ${phrase}`);
+    }
+
+    // Sample data must be absent. A mockup name appearing in the source means
+    // filler was copied in as if it were a feature.
+    for (const phrase of screen.sample ?? []) {
+      if (ui.includes(phrase)) missing.push(`sample leaked into code: ${phrase}`);
+    }
+
+    const total = (screen.ui?.length ?? 0) + (screen.seed?.length ?? 0);
+
+    reports.push({
+      heading: `${screen.title} — ${total - missing.length}/${total}`,
+      missing,
+      note: screen.note,
+      advisory: Boolean(screen.note),
+    });
+
+    rows.push(
+      `| ${screen.title} | ${total - missing.length}/${total} | ${
+        missing.length ? missing.slice(0, 3).join(' · ') : '—'
+      } |`,
+    );
+  }
+
+  return { reports, rows };
+}
+
+// --- output ----------------------------------------------------------------
 
 function print(report: Report): boolean {
   console.log(`\n── ${report.heading}`);
@@ -169,7 +338,46 @@ function print(report: Report): boolean {
 
   for (const item of report.missing) console.log(`   ✗ ${item}`);
 
-  return false;
+  return Boolean(report.advisory);
+}
+
+function writeReport(reports: readonly Report[], screenRows: readonly string[]): void {
+  const lines = [
+    '# Specification coverage',
+    '',
+    '> **Generated by `yarn spec:check` — do not edit by hand.**',
+    '> Editing this file would recreate the problem it exists to solve: a',
+    '> document claiming coverage that nothing verifies. CI regenerates it and',
+    '> fails if the result differs from what was committed.',
+    '',
+    '## Screens (§16)',
+    '',
+    '| Screen | Covered | Missing |',
+    '|---|---|---|',
+    ...screenRows,
+    '',
+    '## Everything else',
+    '',
+    '| Check | Result |',
+    '|---|---|',
+    ...reports.map(
+      (report) =>
+        `| ${report.heading} | ${
+          report.missing.length ? `✗ ${report.missing.length}` : '✓'
+        } |`,
+    ),
+    '',
+  ];
+
+  for (const report of reports) {
+    if (!report.missing.length) continue;
+
+    lines.push(`### ${report.heading}`, '');
+    for (const item of report.missing) lines.push(`- ${item}`);
+    lines.push('');
+  }
+
+  writeFileSync(REPORT, lines.join('\n'), 'utf-8');
 }
 
 function main(): void {
@@ -178,21 +386,30 @@ function main(): void {
 
   console.log(`ต้นฉบับ: ${spec.split('\n').length} บรรทัด`);
 
-  const results = [print(checkSections(spec, ours)), print(checkScreens(spec))];
+  const screens = checkScreens();
 
-  // These two are reported without failing the run. Outstanding work should
-  // stay visible rather than break the build, and the sub-section pass is a
-  // citation check — our document covers 5.1/6.1/7.2 in prose without quoting
-  // the number, which is a traceability gap, not a missing requirement.
-  print(checkSubSections(spec, ours));
-  print(checkProgress());
+  const reports: Report[] = [
+    checkSections(spec, ours),
+    checkRequirementsDocumented(spec, ours),
+    checkEntities(),
+    checkStatuses(),
+    checkErrorCodes(spec),
+    checkEndpoints(spec, ours),
+    ...screens.reports,
+    checkRequirementsTested(spec),
+  ];
 
-  if (results.includes(false)) {
+  const passed = reports.map(print);
+
+  writeReport(reports, screens.rows);
+  console.log(`\nเขียน ${REPORT}`);
+
+  if (passed.includes(false)) {
     console.log('\nมีส่วนต่างระหว่างต้นฉบับกับ repo');
     process.exit(1);
   }
 
-  console.log('\nเอกสารตรงกับต้นฉบับ');
+  console.log('\nตรงกับต้นฉบับ');
 }
 
 main();

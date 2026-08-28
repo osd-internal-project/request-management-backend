@@ -4,8 +4,17 @@ CTD spec §11. The live contract is the OpenAPI generated at `/api/docs` on each
 service — this file holds the conventions that generated document cannot
 express, and the endpoint map with delivery status.
 
-**Status:** ✅ implemented · 🟡 route + permission declared, handler returns
-`501 NOT_IMPLEMENTED` naming the requirement
+**Status:** ✅ implemented and verified against a running service.
+
+> Every row read 🟡 (*"route declared, handler returns `501`"*) until 28 Aug
+> 2026. All thirteen unimplemented handlers were closed, and `grep` now finds
+> no `NOT_IMPLEMENTED` thrown anywhere — `common/not-implemented.ts` is dead
+> code. The markers were left behind and made this page claim the entire
+> Request Service was unbuilt.
+>
+> This file is hand-maintained, so it can drift again. The generated OpenAPI
+> (`yarn openapi` → `docs/openapi/*.json`) is the contract; `yarn spec:check`
+> reports differences against the specification.
 
 ---
 
@@ -135,7 +144,7 @@ permissions" from "waiting for an admin".
 
 | Endpoint | Permission | Requirement | Status |
 |---|---|---|---|
-| `GET /request-types` | `request.create` | REQ-01 | 🟡 |
+| `GET /request-types` | `request.create` | REQ-01 | ✅ |
 
 > **Group D approval endpoints are delivered.** `GET /approvals/inbox` (includes
 > work covered under a delegation), `GET /approvals/{caseId}` (margin masked
@@ -145,24 +154,24 @@ permissions" from "waiting for an admin".
 > `GET/POST/DELETE /approvals/delegations`, `GET /approvals/history`,
 > `GET/POST /admin/approval-matrix` (publish-only; no update path), and
 > `POST /integrations/approval-cases` (service account only).
-| `POST /requests` | `request.create` | draft; no number yet | 🟡 |
-| `PATCH /requests/{id}` | `request.create` | draft/returned only, else `409 REQ_STATE_INVALID` | 🟡 |
-| `POST /requests/{id}/attachments` | `request.create` | REQ-03 | 🟡 |
-| `DELETE /requests/{id}/attachments/{attachmentId}` | `request.create` | draft/returned only | 🟡 |
-| `POST /requests/{id}/submit` | `request.create` | issues the number, starts the clock, creates the approval case. Missing docs → `422 REQ_DOC_MISSING`; no supervisor → `422 ORG_SUPERVISOR_MISSING` | 🟡 |
-| `GET /requests?view=mine\|involved` | `request.read` | REQ-08 | 🟡 |
-| `GET /requests/{id}` | `request.read` | masked per SCOPE-04; out of scope → 404 | 🟡 |
-| `GET /requests/{id}/events` | `request.read` | REQ-07 | 🟡 |
-| `POST /requests/{id}/return` | `request.return` | needs ≥1 reason code (REQ-04); pauses the clock | 🟡 |
-| `POST /requests/{id}/resubmit` | `request.create` | same number, clock resumes | 🟡 |
-| `POST /requests/{id}/cancel` | `request.cancel.own` / `.any` | reason required (REQ-05) | 🟡 |
-| `POST /requests/{id}/hold` | `request.hold` | §7.1 amendment; in_progress only; reason required; pauses the clock | 🟡 |
-| `POST /requests/{id}/resume` | `request.hold` | on_hold only; clock resumes owing the same remaining hours | 🟡 |
-| `POST /requests/{id}/complete` | `request.complete` | | 🟡 |
-| `GET /reports/request-bottleneck` | `report.request.read` | REQ-09 | 🟡 |
+| `POST /requests` | `request.create` | draft; no number yet | ✅ |
+| `PATCH /requests/{id}` | `request.create` | draft/returned only, else `409 REQ_STATE_INVALID` | ✅ |
+| `POST /requests/{id}/attachments` | `request.create` | REQ-03 | ✅ |
+| `DELETE /requests/{id}/attachments/{attachmentId}` | `request.create` | draft/returned only | ✅ |
+| `POST /requests/{id}/submit` | `request.create` | issues the number, starts the clock, creates the approval case. Missing docs → `422 REQ_DOC_MISSING`; no supervisor → `422 ORG_SUPERVISOR_MISSING` | ✅ |
+| `GET /requests?view=mine\|involved` | `request.read` | REQ-08 | ✅ |
+| `GET /requests/{id}` | `request.read` | masked per SCOPE-04; out of scope → 404 | ✅ |
+| `GET /requests/{id}/events` | `request.read` | REQ-07 | ✅ |
+| `POST /requests/{id}/return` | `request.return` | needs ≥1 reason code (REQ-04); pauses the clock | ✅ |
+| `POST /requests/{id}/resubmit` | `request.create` | same number, clock resumes | ✅ |
+| `POST /requests/{id}/cancel` | `request.cancel.own` / `.any` | reason required (REQ-05) | ✅ |
+| `POST /requests/{id}/hold` | `request.hold` | §7.1 amendment; in_progress only; reason required; pauses the clock | ✅ |
+| `POST /requests/{id}/resume` | `request.hold` | on_hold only; clock resumes owing the same remaining hours | ✅ |
+| `POST /requests/{id}/complete` | `request.complete` | | ✅ |
+| `GET /reports/request-bottleneck` | `report.request.read` | REQ-09 | ✅ |
 | `GET /bi/menu` | `report.dashboard.read` | CD-92: BI menu — dashboards as short-lived signed Metabase embed URLs; `settings_url` only for `admin.bi.manage` | ✅ |
-| `POST /integrations/requests` | `integration.request.create` | service accounts; `"source":"system"` (REQ-10) | 🟡 |
-| `GET/POST /admin/request-types`, `PATCH /admin/request-types/{code}` | `admin.request-type.manage` | edits apply to new requests only | 🟡 |
+| `POST /integrations/requests` | `integration.request.create` | service accounts; `"source":"system"` (REQ-10) | ✅ |
+| `GET/POST /admin/request-types`, `PATCH /admin/request-types/{code}` | `admin.request-type.manage` | edits apply to new requests only | ✅ |
 
 ---
 
@@ -170,14 +179,14 @@ permissions" from "waiting for an admin".
 
 | Endpoint | Permission | Requirement | Status |
 |---|---|---|---|
-| `GET /approvals/inbox` | `approval.decide` | includes delegated work, ordered by due | 🟡 |
-| `GET /approvals/{caseId}` | `approval.decide` | subject, snapshot, full chain (SCOPE-06) | 🟡 |
-| `POST /approvals/{caseId}/decide` | `approval.decide` | `{decision, note, snapshot_version}`; stale → `409 APV_VERSION_STALE`; wrong step → `409 APV_NOT_YOUR_TURN` | 🟡 |
-| `POST /approvals/batch-decide` | `approval.decide` | same reference, same pending approver; logged per case (APV-04) | 🟡 |
-| `GET/POST /approvals/delegations`, `DELETE /approvals/delegations/{id}` | `approval.delegate` | overlap → `409 DELEGATION_OVERLAP`; sub-delegation → `422 APV_NO_SUBDELEGATION` | 🟡 |
-| `GET/POST /admin/approval-matrix` | `admin.approval-matrix.manage` | POST publishes a **new version**; published versions are immutable (APV-01) | 🟡 |
-| `GET /approvals/history` | `approval.history.read` | CSV export (APV-06) | 🟡 |
-| `POST /integrations/approval-cases` | `integration.approval.create` | raise a case with no request record (APV-07) | 🟡 |
+| `GET /approvals/inbox` | `approval.decide` | includes delegated work, ordered by due | ✅ |
+| `GET /approvals/{caseId}` | `approval.decide` | subject, snapshot, full chain (SCOPE-06) | ✅ |
+| `POST /approvals/{caseId}/decide` | `approval.decide` | `{decision, note, snapshot_version}`; stale → `409 APV_VERSION_STALE`; wrong step → `409 APV_NOT_YOUR_TURN` | ✅ |
+| `POST /approvals/batch-decide` | `approval.decide` | same reference, same pending approver; logged per case (APV-04) | ✅ |
+| `GET/POST /approvals/delegations`, `DELETE /approvals/delegations/{id}` | `approval.delegate` | overlap → `409 DELEGATION_OVERLAP`; sub-delegation → `422 APV_NO_SUBDELEGATION` | ✅ |
+| `GET/POST /admin/approval-matrix` | `admin.approval-matrix.manage` | POST publishes a **new version**; published versions are immutable (APV-01) | ✅ |
+| `GET /approvals/history` | `approval.history.read` | CSV export (APV-06) | ✅ |
+| `POST /integrations/approval-cases` | `integration.approval.create` | raise a case with no request record (APV-07) | ✅ |
 
 ### Chain calculation at submit
 
@@ -199,11 +208,11 @@ Implemented as pure functions in
 
 | Endpoint | Permission | Requirement | Status |
 |---|---|---|---|
-| `GET/PUT /admin/sla-configs` | `admin.sla.manage` | SUP-01, D-09 | 🟡 |
-| `GET /admin/holiday-calendars`, `PUT /admin/holiday-calendars/{companyId}` | `admin.sla.manage` | one calendar per company this sprint | 🟡 |
-| `GET /notifications?unread=true` | `notification.read` | | 🟡 |
-| `POST /notifications/{id}/read`, `POST /notifications/read-all` | `notification.read` | | 🟡 |
-| `GET/PUT /notifications/preferences` | any signed-in user | email is optional per event; in-app cannot be disabled | 🟡 |
+| `GET/PUT /admin/sla-configs` | `admin.sla.manage` | SUP-01, D-09 | ✅ |
+| `GET /admin/holiday-calendars`, `PUT /admin/holiday-calendars/{companyId}` | `admin.sla.manage` | one calendar per company this sprint | ✅ |
+| `GET /notifications?unread=true` | `notification.read` | | ✅ |
+| `POST /notifications/{id}/read`, `POST /notifications/read-all` | `notification.read` | | ✅ |
+| `GET/PUT /notifications/preferences` | any signed-in user | email is optional per event; in-app cannot be disabled | ✅ |
 
 ---
 

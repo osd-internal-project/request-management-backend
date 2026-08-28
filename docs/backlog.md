@@ -1,5 +1,26 @@
 # Remaining work — audited against the code, 25 Aug 2026
 
+> ## ⚠️ Superseded — do not plan from this file
+>
+> Re-checked 28 Aug 2026 and **two of its central claims are now false**:
+>
+> - *"Every 🟡 throws `501`"* — **no 501 handler remains.** All thirteen were
+>   closed, including REQ-02 document numbering and SUP-01's SLA clock, which
+>   this page lists as having "no code at all".
+> - *"All 17 tables"* — the schema has **32 models**.
+>
+> For current state use, in this order:
+>
+> 1. **`yarn spec:check`** — scans the source specification and reports every
+>    difference. It is the only account that cannot go stale, because it is
+>    generated on the spot.
+> 2. [`spec-coverage.md`](./spec-coverage.md) — the committed output of that
+>    command; CI fails if it drifts.
+>
+> Kept rather than deleted: the "what is already built that this work stands
+> on" table below is still an accurate map of where the hard rules live, and
+> the S2/S3 reasoning records why the work was sequenced as it was.
+
 Derived from `docs/ctd-foundation-spec.md` by checking each requirement against
 what the repository actually contains, not against what the status column
 claimed. Every 🟡 below means the route and its permission are declared and

@@ -7,24 +7,23 @@ the code and in test names.
 
 ## Working to the plan
 
-Multi-phase work is tracked in two files: the plan (under `~/.claude/plans/`) and
-[`../PROGRESS.md`](../PROGRESS.md) at the repo parent. Both are authoritative; memory of
-them is not. These rules exist because all four were broken in the same sprint.
+**The plan lives under `~/.claude/plans/`.** It is authoritative; memory of it is not.
 
-- Open the plan file and quote the phase heading before starting that phase. Never work
-  from a remembered plan — the file has been rewritten mid-sprint before.
-- Work phases in the written order. Reordering or skipping needs saying so first, with the
-  reason. Phase 6 was built before Phase 1, and the screens that stalled were exactly the
-  ones Phase 1 was supposed to supply.
-- A phase is not done while an unchecked `- [ ]` remains under it in `PROGRESS.md`.
-- Tick `PROGRESS.md` **before** reporting, not after.
-- Report closed/outstanding counts. "Done" without a count is how 9/11 got reported as 11.
-- The checklist posted in chat mirrors `PROGRESS.md` item for item — same wording, same order.
-  Two different lists is how the chat said 11 while the file still held 9 unchecked boxes.
-- Tick `PROGRESS.md` first, then the chat line reporting it. Never the other way round.
-- Report each item **as it closes**, in the next message, not batched into the final summary.
-  A phase here takes dozens of tool calls; a checklist ticked only at the end leaves the whole
-  run invisible, which is exactly the state these rules were written to end.
+There is deliberately **no progress file**. What was built is established by running
+`yarn spec:check`, which reports every difference between the source specification and
+this repository and writes [`docs/spec-coverage.md`](./docs/spec-coverage.md). A
+hand-maintained checklist is a claim; generated output is evidence.
+
+How to work a plan and report a checklist is in `~/.claude/AGENTS.md` and is not
+restated here. What is recorded here is why those rules exist, because every one of
+them was broken in this repo in a single sprint:
+
+- The plan file was rewritten mid-sprint, so a remembered plan was a stale plan.
+- Phase 6 was built before Phase 1 — and the screens that stalled were exactly the ones
+  Phase 1 was supposed to supply.
+- "Done" without a count is how 9 of 11 items got reported as 11.
+- A screen check that only looked for a marker comment passed A1, A2 and A4 while all
+  three were half-built. Check content, not the presence of a label.
 
 ## Non-negotiables
 
