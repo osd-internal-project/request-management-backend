@@ -2,55 +2,110 @@ import { RequestStatus } from '@prisma/client';
 import { AppError } from '@request-management/share';
 
 /**
- * The §7.1 state machine, as data.
- *
- * Written out now, while the spec is the source, because this is the part most
- * likely to drift once handlers are filled in one at a time. Every transition
- * the system permits is in this table; anything absent is impossible through
- * every channel, including a direct API call — which is exactly what §7.1
- * requires.
+ * The request lifecycle, as data.
  *
  * ```
- * draft ──submit──▶ submitted ──▶ pending_approval ──▶ approved ──▶ in_progress ──▶ completed
- *                       │                  │                            │  ▲
- *                       │                  └──reject──▶ rejected    hold│  │resume
- *                       └──return──▶ returned ──resubmit──▶ submitted   ▼  │
- *                                                                     on_hold
+ * draft ──submit──▶ submitted ──receive──▶ in_progress ──complete──▶ completed
+ *                       │                    │  ▲                        │
+ *                       │               hold │  │ resume        has matrix?
+ *                       └──return──▶ returned▼  │                   │    │
+ *                                    │     on_hold                  │    │no
+ *                                    └─resubmit─┘             yes   │    │
+ *                                                                   ▼    ▼
+ *                              in_progress ◀──send back── pending_approval
+ *                                                          │              │
+ *                                                          ▼              ▼
+ *                                                      rejected       approved
+ *                                                                         │
+ *                                                          requester ──close──▶ closed
  *
  * anything before completed ──cancel──▶ cancelled
  * ```
  *
- * `on_hold` (26 Aug 2026) — a request parked mid-execution waiting on an
- * external factor. Reachable only from `in_progress`, resumes to
- * `in_progress`, or is cancelled. Added to carry over ON_HOLD rows from the
- * interim Excel request logs.
+ * **A request is a ticket.** Somebody raises it *for a named person*, that
+ * person accepts it, work happens — possibly broken into further requests —
+ * and only then is the result checked and the ticket closed by whoever asked.
  *
- * **This state is not in §7.1 of the source specification.** It is a
- * deliberate local amendment awaiting PO sign-off — §2 requires that any
- * design conflicting with the agreed document go through the PO. Do not cite
- * §7.1 as its authority; if the PO declines it, this row, the enum value and
- * migration `20260826040000_request_on_hold` all come back out.
+ * # Two amendments live here, and neither is in the source specification
+ *
+ * `on_hold` (26 Aug 2026) — work parked mid-execution waiting on an external
+ * factor. Reachable only from `in_progress`, resumes to `in_progress`, or is
+ * cancelled. Added to carry over `ON_HOLD` rows from the interim Excel request
+ * logs without collapsing them into `in_progress`.
+ *
+ * `closed` (28 Aug 2026) — a completed request the requester has accepted.
+ * Terminal. The source records eleven statuses and this system had ten; folding
+ * `CLOSED` into `completed` would erase the distinction the departments kept.
+ *
+ * # And one reversal, which is larger than either
+ *
+ * **Approval runs *after* the work, not before it** (28 Aug 2026).
+ *
+ * §7.1 sequences `pending_approval → approved → in_progress`: permission to
+ * start. The departments' own logs do the opposite — `06_EXAMPLE` shows work
+ * received and completed first, with approval as the check on the result — and
+ * eighteen of the forty request types carry no approval step at all ("คำขอนี้
+ * ไม่มีชั้นอนุมัติ (Pattern C)"). A ladder every request had to climb before
+ * anyone could start was a ladder most requests did not have.
+ *
+ * So `completed` now branches: a type with an approval matrix goes to
+ * `pending_approval` for a check, and a type without one goes straight to
+ * `approved`. Sending back from that check returns the ticket to
+ * `in_progress` — to the team that did the work, not to the requester.
+ *
+ * **None of this is §7.1's authority; all of it awaits PO sign-off** — §2
+ * requires a design conflicting with the agreed document to go through the PO.
+ * Do not cite §7.1 or §8.1 for any of it. If the PO declines, what comes out
+ * is: this table, the `on_hold`/`closed` enum values, the `CLOCK_PAUSED_IN`
+ * entries, the ticket columns on `Request`, and migrations
+ * `20260826040000_request_on_hold`, `20260828120000_request_closed` and
+ * `20260828190000_request_ticket_model`.
  */
 export const REQUEST_TRANSITIONS: Readonly<
   Record<RequestStatus, readonly RequestStatus[]>
 > = {
   draft: ['submitted', 'cancelled'],
-  submitted: ['pending_approval', 'returned', 'in_progress', 'cancelled'],
+  // A submitted request waits for its named receiver to accept it.
+  submitted: ['in_progress', 'returned', 'cancelled'],
   returned: ['submitted', 'cancelled'],
-  pending_approval: ['approved', 'rejected', 'returned', 'cancelled'],
-  approved: ['in_progress', 'cancelled'],
-  rejected: [],
-  in_progress: ['completed', 'on_hold', 'cancelled'],
+  in_progress: ['completed', 'on_hold', 'returned', 'cancelled'],
   on_hold: ['in_progress', 'cancelled'],
-  completed: [],
+  // The branch: a type with an approval matrix is checked, one without is
+  // accepted as it stands. `complete` decides which, and nothing else may.
+  completed: ['pending_approval', 'approved'],
+  // Sending back goes to `in_progress` — the work returns to the team that did
+  // it. `returned` means "back with the requester", which is a different place.
+  pending_approval: ['approved', 'in_progress', 'rejected', 'cancelled'],
+  // Only the requester closes, and only after the result has been accepted.
+  approved: ['closed', 'cancelled'],
+  rejected: [],
+  closed: [],
   cancelled: [],
 };
 
 /** Statuses from which nothing further can happen. */
 export const TERMINAL_STATUSES: readonly RequestStatus[] = [
   'rejected',
-  'completed',
+  'closed',
   'cancelled',
+];
+
+/**
+ * The statuses at which a request is still somebody's to finish.
+ *
+ * A parent may not be completed while any child is in one of these — closing a
+ * chain from the top while work continues underneath it is how a request looks
+ * finished and is not.
+ */
+export const OPEN_STATUSES: readonly RequestStatus[] = [
+  'draft',
+  'submitted',
+  'returned',
+  'in_progress',
+  'on_hold',
+  'completed',
+  'pending_approval',
+  'approved',
 ];
 
 /** REQ-02: the point at which the request number is issued and SLA starts. */
@@ -66,6 +121,12 @@ export const CLOCK_PAUSED_IN: readonly RequestStatus[] = [
   'returned',
   'draft',
   'on_hold',
+  // Waiting for the receiver to accept is not the receiving team's working
+  // time — the source is explicit that RECEIVED is where real work starts
+  // ("แผนกปลายทางรับเรื่องแล้ว — เริ่มนับเวลาทำงานจริง"). Counting the wait
+  // here would make a team that answers instantly look identical to one that
+  // leaves a ticket sitting for a week.
+  'submitted',
 ];
 
 /** REQ-01/REQ-03: form data is only editable before it is anyone else's problem. */

@@ -12,7 +12,7 @@ import {
 import type { Principal } from '@request-management/share';
 import type { Prisma, RequestStatus } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
-import { assertTransition } from './request-state-machine';
+import { assertTransition, OPEN_STATUSES } from './request-state-machine';
 import { AttachmentRepository } from './attachment.repository';
 import {
   assertKnownDocCode,
@@ -37,6 +37,7 @@ import {
   CreateRequestDto,
   HoldRequestDto,
   ListRequestsQueryDto,
+  AssignRequestDto,
   ResumeRequestDto,
   ReturnRequestDto,
   UpdateRequestDto,
@@ -70,12 +71,39 @@ export class RequestsService {
 
   // --- REQ-01: types are configuration -----------------------------------
 
+  /**
+   * The types a requester may raise — active, in their active company.
+   *
+   * REQ-01: an inactive type is one still being configured, so offering it on
+   * the submit screen would produce requests nobody can route.
+   */
   listTypes(actor: Principal) {
     return this.types.findMany({
       where: {
         active: true,
         companies: { some: { companyId: actor.activeCompanyId, active: true } },
       },
+      orderBy: { code: 'asc' },
+    });
+  }
+
+  /**
+   * The types an **administrator** may edit — inactive included.
+   *
+   * Screen A2 exists to finish a half-built type, and screen A1 needs the whole
+   * catalog to offer a subject to publish a matrix for. Both were served by
+   * `listTypes` and so could only ever see the active ones: OSD showed 19 of
+   * its 40 types, and the other 21 were uneditable and unroutable at once.
+   *
+   * `companyId` is optional because A1 shows one company per tab, independent
+   * of the header switcher. It goes through `resolveTargetCompany` so asking
+   * for a company you do not belong to is refused, not answered (SCOPE-03).
+   */
+  listAdminTypes(actor: Principal, companyId?: string) {
+    const target = resolveTargetCompany(actor, companyId);
+
+    return this.types.findMany({
+      where: { companies: { some: { companyId: target } } },
       orderBy: { code: 'asc' },
     });
   }
@@ -241,6 +269,10 @@ export class RequestsService {
   async create(dto: CreateRequestDto, actor: Principal) {
     const type = await this.requireType(dto.type_code, actor.activeCompanyId);
 
+    if (dto.parent_request_id) {
+      await this.assertUsableParent(dto.parent_request_id, actor);
+    }
+
     return this.requests.create({
       data: {
         requestTypeId: type.id,
@@ -251,10 +283,46 @@ export class RequestsService {
         formData: (dto.form_data ?? {}) as Prisma.InputJsonValue,
         refType: dto.ref_type ?? null,
         refId: dto.ref_id ?? null,
+        receiverUserId: dto.receiver_user_id ?? null,
+        parentRequestId: dto.parent_request_id ?? null,
         status: 'draft',
         createdBy: actor.userId,
       },
     });
+  }
+
+  /**
+   * A request may hang under another one, but not under itself.
+   *
+   * One piece of work commonly becomes several — `06_EXAMPLE` traces ten across
+   * eight departments — and each child holds its parent open. A cycle would
+   * hold every request in it open for ever, with no way for anyone to finish
+   * any of them, so the chain is walked upward before the link is made.
+   */
+  private async assertUsableParent(
+    parentId: string,
+    actor: Principal,
+  ): Promise<void> {
+    const parent = await this.require(parentId, actor);
+
+    let current: string | null = parent.parentRequestId;
+    const seen = new Set<string>([parent.id]);
+
+    while (current) {
+      if (seen.has(current)) break;
+      seen.add(current);
+
+      const ancestor = await this.requests.findWithType(current);
+      current = ancestor?.parentRequestId ?? null;
+    }
+
+    // A brand-new request has no id yet, so it cannot be its own ancestor;
+    // what this catches is a parent chain that is already circular.
+    if (seen.size > 1 && seen.has(parent.id) && current !== null) {
+      throw new AppError('VALIDATION_FAILED', 'คำขอต้นเรื่องวนกลับมาหาตัวเอง', [
+        { field: 'parent_request_id', reason: parentId },
+      ]);
+    }
   }
 
   async update(id: string, dto: UpdateRequestDto, actor: Principal) {
@@ -282,6 +350,9 @@ export class RequestsService {
           : {}),
         ...(dto.ref_type !== undefined ? { refType: dto.ref_type } : {}),
         ...(dto.ref_id !== undefined ? { refId: dto.ref_id } : {}),
+        ...(dto.receiver_user_id !== undefined
+          ? { receiverUserId: dto.receiver_user_id }
+          : {}),
         updatedBy: actor.userId,
       },
     });
@@ -424,23 +495,240 @@ export class RequestsService {
     );
   }
 
+  // --- the ticket: receive, assign, complete, close -----------------------
+
+  /**
+   * A submit needs somebody to hand the ticket to.
+   *
+   * Named by the requester rather than resolved from the type's receiving unit:
+   * the source keeps a person in `ผู้รับผิดชอบที่แผนกปลายทาง`, and a queue
+   * belonging to a whole department is a queue nobody is answerable for.
+   */
+  private async assertReceivable(request: RequestWithType): Promise<void> {
+    if (!request.receiverUserId) {
+      throw new AppError(
+        'VALIDATION_FAILED',
+        'ต้องระบุผู้รับเรื่องก่อนยื่นคำขอ',
+        [{ field: 'receiver_user_id', reason: 'required' }],
+      );
+    }
+
+    const receiver = await this.requests.findReceiver(
+      request.receiverUserId,
+      request.companyId,
+    );
+
+    // SCOPE-03: somebody outside this company is not a different answer from
+    // somebody who does not exist.
+    if (!receiver) {
+      throw new AppError('NOT_FOUND', 'ไม่พบผู้รับเรื่องที่ระบุ', [
+        { field: 'receiver_user_id', reason: request.receiverUserId },
+      ]);
+    }
+  }
+
+  /**
+   * The receiver accepts the ticket — `submitted → in_progress`.
+   *
+   * This is where the working clock starts for real. The source draws the line
+   * in the same place: *"แผนกปลายทางรับเรื่องแล้ว — เริ่มนับเวลาทำงานจริง"*, and
+   * `CLOCK_PAUSED_IN` holds `submitted` for that reason.
+   *
+   * Only the named receiver may accept. Anyone else doing it would leave the
+   * ticket recorded as somebody's while sitting in someone else's hands.
+   */
+  async receive(id: string, actor: Principal) {
+    const before = await this.require(id, actor);
+
+    if (before.receiverUserId !== actor.userId) {
+      throw new AppError(
+        'FORBIDDEN',
+        'รับเรื่องได้เฉพาะผู้ที่ถูกระบุเป็นผู้รับเรื่อง',
+      );
+    }
+
+    assertTransition(before.status, 'in_progress');
+
+    return this.transactions.execute(async (prisma) => {
+      const now = new Date();
+
+      const updated = await prisma.request.update({
+        where: { id },
+        data: {
+          status: 'in_progress',
+          // Whoever accepts is doing the work until they hand it on.
+          assigneeUserId: before.assigneeUserId ?? actor.userId,
+          updatedBy: actor.userId,
+        },
+      });
+
+      await this.recordEvent(prisma, {
+        requestId: id,
+        type: 'RECEIVED',
+        actor,
+        fromStatus: before.status,
+        toStatus: 'in_progress',
+      });
+
+      // The clock was paused through `submitted`; accepting is what starts it.
+      await this.sla.resume(prisma, id, now);
+
+      await this.audit.record(
+        {
+          eventType: 'request.received',
+          companyId: before.companyId,
+          ...auditActor(actor),
+          resourceType: 'request',
+          resourceId: id,
+          before: { status: before.status },
+          after: { status: 'in_progress', assigneeUserId: actor.userId },
+        },
+        { prisma },
+      );
+
+      return updated;
+    });
+  }
+
+  /**
+   * Hands the work to someone else without changing what state it is in.
+   *
+   * The source records `ASSIGNED` and `HANDOVER` as events in their own right —
+   * who accepted a ticket and who finished it are often different people, and
+   * a timeline that overwrites the first with the second loses the fact that it
+   * changed hands at all.
+   */
+  async assign(id: string, dto: AssignRequestDto, actor: Principal) {
+    const before = await this.require(id, actor);
+
+    if (!OPEN_STATUSES.includes(before.status)) {
+      throw new AppError('REQ_STATE_INVALID', 'มอบหมายงานที่ปิดไปแล้วไม่ได้', [
+        { field: 'status', reason: before.status },
+      ]);
+    }
+
+    const assignee = await this.requests.findReceiver(
+      dto.assignee_user_id,
+      before.companyId,
+    );
+
+    if (!assignee) {
+      throw new AppError('NOT_FOUND', 'ไม่พบผู้รับผิดชอบที่ระบุ', [
+        { field: 'assignee_user_id', reason: dto.assignee_user_id },
+      ]);
+    }
+
+    return this.transactions.execute(async (prisma) => {
+      const updated = await prisma.request.update({
+        where: { id },
+        data: { assigneeUserId: dto.assignee_user_id, updatedBy: actor.userId },
+      });
+
+      await this.recordEvent(prisma, {
+        requestId: id,
+        // `HANDOVER` when it was already somebody's, `ASSIGNED` the first time.
+        type: before.assigneeUserId ? 'HANDOVER' : 'ASSIGNED',
+        actor,
+        data: {
+          from: before.assigneeUserId,
+          to: dto.assignee_user_id,
+          note: dto.note ?? null,
+        },
+      });
+
+      await this.audit.record(
+        {
+          eventType: 'request.assigned',
+          companyId: before.companyId,
+          ...auditActor(actor),
+          resourceType: 'request',
+          resourceId: id,
+          before: { assigneeUserId: before.assigneeUserId },
+          after: { assigneeUserId: dto.assignee_user_id },
+        },
+        { prisma },
+      );
+
+      return updated;
+    });
+  }
+
+  /**
+   * The requester accepts the result — `approved → closed`.
+   *
+   * Only the person who asked can close: `completed` is the doing team saying
+   * the work is done, and `closed` is the asking side agreeing. Letting the
+   * same side do both would make the second signature meaningless.
+   */
+  async close(id: string, actor: Principal) {
+    const before = await this.require(id, actor);
+
+    if (before.requesterId !== actor.userId) {
+      throw new AppError('FORBIDDEN', 'ปิดคำขอได้เฉพาะผู้ยื่นคำขอ');
+    }
+
+    assertTransition(before.status, 'closed');
+
+    return this.transactions.execute(async (prisma) => {
+      const updated = await prisma.request.update({
+        where: { id },
+        data: {
+          status: 'closed',
+          closedAt: new Date(),
+          updatedBy: actor.userId,
+        },
+      });
+
+      await this.recordEvent(prisma, {
+        requestId: id,
+        type: 'request.closed',
+        actor,
+        fromStatus: before.status,
+        toStatus: 'closed',
+      });
+
+      await this.audit.record(
+        {
+          eventType: 'request.closed',
+          companyId: before.companyId,
+          ...auditActor(actor),
+          resourceType: 'request',
+          resourceId: id,
+          before: { status: before.status },
+          after: { status: 'closed' },
+        },
+        { prisma },
+      );
+
+      return updated;
+    });
+  }
+
   // --- REQ-08: closing the work ------------------------------------------
 
   /**
-   * Marks the work done and stops the clock.
+   * The doing team says the work is finished — and the ticket branches.
    *
-   * The receiving team closes this, not the requester: REQ-08 tracks work
-   * across teams, and letting the person who raised it declare completion
-   * would make the SLA measure their patience rather than the team's response.
-   * `request.complete` is the permission that expresses that.
+   * The receiving team completes, not the requester: REQ-08 tracks work across
+   * teams, and letting the person who raised it declare completion would make
+   * the SLA measure their patience rather than the team's response.
    *
-   * `assertTransition` is what refuses a request still sitting in the ladder —
-   * `in_progress` is the only state that leads here (§7.1).
+   * Two things then decide what happens next, in this order:
+   *
+   * 1. **Open children block it.** A request commonly breaks into others across
+   *    departments; finishing the parent while they run would say the work was
+   *    done when part of it had not started.
+   * 2. **A published matrix means the result gets checked.** Types that have
+   *    one go to `pending_approval`; the eighteen Pattern C types that have
+   *    none are accepted as delivered. This is the only place that branch is
+   *    decided — nothing else may set either status.
    */
-  async complete(id: string, actor: Principal) {
+  async complete(id: string, actor: Principal, authorization: string) {
     const before = await this.require(id, actor);
 
     assertTransition(before.status, 'completed');
+
+    await this.assertNoOpenChildren(id);
 
     const updatedRequest = await this.transactions.execute(async (prisma) => {
       const updated = await prisma.request.update({
@@ -493,7 +781,117 @@ export class RequestsService {
       },
     });
 
-    return updatedRequest;
+    return this.routeForApproval(before, actor, authorization, updatedRequest);
+  }
+
+  /**
+   * After completion: check the result, or accept it as delivered.
+   *
+   * A published matrix for `(company, request:<TYPE>)` is the whole test.
+   * Eighteen of OSD's forty types are Pattern C — *"คำขอนี้ไม่มีชั้นอนุมัติ"* —
+   * and for those the absence of a matrix is the configuration, not a gap.
+   *
+   * The case is opened outside the transaction because the chain resolves
+   * across a service boundary; if that fails the request stays `completed`,
+   * which is recoverable — the work is done and the check can be retried —
+   * unlike a request marked checked that nobody ever checked.
+   */
+  private async routeForApproval(
+    before: RequestWithType,
+    actor: Principal,
+    authorization: string,
+    completed: { id: string },
+  ) {
+    const id = completed.id;
+
+    const hasMatrix = await this.approvals.hasPublishedMatrix(
+      `request:${before.typeCode}`,
+      before.companyId,
+      authorization,
+    );
+
+    if (!hasMatrix) {
+      return this.transactions.execute(async (prisma) => {
+        const updated = await prisma.request.update({
+          where: { id },
+          data: { status: 'approved', updatedBy: actor.userId },
+        });
+
+        await this.recordEvent(prisma, {
+          requestId: id,
+          // No approver was involved — the type has no matrix, so accepting
+          // the delivered result is the system's own step, not a person's.
+          type: 'request.accepted',
+          actor,
+          fromStatus: 'completed',
+          toStatus: 'approved',
+          data: { reason: 'no_approval_matrix' },
+        });
+
+        return updated;
+      });
+    }
+
+    const approvalCase = await this.approvals.openCase(
+      {
+        subject_type: `request:${before.typeCode}`,
+        subject_id: before.requestNo ?? id,
+        amount: amountFor(before),
+        requester_user_id: before.requesterId,
+        payload: before.formData as Record<string, unknown>,
+      },
+      actor,
+      authorization,
+    );
+
+    return this.transactions.execute(async (prisma) => {
+      await prisma.approvalCase.update({
+        where: { id: approvalCase.id },
+        data: { requestId: id },
+      });
+
+      const updated = await prisma.request.update({
+        where: { id },
+        data: { status: 'pending_approval', updatedBy: actor.userId },
+      });
+
+      await this.recordEvent(prisma, {
+        requestId: id,
+        type: 'request.routed',
+        actor,
+        fromStatus: 'completed',
+        toStatus: 'pending_approval',
+        data: { caseId: approvalCase.id, steps: approvalCase.steps.length },
+      });
+
+      return updated;
+    });
+  }
+
+  /**
+   * A parent may not be completed while a child is still running.
+   *
+   * Only direct children are counted. Each of those is held by this same rule,
+   * so a grandchild keeps its own parent open and that parent keeps this one
+   * open — walking the whole tree on every completion would re-derive what the
+   * rule already guarantees.
+   *
+   * The open request numbers travel in the error: "finish the children first"
+   * is not actionable without saying which.
+   */
+  private async assertNoOpenChildren(id: string): Promise<void> {
+    const open = await this.requests.findOpenChildren(id, OPEN_STATUSES);
+
+    if (open.length) {
+      throw new AppError(
+        'REQ_CHILDREN_OPEN',
+        'ยังมีคำขอย่อยที่ยังไม่ปิด — ต้องปิดคำขอย่อยให้ครบก่อน',
+        open.map((child) => ({
+          field: 'children',
+          reason: child.requestNo ?? child.id,
+        })),
+      );
+    }
   }
 
   /**
@@ -523,15 +921,22 @@ export class RequestsService {
   }
 
   /**
-   * REQ-02/03 + APV-02 + SUP-01 — the submit.
+   * REQ-02/03 + SUP-01 — the submit.
    *
-   * Everything below happens in **one transaction** on purpose. A request that
-   * holds a number but no approval chain sits in nobody's queue and nobody
-   * knows it is waiting; one with a chain but no clock never escalates. Either
-   * outcome is invisible, which is the worst kind of failure for a system whose
-   * job is making sure nothing is silently stuck.
+   * Everything below happens in **one transaction** on purpose: a request that
+   * holds a number but no clock never escalates, and that failure is invisible
+   * in a system whose job is making sure nothing is silently stuck.
+   *
+   * **No approval chain is resolved here any more.** Approval is a check on
+   * finished work, so it is `complete` that opens a case. What submit needs
+   * instead is a *receiver* — the person this ticket is being handed to — and
+   * that is what it refuses without.
    */
-  async submit(id: string, actor: Principal, authorization: string) {
+  // `authorization` is kept in the signature although submit no longer calls
+  // another service: `createForIntegration` submits on someone's behalf and
+  // passes its own token through, and dropping the parameter would move that
+  // decision into every caller.
+  async submit(id: string, actor: Principal, _authorization: string) {
     const before = await this.require(id, actor);
 
     if (before.requesterId !== actor.userId) {
@@ -551,25 +956,15 @@ export class RequestsService {
         .map((attachment) => attachment.docCode ?? ''),
     });
 
-    const amount = amountFor(before);
-
     /**
-     * Routing is checked **before** anything is written.
+     * A ticket has to be handed to somebody.
      *
-     * The chain is resolved across a service boundary and so cannot join the
-     * transaction below. Without this, a submit that fails at routing — no
-     * published matrix for the type, or a requester with no supervisor —
-     * leaves a request that has consumed a document number, moved to
-     * `submitted` and started its clock, yet appears in no approver's queue
-     * and refuses to be submitted again. Failing here writes nothing.
+     * Checked before anything is written, for the same reason routing used to
+     * be: a request that consumed a number and started its clock but sits in
+     * no one's queue is invisible, and invisible is the failure mode this
+     * whole system exists to prevent.
      */
-    await this.approvals.assertRoutable({
-      subjectType: `request:${before.typeCode}`,
-      amount,
-      requesterId: actor.userId,
-      companyId: actor.activeCompanyId,
-      authorization,
-    });
+    await this.assertReceivable(before);
 
     const submitted = await this.transactions.execute(async (prisma) => {
       // REQ-02: the number is issued **once**, at the first submit. A resubmit
@@ -640,42 +1035,6 @@ export class RequestsService {
       );
 
       return updated;
-    });
-
-    // APV-02 — outside the transaction because the chain is resolved across a
-    // service boundary. `assertRoutable` above has already proved this call
-    // can succeed, so the request is not left half-submitted.
-    const approvalCase = await this.approvals.openCase(
-      {
-        subject_type: `request:${before.typeCode}`,
-        subject_id: submitted.requestNo ?? id,
-        amount,
-        requester_user_id: actor.userId,
-        payload: before.formData as Record<string, unknown>,
-      },
-      actor,
-      authorization,
-    );
-
-    await this.transactions.execute(async (prisma) => {
-      await prisma.approvalCase.update({
-        where: { id: approvalCase.id },
-        data: { requestId: id },
-      });
-
-      await prisma.request.update({
-        where: { id },
-        data: { status: 'pending_approval' },
-      });
-
-      await this.recordEvent(prisma, {
-        requestId: id,
-        type: 'request.routed',
-        actor,
-        fromStatus: 'submitted',
-        toStatus: 'pending_approval',
-        data: { caseId: approvalCase.id, steps: approvalCase.steps.length },
-      });
     });
 
     // §11.8 — published after the commit, so a subscriber that reads the
@@ -964,20 +1323,43 @@ export class RequestsService {
         teamOrgUnitIds: actor.teamOrgUnitIds,
         departmentOrgUnitIds: actor.departmentOrgUnitIds,
       },
-      // SCOPE-06: anyone in the approval chain can always see it.
+      // SCOPE-06: anyone in the approval chain can always see it — and so can
+      // the person a ticket was handed to, for the same reason: relatedness to
+      // this particular row, not the breadth of what they may generally see.
       query.view === 'involved'
         ? {
             approvalCases: {
               some: { steps: { some: { approverUserId: actor.userId } } },
             },
           }
-        : undefined,
+        : query.view === 'incoming'
+          ? {
+              OR: [
+                { receiverUserId: actor.userId },
+                { assigneeUserId: actor.userId },
+              ],
+            }
+          : undefined,
     ) as Prisma.RequestWhereInput;
 
     const filters: Prisma.RequestWhereInput = {
       // `scoped` already pins the company (SCOPE-03); repeating it here only
       // made the generated query harder to read.
       ...(query.view === 'mine' ? { requesterId: actor.userId } : {}),
+      /*
+        `incoming` means "waiting for me to do something with it", so it stops
+        at the point the ticket is no longer mine to move. Everything I have
+        ever received would be a history, not a queue.
+      */
+      ...(query.view === 'incoming'
+        ? {
+            OR: [
+              { receiverUserId: actor.userId },
+              { assigneeUserId: actor.userId },
+            ],
+            status: { in: ['submitted', 'in_progress', 'on_hold'] },
+          }
+        : {}),
       ...(query.status ? { status: query.status as RequestStatus } : {}),
       ...(query.type_code ? { typeCode: query.type_code } : {}),
       ...(query.q

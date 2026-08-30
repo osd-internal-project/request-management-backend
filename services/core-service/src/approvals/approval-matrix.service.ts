@@ -32,6 +32,23 @@ export class ApprovalMatrixService {
     return this.matrices.findForCompany(companyId, subjectType);
   }
 
+  /**
+   * Is there a ladder in force for this subject?
+   *
+   * The question `requireEffective` cannot answer, because it throws. Some
+   * request types are configured to have no approval at all, and for those the
+   * absence is the answer rather than a failure.
+   */
+  async hasEffective(
+    companyId: string,
+    subjectType: string,
+    at: Date,
+  ): Promise<boolean> {
+    return Boolean(
+      await this.matrices.findEffective(companyId, subjectType, at),
+    );
+  }
+
   /** The ladder in force for a subject now, or a named failure. */
   async requireEffective(
     companyId: string,

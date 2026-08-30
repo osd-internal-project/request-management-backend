@@ -123,6 +123,57 @@ describe('§8.1 approval chain', () => {
   });
 });
 
+describe('a rung may name a person instead of a position', () => {
+  const base = {
+    requesterId: 'requester',
+    requesterSupervisorId: 'lead',
+    roleHolders: { cfo: 'cfo-user' } as Record<string, string>,
+    supervisorOf: () => null,
+  };
+
+  it('resolves a named user without consulting the org chart at all', () => {
+    const chain = resolveChain({
+      ...base,
+      // No supervisor anywhere, which is the state OSD's directory is in.
+      requesterSupervisorId: null,
+      roleHolders: {},
+      chain: [{ resolve: 'user', userId: 'reviewer' }],
+    });
+
+    expect(chain).toEqual([{ position: 'named', userId: 'reviewer' }]);
+  });
+
+  it('still reads the old bare-string shape, so published ladders keep working', () => {
+    const chain = resolveChain({ ...base, chain: ['team_lead', 'cfo'] });
+
+    expect(chain).toEqual([
+      { position: 'team_lead', userId: 'lead' },
+      { position: 'cfo', userId: 'cfo-user' },
+    ]);
+  });
+
+  it('mixes both shapes in one ladder', () => {
+    const chain = resolveChain({
+      ...base,
+      chain: ['team_lead', { resolve: 'user', userId: 'reviewer' }],
+    });
+
+    expect(chain).toEqual([
+      { position: 'team_lead', userId: 'lead' },
+      { position: 'named', userId: 'reviewer' },
+    ]);
+  });
+
+  it('drops a named rung that is the requester — nobody approves their own', () => {
+    const chain = resolveChain({
+      ...base,
+      chain: [{ resolve: 'user', userId: 'requester' }],
+    });
+
+    expect(chain).toEqual([]);
+  });
+});
+
 describe('ceilingIntroducing (APV-02, §16 หน้าที่ 3)', () => {
   const ladder = [
     { upto: '100000.00', chain: ['team_lead'] },

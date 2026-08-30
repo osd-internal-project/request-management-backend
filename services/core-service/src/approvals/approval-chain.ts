@@ -8,16 +8,48 @@ import { AppError } from '@request-management/share';
 export const APPROVER_POSITIONS = ['team_lead', 'cfo', 'ceo'] as const;
 export type ApproverPosition = (typeof APPROVER_POSITIONS)[number];
 
+/**
+ * One rung of a ladder.
+ *
+ * Two ways to name an approver, because the organisations using this have both
+ * kinds. `org` resolves a position through the chart — the §8.1 behaviour, and
+ * the right answer where the chart is maintained. `user` names a person
+ * outright, which is what a company with no supervisor data can actually
+ * configure today, and what the source's own logs look like: approvals signed
+ * by named people in different departments rather than by a fixed office.
+ */
+export type ApprovalLevel =
+  | { readonly resolve: 'org'; readonly position: ApproverPosition }
+  | { readonly resolve: 'user'; readonly userId: string };
+
+/**
+ * A rung as it may appear in stored `tiers` JSON.
+ *
+ * The bare string is the original shape and is still written by the seed and by
+ * every matrix published before this change. Reading both is what lets an
+ * existing company keep working without a data migration — `tiers` is `jsonb`,
+ * so there is nothing to migrate *to* except a rewrite of live configuration.
+ */
+export type StoredApprovalLevel = ApproverPosition | ApprovalLevel;
+
+/** Normalises either stored shape into one thing the resolver understands. */
+export function toApprovalLevel(stored: StoredApprovalLevel): ApprovalLevel {
+  return typeof stored === 'string'
+    ? { resolve: 'org', position: stored }
+    : stored;
+}
+
 /** One ceiling in an `ApprovalMatrix.tiers` array. */
 export interface MatrixTier {
   /** Decimal string; `null` is the top tier (no ceiling). */
   readonly upto: string | null;
-  readonly chain: readonly ApproverPosition[];
+  readonly chain: readonly StoredApprovalLevel[];
 }
 
-/** How a position was turned into a person. */
+/** How a rung was turned into a person. */
 export interface ResolvedApprover {
-  readonly position: ApproverPosition;
+  /** `named` when the matrix pointed at a person rather than at a position. */
+  readonly position: ApproverPosition | 'named';
   readonly userId: string | null;
 }
 
@@ -85,7 +117,7 @@ export function ceilingIntroducing(
  * @param supervisorOf Walks the org chart upward from the requester.
  */
 export function resolveChain(input: {
-  chain: readonly ApproverPosition[];
+  chain: readonly StoredApprovalLevel[];
   requesterId: string;
   requesterSupervisorId: string | null;
   roleHolders: Readonly<Partial<Record<ApproverPosition, string>>>;
@@ -93,7 +125,23 @@ export function resolveChain(input: {
 }): ResolvedApprover[] {
   const resolved: ResolvedApprover[] = [];
 
-  for (const position of input.chain) {
+  for (const stored of input.chain) {
+    const level = toApprovalLevel(stored);
+
+    /*
+      A rung naming a person needs no chart at all — that is the point of it.
+      The self-approval rule still applies: a step whose named approver is the
+      requester is dropped rather than handed to them, exactly as a named
+      office is.
+    */
+    if (level.resolve === 'user') {
+      if (level.userId === input.requesterId) continue;
+      resolved.push({ position: 'named', userId: level.userId });
+      continue;
+    }
+
+    const position = level.position;
+
     let userId: string | null =
       position === 'team_lead'
         ? input.requesterSupervisorId

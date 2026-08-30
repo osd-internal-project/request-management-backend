@@ -24,6 +24,12 @@ export const ErrorCatalog = {
   REQ_FIELD_MISSING: HttpStatus.UNPROCESSABLE_ENTITY,
   REQ_DOC_MISSING: HttpStatus.UNPROCESSABLE_ENTITY,
   REQ_STATE_INVALID: HttpStatus.CONFLICT,
+  /**
+   * A parent request still has children running. 409 rather than 422: the
+   * request is valid, the moment is wrong, and it becomes right on its own
+   * once the children close.
+   */
+  REQ_CHILDREN_OPEN: HttpStatus.CONFLICT,
   REQ_TYPE_INACTIVE: HttpStatus.UNPROCESSABLE_ENTITY,
   ORG_SUPERVISOR_MISSING: HttpStatus.UNPROCESSABLE_ENTITY,
   APV_NOT_YOUR_TURN: HttpStatus.CONFLICT,

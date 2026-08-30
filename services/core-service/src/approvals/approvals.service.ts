@@ -57,7 +57,8 @@ export interface ChainPreview {
   exceeded_upto: string | null;
   steps: {
     step_no: number;
-    position: ApproverPosition;
+    /** `named` where the matrix pointed at a person rather than a position. */
+    position: ApproverPosition | 'named';
     /** `null` when the org chart has nobody to fill this step. */
     user_id: string | null;
     display_name: string | null;
@@ -311,6 +312,42 @@ export class ApprovalsService {
    * written. A published matrix is immutable and never deleted, so the window
    * between this check and `openCase` cannot change the answer.
    */
+  /**
+   * Does this subject have a published ladder in this company?
+   *
+   * The answer decides whether finished work gets checked at all. Eighteen of
+   * OSD's forty request types are Pattern C — *"คำขอนี้ไม่มีชั้นอนุมัติ"* — and
+   * for them the absence of a matrix **is** the configuration. Treating it as
+   * an error, which is what `selectTier` does, would make those types
+   * impossible to finish.
+   */
+  async hasPublishedMatrix(
+    subjectType: string,
+    companyId: string,
+    _authorization: string,
+  ): Promise<boolean> {
+    return this.matrix.hasEffective(companyId, subjectType, new Date());
+  }
+
+  /**
+   * The next slot in a request's timeline.
+   *
+   * `RequestEvent` is unique on `(requestId, seq)` and append-only (REQ-07), so
+   * the number has to be read inside the same transaction that writes the row.
+   */
+  private async nextRequestEventSeq(
+    prisma: Prisma.TransactionClient,
+    requestId: string,
+  ): Promise<number> {
+    const last = await prisma.requestEvent.findFirst({
+      where: { requestId },
+      orderBy: { seq: 'desc' },
+      select: { seq: true },
+    });
+
+    return (last?.seq ?? 0) + 1;
+  }
+
   async assertRoutable(input: {
     subjectType: string;
     amount: string | null;
@@ -418,6 +455,46 @@ export class ApprovalsService {
         },
         include: { steps: { orderBy: { stepNo: 'asc' } } },
       });
+
+      /*
+        Carry the decision back to the request, in this same transaction.
+
+        Without this the case reached `approved` and the request stayed at
+        `pending_approval` for ever — approved work that no route could close,
+        which is the state this whole rework was called in to fix. It is not a
+        subscriber for exactly that reason: a case and its request disagreeing
+        about whether the work passed is the failure, so they commit together
+        or not at all.
+
+        `return` sends the ticket back to `in_progress` — to the team that did
+        the work. `returned` would mean back with the requester, which is a
+        different place and a different clock.
+      */
+      if (found.requestId && nextStatus !== 'pending') {
+        const toStatus =
+          nextStatus === 'approved'
+            ? 'approved'
+            : nextStatus === 'rejected'
+              ? 'rejected'
+              : 'in_progress';
+
+        await prisma.request.update({
+          where: { id: found.requestId },
+          data: { status: toStatus, updatedBy: actor.userId },
+        });
+
+        await prisma.requestEvent.create({
+          data: {
+            requestId: found.requestId,
+            seq: await this.nextRequestEventSeq(prisma, found.requestId),
+            type: `request.review.${dto.decision}`,
+            actorId: actor.userId,
+            fromStatus: 'pending_approval',
+            toStatus,
+            data: { caseId: found.id, note: dto.note ?? null },
+          },
+        });
+      }
 
       // Hand the baton to the next approver in the same transaction.
       if (nextStatus === 'pending') {

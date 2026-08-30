@@ -60,7 +60,7 @@ export class BiDashboardRepository extends BaseRepository<
         ],
       },
       orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
-    }) as Promise<BiDashboard[]>;
+    });
   }
 
   /** Every dashboard in one company, inactive included — the admin list. */

@@ -3,8 +3,10 @@
  *
  *   UAT_SEED_ALLOW=1 yarn uat:seed [username]      # default: uatadmin
  *
- * The role holds **every** permission in the catalog and scope `all` on every
- * resource, so a single UAT account can open every screen and see every row.
+ * The role holds **every** permission in the catalog and scope `company` on
+ * every resource, so a single UAT account can open every screen and see every
+ * row **of the company it is currently looking at** — the header switcher moves
+ * between companies. See `SCOPE_LEVEL` below for why it is not `all`.
  *
  * That combination is a deliberate, declared breach of §5.4: the guardrail in
  * `assertSeparationOfDuties` refuses a role that holds `admin.*` together with
@@ -27,8 +29,21 @@ const prisma = new PrismaClient();
 const ROLE_CODE = 'uat_superadmin';
 const DEFAULT_USERNAME = 'uatadmin';
 
-/** Resources §6.1 scopes, all widened to `all` for this role. */
+/** Resources §6.1 scopes. */
 const SCOPED_RESOURCES = ['request', 'approval_case', 'user'] as const;
+
+/**
+ * `company`, not `all` (28 Aug 2026).
+ *
+ * `all` is the one level `buildScopeWhere` does not pin to a company, so every
+ * list this account opened mixed rows from every company at once and the
+ * company switcher in the header did nothing. `company` makes the switcher the
+ * way to move between them, which is what the screen already implies.
+ *
+ * This narrows the role: the JSDoc above says "see every row", and that now
+ * means every row in the company you are looking at.
+ */
+const SCOPE_LEVEL: ScopeLevel = 'company';
 
 /**
  * AUTH-06 scopes a service account per client and gives it its permissions
@@ -108,8 +123,8 @@ async function seedRole(
   for (const resource of SCOPED_RESOURCES) {
     await prisma.scopeRule.upsert({
       where: { roleId_resource: { roleId: role.id, resource } },
-      update: { scope: ScopeLevel.all },
-      create: { roleId: role.id, resource, scope: ScopeLevel.all },
+      update: { scope: SCOPE_LEVEL },
+      create: { roleId: role.id, resource, scope: SCOPE_LEVEL },
     });
   }
 
@@ -197,7 +212,7 @@ async function main(username: string): Promise<void> {
     },
   });
 
-  console.log(`  role ${ROLE_CODE}: ${codes.length} permissions, scope all`);
+  console.log(`  role ${ROLE_CODE}: ${codes.length} permissions, scope ${SCOPE_LEVEL}`);
   console.log(`  ${username} → ${ROLE_CODE} in ${granted.join(', ')}`);
   console.log('  reminder: this role breaks §5.4 on purpose. Not for production.');
 }

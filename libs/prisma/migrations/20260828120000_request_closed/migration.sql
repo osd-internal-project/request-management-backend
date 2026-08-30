@@ -1,0 +1,12 @@
+-- §7.1 amendment (28 Aug 2026): closed — a completed request that has been
+-- formally closed out. Reachable only from completed, and terminal.
+--
+-- Needed to carry over CLOSED rows from the interim Excel request logs
+-- (docs/REQUEST_RAW_STRUCTURE.md §4): the source status list has eleven values
+-- and this system had ten. Collapsing CLOSED into completed would erase the
+-- distinction the departments actually recorded — work finished versus the
+-- file closed — which is the difference `จำนวนวันที่ใช้จริง` is measured over.
+--
+-- Postgres cannot remove a value from an enum. Reverting means recreating the
+-- type: see the state machine's doc comment for what else comes out with it.
+ALTER TYPE "RequestStatus" ADD VALUE 'closed';

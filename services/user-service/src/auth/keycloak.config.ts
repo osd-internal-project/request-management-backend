@@ -31,9 +31,21 @@ export default registerAs('keycloak', () => {
     redirectUri:
       process.env.KEYCLOAK_REDIRECT_URI ??
       'http://localhost:3000/api/auth/callback',
+    /**
+     * `?signed_out=1` is load-bearing, not decoration.
+     *
+     * `/login` now forwards anyone without a session straight to Keycloak, so a
+     * bare `/login` after logout would send the browser back to the identity
+     * provider and — with the realm's SSO session often still alive elsewhere —
+     * sign the user back in before they saw anything.
+     *
+     * The realm client must accept this URI. A wildcard entry
+     * (`http://localhost:3000/*`) covers it; an exact-match list needs the
+     * query string added, or `KEYCLOAK_POST_LOGOUT_REDIRECT_URI` set.
+     */
     postLogoutRedirectUri:
       process.env.KEYCLOAK_POST_LOGOUT_REDIRECT_URI ??
-      'http://localhost:3000/login',
+      'http://localhost:3000/login?signed_out=1',
 
     issuer,
     authorizeUrl: `${issuer}/protocol/openid-connect/auth`,

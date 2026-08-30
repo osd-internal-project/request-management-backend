@@ -39,6 +39,34 @@ export class CreateRequestDto {
   @IsOptional()
   @IsString()
   ref_id?: string;
+
+  /**
+   * The person this ticket is handed to. Required by the time it is submitted;
+   * a draft may still be looking for the right recipient.
+   */
+  @ApiPropertyOptional({ description: 'ผู้รับเรื่อง — บังคับก่อนยื่น' })
+  @IsOptional()
+  @IsString()
+  receiver_user_id?: string;
+
+  /** Set when this request was spawned from another (`06_EXAMPLE`). */
+  @ApiPropertyOptional({ description: 'คำขอต้นเรื่อง' })
+  @IsOptional()
+  @IsString()
+  parent_request_id?: string;
+}
+
+/** Hands the work to somebody — `ASSIGNED` the first time, `HANDOVER` after. */
+export class AssignRequestDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  assignee_user_id!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  note?: string;
 }
 
 export class UpdateRequestDto {
@@ -56,6 +84,12 @@ export class UpdateRequestDto {
   @IsOptional()
   @IsString()
   ref_id?: string;
+
+  /** Still changeable while the request is a draft or has been returned. */
+  @ApiPropertyOptional({ description: 'ผู้รับเรื่อง' })
+  @IsOptional()
+  @IsString()
+  receiver_user_id?: string;
 }
 
 export class ReturnRequestDto {
@@ -113,11 +147,20 @@ export class ResumeRequestDto {
  * at runtime.
  */
 export class ListRequestsQueryDto extends PageQueryDto {
-  /** `mine` = ที่ฉันยื่น · `involved` = ที่ฉันเกี่ยวข้อง (SCOPE-06). */
-  @ApiPropertyOptional({ enum: ['mine', 'involved'] })
+  /**
+   * `mine` = ที่ฉันยื่น · `involved` = ที่ฉันเกี่ยวข้อง (SCOPE-06) ·
+   * `incoming` = ที่ส่งมาให้ฉันรับเรื่อง.
+   *
+   * `incoming` exists because a ticket handed to somebody has to be findable by
+   * that somebody. Data scope alone cannot do it: a plain employee is scoped to
+   * `own`, which means requests they *raised*, and a request sent to them was
+   * raised by someone else — so without this view the person a ticket is
+   * waiting on is the one person who cannot see it.
+   */
+  @ApiPropertyOptional({ enum: ['mine', 'involved', 'incoming'] })
   @IsOptional()
-  @IsIn(['mine', 'involved'])
-  view?: 'mine' | 'involved';
+  @IsIn(['mine', 'involved', 'incoming'])
+  view?: 'mine' | 'involved' | 'incoming';
 
   @ApiPropertyOptional()
   @IsOptional()

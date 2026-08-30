@@ -1,7 +1,25 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService, resolveTargetCompany } from '@request-management/share';
+import {
+  buildScopeWhere,
+  PrismaService,
+  resolveTargetCompany,
+} from '@request-management/share';
 import type { Principal } from '@request-management/share';
+import type { Prisma } from '@prisma/client';
 import { BottleneckQueryDto } from './dto/report.dto';
+
+/**
+ * The same columns `requests.service.ts` scopes a request list by.
+ *
+ * Declared from the request's own table because that is what the report is
+ * ultimately about — a bottleneck is time spent on somebody's request, and who
+ * may see it is decided by the request, not by the approval case.
+ */
+const SCOPE_COLUMNS = {
+  owner: 'requesterId',
+  orgUnit: 'requesterOrgUnitId',
+  company: 'companyId',
+} as const;
 
 /** One row of the report — a step position within a request type. */
 export interface BottleneckRow {
@@ -50,6 +68,7 @@ export class BottleneckService {
           ...(query.type_code
             ? { subjectType: `request:${query.type_code}` }
             : {}),
+          ...this.visibleCases(actor),
         },
         ...(query.approver_user_id
           ? { approverUserId: query.approver_user_id }
@@ -120,6 +139,34 @@ export class BottleneckService {
         // that answer should not need sorting by hand.
         .sort((left, right) => (right.mean_hours ?? 0) - (left.mean_hours ?? 0))
     );
+  }
+
+  /**
+   * SCOPE-02 — the report may only measure requests the caller can see.
+   *
+   * This was missing entirely: the query pinned `companyId` and stopped there,
+   * so anyone holding `report.request.read` read the whole company's timings
+   * regardless of their data scope. Permission answers "may you open this
+   * report"; scope answers "over which rows", and they are not the same test.
+   *
+   * `company` and `all` need no extra predicate — the company pin above already
+   * expresses them, and adding one would exclude the approval cases that have
+   * no request at all (APV-07 lets another module open a case directly). At
+   * narrower levels those case-only rows are excluded, because there is no
+   * request to judge their visibility by and guessing would leak them.
+   */
+  private visibleCases(actor: Principal): Prisma.ApprovalCaseWhereInput {
+    const scope = actor.scopes.request ?? 'own';
+    if (scope === 'company' || scope === 'all') return {};
+
+    return {
+      request: buildScopeWhere(scope, SCOPE_COLUMNS, {
+        userId: actor.userId,
+        activeCompanyId: actor.activeCompanyId,
+        teamOrgUnitIds: actor.teamOrgUnitIds,
+        departmentOrgUnitIds: actor.departmentOrgUnitIds,
+      }),
+    };
   }
 }
 

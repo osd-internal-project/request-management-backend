@@ -41,7 +41,10 @@
     "spec:extract": "ts-node --compiler-options '{\"module\":\"commonjs\"}' scripts/extract-spec.ts",
     "spec:check": "ts-node --compiler-options '{\"module\":\"commonjs\"}' scripts/spec-check.ts",
     "loadtest:seed": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config scripts/seed-load-test.ts",
-    "loadtest:clean": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config scripts/clean-load-test.ts"
+    "loadtest:clean": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config scripts/clean-load-test.ts",
+    "data:extract": "python3 scripts/extract-request-log.py",
+    "data:import-catalog": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/import-osd-catalog.ts",
+    "data:import-requests": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/import-osd-requests.ts"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",

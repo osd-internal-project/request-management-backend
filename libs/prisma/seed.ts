@@ -1,11 +1,17 @@
 /**
  * Development / UAT seed.
  *
- * Creates the two companies, the §5.2 seed roles with their permissions, a
- * sample org tree matching the mockups, and the default scope and masking
- * rules. Idempotent — safe to re-run.
+ * Creates the companies, the §5.2 seed roles with their permissions, a sample
+ * org tree matching the mockups, and the default scope and masking rules.
+ * Idempotent — safe to re-run.
  *
  *   npm run prisma:seed
+ *
+ * **Everything this file seeds is invented** — the names in mockup §16, the
+ * two pilot request types, the placeholder ceilings. It therefore all lands in
+ * `OSD_DEMO`, not `OSD`. `OSD` is the real organisation and is populated from
+ * the interim Excel request logs by `import-osd-catalog.ts`; mixing the two
+ * would put fictional people in the company's own org chart.
  *
  * The approval-matrix ceilings are **placeholders**. Open question A (§15.2)
  * has finance confirming the real T1/T2 per company; nothing here should be
@@ -230,9 +236,22 @@ async function seedPermissions() {
   console.log(`  permissions: ${rows.length}`);
 }
 
+/**
+ * `OSD_DEMO` first: it is the one this file fills, and `demoCompany()` below
+ * reads it by code rather than by position so the order here stays a detail.
+ *
+ * `OSD` is created empty. Its org tree, request types and people come from
+ * `import-osd-catalog.ts`, which reads the departments' own request logs.
+ */
 async function seedCompanies() {
   const companies = [
+    { code: 'OSD_DEMO', name: 'OSD (Demo)', docPrefix: 'OSDD', baseCurrency: 'THB' },
     { code: 'OSD', name: 'OSD', docPrefix: 'OSD', baseCurrency: 'THB' },
+    // A separate business, not a division of OSD: its 26 people carry `L-*`
+    // employee codes and its own department names. Created empty here for the
+    // same reason `OSD` is — `import-osd-catalog.ts` fills it from the staff
+    // register.
+    { code: 'LEXTECH', name: 'LEXTECH', docPrefix: 'LEX', baseCurrency: 'THB' },
     { code: 'BCO', name: 'บริษัท B', docPrefix: 'BCO', baseCurrency: 'THB' },
   ];
 
@@ -289,7 +308,7 @@ async function seedRoles(companyId: string) {
 /** The tree from mockup A3. */
 async function seedOrgTree(companyId: string) {
   const units = [
-    { code: 'ROOT', name: 'บริษัท OSD', kind: 'COMPANY' as const, parent: null },
+    { code: 'ROOT', name: 'บริษัท OSD (Demo)', kind: 'COMPANY' as const, parent: null },
     { code: 'SALES', name: 'ฝ่ายขาย', kind: 'DEPARTMENT' as const, parent: 'ROOT' },
     { code: 'FIN', name: 'ฝ่ายการเงิน', kind: 'DEPARTMENT' as const, parent: 'ROOT' },
     { code: 'GETTER1', name: 'ทีมขาย Getter 1', kind: 'TEAM' as const, parent: 'SALES' },
@@ -414,12 +433,15 @@ async function seedApprovalMatrix(companyId: string) {
  * lowest tier and it runs step 1 only. Between them they cover both shapes the
  * approval engine has to handle.
  */
-async function seedRequestTypes(companies: { id: string; code: string }[]) {
+async function seedRequestTypes(
+  demoCompanyId: string,
+  companies: { id: string; code: string }[],
+) {
   const osdRoot = await prisma.orgUnit.findFirst({
-    where: { companyId: companies[0].id, code: 'PRICING' },
+    where: { companyId: demoCompanyId, code: 'PRICING' },
   });
   const sales = await prisma.orgUnit.findFirst({
-    where: { companyId: companies[0].id, code: 'SALES' },
+    where: { companyId: demoCompanyId, code: 'SALES' },
   });
 
   const types = [
@@ -557,8 +579,13 @@ async function seedRequestTypes(companies: { id: string; code: string }[]) {
       },
     });
 
-    // Available in every company (D-11); a company can deactivate its own.
-    for (const company of companies) {
+    // Available in every company that has no catalog of its own (D-11); a
+    // company can deactivate its own. `OSD` and `LEXTECH` are excluded: their
+    // real types come from the departments' request logs, and DSC/LEAD are
+    // invented.
+    for (const company of companies.filter(
+      (entry) => entry.code !== 'OSD' && entry.code !== 'LEXTECH',
+    )) {
       await prisma.requestTypeCompany.upsert({
         where: {
           requestTypeId_companyId: {
@@ -580,7 +607,12 @@ async function main() {
 
   await seedPermissions();
   const companies = await seedCompanies();
-  const [osd] = companies;
+
+  // Read by code, never by position: this file seeds the *demo* company, and
+  // a positional lookup silently seeds the wrong one the moment the list is
+  // reordered — which is exactly what it did before `OSD_DEMO` existed.
+  const demo = companies.find((company) => company.code === 'OSD_DEMO');
+  if (!demo) throw new Error('OSD_DEMO is missing from seedCompanies().');
 
   // Roles are per company (ROLE-04) — a manager in one company is not a
   // manager in another. Seed the full set into every company so that
@@ -590,10 +622,10 @@ async function main() {
     await seedRoles(company.id);
   }
 
-  await seedOrgTree(osd.id);
+  await seedOrgTree(demo.id);
   await seedSensitiveFields();
-  await seedRequestTypes(companies);
-  await seedApprovalMatrix(osd.id);
+  await seedRequestTypes(demo.id, companies);
+  await seedApprovalMatrix(demo.id);
 
   console.log('Done.');
 }

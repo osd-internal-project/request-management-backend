@@ -28,8 +28,13 @@ enum UserStatus {
   SUSPENDED
 }
 
+/// Ordered widest first, so the enum reads like the chart it describes:
+/// บริษัท → ฝ่าย → แผนก → ทีม. `DIVISION` was added on 28 Aug 2026 when the
+/// real OSD org chart arrived — the staff register keeps `ฝ่าย` and `แผนก` in
+/// separate columns and flattening them lost a whole level.
 enum OrgUnitKind {
   COMPANY
+  DIVISION
   DEPARTMENT
   TEAM
 }
@@ -63,6 +68,7 @@ enum RequestStatus {
   in_progress
   on_hold
   completed
+  closed
   cancelled
 }
 
@@ -172,6 +178,14 @@ model User {
   primaryCompanyId String?
   primaryCompany   Company? @relation("PrimaryCompany", fields: [primaryCompanyId], references: [id])
 
+  /// Job title as HR records it, e.g. `Senior Purchasing Officer`.
+  ///
+  /// Deliberately *not* an org unit: the staff register holds 67 distinct
+  /// titles across 102 people, so a title is something a person has, not a box
+  /// on the chart. Making it a unit would also break scope `team`, which would
+  /// come to mean "everyone with my job title".
+  position String?
+
   /// Null until an admin assigns the user — these are the "รอจัดสังกัด" queue.
   orgUnitId String?
   orgUnit   OrgUnit? @relation("OrgUnitMembers", fields: [orgUnitId], references: [id])
@@ -198,6 +212,8 @@ model User {
   grantedRoles   UserRole[]          @relation("RoleGranter")
   managedUnits   OrgUnit[]           @relation("OrgUnitManager")
   requests       Request[]           @relation("Requester")
+  receivedRequests Request[]         @relation("Receiver")
+  assignedRequests Request[]         @relation("Assignee")
   requestEvents  RequestEvent[]
   attachments    RequestAttachment[]
   approvalSteps  ApprovalStep[]      @relation("StepApprover")
@@ -474,6 +490,36 @@ model Request {
   /// silently change who can see the row.
   requesterOrgUnitId String?
 
+  /// The person the requester sent this to, named when the request is raised.
+  ///
+  /// A request is a ticket handed to somebody, not a job dropped in a
+  /// department's queue: `06_EXAMPLE` shows every row being received by a named
+  /// person and the source keeps a `ผู้รับผิดชอบที่แผนกปลายทาง` column for it.
+  /// Only this person can accept the request (`submitted → in_progress`).
+  receiverUserId String?
+
+  /// Who is actually doing the work, once the receiver hands it on.
+  ///
+  /// Separate from `receiverUserId` because the source records `ASSIGNED` and
+  /// `HANDOVER` as their own events — the person who accepted a ticket and the
+  /// person who finished it are frequently not the same, and the timeline has
+  /// to keep both.
+  assigneeUserId String?
+
+  /// The request this one was spawned from, if any.
+  ///
+  /// One piece of work commonly breaks into several across departments —
+  /// `06_EXAMPLE` traces ten requests over eight of them from a single customer
+  /// order. A parent cannot be completed while any child is still open, which
+  /// is what stops a chain being closed from the top while work continues
+  /// underneath it.
+  parentRequestId String?
+
+  /// When the requester accepted the result. `completedAt` is when the work
+  /// finished; the two are different moments and the gap between them is how
+  /// long an answer sat unread.
+  closedAt DateTime?
+
   status   RequestStatus @default(draft)
   formData Json          @default("{}")
 
@@ -501,6 +547,10 @@ model Request {
   requestType   RequestType           @relation(fields: [requestTypeId], references: [id])
   company       Company               @relation(fields: [companyId], references: [id])
   requester     User                  @relation("Requester", fields: [requesterId], references: [id])
+  receiver      User?                 @relation("Receiver", fields: [receiverUserId], references: [id])
+  assignee      User?                 @relation("Assignee", fields: [assigneeUserId], references: [id])
+  parent        Request?              @relation("RequestTree", fields: [parentRequestId], references: [id])
+  children      Request[]             @relation("RequestTree")
   attachments   RequestAttachment[]
   events        RequestEvent[]
   returnReasons RequestReturnReason[]
@@ -509,6 +559,11 @@ model Request {
 
   @@index([companyId, status])
   @@index([companyId, requesterId])
+  /// The receiver's queue — "what is waiting for me to accept".
+  @@index([companyId, receiverUserId, status])
+  @@index([companyId, assigneeUserId, status])
+  /// Counting a parent's open children on every complete.
+  @@index([parentRequestId])
   @@index([companyId, requesterOrgUnitId])
   @@index([companyId, dueAt])
   @@index([refType, refId])

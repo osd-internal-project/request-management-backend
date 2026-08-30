@@ -27,6 +27,7 @@ import {
   CreateRequestDto,
   HoldRequestDto,
   ListRequestsQueryDto,
+  AssignRequestDto,
   ResumeRequestDto,
   ReturnRequestDto,
   UpdateRequestDto,
@@ -109,9 +110,9 @@ export class RequestsController {
   }
 
   /**
-   * REQ-02/03 + APV-02 + SUP-01 — issues the number, computes the chain and
-   * starts the clock. Missing fields or documents stop it before anything is
-   * reserved.
+   * REQ-02/03 + SUP-01 — issues the number and starts the clock. Missing
+   * fields, missing documents or no named receiver stop it before anything is
+   * reserved. The approval chain is no longer resolved here; see `complete`.
    */
   @Post('requests/:id/submit')
   @Permissions('request.create')
@@ -202,11 +203,46 @@ export class RequestsController {
     return this.requests.cancel(id, dto, principal);
   }
 
-  /** REQ-08 — the receiving team closes the work and the clock stops. */
+  /** The named receiver accepts the ticket — the working clock starts here. */
+  @Post('requests/:id/receive')
+  @Permissions('request.complete')
+  receive(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.requests.receive(id, principal);
+  }
+
+  /** Hands the work on. `ASSIGNED` the first time, `HANDOVER` afterwards. */
+  @Post('requests/:id/assign')
+  @Permissions('request.complete')
+  assign(
+    @Param('id') id: string,
+    @Body() dto: AssignRequestDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.requests.assign(id, dto, principal);
+  }
+
+  /**
+   * REQ-08 — the doing team says the work is finished.
+   *
+   * Then the ticket branches: a type with a published matrix goes for a check,
+   * one without is accepted as delivered. Needs the caller's token because the
+   * approval chain resolves across a service boundary.
+   */
   @Post('requests/:id/complete')
   @Permissions('request.complete')
-  complete(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
-    return this.requests.complete(id, principal);
+  complete(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+    @Headers('authorization') authorization: string,
+  ) {
+    return this.requests.complete(id, principal, authorization);
+  }
+
+  /** The requester accepts the result and the ticket ends. */
+  @Post('requests/:id/close')
+  @Permissions('request.create')
+  close(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.requests.close(id, principal);
   }
 
   /** REQ-09 — mean/max time per approval step, slowest first. */
@@ -239,10 +275,14 @@ export class RequestsController {
 export class RequestTypeAdminController {
   constructor(private readonly requests: RequestsService) {}
 
+  /** A1 passes `company_id`; A2 leaves it out and gets the active company. */
   @Get()
   @Permissions('admin.request-type.manage')
-  list(@CurrentPrincipal() principal: Principal) {
-    return this.requests.listTypes(principal);
+  list(
+    @CurrentPrincipal() principal: Principal,
+    @Query('company_id') companyId?: string,
+  ) {
+    return this.requests.listAdminTypes(principal, companyId);
   }
 
   /** REQ-01 — a new type. Created inactive so it can be finished first. */

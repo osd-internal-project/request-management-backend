@@ -79,6 +79,17 @@ It is contained rather than excused:
 - it must not exist in production. If you find it there, delete the role row;
   nothing else depends on it.
 
+**Adding a company? Re-run `yarn uat:seed`.** The role, the `UserRole` grant and
+the `UserCompany` membership are all per company (ROLE-04), and `uat:seed` writes
+them for the companies that exist *at the moment it runs*. A company created
+afterwards is invisible to the UAT account — it will not appear in the company
+switcher, because that list is the user's memberships and nothing else. This is
+how `OSD` went missing on 28 Aug 2026 after `OSD_DEMO` was split out of it.
+
+Deliberately left as a re-run rather than made automatic: memberships stay real
+rows that an audit can read, instead of a special case in `PrincipalService`
+that hands one account a company list it has no roles in.
+
 ## Where things go
 
 | Concern | Location |
@@ -132,6 +143,31 @@ text — §16 มีของจริงอยู่แล้ว
 
 **ไฟล์ artifact ที่แนบมาคือเปลือก** เนื้อหาจริงอยู่ใน
 `<artifact>_files/saved_resource.html` อ่านเปลือกจะได้แต่ CSS กับ script
+
+## The request lifecycle is a ticket, and that is an amendment
+
+**A request is handed to a named person, accepted, worked on — possibly broken
+into further requests — and only then checked and closed by whoever asked.**
+`request-state-machine.ts` is the authority; its doc comment carries the full
+reasoning and the list of what to remove if the PO declines.
+
+Three things in it are **not** in the source specification, and none of them may
+be justified by citing §7.1 or §8.1:
+
+1. **Approval runs after the work, not before it.** §7.1 sequences
+   `pending_approval → approved → in_progress` — permission to start. The
+   departments' own logs do the opposite, and eighteen of OSD's forty request
+   types carry no approval step at all.
+2. **`on_hold` and `closed`** exist so the interim Excel logs' eleven statuses
+   survive the import.
+3. **A type with no approval matrix skips the check entirely.** The absence of a
+   matrix is configuration, not a gap — `selectTier` throwing
+   `APV_MATRIX_NOT_FOUND` is the wrong answer for those types, which is why
+   `complete` asks `hasPublishedMatrix` first.
+
+`yarn spec:check` still passes over all of this. It compares the on-screen text
+against §16 and **does not read the transition table** — never cite it as
+evidence that this design matches the specification.
 
 ## Approval Engine (S2)
 

@@ -112,7 +112,7 @@ const dbRow = (overrides: Record<string, unknown> = {}) => ({
 describe('CD-92 v2: BI menu from configuration', () => {
   it('serves configured rows keyed by row id, filtered per caller unit', async () => {
     const { repo, service } = build();
-    repo.count.mockResolvedValue(1 as never);
+    repo.count.mockResolvedValue(1);
     repo.findVisible.mockResolvedValue([dbRow()] as never);
 
     const menu = await service.menu(principal());
@@ -129,7 +129,7 @@ describe('CD-92 v2: BI menu from configuration', () => {
 
   it('falls back to the env trio only while the company has no rows at all', async () => {
     const { repo, service } = build();
-    repo.count.mockResolvedValue(0 as never);
+    repo.count.mockResolvedValue(0);
 
     const menu = await service.menu(principal());
 
@@ -142,7 +142,7 @@ describe('CD-92 v2: BI menu from configuration', () => {
 
   it('a company that retired every dashboard gets an empty menu, not the fallback', async () => {
     const { repo, service } = build();
-    repo.count.mockResolvedValue(2 as never);
+    repo.count.mockResolvedValue(2);
     repo.findVisible.mockResolvedValue([] as never);
 
     const menu = await service.menu(principal());
@@ -153,7 +153,7 @@ describe('CD-92 v2: BI menu from configuration', () => {
 
   it('reveals settings_url only to admin.bi.manage holders', async () => {
     const { repo, service } = build();
-    repo.count.mockResolvedValue(0 as never);
+    repo.count.mockResolvedValue(0);
 
     const plain = await service.menu(principal());
     const admin = await service.menu(
@@ -173,7 +173,7 @@ describe('CD-92 v2: dashboard administration', () => {
     repo.findAssignableUnits.mockResolvedValue([
       { id: 'team-sales', name: 'ทีมขาย', kind: 'TEAM' },
     ] as never);
-    repo.create.mockResolvedValue(dbRow() as never);
+    repo.create.mockResolvedValue(dbRow());
 
     const item = await service.create(
       {
@@ -212,7 +212,7 @@ describe('CD-92 v2: dashboard administration', () => {
 
   it('answers 404, not 403, for a dashboard outside the caller companies', async () => {
     const { repo, service } = build();
-    repo.findOwn.mockResolvedValue(null as never);
+    repo.findOwn.mockResolvedValue(null);
 
     await expect(
       service.update('dash-of-other-company', { title: 'x' }, principal()),
@@ -224,8 +224,8 @@ describe('CD-92 v2: dashboard administration', () => {
 
   it('DELETE retires the row instead of hard-deleting it', async () => {
     const { repo, audit, service } = build();
-    repo.findOwn.mockResolvedValue({ ...dbRow(), audiences: [] } as never);
-    repo.update.mockResolvedValue(dbRow({ active: false }) as never);
+    repo.findOwn.mockResolvedValue({ ...dbRow(), audiences: [] });
+    repo.update.mockResolvedValue(dbRow({ active: false }));
 
     await service.deactivate('dash-1', principal());
 
@@ -257,7 +257,7 @@ describe('CD-92 v2: dashboard administration', () => {
     repo.findAssignableUnits.mockResolvedValue([
       { id: 'dept-ops', name: 'ฝ่ายปฏิบัติการ', kind: 'DEPARTMENT' },
     ] as never);
-    repo.update.mockResolvedValue(dbRow() as never);
+    repo.update.mockResolvedValue(dbRow());
 
     const item = await service.update(
       'dash-1',

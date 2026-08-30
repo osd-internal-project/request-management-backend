@@ -9,6 +9,7 @@ import type {
   Prisma,
   Request,
   RequestAttachment,
+  RequestStatus,
   RequestType,
 } from '@prisma/client';
 
@@ -23,6 +24,8 @@ export type RequestWithType = Request & {
  * the same query so the list is one round trip, not one per row.
  */
 export type RequestListRow = RequestWithType & {
+  /** Who raised it. A list that crosses people is unreadable without a name. */
+  requester: { id: string; displayName: string };
   slaClock: { state: string; dueAt: Date } | null;
   approvalCases: {
     currentStep: number;
@@ -107,6 +110,41 @@ export class RequestRepository extends BaseRepository<
     });
   }
 
+  /**
+   * A person who may be handed a ticket in this company.
+   *
+   * Membership, not just existence: SCOPE-03 makes the company boundary
+   * absolute, and naming somebody from another company as your receiver would
+   * cross it at the moment a request is raised.
+   */
+  findReceiver(
+    userId: string,
+    companyId: string,
+    option?: TxOption,
+  ): Promise<{ id: string } | null> {
+    const client = option?.prisma ?? this.prisma;
+
+    return client.user.findFirst({
+      where: { id: userId, companies: { some: { companyId } } },
+      select: { id: true },
+    });
+  }
+
+  /** Direct children still running — what blocks a parent's completion. */
+  findOpenChildren(
+    parentRequestId: string,
+    openStatuses: readonly RequestStatus[],
+    option?: TxOption,
+  ): Promise<{ id: string; requestNo: string | null }[]> {
+    const client = option?.prisma ?? this.prisma;
+
+    return client.request.findMany({
+      where: { parentRequestId, status: { in: [...openStatuses] } },
+      select: { id: true, requestNo: true },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
   search(
     where: Prisma.RequestWhereInput,
     args: { skip: number; take: number },
@@ -119,6 +157,7 @@ export class RequestRepository extends BaseRepository<
       include: {
         requestType: true,
         attachments: true,
+        requester: { select: { id: true, displayName: true } },
         slaClock: { select: { state: true, dueAt: true } },
         approvalCases: {
           orderBy: { createdAt: 'desc' },

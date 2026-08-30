@@ -77,9 +77,9 @@ export class BiService {
     if (configured) {
       // Inactive rows count too: a company whose admin retired every
       // dashboard chose an empty menu — falling back to env would undo that.
-      const anyConfigured = (await this.dashboards.count({
+      const anyConfigured = await this.dashboards.count({
         where: { companyId },
-      })) as number;
+      });
 
       items =
         anyConfigured > 0
@@ -154,7 +154,7 @@ export class BiService {
     const units = await this.requireAssignableUnits(orgUnitIds, companyId);
 
     const created = await this.tx.execute(async (prisma) => {
-      const row = (await this.dashboards.create(
+      const row = await this.dashboards.create(
         {
           data: {
             companyId,
@@ -168,7 +168,7 @@ export class BiService {
           },
         },
         { prisma },
-      )) as BiDashboard;
+      );
 
       await this.audit.record(
         {
@@ -217,7 +217,7 @@ export class BiService {
         : await this.requireAssignableUnits(orgUnitIds, companyId);
 
     const updated = await this.tx.execute(async (prisma) => {
-      const row = (await this.dashboards.update(
+      const row = await this.dashboards.update(
         {
           where: { id },
           data: {
@@ -233,7 +233,7 @@ export class BiService {
           },
         },
         { prisma },
-      )) as BiDashboard;
+      );
 
       if (orgUnitIds !== undefined) {
         await this.dashboards.replaceAudiences(id, orgUnitIds, { prisma });
