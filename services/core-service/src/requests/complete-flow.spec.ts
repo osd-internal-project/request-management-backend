@@ -4,13 +4,14 @@ import { RequestsService } from './requests.service';
 
 const OSD = 'company-osd';
 const WORKER = 'user-worker';
+const REQUESTER = 'user-requester';
 
-function principal(): Principal {
+function principal(userId: string = WORKER): Principal {
   return {
-    userId: WORKER,
+    userId,
     activeCompanyId: OSD,
     username: 'worker',
-    permissions: ['request.complete'],
+    permissions: ['request.complete', 'request.create'],
     // Only the fields this path reads. Double cast because a partial
     // principal no longer overlaps the full one enough for a single one.
   } as unknown as Principal;
@@ -164,6 +165,52 @@ describe('completing a request decides whether the result is checked', () => {
           { field: 'children', reason: 'child-2' },
         ]);
       }
+    });
+
+    /**
+     * `close` is the other end of the chain, and it had no guard at all.
+     *
+     * `complete` checks once, when the doing team finishes. A sub-request
+     * raised after that — the usual moment, while the parent waits on approval
+     * — passed no check, so the requester could close the parent over live work
+     * underneath it. Found by walking a two-level chain against the running
+     * services on 1 ก.ย. 2569.
+     */
+    it('refuses to close while a child is still open', async () => {
+      expect.assertions(2);
+
+      const { service, updates } = serviceWith({
+        hasMatrix: false,
+        request: inProgressRequest({
+          status: 'approved',
+          requesterId: REQUESTER,
+        }),
+        openChildren: [{ id: 'child-1', requestNo: 'OSD-DSC-202609-0005' }],
+      });
+
+      try {
+        await service.close('req-1', principal(REQUESTER));
+      } catch (error) {
+        expect((error as AppError).code).toBe('REQ_CHILDREN_OPEN');
+      }
+
+      // Refused before the transaction, so nothing was written.
+      expect(updates).toHaveLength(0);
+    });
+
+    it('closes once the children are finished', async () => {
+      const { service, updates } = serviceWith({
+        hasMatrix: false,
+        request: inProgressRequest({
+          status: 'approved',
+          requesterId: REQUESTER,
+        }),
+        openChildren: [],
+      });
+
+      await service.close('req-1', principal(REQUESTER));
+
+      expect(updates.map((update) => update.status)).toEqual(['closed']);
     });
   });
 });

@@ -85,6 +85,31 @@ export class OrgUnitRepository extends BaseRepository<
    * failure, because distinguishing them would disclose what exists elsewhere
    * (SCOPE-03).
    */
+  /**
+   * Which of these ids are assignable groups of this company.
+   *
+   * The plural of {@link findAssignable}, for validating a whole approval
+   * ladder in one query rather than one per level. Returns only the ids that
+   * pass, so the caller can name the ones that did not.
+   */
+  async assignableIdsOf(
+    ids: readonly string[],
+    companyId: string,
+    option?: TxOption,
+  ): Promise<Set<string>> {
+    if (!ids.length) return new Set();
+
+    const rows = (await this.findMany(
+      {
+        where: { id: { in: [...ids] }, companyId, active: true },
+        select: { id: true },
+      },
+      option,
+    )) as { id: string }[];
+
+    return new Set(rows.map((row) => row.id));
+  }
+
   findAssignable(
     id: string,
     companyId: string,

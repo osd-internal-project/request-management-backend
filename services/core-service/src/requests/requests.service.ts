@@ -234,7 +234,13 @@ export class RequestsService {
         { prisma },
       );
 
-      return type;
+      // With the groups attached, for the same reason `updateType` re-reads:
+      // A2 keeps whatever this returns, and a create that answers without them
+      // shows a brand-new type as open to everybody.
+      return prisma.requestType.findUniqueOrThrow({
+        where: { id: type.id },
+        include: { eligibleUnits: true },
+      });
     });
 
     return created;
@@ -356,7 +362,18 @@ export class RequestsService {
         { prisma },
       );
 
-      return updated;
+      /*
+        Re-read with the groups attached, because A2 merges this response over
+        the row it is holding. Returning the bare `update()` result meant
+        `eligibleUnits` came back absent, the screen overwrote its own correct
+        list with nothing, and the next save sent an empty list — silently
+        reopening the type to every group. Found on 1 ก.ย. 2569 by saving the
+        same type twice.
+      */
+      return prisma.requestType.findUniqueOrThrow({
+        where: { id: updated.id },
+        include: { eligibleUnits: true },
+      });
     });
   }
 
@@ -897,6 +914,18 @@ export class RequestsService {
     }
 
     assertTransition(before.status, 'closed');
+
+    /*
+      The same guard `complete` carries, because closing is the other way a
+      chain ends and it was the unguarded one.
+
+      `complete` checks once, at the moment the doing team finishes. A child
+      raised *after* that — which is exactly when a sub-request tends to appear,
+      while the parent waits on approval — met no check at all, and the parent
+      closed over live work underneath it. Found by walking a two-level chain on
+      1 ก.ย. 2569.
+    */
+    await this.assertNoOpenChildren(id);
 
     return this.transactions.execute(async (prisma) => {
       const updated = await prisma.request.update({

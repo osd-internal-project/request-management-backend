@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AccessService } from './access.service';
 import { OrgUnitRepository } from './org-unit.repository';
+import { CompanyMemberRepository } from './company-member.repository';
 
 /**
  * Read-only access to the org chart, and the questions answered from it.
@@ -11,7 +12,7 @@ import { OrgUnitRepository } from './org-unit.repository';
  * who may decide a level — and a copy in each is a copy that drifts.
  */
 @Module({
-  providers: [AccessService, OrgUnitRepository],
+  providers: [AccessService, OrgUnitRepository, CompanyMemberRepository],
   exports: [AccessService, OrgUnitRepository],
 })
 export class AccessModule {}

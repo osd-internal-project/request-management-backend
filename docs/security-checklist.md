@@ -117,8 +117,14 @@ advisory does not block a release on day one) and set `engines.node`.
 
 Working:
 
-- Access tokens are short-lived (15 min) with refresh; idle and absolute
-  session limits are Keycloak realm settings (AUTH-02).
+- Access tokens are short-lived with silent refresh, and the 15-minute idle
+  timeout is enforced by the BFF rather than left to the realm (AUTH-02): both
+  auth cookies are capped at the idle window and rewritten on each renewal, so
+  they slide forward while the user works and lapse on their own when nobody
+  is there. `SessionKeeper` renews every 5 minutes in an active tab; `proxy.ts`
+  renews a navigation whose access cookie has aged out, which is what keeps the
+  rule holding when JavaScript does not run. An absolute session cap remains a
+  Keycloak realm setting.
 - Logout clears both app and Keycloak sessions (AUTH-03).
 - A disabled Keycloak account loses access within one token lifetime.
 - Login success **and failure** are both written to the audit log (AUTH-07).

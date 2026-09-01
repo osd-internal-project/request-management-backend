@@ -8,7 +8,7 @@ import {
   resolveTargetCompany,
 } from '@request-management/share';
 import type { Principal } from '@request-management/share';
-import type { BiDashboard, OrgUnit } from '@prisma/client';
+import type { OrgUnit } from '@prisma/client';
 import { embedDashboardUrl } from './metabase-embed';
 import {
   BiDashboardRepository,

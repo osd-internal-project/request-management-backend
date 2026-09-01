@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
+import { AppError } from '@request-management/share';
 import { OrgUnitRepository } from './org-unit.repository';
+import { CompanyMemberRepository } from './company-member.repository';
 
 /**
  * One level of an approval ladder, as `ApprovalMatrix.levels` stores it.
@@ -45,7 +47,66 @@ export interface ApproverSubject {
  */
 @Injectable()
 export class AccessService {
-  constructor(private readonly orgUnits: OrgUnitRepository) {}
+  constructor(
+    private readonly orgUnits: OrgUnitRepository,
+    private readonly members: CompanyMemberRepository,
+  ) {}
+
+  /**
+   * Refuses a ladder that names groups or people this company does not have.
+   *
+   * `assertValidLevels` checks the *shape* and deliberately touches no
+   * database, which left the targets unchecked: publishing an `org` level
+   * pointing at a group that does not exist, or at one in another company,
+   * succeeded. Nothing said so until a request was raised against the type and
+   * routed to nobody — an approval mystery rather than the configuration error
+   * it is. Found on 1 ก.ย. 2569 by publishing a ladder aimed at an all-zero id.
+   *
+   * One query per kind for the whole ladder, not one per level.
+   */
+  async assertLevelTargetsExist(
+    levels: readonly MatrixLevel[],
+    companyId: string,
+  ): Promise<void> {
+    const orgLevels = levels.filter(
+      (level): level is Extract<MatrixLevel, { type: 'org' }> =>
+        level.type === 'org',
+    );
+    if (!orgLevels.length) return;
+
+    const unitIds = [...new Set(orgLevels.flatMap((l) => [...l.orgUnitIds]))];
+    const userIds = [
+      ...new Set(orgLevels.flatMap((l) => [...(l.userIds ?? [])])),
+    ];
+
+    const [assignable, memberIds] = await Promise.all([
+      this.orgUnits.assignableIdsOf(unitIds, companyId),
+      this.members.memberIdsOf(userIds, companyId),
+    ]);
+
+    /*
+      Every missing target is reported together. Publishing is a form the admin
+      fills in, and being told about one bad row at a time is the slowest way
+      to fix a ladder — the same reason `assertSubmittable` collects its
+      failures before throwing.
+    */
+    const details = [
+      ...unitIds
+        .filter((id) => !assignable.has(id))
+        .map((id) => ({ field: 'levels.orgUnitIds', reason: id })),
+      ...userIds
+        .filter((id) => !memberIds.has(id))
+        .map((id) => ({ field: 'levels.userIds', reason: id })),
+    ];
+
+    if (details.length) {
+      throw new AppError(
+        'VALIDATION_FAILED',
+        'ตารางอำนาจอนุมัติอ้างถึงหน่วยงานหรือผู้ใช้ที่ไม่มีอยู่ในบริษัทนี้',
+        details,
+      );
+    }
+  }
 
   /**
    * Everyone allowed to decide this level, for this requester.

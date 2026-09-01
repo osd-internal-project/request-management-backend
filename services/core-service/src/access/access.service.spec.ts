@@ -8,7 +8,11 @@ const REQUESTER = 'u_requester';
  */
 const ANCESTORS = ['unit-position', 'unit-dept', 'unit-division', 'unit-root'];
 
-function serviceWith(heads: Record<string, string | undefined>) {
+function serviceWith(
+  heads: Record<string, string | undefined>,
+  /** Which ids the chart and the company own — only `assertLevelTargetsExist` reads these. */
+  present: { units?: readonly string[]; users?: readonly string[] } = {},
+) {
   const orgUnits = {
     ancestorIdsOf: jest.fn(() => Promise.resolve(ANCESTORS)),
     managersOf: jest.fn((ids: readonly string[]) =>
@@ -16,9 +20,21 @@ function serviceWith(heads: Record<string, string | undefined>) {
         ids.map((id) => heads[id]).filter((id): id is string => Boolean(id)),
       ),
     ),
+    assignableIdsOf: jest.fn((ids: readonly string[]) =>
+      Promise.resolve(new Set(ids.filter((id) => present.units?.includes(id)))),
+    ),
   };
 
-  return { service: new AccessService(orgUnits as never), orgUnits };
+  const members = {
+    memberIdsOf: jest.fn((ids: readonly string[]) =>
+      Promise.resolve(new Set(ids.filter((id) => present.users?.includes(id)))),
+    ),
+  };
+
+  return {
+    service: new AccessService(orgUnits as never, members as never),
+    orgUnits,
+  };
 }
 
 describe('APV-02: a supervisor level counts levels of the chart', () => {
@@ -157,5 +173,62 @@ describe('APV-02: nobody approves their own request', () => {
         { requesterId: REQUESTER, orgUnitId: null },
       ),
     ).resolves.toEqual(['u_a', 'u_b']);
+  });
+});
+
+/**
+ * The check `assertValidLevels` deliberately cannot do, because it touches no
+ * database. Without it a ladder could name a group that does not exist and
+ * publish cleanly — see the method's own comment for how that was found.
+ */
+describe('a published ladder may only name real groups and real members', () => {
+  const OSD = 'company-osd';
+
+  it('passes when every group and person belongs to the company', async () => {
+    const { service } = serviceWith(
+      {},
+      { units: ['unit-fin'], users: ['u_cfo'] },
+    );
+
+    await expect(
+      service.assertLevelTargetsExist(
+        [
+          { type: 'supervisor', up: 1 },
+          { type: 'org', orgUnitIds: ['unit-fin'], userIds: ['u_cfo'] },
+        ],
+        OSD,
+      ),
+    ).resolves.toBeUndefined();
+  });
+
+  it('asks nothing of the database when no level names a group', async () => {
+    const { service, orgUnits } = serviceWith({});
+
+    await service.assertLevelTargetsExist([{ type: 'supervisor', up: 2 }], OSD);
+
+    expect(orgUnits.assignableIdsOf).not.toHaveBeenCalled();
+  });
+
+  it('names every missing group and person at once', async () => {
+    expect.assertions(2);
+
+    const { service } = serviceWith({}, { units: ['unit-fin'] });
+
+    try {
+      await service.assertLevelTargetsExist(
+        [
+          { type: 'org', orgUnitIds: ['unit-fin', 'unit-ghost'] },
+          { type: 'org', orgUnitIds: ['unit-fin'], userIds: ['u_stranger'] },
+        ],
+        OSD,
+      );
+    } catch (error) {
+      const failure = error as { code: string; details: unknown };
+      expect(failure.code).toBe('VALIDATION_FAILED');
+      expect(failure.details).toEqual([
+        { field: 'levels.orgUnitIds', reason: 'unit-ghost' },
+        { field: 'levels.userIds', reason: 'u_stranger' },
+      ]);
+    }
   });
 });

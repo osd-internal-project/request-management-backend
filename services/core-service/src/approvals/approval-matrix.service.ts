@@ -9,6 +9,7 @@ import type { Principal } from '@request-management/share';
 import type { ApprovalMatrix, Prisma } from '@prisma/client';
 import { assertValidLevels } from './matrix-rules';
 import { ApprovalMatrixRepository } from './approval-matrix.repository';
+import { AccessService } from '../access/access.service';
 import { PublishMatrixDto } from './dto/approval.dto';
 
 /**
@@ -24,6 +25,7 @@ import { PublishMatrixDto } from './dto/approval.dto';
 export class ApprovalMatrixService {
   constructor(
     private readonly matrices: ApprovalMatrixRepository,
+    private readonly access: AccessService,
     private readonly audit: AuditWriter,
   ) {}
 
@@ -105,6 +107,10 @@ export class ApprovalMatrixService {
     // company they belong to from a single screen (§16 A1 draws a tab each) —
     // which is precisely why it has to be checked rather than trusted.
     const companyId = resolveTargetCompany(actor, dto.company_id);
+
+    // Shape first, then targets: the second needs the company, and the company
+    // is only trustworthy once `resolveTargetCompany` has checked it.
+    await this.access.assertLevelTargetsExist(levels, companyId);
 
     const version =
       (await this.matrices.latestVersion(companyId, dto.subject_type)) + 1;

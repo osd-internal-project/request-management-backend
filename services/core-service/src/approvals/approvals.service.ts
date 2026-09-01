@@ -480,6 +480,35 @@ export class ApprovalsService {
         });
       }
 
+      /*
+        An intermediate approval is a fact about the request too.
+
+        The block above writes an event only when the case *finishes*, so on a
+        two-level ladder the first approver's decision — and the remark H2.2
+        makes mandatory — existed solely on `ApprovalStep.note`, which the
+        request screen never reads. The timeline then showed one approval where
+        two had happened, and the earlier remark was unreachable.
+
+        No `fromStatus`/`toStatus`: the request is still `pending_approval`.
+        The step moved, not the ticket.
+      */
+      if (found.requestId && nextStatus === 'pending') {
+        await prisma.requestEvent.create({
+          data: {
+            requestId: found.requestId,
+            seq: await this.nextRequestEventSeq(prisma, found.requestId),
+            type: 'request.review.step',
+            actorId: actor.userId,
+            data: {
+              caseId: found.id,
+              stepNo: found.currentStep,
+              nextStep: updated.currentStep,
+              note: dto.note ?? null,
+            },
+          },
+        });
+      }
+
       // Hand the baton to the next approver in the same transaction.
       if (nextStatus === 'pending') {
         await prisma.approvalStep.updateMany({

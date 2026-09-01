@@ -230,7 +230,7 @@ describe('CD-92 v2: dashboard administration', () => {
     expect(repo.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: 'dash-1' },
-        data: expect.objectContaining({ active: false }),
+        data: expect.objectContaining({ active: false }) as unknown,
       }),
       expect.anything(),
     );
