@@ -5,6 +5,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppErrorExceptionFilter } from '@request-management/share';
 import helmet from 'helmet';
 import { UserServiceModule } from './user-service.module';
+import { logger } from './logger.middleware';
 
 async function bootstrap() {
   const app = await NestFactory.create(UserServiceModule);
@@ -28,6 +29,7 @@ async function bootstrap() {
   );
 
   const port = app.get(ConfigService).get<number>('port') ?? 3001;
+  app.use(logger);
   await app.listen(port);
 }
 void bootstrap();

@@ -1,4 +1,9 @@
-import { assertKnownReturnReason, assertSubmittable } from './submit-rules';
+import type { AppError } from '@request-management/share';
+import {
+  assertKnownReturnReason,
+  assertReceiverFormComplete,
+  assertSubmittable,
+} from './submit-rules';
 
 const SCHEMA = {
   type: 'object',
@@ -129,5 +134,59 @@ describe('REQ-04 return reasons must come from the type list', () => {
 
   it('refuses anything when the type declares no reasons', () => {
     expect(() => assertKnownReturnReason([], 'DOC_INCOMPLETE')).toThrow();
+  });
+});
+
+describe('H2.2 ข้อ 3: the receiver fills in their own form before finishing', () => {
+  const schema = {
+    type: 'object',
+    required: ['outcome', 'cost'],
+    properties: {
+      outcome: { type: 'string', title: 'ผลการดำเนินการ' },
+      cost: { type: 'number', title: 'ค่าใช้จ่าย' },
+    },
+  };
+
+  it('asks for nothing when the type has no second form', () => {
+    expect(() => assertReceiverFormComplete(null, {})).not.toThrow();
+    expect(() => assertReceiverFormComplete(undefined, {})).not.toThrow();
+  });
+
+  it('passes once every required field is answered', () => {
+    expect(() =>
+      assertReceiverFormComplete(schema, { outcome: 'ทำแล้ว', cost: 0 }),
+    ).not.toThrow();
+  });
+
+  /**
+   * Zero is an answer. `isBlank` treats `0` and `false` as present for the
+   * requester's form and has to here too, or every field costing nothing would
+   * be reported as unfilled.
+   */
+  it('counts zero as an answer', () => {
+    expect(() =>
+      assertReceiverFormComplete(schema, { outcome: 'ทำแล้ว', cost: 0 }),
+    ).not.toThrow();
+  });
+
+  it('names every missing field at once, not the first', () => {
+    try {
+      assertReceiverFormComplete(schema, {});
+      throw new Error('expected the form to be refused');
+    } catch (error) {
+      const failure = error as AppError;
+      expect(failure.code).toBe('REQ_FIELD_MISSING');
+      expect(failure.details).toHaveLength(2);
+    }
+  });
+
+  /** A distinct message: this is not the submit form, and saying so saves a hunt. */
+  it('says which form is incomplete', () => {
+    try {
+      assertReceiverFormComplete(schema, { outcome: 'ทำแล้ว' });
+      throw new Error('expected the form to be refused');
+    } catch (error) {
+      expect((error as AppError).message).toContain('ฟอร์มผู้รับคำขอ');
+    }
   });
 });

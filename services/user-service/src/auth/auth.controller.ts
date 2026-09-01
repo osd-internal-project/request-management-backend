@@ -46,7 +46,14 @@ interface MeResponse {
   active_company_id: string;
   roles: string[];
   permissions: string[];
-  scopes: Record<string, string>;
+  /**
+   * Whether this person heads any group. The menu hides "งานทั้งหมด" without
+   * it — a page that can only ever be empty reads as one that failed to load.
+   *
+   * A boolean rather than the id list: the frontend never filters by unit
+   * itself, and shipping the list would invite it to start.
+   */
+  leads_units: boolean;
   sensitive_fields_visible: string[];
 }
 
@@ -70,7 +77,7 @@ function present(principal: Principal): MeResponse {
     active_company_id: principal.activeCompanyId,
     roles: [...principal.roles],
     permissions: [...principal.permissions],
-    scopes: { ...principal.scopes },
+    leads_units: principal.ledUnitIds.length > 0,
     sensitive_fields_visible: [...principal.sensitiveFieldsVisible],
   };
 }

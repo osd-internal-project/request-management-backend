@@ -17,11 +17,37 @@ CTD spec §15, plus what this implementation pass settled or uncovered.
 
 | # | Question | Owner | Blocks | Status |
 |---|---|---|---|---|
-| **A** | Real T1 and T2 ceilings per company and request type, at minimum for discount requests | Finance / CFO | S2 and S3 **go-live** — development proceeds on placeholders | 🔴 open |
+| **A** | Real T1 and T2 ceilings per company and request type, at minimum for discount requests | Finance / CFO | ~~S2 and S3 go-live~~ | 🟢 **moot 31 ส.ค. 2569 — see below** |
 | **B** | SMTP settings (host, port, sending account) and any automated-send limits | Infra | SUP-03 real-world testing | 🔴 open |
 | **C** | Realm/client admin rights on Keycloak, and agreed role naming | Infra | Was "S1 day one" | 🟢 **resolved 25 Aug 2026 — see below** |
 | **D** | Who owns keeping "who reports to whom" current in the system | PO + HR | SCOPE-*, approval step 1, S3 UAT | 🔴 open |
 | **E** | Test accounts per role and company for UAT, including stand-in CFO/CEO | PO + IT | UAT every sprint | 🟡 **unblocked for OSD** — `yarn uat:users` provisions all seven roles with a real supervisor chain and distinct CFO/CEO. Still open: whether business users test with these or with their own accounts, and the same set for company BCO |
+
+### F — NEW (1 ก.ย. 2569): batch approval and delegation have no screen
+
+H2 ย้ายการอนุมัติไปอยู่บนหน้าคำขอเอง และเลิกใช้หน้า "รออนุมัติของฉัน" ผลข้างเคียง
+ที่ requirement ไม่ได้สั่งแต่เกิดขึ้นจริง: **หน้าจอที่หายไปเป็นที่เดียวที่มี**
+
+- **อนุมัติเป็นชุด (APV-04)** — `POST /approvals/batch-decide` ยังทำงานครบ
+  ทั้ง endpoint, DTO, และ per-case result แต่ไม่มีปุ่มไหนเรียกมันแล้ว
+- **แบนเนอร์รับมอบอำนาจ (APV-03)** — การมอบอำนาจยัง resolve ตอนกดอนุมัติปกติ
+  (`authorise` อ่าน delegation ครบ) แต่ผู้รับมอบไม่มีที่ไหนบอกว่าตนกำลังทำแทนใคร
+
+ทั้งสองข้อไม่ได้พัง — ไม่มีทางเข้าถึงจากหน้าจอ ต้องตัดสินใจว่าจะทำ UI ใหม่ให้
+บนหน้า "งานค้างของฉัน" แท็บอนุมัติ หรือยอมรับว่าไม่ต้องมี
+
+### A — MOOT (31 ส.ค. 2569)
+
+ตารางอำนาจอนุมัติเลิกใช้เพดานวงเงินแล้ว จึงไม่มี T1/T2 ให้ยืนยันอีก — สายอนุมัติ
+เป็นรายการชั้น เลือกได้ว่าเป็นหัวหน้าชั้นไหนของผังทีม หรือระบุหน่วยงาน/ผู้อนุมัติเอง
+ดู declared amendment ใน §8 ของ `ctd-foundation-spec.md`
+
+การรอคำตอบนี้เจ็ดวันคือหนึ่งในสามเหตุผลที่ตัดสินใจถอนเพดานออก: ระบบไม่ควรมี
+ตัวเลขสมมติที่ไม่มีใครตกลงเป็นสิ่งที่ตัดสินว่าใครต้องอนุมัติ
+
+**ถ้าฝ่ายการเงินยังต้องการเพดานวงเงินในภายหลัง** ให้เปิดเป็นคำถามใหม่ ไม่ใช่ปลุก
+ข้อนี้ — สิ่งที่ต้องออกแบบตอนนั้นคือชั้นชนิดที่สาม (`amount`) ข้างชั้นสองแบบที่มีอยู่
+ไม่ใช่การย้อนกลับไปเป็นตารางเพดาน
 
 ### C — RESOLVED (25 Aug 2026)
 

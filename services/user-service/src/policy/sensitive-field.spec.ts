@@ -21,11 +21,9 @@ function principalWith(visible: string[]): Principal {
     activeCompanyId: 'c_osd',
     orgUnitId: null,
     supervisorUserId: null,
-    teamOrgUnitIds: [],
-    departmentOrgUnitIds: [],
+    ledUnitIds: [],
     roles: [],
     permissions: [],
-    scopes: {},
     sensitiveFieldsVisible: visible,
     sensitiveFieldsAll: [
       `${RESOURCE}.discount_pct`,

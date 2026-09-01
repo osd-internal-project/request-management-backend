@@ -1,9 +1,10 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
+import { SlaCoverage } from '@prisma/client';
 import {
   ArrayNotEmpty,
   IsArray,
-  IsBoolean,
+  IsEnum,
   IsInt,
   IsNotEmpty,
   IsOptional,
@@ -28,12 +29,14 @@ export class SlaConfigEntryDto {
   hours!: number;
 
   @ApiPropertyOptional({
-    example: true,
-    description: 'Count business hours only, per the company calendar.',
+    enum: SlaCoverage,
+    description:
+      'H24X7 counts elapsed time · H8X7 counts the working window every day ' +
+      '· H8X5 counts it on working days only, per the company calendar.',
   })
   @IsOptional()
-  @IsBoolean()
-  business_hours?: boolean;
+  @IsEnum(SlaCoverage)
+  coverage?: SlaCoverage;
 
   @ApiPropertyOptional({
     example: 4,

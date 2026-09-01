@@ -42,6 +42,25 @@ export function assertSubmittable(input: {
   );
 }
 
+/**
+ * The receiver's form, checked the same way the requester's is at submit.
+ *
+ * Separate from `assertSubmittable` because it is a different moment and a
+ * different form: no documents are involved, and a type with no second form
+ * asks for nothing rather than passing an empty check.
+ */
+export function assertReceiverFormComplete(
+  schema: unknown,
+  formData: Record<string, unknown>,
+): void {
+  if (!schema) return;
+
+  const details = missingFields(schema, formData);
+  if (!details.length) return;
+
+  throw new AppError('REQ_FIELD_MISSING', 'กรอกฟอร์มผู้รับคำขอไม่ครบ', details);
+}
+
 function missingFields(
   schema: unknown,
   formData: Record<string, unknown>,

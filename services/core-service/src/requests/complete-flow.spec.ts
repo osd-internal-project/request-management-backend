@@ -11,8 +11,9 @@ function principal(): Principal {
     activeCompanyId: OSD,
     username: 'worker',
     permissions: ['request.complete'],
-    scopes: { request: 'company' },
-  } as Principal;
+    // Only the fields this path reads. Double cast because a partial
+    // principal no longer overlaps the full one enough for a single one.
+  } as unknown as Principal;
 }
 
 /** A request sitting where `complete` expects to find one. */
@@ -73,6 +74,10 @@ function serviceWith(options: {
       ),
     } as never,
     {} as never,
+    // `RequestCommentRepository` — none of these paths comment.
+    {} as never,
+    {} as never,
+    // `OrgUnitRepository` — `complete` never resolves a receiving team.
     {} as never,
     {} as never,
     {

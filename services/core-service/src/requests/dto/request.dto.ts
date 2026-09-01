@@ -1,9 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PageQueryDto } from '@request-management/share';
+import { SlaCoverage } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
   IsArray,
   IsBoolean,
+  IsEnum,
   IsIn,
   IsInt,
   IsNotEmpty,
@@ -49,6 +51,15 @@ export class CreateRequestDto {
   @IsString()
   receiver_user_id?: string;
 
+  /**
+   * The team this goes to. Omit it and the request type's own `ทีมผู้รับ` is
+   * used — the type configures a starting point, not a routing rule.
+   */
+  @ApiPropertyOptional({ description: 'ทีมผู้รับ — ค่าตั้งต้นมาจากประเภทคำขอ' })
+  @IsOptional()
+  @IsString()
+  receiver_org_unit_id?: string;
+
   /** Set when this request was spawned from another (`06_EXAMPLE`). */
   @ApiPropertyOptional({ description: 'คำขอต้นเรื่อง' })
   @IsOptional()
@@ -90,6 +101,49 @@ export class UpdateRequestDto {
   @IsOptional()
   @IsString()
   receiver_user_id?: string;
+
+  @ApiPropertyOptional({ description: 'ทีมผู้รับ' })
+  @IsOptional()
+  @IsString()
+  receiver_org_unit_id?: string;
+}
+
+/**
+ * H2.2 ข้อ 3 — what the receiver fills in before declaring the work done.
+ *
+ * Optional on the DTO because most request types have no second form. Whether
+ * it is *required* is the type's answer, not this one's: `receiverFormSchema`
+ * says which fields are mandatory, and `complete` refuses without them.
+ */
+export class CompleteRequestDto {
+  @ApiPropertyOptional({ type: Object })
+  @IsOptional()
+  @IsObject()
+  receiver_form_data?: Record<string, unknown>;
+}
+
+/** H2.2 — a note somebody leaves on a request, without moving it. */
+export class AddCommentDto {
+  @ApiProperty({ description: 'ข้อความ' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(4000)
+  body!: string;
+}
+
+/**
+ * H2.2 — closing a request may carry a note, and does not have to.
+ *
+ * Optional where an approval's is mandatory: closing is the requester saying
+ * "this is what I asked for", and demanding a sentence for that would train
+ * people to type a full stop.
+ */
+export class CloseRequestDto {
+  @ApiPropertyOptional({ maxLength: 2000 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  note?: string;
 }
 
 export class ReturnRequestDto {
@@ -148,19 +202,27 @@ export class ResumeRequestDto {
  */
 export class ListRequestsQueryDto extends PageQueryDto {
   /**
-   * `mine` = ที่ฉันยื่น · `involved` = ที่ฉันเกี่ยวข้อง (SCOPE-06) ·
-   * `incoming` = ที่ส่งมาให้ฉันรับเรื่อง.
+   * Which slice of what the caller may see.
    *
-   * `incoming` exists because a ticket handed to somebody has to be findable by
-   * that somebody. Data scope alone cannot do it: a plain employee is scoped to
-   * `own`, which means requests they *raised*, and a request sent to them was
-   * raised by someone else — so without this view the person a ticket is
-   * waiting on is the one person who cannot see it.
+   * The four tabs of "งานค้างของฉัน":
+   * `involved` ทั้งหมด · `created` สร้าง · `incoming` รับเรื่อง ·
+   * `approver` อนุมัติ. Plus `led` — the separate "งานทั้งหมด" screen, which is
+   * the work of the groups this person heads rather than their own.
+   *
+   * Every one of them **narrows**. What the caller may see at all is decided
+   * once, by `visibleRequestsWhere`, and a view can only take a subset of it —
+   * so no view can become a way round the visibility rule.
+   *
+   * `involved` is not the same as no view: the default also covers the groups
+   * the caller leads, and a head's personal queue should not swell with every
+   * ticket in their department.
    */
-  @ApiPropertyOptional({ enum: ['mine', 'involved', 'incoming'] })
+  @ApiPropertyOptional({
+    enum: ['involved', 'created', 'incoming', 'approver', 'led'],
+  })
   @IsOptional()
-  @IsIn(['mine', 'involved', 'incoming'])
-  view?: 'mine' | 'involved' | 'incoming';
+  @IsIn(['involved', 'created', 'incoming', 'approver', 'led'])
+  view?: 'involved' | 'created' | 'incoming' | 'approver' | 'led';
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -269,9 +331,28 @@ export class CreateRequestTypeDto {
   @IsString()
   receiver_org_unit_id?: string;
 
-  @ApiProperty({ description: 'JSON Schema describing the form.' })
+  @ApiProperty({ description: "JSON Schema for the requester's form." })
   @IsObject()
   form_schema!: Record<string, unknown>;
+
+  /** Omit for a type where the receiver only accepts and completes. */
+  @ApiPropertyOptional({
+    type: Object,
+    description: "JSON Schema for the receiver's form, filled in at complete.",
+  })
+  @IsOptional()
+  @IsObject()
+  receiver_form_schema?: Record<string, unknown>;
+
+  /**
+   * Groups allowed to raise this type, each covering its whole subtree.
+   * An empty array — the default — means every group may.
+   */
+  @ApiPropertyOptional({ isArray: true })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  eligible_org_unit_ids?: string[];
 
   @ApiPropertyOptional({ type: [CodedLabelDto] })
   @IsOptional()
@@ -298,10 +379,11 @@ export class CreateRequestTypeDto {
   @Min(1)
   sla_hours?: number;
 
-  @ApiPropertyOptional({ example: true })
+  /** `H24X7` (elapsed) · `H8X7` (office hours daily) · `H8X5` (working days). */
+  @ApiPropertyOptional({ enum: SlaCoverage, example: SlaCoverage.H8X5 })
   @IsOptional()
-  @IsBoolean()
-  sla_business_hours?: boolean;
+  @IsEnum(SlaCoverage)
+  sla_coverage?: SlaCoverage;
 
   @ApiPropertyOptional({
     description:
@@ -336,15 +418,34 @@ export class UpdateRequestTypeDto {
   @MaxLength(255)
   name?: string;
 
-  @ApiPropertyOptional()
+  /**
+   * `null` clears the type's ทีมผู้รับ — a type may legitimately have none.
+   *
+   * `@IsOptional()` skips null as well as undefined, so the two are distinct
+   * here: absent leaves the current value alone, null removes it.
+   */
+  @ApiPropertyOptional({ nullable: true })
   @IsOptional()
   @IsString()
-  receiver_org_unit_id?: string;
+  receiver_org_unit_id?: string | null;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsObject()
   form_schema?: Record<string, unknown>;
+
+  /** `null` removes the receiver's form; absent leaves it alone. */
+  @ApiPropertyOptional({ type: Object, nullable: true })
+  @IsOptional()
+  @IsObject()
+  receiver_form_schema?: Record<string, unknown> | null;
+
+  /** Replaces the whole list. `[]` opens the type to every group again. */
+  @ApiPropertyOptional({ isArray: true })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  eligible_org_unit_ids?: string[];
 
   @ApiPropertyOptional({ type: [CodedLabelDto] })
   @IsOptional()
@@ -371,10 +472,11 @@ export class UpdateRequestTypeDto {
   @Min(1)
   sla_hours?: number;
 
-  @ApiPropertyOptional()
+  /** `H24X7` (elapsed) · `H8X7` (office hours daily) · `H8X5` (working days). */
+  @ApiPropertyOptional({ enum: SlaCoverage, example: SlaCoverage.H8X5 })
   @IsOptional()
-  @IsBoolean()
-  sla_business_hours?: boolean;
+  @IsEnum(SlaCoverage)
+  sla_coverage?: SlaCoverage;
 
   @ApiPropertyOptional()
   @IsOptional()

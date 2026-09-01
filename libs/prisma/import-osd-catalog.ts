@@ -185,6 +185,7 @@ interface Report {
   readonly positionsUnmapped: string[];
   readonly orphanDepartments: string[];
   readonly divisionsWithoutName: string[];
+  readonly positionUnits: string[];
   readonly splitDepartments: string[];
   readonly staleUnitsKept: string[];
   readonly staffWithoutUsername: string[];
@@ -241,12 +242,51 @@ function companyCodeFor(person: StaffPlacement): string {
 }
 
 /**
- * Builds one company's chart: root → ฝ่าย (DIVISION) → แผนก (DEPARTMENT).
+ * The key a position unit is looked up by: department plus job title.
  *
- * The staff register keeps `ฝ่าย` and `แผนก` in separate columns, so the chart
- * has three levels. The first import read only the department column and hung
- * every unit flat under the root, which is not the organisation — this is the
- * fix for that.
+ * A title is not unique on its own — `พนักงานขาย` exists under several
+ * departments and each is a different box on the chart — so the department has
+ * to be part of the key or the whole company would collapse into one unit per
+ * title, which is exactly the failure `User.position`'s doc comment warns of.
+ */
+function positionKey(department: string, position: string): string {
+  return `${department}\u0000${position}`;
+}
+
+/**
+ * A stable unit code for a position, derived from its title.
+ *
+ * Codes are unique per company (`@@unique([companyId, code])`) and are what an
+ * admin reads on screen A3, so they have to survive a re-import unchanged.
+ * Thai titles have no ASCII form worth writing, so the title is kept as-is with
+ * only the characters that make a code unreadable removed, then prefixed with
+ * the department. Collisions after that are titles that differ only in
+ * punctuation, and they are resolved by suffix rather than silently merged.
+ */
+function positionCode(
+  department: string,
+  position: string,
+  taken: Set<string>,
+): string {
+  const cleaned = position.replace(/[\s\u0000-\u001f]+/g, '-').replace(/-+/g, '-');
+  const base = `${department}-${cleaned}`.slice(0, 60);
+
+  let code = base;
+  for (let n = 2; taken.has(code); n += 1) code = `${base}-${n}`;
+
+  taken.add(code);
+  return code;
+}
+
+/**
+ * Builds one company's chart: root → ฝ่าย (DIVISION) → แผนก (DEPARTMENT)
+ *                                   → ตำแหน่ง (POSITION).
+ *
+ * The staff register keeps `ฝ่าย`, `แผนก` and `ตำแหน่ง` in separate columns, so
+ * the chart has four levels. The first import read only the department column
+ * and hung every unit flat under the root; the second added divisions but still
+ * parked every person directly in their department. This builds the last level
+ * too, so a person sits in a position and a department is a branch again.
  *
  * `OrgClosure` is rebuilt from scratch at the end, exactly as `OrgService` does
  * after an edit — scope `team` and `department` resolve against that table, so
@@ -442,6 +482,66 @@ async function importOrgTree(
     report.divisionsWithoutName.push(`${companyCode}:${division}`);
   }
 
+  /*
+    The fourth level: one unit per (department, job title) actually staffed.
+
+    Built from the people rather than from a title register, because there is no
+    title register — `14_LIST_STAFF` column E is the only place titles appear,
+    and a title nobody holds would be an empty box.
+
+    A person with no department has nowhere to hang a position from, so they
+    stay unplaced and are already reported by `importStaff`.
+  */
+  const takenCodes = new Set(byCode.keys());
+  const positions = new Map<string, { department: string; position: string }>();
+
+  for (const person of people) {
+    if (!person.position || !person.department) continue;
+    if (!byCode.has(person.department)) continue;
+
+    positions.set(positionKey(person.department, person.position), {
+      department: person.department,
+      position: person.position,
+    });
+  }
+
+  for (const [key, { department, position }] of [...positions].sort((a, b) =>
+    a[0].localeCompare(b[0]),
+  )) {
+    const parentId = byCode.get(department) as string;
+
+    /*
+      Matched on the parent and the title rather than on a generated code: the
+      code is derived from the title and could drift between runs, and a second
+      run must update the unit that is already there instead of creating a twin
+      beside it.
+    */
+    const existing = await prisma.orgUnit.findFirst({
+      where: { companyId, parentId, name: position, kind: 'POSITION' },
+      select: { id: true, code: true },
+    });
+
+    const saved = existing
+      ? await prisma.orgUnit.update({
+          where: { id: existing.id },
+          data: { name: position, kind: 'POSITION', parentId },
+        })
+      : await prisma.orgUnit.create({
+          data: {
+            companyId,
+            code: positionCode(department, position, takenCodes),
+            name: position,
+            kind: 'POSITION',
+            parentId,
+            createdBy: 'import',
+          },
+        });
+
+    if (existing) takenCodes.add(existing.code);
+    byCode.set(key, saved.id);
+    report.positionUnits.push(`${companyCode}:${saved.code}`);
+  }
+
   await removeStaleUnits(companyId, byCode, report);
   await rebuildClosure(companyId);
 
@@ -587,7 +687,7 @@ async function importRequestTypes(
         source_category: text(row, 'C') || null,
       } as Prisma.InputJsonValue,
       slaHours: slaDays === null ? null : slaDays * HOURS_PER_DAY,
-      slaBusinessHours: true,
+      slaCoverage: 'H8X5' as const,
       active: isRelease1,
     };
 
@@ -662,8 +762,18 @@ async function importStaff(
     const companyId = companyIds.get(companyCode);
     if (!companyId) continue;
 
+    const units = unitsByCompany.get(companyCode);
+    const departmentUnitId = units?.get(person.department) ?? null;
+
+    /*
+      People sit in a position, which hangs from their department. Falling back
+      to the department covers the rows whose title column is blank — better a
+      person one level up than a person with no place on the chart at all.
+    */
     const unitId =
-      unitsByCompany.get(companyCode)?.get(person.department) ?? null;
+      (person.position
+        ? units?.get(positionKey(person.department, person.position))
+        : null) ?? departmentUnitId;
 
     const { firstName, lastName } = splitName(person.fullName);
     const account = await ensureKeycloakUser(keycloak, {
@@ -683,8 +793,8 @@ async function importStaff(
         firstName,
         lastName,
         email: `${username}@osd.co.th`,
-        // The leaf of the chart, not the division: scope `team` means the unit
-        // someone actually sits in.
+        // The leaf of the chart, not the division or the department: a
+        // position is the unit someone actually sits in.
         orgUnitId: unitId,
         position: person.position || null,
         keycloakRoles: [DEFAULT_ROLE],
@@ -718,7 +828,13 @@ async function importStaff(
       `RequestType.receiverOrgUnitId` names the team a type is sent to, so its
       members are precisely the people who will be handed those tickets.
     */
-    if (receivingUnitIds.has(unitId ?? '')) {
+    /*
+      Keyed on the department, not on `unitId`. A request type names a
+      department as its receiving unit, while a person now sits one level below
+      it — comparing the two directly stopped matching the day positions were
+      added, and silently left the whole company unable to accept a ticket.
+    */
+    if (departmentUnitId && receivingUnitIds.has(departmentUnitId)) {
       await grantSystemRole(prisma, profileId, companyId, RECEIVER_ROLE);
       report.rolesGranted.push(`${username}=${RECEIVER_ROLE}`);
     }
@@ -823,6 +939,7 @@ async function main(): Promise<void> {
     positionsUnmapped: [],
     orphanDepartments: [],
     divisionsWithoutName: [],
+    positionUnits: [],
     splitDepartments: [],
     staleUnitsKept: [],
     staffWithoutUsername: [],
@@ -886,9 +1003,16 @@ async function main(): Promise<void> {
     report,
   );
 
+  const positionsIn = (code: string) =>
+    report.positionUnits.filter((entry) => entry.startsWith(`${code}:`)).length;
+
   printReport(report, {
-    'หน่วยงาน OSD': osdUnits.size,
-    'หน่วยงาน LEXTECH': unitsByCompany.get(LEXTECH_CODE)?.size ?? 0,
+    // `unitsByCompany` is keyed by unit code *and* by (department, position),
+    // so its raw size would double-count the fourth level.
+    'หน่วยงาน OSD': osdUnits.size - positionsIn(COMPANY_CODE),
+    '  ตำแหน่ง (ชั้นที่ 4)': positionsIn(COMPANY_CODE),
+    'หน่วยงาน LEXTECH':
+      (unitsByCompany.get(LEXTECH_CODE)?.size ?? 0) - positionsIn(LEXTECH_CODE),
     'ประเภทคำขอ': types.total,
     '  เปิดใช้ (Release 1)': types.active,
     'พนักงานที่นำเข้า': imported,

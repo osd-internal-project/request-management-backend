@@ -7,8 +7,7 @@ import {
 } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import type { ApprovalMatrix, Prisma } from '@prisma/client';
-import { MatrixTier } from './approval-chain';
-import { assertValidTiers } from './matrix-rules';
+import { assertValidLevels } from './matrix-rules';
 import { ApprovalMatrixRepository } from './approval-matrix.repository';
 import { PublishMatrixDto } from './dto/approval.dto';
 
@@ -30,6 +29,11 @@ export class ApprovalMatrixService {
 
   list(companyId: string, subjectType?: string): Promise<ApprovalMatrix[]> {
     return this.matrices.findForCompany(companyId, subjectType);
+  }
+
+  /** Whether any version routes this subject at all — see the repository. */
+  countForSubject(subjectType: string): Promise<number> {
+    return this.matrices.countForSubject(subjectType);
   }
 
   /**
@@ -77,19 +81,25 @@ export class ApprovalMatrixService {
   /**
    * Publishes the next version of a ladder.
    *
-   * The tiers are validated before anything is written — see `matrix-rules.ts`
-   * for why a malformed ladder must not be allowed to reach the table.
+   * The levels are validated before anything is written — see
+   * `matrix-rules.ts` for why a malformed ladder must not reach the table, and
+   * for why it is levels rather than amount tiers since 31 Aug 2026.
    */
   async publish(
     dto: PublishMatrixDto,
     actor: Principal,
   ): Promise<ApprovalMatrix> {
-    const tiers = dto.tiers.map<MatrixTier>((tier) => ({
-      upto: tier.upto ?? null,
-      chain: tier.chain as MatrixTier['chain'],
-    }));
+    const levels = dto.levels as unknown;
 
-    assertValidTiers(tiers);
+    assertValidLevels(levels);
+
+    /*
+      `tiers` is NOT NULL and every reader published before today expects it,
+      so a new version writes one open-ended entry alongside the real ladder.
+      It carries no ceiling because there are no ceilings any more; it exists so
+      an older reader sees a well-formed row rather than an empty one.
+    */
+    const tiers = [{ upto: null, chain: ['team_lead'] }];
 
     // The company comes from the body so one administrator can configure any
     // company they belong to from a single screen (§16 A1 draws a tab each) —
@@ -106,6 +116,7 @@ export class ApprovalMatrixService {
         currency: dto.currency ?? 'THB',
         version,
         tiers: tiers as unknown as Prisma.InputJsonValue,
+        levels: levels as Prisma.InputJsonValue,
         effectiveFrom: dto.effective_from
           ? new Date(dto.effective_from)
           : new Date(),
@@ -123,7 +134,7 @@ export class ApprovalMatrixService {
       after: {
         subjectType: dto.subject_type,
         version,
-        tiers: tiers as unknown as Prisma.InputJsonValue,
+        levels: levels as Prisma.InputJsonValue,
       },
     });
 

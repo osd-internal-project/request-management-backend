@@ -1,100 +1,111 @@
-import { MatrixTier } from './approval-chain';
-import { assertValidTiers } from './matrix-rules';
+import { AppError } from '@request-management/share';
+import { assertValidLevels } from './matrix-rules';
 
-const VALID: MatrixTier[] = [
-  { upto: '100000.00', chain: ['team_lead'] },
-  { upto: '1000000.00', chain: ['team_lead', 'cfo'] },
-  { upto: null, chain: ['team_lead', 'cfo', 'ceo'] },
-];
+/** The field a refusal blamed, which is what the screen highlights. */
+function fieldOf(run: () => void): string {
+  try {
+    run();
+  } catch (error) {
+    return (error as AppError).details?.[0]?.field ?? '';
+  }
 
-/** The ladder from §8.1, which is what the seed publishes. */
-describe('APV-01 matrix validation', () => {
-  it('accepts the standard three-tier ladder', () => {
-    expect(() => assertValidTiers(VALID)).not.toThrow();
-  });
+  throw new Error('expected the ladder to be refused');
+}
 
-  it('accepts a single open-ended tier', () => {
+describe('APV-01: a ladder is validated before it is published', () => {
+  it('accepts a supervisor level', () => {
     expect(() =>
-      assertValidTiers([{ upto: null, chain: ['team_lead'] }]),
+      assertValidLevels([{ type: 'supervisor', up: 1 }]),
     ).not.toThrow();
   });
 
-  it('rejects an empty ladder — nothing could be approved', () => {
-    expect(() => assertValidTiers([])).toThrow(
-      expect.objectContaining({ code: 'VALIDATION_FAILED' }),
+  it('accepts an org level naming groups', () => {
+    expect(() =>
+      assertValidLevels([{ type: 'org', orgUnitIds: ['unit-fin'] }]),
+    ).not.toThrow();
+  });
+
+  it('accepts an org level naming people inside those groups', () => {
+    expect(() =>
+      assertValidLevels([
+        { type: 'org', orgUnitIds: ['unit-fin'], userIds: ['u1', 'u2'] },
+      ]),
+    ).not.toThrow();
+  });
+
+  it('accepts several levels in order', () => {
+    expect(() =>
+      assertValidLevels([
+        { type: 'supervisor', up: 1 },
+        { type: 'supervisor', up: 3 },
+        { type: 'org', orgUnitIds: ['unit-exec'] },
+      ]),
+    ).not.toThrow();
+  });
+});
+
+describe('APV-01: what a ladder may not be', () => {
+  /*
+    Publishing is the last moment a malformed ladder can be caught. After it
+    the failure is a request that routes to nobody, which reads as an approval
+    mystery rather than a configuration error.
+  */
+  it('refuses an empty ladder — nothing could ever be approved', () => {
+    expect(fieldOf(() => assertValidLevels([]))).toBe('levels');
+    expect(fieldOf(() => assertValidLevels(null))).toBe('levels');
+  });
+
+  it('refuses a level that is not one of the two shapes', () => {
+    expect(fieldOf(() => assertValidLevels([{ type: 'cfo' }]))).toBe(
+      'levels[0].type',
+    );
+  });
+
+  it('refuses a supervisor level with no level number', () => {
+    expect(fieldOf(() => assertValidLevels([{ type: 'supervisor' }]))).toBe(
+      'levels[0].up',
+    );
+  });
+
+  it.each([0, -1, 1.5, '1'])('refuses up = %p', (up) => {
+    expect(fieldOf(() => assertValidLevels([{ type: 'supervisor', up }]))).toBe(
+      'levels[0].up',
     );
   });
 
   /**
-   * `selectTier` takes the *first* tier the amount fits, so an out-of-order
-   * ladder makes later tiers unreachable without failing anywhere visible.
+   * A ladder that names no group resolves to nobody on every request — a
+   * ladder that cannot be climbed, which is worse than no ladder at all
+   * because the type looks configured.
    */
-  it('rejects descending ceilings', () => {
-    expect(() =>
-      assertValidTiers([
-        { upto: '1000000.00', chain: ['team_lead'] },
-        { upto: '100000.00', chain: ['team_lead', 'cfo'] },
-        { upto: null, chain: ['team_lead', 'cfo', 'ceo'] },
-      ]),
-    ).toThrow(expect.objectContaining({ code: 'VALIDATION_FAILED' }));
+  it('refuses an org level naming no group', () => {
+    expect(
+      fieldOf(() => assertValidLevels([{ type: 'org', orgUnitIds: [] }])),
+    ).toBe('levels[0].orgUnitIds');
   });
 
-  it('rejects equal ceilings, which make a tier dead', () => {
-    expect(() =>
-      assertValidTiers([
-        { upto: '100000.00', chain: ['team_lead'] },
-        { upto: '100000.00', chain: ['team_lead', 'cfo'] },
-        { upto: null, chain: ['team_lead', 'cfo', 'ceo'] },
-      ]),
-    ).toThrow(expect.objectContaining({ code: 'VALIDATION_FAILED' }));
+  it('blames the level that is wrong, not the first one', () => {
+    expect(
+      fieldOf(() =>
+        assertValidLevels([
+          { type: 'supervisor', up: 1 },
+          { type: 'org', orgUnitIds: [] },
+        ]),
+      ),
+    ).toBe('levels[1].orgUnitIds');
   });
 
-  /** An amount above the highest ceiling would have nowhere to route. */
-  it('rejects a ladder with no open-ended top tier', () => {
-    expect(() =>
-      assertValidTiers([
-        { upto: '100000.00', chain: ['team_lead'] },
-        { upto: '1000000.00', chain: ['team_lead', 'cfo'] },
-      ]),
-    ).toThrow(expect.objectContaining({ code: 'VALIDATION_FAILED' }));
-  });
+  it('refuses ids that are not strings', () => {
+    expect(
+      fieldOf(() => assertValidLevels([{ type: 'org', orgUnitIds: [42] }])),
+    ).toBe('levels[0].orgUnitIds');
 
-  it('rejects an open-ended tier that is not last', () => {
-    expect(() =>
-      assertValidTiers([
-        { upto: null, chain: ['team_lead'] },
-        { upto: '1000000.00', chain: ['team_lead', 'cfo'] },
-      ]),
-    ).toThrow(expect.objectContaining({ code: 'VALIDATION_FAILED' }));
-  });
-
-  it('rejects an unknown approver position', () => {
-    expect(() =>
-      assertValidTiers([
-        { upto: null, chain: ['team_lead', 'chairman'] as never },
-      ]),
-    ).toThrow(expect.objectContaining({ code: 'VALIDATION_FAILED' }));
-  });
-
-  /** §8.1: step 1 is the requester's team lead, on every request. */
-  it('rejects a chain that does not start at team_lead', () => {
-    expect(() =>
-      assertValidTiers([{ upto: null, chain: ['cfo', 'ceo'] }]),
-    ).toThrow(expect.objectContaining({ code: 'VALIDATION_FAILED' }));
-  });
-
-  it('rejects an empty chain', () => {
-    expect(() => assertValidTiers([{ upto: null, chain: [] }])).toThrow(
-      expect.objectContaining({ code: 'VALIDATION_FAILED' }),
-    );
-  });
-
-  it.each(['0', '-1', 'abc'])('rejects ceiling %s', (upto) => {
-    expect(() =>
-      assertValidTiers([
-        { upto, chain: ['team_lead'] },
-        { upto: null, chain: ['team_lead', 'cfo'] },
-      ]),
-    ).toThrow(expect.objectContaining({ code: 'VALIDATION_FAILED' }));
+    expect(
+      fieldOf(() =>
+        assertValidLevels([
+          { type: 'org', orgUnitIds: ['unit-fin'], userIds: [42] },
+        ]),
+      ),
+    ).toBe('levels[0].userIds');
   });
 });

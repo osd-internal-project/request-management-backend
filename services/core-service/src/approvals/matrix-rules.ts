@@ -1,121 +1,109 @@
 import { AppError } from '@request-management/share';
-import {
-  APPROVER_POSITIONS,
-  ApproverPosition,
-  MatrixTier,
-} from './approval-chain';
+import type { MatrixLevel } from '../access/access.service';
 
 /**
- * APV-01: validates a tier ladder before it is published.
+ * APV-01: validates an approval ladder before it is published.
  *
- * Takes `unknown` rather than `MatrixTier[]` on purpose — this runs against
- * data arriving as JSON from an admin screen, so claiming it is already the
- * right shape would defeat the check. Narrowing happens here, explicitly.
+ * **Declared amendment to §8.1 and APV-01, 31 Aug 2026.** The specification
+ * describes a matrix of amount ceilings — team lead below T1, CFO above it,
+ * CEO above T2 — and this file used to enforce exactly that. The ladder is now
+ * a list of *levels* with no amounts in it at all.
  *
- * Publishing is the last moment a malformed ladder can be caught. It does not
- * fail loudly later; it fails as a request that routes to nobody or skips a
- * ceiling, by which point the matrix looks authoritative and the bug looks
- * like an approval mystery.
+ * Why, stated rather than done quietly:
  *
- * The rules, all from §8.1:
+ *   - **T1 and T2 were never confirmed.** They are still open question A,
+ *     unanswered by Finance since 24 Aug 2026, and every environment has been
+ *     running placeholder numbers that nobody agreed to.
+ *   - **The positions were fixed at three.** `team_lead`, `cfo`, `ceo` is not
+ *     how the departments approve: they route to the head of a named group, or
+ *     to a named person, and neither had any way to be expressed.
+ *   - **A level can be several people.** Two group heads, or a list chosen on
+ *     screen A1, any one of whom may decide.
  *
- * - at least one tier, or nothing can be approved
- * - ceilings strictly ascending, since `selectTier` takes the *first* tier the
- *   amount fits and an out-of-order ladder silently makes later tiers dead
- * - exactly one open-ended tier (`upto: null`) and it must be last, or an
- *   amount above the highest ceiling has nowhere to go
- * - every position drawn from `APPROVER_POSITIONS`
- * - every chain starts at `team_lead` — step 1 is always the requester's
- *   supervisor, on every request
+ * What replaced each ceiling rule is below. Versions published before the
+ * change keep their `tiers` and are still read by `planChain`; nothing in
+ * flight is re-judged (§7 — running work keeps the rules it started under).
+ *
+ * Takes `unknown` on purpose: this runs against JSON from an admin screen, so
+ * claiming it is already the right shape would defeat the check. Publishing is
+ * the last moment a malformed ladder can be caught — after it, the failure is
+ * a request that routes to nobody, which looks like an approval mystery rather
+ * than a configuration error.
+ *
+ * The rules:
+ *
+ * - at least one level, or nothing can be approved
+ * - every level is `supervisor` or `org`, and nothing else
+ * - `supervisor.up` is a whole number ≥ 1 — which level of the chart above the
+ *   requester, `1` being the head of the group they sit in
+ * - an `org` level names at least one group; naming none would resolve to
+ *   nobody on every request, which is a ladder that cannot be climbed
  */
-export function assertValidTiers(
-  tiers: unknown,
-): asserts tiers is MatrixTier[] {
-  if (!Array.isArray(tiers) || tiers.length === 0) {
-    throw invalid('tiers', 'ต้องมีอย่างน้อยหนึ่งชั้นอำนาจอนุมัติ');
+export function assertValidLevels(
+  levels: unknown,
+): asserts levels is MatrixLevel[] {
+  if (!Array.isArray(levels) || levels.length === 0) {
+    throw invalid('levels', 'ต้องมีอย่างน้อยหนึ่งชั้นอำนาจอนุมัติ');
   }
 
-  const candidates: unknown[] = tiers;
-  let previous = Number.NEGATIVE_INFINITY;
+  const candidates: unknown[] = levels;
 
   candidates.forEach((candidate, index) => {
-    const last = index === candidates.length - 1;
-    const tier = asRecord(candidate);
+    const level = asRecord(candidate);
 
-    if (!tier) {
-      throw invalid(`tiers[${index}]`, 'รูปแบบไม่ถูกต้อง');
+    if (!level) {
+      throw invalid(`levels[${index}]`, 'รูปแบบไม่ถูกต้อง');
     }
 
-    assertChain(tier.chain, index);
-    previous = assertCeiling(tier.upto, index, last, previous);
+    if (level.type === 'supervisor') {
+      assertUp(level.up, index);
+      return;
+    }
+
+    if (level.type === 'org') {
+      assertOrgLevel(level, index);
+      return;
+    }
+
+    throw invalid(
+      `levels[${index}].type`,
+      'ชนิดของชั้นต้องเป็น supervisor หรือ org',
+    );
   });
 }
 
-function assertChain(value: unknown, index: number): void {
-  if (!Array.isArray(value) || value.length === 0) {
+function assertUp(value: unknown, index: number): void {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1) {
     throw invalid(
-      `tiers[${index}].chain`,
-      'ต้องระบุผู้อนุมัติอย่างน้อยหนึ่งตำแหน่ง',
-    );
-  }
-
-  const positions: unknown[] = value;
-
-  for (const position of positions) {
-    if (
-      typeof position !== 'string' ||
-      !APPROVER_POSITIONS.includes(position as ApproverPosition)
-    ) {
-      throw invalid(
-        `tiers[${index}].chain`,
-        `ตำแหน่งผู้อนุมัติไม่ถูกต้อง: ${String(position)}`,
-      );
-    }
-  }
-
-  if (positions[0] !== 'team_lead') {
-    throw invalid(
-      `tiers[${index}].chain`,
-      'ชั้นแรกต้องเป็น team_lead เสมอ (§8.1)',
+      `levels[${index}].up`,
+      'ระดับหัวหน้าต้องเป็นจำนวนเต็มตั้งแต่ 1 ขึ้นไป',
     );
   }
 }
 
-/** Returns the ceiling, so the caller can check the next one is higher. */
-function assertCeiling(
-  value: unknown,
-  index: number,
-  last: boolean,
-  previous: number,
-): number {
-  if (value === null || value === undefined) {
-    if (!last) {
-      throw invalid(
-        `tiers[${index}].upto`,
-        'ชั้นที่ไม่มีเพดานต้องเป็นชั้นสุดท้าย',
-      );
-    }
-    return previous;
-  }
+function assertOrgLevel(level: Record<string, unknown>, index: number): void {
+  const units = level.orgUnitIds;
 
-  const ceiling = Number(value);
-
-  if (!Number.isFinite(ceiling) || ceiling <= 0) {
-    throw invalid(`tiers[${index}].upto`, 'เพดานต้องเป็นตัวเลขมากกว่าศูนย์');
-  }
-
-  if (ceiling <= previous) {
-    throw invalid(`tiers[${index}].upto`, 'เพดานต้องเรียงจากน้อยไปมาก');
-  }
-
-  if (last) {
+  if (!Array.isArray(units) || units.length === 0) {
     throw invalid(
-      `tiers[${index}].upto`,
-      'ต้องมีชั้นสุดท้ายที่ไม่มีเพดาน (upto: null)',
+      `levels[${index}].orgUnitIds`,
+      'ต้องเลือกหน่วยงานอย่างน้อยหนึ่งหน่วย',
     );
   }
 
-  return ceiling;
+  if (!units.every((unit) => typeof unit === 'string' && unit.length > 0)) {
+    throw invalid(`levels[${index}].orgUnitIds`, 'รหัสหน่วยงานไม่ถูกต้อง');
+  }
+
+  const users = level.userIds;
+  if (users === undefined || users === null) return;
+
+  if (
+    !Array.isArray(users) ||
+    !users.every((user) => typeof user === 'string' && user.length > 0)
+  ) {
+    throw invalid(`levels[${index}].userIds`, 'รหัสผู้ใช้ไม่ถูกต้อง');
+  }
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {

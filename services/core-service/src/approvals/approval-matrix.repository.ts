@@ -63,6 +63,16 @@ export class ApprovalMatrixRepository extends BaseRepository<
   }
 
   /** Highest version number so far, or 0 — the next publish is this plus one. */
+  /**
+   * How many versions exist for a subject, published or not.
+   *
+   * Used to refuse deleting the request type a matrix routes: the matrix
+   * outlives the type and would be left addressing nothing.
+   */
+  countForSubject(subjectType: string): Promise<number> {
+    return this.count({ where: { subjectType } });
+  }
+
   async latestVersion(
     companyId: string,
     subjectType: string,

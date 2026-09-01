@@ -4,6 +4,8 @@ import { RolesService } from '../roles/roles.service';
 
 /** Everything `resolveChain` needs, resolved on the identity side. */
 export interface ApprovalContext {
+  /** The group the requester sits in, for `supervisor` ladder levels. */
+  orgUnitId: string | null;
   /** The requester's direct supervisor — step 1 of every chain (§8.1). */
   supervisorUserId: string | null;
   /**
@@ -55,7 +57,17 @@ export class ApprovalContextService {
       ...Object.values(roleHolders),
     ]);
 
-    return { supervisorUserId, supervisorChain, roleHolders, displayNames };
+    return {
+      // Where the requester sits. A ladder level of the `supervisor` kind
+      // counts groups upward from here, so it travels with the rest of the
+      // context rather than being fetched again on the other side of the
+      // service boundary.
+      orgUnitId: user?.orgUnitId ?? null,
+      supervisorUserId,
+      supervisorChain,
+      roleHolders,
+      displayNames,
+    };
   }
 
   /** Walks upward from a starting point, guarding against a cyclic chart. */

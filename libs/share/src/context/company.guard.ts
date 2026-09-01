@@ -11,13 +11,13 @@ export const COMPANY_HEADER = 'x-company-id';
  *
  * The header selects which company the request works in; the principal
  * resolver has already used it to pick the active company and to load the
- * roles and scopes for *that* company (ROLE-04). This guard is the membership
+ * roles for *that* company (ROLE-04). This guard is the membership
  * check the spec calls for: naming a company the caller does not belong to is
  * `COMPANY_FORBIDDEN`, never a silent fallback to their own.
  *
  * Omitting the header means "use my primary company". Rows from other
- * companies stay unreachable regardless, because `buildScopeWhere` pins every
- * query to the resolved active company (SCOPE-03).
+ * companies stay unreachable regardless, because `visibleRequestsWhere` and its
+ * siblings pin every query to the resolved active company (SCOPE-03).
  *
  * Runs after the principal has been resolved and before `PolicyGuard`.
  */

@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import {
-  buildScopeWhere,
+  accessSubject,
   paginated,
   Paginated,
   Principal,
-  scopeFor,
   toSkipTake,
+  visibleUsersWhere,
 } from '@request-management/share';
 import type { Prisma, User } from '@prisma/client';
 import {
@@ -16,12 +16,21 @@ import { UsersRepository } from './users.repository';
 import { SearchKeycloakUsersDto } from './dto/search-keycloak-users.dto';
 import { SearchUsersDto } from './dto/search-users.dto';
 
-/** The columns on `users` that scope resolution keys off. */
-const USER_SCOPE_COLUMNS = {
-  owner: 'id',
-  orgUnit: 'orgUnitId',
-  company: 'primaryCompanyId',
-} as const;
+/**
+ * A realm account with the two facts this system owns about the person.
+ *
+ * Keycloak holds credentials and names; `position` and the org unit are ours
+ * (D-07/D-08) and live only in this database, so the directory screen has to
+ * read both to print a row.
+ */
+export interface DirectoryUser extends KeycloakUser {
+  position: string | null;
+  orgUnitName: string | null;
+  /** Groups this person heads, in the caller's active company. */
+  managedUnitNames: string[];
+  /** System role names held in that company (ROLE-04). */
+  roles: string[];
+}
 
 @Injectable()
 export class UsersService {
@@ -33,23 +42,21 @@ export class UsersService {
   /**
    * §11.2 `GET /users` — the picker used when choosing a colleague.
    *
-   * Results pass through the same scope filter as every other list (SCOPE-02),
-   * so the picker cannot become a back door for enumerating people outside
-   * the caller's scope or company.
+   * Results pass through the same visibility filter as every other list
+   * (SCOPE-02), so the picker cannot become a back door for enumerating people
+   * outside the caller's company.
+   *
+   * Company-wide by design: a requester picks a receiver "from all users", and
+   * an admin picks a group head from anywhere in the company. Narrowing this to
+   * the caller's own team is what the withdrawn `user` scope level did, and it
+   * made both of those impossible.
    */
   async search(
     query: SearchUsersDto,
     principal: Principal,
   ): Promise<Paginated<User>> {
-    const scoped = buildScopeWhere(
-      scopeFor(principal, 'user'),
-      USER_SCOPE_COLUMNS,
-      {
-        userId: principal.userId,
-        activeCompanyId: principal.activeCompanyId,
-        teamOrgUnitIds: principal.teamOrgUnitIds,
-        departmentOrgUnitIds: principal.departmentOrgUnitIds,
-      },
+    const scoped = visibleUsersWhere(
+      accessSubject(principal),
     ) as Prisma.UserWhereInput;
 
     const where: Prisma.UserWhereInput = {
@@ -91,10 +98,22 @@ export class UsersService {
     return paginated(rows, query, total);
   }
 
-  /** Read-only Keycloak directory, exposed only to callers with `user.read`. */
+  /**
+   * Read-only Keycloak directory, exposed only to callers with `user.read`.
+   *
+   * Enriched from this database in **one** extra query for the whole page:
+   * job title, the group they sit in, the groups they head, and their roles.
+   *
+   * The last two are per company (ROLE-04), so they are read for the caller's
+   * active company — the header switcher is what changes them. An account with no local profile — somebody who
+   * exists in the realm but has never signed in here — still comes back, with
+   * both fields null: this list is the realm's directory, and dropping the
+   * rows we happen to know nothing about would make it a different list.
+   */
   async searchKeycloak(
     query: SearchKeycloakUsersDto,
-  ): Promise<Paginated<KeycloakUser>> {
+    principal: Principal,
+  ): Promise<Paginated<DirectoryUser>> {
     const { skip, take } = toSkipTake(query);
     const search = query.q?.trim() ?? '';
     const [rows, total] = await Promise.all([
@@ -102,7 +121,20 @@ export class UsersService {
       this.keycloak.countUsers(search),
     ]);
 
-    return paginated(rows, query, total);
+    const profiles = await this.usersRepository.profilesByUsername(
+      rows.map((row) => row.username),
+      principal.activeCompanyId,
+    );
+
+    const enriched = rows.map((row) => ({
+      ...row,
+      position: profiles[row.username]?.position ?? null,
+      orgUnitName: profiles[row.username]?.orgUnitName ?? null,
+      managedUnitNames: profiles[row.username]?.managedUnitNames ?? [],
+      roles: profiles[row.username]?.roles ?? [],
+    }));
+
+    return paginated(enriched, query, total);
   }
 
   findById(id: string): Promise<User | null> {

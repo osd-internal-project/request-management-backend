@@ -106,15 +106,13 @@ export class PrincipalService {
     );
 
     const userRoles = await this.roles.rolesForUser(user.id, activeCompanyId);
-    const roleIds = userRoles.map((userRole) => userRole.roleId);
     const permissions = RolesService.permissionsOf(userRoles);
 
-    const [scopes, sensitiveFieldsVisible, sensitiveFieldsAll, scopeSets] =
+    const [sensitiveFieldsVisible, sensitiveFieldsAll, ledUnitIds] =
       await Promise.all([
-        this.policy.resolveScopes(roleIds),
         this.policy.resolveVisibleSensitiveFields(permissions),
         this.policy.listAllSensitiveFieldKeys(),
-        this.org.scopeSetsFor(user),
+        this.org.ledUnitIdsOf(user.id, activeCompanyId),
       ]);
 
     return {
@@ -127,11 +125,9 @@ export class PrincipalService {
       activeCompanyId,
       orgUnitId: user.orgUnitId,
       supervisorUserId: user.supervisorUserId,
-      teamOrgUnitIds: scopeSets.teamOrgUnitIds,
-      departmentOrgUnitIds: scopeSets.departmentOrgUnitIds,
+      ledUnitIds,
       roles: userRoles.map((userRole) => userRole.role.code),
       permissions,
-      scopes: scopes,
       sensitiveFieldsVisible,
       sensitiveFieldsAll,
       isServiceAccount: this.isServiceAccount(payload),
@@ -199,11 +195,9 @@ export class PrincipalService {
       activeCompanyId: '',
       orgUnitId: user.orgUnitId,
       supervisorUserId: user.supervisorUserId,
-      teamOrgUnitIds: [],
-      departmentOrgUnitIds: [],
+      ledUnitIds: [],
       roles: [],
       permissions: [] as Permission[],
-      scopes: {},
       sensitiveFieldsVisible: [],
       sensitiveFieldsAll: [],
       isServiceAccount: this.isServiceAccount(payload),
@@ -232,14 +226,12 @@ export class PrincipalService {
       activeCompanyId: '',
       orgUnitId: null,
       supervisorUserId: null,
-      teamOrgUnitIds: [],
-      departmentOrgUnitIds: [],
+      ledUnitIds: [],
       roles: [],
       permissions: keycloakRolesOf(
         payload,
         typeof payload['client_id'] === 'string' ? payload['client_id'] : '',
       ) as Principal['permissions'],
-      scopes: {},
       sensitiveFieldsVisible: [],
       sensitiveFieldsAll: [],
       isServiceAccount: true,

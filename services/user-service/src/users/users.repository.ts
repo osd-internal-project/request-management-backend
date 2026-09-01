@@ -19,6 +19,16 @@ export interface KeycloakUserClaims {
   keycloakRoles?: readonly string[];
 }
 
+/** What the user directory prints beside a realm account (see below). */
+export interface DirectoryProfile {
+  position: string | null;
+  orgUnitName: string | null;
+  /** Groups this person heads, in the active company. */
+  managedUnitNames: string[];
+  /** System role names held in the active company (ROLE-04). */
+  roles: string[];
+}
+
 /** Every `users` query lives here; callers never touch PrismaService. */
 @Injectable()
 export class UsersRepository extends BaseRepository<PrismaService['user']> {
@@ -114,6 +124,24 @@ export class UsersRepository extends BaseRepository<PrismaService['user']> {
     });
   }
 
+  /** The same, across a set of units — used for a whole subtree at once. */
+  findMembersOfMany(
+    orgUnitIds: readonly string[],
+    option?: TxOption,
+  ): Promise<
+    (User & { supervisor: { id: string; displayName: string } | null })[]
+  > {
+    const client = option?.prisma ?? this.prisma;
+
+    if (!orgUnitIds.length) return Promise.resolve([]);
+
+    return client.user.findMany({
+      where: { orgUnitId: { in: [...orgUnitIds] }, status: 'ACTIVE' },
+      include: { supervisor: { select: { id: true, displayName: true } } },
+      orderBy: { displayName: 'asc' },
+    });
+  }
+
   /** AUTH-04: everyone who has logged in but has no org unit yet. */
   /**
    * Display names for a set of ids, for callers that hold ids and need labels.
@@ -138,6 +166,79 @@ export class UsersRepository extends BaseRepository<PrismaService['user']> {
     )) as { id: string; displayName: string }[];
 
     return Object.fromEntries(rows.map((row) => [row.id, row.displayName]));
+  }
+
+  /**
+   * Job title, team, the groups they head, and their roles.
+   *
+   * Keyed on username rather than id because the caller holds Keycloak
+   * accounts, and `username` is the only field the realm and this database
+   * are guaranteed to agree on — `keycloakId` is absent until first login,
+   * which is exactly the case this lookup has to survive.
+   */
+  async profilesByUsername(
+    usernames: readonly string[],
+    /**
+     * The company the two per-company facts are read for. An empty string —
+     * a service account with no active company — matches nothing, so those
+     * columns come back empty rather than mixing every company's answer.
+     */
+    companyId: string,
+    option?: TxOption,
+  ): Promise<Record<string, DirectoryProfile>> {
+    const unique = [...new Set(usernames)];
+    if (!unique.length) return {};
+
+    // `findMany` on the base repository is typed to whole `User` rows, and
+    // three of the four facts here live on relations. `findMembersOf` reaches
+    // for the client the same way for the same reason.
+    const client = option?.prisma ?? this.prisma;
+
+    const rows = await client.user.findMany({
+      where: { username: { in: unique } },
+      select: {
+        username: true,
+        position: true,
+        orgUnit: { select: { name: true } },
+        /*
+          Which groups this person heads. Read through the relation rather than
+          querying `org_units` separately so the whole page stays one round
+          trip — the same reason position and team travel with it.
+
+          Inactive groups are left out: a head of a group on its way off the
+          chart is not a fact worth printing beside their name.
+        */
+        managedUnits: {
+          where: { active: true, companyId },
+          select: { name: true },
+          orderBy: { name: 'asc' },
+        },
+        /*
+          Roles are per company (ROLE-04), so the caller's active company is
+          what decides which ones are shown. Without a company — a service
+          account reading the directory — none are, rather than all of them:
+          listing every company's roles beside one name would say something
+          that is not true in any of them.
+        */
+        roles: {
+          where: { companyId, role: { active: true } },
+          select: { role: { select: { name: true } } },
+          orderBy: { grantedAt: 'asc' },
+        },
+      },
+    });
+
+    return Object.fromEntries(
+      rows.map((row) => [
+        row.username,
+        {
+          position: row.position,
+          orgUnitName: row.orgUnit?.name ?? null,
+          managedUnitNames: row.managedUnits.map((unit) => unit.name),
+          roles: row.roles.map((held) => held.role.name),
+        },
+      ]),
+    );
   }
 
   findUnassigned(option?: TxOption): Promise<User[]> {

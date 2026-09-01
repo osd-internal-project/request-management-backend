@@ -207,6 +207,7 @@ const SEED_ROLES: {
       'user.read',
       'notification.read',
       'request.read',
+      'request.read.all',
     ],
     scopes: { request: 'company', approval_case: 'company', user: 'company' },
   },
@@ -216,6 +217,7 @@ const SEED_ROLES: {
     description: 'ตรวจสอบภายใน — อ่านอย่างเดียว ข้ามบริษัทได้',
     permissions: [
       'request.read',
+      'request.read.all',
       'request.sensitive.read',
       'approval.history.read',
       'report.request.read',
@@ -391,7 +393,14 @@ async function seedSensitiveFields() {
   console.log(`  sensitive field rules: ${rules.length}`);
 }
 
-/** PLACEHOLDER ceilings — open question A. Do not enable in production. */
+/**
+ * A two-level ladder for the demo discount type.
+ *
+ * No ceilings: the amount tiers were withdrawn on 31 Aug 2026 (declared
+ * amendment, §8 of `docs/ctd-foundation-spec.md`). Step 1 is the head of the
+ * group the requester sits in, step 2 the head of the department above — which
+ * is what the demo chart is built to show.
+ */
 async function seedApprovalMatrix(companyId: string) {
   const existing = await prisma.approvalMatrix.findFirst({
     where: { companyId, subjectType: 'request:DSC' },
@@ -411,16 +420,18 @@ async function seedApprovalMatrix(companyId: string) {
       // Published, or `findEffective` would never return it and no case could
       // ever be routed — a draft matrix is deliberately inert.
       publishedAt: new Date('2026-01-01T00:00:00Z'),
-      tiers: [
-        { upto: '100000.00', chain: ['team_lead'] },
-        { upto: '1000000.00', chain: ['team_lead', 'cfo'] },
-        { upto: null, chain: ['team_lead', 'cfo', 'ceo'] },
+      levels: [
+        { type: 'supervisor', up: 1 },
+        { type: 'supervisor', up: 2 },
       ],
+      // NOT NULL and read by nothing. Kept so the column has a well-formed
+      // value; see the note on `ApprovalMatrix.tiers`.
+      tiers: [{ upto: null, chain: ['team_lead'] }],
       createdBy: 'seed',
     },
   });
 
-  console.log('  approval matrix: v1 with PLACEHOLDER ceilings (see §15.2 A)');
+  console.log('  approval matrix: v1 · หัวหน้าหน่วยงาน → หัวหน้าแผนก');
 }
 
 /**
@@ -428,10 +439,9 @@ async function seedApprovalMatrix(companyId: string) {
  * that the 3rd..30th type needs no migration and no deploy, so everything
  * about a type lives in these columns.
  *
- * ขอส่วนลด carries an amount and exercises the full T1/T2 approval ladder;
- * ส่งต่อโอกาสการขาย has no monetary dimension, so `selectTier` returns the
- * lowest tier and it runs step 1 only. Between them they cover both shapes the
- * approval engine has to handle.
+ * ขอส่วนลด has an approval ladder and ส่งต่อโอกาสการขาย has none, so between
+ * them they cover both shapes the engine has to handle: work that is checked
+ * after it is finished, and work that is simply finished.
  */
 async function seedRequestTypes(
   demoCompanyId: string,
@@ -545,8 +555,9 @@ async function seedRequestTypes(
         { code: 'WRONG_TEAM', label: 'ส่งผิดทีม' },
         { code: 'OTHER', label: 'อื่น ๆ' },
       ],
-      // No amount_field: selectTier takes the lowest tier, so step 1 only.
-      approvalPolicy: { mode: 'standard_chain', amount_field: null },
+      // `approvalPolicy` is vestigial: the route lives on the matrix, and the
+      // amount field it used to name was withdrawn with the ceilings.
+      approvalPolicy: {},
       slaHours: 8,
     },
   ];

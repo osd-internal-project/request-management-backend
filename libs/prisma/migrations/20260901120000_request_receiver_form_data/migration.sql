@@ -1,0 +1,14 @@
+-- What the receiver fills in before finishing. 1 Sep 2026.
+--
+-- `RequestType.receiverFormSchema` landed on 31 Aug with nowhere to put the
+-- answers, so the second form could be authored and never filled in. This is
+-- the missing half.
+--
+-- Its own column rather than more keys in `formData`: the two forms are
+-- authored separately on screen A2, answered by different people at different
+-- moments, and `SensitiveFieldRule` is declared per field — merging them would
+-- make "who wrote this value" unanswerable from the row.
+--
+-- Defaults to `{}`, which is what a type with no second form has and what every
+-- existing request keeps.
+ALTER TABLE "requests" ADD COLUMN "receiverFormData" JSONB NOT NULL DEFAULT '{}';

@@ -118,6 +118,15 @@ export class RolesService implements OnModuleInit {
     return this.userRoles.findForUserInCompany(userId, companyId, option);
   }
 
+  /** The same, for a list of people at once — see the repository's note. */
+  rolesForUsers(
+    userIds: readonly string[],
+    companyId: string,
+    option?: TxOption,
+  ): Promise<Map<string, UserRoleWithRole[]>> {
+    return this.userRoles.findForUsersInCompany(userIds, companyId, option);
+  }
+
   async createRole(
     dto: CreateRoleDto,
     actor: Principal,

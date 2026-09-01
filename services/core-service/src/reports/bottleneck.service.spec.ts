@@ -10,9 +10,7 @@ function principal(overrides: Partial<Principal> = {}): Principal {
     userId: ME,
     activeCompanyId: OSD,
     companies: [{ id: OSD, name: 'OSD', docPrefix: 'OSD', isPrimary: true }],
-    teamOrgUnitIds: ['unit-team'],
-    departmentOrgUnitIds: ['unit-team', 'unit-dept'],
-    scopes: { request: 'own' },
+    ledUnitIds: [],
     permissions: ['report.request.read'],
     ...overrides,
   } as Principal;
@@ -41,41 +39,60 @@ function serviceWithSpy() {
 }
 
 describe('REQ-09 bottleneck report — SCOPE-02', () => {
-  it('narrows to the requests the caller can see at scope own', async () => {
+  it('measures only the requests the caller is involved in', async () => {
     const { service, whereOf } = serviceWithSpy();
 
-    await service.report({}, principal({ scopes: { request: 'own' } }));
+    await service.report({}, principal());
 
     const where = whereOf();
 
     expect(where.case.request).toEqual({
       companyId: OSD,
-      requesterId: ME,
+      OR: [
+        { requesterId: ME },
+        { receiverUserId: ME },
+        { assigneeUserId: ME },
+        {
+          approvalCases: {
+            some: { steps: { some: { candidateUserIds: { has: ME } } } },
+          },
+        },
+      ],
     });
   });
 
-  it('narrows to the org subtree at scope team', async () => {
+  it('reaches the groups the caller leads, subtree included', async () => {
     const { service, whereOf } = serviceWithSpy();
 
-    await service.report({}, principal({ scopes: { request: 'team' } }));
+    await service.report(
+      {},
+      principal({ ledUnitIds: ['unit-dept', 'unit-position'] }),
+    );
 
     const where = whereOf();
+    const units = { in: ['unit-dept', 'unit-position'] };
 
-    expect(where.case.request).toEqual({
+    expect(where.case.request).toMatchObject({
       companyId: OSD,
-      requesterOrgUnitId: { in: ['unit-team'] },
+      OR: expect.arrayContaining([
+        { requesterOrgUnitId: units },
+        { receiverOrgUnitId: units },
+      ]) as unknown,
     });
   });
 
   /**
-   * The company pin on the case already expresses `company`, and adding a
-   * predicate on the request would drop the cases that have no request at all —
-   * APV-07 lets another module open one directly.
+   * The company pin on the case already expresses `request.read.all`, and
+   * adding a predicate on the request would drop the cases that have no
+   * request at all — APV-07 lets another module open one directly.
    */
-  it('adds no request predicate at scope company, so case-only rows survive', async () => {
+  it('adds no request predicate for request.read.all, so case-only rows survive', async () => {
     const { service, whereOf } = serviceWithSpy();
 
-    await service.report({}, principal({ scopes: { request: 'company' } }));
+    await service.report(
+      {},
+      principal({ permissions: ['report.request.read', 'request.read.all'] }),
+    );
 
     const where = whereOf();
 
@@ -83,23 +100,17 @@ describe('REQ-09 bottleneck report — SCOPE-02', () => {
     expect(where.case.request).toBeUndefined();
   });
 
-  it('adds no request predicate at scope all either', async () => {
+  /**
+   * SCOPE-03. The company boundary survived the withdrawal of the scope
+   * levels: there is no longer any level that crosses it, not even for a
+   * caller who reads the whole company.
+   */
+  it('pins the active company on every branch', async () => {
     const { service, whereOf } = serviceWithSpy();
 
-    await service.report({}, principal({ scopes: { request: 'all' } }));
+    await service.report({}, principal({ ledUnitIds: ['unit-dept'] }));
 
-    const where = whereOf();
-
-    expect(where.case.request).toBeUndefined();
-  });
-
-  it('defaults to own when the role declares no request scope', async () => {
-    const { service, whereOf } = serviceWithSpy();
-
-    await service.report({}, principal({ scopes: {} }));
-
-    const where = whereOf();
-
-    expect(where.case.request).toEqual({ companyId: OSD, requesterId: ME });
+    expect(whereOf().case.companyId).toBe(OSD);
+    expect(whereOf().case.request).toMatchObject({ companyId: OSD });
   });
 });

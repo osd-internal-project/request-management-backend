@@ -24,7 +24,10 @@ export class UsersController {
   /** Read-only Keycloak directory for the admin Users screen. */
   @Get('keycloak')
   @Permissions('user.read')
-  searchKeycloak(@Query() query: SearchKeycloakUsersDto) {
-    return this.usersService.searchKeycloak(query);
+  searchKeycloak(
+    @Query() query: SearchKeycloakUsersDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.usersService.searchKeycloak(query, principal);
   }
 }

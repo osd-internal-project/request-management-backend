@@ -51,6 +51,8 @@ export const REQUEST_DETAIL_INCLUDE = {
     orderBy: { createdAt: 'desc' },
     take: 1,
     select: {
+      // The screen decides on this case, so it needs its id.
+      id: true,
       currentStep: true,
       matrixVersion: true,
       amount: true,
@@ -64,6 +66,9 @@ export const REQUEST_DETAIL_INCLUDE = {
           decision: true,
           decidedAt: true,
           approver: { select: { displayName: true } },
+          // A level can name several people, any one of whom may decide. The
+          // screen prints them so "waiting on" is not one name out of three.
+          candidateUserIds: true,
         },
       },
     },
@@ -72,6 +77,15 @@ export const REQUEST_DETAIL_INCLUDE = {
     orderBy: { createdAt: 'asc' },
     // The timeline names people, not ids — a UUID there is unreadable.
     include: { actor: { select: { displayName: true } } },
+  },
+  /*
+    Comments come with the request rather than from a second call: they are
+    drawn on the same timeline as the events, and fetching them separately
+    would let the two halves of one list arrive at different times.
+  */
+  comments: {
+    orderBy: { createdAt: 'asc' },
+    include: { author: { select: { displayName: true } } },
   },
 } satisfies Prisma.RequestInclude;
 

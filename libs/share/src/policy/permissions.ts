@@ -12,6 +12,14 @@ export const PERMISSIONS = {
   request: [
     'request.create',
     'request.read',
+    /**
+     * Every request in the active company, not just the ones the caller is
+     * involved in or leads. What scope `company` used to grant, made an
+     * ordinary permission when the scope levels were withdrawn (31 Aug 2026)
+     * so that "sees everything" is visible in the role editor rather than
+     * hidden in a separate rules table.
+     */
+    'request.read.all',
     'request.cancel.own',
     'request.cancel.any',
     'request.complete',

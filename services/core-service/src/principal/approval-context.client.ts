@@ -3,6 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import { AppError } from '@request-management/share';
 
 export interface ApprovalContext {
+  /** The group the requester sits in, for `supervisor` ladder levels. */
+  orgUnitId: string | null;
   supervisorUserId: string | null;
   supervisorChain: string[];
   roleHolders: Record<string, string>;

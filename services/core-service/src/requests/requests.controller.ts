@@ -33,6 +33,9 @@ import {
   UpdateRequestDto,
   AddAttachmentDto,
   CreateIntegrationRequestDto,
+  AddCommentDto,
+  CloseRequestDto,
+  CompleteRequestDto,
   CreateRequestTypeDto,
   UpdateRequestTypeDto,
 } from './dto/request.dto';
@@ -232,17 +235,46 @@ export class RequestsController {
   @Permissions('request.complete')
   complete(
     @Param('id') id: string,
+    @Body() dto: CompleteRequestDto,
     @CurrentPrincipal() principal: Principal,
     @Headers('authorization') authorization: string,
   ) {
-    return this.requests.complete(id, principal, authorization);
+    return this.requests.complete(id, principal, authorization, dto);
   }
 
   /** The requester accepts the result and the ticket ends. */
   @Post('requests/:id/close')
   @Permissions('request.create')
-  close(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
-    return this.requests.close(id, principal);
+  close(
+    @Param('id') id: string,
+    @Body() dto: CloseRequestDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.requests.close(id, principal, dto);
+  }
+
+  /** H2.2 — the สายคำขอ panel: this request, what it spawned, and its parent. */
+  @Get('requests/:id/tree')
+  @Permissions('request.read')
+  tree(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.requests.tree(id, principal);
+  }
+
+  /**
+   * H2.2 — leaves a note on a request.
+   *
+   * `request.read` rather than a permission of its own: the people who can open
+   * a request are the people with something to say about it, and the service
+   * re-checks visibility before writing.
+   */
+  @Post('requests/:id/comments')
+  @Permissions('request.read')
+  addComment(
+    @Param('id') id: string,
+    @Body() dto: AddCommentDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.requests.addComment(id, dto, principal);
   }
 
   /** REQ-09 — mean/max time per approval step, slowest first. */
@@ -304,5 +336,19 @@ export class RequestTypeAdminController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.requests.updateType(code, dto, principal);
+  }
+
+  /**
+   * Removes a type outright. Refused with `REQ_TYPE_IN_USE` once anything has
+   * been raised against it — see `RequestsService.deleteType`.
+   */
+  @Delete(':code')
+  @Permissions('admin.request-type.manage')
+  @HttpCode(204)
+  async deleteType(
+    @Param('code') code: string,
+    @CurrentPrincipal() principal: Principal,
+  ): Promise<void> {
+    await this.requests.deleteType(code, principal);
   }
 }

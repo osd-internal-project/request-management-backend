@@ -9,18 +9,11 @@ import {
 } from '@request-management/share';
 import type { PageQueryDto, Principal } from '@request-management/share';
 import type { ApprovalMatrix, Prisma } from '@prisma/client';
-import {
-  APPROVER_POSITIONS,
-  ApproverPosition,
-  MatrixTier,
-  ResolvedApprover,
-  assertStepOneResolvable,
-  ceilingIntroducing,
-  resolveChain,
-  selectTier,
-} from './approval-chain';
+import { ResolvedApprover, assertStepOneResolvable } from './approval-chain';
 import { snapshotHash } from './snapshot';
 import { ApprovalMatrixService } from './approval-matrix.service';
+import { AccessService, type MatrixLevel } from '../access/access.service';
+import type { Delegation } from '@prisma/client';
 import {
   ApprovalCaseRepository,
   CaseWithSteps,
@@ -50,22 +43,15 @@ import {
 export interface ChainPreview {
   amount: string | null;
   currency: string;
-  /** Position of the applicable tier in the ladder, `0` being the lowest. */
-  tier_index: number;
-  tier_upto: string | null;
-  /** The ceiling this request exceeded, or `null` in the lowest tier. */
-  exceeded_upto: string | null;
   steps: {
     step_no: number;
-    /** `named` where the matrix pointed at a person rather than a position. */
-    position: ApproverPosition | 'named';
-    /** `null` when the org chart has nobody to fill this step. */
+    /** What the ladder said — a position, `named`, `supervisor:N`, or `org`. */
+    position: string;
+    /** `null` when the chart has nobody to fill this step. */
     user_id: string | null;
     display_name: string | null;
-  }[];
-  excluded: {
-    position: ApproverPosition;
-    appears_above: string | null;
+    /** Everyone who could decide it; any one of them is enough. */
+    candidate_user_ids: string[];
   }[];
 }
 
@@ -83,6 +69,7 @@ export class ApprovalsService {
     private readonly cases: ApprovalCaseRepository,
     private readonly delegations: DelegationRepository,
     private readonly matrix: ApprovalMatrixService,
+    private readonly access: AccessService,
     private readonly context: ApprovalContextClient,
     private readonly notifications: NotificationsService,
     private readonly domainEvents: DomainEventsService,
@@ -137,6 +124,7 @@ export class ApprovalsService {
               stepNo: index + 1,
               approverRole: step.position,
               approverUserId: step.userId,
+              candidateUserIds: [...step.candidateUserIds],
               // Only step 1 is actionable; the rest wait their turn, which is
               // what stops the ladder being skipped.
               status: index === 0 ? 'pending' : 'waiting',
@@ -201,8 +189,6 @@ export class ApprovalsService {
     authorization: string;
   }): Promise<{
     matrix: ApprovalMatrix;
-    tiers: MatrixTier[];
-    tier: MatrixTier;
     chain: ResolvedApprover[];
     context: ApprovalContext;
   }> {
@@ -212,31 +198,64 @@ export class ApprovalsService {
       new Date(),
     );
 
-    const tiers = matrix.tiers as unknown as MatrixTier[];
-    const tier = selectTier(tiers, input.amount);
-
     const context = await this.context.resolve(
       input.authorization,
       input.requesterId,
       input.companyId,
     );
 
-    // The chain is a lookup into what user-service already told us, so the
-    // walk upward never issues another request mid-transaction.
-    const chain = resolveChain({
-      chain: tier.chain,
+    const levels = matrix.levels as unknown as MatrixLevel[] | null;
+
+    /*
+      A ladder with no levels cannot route anything. `assertValidLevels`
+      refuses to publish one, so this only happens to a version written before
+      31 Aug 2026 — and those were deleted (`yarn matrix:clear-legacy`). Said
+      as a named failure rather than an empty chain, because an empty chain
+      would look like "no approval needed" and let the request through.
+    */
+    if (!levels?.length) {
+      throw new AppError(
+        'APV_MATRIX_NOT_FOUND',
+        'ตารางอำนาจอนุมัติของประเภทงานนี้เป็นรูปแบบเก่า — ประกาศเวอร์ชันใหม่ที่หน้าตารางอำนาจอนุมัติ',
+        [{ field: 'subject_type', reason: input.subjectType }],
+      );
+    }
+
+    const chain = await this.resolveLevels(levels, {
       requesterId: input.requesterId,
-      requesterSupervisorId: context.supervisorUserId,
-      roleHolders: context.roleHolders,
-      supervisorOf: (userId) => {
-        const index = [context.supervisorUserId, ...context.supervisorChain]
-          .filter((id): id is string => id !== null)
-          .indexOf(userId);
-        return index >= 0 ? (context.supervisorChain[index] ?? null) : null;
-      },
+      orgUnitId: context.orgUnitId ?? null,
     });
 
-    return { matrix, tiers, tier, chain, context };
+    return { matrix, chain, context };
+  }
+
+  /**
+   * Turns each level into the people who may decide it.
+   *
+   * A level nobody fills is **dropped**, not left empty: that is how the
+   * self-approval rule has always behaved for a named office, and a step with
+   * no possible approver would stall the case for ever. Step 1 having nobody
+   * is the one case that is refused, by `assertStepOneResolvable`.
+   */
+  private async resolveLevels(
+    levels: readonly MatrixLevel[],
+    subject: { requesterId: string; orgUnitId: string | null },
+  ): Promise<ResolvedApprover[]> {
+    const resolved: ResolvedApprover[] = [];
+
+    for (const level of levels) {
+      const candidates = await this.access.approverCandidatesOf(level, subject);
+      if (!candidates.length) continue;
+
+      resolved.push({
+        position:
+          level.type === 'supervisor' ? `supervisor:${level.up}` : 'org',
+        userId: candidates[0],
+        candidateUserIds: candidates,
+      });
+    }
+
+    return resolved;
   }
 
   /**
@@ -256,7 +275,7 @@ export class ApprovalsService {
   ): Promise<ChainPreview> {
     const amount = dto.amount ?? null;
 
-    const { tiers, tier, chain, context } = await this.planChain({
+    const { chain, context } = await this.planChain({
       subjectType: dto.subject_type,
       amount,
       requesterId: actor.userId,
@@ -264,16 +283,9 @@ export class ApprovalsService {
       authorization,
     });
 
-    const tierIndex = tiers.indexOf(tier);
-
     return {
       amount,
       currency: dto.currency ?? 'THB',
-      tier_index: tierIndex,
-      tier_upto: tier.upto,
-      /** The ceiling that pushed the request past the bottom tier, if any. */
-      exceeded_upto:
-        tierIndex > 0 ? (tiers[tierIndex - 1]?.upto ?? null) : null,
       steps: chain.map((step, index) => ({
         step_no: index + 1,
         position: step.position,
@@ -281,45 +293,18 @@ export class ApprovalsService {
         display_name: step.userId
           ? (context.displayNames[step.userId] ?? null)
           : null,
-      })),
-      /**
-       * Positions the ladder tops out below. The screen states this explicitly
-       * ("CEO ไม่อยู่ในเส้นทาง — วงเงินไม่เกินเพดานระดับ 2") so an approver's
-       * absence reads as a rule, not an omission.
-       */
-      excluded: APPROVER_POSITIONS.filter(
-        (position) => !chain.some((step) => step.position === position),
-      ).map((position) => ({
-        position,
-        /** The ceiling this position would first appear above. */
-        appears_above: ceilingIntroducing(tiers, position),
+        candidate_user_ids: [...step.candidateUserIds],
       })),
     };
   }
 
-  /**
-   * Throws unless a case for this subject could actually be opened.
-   *
-   * `submit` calls this **before** it writes anything. The chain is resolved
-   * across a service boundary and cannot join the request's transaction, so
-   * without a pre-flight check a submit that fails at routing leaves behind a
-   * request that consumed a document number, changed status and started its
-   * clock — but sits in nobody's queue and cannot be submitted again. That
-   * state is invisible: it looks submitted to the requester and does not exist
-   * to any approver.
-   *
-   * Checking first turns those failures into a clean refusal with nothing
-   * written. A published matrix is immutable and never deleted, so the window
-   * between this check and `openCase` cannot change the answer.
-   */
   /**
    * Does this subject have a published ladder in this company?
    *
    * The answer decides whether finished work gets checked at all. Eighteen of
    * OSD's forty request types are Pattern C — *"คำขอนี้ไม่มีชั้นอนุมัติ"* — and
    * for them the absence of a matrix **is** the configuration. Treating it as
-   * an error, which is what `selectTier` does, would make those types
-   * impossible to finish.
+   * an error would make those types impossible to finish.
    */
   async hasPublishedMatrix(
     subjectType: string,
@@ -327,6 +312,11 @@ export class ApprovalsService {
     _authorization: string,
   ): Promise<boolean> {
     return this.matrix.hasEffective(companyId, subjectType, new Date());
+  }
+
+  /** Whether any approval matrix version routes this subject at all. */
+  countMatricesFor(subjectType: string): Promise<number> {
+    return this.matrix.countForSubject(subjectType);
   }
 
   /**
@@ -348,18 +338,6 @@ export class ApprovalsService {
     return (last?.seq ?? 0) + 1;
   }
 
-  async assertRoutable(input: {
-    subjectType: string;
-    amount: string | null;
-    requesterId: string;
-    companyId: string;
-    authorization: string;
-  }): Promise<void> {
-    const { chain } = await this.planChain(input);
-
-    assertStepOneResolvable(chain);
-  }
-
   // --- APV-02 / APV-03 / APV-05: deciding ---------------------------------
 
   /**
@@ -375,12 +353,18 @@ export class ApprovalsService {
     dto: DecideDto,
     actor: Principal,
   ): Promise<CaseWithSteps> {
-    // §8: "Rejection always requires a reason." A rejection with no stated
-    // cause is unappealable and unreportable.
-    if (dto.decision !== 'approve' && !dto.note?.trim()) {
+    /*
+      Every decision carries a reason, approvals included (H2.2 ยกเว้นไม่ได้).
+
+      §8 required one only for a rejection. An approval with nothing said is
+      the harder gap: a request that was approved and nobody can say on what
+      basis is exactly what an authority-usage report is asked to answer
+      afterwards, and by then the person who clicked has forgotten.
+    */
+    if (!dto.note?.trim()) {
       throw new AppError(
         'VALIDATION_FAILED',
-        'ต้องระบุเหตุผลเมื่อไม่อนุมัติหรือส่งกลับแก้ไข',
+        'ต้องระบุคำอธิบายประกอบการตัดสินใจ',
         [{ field: 'note', reason: 'required' }],
       );
     }
@@ -543,17 +527,34 @@ export class ApprovalsService {
     step: CaseWithSteps['steps'][number],
     actor: Principal,
   ) {
-    if (step.approverUserId === actor.userId) return null;
+    /*
+      Everyone the level named, any one of whom may decide.
 
-    const delegation = step.approverUserId
-      ? await this.delegations.findActiveFor(
-          found.companyId,
-          step.approverUserId,
-          actor.userId,
-          new Date(),
-          { prisma },
-        )
-      : null;
+      `approverUserId` is only the first of them, and falling back to it covers
+      the cases opened before `candidateUserIds` existed — those steps were
+      backfilled, but a case opened mid-deploy could still carry an empty array.
+    */
+    const candidates = step.candidateUserIds.length
+      ? step.candidateUserIds
+      : step.approverUserId
+        ? [step.approverUserId]
+        : [];
+
+    if (candidates.includes(actor.userId)) return null;
+
+    // APV-03: covering for any one of them is enough, and the history keeps
+    // both names — `approverUserId` who was named, `decidedByUserId` who acted.
+    let delegation: Delegation | null = null;
+    for (const candidate of candidates) {
+      delegation = await this.delegations.findActiveFor(
+        found.companyId,
+        candidate,
+        actor.userId,
+        new Date(),
+        { prisma },
+      );
+      if (delegation) break;
+    }
 
     if (!delegation) {
       throw new AppError('APV_NOT_YOUR_TURN', 'คุณไม่ใช่ผู้อนุมัติของชั้นนี้', [
@@ -672,7 +673,9 @@ export class ApprovalsService {
       steps: {
         some: {
           status: 'pending',
-          approverUserId: { in: [actor.userId, ...covering] },
+          // Reads the array, not the single column: a level naming three
+          // people has to appear in all three inboxes.
+          candidateUserIds: { hasSome: [actor.userId, ...covering] },
         },
       },
     };

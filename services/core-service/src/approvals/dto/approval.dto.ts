@@ -13,20 +13,39 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { APPROVER_POSITIONS } from '../approval-chain';
 
-export class MatrixTierDto {
-  /** Decimal string; `null` is the open-ended top tier. */
-  @ApiPropertyOptional({ example: '100000.00', nullable: true })
+/**
+ * One level of the ladder.
+ *
+ * Deliberately loose here: the two shapes have different required fields, and
+ * `class-validator` cannot express "one of these two objects" without a
+ * discriminator plugin. `assertValidLevels` narrows it properly before
+ * anything is written — see `matrix-rules.ts`, which is also where the reason
+ * the amount tiers are gone is recorded.
+ */
+export class MatrixLevelDto {
+  @ApiProperty({ enum: ['supervisor', 'org'] })
+  @IsIn(['supervisor', 'org'])
+  type!: 'supervisor' | 'org';
+
+  /** `supervisor` only: 1 = head of the requester's own group. */
+  @ApiPropertyOptional({ example: 1 })
   @IsOptional()
-  @IsNumberString()
-  upto?: string | null;
+  up?: number;
 
-  @ApiProperty({ example: ['team_lead', 'cfo'], isArray: true })
+  /** `org` only: the groups this level routes to. */
+  @ApiPropertyOptional({ isArray: true })
+  @IsOptional()
   @IsArray()
-  @ArrayNotEmpty()
-  @IsIn(APPROVER_POSITIONS, { each: true })
-  chain!: string[];
+  @IsString({ each: true })
+  orgUnitIds?: string[];
+
+  /** `org` only. Empty means "the heads of those groups". */
+  @ApiPropertyOptional({ isArray: true })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  userIds?: string[];
 }
 
 export class PublishMatrixDto {
@@ -45,12 +64,12 @@ export class PublishMatrixDto {
   @IsString()
   currency?: string;
 
-  @ApiProperty({ type: [MatrixTierDto] })
+  @ApiProperty({ type: [MatrixLevelDto] })
   @IsArray()
   @ArrayNotEmpty()
   @ValidateNested({ each: true })
-  @Type(() => MatrixTierDto)
-  tiers!: MatrixTierDto[];
+  @Type(() => MatrixLevelDto)
+  levels!: MatrixLevelDto[];
 
   @ApiPropertyOptional({ description: 'ISO date; defaults to now.' })
   @IsOptional()
@@ -112,12 +131,17 @@ export class DecideDto {
   @IsIn(['approve', 'reject', 'return'])
   decision!: 'approve' | 'reject' | 'return';
 
-  /** §8: rejection always requires a reason. Enforced in the service. */
-  @ApiPropertyOptional({ maxLength: 2000 })
-  @IsOptional()
+  /**
+   * Required for every decision, not only a rejection (H2.2).
+   *
+   * Enforced in the service rather than here so that one message answers both
+   * the single and the batch path.
+   */
+  @ApiProperty({ maxLength: 2000 })
   @IsString()
+  @IsNotEmpty()
   @MaxLength(2000)
-  note?: string;
+  note!: string;
 }
 
 export class BatchDecideDto {
@@ -131,11 +155,12 @@ export class BatchDecideDto {
   @IsIn(['approve', 'reject', 'return'])
   decision!: 'approve' | 'reject' | 'return';
 
-  @ApiPropertyOptional({ maxLength: 2000 })
-  @IsOptional()
+  /** One reason for the whole batch — see `DecideDto.note`. */
+  @ApiProperty({ maxLength: 2000 })
   @IsString()
+  @IsNotEmpty()
   @MaxLength(2000)
-  note?: string;
+  note!: string;
 }
 
 export class CreateDelegationDto {

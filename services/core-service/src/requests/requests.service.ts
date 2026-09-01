@@ -4,19 +4,25 @@ import {
   AuditWriter,
   auditActor,
   PrismaTransactionService,
-  buildScopeWhere,
+  accessSubject,
+  awaitingDecisionWhere,
+  involvedRequestsWhere,
+  ledRequestsWhere,
+  visibleRequestsWhere,
   resolveTargetCompany,
   paginated,
   toSkipTake,
 } from '@request-management/share';
 import type { Principal } from '@request-management/share';
-import type { Prisma, RequestStatus } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import type { RequestStatus } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { assertTransition, OPEN_STATUSES } from './request-state-machine';
 import { AttachmentRepository } from './attachment.repository';
 import {
   assertKnownDocCode,
   assertKnownReturnReason,
+  assertReceiverFormComplete,
   assertSubmittable,
   assertUsableFormSchema,
 } from './submit-rules';
@@ -27,6 +33,8 @@ import {
   RequestWithType,
 } from './request.repository';
 import { RequestTypeRepository } from './request-type.repository';
+import { RequestCommentRepository } from './request-comment.repository';
+import { OrgUnitRepository } from '../access/org-unit.repository';
 import { SlaService } from '../sla/sla.service';
 import { ApprovalsService } from '../approvals/approvals.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -45,13 +53,22 @@ import {
   CreateIntegrationRequestDto,
   CreateRequestTypeDto,
   UpdateRequestTypeDto,
+  AddCommentDto,
+  CloseRequestDto,
+  CompleteRequestDto,
 } from './dto/request.dto';
 
-/** Columns `buildScopeWhere` pins a request query to (SCOPE-02). */
-const SCOPE_COLUMNS = {
-  owner: 'requesterId',
-  orgUnit: 'requesterOrgUnitId',
-  company: 'companyId',
+/** What one node of the สายคำขอ panel needs — never the whole request. */
+const REQUEST_TREE_SELECT = {
+  id: true,
+  requestNo: true,
+  typeCode: true,
+  status: true,
+  parentRequestId: true,
+  ancestorIds: true,
+  requester: { select: { displayName: true } },
+  assignee: { select: { displayName: true } },
+  receiver: { select: { displayName: true } },
 } as const;
 
 @Injectable()
@@ -59,7 +76,9 @@ export class RequestsService {
   constructor(
     private readonly requests: RequestRepository,
     private readonly attachments: AttachmentRepository,
+    private readonly comments: RequestCommentRepository,
     private readonly types: RequestTypeRepository,
+    private readonly orgUnits: OrgUnitRepository,
     private readonly docNumbers: DocNumberService,
     private readonly approvals: ApprovalsService,
     private readonly sla: SlaService,
@@ -77,11 +96,36 @@ export class RequestsService {
    * REQ-01: an inactive type is one still being configured, so offering it on
    * the submit screen would produce requests nobody can route.
    */
-  listTypes(actor: Principal) {
+  async listTypes(actor: Principal) {
+    /*
+      A type may name the groups allowed to raise it, and naming a group covers
+      everything under it. Resolved by asking which groups the requester sits
+      beneath — one closure read — rather than expanding each named group's
+      subtree, which would be a query per group on every submit screen.
+
+      A type with no rows is open to everybody, which is the default and what
+      all forty imported types carry.
+    */
+    const ancestors = actor.orgUnitId
+      ? await this.orgUnits.ancestorIdsOf(actor.orgUnitId)
+      : [];
+
     return this.types.findMany({
       where: {
         active: true,
         companies: { some: { companyId: actor.activeCompanyId, active: true } },
+        OR: [
+          { eligibleUnits: { none: {} } },
+          { eligibleUnits: { some: { orgUnitId: { in: ancestors } } } },
+        ],
+      },
+      // The receiving team travels with the type so the submit screen can
+      // both preselect it and name it. Reading the chart directly is not open
+      // to a requester — `GET /admin/org-units` needs `admin.org.manage` — and
+      // a page that fetches what its viewer cannot read is a guaranteed 403.
+      include: {
+        receiverOrgUnit: { select: { id: true, name: true } },
+        eligibleUnits: { select: { orgUnitId: true } },
       },
       orderBy: { code: 'asc' },
     });
@@ -104,6 +148,12 @@ export class RequestsService {
 
     return this.types.findMany({
       where: { companies: { some: { companyId: target } } },
+      // A2 edits both of these, so both travel with the row rather than being
+      // fetched again per selection.
+      include: {
+        receiverOrgUnit: { select: { id: true, name: true } },
+        eligibleUnits: { select: { orgUnitId: true } },
+      },
       orderBy: { code: 'asc' },
     });
   }
@@ -121,6 +171,12 @@ export class RequestsService {
    */
   async createType(dto: CreateRequestTypeDto, actor: Principal) {
     assertUsableFormSchema(dto.form_schema, dto.required_docs);
+    // The receiver's form is optional, but an authored one is held to the same
+    // rules — a required field that does not exist is as broken on one form as
+    // on the other.
+    if (dto.receiver_form_schema) {
+      assertUsableFormSchema(dto.receiver_form_schema);
+    }
 
     const existing = await this.types.findFirst({
       where: { code: dto.code },
@@ -143,18 +199,25 @@ export class RequestsService {
           name: dto.name,
           receiverOrgUnitId: dto.receiver_org_unit_id ?? null,
           formSchema: dto.form_schema as Prisma.InputJsonValue,
+          receiverFormSchema:
+            (dto.receiver_form_schema as Prisma.InputJsonValue) ?? undefined,
           requiredDocs: (dto.required_docs ??
             []) as unknown as Prisma.InputJsonValue,
           returnReasonCodes: (dto.return_reason_codes ??
             []) as unknown as Prisma.InputJsonValue,
           approvalPolicy: (dto.approval_policy ?? {}) as Prisma.InputJsonValue,
           slaHours: dto.sla_hours ?? null,
-          slaBusinessHours: dto.sla_business_hours ?? true,
+          slaCoverage: dto.sla_coverage ?? 'H24X7',
           active: dto.active ?? false,
           createdBy: actor.userId,
           updatedBy: actor.userId,
           companies: {
             create: companyIds.map((companyId) => ({ companyId })),
+          },
+          eligibleUnits: {
+            create: (dto.eligible_org_unit_ids ?? []).map((orgUnitId) => ({
+              orgUnitId,
+            })),
           },
         },
       });
@@ -202,6 +265,10 @@ export class RequestsService {
       );
     }
 
+    if (dto.receiver_form_schema) {
+      assertUsableFormSchema(dto.receiver_form_schema);
+    }
+
     return this.transactions.execute(async (prisma) => {
       const updated = await prisma.requestType.update({
         where: { code },
@@ -212,6 +279,16 @@ export class RequestsService {
             : {}),
           ...(dto.form_schema !== undefined
             ? { formSchema: dto.form_schema as Prisma.InputJsonValue }
+            : {}),
+          // `null` clears the receiver's form; absent leaves it alone. Prisma
+          // wants `Prisma.DbNull` for the first, not a JavaScript null.
+          ...(dto.receiver_form_schema !== undefined
+            ? {
+                receiverFormSchema:
+                  dto.receiver_form_schema === null
+                    ? Prisma.DbNull
+                    : (dto.receiver_form_schema as Prisma.InputJsonValue),
+              }
             : {}),
           ...(dto.required_docs !== undefined
             ? {
@@ -229,13 +306,32 @@ export class RequestsService {
             ? { approvalPolicy: dto.approval_policy as Prisma.InputJsonValue }
             : {}),
           ...(dto.sla_hours !== undefined ? { slaHours: dto.sla_hours } : {}),
-          ...(dto.sla_business_hours !== undefined
-            ? { slaBusinessHours: dto.sla_business_hours }
+          ...(dto.sla_coverage !== undefined
+            ? { slaCoverage: dto.sla_coverage }
             : {}),
           ...(dto.active !== undefined ? { active: dto.active } : {}),
           updatedBy: actor.userId,
         },
       });
+
+      /*
+        Replaced wholesale rather than diffed. The screen sends the list it is
+        showing, so a group the admin removed has to disappear — a merge would
+        make removal impossible, which is the same bug the Keycloak mapping
+        table was written to avoid.
+      */
+      if (dto.eligible_org_unit_ids !== undefined) {
+        await prisma.requestTypeOrgUnit.deleteMany({
+          where: { requestTypeId: updated.id },
+        });
+        await prisma.requestTypeOrgUnit.createMany({
+          data: dto.eligible_org_unit_ids.map((orgUnitId) => ({
+            requestTypeId: updated.id,
+            orgUnitId,
+          })),
+          skipDuplicates: true,
+        });
+      }
 
       await this.audit.record(
         {
@@ -264,6 +360,69 @@ export class RequestsService {
     });
   }
 
+  /**
+   * Removes a request type outright — only while nothing was ever raised
+   * against it.
+   *
+   * A type is configuration and a mistyped one should be removable rather than
+   * left switched off for ever. What makes that safe is the refusal: a type
+   * with requests behind it is history, and `Request.requestTypeId` does not
+   * cascade, so deleting one would orphan every request of that type. Those
+   * are turned off with `active: false` instead, which is what the screen
+   * offers beside this.
+   *
+   * A published approval matrix for the subject blocks it too: the matrix
+   * outlives the type it routes and would be left addressing nothing.
+   */
+  async deleteType(code: string, actor: Principal): Promise<void> {
+    const before = await this.types.findFirst({ where: { code } });
+    if (!before) {
+      throw new AppError('NOT_FOUND', 'ไม่พบประเภทคำขอที่ระบุ', [
+        { field: 'code', reason: code },
+      ]);
+    }
+
+    const [requests, matrices] = await Promise.all([
+      this.requests.countWhere({ requestTypeId: before.id }),
+      this.approvals.countMatricesFor(`request:${code}`),
+    ]);
+
+    const blockers = [
+      requests && { field: 'requests', reason: `คำขอ ${requests}` },
+      matrices && {
+        field: 'approval_matrix',
+        reason: `ตารางอำนาจอนุมัติ ${matrices}`,
+      },
+    ].filter((blocker): blocker is { field: string; reason: string } =>
+      Boolean(blocker),
+    );
+
+    if (blockers.length) {
+      throw new AppError(
+        'REQ_TYPE_IN_USE',
+        'ลบประเภทคำขอนี้ไม่ได้เพราะมีข้อมูลอ้างอยู่ — ปิดใช้งานแทนได้',
+        blockers,
+      );
+    }
+
+    await this.transactions.execute(async (prisma) => {
+      // `RequestTypeCompany` and `RequestTypeOrgUnit` cascade with the row.
+      await prisma.requestType.delete({ where: { id: before.id } });
+
+      await this.audit.record(
+        {
+          eventType: 'request.type.deleted',
+          companyId: actor.activeCompanyId,
+          ...auditActor(actor),
+          resourceType: 'request_type',
+          resourceId: before.id,
+          before: { code: before.code, name: before.name },
+        },
+        { prisma },
+      );
+    });
+  }
+
   // --- REQ-01/REQ-03: draft, edit, submit --------------------------------
 
   async create(dto: CreateRequestDto, actor: Principal) {
@@ -272,6 +431,12 @@ export class RequestsService {
     if (dto.parent_request_id) {
       await this.assertUsableParent(dto.parent_request_id, actor);
     }
+
+    // The lineage, root first — written once here rather than walked on every
+    // page view. See `Request.ancestorIds`.
+    const ancestorIds = dto.parent_request_id
+      ? await this.lineageOf(dto.parent_request_id)
+      : [];
 
     return this.requests.create({
       data: {
@@ -284,11 +449,49 @@ export class RequestsService {
         refType: dto.ref_type ?? null,
         refId: dto.ref_id ?? null,
         receiverUserId: dto.receiver_user_id ?? null,
+        // The type's `ทีมผู้รับ` is the starting point; the requester may send
+        // it somewhere else. Copied onto the row rather than read back off the
+        // type, so a later edit to the type cannot re-route this (REQ-01).
+        receiverOrgUnitId: await this.resolveReceiverUnit(
+          dto.receiver_org_unit_id,
+          type.receiverOrgUnitId,
+          actor.activeCompanyId,
+        ),
         parentRequestId: dto.parent_request_id ?? null,
+        ancestorIds,
         status: 'draft',
         createdBy: actor.userId,
       },
     });
+  }
+
+  /**
+   * The team a request is being sent to, checked before it is stored.
+   *
+   * An explicit choice must name an active unit of the caller's own company;
+   * anything else is refused rather than written, because an id that resolves
+   * to nothing produces a request sitting in a queue that does not exist. When
+   * the caller says nothing, the type's configured team stands — and that one
+   * is *not* re-checked here: it was configured by an admin and may legitimately
+   * have been deactivated since, which is a matter for screen A2, not a reason
+   * to block someone from raising a request today.
+   */
+  private async resolveReceiverUnit(
+    chosen: string | undefined,
+    fallback: string | null,
+    companyId: string,
+  ): Promise<string | null> {
+    if (chosen === undefined) return fallback;
+
+    const unit = await this.orgUnits.findAssignable(chosen, companyId);
+
+    if (!unit) {
+      throw new AppError('VALIDATION_FAILED', 'ไม่พบทีมผู้รับที่ระบุ', [
+        { field: 'receiver_org_unit_id', reason: chosen },
+      ]);
+    }
+
+    return unit.id;
   }
 
   /**
@@ -299,6 +502,23 @@ export class RequestsService {
    * hold every request in it open for ever, with no way for anyone to finish
    * any of them, so the chain is walked upward before the link is made.
    */
+  /**
+   * The parent's own lineage plus the parent — what a child inherits.
+   *
+   * Read from the parent rather than walked upward: the parent already holds
+   * the whole chain, so a child costs one row however deep the tree is. Only
+   * ever called after `assertUsableParent`, which is what guarantees the chain
+   * has no cycle to inherit.
+   */
+  private async lineageOf(parentId: string): Promise<string[]> {
+    const parent = await this.requests.findUnique({
+      where: { id: parentId },
+      select: { ancestorIds: true },
+    });
+
+    return [...(parent?.ancestorIds ?? []), parentId];
+  }
+
   private async assertUsableParent(
     parentId: string,
     actor: Principal,
@@ -352,6 +572,15 @@ export class RequestsService {
         ...(dto.ref_id !== undefined ? { refId: dto.ref_id } : {}),
         ...(dto.receiver_user_id !== undefined
           ? { receiverUserId: dto.receiver_user_id }
+          : {}),
+        ...(dto.receiver_org_unit_id !== undefined
+          ? {
+              receiverOrgUnitId: await this.resolveReceiverUnit(
+                dto.receiver_org_unit_id,
+                found.receiverOrgUnitId,
+                actor.activeCompanyId,
+              ),
+            }
           : {}),
         updatedBy: actor.userId,
       },
@@ -660,7 +889,7 @@ export class RequestsService {
    * the work is done, and `closed` is the asking side agreeing. Letting the
    * same side do both would make the second signature meaningless.
    */
-  async close(id: string, actor: Principal) {
+  async close(id: string, actor: Principal, dto: CloseRequestDto = {}) {
     const before = await this.require(id, actor);
 
     if (before.requesterId !== actor.userId) {
@@ -685,6 +914,7 @@ export class RequestsService {
         actor,
         fromStatus: before.status,
         toStatus: 'closed',
+        ...(dto.note ? { data: { note: dto.note } } : {}),
       });
 
       await this.audit.record(
@@ -723,12 +953,35 @@ export class RequestsService {
    *    none are accepted as delivered. This is the only place that branch is
    *    decided — nothing else may set either status.
    */
-  async complete(id: string, actor: Principal, authorization: string) {
+  async complete(
+    id: string,
+    actor: Principal,
+    authorization: string,
+    dto: CompleteRequestDto = {},
+  ) {
     const before = await this.require(id, actor);
 
     assertTransition(before.status, 'completed');
 
     await this.assertNoOpenChildren(id);
+
+    /*
+      H2.2 ข้อ 3 — the receiver's own form, checked here rather than at submit.
+
+      Read from the **snapshot** where there is one, for the same reason every
+      other rule does: a type edited while this request was being worked on
+      must not change what finishing it requires (REQ-01).
+    */
+    const receiverSchema =
+      snapshotOf(before).receiverFormSchema ??
+      before.requestType.receiverFormSchema;
+
+    const receiverFormData = {
+      ...((before.receiverFormData as Record<string, unknown>) ?? {}),
+      ...(dto.receiver_form_data ?? {}),
+    };
+
+    assertReceiverFormComplete(receiverSchema, receiverFormData);
 
     const updatedRequest = await this.transactions.execute(async (prisma) => {
       const updated = await prisma.request.update({
@@ -736,6 +989,7 @@ export class RequestsService {
         data: {
           status: 'completed',
           completedAt: new Date(),
+          receiverFormData: receiverFormData as Prisma.InputJsonValue,
           updatedBy: actor.userId,
         },
       });
@@ -836,7 +1090,6 @@ export class RequestsService {
       {
         subject_type: `request:${before.typeCode}`,
         subject_id: before.requestNo ?? id,
-        amount: amountFor(before),
         requester_user_id: before.requesterId,
         payload: before.formData as Record<string, unknown>,
       },
@@ -992,10 +1245,19 @@ export class RequestsService {
             code: before.requestType.code,
             name: before.requestType.name,
             formSchema: before.requestType.formSchema,
+            // The receiver's form is snapshotted for the same reason as the
+            // requester's: a type edited mid-flight must not change what
+            // finishing this request requires (REQ-01).
+            receiverFormSchema: before.requestType.receiverFormSchema,
             requiredDocs: before.requestType.requiredDocs,
             returnReasonCodes: before.requestType.returnReasonCodes,
             approvalPolicy: before.requestType.approvalPolicy,
             slaHours: before.requestType.slaHours,
+            // What the type suggested as ทีมผู้รับ at this moment. The request
+            // carries its own `receiverOrgUnitId`; keeping the default beside
+            // it is what makes "did the requester send this somewhere else?"
+            // answerable later, after the type has been edited.
+            receiverOrgUnitId: before.requestType.receiverOrgUnitId,
           },
           updatedBy: actor.userId,
         },
@@ -1304,78 +1566,147 @@ export class RequestsService {
     return found.events;
   }
 
+  // --- H2.2: comments -----------------------------------------------------
+
+  /**
+   * Leaves a note on a request.
+   *
+   * Gated on being able to *see* the request, not on a separate permission:
+   * the people who can open a request are exactly the people with something to
+   * say about it, and a second rule would have to be kept in step with the
+   * first for no benefit.
+   *
+   * `findOne` is what enforces that, and it answers 404 rather than 403 for a
+   * request outside the caller's reach (SCOPE-03) — so commenting cannot be
+   * used to discover that one exists.
+   */
+  async addComment(id: string, dto: AddCommentDto, actor: Principal) {
+    await this.findOne(id, actor);
+
+    return this.comments.create({
+      data: { requestId: id, authorId: actor.userId, body: dto.body },
+      include: { author: { select: { displayName: true } } },
+    });
+  }
+
+  // --- H2.2: the request tree ----------------------------------------------
+
+  /**
+   * This request, everything spawned under it, and the one above it.
+   *
+   * One query for the subtree — `ancestorIds` holds the whole lineage, so
+   * "everything under this" is an index lookup rather than a walk. The parent
+   * comes back separately and shallowly: a child shows *who it came from*, not
+   * that parent's own contents, which belong to whoever is working on it.
+   *
+   * Visibility is the request's own: somebody who can open this request can see
+   * what was raised from it. That is the point of the panel — a chain nobody
+   * can follow is a chain that gets worked on twice.
+   */
+  async tree(id: string, actor: Principal) {
+    const found = await this.findOne(id, actor);
+
+    const [descendants, parent] = await Promise.all([
+      this.requests.findMany({
+        where: { ancestorIds: { has: id } },
+        select: REQUEST_TREE_SELECT,
+        orderBy: { createdAt: 'asc' },
+      }),
+      found.parentRequestId
+        ? this.requests.findUnique({
+            where: { id: found.parentRequestId },
+            select: { id: true, requestNo: true, typeCode: true, status: true },
+          })
+        : null,
+    ]);
+
+    return { parent, descendants };
+  }
+
   // --- internals ----------------------------------------------------------
 
   private scopedWhere(
     actor: Principal,
     // Partial because `visibleTo` reuses this with no filters at all — the
-    // scope half is what it needs, not the search box.
+    // visibility half is what it needs, not the search box.
     query: Partial<ListRequestsQueryDto>,
   ): Prisma.RequestWhereInput {
-    const scope = actor.scopes.request ?? 'own';
+    /*
+      One filter layer for every list, single read and count (SCOPE-02). The
+      scope levels it used to read are gone; `visibleRequestsWhere` decides
+      from involvement and from the groups this person leads, and still pins
+      the company on every branch (SCOPE-03).
 
-    const scoped = buildScopeWhere(
-      scope,
-      SCOPE_COLUMNS,
-      {
-        userId: actor.userId,
-        activeCompanyId: actor.activeCompanyId,
-        teamOrgUnitIds: actor.teamOrgUnitIds,
-        departmentOrgUnitIds: actor.departmentOrgUnitIds,
-      },
-      // SCOPE-06: anyone in the approval chain can always see it — and so can
-      // the person a ticket was handed to, for the same reason: relatedness to
-      // this particular row, not the breadth of what they may generally see.
-      query.view === 'involved'
-        ? {
-            approvalCases: {
-              some: { steps: { some: { approverUserId: actor.userId } } },
-            },
-          }
-        : query.view === 'incoming'
-          ? {
-              OR: [
-                { receiverUserId: actor.userId },
-                { assigneeUserId: actor.userId },
-              ],
-            }
-          : undefined,
-    ) as Prisma.RequestWhereInput;
+      `view` no longer needs to widen it. It used to OR an extra predicate on
+      because scope `own` could not see a ticket handed to you or a case you
+      approve; those are part of the base rule now, so the views below only
+      narrow.
+    */
+    const subject = accessSubject(actor);
 
-    const filters: Prisma.RequestWhereInput = {
-      // `scoped` already pins the company (SCOPE-03); repeating it here only
-      // made the generated query harder to read.
-      ...(query.view === 'mine' ? { requesterId: actor.userId } : {}),
-      /*
-        `incoming` means "waiting for me to do something with it", so it stops
-        at the point the ticket is no longer mine to move. Everything I have
-        ever received would be a history, not a queue.
-      */
-      ...(query.view === 'incoming'
-        ? {
-            OR: [
-              { receiverUserId: actor.userId },
-              { assigneeUserId: actor.userId },
-            ],
-            status: { in: ['submitted', 'in_progress', 'on_hold'] },
-          }
-        : {}),
-      ...(query.status ? { status: query.status as RequestStatus } : {}),
-      ...(query.type_code ? { typeCode: query.type_code } : {}),
-      ...(query.q
-        ? {
-            OR: [
-              { requestNo: { contains: query.q, mode: 'insensitive' } },
-              { refId: { contains: query.q, mode: 'insensitive' } },
-            ],
-          }
-        : {}),
-      ...(query.overdue === 'true'
-        ? { slaClock: { is: { breachedAt: { not: null } } } }
-        : {}),
-    };
+    const scoped = visibleRequestsWhere(subject) as Prisma.RequestWhereInput;
 
-    return { AND: [scoped, filters] };
+    /*
+      Composed with `AND` rather than merged into one object.
+
+      Three of these contribute an `OR`, and spreading them into a single
+      literal silently dropped all but the last — searching inside the
+      "รับเรื่อง" tab quietly became a search across everything, because the
+      search box's `OR` overwrote the tab's.
+    */
+    const narrowing: Prisma.RequestWhereInput[] = [];
+
+    if (query.view === 'involved') {
+      narrowing.push(involvedRequestsWhere(subject));
+    }
+
+    if (query.view === 'created') {
+      narrowing.push({ requesterId: actor.userId });
+    }
+
+    /*
+      `incoming` means "waiting for me to do something with it", so it stops at
+      the point the ticket is no longer mine to move. Everything I have ever
+      received would be a history, not a queue.
+    */
+    if (query.view === 'incoming') {
+      narrowing.push({
+        OR: [
+          { receiverUserId: actor.userId },
+          { assigneeUserId: actor.userId },
+        ],
+        status: { in: ['submitted', 'in_progress', 'on_hold'] },
+      });
+    }
+
+    if (query.view === 'approver') {
+      narrowing.push(awaitingDecisionWhere(subject));
+    }
+
+    if (query.view === 'led') {
+      narrowing.push(ledRequestsWhere(subject));
+    }
+
+    if (query.status) {
+      narrowing.push({ status: query.status as RequestStatus });
+    }
+
+    if (query.type_code) narrowing.push({ typeCode: query.type_code });
+
+    if (query.q) {
+      narrowing.push({
+        OR: [
+          { requestNo: { contains: query.q, mode: 'insensitive' } },
+          { refId: { contains: query.q, mode: 'insensitive' } },
+        ],
+      });
+    }
+
+    if (query.overdue === 'true') {
+      narrowing.push({ slaClock: { is: { breachedAt: { not: null } } } });
+    }
+
+    return { AND: [scoped, ...narrowing] };
   }
 
   private async visibleTo(
@@ -1385,22 +1716,19 @@ export class RequestsService {
     if (found.companyId !== actor.activeCompanyId) return false;
     if (found.requesterId === actor.userId) return true;
 
-    const where = this.scopedWhere(actor, {});
+    /*
+      One question, asked of the one filter. Being an approver on the chain
+      (SCOPE-06) used to need a second query as a fallback past the scope
+      levels; it is a branch of the base rule now, so a second query would
+      only be a second chance to disagree with the first.
+    */
     const match = await this.requests.countWhere({
-      AND: [where, { id: found.id }],
+      AND: [this.scopedWhere(actor, {}), { id: found.id }],
     });
 
     if (match > 0) return true;
 
-    // SCOPE-06 fallback: an approver on the chain sees it regardless of scope.
-    const asApprover = await this.requests.countWhere({
-      id: found.id,
-      approvalCases: {
-        some: { steps: { some: { approverUserId: actor.userId } } },
-      },
-    });
-
-    return asApprover > 0;
+    return false;
   }
 
   private async require(
@@ -1475,25 +1803,4 @@ function snapshotOf(request: RequestWithType): Record<string, unknown> {
   return typeof request.typeSnapshot === 'object' && request.typeSnapshot
     ? (request.typeSnapshot as Record<string, unknown>)
     : {};
-}
-
-/**
- * The value APV-02 measures against the matrix ceilings.
- *
- * Which field that is comes from the type's `approvalPolicy`, not from code —
- * a type with no monetary dimension (lead handover) simply names none, and
- * `selectTier` then routes it through step 1 only.
- */
-function amountFor(request: RequestWithType): string | null {
-  const policy = request.requestType.approvalPolicy as {
-    amount_field?: string | null;
-  } | null;
-
-  const field = policy?.amount_field;
-  if (!field) return null;
-
-  const value = (request.formData as Record<string, unknown>)[field];
-  return typeof value === 'number' || typeof value === 'string'
-    ? String(value)
-    : null;
 }

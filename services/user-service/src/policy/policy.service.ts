@@ -3,10 +3,9 @@ import {
   Permission,
   Principal,
   PrismaTransactionService,
-  ScopeLevel,
   TxOption,
 } from '@request-management/share';
-import type { ScopeRule, SensitiveFieldRule } from '@prisma/client';
+import type { ScopeLevel, ScopeRule, SensitiveFieldRule } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { AuditEvent } from '../audit/audit-events';
 import { ScopeRuleRepository } from './scope-rule.repository';

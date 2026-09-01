@@ -43,6 +43,20 @@ export const ErrorCatalog = {
   ROLE_IN_USE: HttpStatus.CONFLICT,
   /** AUTH-04: moving an org unit under its own descendant would cycle the tree. */
   ORG_UNIT_CYCLE: HttpStatus.UNPROCESSABLE_ENTITY,
+  /**
+   * A group still has people, sub-groups, or configuration pointing at it.
+   *
+   * The chart is configuration, so a genuinely unused group may be deleted —
+   * but only then. `details` names what is in the way, because "cannot delete"
+   * alone sends an admin hunting through the chart by hand.
+   */
+  ORG_UNIT_IN_USE: HttpStatus.CONFLICT,
+  /**
+   * REQ-01: a request type that has been raised against, or that a published
+   * approval matrix routes, may be deactivated but never deleted — deleting it
+   * would orphan the history behind it.
+   */
+  REQ_TYPE_IN_USE: HttpStatus.CONFLICT,
   /** NFR-03: same Idempotency-Key replayed with a different body. */
   IDEMPOTENCY_KEY_REUSED: HttpStatus.CONFLICT,
   /**

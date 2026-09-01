@@ -1,7 +1,7 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 import type { Request } from 'express';
 import { Permission } from '../policy/permissions';
-import { ScopeLevel } from '../policy/scope';
+import type { AccessSubject } from '../access/access-rules';
 
 /** One company the caller belongs to (AUTH-05). */
 export interface PrincipalCompany {
@@ -19,8 +19,9 @@ export interface PrincipalCompany {
  * for the access token's lifetime. Everything downstream — guards, scope
  * filters, masking — reads this and nothing else.
  *
- * Permissions and scopes are always **for the active company** (ROLE-04): the
- * same person can be a manager in one company and a plain employee in another.
+ * Permissions are always **for the active company** (ROLE-04): the same person
+ * can be a manager in one company and a plain employee in another, and
+ * `ledUnitIds` is likewise the groups they lead *in that company*.
  */
 export interface Principal {
   readonly userId: string;
@@ -38,15 +39,17 @@ export interface Principal {
 
   readonly orgUnitId: string | null;
   readonly supervisorUserId: string | null;
-  /** The caller's own org unit plus every unit beneath it (`OrgClosure`). */
-  readonly teamOrgUnitIds: readonly string[];
-  /** The caller's department subtree. */
-  readonly departmentOrgUnitIds: readonly string[];
+  /**
+   * Every group this caller leads, plus every group beneath those.
+   *
+   * Resolved once here from `OrgClosure` rather than per query: it is read by
+   * every request list, and walking the chart on each one is what the closure
+   * table exists to avoid (§6.2's note, which outlived the scope levels).
+   */
+  readonly ledUnitIds: readonly string[];
 
   readonly roles: readonly string[];
   readonly permissions: readonly Permission[];
-  /** Resource name → scope level, e.g. `{ request: 'team' }`. */
-  readonly scopes: Readonly<Record<string, ScopeLevel>>;
   /** Sensitive fields this caller may see unmasked (SCOPE-04). */
   readonly sensitiveFieldsVisible: readonly string[];
   /**
@@ -103,7 +106,16 @@ export function hasPermission(
   return principal.permissions.includes(permission);
 }
 
-/** Scope for a resource, defaulting to the narrowest level if unconfigured. */
-export function scopeFor(principal: Principal, resource: string): ScopeLevel {
-  return principal.scopes[resource] ?? 'own';
+/**
+ * The facts {@link visibleRequestsWhere} and friends need, read off a
+ * principal. One conversion in one place, so no caller assembles it by hand
+ * and quietly leaves a field out.
+ */
+export function accessSubject(principal: Principal): AccessSubject {
+  return {
+    userId: principal.userId,
+    activeCompanyId: principal.activeCompanyId,
+    ledUnitIds: principal.ledUnitIds,
+    readsWholeCompany: hasPermission(principal, 'request.read.all'),
+  };
 }

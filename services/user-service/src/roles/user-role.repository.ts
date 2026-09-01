@@ -59,6 +59,42 @@ export class UserRoleRepository extends BaseRepository<
   }
 
   /**
+   * The same answer as {@link findForUserInCompany} for a whole list of people,
+   * in one query.
+   *
+   * Screen A3's member panel asked per person, which was two round trips per
+   * member — a seventy-person department cost a hundred and forty for one
+   * panel. Grouped in memory afterwards because Prisma has no `groupBy` that
+   * carries the included role.
+   */
+  async findForUsersInCompany(
+    userIds: readonly string[],
+    companyId: string,
+    option?: TxOption,
+  ): Promise<Map<string, UserRoleWithRole[]>> {
+    const grouped = new Map<string, UserRoleWithRole[]>();
+    if (!userIds.length) return grouped;
+
+    const rows = (await this.findMany(
+      {
+        where: {
+          userId: { in: [...new Set(userIds)] },
+          companyId,
+          role: { active: true },
+        },
+        include: { role: { include: { permissions: true } } },
+      },
+      option,
+    )) as UserRoleWithRole[];
+
+    for (const row of rows) {
+      grouped.set(row.userId, [...(grouped.get(row.userId) ?? []), row]);
+    }
+
+    return grouped;
+  }
+
+  /**
    * Everyone holding a role code in one company (ROLE-04).
    *
    * Ordered oldest-grant-first so the answer is stable between calls — an

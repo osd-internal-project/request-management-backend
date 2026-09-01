@@ -25,6 +25,7 @@ export const AuditEvent = {
   // AUTH-04 / D-08
   ORG_UNIT_CREATED: 'org.unit.created',
   ORG_UNIT_UPDATED: 'org.unit.updated',
+  ORG_UNIT_DELETED: 'org.unit.deleted',
   ORG_USER_ASSIGNED: 'org.user.assigned',
 
   // SCOPE-01 / SCOPE-04 / SCOPE-05

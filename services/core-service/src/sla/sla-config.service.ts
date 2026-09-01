@@ -64,7 +64,7 @@ export class SlaConfigService {
           companyId,
           requestTypeCode: entry.request_type_code,
           hours: entry.hours,
-          businessHours: entry.business_hours ?? true,
+          coverage: entry.coverage ?? 'H24X7',
           warnBeforeHours: entry.warn_before_hours ?? 4,
           updatedBy: actor.userId,
         })),

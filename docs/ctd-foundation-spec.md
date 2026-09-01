@@ -313,6 +313,30 @@ T1/T2 are configuration per company and subject type (D-18). **The real numbers
 are unconfirmed** — see open question A. A requester with no supervisor in the
 org chart cannot submit. Requests with no amount use step 1 only.
 
+> ### Declared amendment — the ladder has no amounts (31 ส.ค. 2569)
+>
+> **สิ่งที่เปลี่ยน:** ตารางอำนาจอนุมัติเลิกใช้เพดานวงเงิน สายอนุมัติเป็นรายการ *ชั้น*
+> แต่ละชั้นเลือกได้สองแบบ — `supervisor` ไต่ผังทีมของผู้ยื่นขึ้นไปกี่ชั้นก็ระบุได้
+> (1 = หัวหน้าหน่วยงานที่สังกัด) หรือ `org` ระบุหน่วยงานที่มีสิทธิ์อนุมัติ และเลือก
+> ผู้อนุมัติในหน่วยงานนั้นได้หลายคน ไม่เลือก = หัวหน้าของหน่วยงานนั้น
+>
+> **เหตุผลสามข้อ:**
+>
+> 1. **T1/T2 ไม่เคยได้รับการยืนยัน** — เป็น open question A ตั้งแต่ 24 ส.ค. 2569
+>    ทุกสภาพแวดล้อมรันด้วยตัวเลขสมมติที่ไม่มีใครตกลง
+> 2. **ตำแหน่งผู้อนุมัติถูกตรึงไว้สามค่า** (`team_lead`/`cfo`/`ceo`) ซึ่งไม่ตรงกับ
+>    วิธีอนุมัติจริงของแต่ละฝ่าย ที่ส่งไปหาหัวหน้าหน่วยงานที่ระบุ หรือหาคนที่ระบุชื่อ
+> 3. **หนึ่งชั้นมีผู้อนุมัติได้หลายคน** ซึ่งรูปแบบเดิมไม่มีที่เก็บเลย
+>
+> **สิ่งที่ไม่เปลี่ยน:** APV-02 (ไม่มีใครอนุมัติคำขอตัวเอง · ผู้ยื่นเลือกผู้อนุมัติเองไม่ได้),
+> APV-03, APV-05 และการที่เวอร์ชันที่ประกาศแล้วแก้ทับไม่ได้
+>
+> **เวอร์ชันที่ประกาศก่อนวันนั้นไม่ถูกแตะ** — ยังเก็บ `tiers` และยัง route ด้วยกฎเดิม
+> ทั้งชุด เพราะเคสที่วิ่งอยู่ถูกตัดสินด้วยกฎนั้น (§7) `ApprovalMatrix.levels` จึงเป็น
+> คอลัมน์ใหม่ ไม่ใช่การเขียนทับ `tiers`
+>
+> รายละเอียดกฎอยู่ที่ `matrix-rules.ts` · การ resolve อยู่ที่ `access.service.ts`
+
 | Code | Requirement | Status |
 |---|---|---|
 | **APV-01** | Central matrix of ceilings and approvers per (company, subject type, amount band + currency), versioned with effective dates. Published versions are immutable. | ✅ versioned + immutable; malformed ladders refused at publish |

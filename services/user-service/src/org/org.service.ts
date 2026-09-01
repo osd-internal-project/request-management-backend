@@ -4,9 +4,8 @@ import {
   PrismaTransactionService,
   TxOption,
 } from '@request-management/share';
-import type { Principal, ScopeLevel } from '@request-management/share';
+import type { Principal } from '@request-management/share';
 import type { Company, OrgUnit, User } from '@prisma/client';
-import { PolicyService } from '../policy/policy.service';
 import { RolesService } from '../roles/roles.service';
 import { AuditService } from '../audit/audit.service';
 import { AuditEvent } from '../audit/audit-events';
@@ -23,12 +22,6 @@ import {
   CreateOrgUnitDto,
   UpdateOrgUnitDto,
 } from './dto/org-unit.dto';
-
-/** The org-unit id sets a principal needs for scope resolution. */
-export interface ScopeSets {
-  teamOrgUnitIds: string[];
-  departmentOrgUnitIds: string[];
-}
 
 /** One node of the A3 tree. */
 export interface OrgUnitNode {
@@ -50,17 +43,15 @@ export interface OrgMember {
   displayName: string;
   email: string | null;
   /**
-   * System roles bound in this company. `id` is needed because scope is
-   * configured per (role, resource) — SCOPE-01 — so editing a member's scope
-   * means editing their role's scope rule.
+   * System roles bound in this company. `id` travels with the code so the
+   * screen can edit a member's roles without a second lookup.
    */
   roles: { id: string; code: string; name: string; source: string }[];
-  scope: ScopeLevel;
   supervisor: { id: string; displayName: string } | null;
   /**
    * Realm roles from the last login. Per the A3 mockup this is the member's
-   * **primary** role — "role หลักมาจาก Keycloak" — while scope is what an
-   * admin adjusts in this system.
+   * **primary** role — "role หลักมาจาก Keycloak" — while the system roles
+   * above are what an admin adjusts here.
    */
   keycloakRoles: string[];
 }
@@ -74,7 +65,6 @@ export class OrgService {
     private readonly memberships: UserCompanyRepository,
     private readonly users: UsersRepository,
     private readonly roles: RolesService,
-    private readonly policy: PolicyService,
     private readonly audit: AuditService,
     private readonly transactions: PrismaTransactionService,
   ) {}
@@ -101,12 +91,15 @@ export class OrgService {
   }
 
   /**
-   * Members of one unit with the system role, data scope, and supervisor that
-   * screen A3 prints beside each name.
+   * Members of one unit with the system roles and supervisor that screen A3
+   * prints beside each name.
    *
-   * Role and scope come from `RolesService` and `PolicyService` — the same
-   * resolution the guards use — rather than a second query that could drift
-   * from what the system actually enforces.
+   * Roles come from `RolesService` — the same resolution the guards use —
+   * rather than a second query that could drift from what is enforced.
+   *
+   * The "scope:" tag this used to carry is gone with the scope levels
+   * (31 Aug 2026): visibility now follows involvement and who leads the group,
+   * so there is no per-person level left to print.
    */
   async listMembers(
     orgUnitId: string,
@@ -114,30 +107,63 @@ export class OrgService {
   ): Promise<OrgMember[]> {
     const members = await this.users.findMembersOf(orgUnitId);
 
-    return Promise.all(
-      members.map(async (member) => {
-        const userRoles = await this.roles.rolesForUser(member.id, companyId);
-        const roleIds = userRoles.map((userRole) => userRole.roleId);
-        const scopes = await this.policy.resolveScopes(roleIds);
-
-        return {
-          id: member.id,
-          username: member.username,
-          displayName: member.displayName,
-          email: member.email,
-          roles: userRoles.map((userRole) => ({
-            id: userRole.role.id,
-            code: userRole.role.code,
-            name: userRole.role.name,
-            source: userRole.source,
-          })),
-          // The resource A3 labels "scope:" is the request scope.
-          scope: scopes.request ?? 'own',
-          supervisor: member.supervisor,
-          keycloakRoles: member.keycloakRoles,
-        };
-      }),
+    // One query for the whole panel. Asking per member was two round trips
+    // each — a seventy-person department cost a hundred and forty.
+    const rolesByUser = await this.roles.rolesForUsers(
+      members.map((member) => member.id),
+      companyId,
     );
+
+    return members.map((member) => ({
+      id: member.id,
+      username: member.username,
+      displayName: member.displayName,
+      email: member.email,
+      roles: (rolesByUser.get(member.id) ?? []).map((userRole) => ({
+        id: userRole.role.id,
+        code: userRole.role.code,
+        name: userRole.role.name,
+        source: userRole.source,
+      })),
+      supervisor: member.supervisor,
+      keycloakRoles: member.keycloakRoles,
+    }));
+  }
+
+  /**
+   * Members of a group **and every group beneath it**.
+   *
+   * `listMembers` answers "who sits in this box", which is what the A3 panel
+   * draws. This answers "who is under this part of the chart", which is what
+   * choosing an approval level on A1 means — a department names its positions'
+   * people, not its own empty membership.
+   */
+  async listMembersRecursive(
+    orgUnitId: string,
+    companyId: string,
+  ): Promise<OrgMember[]> {
+    const ids = await this.closure.descendantIdsOf(orgUnitId);
+    const members = await this.users.findMembersOfMany(ids);
+
+    const rolesByUser = await this.roles.rolesForUsers(
+      members.map((member) => member.id),
+      companyId,
+    );
+
+    return members.map((member) => ({
+      id: member.id,
+      username: member.username,
+      displayName: member.displayName,
+      email: member.email,
+      roles: (rolesByUser.get(member.id) ?? []).map((userRole) => ({
+        id: userRole.role.id,
+        code: userRole.role.code,
+        name: userRole.role.name,
+        source: userRole.source,
+      })),
+      supervisor: member.supervisor,
+      keycloakRoles: member.keycloakRoles,
+    }));
   }
 
   /** AUTH-04: the "รอจัดสังกัด" queue shown on admin screen A3. */
@@ -250,6 +276,73 @@ export class OrgService {
     });
   }
 
+  /**
+   * Delete a group outright — only while nothing points at it.
+   *
+   * The chart is configuration, and an admin who mistypes a group needs to be
+   * able to remove it rather than leave a deactivated box on the chart for
+   * ever. What makes that safe is the refusal below, not restraint: a group
+   * holding people, sub-groups, request types or dashboard audiences is
+   * refused with `ORG_UNIT_IN_USE` naming each blocker, so the admin knows
+   * what to move first — or can deactivate it instead and keep the history.
+   *
+   * `OrgClosure` rows go by cascade; the rest of the company's closure is
+   * rebuilt in the same transaction, because scope answers read that table and
+   * a stale one silently changes who sees what.
+   */
+  async deleteUnit(id: string, actor: Principal): Promise<void> {
+    await this.transactions.execute(async (prisma) => {
+      const option = { prisma };
+
+      const before = await this.orgUnits.findById(id, option);
+      if (!before) {
+        throw new AppError('NOT_FOUND', 'ไม่พบหน่วยงานที่ระบุ');
+      }
+
+      const dependents = await this.orgUnits.countDependents(id, option);
+
+      const blockers = [
+        [dependents?.members, 'members', 'สมาชิก'],
+        [dependents?.children, 'children', 'หน่วยงานย่อย'],
+        [
+          dependents?.receivedTypes,
+          'request_types',
+          'ประเภทคำขอที่ส่งมาที่นี่',
+        ],
+        [dependents?.biAudiences, 'bi_audiences', 'สิทธิ์เห็น dashboard'],
+      ]
+        .filter(([count]) => Number(count) > 0)
+        .map(([count, field, label]) => ({
+          field: String(field),
+          reason: `${String(label)} ${String(count)}`,
+        }));
+
+      if (blockers.length) {
+        throw new AppError(
+          'ORG_UNIT_IN_USE',
+          'ลบหน่วยงานนี้ไม่ได้เพราะยังมีข้อมูลอ้างอยู่ — ย้ายออกก่อน หรือปิดใช้งานแทน',
+          blockers,
+        );
+      }
+
+      await this.orgUnits.deleteUnit(id, option);
+      await this.rebuildClosure(before.companyId, option);
+
+      await this.audit.record(
+        {
+          eventType: AuditEvent.ORG_UNIT_DELETED,
+          companyId: before.companyId,
+          actorId: actor.userId,
+          actorUsername: actor.username,
+          resourceType: 'org_unit',
+          resourceId: id,
+          before,
+        },
+        option,
+      );
+    });
+  }
+
   /** §11.2 `PATCH /admin/users/{id}/org`. */
   async assignUser(
     userId: string,
@@ -320,53 +413,34 @@ export class OrgService {
   }
 
   /**
-   * The id sets `buildScopeWhere` needs: the caller's own subtree (`team`) and
-   * their department's subtree (`department`).
+   * Every group this person leads, plus every group beneath those.
    *
-   * A user with no org unit gets empty sets, so `team`/`department` scopes
-   * match nothing rather than everything — an unassigned account must not see
-   * more than an assigned one.
-   */
-  async scopeSetsFor(user: { orgUnitId: string | null }): Promise<ScopeSets> {
-    if (!user.orgUnitId) {
-      return { teamOrgUnitIds: [], departmentOrgUnitIds: [] };
-    }
-
-    const teamOrgUnitIds = await this.closure.descendantIdsOf(user.orgUnitId);
-    const departmentId = await this.nearestDepartmentId(user.orgUnitId);
-
-    const departmentOrgUnitIds = departmentId
-      ? await this.closure.descendantIdsOf(departmentId)
-      : teamOrgUnitIds;
-
-    return { teamOrgUnitIds, departmentOrgUnitIds };
-  }
-
-  /** Walks up the closure to the closest DEPARTMENT (or COMPANY) ancestor. */
-  /**
-   * The nearest department (or company) above a unit.
+   * The one question the "งานทั้งหมด" screen, the approval chain's `org` levels
+   * and every request list are answered from — see
+   * `libs/share/src/access/access-rules.ts` for what is done with it.
    *
-   * Both the ancestors and their rows are fetched **once**. Looking each
-   * ancestor up inside the loop was one round trip per level of the org
-   * chart, on the path that resolves *every* request's principal — measured
-   * at seconds against a remote database, which is what made core-service's
-   * five-second resolve timeout fire on a cold call.
+   * Leading nothing returns an empty array, and every caller treats that as
+   * "no extra rows" rather than "no filter". An empty set that reads as
+   * unrestricted is how a visibility bug becomes a disclosure.
+   *
+   * One query for the units and one for the closure, whatever the depth of the
+   * chart. This runs while resolving *every* request's principal, and a round
+   * trip per level here is what once made core-service's five-second resolve
+   * timeout fire on a cold call.
    */
-  private async nearestDepartmentId(orgUnitId: string): Promise<string | null> {
-    const ancestors = await this.closure.ancestorsOf(orgUnitId);
-    if (!ancestors.length) return null;
-
-    const ids = ancestors.map(({ ancestorId }) => ancestorId);
-
-    const units = await this.orgUnits.findMany({
-      where: { id: { in: ids }, kind: { in: ['DEPARTMENT', 'COMPANY'] } },
+  async ledUnitIdsOf(userId: string, companyId: string): Promise<string[]> {
+    const led = await this.orgUnits.findMany({
+      where: { companyId, managerUserId: userId, active: true },
       select: { id: true },
     });
 
-    const eligible = new Set(units.map((unit) => unit.id));
+    if (!led.length) return [];
 
-    // `ancestorsOf` is ordered nearest-first, so the first hit is the nearest.
-    return ids.find((id) => eligible.has(id)) ?? null;
+    const subtrees = await Promise.all(
+      led.map((unit) => this.closure.descendantIdsOf(unit.id)),
+    );
+
+    return [...new Set(subtrees.flat())];
   }
 
   private async rebuildClosure(

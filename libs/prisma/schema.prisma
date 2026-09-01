@@ -29,13 +29,18 @@ enum UserStatus {
 }
 
 /// Ordered widest first, so the enum reads like the chart it describes:
-/// บริษัท → ฝ่าย → แผนก → ทีม. `DIVISION` was added on 28 Aug 2026 when the
+/// บริษัท → ฝ่าย → แผนก → ตำแหน่ง. `DIVISION` was added on 28 Aug 2026 when the
 /// real OSD org chart arrived — the staff register keeps `ฝ่าย` and `แผนก` in
 /// separate columns and flattening them lost a whole level.
+///
+/// `POSITION` is the fourth level: people sit in a position, not directly in a
+/// department. `TEAM` is kept because the demo company and `seed.ts` are built
+/// on it and it is still this column's default; new charts should not use it.
 enum OrgUnitKind {
   COMPANY
   DIVISION
   DEPARTMENT
+  POSITION
   TEAM
 }
 
@@ -101,6 +106,21 @@ enum ApprovalDecision {
   approve
   reject
   return
+}
+
+/// How much of the clock counts, per request type (SUP-01).
+///
+/// `H24X7` is elapsed time, the only mode the clock ever actually implemented.
+/// The other two count `HolidayCalendar`'s working window, and `H8X5` also
+/// skips non-working weekdays and holidays.
+///
+/// Replaces the boolean `businessHours` on 31 Aug 2026: it could not tell
+/// "office hours every day" from "office hours on working days", which the
+/// support desk and the back office need to mean different things.
+enum SlaCoverage {
+  H24X7
+  H8X7
+  H8X5
 }
 
 enum SlaState {
@@ -180,10 +200,14 @@ model User {
 
   /// Job title as HR records it, e.g. `Senior Purchasing Officer`.
   ///
-  /// Deliberately *not* an org unit: the staff register holds 67 distinct
-  /// titles across 102 people, so a title is something a person has, not a box
-  /// on the chart. Making it a unit would also break scope `team`, which would
-  /// come to mean "everyone with my job title".
+  /// Kept as text *as well as* being a level of the chart (31 Aug 2026). The
+  /// title is a fact about the person — `roleForPosition` maps it to a system
+  /// role at import, and the user directory prints it — while `OrgUnitKind.
+  /// POSITION` is where that person sits, scoped to one department.
+  ///
+  /// The two are not the same thing and must not be collapsed: the staff
+  /// register holds 67 distinct titles across 102 people, so the same title
+  /// appears under several departments and each is its own box on the chart.
   position String?
 
   /// Null until an admin assigns the user — these are the "รอจัดสังกัด" queue.
@@ -215,6 +239,7 @@ model User {
   receivedRequests Request[]         @relation("Receiver")
   assignedRequests Request[]         @relation("Assignee")
   requestEvents  RequestEvent[]
+  requestComments RequestComment[]
   attachments    RequestAttachment[]
   approvalSteps  ApprovalStep[]      @relation("StepApprover")
   decidedSteps   ApprovalStep[]      @relation("StepDecider")
@@ -274,6 +299,7 @@ model OrgUnit {
   ancestors     OrgClosure[]  @relation("ClosureDescendant")
   descendants   OrgClosure[]  @relation("ClosureAncestor")
   receivedTypes RequestType[] @relation("ReceiverUnit")
+  eligibleTypes RequestTypeOrgUnit[]
   biAudiences   BiDashboardAudience[]
 
   @@unique([companyId, code])
@@ -436,8 +462,15 @@ model RequestType {
   name              String
   receiverOrgUnitId String?
 
-  /// JSON Schema for the request form.
+  /// JSON Schema for the form the **requester** fills in.
   formSchema        Json
+  /// JSON Schema for the form the **receiver** fills in before completing.
+  ///
+  /// Null means the type has no second form, and `complete` then asks for
+  /// nothing extra — which is most of the forty imported types, so this stays
+  /// optional rather than defaulting to an empty schema that would render as
+  /// a blank required step.
+  receiverFormSchema Json?
   /// [{ code, name }] — attachments that block submit (REQ-03).
   requiredDocs      Json @default("[]")
   /// [{ code, label }] — the standard return reasons (REQ-04).
@@ -446,8 +479,8 @@ model RequestType {
   /// derives the approval chain.
   approvalPolicy    Json
 
-  slaHours         Int?
-  slaBusinessHours Boolean @default(true)
+  slaHours    Int?
+  slaCoverage SlaCoverage @default(H24X7)
 
   active    Boolean  @default(false)
   createdAt DateTime @default(now())
@@ -457,9 +490,32 @@ model RequestType {
 
   receiverOrgUnit OrgUnit?             @relation("ReceiverUnit", fields: [receiverOrgUnitId], references: [id])
   companies       RequestTypeCompany[]
+  eligibleUnits   RequestTypeOrgUnit[]
   requests        Request[]
 
   @@map("request_types")
+}
+
+/// Which groups may raise a request of this type.
+///
+/// **No rows means every group may.** That is the default and what all forty
+/// imported types carry, so switching this on is opt-in per type rather than a
+/// migration that has to guess.
+///
+/// A group named here covers its whole subtree: naming a department lets every
+/// position under it raise the type, resolved through `OrgClosure` rather than
+/// listing descendants, so moving a group in the chart cannot silently revoke
+/// what it could raise.
+model RequestTypeOrgUnit {
+  requestTypeId String
+  orgUnitId     String
+
+  requestType RequestType @relation(fields: [requestTypeId], references: [id], onDelete: Cascade)
+  orgUnit     OrgUnit     @relation(fields: [orgUnitId], references: [id], onDelete: Cascade)
+
+  @@id([requestTypeId, orgUnitId])
+  @@index([orgUnitId])
+  @@map("request_type_org_units")
 }
 
 /// Which companies have a given request type switched on.
@@ -506,6 +562,29 @@ model Request {
   /// to keep both.
   assigneeUserId String?
 
+  /// The team this request was sent to.
+  ///
+  /// Seeded from `RequestType.receiverOrgUnitId` when the request is created,
+  /// but the requester may pick a different team — the type's value is a
+  /// starting point, not a routing rule. Held on the request so that editing
+  /// the type later cannot re-route work already in flight (REQ-01).
+  ///
+  /// Deliberately a plain column with no relation, exactly like
+  /// `requesterOrgUnitId` above it: both record where the work sat at the
+  /// time, and a foreign key would let an org-chart edit rewrite that.
+  receiverOrgUnitId String?
+
+  /// Every request above this one, root first.
+  ///
+  /// Written once at create from the parent's own path, so "everything under
+  /// request 1" is a single indexed lookup rather than a query per level. The
+  /// screen draws several levels at once — `06_EXAMPLE` traces ten requests
+  /// across eight departments from one customer order — and walking that a
+  /// level at a time is a query per level on every page view.
+  ///
+  /// Empty for a request nobody spawned.
+  ancestorIds String[] @default([])
+
   /// The request this one was spawned from, if any.
   ///
   /// One piece of work commonly breaks into several across departments —
@@ -522,6 +601,16 @@ model Request {
 
   status   RequestStatus @default(draft)
   formData Json          @default("{}")
+
+  /// Answers to the type's `receiverFormSchema`, filled in at `complete`.
+  ///
+  /// Its own column rather than more keys in `formData`: the two forms are
+  /// authored separately, answered by different people at different moments,
+  /// and masking rules are declared per field — merging them would make
+  /// "who wrote this value" unanswerable from the row.
+  ///
+  /// `{}` for a type with no second form, which is most of them.
+  receiverFormData Json @default("{}")
 
   /// REQ-06: link back to the originating entity (deal, customer, …).
   refType String?
@@ -553,6 +642,7 @@ model Request {
   children      Request[]             @relation("RequestTree")
   attachments   RequestAttachment[]
   events        RequestEvent[]
+  comments      RequestComment[]
   returnReasons RequestReturnReason[]
   approvalCases ApprovalCase[]
   slaClock      SlaClock?
@@ -561,13 +651,42 @@ model Request {
   @@index([companyId, requesterId])
   /// The receiver's queue — "what is waiting for me to accept".
   @@index([companyId, receiverUserId, status])
+  /// A team's queue — "what has been sent to us".
+  @@index([companyId, receiverOrgUnitId, status])
   @@index([companyId, assigneeUserId, status])
   /// Counting a parent's open children on every complete.
   @@index([parentRequestId])
+  /// "Everything under this request", for the สายคำขอ panel.
+  @@index([ancestorIds], type: Gin)
   @@index([companyId, requesterOrgUnitId])
   @@index([companyId, dueAt])
   @@index([refType, refId])
   @@map("requests")
+}
+
+/// A note somebody left on a request (H2.2).
+///
+/// Separate from `RequestEvent` because the two answer different questions: an
+/// event is something the system recorded happening, a comment is something a
+/// person chose to say. They are drawn on one timeline, in time order, which is
+/// how the people on a request read them — but merging them into one table
+/// would mean either events with an author who did not write them, or comments
+/// that pretend to be state changes.
+///
+/// Append-only, like the audit log: no update path, no delete path, no route
+/// that reaches one. What was said on a request is part of its history.
+model RequestComment {
+  id        String   @id @default(uuid())
+  requestId String
+  authorId  String
+  body      String
+  createdAt DateTime @default(now())
+
+  request Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  author  User    @relation(fields: [authorId], references: [id])
+
+  @@index([requestId, createdAt])
+  @@map("request_comments")
 }
 
 model RequestAttachment {
@@ -691,9 +810,30 @@ model ApprovalMatrix {
   currency    String @default("THB")
   version     Int
 
-  /// [{ upto: "100000.00" | null, chain: ["team_lead","cfo"] }] ordered by
-  /// ceiling ascending; `upto: null` is the top tier.
+  /// **Superseded by `levels` (31 Aug 2026).** Kept so versions published
+  /// before that date still read, and so the cases routed under them can still
+  /// be explained: `[{ upto: "100000.00" | null, chain: ["team_lead","cfo"] }]`
+  /// ordered by ceiling ascending, `upto: null` being the top tier.
   tiers Json
+
+  /// The approval ladder, one entry per level, in order.
+  ///
+  /// ```jsonc
+  /// [ { "type": "supervisor", "up": 1 },
+  ///   { "type": "org", "orgUnitIds": ["…"], "userIds": ["…"] } ]
+  /// ```
+  ///
+  /// `supervisor.up` counts levels of the chart above the requester: 1 is the
+  /// head of the group they sit in, 2 the department, and so on. `org` names
+  /// groups; with `userIds` those people approve, without it the groups' heads
+  /// do. Either way a level may resolve to **several** people, any one of whom
+  /// can decide — see `ApprovalStep.candidateUserIds`.
+  ///
+  /// Null on a version published before the change, which is what makes this a
+  /// new column rather than a rewrite of `tiers`: nothing already published is
+  /// migrated, and a case in flight keeps the ladder it was routed under
+  /// (§7 — running work keeps the rules it started under).
+  levels Json?
 
   effectiveFrom DateTime
   publishedAt   DateTime?
@@ -763,6 +903,14 @@ model ApprovalStep {
   /// The person that position resolved to at submit time.
   approverUserId String?
 
+  /// Everyone allowed to decide this step. Any one of them is enough.
+  ///
+  /// A level can name several people — the heads of two groups, or a list
+  /// chosen on screen A1 — and `approverUserId` holds only the first, for
+  /// display and for the cases routed before this column existed.
+  /// `authorise` reads this; `decidedByUserId` records who actually acted.
+  candidateUserIds String[] @default([])
+
   status   ApprovalStepStatus @default(waiting)
   decision ApprovalDecision?
   note     String?
@@ -782,6 +930,7 @@ model ApprovalStep {
   delegation Delegation?  @relation(fields: [delegationId], references: [id])
 
   @@unique([caseId, stepNo])
+  @@index([candidateUserIds], type: Gin)
   @@index([approverUserId, status])
   @@map("approval_steps")
 }
@@ -821,7 +970,7 @@ model SlaConfig {
   companyId       String
   requestTypeCode String
   hours           Int
-  businessHours   Boolean @default(true)
+  coverage        SlaCoverage @default(H24X7)
   warnBeforeHours Int     @default(4)
 
   createdAt DateTime @default(now())
@@ -865,9 +1014,9 @@ model HolidayCalendar {
   companyId String @unique
   name      String @default("default")
 
-  /// Minutes from midnight, e.g. 540 = 09:00.
-  workdayStartMinute Int   @default(540)
-  workdayEndMinute   Int   @default(1080)
+  /// Minutes from midnight, e.g. 510 = 08:30.
+  workdayStartMinute Int   @default(510)
+  workdayEndMinute   Int   @default(1050)
   /// ISO weekday numbers that are working days (1 = Monday).
   workingWeekdays    Int[] @default([1, 2, 3, 4, 5])
   /// ["2026-01-01", …]

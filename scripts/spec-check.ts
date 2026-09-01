@@ -380,6 +380,80 @@ function writeReport(reports: readonly Report[], screenRows: readonly string[]):
   writeFileSync(REPORT, lines.join('\n'), 'utf-8');
 }
 
+/**
+ * Every top-level path core-service serves, from its own decorators.
+ *
+ * A controller's `@Controller('x')` prefix plus each method's route, reduced to
+ * the first one or two segments — which is the granularity the frontend routes
+ * on. `@Controller()` with no prefix means the route path stands alone.
+ */
+function coreServicePaths(): string[] {
+  const files = filesUnder(join(SERVICES, 'core-service', 'src'), (name) =>
+    name.endsWith('.controller.ts'),
+  );
+
+  const paths = new Set<string>();
+
+  for (const file of files) {
+    const source = withoutComments(readFileSync(file, 'utf-8'));
+
+    // Controllers appear in declaration order, and every route below one
+    // belongs to it until the next `@Controller` — the same order the file
+    // reads in.
+    for (const block of source.split('@Controller(').slice(1)) {
+      const prefix = /^'([^']*)'/.exec(block)?.[1] ?? '';
+
+      for (const route of block.matchAll(
+        /@(?:Get|Post|Put|Patch|Delete)\(\s*'([^']*)'/g,
+      )) {
+        const full = [prefix, route[1]].filter(Boolean).join('/');
+        const segments = full.split('/').filter((part) => !part.startsWith(':'));
+        if (!segments.length) continue;
+
+        paths.add(
+          '/' + (segments[0] === 'admin' ? segments.slice(0, 2) : [segments[0]]).join('/'),
+        );
+      }
+    }
+  }
+
+  return [...paths].sort();
+}
+
+/**
+ * The BFF sends a path to whichever service owns it, from a list held in the
+ * frontend. A path missing from that list is sent to user-service, which
+ * answers 404 — a well-formed request to an endpoint that exists, just not
+ * there, which is the hardest kind of 404 to read.
+ *
+ * `/admin/holiday-calendars` was missing for a week for exactly that reason.
+ * This compares the two so the next omission is reported here instead.
+ */
+function checkServiceRouting(): Report {
+  const declared = coreServicePaths();
+
+  const table = read(
+    join(FRONTEND_SRC, 'lib', 'backend.ts'),
+    'frontend backend.ts',
+  );
+
+  const listed = [
+    ...(/CORE_SERVICE_PREFIXES = \[([^\]]*)\]/.exec(table)?.[1] ?? '').matchAll(
+      /'([^']*)'|"([^"]*)"/g,
+    ),
+  ].map((match) => match[1] ?? match[2]);
+
+  const missing = declared.filter(
+    (path) => !listed.some((prefix) => path.startsWith(prefix)),
+  );
+
+  return {
+    heading: `เส้นทาง core-service ${declared.length} กลุ่ม — frontend ส่งถูก service`,
+    missing: missing.map((path) => `${path} → ถูกส่งไป user-service`),
+    note: 'CORE_SERVICE_PREFIXES ใน request-management-frontend/src/lib/backend.ts',
+  };
+}
+
 function main(): void {
   const spec = read(SPEC_TXT, 'spec.txt');
   const ours = read(OUR_DOC, 'ctd-foundation-spec.md');
@@ -395,6 +469,7 @@ function main(): void {
     checkStatuses(),
     checkErrorCodes(spec),
     checkEndpoints(spec, ours),
+    checkServiceRouting(),
     ...screens.reports,
     checkRequirementsTested(spec),
   ];

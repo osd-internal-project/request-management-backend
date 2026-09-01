@@ -1,0 +1,16 @@
+-- ตำแหน่ง becomes the fourth level of the chart (31 Aug 2026).
+--
+-- The real OSD chart is บริษัท → ฝ่าย → แผนก → ตำแหน่ง, but the importer had
+-- nowhere to put the last level and parked every person directly in their
+-- department. That made a department the smallest unit anything could be
+-- addressed to — a request type, an approval rung, a manager's view — when the
+-- business actually works one level finer.
+--
+-- `TEAM` stays. It is this column's default, the demo company is built on it,
+-- and `seed.ts` writes it; removing the value would break both. New charts use
+-- POSITION.
+--
+-- Its own migration on purpose: Postgres refuses to use a newly added enum
+-- value inside the transaction that added it, so anything writing POSITION
+-- rows has to land in a later migration or at runtime.
+ALTER TYPE "OrgUnitKind" ADD VALUE IF NOT EXISTS 'POSITION' AFTER 'DEPARTMENT';

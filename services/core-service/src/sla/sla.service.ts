@@ -1,6 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@request-management/share';
-import type { Prisma, Request, RequestType } from '@prisma/client';
+import type { Prisma, Request, RequestType, SlaCoverage } from '@prisma/client';
+import {
+  addWorkingMs,
+  DEFAULT_CALENDAR,
+  workingMsBetween,
+  type WorkingCalendar,
+} from './business-hours';
 
 const HOUR_MS = 60 * 60 * 1000;
 
@@ -17,7 +23,10 @@ const HOUR_MS = 60 * 60 * 1000;
  * resume, so a request returned three times still owes exactly the hours its
  * type allows.
  *
- * D-09: the hours are configuration, per company per type. Never hardcoded.
+ * D-09: the hours are configuration, per company per type. Never hardcoded —
+ * and since 31 Aug 2026 so is *which hours count*: `SlaCoverage` decides
+ * whether the clock runs around the clock, only inside the office window, or
+ * only inside it on working days. `business-hours.ts` does that arithmetic.
  */
 @Injectable()
 export class SlaService {
@@ -38,7 +47,14 @@ export class SlaService {
 
     if (hours === null) return;
 
-    const dueAt = new Date(at.getTime() + hours * HOUR_MS);
+    const { calendar, coverage } = await this.rulesFor(
+      prisma,
+      request.companyId,
+      request.typeCode,
+      request.requestType.slaCoverage,
+    );
+
+    const dueAt = addWorkingMs(at, hours * HOUR_MS, calendar, coverage);
 
     await prisma.slaClock.upsert({
       where: { requestId: request.id },
@@ -68,10 +84,23 @@ export class SlaService {
     requestId: string,
     at = new Date(),
   ): Promise<void> {
-    const clock = await prisma.slaClock.findUnique({ where: { requestId } });
+    const clock = await prisma.slaClock.findUnique({
+      where: { requestId },
+      include: { request: { include: { requestType: true } } },
+    });
     if (!clock || clock.state !== 'running') return;
 
-    const ran = at.getTime() - clock.startedAt.getTime();
+    const { calendar, coverage } = await this.rulesFor(
+      prisma,
+      clock.request.companyId,
+      clock.request.typeCode,
+      clock.request.requestType.slaCoverage,
+    );
+
+    // Working time, not wall time: a request that ran over a weekend under
+    // `H8X5` has spent none of its budget, and charging it would make every
+    // Friday ticket look slower than the same ticket raised on a Tuesday.
+    const ran = workingMsBetween(clock.startedAt, at, calendar, coverage);
 
     await prisma.slaClock.update({
       where: { requestId },
@@ -84,19 +113,41 @@ export class SlaService {
   }
 
   /**
-   * Resumes after a resubmit, pushing `dueAt` out by however long it was
-   * paused — so the request owes the same remaining hours it did before.
+   * Resumes after a resubmit, with the budget it had left.
+   *
+   * Recomputed from `accumulatedMs` rather than shifted by the length of the
+   * pause: under a working-hours coverage the two are different numbers, and
+   * shifting by wall time would hand back the weekend as extra budget.
    */
   async resume(
     prisma: Prisma.TransactionClient,
     requestId: string,
     at = new Date(),
   ): Promise<void> {
-    const clock = await prisma.slaClock.findUnique({ where: { requestId } });
+    const clock = await prisma.slaClock.findUnique({
+      where: { requestId },
+      include: { request: { include: { requestType: true } } },
+    });
     if (!clock || clock.state !== 'paused' || !clock.pausedAt) return;
 
-    const pausedMs = at.getTime() - clock.pausedAt.getTime();
-    const dueAt = new Date(clock.dueAt.getTime() + Math.max(pausedMs, 0));
+    const hours = await this.hoursFor(
+      prisma,
+      clock.request.companyId,
+      clock.request.typeCode,
+      clock.request.requestType.slaHours,
+    );
+
+    if (hours === null) return;
+
+    const { calendar, coverage } = await this.rulesFor(
+      prisma,
+      clock.request.companyId,
+      clock.request.typeCode,
+      clock.request.requestType.slaCoverage,
+    );
+
+    const remaining = Math.max(hours * HOUR_MS - clock.accumulatedMs, 0);
+    const dueAt = addWorkingMs(at, remaining, calendar, coverage);
 
     await prisma.slaClock.update({
       where: { requestId },
@@ -152,5 +203,43 @@ export class SlaService {
     });
 
     return config?.hours ?? fallback;
+  }
+
+  /**
+   * The two things that decide *which* time counts: the company's working
+   * window and the coverage this type is configured for.
+   *
+   * A company with no calendar row falls back to 08:30–17:30 Mon–Fri rather
+   * than to "no window", because a missing calendar means nobody has set one
+   * yet, not that the office never closes.
+   */
+  private async rulesFor(
+    prisma: Prisma.TransactionClient,
+    companyId: string,
+    typeCode: string,
+    fallback: SlaCoverage,
+  ): Promise<{ calendar: WorkingCalendar; coverage: SlaCoverage }> {
+    const [config, stored] = await Promise.all([
+      prisma.slaConfig.findFirst({
+        where: { companyId, requestTypeCode: typeCode },
+      }),
+      prisma.holidayCalendar.findUnique({ where: { companyId } }),
+    ]);
+
+    const calendar: WorkingCalendar = stored
+      ? {
+          workdayStartMinute: stored.workdayStartMinute,
+          workdayEndMinute: stored.workdayEndMinute,
+          workingWeekdays: stored.workingWeekdays,
+          holidays: Array.isArray(stored.holidays)
+            ? (stored.holidays as unknown[]).filter(
+                (day): day is string => typeof day === 'string',
+              )
+            : [],
+          timeZone: DEFAULT_CALENDAR.timeZone,
+        }
+      : DEFAULT_CALENDAR;
+
+    return { calendar, coverage: config?.coverage ?? fallback };
   }
 }

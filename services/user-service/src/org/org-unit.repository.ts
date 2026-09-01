@@ -56,6 +56,43 @@ export class OrgUnitRepository extends BaseRepository<
     });
   }
 
+  /**
+   * Everything that would be orphaned by deleting this unit, counted in one
+   * query.
+   *
+   * A unit is configuration, so deleting one is allowed — but only while it is
+   * genuinely unused. The counts are what the refusal message is built from:
+   * "cannot delete" without saying what is in the way sends an admin hunting
+   * through the chart by hand.
+   */
+  countDependents(
+    id: string,
+    option?: TxOption,
+  ): Promise<{
+    members: number;
+    children: number;
+    receivedTypes: number;
+    biAudiences: number;
+  } | null> {
+    const client = option?.prisma ?? this.prisma;
+
+    return client.orgUnit
+      .findUnique({
+        where: { id },
+        select: {
+          _count: {
+            select: {
+              members: true,
+              children: true,
+              receivedTypes: true,
+              biAudiences: true,
+            },
+          },
+        },
+      })
+      .then((unit) => unit?._count ?? null);
+  }
+
   /** All units in the company, used to rebuild the closure after an edit. */
   findAllForClosure(
     companyId: string,
@@ -83,5 +120,10 @@ export class OrgUnitRepository extends BaseRepository<
     option?: TxOption,
   ): Promise<OrgUnit> {
     return this.update({ where: { id }, data }, option);
+  }
+
+  /** Only ever called once `countDependents` has answered zero. */
+  deleteUnit(id: string, option?: TxOption): Promise<OrgUnit> {
+    return this.delete({ where: { id } }, option);
   }
 }

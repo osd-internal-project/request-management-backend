@@ -1,7 +1,9 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
   Param,
   Patch,
   Post,
@@ -57,6 +59,27 @@ export class OrgController {
     );
   }
 
+  /**
+   * Everyone under a group, its sub-groups included.
+   *
+   * Screen A1 needs it: choosing a group as an approval level then offers the
+   * people in it, and "in it" has to mean the subtree — naming a department
+   * and being offered nobody because the people sit in positions under it
+   * would make the picker useless.
+   */
+  @Get('org-units/:id/members/recursive')
+  @Permissions('admin.org.manage')
+  listMembersRecursive(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+    @Query('company_id') companyId?: string,
+  ) {
+    return this.orgService.listMembersRecursive(
+      id,
+      resolveTargetCompany(principal, companyId),
+    );
+  }
+
   @Post('org-units')
   @Permissions('admin.org.manage')
   createUnit(
@@ -74,6 +97,20 @@ export class OrgController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.orgService.updateUnit(id, dto, principal);
+  }
+
+  /**
+   * Removes a group entirely. Refused with `ORG_UNIT_IN_USE` while anything
+   * still points at it — see `OrgService.deleteUnit`.
+   */
+  @Delete('org-units/:id')
+  @Permissions('admin.org.manage')
+  @HttpCode(204)
+  async deleteUnit(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ): Promise<void> {
+    await this.orgService.deleteUnit(id, principal);
   }
 
   @Get('users/unassigned')

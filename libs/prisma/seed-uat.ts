@@ -35,13 +35,16 @@ const SCOPED_RESOURCES = ['request', 'approval_case', 'user'] as const;
 /**
  * `company`, not `all` (28 Aug 2026).
  *
- * `all` is the one level `buildScopeWhere` does not pin to a company, so every
- * list this account opened mixed rows from every company at once and the
- * company switcher in the header did nothing. `company` makes the switcher the
- * way to move between them, which is what the screen already implies.
+ * `all` was the one level that did not pin a query to a company, so every list
+ * this account opened mixed rows from every company at once and the company
+ * switcher in the header did nothing. `company` makes the switcher the way to
+ * move between them, which is what the screen already implies.
  *
- * This narrows the role: the JSDoc above says "see every row", and that now
- * means every row in the company you are looking at.
+ * **Inert since 31 Aug 2026.** The scope levels were withdrawn; what this
+ * account actually reads now comes from the `request.read.all` permission,
+ * which it holds because this script grants every permission in the catalog.
+ * The rows are still written so the (hidden) Scope Rules screen has data if it
+ * is ever brought back.
  */
 const SCOPE_LEVEL: ScopeLevel = 'company';
 
