@@ -26,6 +26,7 @@ import {
   assertSubmittable,
   assertUsableFormSchema,
 } from './submit-rules';
+import { AFTER_WORK, BEFORE_WORK, type ApprovalStage } from './approval-stage';
 import { DocNumberService } from './doc-number.service';
 import {
   RequestDetail,
@@ -208,11 +209,23 @@ export class RequestsService {
           approvalPolicy: (dto.approval_policy ?? {}) as Prisma.InputJsonValue,
           slaHours: dto.sla_hours ?? null,
           slaCoverage: dto.sla_coverage ?? 'H24X7',
+          refRequired: dto.ref_required ?? false,
           active: dto.active ?? false,
           createdBy: actor.userId,
           updatedBy: actor.userId,
+          /*
+            The per-company row carries the same `active` as the type.
+
+            `listTypes` filters on **`RequestTypeCompany.active`** while A2's
+            switch writes `RequestType.active`, so a row created inactive here
+            stayed invisible on the submit screen no matter what the admin did
+            afterwards. Two flags, one switch — see `updateType`.
+          */
           companies: {
-            create: companyIds.map((companyId) => ({ companyId })),
+            create: companyIds.map((companyId) => ({
+              companyId,
+              active: dto.active ?? false,
+            })),
           },
           eligibleUnits: {
             create: (dto.eligible_org_unit_ids ?? []).map((orgUnitId) => ({
@@ -315,10 +328,35 @@ export class RequestsService {
           ...(dto.sla_coverage !== undefined
             ? { slaCoverage: dto.sla_coverage }
             : {}),
+          ...(dto.ref_required !== undefined
+            ? { refRequired: dto.ref_required }
+            : {}),
           ...(dto.active !== undefined ? { active: dto.active } : {}),
           updatedBy: actor.userId,
         },
       });
+
+      /*
+        One switch, both flags.
+
+        A type is usable on the submit screen only when `RequestType.active`
+        **and** its `RequestTypeCompany.active` are both true — `listTypes`
+        requires both. Nothing wrote the second one, so activating a type in A2
+        left it invisible with no way to tell why: `MK-01` was activated on
+        1 ก.ย. 2569 and never appeared. A2 is a per-company screen, so its
+        switch means "usable in the company I am looking at", and writing only
+        the company being administered is what keeps that honest for a type
+        shared across several.
+      */
+      if (dto.active !== undefined) {
+        await prisma.requestTypeCompany.updateMany({
+          where: {
+            requestTypeId: updated.id,
+            companyId: actor.activeCompanyId,
+          },
+          data: { active: dto.active },
+        });
+      }
 
       /*
         Replaced wholesale rather than diffed. The screen sends the list it is
@@ -847,6 +885,9 @@ export class RequestsService {
   async assign(id: string, dto: AssignRequestDto, actor: Principal) {
     const before = await this.require(id, actor);
 
+    // Handing work on is the prerogative of whoever is holding it.
+    this.assertMayAct(before, actor, { carrier: true }, 'มอบหมายงาน');
+
     if (!OPEN_STATUSES.includes(before.status)) {
       throw new AppError('REQ_STATE_INVALID', 'มอบหมายงานที่ปิดไปแล้วไม่ได้', [
         { field: 'status', reason: before.status },
@@ -990,6 +1031,10 @@ export class RequestsService {
   ) {
     const before = await this.require(id, actor);
 
+    // The work is finished by whoever did it. An approver signs it off later;
+    // a bystander does neither.
+    this.assertMayAct(before, actor, { carrier: true }, 'แจ้งงานเสร็จ');
+
     assertTransition(before.status, 'completed');
 
     await this.assertNoOpenChildren(id);
@@ -1064,7 +1109,13 @@ export class RequestsService {
       },
     });
 
-    return this.routeForApproval(before, actor, authorization, updatedRequest);
+    return this.routeForApproval(
+      before,
+      actor,
+      authorization,
+      updatedRequest,
+      AFTER_WORK,
+    );
   }
 
   /**
@@ -1084,16 +1135,22 @@ export class RequestsService {
     actor: Principal,
     authorization: string,
     completed: { id: string },
+    stage: ApprovalStage = AFTER_WORK,
   ) {
     const id = completed.id;
 
     const hasMatrix = await this.approvals.hasPublishedMatrix(
-      `request:${before.typeCode}`,
+      stage.subjectOf(before.typeCode),
       before.companyId,
       authorization,
     );
 
     if (!hasMatrix) {
+      // Nothing to check at this stage. The pre-work stage simply hands the
+      // ticket on, which is what every type without a `:pre` matrix does —
+      // that is, all of them until somebody publishes one.
+      if (!stage.recordsAcceptance) return completed;
+
       return this.transactions.execute(async (prisma) => {
         const updated = await prisma.request.update({
           where: { id },
@@ -1117,9 +1174,19 @@ export class RequestsService {
 
     const approvalCase = await this.approvals.openCase(
       {
-        subject_type: `request:${before.typeCode}`,
+        subject_type: stage.subjectOf(before.typeCode),
         subject_id: before.requestNo ?? id,
         requester_user_id: before.requesterId,
+        /*
+          Whose chart the `หัวหน้าทีม` levels climb.
+
+          Before the work it is the requester's — they are asking permission of
+          their own line of management. After it, it is whoever actually did
+          the work, because that is whose result is being checked: a request
+          raised by Sales and delivered by Marketing was routing to Sales'
+          managers to sign off Marketing's output.
+        */
+        chart_owner_user_id: stage.chartOwnerOf(before),
         payload: before.formData as Record<string, unknown>,
       },
       actor,
@@ -1141,9 +1208,13 @@ export class RequestsService {
         requestId: id,
         type: 'request.routed',
         actor,
-        fromStatus: 'completed',
+        fromStatus: before.status,
         toStatus: 'pending_approval',
-        data: { caseId: approvalCase.id, steps: approvalCase.steps.length },
+        data: {
+          caseId: approvalCase.id,
+          steps: approvalCase.steps.length,
+          stage: stage.name,
+        },
       });
 
       return updated;
@@ -1218,7 +1289,7 @@ export class RequestsService {
   // another service: `createForIntegration` submits on someone's behalf and
   // passes its own token through, and dropping the parameter would move that
   // decision into every caller.
-  async submit(id: string, actor: Principal, _authorization: string) {
+  async submit(id: string, actor: Principal, authorization: string) {
     const before = await this.require(id, actor);
 
     if (before.requesterId !== actor.userId) {
@@ -1233,6 +1304,8 @@ export class RequestsService {
       formSchema: before.requestType.formSchema,
       requiredDocs: before.requestType.requiredDocs,
       formData: before.formData as Record<string, unknown>,
+      refRequired: before.requestType.refRequired,
+      refId: before.refId,
       attachmentCodes: before.attachments
         .filter((attachment) => !attachment.deletedAt)
         .map((attachment) => attachment.docCode ?? ''),
@@ -1343,6 +1416,26 @@ export class RequestsService {
       },
     });
 
+    /*
+      §7.1's order, for a type that asks for it.
+
+      A type with a published `request:<CODE>:pre` ladder is approved *before*
+      its receiver ever sees it — permission to ask. Without one, `submit`
+      leaves the request at `submitted` exactly as it always has, which is
+      every type that exists today.
+
+      After the number, the snapshot and the clock, all of which happen on
+      submit whichever way this branches: REQ-02 issues a number once, and an
+      approved pre-work case moves the status without touching it.
+    */
+    await this.routeForApproval(
+      before,
+      actor,
+      authorization,
+      submitted,
+      BEFORE_WORK,
+    );
+
     return this.requests.findDetail(id) as Promise<RequestDetail>;
   }
 
@@ -1408,6 +1501,19 @@ export class RequestsService {
   /** REQ-05: cancelled with a reason, never deleted. */
   async cancel(id: string, dto: CancelRequestDto, actor: Principal) {
     const before = await this.require(id, actor);
+
+    /*
+      The requester withdraws their own ask; a group head can withdraw one
+      raised into or by their part of the chart. Nobody else — a cancelled
+      request is one that will never be done, and that is not a bystander's
+      call to make.
+    */
+    this.assertMayAct(
+      before,
+      actor,
+      { requester: true, lead: true },
+      'ยกเลิกคำขอ',
+    );
 
     // The requester, or anyone senior enough to see it — scope already
     // answered that by letting them load it.
@@ -1476,6 +1582,8 @@ export class RequestsService {
   async hold(id: string, dto: HoldRequestDto, actor: Principal) {
     const before = await this.require(id, actor);
 
+    this.assertMayAct(before, actor, { carrier: true }, 'พักงาน');
+
     assertTransition(before.status, 'on_hold');
 
     return this.transactions.execute(async (prisma) => {
@@ -1517,6 +1625,8 @@ export class RequestsService {
   /** Resumes held work; the clock owes the same remaining hours as before. */
   async resume(id: string, dto: ResumeRequestDto, actor: Principal) {
     const before = await this.require(id, actor);
+
+    this.assertMayAct(before, actor, { carrier: true }, 'กลับมาดำเนินการ');
 
     // `submitted → in_progress` is also a legal transition, so the state
     // machine alone would let /resume double as a start button. It only
@@ -1758,6 +1868,60 @@ export class RequestsService {
     if (match > 0) return true;
 
     return false;
+  }
+
+  /**
+   * Whether this person may move this particular ticket.
+   *
+   * **This is the gate, now that the role is not.** Until 2 ก.ย. 2569 the only
+   * thing standing between an employee and somebody else's request was the
+   * `request.complete` permission, held by one role. Authority over the request
+   * menu now follows the org chart and involvement instead — which is only safe
+   * if the involvement is actually checked, so it is checked here.
+   *
+   * `require` above proves the request exists in your company and nothing more.
+   * That is deliberately a weaker question: reading is decided by
+   * `visibleRequestsWhere`, and acting is decided by this.
+   *
+   * One helper rather than the same three lines in five places, because five
+   * copies of a rule is five chances for one of them to drift.
+   */
+  private assertMayAct(
+    request: RequestWithType,
+    actor: Principal,
+    allow: {
+      /** Whoever is carrying the work — the receiver, or the assignee. */
+      readonly carrier?: boolean;
+      /** The person who raised it. */
+      readonly requester?: boolean;
+      /**
+       * A head of the group the request sits in, or of any group above it.
+       *
+       * `ledUnitIds` is the subtree the principal leads, resolved when the
+       * principal was built — so this costs nothing here.
+       */
+      readonly lead?: boolean;
+    },
+    action: string,
+  ): void {
+    const carrying =
+      request.assigneeUserId === actor.userId ||
+      request.receiverUserId === actor.userId;
+
+    const led =
+      (request.requesterOrgUnitId !== null &&
+        actor.ledUnitIds.includes(request.requesterOrgUnitId)) ||
+      (request.receiverOrgUnitId !== null &&
+        actor.ledUnitIds.includes(request.receiverOrgUnitId));
+
+    if (allow.carrier && carrying) return;
+    if (allow.requester && request.requesterId === actor.userId) return;
+    if (allow.lead && led) return;
+
+    throw new AppError(
+      'FORBIDDEN',
+      `${action}ได้เฉพาะผู้ที่เกี่ยวข้องกับคำขอนี้`,
+    );
   }
 
   private async require(

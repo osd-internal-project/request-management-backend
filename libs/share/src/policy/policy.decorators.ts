@@ -2,6 +2,7 @@ import { SetMetadata } from '@nestjs/common';
 import { Permission } from './permissions';
 
 export const PERMISSIONS_KEY = 'ctd:permissions';
+export const ANY_PERMISSION_KEY = 'ctd:any-permission';
 export const AUTHENTICATED_KEY = 'ctd:authenticated';
 export const PUBLIC_KEY = 'ctd:public';
 export const SERVICE_ACCOUNT_ONLY_KEY = 'ctd:service-account-only';
@@ -16,6 +17,26 @@ export const SERVICE_ACCOUNT_ALLOWED_KEY = 'ctd:service-account-allowed';
  */
 export const Permissions = (...permissions: Permission[]) =>
   SetMetadata(PERMISSIONS_KEY, permissions);
+
+/**
+ * Declares that **any one** of these permissions is enough.
+ *
+ * For a read that two different jobs legitimately need. The company directory
+ * is the case that produced it: an administrator reads it because they manage
+ * people (`user.read`), and a requester reads it because §16 หน้าที่ 3 makes
+ * them name a receiver (`request.create`). Requiring both would lock out
+ * whichever one you were not.
+ *
+ * Deliberately **not** a general loosening. `@Permissions` stays the default
+ * and stays all-of; use this only where the endpoint genuinely serves two
+ * audiences, and never to paper over a role that is missing a grant it should
+ * have.
+ *
+ * Row visibility is unaffected either way — that is `access-rules.ts`'s job,
+ * and it pins the company however the caller got in (SCOPE-03).
+ */
+export const AnyPermission = (...permissions: Permission[]) =>
+  SetMetadata(ANY_PERMISSION_KEY, permissions);
 
 /** Any signed-in user, no particular permission (e.g. `GET /auth/me`). */
 export const Authenticated = () => SetMetadata(AUTHENTICATED_KEY, true);

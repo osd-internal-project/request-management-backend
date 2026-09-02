@@ -161,6 +161,29 @@ export class SensitiveFieldInterceptor implements NestInterceptor {
 
         const copy = { ...nested };
         delete copy[field];
+
+        /*
+          A table field holds its answers in rows, and a sensitive column lives
+          inside one — `form_data.lines[0].unit_price`, never at the level
+          above. Masking stopped at the container, so declaring a column
+          sensitive would have looked handled and leaked every row.
+
+          One level down, matching the schema rule that refuses a table inside
+          a table: walking arbitrarily deep here would let a large payload turn
+          every masked read into a full tree walk.
+        */
+        for (const [key, value] of Object.entries(copy)) {
+          if (!Array.isArray(value)) continue;
+
+          copy[key] = (value as unknown[]).map((row): unknown => {
+            if (!isPlainObject(row) || !(field in row)) return row;
+
+            const cell = { ...row };
+            delete cell[field];
+            return cell;
+          });
+        }
+
         result[container] = copy;
       }
     }
@@ -182,9 +205,21 @@ export class SensitiveFieldInterceptor implements NestInterceptor {
       isPlainObject,
     );
 
+    /** Rows of a table field — where a sensitive column actually sits. */
+    const rows = nested.flatMap((container) =>
+      Object.values(container)
+        .filter(Array.isArray)
+        .flat()
+        .filter(isPlainObject),
+    );
+
     const seen = visible.filter(
       (field) =>
-        field in body || nested.some((container) => field in container),
+        field in body ||
+        nested.some((container) => field in container) ||
+        // SCOPE-05 counts a read of a sensitive column inside a table too —
+        // otherwise the audit says nobody looked.
+        rows.some((row) => field in row),
     );
 
     if (!seen.length) return;

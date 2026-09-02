@@ -5,19 +5,28 @@ import { AppError } from '@request-management/share';
  * The request lifecycle, as data.
  *
  * ```
- * draft ──submit──▶ submitted ──receive──▶ in_progress ──complete──▶ completed
- *                       │                    │  ▲                        │
- *                       │               hold │  │ resume        has matrix?
- *                       └──return──▶ returned▼  │                   │    │
- *                                    │     on_hold                  │    │no
- *                                    └─resubmit─┘             yes   │    │
- *                                                                   ▼    ▼
- *                              in_progress ◀──send back── pending_approval
- *                                                          │              │
- *                                                          ▼              ▼
- *                                                      rejected       approved
- *                                                                         │
- *                                                          requester ──close──▶ closed
+ * draft ──submit──▶ [ has a `:pre` matrix? ]
+ *                       │no                    │yes
+ *                       ▼                      ▼
+ *                   submitted ◀──approve── pending_approval ──▶ rejected
+ *                       │                      │ send back
+ *                       │                      ▼
+ *                       │                   returned
+ *                    receive
+ *                       ▼
+ *                  in_progress ──complete──▶ completed
+ *                    │  ▲                        │
+ *               hold │  │ resume        has matrix?
+ *          returned▼    │                   │    │
+ *          │     on_hold                    │    │no
+ *          └─resubmit─┘                yes  │    │
+ *                                           ▼    ▼
+ *                     in_progress ◀──send back── pending_approval
+ *                                                │              │
+ *                                                ▼              ▼
+ *                                            rejected       approved
+ *                                                               │
+ *                                                requester ──close──▶ closed
  *
  * anything before completed ──cancel──▶ cancelled
  * ```
@@ -53,6 +62,21 @@ import { AppError } from '@request-management/share';
  * `approved`. Sending back from that check returns the ticket to
  * `in_progress` — to the team that did the work, not to the requester.
  *
+ * # And, since 1 ก.ย. 2569, both orders at once
+ *
+ * §7.1's order was not wrong, it was **not the only one**. A type may now also
+ * be approved *before* the receiver ever sees it — permission to ask — by
+ * publishing a matrix for `request:<CODE>:pre`. Both stages can be configured
+ * on one type: approve that the work may start, then approve the result.
+ *
+ * `submit` therefore branches the way `complete` does, and on the same test:
+ * the existence of a published matrix for the stage's subject. A type with no
+ * `:pre` matrix behaves exactly as before, which is every type that exists
+ * today — this adds a path, it does not move one.
+ *
+ * Sending back from the pre-work check goes to `returned`, not `in_progress`:
+ * no work has been done yet, so the ticket belongs with the requester.
+ *
  * **None of this is §7.1's authority; all of it awaits PO sign-off** — §2
  * requires a design conflicting with the agreed document to go through the PO.
  * Do not cite §7.1 or §8.1 for any of it. If the PO declines, what comes out
@@ -64,10 +88,14 @@ import { AppError } from '@request-management/share';
 export const REQUEST_TRANSITIONS: Readonly<
   Record<RequestStatus, readonly RequestStatus[]>
 > = {
-  draft: ['submitted', 'cancelled'],
+  // `pending_approval` is the pre-work check — only for a type that has a
+  // `request:<CODE>:pre` matrix. Without one, submit lands on `submitted`.
+  draft: ['submitted', 'pending_approval', 'cancelled'],
   // A submitted request waits for its named receiver to accept it.
   submitted: ['in_progress', 'returned', 'cancelled'],
-  returned: ['submitted', 'cancelled'],
+  // Resubmitting after a return goes through the pre-work check again: the
+  // request that was approved is not the request being sent now.
+  returned: ['submitted', 'pending_approval', 'cancelled'],
   in_progress: ['completed', 'on_hold', 'returned', 'cancelled'],
   on_hold: ['in_progress', 'cancelled'],
   // The branch: a type with an approval matrix is checked, one without is
@@ -75,7 +103,22 @@ export const REQUEST_TRANSITIONS: Readonly<
   completed: ['pending_approval', 'approved'],
   // Sending back goes to `in_progress` — the work returns to the team that did
   // it. `returned` means "back with the requester", which is a different place.
-  pending_approval: ['approved', 'in_progress', 'rejected', 'cancelled'],
+  /*
+    Two stages share this status, and they leave it differently.
+
+    After the work: `approved` (the result stands) or `in_progress` (back to
+    the team that did it). Before the work: `submitted` (now hand it to the
+    receiver) or `returned` (back to the requester, since nobody has started).
+    `ApprovalCase.subjectType` says which stage a case belongs to.
+  */
+  pending_approval: [
+    'approved',
+    'submitted',
+    'in_progress',
+    'returned',
+    'rejected',
+    'cancelled',
+  ],
   // Only the requester closes, and only after the result has been accepted.
   approved: ['closed', 'cancelled'],
   rejected: [],

@@ -17,7 +17,13 @@ function principal(userId: string = WORKER): Principal {
   } as unknown as Principal;
 }
 
-/** A request sitting where `complete` expects to find one. */
+/**
+ * A request sitting where `complete` expects to find one.
+ *
+ * `receiverUserId` is the worker: since 2 ก.ย. 2569 only the person carrying a
+ * ticket may finish it (`assertMayAct`), so a fixture handed to nobody would
+ * now be refused before these tests reached the branch they are about.
+ */
 function inProgressRequest(overrides: Record<string, unknown> = {}) {
   return {
     id: 'req-1',
@@ -25,7 +31,11 @@ function inProgressRequest(overrides: Record<string, unknown> = {}) {
     companyId: OSD,
     typeCode: 'PC-01',
     status: 'in_progress',
-    requesterId: 'user-requester',
+    requesterId: REQUESTER,
+    receiverUserId: WORKER,
+    assigneeUserId: null,
+    requesterOrgUnitId: null,
+    receiverOrgUnitId: null,
     formData: {},
     requestType: { approvalPolicy: {} },
     attachments: [],

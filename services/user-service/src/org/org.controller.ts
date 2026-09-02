@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import {
+  AnyPermission,
   Authenticated,
   CurrentPrincipal,
   Permissions,
@@ -127,6 +128,51 @@ export class OrgController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.orgService.assignUser(id, dto, principal);
+  }
+}
+
+/**
+ * The org chart for everybody else — the shape, and nothing more.
+ *
+ * The submit screen needs it to offer a receiving team as a tree and then to
+ * narrow the receiver list to that team **and everything under it**: after the
+ * chart gained a fourth level, people sit at positions beneath a department,
+ * so matching a department exactly found nobody. 36 of the 40 types with a
+ * receiving team were offering an empty receiver list on 1 ก.ย. 2569.
+ *
+ * It could not use `GET /admin/org-units`, which needs `admin.org.manage` — a
+ * page that fetches what its viewer cannot read is a guaranteed 403. So this
+ * exists, gated on `user.read`: the same permission behind `GET /users`, which
+ * the very same screen already uses to list people. The outline of the
+ * organisation discloses nothing the directory does not.
+ *
+ * Separate controller because {@link OrgController} is mounted at `admin` and
+ * every route under it is administration. This one is not.
+ */
+@ApiTags('org')
+@ApiBearerAuth()
+@Controller()
+export class OrgChartController {
+  constructor(private readonly orgService: OrgService) {}
+
+  /**
+   * Units of the caller's company: id, code, name, kind, parent, active.
+   *
+   * `request.create` is accepted alongside `user.read` for the same reason
+   * `GET /users` accepts it: this is what the submit screen needs to offer a
+   * receiving team, and a plain `employee` holds neither today.
+   */
+  @Get('org-units')
+  @AnyPermission('user.read', 'request.create')
+  listUnitShapes(
+    @CurrentPrincipal() principal: Principal,
+    @Query('company_id') companyId?: string,
+  ) {
+    // SCOPE-03 — asking for a company you do not belong to is refused here,
+    // not answered with an empty list.
+    return this.orgService.listUnitShapes(
+      resolveTargetCompany(principal, companyId),
+    );
   }
 }
 

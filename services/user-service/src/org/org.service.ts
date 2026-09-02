@@ -36,6 +36,23 @@ export interface OrgUnitNode {
   memberCount: number;
 }
 
+/**
+ * The chart as a requester sees it: shape only.
+ *
+ * A strict subset of {@link OrgUnitNode} on purpose — declaring it separately
+ * rather than picking fields off that type is what stops a field added for the
+ * admin screen from silently reaching everybody.
+ */
+export interface OrgUnitShape {
+  id: string;
+  code: string;
+  name: string;
+  kind: OrgUnit['kind'];
+  parentId: string | null;
+  /** A switched-off team: shown in the tree, but not choosable. */
+  active: boolean;
+}
+
 /** One row of the A3 member panel. */
 export interface OrgMember {
   id: string;
@@ -87,6 +104,35 @@ export class OrgService {
       managerUserId: unit.managerUserId,
       managerDisplayName: unit.manager?.displayName ?? null,
       memberCount: unit._count.members,
+    }));
+  }
+
+  /**
+   * The chart's **shape** — what a requester needs to pick a receiving team.
+   *
+   * Deliberately less than {@link listUnitsWithDetail}: no manager name, no
+   * member count. Those are what an administrator is looking at on A3, and a
+   * person raising a request has no business reading them. What is left is the
+   * outline of the organisation, which the company directory
+   * (`GET /users`, the same `user.read`) already discloses by other means.
+   *
+   * Inactive units are **included**, carrying `active` so the caller can show
+   * them greyed out. Filtering them here looked tidier and cut the chart in
+   * half: a deactivated department would vanish, its positions would lose
+   * their parent, and everybody in them would drop out of a picker that walks
+   * down from the division above. `buildUnitTree` already says the same thing
+   * — "removing it would re-hang its children at the root".
+   */
+  async listUnitShapes(companyId: string): Promise<OrgUnitShape[]> {
+    const units = await this.orgUnits.findForCompanyWithDetail(companyId);
+
+    return units.map((unit) => ({
+      id: unit.id,
+      code: unit.code,
+      name: unit.name,
+      kind: unit.kind,
+      parentId: unit.parentId,
+      active: unit.active,
     }));
   }
 

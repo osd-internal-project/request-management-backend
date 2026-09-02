@@ -116,6 +116,27 @@ export class OpenCaseDto {
   @IsString()
   requester_user_id?: string;
 
+  /**
+   * Whose place in the org chart a `หัวหน้าทีม` level counts up from.
+   *
+   * Defaults to the requester, which is what it always was. It became a
+   * separate value on 1 ก.ย. 2569, when approval after the work started
+   * climbing the chart of whoever *did* the work: a request raised by Sales
+   * and delivered by Marketing was routing to Sales' managers to sign off
+   * Marketing's output.
+   *
+   * `requester_user_id` stays the requester regardless — APV-02 removes them
+   * from every level, and that rule is about who asked, not about whose chart
+   * is being climbed. The two were the same value by accident until now.
+   */
+  @ApiPropertyOptional({
+    description:
+      'Whose chart a supervisor level climbs. Defaults to the requester.',
+  })
+  @IsOptional()
+  @IsString()
+  chart_owner_user_id?: string | null;
+
   @ApiPropertyOptional({ description: 'APV-07: event published on outcome.' })
   @IsOptional()
   @IsString()

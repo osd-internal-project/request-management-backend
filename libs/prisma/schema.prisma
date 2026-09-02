@@ -473,7 +473,7 @@ model RequestType {
   receiverFormSchema Json?
   /// [{ code, name }] — attachments that block submit (REQ-03).
   requiredDocs      Json @default("[]")
-  /// [{ code, label }] — the standard return reasons (REQ-04).
+  /// [{ code, name }] — the standard return reasons (REQ-04).
   returnReasonCodes Json @default("[]")
   /// { mode: "standard_chain", amount_field: "deal_value" } — how APV-02
   /// derives the approval chain.
@@ -481,6 +481,11 @@ model RequestType {
 
   slaHours    Int?
   slaCoverage SlaCoverage @default(H24X7)
+
+  /// Whether ยื่นคำขอ demands `refId` — §16 marks it required, but only on the
+  /// DSC mockup, and most types have no deal to point at. Per type rather than
+  /// hard-coded on the screen, which is what it was until 1 ก.ย. 2569.
+  refRequired Boolean @default(false)
 
   active    Boolean  @default(false)
   createdAt DateTime @default(now())

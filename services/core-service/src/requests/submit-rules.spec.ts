@@ -3,6 +3,7 @@ import {
   assertKnownReturnReason,
   assertReceiverFormComplete,
   assertSubmittable,
+  assertUsableFormSchema,
 } from './submit-rules';
 
 const SCHEMA = {
@@ -110,6 +111,59 @@ describe('REQ-03 what blocks a submit', () => {
   });
 });
 
+/**
+ * `อ้างอิงดีล` — a rule of the type, checked by the server.
+ *
+ * §16 marks the field required on the DSC mockup, and the submit screen turned
+ * that into a rule for all 45 types, blocking anything with no deal to point
+ * at. The rule also lived *only* on the screen, so any caller could skip it —
+ * ROLE-01 says the screen is convenience, never control.
+ */
+describe('REQ-03 the deal reference is required per type', () => {
+  const base = {
+    formSchema: SCHEMA,
+    requiredDocs: DOCS,
+    formData: COMPLETE,
+    attachmentCodes: ['QUOTE_DRAFT'],
+  };
+
+  it('lets a type that does not ask for one through without it', () => {
+    expect(() =>
+      assertSubmittable({ ...base, refRequired: false, refId: null }),
+    ).not.toThrow();
+  });
+
+  it('says nothing about it when the type is silent', () => {
+    expect(() => assertSubmittable(base)).not.toThrow();
+  });
+
+  it('refuses a type that asks for one when it is missing', () => {
+    expect.assertions(2);
+
+    try {
+      assertSubmittable({ ...base, refRequired: true, refId: null });
+    } catch (error) {
+      expect((error as AppError).code).toBe('REQ_FIELD_MISSING');
+      expect((error as AppError).details).toEqual([
+        { field: 'ref_id', reason: 'อ้างอิงดีล' },
+      ]);
+    }
+  });
+
+  /** Whitespace is not an answer, the same way it is not for any other field. */
+  it('refuses a blank string as a reference', () => {
+    expect(() =>
+      assertSubmittable({ ...base, refRequired: true, refId: '   ' }),
+    ).toThrow(expect.objectContaining({ code: 'REQ_FIELD_MISSING' }));
+  });
+
+  it('accepts a type that asks for one when it is given', () => {
+    expect(() =>
+      assertSubmittable({ ...base, refRequired: true, refId: 'D-501' }),
+    ).not.toThrow();
+  });
+});
+
 describe('REQ-04 return reasons must come from the type list', () => {
   const REASONS = [
     { code: 'DOC_INCOMPLETE', name: 'เอกสารไม่ครบ' },
@@ -134,6 +188,47 @@ describe('REQ-04 return reasons must come from the type list', () => {
 
   it('refuses anything when the type declares no reasons', () => {
     expect(() => assertKnownReturnReason([], 'DOC_INCOMPLETE')).toThrow();
+  });
+
+  /**
+   * The old `{ code, label }` shape, which is what a request raised before
+   * 1 ก.ย. 2569 still carries in its `typeSnapshot`.
+   *
+   * The migration that renamed the key deliberately left snapshots alone — a
+   * snapshot is the rule the request was raised under (§7). That is only safe
+   * if validation reads the code and nothing else, so this test is what makes
+   * "safe" a fact rather than an assumption: an old request must still be
+   * returnable with its own reasons.
+   */
+  it('still accepts a snapshot written before the key was renamed', () => {
+    const legacy = [
+      { code: 'DOC_INCOMPLETE', label: 'เอกสารไม่ครบ' },
+      { code: 'OTHER', label: 'อื่น ๆ (ระบุ)' },
+    ];
+
+    expect(() =>
+      assertKnownReturnReason(legacy, 'DOC_INCOMPLETE'),
+    ).not.toThrow();
+    expect(() => assertKnownReturnReason(legacy, 'NOT_LISTED')).toThrow(
+      expect.objectContaining({ code: 'VALIDATION_FAILED' }),
+    );
+  });
+
+  /**
+   * What the message says when the name is missing. The codes are listed back
+   * to the caller, so a nameless entry still names itself — it is never
+   * `undefined` in the error a person reads.
+   */
+  it('names an entry by its code when it carries no readable name', () => {
+    expect.assertions(1);
+
+    try {
+      assertKnownReturnReason([{ code: 'DOC_INCOMPLETE' }], 'NOT_LISTED');
+    } catch (error) {
+      expect((error as AppError).details).toEqual([
+        { field: 'reason_code', reason: 'ต้องเป็นหนึ่งใน: DOC_INCOMPLETE' },
+      ]);
+    }
   });
 });
 
@@ -188,5 +283,202 @@ describe('H2.2 ข้อ 3: the receiver fills in their own form before finishin
     } catch (error) {
       expect((error as AppError).message).toContain('ฟอร์มผู้รับคำขอ');
     }
+  });
+});
+
+/**
+ * A `type: 'array'` field is a table: `items` carries the columns, `maxItems`
+ * caps the rows. Plain JSON Schema — the vocabulary this file already reads.
+ */
+describe('a table field is checked row by row', () => {
+  const LINES = {
+    type: 'object',
+    required: ['lines'],
+    properties: {
+      lines: {
+        type: 'array',
+        title: 'รายการ',
+        maxItems: 3,
+        items: {
+          type: 'object',
+          required: ['item_name', 'qty'],
+          properties: {
+            item_name: { type: 'string', title: 'รายการ' },
+            qty: { type: 'number', title: 'จำนวน' },
+          },
+        },
+      },
+    },
+  };
+
+  function submitTable(lines: unknown) {
+    return () =>
+      assertSubmittable({
+        formSchema: LINES,
+        requiredDocs: [],
+        formData: { lines },
+        attachmentCodes: [],
+      });
+  }
+
+  it('accepts rows that carry every required column', () => {
+    expect(
+      submitTable([
+        { item_name: 'ป้ายไวนิล', qty: 2 },
+        { item_name: 'โปสเตอร์', qty: 10 },
+      ]),
+    ).not.toThrow();
+  });
+
+  /** A required table with no rows is the `required` rule, not a row rule. */
+  it('treats an empty table as a missing required field', () => {
+    expect(submitTable([])).toThrow(
+      expect.objectContaining({
+        code: 'REQ_FIELD_MISSING',
+        details: [{ field: 'lines', reason: 'รายการ' }],
+      }),
+    );
+  });
+
+  /**
+   * The row index and the column, not just "lines". A table can be long, and
+   * being told only that something in it is missing is the slowest possible
+   * way to fix it — the same reasoning as reporting every field at once.
+   */
+  it('names the row and the column that is blank', () => {
+    expect.assertions(1);
+
+    try {
+      submitTable([
+        { item_name: 'ป้ายไวนิล', qty: 2 },
+        { item_name: '', qty: 10 },
+        { item_name: 'ธง', qty: null },
+      ])();
+    } catch (error) {
+      expect((error as AppError).details).toEqual([
+        { field: 'lines[1].item_name', reason: 'รายการ' },
+        { field: 'lines[2].qty', reason: 'จำนวน' },
+      ]);
+    }
+  });
+
+  /** 0 is an answer, in a table cell as much as anywhere else. */
+  it('accepts 0 in a numeric column', () => {
+    expect(submitTable([{ item_name: 'ตัวอย่าง', qty: 0 }])).not.toThrow();
+  });
+
+  it('refuses more rows than the cap the admin set', () => {
+    expect(
+      submitTable([
+        { item_name: 'a', qty: 1 },
+        { item_name: 'b', qty: 1 },
+        { item_name: 'c', qty: 1 },
+        { item_name: 'd', qty: 1 },
+      ]),
+    ).toThrow(
+      expect.objectContaining({
+        details: [{ field: 'lines', reason: 'เกิน 3 แถว' }],
+      }),
+    );
+  });
+
+  it('lets a table with no cap grow', () => {
+    const uncapped = {
+      ...LINES,
+      properties: {
+        lines: { ...LINES.properties.lines, maxItems: undefined },
+      },
+    };
+
+    expect(() =>
+      assertSubmittable({
+        formSchema: uncapped,
+        requiredDocs: [],
+        formData: {
+          lines: Array.from({ length: 40 }, () => ({
+            item_name: 'x',
+            qty: 1,
+          })),
+        },
+        attachmentCodes: [],
+      }),
+    ).not.toThrow();
+  });
+});
+
+describe('REQ-01 a table an admin authors must be one the screen can draw', () => {
+  function author(lines: Record<string, unknown>) {
+    return () =>
+      assertUsableFormSchema({
+        type: 'object',
+        properties: { lines: { type: 'array', title: 'รายการ', ...lines } },
+      });
+  }
+
+  it('accepts a table with columns', () => {
+    expect(
+      author({
+        items: {
+          type: 'object',
+          required: ['name'],
+          properties: { name: { type: 'string', title: 'ชื่อ' } },
+        },
+      }),
+    ).not.toThrow();
+  });
+
+  it('refuses a table with no columns — it would render empty', () => {
+    expect(author({ items: { type: 'object', properties: {} } })).toThrow(
+      expect.objectContaining({ code: 'VALIDATION_FAILED' }),
+    );
+    expect(author({})).toThrow();
+  });
+
+  it('refuses a required column that does not exist', () => {
+    expect.assertions(1);
+
+    try {
+      author({
+        items: {
+          type: 'object',
+          required: ['ghost'],
+          properties: { name: { type: 'string' } },
+        },
+      })();
+    } catch (error) {
+      expect((error as AppError).details).toContainEqual({
+        field: 'form_schema.lines.items.required',
+        reason: '"ghost" ไม่มีอยู่ในคอลัมน์ของตาราง',
+      });
+    }
+  });
+
+  /** Nothing downstream can draw or mask a second level — see `unusableTables`. */
+  it('refuses a table inside a table', () => {
+    expect.assertions(1);
+
+    try {
+      author({
+        items: {
+          type: 'object',
+          properties: { inner: { type: 'array', items: { type: 'object' } } },
+        },
+      })();
+    } catch (error) {
+      expect((error as AppError).details).toContainEqual({
+        field: 'form_schema.lines.items.inner',
+        reason: 'ตารางซ้อนในตารางไม่รองรับ',
+      });
+    }
+  });
+
+  it('refuses a row cap that is not a whole number of rows', () => {
+    const columns = {
+      items: { type: 'object', properties: { name: { type: 'string' } } },
+    };
+
+    expect(author({ ...columns, maxItems: 0 })).toThrow();
+    expect(author({ ...columns, maxItems: 2.5 })).toThrow();
+    expect(author({ ...columns, maxItems: 1 })).not.toThrow();
   });
 });

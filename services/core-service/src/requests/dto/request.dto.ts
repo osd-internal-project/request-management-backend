@@ -402,6 +402,18 @@ export class CreateRequestTypeDto {
   @IsOptional()
   @IsBoolean()
   active?: boolean;
+
+  /**
+   * REQ-03: whether ยื่นคำขอ demands an `อ้างอิงดีล`.
+   *
+   * §16 marks the field required, but that mockup is the DSC screen and most
+   * types have no deal to point at — so the rule belongs to the type, not to
+   * the screen it was hard-coded on until 1 ก.ย. 2569.
+   */
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  ref_required?: boolean;
 }
 
 /**
@@ -482,6 +494,18 @@ export class UpdateRequestTypeDto {
   @IsOptional()
   @IsBoolean()
   active?: boolean;
+
+  /**
+   * REQ-03: whether ยื่นคำขอ demands an `อ้างอิงดีล`.
+   *
+   * §16 marks the field required, but that mockup is the DSC screen and most
+   * types have no deal to point at — so the rule belongs to the type, not to
+   * the screen it was hard-coded on until 1 ก.ย. 2569.
+   */
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  ref_required?: boolean;
 }
 
 /**

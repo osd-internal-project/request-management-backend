@@ -17,7 +17,10 @@ import { join } from 'node:path';
 const SERVICES = join(__dirname, '..', '..', '..', '..', 'services');
 
 const ROUTE = /@(Get|Post|Patch|Put|Delete)\(/g;
-const GUARD = /@(Permissions|Public|Authenticated)\(/g;
+// `AnyPermission` counts: it declares access just as explicitly as the rest.
+// Leaving it out silently reclassified two guarded routes as open the day it
+// was introduced — which is precisely what this file exists to catch.
+const GUARD = /@(Permissions|AnyPermission|Public|Authenticated)\(/g;
 
 interface Controller {
   readonly file: string;

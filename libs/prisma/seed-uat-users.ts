@@ -31,13 +31,20 @@ import {
 const prisma = new PrismaClient();
 
 /**
- * The company whose org tree `seed.ts` populates.
+ * Which company's accounts to provision. `yarn uat:users [COMPANY_CODE]`.
  *
- * `OSD_DEMO`, not `OSD`: these seven accounts are invented characters from
- * mockup §16 and belong beside the invented org tree, not in the real
+ * `OSD_DEMO` by default: that cohort is the invented characters from mockup
+ * §16, and they belong beside the invented org tree rather than in a real
  * company's directory.
+ *
+ * **`OSD` is a declared exception** (2 ก.ย. 2569). Walking a configured
+ * approval flow end to end needs accounts whose credentials the tester holds,
+ * and the flow under test runs through the real chart — so those four sit in
+ * `OSD` and take over as heads of the units they stand in for. They are
+ * prefixed `uat.` like every other test account, and the audit entry at the
+ * end of this script records exactly who was placed and which heads changed.
  */
-const COMPANY_CODE = 'OSD_DEMO';
+const DEFAULT_COMPANY = 'OSD_DEMO';
 
 interface UatUser {
   readonly username: string;
@@ -55,7 +62,7 @@ interface UatUser {
   readonly purpose: string;
 }
 
-const UAT_USERS: readonly UatUser[] = [
+const OSD_DEMO_USERS: readonly UatUser[] = [
   {
     username: 'uat.somchai',
     displayName: 'สมชาย ก. (UAT)',
@@ -133,21 +140,124 @@ const UAT_USERS: readonly UatUser[] = [
   },
 ];
 
+/**
+ * The accounts that walk the MK-01 flow in the **real** OSD chart.
+ *
+ * Each stands in for a person who already holds that place, and takes the
+ * headship with them where the original was a head — `managesUnit` overwrites
+ * `OrgUnit.managerUserId`, so `orasak` and `chanakulk` step aside on the two
+ * units this flow climbs. Nobody is deleted and no other head is touched.
+ *
+ * Why the swap rather than new units: the flow is configured against the chart
+ * that exists. `request:MK-01` resolves `up:2` and `up:4` from the receiver's
+ * ancestors, so the approvers are whoever heads RND and the company — putting
+ * the test accounts anywhere else would test a different flow from the one in
+ * production.
+ *
+ * All four are `employee`. Since 2 ก.ย. 2569 that role carries the whole
+ * request menu and involvement decides who may act, so a flow that works for
+ * an employee is the strongest version of the test.
+ */
+const OSD_FLOW_USERS: readonly UatUser[] = [
+  {
+    username: 'uat.taksapongk',
+    displayName: 'ทักษพงศ์ ก. (UAT)',
+    firstName: 'ทักษพงศ์',
+    lastName: 'ก.',
+    // Software Developer, under RND — where `taksapongk` sits.
+    orgUnitCode: 'OSD-OU0151',
+    supervisor: 'uat.chanakulk',
+    role: 'employee',
+    purpose: 'ผู้ยื่นคำขอ MK-01 และผู้ปิดงาน',
+  },
+  {
+    username: 'uat.chavisat',
+    displayName: 'ชวิศา ต. (UAT)',
+    firstName: 'ชวิศา',
+    lastName: 'ต.',
+    // Graphic Designer, under RND — where `chavisat` sits.
+    orgUnitCode: 'OSD-OU0152',
+    supervisor: 'uat.chanakulk',
+    role: 'employee',
+    purpose: 'ผู้รับเรื่องและผู้ทำงาน',
+  },
+  {
+    username: 'uat.chanakulk',
+    displayName: 'ชนกุล ค. (UAT)',
+    firstName: 'ชนกุล',
+    lastName: 'ค.',
+    // RND — the department the work is done in. `up:2` lands here.
+    orgUnitCode: 'OSD-OU0022',
+    supervisor: 'uat.orasak',
+    role: 'employee',
+    managesUnit: true,
+    purpose: 'หัวหน้าแผนกผู้ปฏิบัติ — อนุมัติชั้นแรกหลังงานเสร็จ',
+  },
+  {
+    username: 'uat.orasak',
+    displayName: 'อรสักก์ ว. (UAT)',
+    firstName: 'อรสักก์',
+    lastName: 'ว.',
+    // The company root. `up:4` lands here, and the pre-work ladder names it.
+    orgUnitCode: 'OSD-OU0001',
+    supervisor: null,
+    role: 'employee',
+    managesUnit: true,
+    purpose: 'ผู้บริหารสูงสุด — อนุมัติก่อนส่งงาน และอนุมัติชั้นสุดท้าย',
+  },
+  {
+    /*
+      Configures the flow the other four then walk: publishing an approval
+      ladder and editing a request type are `admin.*`, which none of them hold.
+
+      §5.4 keeps this separate on purpose — an administrator sets the rules and
+      approves nothing. Giving one of the four accounts admin rights instead
+      would have made the test prove less than it appears to.
+    */
+    username: 'uat.admin',
+    displayName: 'ผู้ดูแล UAT (OSD)',
+    firstName: 'ผู้ดูแล',
+    lastName: 'UAT',
+    orgUnitCode: 'OSD-OU0001',
+    supervisor: null,
+    role: 'admin',
+    purpose: 'ตั้งประเภทคำขอและตารางอำนาจอนุมัติสำหรับการทดสอบ',
+  },
+];
+
+/** Which cohort belongs to which company. */
+const COHORTS: Record<string, readonly UatUser[]> = {
+  OSD_DEMO: OSD_DEMO_USERS,
+  OSD: OSD_FLOW_USERS,
+};
+
 async function main(): Promise<void> {
   const env = readKeycloakEnv(
     'UAT_SEED_ALLOW',
-    'UAT_SEED_ALLOW=1 UAT_DEFAULT_PASSWORD=… yarn uat:users',
+    'UAT_SEED_ALLOW=1 UAT_DEFAULT_PASSWORD=… yarn uat:users [COMPANY_CODE]',
   );
-  console.log(`Provisioning UAT accounts in realm "${env.realm}"…`);
+
+  const companyCode = process.argv[2] ?? DEFAULT_COMPANY;
+  const cohort = COHORTS[companyCode];
+
+  if (!cohort) {
+    throw new Error(
+      `No UAT cohort for "${companyCode}". Known: ${Object.keys(COHORTS).join(', ')}`,
+    );
+  }
+
+  console.log(
+    `Provisioning ${cohort.length} UAT accounts for ${companyCode} in realm "${env.realm}"…`,
+  );
 
   const keycloak: KeycloakContext = await connect(env);
 
   const company = await prisma.company.findUnique({
-    where: { code: COMPANY_CODE },
+    where: { code: companyCode },
   });
   if (!company) {
     throw new Error(
-      `No company "${COMPANY_CODE}". Run \`yarn prisma:seed\` first.`,
+      `No company "${companyCode}". Run \`yarn prisma:seed\` first.`,
     );
   }
 
@@ -160,7 +270,7 @@ async function main(): Promise<void> {
   const profileIds = new Map<string, string>();
   let created = 0;
 
-  for (const user of UAT_USERS) {
+  for (const user of cohort) {
     const orgUnitId = unitByCode.get(user.orgUnitCode);
     if (!orgUnitId) {
       throw new Error(
@@ -202,7 +312,7 @@ async function main(): Promise<void> {
   }
 
   // Second pass: a supervisor may not have had a row yet on the first.
-  for (const user of UAT_USERS) {
+  for (const user of cohort) {
     const profileId = profileIds.get(user.username);
     if (!profileId) continue;
 
@@ -234,21 +344,21 @@ async function main(): Promise<void> {
       resourceType: 'user',
       resourceId: 'uat-set',
       after: {
-        usernames: UAT_USERS.map((user) => user.username),
+        usernames: cohort.map((user) => user.username),
         created,
-        company: COMPANY_CODE,
+        company: companyCode,
       } as Prisma.InputJsonValue,
     },
   });
 
-  printSummary();
+  printSummary(cohort);
 }
 
-function printSummary(): void {
+function printSummary(cohort: readonly UatUser[]): void {
   console.log('\nสรุปผู้ใช้ UAT');
   console.log('username        role                 สังกัด    หัวหน้า        หน้าที่ในการทดสอบ');
 
-  for (const user of UAT_USERS) {
+  for (const user of cohort) {
     console.log(
       `  ${user.username.padEnd(14)}${user.role.padEnd(21)}` +
         `${user.orgUnitCode.padEnd(10)}${(user.supervisor ?? '—').padEnd(15)}${user.purpose}`,

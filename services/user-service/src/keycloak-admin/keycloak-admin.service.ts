@@ -169,12 +169,17 @@ export class KeycloakAdminService {
     return users[0] ?? null;
   }
 
-  searchUsers(query: string, first = 0, max = 50): Promise<KeycloakUser[]> {
+  async searchUsers(
+    query: string,
+    first = 0,
+    max = 50,
+  ): Promise<KeycloakUser[]> {
     const search = query ? `search=${encodeURIComponent(query)}&` : '';
-    return this.call<KeycloakUser[]>(
+    const users = await this.call<KeycloakUser[]>(
       'get',
       `/users?${search}first=${first}&max=${max}`,
     );
+    return users;
   }
 
   countUsers(query: string): Promise<number> {

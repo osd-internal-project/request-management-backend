@@ -2,7 +2,7 @@
  * Development / UAT seed.
  *
  * Creates the companies, the §5.2 seed roles with their permissions, a sample
- * org tree matching the mockups, and the default scope and masking rules.
+ * org tree matching the mockups, and the default masking rules.
  * Idempotent — safe to re-run.
  *
  *   npm run prisma:seed
@@ -17,7 +17,7 @@
  * has finance confirming the real T1/T2 per company; nothing here should be
  * mistaken for a signed-off number.
  */
-import { PrismaClient, ScopeLevel } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -50,15 +50,28 @@ const PERMISSIONS: Record<string, string[]> = {
   integration: ['integration.request.create', 'integration.approval.create'],
 };
 
-/** §5.2 seed roles: what each can do, and how far each can see. */
+/** §5.2 seed roles and what each can do. How far each can *see* is no longer
+ * a property of the role — see `access-rules.ts`. */
 const SEED_ROLES: {
   code: string;
   name: string;
   description: string;
   permissions: string[];
-  scopes: Record<string, ScopeLevel>;
 }[] = [
   {
+    /*
+      Everything in the Request menu, for everybody (2 ก.ย. 2569).
+
+      Authority over a request follows the org chart and involvement, not the
+      role: `assertMayAct` decides who may complete, assign, hold, resume or
+      cancel, and `authorise()` decides who may approve by reading the step's
+      `candidateUserIds`. Holding the permission is now the price of entry to
+      the menu, not the right to act on somebody else's ticket.
+
+      `user.read` is deliberately **not** here — the two reads the submit screen
+      needs accept `request.create` instead (`@AnyPermission`), which keeps the
+      admin Users screen on a permission an employee does not have.
+    */
     code: 'employee',
     name: 'พนักงาน',
     description: 'บทบาทพื้นฐานที่ทุกผู้ใช้ได้อัตโนมัติ',
@@ -66,9 +79,12 @@ const SEED_ROLES: {
       'request.create',
       'request.read',
       'request.cancel.own',
+      'request.complete',
+      'request.return',
+      'request.hold',
+      'approval.decide',
       'notification.read',
     ],
-    scopes: { request: 'own', approval_case: 'own', user: 'team' },
   },
   {
     code: 'team_lead',
@@ -84,7 +100,6 @@ const SEED_ROLES: {
       'notification.read',
       'user.read',
     ],
-    scopes: { request: 'team', approval_case: 'team', user: 'team' },
   },
   {
     code: 'department_manager',
@@ -104,11 +119,6 @@ const SEED_ROLES: {
       'notification.read',
       'user.read',
     ],
-    scopes: {
-      request: 'department',
-      approval_case: 'department',
-      user: 'department',
-    },
   },
   {
     code: 'executive',
@@ -125,7 +135,6 @@ const SEED_ROLES: {
       'notification.read',
       'user.read',
     ],
-    scopes: { request: 'company', approval_case: 'company', user: 'company' },
   },
   {
     // §8.1 names `cfo` and `ceo` as approval offices above T1 and T2, and
@@ -147,7 +156,6 @@ const SEED_ROLES: {
       'notification.read',
       'user.read',
     ],
-    scopes: { request: 'company', approval_case: 'company', user: 'company' },
   },
   {
     code: 'ceo',
@@ -164,7 +172,6 @@ const SEED_ROLES: {
       'notification.read',
       'user.read',
     ],
-    scopes: { request: 'company', approval_case: 'company', user: 'company' },
   },
   {
     // §5.2's destination team — Pricing for a discount request. The only role
@@ -184,9 +191,6 @@ const SEED_ROLES: {
       'notification.read',
       'user.read',
     ],
-    // §5.4 reads "คิวทีมตน" — the team's own queue, so `team` rather than the
-    // department their team sits under.
-    scopes: { request: 'team', approval_case: 'team', user: 'team' },
   },
   {
     // §5.2 is explicit that admins configure the system but hold no approval
@@ -209,7 +213,6 @@ const SEED_ROLES: {
       'request.read',
       'request.read.all',
     ],
-    scopes: { request: 'company', approval_case: 'company', user: 'company' },
   },
   {
     code: 'auditor',
@@ -225,7 +228,6 @@ const SEED_ROLES: {
       'audit.read',
       'user.read',
     ],
-    scopes: { request: 'all', approval_case: 'all', user: 'all' },
   },
 ];
 
@@ -295,16 +297,21 @@ async function seedRoles(companyId: string) {
       skipDuplicates: true,
     });
 
-    for (const [resource, scope] of Object.entries(role.scopes)) {
-      await prisma.scopeRule.upsert({
-        where: { roleId_resource: { roleId: saved.id, resource } },
-        update: { scope },
-        create: { roleId: saved.id, resource, scope },
-      });
-    }
+    /*
+      No `ScopeRule` rows are written any more.
+
+      The own/team/department/company/all levels were withdrawn on 31 ส.ค. 2569
+      — `access-rules.ts` decides row visibility now, from involvement and from
+      the groups a person heads. The table, its repository and its admin
+      endpoint are kept on purpose (the screen is hidden, not deleted), but
+      seeding rows nothing reads made the old model look alive: `user: 'team'`
+      sitting here is what made it look as though a plain employee could still
+      read the directory, and that is why nobody noticed they had lost it until
+      the receiver picker came back empty on 2 ก.ย. 2569.
+    */
   }
 
-  console.log(`  roles + scope rules: ${SEED_ROLES.length}`);
+  console.log(`  roles: ${SEED_ROLES.length}`);
 }
 
 /** The tree from mockup A3. */
@@ -517,13 +524,20 @@ async function seedRequestTypes(
       requiredDocs: [
         { code: 'QUOTE_DRAFT', name: 'ใบเสนอราคาฉบับร่าง' },
       ],
-      // §16 A2 and หน้าที่ 5 both print this list; the screen offers exactly
-      // these and the server validates against them (REQ-04).
+      /*
+        §16 A2 and หน้าที่ 5 both print this list; the screen offers exactly
+        these and the server validates against them (REQ-04).
+
+        `name`, like `requiredDocs` above and like `CodedLabelDto` — this list
+        was seeded with `label` until 1 ก.ย. 2569, which made A2 unable to save
+        either seeded type: the screen loaded entries with no `name`, sent them
+        back untouched, and the DTO rejected them. One shape, everywhere.
+      */
       returnReasonCodes: [
-        { code: 'DOC_INCOMPLETE', label: 'เอกสารไม่ครบ' },
-        { code: 'MARGIN_WRONG', label: 'ตัวเลข margin ไม่ถูกต้อง' },
-        { code: 'REASON_INSUFFICIENT', label: 'เหตุผลไม่เพียงพอ' },
-        { code: 'OTHER', label: 'อื่น ๆ (ระบุ)' },
+        { code: 'DOC_INCOMPLETE', name: 'เอกสารไม่ครบ' },
+        { code: 'MARGIN_WRONG', name: 'ตัวเลข margin ไม่ถูกต้อง' },
+        { code: 'REASON_INSUFFICIENT', name: 'เหตุผลไม่เพียงพอ' },
+        { code: 'OTHER', name: 'อื่น ๆ (ระบุ)' },
       ],
       // The amount field is what APV-02 measures against the matrix ceilings.
       approvalPolicy: { mode: 'standard_chain', amount_field: 'deal_value' },
@@ -551,9 +565,9 @@ async function seedRequestTypes(
       },
       requiredDocs: [],
       returnReasonCodes: [
-        { code: 'INFO_INCOMPLETE', label: 'ข้อมูลไม่ครบ' },
-        { code: 'WRONG_TEAM', label: 'ส่งผิดทีม' },
-        { code: 'OTHER', label: 'อื่น ๆ' },
+        { code: 'INFO_INCOMPLETE', name: 'ข้อมูลไม่ครบ' },
+        { code: 'WRONG_TEAM', name: 'ส่งผิดทีม' },
+        { code: 'OTHER', name: 'อื่น ๆ' },
       ],
       // `approvalPolicy` is vestigial: the route lives on the matrix, and the
       // amount field it used to name was withdrawn with the ceilings.

@@ -60,20 +60,44 @@ describe('request lifecycle (ticket model)', () => {
 
   describe('REQ-07: transitions outside the declared paths are impossible', () => {
     /**
-     * The reversal this model rests on. Approval is a check on finished work,
-     * so a request cannot enter it before there is work to check.
+     * Approval is reachable from exactly two places, and no others.
+     *
+     * `draft` and `returned` are the pre-work check — permission to ask, added
+     * 1 ก.ย. 2569 for a type that publishes a `request:<CODE>:pre` ladder.
+     * `completed` is the check on the result. Everything in between is work in
+     * progress: a ticket somebody is holding cannot jump into a queue.
      */
-    it('cannot be sent for approval before the work is done', () => {
-      const beforeWork: RequestStatus[] = [
-        'draft',
+    it('is reachable only from a submit or a completion', () => {
+      const mayEnter: RequestStatus[] = ['draft', 'returned', 'completed'];
+      const mayNot: RequestStatus[] = ['submitted', 'in_progress', 'on_hold'];
+
+      for (const status of mayEnter) {
+        expect(canTransition(status, 'pending_approval')).toBe(true);
+      }
+
+      for (const status of mayNot) {
+        expect(canTransition(status, 'pending_approval')).toBe(false);
+      }
+    });
+
+    /**
+     * The two stages leave `pending_approval` differently, and both ways out
+     * have to exist in the table for either to work.
+     *
+     * Pre-work: approved hands the ticket to its receiver (`submitted`), sent
+     * back returns it to the requester (`returned`) — nobody has worked on it.
+     * After the work: approved accepts the result, sent back goes to the team
+     * that produced it (`in_progress`).
+     */
+    it('leaves approval by whichever door its stage uses', () => {
+      for (const status of [
         'submitted',
         'returned',
+        'approved',
         'in_progress',
-        'on_hold',
-      ];
-
-      for (const status of beforeWork) {
-        expect(canTransition(status, 'pending_approval')).toBe(false);
+        'rejected',
+      ] as RequestStatus[]) {
+        expect(canTransition('pending_approval', status)).toBe(true);
       }
     });
 

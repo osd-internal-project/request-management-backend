@@ -4,6 +4,7 @@ import { AppError } from '../errors/app-error';
 import { getPrincipal, RequestWithPrincipal } from '../context/principal';
 import { Permission } from './permissions';
 import {
+  ANY_PERMISSION_KEY,
   AUTHENTICATED_KEY,
   PERMISSIONS_KEY,
   PUBLIC_KEY,
@@ -91,6 +92,30 @@ export class PolicyGuard implements CanActivate {
       }
 
       return true;
+    }
+
+    const anyOf = this.reflector.getAllAndOverride<Permission[]>(
+      ANY_PERMISSION_KEY,
+      targets,
+    );
+
+    if (anyOf?.length) {
+      if (
+        anyOf.some((permission) => principal.permissions.includes(permission))
+      )
+        return true;
+
+      /*
+        Every accepted permission is named, not the ones the caller lacks —
+        with an any-of rule "you are missing all of these" reads as though all
+        of them were needed, which is the opposite of what the rule says.
+      */
+      throw new AppError('FORBIDDEN', 'ไม่มีสิทธิ์ใช้งานส่วนนี้', [
+        {
+          field: 'permission',
+          reason: `ต้องมีอย่างใดอย่างหนึ่ง: ${anyOf.join(', ')}`,
+        },
+      ]);
     }
 
     if (this.reflector.getAllAndOverride<boolean>(AUTHENTICATED_KEY, targets)) {

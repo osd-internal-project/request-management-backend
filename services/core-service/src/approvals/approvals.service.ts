@@ -99,6 +99,7 @@ export class ApprovalsService {
       subjectType: dto.subject_type,
       amount: dto.amount ?? null,
       requesterId,
+      chartOwnerId: dto.chart_owner_user_id ?? null,
       companyId,
       authorization,
     });
@@ -185,6 +186,8 @@ export class ApprovalsService {
     subjectType: string;
     amount: string | null;
     requesterId: string;
+    /** Whose chart a supervisor level climbs. Defaults to the requester. */
+    chartOwnerId?: string | null;
     companyId: string;
     authorization: string;
   }): Promise<{
@@ -198,9 +201,18 @@ export class ApprovalsService {
       new Date(),
     );
 
+    /*
+      Two people, deliberately.
+
+      The **chart owner** decides which org unit a `หัวหน้าทีม` level counts up
+      from — before the work that is the requester, after it the person who
+      carried the ticket. The **requester** is who APV-02 removes from every
+      level. They were the same value until 1 ก.ย. 2569, which is why approval
+      of Marketing's work was routing through Sales' managers.
+    */
     const context = await this.context.resolve(
       input.authorization,
-      input.requesterId,
+      input.chartOwnerId ?? input.requesterId,
       input.companyId,
     );
 
@@ -455,12 +467,30 @@ export class ApprovalsService {
         different place and a different clock.
       */
       if (found.requestId && nextStatus !== 'pending') {
+        /*
+          Where the request goes depends on **which stage this case is**.
+
+          A pre-work case was approving permission to start, so approval hands
+          the ticket to its receiver (`submitted`) and a send-back returns it
+          to the requester (`returned`) — nobody has done any work to send it
+          back to. After the work, approval accepts the result and a send-back
+          goes to the team that produced it.
+
+          Read off the subject rather than stored twice: `request:<CODE>:pre`
+          is what routed the case, so it is already the answer.
+        */
+        const preWork = found.subjectType.endsWith(':pre');
+
         const toStatus =
           nextStatus === 'approved'
-            ? 'approved'
+            ? preWork
+              ? 'submitted'
+              : 'approved'
             : nextStatus === 'rejected'
               ? 'rejected'
-              : 'in_progress';
+              : preWork
+                ? 'returned'
+                : 'in_progress';
 
         await prisma.request.update({
           where: { id: found.requestId },
