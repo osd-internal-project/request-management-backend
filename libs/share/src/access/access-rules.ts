@@ -37,6 +37,31 @@ export interface AccessSubject {
    */
   readonly ledUnitIds: readonly string[];
   /**
+   * Groups reachable through an `OrgUnitScope` grant — "กลุ่มนี้เห็นงานของกลุ่ม
+   * นั้น", set on the admin screen.
+   *
+   * Separate from {@link AccessSubject.ledUnitIds} rather than merged upstream
+   * because only one of them widens what a person may *do*: leading a group
+   * carries authority over its work, while a scope grant carries it only when
+   * an administrator ticked `canAct`.
+   */
+  readonly scopedUnitIds: readonly string[];
+  /** The subset of {@link AccessSubject.scopedUnitIds} granted `canAct`. */
+  readonly scopedActUnitIds: readonly string[];
+  /**
+   * The people this caller is currently covering for (APV-03).
+   *
+   * A delegation is looked up at decision time rather than at submit, so it
+   * cannot be baked into the principal — the caller resolves it and passes it
+   * in. Empty for the overwhelming majority of requests.
+   *
+   * Here because the อนุมัติ tab and the approvals inbox have to agree with the
+   * check that runs when the button is actually pressed. They did not: the tab
+   * asked only for `candidateUserIds has me`, so somebody covering for an
+   * approver saw `0` on a queue they could act on.
+   */
+  readonly coveringUserIds: readonly string[];
+  /**
    * `request.read.all` — the caller reads every request in the active company.
    *
    * What scope `company` used to grant, now an ordinary permission so it is
@@ -62,15 +87,40 @@ export function visibleRequestsWhere(subject: AccessSubject): AccessWhere {
   if (subject.readsWholeCompany) return company;
 
   const involved = involvementBranches(subject);
+  const units = reachableUnitIds(subject);
 
-  if (subject.ledUnitIds.length) {
+  if (units.length) {
     involved.push(
-      { requesterOrgUnitId: { in: [...subject.ledUnitIds] } },
-      { receiverOrgUnitId: { in: [...subject.ledUnitIds] } },
+      { requesterOrgUnitId: { in: units } },
+      { receiverOrgUnitId: { in: units } },
     );
   }
 
   return { ...company, OR: involved };
+}
+
+/**
+ * Every group whose work this person may read: the ones they lead, and the
+ * ones granted to their group on the admin screen.
+ *
+ * De-duplicated because the two overlap constantly — a head of แผนก whose ฝ่าย
+ * was granted a view of another ฝ่าย reaches many of the same units twice, and
+ * a duplicated id in an `IN (…)` is a wider query for no extra rows.
+ */
+export function reachableUnitIds(subject: AccessSubject): string[] {
+  /*
+    `?? []` because core-service builds its principal from user-service's JSON,
+    and during a rolling deploy the older service answers without these fields.
+    Spreading `undefined` into an array throws, which would take every list on
+    the site down for the length of the rollout; treating it as "no grants" is
+    the same answer the system gave the day before.
+  */
+  return [
+    ...new Set([
+      ...(subject.ledUnitIds ?? []),
+      ...(subject.scopedUnitIds ?? []),
+    ]),
+  ];
 }
 
 /**
@@ -88,11 +138,47 @@ export function involvementBranches(subject: AccessSubject): AccessWhere[] {
     {
       approvalCases: {
         some: {
-          steps: { some: { candidateUserIds: { has: subject.userId } } },
+          steps: { some: decidableStepWhere(subject) },
         },
       },
     },
   ];
+}
+
+/**
+ * The `ApprovalStep` rows this person may decide — the one place that answers
+ * it.
+ *
+ * There used to be three answers. `authorise` accepted `candidateUserIds`, fell
+ * back to `approverUserId` for cases opened before that column existed, and
+ * honoured a delegation; the approvals inbox asked for `candidateUserIds` plus
+ * whoever the caller covers for; the "อนุมัติ" tab asked only for
+ * `candidateUserIds has me`. The tab was the narrowest, so it printed `0` for
+ * people who could — and did — approve from the other screen.
+ *
+ * Returned as a fragment rather than a whole `where` so callers can add the
+ * `status: 'pending'` they need: the tab wants only steps awaiting a decision,
+ * while "may I open this request" counts a step whatever became of it.
+ */
+export function decidableStepWhere(subject: AccessSubject): AccessWhere {
+  const deciders = [subject.userId, ...subject.coveringUserIds];
+
+  return {
+    OR: [
+      { candidateUserIds: { hasSome: deciders } },
+      /*
+        Steps routed before `candidateUserIds` existed carry the named approver
+        and nothing else. Guarded by `isEmpty` rather than left as a plain `OR`
+        branch, so a step that *does* list candidates is decided by that list
+        alone — `approverUserId` is only its first entry, and matching it
+        separately would let somebody removed from the list keep the step.
+      */
+      {
+        candidateUserIds: { isEmpty: true },
+        approverUserId: { in: deciders },
+      },
+    ],
+  };
 }
 
 /**
@@ -119,10 +205,7 @@ export function awaitingDecisionWhere(subject: AccessSubject): AccessWhere {
       some: {
         status: 'pending',
         steps: {
-          some: {
-            status: 'pending',
-            candidateUserIds: { has: subject.userId },
-          },
+          some: { status: 'pending', ...decidableStepWhere(subject) },
         },
       },
     },
@@ -130,23 +213,29 @@ export function awaitingDecisionWhere(subject: AccessSubject): AccessWhere {
 }
 
 /**
- * The rows of `requests` a **group head** may see — the "งานทั้งหมด" screen.
+ * The rows of `requests` on the "งานทั้งหมด" screen — the work of every group
+ * this person can reach, whether by leading it or by a scope grant.
  *
  * Narrower than {@link visibleRequestsWhere} on purpose: that answers "may I
- * open this", while this answers "what is happening under me". Somebody's own
- * request raised outside the groups they lead is not their team's work, and
+ * open this", while this answers "what is happening in my groups". Somebody's
+ * own request raised outside those groups is not their team's work, and
  * putting it on this screen would make the count mean nothing.
  *
- * Someone who leads nothing gets a clause that matches no rows rather than one
- * that matches everything — the failure mode of an empty `IN ()` written the
- * other way round is a screen that shows the whole company.
+ * Scope grants belong here as well as in the visibility rule: work a person
+ * can reach only through a grant has no other screen that lists it, and rows
+ * that exist but appear nowhere are rows nobody acts on.
+ *
+ * Someone who reaches no groups gets a clause that matches no rows rather than
+ * one that matches everything — the failure mode of an empty `IN ()` written
+ * the other way round is a screen that shows the whole company.
  */
 export function ledRequestsWhere(subject: AccessSubject): AccessWhere {
   const company = { companyId: subject.activeCompanyId };
+  const reachable = reachableUnitIds(subject);
 
-  if (!subject.ledUnitIds.length) return { ...company, id: { in: [] } };
+  if (!reachable.length) return { ...company, id: { in: [] } };
 
-  const units = { in: [...subject.ledUnitIds] };
+  const units = { in: reachable };
 
   return {
     ...company,

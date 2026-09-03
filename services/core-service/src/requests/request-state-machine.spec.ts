@@ -3,6 +3,7 @@ import { AppError } from '@request-management/share';
 import {
   assertTransition,
   canTransition,
+  CARRIER_QUEUE_STATUSES,
   CLOCK_PAUSED_IN,
   EDITABLE_STATUSES,
   OPEN_STATUSES,
@@ -194,6 +195,30 @@ describe('request lifecycle (ticket model)', () => {
 
       for (const status of finished) {
         expect(OPEN_STATUSES).not.toContain(status);
+      }
+    });
+  });
+
+  /**
+   * The "รับเรื่อง" tab of §16 หน้าที่ 2 used to filter
+   * `submitted | in_progress | on_hold`, which took a ticket off its carrier's
+   * queue the moment they sent the result for approval or the requester
+   * returned it — leaving `uat.chavisat` reading `0` on work they were in the
+   * middle of.
+   */
+  describe('the carrier’s queue', () => {
+    it('keeps a ticket while it is waiting on approval or has been returned', () => {
+      expect(CARRIER_QUEUE_STATUSES).toContain('pending_approval');
+      expect(CARRIER_QUEUE_STATUSES).toContain('returned');
+    });
+
+    it('drops a draft, which has not been handed to anybody yet', () => {
+      expect(CARRIER_QUEUE_STATUSES).not.toContain('draft');
+    });
+
+    it('drops every finished status', () => {
+      for (const status of TERMINAL_STATUSES) {
+        expect(CARRIER_QUEUE_STATUSES).not.toContain(status);
       }
     });
   });

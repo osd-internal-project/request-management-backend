@@ -30,6 +30,11 @@ import { AccessModule } from '../access/access.module';
     DocNumberService,
     PrismaTransactionService,
   ],
-  exports: [RequestsService],
+  /*
+    `RequestRepository` is exported alongside the service for the external
+    API's one need the service cannot meet: turning a document number into an
+    id. A chatbot is handed `REQ-OSD-PS01-26090001` by a person, never a uuid.
+  */
+  exports: [RequestsService, RequestRepository],
 })
 export class RequestsModule {}

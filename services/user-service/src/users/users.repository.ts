@@ -52,6 +52,22 @@ export class UsersRepository extends BaseRepository<PrismaService['user']> {
   }
 
   /**
+   * The active profile holding this email address — how the external API
+   * names the person a chatbot is acting for.
+   *
+   * `status: ACTIVE` is part of the lookup, not a check the caller makes
+   * afterwards: a suspended account must be indistinguishable from an unknown
+   * one here, or the answer tells an outside caller which addresses exist.
+   *
+   * `email` is unique in the schema, but `findFirst` is used rather than
+   * `findUnique` because the status narrows it — Prisma will not take a
+   * non-unique field in a `findUnique` where.
+   */
+  findActiveByEmail(email: string, option?: TxOption): Promise<User | null> {
+    return this.findFirst({ where: { email, status: 'ACTIVE' } }, option);
+  }
+
+  /**
    * AUTH-04 JIT provisioning: the first login creates the profile from token
    * claims. Org placement is left null on purpose — an admin assigns it, and
    * until then the user shows up in the "รอจัดสังกัด" queue and cannot submit

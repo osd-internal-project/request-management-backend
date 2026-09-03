@@ -26,6 +26,8 @@ function principalWith(
     orgUnitId: 'ou_team',
     supervisorUserId: 'u_lead',
     ledUnitIds: [],
+    scopedUnitIds: [],
+    scopedActUnitIds: [],
     roles: [],
     permissions: permissions as Principal['permissions'],
     sensitiveFieldsVisible: [],

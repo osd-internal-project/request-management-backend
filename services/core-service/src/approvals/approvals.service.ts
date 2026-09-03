@@ -1,8 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import {
+  accessSubject,
   AppError,
   auditActor,
   AuditWriter,
+  decidableStepWhere,
   PrismaTransactionService,
   paginated,
   toSkipTake,
@@ -715,6 +717,21 @@ export class ApprovalsService {
 
   // --- reads --------------------------------------------------------------
 
+  /**
+   * The people this person is covering for right now (APV-03).
+   *
+   * Public so the request lists can build an `AccessSubject` that knows about
+   * delegations without reaching into the delegation table themselves — the
+   * "อนุมัติ" tab has to count the same rows this module lets them decide.
+   */
+  coveringFor(actor: Principal): Promise<string[]> {
+    return this.delegations.delegatorsFor(
+      actor.activeCompanyId,
+      actor.userId,
+      new Date(),
+    );
+  }
+
   /** Cases waiting on this person, including anything they cover (APV-03). */
   async inbox(actor: Principal, query: PageQueryDto) {
     const { skip, take } = toSkipTake(query);
@@ -726,15 +743,23 @@ export class ApprovalsService {
       now,
     );
 
+    /*
+      One rule, shared with the "อนุมัติ" tab on หน้าที่ 2 and with `authorise`.
+
+      This screen used to build its own condition, and the tab built a narrower
+      one — so a person covering for an approver, or holding a step routed
+      before `candidateUserIds` existed, worked from this inbox while the tab
+      told them they had nothing.
+    */
     const where: Prisma.ApprovalCaseWhereInput = {
       companyId: actor.activeCompanyId,
       status: 'pending',
       steps: {
         some: {
           status: 'pending',
-          // Reads the array, not the single column: a level naming three
-          // people has to appear in all three inboxes.
-          candidateUserIds: { hasSome: [actor.userId, ...covering] },
+          ...(decidableStepWhere(
+            accessSubject(actor, covering),
+          ) as Prisma.ApprovalStepWhereInput),
         },
       },
     };

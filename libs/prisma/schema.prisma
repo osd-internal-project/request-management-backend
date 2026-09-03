@@ -158,27 +158,28 @@ model Company {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  users            UserCompany[]
-  primaryUsers     User[]                @relation("PrimaryCompany")
-  orgUnits         OrgUnit[]
-  roles            Role[]
-  userRoles        UserRole[]
-  keycloakMappings KeycloakRoleMapping[]
-  requestTypes     RequestTypeCompany[]
-  requests         Request[]
-  docNumberConfigs DocNumberConfig[]
-  docNumberCounter DocNumberCounter[]
-  approvalMatrices ApprovalMatrix[]
-  approvalCases    ApprovalCase[]
-  delegations      Delegation[]
-  slaConfigs       SlaConfig[]
-  holidayCalendar  HolidayCalendar?
-  notifications    Notification[]
-  auditLogs        AuditLog[]
-  biDashboards     BiDashboard[]
+  users                   UserCompany[]
+  primaryUsers            User[]                   @relation("PrimaryCompany")
+  orgUnits                OrgUnit[]
+  roles                   Role[]
+  userRoles               UserRole[]
+  keycloakMappings        KeycloakRoleMapping[]
+  requestTypes            RequestTypeCompany[]
+  requests                Request[]
+  docNumberConfigs        DocNumberConfig[]
+  docNumberCounter        DocNumberCounter[]
+  approvalMatrices        ApprovalMatrix[]
+  approvalCases           ApprovalCase[]
+  delegations             Delegation[]
+  slaConfigs              SlaConfig[]
+  holidayCalendar         HolidayCalendar?
+  notifications           Notification[]
+  auditLogs               AuditLog[]
+  biDashboards            BiDashboard[]
+  orgUnitScopes           OrgUnitScope[]
+  notificationPreferences NotificationPreference[]
 
   @@map("companies")
-  notificationPreferences NotificationPreference[]
 }
 
 /// Local mirror of the Keycloak-authenticated user (AUTH-04, JIT-provisioned
@@ -231,27 +232,27 @@ model User {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  companies      UserCompany[]
-  roles          UserRole[]          @relation("RoleHolder")
-  grantedRoles   UserRole[]          @relation("RoleGranter")
-  managedUnits   OrgUnit[]           @relation("OrgUnitManager")
-  requests       Request[]           @relation("Requester")
-  receivedRequests Request[]         @relation("Receiver")
-  assignedRequests Request[]         @relation("Assignee")
-  requestEvents  RequestEvent[]
-  requestComments RequestComment[]
-  attachments    RequestAttachment[]
-  approvalSteps  ApprovalStep[]      @relation("StepApprover")
-  decidedSteps   ApprovalStep[]      @relation("StepDecider")
-  delegationsOut Delegation[]        @relation("Delegator")
-  delegationsIn  Delegation[]        @relation("Delegate")
-  notifications  Notification[]
-  auditLogs      AuditLog[]
+  companies               UserCompany[]
+  roles                   UserRole[]               @relation("RoleHolder")
+  grantedRoles            UserRole[]               @relation("RoleGranter")
+  managedUnits            OrgUnit[]                @relation("OrgUnitManager")
+  requests                Request[]                @relation("Requester")
+  receivedRequests        Request[]                @relation("Receiver")
+  assignedRequests        Request[]                @relation("Assignee")
+  requestEvents           RequestEvent[]
+  requestComments         RequestComment[]
+  attachments             RequestAttachment[]
+  approvalSteps           ApprovalStep[]           @relation("StepApprover")
+  decidedSteps            ApprovalStep[]           @relation("StepDecider")
+  delegationsOut          Delegation[]             @relation("Delegator")
+  delegationsIn           Delegation[]             @relation("Delegate")
+  notifications           Notification[]
+  auditLogs               AuditLog[]
+  notificationPreferences NotificationPreference[]
 
   @@index([orgUnitId])
   @@index([supervisorUserId])
   @@map("users")
-  notificationPreferences NotificationPreference[]
 }
 
 /// AUTH-05: one person can belong to several companies, with exactly one
@@ -294,13 +295,15 @@ model OrgUnit {
   updatedAt DateTime @updatedAt
   updatedBy String?
 
-  company       Company       @relation(fields: [companyId], references: [id])
-  members       User[]        @relation("OrgUnitMembers")
-  ancestors     OrgClosure[]  @relation("ClosureDescendant")
-  descendants   OrgClosure[]  @relation("ClosureAncestor")
-  receivedTypes RequestType[] @relation("ReceiverUnit")
+  company       Company               @relation(fields: [companyId], references: [id])
+  members       User[]                @relation("OrgUnitMembers")
+  ancestors     OrgClosure[]          @relation("ClosureDescendant")
+  descendants   OrgClosure[]          @relation("ClosureAncestor")
+  receivedTypes RequestType[]         @relation("ReceiverUnit")
   eligibleTypes RequestTypeOrgUnit[]
   biAudiences   BiDashboardAudience[]
+  scopesGranted OrgUnitScope[]        @relation("ScopeViewer")
+  scopesOn      OrgUnitScope[]        @relation("ScopeTarget")
 
   @@unique([companyId, code])
   @@index([parentId])
@@ -322,6 +325,60 @@ model OrgClosure {
   @@id([ancestorId, descendantId])
   @@index([descendantId])
   @@map("org_closure")
+}
+
+/// One group may see — and optionally work on — another group's requests.
+///
+/// The replacement for `ScopeRule`, which tied visibility to a *role* and was
+/// withdrawn on 31 ส.ค. 2569 because a `(role, resource) → level` rule cannot
+/// say "ฝ่ายขาย sees ฝ่ายการตลาด's work". This says exactly that, and nothing
+/// more general.
+///
+/// The level an administrator picks on screen (บริษัท / ฝ่าย / แผนก / ตำแหน่ง)
+/// is `OrgUnit.kind` of the viewer, so it is not stored again here — a group's
+/// level is already a property of the group.
+///
+/// A grant is inherited downwards: it is matched against the viewer's own unit
+/// **and every unit above it**, which is what makes a grant written at the
+/// company level apply to everybody in the company.
+model OrgUnitScope {
+  id        String @id @default(uuid())
+  companyId String
+
+  /// The group being granted the view.
+  viewerOrgUnitId String
+  /// The group whose work becomes visible.
+  targetOrgUnitId String
+
+  /// Whether the grant reaches the groups beneath `target`.
+  ///
+  /// Defaults to true because the org chart is บริษัท → ฝ่าย → แผนก and naming
+  /// a ฝ่าย almost always means its แผนก too. Turning it off is the narrow
+  /// case, so it is the one that has to be asked for.
+  includeDescendants Boolean @default(true)
+
+  /// Whether the viewer may move those requests, or only read them.
+  ///
+  /// Defaults to **false**: `assertMayAct` in core-service is the only thing
+  /// standing between a person and somebody else's ticket, and a scope grant
+  /// that silently widened it would hand the whole chart to whoever was
+  /// granted a view. Granting the ability to act is a separate, deliberate
+  /// tick.
+  canAct Boolean @default(false)
+
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  createdBy String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  company Company @relation(fields: [companyId], references: [id])
+  viewer  OrgUnit @relation("ScopeViewer", fields: [viewerOrgUnitId], references: [id], onDelete: Cascade)
+  target  OrgUnit @relation("ScopeTarget", fields: [targetOrgUnitId], references: [id], onDelete: Cascade)
+
+  @@unique([viewerOrgUnitId, targetOrgUnitId])
+  @@index([companyId, viewerOrgUnitId])
+  @@map("org_unit_scopes")
 }
 
 /// ROLE-02. `companyId` null means a group-wide template role; bound roles are
@@ -401,18 +458,29 @@ model UserRole {
 /// on every login and refresh, so revoking in Keycloak revokes here within one
 /// access-token lifetime.
 model KeycloakRoleMapping {
-  id           String   @id @default(uuid())
-  keycloakRole String
-  roleId       String
-  companyId    String
-  createdAt    DateTime @default(now())
-  createdBy    String?
+  id             String   @id @default(uuid())
+  /// The realm role's **name** — what a token carries, so this is what
+  /// `syncFromKeycloakRoles` matches on at sign-in.
+  keycloakRole   String
+  /// The realm role's **id**, which a rename does not change.
+  ///
+  /// Without it a rename in Keycloak was invisible here: the next token
+  /// carried the new name, this row still held the old one, no mapping
+  /// matched, and every holder of that role lost it with nothing on screen to
+  /// say why. Nullable because rows written before 2 ก.ย. 2569 have no id yet
+  /// — `syncNamesFromKeycloak` fills it in on its first run.
+  keycloakRoleId String?
+  roleId         String
+  companyId      String
+  createdAt      DateTime @default(now())
+  createdBy      String?
 
   role    Role    @relation(fields: [roleId], references: [id], onDelete: Cascade)
   company Company @relation(fields: [companyId], references: [id])
 
   @@unique([keycloakRole, roleId, companyId])
   @@index([companyId])
+  @@index([keycloakRoleId])
   @@map("keycloak_role_mappings")
 }
 
@@ -463,7 +531,7 @@ model RequestType {
   receiverOrgUnitId String?
 
   /// JSON Schema for the form the **requester** fills in.
-  formSchema        Json
+  formSchema         Json
   /// JSON Schema for the form the **receiver** fills in before completing.
   ///
   /// Null means the type has no second form, and `complete` then asks for
@@ -472,12 +540,12 @@ model RequestType {
   /// a blank required step.
   receiverFormSchema Json?
   /// [{ code, name }] — attachments that block submit (REQ-03).
-  requiredDocs      Json @default("[]")
+  requiredDocs       Json  @default("[]")
   /// [{ code, name }] — the standard return reasons (REQ-04).
-  returnReasonCodes Json @default("[]")
+  returnReasonCodes  Json  @default("[]")
   /// { mode: "standard_chain", amount_field: "deal_value" } — how APV-02
   /// derives the approval chain.
-  approvalPolicy    Json
+  approvalPolicy     Json
 
   slaHours    Int?
   slaCoverage SlaCoverage @default(H24X7)
@@ -769,7 +837,9 @@ model DocNumberConfig {
   id         String  @id @default(uuid())
   companyId  String
   typeCode   String
-  pattern    String  @default("{PREFIX}-{TYPE}-{YYYYMM}-{SEQ}")
+  /// `REQ-OSD-PS01-26090001`. `{YYYYMM}` is still understood, for rows an
+  /// administrator set to the older `{PREFIX}-{TYPE}-{YYYYMM}-{SEQ}` form.
+  pattern    String  @default("REQ-{PREFIX}-{TYPE}-{YYMM}{SEQ}")
   seqPadding Int     @default(4)
   active     Boolean @default(true)
 
@@ -971,12 +1041,12 @@ model Delegation {
 
 /// D-09/SUP-01: SLA is configuration, never hardcoded.
 model SlaConfig {
-  id              String  @id @default(uuid())
+  id              String      @id @default(uuid())
   companyId       String
   requestTypeCode String
   hours           Int
   coverage        SlaCoverage @default(H24X7)
-  warnBeforeHours Int     @default(4)
+  warnBeforeHours Int         @default(4)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1134,9 +1204,9 @@ model AuditLog {
 /// deploy (configuration over code). `active` is the soft-delete flag; a
 /// retired dashboard stays findable, per the no-hard-delete rule.
 model BiDashboard {
-  id        String @id @default(uuid())
-  companyId String
-  title     String
+  id                  String  @id @default(uuid())
+  companyId           String
+  title               String
   /// The numeric id Metabase shows in the dashboard URL.
   metabaseDashboardId Int
   sortOrder           Int     @default(0)

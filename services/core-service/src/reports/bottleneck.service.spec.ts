@@ -1,6 +1,7 @@
 import { BottleneckService } from './bottleneck.service';
 import type { Principal } from '@request-management/share';
 import type { PrismaService } from '@request-management/share';
+import { accessSubject, decidableStepWhere } from '@request-management/share';
 
 const OSD = 'company-osd';
 const ME = 'user-me';
@@ -52,9 +53,18 @@ describe('REQ-09 bottleneck report — SCOPE-02', () => {
         { requesterId: ME },
         { receiverUserId: ME },
         { assigneeUserId: ME },
+        /*
+          Asked of the rule rather than spelled out: what counts as a step this
+          person may decide is `decidableStepWhere`'s to say, and a second copy
+          of its shape here would fail the day it legitimately changes.
+        */
         {
           approvalCases: {
-            some: { steps: { some: { candidateUserIds: { has: ME } } } },
+            some: {
+              steps: {
+                some: decidableStepWhere(accessSubject(principal())),
+              },
+            },
           },
         },
       ],

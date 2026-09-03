@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
+  AppError,
   Permission,
   Principal,
   PrincipalCompany,
@@ -78,6 +79,60 @@ export class PrincipalService {
 
     const user = await this.provision(payload, keycloakRoles);
 
+    return this.principalFor(user, keycloakRoles, requestedCompanyId);
+  }
+
+  /**
+   * The principal for somebody identified by **email** rather than by a token.
+   *
+   * For `core-service`'s external API: a chatbot holds one service-account
+   * credential and names the person it is acting for, so that every rule
+   * downstream — row visibility, `assertMayAct`, the SLA clock, who the
+   * timeline says did it — applies to the human, not to the robot. Without
+   * this the alternatives are both worse: let the robot act with its own
+   * authority over everyone's work, or re-implement each of those rules for
+   * one caller.
+   *
+   * Roles come from `user.keycloakRoles`, cached on the profile at their last
+   * login. That column exists precisely because a role has to be readable
+   * without an Admin API call — but it does mean a role granted in the realm
+   * since that login is not seen here until the person signs in again. Stated
+   * rather than papered over: making this call reach Keycloak would put an
+   * external round trip on every chatbot message.
+   *
+   * Nobody is provisioned from here. A profile is created from a token on
+   * first login (AUTH-04); inventing one from an email would let anything that
+   * can reach this endpoint mint an identity.
+   */
+  async resolveByEmail(
+    email: string,
+    requestedCompanyId?: string,
+  ): Promise<Principal> {
+    const user = await this.users.findActiveByEmail(email);
+
+    if (!user) {
+      throw new AppError(
+        'NOT_FOUND',
+        'ไม่พบผู้ใช้ที่ระบุ หรือผู้ใช้ยังไม่เคยเข้าสู่ระบบ',
+        [{ field: 'email', reason: email }],
+      );
+    }
+
+    return this.principalFor(user, user.keycloakRoles, requestedCompanyId);
+  }
+
+  /**
+   * Everything a principal is, once the `User` row is in hand.
+   *
+   * Shared by the token path and the email path so the two cannot drift. A
+   * second copy would be a second answer to "what may this person do", and the
+   * copy reached through an integration is exactly the one nobody would test.
+   */
+  private async principalFor(
+    user: User,
+    keycloakRoles: readonly string[],
+    requestedCompanyId?: string,
+  ): Promise<Principal> {
     const memberships = await this.org.companiesForUser(user.id);
     const companies: PrincipalCompany[] = memberships.map((membership) => ({
       id: membership.company.id,
@@ -96,7 +151,7 @@ export class PrincipalService {
     // principal that can read /auth/me and nothing else, so the frontend can
     // render the "waiting for assignment" state instead of a broken shell.
     if (!activeCompanyId) {
-      return this.pendingPrincipal(user, payload, companies);
+      return this.pendingPrincipal(user, companies);
     }
 
     await this.roles.syncFromKeycloakRoles(
@@ -108,11 +163,18 @@ export class PrincipalService {
     const userRoles = await this.roles.rolesForUser(user.id, activeCompanyId);
     const permissions = RolesService.permissionsOf(userRoles);
 
-    const [sensitiveFieldsVisible, sensitiveFieldsAll, ledUnitIds] =
+    const [sensitiveFieldsVisible, sensitiveFieldsAll, ledUnitIds, scoped] =
       await Promise.all([
         this.policy.resolveVisibleSensitiveFields(permissions),
         this.policy.listAllSensitiveFieldKeys(),
         this.org.ledUnitIdsOf(user.id, activeCompanyId),
+        /*
+          Resolved alongside the groups they lead, not after: this runs while
+          building the principal for *every* request, and a serial round trip
+          here is what once made core-service's five-second resolve timeout
+          fire on a cold call.
+        */
+        this.org.scopedUnitIdsOf(user.id, activeCompanyId),
       ]);
 
     return {
@@ -126,11 +188,18 @@ export class PrincipalService {
       orgUnitId: user.orgUnitId,
       supervisorUserId: user.supervisorUserId,
       ledUnitIds,
+      scopedUnitIds: scoped.read,
+      scopedActUnitIds: scoped.act,
       roles: userRoles.map((userRole) => userRole.role.code),
       permissions,
       sensitiveFieldsVisible,
       sensitiveFieldsAll,
-      isServiceAccount: this.isServiceAccount(payload),
+      /*
+        Always a person here. A machine credential returns from `resolve`
+        before provisioning — it has no `User` row, by design, or an admin
+        would be invited to assign a team to a robot.
+      */
+      isServiceAccount: false,
       pendingOrgAssignment: user.orgUnitId === null,
     };
   }
@@ -182,7 +251,6 @@ export class PrincipalService {
 
   private pendingPrincipal(
     user: User,
-    payload: KeycloakJwtPayload,
     companies: readonly PrincipalCompany[],
   ): Principal {
     return {
@@ -196,11 +264,14 @@ export class PrincipalService {
       orgUnitId: user.orgUnitId,
       supervisorUserId: user.supervisorUserId,
       ledUnitIds: [],
+      scopedUnitIds: [],
+      scopedActUnitIds: [],
       roles: [],
       permissions: [] as Permission[],
       sensitiveFieldsVisible: [],
       sensitiveFieldsAll: [],
-      isServiceAccount: this.isServiceAccount(payload),
+      // A `User` row is always a person — see `principalFor`.
+      isServiceAccount: false,
       pendingOrgAssignment: true,
     };
   }
@@ -227,6 +298,8 @@ export class PrincipalService {
       orgUnitId: null,
       supervisorUserId: null,
       ledUnitIds: [],
+      scopedUnitIds: [],
+      scopedActUnitIds: [],
       roles: [],
       permissions: keycloakRolesOf(
         payload,

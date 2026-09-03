@@ -13,6 +13,7 @@ import {
 import { ApprovalContextService } from './approval-context.service';
 import { OrgService } from './org.service';
 import { OrgUnitRepository } from './org-unit.repository';
+import { OrgUnitScopeRepository } from './org-unit-scope.repository';
 import { UserCompanyRepository } from './user-company.repository';
 
 @Module({
@@ -23,6 +24,7 @@ import { UserCompanyRepository } from './user-company.repository';
     ApprovalContextService,
     CompanyRepository,
     OrgUnitRepository,
+    OrgUnitScopeRepository,
     OrgClosureRepository,
     UserCompanyRepository,
     PrismaTransactionService,

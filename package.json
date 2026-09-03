@@ -38,6 +38,7 @@
     "org:adopt": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/adopt-org-chart.ts",
     "org:clear": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/clear-org-tree.ts",
     "uat:seed": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/seed-uat.ts",
+    "presales:seed": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/seed-presales-type.ts",
     "uat:users": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/seed-uat-users.ts",
     "keycloak:provision": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/keycloak-provision.ts",
     "openapi": "ts-node --project scripts/tsconfig.openapi.json -r tsconfig-paths/register -r dotenv/config scripts/generate-openapi.ts",

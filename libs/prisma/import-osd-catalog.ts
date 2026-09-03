@@ -643,6 +643,28 @@ async function rebuildClosure(companyId: string): Promise<void> {
  * inactive type is invisible on the submit screen but fully editable on A2,
  * which is where the remaining configuration will be filled in.
  */
+/**
+ * Catalog rows this importer must not write, and the type that owns them.
+ *
+ * Every type here shares one placeholder `formSchema`. A type whose real form
+ * has been written — because a screen or an integration depends on its exact
+ * fields — cannot survive that: re-running the import would silently replace
+ * the form with the placeholder and the requests raised afterwards would carry
+ * different data under the same type.
+ *
+ * So the row is skipped entirely rather than partially merged. Skipping also
+ * stops the catalog's own spelling becoming a **second** type for the same
+ * work: the sheet writes `PS-01`, the request numbers people quote read
+ * `REQ-OSD-PS01-…`, and both rows would otherwise exist side by side.
+ *
+ * Add a code here whenever a type gets a hand-written schema, and say which
+ * script owns it.
+ */
+const OWNED_BY_ANOTHER_SEED = new Map<string, string>([
+  // libs/prisma/seed-presales-type.ts — `yarn presales:seed`
+  ['PS-01', 'PS01'],
+]);
+
 async function importRequestTypes(
   companyId: string,
   sheets: Sheets,
@@ -655,6 +677,14 @@ async function importRequestTypes(
   for (const row of sheets['10_LIST_REQUEST_TYPE']) {
     const code = text(row, 'A');
     if (!/^[A-Z]{2}-\d{2}$/.test(code)) continue;
+
+    const ownedBy = OWNED_BY_ANOTHER_SEED.get(code);
+    if (ownedBy) {
+      console.log(
+        `  skipped ${code} — owned by "${ownedBy}", which has a hand-written form schema`,
+      );
+      continue;
+    }
 
     const name = text(row, 'B');
     const ownerDept = text(row, 'D');

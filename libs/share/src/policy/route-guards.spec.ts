@@ -22,10 +22,51 @@ const ROUTE = /@(Get|Post|Patch|Put|Delete)\(/g;
 // was introduced — which is precisely what this file exists to catch.
 const GUARD = /@(Permissions|AnyPermission|Public|Authenticated)\(/g;
 
+/**
+ * Source with comments removed.
+ *
+ * Both patterns below are text searches, so a decorator *named in a doc
+ * comment* counts as one that is applied. That was harmless while the counts
+ * only had to reach a threshold; it stopped being harmless when a class-level
+ * guard began exempting a whole file — `InternalPrincipalController`
+ * explains its own gating in prose, and the prose alone would have exempted
+ * it.
+ *
+ * Strings are left alone: a decorator name inside one is not a thing this
+ * codebase writes, and stripping them properly needs a parser.
+ */
+function withoutComments(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+}
+
 interface Controller {
   readonly file: string;
   readonly routes: number;
   readonly guards: number;
+  /** True when a guard is declared on the class, covering every route in it. */
+  readonly guardedAtClassLevel: boolean;
+}
+
+/**
+ * Whether a guard decorator sits on the controller class rather than a method.
+ *
+ * Nest resolves `@Permissions` with `getAllAndOverride([handler, class])`, so
+ * one on the class applies to every route in it — which is how
+ * `ExternalController` declares that all of its routes need the integration
+ * permission, without repeating the same line eight times.
+ *
+ * A decorator is class-level exactly when it appears **before the first route
+ * decorator** in the file. That holds because a method's decorators are
+ * written `@Get(...)` first and the guard beneath it, everywhere in this
+ * codebase — so nothing above the first `@Get` can belong to a method.
+ */
+function hasClassLevelGuard(source: string): boolean {
+  const firstRoute = source.search(/@(Get|Post|Patch|Put|Delete)\(/);
+  if (firstRoute === -1) return false;
+
+  return /@(Permissions|AnyPermission|Public|Authenticated)\(/.test(
+    source.slice(0, firstRoute),
+  );
 }
 
 function controllerFiles(dir: string): string[] {
@@ -47,12 +88,13 @@ function controllerFiles(dir: string): string[] {
 
 function read(): Controller[] {
   return controllerFiles(SERVICES).map((file) => {
-    const source = readFileSync(file, 'utf-8');
+    const source = withoutComments(readFileSync(file, 'utf-8'));
 
     return {
       file: file.slice(SERVICES.length + 1),
       routes: source.match(ROUTE)?.length ?? 0,
       guards: source.match(GUARD)?.length ?? 0,
+      guardedAtClassLevel: hasClassLevelGuard(source),
     };
   });
 }
@@ -72,15 +114,30 @@ describe('ROLE-01 — no endpoint is open by default', () => {
     (_file, controller) => {
       // Guards can outnumber routes — a route may carry both `@Authenticated`
       // and `@ServiceAccountAllowed`. Fewer guards than routes means at least
-      // one route has none.
+      // one route has none, unless the class itself declares one.
+      if (controller.guardedAtClassLevel) return;
+
       expect(controller.guards).toBeGreaterThanOrEqual(controller.routes);
     },
   );
 
   it('leaves nothing unguarded across either service', () => {
-    const unguarded = controllers.filter((c) => c.guards < c.routes);
+    const unguarded = controllers.filter(
+      (c) => !c.guardedAtClassLevel && c.guards < c.routes,
+    );
 
     expect(unguarded.map((c) => c.file)).toEqual([]);
+  });
+
+  /*
+    The class-level shortcut is only safe while it is rare and deliberate.
+    Named here so that a controller acquiring one is a visible edit rather
+    than a quiet way past the check above.
+  */
+  it('names every controller relying on a class-level guard', () => {
+    expect(
+      controllers.filter((c) => c.guardedAtClassLevel).map((c) => c.file),
+    ).toEqual(['core-service/src/external/external.controller.ts']);
   });
 });
 

@@ -47,6 +47,23 @@ export interface Principal {
    * table exists to avoid (§6.2's note, which outlived the scope levels).
    */
   readonly ledUnitIds: readonly string[];
+  /**
+   * Groups this caller may see through an `OrgUnitScope` grant.
+   *
+   * The other way into another group's work, beside leading one. Resolved from
+   * the grants written on the caller's own unit and every unit above it, so a
+   * grant at company level reaches everybody in the company.
+   */
+  readonly scopedUnitIds: readonly string[];
+  /**
+   * The subset of {@link Principal.scopedUnitIds} the caller may also **act**
+   * in — grants ticked `canAct`.
+   *
+   * Two lists rather than a flag on one: reading somebody else's ticket and
+   * moving it are different permissions, and `assertMayAct` is the only thing
+   * standing between a person and another group's work.
+   */
+  readonly scopedActUnitIds: readonly string[];
 
   readonly roles: readonly string[];
   readonly permissions: readonly Permission[];
@@ -111,11 +128,28 @@ export function hasPermission(
  * principal. One conversion in one place, so no caller assembles it by hand
  * and quietly leaves a field out.
  */
-export function accessSubject(principal: Principal): AccessSubject {
+export function accessSubject(
+  principal: Principal,
+  /**
+   * The people this caller currently covers for (APV-03).
+   *
+   * Not on the principal: a delegation is resolved at decision time, not at
+   * submit, which is what makes work already sitting in a queue re-route to
+   * whoever is covering. Caching it on a principal that lives for the token's
+   * lifetime would undo that.
+   *
+   * Optional so the callers that ask "which rows exist" rather than "which are
+   * mine to decide" need not pay for the lookup.
+   */
+  coveringUserIds: readonly string[] = [],
+): AccessSubject {
   return {
     userId: principal.userId,
     activeCompanyId: principal.activeCompanyId,
     ledUnitIds: principal.ledUnitIds,
+    scopedUnitIds: principal.scopedUnitIds,
+    scopedActUnitIds: principal.scopedActUnitIds,
+    coveringUserIds,
     readsWholeCompany: hasPermission(principal, 'request.read.all'),
   };
 }

@@ -7,6 +7,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
@@ -24,6 +25,7 @@ import { ApprovalContextService } from './approval-context.service';
 import {
   AssignUserOrgDto,
   CreateOrgUnitDto,
+  ReplaceOrgUnitScopesDto,
   UpdateOrgUnitDto,
 } from './dto/org-unit.dto';
 
@@ -112,6 +114,42 @@ export class OrgController {
     @CurrentPrincipal() principal: Principal,
   ): Promise<void> {
     await this.orgService.deleteUnit(id, principal);
+  }
+
+  /**
+   * Which groups this group may see the work of — A4's "ขอบเขตข้อมูล" pane.
+   *
+   * The replacement for `GET/PUT /admin/scope-rules`, which stored a level per
+   * role and could never express "ฝ่ายขาย sees ฝ่ายการตลาด". Those endpoints
+   * still exist and are still read by nothing.
+   */
+  @Get('org-units/:id/scopes')
+  @Permissions('admin.org.manage')
+  listScopes(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+    @Query('company_id') companyId?: string,
+  ) {
+    return this.orgService.listScopes(
+      id,
+      resolveTargetCompany(principal, companyId),
+    );
+  }
+
+  @Put('org-units/:id/scopes')
+  @Permissions('admin.org.manage')
+  replaceScopes(
+    @Param('id') id: string,
+    @Body() dto: ReplaceOrgUnitScopesDto,
+    @CurrentPrincipal() principal: Principal,
+    @Query('company_id') companyId?: string,
+  ) {
+    return this.orgService.replaceScopes(
+      id,
+      dto,
+      resolveTargetCompany(principal, companyId),
+      principal,
+    );
   }
 
   @Get('users/unassigned')
