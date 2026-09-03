@@ -102,8 +102,11 @@
             "schema": {
               "type": "string",
               "enum": [
-                "mine",
-                "involved"
+                "involved",
+                "created",
+                "incoming",
+                "approver",
+                "led"
               ]
             }
           },
@@ -654,9 +657,9 @@
         ]
       }
     },
-    "/api/v1/requests/{id}/complete": {
+    "/api/v1/requests/{id}/receive": {
       "post": {
-        "operationId": "RequestsController_complete",
+        "operationId": "RequestsController_receive",
         "parameters": [
           {
             "name": "id",
@@ -676,6 +679,239 @@
             }
           }
         ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "requests"
+        ]
+      }
+    },
+    "/api/v1/requests/{id}/assign": {
+      "post": {
+        "operationId": "RequestsController_assign",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "requests"
+        ]
+      }
+    },
+    "/api/v1/requests/{id}/complete": {
+      "post": {
+        "operationId": "RequestsController_complete",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompleteRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "requests"
+        ]
+      }
+    },
+    "/api/v1/requests/{id}/close": {
+      "post": {
+        "operationId": "RequestsController_close",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CloseRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "requests"
+        ]
+      }
+    },
+    "/api/v1/requests/{id}/tree": {
+      "get": {
+        "operationId": "RequestsController_tree",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "requests"
+        ]
+      }
+    },
+    "/api/v1/requests/{id}/comments": {
+      "post": {
+        "operationId": "RequestsController_addComment",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddCommentDto"
+              }
+            }
+          }
+        },
         "responses": {
           "201": {
             "description": ""
@@ -816,6 +1052,14 @@
         "operationId": "RequestTypeAdminController_list",
         "parameters": [
           {
+            "name": "company_id",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "X-Company-Id",
             "in": "header",
             "required": false,
@@ -911,6 +1155,41 @@
         },
         "responses": {
           "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin/request-types"
+        ]
+      },
+      "delete": {
+        "operationId": "RequestTypeAdminController_deleteType",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
             "description": ""
           }
         },
@@ -1703,6 +1982,449 @@
         ]
       }
     },
+    "/api/v1/external/request-types": {
+      "get": {
+        "operationId": "ExternalController_listTypes",
+        "parameters": [
+          {
+            "name": "x-acting-user",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "pre-sales",
+              "type": "string"
+            }
+          },
+          {
+            "name": "department",
+            "required": false,
+            "in": "query",
+            "description": "รหัสหน่วยงานผู้รับ",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "external"
+        ]
+      }
+    },
+    "/api/v1/external/request-types/{code}/form": {
+      "get": {
+        "operationId": "ExternalController_formOf",
+        "parameters": [
+          {
+            "name": "x-acting-user",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "external"
+        ]
+      }
+    },
+    "/api/v1/external/requests": {
+      "post": {
+        "operationId": "ExternalController_create",
+        "parameters": [
+          {
+            "name": "x-acting-user",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExternalCreateRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "external"
+        ]
+      },
+      "get": {
+        "operationId": "ExternalController_list",
+        "parameters": [
+          {
+            "name": "x-acting-user",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "view",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "involved",
+                "created",
+                "incoming",
+                "approver"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type_code",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "ค้นหาเลขที่ / อ้างอิง",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "external"
+        ]
+      }
+    },
+    "/api/v1/external/requests/{ref}": {
+      "get": {
+        "operationId": "ExternalController_findOne",
+        "parameters": [
+          {
+            "name": "x-acting-user",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ref",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "external"
+        ]
+      }
+    },
+    "/api/v1/external/requests/{ref}/actions": {
+      "get": {
+        "operationId": "ExternalController_actions",
+        "parameters": [
+          {
+            "name": "x-acting-user",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ref",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "external"
+        ]
+      }
+    },
+    "/api/v1/external/requests/{ref}/actions/{action}": {
+      "post": {
+        "operationId": "ExternalController_perform",
+        "parameters": [
+          {
+            "name": "x-acting-user",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ref",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "action",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExternalActionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "external"
+        ]
+      }
+    },
+    "/api/v1/external/requests/{ref}/tree": {
+      "get": {
+        "operationId": "ExternalController_tree",
+        "parameters": [
+          {
+            "name": "x-acting-user",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ref",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "external"
+        ]
+      }
+    },
     "/api/v1/bi/menu": {
       "get": {
         "operationId": "BiController_menu",
@@ -1724,6 +2446,199 @@
         },
         "tags": [
           "bi"
+        ]
+      }
+    },
+    "/api/v1/admin/bi/dashboards": {
+      "get": {
+        "operationId": "BiAdminController_list",
+        "parameters": [
+          {
+            "name": "company_id",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin/bi"
+        ]
+      },
+      "post": {
+        "operationId": "BiAdminController_create",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBiDashboardDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin/bi"
+        ]
+      }
+    },
+    "/api/v1/admin/bi/dashboards/{id}": {
+      "put": {
+        "operationId": "BiAdminController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateBiDashboardDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin/bi"
+        ]
+      },
+      "delete": {
+        "operationId": "BiAdminController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin/bi"
+        ]
+      }
+    },
+    "/api/v1/admin/bi/org-units": {
+      "get": {
+        "operationId": "BiAdminController_listOrgUnits",
+        "parameters": [
+          {
+            "name": "company_id",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin/bi"
         ]
       }
     }
@@ -1762,6 +2677,18 @@
           "ref_id": {
             "type": "string",
             "example": "D-501"
+          },
+          "receiver_user_id": {
+            "type": "string",
+            "description": "ผู้รับเรื่อง — บังคับก่อนยื่น"
+          },
+          "receiver_org_unit_id": {
+            "type": "string",
+            "description": "ทีมผู้รับ — ค่าตั้งต้นมาจากประเภทคำขอ"
+          },
+          "parent_request_id": {
+            "type": "string",
+            "description": "คำขอต้นเรื่อง"
           }
         },
         "required": [
@@ -1779,6 +2706,14 @@
           },
           "ref_id": {
             "type": "string"
+          },
+          "receiver_user_id": {
+            "type": "string",
+            "description": "ผู้รับเรื่อง"
+          },
+          "receiver_org_unit_id": {
+            "type": "string",
+            "description": "ทีมผู้รับ"
           }
         }
       },
@@ -1860,6 +2795,49 @@
           "reason"
         ]
       },
+      "AssignRequestDto": {
+        "type": "object",
+        "properties": {
+          "assignee_user_id": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "assignee_user_id"
+        ]
+      },
+      "CompleteRequestDto": {
+        "type": "object",
+        "properties": {
+          "receiver_form_data": {
+            "type": "object"
+          }
+        }
+      },
+      "CloseRequestDto": {
+        "type": "object",
+        "properties": {
+          "note": {
+            "type": "string",
+            "maxLength": 2000
+          }
+        }
+      },
+      "AddCommentDto": {
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "string",
+            "description": "ข้อความ"
+          }
+        },
+        "required": [
+          "body"
+        ]
+      },
       "CreateIntegrationRequestDto": {
         "type": "object",
         "properties": {
@@ -1927,7 +2905,17 @@
           },
           "form_schema": {
             "type": "object",
-            "description": "JSON Schema describing the form."
+            "description": "JSON Schema for the requester's form."
+          },
+          "receiver_form_schema": {
+            "type": "object",
+            "description": "JSON Schema for the receiver's form, filled in at complete."
+          },
+          "eligible_org_unit_ids": {
+            "type": "array",
+            "items": {
+              "type": "array"
+            }
           },
           "required_docs": {
             "type": "array",
@@ -1949,9 +2937,14 @@
             "type": "number",
             "example": 24
           },
-          "sla_business_hours": {
-            "type": "boolean",
-            "example": true
+          "sla_coverage": {
+            "type": "string",
+            "enum": [
+              "H24X7",
+              "H8X7",
+              "H8X5"
+            ],
+            "example": "H8X5"
           },
           "company_ids": {
             "description": "Companies this type is enabled for. Defaults to the active one.",
@@ -1964,6 +2957,10 @@
             "type": "boolean",
             "example": false,
             "description": "A type is created inactive so it can be finished before use."
+          },
+          "ref_required": {
+            "type": "boolean",
+            "default": false
           }
         },
         "required": [
@@ -1979,10 +2976,21 @@
             "type": "string"
           },
           "receiver_org_unit_id": {
-            "type": "string"
+            "type": "object",
+            "nullable": true
           },
           "form_schema": {
             "type": "object"
+          },
+          "receiver_form_schema": {
+            "type": "object",
+            "nullable": true
+          },
+          "eligible_org_unit_ids": {
+            "type": "array",
+            "items": {
+              "type": "array"
+            }
           },
           "required_docs": {
             "type": "array",
@@ -2002,11 +3010,21 @@
           "sla_hours": {
             "type": "number"
           },
-          "sla_business_hours": {
-            "type": "boolean"
+          "sla_coverage": {
+            "type": "string",
+            "enum": [
+              "H24X7",
+              "H8X7",
+              "H8X5"
+            ],
+            "example": "H8X5"
           },
           "active": {
             "type": "boolean"
+          },
+          "ref_required": {
+            "type": "boolean",
+            "default": false
           }
         }
       },
@@ -2081,7 +3099,8 @@
         },
         "required": [
           "case_ids",
-          "decision"
+          "decision",
+          "note"
         ]
       },
       "DecideDto": {
@@ -2101,22 +3120,31 @@
           }
         },
         "required": [
-          "decision"
+          "decision",
+          "note"
         ]
       },
-      "MatrixTierDto": {
+      "MatrixLevelDto": {
         "type": "object",
         "properties": {
-          "upto": {
-            "type": "object",
-            "example": "100000.00",
-            "nullable": true
+          "type": {
+            "type": "string",
+            "enum": [
+              "supervisor",
+              "org"
+            ]
           },
-          "chain": {
-            "example": [
-              "team_lead",
-              "cfo"
-            ],
+          "up": {
+            "type": "number",
+            "example": 1
+          },
+          "orgUnitIds": {
+            "type": "array",
+            "items": {
+              "type": "array"
+            }
+          },
+          "userIds": {
             "type": "array",
             "items": {
               "type": "array"
@@ -2124,7 +3152,7 @@
           }
         },
         "required": [
-          "chain"
+          "type"
         ]
       },
       "PublishMatrixDto": {
@@ -2141,10 +3169,10 @@
             "type": "string",
             "example": "THB"
           },
-          "tiers": {
+          "levels": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/MatrixTierDto"
+              "$ref": "#/components/schemas/MatrixLevelDto"
             }
           },
           "effective_from": {
@@ -2159,7 +3187,7 @@
         "required": [
           "company_id",
           "subject_type",
-          "tiers"
+          "levels"
         ]
       },
       "OpenCaseDto": {
@@ -2184,6 +3212,10 @@
           "requester_user_id": {
             "type": "string",
             "description": "Who the case is raised for."
+          },
+          "chart_owner_user_id": {
+            "type": "object",
+            "description": "Whose chart a supervisor level climbs. Defaults to the requester."
           },
           "callback_event": {
             "type": "string",
@@ -2223,10 +3255,14 @@
             "example": 24,
             "description": "Hours allowed before breach."
           },
-          "business_hours": {
-            "type": "boolean",
-            "example": true,
-            "description": "Count business hours only, per the company calendar."
+          "coverage": {
+            "type": "string",
+            "enum": [
+              "H24X7",
+              "H8X7",
+              "H8X5"
+            ],
+            "description": "H24X7 counts elapsed time · H8X7 counts the working window every day · H8X5 counts it on working days only, per the company calendar."
           },
           "warn_before_hours": {
             "type": "number",
@@ -2295,6 +3331,126 @@
             "type": "array",
             "items": {
               "type": "array"
+            }
+          }
+        }
+      },
+      "ExternalCreateRequestDto": {
+        "type": "object",
+        "properties": {
+          "type_code": {
+            "type": "string",
+            "example": "PS01"
+          },
+          "form_data": {
+            "type": "object"
+          },
+          "receiver_user_id": {
+            "type": "string",
+            "description": "ผู้รับเรื่อง"
+          },
+          "receiver_org_unit_id": {
+            "type": "string",
+            "description": "ทีมผู้รับ — ค่าตั้งต้นมาจากประเภทคำขอ"
+          },
+          "parent_request_id": {
+            "type": "string",
+            "description": "คำขอต้นเรื่อง"
+          },
+          "ref_type": {
+            "type": "string",
+            "example": "deal"
+          },
+          "ref_id": {
+            "type": "string",
+            "example": "D-501"
+          }
+        },
+        "required": [
+          "type_code",
+          "form_data",
+          "receiver_user_id"
+        ]
+      },
+      "ExternalActionDto": {
+        "type": "object",
+        "properties": {
+          "receiver_form_data": {
+            "type": "object"
+          },
+          "form_data": {
+            "type": "object"
+          },
+          "assignee_user_id": {
+            "type": "string"
+          },
+          "reason_code": {
+            "type": "string",
+            "example": "INFO_INCOMPLETE"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 2000
+          }
+        }
+      },
+      "CreateBiDashboardDto": {
+        "type": "object",
+        "properties": {
+          "company_id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string",
+            "example": "ภาพรวมคำขอ"
+          },
+          "metabase_dashboard_id": {
+            "type": "number",
+            "example": 12
+          },
+          "sort_order": {
+            "type": "number",
+            "default": 0
+          },
+          "org_unit_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "title",
+          "metabase_dashboard_id"
+        ]
+      },
+      "UpdateBiDashboardDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "metabase_dashboard_id": {
+            "type": "number"
+          },
+          "sort_order": {
+            "type": "number"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "org_unit_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
             }
           }
         }

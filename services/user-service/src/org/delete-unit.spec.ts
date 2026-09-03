@@ -59,6 +59,8 @@ function serviceWith(options: {
       findAllForClosure: jest.fn(() => Promise.resolve([])),
     } as never,
     { rebuildForCompany: jest.fn(() => Promise.resolve()) } as never,
+    // OrgUnitScopeRepository — `deleteUnit` never reaches it.
+    {} as never,
     {} as never,
     {} as never,
     {} as never,

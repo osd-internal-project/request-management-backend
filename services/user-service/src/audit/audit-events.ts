@@ -21,11 +21,15 @@ export const AuditEvent = {
   ROLE_REVOKED: 'role.revoked',
   KEYCLOAK_MAPPING_UPDATED: 'role.keycloak_mapping.updated',
   KEYCLOAK_ROLES_SYNCED: 'role.keycloak_mapping.synced',
+  /** A realm role was renamed and this system followed it. */
+  KEYCLOAK_ROLE_RENAMED: 'role.keycloak_mapping.renamed',
 
   // AUTH-04 / D-08
   ORG_UNIT_CREATED: 'org.unit.created',
   ORG_UNIT_UPDATED: 'org.unit.updated',
   ORG_UNIT_DELETED: 'org.unit.deleted',
+  /** Which groups this group may see — SCOPE-01's replacement. */
+  ORG_UNIT_SCOPES_REPLACED: 'org.unit.scopes.replaced',
   ORG_USER_ASSIGNED: 'org.user.assigned',
 
   // SCOPE-01 / SCOPE-04 / SCOPE-05

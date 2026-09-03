@@ -86,6 +86,22 @@ export class OrgUnitRepository extends BaseRepository<
    * (SCOPE-03).
    */
   /**
+   * A group and everything beneath it, from the closure table.
+   *
+   * The mirror of {@link ancestorIdsOf}, and used for the opposite question:
+   * "who could receive this?" — a type names a receiving ฝ่าย, and the people
+   * who can actually take the work sit in แผนก and ตำแหน่ง under it.
+   */
+  async descendantIdsOf(orgUnitId: string): Promise<string[]> {
+    const rows = await this.prisma.orgClosure.findMany({
+      where: { ancestorId: orgUnitId },
+      select: { descendantId: true },
+    });
+
+    return rows.map((row) => row.descendantId);
+  }
+
+  /**
    * Which of these ids are assignable groups of this company.
    *
    * The plural of {@link findAssignable}, for validating a whole approval

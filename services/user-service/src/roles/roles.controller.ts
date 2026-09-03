@@ -19,6 +19,7 @@ import {
 } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import { RolesService } from './roles.service';
+import { KeycloakAdminService } from '../keycloak-admin/keycloak-admin.service';
 import {
   CreateRoleDto,
   GrantRoleDto,
@@ -31,7 +32,14 @@ import {
 @ApiBearerAuth()
 @Controller('admin')
 export class RolesController {
-  constructor(private readonly rolesService: RolesService) {}
+  constructor(
+    private readonly rolesService: RolesService,
+    /*
+      Read-only use: `listRealmRoles`. The transport stays in the one class
+      that owns a Keycloak admin token, and nothing here calls a write.
+    */
+    private readonly keycloakAdmin: KeycloakAdminService,
+  ) {}
 
   /** Read-only: the catalog is declared in code, not editable here. */
   @Get('permissions')
@@ -140,5 +148,31 @@ export class RolesController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.rolesService.replaceMappings(dto, principal);
+  }
+
+  /**
+   * Re-reads the realm and corrects any mapping whose role has been renamed.
+   *
+   * One way. This reads `GET /roles` from the realm and writes only here —
+   * `admin.role.manage` administers this system's roles and must never become
+   * a way to administer Keycloak (`AGENTS.md`).
+   *
+   * Manual rather than on every sign-in: it would be one admin-API call per
+   * login to catch something that happens a handful of times a year, and a
+   * realm that is unreachable would turn into a login nobody can complete.
+   */
+  @Post('keycloak-role-mappings/sync-names')
+  @Permissions('admin.role.manage')
+  async syncMappingNames(
+    @CurrentPrincipal() principal: Principal,
+    @Query('company_id') companyId?: string,
+  ) {
+    const realmRoles = await this.keycloakAdmin.listRealmRoles();
+
+    return this.rolesService.syncNamesFromKeycloak(
+      resolveTargetCompany(principal, companyId),
+      realmRoles,
+      principal.userId,
+    );
   }
 }

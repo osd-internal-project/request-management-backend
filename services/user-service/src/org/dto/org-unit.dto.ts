@@ -1,4 +1,5 @@
 import { OrgUnitKind } from '@prisma/client';
+import { Type } from 'class-transformer';
 import {
   IsArray,
   IsBoolean,
@@ -6,6 +7,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  ValidateNested,
 } from 'class-validator';
 
 export class CreateOrgUnitDto {
@@ -76,4 +78,42 @@ export class AssignUserOrgDto {
   @IsOptional()
   @IsString()
   primary_company_id?: string;
+}
+
+/** One group whose work the viewer may see. */
+export class OrgUnitScopeEntryDto {
+  @IsString()
+  @IsNotEmpty()
+  target_org_unit_id: string;
+
+  /** Defaults to true — naming a ฝ่าย almost always means its แผนก too. */
+  @IsOptional()
+  @IsBoolean()
+  include_descendants?: boolean;
+
+  /**
+   * Whether the viewer may also move those requests.
+   *
+   * Defaults to false. `assertMayAct` in core-service is the only thing
+   * standing between a person and somebody else's ticket, so widening it is a
+   * deliberate tick rather than a side effect of granting a view.
+   */
+  @IsOptional()
+  @IsBoolean()
+  can_act?: boolean;
+}
+
+/**
+ * Replaces the whole set of grants held by one group.
+ *
+ * Replace rather than add/remove per row, for the same reason
+ * `replaceScopeRules` does it: the screen edits a list and saves it, and two
+ * endpoints that each apply half of an edit are how a grant survives being
+ * deleted.
+ */
+export class ReplaceOrgUnitScopesDto {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => OrgUnitScopeEntryDto)
+  scopes: OrgUnitScopeEntryDto[];
 }

@@ -57,6 +57,11 @@ export class PolicyController {
  *
  * It forwards the caller's own bearer token, so the answer is always about
  * that caller — this endpoint cannot be used to look up someone else.
+ *
+ * Looking up someone else is `/internal/principal/resolve-by-email`, which the
+ * external API needs and which is fenced accordingly. Keep the two apart: the
+ * guarantee above is the reason this one can stay open to every authenticated
+ * caller.
  */
 @ApiTags('internal')
 @ApiBearerAuth()

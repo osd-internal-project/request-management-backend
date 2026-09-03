@@ -17,7 +17,12 @@ import type { Principal } from '@request-management/share';
 import { Prisma } from '@prisma/client';
 import type { RequestStatus } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
-import { assertTransition, OPEN_STATUSES } from './request-state-machine';
+import {
+  assertTransition,
+  CARRIER_QUEUE_STATUSES,
+  OPEN_STATUSES,
+} from './request-state-machine';
+import { hasAuthority, type Authority } from './available-actions';
 import { AttachmentRepository } from './attachment.repository';
 import {
   assertKnownDocCode,
@@ -886,7 +891,7 @@ export class RequestsService {
     const before = await this.require(id, actor);
 
     // Handing work on is the prerogative of whoever is holding it.
-    this.assertMayAct(before, actor, { carrier: true }, 'มอบหมายงาน');
+    this.assertMayAct(before, actor, 'carrier', 'มอบหมายงาน');
 
     if (!OPEN_STATUSES.includes(before.status)) {
       throw new AppError('REQ_STATE_INVALID', 'มอบหมายงานที่ปิดไปแล้วไม่ได้', [
@@ -1033,7 +1038,7 @@ export class RequestsService {
 
     // The work is finished by whoever did it. An approver signs it off later;
     // a bystander does neither.
-    this.assertMayAct(before, actor, { carrier: true }, 'แจ้งงานเสร็จ');
+    this.assertMayAct(before, actor, 'carrier', 'แจ้งงานเสร็จ');
 
     assertTransition(before.status, 'completed');
 
@@ -1445,6 +1450,19 @@ export class RequestsService {
   async returnToRequester(id: string, dto: ReturnRequestDto, actor: Principal) {
     const before = await this.require(id, actor);
 
+    /*
+      Added 3 ก.ย. 2569, and it is a **narrowing**: until now this endpoint
+      checked only `request.return` and that the request was in the caller's
+      company, so any holder of that permission could send back anybody's
+      ticket. Every neighbouring verb — receive, hold, complete, cancel — has
+      always asked who you are to this request; this one was missed.
+
+      Found while giving the external API a list of actions it may offer: the
+      list is built from these same rules, and advertising `return` to every
+      permission holder would have spread the hole to the chatbot.
+    */
+    this.assertMayAct(before, actor, 'carrier_or_lead', 'ตีกลับคำขอ');
+
     assertKnownReturnReason(
       snapshotOf(before).returnReasonCodes ??
         before.requestType.returnReasonCodes,
@@ -1508,12 +1526,7 @@ export class RequestsService {
       request is one that will never be done, and that is not a bystander's
       call to make.
     */
-    this.assertMayAct(
-      before,
-      actor,
-      { requester: true, lead: true },
-      'ยกเลิกคำขอ',
-    );
+    this.assertMayAct(before, actor, 'requester_or_lead', 'ยกเลิกคำขอ');
 
     // The requester, or anyone senior enough to see it — scope already
     // answered that by letting them load it.
@@ -1582,7 +1595,7 @@ export class RequestsService {
   async hold(id: string, dto: HoldRequestDto, actor: Principal) {
     const before = await this.require(id, actor);
 
-    this.assertMayAct(before, actor, { carrier: true }, 'พักงาน');
+    this.assertMayAct(before, actor, 'carrier', 'พักงาน');
 
     assertTransition(before.status, 'on_hold');
 
@@ -1626,7 +1639,7 @@ export class RequestsService {
   async resume(id: string, dto: ResumeRequestDto, actor: Principal) {
     const before = await this.require(id, actor);
 
-    this.assertMayAct(before, actor, { carrier: true }, 'กลับมาดำเนินการ');
+    this.assertMayAct(before, actor, 'carrier', 'กลับมาดำเนินการ');
 
     // `submitted → in_progress` is also a legal transition, so the state
     // machine alone would let /resume double as a start button. It only
@@ -1678,7 +1691,16 @@ export class RequestsService {
 
   async list(actor: Principal, query: ListRequestsQueryDto) {
     const { skip, take } = toSkipTake(query);
-    const where = this.scopedWhere(actor, query);
+    /*
+      One delegation lookup per list, rather than none.
+
+      The "อนุมัติ" tab counted only steps naming the caller directly, so a
+      person covering for an approver read `0` on a queue they were working
+      from `/approvals`. Delegations are resolved now, not at submit (APV-03),
+      so the answer cannot come off the cached principal.
+    */
+    const covering = await this.approvals.coveringFor(actor);
+    const where = this.scopedWhere(actor, query, covering);
 
     const [rows, total] = await Promise.all([
       this.requests.search(where, { skip, take }),
@@ -1769,6 +1791,8 @@ export class RequestsService {
     // Partial because `visibleTo` reuses this with no filters at all — the
     // visibility half is what it needs, not the search box.
     query: Partial<ListRequestsQueryDto>,
+    /** Delegators this caller covers for, from `approvals.coveringFor`. */
+    covering: readonly string[] = [],
   ): Prisma.RequestWhereInput {
     /*
       One filter layer for every list, single read and count (SCOPE-02). The
@@ -1781,7 +1805,7 @@ export class RequestsService {
       approve; those are part of the base rule now, so the views below only
       narrow.
     */
-    const subject = accessSubject(actor);
+    const subject = accessSubject(actor, covering);
 
     const scoped = visibleRequestsWhere(subject) as Prisma.RequestWhereInput;
 
@@ -1804,9 +1828,14 @@ export class RequestsService {
     }
 
     /*
-      `incoming` means "waiting for me to do something with it", so it stops at
-      the point the ticket is no longer mine to move. Everything I have ever
-      received would be a history, not a queue.
+      `incoming` means "still mine to finish", so it stops when the request
+      closes — not when it moves on to a stage somebody else acts in.
+      Everything I have ever received would be a history, not a queue.
+
+      The old list stopped at `submitted | in_progress | on_hold`, which took
+      a ticket off its carrier's queue the moment they sent the result for
+      approval (`pending_approval`) or the requester sent it back
+      (`returned`) — the two states where it most plainly is still their work.
     */
     if (query.view === 'incoming') {
       narrowing.push({
@@ -1814,7 +1843,7 @@ export class RequestsService {
           { receiverUserId: actor.userId },
           { assigneeUserId: actor.userId },
         ],
-        status: { in: ['submitted', 'in_progress', 'on_hold'] },
+        status: { in: [...CARRIER_QUEUE_STATUSES] },
       });
     }
 
@@ -1861,8 +1890,10 @@ export class RequestsService {
       levels; it is a branch of the base rule now, so a second query would
       only be a second chance to disagree with the first.
     */
+    const covering = await this.approvals.coveringFor(actor);
+
     const match = await this.requests.countWhere({
-      AND: [this.scopedWhere(actor, {}), { id: found.id }],
+      AND: [this.scopedWhere(actor, {}, covering), { id: found.id }],
     });
 
     if (match > 0) return true;
@@ -1889,34 +1920,24 @@ export class RequestsService {
   private assertMayAct(
     request: RequestWithType,
     actor: Principal,
-    allow: {
-      /** Whoever is carrying the work — the receiver, or the assignee. */
-      readonly carrier?: boolean;
-      /** The person who raised it. */
-      readonly requester?: boolean;
-      /**
-       * A head of the group the request sits in, or of any group above it.
-       *
-       * `ledUnitIds` is the subtree the principal leads, resolved when the
-       * principal was built — so this costs nothing here.
-       */
-      readonly lead?: boolean;
-    },
+    /**
+     * Which of the flow's roles may do this.
+     *
+     * The vocabulary and the test both live in `available-actions.ts`, which
+     * the external API's "what can I do with this?" endpoint also reads. Two
+     * implementations would mean a list of choices that the handler behind
+     * them can refuse — and by then the caller has already told somebody it
+     * would work.
+     *
+     * `carrier_or_lead` / `requester_or_lead` reach group heads and, since
+     * 2 ก.ย. 2569, anybody whose group holds a scope grant ticked
+     * `ทำงานต่อได้` — `scopedActUnitIds`, never `scopedUnitIds`: a grant that
+     * only lets a group read another group's work must not let them move it.
+     */
+    authority: Authority,
     action: string,
   ): void {
-    const carrying =
-      request.assigneeUserId === actor.userId ||
-      request.receiverUserId === actor.userId;
-
-    const led =
-      (request.requesterOrgUnitId !== null &&
-        actor.ledUnitIds.includes(request.requesterOrgUnitId)) ||
-      (request.receiverOrgUnitId !== null &&
-        actor.ledUnitIds.includes(request.receiverOrgUnitId));
-
-    if (allow.carrier && carrying) return;
-    if (allow.requester && request.requesterId === actor.userId) return;
-    if (allow.lead && led) return;
+    if (hasAuthority(authority, request, actor)) return;
 
     throw new AppError(
       'FORBIDDEN',

@@ -33,6 +33,52 @@ describe('REQ-02 document number format', () => {
   it('leaves an unknown placeholder alone rather than emitting undefined', () => {
     expect(format('{PREFIX}-{NOPE}', parts)).toBe('OSD-{NOPE}');
   });
+
+  /**
+   * The format in force since 3 ก.ย. 2569, named by the chatbot use case.
+   *
+   * The company prefix is kept in the middle: `requestNo` is unique across the
+   * database while the counter resets per company, so dropping it would have
+   * two companies issue the same number and the second submit fail.
+   */
+  describe('REQ-{PREFIX}-{TYPE}-{YYMM}{SEQ}', () => {
+    const presales = {
+      prefix: 'OSD',
+      typeCode: 'PS01',
+      yearMonth: 202609,
+      seq: 1,
+      padding: 4,
+    };
+
+    it('builds the number the use case asks for', () => {
+      expect(format('REQ-{PREFIX}-{TYPE}-{YYMM}{SEQ}', presales)).toBe(
+        'REQ-OSD-PS01-26090001',
+      );
+    });
+
+    it('keeps two companies apart in the same month', () => {
+      const other = { ...presales, prefix: 'BCO' };
+
+      expect(format('REQ-{PREFIX}-{TYPE}-{YYMM}{SEQ}', other)).not.toBe(
+        format('REQ-{PREFIX}-{TYPE}-{YYMM}{SEQ}', presales),
+      );
+    });
+
+    /*
+      `{YYMM}` is a prefix of what `{YYYYMM}` expands to, so substituting it
+      first would turn a full-year pattern into `{YY202609}`. Longest token
+      first — this is the test that says so.
+    */
+    it('does not eat half of a pattern still using the full year', () => {
+      expect(format('{PREFIX}-{TYPE}-{YYYYMM}-{SEQ}', parts)).toBe(
+        'OSD-DSC-202608-0042',
+      );
+    });
+
+    it('takes the last two digits of the year, not the first', () => {
+      expect(format('{YYMM}', { ...parts, yearMonth: 203012 })).toBe('3012');
+    });
+  });
 });
 
 describe('REQ-02 year-month key', () => {

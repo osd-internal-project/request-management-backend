@@ -56,12 +56,68 @@ export class RemotePrincipalService {
     return principal;
   }
 
-  private async fetchPrincipal(
+  /**
+   * The principal of somebody named by **email**, for the external API.
+   *
+   * The chatbot holds one service-account credential and says who it is acting
+   * for; from here on the request is that person's, so every rule downstream —
+   * row visibility, `assertMayAct`, the SLA clock, the name on the timeline —
+   * applies to them rather than to the robot.
+   *
+   * Cached on the same short TTL as `resolve`, keyed on the email and company
+   * rather than the token: a chatbot conversation is a burst of calls for one
+   * person, and each would otherwise pay the hop.
+   */
+  async resolveActingUser(
+    authorization: string,
+    email: string,
+    companyId?: string,
+  ): Promise<Principal> {
+    const key = createHash('sha256')
+      .update(`acting|${email}|${companyId ?? ''}`)
+      .digest('hex');
+
+    const cached = this.cache.get(key);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.principal;
+    }
+
+    const query = new URLSearchParams({ email });
+    if (companyId) query.set('company_id', companyId);
+
+    const principal = await this.get(
+      `internal/principal/resolve-by-email?${query.toString()}`,
+      authorization,
+    );
+
+    this.cache.set(key, { principal, expiresAt: Date.now() + CACHE_TTL_MS });
+    this.evictExpired();
+
+    return principal;
+  }
+
+  private fetchPrincipal(
+    authorization: string,
+    companyId?: string,
+  ): Promise<Principal> {
+    return this.get('internal/policy/resolve', authorization, companyId);
+  }
+
+  /**
+   * One GET against user-service, with the whole error vocabulary in one
+   * place.
+   *
+   * Both resolves come through here. They used to be one method and one
+   * caller; a second caller with its own copy of the status handling would be
+   * a second chance to turn a `404` into "ไม่สามารถตรวจสอบสิทธิ์ได้".
+   */
+  private async get(
+    path: string,
     authorization: string,
     companyId?: string,
   ): Promise<Principal> {
     const baseUrl = this.config.get<string>('userServiceUrl')!;
-    const url = `${baseUrl}/internal/policy/resolve`;
+    const url = `${baseUrl}/${path}`;
 
     let response: Response;
     try {
@@ -100,8 +156,20 @@ export class RemotePrincipalService {
       );
     }
 
+    /*
+      Passed through as a 404 rather than folded into UNKNOWN. This is the
+      answer for an acting-user email nobody in the system holds, and the
+      caller can only fix it if it is told which of the two problems it has.
+    */
+    if (response.status === 404) {
+      throw new AppError(
+        'NOT_FOUND',
+        'ไม่พบผู้ใช้ที่ระบุ หรือผู้ใช้ยังไม่เคยเข้าสู่ระบบ',
+      );
+    }
+
     if (!response.ok) {
-      this.logger.error(`user-service resolve returned ${response.status}`);
+      this.logger.error(`user-service ${path} returned ${response.status}`);
       throw new AppError('UNKNOWN', 'ไม่สามารถตรวจสอบสิทธิ์ได้ในขณะนี้');
     }
 

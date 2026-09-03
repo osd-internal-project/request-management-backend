@@ -34,6 +34,21 @@ import {
   UpdateRoleDto,
 } from './dto/role.dto';
 
+/** What one run of {@link RolesService.syncNamesFromKeycloak} changed. */
+export interface KeycloakNameSyncReport {
+  /** Rows that had no `keycloakRoleId` and now carry one. */
+  readonly linked: string[];
+  /** Realm roles that had been renamed; the mapping now follows. */
+  readonly renamed: { from: string; to: string }[];
+  /**
+   * Mappings whose realm role is not in the realm any more.
+   *
+   * Reported rather than removed — see the method's own comment for why.
+   */
+  readonly missing: string[];
+  readonly checked: number;
+}
+
 @Injectable()
 export class RolesService implements OnModuleInit {
   private readonly logger = new Logger(RolesService.name);
@@ -356,6 +371,109 @@ export class RolesService implements OnModuleInit {
 
       return after;
     });
+  }
+
+  /**
+   * Brings the mapping table back in line with the realm — names only.
+   *
+   * **One way, Keycloak → here.** Nothing in this method writes to Keycloak,
+   * which is what keeps `admin.role.manage` from becoming a route to
+   * administering the realm. The names are the realm's to decide; the
+   * permissions behind each role stay this system's.
+   *
+   * The failure it exists to prevent: `keycloakRole` holds a *name*, and a name
+   * is the one thing about a realm role that changes. When somebody renamed one
+   * the next token carried the new name, no mapping matched it, and
+   * `syncFromKeycloakRoles` removed that role from every holder — silently, and
+   * with this table still displaying the old name as though nothing had
+   * happened. `keycloakRoleId` survives a rename, so it is what lets the name be
+   * corrected instead.
+   *
+   * Takes the realm roles as an argument rather than fetching them: the rule is
+   * then testable without Keycloak, and the transport stays in the one class
+   * that owns it (`KeycloakAdminService`).
+   *
+   * A mapping whose realm role has **disappeared** is reported, never deleted.
+   * A role missing from a list could equally mean the realm is half-configured
+   * or the admin API answered oddly, and quietly dropping mappings on that
+   * evidence is how everyone loses their permissions at once — the very thing
+   * this method was written to stop.
+   */
+  async syncNamesFromKeycloak(
+    companyId: string,
+    realmRoles: readonly { id: string; name: string; description?: string }[],
+    actorId: string,
+  ): Promise<KeycloakNameSyncReport> {
+    const byId = new Map(realmRoles.map((role) => [role.id, role]));
+    const byName = new Map(realmRoles.map((role) => [role.name, role]));
+
+    const mappings = await this.mappings.findForCompany(companyId);
+
+    const linked: string[] = [];
+    const renamed: KeycloakNameSyncReport['renamed'] = [];
+    const missing: string[] = [];
+
+    for (const mapping of mappings) {
+      // First run: the row predates `keycloakRoleId`. Match it by the name it
+      // still holds, which is correct precisely while nothing has been renamed.
+      if (!mapping.keycloakRoleId) {
+        const found = byName.get(mapping.keycloakRole);
+
+        if (!found) {
+          missing.push(mapping.keycloakRole);
+          continue;
+        }
+
+        await this.mappings.update({
+          where: { id: mapping.id },
+          data: { keycloakRoleId: found.id },
+        });
+        linked.push(mapping.keycloakRole);
+        continue;
+      }
+
+      const realm = byId.get(mapping.keycloakRoleId);
+
+      if (!realm) {
+        missing.push(mapping.keycloakRole);
+        continue;
+      }
+
+      if (realm.name === mapping.keycloakRole) continue;
+
+      await this.mappings.update({
+        where: { id: mapping.id },
+        data: { keycloakRole: realm.name },
+      });
+
+      renamed.push({ from: mapping.keycloakRole, to: realm.name });
+
+      /*
+        The realm's `description` is the only human label a realm role carries,
+        so it is what a display name can follow. `Role.code` is untouched in
+        every branch: `assertSeparationOfDuties`, the seed and the `cfo`/`ceo`
+        lookups all key off it, and letting a realm administrator change it
+        would hand them a way around §5.4 from outside this system.
+      */
+      if (realm.description) {
+        await this.roles.update({
+          where: { id: mapping.roleId },
+          data: { name: realm.description },
+        });
+      }
+
+      await this.audit.record({
+        eventType: AuditEvent.KEYCLOAK_ROLE_RENAMED,
+        companyId,
+        actorId,
+        resourceType: 'keycloak_role_mapping',
+        resourceId: mapping.id,
+        before: { keycloakRole: mapping.keycloakRole },
+        after: { keycloakRole: realm.name, roleId: mapping.roleId },
+      });
+    }
+
+    return { linked, renamed, missing, checked: mappings.length };
   }
 
   /**

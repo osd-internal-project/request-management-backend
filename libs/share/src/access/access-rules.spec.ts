@@ -1,6 +1,8 @@
 import {
   AccessSubject,
   awaitingDecisionWhere,
+  decidableStepWhere,
+  reachableUnitIds,
   involvedRequestsWhere,
   ledRequestsWhere,
   visibleRequestsWhere,
@@ -15,6 +17,9 @@ function subject(overrides: Partial<AccessSubject> = {}): AccessSubject {
     userId: ME,
     activeCompanyId: OSD,
     ledUnitIds: [],
+    scopedUnitIds: [],
+    scopedActUnitIds: [],
+    coveringUserIds: [],
     readsWholeCompany: false,
     ...overrides,
   };
@@ -61,7 +66,7 @@ describe('visibility follows involvement', () => {
       { assigneeUserId: ME },
       {
         approvalCases: {
-          some: { steps: { some: { candidateUserIds: { has: ME } } } },
+          some: { steps: { some: decidableStepWhere(subject()) } },
         },
       },
     ]);
@@ -78,7 +83,7 @@ describe('visibility follows involvement', () => {
 
     expect(branches(where)).toContainEqual({
       approvalCases: {
-        some: { steps: { some: { candidateUserIds: { has: ME } } } },
+        some: { steps: { some: decidableStepWhere(subject()) } },
       },
     });
   });
@@ -166,18 +171,133 @@ describe('the tabs of งานค้างของฉัน narrow, they do no
         some: {
           status: 'pending',
           steps: {
-            some: { status: 'pending', candidateUserIds: { has: ME } },
+            some: { status: 'pending', ...decidableStepWhere(subject()) },
           },
         },
       },
     });
   });
 
-  /** A level naming several people has to reach all of their inboxes. */
-  it('matches on the candidate list, not just the first name', () => {
-    const clause = JSON.stringify(involvedRequestsWhere(subject()));
+  /**
+   * A level naming several people has to reach all of their inboxes, so the
+   * list is what is matched.
+   *
+   * `approverUserId` is read too, but only where the list is empty — the
+   * steps routed before the column existed. Guarding it that way is what
+   * stops somebody *removed* from a candidate list keeping the step by
+   * virtue of having been its first name.
+   */
+  it('matches the whole candidate list, and the named approver only without one', () => {
+    const [byList, byName] = branches(decidableStepWhere(subject()));
 
-    expect(clause).toContain('candidateUserIds');
-    expect(clause).not.toContain('approverUserId');
+    expect(byList).toEqual({ candidateUserIds: { hasSome: [ME] } });
+    expect(byName).toEqual({
+      candidateUserIds: { isEmpty: true },
+      approverUserId: { in: [ME] },
+    });
+  });
+});
+
+/**
+ * APV-03. The tab, the approvals inbox and the check that runs when the button
+ * is pressed have to agree, and they did not: the tab asked only for
+ * `candidateUserIds has me`, so somebody covering for an approver was shown a
+ * count of `0` on a queue they were working from the other screen.
+ */
+describe('a delegate is counted wherever the named approver is', () => {
+  const BOSS = 'user-boss';
+  const covering = subject({ coveringUserIds: [BOSS] });
+
+  it('reaches steps naming the person being covered for', () => {
+    const [byList, byName] = branches(decidableStepWhere(covering));
+
+    expect(byList).toEqual({ candidateUserIds: { hasSome: [ME, BOSS] } });
+    expect(byName).toEqual({
+      candidateUserIds: { isEmpty: true },
+      approverUserId: { in: [ME, BOSS] },
+    });
+  });
+
+  it('puts the delegate on the อนุมัติ tab, not only in the inbox', () => {
+    const where = awaitingDecisionWhere(covering);
+
+    expect(JSON.stringify(where)).toContain(BOSS);
+  });
+
+  it('lets the delegate open the request they are being asked to decide', () => {
+    expect(JSON.stringify(visibleRequestsWhere(covering))).toContain(BOSS);
+  });
+});
+
+/**
+ * The replacement for the withdrawn `(role, resource) → level` rules: an
+ * administrator picks a level (บริษัท / ฝ่าย / แผนก / ตำแหน่ง), picks a group at
+ * it, and names the groups whose work that group may see.
+ */
+describe('visibility follows a scope grant between groups', () => {
+  const granted = ['unit-marketing', 'unit-marketing-digital'];
+  const viewer = subject({ scopedUnitIds: granted });
+
+  it('adds the granted groups to what a person can open', () => {
+    const where = visibleRequestsWhere(viewer);
+
+    expect(branches(where)).toContainEqual({
+      requesterOrgUnitId: { in: granted },
+    });
+    expect(branches(where)).toContainEqual({
+      receiverOrgUnitId: { in: granted },
+    });
+  });
+
+  /*
+    Work reachable only through a grant has no other screen that lists it.
+    Rows that exist but appear nowhere are rows nobody acts on, which is the
+    same as not having granted anything.
+  */
+  it('puts the granted work on the งานทั้งหมด screen', () => {
+    expect(ledRequestsWhere(viewer)).toEqual({
+      companyId: OSD,
+      OR: [
+        { requesterOrgUnitId: { in: granted } },
+        { receiverOrgUnitId: { in: granted } },
+      ],
+    });
+  });
+
+  it('de-duplicates a group that is both led and granted', () => {
+    const overlap = subject({
+      ledUnitIds: ['unit-a', 'unit-b'],
+      scopedUnitIds: ['unit-b', 'unit-c'],
+    });
+
+    expect(reachableUnitIds(overlap)).toEqual(['unit-a', 'unit-b', 'unit-c']);
+  });
+
+  it('reaches nothing for somebody with neither', () => {
+    expect(reachableUnitIds(subject())).toEqual([]);
+    expect(ledRequestsWhere(subject())).toEqual({
+      companyId: OSD,
+      id: { in: [] },
+    });
+  });
+
+  /*
+    SCOPE-03. A grant is written between two groups of one company and the
+    company is pinned regardless — there is no level left that crosses one.
+  */
+  it('still pins the company', () => {
+    expect(visibleRequestsWhere(viewer).companyId).toBe(OSD);
+  });
+
+  /**
+   * The read list and the act list are separate on purpose, and nothing in
+   * this file may quietly merge them: `assertMayAct` in core-service reads
+   * `scopedActUnitIds`, and a grant defaults to read-only.
+   */
+  it('does not let a read-only grant widen what may be acted on', () => {
+    const readOnly = subject({ scopedUnitIds: granted, scopedActUnitIds: [] });
+
+    expect(reachableUnitIds(readOnly)).toEqual(granted);
+    expect(readOnly.scopedActUnitIds).toEqual([]);
   });
 });

@@ -29,6 +29,37 @@ export class CompanyMemberRepository extends BaseRepository<
   }
 
   /**
+   * The people sitting in any of these groups, for a caller with no directory.
+   *
+   * The external API's receiver picker: a chatbot cannot render a searchable
+   * list of four hundred names, so it is handed the members of the receiving
+   * team's subtree and nothing else.
+   *
+   * Company-pinned as well as unit-pinned (SCOPE-03) — a unit id is not proof
+   * of company, and the caller supplies it.
+   */
+  async findInUnits(
+    orgUnitIds: readonly string[],
+    companyId: string,
+    option?: TxOption,
+  ): Promise<{ id: string; displayName: string; email: string | null }[]> {
+    if (!orgUnitIds.length) return [];
+
+    return await this.findMany(
+      {
+        where: {
+          orgUnitId: { in: [...orgUnitIds] },
+          status: 'ACTIVE',
+          companies: { some: { companyId } },
+        },
+        select: { id: true, displayName: true, email: true },
+        orderBy: { displayName: 'asc' },
+      },
+      option,
+    );
+  }
+
+  /**
    * Which of these ids are members of this company.
    *
    * Returns only the ids that pass, so the caller can name the ones that did

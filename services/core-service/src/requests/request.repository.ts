@@ -115,6 +115,28 @@ export class RequestRepository extends BaseRepository<
   }
 
   /** REQ-07: the request plus everything §16 หน้าที่ 4 draws. */
+  /**
+   * The id behind a document number, within one company.
+   *
+   * The external API takes either: a chatbot is handed
+   * `REQ-OSD-PS01-26090001` by a person reading it off an email, never a uuid.
+   * Pinned to the company because `requestNo` is unique across the database
+   * and a number from another company must read as "not found", not as a
+   * request the caller then fails to open (SCOPE-03).
+   */
+  async findIdByNumber(
+    requestNo: string,
+    companyId: string,
+    option?: TxOption,
+  ): Promise<string | null> {
+    const row = (await this.findFirst(
+      { where: { requestNo, companyId }, select: { id: true } },
+      option,
+    )) as { id: string } | null;
+
+    return row?.id ?? null;
+  }
+
   findDetail(id: string, option?: TxOption): Promise<RequestDetail | null> {
     const client = option?.prisma ?? this.prisma;
 

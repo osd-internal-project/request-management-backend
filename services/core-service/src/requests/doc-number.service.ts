@@ -11,14 +11,29 @@ interface NumberParts {
   padding: number;
 }
 
-const DEFAULT_PATTERN = '{PREFIX}-{TYPE}-{YYYYMM}-{SEQ}';
+/**
+ * `REQ-OSD-PS01-26090001` (3 ก.ย. 2569).
+ *
+ * Was `{PREFIX}-{TYPE}-{YYYYMM}-{SEQ}` — `OSD-DSC-202608-0042` — until the
+ * chatbot use case named the format it expects. The company prefix stays in
+ * the middle rather than being dropped for it: `Request.requestNo` is unique
+ * across the whole database while the counter resets per **company** per type
+ * per month, so a number without the company in it would have OSD and BCO
+ * both issuing `REQ-PS01-26090001` and the second submit failing on the unique
+ * index.
+ */
+const DEFAULT_PATTERN = 'REQ-{PREFIX}-{TYPE}-{YYMM}{SEQ}';
 const DEFAULT_PADDING = 4;
 
 /**
  * REQ-02 / D-02 / D-19 — issues the document number at submit.
  *
- * `OSD-DSC-202608-0042`: company prefix, type code, CE year+month, and a
- * sequence that **resets every month**, per company per type.
+ * `REQ-OSD-PS01-26090001`: company prefix, type code, two-digit CE year and
+ * month, and a sequence that **resets every month**, per company per type.
+ *
+ * Numbers already issued are never rewritten — a number is handed out once, at
+ * submit, and kept across a return and resubmit. Rows carrying the older
+ * `OSD-DSC-202608-0042` form stay exactly as they are.
  *
  * The whole point of this class is the guarantee that two requests never get
  * the same number (NFR-03). A duplicate number is not a cosmetic bug — it is
@@ -104,9 +119,20 @@ export function toYearMonth(at: Date): number {
 
 /** Fills a configured pattern. Unknown placeholders are left untouched. */
 export function format(pattern: string, parts: NumberParts): string {
-  return pattern
-    .replace('{PREFIX}', parts.prefix)
-    .replace('{TYPE}', parts.typeCode)
-    .replace('{YYYYMM}', String(parts.yearMonth))
-    .replace('{SEQ}', String(parts.seq).padStart(parts.padding, '0'));
+  return (
+    pattern
+      .replace('{PREFIX}', parts.prefix)
+      .replace('{TYPE}', parts.typeCode)
+      /*
+        `{YYYYMM}` first, and it matters.
+
+        `{YYMM}` is a prefix of the longer token's contents, so replacing it
+        first turns `{YYYYMM}` into `{YY2609}` — a pattern still using the full
+        year would silently start producing rubbish. Longest token first is the
+        rule; a third length would go above these two.
+      */
+      .replace('{YYYYMM}', String(parts.yearMonth))
+      .replace('{YYMM}', String(parts.yearMonth).slice(-4))
+      .replace('{SEQ}', String(parts.seq).padStart(parts.padding, '0'))
+  );
 }

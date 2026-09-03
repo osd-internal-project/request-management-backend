@@ -173,6 +173,30 @@ permissions" from "waiting for an admin".
 | `POST /integrations/requests` | `integration.request.create` | service accounts; `"source":"system"` (REQ-10) | ✅ |
 | `GET/POST /admin/request-types`, `PATCH /admin/request-types/{code}` | `admin.request-type.manage` | edits apply to new requests only | ✅ |
 
+### Group C2 — External API  (`core-service`, 3 ก.ย. 2569)
+
+For an outside system — a chatbot, an RPA job — to drive the whole flow, not
+just raise a request. Every route is `@ServiceAccountOnly` +
+`integration.request.create`, **and** carries `X-Acting-User: <email>`: the
+principal is swapped to that person before any handler runs, so visibility,
+`assertMayAct`, the SLA clock and the audit trail all apply to the human. The
+older `POST /integrations/requests` acts as the robot instead and is left
+untouched.
+
+**The full guide, with a worked `curl` walkthrough, is
+[`docs/EXTERNAL_API.md`](../../docs/EXTERNAL_API.md)** at the repository root.
+
+| Endpoint | Permission | Requirement | Status |
+|---|---|---|---|
+| `GET /external/request-types` | `integration.request.create` | types the acting user may raise; `?q=`, `?department=` | ✅ |
+| `GET /external/request-types/{code}/form` | `integration.request.create` | `form_schema`, `receiver_form_schema`, return reasons, receiver candidates | ✅ |
+| `POST /external/requests` | `integration.request.create` | creates **and submits**; `parent_request_id` spawns a child. Send `Idempotency-Key` | ✅ |
+| `GET /external/requests` | `integration.request.create` | `view=involved\|created\|incoming\|approver` | ✅ |
+| `GET /external/requests/{ref}` | `integration.request.create` | `{ref}` is a uuid **or** a document number | ✅ |
+| `GET /external/requests/{ref}/actions` | `integration.request.create` | what this person may do now, and the fields each needs — from the state machine, not a fixed list | ✅ |
+| `POST /external/requests/{ref}/actions/{action}` | `integration.request.create` | dispatches to the same service method the web app calls | ✅ |
+| `GET /external/requests/{ref}/tree` | `integration.request.create` | parent and descendants | ✅ |
+
 ---
 
 ## Group D — Approval Service  (`core-service`, S2)

@@ -13,6 +13,6 @@ import { CompanyMemberRepository } from './company-member.repository';
  */
 @Module({
   providers: [AccessService, OrgUnitRepository, CompanyMemberRepository],
-  exports: [AccessService, OrgUnitRepository],
+  exports: [AccessService, OrgUnitRepository, CompanyMemberRepository],
 })
 export class AccessModule {}

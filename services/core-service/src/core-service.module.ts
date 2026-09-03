@@ -17,6 +17,7 @@ import { BiModule } from './bi/bi.module';
 import { HealthModule } from './health/health.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PrincipalModule } from './principal/principal.module';
+import { ExternalModule } from './external/external.module';
 import { RemotePrincipalGuard } from './principal/remote-principal.guard';
 import { EventsModule } from './events/events.module';
 import { RequestsModule } from './requests/requests.module';
@@ -46,6 +47,7 @@ import configs from './configs';
     HealthModule,
     RequestsModule,
     ApprovalsModule,
+    ExternalModule,
     SlaModule,
     NotificationsModule,
     BiModule,

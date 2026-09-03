@@ -13,6 +13,7 @@ import { UsersRepository } from '../users/users.repository';
 import { CompanyRepository } from './company.repository';
 import { OrgClosureRepository } from './org-closure.repository';
 import { OrgUnitRepository } from './org-unit.repository';
+import { OrgUnitScopeRepository } from './org-unit-scope.repository';
 import {
   MembershipWithCompany,
   UserCompanyRepository,
@@ -20,6 +21,7 @@ import {
 import {
   AssignUserOrgDto,
   CreateOrgUnitDto,
+  ReplaceOrgUnitScopesDto,
   UpdateOrgUnitDto,
 } from './dto/org-unit.dto';
 
@@ -79,6 +81,7 @@ export class OrgService {
     private readonly companies: CompanyRepository,
     private readonly orgUnits: OrgUnitRepository,
     private readonly closure: OrgClosureRepository,
+    private readonly scopes: OrgUnitScopeRepository,
     private readonly memberships: UserCompanyRepository,
     private readonly users: UsersRepository,
     private readonly roles: RolesService,
@@ -487,6 +490,171 @@ export class OrgService {
     );
 
     return [...new Set(subtrees.flat())];
+  }
+
+  // --- which groups may see which (SCOPE-01's replacement) ----------------
+
+  /** The grants written on one group, as the admin screen lists them. */
+  async listScopes(id: string, companyId: string) {
+    await this.requireUnitInCompany(id, companyId);
+
+    return this.scopes.findForViewerWithUnits(id);
+  }
+
+  /**
+   * Replaces every grant held by one group.
+   *
+   * Replace rather than add and remove per row: the screen edits a list and
+   * saves it, and two endpoints each applying half of an edit is how a grant
+   * survives being deleted.
+   *
+   * Both ends are checked against the same company (SCOPE-03). A grant is the
+   * one place a request could cross a company boundary now that the `all`
+   * scope level is gone, so it is refused here rather than filtered later —
+   * the filter would have to know which rows to drop, and it does not.
+   */
+  async replaceScopes(
+    id: string,
+    dto: ReplaceOrgUnitScopesDto,
+    companyId: string,
+    actor: Principal,
+  ) {
+    const viewer = await this.requireUnitInCompany(id, companyId);
+
+    for (const entry of dto.scopes) {
+      if (entry.target_org_unit_id === id) {
+        throw new AppError(
+          'VALIDATION_FAILED',
+          'หน่วยงานเห็นงานของตัวเองอยู่แล้ว ไม่ต้องตั้งสิทธิ์ซ้ำ',
+          [{ field: 'target_org_unit_id', reason: id }],
+        );
+      }
+
+      await this.requireUnitInCompany(entry.target_org_unit_id, companyId);
+    }
+
+    return this.transactions.execute(async (prisma) => {
+      const option = { prisma };
+
+      const before = await this.scopes.findForViewers([id], companyId, option);
+
+      await prisma.orgUnitScope.deleteMany({ where: { viewerOrgUnitId: id } });
+
+      const written = await Promise.all(
+        dto.scopes.map((entry) =>
+          prisma.orgUnitScope.create({
+            data: {
+              companyId: viewer.companyId,
+              viewerOrgUnitId: id,
+              targetOrgUnitId: entry.target_org_unit_id,
+              includeDescendants: entry.include_descendants ?? true,
+              canAct: entry.can_act ?? false,
+              createdBy: actor.userId,
+              updatedBy: actor.userId,
+            },
+          }),
+        ),
+      );
+
+      await this.audit.record(
+        {
+          eventType: AuditEvent.ORG_UNIT_SCOPES_REPLACED,
+          companyId: viewer.companyId,
+          actorId: actor.userId,
+          actorUsername: actor.username,
+          resourceType: 'org_unit',
+          resourceId: id,
+          before: { scopes: before },
+          after: { scopes: written },
+        },
+        option,
+      );
+
+      return written;
+    });
+  }
+
+  /**
+   * The unit, proved to be in the caller's company.
+   *
+   * SCOPE-03: a unit in another company answers 404 rather than 403 — the
+   * spec does not want existence disclosed across the boundary.
+   */
+  private async requireUnitInCompany(id: string, companyId: string) {
+    const unit = await this.orgUnits.findById(id);
+
+    if (!unit || unit.companyId !== companyId) {
+      throw new AppError('NOT_FOUND', 'ไม่พบหน่วยงานที่ระบุ');
+    }
+
+    return unit;
+  }
+
+  /**
+   * The groups this person may see through a scope grant, and the subset they
+   * may also act in.
+   *
+   * The other way into somebody else's work, beside leading a group
+   * ({@link ledUnitIdsOf}). Deliberately built the same way: one query for the
+   * grants and one closure read per expanded target, never a walk down the
+   * tree per level.
+   *
+   * **A grant is inherited downwards.** It is matched against the person's own
+   * unit *and every unit above it*, which is what "เลือก level" means on the
+   * admin screen: a grant written on the company applies to everyone in it,
+   * one written on a ฝ่าย applies to its แผนก, and one written on a ตำแหน่ง
+   * applies to that position alone.
+   *
+   * Someone with no unit, or with no grant above them, gets two empty arrays
+   * — and every caller treats an empty set as "no extra rows" rather than "no
+   * filter". An empty set that reads as unrestricted is how a visibility bug
+   * becomes a disclosure.
+   */
+  async scopedUnitIdsOf(
+    userId: string,
+    companyId: string,
+  ): Promise<{ read: string[]; act: string[] }> {
+    const user = await this.users.findById(userId);
+
+    if (!user?.orgUnitId) return { read: [], act: [] };
+
+    const ancestors = await this.closure.ancestorsOf(user.orgUnitId);
+    const viewers = ancestors.map((row) => row.ancestorId);
+
+    const grants = await this.scopes.findForViewers(viewers, companyId);
+
+    if (!grants.length) return { read: [], act: [] };
+
+    /*
+      Expanded once per distinct target, not once per grant: two grants on the
+      same group — one inherited from the ฝ่าย, one written on the แผนก — are
+      the same subtree, and the closure read is the expensive half.
+    */
+    const subtrees = new Map<string, string[]>();
+
+    await Promise.all(
+      [...new Set(grants.map((grant) => grant.targetOrgUnitId))].map(
+        async (targetId) => {
+          subtrees.set(targetId, await this.closure.descendantIdsOf(targetId));
+        },
+      ),
+    );
+
+    const read = new Set<string>();
+    const act = new Set<string>();
+
+    for (const grant of grants) {
+      const reached = grant.includeDescendants
+        ? (subtrees.get(grant.targetOrgUnitId) ?? [grant.targetOrgUnitId])
+        : [grant.targetOrgUnitId];
+
+      for (const unitId of reached) {
+        read.add(unitId);
+        if (grant.canAct) act.add(unitId);
+      }
+    }
+
+    return { read: [...read], act: [...act] };
   }
 
   private async rebuildClosure(

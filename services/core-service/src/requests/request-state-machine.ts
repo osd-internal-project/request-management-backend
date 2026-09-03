@@ -151,6 +151,24 @@ export const OPEN_STATUSES: readonly RequestStatus[] = [
   'approved',
 ];
 
+/**
+ * The statuses at which a ticket still sits in its carrier's queue — the
+ * "รับเรื่อง" tab of §16 หน้าที่ 2.
+ *
+ * Derived from {@link OPEN_STATUSES} rather than listed again, so the two
+ * cannot drift: a status that keeps a parent open is a status the person
+ * carrying it has not finished with.
+ *
+ * `draft` is the one exclusion. A draft has not been handed to anybody yet,
+ * and it belongs to its author's "สร้าง" tab instead.
+ *
+ * The tab used to filter `submitted | in_progress | on_hold`, which dropped a
+ * ticket the moment its carrier sent the result for approval or the requester
+ * returned it — the two states where it is most obviously still their work.
+ */
+export const CARRIER_QUEUE_STATUSES: readonly RequestStatus[] =
+  OPEN_STATUSES.filter((status) => status !== 'draft');
+
 /** REQ-02: the point at which the request number is issued and SLA starts. */
 export const NUMBER_ISSUED_ON: RequestStatus = 'submitted';
 
