@@ -42,6 +42,16 @@ export const PERMISSIONS = {
     'admin.role.manage',
     'admin.org.manage',
     'admin.request-type.manage',
+    /**
+     * Assemble and publish the workflow a request type travels — its states,
+     * the actions out of each, and the data flow between them.
+     *
+     * Separate from `admin.request-type.manage`: that edits what a type asks
+     * for, this edits how work moves. Publishing a version re-routes every
+     * request raised afterwards, which is a larger thing to hand somebody than
+     * adding a field to a form.
+     */
+    'admin.workflow.manage',
     'admin.approval-matrix.manage',
     'admin.sla.manage',
     /** CD-92: the "Metabase settings" menu item — a link into the BI admin UI. */

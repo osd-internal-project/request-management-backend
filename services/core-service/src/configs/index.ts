@@ -11,6 +11,41 @@ export default () => ({
     process.env.USER_SERVICE_URL ?? 'http://localhost:3001/api/v1',
 
   /**
+   * The workflow engine (Flowable), and the URL it calls back on.
+   *
+   * `callbackUrl` is baked into every BPMN generated at publish, so it must be
+   * how Flowable reaches core-service — a container name, not `localhost`,
+   * wherever the two run in separate containers. Changing it does not rewrite
+   * definitions already deployed; those keep the URL they were published with,
+   * which is deliberate (a running instance keeps the rules it started under)
+   * and means a move needs the affected types republished.
+   */
+  flowable: {
+    baseUrl:
+      process.env.FLOWABLE_BASE_URL ??
+      'http://localhost:8080/flowable-rest/service',
+    user: process.env.FLOWABLE_USER ?? 'rest-admin',
+    password: process.env.FLOWABLE_PASSWORD ?? '',
+    callbackUrl:
+      process.env.FLOWABLE_CALLBACK_URL ??
+      'http://localhost:3002/api/v1/internal/workflow/callback',
+    /**
+     * The shared secret the callback route demands.
+     *
+     * The callback is the one route the engine calls, and the engine cannot
+     * hold a Keycloak token — a BPMN http task would have to fetch one first,
+     * which means the client secret ends up inside deployed process XML. A
+     * shared secret in a header is the smaller exposure, and the route is
+     * reachable only from inside the deployment's own network.
+     *
+     * Empty in local dev means the guard refuses everything, which is the
+     * correct default: a callback route with no secret is an unauthenticated
+     * write endpoint onto every request in the system.
+     */
+    callbackSecret: process.env.FLOWABLE_CALLBACK_SECRET ?? '',
+  },
+
+  /**
    * CD-92: the embedded BI menu. `siteUrl` is where browsers reach Metabase;
    * `embedSecret` is Metabase's "embedding secret key" (Admin → Embedding) —
    * signing with it is what lets an app login stand in for a Metabase login.

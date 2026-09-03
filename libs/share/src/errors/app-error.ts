@@ -68,6 +68,27 @@ export const ErrorCatalog = {
   KEYCLOAK_ADMIN_UNAVAILABLE: HttpStatus.SERVICE_UNAVAILABLE,
   /** Refusing to grant a role that would escalate Keycloak privileges. */
   KEYCLOAK_ROLE_FORBIDDEN: HttpStatus.FORBIDDEN,
+
+  // --- workflow (Flowable) ---
+  /**
+   * A workflow definition cannot be published as it stands: an unreachable
+   * state, an action naming a state that does not exist, a phase pair §7.1
+   * forbids. `details` names each fault so the admin screen can list them
+   * rather than saying "invalid".
+   */
+  WORKFLOW_INVALID: HttpStatus.UNPROCESSABLE_ENTITY,
+  /**
+   * An edit aimed at a version that is already published. Published versions
+   * are immutable so a request already running keeps the route it started on;
+   * editing means publishing N+1.
+   */
+  WORKFLOW_PUBLISHED_IMMUTABLE: HttpStatus.CONFLICT,
+  /**
+   * Flowable is unreachable or refused. Its own code so the UI can say "the
+   * workflow engine is down" rather than showing a generic failure — the same
+   * distinction `KEYCLOAK_ADMIN_UNAVAILABLE` exists for.
+   */
+  WORKFLOW_UNAVAILABLE: HttpStatus.SERVICE_UNAVAILABLE,
 } as const;
 
 export type ErrorCode = keyof typeof ErrorCatalog;

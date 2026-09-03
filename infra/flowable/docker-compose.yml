@@ -1,0 +1,79 @@
+# Flowable — the workflow engine behind the หน้า Set Workflow screen.
+#
+#   docker compose -f infra/flowable/docker-compose.yml up -d
+#   → http://localhost:8080/flowable-rest/service  (Basic auth)
+#
+# Flowable holds the *route* and nothing else: which node a request instance
+# sits on and which flow leaves it. No business data, no identities, and no say
+# in who may press what — authorisation stays with `PolicyGuard` and
+# `hasAuthority` in core-service (ROLE-01). The BPMN it runs is generated from
+# `workflow_states` / `workflow_actions` at publish, so those tables are the
+# source of truth and this engine holds a projection of them.
+#
+# It keeps its own state in the bundled `flowable-db` Postgres, NOT in the
+# application database. Deliberately separate: Flowable manages its schema with
+# its own Liquibase migrations, and pointing it at the app database would put a
+# second migration tool in charge of the same `public` schema that
+# `prisma migrate` owns.
+#
+# Port 8080 by default. 3000 is the frontend, 3001/3002 the services, 3300
+# Metabase — override with FLOWABLE_PORT where 8080 is taken.
+
+services:
+  flowable:
+    # 7.2.0 or newer — **not 7.0.1**.
+    #
+    # 7.0.1's image is missing `httpcore5-h2`, so the moment a BPMN http task
+    # fires, the async client dies with
+    # `NoClassDefFoundError: org/apache/hc/core5/http2/impl/nio/ClientHttpProtocolNegotiator`,
+    # the dispatch thread is gone, and the task completion never returns — the
+    # caller just hangs until it times out. Since every state this system
+    # generates carries a callback http task, that version cannot run a single
+    # workflow. Verified by walking a real route on both versions.
+    image: flowable/flowable-rest:7.2.0
+    container_name: ctd-flowable
+    ports:
+      - "${FLOWABLE_PORT:-8080}:8080"
+    environment:
+      SPRING_DATASOURCE_DRIVER-CLASS-NAME: org.postgresql.Driver
+      SPRING_DATASOURCE_URL: jdbc:postgresql://flowable-db:5432/flowable
+      SPRING_DATASOURCE_USERNAME: flowable
+      SPRING_DATASOURCE_PASSWORD: ${FLOWABLE_DB_PASSWORD:-flowable}
+      # The account core-service authenticates as. Must match FLOWABLE_USER /
+      # FLOWABLE_PASSWORD in the backend .env — the client sends Basic auth on
+      # every call and Flowable rejects anonymous requests outright.
+      FLOWABLE_REST_APP_ADMIN_USER-ID: ${FLOWABLE_USER:-rest-admin}
+      FLOWABLE_REST_APP_ADMIN_PASSWORD: ${FLOWABLE_PASSWORD:-flowable}
+      FLOWABLE_IDM_APP_ADMIN_USER-ID: ${FLOWABLE_USER:-rest-admin}
+      FLOWABLE_IDM_APP_ADMIN_PASSWORD: ${FLOWABLE_PASSWORD:-flowable}
+      JAVA_TOOL_OPTIONS: "-Duser.timezone=Asia/Bangkok"
+    depends_on:
+      flowable-db:
+        condition: service_healthy
+    # The generated BPMN's callback task posts back to core-service. When
+    # core-service runs on the host rather than in this compose file, set
+    # FLOWABLE_CALLBACK_URL to http://host.docker.internal:3002/api/v1/... —
+    # `localhost` inside the container is the container itself, and the
+    # callback would silently never arrive.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  flowable-db:
+    image: postgres:16-alpine
+    container_name: ctd-flowable-db
+    environment:
+      POSTGRES_DB: flowable
+      POSTGRES_USER: flowable
+      POSTGRES_PASSWORD: ${FLOWABLE_DB_PASSWORD:-flowable}
+    volumes:
+      - flowable-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flowable -d flowable"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+volumes:
+  flowable-db-data:

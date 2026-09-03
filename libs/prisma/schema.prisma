@@ -131,6 +131,44 @@ enum SlaState {
   cancelled
 }
 
+/// Whether a request type's route comes from the hard-coded state machine or
+/// from a workflow an administrator assembled (`WorkflowDefinition`).
+///
+/// **`legacy` is the default and every type carries it.** The workflow engine
+/// is built alongside the state machine, not on top of it: a type moves only
+/// when somebody switches it, and a request already in flight keeps the mode it
+/// started under. Deliberately an enum rather than "has a published workflow",
+/// so publishing a draft to look at it cannot re-route live work.
+enum WorkflowMode {
+  legacy
+  flowable
+}
+
+/// A workflow version's publication state.
+///
+/// `published` is immutable — the same rule `ApprovalMatrix` follows, and for
+/// the same reason (§7: running work keeps the rules it started under). Editing
+/// means publishing version N+1. `retired` replaces deletion, which the schema
+/// forbids for transactional data and which would strand every instance still
+/// pointing at the version.
+enum WorkflowDefinitionStatus {
+  draft
+  published
+  retired
+}
+
+/// What a node in the workflow does.
+///
+/// `user_task` waits for a person to press one of its actions. `approval`
+/// resolves an approval ladder and waits for the decision — the people are
+/// resolved at runtime from the org chart, never stored in the BPMN. `end`
+/// terminates the instance.
+enum WorkflowStateKind {
+  user_task
+  approval
+  end
+}
+
 enum NotificationChannel {
   in_app
   email
@@ -169,6 +207,7 @@ model Company {
   docNumberConfigs        DocNumberConfig[]
   docNumberCounter        DocNumberCounter[]
   approvalMatrices        ApprovalMatrix[]
+  workflowDefinitions     WorkflowDefinition[]
   approvalCases           ApprovalCase[]
   delegations             Delegation[]
   slaConfigs              SlaConfig[]
@@ -555,6 +594,11 @@ model RequestType {
   /// hard-coded on the screen, which is what it was until 1 ก.ย. 2569.
   refRequired Boolean @default(false)
 
+  /// Whether this type's route comes from §7.1's state machine or from a
+  /// workflow assembled on screen. Every type carries `legacy` until somebody
+  /// switches it — see `WorkflowMode`.
+  workflowMode WorkflowMode @default(legacy)
+
   active    Boolean  @default(false)
   createdAt DateTime @default(now())
   createdBy String?
@@ -565,6 +609,7 @@ model RequestType {
   companies       RequestTypeCompany[]
   eligibleUnits   RequestTypeOrgUnit[]
   requests        Request[]
+  workflows       WorkflowDefinition[]
 
   @@map("request_types")
 }
@@ -672,8 +717,15 @@ model Request {
   /// long an answer sat unread.
   closedAt DateTime?
 
-  status   RequestStatus @default(draft)
-  formData Json          @default("{}")
+  status RequestStatus @default(draft)
+
+  /// The workflow state this request is actually in, for a type running on a
+  /// workflow. `status` above stays the §7.1 phase that state maps to, and
+  /// remains what SLA, the reports and every screen read — this only names the
+  /// step more precisely. Null for a type still on the state machine.
+  workflowStateKey String?
+
+  formData Json @default("{}")
 
   /// Answers to the type's `receiverFormSchema`, filled in at `complete`.
   ///
@@ -719,6 +771,7 @@ model Request {
   returnReasons RequestReturnReason[]
   approvalCases ApprovalCase[]
   slaClock      SlaClock?
+  workflow      WorkflowInstance?
 
   @@index([companyId, status])
   @@index([companyId, requesterId])
@@ -1250,4 +1303,219 @@ model IdempotencyKey {
 
   @@index([expiresAt])
   @@map("idempotency_keys")
+}
+
+// ---------------------------------------------------------------------------
+// Workflow (Flowable)
+// ---------------------------------------------------------------------------
+
+/// One published route a request type can travel, as configuration.
+///
+/// §7.1's state machine is one table of transitions shared by all forty types.
+/// This is the same idea made per-type and editable from a screen: the states,
+/// the actions out of each, and the form each asks for. `bpmnXml` is
+/// **generated** from the rows below at publish and deployed to Flowable —
+/// nobody authors BPMN by hand, so these tables stay the single source of
+/// truth and the engine holds a projection of them.
+///
+/// Versioned and immutable once published, exactly like `ApprovalMatrix`:
+/// editing means publishing N+1, which is what lets a request already running
+/// keep the route it started on (§7 — running work keeps the rules it started
+/// under). `WorkflowInstance` pins the version it began with.
+model WorkflowDefinition {
+  id        String @id @default(uuid())
+  companyId String
+
+  /// Which type this routes. A type may have many versions; only one is
+  /// `published` at a time per company.
+  requestTypeId String
+  version       Int
+
+  name   String
+  status WorkflowDefinitionStatus @default(draft)
+
+  /// Generated at publish from `states`/`actions`. Kept rather than rebuilt on
+  /// demand so the exact XML a running instance was deployed from can still be
+  /// read back when its behaviour is questioned.
+  bpmnXml String?
+
+  /// What Flowable answered at deploy. Null while the version is a draft.
+  flowableDeploymentId String?
+  flowableProcessKey   String?
+
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  createdBy   String?
+  updatedAt   DateTime  @updatedAt
+  updatedBy   String?
+
+  company     Company            @relation(fields: [companyId], references: [id])
+  requestType RequestType        @relation(fields: [requestTypeId], references: [id])
+  states      WorkflowState[]
+  actions     WorkflowAction[]
+  instances   WorkflowInstance[]
+
+  @@unique([requestTypeId, companyId, version])
+  @@index([companyId, status])
+  @@map("workflow_definitions")
+}
+
+/// A node: somewhere a request sits and waits for somebody.
+///
+/// `phase` is what keeps the rest of the system working. Every state maps onto
+/// one of §7.1's eleven statuses, and that is what `Request.status` is set to —
+/// so SLA (`CLOCK_PAUSED_IN`), the bottleneck report, the work queues and every
+/// §16 screen keep reading the column they always read, while the state a
+/// request is *actually* in can be named anything an administrator likes.
+///
+/// `workflow-rules.ts` refuses to publish a definition whose phases imply a
+/// move `REQUEST_TRANSITIONS` forbids — the guard that stops the two models
+/// drifting apart.
+model WorkflowState {
+  id           String @id @default(uuid())
+  definitionId String
+
+  /// Stable identifier, and the BPMN element id. Unique within the definition.
+  key  String
+  name String
+
+  phase RequestStatus
+  kind  WorkflowStateKind @default(user_task)
+
+  /// JSON Schema for what this state shows. Null means it asks nothing.
+  formSchema Json?
+
+  /// Overrides the type's SLA for the time spent in this state. Null inherits.
+  slaHours Int?
+
+  /// Where the instance starts. Exactly one per definition, enforced at publish.
+  isStart Boolean @default(false)
+
+  /// Draw order on the admin screen — not semantics. The route comes from
+  /// `WorkflowAction`, never from this.
+  sortOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  definition WorkflowDefinition @relation(fields: [definitionId], references: [id], onDelete: Cascade)
+  actions    WorkflowAction[]
+
+  @@unique([definitionId, key])
+  @@map("workflow_states")
+}
+
+/// One button, and where pressing it goes.
+///
+/// `fromStateKey`/`toStateKey` are plain columns rather than foreign keys, the
+/// same choice `Request.requesterOrgUnitId` makes and for a related reason: the
+/// pair is only meaningful inside one definition, and `workflow-rules.ts`
+/// already has to walk the whole graph at publish to prove every state is
+/// reachable. A key that names nothing is caught there, with a message that
+/// says which action is broken.
+///
+/// `authority` reuses the `Authority` union in `available-actions.ts` —
+/// requester / receiver / carrier / decider and so on. It is **not** a second
+/// permission system: `hasAuthority` is still the one implementation, and the
+/// handler re-checks it however the action was offered (ROLE-01).
+model WorkflowAction {
+  id           String @id @default(uuid())
+  definitionId String
+
+  fromStateKey String
+  actionKey    String
+  toStateKey   String
+
+  /// The Thai text on the button.
+  label String
+
+  /// A value of the `Authority` union in `requests/available-actions.ts`.
+  authority String
+
+  /// JSON Schema for what pressing it asks for. Null means it asks nothing.
+  formSchema Json?
+
+  /// Optional guard on workflow variables, e.g. `amount > 100000`. Becomes the
+  /// condition on the BPMN sequence flow.
+  condition String?
+
+  /// Whether the screen asks "are you sure" first — for the irreversible ones.
+  confirmRequired Boolean @default(false)
+
+  sortOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  definition WorkflowDefinition @relation(fields: [definitionId], references: [id], onDelete: Cascade)
+  fromState  WorkflowState      @relation(fields: [definitionId, fromStateKey], references: [definitionId, key], onDelete: Cascade)
+  dataMaps   WorkflowDataMap[]
+
+  @@unique([definitionId, fromStateKey, actionKey])
+  @@index([definitionId, toStateKey])
+  @@map("workflow_actions")
+}
+
+/// The data flow: which answer becomes which workflow variable, and which
+/// column the workflow writes it back to.
+///
+/// Its own table rather than more JSON on the action because this is the part
+/// administrators change most often and the part that must be answerable
+/// afterwards — "why did this land in `receiver_form_data`" is a question about
+/// a row, not about a blob.
+///
+/// `targetColumn` is checked against an allow-list at publish. Without that a
+/// workflow could be configured to overwrite `status`, `requestNo` or
+/// `requesterId` — the columns the whole permission and numbering model rests
+/// on — from a form field.
+model WorkflowDataMap {
+  id       String @id @default(uuid())
+  actionId String
+
+  /// Key in the action's `formSchema`.
+  sourceField  String
+  /// Variable name inside the workflow instance.
+  variableName String
+  /// Where the callback writes it back. Allow-listed at publish.
+  targetColumn String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  action WorkflowAction @relation(fields: [actionId], references: [id], onDelete: Cascade)
+
+  @@unique([actionId, sourceField])
+  @@map("workflow_data_maps")
+}
+
+/// One request's journey through one workflow version.
+///
+/// The join between a row in this database and a process instance in Flowable.
+/// `currentStateKey` mirrors what the engine says so the screens and the action
+/// list can be answered without an HTTP call on every page view; the engine
+/// stays authoritative about where the instance actually is, and the callback
+/// is what keeps this row honest.
+model WorkflowInstance {
+  id String @id @default(uuid())
+
+  requestId    String @unique
+  definitionId String
+
+  flowableProcessInstanceId String  @unique
+  currentStateKey           String
+  /// The open Flowable task, when the instance is waiting on a person.
+  currentTaskId             String?
+
+  /// Last known process variables — a cache of the engine's copy, for display.
+  variables Json @default("{}")
+
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  updatedAt  DateTime  @updatedAt
+
+  request    Request            @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  definition WorkflowDefinition @relation(fields: [definitionId], references: [id])
+
+  @@index([definitionId])
+  @@map("workflow_instances")
 }

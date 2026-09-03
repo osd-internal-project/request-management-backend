@@ -46,8 +46,7 @@ export default registerAs('keycloak', () => {
      * added, or `KEYCLOAK_POST_LOGOUT_REDIRECT_URI` set.
      */
     postLogoutRedirectUri:
-      process.env.KEYCLOAK_POST_LOGOUT_REDIRECT_URI ??
-      'http://localhost:3000/',
+      process.env.KEYCLOAK_POST_LOGOUT_REDIRECT_URI ?? 'http://localhost:3000/',
 
     issuer,
     authorizeUrl: `${issuer}/protocol/openid-connect/auth`,

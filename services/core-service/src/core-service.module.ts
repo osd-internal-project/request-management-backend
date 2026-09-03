@@ -22,6 +22,7 @@ import { RemotePrincipalGuard } from './principal/remote-principal.guard';
 import { EventsModule } from './events/events.module';
 import { RequestsModule } from './requests/requests.module';
 import { SlaModule } from './sla/sla.module';
+import { WorkflowModule } from './workflow/workflow.module';
 import { SensitiveReadAuditRecorder } from './policy/sensitive-read.recorder';
 import configs from './configs';
 
@@ -51,6 +52,7 @@ import configs from './configs';
     SlaModule,
     NotificationsModule,
     BiModule,
+    WorkflowModule,
   ],
   controllers: [CoreServiceController],
   providers: [
