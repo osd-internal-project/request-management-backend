@@ -14,6 +14,8 @@ COPY libs/prisma/schema.prisma ./libs/prisma/
 RUN yarn install --frozen-lockfile
 
 COPY tsconfig.base.json ./
+# Both services' nest-cli.json point at ../../webpack.config.js.
+COPY webpack.config.js ./
 COPY libs ./libs
 COPY services/core-service ./services/core-service
 

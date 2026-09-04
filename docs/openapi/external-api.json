@@ -1,0 +1,1787 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/v1/external/request-types": {
+      "get": {
+        "operationId": "ExternalController_listTypes",
+        "parameters": [
+          {
+            "name": "x-acting-user",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "pre-sales",
+              "type": "string"
+            }
+          },
+          {
+            "name": "department",
+            "required": false,
+            "in": "query",
+            "description": "รหัสหน่วยงานผู้รับ",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ประเภทคำขอที่เปิดได้ — ว่างได้ถ้าไม่มีอันไหนตรงเงื่อนไข",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ExternalTypeSummaryDto"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDATION_FAILED` — ขาด header `X-Acting-User` หรือ body ผิดรูป",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — token หมดอายุหรือไม่ถูกต้อง",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`FORBIDDEN` เมื่อ token ไม่ใช่บัญชีบริการ หรือขาดสิทธิ์ `integration.request.create`; `COMPANY_FORBIDDEN` เมื่อคนที่สวมสิทธิ์ ไม่ได้อยู่บริษัทนั้น",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NOT_FOUND` — ไม่พบคำขอ หรืออีเมลใน `X-Acting-User` ไม่มีในระบบ/ยังไม่เคยเข้าสู่ระบบ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`REQ_STATE_INVALID` — ทำ action นี้ไม่ได้ในสถานะปัจจุบัน (เช่นสั่ง `receive` ซ้ำ); `REQ_CHILDREN_OPEN` — ปิดใบพ่อทั้งที่ใบลูกยังเปิดอยู่",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`REQ_FIELD_MISSING` — ฟอร์มไม่ครบตาม `form_schema`; `REQ_TYPE_INACTIVE` — ประเภทคำขอถูกปิดใช้งาน",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ขั้น 2 — ประเภทคำขอที่ผู้ใช้รายนี้เปิดได้",
+        "tags": [
+          "external"
+        ]
+      }
+    },
+    "/api/v1/external/request-types/{code}/form": {
+      "get": {
+        "operationId": "ExternalController_formOf",
+        "parameters": [
+          {
+            "name": "x-acting-user",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ฟอร์มของประเภทคำขอ พร้อมเหตุผลการตีกลับที่เลือกได้",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalTypeFormDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDATION_FAILED` — ขาด header `X-Acting-User` หรือ body ผิดรูป",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — token หมดอายุหรือไม่ถูกต้อง",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`FORBIDDEN` เมื่อ token ไม่ใช่บัญชีบริการ หรือขาดสิทธิ์ `integration.request.create`; `COMPANY_FORBIDDEN` เมื่อคนที่สวมสิทธิ์ ไม่ได้อยู่บริษัทนั้น",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NOT_FOUND` — ไม่พบคำขอ หรืออีเมลใน `X-Acting-User` ไม่มีในระบบ/ยังไม่เคยเข้าสู่ระบบ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`REQ_STATE_INVALID` — ทำ action นี้ไม่ได้ในสถานะปัจจุบัน (เช่นสั่ง `receive` ซ้ำ); `REQ_CHILDREN_OPEN` — ปิดใบพ่อทั้งที่ใบลูกยังเปิดอยู่",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`REQ_FIELD_MISSING` — ฟอร์มไม่ครบตาม `form_schema`; `REQ_TYPE_INACTIVE` — ประเภทคำขอถูกปิดใช้งาน",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ขั้น 3 — ฟอร์มและตัวเลือกที่ต้องถาม มาจากประเภทคำขอโดยตรง",
+        "tags": [
+          "external"
+        ]
+      }
+    },
+    "/api/v1/external/requests": {
+      "post": {
+        "description": "ส่ง `parent_request_id` เพื่อสร้างเป็นคำขอลูกของใบที่มีอยู่ — เป็น endpoint เดียวกัน เพราะคำขอลูกคือคำขอธรรมดาที่มีต้นเรื่อง ควรส่ง header `Idempotency-Key` ทุกครั้ง: ถ้า response หายกลางทาง การยิงซ้ำโดยไม่มี key จะกลายเป็นคำขอสองใบคนละเลข",
+        "operationId": "ExternalController_create",
+        "parameters": [
+          {
+            "name": "x-acting-user",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExternalCreateRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "คำขอที่ยื่นแล้ว — `requestNo` คือเลขที่ใช้อ้างต่อทุก endpoint",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalRequestDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDATION_FAILED` — ขาด header `X-Acting-User` หรือ body ผิดรูป",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — token หมดอายุหรือไม่ถูกต้อง",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`FORBIDDEN` เมื่อ token ไม่ใช่บัญชีบริการ หรือขาดสิทธิ์ `integration.request.create`; `COMPANY_FORBIDDEN` เมื่อคนที่สวมสิทธิ์ ไม่ได้อยู่บริษัทนั้น",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NOT_FOUND` — ไม่พบคำขอ หรืออีเมลใน `X-Acting-User` ไม่มีในระบบ/ยังไม่เคยเข้าสู่ระบบ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`REQ_STATE_INVALID` — ทำ action นี้ไม่ได้ในสถานะปัจจุบัน (เช่นสั่ง `receive` ซ้ำ); `REQ_CHILDREN_OPEN` — ปิดใบพ่อทั้งที่ใบลูกยังเปิดอยู่",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`REQ_FIELD_MISSING` — ฟอร์มไม่ครบตาม `form_schema`; `REQ_TYPE_INACTIVE` — ประเภทคำขอถูกปิดใช้งาน",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ขั้น 4 และ 10 — สร้างคำขอพร้อมยื่นในครั้งเดียว",
+        "tags": [
+          "external"
+        ]
+      },
+      "get": {
+        "operationId": "ExternalController_list",
+        "parameters": [
+          {
+            "name": "x-acting-user",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "view",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "involved",
+                "created",
+                "incoming",
+                "approver"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type_code",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "ค้นหาเลขที่ / อ้างอิง",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "คำขอหนึ่งหน้า พร้อมจำนวนรวมสำหรับแบ่งหน้า",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalRequestPageDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDATION_FAILED` — ขาด header `X-Acting-User` หรือ body ผิดรูป",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — token หมดอายุหรือไม่ถูกต้อง",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`FORBIDDEN` เมื่อ token ไม่ใช่บัญชีบริการ หรือขาดสิทธิ์ `integration.request.create`; `COMPANY_FORBIDDEN` เมื่อคนที่สวมสิทธิ์ ไม่ได้อยู่บริษัทนั้น",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NOT_FOUND` — ไม่พบคำขอ หรืออีเมลใน `X-Acting-User` ไม่มีในระบบ/ยังไม่เคยเข้าสู่ระบบ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`REQ_STATE_INVALID` — ทำ action นี้ไม่ได้ในสถานะปัจจุบัน (เช่นสั่ง `receive` ซ้ำ); `REQ_CHILDREN_OPEN` — ปิดใบพ่อทั้งที่ใบลูกยังเปิดอยู่",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`REQ_FIELD_MISSING` — ฟอร์มไม่ครบตาม `form_schema`; `REQ_TYPE_INACTIVE` — ประเภทคำขอถูกปิดใช้งาน",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ขั้น 5 และ 11 — คิวงานของผู้ใช้รายนี้",
+        "tags": [
+          "external"
+        ]
+      }
+    },
+    "/api/v1/external/requests/{ref}": {
+      "get": {
+        "operationId": "ExternalController_findOne",
+        "parameters": [
+          {
+            "name": "x-acting-user",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ref",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "คำขอใบนั้น",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalRequestDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDATION_FAILED` — ขาด header `X-Acting-User` หรือ body ผิดรูป",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — token หมดอายุหรือไม่ถูกต้อง",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`FORBIDDEN` เมื่อ token ไม่ใช่บัญชีบริการ หรือขาดสิทธิ์ `integration.request.create`; `COMPANY_FORBIDDEN` เมื่อคนที่สวมสิทธิ์ ไม่ได้อยู่บริษัทนั้น",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NOT_FOUND` — ไม่พบคำขอ หรืออีเมลใน `X-Acting-User` ไม่มีในระบบ/ยังไม่เคยเข้าสู่ระบบ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`REQ_STATE_INVALID` — ทำ action นี้ไม่ได้ในสถานะปัจจุบัน (เช่นสั่ง `receive` ซ้ำ); `REQ_CHILDREN_OPEN` — ปิดใบพ่อทั้งที่ใบลูกยังเปิดอยู่",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`REQ_FIELD_MISSING` — ฟอร์มไม่ครบตาม `form_schema`; `REQ_TYPE_INACTIVE` — ประเภทคำขอถูกปิดใช้งาน",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ขั้น 7 และ 13 — อ่านคำขอด้วย uuid หรือเลขที่เอกสาร",
+        "tags": [
+          "external"
+        ]
+      }
+    },
+    "/api/v1/external/requests/{ref}/actions": {
+      "get": {
+        "description": "ถามก่อนเสนอตัวเลือกเสมอ คำตอบเปลี่ยนตามสถานะของคำขอ และบทบาทของผู้ใช้ในคำขอนั้น",
+        "operationId": "ExternalController_actions",
+        "parameters": [
+          {
+            "name": "x-acting-user",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ref",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "action ที่ทำได้ตอนนี้ พร้อมฟิลด์ที่แต่ละอันต้องใช้",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalActionsDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDATION_FAILED` — ขาด header `X-Acting-User` หรือ body ผิดรูป",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — token หมดอายุหรือไม่ถูกต้อง",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`FORBIDDEN` เมื่อ token ไม่ใช่บัญชีบริการ หรือขาดสิทธิ์ `integration.request.create`; `COMPANY_FORBIDDEN` เมื่อคนที่สวมสิทธิ์ ไม่ได้อยู่บริษัทนั้น",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NOT_FOUND` — ไม่พบคำขอ หรืออีเมลใน `X-Acting-User` ไม่มีในระบบ/ยังไม่เคยเข้าสู่ระบบ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`REQ_STATE_INVALID` — ทำ action นี้ไม่ได้ในสถานะปัจจุบัน (เช่นสั่ง `receive` ซ้ำ); `REQ_CHILDREN_OPEN` — ปิดใบพ่อทั้งที่ใบลูกยังเปิดอยู่",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`REQ_FIELD_MISSING` — ฟอร์มไม่ครบตาม `form_schema`; `REQ_TYPE_INACTIVE` — ประเภทคำขอถูกปิดใช้งาน",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ขั้น 8 และ 14 — ตอนนี้ผู้ใช้รายนี้ทำอะไรกับคำขอได้บ้าง",
+        "tags": [
+          "external"
+        ]
+      }
+    },
+    "/api/v1/external/requests/{ref}/actions/{action}": {
+      "post": {
+        "description": "`comment` คืนตัว comment ที่เพิ่งเขียน (ExternalCommentDto) ส่วน action อื่นคืนคำขอหลังเปลี่ยนสถานะ (ExternalRequestDto)",
+        "operationId": "ExternalController_perform",
+        "parameters": [
+          {
+            "name": "x-acting-user",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ref",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "action",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExternalActionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "คำขอหลังเปลี่ยนสถานะ หรือ comment ที่เพิ่งเขียน แล้วแต่ action",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ExternalRequestDto"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ExternalCommentDto"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDATION_FAILED` — ขาด header `X-Acting-User` หรือ body ผิดรูป",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — token หมดอายุหรือไม่ถูกต้อง",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`FORBIDDEN` เมื่อ token ไม่ใช่บัญชีบริการ หรือขาดสิทธิ์ `integration.request.create`; `COMPANY_FORBIDDEN` เมื่อคนที่สวมสิทธิ์ ไม่ได้อยู่บริษัทนั้น",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NOT_FOUND` — ไม่พบคำขอ หรืออีเมลใน `X-Acting-User` ไม่มีในระบบ/ยังไม่เคยเข้าสู่ระบบ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`REQ_STATE_INVALID` — ทำ action นี้ไม่ได้ในสถานะปัจจุบัน (เช่นสั่ง `receive` ซ้ำ); `REQ_CHILDREN_OPEN` — ปิดใบพ่อทั้งที่ใบลูกยังเปิดอยู่",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`REQ_FIELD_MISSING` — ฟอร์มไม่ครบตาม `form_schema`; `REQ_TYPE_INACTIVE` — ประเภทคำขอถูกปิดใช้งาน",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ขั้น 9 — สั่งทำหนึ่งใน action ที่ได้จาก endpoint ด้านบน",
+        "tags": [
+          "external"
+        ]
+      }
+    },
+    "/api/v1/external/requests/{ref}/tree": {
+      "get": {
+        "operationId": "ExternalController_tree",
+        "parameters": [
+          {
+            "name": "x-acting-user",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ref",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ใบพ่อและใบลูกทั้งหมดของคำขอนี้",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalTreeDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDATION_FAILED` — ขาด header `X-Acting-User` หรือ body ผิดรูป",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — token หมดอายุหรือไม่ถูกต้อง",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`FORBIDDEN` เมื่อ token ไม่ใช่บัญชีบริการ หรือขาดสิทธิ์ `integration.request.create`; `COMPANY_FORBIDDEN` เมื่อคนที่สวมสิทธิ์ ไม่ได้อยู่บริษัทนั้น",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NOT_FOUND` — ไม่พบคำขอ หรืออีเมลใน `X-Acting-User` ไม่มีในระบบ/ยังไม่เคยเข้าสู่ระบบ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`REQ_STATE_INVALID` — ทำ action นี้ไม่ได้ในสถานะปัจจุบัน (เช่นสั่ง `receive` ซ้ำ); `REQ_CHILDREN_OPEN` — ปิดใบพ่อทั้งที่ใบลูกยังเปิดอยู่",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`REQ_FIELD_MISSING` — ฟอร์มไม่ครบตาม `form_schema`; `REQ_TYPE_INACTIVE` — ประเภทคำขอถูกปิดใช้งาน",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ขั้น 14 — ใบนี้ ใบพ่อ และทุกใบลูกที่แตกออกไป",
+        "tags": [
+          "external"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "Request Form — External API",
+    "description": "API สำหรับระบบภายนอก (เช่น chatbot) ขับเคลื่อนคำขอตั้งแต่เปิดจนปิด\n\nทุก request ต้องมีสองอย่าง: bearer token ของ service account ที่ถือสิทธิ์ `integration.request.create` และ header `X-Acting-User` ที่ระบุอีเมลของคนที่ระบบกำลังทำแทน — ระบบจะทำงานในนามคนนั้น timeline จึงบันทึกชื่อคนจริง ไม่ใช่ชื่อบัญชีบริการ",
+    "version": "1.0"
+  },
+  "tags": [],
+  "servers": [
+    {
+      "url": "http://192.168.31.52:3502/api/v1",
+      "description": "เครื่องภายใน OSD"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
+    "schemas": {
+      "ExternalActionDescriptorDto": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "description": "ชื่อที่ใช้ยิงต่อที่ POST .../actions/{action}",
+            "example": "receive"
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExternalActionFieldDto"
+            }
+          }
+        },
+        "required": [
+          "action",
+          "fields"
+        ]
+      },
+      "ExternalActionDto": {
+        "type": "object",
+        "properties": {
+          "receiver_form_data": {
+            "type": "object"
+          },
+          "form_data": {
+            "type": "object"
+          },
+          "assignee_user_id": {
+            "type": "string"
+          },
+          "reason_code": {
+            "type": "string",
+            "example": "INFO_INCOMPLETE"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 2000
+          }
+        }
+      },
+      "ExternalActionFieldDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "reason_code"
+          },
+          "required": {
+            "type": "boolean",
+            "example": true
+          },
+          "source": {
+            "type": "string",
+            "description": "ที่มาของตัวเลือก — `return_reason` หรือ `form_schema`",
+            "example": "return_reason"
+          }
+        },
+        "required": [
+          "name",
+          "required"
+        ]
+      },
+      "ExternalActionsDto": {
+        "type": "object",
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "example": "f7f7609e-9317-454e-875d-ec543bc4caf0"
+          },
+          "request_no": {
+            "type": "string",
+            "example": "REQ-OSD-PS01-26090003"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "submitted",
+              "returned",
+              "pending_approval",
+              "approved",
+              "rejected",
+              "in_progress",
+              "on_hold",
+              "completed",
+              "closed",
+              "cancelled"
+            ],
+            "example": "submitted"
+          },
+          "actions": {
+            "example": [
+              {
+                "action": "receive",
+                "fields": []
+              },
+              {
+                "action": "comment",
+                "fields": [
+                  {
+                    "name": "body",
+                    "required": true
+                  }
+                ]
+              }
+            ],
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExternalActionDescriptorDto"
+            }
+          }
+        },
+        "required": [
+          "request_id",
+          "request_no",
+          "status",
+          "actions"
+        ]
+      },
+      "ExternalCommentDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "7d7bddf8-746c-4410-a7d1-f38743436bbf"
+          },
+          "requestId": {
+            "type": "string",
+            "example": "f7f7609e-9317-454e-875d-ec543bc4caf0"
+          },
+          "authorId": {
+            "type": "string",
+            "description": "คนที่เขียน — คนจริงตาม X-Acting-User ไม่ใช่บัญชีบริการ",
+            "example": "e0e90f78-98d3-4b74-b2bd-94e05700f989"
+          },
+          "body": {
+            "type": "string",
+            "example": "รับเรื่องแล้ว กำลังจัดทำ Solution Design"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-09-04T04:30:55.987Z"
+          },
+          "author": {
+            "$ref": "#/components/schemas/ExternalPersonDto"
+          }
+        },
+        "required": [
+          "id",
+          "requestId",
+          "authorId",
+          "body",
+          "createdAt",
+          "author"
+        ]
+      },
+      "ExternalCreateRequestDto": {
+        "type": "object",
+        "properties": {
+          "type_code": {
+            "type": "string",
+            "example": "PS01"
+          },
+          "form_data": {
+            "type": "object"
+          },
+          "receiver_user_id": {
+            "type": "string",
+            "description": "ผู้รับเรื่อง"
+          },
+          "receiver_org_unit_id": {
+            "type": "string",
+            "description": "ทีมผู้รับ — ค่าตั้งต้นมาจากประเภทคำขอ"
+          },
+          "parent_request_id": {
+            "type": "string",
+            "description": "คำขอต้นเรื่อง"
+          },
+          "ref_type": {
+            "type": "string",
+            "example": "deal"
+          },
+          "ref_id": {
+            "type": "string",
+            "example": "D-501"
+          }
+        },
+        "required": [
+          "type_code",
+          "form_data",
+          "receiver_user_id"
+        ]
+      },
+      "ExternalErrorDetailDto": {
+        "type": "object",
+        "properties": {
+          "field": {
+            "type": "string",
+            "example": "x-acting-user"
+          },
+          "reason": {
+            "type": "string",
+            "example": "required"
+          }
+        },
+        "required": [
+          "field",
+          "reason"
+        ]
+      },
+      "ExternalErrorDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "รหัสคงที่จาก ErrorCatalog — ใช้ตัวนี้ตัดสินใจ ไม่ใช่ message",
+            "example": "REQ_STATE_INVALID"
+          },
+          "message": {
+            "type": "string",
+            "example": "คำขอนี้ถูกรับเรื่องไปแล้ว"
+          },
+          "details": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExternalErrorDetailDto"
+            }
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ]
+      },
+      "ExternalPersonDto": {
+        "type": "object",
+        "properties": {
+          "displayName": {
+            "type": "string",
+            "example": "นายชนะกุล แก้วทรงเกษ"
+          }
+        },
+        "required": [
+          "displayName"
+        ]
+      },
+      "ExternalRequestDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "f7f7609e-9317-454e-875d-ec543bc4caf0"
+          },
+          "requestNo": {
+            "type": "string",
+            "description": "เลขที่คำขอ — ใช้แทน id ได้ทุก endpoint ที่รับ {ref}",
+            "example": "REQ-OSD-PS01-26090003"
+          },
+          "typeCode": {
+            "type": "string",
+            "example": "PS01"
+          },
+          "requestTypeId": {
+            "type": "string",
+            "example": "d6c845a2-cd99-454a-b4d1-1a6cfeb2be78"
+          },
+          "companyId": {
+            "type": "string",
+            "example": "42142ccf-d4ca-4d15-821c-489da9758f4f"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "submitted",
+              "returned",
+              "pending_approval",
+              "approved",
+              "rejected",
+              "in_progress",
+              "on_hold",
+              "completed",
+              "closed",
+              "cancelled"
+            ],
+            "example": "submitted"
+          },
+          "requesterId": {
+            "type": "string",
+            "example": "1a8a478b-9c8c-4ebc-a552-5a1122030a35"
+          },
+          "requesterOrgUnitId": {
+            "type": "string",
+            "nullable": true
+          },
+          "receiverUserId": {
+            "type": "string",
+            "description": "ผู้รับเรื่อง",
+            "nullable": true,
+            "example": "e0e90f78-98d3-4b74-b2bd-94e05700f989"
+          },
+          "assigneeUserId": {
+            "type": "string",
+            "description": "ผู้ถืองาน — ตั้งอัตโนมัติเมื่อ action `receive` สำเร็จ",
+            "nullable": true,
+            "example": null
+          },
+          "receiverOrgUnitId": {
+            "type": "string",
+            "nullable": true,
+            "example": null
+          },
+          "parentRequestId": {
+            "type": "string",
+            "description": "คำขอต้นเรื่อง — null คือเป็นใบตั้งต้นเอง",
+            "nullable": true,
+            "example": null
+          },
+          "ancestorIds": {
+            "description": "ไล่ขึ้นไปถึงต้นเรื่องสุด เรียงจากใกล้ไปไกล",
+            "example": [],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "formData": {
+            "type": "object",
+            "description": "คำตอบตาม form_schema ของประเภทคำขอ",
+            "example": {
+              "subject": "ขอ Pre-Sales ออกแบบระบบจัดการคำขอ",
+              "urgency": "ปกติ",
+              "needed_by": "2026-09-30"
+            }
+          },
+          "receiverFormData": {
+            "type": "object",
+            "description": "คำตอบของผู้รับ ตาม receiver_form_schema — ว่างจนกว่าจะ complete",
+            "example": {}
+          },
+          "refType": {
+            "type": "string",
+            "nullable": true,
+            "example": "deal"
+          },
+          "refId": {
+            "type": "string",
+            "nullable": true,
+            "example": "D-902"
+          },
+          "source": {
+            "type": "string",
+            "description": "REQ-10 — คำขอที่เข้ามาทาง integration ถูกทำเครื่องหมายไว้",
+            "enum": [
+              "USER",
+              "SYSTEM"
+            ],
+            "example": "USER"
+          },
+          "submittedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "example": "2026-09-04T04:30:31.300Z"
+          },
+          "dueAt": {
+            "type": "string",
+            "description": "กำหนดเสร็จตาม SLA นับเฉพาะเวลาทำการ",
+            "format": "date-time",
+            "nullable": true,
+            "example": "2026-09-23T07:30:31.300Z"
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "example": null
+          },
+          "closedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "example": null
+          },
+          "cancelledAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "example": null
+          },
+          "cancelReason": {
+            "type": "string",
+            "nullable": true,
+            "example": null
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-09-04T04:30:31.253Z"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-09-04T04:30:31.368Z"
+          },
+          "typeSnapshot": {
+            "type": "object",
+            "description": "สำเนาประเภทคำขอ ณ เวลาที่ยื่น — กันสเปกเปลี่ยนย้อนหลัง"
+          },
+          "events": {
+            "description": "timeline ของคำขอ — โครงเต็มดูที่ Swagger ของ core-service",
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "comments": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "attachments": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "approvalCases": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "requestNo",
+          "typeCode",
+          "requestTypeId",
+          "companyId",
+          "status",
+          "requesterId",
+          "requesterOrgUnitId",
+          "receiverUserId",
+          "assigneeUserId",
+          "receiverOrgUnitId",
+          "parentRequestId",
+          "ancestorIds",
+          "formData",
+          "receiverFormData",
+          "source",
+          "submittedAt",
+          "dueAt",
+          "completedAt",
+          "closedAt",
+          "cancelledAt",
+          "cancelReason",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "ExternalRequestPageDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExternalRequestDto"
+            }
+          },
+          "total": {
+            "type": "number",
+            "example": 2
+          },
+          "page": {
+            "type": "number",
+            "example": 1
+          },
+          "page_size": {
+            "type": "number",
+            "example": 20
+          }
+        },
+        "required": [
+          "data",
+          "total",
+          "page",
+          "page_size"
+        ]
+      },
+      "ExternalReturnReasonDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "INFO_INCOMPLETE"
+          },
+          "name": {
+            "type": "string",
+            "example": "ข้อมูลไม่ครบ"
+          }
+        },
+        "required": [
+          "code",
+          "name"
+        ]
+      },
+      "ExternalTreeDto": {
+        "type": "object",
+        "properties": {
+          "parent": {
+            "description": "คำขอต้นเรื่อง — null คือใบนี้เป็นต้นเรื่องเอง",
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExternalTreeNodeDto"
+              }
+            ]
+          },
+          "descendants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExternalTreeNodeDto"
+            }
+          }
+        },
+        "required": [
+          "parent",
+          "descendants"
+        ]
+      },
+      "ExternalTreeNodeDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "4d10cf13-8428-4bbd-941c-d189818cb9f7"
+          },
+          "requestNo": {
+            "type": "string",
+            "example": "REQ-OSD-PS01-26090004"
+          },
+          "typeCode": {
+            "type": "string",
+            "example": "PS01"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "submitted",
+              "returned",
+              "pending_approval",
+              "approved",
+              "rejected",
+              "in_progress",
+              "on_hold",
+              "completed",
+              "closed",
+              "cancelled"
+            ],
+            "example": "submitted"
+          },
+          "parentRequestId": {
+            "type": "string",
+            "nullable": true
+          },
+          "ancestorIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "requester": {
+            "$ref": "#/components/schemas/ExternalPersonDto"
+          },
+          "assignee": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExternalPersonDto"
+              }
+            ]
+          },
+          "receiver": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExternalPersonDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "requestNo",
+          "typeCode",
+          "status",
+          "parentRequestId",
+          "ancestorIds",
+          "requester",
+          "assignee",
+          "receiver"
+        ]
+      },
+      "ExternalTypeFormDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "PS01"
+          },
+          "name": {
+            "type": "string",
+            "example": "ขอ Pre-Sales / Solution Design"
+          },
+          "sla_hours": {
+            "type": "number",
+            "description": "เวลาตาม SLA นับเป็นชั่วโมง",
+            "example": 120
+          },
+          "receiver_org_unit": {
+            "type": "string",
+            "description": "ทีมผู้รับตั้งต้นของประเภทนี้ — null คือไม่ได้กำหนดไว้",
+            "nullable": true,
+            "example": null
+          },
+          "ref_required": {
+            "type": "boolean",
+            "description": "true = ต้องส่ง ref_type และ ref_id ตอนสร้างคำขอ",
+            "example": false
+          },
+          "form_schema": {
+            "type": "object",
+            "description": "JSON Schema ของฟอร์มผู้ขอ — ถามตาม required ให้ครบก่อนยื่น",
+            "example": {
+              "type": "object",
+              "required": [
+                "subject",
+                "requester_department",
+                "objective"
+              ],
+              "properties": {
+                "subject": {
+                  "type": "string",
+                  "maxLength": 200,
+                  "title": "เรื่อง"
+                },
+                "urgency": {
+                  "type": "string",
+                  "enum": [
+                    "ปกติ",
+                    "เร่งด่วน",
+                    "เร่งด่วนมาก"
+                  ]
+                },
+                "needed_by": {
+                  "type": "string",
+                  "format": "date"
+                }
+              }
+            }
+          },
+          "receiver_form_schema": {
+            "type": "object",
+            "description": "JSON Schema ของฟอร์มผู้รับ — ใช้ตอน action `complete`",
+            "example": {
+              "type": "object",
+              "required": [
+                "note"
+              ]
+            }
+          },
+          "required_docs": {
+            "example": [],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "return_reason_codes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExternalReturnReasonDto"
+            }
+          },
+          "receiver_candidates": {
+            "description": "ผู้รับที่เลือกได้ — ว่างได้ ถ้าว่างต้องหา receiver_user_id เอง",
+            "example": [],
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExternalPersonDto"
+            }
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "sla_hours",
+          "receiver_org_unit",
+          "ref_required",
+          "form_schema",
+          "receiver_form_schema",
+          "required_docs",
+          "return_reason_codes",
+          "receiver_candidates"
+        ]
+      },
+      "ExternalTypeSummaryDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "PS01"
+          },
+          "name": {
+            "type": "string",
+            "example": "ขอ Pre-Sales / Solution Design"
+          },
+          "sla_hours": {
+            "type": "number",
+            "description": "เวลาตาม SLA นับเป็นชั่วโมง",
+            "example": 120
+          },
+          "receiver_org_unit": {
+            "type": "string",
+            "description": "ทีมผู้รับตั้งต้นของประเภทนี้ — null คือไม่ได้กำหนดไว้",
+            "nullable": true,
+            "example": null
+          },
+          "ref_required": {
+            "type": "boolean",
+            "description": "true = ต้องส่ง ref_type และ ref_id ตอนสร้างคำขอ",
+            "example": false
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "sla_hours",
+          "receiver_org_unit",
+          "ref_required"
+        ]
+      }
+    }
+  }
+}

@@ -1,6 +1,7 @@
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import type { OpenAPIObject } from '@nestjs/swagger';
 import { CoreServiceModule } from '../services/core-service/src/core-service.module';
 import { UserServiceModule } from '../services/user-service/src/user-service.module';
 
@@ -14,6 +15,114 @@ import { UserServiceModule } from '../services/user-service/src/user-service.mod
  * The app is created without listening: nothing binds a port, and no request
  * is ever served by this process.
  */
+/**
+ * Every `#/components/schemas/...` reachable from `node`, followed recursively.
+ *
+ * The partner document must carry the schemas its own paths use and nothing
+ * else: `core-service.json` holds thirty, most belonging to the admin and
+ * approval surfaces, and shipping those would hand an integrator the shape of
+ * endpoints they cannot call and should not know about.
+ */
+function collectRefs(
+  node: unknown,
+  schemas: Record<string, unknown>,
+  found: Set<string>,
+): void {
+  if (Array.isArray(node)) {
+    for (const item of node) collectRefs(item, schemas, found);
+    return;
+  }
+  if (node === null || typeof node !== 'object') return;
+
+  for (const [key, value] of Object.entries(node)) {
+    if (key === '$ref' && typeof value === 'string') {
+      const name = value.replace('#/components/schemas/', '');
+      // Guard against a cycle: a schema that refers back to itself, directly
+      // or through a chain, would otherwise recurse until the stack gives out.
+      if (schemas[name] && !found.has(name)) {
+        found.add(name);
+        collectRefs(schemas[name], schemas, found);
+      }
+      continue;
+    }
+    collectRefs(value, schemas, found);
+  }
+}
+
+/**
+ * The partner-facing document: the `external` routes alone, cut from the
+ * core-service document that was just built.
+ *
+ * Cut rather than generated from a module of its own, because a second
+ * `SwaggerModule.createDocument` would describe a second application — one
+ * assembled here, in this script, that no server runs. Filtering the real
+ * document keeps §14's guarantee: what integrators receive is what core-service
+ * actually serves.
+ */
+function writeExternalDocument(document: OpenAPIObject, prefix: string): void {
+  const externalPrefix = `/${prefix}/external`;
+  const paths = Object.fromEntries(
+    Object.entries(document.paths).filter(([path]) =>
+      path.startsWith(externalPrefix),
+    ),
+  );
+
+  const allSchemas = (document.components?.schemas ?? {}) as Record<
+    string,
+    unknown
+  >;
+  const used = new Set<string>();
+  collectRefs(paths, allSchemas, used);
+
+  const external = {
+    ...document,
+    info: {
+      title: 'Request Form — External API',
+      description:
+        'API สำหรับระบบภายนอก (เช่น chatbot) ขับเคลื่อนคำขอตั้งแต่เปิดจนปิด\n\n' +
+        'ทุก request ต้องมีสองอย่าง: bearer token ของ service account ' +
+        'ที่ถือสิทธิ์ `integration.request.create` และ header `X-Acting-User` ' +
+        'ที่ระบุอีเมลของคนที่ระบบกำลังทำแทน — ระบบจะทำงานในนามคนนั้น ' +
+        'timeline จึงบันทึกชื่อคนจริง ไม่ใช่ชื่อบัญชีบริการ',
+      version: document.info.version,
+    },
+    /*
+      Where the document was true of when it was generated. Integrators import
+      the file and press Try it: without this they are asked for a base URL
+      they have no way to guess.
+    */
+    servers: [
+      {
+        url:
+          process.env.EXTERNAL_API_PUBLIC_URL ??
+          `http://192.168.31.52:3502/${prefix}`,
+        description: 'เครื่องภายใน OSD',
+      },
+    ],
+    paths,
+    components: {
+      ...document.components,
+      schemas: Object.fromEntries(
+        [...used].sort().map((name) => [name, allSchemas[name]]),
+      ),
+    },
+  };
+
+  writeFileSync(
+    'docs/openapi/external-api.json',
+    `${JSON.stringify(external, null, 2)}\n`,
+  );
+
+  const operations = Object.values(paths).reduce(
+    (total, item) => total + Object.keys(item as object).length,
+    0,
+  );
+  console.log(
+    `external-api: ${Object.keys(paths).length} paths · ${operations} operations · ` +
+      `${used.size}/${Object.keys(allSchemas).length} schemas → docs/openapi/external-api.json`,
+  );
+}
+
 async function generate(
   name: string,
   module: Parameters<typeof NestFactory.create>[0],
@@ -45,6 +154,8 @@ async function generate(
 
   const paths = Object.keys(document.paths).length;
   console.log(`${name}: ${paths} paths → docs/openapi/${name}.json`);
+
+  if (name === 'core-service') writeExternalDocument(document, prefix);
 
   await app.close();
 }
