@@ -152,6 +152,43 @@ export class OrgController {
     );
   }
 
+  /**
+   * The same pane, for a grant written to one person rather than a group.
+   *
+   * A separate path rather than a `?viewer_kind=` on the pair above: the two
+   * ids come from different tables, and one route that resolved either would
+   * answer 404 for a real user id that happened not to be a unit id — which
+   * reads as "no such person" when the truth is "wrong kind".
+   */
+  @Get('users/:id/scopes')
+  @Permissions('admin.org.manage')
+  listUserScopes(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+    @Query('company_id') companyId?: string,
+  ) {
+    return this.orgService.listUserScopes(
+      id,
+      resolveTargetCompany(principal, companyId),
+    );
+  }
+
+  @Put('users/:id/scopes')
+  @Permissions('admin.org.manage')
+  replaceUserScopes(
+    @Param('id') id: string,
+    @Body() dto: ReplaceOrgUnitScopesDto,
+    @CurrentPrincipal() principal: Principal,
+    @Query('company_id') companyId?: string,
+  ) {
+    return this.orgService.replaceUserScopes(
+      id,
+      dto,
+      resolveTargetCompany(principal, companyId),
+      principal,
+    );
+  }
+
   @Get('users/unassigned')
   @Permissions('admin.org.manage')
   listUnassigned() {

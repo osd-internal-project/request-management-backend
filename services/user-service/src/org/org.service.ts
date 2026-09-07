@@ -22,8 +22,27 @@ import {
   AssignUserOrgDto,
   CreateOrgUnitDto,
   ReplaceOrgUnitScopesDto,
+  requireOneTarget,
   UpdateOrgUnitDto,
 } from './dto/org-unit.dto';
+
+/**
+ * Everything a scope grant adds to one person's reach, in the active company.
+ *
+ * Four lists rather than two flags, because reading somebody's work and moving
+ * it are different permissions (`canAct`), and because a grant may name a group
+ * or one person — `assertMayAct` in core-service reads only the `act*` halves.
+ */
+export interface ScopedAccess {
+  readUnits: string[];
+  actUnits: string[];
+  readUsers: string[];
+  actUsers: string[];
+}
+
+function emptyScopedAccess(): ScopedAccess {
+  return { readUnits: [], actUnits: [], readUsers: [], actUsers: [] };
+}
 
 /** One node of the A3 tree. */
 export interface OrgUnitNode {
@@ -492,6 +511,73 @@ export class OrgService {
     return [...new Set(subtrees.flat())];
   }
 
+  /**
+   * Every group reached by the visibility levels this person's roles carry.
+   *
+   * A level is relative to the holder, not an absolute rank: walk up their own
+   * ancestors, take the **nearest** unit whose `kind` matches, and read that
+   * unit's subtree. Somebody under `ตำแหน่ง: software dev` with `DEPARTMENT`
+   * reaches all of RND; the same role on somebody under Sale reaches Sale.
+   * That is what a `(role, resource) → level` rule could never do, and why the
+   * levels withdrawn on 31 ส.ค. 2569 are not what this is.
+   *
+   * A level with no matching ancestor contributes **nothing**. Widening to the
+   * next unit up would be a silent grant, and it is exactly what would happen
+   * to every `POSITION` role the day those nodes leave the chart.
+   *
+   * Several roles union, which is the same answer as "widest wins" — the
+   * subtrees nest — without having to rank the kinds.
+   *
+   * `companyId` pins the ancestors read (SCOPE-03): somebody whose home unit
+   * sits in another company must not reach it from this one. Descendants need
+   * no such filter, a subtree never leaves its company's tree.
+   */
+  async levelUnitIdsOf(
+    orgUnitId: string | null,
+    companyId: string,
+    levels: readonly OrgUnit['kind'][],
+  ): Promise<string[]> {
+    if (!orgUnitId || !levels.length) return [];
+
+    const ancestors = await this.closure.ancestorsOf(orgUnitId);
+
+    if (!ancestors.length) return [];
+
+    const units = await this.orgUnits.findMany({
+      where: {
+        id: { in: ancestors.map((row) => row.ancestorId) },
+        companyId,
+        active: true,
+      },
+      select: { id: true, kind: true },
+    });
+
+    const kindOf = new Map(units.map((unit) => [unit.id, unit.kind]));
+
+    /*
+      `ancestorsOf` is ordered nearest first and includes the unit itself at
+      depth 0, so the first match per level is the nearest one. Distinct roots
+      only — two roles resolving to the same unit is one closure read, not two.
+    */
+    const roots = new Set<string>();
+
+    for (const level of new Set(levels)) {
+      const match = ancestors.find(
+        (row) => kindOf.get(row.ancestorId) === level,
+      );
+
+      if (match) roots.add(match.ancestorId);
+    }
+
+    if (!roots.size) return [];
+
+    const subtrees = await Promise.all(
+      [...roots].map((rootId) => this.closure.descendantIdsOf(rootId)),
+    );
+
+    return [...new Set(subtrees.flat())];
+  }
+
   // --- which groups may see which (SCOPE-01's replacement) ----------------
 
   /** The grants written on one group, as the admin screen lists them. */
@@ -501,17 +587,19 @@ export class OrgService {
     return this.scopes.findForViewerWithUnits(id);
   }
 
+  /** The grants written on one person, as the same screen lists them. */
+  async listUserScopes(userId: string, companyId: string) {
+    await this.requireUserInCompany(userId, companyId);
+
+    return this.scopes.findForViewerUserWithUnits(userId);
+  }
+
   /**
    * Replaces every grant held by one group.
    *
    * Replace rather than add and remove per row: the screen edits a list and
    * saves it, and two endpoints each applying half of an edit is how a grant
    * survives being deleted.
-   *
-   * Both ends are checked against the same company (SCOPE-03). A grant is the
-   * one place a request could cross a company boundary now that the `all`
-   * scope level is gone, so it is refused here rather than filtered later —
-   * the filter would have to know which rows to drop, and it does not.
    */
   async replaceScopes(
     id: string,
@@ -519,51 +607,137 @@ export class OrgService {
     companyId: string,
     actor: Principal,
   ) {
-    const viewer = await this.requireUnitInCompany(id, companyId);
+    await this.requireUnitInCompany(id, companyId);
+
+    return this.replaceScopesFor(
+      { viewerOrgUnitId: id },
+      dto,
+      companyId,
+      actor,
+    );
+  }
+
+  /**
+   * Replaces every grant held by one *person* (4 ก.ย. 2569).
+   *
+   * The same list, saved the same way — the viewer is the only difference, so
+   * the work is in {@link replaceScopesFor} rather than copied.
+   */
+  async replaceUserScopes(
+    userId: string,
+    dto: ReplaceOrgUnitScopesDto,
+    companyId: string,
+    actor: Principal,
+  ) {
+    await this.requireUserInCompany(userId, companyId);
+
+    return this.replaceScopesFor(
+      { viewerUserId: userId },
+      dto,
+      companyId,
+      actor,
+    );
+  }
+
+  /**
+   * The body of both replace endpoints.
+   *
+   * Every target is checked against the same company (SCOPE-03). A grant is
+   * the one place a request could cross a company boundary now that the `all`
+   * scope level is gone, so it is refused here rather than filtered later —
+   * the filter would have to know which rows to drop, and it does not.
+   */
+  private async replaceScopesFor(
+    viewer: { viewerOrgUnitId: string } | { viewerUserId: string },
+    dto: ReplaceOrgUnitScopesDto,
+    companyId: string,
+    actor: Principal,
+  ) {
+    const viewerId =
+      'viewerOrgUnitId' in viewer
+        ? viewer.viewerOrgUnitId
+        : viewer.viewerUserId;
 
     for (const entry of dto.scopes) {
-      if (entry.target_org_unit_id === id) {
+      const target = requireOneTarget(entry);
+
+      /*
+        A viewer already sees its own work, so a self-grant is a row that
+        changes nothing — refused rather than stored, because a stored one
+        invites the reader to believe it is load-bearing.
+      */
+      if (target.id === viewerId) {
         throw new AppError(
           'VALIDATION_FAILED',
-          'หน่วยงานเห็นงานของตัวเองอยู่แล้ว ไม่ต้องตั้งสิทธิ์ซ้ำ',
-          [{ field: 'target_org_unit_id', reason: id }],
+          target.kind === 'unit'
+            ? 'หน่วยงานเห็นงานของตัวเองอยู่แล้ว ไม่ต้องตั้งสิทธิ์ซ้ำ'
+            : 'ผู้ใช้เห็นงานของตัวเองอยู่แล้ว ไม่ต้องตั้งสิทธิ์ซ้ำ',
+          [{ field: target.field, reason: target.id }],
         );
       }
 
-      await this.requireUnitInCompany(entry.target_org_unit_id, companyId);
+      if (target.kind === 'unit') {
+        await this.requireUnitInCompany(target.id, companyId);
+      } else {
+        await this.requireUserInCompany(target.id, companyId);
+      }
     }
 
     return this.transactions.execute(async (prisma) => {
       const option = { prisma };
 
-      const before = await this.scopes.findForViewers([id], companyId, option);
+      const before =
+        'viewerOrgUnitId' in viewer
+          ? await this.scopes.findForViewers(
+              [viewer.viewerOrgUnitId],
+              companyId,
+              undefined,
+              option,
+            )
+          : await this.scopes.findForViewers(
+              [],
+              companyId,
+              viewer.viewerUserId,
+              option,
+            );
 
-      await prisma.orgUnitScope.deleteMany({ where: { viewerOrgUnitId: id } });
+      await prisma.orgUnitScope.deleteMany({ where: viewer });
 
       const written = await Promise.all(
-        dto.scopes.map((entry) =>
-          prisma.orgUnitScope.create({
+        dto.scopes.map((entry) => {
+          const target = requireOneTarget(entry);
+
+          return prisma.orgUnitScope.create({
             data: {
-              companyId: viewer.companyId,
-              viewerOrgUnitId: id,
-              targetOrgUnitId: entry.target_org_unit_id,
-              includeDescendants: entry.include_descendants ?? true,
+              companyId,
+              ...viewer,
+              targetOrgUnitId: target.kind === 'unit' ? target.id : null,
+              targetUserId: target.kind === 'user' ? target.id : null,
+              /*
+                A person has no subtree. Storing `true` there would be a flag
+                that reads as if it widened the grant, and the database
+                refuses it outright.
+              */
+              includeDescendants:
+                target.kind === 'unit'
+                  ? (entry.include_descendants ?? true)
+                  : false,
               canAct: entry.can_act ?? false,
               createdBy: actor.userId,
               updatedBy: actor.userId,
             },
-          }),
-        ),
+          });
+        }),
       );
 
       await this.audit.record(
         {
           eventType: AuditEvent.ORG_UNIT_SCOPES_REPLACED,
-          companyId: viewer.companyId,
+          companyId,
           actorId: actor.userId,
           actorUsername: actor.username,
-          resourceType: 'org_unit',
-          resourceId: id,
+          resourceType: 'viewerOrgUnitId' in viewer ? 'org_unit' : 'user',
+          resourceId: viewerId,
           before: { scopes: before },
           after: { scopes: written },
         },
@@ -591,70 +765,122 @@ export class OrgService {
   }
 
   /**
-   * The groups this person may see through a scope grant, and the subset they
-   * may also act in.
+   * The person, proved to be a member of the caller's company.
+   *
+   * Membership rather than `primaryCompanyId` (AUTH-05): somebody can work in
+   * a company that is not their primary one, and a grant naming them there is
+   * legitimate. Same 404-not-403 rule as {@link requireUnitInCompany}.
+   */
+  private async requireUserInCompany(userId: string, companyId: string) {
+    const user = await this.users.findFirst({
+      where: { id: userId, companies: { some: { companyId } } },
+    });
+
+    if (!user) throw new AppError('NOT_FOUND', 'ไม่พบผู้ใช้ที่ระบุ');
+
+    return user;
+  }
+
+  /**
+   * The groups **and people** this person may see through a scope grant, and
+   * the subsets they may also act in.
    *
    * The other way into somebody else's work, beside leading a group
    * ({@link ledUnitIdsOf}). Deliberately built the same way: one query for the
    * grants and one closure read per expanded target, never a walk down the
    * tree per level.
    *
-   * **A grant is inherited downwards.** It is matched against the person's own
-   * unit *and every unit above it*, which is what "เลือก level" means on the
-   * admin screen: a grant written on the company applies to everyone in it,
-   * one written on a ฝ่าย applies to its แผนก, and one written on a ตำแหน่ง
-   * applies to that position alone.
+   * **A grant is inherited downwards.** A grant written to a *group* is
+   * matched against the person's own unit *and every unit above it*, which is
+   * what "เลือก level" means on the admin screen: one written on the company
+   * applies to everyone in it, one on a ฝ่าย applies to its แผนก, and one on a
+   * ตำแหน่ง applies to that position alone.
    *
-   * Someone with no unit, or with no grant above them, gets two empty arrays
-   * — and every caller treats an empty set as "no extra rows" rather than "no
+   * **A grant written to a person is not inherited by anything.** It names one
+   * account, which is the whole point of being able to write it (4 ก.ย. 2569)
+   * — one designer covering one account manager's work, without handing over
+   * either group.
+   *
+   * Somebody with no unit and no personal grant gets four empty arrays — and
+   * every caller treats an empty set as "no extra rows" rather than "no
    * filter". An empty set that reads as unrestricted is how a visibility bug
    * becomes a disclosure.
    */
-  async scopedUnitIdsOf(
+  async scopedAccessOf(
     userId: string,
     companyId: string,
-  ): Promise<{ read: string[]; act: string[] }> {
+  ): Promise<ScopedAccess> {
     const user = await this.users.findById(userId);
 
-    if (!user?.orgUnitId) return { read: [], act: [] };
+    if (!user) return emptyScopedAccess();
 
-    const ancestors = await this.closure.ancestorsOf(user.orgUnitId);
-    const viewers = ancestors.map((row) => row.ancestorId);
+    /*
+      No unit is no longer the end of the story: somebody in the รอจัดสังกัด
+      queue can still hold a grant written to them by name.
+    */
+    const ancestors = user.orgUnitId
+      ? await this.closure.ancestorsOf(user.orgUnitId)
+      : [];
 
-    const grants = await this.scopes.findForViewers(viewers, companyId);
+    const grants = await this.scopes.findForViewers(
+      ancestors.map((row) => row.ancestorId),
+      companyId,
+      userId,
+    );
 
-    if (!grants.length) return { read: [], act: [] };
+    if (!grants.length) return emptyScopedAccess();
 
     /*
       Expanded once per distinct target, not once per grant: two grants on the
       same group — one inherited from the ฝ่าย, one written on the แผนก — are
       the same subtree, and the closure read is the expensive half.
     */
+    const unitTargets = [
+      ...new Set(
+        grants
+          .map((grant) => grant.targetOrgUnitId)
+          .filter((id): id is string => id !== null),
+      ),
+    ];
+
     const subtrees = new Map<string, string[]>();
 
     await Promise.all(
-      [...new Set(grants.map((grant) => grant.targetOrgUnitId))].map(
-        async (targetId) => {
-          subtrees.set(targetId, await this.closure.descendantIdsOf(targetId));
-        },
-      ),
+      unitTargets.map(async (targetId) => {
+        subtrees.set(targetId, await this.closure.descendantIdsOf(targetId));
+      }),
     );
 
-    const read = new Set<string>();
-    const act = new Set<string>();
+    const readUnits = new Set<string>();
+    const actUnits = new Set<string>();
+    const readUsers = new Set<string>();
+    const actUsers = new Set<string>();
 
     for (const grant of grants) {
+      if (grant.targetUserId) {
+        readUsers.add(grant.targetUserId);
+        if (grant.canAct) actUsers.add(grant.targetUserId);
+        continue;
+      }
+
+      if (!grant.targetOrgUnitId) continue;
+
       const reached = grant.includeDescendants
         ? (subtrees.get(grant.targetOrgUnitId) ?? [grant.targetOrgUnitId])
         : [grant.targetOrgUnitId];
 
       for (const unitId of reached) {
-        read.add(unitId);
-        if (grant.canAct) act.add(unitId);
+        readUnits.add(unitId);
+        if (grant.canAct) actUnits.add(unitId);
       }
     }
 
-    return { read: [...read], act: [...act] };
+    return {
+      readUnits: [...readUnits],
+      actUnits: [...actUnits],
+      readUsers: [...readUsers],
+      actUsers: [...actUsers],
+    };
   }
 
   private async rebuildClosure(

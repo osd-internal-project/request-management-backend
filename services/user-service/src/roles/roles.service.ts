@@ -162,6 +162,7 @@ export class RolesService implements OnModuleInit {
           code: dto.code,
           name: dto.name,
           description: dto.description,
+          visibilityLevel: dto.visibility_level ?? null,
           createdBy: actor.userId,
           updatedBy: actor.userId,
         },
@@ -177,7 +178,11 @@ export class RolesService implements OnModuleInit {
           actorUsername: actor.username,
           resourceType: 'role',
           resourceId: role.id,
-          after: { code: role.code, permissions: dto.permissions },
+          after: {
+            code: role.code,
+            permissions: dto.permissions,
+            visibilityLevel: role.visibilityLevel,
+          },
         },
         option,
       );
@@ -225,6 +230,14 @@ export class RolesService implements OnModuleInit {
             ? { description: dto.description }
             : {}),
           ...(dto.active !== undefined ? { active: dto.active } : {}),
+          /*
+            Present-and-null clears the level; absent leaves it alone. Spread
+            conditionally rather than `?? before.visibilityLevel`, which would
+            make "clear it" unexpressible.
+          */
+          ...('visibility_level' in dto
+            ? { visibilityLevel: dto.visibility_level ?? null }
+            : {}),
           updatedBy: actor.userId,
         },
         dto.permissions,
@@ -245,11 +258,13 @@ export class RolesService implements OnModuleInit {
           before: {
             name: before.name,
             active: before.active,
+            visibilityLevel: before.visibilityLevel,
             permissions: before.permissions.map((p) => p.permissionCode),
           },
           after: {
             name: after.name,
             active: after.active,
+            visibilityLevel: after.visibilityLevel,
             permissions: after.permissions.map((p) => p.permissionCode),
           },
         },

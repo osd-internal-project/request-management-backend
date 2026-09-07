@@ -6,8 +6,8 @@ import {
   PrismaTransactionService,
   accessSubject,
   awaitingDecisionWhere,
+  inApprovalRouteWhere,
   involvedRequestsWhere,
-  ledRequestsWhere,
   visibleRequestsWhere,
   resolveTargetCompany,
   paginated,
@@ -17,13 +17,14 @@ import type { Principal } from '@request-management/share';
 import { Prisma } from '@prisma/client';
 import type { RequestStatus } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
+import { assertTransition, OPEN_STATUSES } from './request-state-machine';
 import {
-  assertTransition,
-  CARRIER_QUEUE_STATUSES,
-  OPEN_STATUSES,
-} from './request-state-machine';
-import { hasAuthority, type Authority } from './available-actions';
+  availableActions,
+  hasAuthority,
+  type Authority,
+} from './available-actions';
 import { AttachmentRepository } from './attachment.repository';
+import type { RequestListRow } from './request.repository';
 import {
   assertKnownDocCode,
   assertKnownReturnReason,
@@ -1707,7 +1708,53 @@ export class RequestsService {
       this.requests.countWhere(where),
     ]);
 
-    return paginated(rows, query, total);
+    return paginated(
+      rows.map((row) => this.withAvailableActions(row, actor, covering)),
+      query,
+      total,
+    );
+  }
+
+  /**
+   * What this caller may do with this row, as the list renders it.
+   *
+   * `availableActions` is the same table `assertMayAct` consults, so a button
+   * the list offers is a button the handler behind it will honour. Deriving the
+   * list on the frontend instead was how `งานทั้งหมด` ended up read-only: with
+   * no trustworthy answer available, offering nothing was the only safe choice.
+   *
+   * Computed per row rather than queried — it is a pure function of fields the
+   * list already loaded, so this adds no round trips.
+   */
+  private withAvailableActions(
+    row: RequestListRow,
+    actor: Principal,
+    covering: readonly string[],
+  ): RequestListRow & { available_actions: string[] } {
+    const step = currentStepOf(row);
+
+    /*
+      The same test `authorise` runs, including the delegation and the
+      pre-`candidateUserIds` fallback. A narrower one here would put an
+      อนุมัติ button on a row that answers `APV_NOT_YOUR_TURN`, and a wider
+      one would hide a decision somebody actually owes.
+    */
+    const deciders = [actor.userId, ...covering];
+
+    const isDecider =
+      step !== null &&
+      step.status === 'pending' &&
+      (step.candidateUserIds.length
+        ? step.candidateUserIds.some((id) => deciders.includes(id))
+        : step.approverUserId !== null &&
+          deciders.includes(step.approverUserId));
+
+    return {
+      ...row,
+      available_actions: availableActions(row, actor, isDecider).map(
+        (spec) => spec.action,
+      ),
+    };
   }
 
   async findOne(id: string, actor: Principal): Promise<RequestDetail> {
@@ -1828,14 +1875,17 @@ export class RequestsService {
     }
 
     /*
-      `incoming` means "still mine to finish", so it stops when the request
-      closes — not when it moves on to a stage somebody else acts in.
-      Everything I have ever received would be a history, not a queue.
+      `incoming` is "handed to me", not "handed to me and not finished yet".
 
-      The old list stopped at `submitted | in_progress | on_hold`, which took
-      a ticket off its carrier's queue the moment they sent the result for
-      approval (`pending_approval`) or the requester sent it back
-      (`returned`) — the two states where it most plainly is still their work.
+      It used to AND `status in CARRIER_QUEUE_STATUSES`, which made the tab a
+      filter on the *status of the work* rather than on what the caller may
+      reach. A receiver whose tickets had all been closed saw `รับเรื่อง · 0`
+      beside `สร้าง · 3` and read it as data loss — reported as a defect on
+      4 ก.ย. 2569, with `uat.chavisat`'s three `MK-01` tickets all sitting at
+      `closed`/`cancelled`.
+
+      Every tab narrows by *access* now; the status box above narrows by
+      status, and it is the control that was always meant to do it.
     */
     if (query.view === 'incoming') {
       narrowing.push({
@@ -1843,17 +1893,29 @@ export class RequestsService {
           { receiverUserId: actor.userId },
           { assigneeUserId: actor.userId },
         ],
-        status: { in: [...CARRIER_QUEUE_STATUSES] },
       });
     }
 
     if (query.view === 'approver') {
+      narrowing.push(inApprovalRouteWhere(subject));
+    }
+
+    /*
+      The queue the `approver` tab used to be. Kept as its own view rather than
+      folded back into that one: the tab lists everything this person's name is
+      on, and the badge beside it counts what is actually waiting. Two numbers,
+      two questions — the badge is what tells somebody they owe a decision.
+    */
+    if (query.view === 'awaiting') {
       narrowing.push(awaitingDecisionWhere(subject));
     }
 
-    if (query.view === 'led') {
-      narrowing.push(ledRequestsWhere(subject));
-    }
+    /*
+      `led` — "งานทั้งหมด" — adds nothing at all: the base rule already covers
+      involvement, the groups this person leads and the groups granted to
+      them, which is exactly what the screen means. Kept as an accepted value
+      so existing links do not 422.
+    */
 
     if (query.status) {
       narrowing.push({ status: query.status as RequestStatus });
@@ -2017,4 +2079,23 @@ function snapshotOf(request: RequestWithType): Record<string, unknown> {
   return typeof request.typeSnapshot === 'object' && request.typeSnapshot
     ? (request.typeSnapshot as Record<string, unknown>)
     : {};
+}
+
+/**
+ * The step an approval case is currently sitting on, or null.
+ *
+ * `search` loads the newest case with its steps in `stepNo` order, so this is
+ * a lookup rather than a query. Returns null for a request with no case at all
+ * — eighteen of the forty request types carry no approval step, and those rows
+ * must not be treated as though a decision were owed on them.
+ */
+function currentStepOf(row: RequestListRow) {
+  const activeCase = row.approvalCases[0];
+
+  if (!activeCase) return null;
+
+  return (
+    activeCase.steps.find((step) => step.stepNo === activeCase.currentStep) ??
+    null
+  );
 }

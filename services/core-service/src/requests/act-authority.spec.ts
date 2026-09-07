@@ -209,6 +209,32 @@ describe('acting on a request needs involvement, not just a permission', () => {
       ).resolves.toBeDefined();
     });
 
+    /**
+     * A role's visibility level opens the rows; it never opens the buttons.
+     *
+     * `levelUnitIds` reaches a whole branch of the chart with no administrator
+     * naming anybody, which is exactly why it stays out of `leads()`. Wiring it
+     * in would hand every request beneath a division to whoever was given a
+     * view of it.
+     */
+    it('refuses somebody who only reaches the group through a role level', async () => {
+      const { service, updates } = serviceWith();
+
+      const viewer = {
+        ...principal(STRANGER),
+        levelUnitIds: [SALES, PRICING],
+      } as unknown as Principal;
+
+      expect(
+        (
+          await refused(
+            service.cancel('req-1', { reason: 'เห็นแล้วอยากยกเลิก' }, viewer),
+          )
+        ).code,
+      ).toBe('FORBIDDEN');
+      expect(updates).toHaveLength(0);
+    });
+
     /** Leading *some* group is not leading *this* one. */
     it('refuses a head of an unrelated group', async () => {
       const { service } = serviceWith();

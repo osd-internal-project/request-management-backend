@@ -1,0 +1,16 @@
+-- How far up a role holder's own branch their view starts (7 ก.ย. 2569).
+--
+-- Not the return of `scope_rules`. That table stored an absolute rank per
+-- (role, resource) — own/team/department/company/all — and was withdrawn on
+-- 31 ส.ค. 2569 because it could not say "ฝ่ายขาย sees ฝ่ายการตลาด".
+-- `org_unit_scopes` still owns every cross-branch grant and is untouched here.
+--
+-- This column is relative to the holder: the nearest ancestor of their own unit
+-- whose kind matches becomes the root, and its whole subtree becomes readable.
+-- Nothing here encodes that — it is resolved in `OrgService.levelUnitIdsOf`
+-- against `org_closure`, the same table `ledUnitIdsOf` reads.
+--
+-- Nullable with no default: every existing role keeps exactly the visibility it
+-- had the day before, which is what makes this deployable ahead of the screen
+-- that sets it.
+ALTER TABLE "roles" ADD COLUMN "visibilityLevel" "OrgUnitKind";

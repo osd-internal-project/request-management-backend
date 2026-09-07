@@ -50,13 +50,26 @@ const PERMISSIONS: Record<string, string[]> = {
   integration: ['integration.request.create', 'integration.approval.create'],
 };
 
-/** §5.2 seed roles and what each can do. How far each can *see* is no longer
- * a property of the role — see `access-rules.ts`. */
+/**
+ * §5.2 seed roles and what each can do.
+ *
+ * `visibilityLevel` is how far up the holder's **own** branch their view
+ * starts — the nearest ancestor of that kind, then everything beneath it. It is
+ * not the withdrawn own/team/department/company/all rank: it names a level of
+ * the chart and resolves against whoever holds the role, so `DEPARTMENT` on two
+ * people in two departments reaches two different sets of rows. Involvement and
+ * the groups a person heads still work exactly as before — see
+ * `access-rules.ts`, which unions all three.
+ *
+ * The seed tree is COMPANY → DEPARTMENT → TEAM, so those are the levels used
+ * here. A role with no level behaves as it did before this column existed.
+ */
 const SEED_ROLES: {
   code: string;
   name: string;
   description: string;
   permissions: string[];
+  visibilityLevel?: 'COMPANY' | 'DIVISION' | 'DEPARTMENT' | 'POSITION' | 'TEAM';
 }[] = [
   {
     /*
@@ -100,6 +113,7 @@ const SEED_ROLES: {
       'notification.read',
       'user.read',
     ],
+    visibilityLevel: 'TEAM',
   },
   {
     code: 'department_manager',
@@ -119,6 +133,7 @@ const SEED_ROLES: {
       'notification.read',
       'user.read',
     ],
+    visibilityLevel: 'DEPARTMENT',
   },
   {
     code: 'executive',
@@ -135,6 +150,7 @@ const SEED_ROLES: {
       'notification.read',
       'user.read',
     ],
+    visibilityLevel: 'COMPANY',
   },
   {
     // §8.1 names `cfo` and `ceo` as approval offices above T1 and T2, and
@@ -156,6 +172,7 @@ const SEED_ROLES: {
       'notification.read',
       'user.read',
     ],
+    visibilityLevel: 'COMPANY',
   },
   {
     code: 'ceo',
@@ -172,6 +189,7 @@ const SEED_ROLES: {
       'notification.read',
       'user.read',
     ],
+    visibilityLevel: 'COMPANY',
   },
   {
     // §5.2's destination team — Pricing for a discount request. The only role
@@ -278,13 +296,19 @@ async function seedRoles(companyId: string) {
   for (const role of SEED_ROLES) {
     const saved = await prisma.role.upsert({
       where: { companyId_code: { companyId, code: role.code } },
-      update: { name: role.name, description: role.description, isSystem: true },
+      update: {
+        name: role.name,
+        description: role.description,
+        isSystem: true,
+        visibilityLevel: role.visibilityLevel ?? null,
+      },
       create: {
         companyId,
         code: role.code,
         name: role.name,
         description: role.description,
         isSystem: true,
+        visibilityLevel: role.visibilityLevel ?? null,
       },
     });
 

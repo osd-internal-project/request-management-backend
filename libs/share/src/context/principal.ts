@@ -48,6 +48,16 @@ export interface Principal {
    */
   readonly ledUnitIds: readonly string[];
   /**
+   * Groups reached by the visibility level on this caller's roles.
+   *
+   * `Role.visibilityLevel` names a level of the chart; the subtree of the
+   * caller's **own** nearest ancestor at that level is what it reaches, so the
+   * same role placed on two people reaches two different branches. Read-only:
+   * it feeds `reachableUnitIds` and nothing that decides whether a request may
+   * be moved.
+   */
+  readonly levelUnitIds: readonly string[];
+  /**
    * Groups this caller may see through an `OrgUnitScope` grant.
    *
    * The other way into another group's work, beside leading one. Resolved from
@@ -64,6 +74,19 @@ export interface Principal {
    * standing between a person and another group's work.
    */
   readonly scopedActUnitIds: readonly string[];
+  /**
+   * Individual people whose work this caller may see through a scope grant
+   * written to a person rather than to a group (4 ก.ย. 2569).
+   *
+   * The group lists above cannot express "this one designer covers this one
+   * account manager" — naming either group hands over both in full.
+   */
+  readonly scopedUserIds: readonly string[];
+  /**
+   * The subset of {@link Principal.scopedUserIds} the caller may also **act**
+   * on, for the same reason the unit lists are kept apart.
+   */
+  readonly scopedActUserIds: readonly string[];
 
   readonly roles: readonly string[];
   readonly permissions: readonly Permission[];
@@ -147,8 +170,16 @@ export function accessSubject(
     userId: principal.userId,
     activeCompanyId: principal.activeCompanyId,
     ledUnitIds: principal.ledUnitIds,
+    levelUnitIds: principal.levelUnitIds ?? [],
     scopedUnitIds: principal.scopedUnitIds,
     scopedActUnitIds: principal.scopedActUnitIds,
+    /*
+      `?? []` for the same reason `reachableUnitIds` carries one: core-service
+      builds its principal from user-service's JSON, and during a rolling
+      deploy the older service answers without these fields.
+    */
+    scopedUserIds: principal.scopedUserIds ?? [],
+    scopedActUserIds: principal.scopedActUserIds ?? [],
     coveringUserIds,
     readsWholeCompany: hasPermission(principal, 'request.read.all'),
   };

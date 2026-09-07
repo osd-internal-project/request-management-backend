@@ -163,19 +163,38 @@ export class PrincipalService {
     const userRoles = await this.roles.rolesForUser(user.id, activeCompanyId);
     const permissions = RolesService.permissionsOf(userRoles);
 
-    const [sensitiveFieldsVisible, sensitiveFieldsAll, ledUnitIds, scoped] =
-      await Promise.all([
-        this.policy.resolveVisibleSensitiveFields(permissions),
-        this.policy.listAllSensitiveFieldKeys(),
-        this.org.ledUnitIdsOf(user.id, activeCompanyId),
-        /*
-          Resolved alongside the groups they lead, not after: this runs while
-          building the principal for *every* request, and a serial round trip
-          here is what once made core-service's five-second resolve timeout
-          fire on a cold call.
-        */
-        this.org.scopedUnitIdsOf(user.id, activeCompanyId),
-      ]);
+    /*
+      The levels the caller's roles carry, as they stand right now. Read off
+      the roles rather than stored on the user: a role's level is edited in one
+      place and takes effect on everybody holding it at their next request.
+    */
+    const visibilityLevels = userRoles
+      .map((userRole) => userRole.role.visibilityLevel)
+      .filter((level): level is NonNullable<typeof level> => level !== null);
+
+    const [
+      sensitiveFieldsVisible,
+      sensitiveFieldsAll,
+      ledUnitIds,
+      levelUnitIds,
+      scoped,
+    ] = await Promise.all([
+      this.policy.resolveVisibleSensitiveFields(permissions),
+      this.policy.listAllSensitiveFieldKeys(),
+      this.org.ledUnitIdsOf(user.id, activeCompanyId),
+      this.org.levelUnitIdsOf(
+        user.orgUnitId,
+        activeCompanyId,
+        visibilityLevels,
+      ),
+      /*
+        Resolved alongside the groups they lead, not after: this runs while
+        building the principal for *every* request, and a serial round trip
+        here is what once made core-service's five-second resolve timeout
+        fire on a cold call.
+      */
+      this.org.scopedAccessOf(user.id, activeCompanyId),
+    ]);
 
     return {
       userId: user.id,
@@ -188,8 +207,11 @@ export class PrincipalService {
       orgUnitId: user.orgUnitId,
       supervisorUserId: user.supervisorUserId,
       ledUnitIds,
-      scopedUnitIds: scoped.read,
-      scopedActUnitIds: scoped.act,
+      levelUnitIds,
+      scopedUnitIds: scoped.readUnits,
+      scopedActUnitIds: scoped.actUnits,
+      scopedUserIds: scoped.readUsers,
+      scopedActUserIds: scoped.actUsers,
       roles: userRoles.map((userRole) => userRole.role.code),
       permissions,
       sensitiveFieldsVisible,
@@ -264,8 +286,11 @@ export class PrincipalService {
       orgUnitId: user.orgUnitId,
       supervisorUserId: user.supervisorUserId,
       ledUnitIds: [],
+      levelUnitIds: [],
       scopedUnitIds: [],
       scopedActUnitIds: [],
+      scopedUserIds: [],
+      scopedActUserIds: [],
       roles: [],
       permissions: [] as Permission[],
       sensitiveFieldsVisible: [],
@@ -298,8 +323,11 @@ export class PrincipalService {
       orgUnitId: null,
       supervisorUserId: null,
       ledUnitIds: [],
+      levelUnitIds: [],
       scopedUnitIds: [],
       scopedActUnitIds: [],
+      scopedUserIds: [],
+      scopedActUserIds: [],
       roles: [],
       permissions: keycloakRolesOf(
         payload,

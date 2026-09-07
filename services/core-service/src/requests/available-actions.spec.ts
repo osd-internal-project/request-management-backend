@@ -33,10 +33,19 @@ function request(
   };
 }
 
-type Actor = Pick<Principal, 'userId' | 'ledUnitIds' | 'scopedActUnitIds'>;
+type Actor = Pick<
+  Principal,
+  'userId' | 'ledUnitIds' | 'scopedActUnitIds' | 'scopedActUserIds'
+>;
 
 function actor(userId: string, overrides: Partial<Actor> = {}): Actor {
-  return { userId, ledUnitIds: [], scopedActUnitIds: [], ...overrides };
+  return {
+    userId,
+    ledUnitIds: [],
+    scopedActUnitIds: [],
+    scopedActUserIds: [],
+    ...overrides,
+  };
 }
 
 const head = actor(HEAD, { ledUnitIds: [DEPT] });
@@ -170,6 +179,37 @@ describe('authority matches the handler, role by role', () => {
 
     expect(hasAuthority('carrier_or_lead', request(), granted)).toBe(true);
     expect(hasAuthority('carrier_or_lead', request(), readOnly)).toBe(false);
+  });
+
+  /*
+    A grant written to one person (4 ก.ย. 2569) reaches that person work
+    wherever it sits, which is the point of writing it to a person rather than
+    to their group.
+  */
+  it('reaches a person through a scope grant only when it may act', () => {
+    const granted = actor(STRANGER, { scopedActUserIds: [ASSIGNEE] });
+    const readOnly = actor(STRANGER, { scopedActUserIds: [] });
+
+    expect(hasAuthority('carrier_or_lead', request(), granted)).toBe(true);
+    expect(hasAuthority('carrier_or_lead', request(), readOnly)).toBe(false);
+  });
+
+  it('reaches the requester side of a grant to a person too', () => {
+    const granted = actor(STRANGER, { scopedActUserIds: [REQUESTER] });
+
+    expect(hasAuthority('requester_or_lead', request(), granted)).toBe(true);
+  });
+
+  /*
+    The whole reason `scopedUserIds` and `scopedActUserIds` are two lists: a
+    grant is read-only by default, and reading somebody ticket must never be
+    enough to move it.
+  */
+  it('never lets a grant to a person reach somebody it does not name', () => {
+    const elsewhere = actor(STRANGER, { scopedActUserIds: ['user-nobody'] });
+
+    expect(hasAuthority('carrier_or_lead', request(), elsewhere)).toBe(false);
+    expect(hasAuthority('requester_or_lead', request(), elsewhere)).toBe(false);
   });
 
   it('leaves a stranger with only what needs no authority', () => {

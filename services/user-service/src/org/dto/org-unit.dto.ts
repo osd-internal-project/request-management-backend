@@ -1,4 +1,5 @@
 import { OrgUnitKind } from '@prisma/client';
+import { AppError } from '@request-management/share';
 import { Type } from 'class-transformer';
 import {
   IsArray,
@@ -80,11 +81,26 @@ export class AssignUserOrgDto {
   primary_company_id?: string;
 }
 
-/** One group whose work the viewer may see. */
+/**
+ * One group **or one person** whose work the viewer may see.
+ *
+ * Exactly one of `target_org_unit_id` / `target_user_id` is set. Expressed as
+ * two optional fields validated together rather than a discriminated union,
+ * because the screen sends a flat row and the database stores two nullable
+ * columns under a CHECK constraint — a third shape in between would be a third
+ * thing to keep in step.
+ */
 export class OrgUnitScopeEntryDto {
+  @IsOptional()
   @IsString()
   @IsNotEmpty()
-  target_org_unit_id: string;
+  target_org_unit_id?: string;
+
+  /** The one person whose work becomes visible (4 ก.ย. 2569). */
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  target_user_id?: string;
 
   /** Defaults to true — naming a ฝ่าย almost always means its แผนก too. */
   @IsOptional()
@@ -116,4 +132,40 @@ export class ReplaceOrgUnitScopesDto {
   @ValidateNested({ each: true })
   @Type(() => OrgUnitScopeEntryDto)
   scopes: OrgUnitScopeEntryDto[];
+}
+
+/** Which end of a grant an entry names, proved to be exactly one. */
+export interface ScopeTarget {
+  readonly kind: 'unit' | 'user';
+  readonly id: string;
+  readonly field: 'target_org_unit_id' | 'target_user_id';
+}
+
+/**
+ * The single target an entry names.
+ *
+ * Validated here rather than by a decorator so the error carries the same
+ * `{ field, reason }` shape as every other refusal, and so the service gets a
+ * narrowed value instead of two optionals it has to re-check at each use.
+ */
+export function requireOneTarget(entry: OrgUnitScopeEntryDto): ScopeTarget {
+  const unit = entry.target_org_unit_id;
+  const user = entry.target_user_id;
+
+  if (unit && user) {
+    throw new AppError(
+      'VALIDATION_FAILED',
+      'สิทธิ์หนึ่งรายการระบุได้ทั้งหน่วยงานหรือผู้ใช้ อย่างใดอย่างหนึ่ง',
+      [{ field: 'target_user_id', reason: 'ระบุพร้อมกับ target_org_unit_id' }],
+    );
+  }
+
+  if (unit) return { kind: 'unit', id: unit, field: 'target_org_unit_id' };
+  if (user) return { kind: 'user', id: user, field: 'target_user_id' };
+
+  throw new AppError(
+    'VALIDATION_FAILED',
+    'ต้องระบุหน่วยงานหรือผู้ใช้ที่ต้องการให้เห็นงาน',
+    [{ field: 'target_org_unit_id', reason: 'required' }],
+  );
 }

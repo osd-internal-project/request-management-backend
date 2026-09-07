@@ -291,7 +291,10 @@ export const ACTIONS: readonly ActionSpec[] = [
 export function hasAuthority(
   authority: Authority,
   request: ActionableRequest,
-  actor: Pick<Principal, 'userId' | 'ledUnitIds' | 'scopedActUnitIds'>,
+  actor: Pick<
+    Principal,
+    'userId' | 'ledUnitIds' | 'scopedActUnitIds' | 'scopedActUserIds'
+  >,
   /** Whether the actor may decide the request's current approval step. */
   isDecider = false,
 ): boolean {
@@ -318,26 +321,44 @@ export function hasAuthority(
 }
 
 /**
- * Whether this person heads a group the request sits in, or one above it.
+ * Whether this person heads a group the request sits in, or one above it — or
+ * holds a scope grant that carries authority over it.
  *
- * Reads `scopedActUnitIds` alongside the groups they lead — a scope grant
- * ticked "ทำงานต่อได้" carries authority over the work, and one that was not
- * ticked deliberately does not.
+ * Reads `scopedActUnitIds` and `scopedActUserIds` alongside the groups they
+ * lead: a scope grant ticked "ทำงานต่อได้" carries authority over the work, and
+ * one that was not ticked deliberately does not. **Never the plain
+ * `scopedUnitIds` / `scopedUserIds`** — a grant that only lets somebody read
+ * another group's work must not let them move it.
  */
 function leads(
   request: ActionableRequest,
-  actor: Pick<Principal, 'ledUnitIds' | 'scopedActUnitIds'>,
+  actor: Pick<
+    Principal,
+    'ledUnitIds' | 'scopedActUnitIds' | 'scopedActUserIds'
+  >,
 ): boolean {
-  const reach = [
-    ...(actor.ledUnitIds ?? []),
-    ...(actor.scopedActUnitIds ?? []),
-  ];
+  const units = [...(actor.ledUnitIds ?? []), ...(actor.scopedActUnitIds ?? [])];
+
+  const byUnit =
+    (request.requesterOrgUnitId !== null &&
+      units.includes(request.requesterOrgUnitId)) ||
+    (request.receiverOrgUnitId !== null &&
+      units.includes(request.receiverOrgUnitId));
+
+  if (byUnit) return true;
+
+  /*
+    A grant written to one person reaches that person's work wherever it sits,
+    which is the point of writing it to a person instead of their group.
+  */
+  const people = actor.scopedActUserIds ?? [];
 
   return (
-    (request.requesterOrgUnitId !== null &&
-      reach.includes(request.requesterOrgUnitId)) ||
-    (request.receiverOrgUnitId !== null &&
-      reach.includes(request.receiverOrgUnitId))
+    people.includes(request.requesterId) ||
+    (request.receiverUserId !== null &&
+      people.includes(request.receiverUserId)) ||
+    (request.assigneeUserId !== null &&
+      people.includes(request.assigneeUserId))
   );
 }
 
@@ -351,7 +372,10 @@ function leads(
  */
 export function availableActions(
   request: ActionableRequest,
-  actor: Pick<Principal, 'userId' | 'ledUnitIds' | 'scopedActUnitIds'>,
+  actor: Pick<
+    Principal,
+    'userId' | 'ledUnitIds' | 'scopedActUnitIds' | 'scopedActUserIds'
+  >,
   isDecider = false,
 ): ActionSpec[] {
   return ACTIONS.filter(

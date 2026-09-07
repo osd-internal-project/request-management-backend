@@ -206,23 +206,35 @@ export class ListRequestsQueryDto extends PageQueryDto {
    *
    * The four tabs of "งานค้างของฉัน":
    * `involved` ทั้งหมด · `created` สร้าง · `incoming` รับเรื่อง ·
-   * `approver` อนุมัติ. Plus `led` — the separate "งานทั้งหมด" screen, which is
-   * the work of the groups this person heads rather than their own.
+   * `approver` อนุมัติ. Plus `led` — the separate "งานทั้งหมด" screen — and
+   * `awaiting`, the count printed as a badge on the อนุมัติ tab: the subset
+   * that is genuinely waiting on this person right now.
    *
    * Every one of them **narrows**. What the caller may see at all is decided
    * once, by `visibleRequestsWhere`, and a view can only take a subset of it —
    * so no view can become a way round the visibility rule.
    *
+   * Each narrows by **access only** (4 ก.ย. 2569): which requests are mine to
+   * act on, never what state they happen to be in. The `status` field below is
+   * how a caller filters by state, and it is the only thing that should.
+   *
    * `involved` is not the same as no view: the default also covers the groups
    * the caller leads, and a head's personal queue should not swell with every
-   * ticket in their department.
+   * ticket in their department. `led` is the opposite end — it narrows by
+   * nothing, because "งานทั้งหมด" is precisely everything the caller may open.
    */
   @ApiPropertyOptional({
-    enum: ['involved', 'created', 'incoming', 'approver', 'led'],
+    enum: ['involved', 'created', 'incoming', 'approver', 'awaiting', 'led'],
   })
   @IsOptional()
-  @IsIn(['involved', 'created', 'incoming', 'approver', 'led'])
-  view?: 'involved' | 'created' | 'incoming' | 'approver' | 'led';
+  @IsIn(['involved', 'created', 'incoming', 'approver', 'awaiting', 'led'])
+  view?:
+    | 'involved'
+    | 'created'
+    | 'incoming'
+    | 'approver'
+    | 'awaiting'
+    | 'led';
 
   @ApiPropertyOptional()
   @IsOptional()

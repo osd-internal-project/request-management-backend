@@ -37,6 +37,20 @@ export interface AccessSubject {
    */
   readonly ledUnitIds: readonly string[];
   /**
+   * Groups reached by the visibility level on this person's roles — the
+   * subtree of their own nearest ancestor at that level.
+   *
+   * A third way in beside leading a group and being granted one, and the only
+   * one that follows a person when they move: `Role.visibilityLevel` names a
+   * level of the chart, not a unit, so the same role reaches RND for somebody
+   * in RND and Sale for somebody in Sale.
+   *
+   * Read-only, deliberately. It is unioned into
+   * {@link reachableUnitIds} and reaches nothing that decides whether a request
+   * may be moved — the authority lists are `ledUnitIds` and `scopedAct*`.
+   */
+  readonly levelUnitIds: readonly string[];
+  /**
    * Groups reachable through an `OrgUnitScope` grant — "กลุ่มนี้เห็นงานของกลุ่ม
    * นั้น", set on the admin screen.
    *
@@ -48,6 +62,19 @@ export interface AccessSubject {
   readonly scopedUnitIds: readonly string[];
   /** The subset of {@link AccessSubject.scopedUnitIds} granted `canAct`. */
   readonly scopedActUnitIds: readonly string[];
+  /**
+   * Individual people reachable through a grant written to a person rather
+   * than to a group — "ให้คนนี้เห็นงานของคนนั้น" (4 ก.ย. 2569).
+   *
+   * Kept apart from {@link AccessSubject.scopedUnitIds} because it matches
+   * different columns: a person is `requesterId`/`receiverUserId`/
+   * `assigneeUserId`, never an org unit id. Folding the two together upstream
+   * would compare a user id against `requesterOrgUnitId` and silently match
+   * nothing.
+   */
+  readonly scopedUserIds: readonly string[];
+  /** The subset of {@link AccessSubject.scopedUserIds} granted `canAct`. */
+  readonly scopedActUserIds: readonly string[];
   /**
    * The people this caller is currently covering for (APV-03).
    *
@@ -80,6 +107,16 @@ export interface AccessSubject {
  *
  * Leading a group is the other way in, and it reaches the whole subtree — a
  * head of division sees their departments' work without being named on it.
+ *
+ * **This is also the list behind "งานทั้งหมด" (4 ก.ย. 2569).** That screen used
+ * to call a narrower `ledRequestsWhere`, which asked "what is happening in my
+ * groups" and so dropped the caller's own requests when they were raised
+ * outside those groups. The argument for keeping the two apart was that a
+ * head's team view should not be diluted by their personal work; in practice
+ * the screen it produced was empty for everybody who leads nothing — most
+ * people — with no way to tell that from a failed load. "งานทั้งหมด" now means
+ * what it says: everything this person may open. The per-queue questions are
+ * the tabs on the landing page, which narrow this.
  */
 export function visibleRequestsWhere(subject: AccessSubject): AccessWhere {
   const company = { companyId: subject.activeCompanyId };
@@ -96,16 +133,33 @@ export function visibleRequestsWhere(subject: AccessSubject): AccessWhere {
     );
   }
 
+  /*
+    Only when the list has entries. `{ in: [] }` inside an `OR` is a branch
+    that can never be true — harmless but pointless — and adding it
+    unconditionally would make every `where` this file produces harder to read
+    in a query log, which is where visibility bugs get diagnosed.
+  */
+  const people = subject.scopedUserIds ?? [];
+
+  if (people.length) {
+    involved.push(
+      { requesterId: { in: people } },
+      { receiverUserId: { in: people } },
+      { assigneeUserId: { in: people } },
+    );
+  }
+
   return { ...company, OR: involved };
 }
 
 /**
- * Every group whose work this person may read: the ones they lead, and the
- * ones granted to their group on the admin screen.
+ * Every group whose work this person may read: the ones they lead, the ones
+ * their role's visibility level reaches down their own branch, and the ones
+ * granted to their group on the admin screen.
  *
- * De-duplicated because the two overlap constantly — a head of แผนก whose ฝ่าย
- * was granted a view of another ฝ่าย reaches many of the same units twice, and
- * a duplicated id in an `IN (…)` is a wider query for no extra rows.
+ * De-duplicated because the three overlap constantly — a head of แผนก whose
+ * ฝ่าย was granted a view of another ฝ่าย reaches many of the same units twice,
+ * and a duplicated id in an `IN (…)` is a wider query for no extra rows.
  */
 export function reachableUnitIds(subject: AccessSubject): string[] {
   /*
@@ -118,6 +172,7 @@ export function reachableUnitIds(subject: AccessSubject): string[] {
   return [
     ...new Set([
       ...(subject.ledUnitIds ?? []),
+      ...(subject.levelUnitIds ?? []),
       ...(subject.scopedUnitIds ?? []),
     ]),
   ];
@@ -135,14 +190,46 @@ export function involvementBranches(subject: AccessSubject): AccessWhere[] {
     { requesterId: subject.userId },
     { receiverUserId: subject.userId },
     { assigneeUserId: subject.userId },
-    {
-      approvalCases: {
-        some: {
-          steps: { some: decidableStepWhere(subject) },
-        },
+    approvalRouteBranch(subject),
+  ];
+}
+
+/**
+ * Requests naming this caller anywhere in their approval route — the "อนุมัติ"
+ * tab.
+ *
+ * **Whatever became of the case.** The tab used to ask
+ * {@link awaitingDecisionWhere}, which is a queue: a case that is `pending`
+ * with a step that is `pending`. That made the tab a filter on the *status of
+ * the work* rather than on what the caller may reach, so a request they
+ * decided last week — or one still climbing towards them — was simply absent,
+ * and the tab printed `0` for people with a full approval history.
+ *
+ * The queue question has not gone away; {@link awaitingDecisionWhere} still
+ * answers it, and the screen prints that count as a badge beside this one.
+ */
+export function inApprovalRouteWhere(subject: AccessSubject): AccessWhere {
+  return {
+    companyId: subject.activeCompanyId,
+    ...approvalRouteBranch(subject),
+  };
+}
+
+/**
+ * The involvement branch that says "my name is on this ladder".
+ *
+ * Written once because {@link involvementBranches} and
+ * {@link inApprovalRouteWhere} must agree: a request the อนุมัติ tab counts
+ * that the visibility rule will not open is a row on a screen nobody can read.
+ */
+function approvalRouteBranch(subject: AccessSubject): AccessWhere {
+  return {
+    approvalCases: {
+      some: {
+        steps: { some: decidableStepWhere(subject) },
       },
     },
-  ];
+  };
 }
 
 /**
@@ -209,37 +296,6 @@ export function awaitingDecisionWhere(subject: AccessSubject): AccessWhere {
         },
       },
     },
-  };
-}
-
-/**
- * The rows of `requests` on the "งานทั้งหมด" screen — the work of every group
- * this person can reach, whether by leading it or by a scope grant.
- *
- * Narrower than {@link visibleRequestsWhere} on purpose: that answers "may I
- * open this", while this answers "what is happening in my groups". Somebody's
- * own request raised outside those groups is not their team's work, and
- * putting it on this screen would make the count mean nothing.
- *
- * Scope grants belong here as well as in the visibility rule: work a person
- * can reach only through a grant has no other screen that lists it, and rows
- * that exist but appear nowhere are rows nobody acts on.
- *
- * Someone who reaches no groups gets a clause that matches no rows rather than
- * one that matches everything — the failure mode of an empty `IN ()` written
- * the other way round is a screen that shows the whole company.
- */
-export function ledRequestsWhere(subject: AccessSubject): AccessWhere {
-  const company = { companyId: subject.activeCompanyId };
-  const reachable = reachableUnitIds(subject);
-
-  if (!reachable.length) return { ...company, id: { in: [] } };
-
-  const units = { in: reachable };
-
-  return {
-    ...company,
-    OR: [{ requesterOrgUnitId: units }, { receiverOrgUnitId: units }],
   };
 }
 

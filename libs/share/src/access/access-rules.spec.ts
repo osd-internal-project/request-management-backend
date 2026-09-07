@@ -2,9 +2,9 @@ import {
   AccessSubject,
   awaitingDecisionWhere,
   decidableStepWhere,
+  inApprovalRouteWhere,
   reachableUnitIds,
   involvedRequestsWhere,
-  ledRequestsWhere,
   visibleRequestsWhere,
   visibleUsersWhere,
 } from './access-rules';
@@ -17,8 +17,11 @@ function subject(overrides: Partial<AccessSubject> = {}): AccessSubject {
     userId: ME,
     activeCompanyId: OSD,
     ledUnitIds: [],
+    levelUnitIds: [],
     scopedUnitIds: [],
     scopedActUnitIds: [],
+    scopedUserIds: [],
+    scopedActUserIds: [],
     coveringUserIds: [],
     readsWholeCompany: false,
     ...overrides,
@@ -45,10 +48,14 @@ describe('SCOPE-03: the company boundary is absolute', () => {
     expect(where).toEqual({ companyId: OSD });
   });
 
-  it('pins it on the group-head screen', () => {
-    expect(ledRequestsWhere(subject({ ledUnitIds: ['u'] })).companyId).toBe(
+  it('pins it on the งานทั้งหมด screen', () => {
+    expect(visibleRequestsWhere(subject({ ledUnitIds: ['u'] })).companyId).toBe(
       OSD,
     );
+  });
+
+  it('pins it on the อนุมัติ tab', () => {
+    expect(inApprovalRouteWhere(subject()).companyId).toBe(OSD);
   });
 
   it('pins it on the user directory', () => {
@@ -95,6 +102,61 @@ describe('visibility follows involvement', () => {
   });
 });
 
+describe('visibility follows the level a role carries', () => {
+  const branch = ['unit-rnd', 'unit-dev'];
+
+  it('adds the branch the level reaches to what a person can open', () => {
+    const where = visibleRequestsWhere(subject({ levelUnitIds: branch }));
+
+    expect(branches(where)).toContainEqual({
+      requesterOrgUnitId: { in: branch },
+    });
+    expect(branches(where)).toContainEqual({
+      receiverOrgUnitId: { in: branch },
+    });
+  });
+
+  it('unions with the groups led and the groups granted, without duplicates', () => {
+    const reached = reachableUnitIds(
+      subject({
+        ledUnitIds: ['unit-rnd'],
+        levelUnitIds: branch,
+        scopedUnitIds: ['unit-dev', 'unit-sales'],
+      }),
+    );
+
+    expect(reached.sort()).toEqual(['unit-dev', 'unit-rnd', 'unit-sales']);
+  });
+
+  it('is still pinned to the active company', () => {
+    const where = visibleRequestsWhere(subject({ levelUnitIds: branch }));
+
+    expect(where.companyId).toBe(OSD);
+  });
+
+  it('adds nothing when the level reached no ancestor', () => {
+    expect(
+      branches(visibleRequestsWhere(subject({ levelUnitIds: [] }))),
+    ).toHaveLength(4);
+  });
+
+  /**
+   * During a rolling deploy core-service builds its principal from an older
+   * user-service's JSON, which answers without this field. Treating it as "no
+   * level" is the same answer the system gave the day before; spreading
+   * `undefined` would take every list on the site down for the rollout.
+   */
+  it('survives a principal from a service that predates the field', () => {
+    const older = {
+      ...subject(),
+      levelUnitIds: undefined,
+    } as unknown as AccessSubject;
+
+    expect(() => reachableUnitIds(older)).not.toThrow();
+    expect(reachableUnitIds(older)).toEqual([]);
+  });
+});
+
 describe('visibility follows leading a group', () => {
   const led = ['unit-dept', 'unit-position'];
 
@@ -113,29 +175,38 @@ describe('visibility follows leading a group', () => {
     expect(branches(visibleRequestsWhere(subject()))).toHaveLength(4);
   });
 
-  it('narrows the group-head screen to those groups alone', () => {
-    expect(ledRequestsWhere(subject({ ledUnitIds: led }))).toEqual({
-      companyId: OSD,
-      OR: [
-        { requesterOrgUnitId: { in: led } },
-        { receiverOrgUnitId: { in: led } },
-      ],
-    });
+  /**
+   * "งานทั้งหมด" is this rule and nothing else since 4 ก.ย. 2569 — it used to
+   * call a narrower `ledRequestsWhere` that dropped the caller's own requests
+   * when they were raised outside the groups they lead.
+   */
+  it('keeps the viewer own work on the งานทั้งหมด screen beside their groups', () => {
+    const where = visibleRequestsWhere(subject({ ledUnitIds: led }));
+
+    expect(branches(where)).toContainEqual({ requesterId: ME });
+    expect(branches(where)).toContainEqual({ requesterOrgUnitId: { in: led } });
   });
 
   /**
    * The dangerous shape: a clause built from an empty set that ends up
-   * matching everything. Leading nothing must show nothing, not the company.
+   * matching everything. Someone who leads nothing still sees their own work,
+   * and never the company's.
    */
-  it('matches no rows when the viewer leads nothing', () => {
-    expect(ledRequestsWhere(subject())).toEqual({
-      companyId: OSD,
-      id: { in: [] },
-    });
+  it('shows only involvement when the viewer leads nothing', () => {
+    const where = visibleRequestsWhere(subject());
+
+    expect(branches(where)).toHaveLength(4);
+    expect(where.companyId).toBe(OSD);
   });
 });
 
-describe('the tabs of งานค้างของฉัน narrow, they do not widen', () => {
+/**
+ * REQ-08 — one screen for "my requests" and "awaiting my approval" across all
+ * types. Each tab narrows what the caller may already see, and narrows by
+ * *access* only: filtering by status is what the filter bar is for, and doing
+ * it inside a tab is what made `รับเรื่อง` print `0` beside `สร้าง · 3`.
+ */
+describe('REQ-08: the tabs of งานค้างของฉัน narrow by access, not by status', () => {
   const led = ['unit-dept'];
 
   /**
@@ -161,10 +232,37 @@ describe('the tabs of งานค้างของฉัน narrow, they do no
   });
 
   /**
-   * "Waiting on me" is a step that is pending, on a case that is pending —
-   * not every case my name appears on further down a ladder.
+   * The tab narrows by access, not by state: everything my name is on, decided
+   * or not. Filtering it to pending cases is what made a full approval history
+   * read as `อนุมัติ · 0`.
    */
-  it('the approver tab asks for a step that is actually pending', () => {
+  it('the approver tab does not filter by the state of the case', () => {
+    const where = inApprovalRouteWhere(subject());
+
+    expect(where).toEqual({
+      companyId: OSD,
+      approvalCases: {
+        some: { steps: { some: decidableStepWhere(subject()) } },
+      },
+    });
+    expect(JSON.stringify(where)).not.toContain('pending');
+  });
+
+  it('the tab and the visibility rule agree on what the route means', () => {
+    const plain = subject();
+    const { companyId, ...branch } = inApprovalRouteWhere(plain);
+
+    expect(companyId).toBe(OSD);
+    expect(branches(visibleRequestsWhere(plain))).toContainEqual(branch);
+  });
+
+  /**
+   * "Waiting on me" is a step that is pending, on a case that is pending —
+   * not every case my name appears on further down a ladder. Still needed:
+   * the approvals inbox asks it, and the tab prints it as a badge beside the
+   * broader count above.
+   */
+  it('the queue question survives as its own rule', () => {
     expect(awaitingDecisionWhere(subject())).toEqual({
       companyId: OSD,
       approvalCases: {
@@ -255,12 +353,8 @@ describe('visibility follows a scope grant between groups', () => {
     same as not having granted anything.
   */
   it('puts the granted work on the งานทั้งหมด screen', () => {
-    expect(ledRequestsWhere(viewer)).toEqual({
-      companyId: OSD,
-      OR: [
-        { requesterOrgUnitId: { in: granted } },
-        { receiverOrgUnitId: { in: granted } },
-      ],
+    expect(branches(visibleRequestsWhere(viewer))).toContainEqual({
+      requesterOrgUnitId: { in: granted },
     });
   });
 
@@ -275,10 +369,16 @@ describe('visibility follows a scope grant between groups', () => {
 
   it('reaches nothing for somebody with neither', () => {
     expect(reachableUnitIds(subject())).toEqual([]);
-    expect(ledRequestsWhere(subject())).toEqual({
-      companyId: OSD,
-      id: { in: [] },
-    });
+    /*
+      Asked as "no branch mentions the column" rather than with
+      `expect.anything()`, which is typed `any` and fails the lint that keeps
+      `any` out of this package.
+    */
+    expect(
+      branches(visibleRequestsWhere(subject())).some(
+        (branch) => 'requesterOrgUnitId' in branch,
+      ),
+    ).toBe(false);
   });
 
   /*
@@ -299,5 +399,61 @@ describe('visibility follows a scope grant between groups', () => {
 
     expect(reachableUnitIds(readOnly)).toEqual(granted);
     expect(readOnly.scopedActUnitIds).toEqual([]);
+  });
+});
+
+/**
+ * SCOPE-01's second replacement (4 ก.ย. 2569): a grant may name one person on
+ * either end. Naming a group when the real arrangement is "this designer
+ * covers this account manager" hands over both groups in full.
+ */
+describe('visibility follows a scope grant to a person', () => {
+  const COVERED = 'user-covered';
+  const viewer = subject({ scopedUserIds: [COVERED] });
+
+  it('reaches that person work however they are attached to it', () => {
+    const where = branches(visibleRequestsWhere(viewer));
+
+    expect(where).toContainEqual({ requesterId: { in: [COVERED] } });
+    expect(where).toContainEqual({ receiverUserId: { in: [COVERED] } });
+    expect(where).toContainEqual({ assigneeUserId: { in: [COVERED] } });
+  });
+
+  /*
+    A user id compared against `requesterOrgUnitId` matches nothing and looks
+    like a working filter, which is why the two lists are never merged.
+  */
+  it('does not match a person against an org unit column', () => {
+    const where = branches(visibleRequestsWhere(viewer));
+
+    expect(where).not.toContainEqual({
+      requesterOrgUnitId: { in: [COVERED] },
+    });
+    expect(reachableUnitIds(viewer)).toEqual([]);
+  });
+
+  it('adds nothing at all when no grant names a person', () => {
+    expect(branches(visibleRequestsWhere(subject()))).toHaveLength(4);
+  });
+
+  it('still pins the company', () => {
+    expect(visibleRequestsWhere(viewer).companyId).toBe(OSD);
+  });
+
+  /**
+   * The act list is separate for the same reason the unit lists are: reading
+   * somebody work and moving it are different grants, and `hasAuthority` in
+   * core-service reads only `scopedActUserIds`.
+   */
+  it('does not let a read-only grant widen what may be acted on', () => {
+    expect(viewer.scopedActUserIds).toEqual([]);
+  });
+
+  it('is dropped for a caller who reads the whole company anyway', () => {
+    expect(
+      visibleRequestsWhere(
+        subject({ scopedUserIds: [COVERED], readsWholeCompany: true }),
+      ),
+    ).toEqual({ companyId: OSD });
   });
 });

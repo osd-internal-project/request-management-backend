@@ -28,11 +28,24 @@ export type RequestListRow = RequestWithType & {
   requester: { id: string; displayName: string };
   slaClock: { state: string; dueAt: Date } | null;
   approvalCases: {
+    /** The decision endpoint addresses the case, so the row has to carry it. */
+    id: string;
+    status: string;
     currentStep: number;
     steps: {
       stepNo: number;
+      status: string;
       approverRole: string;
       approverUserId: string | null;
+      /**
+       * Everyone allowed to decide the step.
+       *
+       * Carried on the list, not only the detail screen, since the row buttons
+       * arrived (4 ก.ย. 2569): whether the viewer may approve is the same
+       * question `authorise` asks, and answering it from a narrower fact would
+       * put an อนุมัติ button on a row that answers `APV_NOT_YOUR_TURN`.
+       */
+      candidateUserIds: string[];
     }[];
   }[];
 };
@@ -199,13 +212,17 @@ export class RequestRepository extends BaseRepository<
           orderBy: { createdAt: 'desc' },
           take: 1,
           select: {
+            id: true,
+            status: true,
             currentStep: true,
             steps: {
               orderBy: { stepNo: 'asc' },
               select: {
                 stepNo: true,
+                status: true,
                 approverRole: true,
                 approverUserId: true,
+                candidateUserIds: true,
               },
             },
           },

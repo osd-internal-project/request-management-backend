@@ -249,6 +249,8 @@ model User {
   notifications           Notification[]
   auditLogs               AuditLog[]
   notificationPreferences NotificationPreference[]
+  scopesGranted           OrgUnitScope[]           @relation("ScopeViewerUser")
+  scopesOn                OrgUnitScope[]           @relation("ScopeTargetUser")
 
   @@index([orgUnitId])
   @@index([supervisorUserId])
@@ -345,16 +347,33 @@ model OrgUnitScope {
   id        String @id @default(uuid())
   companyId String
 
-  /// The group being granted the view.
-  viewerOrgUnitId String
-  /// The group whose work becomes visible.
-  targetOrgUnitId String
+  /// The group being granted the view, when the grant is written to a group.
+  ///
+  /// Exactly one of `viewerOrgUnitId` / `viewerUserId` is set — a CHECK
+  /// constraint enforces it, because a row with neither reaches nobody and a
+  /// row with both would have to pick one silently.
+  viewerOrgUnitId String?
+  /// The one person being granted the view, when the grant is written to a
+  /// person rather than to their whole group (4 ก.ย. 2569).
+  viewerUserId    String?
+
+  /// The group whose work becomes visible, when the target is a group.
+  ///
+  /// Exactly one of `targetOrgUnitId` / `targetUserId` is set.
+  targetOrgUnitId String?
+  /// The one person whose work becomes visible — "ให้คนนี้เห็นงานของคนนั้น",
+  /// which naming a whole group could never express.
+  targetUserId    String?
 
   /// Whether the grant reaches the groups beneath `target`.
   ///
   /// Defaults to true because the org chart is บริษัท → ฝ่าย → แผนก and naming
   /// a ฝ่าย almost always means its แผนก too. Turning it off is the narrow
   /// case, so it is the one that has to be asked for.
+  ///
+  /// Meaningless when the target is a person — a person has no subtree — so
+  /// the service forces it to `false` there rather than storing a flag that
+  /// reads as if it did something.
   includeDescendants Boolean @default(true)
 
   /// Whether the viewer may move those requests, or only read them.
@@ -372,12 +391,18 @@ model OrgUnitScope {
   updatedAt DateTime @updatedAt
   updatedBy String?
 
-  company Company @relation(fields: [companyId], references: [id])
-  viewer  OrgUnit @relation("ScopeViewer", fields: [viewerOrgUnitId], references: [id], onDelete: Cascade)
-  target  OrgUnit @relation("ScopeTarget", fields: [targetOrgUnitId], references: [id], onDelete: Cascade)
+  company    Company  @relation(fields: [companyId], references: [id])
+  viewer     OrgUnit? @relation("ScopeViewer", fields: [viewerOrgUnitId], references: [id], onDelete: Cascade)
+  viewerUser User?    @relation("ScopeViewerUser", fields: [viewerUserId], references: [id], onDelete: Cascade)
+  target     OrgUnit? @relation("ScopeTarget", fields: [targetOrgUnitId], references: [id], onDelete: Cascade)
+  targetUser User?    @relation("ScopeTargetUser", fields: [targetUserId], references: [id], onDelete: Cascade)
 
-  @@unique([viewerOrgUnitId, targetOrgUnitId])
+  /// The uniqueness of a grant is four partial indexes, created in
+  /// `20260904120000_scope_user_grants` — not `@@unique`. Postgres treats every
+  /// NULL as distinct, so a composite unique over four nullable columns would
+  /// permit the same grant to be written any number of times.
   @@index([companyId, viewerOrgUnitId])
+  @@index([companyId, viewerUserId])
   @@map("org_unit_scopes")
 }
 
@@ -392,6 +417,27 @@ model Role {
   /// Seed roles from §5.2 — cannot be renamed away or removed.
   isSystem    Boolean @default(false)
   active      Boolean @default(true)
+
+  /// How far up the holder's own branch their view starts, `null` for none.
+  ///
+  /// **Not the `ScopeLevel` withdrawn on 31 ส.ค. 2569.** That was an absolute
+  /// rank per `(role, resource)` — it could say "this role sees its
+  /// department" but never "ฝ่ายขาย sees ฝ่ายการตลาด", which is why
+  /// `OrgUnitScope` replaced it and still owns every cross-branch grant.
+  ///
+  /// This is relative to whoever holds the role: walk up the holder's own
+  /// ancestors, take the nearest unit whose `kind` matches, and read that
+  /// unit's whole subtree. Somebody under `ตำแหน่ง: software dev` with
+  /// `DEPARTMENT` sees all of RND; with `DIVISION`, all of INF. It follows
+  /// them when they move, which a grant naming a target unit cannot.
+  ///
+  /// No ancestor of that kind means **no extra units at all** — never a wider
+  /// one. When `POSITION` nodes leave the chart, a role set to `POSITION` goes
+  /// quiet rather than silently widening to the department above it.
+  ///
+  /// Read only. Acting on somebody else's request still comes from leading
+  /// their group or from a scope grant ticked to allow it.
+  visibilityLevel OrgUnitKind?
 
   createdAt DateTime @default(now())
   createdBy String?
