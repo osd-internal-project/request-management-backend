@@ -31,6 +31,7 @@ function principalWith(
     scopedActUnitIds: [],
     scopedUserIds: [],
     scopedActUserIds: [],
+    scopedByPermission: {},
     roles: [],
     permissions: permissions as Principal['permissions'],
     sensitiveFieldsVisible: [],

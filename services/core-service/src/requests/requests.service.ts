@@ -21,7 +21,8 @@ import { assertTransition, OPEN_STATUSES } from './request-state-machine';
 import {
   availableActions,
   hasAuthority,
-  type Authority,
+  specFor,
+  type RequestAction,
 } from './available-actions';
 import { AttachmentRepository } from './attachment.repository';
 import type { RequestListRow } from './request.repository';
@@ -892,7 +893,7 @@ export class RequestsService {
     const before = await this.require(id, actor);
 
     // Handing work on is the prerogative of whoever is holding it.
-    this.assertMayAct(before, actor, 'carrier', 'มอบหมายงาน');
+    this.assertMayAct(before, actor, 'assign', 'มอบหมายงาน');
 
     if (!OPEN_STATUSES.includes(before.status)) {
       throw new AppError('REQ_STATE_INVALID', 'มอบหมายงานที่ปิดไปแล้วไม่ได้', [
@@ -1039,7 +1040,7 @@ export class RequestsService {
 
     // The work is finished by whoever did it. An approver signs it off later;
     // a bystander does neither.
-    this.assertMayAct(before, actor, 'carrier', 'แจ้งงานเสร็จ');
+    this.assertMayAct(before, actor, 'complete', 'แจ้งงานเสร็จ');
 
     assertTransition(before.status, 'completed');
 
@@ -1462,7 +1463,7 @@ export class RequestsService {
       list is built from these same rules, and advertising `return` to every
       permission holder would have spread the hole to the chatbot.
     */
-    this.assertMayAct(before, actor, 'carrier_or_lead', 'ตีกลับคำขอ');
+    this.assertMayAct(before, actor, 'return', 'ตีกลับคำขอ');
 
     assertKnownReturnReason(
       snapshotOf(before).returnReasonCodes ??
@@ -1527,7 +1528,7 @@ export class RequestsService {
       request is one that will never be done, and that is not a bystander's
       call to make.
     */
-    this.assertMayAct(before, actor, 'requester_or_lead', 'ยกเลิกคำขอ');
+    this.assertMayAct(before, actor, 'cancel', 'ยกเลิกคำขอ');
 
     // The requester, or anyone senior enough to see it — scope already
     // answered that by letting them load it.
@@ -1596,7 +1597,7 @@ export class RequestsService {
   async hold(id: string, dto: HoldRequestDto, actor: Principal) {
     const before = await this.require(id, actor);
 
-    this.assertMayAct(before, actor, 'carrier', 'พักงาน');
+    this.assertMayAct(before, actor, 'hold', 'พักงาน');
 
     assertTransition(before.status, 'on_hold');
 
@@ -1640,7 +1641,7 @@ export class RequestsService {
   async resume(id: string, dto: ResumeRequestDto, actor: Principal) {
     const before = await this.require(id, actor);
 
-    this.assertMayAct(before, actor, 'carrier', 'กลับมาดำเนินการ');
+    this.assertMayAct(before, actor, 'resume', 'กลับมาดำเนินการ');
 
     // `submitted → in_progress` is also a legal transition, so the state
     // machine alone would let /resume double as a start button. It only
@@ -1983,27 +1984,34 @@ export class RequestsService {
     request: RequestWithType,
     actor: Principal,
     /**
-     * Which of the flow's roles may do this.
+     * The action being attempted, named as `ACTIONS` names it.
      *
-     * The vocabulary and the test both live in `available-actions.ts`, which
-     * the external API's "what can I do with this?" endpoint also reads. Two
-     * implementations would mean a list of choices that the handler behind
-     * them can refuse — and by then the caller has already told somebody it
-     * would work.
+     * The authority it needs **and** the permission a scope grant must carry to
+     * reach it both come from that one table, which the external API's "what
+     * can I do with this?" endpoint reads too. Restating either here is how a
+     * list of offered choices starts disagreeing with the handler behind
+     * them — and by then the caller has already told somebody it would work.
      *
-     * `carrier_or_lead` / `requester_or_lead` reach group heads and, since
-     * 2 ก.ย. 2569, anybody whose group holds a scope grant ticked
-     * `ทำงานต่อได้` — `scopedActUnitIds`, never `scopedUnitIds`: a grant that
-     * only lets a group read another group's work must not let them move it.
+     * `carrier_or_lead` / `requester_or_lead` reach group heads. Scope grants
+     * reach those and, since 7 ก.ย. 2569, `carrier` as well — but only when the
+     * grant names this action's permission *and* the caller's own roles hold
+     * it. Never through the plain `scopedUnitIds`: a grant that only lets a
+     * group read another group's work must not let them move it.
      */
-    authority: Authority,
-    action: string,
+    action: RequestAction,
+    label: string,
   ): void {
-    if (hasAuthority(authority, request, actor)) return;
+    const spec = specFor(action);
+
+    if (
+      hasAuthority(spec.authority, request, actor, false, spec.scopePermission)
+    ) {
+      return;
+    }
 
     throw new AppError(
       'FORBIDDEN',
-      `${action}ได้เฉพาะผู้ที่เกี่ยวข้องกับคำขอนี้`,
+      `${label}ได้เฉพาะผู้ที่เกี่ยวข้องกับคำขอนี้`,
     );
   }
 

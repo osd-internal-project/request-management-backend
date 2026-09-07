@@ -212,6 +212,7 @@ export class PrincipalService {
       scopedActUnitIds: scoped.actUnits,
       scopedUserIds: scoped.readUsers,
       scopedActUserIds: scoped.actUsers,
+      scopedByPermission: scoped.byPermission,
       roles: userRoles.map((userRole) => userRole.role.code),
       permissions,
       sensitiveFieldsVisible,
@@ -291,6 +292,7 @@ export class PrincipalService {
       scopedActUnitIds: [],
       scopedUserIds: [],
       scopedActUserIds: [],
+      scopedByPermission: {},
       roles: [],
       permissions: [] as Permission[],
       sensitiveFieldsVisible: [],
@@ -328,6 +330,7 @@ export class PrincipalService {
       scopedActUnitIds: [],
       scopedUserIds: [],
       scopedActUserIds: [],
+      scopedByPermission: {},
       roles: [],
       permissions: keycloakRolesOf(
         payload,

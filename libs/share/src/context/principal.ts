@@ -87,6 +87,23 @@ export interface Principal {
    * on, for the same reason the unit lists are kept apart.
    */
   readonly scopedActUserIds: readonly string[];
+  /**
+   * What each scope grant lets this caller *do*, keyed by permission
+   * (7 ก.ย. 2569).
+   *
+   * The two `scopedAct*` lists above are the union of every entry here, kept
+   * so a service still running the previous release keeps working through a
+   * rolling deploy. Everything that decides a single action reads this map
+   * instead: a grant may carry `approval.decide` over RND's work and nothing at
+   * all over Sale's, which one boolean could not say.
+   *
+   * Always intersected with {@link Principal.permissions} at the point of use —
+   * a grant never hands out a permission the caller's roles do not already
+   * hold, which is what keeps `assertSeparationOfDuties` meaningful.
+   */
+  readonly scopedByPermission: Readonly<
+    Record<string, { unitIds: readonly string[]; userIds: readonly string[] }>
+  >;
 
   readonly roles: readonly string[];
   readonly permissions: readonly Permission[];
@@ -180,6 +197,10 @@ export function accessSubject(
     */
     scopedUserIds: principal.scopedUserIds ?? [],
     scopedActUserIds: principal.scopedActUserIds ?? [],
+    scopedDecideUnitIds:
+      principal.scopedByPermission?.['approval.decide']?.unitIds ?? [],
+    scopedDecideUserIds:
+      principal.scopedByPermission?.['approval.decide']?.userIds ?? [],
     coveringUserIds,
     readsWholeCompany: hasPermission(principal, 'request.read.all'),
   };

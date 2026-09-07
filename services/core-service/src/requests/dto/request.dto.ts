@@ -228,13 +228,7 @@ export class ListRequestsQueryDto extends PageQueryDto {
   })
   @IsOptional()
   @IsIn(['involved', 'created', 'incoming', 'approver', 'awaiting', 'led'])
-  view?:
-    | 'involved'
-    | 'created'
-    | 'incoming'
-    | 'approver'
-    | 'awaiting'
-    | 'led';
+  view?: 'involved' | 'created' | 'incoming' | 'approver' | 'awaiting' | 'led';
 
   @ApiPropertyOptional()
   @IsOptional()

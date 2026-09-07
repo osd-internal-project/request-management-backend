@@ -22,6 +22,8 @@ function subject(overrides: Partial<AccessSubject> = {}): AccessSubject {
     scopedActUnitIds: [],
     scopedUserIds: [],
     scopedActUserIds: [],
+    scopedDecideUnitIds: [],
+    scopedDecideUserIds: [],
     coveringUserIds: [],
     readsWholeCompany: false,
     ...overrides,
@@ -154,6 +156,59 @@ describe('visibility follows the level a role carries', () => {
 
     expect(() => reachableUnitIds(older)).not.toThrow();
     expect(reachableUnitIds(older)).toEqual([]);
+  });
+});
+
+describe('an approver who reaches the work through a scope grant', () => {
+  const RND = 'unit-rnd';
+
+  /**
+   * `ApprovalsService.authorise` accepts a grant carrying `approval.decide`.
+   * If the queue did not, the holder could decide a case they had no way of
+   * opening — the same defect as holding no permission at all, just harder to
+   * diagnose.
+   */
+  it('finds the pending work in the อนุมัติ queue', () => {
+    const where = awaitingDecisionWhere(
+      subject({ scopedDecideUnitIds: [RND] }),
+    );
+
+    expect(where.companyId).toBe(OSD);
+    expect(JSON.stringify(where)).toContain(RND);
+  });
+
+  it('finds it in the approval-route list too', () => {
+    expect(
+      JSON.stringify(
+        inApprovalRouteWhere(subject({ scopedDecideUnitIds: [RND] })),
+      ),
+    ).toContain(RND);
+  });
+
+  it('reaches it through a grant written to one person', () => {
+    expect(
+      JSON.stringify(
+        awaitingDecisionWhere(subject({ scopedDecideUserIds: ['user-them'] })),
+      ),
+    ).toContain('user-them');
+  });
+
+  /**
+   * Without a grant the queue is exactly what it was: a step that names the
+   * caller. A branch that can never be true would only make the query log
+   * harder to read, which is where visibility bugs get diagnosed.
+   */
+  it('adds no branch at all for somebody with no such grant', () => {
+    const where = awaitingDecisionWhere(subject());
+
+    expect(where.OR).toBeUndefined();
+    expect(where.approvalCases).toBeDefined();
+  });
+
+  it('is still pinned to the active company', () => {
+    expect(
+      awaitingDecisionWhere(subject({ scopedDecideUnitIds: [RND] })).companyId,
+    ).toBe(OSD);
   });
 });
 

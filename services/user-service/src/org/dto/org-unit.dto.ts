@@ -1,15 +1,27 @@
 import { OrgUnitKind } from '@prisma/client';
-import { AppError } from '@request-management/share';
+import {
+  AppError,
+  SCOPE_PERMISSIONS,
+  type ScopePermission,
+} from '@request-management/share';
 import { Type } from 'class-transformer';
 import {
   IsArray,
   IsBoolean,
   IsEnum,
+  IsIn,
   IsNotEmpty,
   IsOptional,
   IsString,
   ValidateNested,
 } from 'class-validator';
+
+/**
+ * The codes a grant may carry, validated against the closed set declared in
+ * `libs/share` — an admin cannot invent one through the API, exactly as with a
+ * role's permissions (§11.3).
+ */
+const SCOPE_PERMISSION_VALUES = [...SCOPE_PERMISSIONS] as string[];
 
 export class CreateOrgUnitDto {
   @IsString()
@@ -108,15 +120,44 @@ export class OrgUnitScopeEntryDto {
   include_descendants?: boolean;
 
   /**
-   * Whether the viewer may also move those requests.
+   * What the viewer may do with those requests, beyond reading them.
    *
-   * Defaults to false. `assertMayAct` in core-service is the only thing
-   * standing between a person and somebody else's ticket, so widening it is a
-   * deliberate tick rather than a side effect of granting a view.
+   * Absent or empty means read-only. `assertMayAct` in core-service is the only
+   * thing standing between a person and somebody else's ticket, so every entry
+   * here is a deliberate tick rather than a side effect of granting a view.
+   */
+  @IsOptional()
+  @IsArray()
+  @IsIn(SCOPE_PERMISSION_VALUES, { each: true })
+  permissions?: ScopePermission[];
+
+  /**
+   * The previous release's single switch, still accepted so a client that has
+   * not been redeployed keeps working.
+   *
+   * `true` means what it meant then and nothing more — returning and
+   * cancelling — which is what the migration backfilled. Ignored entirely when
+   * `permissions` is sent.
    */
   @IsOptional()
   @IsBoolean()
   can_act?: boolean;
+}
+
+/**
+ * The permissions one entry ends up with.
+ *
+ * `permissions` wins when present, including when it is empty: an editor
+ * clearing every box has to be able to say so. `can_act` is read only for
+ * clients that predate the field, and expands to exactly the two authorities it
+ * used to reach — never the wider set the name suggests.
+ */
+export function scopePermissionsOf(
+  entry: OrgUnitScopeEntryDto,
+): ScopePermission[] {
+  if (entry.permissions) return entry.permissions;
+
+  return entry.can_act ? ['request.return', 'request.cancel.any'] : [];
 }
 
 /**

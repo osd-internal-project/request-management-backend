@@ -26,6 +26,7 @@ function principal(overrides: Partial<Principal> = {}): Principal {
     scopedActUnitIds: [],
     scopedUserIds: [],
     scopedActUserIds: [],
+    scopedByPermission: {},
     roles: [],
     permissions: [],
     sensitiveFieldsVisible: [],

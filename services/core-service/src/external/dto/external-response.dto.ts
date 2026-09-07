@@ -247,13 +247,28 @@ export class ExternalRequestDto {
   })
   dueAt!: string | null;
 
-  @ApiProperty({ type: String, format: 'date-time', nullable: true, example: null })
+  @ApiProperty({
+    type: String,
+    format: 'date-time',
+    nullable: true,
+    example: null,
+  })
   completedAt!: string | null;
 
-  @ApiProperty({ type: String, format: 'date-time', nullable: true, example: null })
+  @ApiProperty({
+    type: String,
+    format: 'date-time',
+    nullable: true,
+    example: null,
+  })
   closedAt!: string | null;
 
-  @ApiProperty({ type: String, format: 'date-time', nullable: true, example: null })
+  @ApiProperty({
+    type: String,
+    format: 'date-time',
+    nullable: true,
+    example: null,
+  })
   cancelledAt!: string | null;
 
   @ApiProperty({ nullable: true, type: String, example: null })

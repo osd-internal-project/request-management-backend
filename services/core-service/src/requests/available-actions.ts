@@ -1,5 +1,5 @@
 import { RequestStatus } from '@prisma/client';
-import type { Principal } from '@request-management/share';
+import type { Principal, ScopePermission } from '@request-management/share';
 import {
   REQUEST_TRANSITIONS,
   TERMINAL_STATUSES,
@@ -107,6 +107,18 @@ export interface ActionSpec {
    */
   readonly to: readonly RequestStatus[];
   readonly authority: Authority;
+  /**
+   * The permission a scope grant must carry to reach this action.
+   *
+   * Only meaningful for the authorities a grant can satisfy — `carrier` and the
+   * two `*_or_lead` pairs. Declared on the row rather than derived from the
+   * endpoint's `@Permissions()` so the two cannot drift, and so a reader can
+   * see in one table which actions an administrator is handing over.
+   *
+   * `null` means no grant reaches it however it is written: `submit` belongs to
+   * the requester, `receive` to the named receiver, `approve` to the ladder.
+   */
+  readonly scopePermission: ScopePermission | null;
   readonly fields: readonly ActionField[];
 }
 
@@ -151,6 +163,7 @@ export const ACTIONS: readonly ActionSpec[] = [
     // Branches on a `:pre` matrix — permission to ask, before anyone works.
     to: ['submitted', 'pending_approval'],
     authority: 'requester',
+    scopePermission: null,
     fields: [
       { name: 'form_data', required: true, source: 'form_schema' },
       { name: 'receiver_user_id', required: true },
@@ -161,6 +174,7 @@ export const ACTIONS: readonly ActionSpec[] = [
     from: ['returned'],
     to: ['submitted', 'pending_approval'],
     authority: 'requester',
+    scopePermission: null,
     fields: [{ name: 'form_data', required: false, source: 'form_schema' }],
   },
   {
@@ -168,6 +182,13 @@ export const ACTIONS: readonly ActionSpec[] = [
     from: ['submitted'],
     to: ['in_progress'],
     authority: 'receiver',
+    /*
+      No grant reaches this one. `receiver` is deliberately narrower than
+      `carrier` — accepting a ticket is the named person's alone — and a scope
+      grant that quietly accepted on their behalf would take the ticket out of
+      their queue without their knowing.
+    */
+    scopePermission: null,
     fields: [],
   },
   {
@@ -177,6 +198,7 @@ export const ACTIONS: readonly ActionSpec[] = [
     from: LIVE_STATUSES,
     to: [],
     authority: 'carrier',
+    scopePermission: 'request.complete',
     fields: [{ name: 'assignee_user_id', required: true }],
   },
   {
@@ -184,6 +206,7 @@ export const ACTIONS: readonly ActionSpec[] = [
     from: ['in_progress'],
     to: ['on_hold'],
     authority: 'carrier',
+    scopePermission: 'request.hold',
     fields: [{ name: 'reason', required: true }],
   },
   {
@@ -191,6 +214,7 @@ export const ACTIONS: readonly ActionSpec[] = [
     from: ['on_hold'],
     to: ['in_progress'],
     authority: 'carrier',
+    scopePermission: 'request.hold',
     fields: [{ name: 'note', required: false }],
   },
   {
@@ -198,6 +222,7 @@ export const ACTIONS: readonly ActionSpec[] = [
     from: ['in_progress'],
     to: ['completed'],
     authority: 'carrier',
+    scopePermission: 'request.complete',
     fields: [
       {
         name: 'receiver_form_data',
@@ -213,6 +238,7 @@ export const ACTIONS: readonly ActionSpec[] = [
     from: ['submitted', 'in_progress'],
     to: ['returned'],
     authority: 'carrier_or_lead',
+    scopePermission: 'request.return',
     fields: [
       { name: 'reason_code', required: true, source: 'return_reason' },
       { name: 'note', required: false },
@@ -224,6 +250,7 @@ export const ACTIONS: readonly ActionSpec[] = [
     // Before the work: hand it to the receiver. After it: the result stands.
     to: ['submitted', 'approved'],
     authority: 'decider',
+    scopePermission: null,
     fields: [{ name: 'note', required: false }],
   },
   {
@@ -231,6 +258,7 @@ export const ACTIONS: readonly ActionSpec[] = [
     from: ['pending_approval'],
     to: ['rejected'],
     authority: 'decider',
+    scopePermission: null,
     fields: [{ name: 'note', required: true }],
   },
   {
@@ -240,6 +268,7 @@ export const ACTIONS: readonly ActionSpec[] = [
     from: ['pending_approval'],
     to: ['returned', 'in_progress'],
     authority: 'decider',
+    scopePermission: null,
     fields: [{ name: 'note', required: true }],
   },
   {
@@ -247,6 +276,7 @@ export const ACTIONS: readonly ActionSpec[] = [
     from: statusesLeadingTo('cancelled'),
     to: ['cancelled'],
     authority: 'requester_or_lead',
+    scopePermission: 'request.cancel.any',
     fields: [{ name: 'reason', required: true }],
   },
   {
@@ -254,6 +284,7 @@ export const ACTIONS: readonly ActionSpec[] = [
     from: ['approved'],
     to: ['closed'],
     authority: 'requester',
+    scopePermission: null,
     fields: [{ name: 'note', required: false }],
   },
   {
@@ -261,6 +292,7 @@ export const ACTIONS: readonly ActionSpec[] = [
     from: LIVE_STATUSES,
     to: [],
     authority: 'viewer',
+    scopePermission: null,
     fields: [{ name: 'body', required: true }],
   },
   {
@@ -270,6 +302,7 @@ export const ACTIONS: readonly ActionSpec[] = [
     from: LIVE_STATUSES,
     to: [],
     authority: 'viewer',
+    scopePermission: null,
     fields: [
       { name: 'type_code', required: true },
       { name: 'form_data', required: true, source: 'form_schema' },
@@ -291,16 +324,19 @@ export const ACTIONS: readonly ActionSpec[] = [
 export function hasAuthority(
   authority: Authority,
   request: ActionableRequest,
-  actor: Pick<
-    Principal,
-    'userId' | 'ledUnitIds' | 'scopedActUnitIds' | 'scopedActUserIds'
-  >,
+  actor: ScopeActor,
   /** Whether the actor may decide the request's current approval step. */
   isDecider = false,
+  /**
+   * The permission a scope grant must carry to reach this action, from the
+   * spec's `scopePermission`. `null` means no grant reaches it.
+   */
+  scopePermission: ScopePermission | null = null,
 ): boolean {
   const isRequester = request.requesterId === actor.userId;
   const isReceiver = request.receiverUserId === actor.userId;
   const isCarrier = isReceiver || request.assigneeUserId === actor.userId;
+  const granted = scopeGrants(request, actor, scopePermission);
 
   switch (authority) {
     case 'viewer':
@@ -309,56 +345,127 @@ export function hasAuthority(
       return isRequester;
     case 'receiver':
       return isReceiver;
+    /*
+      A grant reaches `carrier` since 7 ก.ย. 2569 — "that team may work on our
+      tickets". Deliberately **not** routed through `leads()`: heads of groups
+      could return and cancel yesterday but never complete or hold, and putting
+      this behind `leads()` would hand every head of every group a set of
+      actions nobody granted them.
+    */
     case 'carrier':
-      return isCarrier;
+      return isCarrier || granted;
     case 'carrier_or_lead':
-      return isCarrier || leads(request, actor);
+      return isCarrier || leads(request, actor) || granted;
     case 'requester_or_lead':
-      return isRequester || leads(request, actor);
+      return isRequester || leads(request, actor) || granted;
     case 'decider':
       return isDecider;
   }
 }
 
+/** Everything about the actor an authority question reads. */
+export type ScopeActor = Pick<
+  Principal,
+  | 'userId'
+  | 'ledUnitIds'
+  | 'permissions'
+  | 'scopedActUnitIds'
+  | 'scopedActUserIds'
+  | 'scopedByPermission'
+>;
+
 /**
- * Whether this person heads a group the request sits in, or one above it — or
- * holds a scope grant that carries authority over it.
+ * Whether a scope grant lets this person take this action on this request.
  *
- * Reads `scopedActUnitIds` and `scopedActUserIds` alongside the groups they
- * lead: a scope grant ticked "ทำงานต่อได้" carries authority over the work, and
- * one that was not ticked deliberately does not. **Never the plain
- * `scopedUnitIds` / `scopedUserIds`** — a grant that only lets somebody read
- * another group's work must not let them move it.
+ * **An intersection, never a gift.** The permission has to be one the actor's
+ * own roles already hold *and* one the grant names — a grant that handed out a
+ * permission on its own would be a way around
+ * `assertSeparationOfDuties`, which only ever sees a role's permission set.
+ *
+ * The grant is matched against the same four columns the read rules use, so
+ * "may act on RND's work" means the requests RND raised or receives, and a
+ * grant written to one person follows that person's work wherever it sits.
  */
-function leads(
+function scopeGrants(
   request: ActionableRequest,
-  actor: Pick<
-    Principal,
-    'ledUnitIds' | 'scopedActUnitIds' | 'scopedActUserIds'
-  >,
+  actor: ScopeActor,
+  permission: ScopePermission | null,
 ): boolean {
-  const units = [...(actor.ledUnitIds ?? []), ...(actor.scopedActUnitIds ?? [])];
+  if (!permission) return false;
+  if (!actor.permissions?.includes(permission)) return false;
+
+  const reach =
+    actor.scopedByPermission?.[permission] ?? fallbackReach(actor, permission);
 
   const byUnit =
     (request.requesterOrgUnitId !== null &&
-      units.includes(request.requesterOrgUnitId)) ||
+      reach.unitIds.includes(request.requesterOrgUnitId)) ||
     (request.receiverOrgUnitId !== null &&
-      units.includes(request.receiverOrgUnitId));
+      reach.unitIds.includes(request.receiverOrgUnitId));
 
   if (byUnit) return true;
 
-  /*
-    A grant written to one person reaches that person's work wherever it sits,
-    which is the point of writing it to a person instead of their group.
-  */
-  const people = actor.scopedActUserIds ?? [];
+  return (
+    reach.userIds.includes(request.requesterId) ||
+    (request.receiverUserId !== null &&
+      reach.userIds.includes(request.receiverUserId)) ||
+    (request.assigneeUserId !== null &&
+      reach.userIds.includes(request.assigneeUserId))
+  );
+}
+
+/**
+ * What a principal built by the *previous* release reaches, during a rolling
+ * deploy.
+ *
+ * That release carried one `canAct` boolean, and it reached exactly two
+ * authorities: returning and cancelling. Those two therefore fall back to it,
+ * and the actions it never reached fall back to nothing — reading the old
+ * boolean as though it had meant "may complete" would hand out authority
+ * nobody held the day before. The migration backfills the same two codes for
+ * the same reason.
+ */
+function fallbackReach(
+  actor: ScopeActor,
+  permission: ScopePermission,
+): { unitIds: readonly string[]; userIds: readonly string[] } {
+  const inherited: readonly ScopePermission[] = [
+    'request.return',
+    'request.cancel.any',
+  ];
+
+  if (!inherited.includes(permission)) return { unitIds: [], userIds: [] };
+
+  return {
+    unitIds: actor.scopedActUnitIds ?? [],
+    userIds: actor.scopedActUserIds ?? [],
+  };
+}
+
+/**
+ * Whether this person heads a group the request sits in, or one above it.
+ *
+ * **Grants moved out of here on 7 ก.ย. 2569.** This used to union
+ * `scopedActUnitIds` / `scopedActUserIds` in, back when a grant carried one
+ * `canAct` boolean and every action it reached was the same set. Now a grant
+ * names the permissions it carries, so which action is being asked about
+ * decides the answer — that question belongs to {@link scopeGrants}, which has
+ * the permission in hand. Leading a group is unconditional and stays here.
+ *
+ * **Never the plain `scopedUnitIds` / `scopedUserIds`** — a grant that only
+ * lets somebody read another group's work must not let them move it.
+ */
+function leads(
+  request: ActionableRequest,
+  actor: Pick<Principal, 'ledUnitIds'>,
+): boolean {
+  const units = actor.ledUnitIds ?? [];
 
   return (
-    people.includes(request.requesterId) ||
-    (request.receiverUserId !== null &&
-      people.includes(request.receiverUserId)) ||
-    (request.assigneeUserId !== null &&
-      people.includes(request.assigneeUserId))
+    (request.requesterOrgUnitId !== null &&
+      units.includes(request.requesterOrgUnitId)) ||
+    (request.receiverOrgUnitId !== null &&
+      units.includes(request.receiverOrgUnitId))
   );
 }
 
@@ -372,17 +479,36 @@ function leads(
  */
 export function availableActions(
   request: ActionableRequest,
-  actor: Pick<
-    Principal,
-    'userId' | 'ledUnitIds' | 'scopedActUnitIds' | 'scopedActUserIds'
-  >,
+  actor: ScopeActor,
   isDecider = false,
 ): ActionSpec[] {
   return ACTIONS.filter(
     (spec) =>
       spec.from.includes(request.status) &&
-      hasAuthority(spec.authority, request, actor, isDecider),
+      hasAuthority(
+        spec.authority,
+        request,
+        actor,
+        isDecider,
+        spec.scopePermission,
+      ),
   );
+}
+
+/**
+ * The row of {@link ACTIONS} for one action.
+ *
+ * The lookup exists so that a handler asking "may this person do this" names
+ * the action and reads both its authority and its scope permission from the one
+ * table, rather than restating either at the call site where they can drift.
+ */
+export function specFor(action: RequestAction): ActionSpec {
+  const spec = ACTIONS.find((entry) => entry.action === action);
+
+  /* istanbul ignore next -- the union makes this unreachable */
+  if (!spec) throw new Error(`no action spec for ${action}`);
+
+  return spec;
 }
 
 /** Whether an action name came from outside and is one the flow knows. */

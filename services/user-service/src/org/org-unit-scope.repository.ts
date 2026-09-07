@@ -9,7 +9,11 @@ import type { OrgUnitScope, Prisma } from '@prisma/client';
 
 /** One end of a grant, named for the admin screen. */
 type ScopeEnd = { id: string; name: string; kind: string } | null;
-type ScopeUserEnd = { id: string; displayName: string; username: string } | null;
+type ScopeUserEnd = {
+  id: string;
+  displayName: string;
+  username: string;
+} | null;
 
 /** A grant with both ends resolved to names, for the admin screen. */
 export type ScopeWithUnits = OrgUnitScope & {

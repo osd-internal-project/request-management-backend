@@ -20,6 +20,24 @@ import {
   ApprovalCaseRepository,
   CaseWithSteps,
 } from './approval-case.repository';
+
+/**
+ * A case loaded for a decision, with the request facts a scope grant is
+ * matched against.
+ *
+ * Narrower than joining the request whole, and separate from
+ * {@link CaseWithSteps} so that the many places loading a case without a
+ * decision in mind are not made to pay for the join.
+ */
+type CaseForDecision = CaseWithSteps & {
+  request: {
+    requesterId: string;
+    receiverUserId: string | null;
+    assigneeUserId: string | null;
+    requesterOrgUnitId: string | null;
+    receiverOrgUnitId: string | null;
+  } | null;
+};
 import { DelegationRepository } from './delegation.repository';
 import {
   ApprovalContext,
@@ -386,7 +404,23 @@ export class ApprovalsService {
     const decided = await this.transactions.execute(async (prisma) => {
       const found = await prisma.approvalCase.findUnique({
         where: { id: caseId },
-        include: { steps: { orderBy: { stepNo: 'asc' } } },
+        include: {
+          steps: { orderBy: { stepNo: 'asc' } },
+          /*
+            The four columns a scope grant is matched against. Selected rather
+            than joined whole: this runs on every decision, and the case has no
+            other use for the request's payload.
+          */
+          request: {
+            select: {
+              requesterId: true,
+              receiverUserId: true,
+              assigneeUserId: true,
+              requesterOrgUnitId: true,
+              receiverOrgUnitId: true,
+            },
+          },
+        },
       });
 
       if (!found || found.companyId !== actor.activeCompanyId) {
@@ -410,7 +444,12 @@ export class ApprovalsService {
         throw new AppError('CONFLICT', 'ไม่พบชั้นอนุมัติปัจจุบัน');
       }
 
-      const delegation = await this.authorise(prisma, found, step, actor);
+      const { delegation, via } = await this.authorise(
+        prisma,
+        found,
+        step,
+        actor,
+      );
 
       await prisma.approvalStep.update({
         where: { id: step.id },
@@ -507,7 +546,7 @@ export class ApprovalsService {
             actorId: actor.userId,
             fromStatus: 'pending_approval',
             toStatus,
-            data: { caseId: found.id, note: dto.note ?? null },
+            data: { caseId: found.id, note: dto.note ?? null, via },
           },
         });
       }
@@ -576,18 +615,25 @@ export class ApprovalsService {
   }
 
   /**
-   * APV-03: may this person act on this step?
+   * APV-03: may this person act on this step, and how?
    *
-   * Returns the delegation used, or `null` when they are the named approver.
    * A delegation is looked up **now**, not at submit — that is what makes work
    * already sitting in a queue route to whoever is covering.
+   *
+   * `via` is recorded on the request's timeline: a decision taken through a
+   * scope grant is a different fact from one taken by the person the ladder
+   * named, and "who approved this, and why were they allowed to" is the first
+   * question asked of an approval that turns out to be wrong.
    */
   private async authorise(
     prisma: Prisma.TransactionClient,
-    found: CaseWithSteps,
+    found: CaseForDecision,
     step: CaseWithSteps['steps'][number],
     actor: Principal,
-  ) {
+  ): Promise<{
+    delegation: Delegation | null;
+    via: 'candidate' | 'delegation' | 'scope_grant';
+  }> {
     /*
       Everyone the level named, any one of whom may decide.
 
@@ -601,7 +647,9 @@ export class ApprovalsService {
         ? [step.approverUserId]
         : [];
 
-    if (candidates.includes(actor.userId)) return null;
+    if (candidates.includes(actor.userId)) {
+      return { delegation: null, via: 'candidate' };
+    }
 
     // APV-03: covering for any one of them is enough, and the history keeps
     // both names — `approverUserId` who was named, `decidedByUserId` who acted.
@@ -617,13 +665,63 @@ export class ApprovalsService {
       if (delegation) break;
     }
 
-    if (!delegation) {
-      throw new AppError('APV_NOT_YOUR_TURN', 'คุณไม่ใช่ผู้อนุมัติของชั้นนี้', [
-        { field: 'step_no', reason: String(step.stepNo) },
-      ]);
+    if (delegation) return { delegation, via: 'delegation' };
+
+    /*
+      A scope grant carrying `approval.decide` (7 ก.ย. 2569) — "ฝ่ายนี้อนุมัติงาน
+      ของฝ่ายนั้นได้".
+
+      Asked **last**, and only ever to say yes: a named candidate and a
+      delegate are authorised above without this being consulted, so no grant
+      can take a step away from the person the ladder routed it to. That is
+      what keeps a step from stalling with nobody able to decide it.
+
+      Intersected with the caller's own permissions like every other grant, so
+      §5.4 still holds — a role carrying `admin.*` cannot hold
+      `approval.decide`, and therefore cannot be handed it by a grant either.
+    */
+    if (this.scopeMayDecide(found, actor)) {
+      return { delegation: null, via: 'scope_grant' };
     }
 
-    return delegation;
+    throw new AppError('APV_NOT_YOUR_TURN', 'คุณไม่ใช่ผู้อนุมัติของชั้นนี้', [
+      { field: 'step_no', reason: String(step.stepNo) },
+    ]);
+  }
+
+  /**
+   * Whether a scope grant lets this person decide this case.
+   *
+   * Matched against the **request** the case belongs to, using the same four
+   * columns every other scope question uses. A case with no request — one
+   * opened by an integration for a subject of its own — is reachable by no
+   * grant at all: there is nothing to match a group or a person against, and
+   * inventing a match would be a grant that widened itself.
+   */
+  private scopeMayDecide(found: CaseForDecision, actor: Principal): boolean {
+    if (!actor.permissions.includes('approval.decide')) return false;
+
+    const reach = actor.scopedByPermission?.['approval.decide'];
+    if (!reach) return false;
+
+    const request = found.request;
+    if (!request) return false;
+
+    const byUnit =
+      (request.requesterOrgUnitId !== null &&
+        reach.unitIds.includes(request.requesterOrgUnitId)) ||
+      (request.receiverOrgUnitId !== null &&
+        reach.unitIds.includes(request.receiverOrgUnitId));
+
+    if (byUnit) return true;
+
+    return (
+      reach.userIds.includes(request.requesterId) ||
+      (request.receiverUserId !== null &&
+        reach.userIds.includes(request.receiverUserId)) ||
+      (request.assigneeUserId !== null &&
+        reach.userIds.includes(request.assigneeUserId))
+    );
   }
 
   // --- APV-04: batch ------------------------------------------------------

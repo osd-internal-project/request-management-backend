@@ -76,6 +76,17 @@ export interface AccessSubject {
   /** The subset of {@link AccessSubject.scopedUserIds} granted `canAct`. */
   readonly scopedActUserIds: readonly string[];
   /**
+   * Groups and people whose approvals this caller may decide through a scope
+   * grant carrying `approval.decide` (7 ก.ย. 2569).
+   *
+   * Here, and not only in `ApprovalsService.authorise`, because an approver who
+   * cannot *find* the work cannot approve it: the อนุมัติ tab and its badge are
+   * built from these rules, and a decision the handler would accept while the
+   * queue shows nothing is the same defect as no permission at all.
+   */
+  readonly scopedDecideUnitIds: readonly string[];
+  readonly scopedDecideUserIds: readonly string[];
+  /**
    * The people this caller is currently covering for (APV-03).
    *
    * A delegation is looked up at decision time rather than at submit, so it
@@ -209,9 +220,21 @@ export function involvementBranches(subject: AccessSubject): AccessWhere[] {
  * answers it, and the screen prints that count as a badge beside this one.
  */
 export function inApprovalRouteWhere(subject: AccessSubject): AccessWhere {
+  const granted = scopedDecideBranch(subject);
+
+  if (!granted) {
+    return {
+      companyId: subject.activeCompanyId,
+      ...approvalRouteBranch(subject),
+    };
+  }
+
   return {
     companyId: subject.activeCompanyId,
-    ...approvalRouteBranch(subject),
+    OR: [
+      approvalRouteBranch(subject),
+      { AND: [granted, { approvalCases: { some: {} } }] },
+    ],
   };
 }
 
@@ -230,6 +253,40 @@ function approvalRouteBranch(subject: AccessSubject): AccessWhere {
       },
     },
   };
+}
+
+/**
+ * The requests a scope grant lets this caller decide approvals on.
+ *
+ * Matched on the request's own columns rather than on the step, because that is
+ * where a grant reaches: a grant names a group or a person, and a step names
+ * neither. Returns `null` when no grant carries `approval.decide`, so callers
+ * can leave the branch out rather than add one that can never be true.
+ */
+function scopedDecideBranch(subject: AccessSubject): AccessWhere | null {
+  const units = subject.scopedDecideUnitIds ?? [];
+  const people = subject.scopedDecideUserIds ?? [];
+
+  if (!units.length && !people.length) return null;
+
+  const reaches: AccessWhere[] = [];
+
+  if (units.length) {
+    reaches.push(
+      { requesterOrgUnitId: { in: [...units] } },
+      { receiverOrgUnitId: { in: [...units] } },
+    );
+  }
+
+  if (people.length) {
+    reaches.push(
+      { requesterId: { in: [...people] } },
+      { receiverUserId: { in: [...people] } },
+      { assigneeUserId: { in: [...people] } },
+    );
+  }
+
+  return { OR: reaches };
 }
 
 /**
@@ -286,8 +343,7 @@ export function involvedRequestsWhere(subject: AccessSubject): AccessWhere {
 
 /** Requests waiting on this person's decision right now — the อนุมัติ tab. */
 export function awaitingDecisionWhere(subject: AccessSubject): AccessWhere {
-  return {
-    companyId: subject.activeCompanyId,
+  const named = {
     approvalCases: {
       some: {
         status: 'pending',
@@ -296,6 +352,35 @@ export function awaitingDecisionWhere(subject: AccessSubject): AccessWhere {
         },
       },
     },
+  };
+
+  const granted = scopedDecideBranch(subject);
+
+  if (!granted) return { companyId: subject.activeCompanyId, ...named };
+
+  /*
+    A grant reaches whatever step is pending, not a step that names the holder
+    — nothing named them. So the case has to be pending and have a pending step,
+    and the *request* has to be one the grant reaches.
+  */
+  return {
+    companyId: subject.activeCompanyId,
+    OR: [
+      named,
+      {
+        AND: [
+          granted,
+          {
+            approvalCases: {
+              some: {
+                status: 'pending',
+                steps: { some: { status: 'pending' } },
+              },
+            },
+          },
+        ],
+      },
+    ],
   };
 }
 

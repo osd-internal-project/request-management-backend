@@ -57,6 +57,50 @@ export const PERMISSIONS = {
   integration: ['integration.request.create', 'integration.approval.create'],
 } as const;
 
+/**
+ * The permissions an `OrgUnitScope` grant may carry, drawn from the catalog
+ * above rather than invented (7 ก.ย. 2569).
+ *
+ * Replaces the single `canAct` boolean, which could only say "everything this
+ * role may do" or "nothing". Every entry here has a real enforcement point on a
+ * single row — a checkbox that decides nothing is worse than no checkbox:
+ *
+ *   - `request.complete` / `request.hold` — authority `carrier`, in
+ *     `hasAuthority`: receive, assign, hold, resume, complete
+ *   - `request.return` / `request.cancel.any` — the `*_or_lead` authorities,
+ *     through `leads()`
+ *   - `approval.decide` — an extra decider on a pending step, in
+ *     `ApprovalsService.authorise`
+ *
+ * Deliberately absent: `admin.*` and `integration.*` (nothing to do with a
+ * row), `request.create` and `request.read` (a grant already carries the read,
+ * and creating is not done *to* an existing row), and
+ * `request.sensitive.read` — masking happens on the response, where the
+ * interceptor holds no row to test a grant against.
+ *
+ * A grant never *widens* what a role holds: every check is an intersection
+ * with the caller's own permissions, which is what keeps
+ * `assertSeparationOfDuties` meaningful. It never *narrows* either — being the
+ * requester, receiver, assignee, a named candidate, a delegate or the head of
+ * the group works exactly as it did before any of this existed.
+ */
+export const SCOPE_PERMISSIONS = [
+  'request.complete',
+  'request.hold',
+  'request.return',
+  'request.cancel.any',
+  'approval.decide',
+] as const satisfies readonly Permission[];
+
+export type ScopePermission = (typeof SCOPE_PERMISSIONS)[number];
+
+const SCOPE_PERMISSION_SET: ReadonlySet<string> = new Set(SCOPE_PERMISSIONS);
+
+/** Whether a code came from outside and is one a grant may carry. */
+export function isScopePermission(value: unknown): value is ScopePermission {
+  return typeof value === 'string' && SCOPE_PERMISSION_SET.has(value);
+}
+
 export type PermissionModule = keyof typeof PERMISSIONS;
 
 export type Permission = (typeof PERMISSIONS)[PermissionModule][number];

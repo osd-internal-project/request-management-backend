@@ -1,11 +1,12 @@
 import { RequestStatus } from '@prisma/client';
-import type { Principal } from '@request-management/share';
+import { SCOPE_PERMISSIONS } from '@request-management/share';
 import {
   ACTIONS,
   availableActions,
   hasAuthority,
   toRequestAction,
   type ActionableRequest,
+  type ScopeActor,
 } from './available-actions';
 import {
   REQUEST_TRANSITIONS,
@@ -18,6 +19,11 @@ const ASSIGNEE = 'user-assignee';
 const HEAD = 'user-head';
 const STRANGER = 'user-stranger';
 const DEPT = 'unit-dept';
+
+/** The permissions the actions under test declare, named once. */
+const RETURN = 'request.return';
+const CANCEL = 'request.cancel.any';
+const COMPLETE = 'request.complete';
 
 function request(
   overrides: Partial<ActionableRequest> = {},
@@ -33,17 +39,21 @@ function request(
   };
 }
 
-type Actor = Pick<
-  Principal,
-  'userId' | 'ledUnitIds' | 'scopedActUnitIds' | 'scopedActUserIds'
->;
+type Actor = ScopeActor;
 
 function actor(userId: string, overrides: Partial<Actor> = {}): Actor {
   return {
     userId,
     ledUnitIds: [],
+    /*
+      Everything a scope grant could name. A grant is an intersection with what
+      the actor's roles hold, so an actor with no permissions would make every
+      grant in these tests a no-op for reasons the test was not about.
+    */
+    permissions: [...SCOPE_PERMISSIONS],
     scopedActUnitIds: [],
     scopedActUserIds: [],
+    scopedByPermission: {},
     ...overrides,
   };
 }
@@ -173,12 +183,100 @@ describe('authority matches the handler, role by role', () => {
     );
   });
 
-  it('reaches a group through a scope grant only when it may act', () => {
-    const granted = actor(STRANGER, { scopedActUnitIds: [DEPT] });
-    const readOnly = actor(STRANGER, { scopedActUnitIds: [] });
+  it('reaches a group through a scope grant only when it names the permission', () => {
+    const granted = actor(STRANGER, {
+      scopedByPermission: {
+        'request.return': { unitIds: [DEPT], userIds: [] },
+      },
+    });
+    const readOnly = actor(STRANGER, { scopedByPermission: {} });
 
-    expect(hasAuthority('carrier_or_lead', request(), granted)).toBe(true);
-    expect(hasAuthority('carrier_or_lead', request(), readOnly)).toBe(false);
+    expect(
+      hasAuthority('carrier_or_lead', request(), granted, false, RETURN),
+    ).toBe(true);
+    expect(
+      hasAuthority('carrier_or_lead', request(), readOnly, false, RETURN),
+    ).toBe(false);
+  });
+
+  /**
+   * The whole point of naming permissions per grant (7 ก.ย. 2569): the same
+   * grant may carry one action and not another, which one `canAct` boolean
+   * could not say.
+   */
+  it('refuses an action the grant does not name, on a group it does reach', () => {
+    const returnOnly = actor(STRANGER, {
+      scopedByPermission: {
+        'request.return': { unitIds: [DEPT], userIds: [] },
+      },
+    });
+
+    expect(
+      hasAuthority('carrier_or_lead', request(), returnOnly, false, RETURN),
+    ).toBe(true);
+    expect(
+      hasAuthority('requester_or_lead', request(), returnOnly, false, CANCEL),
+    ).toBe(false);
+  });
+
+  /**
+   * A grant is an intersection with the holder's own roles, never a gift —
+   * otherwise it would be a way around `assertSeparationOfDuties`, which only
+   * ever sees a role's permission set.
+   */
+  it('refuses a grant naming a permission the actor role does not hold', () => {
+    const granted = actor(STRANGER, {
+      permissions: [],
+      scopedByPermission: {
+        'request.return': { unitIds: [DEPT], userIds: [] },
+      },
+    });
+
+    expect(
+      hasAuthority('carrier_or_lead', request(), granted, false, RETURN),
+    ).toBe(false);
+  });
+
+  /**
+   * New on 7 ก.ย. 2569 — "that team may work on our tickets". Kept out of
+   * `leads()` on purpose: a head of the group could return and cancel before
+   * this existed and still cannot complete, so nobody gained an action they
+   * were not granted.
+   */
+  it('lets a grant carry the carrier actions, and never gives them to a head', () => {
+    const worker = actor(STRANGER, {
+      scopedByPermission: {
+        'request.complete': { unitIds: [DEPT], userIds: [] },
+      },
+    });
+
+    expect(hasAuthority('carrier', request(), worker, false, COMPLETE)).toBe(
+      true,
+    );
+    expect(hasAuthority('carrier', request(), head, false, COMPLETE)).toBe(
+      false,
+    );
+    expect(names(availableActions(request(), head))).not.toContain('complete');
+  });
+
+  /**
+   * A principal built by the previous release carries no `scopedByPermission`.
+   * Returning and cancelling are what its `canAct` reached, so those two fall
+   * back to it and the rest fall back to nothing — reading the old boolean as
+   * "may complete" would hand out authority nobody held the day before.
+   */
+  it('honours a pre-upgrade principal for exactly what canAct used to reach', () => {
+    const older = {
+      ...actor(STRANGER, { scopedActUnitIds: [DEPT] }),
+      scopedByPermission: undefined,
+    } as unknown as ScopeActor;
+
+    expect(
+      hasAuthority('carrier_or_lead', request(), older, false, RETURN),
+    ).toBe(true);
+    expect(hasAuthority('carrier', request(), older, false, COMPLETE)).toBe(
+      false,
+    );
   });
 
   /*
@@ -186,18 +284,32 @@ describe('authority matches the handler, role by role', () => {
     wherever it sits, which is the point of writing it to a person rather than
     to their group.
   */
-  it('reaches a person through a scope grant only when it may act', () => {
-    const granted = actor(STRANGER, { scopedActUserIds: [ASSIGNEE] });
-    const readOnly = actor(STRANGER, { scopedActUserIds: [] });
+  it('reaches a person through a scope grant only when it names the permission', () => {
+    const granted = actor(STRANGER, {
+      scopedByPermission: {
+        'request.return': { unitIds: [], userIds: [ASSIGNEE] },
+      },
+    });
+    const readOnly = actor(STRANGER, { scopedByPermission: {} });
 
-    expect(hasAuthority('carrier_or_lead', request(), granted)).toBe(true);
-    expect(hasAuthority('carrier_or_lead', request(), readOnly)).toBe(false);
+    expect(
+      hasAuthority('carrier_or_lead', request(), granted, false, RETURN),
+    ).toBe(true);
+    expect(
+      hasAuthority('carrier_or_lead', request(), readOnly, false, RETURN),
+    ).toBe(false);
   });
 
   it('reaches the requester side of a grant to a person too', () => {
-    const granted = actor(STRANGER, { scopedActUserIds: [REQUESTER] });
+    const granted = actor(STRANGER, {
+      scopedByPermission: {
+        'request.cancel.any': { unitIds: [], userIds: [REQUESTER] },
+      },
+    });
 
-    expect(hasAuthority('requester_or_lead', request(), granted)).toBe(true);
+    expect(
+      hasAuthority('requester_or_lead', request(), granted, false, CANCEL),
+    ).toBe(true);
   });
 
   /*

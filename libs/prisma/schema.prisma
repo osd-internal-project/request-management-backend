@@ -376,13 +376,32 @@ model OrgUnitScope {
   /// reads as if it did something.
   includeDescendants Boolean @default(true)
 
+  /// What the viewer may *do* with those requests, beyond reading them.
+  ///
+  /// Codes from `SCOPE_PERMISSIONS` in
+  /// `libs/share/src/policy/permissions.ts` — a closed set drawn from the
+  /// catalog, validated at the DTO. Empty is the default and means read-only:
+  /// `assertMayAct` in core-service is the only thing standing between a person
+  /// and somebody else's ticket, and a grant that silently widened it would
+  /// hand the whole chart to whoever was granted a view.
+  ///
+  /// Always intersected with what the holder's roles already grant, never added
+  /// to them — that is what keeps `assertSeparationOfDuties` meaningful, since
+  /// it runs on role permission sets and never sees this column.
+  ///
+  /// A `String[]` rather than a join table like `RolePermission`, because
+  /// `scopedAccessOf` reads these on **every request** while resolving the
+  /// principal, and the codes are declared in code rather than by an admin.
+  /// `ApprovalStep.candidateUserIds` and `User.keycloakRoles` are stored the
+  /// same way for the same reason.
+  permissions String[] @default([])
+
   /// Whether the viewer may move those requests, or only read them.
   ///
-  /// Defaults to **false**: `assertMayAct` in core-service is the only thing
-  /// standing between a person and somebody else's ticket, and a scope grant
-  /// that silently widened it would hand the whole chart to whoever was
-  /// granted a view. Granting the ability to act is a separate, deliberate
-  /// tick.
+  /// **Derived from `permissions` since 7 ก.ย. 2569** and kept only so that a
+  /// core-service still running the previous release answers as it did during a
+  /// rolling deploy. Nothing decides anything from it in this release; the next
+  /// one drops the column.
   canAct Boolean @default(false)
 
   active    Boolean  @default(true)

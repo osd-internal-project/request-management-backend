@@ -23,25 +23,44 @@ import {
   CreateOrgUnitDto,
   ReplaceOrgUnitScopesDto,
   requireOneTarget,
+  scopePermissionsOf,
   UpdateOrgUnitDto,
 } from './dto/org-unit.dto';
 
 /**
  * Everything a scope grant adds to one person's reach, in the active company.
  *
- * Four lists rather than two flags, because reading somebody's work and moving
- * it are different permissions (`canAct`), and because a grant may name a group
- * or one person — `assertMayAct` in core-service reads only the `act*` halves.
+ * Reading is one pair of lists because every grant carries it. Acting is a map
+ * keyed by permission (7 ก.ย. 2569): a grant may let somebody approve one
+ * group's work while only reading another's, which the previous single
+ * `canAct` boolean could not express.
+ *
+ * `actUnits` / `actUsers` are the union of every acting permission, kept so a
+ * core-service still running the previous release answers as it did during a
+ * rolling deploy.
  */
 export interface ScopedAccess {
   readUnits: string[];
   actUnits: string[];
   readUsers: string[];
   actUsers: string[];
+  byPermission: ScopedPermissionReach;
 }
 
+/** Per permission: the groups and people it reaches. */
+export type ScopedPermissionReach = Record<
+  string,
+  { unitIds: string[]; userIds: string[] }
+>;
+
 function emptyScopedAccess(): ScopedAccess {
-  return { readUnits: [], actUnits: [], readUsers: [], actUsers: [] };
+  return {
+    readUnits: [],
+    actUnits: [],
+    readUsers: [],
+    actUsers: [],
+    byPermission: {},
+  };
 }
 
 /** One node of the A3 tree. */
@@ -722,7 +741,14 @@ export class OrgService {
                 target.kind === 'unit'
                   ? (entry.include_descendants ?? true)
                   : false,
-              canAct: entry.can_act ?? false,
+              permissions: scopePermissionsOf(entry),
+              /*
+                Written, never read, until the previous release is off every
+                node: a core-service still running it decides authority from
+                this boolean alone, and a grant that carries permissions but
+                reports `canAct: false` would take away authority mid-rollout.
+              */
+              canAct: scopePermissionsOf(entry).length > 0,
               createdBy: actor.userId,
               updatedBy: actor.userId,
             },
@@ -855,11 +881,24 @@ export class OrgService {
     const actUnits = new Set<string>();
     const readUsers = new Set<string>();
     const actUsers = new Set<string>();
+    const unitsByPermission = new Map<string, Set<string>>();
+    const usersByPermission = new Map<string, Set<string>>();
+
+    function add(map: Map<string, Set<string>>, key: string, id: string) {
+      const bucket = map.get(key) ?? new Set<string>();
+      bucket.add(id);
+      map.set(key, bucket);
+    }
 
     for (const grant of grants) {
       if (grant.targetUserId) {
         readUsers.add(grant.targetUserId);
-        if (grant.canAct) actUsers.add(grant.targetUserId);
+
+        for (const permission of grant.permissions) {
+          actUsers.add(grant.targetUserId);
+          add(usersByPermission, permission, grant.targetUserId);
+        }
+
         continue;
       }
 
@@ -871,8 +910,24 @@ export class OrgService {
 
       for (const unitId of reached) {
         readUnits.add(unitId);
-        if (grant.canAct) actUnits.add(unitId);
+
+        for (const permission of grant.permissions) {
+          actUnits.add(unitId);
+          add(unitsByPermission, permission, unitId);
+        }
       }
+    }
+
+    const byPermission: ScopedPermissionReach = {};
+
+    for (const permission of new Set([
+      ...unitsByPermission.keys(),
+      ...usersByPermission.keys(),
+    ])) {
+      byPermission[permission] = {
+        unitIds: [...(unitsByPermission.get(permission) ?? [])],
+        userIds: [...(usersByPermission.get(permission) ?? [])],
+      };
     }
 
     return {
@@ -880,6 +935,7 @@ export class OrgService {
       actUnits: [...actUnits],
       readUsers: [...readUsers],
       actUsers: [...actUsers],
+      byPermission,
     };
   }
 

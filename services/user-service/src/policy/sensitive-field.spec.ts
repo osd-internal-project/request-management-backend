@@ -27,6 +27,7 @@ function principalWith(visible: string[]): Principal {
     scopedActUnitIds: [],
     scopedUserIds: [],
     scopedActUserIds: [],
+    scopedByPermission: {},
     roles: [],
     permissions: [],
     sensitiveFieldsVisible: visible,
