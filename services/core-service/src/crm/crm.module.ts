@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { PrismaTransactionService } from '@request-management/share';
 import { AccessModule } from '../access/access.module';
+import { RequestsModule } from '../requests/requests.module';
 import { CustomersController } from './customers.controller';
 import { CrmAdminController } from './crm-admin.controller';
 import { CustomersService } from './customers.service';
@@ -32,7 +33,7 @@ import { CustomerImportService } from './customer-import.service';
  * events through — nothing writes the table directly (C360-03).
  */
 @Module({
-  imports: [AccessModule],
+  imports: [AccessModule, RequestsModule],
   controllers: [CustomersController, CrmAdminController],
   providers: [
     CustomersService,

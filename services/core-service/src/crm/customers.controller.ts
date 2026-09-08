@@ -114,6 +114,13 @@ export class CustomersController {
     return this.customers.findOne(id, principal);
   }
 
+  /** C360-01 — ตัวเลขการ์ดบนหน้า 360°; นับผ่าน filter เดียวกับแท็บ. */
+  @Get(':id/summary')
+  @Permissions('crm.customer.read')
+  summary(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.customers.summaryOf(id, principal);
+  }
+
   /** CM-01 — every changed field lands in the history, in the same tx. */
   @Patch(':id')
   @Permissions('crm.customer.manage')

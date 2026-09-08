@@ -72,6 +72,7 @@ interface Harness {
     update: jest.Mock;
     findDetail: jest.Mock;
   };
+  requestCount: jest.Mock;
 }
 
 function harness(options: {
@@ -94,10 +95,22 @@ function harness(options: {
     countWhere: jest.fn(() => Promise.resolve(0)),
   };
 
+  const requestCount = jest.fn(() => Promise.resolve(0));
+
   const service = new CustomersService(
     customers as never,
-    { create: jest.fn(), update: jest.fn(), findFirst: jest.fn() } as never,
-    { create: jest.fn(), update: jest.fn(), findFirst: jest.fn() } as never,
+    {
+      create: jest.fn(),
+      update: jest.fn(),
+      findFirst: jest.fn(),
+      count: jest.fn(() => Promise.resolve(2)),
+    } as never,
+    {
+      create: jest.fn(),
+      update: jest.fn(),
+      findFirst: jest.fn(),
+      count: jest.fn(() => Promise.resolve(3)),
+    } as never,
     {
       findMany: jest.fn(() => Promise.resolve([])),
       upsert: jest.fn(),
@@ -115,6 +128,7 @@ function harness(options: {
       createMany: jest.fn(),
     } as never,
     { findFirst: jest.fn(() => Promise.resolve(null)) } as never,
+    { count: requestCount } as never,
     { issue: jest.fn(() => Promise.resolve('CUS-OSD-000001')) } as never,
     {
       headOfficeOf: jest.fn(() => Promise.resolve(null)),
@@ -153,7 +167,7 @@ function harness(options: {
     } as never,
   );
 
-  return { service, audits, timelineEvents, fieldChangeRows, customers };
+  return { service, audits, timelineEvents, fieldChangeRows, customers, requestCount };
 }
 
 function createDto(overrides: Record<string, unknown> = {}) {
@@ -352,5 +366,45 @@ describe('C360-03 timeline publishing', () => {
     expect(timelineEvents.map((t) => t.eventType)).toContain(
       'customer.created',
     );
+  });
+});
+
+describe('C360-01 summary — ตัวเลขการ์ดหน้า 360°', () => {
+  it('C360-01 counts children and requests through the same scoped filters', async () => {
+    const { service, requestCount } = harness({});
+
+    const summary = await service.summaryOf(
+      'cust-1',
+      principal(['crm.customer.read', 'request.read']),
+    );
+
+    expect(summary.contacts).toBe(3);
+    expect(summary.locations).toBe(2);
+    expect(summary.requests).toEqual({ total: 0, open: 0 });
+    // both counts (total + open) went through the request repository —
+    // meaning visibleRequestsWhere, not a hand-rolled where.
+    expect(requestCount).toHaveBeenCalledTimes(2);
+    expect(summary.financials).toBeNull();
+  });
+
+  it('C360-04 a viewer without request.read gets null, not a number that 403s on click', async () => {
+    const { service, requestCount } = harness({});
+
+    const summary = await service.summaryOf(
+      'cust-1',
+      principal(['crm.customer.read']),
+    );
+
+    expect(summary.requests).toBeNull();
+    expect(requestCount).not.toHaveBeenCalled();
+  });
+
+  it('SCOPE-03 a customer outside the caller answers 404 before any counting', async () => {
+    const { service, requestCount } = harness({ detail: null });
+
+    await expect(
+      service.summaryOf('cust-elsewhere', principal(['crm.customer.read'])),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    expect(requestCount).not.toHaveBeenCalled();
   });
 });

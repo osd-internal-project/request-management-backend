@@ -234,6 +234,15 @@ export class ListRequestsQueryDto extends PageQueryDto {
   @IsString()
   type_code?: string;
 
+  /** REQ-06 / C360 — คำขอที่อ้างเอนทิตีต้นทาง เช่น ref_type=customer. */
+  @IsOptional()
+  @IsString()
+  ref_type?: string;
+
+  @IsOptional()
+  @IsString()
+  ref_id?: string;
+
   /** ค้นหา เลขที่ / ลูกค้า / ดีล — the search box on หน้าที่ 2. */
   @ApiPropertyOptional()
   @IsOptional()

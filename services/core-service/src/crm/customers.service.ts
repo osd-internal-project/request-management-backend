@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type { Prisma, CustomerStatus } from '@prisma/client';
 import {
+  accessSubject,
   AppError,
   AuditWriter,
   auditActor,
@@ -13,8 +14,10 @@ import {
   toSkipTake,
   TQueryClient,
   visibleCustomersWhere,
+  visibleRequestsWhere,
 } from '@request-management/share';
 import { CompanyMemberRepository } from '../access/company-member.repository';
+import { RequestRepository } from '../requests/request.repository';
 import { CustomerRepository } from './customer.repository';
 import {
   CustomerLocationRepository,
@@ -87,6 +90,7 @@ export class CustomersService {
     private readonly segmentValues: CustomerSegmentValueRepository,
     private readonly assignments: CustomerSegmentAssignmentRepository,
     private readonly members: CompanyMemberRepository,
+    private readonly requests: RequestRepository,
     private readonly codes: CustomerCodeService,
     private readonly dedup: CustomerDedupService,
     private readonly timeline: CustomerTimelineService,
@@ -158,6 +162,63 @@ export class CustomersService {
     // two ORs by spread silently drops one of them.
     return {
       AND: [visibleCustomersWhere(customerAccessSubject(actor)), filters],
+    };
+  }
+
+  /**
+   * C360-01 — the 360° header card. The numbers and the tabs behind them are
+   * counted through the same filters as the tabs' own queries (SCOPE-02), so
+   * a card can never disagree with the rows under it. The requests block is
+   * `null` for a viewer without `request.read` — the frontend hides the card
+   * instead of showing a number that would 403 on click (C360-04).
+   */
+  async summaryOf(id: string, actor: Principal) {
+    await this.findOne(id, actor);
+
+    const requestWhere = {
+      AND: [
+        visibleRequestsWhere(accessSubject(actor)),
+        { refType: 'customer', refId: id },
+      ],
+    };
+
+    const [contacts, locations, branchCustomers, requestTotal, requestOpen] =
+      await Promise.all([
+        this.contacts.count({ where: { customerId: id, active: true } }),
+        this.locations.count({ where: { customerId: id, active: true } }),
+        this.customers.countWhere({
+          headOfficeId: id,
+          mergedIntoCustomerId: null,
+        }),
+        hasPermission(actor, 'request.read')
+          ? this.requests.count({ where: requestWhere as never })
+          : Promise.resolve(null),
+        hasPermission(actor, 'request.read')
+          ? this.requests.count({
+              where: {
+                AND: [
+                  requestWhere,
+                  {
+                    status: {
+                      notIn: ['completed', 'closed', 'cancelled', 'rejected'],
+                    },
+                  },
+                ],
+              } as never,
+            })
+          : Promise.resolve(null),
+      ]);
+
+    return {
+      contacts,
+      locations,
+      branchCustomers,
+      requests:
+        requestTotal === null
+          ? null
+          : { total: requestTotal, open: requestOpen },
+      /** ยอดค้างชำระ — arrives with the Odoo connector (ชุดงาน D). */
+      financials: null,
     };
   }
 
