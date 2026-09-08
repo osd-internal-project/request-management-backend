@@ -35,6 +35,7 @@ import {
   SimilarCustomer,
 } from './customer-dedup.service';
 import { CustomerTimelineService } from './customer-timeline.service';
+import { CustomerOdooSyncService } from './customer-odoo-sync.service';
 import { assertCustomerTransition } from './customer-state-machine';
 import { isValidThaiTaxId, normalizeCustomerName } from './customer-name';
 import {
@@ -96,6 +97,7 @@ export class CustomersService {
     private readonly timeline: CustomerTimelineService,
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
+    private readonly odooSync: CustomerOdooSyncService,
   ) {}
 
   // --- register (CM-01/08) -------------------------------------------------
@@ -182,7 +184,7 @@ export class CustomersService {
       ],
     };
 
-    const [contacts, locations, branchCustomers, requestTotal, requestOpen] =
+    const [contacts, locations, branchCustomers, requestTotal, requestOpen, odooCode] =
       await Promise.all([
         this.contacts.count({ where: { customerId: id, active: true } }),
         this.locations.count({ where: { customerId: id, active: true } }),
@@ -207,7 +209,18 @@ export class CustomersService {
               } as never,
             })
           : Promise.resolve(null),
+        this.externalCodes.findFirst({
+          where: { customerId: id, system: 'odoo' },
+          select: { payload: true },
+        }) as Promise<{ payload: unknown } | null>,
       ]);
+
+    // C360-02 — ยอดค้างชำระอ่านจาก cache ที่รอบ sync รายชั่วโมงเติมไว้ (CM-06);
+    // ไม่มี = ยังไม่เคย sync สำเร็จ และการ์ดฝั่งหน้าจอบอกตรง ๆ ว่ารอ.
+    const payload =
+      odooCode?.payload && typeof odooCode.payload === 'object'
+        ? (odooCode.payload as { receivables?: unknown })
+        : null;
 
     return {
       contacts,
@@ -217,8 +230,11 @@ export class CustomersService {
         requestTotal === null
           ? null
           : { total: requestTotal, open: requestOpen },
-      /** ยอดค้างชำระ — arrives with the Odoo connector (ชุดงาน D). */
-      financials: null,
+      financials: (payload?.receivables ?? null) as {
+        outstanding: number;
+        invoiceCount: number;
+        asOf: string;
+      } | null,
     };
   }
 
@@ -364,6 +380,10 @@ export class CustomersService {
       return row;
     });
 
+    // CM-06: Odoo is called AFTER the commit — a slow upstream cannot hold a
+    // database transaction open, and a down one becomes a queue row.
+    if (created.status === 'active') this.odooSync.kickCustomer(created.id);
+
     return this.findOne(created.id, actor);
   }
 
@@ -469,6 +489,8 @@ export class CustomersService {
       );
     });
 
+    this.odooSync.kickCustomer(id);
+
     return this.findOne(id, actor);
   }
 
@@ -571,6 +593,8 @@ export class CustomersService {
         { prisma },
       );
     });
+
+    this.odooSync.kickCustomer(id);
 
     return this.findOne(id, actor);
   }

@@ -73,6 +73,7 @@ interface Harness {
     findDetail: jest.Mock;
   };
   requestCount: jest.Mock;
+  odooKicks: string[];
 }
 
 function harness(options: {
@@ -96,6 +97,7 @@ function harness(options: {
   };
 
   const requestCount = jest.fn(() => Promise.resolve(0));
+  const odooKicks: string[] = [];
 
   const service = new CustomersService(
     customers as never,
@@ -113,6 +115,7 @@ function harness(options: {
     } as never,
     {
       findMany: jest.fn(() => Promise.resolve([])),
+      findFirst: jest.fn(() => Promise.resolve(null)),
       upsert: jest.fn(),
     } as never,
     {
@@ -165,9 +168,14 @@ function harness(options: {
           },
         }),
     } as never,
+    {
+      kickCustomer: jest.fn((id: string) => {
+        odooKicks.push(id);
+      }),
+    } as never,
   );
 
-  return { service, audits, timelineEvents, fieldChangeRows, customers, requestCount };
+  return { service, audits, timelineEvents, fieldChangeRows, customers, requestCount, odooKicks };
 }
 
 function createDto(overrides: Record<string, unknown> = {}) {
@@ -408,3 +416,4 @@ describe('C360-01 summary — ตัวเลขการ์ดหน้า 360�
     expect(requestCount).not.toHaveBeenCalled();
   });
 });
+

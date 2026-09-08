@@ -161,6 +161,13 @@ enum CustomerStatus {
   inactive
 }
 
+/// CM-06 — สถานะงานในคิว sync ของชั้น integration (Odoo วันนี้ ระบบอื่นภายหลัง).
+enum IntegrationJobStatus {
+  pending
+  succeeded
+  failed
+}
+
 /// CM-05: บทบาทผู้ติดต่อตามสเปค.
 enum CustomerContactRole {
   decision_maker
@@ -1651,4 +1658,33 @@ model CustomerTimelineEvent {
   @@index([customerId, occurredAt])
   @@index([companyId, occurredAt])
   @@map("customer_timeline_events")
+}
+
+/// CM-06 — the retry queue behind the Odoo integration layer (PO 8 ก.ย. 2569:
+/// a customer create calls Odoo synchronously and gets the partner id back;
+/// when Odoo is down the work lands here instead of blocking the create, and
+/// a sweeper retries with backoff). Rows are kept after they finish — the
+/// "ทุกรอบ sync มี log" AC is answered by this table plus the audit trail.
+model IntegrationSyncJob {
+  id String @id @default(uuid())
+
+  /// 'odoo' — one queue for every external system the layer fronts.
+  system String
+  /// 'customer_upsert' | 'receivables_refresh'
+  kind   String
+  /// The row being synced — customerId for both current kinds.
+  resourceId String
+
+  status   IntegrationJobStatus @default(pending)
+  attempts Int                  @default(0)
+  /// The last failure, verbatim — what an operator reads first.
+  lastError String?
+  runAfter  DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([system, status, runAfter])
+  @@index([system, kind, resourceId])
+  @@map("integration_sync_jobs")
 }

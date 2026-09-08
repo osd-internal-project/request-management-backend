@@ -59,6 +59,10 @@ export const ErrorCatalog = {
   REQ_TYPE_IN_USE: HttpStatus.CONFLICT,
   /** NFR-03: same Idempotency-Key replayed with a different body. */
   IDEMPOTENCY_KEY_REUSED: HttpStatus.CONFLICT,
+
+  /** CM-06/D-30 — the integration layer's answer when Odoo (or a later
+   * external system) refuses or is unreachable; the sync queue retries. */
+  UPSTREAM_ERROR: HttpStatus.BAD_GATEWAY,
   /**
    * The Keycloak Admin API is unreachable or the service account lacks its
    * realm-management roles. A distinct code so the UI can say "not configured"
