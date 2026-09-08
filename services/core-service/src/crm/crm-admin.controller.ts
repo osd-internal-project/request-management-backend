@@ -14,9 +14,11 @@ import { CurrentPrincipal, Permissions } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import { CrmAdminService } from './crm-admin.service';
 import {
+  CreateKycProductDto,
   CreateSegmentDimensionDto,
   CreateSegmentValueDto,
   UpdateCrmConfigDto,
+  UpdateKycProductDto,
   UpdateSegmentDimensionDto,
   UpdateSegmentValueDto,
 } from './dto/customer.dto';
@@ -30,6 +32,33 @@ import {
 @Controller('admin/crm')
 export class CrmAdminController {
   constructor(private readonly admin: CrmAdminService) {}
+
+  // --- CM-04 ชุดงาน B: product ที่ต้องยืนยันตัวตน (KYC) --------------------
+
+  @Get('kyc-products')
+  @Permissions('admin.crm.manage')
+  listKycProducts(@CurrentPrincipal() principal: Principal) {
+    return this.admin.listKycProducts(principal);
+  }
+
+  @Post('kyc-products')
+  @Permissions('admin.crm.manage')
+  createKycProduct(
+    @Body() dto: CreateKycProductDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.admin.createKycProduct(dto, principal);
+  }
+
+  @Patch('kyc-products/:id')
+  @Permissions('admin.crm.manage')
+  updateKycProduct(
+    @Param('id') id: string,
+    @Body() dto: UpdateKycProductDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.admin.updateKycProduct(id, dto, principal);
+  }
 
   @Get('segment-dimensions')
   @Permissions('admin.crm.manage')

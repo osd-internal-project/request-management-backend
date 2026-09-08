@@ -14,12 +14,15 @@ import {
   CustomerSegmentValueRepository,
 } from './segment.repositories';
 import {
+  CreateKycProductDto,
   CreateSegmentDimensionDto,
   CreateSegmentValueDto,
   UpdateCrmConfigDto,
+  UpdateKycProductDto,
   UpdateSegmentDimensionDto,
   UpdateSegmentValueDto,
 } from './dto/customer.dto';
+import { KycProductRuleRepository } from './kyc-product.repository';
 
 /**
  * CM-07 + CM-02/03 configuration — the admin surface behind
@@ -36,6 +39,7 @@ export class CrmAdminService {
     private readonly configs: CrmConfigRepository,
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
+    private readonly kycProducts: KycProductRuleRepository,
   ) {}
 
   // --- segmentation (CM-07) ------------------------------------------------
@@ -264,5 +268,84 @@ export class CrmAdminService {
 
       return result;
     });
+  }
+
+
+  // --- CM-04 ชุดงาน B: product ที่ต้องยืนยันตัวตน (KYC) --------------------
+
+  /** ทั้งชุดรวม inactive — หน้า admin สลับเปิด/ปิดได้โดยไม่ลบประวัติ. */
+  async listKycProducts(actor: Principal) {
+    return this.kycProducts.findMany({
+      where: { companyId: actor.activeCompanyId },
+      orderBy: { productCode: 'asc' },
+    });
+  }
+
+  async createKycProduct(dto: CreateKycProductDto, actor: Principal) {
+    const clash = (await this.kycProducts.findFirst({
+      where: {
+        companyId: actor.activeCompanyId,
+        productCode: dto.product_code.trim(),
+      },
+      select: { id: true },
+    })) as { id: string } | null;
+
+    if (clash) {
+      throw new AppError('CONFLICT', 'รหัส product นี้อยู่ในเงื่อนไข KYC แล้ว', [
+        { field: 'product_code', reason: 'duplicate' },
+      ]);
+    }
+
+    const row = await this.kycProducts.create({
+      data: {
+        companyId: actor.activeCompanyId,
+        productCode: dto.product_code.trim(),
+        name: dto.name.trim(),
+        createdBy: actor.userId,
+      },
+    });
+
+    await this.audit.record({
+      eventType: 'crm.kyc_product.created',
+      companyId: actor.activeCompanyId,
+      ...auditActor(actor),
+      resourceType: 'kyc_product_rule',
+      resourceId: (row as { id: string }).id,
+      after: { productCode: dto.product_code, name: dto.name },
+    });
+
+    return row;
+  }
+
+  async updateKycProduct(
+    id: string,
+    dto: UpdateKycProductDto,
+    actor: Principal,
+  ) {
+    const found = (await this.kycProducts.findFirst({
+      where: { id, companyId: actor.activeCompanyId },
+    })) as { id: string; name: string; active: boolean } | null;
+    if (!found) throw new AppError('NOT_FOUND', 'ไม่พบรายการที่ระบุ');
+
+    const row = await this.kycProducts.update({
+      where: { id },
+      data: {
+        ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
+        ...(dto.active !== undefined ? { active: dto.active } : {}),
+        updatedBy: actor.userId,
+      },
+    });
+
+    await this.audit.record({
+      eventType: 'crm.kyc_product.updated',
+      companyId: actor.activeCompanyId,
+      ...auditActor(actor),
+      resourceType: 'kyc_product_rule',
+      resourceId: id,
+      before: { name: found.name, active: found.active },
+      after: { name: dto.name ?? found.name, active: dto.active ?? found.active },
+    });
+
+    return row;
   }
 }

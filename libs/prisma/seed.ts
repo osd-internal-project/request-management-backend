@@ -585,6 +585,47 @@ async function seedRequestTypes(
       slaHours: 24,
     },
     {
+      /**
+       * CM-04 (ชุดงาน B) — คำขอ KYC ลูกค้า. ยื่นได้เสมอจากหน้าลูกค้า
+       * (KYC เป็นกระบวนการปกติ ไม่ block — PO 8 ก.ย. 2569); เมื่อคำขอนี้
+       * complete, KycCallbackService ติด kycVerified ให้ลูกค้าที่อ้างใน ref.
+       */
+      code: 'KYC',
+      name: 'KYC ลูกค้า',
+      receiverOrgUnitId: osdRoot?.id ?? null,
+      formSchema: {
+        type: 'object',
+        required: ['customer_code', 'customer_name'],
+        properties: {
+          customer_code: {
+            type: 'string',
+            title: 'รหัสลูกค้า',
+            'x-order': 10,
+          },
+          customer_name: { type: 'string', title: 'ชื่อลูกค้า', 'x-order': 20 },
+          note: {
+            type: 'string',
+            title: 'หมายเหตุ',
+            maxLength: 2000,
+            'x-multiline': true,
+            'x-order': 30,
+          },
+        },
+      },
+      requiredDocs: [
+        { code: 'COMPANY_CERT', name: 'หนังสือรับรองบริษัท' },
+        { code: 'VAT20', name: 'ภ.พ.20 / เอกสารภาษี' },
+        { code: 'AUTH_SIGNATORY', name: 'เอกสารผู้มีอำนาจลงนาม' },
+      ],
+      returnReasonCodes: [
+        { code: 'DOC_INCOMPLETE', name: 'เอกสารไม่ครบ' },
+        { code: 'DOC_EXPIRED', name: 'เอกสารหมดอายุ' },
+        { code: 'OTHER', name: 'อื่น ๆ' },
+      ],
+      approvalPolicy: {},
+      slaHours: 48,
+    },
+    {
       code: 'LEAD',
       name: 'ส่งต่อโอกาสการขาย',
       receiverOrgUnitId: sales?.id ?? null,

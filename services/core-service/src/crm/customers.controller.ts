@@ -72,6 +72,16 @@ export class CustomersController {
     return this.customers.segmentOptions(principal);
   }
 
+  /**
+   * CM-04 ชุดงาน B — active KYC product rules, for any screen or module that
+   * must warn "product นี้ต้องทำ KYC" (โมดูลดีลจะใช้; declared before `:id`).
+   */
+  @Get('kyc-products')
+  @Permissions('crm.customer.read')
+  kycProducts(@CurrentPrincipal() principal: Principal) {
+    return this.customers.listKycProducts(principal);
+  }
+
   /** CM-03 — the inline check the form runs before submit. */
   @Post('check-duplicate')
   @Permissions('crm.customer.read')

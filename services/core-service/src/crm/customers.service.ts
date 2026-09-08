@@ -36,6 +36,7 @@ import {
 } from './customer-dedup.service';
 import { CustomerTimelineService } from './customer-timeline.service';
 import { CustomerOdooSyncService } from './customer-odoo-sync.service';
+import { KycProductRuleRepository } from './kyc-product.repository';
 import { PDPA_CLIENT } from '../pdpa/pdpa-client';
 import type { ContactConsentStatus, PdpaClient } from '../pdpa/pdpa-client';
 import { assertCustomerTransition } from './customer-state-machine';
@@ -101,6 +102,7 @@ export class CustomersService {
     private readonly transactions: PrismaTransactionService,
     private readonly odooSync: CustomerOdooSyncService,
     @Inject(PDPA_CLIENT) private readonly pdpa: PdpaClient,
+    private readonly kycProducts: KycProductRuleRepository,
   ) {}
 
   private readonly logger = new Logger(CustomersService.name);
@@ -282,6 +284,15 @@ export class CustomersService {
         doNotCall: false,
       }));
     }
+  }
+
+  /** CM-04 ชุดงาน B — เฉพาะ rule ที่ active สำหรับผู้ใช้ทั่วไป/โมดูลอื่น. */
+  async listKycProducts(actor: Principal) {
+    return this.kycProducts.findMany({
+      where: { companyId: actor.activeCompanyId, active: true },
+      select: { id: true, productCode: true, name: true },
+      orderBy: { productCode: 'asc' },
+    });
   }
 
   // --- create (CM-01/02/03) ------------------------------------------------

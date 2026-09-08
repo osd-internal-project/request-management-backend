@@ -504,6 +504,30 @@ export class CreateSegmentValueDto {
 
 export class UpdateSegmentValueDto extends UpdateSegmentDimensionDto {}
 
+export class CreateKycProductDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(64)
+  product_code!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  name!: string;
+}
+
+export class UpdateKycProductDto {
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  name?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  active?: boolean;
+}
+
 export class UpdateCrmConfigDto {
   @IsOptional()
   @IsString()

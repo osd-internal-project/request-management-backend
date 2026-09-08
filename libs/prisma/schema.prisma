@@ -217,6 +217,7 @@ model Company {
   customerSegmentDims     CustomerSegmentDimension[]
   customerCodeCounter     CustomerCodeCounter?
   crmConfig               CrmCompanyConfig?
+  kycProductRules         KycProductRule[]
 
   @@map("companies")
 }
@@ -1687,4 +1688,30 @@ model IntegrationSyncJob {
   @@index([system, status, runAfter])
   @@index([system, kind, resourceId])
   @@map("integration_sync_jobs")
+}
+
+/// CM-04 (ชุดงาน B) — product ใดต้องยืนยันตัวตน (KYC). Configuration แก้จาก
+/// หน้าจอผู้ดูแลไม่ต้อง deploy; PO ยืนยัน 8 ก.ย. 2569 ว่า KYC ไม่ block —
+/// โมดูลดีล (CRM ระยะถัดไป) อ่านตารางนี้เพื่อ "แจ้งเตือน" เมื่อดีลมี product
+/// ที่เข้าเงื่อนไขและลูกค้ายังไม่ kycVerified. รายการจริงยังรอ PO/การเงิน —
+/// นี่คือโครง + หน้าจอกรอกที่พร้อมรับค่าวันเปิดใช้.
+model KycProductRule {
+  id        String @id @default(uuid())
+  companyId String
+
+  /// รหัสสินค้า/บริการ — ต้องตรงกับรหัสใน Odoo (D-30, งาน mapping ระยะ 0).
+  productCode String
+  name        String
+
+  active Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  createdBy String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, productCode])
+  @@map("kyc_product_rules")
 }
