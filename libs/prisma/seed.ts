@@ -26,6 +26,7 @@ const PERMISSIONS: Record<string, string[]> = {
   request: [
     'request.create',
     'request.read',
+    'request.read.all',
     'request.cancel.own',
     'request.cancel.any',
     'request.complete',
@@ -34,6 +35,14 @@ const PERMISSIONS: Record<string, string[]> = {
     'request.sensitive.read',
   ],
   approval: ['approval.decide', 'approval.delegate', 'approval.history.read'],
+  crm: [
+    'crm.customer.read',
+    'crm.customer.read.all',
+    'crm.customer.manage',
+    'crm.customer.sensitive.read',
+    'crm.customer.dedup.override',
+    'crm.customer.financial.read',
+  ],
   report: ['report.request.read', 'report.dashboard.read'],
   user: ['user.read'],
   notification: ['notification.read'],
@@ -46,6 +55,7 @@ const PERMISSIONS: Record<string, string[]> = {
     'admin.sla.manage',
     'admin.bi.manage',
     'admin.identity.manage',
+    'admin.crm.manage',
   ],
   integration: ['integration.request.create', 'integration.approval.create'],
 };
@@ -84,6 +94,10 @@ const SEED_ROLES: {
       'request.hold',
       'approval.decide',
       'notification.read',
+      // CM-01: ทะเบียนลูกค้าเปิดให้พนักงานสร้าง–แก้ตามสิทธิ์ — scope narrows
+      // what they *see* (own book + own drafts), not whether the menu exists.
+      'crm.customer.read',
+      'crm.customer.manage',
     ],
   },
   {
@@ -99,6 +113,8 @@ const SEED_ROLES: {
       'approval.delegate',
       'notification.read',
       'user.read',
+      'crm.customer.read',
+      'crm.customer.manage',
     ],
   },
   {
@@ -118,6 +134,14 @@ const SEED_ROLES: {
       'report.dashboard.read',
       'notification.read',
       'user.read',
+      'crm.customer.read',
+      'crm.customer.read.all',
+      'crm.customer.manage',
+      'crm.customer.sensitive.read',
+      // CM-03 (PO 8 ก.ย. 2569): only a granted role may confirm past the
+      // similar-name warning.
+      'crm.customer.dedup.override',
+      'crm.customer.financial.read',
     ],
   },
   {
@@ -134,6 +158,10 @@ const SEED_ROLES: {
       'report.dashboard.read',
       'notification.read',
       'user.read',
+      'crm.customer.read',
+      'crm.customer.read.all',
+      'crm.customer.sensitive.read',
+      'crm.customer.financial.read',
     ],
   },
   {
@@ -207,11 +235,14 @@ const SEED_ROLES: {
       'admin.sla.manage',
       'admin.bi.manage',
       'admin.identity.manage',
+      'admin.crm.manage',
       'audit.read',
       'user.read',
       'notification.read',
       'request.read',
       'request.read.all',
+      'crm.customer.read',
+      'crm.customer.read.all',
     ],
   },
   {
@@ -227,6 +258,9 @@ const SEED_ROLES: {
       'report.dashboard.read',
       'audit.read',
       'user.read',
+      'crm.customer.read',
+      'crm.customer.read.all',
+      'crm.customer.sensitive.read',
     ],
   },
 ];
@@ -386,6 +420,13 @@ async function seedSensitiveFields() {
       resource: 'request:DSC',
       field: 'est_margin_pct',
       visibleToPermission: 'request.sensitive.read',
+    },
+    // CM-08: เลขผู้เสียภาษี is masked for callers without the CRM sensitive
+    // read; the interceptor drops it from list and detail responses alike.
+    {
+      resource: 'customer',
+      field: 'taxId',
+      visibleToPermission: 'crm.customer.sensitive.read',
     },
   ];
 
@@ -627,6 +668,66 @@ async function seedRequestTypes(
   console.log(`  request types: ${types.map((t) => t.code).join(', ')}`);
 }
 
+/**
+ * CM-07 — the four starter dimensions the spec names. Values are
+ * configuration an admin edits from the screen; `size` and `potential` get
+ * conventional starters so UAT has something to assign.
+ */
+async function seedCrmDefaults(companyId: string) {
+  const dimensions: {
+    code: string;
+    nameTh: string;
+    sortOrder: number;
+    values: { code: string; nameTh: string; sortOrder: number }[];
+  }[] = [
+    { code: 'type', nameTh: 'ประเภทลูกค้า', sortOrder: 1, values: [] },
+    {
+      code: 'size',
+      nameTh: 'ขนาด',
+      sortOrder: 2,
+      values: [
+        { code: 's', nameTh: 'เล็ก (S)', sortOrder: 1 },
+        { code: 'm', nameTh: 'กลาง (M)', sortOrder: 2 },
+        { code: 'l', nameTh: 'ใหญ่ (L)', sortOrder: 3 },
+      ],
+    },
+    { code: 'industry', nameTh: 'อุตสาหกรรม', sortOrder: 3, values: [] },
+    {
+      code: 'potential',
+      nameTh: 'ศักยภาพ',
+      sortOrder: 4,
+      values: [
+        { code: 'a', nameTh: 'ศักยภาพสูง (A)', sortOrder: 1 },
+        { code: 'b', nameTh: 'ศักยภาพปานกลาง (B)', sortOrder: 2 },
+        { code: 'c', nameTh: 'ศักยภาพทั่วไป (C)', sortOrder: 3 },
+      ],
+    },
+  ];
+
+  for (const dim of dimensions) {
+    const saved = await prisma.customerSegmentDimension.upsert({
+      where: { companyId_code: { companyId, code: dim.code } },
+      update: { nameTh: dim.nameTh, sortOrder: dim.sortOrder },
+      create: {
+        companyId,
+        code: dim.code,
+        nameTh: dim.nameTh,
+        sortOrder: dim.sortOrder,
+      },
+    });
+
+    for (const value of dim.values) {
+      await prisma.customerSegmentValue.upsert({
+        where: { dimensionId_code: { dimensionId: saved.id, code: value.code } },
+        update: { nameTh: value.nameTh, sortOrder: value.sortOrder },
+        create: { dimensionId: saved.id, ...value },
+      });
+    }
+  }
+
+  console.log(`  crm segment dimensions: ${dimensions.length}`);
+}
+
 async function main() {
   console.log('Seeding CTD foundation data…');
 
@@ -645,6 +746,7 @@ async function main() {
   // any roles at all.
   for (const company of companies) {
     await seedRoles(company.id);
+    await seedCrmDefaults(company.id);
   }
 
   await seedOrgTree(demo.id);

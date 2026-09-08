@@ -107,7 +107,9 @@ export function visibleRequestsWhere(subject: AccessSubject): AccessWhere {
  * was granted a view of another ฝ่าย reaches many of the same units twice, and
  * a duplicated id in an `IN (…)` is a wider query for no extra rows.
  */
-export function reachableUnitIds(subject: AccessSubject): string[] {
+export function reachableUnitIds(
+  subject: Pick<AccessSubject, 'ledUnitIds' | 'scopedUnitIds'>,
+): string[] {
   /*
     `?? []` because core-service builds its principal from user-service's JSON,
     and during a rolling deploy the older service answers without these fields.

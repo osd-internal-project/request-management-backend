@@ -68,6 +68,28 @@ export const ErrorCatalog = {
   KEYCLOAK_ADMIN_UNAVAILABLE: HttpStatus.SERVICE_UNAVAILABLE,
   /** Refusing to grant a role that would escalate Keycloak privileges. */
   KEYCLOAK_ROLE_FORBIDDEN: HttpStatus.FORBIDDEN,
+
+  // --- CRM (CM-xx spec, artifact 856c08fd) ---
+  /**
+   * CM-03: same tax id + branch already registered in this company. 409 with
+   * the existing customer in `details`, so the form can point at it — the
+   * answer is "use that one", never "make another".
+   */
+  CRM_CUSTOMER_DUPLICATE: HttpStatus.CONFLICT,
+  /**
+   * CM-03: a similar name was found and the caller did not (or may not)
+   * confirm past the warning. `details` carries the similar customers; a
+   * caller with `crm.customer.dedup.override` may resubmit with
+   * `confirm_duplicate` + a reason.
+   */
+  CRM_CUSTOMER_SIMILAR: HttpStatus.UNPROCESSABLE_ENTITY,
+  /** CM-04: a customer-status change outside the declared transition table. */
+  CRM_CUSTOMER_STATE_INVALID: HttpStatus.CONFLICT,
+  /**
+   * CM-07: a segment value with customers assigned may be deactivated but
+   * never deleted — deleting it would orphan the assignments Pricing reads.
+   */
+  CRM_SEGMENT_IN_USE: HttpStatus.CONFLICT,
 } as const;
 
 export type ErrorCode = keyof typeof ErrorCatalog;
