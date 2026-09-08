@@ -3,6 +3,7 @@ import { PrismaTransactionService } from '@request-management/share';
 import { AccessModule } from '../access/access.module';
 import { RequestsModule } from '../requests/requests.module';
 import { OdooModule } from '../odoo/odoo.module';
+import { PdpaModule } from '../pdpa/pdpa.module';
 import { CustomersController } from './customers.controller';
 import { CrmAdminController } from './crm-admin.controller';
 import { CustomersService } from './customers.service';
@@ -36,7 +37,7 @@ import { IntegrationSyncJobRepository } from './integration-job.repository';
  * events through — nothing writes the table directly (C360-03).
  */
 @Module({
-  imports: [AccessModule, RequestsModule, OdooModule],
+  imports: [AccessModule, RequestsModule, OdooModule, PdpaModule],
   controllers: [CustomersController, CrmAdminController],
   providers: [
     CustomersService,

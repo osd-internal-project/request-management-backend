@@ -114,6 +114,16 @@ export class CustomersController {
     return this.customers.findOne(id, principal);
   }
 
+  /** CM-05 — consent badge อ่านสดจากระบบ PDPA กลาง (ห้ามเก็บซ้ำ). */
+  @Get(':id/contacts/consents')
+  @Permissions('crm.customer.read')
+  contactConsents(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.customers.contactConsents(id, principal);
+  }
+
   /** C360-01 — ตัวเลขการ์ดบนหน้า 360°; นับผ่าน filter เดียวกับแท็บ. */
   @Get(':id/summary')
   @Permissions('crm.customer.read')

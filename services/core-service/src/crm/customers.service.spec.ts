@@ -58,6 +58,7 @@ function customerRow(overrides: Record<string, unknown> = {}) {
     ownerOrgUnitId: 'unit-sales',
     mergedIntoCustomerId: null,
     segments: [],
+    contacts: [],
     ...overrides,
   };
 }
@@ -78,6 +79,7 @@ interface Harness {
 
 function harness(options: {
   checkResult?: DuplicateCheckResult;
+  pdpaDown?: boolean;
   detail?: Record<string, unknown> | null;
 }): Harness {
   const audits: Harness['audits'] = [];
@@ -172,6 +174,21 @@ function harness(options: {
       kickCustomer: jest.fn((id: string) => {
         odooKicks.push(id);
       }),
+    } as never,
+    {
+      mode: 'mock',
+      lookupConsents: options.pdpaDown
+        ? jest.fn(() => Promise.reject(new Error('pdpa down')))
+        : jest.fn((queries: { contactId: string }[]) =>
+            Promise.resolve(
+              queries.map((query) => ({
+                contactId: query.contactId,
+                email: 'granted',
+                phone: 'granted',
+                doNotCall: false,
+              })),
+            ),
+          ),
     } as never,
   );
 
@@ -417,3 +434,44 @@ describe('C360-01 summary — ตัวเลขการ์ดหน้า 360�
   });
 });
 
+describe('CM-05 consent badge — อ่านสดจากระบบ PDPA กลาง', () => {
+  it('CM-05 returns one live status per contact, never storing a copy', async () => {
+    const { service } = harness({
+      detail: customerRow({
+        contacts: [
+          { id: 'ct-1', email: 'a@b.co', phone: '0812345678' },
+          { id: 'ct-2', email: null, phone: '021112229' },
+        ],
+      }),
+    });
+
+    const statuses = await service.contactConsents(
+      'cust-1',
+      principal(['crm.customer.read']),
+    );
+
+    expect(statuses).toHaveLength(2);
+    expect(statuses[0]).toMatchObject({ contactId: 'ct-1', email: 'granted' });
+  });
+
+  it('CM-05 the PDPA service being down degrades to unknown, not a broken tab', async () => {
+    const { service } = harness({
+      pdpaDown: true,
+      detail: customerRow({
+        contacts: [{ id: 'ct-1', email: 'a@b.co', phone: null }],
+      }),
+    });
+
+    const statuses = await service.contactConsents(
+      'cust-1',
+      principal(['crm.customer.read']),
+    );
+
+    expect(statuses[0]).toMatchObject({
+      contactId: 'ct-1',
+      email: 'unknown',
+      phone: null,
+      doNotCall: false,
+    });
+  });
+});

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { Prisma, CustomerStatus } from '@prisma/client';
 import {
   accessSubject,
@@ -36,6 +36,8 @@ import {
 } from './customer-dedup.service';
 import { CustomerTimelineService } from './customer-timeline.service';
 import { CustomerOdooSyncService } from './customer-odoo-sync.service';
+import { PDPA_CLIENT } from '../pdpa/pdpa-client';
+import type { ContactConsentStatus, PdpaClient } from '../pdpa/pdpa-client';
 import { assertCustomerTransition } from './customer-state-machine';
 import { isValidThaiTaxId, normalizeCustomerName } from './customer-name';
 import {
@@ -98,7 +100,10 @@ export class CustomersService {
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
     private readonly odooSync: CustomerOdooSyncService,
+    @Inject(PDPA_CLIENT) private readonly pdpa: PdpaClient,
   ) {}
+
+  private readonly logger = new Logger(CustomersService.name);
 
   // --- register (CM-01/08) -------------------------------------------------
 
@@ -236,6 +241,47 @@ export class CustomersService {
         asOf: string;
       } | null,
     };
+  }
+
+  /**
+   * CM-05 — consent badges for the contacts tab, read LIVE from the central
+   * PDPA service every time (the spec forbids copying consent into the
+   * contact table). The PDPA service being down degrades to `unknown` per
+   * channel — a badge that says "ตรวจไม่ได้" instead of a broken tab.
+   */
+  async contactConsents(
+    customerId: string,
+    actor: Principal,
+  ): Promise<ContactConsentStatus[]> {
+    const found = await this.findOne(customerId, actor);
+
+    const contacts = (
+      found as unknown as {
+        contacts: { id: string; email: string | null; phone: string | null }[];
+      }
+    ).contacts;
+
+    if (!contacts.length) return [];
+
+    const queries = contacts.map((contact) => ({
+      contactId: contact.id,
+      email: contact.email,
+      phone: contact.phone,
+    }));
+
+    try {
+      return await this.pdpa.lookupConsents(queries);
+    } catch (error) {
+      this.logger.warn(
+        `pdpa lookup degraded to unknown: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return queries.map((query) => ({
+        contactId: query.contactId,
+        email: query.email ? ('unknown' as const) : null,
+        phone: query.phone ? ('unknown' as const) : null,
+        doNotCall: false,
+      }));
+    }
   }
 
   // --- create (CM-01/02/03) ------------------------------------------------

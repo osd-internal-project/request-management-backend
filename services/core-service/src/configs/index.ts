@@ -32,6 +32,14 @@ export default () => ({
     refreshIntervalMs: Number(process.env.ODOO_REFRESH_INTERVAL_MS ?? 3600000),
   },
 
+  /** CM-05/D-35 — the PDPA integration layer; mock until the central
+   * service (DPO-owned) exists. */
+  pdpa: {
+    mode: process.env.PDPA_MODE ?? 'mock',
+    baseUrl: process.env.PDPA_BASE_URL ?? '',
+    apiKey: process.env.PDPA_API_KEY ?? '',
+  },
+
   metabase: {
     siteUrl: process.env.METABASE_SITE_URL ?? '',
     embedSecret: process.env.METABASE_EMBED_SECRET ?? '',
