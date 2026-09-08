@@ -31,6 +31,19 @@ export const REQUEST_STATUSES = [
   'cancelled',
 ] as const;
 
+/**
+ * Declared once and named, so `status` is a single `$ref` in the document.
+ *
+ * Without `enumName` Nest inlines the eleven values at every property that uses
+ * them, and a client generator produces three unrelated enums for one concept.
+ */
+const STATUS_PROPERTY = {
+  description: 'สถานะของคำขอ',
+  enum: REQUEST_STATUSES,
+  enumName: 'ExternalRequestStatus',
+  example: 'submitted',
+} as const;
+
 /** One entry of a request type's `return_reason_codes` (REQ-04). */
 export class ExternalReturnReasonDto {
   @ApiProperty({ example: 'INFO_INCOMPLETE' })
@@ -40,10 +53,67 @@ export class ExternalReturnReasonDto {
   name!: string;
 }
 
+/**
+ * One entry of a request type's `required_docs` (REQ-03).
+ *
+ * Same two fields as {@link ExternalReturnReasonDto} and deliberately not the
+ * same class: a document code and a bounce-reason code are different
+ * vocabularies, and sharing one schema name would tell a reader they are
+ * interchangeable.
+ */
+export class ExternalRequiredDocDto {
+  @ApiProperty({ example: 'QUOTE_DRAFT' })
+  code!: string;
+
+  @ApiProperty({ example: 'ใบเสนอราคาฉบับร่าง' })
+  name!: string;
+}
+
+/** A group in the org chart, as the type endpoints name one. */
+export class ExternalOrgUnitDto {
+  @ApiProperty({ example: '9a1f2c77-0f1e-4a35-9a1d-3f2b6c8e5d40' })
+  id!: string;
+
+  @ApiProperty({ example: 'Business Solution Consulting' })
+  name!: string;
+}
+
 /** A person, named only. The external API never exposes a user's full record. */
 export class ExternalPersonDto {
   @ApiProperty({ example: 'นายชนะกุล แก้วทรงเกษ' })
   displayName!: string;
+}
+
+/**
+ * Somebody who may be named as the receiver of a request.
+ *
+ * Wider than {@link ExternalPersonDto} because a caller has to *act* on this
+ * one: without `id` there is no way to fill in `receiver_user_id`, and a client
+ * following the older declaration could not raise a request at all.
+ *
+ * `email` is here so a caller can match what a person typed — a chatbot is told
+ * "ส่งให้คุณจารุภา" or an address, never a uuid. It is the address the request
+ * system knows, and matching is the caller's job: `receiver_user_id` accepts
+ * `id` and nothing else.
+ */
+export class ExternalReceiverCandidateDto {
+  @ApiProperty({
+    description: 'ค่าที่ต้องส่งกลับเป็น `receiver_user_id` ตอนสร้างคำขอ',
+    example: 'e0e90f78-98d3-4b74-b2bd-94e05700f989',
+  })
+  id!: string;
+
+  @ApiProperty({ example: 'นายชนะกุล แก้วทรงเกษ' })
+  displayName!: string;
+
+  @ApiProperty({
+    description:
+      'ใช้จับคู่กับชื่อ/อีเมลที่ผู้ใช้พิมพ์มา — ส่งค่านี้เป็น `receiver_user_id` ไม่ได้',
+    nullable: true,
+    type: String,
+    example: 'chanakulk@osd.co.th',
+  })
+  email!: string | null;
 }
 
 /** Step 2 — one row of the request-type list. */
@@ -61,12 +131,14 @@ export class ExternalTypeSummaryDto {
   sla_hours!: number;
 
   @ApiProperty({
-    description: 'ทีมผู้รับตั้งต้นของประเภทนี้ — null คือไม่ได้กำหนดไว้',
+    description:
+      'ทีมผู้รับตั้งต้นของประเภทนี้ — null คือไม่ได้กำหนดไว้ ' +
+      'ถ้าจะส่งเป็น `receiver_org_unit_id` ตอนสร้างคำขอ ให้ส่ง `.id` ไม่ใช่ทั้งก้อน',
     nullable: true,
-    type: String,
+    type: ExternalOrgUnitDto,
     example: null,
   })
-  receiver_org_unit!: string | null;
+  receiver_org_unit!: ExternalOrgUnitDto | null;
 
   @ApiProperty({
     description: 'true = ต้องส่ง ref_type และ ref_id ตอนสร้างคำขอ',
@@ -106,8 +178,13 @@ export class ExternalTypeFormDto extends ExternalTypeSummaryDto {
   })
   receiver_form_schema!: Record<string, unknown>;
 
-  @ApiProperty({ type: [String], example: [] })
-  required_docs!: string[];
+  @ApiProperty({
+    description:
+      'เอกสารที่ต้องแนบก่อนยื่น — แนบผ่าน External API ไม่ได้ ต้องไปแนบที่หน้าเว็บ',
+    type: [ExternalRequiredDocDto],
+    example: [],
+  })
+  required_docs!: ExternalRequiredDocDto[];
 
   @ApiProperty({ type: [ExternalReturnReasonDto] })
   return_reason_codes!: ExternalReturnReasonDto[];
@@ -119,11 +196,12 @@ export class ExternalTypeFormDto extends ExternalTypeSummaryDto {
   */
   @ApiProperty({
     description:
-      'ผู้รับที่เลือกได้ — ว่างได้ ถ้าว่างต้องหา receiver_user_id เอง',
-    type: [ExternalPersonDto],
+      'ผู้รับที่เลือกได้ — ว่างได้ ถ้าว่างต้องหา receiver_user_id เอง ' +
+      'ผู้ใช้พิมพ์ชื่อหรืออีเมลมา ให้จับคู่กับรายการนี้แล้วส่ง `id`',
+    type: [ExternalReceiverCandidateDto],
     example: [],
   })
-  receiver_candidates!: ExternalPersonDto[];
+  receiver_candidates!: ExternalReceiverCandidateDto[];
 }
 
 /**
@@ -155,7 +233,7 @@ export class ExternalRequestDto {
   @ApiProperty({ example: '42142ccf-d4ca-4d15-821c-489da9758f4f' })
   companyId!: string;
 
-  @ApiProperty({ enum: REQUEST_STATUSES, example: 'submitted' })
+  @ApiProperty(STATUS_PROPERTY)
   status!: (typeof REQUEST_STATUSES)[number];
 
   @ApiProperty({ example: '1a8a478b-9c8c-4ebc-a552-5a1122030a35' })
@@ -300,6 +378,22 @@ export class ExternalRequestDto {
 
   @ApiPropertyOptional({ type: [Object] })
   approvalCases?: Record<string, unknown>[];
+
+  /*
+    Present only on rows from `GET external/requests`, which augments each one —
+    the single-request reads do not carry it. Declared because it is on the wire
+    and an undeclared field reads as a client bug the first time somebody sees
+    it in a response.
+  */
+  @ApiPropertyOptional({
+    description:
+      'มาเฉพาะแถวจาก `GET external/requests` — ใช้ดูคร่าว ๆ ได้ ' +
+      'แต่ก่อนสั่งทำจริงให้เรียก `GET external/requests/{ref}/actions` เสมอ ' +
+      'เพราะที่นั่นบอกฟิลด์ที่แต่ละ action ต้องใช้ด้วย',
+    type: [String],
+    example: ['receive', 'comment'],
+  })
+  available_actions?: string[];
 }
 
 /** Steps 5 and 11 — one page of "my work". */
@@ -358,7 +452,7 @@ export class ExternalActionsDto {
   @ApiProperty({ example: 'REQ-OSD-PS01-26090003' })
   request_no!: string;
 
-  @ApiProperty({ enum: REQUEST_STATUSES, example: 'submitted' })
+  @ApiProperty(STATUS_PROPERTY)
   status!: (typeof REQUEST_STATUSES)[number];
 
   @ApiProperty({
@@ -406,7 +500,7 @@ export class ExternalTreeNodeDto {
   @ApiProperty({ example: 'PS01' })
   typeCode!: string;
 
-  @ApiProperty({ enum: REQUEST_STATUSES, example: 'submitted' })
+  @ApiProperty(STATUS_PROPERTY)
   status!: (typeof REQUEST_STATUSES)[number];
 
   @ApiProperty({ nullable: true, type: String })

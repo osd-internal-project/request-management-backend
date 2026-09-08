@@ -1,3 +1,4 @@
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsInt,
@@ -23,12 +24,23 @@ export const MAX_PAGE_SIZE = 100;
  * ```
  */
 export class PageQueryDto {
+  @ApiPropertyOptional({
+    description: 'เลขหน้าที่ต้องการ เริ่มที่ 1',
+    minimum: 1,
+    default: 1,
+  })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   page: number = 1;
 
+  @ApiPropertyOptional({
+    description: 'จำนวนรายการต่อหน้า',
+    minimum: 1,
+    maximum: MAX_PAGE_SIZE,
+    default: DEFAULT_PAGE_SIZE,
+  })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
@@ -37,6 +49,10 @@ export class PageQueryDto {
   page_size: number = DEFAULT_PAGE_SIZE;
 
   /** `sort=field` ascending, `sort=-field` descending. */
+  @ApiPropertyOptional({
+    description: '`sort=field` เรียงขึ้น, `sort=-field` เรียงลง',
+    example: '-createdAt',
+  })
   @IsOptional()
   @IsString()
   @Matches(/^-?[a-zA-Z_][a-zA-Z0-9_]*$/, {

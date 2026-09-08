@@ -6,7 +6,7 @@
         "operationId": "ExternalController_listTypes",
         "parameters": [
           {
-            "name": "x-acting-user",
+            "name": "X-Acting-User",
             "in": "header",
             "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
             "required": true,
@@ -67,7 +67,7 @@
             }
           },
           "401": {
-            "description": "`UNAUTHORIZED` — token หมดอายุหรือไม่ถูกต้อง",
+            "description": "`UNAUTHORIZED` — token หมดอายุ/ไม่ถูกต้อง หรือ API key ถูกเพิกถอนแล้ว",
             "content": {
               "application/json": {
                 "schema": {
@@ -95,26 +95,6 @@
                 }
               }
             }
-          },
-          "409": {
-            "description": "`REQ_STATE_INVALID` — ทำ action นี้ไม่ได้ในสถานะปัจจุบัน (เช่นสั่ง `receive` ซ้ำ); `REQ_CHILDREN_OPEN` — ปิดใบพ่อทั้งที่ใบลูกยังเปิดอยู่",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ExternalErrorDto"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "`REQ_FIELD_MISSING` — ฟอร์มไม่ครบตาม `form_schema`; `REQ_TYPE_INACTIVE` — ประเภทคำขอถูกปิดใช้งาน",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ExternalErrorDto"
-                }
-              }
-            }
           }
         },
         "security": [
@@ -133,7 +113,7 @@
         "operationId": "ExternalController_formOf",
         "parameters": [
           {
-            "name": "x-acting-user",
+            "name": "X-Acting-User",
             "in": "header",
             "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
             "required": true,
@@ -145,7 +125,9 @@
             "name": "code",
             "required": true,
             "in": "path",
+            "description": "รหัสประเภทคำขอ จาก `code` ที่ `GET external/request-types` คืนมา",
             "schema": {
+              "example": "PS01",
               "type": "string"
             }
           },
@@ -181,7 +163,7 @@
             }
           },
           "401": {
-            "description": "`UNAUTHORIZED` — token หมดอายุหรือไม่ถูกต้อง",
+            "description": "`UNAUTHORIZED` — token หมดอายุ/ไม่ถูกต้อง หรือ API key ถูกเพิกถอนแล้ว",
             "content": {
               "application/json": {
                 "schema": {
@@ -209,26 +191,6 @@
                 }
               }
             }
-          },
-          "409": {
-            "description": "`REQ_STATE_INVALID` — ทำ action นี้ไม่ได้ในสถานะปัจจุบัน (เช่นสั่ง `receive` ซ้ำ); `REQ_CHILDREN_OPEN` — ปิดใบพ่อทั้งที่ใบลูกยังเปิดอยู่",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ExternalErrorDto"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "`REQ_FIELD_MISSING` — ฟอร์มไม่ครบตาม `form_schema`; `REQ_TYPE_INACTIVE` — ประเภทคำขอถูกปิดใช้งาน",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ExternalErrorDto"
-                }
-              }
-            }
           }
         },
         "security": [
@@ -248,7 +210,7 @@
         "operationId": "ExternalController_create",
         "parameters": [
           {
-            "name": "x-acting-user",
+            "name": "X-Acting-User",
             "in": "header",
             "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
             "required": true,
@@ -257,11 +219,13 @@
             }
           },
           {
-            "name": "authorization",
-            "required": true,
+            "name": "Idempotency-Key",
             "in": "header",
+            "description": "ควรส่งทุกครั้ง — หนึ่งค่าต่อหนึ่งเจตนา ยิงซ้ำด้วยค่าเดิมและ body เดิมจะได้ผลลัพธ์เดิมกลับไป ไม่เกิดรายการที่สอง ไม่ส่งก็ทำงานได้ แต่ response ที่หายกลางทางแล้ว retry จะกลายเป็นสองรายการ",
+            "required": false,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "example": "6f6bd3a7-7308-4d2e-a4de-75e1f89b6871"
             }
           },
           {
@@ -306,7 +270,7 @@
             }
           },
           "401": {
-            "description": "`UNAUTHORIZED` — token หมดอายุหรือไม่ถูกต้อง",
+            "description": "`UNAUTHORIZED` — token หมดอายุ/ไม่ถูกต้อง หรือ API key ถูกเพิกถอนแล้ว",
             "content": {
               "application/json": {
                 "schema": {
@@ -336,7 +300,7 @@
             }
           },
           "409": {
-            "description": "`REQ_STATE_INVALID` — ทำ action นี้ไม่ได้ในสถานะปัจจุบัน (เช่นสั่ง `receive` ซ้ำ); `REQ_CHILDREN_OPEN` — ปิดใบพ่อทั้งที่ใบลูกยังเปิดอยู่",
+            "description": "`REQ_STATE_INVALID` — ทำ action นี้ไม่ได้ในสถานะปัจจุบัน (เช่นสั่ง `receive` ซ้ำ); `REQ_CHILDREN_OPEN` — ปิดใบพ่อทั้งที่ใบลูกยังเปิดอยู่; `IDEMPOTENCY_KEY_REUSED` — ใช้ `Idempotency-Key` เดิมกับ body ที่ต่างออกไป",
             "content": {
               "application/json": {
                 "schema": {
@@ -346,7 +310,7 @@
             }
           },
           "422": {
-            "description": "`REQ_FIELD_MISSING` — ฟอร์มไม่ครบตาม `form_schema`; `REQ_TYPE_INACTIVE` — ประเภทคำขอถูกปิดใช้งาน",
+            "description": "`REQ_FIELD_MISSING` — ฟอร์มไม่ครบตาม `form_schema`; `REQ_DOC_MISSING` — เอกสารบังคับยังไม่ครบ (แนบผ่าน API นี้ไม่ได้ ต้องแนบที่หน้าเว็บ); `REQ_TYPE_INACTIVE` — ประเภทคำขอถูกปิดใช้งาน",
             "content": {
               "application/json": {
                 "schema": {
@@ -370,11 +334,44 @@
         "operationId": "ExternalController_list",
         "parameters": [
           {
-            "name": "x-acting-user",
+            "name": "X-Acting-User",
             "in": "header",
             "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
             "required": true,
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "เลขหน้าที่ต้องการ เริ่มที่ 1",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "page_size",
+            "required": false,
+            "in": "query",
+            "description": "จำนวนรายการต่อหน้า",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "`sort=field` เรียงขึ้น, `sort=-field` เรียงลง",
+            "schema": {
+              "example": "-createdAt",
               "type": "string"
             }
           },
@@ -396,8 +393,9 @@
             "name": "status",
             "required": false,
             "in": "query",
+            "description": "กรองตามสถานะคำขอ",
             "schema": {
-              "type": "string"
+              "$ref": "#/components/schemas/ExternalRequestStatus"
             }
           },
           {
@@ -449,7 +447,7 @@
             }
           },
           "401": {
-            "description": "`UNAUTHORIZED` — token หมดอายุหรือไม่ถูกต้อง",
+            "description": "`UNAUTHORIZED` — token หมดอายุ/ไม่ถูกต้อง หรือ API key ถูกเพิกถอนแล้ว",
             "content": {
               "application/json": {
                 "schema": {
@@ -477,26 +475,6 @@
                 }
               }
             }
-          },
-          "409": {
-            "description": "`REQ_STATE_INVALID` — ทำ action นี้ไม่ได้ในสถานะปัจจุบัน (เช่นสั่ง `receive` ซ้ำ); `REQ_CHILDREN_OPEN` — ปิดใบพ่อทั้งที่ใบลูกยังเปิดอยู่",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ExternalErrorDto"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "`REQ_FIELD_MISSING` — ฟอร์มไม่ครบตาม `form_schema`; `REQ_TYPE_INACTIVE` — ประเภทคำขอถูกปิดใช้งาน",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ExternalErrorDto"
-                }
-              }
-            }
           }
         },
         "security": [
@@ -515,7 +493,7 @@
         "operationId": "ExternalController_findOne",
         "parameters": [
           {
-            "name": "x-acting-user",
+            "name": "X-Acting-User",
             "in": "header",
             "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
             "required": true,
@@ -527,7 +505,9 @@
             "name": "ref",
             "required": true,
             "in": "path",
+            "description": "เลขที่คำขอ หรือ uuid ก็ได้ — คนอ่านเลขที่จากอีเมลแล้วพิมพ์ ไม่ใช่ uuid",
             "schema": {
+              "example": "REQ-OSD-PS01-26090003",
               "type": "string"
             }
           },
@@ -563,7 +543,7 @@
             }
           },
           "401": {
-            "description": "`UNAUTHORIZED` — token หมดอายุหรือไม่ถูกต้อง",
+            "description": "`UNAUTHORIZED` — token หมดอายุ/ไม่ถูกต้อง หรือ API key ถูกเพิกถอนแล้ว",
             "content": {
               "application/json": {
                 "schema": {
@@ -591,26 +571,6 @@
                 }
               }
             }
-          },
-          "409": {
-            "description": "`REQ_STATE_INVALID` — ทำ action นี้ไม่ได้ในสถานะปัจจุบัน (เช่นสั่ง `receive` ซ้ำ); `REQ_CHILDREN_OPEN` — ปิดใบพ่อทั้งที่ใบลูกยังเปิดอยู่",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ExternalErrorDto"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "`REQ_FIELD_MISSING` — ฟอร์มไม่ครบตาม `form_schema`; `REQ_TYPE_INACTIVE` — ประเภทคำขอถูกปิดใช้งาน",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ExternalErrorDto"
-                }
-              }
-            }
           }
         },
         "security": [
@@ -630,7 +590,7 @@
         "operationId": "ExternalController_actions",
         "parameters": [
           {
-            "name": "x-acting-user",
+            "name": "X-Acting-User",
             "in": "header",
             "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
             "required": true,
@@ -642,7 +602,9 @@
             "name": "ref",
             "required": true,
             "in": "path",
+            "description": "เลขที่คำขอ หรือ uuid ก็ได้ — คนอ่านเลขที่จากอีเมลแล้วพิมพ์ ไม่ใช่ uuid",
             "schema": {
+              "example": "REQ-OSD-PS01-26090003",
               "type": "string"
             }
           },
@@ -678,7 +640,7 @@
             }
           },
           "401": {
-            "description": "`UNAUTHORIZED` — token หมดอายุหรือไม่ถูกต้อง",
+            "description": "`UNAUTHORIZED` — token หมดอายุ/ไม่ถูกต้อง หรือ API key ถูกเพิกถอนแล้ว",
             "content": {
               "application/json": {
                 "schema": {
@@ -706,26 +668,6 @@
                 }
               }
             }
-          },
-          "409": {
-            "description": "`REQ_STATE_INVALID` — ทำ action นี้ไม่ได้ในสถานะปัจจุบัน (เช่นสั่ง `receive` ซ้ำ); `REQ_CHILDREN_OPEN` — ปิดใบพ่อทั้งที่ใบลูกยังเปิดอยู่",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ExternalErrorDto"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "`REQ_FIELD_MISSING` — ฟอร์มไม่ครบตาม `form_schema`; `REQ_TYPE_INACTIVE` — ประเภทคำขอถูกปิดใช้งาน",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ExternalErrorDto"
-                }
-              }
-            }
           }
         },
         "security": [
@@ -745,7 +687,7 @@
         "operationId": "ExternalController_perform",
         "parameters": [
           {
-            "name": "x-acting-user",
+            "name": "X-Acting-User",
             "in": "header",
             "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
             "required": true,
@@ -757,7 +699,9 @@
             "name": "ref",
             "required": true,
             "in": "path",
+            "description": "เลขที่คำขอ หรือ uuid ก็ได้ — คนอ่านเลขที่จากอีเมลแล้วพิมพ์ ไม่ใช่ uuid",
             "schema": {
+              "example": "REQ-OSD-PS01-26090003",
               "type": "string"
             }
           },
@@ -765,16 +709,36 @@
             "name": "action",
             "required": true,
             "in": "path",
+            "description": "ต้องเป็นค่าที่ `GET external/requests/{ref}/actions` คืนมาสำหรับคนนี้ ณ ตอนนั้น ห้ามเดาจากรายการนี้ — รายการนี้คือ action ทั้งหมดที่ระบบมี ไม่ใช่ที่ทำได้ตอนนี้ `create_child` อยู่ในรายการแต่ยิงแล้วได้ 400 เสมอ: คำขอลูกสร้างด้วย `POST external/requests` พร้อม `parent_request_id`",
             "schema": {
+              "enum": [
+                "submit",
+                "resubmit",
+                "receive",
+                "assign",
+                "hold",
+                "resume",
+                "complete",
+                "return",
+                "approve",
+                "reject",
+                "send_back",
+                "cancel",
+                "close",
+                "comment",
+                "create_child"
+              ],
               "type": "string"
             }
           },
           {
-            "name": "authorization",
-            "required": true,
+            "name": "Idempotency-Key",
             "in": "header",
+            "description": "ควรส่งทุกครั้ง — หนึ่งค่าต่อหนึ่งเจตนา ยิงซ้ำด้วยค่าเดิมและ body เดิมจะได้ผลลัพธ์เดิมกลับไป ไม่เกิดรายการที่สอง ไม่ส่งก็ทำงานได้ แต่ response ที่หายกลางทางแล้ว retry จะกลายเป็นสองรายการ",
+            "required": false,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "example": "6f6bd3a7-7308-4d2e-a4de-75e1f89b6871"
             }
           },
           {
@@ -826,7 +790,7 @@
             }
           },
           "401": {
-            "description": "`UNAUTHORIZED` — token หมดอายุหรือไม่ถูกต้อง",
+            "description": "`UNAUTHORIZED` — token หมดอายุ/ไม่ถูกต้อง หรือ API key ถูกเพิกถอนแล้ว",
             "content": {
               "application/json": {
                 "schema": {
@@ -856,7 +820,7 @@
             }
           },
           "409": {
-            "description": "`REQ_STATE_INVALID` — ทำ action นี้ไม่ได้ในสถานะปัจจุบัน (เช่นสั่ง `receive` ซ้ำ); `REQ_CHILDREN_OPEN` — ปิดใบพ่อทั้งที่ใบลูกยังเปิดอยู่",
+            "description": "`REQ_STATE_INVALID` — ทำ action นี้ไม่ได้ในสถานะปัจจุบัน (เช่นสั่ง `receive` ซ้ำ); `REQ_CHILDREN_OPEN` — ปิดใบพ่อทั้งที่ใบลูกยังเปิดอยู่; `IDEMPOTENCY_KEY_REUSED` — ใช้ `Idempotency-Key` เดิมกับ body ที่ต่างออกไป",
             "content": {
               "application/json": {
                 "schema": {
@@ -866,7 +830,7 @@
             }
           },
           "422": {
-            "description": "`REQ_FIELD_MISSING` — ฟอร์มไม่ครบตาม `form_schema`; `REQ_TYPE_INACTIVE` — ประเภทคำขอถูกปิดใช้งาน",
+            "description": "`REQ_FIELD_MISSING` — ฟอร์มไม่ครบตาม `form_schema`; `REQ_DOC_MISSING` — เอกสารบังคับยังไม่ครบ (แนบผ่าน API นี้ไม่ได้ ต้องแนบที่หน้าเว็บ); `REQ_TYPE_INACTIVE` — ประเภทคำขอถูกปิดใช้งาน",
             "content": {
               "application/json": {
                 "schema": {
@@ -892,7 +856,7 @@
         "operationId": "ExternalController_tree",
         "parameters": [
           {
-            "name": "x-acting-user",
+            "name": "X-Acting-User",
             "in": "header",
             "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
             "required": true,
@@ -904,7 +868,9 @@
             "name": "ref",
             "required": true,
             "in": "path",
+            "description": "เลขที่คำขอ หรือ uuid ก็ได้ — คนอ่านเลขที่จากอีเมลแล้วพิมพ์ ไม่ใช่ uuid",
             "schema": {
+              "example": "REQ-OSD-PS01-26090003",
               "type": "string"
             }
           },
@@ -940,7 +906,7 @@
             }
           },
           "401": {
-            "description": "`UNAUTHORIZED` — token หมดอายุหรือไม่ถูกต้อง",
+            "description": "`UNAUTHORIZED` — token หมดอายุ/ไม่ถูกต้อง หรือ API key ถูกเพิกถอนแล้ว",
             "content": {
               "application/json": {
                 "schema": {
@@ -968,26 +934,6 @@
                 }
               }
             }
-          },
-          "409": {
-            "description": "`REQ_STATE_INVALID` — ทำ action นี้ไม่ได้ในสถานะปัจจุบัน (เช่นสั่ง `receive` ซ้ำ); `REQ_CHILDREN_OPEN` — ปิดใบพ่อทั้งที่ใบลูกยังเปิดอยู่",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ExternalErrorDto"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "`REQ_FIELD_MISSING` — ฟอร์มไม่ครบตาม `form_schema`; `REQ_TYPE_INACTIVE` — ประเภทคำขอถูกปิดใช้งาน",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ExternalErrorDto"
-                }
-              }
-            }
           }
         },
         "security": [
@@ -1004,13 +950,18 @@
   },
   "info": {
     "title": "Request Form — External API",
-    "description": "API สำหรับระบบภายนอก (เช่น chatbot) ขับเคลื่อนคำขอตั้งแต่เปิดจนปิด\n\nทุก request ต้องมีสองอย่าง: bearer token ของ service account ที่ถือสิทธิ์ `integration.request.create` และ header `X-Acting-User` ที่ระบุอีเมลของคนที่ระบบกำลังทำแทน — ระบบจะทำงานในนามคนนั้น timeline จึงบันทึกชื่อคนจริง ไม่ใช่ชื่อบัญชีบริการ",
+    "description": "API สำหรับระบบภายนอก (เช่น chatbot) ขับเคลื่อนคำขอตั้งแต่เปิดจนปิด\n\nทุก request ต้องมีสองอย่าง: bearer ที่ถือสิทธิ์ `integration.request.create` และ header `X-Acting-User` ที่ระบุอีเมลของคนที่ระบบกำลังทำแทน — ระบบจะทำงานในนามคนนั้น timeline จึงบันทึกชื่อคนจริง ไม่ใช่ชื่อบัญชีบริการ\n\n**bearer รับได้สองแบบ**\n\n1. access token ของ service account จาก Keycloak (client_credentials) อายุสั้น ต้องขอใหม่เมื่อหมดอายุ\n2. **API key** ที่ขึ้นต้นด้วย `rfk_` — ไม่มีวันหมดอายุ ไม่ต้องต่ออายุ ระบบแลกเป็น token ให้เองตอนใช้ ออกด้วย `yarn apikey:issue` และเพิกถอนด้วย `yarn apikey:revoke` (มีผลทันที)\n\nทั้งสองแบบส่งเหมือนกัน: `Authorization: Bearer <ค่า>` และได้สิทธิ์ชุดเดียวกัน — key ตัดสินว่า *เข้าได้ไหม* token บอกว่า *ทำอะไรได้*",
     "version": "1.0"
   },
-  "tags": [],
+  "tags": [
+    {
+      "name": "external",
+      "description": "External Request API สำหรับ chatbot, workflow และระบบ integration"
+    }
+  ],
   "servers": [
     {
-      "url": "http://192.168.31.52:3502/api/v1",
+      "url": "http://192.168.31.52:3502",
       "description": "เครื่องภายใน OSD"
     }
   ],
@@ -1047,29 +998,46 @@
         "type": "object",
         "properties": {
           "receiver_form_data": {
-            "type": "object"
+            "type": "object",
+            "description": "**`complete`** — คำตอบตาม `receiver_form_schema` ของประเภทนั้น (คนละฟอร์มกับตอนเปิดคำขอ) ดึงได้จาก `GET external/request-types/{code}/form`",
+            "example": {
+              "note": "ส่ง solution design และ BOM แล้ว"
+            }
           },
           "form_data": {
-            "type": "object"
+            "type": "object",
+            "description": "**`submit`, `resubmit`** — ฟอร์มผู้ขอที่แก้แล้ว **ต้องส่งทั้งใบ** ระบบแทนที่ทั้งก้อนแล้วตรวจ required ใหม่หมด ส่งมาเฉพาะฟิลด์ที่แก้จะได้ `REQ_FIELD_MISSING`",
+            "example": {
+              "subject": "ออกแบบ solution ระบบ CCTV (แก้ไข)"
+            }
           },
           "assignee_user_id": {
-            "type": "string"
+            "type": "string",
+            "description": "**`assign`** — id ของคนที่จะถือเรื่องต่อ ต้องเป็น `id` ไม่ใช่อีเมลหรือชื่อ",
+            "example": "e0e90f78-98d3-4b74-b2bd-94e05700f989"
           },
           "reason_code": {
             "type": "string",
+            "description": "**`return`** — ต้องเป็นรหัสจาก `return_reason_codes` ของประเภทนั้น รหัสนอกรายการถูกปฏิเสธ (REQ-04) — รายการมีไว้ให้นับสาเหตุการตีกลับได้",
             "example": "INFO_INCOMPLETE"
           },
           "reason": {
             "type": "string",
-            "maxLength": 2000
+            "description": "**`hold`, `cancel`** — เหตุผล (สองตัวนี้ใช้ `reason` ไม่ใช่ `note`)",
+            "maxLength": 2000,
+            "example": "รอใบเสนอราคาจาก vendor"
           },
           "body": {
             "type": "string",
-            "maxLength": 4000
+            "description": "**`comment`** — ข้อความ · action นี้คืน `ExternalCommentDto` ไม่ใช่คำขอ จึงไม่มี `status` ให้อ่าน",
+            "maxLength": 4000,
+            "example": "รับเรื่องแล้ว จะส่ง draft ภายในวันศุกร์"
           },
           "note": {
             "type": "string",
-            "maxLength": 2000
+            "description": "**`approve`, `reject`, `send_back`** — เหตุผลการตัดสิน (สามตัวนี้ใช้ `note` ไม่ใช่ `reason`) · **`resume`, `close`, `return`** — หมายเหตุเพิ่มเติม ไม่บังคับ",
+            "maxLength": 2000,
+            "example": "ตรวจแล้ว ถูกต้อง"
           }
         }
       },
@@ -1107,21 +1075,13 @@
             "example": "REQ-OSD-PS01-26090003"
           },
           "status": {
-            "type": "string",
-            "enum": [
-              "draft",
-              "submitted",
-              "returned",
-              "pending_approval",
-              "approved",
-              "rejected",
-              "in_progress",
-              "on_hold",
-              "completed",
-              "closed",
-              "cancelled"
-            ],
-            "example": "submitted"
+            "description": "สถานะของคำขอ",
+            "example": "submitted",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExternalRequestStatus"
+              }
+            ]
           },
           "actions": {
             "example": [
@@ -1198,26 +1158,39 @@
             "example": "PS01"
           },
           "form_data": {
-            "type": "object"
+            "type": "object",
+            "description": "คำตอบตาม `form_schema` ของประเภทนั้น — ดึงจาก `GET external/request-types/{code}/form` ก่อนเสมอ คีย์คือชื่อ property ใน schema ไม่ใช่ `title` ที่แสดงให้คนอ่าน",
+            "example": {
+              "subject": "ออกแบบ solution ระบบ CCTV สาขาใหม่",
+              "requester_department": "ฝ่ายขาย",
+              "objective": "ทำ solution design เพื่อเสนอราคาลูกค้า",
+              "customer_project": "บมจ. ตัวอย่าง / โครงการสาขาระยอง",
+              "urgency": "เร่งด่วน",
+              "needed_by": "2026-09-15"
+            }
           },
           "receiver_user_id": {
             "type": "string",
-            "description": "ผู้รับเรื่อง"
+            "description": "ผู้รับเรื่อง — ใช้ `id` จาก `receiver_candidates` ของ endpoint form ส่งอีเมลหรือชื่อมาจะได้ `NOT_FOUND` ตอนยื่น เพราะระบบค้นด้วย id เท่านั้น",
+            "example": "e0e90f78-98d3-4b74-b2bd-94e05700f989"
           },
           "receiver_org_unit_id": {
             "type": "string",
-            "description": "ทีมผู้รับ — ค่าตั้งต้นมาจากประเภทคำขอ"
+            "description": "ทีมผู้รับ — ค่าตั้งต้นมาจากประเภทคำขอ ถ้าจะระบุเอง ให้ส่ง `receiver_org_unit.id` ที่ endpoint form คืนมา ไม่ใช่ทั้ง object"
           },
           "parent_request_id": {
             "type": "string",
-            "description": "คำขอต้นเรื่อง"
+            "description": "คำขอต้นเรื่อง — เป็น **uuid** ของใบแม่ ไม่ใช่เลขที่คำขอ นี่คือวิธีเดียวที่สร้างคำขอลูก ไม่มี action `create_child`",
+            "example": "f7f7609e-9317-454e-875d-ec543bc4caf0"
           },
           "ref_type": {
             "type": "string",
+            "description": "ประเภทของสิ่งที่อ้างถึง — **บังคับคู่กับ `ref_id` เมื่อประเภทคำขอนั้น ตอบ `ref_required: true`** ขาดไปจะได้ 422 `REQ_FIELD_MISSING` ที่ `ref_id`",
             "example": "deal"
           },
           "ref_id": {
             "type": "string",
+            "description": "รหัสของสิ่งที่อ้างถึง — บังคับคู่กับ `ref_type` (ดูด้านบน)",
             "example": "D-501"
           }
         },
@@ -1268,6 +1241,23 @@
           "message"
         ]
       },
+      "ExternalOrgUnitDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "9a1f2c77-0f1e-4a35-9a1d-3f2b6c8e5d40"
+          },
+          "name": {
+            "type": "string",
+            "example": "Business Solution Consulting"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ]
+      },
       "ExternalPersonDto": {
         "type": "object",
         "properties": {
@@ -1278,6 +1268,31 @@
         },
         "required": [
           "displayName"
+        ]
+      },
+      "ExternalReceiverCandidateDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "ค่าที่ต้องส่งกลับเป็น `receiver_user_id` ตอนสร้างคำขอ",
+            "example": "e0e90f78-98d3-4b74-b2bd-94e05700f989"
+          },
+          "displayName": {
+            "type": "string",
+            "example": "นายชนะกุล แก้วทรงเกษ"
+          },
+          "email": {
+            "type": "string",
+            "description": "ใช้จับคู่กับชื่อ/อีเมลที่ผู้ใช้พิมพ์มา — ส่งค่านี้เป็น `receiver_user_id` ไม่ได้",
+            "nullable": true,
+            "example": "chanakulk@osd.co.th"
+          }
+        },
+        "required": [
+          "id",
+          "displayName",
+          "email"
         ]
       },
       "ExternalRequestDto": {
@@ -1305,21 +1320,13 @@
             "example": "42142ccf-d4ca-4d15-821c-489da9758f4f"
           },
           "status": {
-            "type": "string",
-            "enum": [
-              "draft",
-              "submitted",
-              "returned",
-              "pending_approval",
-              "approved",
-              "rejected",
-              "in_progress",
-              "on_hold",
-              "completed",
-              "closed",
-              "cancelled"
-            ],
-            "example": "submitted"
+            "description": "สถานะของคำขอ",
+            "example": "submitted",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExternalRequestStatus"
+              }
+            ]
           },
           "requesterId": {
             "type": "string",
@@ -1467,6 +1474,17 @@
             "items": {
               "type": "object"
             }
+          },
+          "available_actions": {
+            "description": "มาเฉพาะแถวจาก `GET external/requests` — ใช้ดูคร่าว ๆ ได้ แต่ก่อนสั่งทำจริงให้เรียก `GET external/requests/{ref}/actions` เสมอ เพราะที่นั่นบอกฟิลด์ที่แต่ละ action ต้องใช้ด้วย",
+            "example": [
+              "receive",
+              "comment"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         },
         "required": [
@@ -1523,6 +1541,40 @@
           "total",
           "page",
           "page_size"
+        ]
+      },
+      "ExternalRequestStatus": {
+        "type": "string",
+        "enum": [
+          "draft",
+          "submitted",
+          "returned",
+          "pending_approval",
+          "approved",
+          "rejected",
+          "in_progress",
+          "on_hold",
+          "completed",
+          "closed",
+          "cancelled"
+        ],
+        "description": "สถานะของคำขอ"
+      },
+      "ExternalRequiredDocDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "QUOTE_DRAFT"
+          },
+          "name": {
+            "type": "string",
+            "example": "ใบเสนอราคาฉบับร่าง"
+          }
+        },
+        "required": [
+          "code",
+          "name"
         ]
       },
       "ExternalReturnReasonDto": {
@@ -1583,21 +1635,13 @@
             "example": "PS01"
           },
           "status": {
-            "type": "string",
-            "enum": [
-              "draft",
-              "submitted",
-              "returned",
-              "pending_approval",
-              "approved",
-              "rejected",
-              "in_progress",
-              "on_hold",
-              "completed",
-              "closed",
-              "cancelled"
-            ],
-            "example": "submitted"
+            "description": "สถานะของคำขอ",
+            "example": "submitted",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExternalRequestStatus"
+              }
+            ]
           },
           "parentRequestId": {
             "type": "string",
@@ -1660,10 +1704,15 @@
             "example": 120
           },
           "receiver_org_unit": {
-            "type": "string",
-            "description": "ทีมผู้รับตั้งต้นของประเภทนี้ — null คือไม่ได้กำหนดไว้",
+            "description": "ทีมผู้รับตั้งต้นของประเภทนี้ — null คือไม่ได้กำหนดไว้ ถ้าจะส่งเป็น `receiver_org_unit_id` ตอนสร้างคำขอ ให้ส่ง `.id` ไม่ใช่ทั้งก้อน",
             "nullable": true,
-            "example": null
+            "example": null,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExternalOrgUnitDto"
+              }
+            ]
           },
           "ref_required": {
             "type": "boolean",
@@ -1712,10 +1761,11 @@
             }
           },
           "required_docs": {
+            "description": "เอกสารที่ต้องแนบก่อนยื่น — แนบผ่าน External API ไม่ได้ ต้องไปแนบที่หน้าเว็บ",
             "example": [],
             "type": "array",
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/ExternalRequiredDocDto"
             }
           },
           "return_reason_codes": {
@@ -1725,11 +1775,11 @@
             }
           },
           "receiver_candidates": {
-            "description": "ผู้รับที่เลือกได้ — ว่างได้ ถ้าว่างต้องหา receiver_user_id เอง",
+            "description": "ผู้รับที่เลือกได้ — ว่างได้ ถ้าว่างต้องหา receiver_user_id เอง ผู้ใช้พิมพ์ชื่อหรืออีเมลมา ให้จับคู่กับรายการนี้แล้วส่ง `id`",
             "example": [],
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/ExternalPersonDto"
+              "$ref": "#/components/schemas/ExternalReceiverCandidateDto"
             }
           }
         },
@@ -1763,10 +1813,15 @@
             "example": 120
           },
           "receiver_org_unit": {
-            "type": "string",
-            "description": "ทีมผู้รับตั้งต้นของประเภทนี้ — null คือไม่ได้กำหนดไว้",
+            "description": "ทีมผู้รับตั้งต้นของประเภทนี้ — null คือไม่ได้กำหนดไว้ ถ้าจะส่งเป็น `receiver_org_unit_id` ตอนสร้างคำขอ ให้ส่ง `.id` ไม่ใช่ทั้งก้อน",
             "nullable": true,
-            "example": null
+            "example": null,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExternalOrgUnitDto"
+              }
+            ]
           },
           "ref_required": {
             "type": "boolean",

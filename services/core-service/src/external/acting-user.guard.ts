@@ -8,8 +8,24 @@ import {
 } from '@request-management/share';
 import { RemotePrincipalService } from '../principal/remote-principal.service';
 
-/** The header naming the person the integration is acting for. */
+/**
+ * The header naming the person the integration is acting for.
+ *
+ * Lower-case because that is how Node presents incoming header names, and this
+ * constant is used to *read* one. Changing it breaks the guard silently — the
+ * lookup below simply stops matching. For the spelling integrators should see
+ * in the documentation, use {@link ACTING_USER_HEADER_LABEL}.
+ */
 export const ACTING_USER_HEADER = 'x-acting-user';
+
+/**
+ * The same header, spelled the way it is written by hand.
+ *
+ * Documentation only. HTTP header names are case-insensitive, so this changes
+ * nothing at runtime — it exists so the OpenAPI document and the cURL examples
+ * people copy out of it read `X-Acting-User`.
+ */
+export const ACTING_USER_HEADER_LABEL = 'X-Acting-User';
 
 /**
  * Swaps the service account's principal for the principal of the person it

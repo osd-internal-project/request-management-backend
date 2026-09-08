@@ -80,22 +80,41 @@ function writeExternalDocument(document: OpenAPIObject, prefix: string): void {
       title: 'Request Form — External API',
       description:
         'API สำหรับระบบภายนอก (เช่น chatbot) ขับเคลื่อนคำขอตั้งแต่เปิดจนปิด\n\n' +
-        'ทุก request ต้องมีสองอย่าง: bearer token ของ service account ' +
-        'ที่ถือสิทธิ์ `integration.request.create` และ header `X-Acting-User` ' +
+        'ทุก request ต้องมีสองอย่าง: bearer ที่ถือสิทธิ์ ' +
+        '`integration.request.create` และ header `X-Acting-User` ' +
         'ที่ระบุอีเมลของคนที่ระบบกำลังทำแทน — ระบบจะทำงานในนามคนนั้น ' +
-        'timeline จึงบันทึกชื่อคนจริง ไม่ใช่ชื่อบัญชีบริการ',
+        'timeline จึงบันทึกชื่อคนจริง ไม่ใช่ชื่อบัญชีบริการ\n\n' +
+        '**bearer รับได้สองแบบ**\n\n' +
+        '1. access token ของ service account จาก Keycloak (client_credentials) ' +
+        'อายุสั้น ต้องขอใหม่เมื่อหมดอายุ\n' +
+        '2. **API key** ที่ขึ้นต้นด้วย `rfk_` — ไม่มีวันหมดอายุ ไม่ต้องต่ออายุ ' +
+        'ระบบแลกเป็น token ให้เองตอนใช้ ออกด้วย `yarn apikey:issue` ' +
+        'และเพิกถอนด้วย `yarn apikey:revoke` (มีผลทันที)\n\n' +
+        'ทั้งสองแบบส่งเหมือนกัน: `Authorization: Bearer <ค่า>` ' +
+        'และได้สิทธิ์ชุดเดียวกัน — key ตัดสินว่า *เข้าได้ไหม* token บอกว่า *ทำอะไรได้*',
       version: document.info.version,
     },
+    tags: [
+      {
+        name: 'external',
+        description:
+          'External Request API สำหรับ chatbot, workflow และระบบ integration',
+      },
+    ],
     /*
       Where the document was true of when it was generated. Integrators import
       the file and press Try it: without this they are asked for a base URL
       they have no way to guess.
+
+      **No path prefix here.** `setGlobalPrefix` already put `/${prefix}` into
+      every key of `paths`, so a server URL carrying it too made Try it request
+      `/api/v1/api/v1/external/...` and answer 404 — for everyone, on the very
+      first thing an integrator does with the file. `EXTERNAL_API_PUBLIC_URL`
+      must be prefix-free for the same reason: origin only, no trailing path.
     */
     servers: [
       {
-        url:
-          process.env.EXTERNAL_API_PUBLIC_URL ??
-          `http://192.168.31.52:3502/${prefix}`,
+        url: process.env.EXTERNAL_API_PUBLIC_URL ?? 'http://192.168.31.52:3502',
         description: 'เครื่องภายใน OSD',
       },
     ],

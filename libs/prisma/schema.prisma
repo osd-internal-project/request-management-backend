@@ -1316,3 +1316,50 @@ model IdempotencyKey {
   @@index([expiresAt])
   @@map("idempotency_keys")
 }
+
+/// AUTH-06 — a credential an integration holds instead of fetching a Keycloak
+/// token before every burst of calls.
+///
+/// The key is **not** a token and is never presented to user-service: core-
+/// service exchanges it for a real client-credentials token and forwards that,
+/// so token verification stays in one place (§03) and every downstream rule is
+/// unchanged.
+///
+/// Only the hash is stored. A key is shown once, at issue, and is
+/// unrecoverable afterwards — a database dump does not yield a working
+/// credential.
+model ApiKey {
+  id      String @id @default(uuid())
+  /// Who holds it, in words a person can act on: "Aiyara chatbot (prod)".
+  name    String
+  /// The first characters of the key, so a key can be named in a ticket or a
+  /// log without quoting the secret. Display only — lookup is by hash.
+  prefix  String @unique
+  /// sha256 of the whole key. Unique, and the only thing looked up.
+  keyHash String @unique
+
+  active    Boolean   @default(true)
+  /// Null means it never expires — the property this table exists to provide.
+  ///
+  /// Revocation, not expiry, is how such a key is taken away, and it takes
+  /// effect on the very next request: the key is read from this table before
+  /// the 60-second principal cache is consulted, so nothing cached can keep a
+  /// revoked key working. The migration comment beside this table says
+  /// "within the 60-second principal cache" — it was written before that was
+  /// measured, and is left as-is because editing an applied migration changes
+  /// its checksum.
+  expiresAt DateTime?
+
+  /// Written at most once a minute, not on every call: an audit trail worth
+  /// having, not a write amplifier on the hot path.
+  lastUsedAt DateTime?
+
+  revokedAt DateTime?
+  revokedBy String?
+
+  createdBy String
+  createdAt DateTime @default(now())
+
+  @@index([active])
+  @@map("api_keys")
+}
