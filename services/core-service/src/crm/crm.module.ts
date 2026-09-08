@@ -21,6 +21,7 @@ import {
 import { CustomerCodeService } from './customer-code.service';
 import { CustomerDedupService } from './customer-dedup.service';
 import { CustomerTimelineService } from './customer-timeline.service';
+import { CustomerImportService } from './customer-import.service';
 
 /**
  * CRM ระยะ 1 — Customer Master (CD-59 / CM-01…09) + the parts of มุมมอง 360°
@@ -48,6 +49,7 @@ import { CustomerTimelineService } from './customer-timeline.service';
     CustomerCodeService,
     CustomerDedupService,
     CustomerTimelineService,
+    CustomerImportService,
     PrismaTransactionService,
   ],
   exports: [CustomerTimelineService, CustomerRepository],

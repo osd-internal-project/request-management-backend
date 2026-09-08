@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
   IsArray,
   IsBoolean,
   IsEmail,
@@ -346,6 +347,107 @@ export class TimelineQueryDto {
   @IsOptional()
   @IsString()
   type?: string;
+}
+
+// --- CM-10: import ลูกค้าเดิมจาก Excel (parsed client-side, rows as JSON) --
+
+export class ImportCustomerRowDto {
+  /** เลขแถวในไฟล์ (นับรวม header) — ใช้ชี้กลับในรายงานรายแถว. */
+  @IsInt()
+  @Min(1)
+  row_no!: number;
+
+  @IsOptional()
+  @IsIn(CUSTOMER_TYPES)
+  type?: (typeof CUSTOMER_TYPES)[number];
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  name_th!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  name_en?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  tax_id?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  branch_code?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  branch_name?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  line1?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  line2?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  sub_district?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  district?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  province?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  postal_code?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  contact_name?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  contact_phone?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  contact_email?: string;
+}
+
+export class ImportCustomersDto {
+  @IsIn(['dry_run', 'commit'])
+  mode!: 'dry_run' | 'commit';
+
+  /** Client-generated id, shared by every batch of one import session —
+   * lands on the audit rows so "มาจาก import ครั้งใด" is answerable (CM-10). */
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(64)
+  import_id!: string;
+
+  @IsArray()
+  @ArrayMaxSize(500)
+  @ValidateNested({ each: true })
+  @Type(() => ImportCustomerRowDto)
+  rows!: ImportCustomerRowDto[];
 }
 
 // --- admin: segmentation (CM-07) + CRM config -----------------------------

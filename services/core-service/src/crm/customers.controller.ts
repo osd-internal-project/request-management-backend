@@ -19,12 +19,14 @@ import {
 } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import { CustomersService } from './customers.service';
+import { CustomerImportService } from './customer-import.service';
 import {
   CheckDuplicateDto,
   CreateCustomerDto,
   CustomerLocationDto,
   CustomerContactDto,
   DeactivateCustomerDto,
+  ImportCustomersDto,
   ListCustomersQueryDto,
   SetSegmentsDto,
   SuspendCustomerDto,
@@ -45,7 +47,10 @@ import {
 @ApiBearerAuth()
 @Controller('customers')
 export class CustomersController {
-  constructor(private readonly customers: CustomersService) {}
+  constructor(
+    private readonly customers: CustomersService,
+    private readonly importer: CustomerImportService,
+  ) {}
 
   @Get()
   @Permissions('crm.customer.read')
@@ -76,6 +81,20 @@ export class CustomersController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.customers.checkDuplicate(dto, principal);
+  }
+
+  /**
+   * CM-10 — import ลูกค้าเดิมจาก Excel (rows parsed client-side). Admin
+   * surface; `dry_run` answers the full per-row report without writing.
+   */
+  @Post('import')
+  @Permissions('admin.crm.manage')
+  @HttpCode(HttpStatus.OK)
+  import(
+    @Body() dto: ImportCustomersDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.importer.run(dto, principal);
   }
 
   /** CM-01/02/03 — dup-check + ออก customerCode. Idempotency-Key honoured. */

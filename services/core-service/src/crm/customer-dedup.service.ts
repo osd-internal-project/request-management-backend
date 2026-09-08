@@ -148,10 +148,10 @@ export class CustomerDedupService {
   async headOfficeOf(
     taxId: string,
     companyId: string,
-    client: TQueryClient,
+    client?: TQueryClient,
     option?: { excludeCustomerId?: string },
   ): Promise<SimilarCustomer | null> {
-    const rows = await client.customer.findMany({
+    const rows = await (client ?? this.prisma).customer.findMany({
       where: {
         companyId,
         taxId,
