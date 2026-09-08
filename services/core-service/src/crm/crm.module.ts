@@ -30,6 +30,16 @@ import { CustomerOdooSyncService } from './customer-odoo-sync.service';
 import { IntegrationSyncJobRepository } from './integration-job.repository';
 import { KycProductRuleRepository } from './kyc-product.repository';
 import { KycCallbackService } from './kyc-callback.service';
+import {
+  DealLostReasonRepository,
+  DealProductRepository,
+  DealRepository,
+  LeadRepository,
+} from './sales.repositories';
+import { DealCodeService } from './deal-code.service';
+import { LeadsService } from './leads.service';
+import { DealsService } from './deals.service';
+import { DealsController, LeadsController } from './sales.controllers';
 
 /**
  * CRM ระยะ 1 — Customer Master (CD-59 / CM-01…09) + the parts of มุมมอง 360°
@@ -41,7 +51,7 @@ import { KycCallbackService } from './kyc-callback.service';
  */
 @Module({
   imports: [AccessModule, RequestsModule, OdooModule, PdpaModule, EventsModule],
-  controllers: [CustomersController, CrmAdminController],
+  controllers: [CustomersController, CrmAdminController, LeadsController, DealsController],
   providers: [
     CustomersService,
     CrmAdminService,
@@ -62,6 +72,13 @@ import { KycCallbackService } from './kyc-callback.service';
     IntegrationSyncJobRepository,
     KycProductRuleRepository,
     KycCallbackService,
+    LeadRepository,
+    DealRepository,
+    DealProductRepository,
+    DealLostReasonRepository,
+    DealCodeService,
+    LeadsService,
+    DealsService,
     PrismaTransactionService,
   ],
   exports: [CustomerTimelineService, CustomerRepository],

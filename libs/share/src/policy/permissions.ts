@@ -54,6 +54,13 @@ export const PERMISSIONS = {
      * the Odoo read.
      */
     'crm.customer.financial.read',
+
+    /** Lead + โอกาสการขาย (ดีล) — read within own/team scope. */
+    'crm.sales.read',
+    /** ทั้งบริษัท — หัวหน้าขาย/ผู้บริหาร. */
+    'crm.sales.read.all',
+    /** สร้าง/แก้/ปิดดีล และจัดการ Lead. */
+    'crm.sales.manage',
   ],
   report: [
     'report.request.read',

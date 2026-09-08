@@ -42,6 +42,9 @@ const PERMISSIONS: Record<string, string[]> = {
     'crm.customer.sensitive.read',
     'crm.customer.dedup.override',
     'crm.customer.financial.read',
+    'crm.sales.read',
+    'crm.sales.read.all',
+    'crm.sales.manage',
   ],
   report: ['report.request.read', 'report.dashboard.read'],
   user: ['user.read'],
@@ -98,6 +101,8 @@ const SEED_ROLES: {
       // what they *see* (own book + own drafts), not whether the menu exists.
       'crm.customer.read',
       'crm.customer.manage',
+      'crm.sales.read',
+      'crm.sales.manage',
     ],
   },
   {
@@ -115,6 +120,8 @@ const SEED_ROLES: {
       'user.read',
       'crm.customer.read',
       'crm.customer.manage',
+      'crm.sales.read',
+      'crm.sales.manage',
     ],
   },
   {
@@ -142,6 +149,9 @@ const SEED_ROLES: {
       // similar-name warning.
       'crm.customer.dedup.override',
       'crm.customer.financial.read',
+      'crm.sales.read',
+      'crm.sales.read.all',
+      'crm.sales.manage',
     ],
   },
   {
@@ -162,6 +172,9 @@ const SEED_ROLES: {
       'crm.customer.read.all',
       'crm.customer.sensitive.read',
       'crm.customer.financial.read',
+      'crm.sales.read',
+      'crm.sales.read.all',
+      'crm.sales.manage',
     ],
   },
   {
@@ -767,6 +780,25 @@ async function seedCrmDefaults(companyId: string) {
   }
 
   console.log(`  crm segment dimensions: ${dimensions.length}`);
+
+  // เหตุผลปิดแพ้มาตรฐาน (spec: ปิดแพ้ต้องระบุเหตุผลจากรายการมาตรฐาน
+  // เพื่อนำมาวิเคราะห์ได้) — ค่าตั้งต้น แก้/เพิ่มได้ภายหลัง.
+  const lostReasons = [
+    { code: 'price', name: 'ราคาสู้ไม่ได้', sortOrder: 1 },
+    { code: 'competitor', name: 'แพ้คู่แข่ง', sortOrder: 2 },
+    { code: 'no_budget', name: 'ลูกค้าไม่มีงบ/เลื่อนงบ', sortOrder: 3 },
+    { code: 'no_decision', name: 'ลูกค้าไม่ตัดสินใจ/เงียบหาย', sortOrder: 4 },
+    { code: 'requirement', name: 'ตอบโจทย์ความต้องการไม่ได้', sortOrder: 5 },
+    { code: 'other', name: 'อื่น ๆ (ระบุ)', sortOrder: 9 },
+  ];
+  for (const reason of lostReasons) {
+    await prisma.dealLostReason.upsert({
+      where: { companyId_code: { companyId, code: reason.code } },
+      update: { name: reason.name, sortOrder: reason.sortOrder, active: true },
+      create: { companyId, ...reason },
+    });
+  }
+  console.log(`  deal lost reasons: ${lostReasons.length}`);
 }
 
 async function main() {

@@ -2,6 +2,8 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { Prisma, CustomerStatus } from '@prisma/client';
 import {
   accessSubject,
+  salesAccessSubject,
+  visibleSalesWhere,
   AppError,
   AuditWriter,
   auditActor,
@@ -37,6 +39,7 @@ import {
 import { CustomerTimelineService } from './customer-timeline.service';
 import { CustomerOdooSyncService } from './customer-odoo-sync.service';
 import { KycProductRuleRepository } from './kyc-product.repository';
+import { DealRepository } from './sales.repositories';
 import { PDPA_CLIENT } from '../pdpa/pdpa-client';
 import type { ContactConsentStatus, PdpaClient } from '../pdpa/pdpa-client';
 import { assertCustomerTransition } from './customer-state-machine';
@@ -103,6 +106,7 @@ export class CustomersService {
     private readonly odooSync: CustomerOdooSyncService,
     @Inject(PDPA_CLIENT) private readonly pdpa: PdpaClient,
     private readonly kycProducts: KycProductRuleRepository,
+    private readonly deals: DealRepository,
   ) {}
 
   private readonly logger = new Logger(CustomersService.name);
@@ -191,7 +195,16 @@ export class CustomersService {
       ],
     };
 
-    const [contacts, locations, branchCustomers, requestTotal, requestOpen, odooCode] =
+    const salesWhere = hasPermission(actor, 'crm.sales.read')
+      ? ({
+          AND: [
+            visibleSalesWhere(salesAccessSubject(actor)),
+            { customerId: id },
+          ],
+        } as never)
+      : null;
+
+    const [contacts, locations, branchCustomers, requestTotal, requestOpen, odooCode, dealOpenCount, dealOpenSum] =
       await Promise.all([
         this.contacts.count({ where: { customerId: id, active: true } }),
         this.locations.count({ where: { customerId: id, active: true } }),
@@ -220,6 +233,24 @@ export class CustomersService {
           where: { customerId: id, system: 'odoo' },
           select: { payload: true },
         }) as Promise<{ payload: unknown } | null>,
+        salesWhere
+          ? this.deals.count({
+              where: {
+                AND: [
+                  salesWhere,
+                  { stage: { in: ['qualifying', 'proposing', 'negotiating'] } },
+                ],
+              } as never,
+            })
+          : Promise.resolve(null),
+        salesWhere
+          ? this.deals.sumAmount({
+              AND: [
+                salesWhere,
+                { stage: { in: ['qualifying', 'proposing', 'negotiating'] } },
+              ],
+            } as never)
+          : Promise.resolve(null),
       ]);
 
     // C360-02 — ยอดค้างชำระอ่านจาก cache ที่รอบ sync รายชั่วโมงเติมไว้ (CM-06);
@@ -233,6 +264,15 @@ export class CustomersService {
       contacts,
       locations,
       branchCustomers,
+      // C360-01 — ดีลนับผ่าน visibleSalesWhere เดียวกับแท็บ (SCOPE-02);
+      // null = viewer ไม่มี crm.sales.read → การ์ดถูกซ่อน (C360-04).
+      deals:
+        dealOpenCount === null
+          ? null
+          : {
+              open: dealOpenCount,
+              openAmount: dealOpenSum ?? 0,
+            },
       requests:
         requestTotal === null
           ? null

@@ -168,6 +168,24 @@ enum IntegrationJobStatus {
   failed
 }
 
+/// CRM — สถานะ Lead: รับเข้า → คัดกรอง → แปลงเป็นดีล (หรือคัดออกพร้อมเหตุผล).
+enum LeadStatus {
+  new
+  qualified
+  disqualified
+  converted
+}
+
+/// CRM — ขั้นของดีล. `won`/`lost` เป็นสถานะปิด; ปิดแพ้ต้องมีเหตุผลมาตรฐาน
+/// (spec: "ปิดแพ้ต้องระบุเหตุผลจากรายการมาตรฐานเพื่อนำมาวิเคราะห์ได้").
+enum DealStage {
+  qualifying
+  proposing
+  negotiating
+  won
+  lost
+}
+
 /// CM-05: บทบาทผู้ติดต่อตามสเปค.
 enum CustomerContactRole {
   decision_maker
@@ -218,6 +236,10 @@ model Company {
   customerCodeCounter     CustomerCodeCounter?
   crmConfig               CrmCompanyConfig?
   kycProductRules         KycProductRule[]
+  leads                   Lead[]
+  deals                   Deal[]
+  dealLostReasons         DealLostReason[]
+  dealCodeCounter         DealCodeCounter?
 
   @@map("companies")
 }
@@ -1387,6 +1409,8 @@ model Customer {
   headOffice   Customer?  @relation("CustomerHeadOffice", fields: [headOfficeId], references: [id])
   branchCustomers Customer[] @relation("CustomerHeadOffice")
 
+  leads          Lead[]
+  deals          Deal[]
   locations      CustomerLocation[]
   contacts       CustomerContact[]
   externalCodes  CustomerExternalCode[]
@@ -1714,4 +1738,137 @@ model KycProductRule {
 
   @@unique([companyId, productCode])
   @@map("kyc_product_rules")
+}
+
+/// CRM Lead — รับ Lead ทุกช่องทาง บันทึกแหล่งที่มา คัดกรอง แล้วแปลงเป็น
+/// โอกาสการขายโดยข้อมูลไหลต่อ (spec CRM ฟีเจอร์ Lead). No hard delete:
+/// `disqualified` + เหตุผล คือทางออกเดียว. Ownership columns mirror
+/// customers so `visibleSalesWhere` scopes both the same way.
+model Lead {
+  id        String @id @default(uuid())
+  companyId String
+
+  name        String
+  contactName String?
+  phone       String?
+  email       String?
+  note        String?
+
+  /// แหล่งที่มา — free code วันนี้ (LINE OA, เว็บไซต์, งานอีเวนต์, AI SMART
+  /// จะเข้ามาเป็นค่าหนึ่งในระยะ 2).
+  sourceCode String?
+
+  status           LeadStatus @default(new)
+  disqualifyReason String?
+
+  /// ลูกค้าเดิมที่ Lead นี้เป็นเรื่องของเขา (ถ้า match ได้).
+  customerId String?
+
+  /// ดีลที่เกิดจากการแปลง — ข้อมูลไหลต่อ ไม่พิมพ์ซ้ำ.
+  convertedDealId String? @unique
+
+  ownerUserId    String
+  ownerOrgUnitId String?
+
+  createdAt DateTime @default(now())
+  createdBy String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  company       Company   @relation(fields: [companyId], references: [id])
+  customer      Customer? @relation(fields: [customerId], references: [id])
+  convertedDeal Deal?     @relation(fields: [convertedDealId], references: [id])
+
+  @@index([companyId, status])
+  @@index([companyId, ownerUserId])
+  @@index([companyId, ownerOrgUnitId])
+  @@map("leads")
+}
+
+/// CRM โอกาสการขาย (ดีล) — ขั้น มูลค่า ความน่าจะเป็น วันคาดปิด. `dealCode`
+/// is what requests reference (`ref_type=deal`, e.g. the D-501 the request
+/// form always suggested). Won/lost are closed states; reopening is a later
+/// decision, not an accident.
+model Deal {
+  id       String @id @default(uuid())
+  dealCode String @unique
+
+  companyId  String
+  customerId String
+
+  title String
+
+  stage           DealStage @default(qualifying)
+  amount          Decimal?  @db.Decimal(14, 2)
+  currency        String    @default("THB")
+  /// 0–100.
+  probability     Int?
+  expectedCloseAt DateTime?
+
+  wonAt          DateTime?
+  lostAt         DateTime?
+  /// From `DealLostReason` — เหตุผลมาตรฐาน วิเคราะห์ได้.
+  lostReasonCode String?
+  lostReasonText String?
+
+  ownerUserId    String
+  ownerOrgUnitId String?
+
+  createdAt DateTime @default(now())
+  createdBy String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  company  Company       @relation(fields: [companyId], references: [id])
+  customer Customer      @relation(fields: [customerId], references: [id])
+  products DealProduct[]
+  fromLead Lead?
+
+  @@index([companyId, stage])
+  @@index([companyId, customerId])
+  @@index([companyId, ownerUserId])
+  @@index([companyId, ownerOrgUnitId])
+  @@map("deals")
+}
+
+/// สินค้า/บริการที่เกี่ยวกับดีล — รหัสต้องตรง Odoo (D-30). ชุดงาน B ใช้คู่กับ
+/// `kyc_product_rules`: ดีลที่มี product เข้าเงื่อนไข + ลูกค้ายังไม่
+/// kycVerified = banner แจ้งเตือน (ไม่ block).
+model DealProduct {
+  id       String  @id @default(uuid())
+  dealId   String
+  productCode String
+  name     String?
+
+  deal Deal @relation(fields: [dealId], references: [id])
+
+  @@unique([dealId, productCode])
+  @@map("deal_products")
+}
+
+/// เหตุผลปิดแพ้มาตรฐาน — configuration ต่อบริษัท seeded with defaults.
+model DealLostReason {
+  id        String  @id @default(uuid())
+  companyId String
+  code      String
+  name      String
+  active    Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, code])
+  @@map("deal_lost_reasons")
+}
+
+/// ตัวนับ dealCode ต่อบริษัท — atomic แบบเดียวกับ CustomerCodeCounter.
+model DealCodeCounter {
+  id        String   @id @default(uuid())
+  companyId String   @unique
+  lastSeq   Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@map("deal_code_counters")
 }

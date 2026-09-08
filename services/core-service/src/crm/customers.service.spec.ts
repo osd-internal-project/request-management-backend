@@ -191,6 +191,10 @@ function harness(options: {
           ),
     } as never,
     { findMany: jest.fn(() => Promise.resolve([])) } as never,
+    {
+      count: jest.fn(() => Promise.resolve(0)),
+      sumAmount: jest.fn(() => Promise.resolve(0)),
+    } as never,
   );
 
   return { service, audits, timelineEvents, fieldChangeRows, customers, requestCount, odooKicks };
