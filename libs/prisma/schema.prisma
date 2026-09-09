@@ -142,6 +142,59 @@ enum DeliveryStatus {
   failed
 }
 
+/// CM-01: นิติบุคคล / บุคคลธรรมดา / หน่วยงานรัฐ.
+enum CustomerType {
+  corporate
+  individual
+  government
+}
+
+/// CM-04 customer lifecycle. KYC is deliberately NOT a status: the PO
+/// confirmed (8 ก.ย. 2569) that a customer is active the moment it is
+/// created, and KYC is forced per product via the `kycVerified` flag —
+/// a `pending_kyc` state would block customers who never touch a KYC
+/// product.
+enum CustomerStatus {
+  draft
+  active
+  suspended
+  inactive
+}
+
+/// CM-06 — สถานะงานในคิว sync ของชั้น integration (Odoo วันนี้ ระบบอื่นภายหลัง).
+enum IntegrationJobStatus {
+  pending
+  succeeded
+  failed
+}
+
+/// CRM — สถานะ Lead: รับเข้า → คัดกรอง → แปลงเป็นดีล (หรือคัดออกพร้อมเหตุผล).
+enum LeadStatus {
+  new
+  qualified
+  disqualified
+  converted
+}
+
+/// CRM — ขั้นของดีล. `won`/`lost` เป็นสถานะปิด; ปิดแพ้ต้องมีเหตุผลมาตรฐาน
+/// (spec: "ปิดแพ้ต้องระบุเหตุผลจากรายการมาตรฐานเพื่อนำมาวิเคราะห์ได้").
+enum DealStage {
+  qualifying
+  proposing
+  negotiating
+  won
+  lost
+}
+
+/// CM-05: บทบาทผู้ติดต่อตามสเปค.
+enum CustomerContactRole {
+  decision_maker
+  user
+  procurement
+  finance
+  other
+}
+
 // ---------------------------------------------------------------------------
 // Identity & Org
 // ---------------------------------------------------------------------------
@@ -178,6 +231,15 @@ model Company {
   biDashboards            BiDashboard[]
   orgUnitScopes           OrgUnitScope[]
   notificationPreferences NotificationPreference[]
+  customers               Customer[]
+  customerSegmentDims     CustomerSegmentDimension[]
+  customerCodeCounter     CustomerCodeCounter?
+  crmConfig               CrmCompanyConfig?
+  kycProductRules         KycProductRule[]
+  leads                   Lead[]
+  deals                   Deal[]
+  dealLostReasons         DealLostReason[]
+  dealCodeCounter         DealCodeCounter?
 
   @@map("companies")
 }
@@ -251,6 +313,7 @@ model User {
   notificationPreferences NotificationPreference[]
   scopesGranted           OrgUnitScope[]           @relation("ScopeViewerUser")
   scopesOn                OrgUnitScope[]           @relation("ScopeTargetUser")
+  ownedCustomers          Customer[]               @relation("CustomerAccountOwner")
 
   @@index([orgUnitId])
   @@index([supervisorUserId])
@@ -1362,4 +1425,562 @@ model ApiKey {
 
   @@index([active])
   @@map("api_keys")
+}
+
+// ---------------------------------------------------------------------------
+// CRM — Customer Master (CM-xx) + มุมมอง 360° (C360-xx)
+// Spec: artifact 856c08fd (8 ก.ย. 2569). One customer registry for every
+// module and for Odoo — no module may keep its own (D-30).
+// ---------------------------------------------------------------------------
+
+/// CM-01/02/04 — the single customer registry.
+///
+/// `customerCode` is issued by THIS system (PO decision #1, 8 ก.ย. 2569):
+/// Odoo receives it and answers with its partner id, stored in
+/// `CustomerExternalCode` — never the other way round.
+///
+/// No hard delete: `inactive` + `deactivateReason` is the only way out, and a
+/// deactivated customer still blocks its tax id (CM-03) — the duplicate rule
+/// points at the existing row so it can be reactivated instead of recreated.
+model Customer {
+  id String @id @default(uuid())
+
+  /// Issued atomically at create (CM-02) — unique across the whole database,
+  /// like `Request.requestNo`, because Odoo and 7 accounting systems key on it.
+  customerCode String @unique
+
+  companyId String
+  type      CustomerType
+
+  nameTh String
+  nameEn String?
+
+  /// `nameTh` with the legal-form prefixes (บจก./บมจ./หจก./…) and whitespace
+  /// stripped — written on every create/update so the CM-03 similarity check
+  /// is a column comparison, not a per-row computation at query time.
+  normalizedName String
+
+  /// เลขผู้เสียภาษี 13 หลัก, checksum-validated at the API (CM-01). Optional:
+  /// a walk-in individual may not have provided one yet.
+  taxId String?
+
+  /// รหัสสาขาสรรพากร 5 หลัก. `00000` = สำนักงานใหญ่ (redesign #2, 8 ก.ย. 2569:
+  /// the PO wants each branch to BE a customer row — separate deals, separate
+  /// billing identity — not a child record under one customer).
+  branchCode String @default("00000")
+
+  /// ชื่อสาขาเพื่อการแสดงผล เช่น "สาขาราชวงศ์" — the legal name (`nameTh`)
+  /// is identical across an entity's branches, this is what tells them apart.
+  branchName String?
+
+  /// สาขาผูกกับรายหลัก (สำนักงานใหญ่) อัตโนมัติด้วยเลขภาษีตอนสร้าง — the HQ
+  /// page lists its branches through this, and the future 360° rollup sums
+  /// across it. NULL = รายหลักเอง หรือรายเดี่ยวที่ไม่มีเครือ.
+  headOfficeId String?
+
+  status CustomerStatus @default(draft)
+
+  /// CM-04: set by the KYC request callback (ชุดงาน B), never directly by a
+  /// screen. A customer is usable without it until a KYC-flagged product
+  /// enters a deal.
+  kycVerified   Boolean   @default(false)
+  kycVerifiedAt DateTime?
+
+  /// CM-01/08 — ผู้รับผิดชอบบัญชี. Scope pivots on this and on
+  /// `ownerOrgUnitId` below.
+  accountOwnerUserId String?
+
+  /// Where the account owner sat when assigned — a snapshot column with no FK,
+  /// exactly like `Request.requesterOrgUnitId`: team visibility must not be
+  /// rewritten by a later org-chart edit.
+  ownerOrgUnitId String?
+
+  deactivatedAt    DateTime?
+  deactivateReason String?
+  suspendReason    String?
+
+  /// CM-09 (โครงเท่านั้น — PO เลื่อน merge ออกจาก MVP, 8 ก.ย. 2569): when a
+  /// duplicate slips through and is later merged, the losing row stays as an
+  /// alias pointing at the survivor. Lookups by the old code follow this.
+  mergedIntoCustomerId String?
+  mergedAt             DateTime?
+
+  /// CM-03: a similar-name warning that was overridden records who confirmed
+  /// and why — beside the audit row, so the fact travels with the customer.
+  dedupOverrideReason String?
+
+  createdAt DateTime @default(now())
+  createdBy String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  company      Company    @relation(fields: [companyId], references: [id])
+  accountOwner User?      @relation("CustomerAccountOwner", fields: [accountOwnerUserId], references: [id])
+  mergedInto   Customer?  @relation("CustomerMerge", fields: [mergedIntoCustomerId], references: [id])
+  aliases      Customer[] @relation("CustomerMerge")
+  headOffice   Customer?  @relation("CustomerHeadOffice", fields: [headOfficeId], references: [id])
+  branchCustomers Customer[] @relation("CustomerHeadOffice")
+
+  leads          Lead[]
+  deals          Deal[]
+  locations      CustomerLocation[]
+  contacts       CustomerContact[]
+  externalCodes  CustomerExternalCode[]
+  fieldChanges   CustomerFieldChange[]
+  segments       CustomerSegmentAssignment[]
+  timelineEvents CustomerTimelineEvent[]
+
+  /// CM-03 hard block — the same juristic person appears once PER BRANCH
+  /// (redesign #2: a branch is its own customer row, linked to the head
+  /// office by `headOfficeId`). Postgres treats NULL tax ids as distinct, so
+  /// customers without one never collide here.
+  @@unique([companyId, taxId, branchCode])
+  @@index([companyId, headOfficeId])
+  @@index([companyId, status])
+  @@index([companyId, accountOwnerUserId])
+  @@index([companyId, ownerOrgUnitId])
+  @@index([companyId, normalizedName])
+  @@map("customers")
+}
+
+/// CM-01 — ที่อยู่/ไซต์ของลูกค้ารายนั้น (redesign #2, 8 ก.ย. 2569: branches
+/// became customer rows, so this table holds LOCATIONS — the addresses and
+/// installation sites of one branch-customer). A branch-customer usually has
+/// one billing address and any number of sites (a rented warehouse, a
+/// customer's server room):
+///
+///   - `isBilling` — this address goes on the tax invoice of THIS customer.
+///   - `isSite` — จุดติดตั้ง/รับของ. Both may be true on one row.
+///
+/// Installed-base rows (Service & Support, a later phase) will FK here, which
+/// is why retirement is `active=false`, never delete: an asset's site and an
+/// issued invoice's address must stay resolvable.
+model CustomerLocation {
+  id         String @id @default(uuid())
+  customerId String
+
+  /// ชื่อที่อยู่/ไซต์ — "สำนักงาน", "ไซต์โรงงานบางปู", "ห้องเซิร์ฟเวอร์ชั้น 3".
+  name String?
+
+  line1       String
+  line2       String?
+  subDistrict String?
+  district    String?
+  province    String?
+  postalCode  String?
+  country     String  @default("TH")
+
+  /// ใช้ออกใบกำกับของลูกค้ารายนี้.
+  isBilling Boolean @default(false)
+  /// เป็นจุดติดตั้ง/รับของ.
+  isSite    Boolean @default(true)
+  /// ที่อยู่หลัก — the default pick on documents.
+  isPrimary Boolean @default(false)
+
+  active Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  createdBy String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@index([customerId])
+  @@map("customer_locations")
+}
+
+/// CM-05 — ผู้ติดต่อ. Consent status is deliberately ABSENT: it is read live
+/// from the central PDPA service and rendered as a badge, never copied here
+/// (spec: "ห้ามเก็บซ้ำในตาราง contact").
+model CustomerContact {
+  id         String              @id @default(uuid())
+  customerId String
+  name       String
+  role       CustomerContactRole @default(other)
+  position   String?
+
+  phone  String?
+  email  String?
+  lineId String?
+  note   String?
+
+  isPrimary Boolean @default(false)
+  active    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  createdBy String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@index([customerId])
+  @@map("customer_contacts")
+}
+
+/// CM-02 — รหัสภายนอก: `system` = `odoo` for the partner id, plus the 7
+/// accounting-line systems (D-30). `payload` keeps whatever else the external
+/// system answered at create (PO decision #1) so nothing is lost to a
+/// narrower column later.
+model CustomerExternalCode {
+  id           String @id @default(uuid())
+  customerId   String
+  system       String
+  externalCode String
+  payload      Json?
+
+  createdAt DateTime @default(now())
+  createdBy String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@unique([customerId, system])
+  @@index([system, externalCode])
+  @@map("customer_external_codes")
+}
+
+/// CM-01 AC — "แก้ field ใดเก็บประวัติ ใคร–เมื่อไร–ค่าก่อน/หลัง". Append-only,
+/// one row per changed field per edit, written in the same transaction as the
+/// update. Kept beside (not instead of) the shared audit log: this one is the
+/// per-customer history tab, queryable by field.
+model CustomerFieldChange {
+  id         String @id @default(uuid())
+  customerId String
+  field      String
+  before     Json?
+  after      Json?
+
+  changedBy String?
+  changedAt DateTime @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@index([customerId, changedAt])
+  @@map("customer_field_changes")
+}
+
+/// CM-07 — segmentation dimensions (ประเภท ขนาด อุตสาหกรรม ศักยภาพ …) are
+/// rows, not code: adding the 5th dimension is an insert from the admin
+/// screen, the same rule that governs request types (REQ-01 / D-09).
+model CustomerSegmentDimension {
+  id        String  @id @default(uuid())
+  companyId String
+  code      String
+  nameTh    String
+  active    Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  company Company                @relation(fields: [companyId], references: [id])
+  values  CustomerSegmentValue[]
+
+  @@unique([companyId, code])
+  @@map("customer_segment_dimensions")
+}
+
+model CustomerSegmentValue {
+  id          String  @id @default(uuid())
+  dimensionId String
+  code        String
+  nameTh      String
+  active      Boolean @default(true)
+  sortOrder   Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  dimension   CustomerSegmentDimension    @relation(fields: [dimensionId], references: [id])
+  assignments CustomerSegmentAssignment[]
+
+  @@unique([dimensionId, code])
+  @@map("customer_segment_values")
+}
+
+/// Which segments a customer sits in. Several dimensions at once (CM-07 AC),
+/// keyed so Pricing (ระยะ 2) can query "customers in value X" as one indexed
+/// lookup.
+model CustomerSegmentAssignment {
+  customerId String
+  valueId    String
+
+  assignedAt DateTime @default(now())
+  assignedBy String?
+
+  customer Customer             @relation(fields: [customerId], references: [id])
+  value    CustomerSegmentValue @relation(fields: [valueId], references: [id])
+
+  @@id([customerId, valueId])
+  @@index([valueId])
+  @@map("customer_segment_assignments")
+}
+
+/// CM-02 — one continuously increasing counter per company, bumped by the
+/// same single-statement upsert as `DocNumberCounter`. No monthly reset: a
+/// customer code is permanent and 7 external systems key on it.
+model CustomerCodeCounter {
+  id        String   @id @default(uuid())
+  companyId String   @unique
+  lastSeq   Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@map("customer_code_counters")
+}
+
+/// Per-company CRM configuration, editable from the admin screen without a
+/// deploy: the customer-code shape (CM-02 AC) and the similar-name threshold
+/// (CM-03, PO decision #4 — "ระดับความคล้ายเป็นค่า config จูนได้").
+model CrmCompanyConfig {
+  id        String @id @default(uuid())
+  companyId String @unique
+
+  /// Code prefix, e.g. `CUS`. The company's `docPrefix` is appended by the
+  /// pattern, so OSD gets `CUS-OSD-000001`.
+  codePrefix  String @default("CUS")
+  codePadding Int    @default(6)
+
+  /// 0..1 — Dice-coefficient threshold above which two normalized names are
+  /// reported as "similar" by check-duplicate.
+  dedupThreshold Float @default(0.85)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@map("crm_company_configs")
+}
+
+/// C360-03 — the cross-module customer timeline, append-only. Modules publish
+/// through `CustomerTimelineService`, never by writing this table directly;
+/// there is no update or delete path. `requiredPermission` filters the feed:
+/// an event whose source the viewer may not read does not appear.
+///
+/// Designed as the generic event schema the spec asks for because ระยะ 4
+/// (AI CARE conversations) will land in this same feed.
+model CustomerTimelineEvent {
+  id         String @id @default(uuid())
+  companyId  String
+  customerId String
+
+  /// What the event points back at: `customer`, `request`, `deal`, … plus the
+  /// row id, the same ref mechanism as REQ-06.
+  refType String
+  refId   String?
+
+  eventType String
+  summary   String
+
+  actorId   String?
+  actorName String?
+
+  /// Permission needed to see this event, or NULL for anyone who can open the
+  /// customer.
+  requiredPermission String?
+
+  occurredAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@index([customerId, occurredAt])
+  @@index([companyId, occurredAt])
+  @@map("customer_timeline_events")
+}
+
+/// CM-06 — the retry queue behind the Odoo integration layer (PO 8 ก.ย. 2569:
+/// a customer create calls Odoo synchronously and gets the partner id back;
+/// when Odoo is down the work lands here instead of blocking the create, and
+/// a sweeper retries with backoff). Rows are kept after they finish — the
+/// "ทุกรอบ sync มี log" AC is answered by this table plus the audit trail.
+model IntegrationSyncJob {
+  id String @id @default(uuid())
+
+  /// 'odoo' — one queue for every external system the layer fronts.
+  system String
+  /// 'customer_upsert' | 'receivables_refresh'
+  kind   String
+  /// The row being synced — customerId for both current kinds.
+  resourceId String
+
+  status   IntegrationJobStatus @default(pending)
+  attempts Int                  @default(0)
+  /// The last failure, verbatim — what an operator reads first.
+  lastError String?
+  runAfter  DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([system, status, runAfter])
+  @@index([system, kind, resourceId])
+  @@map("integration_sync_jobs")
+}
+
+/// CM-04 (ชุดงาน B) — product ใดต้องยืนยันตัวตน (KYC). Configuration แก้จาก
+/// หน้าจอผู้ดูแลไม่ต้อง deploy; PO ยืนยัน 8 ก.ย. 2569 ว่า KYC ไม่ block —
+/// โมดูลดีล (CRM ระยะถัดไป) อ่านตารางนี้เพื่อ "แจ้งเตือน" เมื่อดีลมี product
+/// ที่เข้าเงื่อนไขและลูกค้ายังไม่ kycVerified. รายการจริงยังรอ PO/การเงิน —
+/// นี่คือโครง + หน้าจอกรอกที่พร้อมรับค่าวันเปิดใช้.
+model KycProductRule {
+  id        String @id @default(uuid())
+  companyId String
+
+  /// รหัสสินค้า/บริการ — ต้องตรงกับรหัสใน Odoo (D-30, งาน mapping ระยะ 0).
+  productCode String
+  name        String
+
+  active Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  createdBy String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, productCode])
+  @@map("kyc_product_rules")
+}
+
+/// CRM Lead — รับ Lead ทุกช่องทาง บันทึกแหล่งที่มา คัดกรอง แล้วแปลงเป็น
+/// โอกาสการขายโดยข้อมูลไหลต่อ (spec CRM ฟีเจอร์ Lead). No hard delete:
+/// `disqualified` + เหตุผล คือทางออกเดียว. Ownership columns mirror
+/// customers so `visibleSalesWhere` scopes both the same way.
+model Lead {
+  id        String @id @default(uuid())
+  companyId String
+
+  name        String
+  contactName String?
+  phone       String?
+  email       String?
+  note        String?
+
+  /// แหล่งที่มา — free code วันนี้ (LINE OA, เว็บไซต์, งานอีเวนต์, AI SMART
+  /// จะเข้ามาเป็นค่าหนึ่งในระยะ 2).
+  sourceCode String?
+
+  status           LeadStatus @default(new)
+  disqualifyReason String?
+
+  /// ลูกค้าเดิมที่ Lead นี้เป็นเรื่องของเขา (ถ้า match ได้).
+  customerId String?
+
+  /// ดีลที่เกิดจากการแปลง — ข้อมูลไหลต่อ ไม่พิมพ์ซ้ำ.
+  convertedDealId String? @unique
+
+  ownerUserId    String
+  ownerOrgUnitId String?
+
+  createdAt DateTime @default(now())
+  createdBy String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  company       Company   @relation(fields: [companyId], references: [id])
+  customer      Customer? @relation(fields: [customerId], references: [id])
+  convertedDeal Deal?     @relation(fields: [convertedDealId], references: [id])
+
+  @@index([companyId, status])
+  @@index([companyId, ownerUserId])
+  @@index([companyId, ownerOrgUnitId])
+  @@map("leads")
+}
+
+/// CRM โอกาสการขาย (ดีล) — ขั้น มูลค่า ความน่าจะเป็น วันคาดปิด. `dealCode`
+/// is what requests reference (`ref_type=deal`, e.g. the D-501 the request
+/// form always suggested). Won/lost are closed states; reopening is a later
+/// decision, not an accident.
+model Deal {
+  id       String @id @default(uuid())
+  dealCode String @unique
+
+  companyId  String
+  customerId String
+
+  title String
+
+  stage           DealStage @default(qualifying)
+  amount          Decimal?  @db.Decimal(14, 2)
+  currency        String    @default("THB")
+  /// 0–100.
+  probability     Int?
+  expectedCloseAt DateTime?
+
+  wonAt          DateTime?
+  lostAt         DateTime?
+  /// From `DealLostReason` — เหตุผลมาตรฐาน วิเคราะห์ได้.
+  lostReasonCode String?
+  lostReasonText String?
+
+  ownerUserId    String
+  ownerOrgUnitId String?
+
+  createdAt DateTime @default(now())
+  createdBy String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  company  Company       @relation(fields: [companyId], references: [id])
+  customer Customer      @relation(fields: [customerId], references: [id])
+  products DealProduct[]
+  fromLead Lead?
+
+  @@index([companyId, stage])
+  @@index([companyId, customerId])
+  @@index([companyId, ownerUserId])
+  @@index([companyId, ownerOrgUnitId])
+  @@map("deals")
+}
+
+/// สินค้า/บริการที่เกี่ยวกับดีล — รหัสต้องตรง Odoo (D-30). ชุดงาน B ใช้คู่กับ
+/// `kyc_product_rules`: ดีลที่มี product เข้าเงื่อนไข + ลูกค้ายังไม่
+/// kycVerified = banner แจ้งเตือน (ไม่ block).
+model DealProduct {
+  id       String  @id @default(uuid())
+  dealId   String
+  productCode String
+  name     String?
+
+  deal Deal @relation(fields: [dealId], references: [id])
+
+  @@unique([dealId, productCode])
+  @@map("deal_products")
+}
+
+/// เหตุผลปิดแพ้มาตรฐาน — configuration ต่อบริษัท seeded with defaults.
+model DealLostReason {
+  id        String  @id @default(uuid())
+  companyId String
+  code      String
+  name      String
+  active    Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, code])
+  @@map("deal_lost_reasons")
+}
+
+/// ตัวนับ dealCode ต่อบริษัท — atomic แบบเดียวกับ CustomerCodeCounter.
+model DealCodeCounter {
+  id        String   @id @default(uuid())
+  companyId String   @unique
+  lastSeq   Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@map("deal_code_counters")
 }

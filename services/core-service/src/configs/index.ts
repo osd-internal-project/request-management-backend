@@ -37,6 +37,30 @@ export default () => ({
    * signing with it is what lets an app login stand in for a Metabase login.
    * Dashboard ids come from the Metabase URL after each dashboard is created.
    */
+  /**
+   * CM-06/D-30 — the Odoo integration layer. `mode=mock` (default) runs the
+   * in-memory stand-in so every environment works before the sandbox exists;
+   * point `mode=http` + the four credentials at the sandbox when it arrives.
+   * Intervals in ms; 0 disables the background timers (tests).
+   */
+  odoo: {
+    mode: process.env.ODOO_MODE ?? 'mock',
+    baseUrl: process.env.ODOO_BASE_URL ?? '',
+    db: process.env.ODOO_DB ?? '',
+    uid: Number(process.env.ODOO_UID ?? 0),
+    apiKey: process.env.ODOO_API_KEY ?? '',
+    retryIntervalMs: Number(process.env.ODOO_RETRY_INTERVAL_MS ?? 300000),
+    refreshIntervalMs: Number(process.env.ODOO_REFRESH_INTERVAL_MS ?? 3600000),
+  },
+
+  /** CM-05/D-35 — the PDPA integration layer; mock until the central
+   * service (DPO-owned) exists. */
+  pdpa: {
+    mode: process.env.PDPA_MODE ?? 'mock',
+    baseUrl: process.env.PDPA_BASE_URL ?? '',
+    apiKey: process.env.PDPA_API_KEY ?? '',
+  },
+
   metabase: {
     siteUrl: process.env.METABASE_SITE_URL ?? '',
     embedSecret: process.env.METABASE_EMBED_SECRET ?? '',

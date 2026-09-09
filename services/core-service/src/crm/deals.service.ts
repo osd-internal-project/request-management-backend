@@ -1,0 +1,429 @@
+import { Injectable } from '@nestjs/common';
+import type { DealStage, Prisma } from '@prisma/client';
+import {
+  AppError,
+  AuditWriter,
+  auditActor,
+  paginated,
+  Principal,
+  PrismaTransactionService,
+  salesAccessSubject,
+  toSkipTake,
+  visibleSalesWhere,
+} from '@request-management/share';
+import {
+  DEAL_LIST_SELECT,
+  DealLostReasonRepository,
+  DealProductRepository,
+  DealRepository,
+} from './sales.repositories';
+import { DealCodeService } from './deal-code.service';
+import { CustomerRepository } from './customer.repository';
+import { KycProductRuleRepository } from './kyc-product.repository';
+import { CustomerTimelineService } from './customer-timeline.service';
+import {
+  CreateDealDto,
+  ListDealsQueryDto,
+  LoseDealDto,
+  UpdateDealDto,
+} from './dto/sales.dto';
+
+const OPEN_STAGES: DealStage[] = ['qualifying', 'proposing', 'negotiating'];
+
+/**
+ * CRM โอกาสการขาย — ขั้น มูลค่า ความน่าจะเป็น วันคาดปิด; ปิดชนะ/แพ้เป็น
+ * endpoint ของตัวเอง และปิดแพ้ต้องมีเหตุผลมาตรฐาน (วิเคราะห์ได้). ทุก
+ * เหตุการณ์สำคัญไหลเข้าไทม์ไลน์ลูกค้า (C360-03) และชุดงาน B จบที่นี่:
+ * ดีลที่มี product เข้าเงื่อนไข KYC + ลูกค้ายังไม่ verified = คำเตือน ไม่ block.
+ */
+@Injectable()
+export class DealsService {
+  constructor(
+    private readonly deals: DealRepository,
+    private readonly products: DealProductRepository,
+    private readonly lostReasons: DealLostReasonRepository,
+    private readonly customers: CustomerRepository,
+    private readonly kycProducts: KycProductRuleRepository,
+    private readonly codes: DealCodeService,
+    private readonly timeline: CustomerTimelineService,
+    private readonly audit: AuditWriter,
+    private readonly transactions: PrismaTransactionService,
+  ) {}
+
+  async list(actor: Principal, query: ListDealsQueryDto) {
+    const { skip, take } = toSkipTake(query);
+    const filters: Prisma.DealWhereInput = {};
+
+    if (query.stage) filters.stage = query.stage;
+    if (query.open === 'true') filters.stage = { in: OPEN_STAGES };
+    if (query.customer_id) filters.customerId = query.customer_id;
+    if (query.view === 'mine') filters.ownerUserId = actor.userId;
+    if (query.search) {
+      const q = query.search.trim();
+      filters.OR = [
+        { title: { contains: q, mode: 'insensitive' } },
+        { dealCode: { contains: q, mode: 'insensitive' } },
+        { customer: { nameTh: { contains: q, mode: 'insensitive' } } },
+      ];
+    }
+
+    const where = {
+      AND: [visibleSalesWhere(salesAccessSubject(actor)), filters],
+    } as Prisma.DealWhereInput;
+
+    const [rows, total] = await Promise.all([
+      this.deals.findMany({
+        where,
+        select: DEAL_LIST_SELECT,
+        skip,
+        take,
+        orderBy: { updatedAt: 'desc' },
+      }),
+      this.deals.count({ where }),
+    ]);
+
+    return paginated(rows as unknown[], query, total);
+  }
+
+  /** Detail + the ชุดงาน B answer: does this deal demand KYC attention? */
+  async findOne(id: string, actor: Principal) {
+    const found = (await this.deals.findFirst({
+      where: {
+        id,
+        AND: [visibleSalesWhere(salesAccessSubject(actor))],
+      } as Prisma.DealWhereInput,
+      include: {
+        customer: {
+          select: {
+            id: true,
+            customerCode: true,
+            nameTh: true,
+            branchCode: true,
+            branchName: true,
+            kycVerified: true,
+          },
+        },
+        products: { select: { productCode: true, name: true } },
+        fromLead: { select: { id: true, name: true, sourceCode: true } },
+      },
+    })) as
+      | ({
+          companyId: string;
+          products: { productCode: string; name: string | null }[];
+          customer: { kycVerified: boolean };
+        } & Record<string, unknown>)
+      | null;
+
+    if (!found) throw new AppError('NOT_FOUND', 'ไม่พบดีลที่ระบุ');
+
+    // CM-04 ชุดงาน B — เงื่อนไขระดับ product: เตือน ไม่ block (PO 8 ก.ย. 2569).
+    let kycWarning: { required: boolean; products: string[] } = {
+      required: false,
+      products: [],
+    };
+    if (!found.customer.kycVerified && found.products.length) {
+      const rules = (await this.kycProducts.findMany({
+        where: {
+          companyId: found.companyId,
+          active: true,
+          productCode: { in: found.products.map((p) => p.productCode) },
+        },
+        select: { productCode: true },
+      })) as { productCode: string }[];
+      kycWarning = {
+        required: rules.length > 0,
+        products: rules.map((rule) => rule.productCode),
+      };
+    }
+
+    return { ...found, kycWarning };
+  }
+
+  async lostReasonOptions(actor: Principal) {
+    return this.lostReasons.findMany({
+      where: { companyId: actor.activeCompanyId, active: true },
+      select: { code: true, name: true },
+      orderBy: { sortOrder: 'asc' },
+    });
+  }
+
+  async create(
+    dto: CreateDealDto,
+    actor: Principal,
+    options?: { fromLeadId?: string },
+  ) {
+    const customer = await this.assertCustomer(dto.customer_id, actor);
+
+    const created = await this.transactions.execute(async (prisma) => {
+      const dealCode = await this.codes.issue(actor.activeCompanyId, prisma);
+
+      const row = (await this.deals.create(
+        {
+          data: {
+            dealCode,
+            companyId: actor.activeCompanyId,
+            customerId: dto.customer_id,
+            title: dto.title.trim(),
+            amount: dto.amount ?? null,
+            probability: dto.probability ?? null,
+            expectedCloseAt: dto.expected_close_at
+              ? new Date(dto.expected_close_at)
+              : null,
+            ownerUserId: actor.userId,
+            ownerOrgUnitId: actor.orgUnitId,
+            createdBy: actor.userId,
+            products: {
+              create: dedupe(dto.product_codes).map((code) => ({
+                productCode: code,
+              })),
+            },
+          },
+        },
+        { prisma },
+      )) as { id: string; dealCode: string };
+
+      await this.audit.record(
+        {
+          eventType: 'crm.deal.created',
+          companyId: actor.activeCompanyId,
+          ...auditActor(actor),
+          resourceType: 'deal',
+          resourceId: row.id,
+          after: {
+            dealCode,
+            title: dto.title,
+            customerId: dto.customer_id,
+            amount: dto.amount ?? null,
+            fromLeadId: options?.fromLeadId ?? null,
+          },
+        },
+        { prisma },
+      );
+
+      await this.timeline.publish(
+        {
+          companyId: actor.activeCompanyId,
+          customerId: dto.customer_id,
+          refType: 'deal',
+          refId: row.id,
+          eventType: 'deal.created',
+          summary: `เปิดดีล ${dealCode} · ${dto.title.trim()} (${customer.nameTh})`,
+          actorId: auditActor(actor).actorId,
+          actorName: actor.displayName,
+        },
+        { prisma },
+      );
+
+      return row;
+    });
+
+    return created;
+  }
+
+  async update(id: string, dto: UpdateDealDto, actor: Principal) {
+    const found = await this.requireOpen(id, actor);
+
+    await this.transactions.execute(async (prisma) => {
+      await this.deals.update(
+        {
+          where: { id },
+          data: {
+            ...(dto.title !== undefined ? { title: dto.title.trim() } : {}),
+            ...(dto.stage !== undefined ? { stage: dto.stage } : {}),
+            ...(dto.amount !== undefined ? { amount: dto.amount } : {}),
+            ...(dto.probability !== undefined
+              ? { probability: dto.probability }
+              : {}),
+            ...(dto.expected_close_at !== undefined
+              ? {
+                  expectedCloseAt: dto.expected_close_at
+                    ? new Date(dto.expected_close_at)
+                    : null,
+                }
+              : {}),
+            updatedBy: actor.userId,
+          },
+        },
+        { prisma },
+      );
+
+      if (dto.product_codes !== undefined) {
+        await prisma.dealProduct.deleteMany({ where: { dealId: id } });
+        const codes = dedupe(dto.product_codes);
+        if (codes.length) {
+          await this.products.createMany(
+            { data: codes.map((code) => ({ dealId: id, productCode: code })) },
+            { prisma },
+          );
+        }
+      }
+
+      if (dto.stage !== undefined && dto.stage !== found.stage) {
+        await this.timeline.publish(
+          {
+            companyId: actor.activeCompanyId,
+            customerId: found.customerId,
+            refType: 'deal',
+            refId: id,
+            eventType: 'deal.stage_changed',
+            summary: `ดีล ${found.dealCode} เปลี่ยนขั้น ${found.stage} → ${dto.stage}`,
+            actorId: auditActor(actor).actorId,
+            actorName: actor.displayName,
+          },
+          { prisma },
+        );
+      }
+    });
+
+    return this.findOne(id, actor);
+  }
+
+  async win(id: string, actor: Principal) {
+    const found = await this.requireOpen(id, actor);
+    return this.close(found, 'won', actor, {});
+  }
+
+  /** ปิดแพ้ — เหตุผลจากรายการมาตรฐานเท่านั้น (spec CRM). */
+  async lose(id: string, dto: LoseDealDto, actor: Principal) {
+    const found = await this.requireOpen(id, actor);
+
+    const reason = (await this.lostReasons.findFirst({
+      where: {
+        companyId: actor.activeCompanyId,
+        code: dto.reason_code,
+        active: true,
+      },
+      select: { code: true, name: true },
+    })) as { code: string; name: string } | null;
+
+    if (!reason) {
+      throw new AppError(
+        'VALIDATION_FAILED',
+        'เหตุผลปิดแพ้ต้องเลือกจากรายการมาตรฐาน',
+        [{ field: 'reason_code', reason: dto.reason_code }],
+      );
+    }
+
+    return this.close(found, 'lost', actor, {
+      lostReasonCode: reason.code,
+      lostReasonText: dto.reason_text?.trim() || null,
+      reasonName: reason.name,
+    });
+  }
+
+  private async close(
+    found: OpenDeal,
+    to: 'won' | 'lost',
+    actor: Principal,
+    extra: {
+      lostReasonCode?: string;
+      lostReasonText?: string | null;
+      reasonName?: string;
+    },
+  ) {
+    await this.transactions.execute(async (prisma) => {
+      await this.deals.update(
+        {
+          where: { id: found.id },
+          data: {
+            stage: to,
+            ...(to === 'won' ? { wonAt: new Date() } : { lostAt: new Date() }),
+            lostReasonCode: extra.lostReasonCode ?? null,
+            lostReasonText: extra.lostReasonText ?? null,
+            updatedBy: actor.userId,
+          },
+        },
+        { prisma },
+      );
+
+      await this.audit.record(
+        {
+          eventType: to === 'won' ? 'crm.deal.won' : 'crm.deal.lost',
+          companyId: actor.activeCompanyId,
+          ...auditActor(actor),
+          resourceType: 'deal',
+          resourceId: found.id,
+          before: { stage: found.stage },
+          after: {
+            stage: to,
+            reasonCode: extra.lostReasonCode ?? null,
+            reasonText: extra.lostReasonText ?? null,
+          },
+        },
+        { prisma },
+      );
+
+      await this.timeline.publish(
+        {
+          companyId: actor.activeCompanyId,
+          customerId: found.customerId,
+          refType: 'deal',
+          refId: found.id,
+          eventType: to === 'won' ? 'deal.won' : 'deal.lost',
+          summary:
+            to === 'won'
+              ? `ปิดดีล ${found.dealCode} สำเร็จ (ชนะ)`
+              : `ปิดดีล ${found.dealCode} — แพ้ (${extra.reasonName})`,
+          actorId: auditActor(actor).actorId,
+          actorName: actor.displayName,
+        },
+        { prisma },
+      );
+    });
+
+    return this.findOne(found.id, actor);
+  }
+
+  /** Visible AND still open. SCOPE-03: unseen = 404. */
+  private async requireOpen(id: string, actor: Principal): Promise<OpenDeal> {
+    const found = (await this.deals.findFirst({
+      where: {
+        id,
+        AND: [visibleSalesWhere(salesAccessSubject(actor))],
+      } as Prisma.DealWhereInput,
+      select: {
+        id: true,
+        dealCode: true,
+        stage: true,
+        customerId: true,
+      },
+    })) as OpenDeal | null;
+
+    if (!found) throw new AppError('NOT_FOUND', 'ไม่พบดีลที่ระบุ');
+    if (found.stage === 'won' || found.stage === 'lost') {
+      throw new AppError('CONFLICT', 'ดีลนี้ปิดแล้ว — แก้ไขไม่ได้');
+    }
+
+    return found;
+  }
+
+  private async assertCustomer(customerId: string, actor: Principal) {
+    const customer = (await this.customers.findFirst({
+      where: {
+        id: customerId,
+        companyId: actor.activeCompanyId,
+        mergedIntoCustomerId: null,
+      },
+      select: { id: true, nameTh: true },
+    })) as { id: string; nameTh: string } | null;
+
+    if (!customer) {
+      throw new AppError('VALIDATION_FAILED', 'ไม่พบลูกค้าที่ระบุ', [
+        { field: 'customer_id', reason: customerId },
+      ]);
+    }
+
+    return customer;
+  }
+}
+
+interface OpenDeal {
+  id: string;
+  dealCode: string;
+  stage: DealStage;
+  customerId: string;
+}
+
+function dedupe(codes: string[] | undefined): string[] {
+  return [...new Set((codes ?? []).map((code) => code.trim()).filter(Boolean))];
+}

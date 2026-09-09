@@ -26,6 +26,7 @@ const PERMISSIONS: Record<string, string[]> = {
   request: [
     'request.create',
     'request.read',
+    'request.read.all',
     'request.cancel.own',
     'request.cancel.any',
     'request.complete',
@@ -34,6 +35,17 @@ const PERMISSIONS: Record<string, string[]> = {
     'request.sensitive.read',
   ],
   approval: ['approval.decide', 'approval.delegate', 'approval.history.read'],
+  crm: [
+    'crm.customer.read',
+    'crm.customer.read.all',
+    'crm.customer.manage',
+    'crm.customer.sensitive.read',
+    'crm.customer.dedup.override',
+    'crm.customer.financial.read',
+    'crm.sales.read',
+    'crm.sales.read.all',
+    'crm.sales.manage',
+  ],
   report: ['report.request.read', 'report.dashboard.read'],
   user: ['user.read'],
   notification: ['notification.read'],
@@ -46,6 +58,7 @@ const PERMISSIONS: Record<string, string[]> = {
     'admin.sla.manage',
     'admin.bi.manage',
     'admin.identity.manage',
+    'admin.crm.manage',
   ],
   integration: ['integration.request.create', 'integration.approval.create'],
 };
@@ -97,6 +110,12 @@ const SEED_ROLES: {
       'request.hold',
       'approval.decide',
       'notification.read',
+      // CM-01: ทะเบียนลูกค้าเปิดให้พนักงานสร้าง–แก้ตามสิทธิ์ — scope narrows
+      // what they *see* (own book + own drafts), not whether the menu exists.
+      'crm.customer.read',
+      'crm.customer.manage',
+      'crm.sales.read',
+      'crm.sales.manage',
     ],
   },
   {
@@ -112,6 +131,10 @@ const SEED_ROLES: {
       'approval.delegate',
       'notification.read',
       'user.read',
+      'crm.customer.read',
+      'crm.customer.manage',
+      'crm.sales.read',
+      'crm.sales.manage',
     ],
     visibilityLevel: 'TEAM',
   },
@@ -132,6 +155,17 @@ const SEED_ROLES: {
       'report.dashboard.read',
       'notification.read',
       'user.read',
+      'crm.customer.read',
+      'crm.customer.read.all',
+      'crm.customer.manage',
+      'crm.customer.sensitive.read',
+      // CM-03 (PO 8 ก.ย. 2569): only a granted role may confirm past the
+      // similar-name warning.
+      'crm.customer.dedup.override',
+      'crm.customer.financial.read',
+      'crm.sales.read',
+      'crm.sales.read.all',
+      'crm.sales.manage',
     ],
     visibilityLevel: 'DEPARTMENT',
   },
@@ -149,6 +183,13 @@ const SEED_ROLES: {
       'report.dashboard.read',
       'notification.read',
       'user.read',
+      'crm.customer.read',
+      'crm.customer.read.all',
+      'crm.customer.sensitive.read',
+      'crm.customer.financial.read',
+      'crm.sales.read',
+      'crm.sales.read.all',
+      'crm.sales.manage',
     ],
     visibilityLevel: 'COMPANY',
   },
@@ -225,11 +266,14 @@ const SEED_ROLES: {
       'admin.sla.manage',
       'admin.bi.manage',
       'admin.identity.manage',
+      'admin.crm.manage',
       'audit.read',
       'user.read',
       'notification.read',
       'request.read',
       'request.read.all',
+      'crm.customer.read',
+      'crm.customer.read.all',
     ],
   },
   {
@@ -245,6 +289,9 @@ const SEED_ROLES: {
       'report.dashboard.read',
       'audit.read',
       'user.read',
+      'crm.customer.read',
+      'crm.customer.read.all',
+      'crm.customer.sensitive.read',
     ],
   },
 ];
@@ -411,6 +458,13 @@ async function seedSensitiveFields() {
       field: 'est_margin_pct',
       visibleToPermission: 'request.sensitive.read',
     },
+    // CM-08: เลขผู้เสียภาษี is masked for callers without the CRM sensitive
+    // read; the interceptor drops it from list and detail responses alike.
+    {
+      resource: 'customer',
+      field: 'taxId',
+      visibleToPermission: 'crm.customer.sensitive.read',
+    },
   ];
 
   for (const rule of rules) {
@@ -568,6 +622,47 @@ async function seedRequestTypes(
       slaHours: 24,
     },
     {
+      /**
+       * CM-04 (ชุดงาน B) — คำขอ KYC ลูกค้า. ยื่นได้เสมอจากหน้าลูกค้า
+       * (KYC เป็นกระบวนการปกติ ไม่ block — PO 8 ก.ย. 2569); เมื่อคำขอนี้
+       * complete, KycCallbackService ติด kycVerified ให้ลูกค้าที่อ้างใน ref.
+       */
+      code: 'KYC',
+      name: 'KYC ลูกค้า',
+      receiverOrgUnitId: osdRoot?.id ?? null,
+      formSchema: {
+        type: 'object',
+        required: ['customer_code', 'customer_name'],
+        properties: {
+          customer_code: {
+            type: 'string',
+            title: 'รหัสลูกค้า',
+            'x-order': 10,
+          },
+          customer_name: { type: 'string', title: 'ชื่อลูกค้า', 'x-order': 20 },
+          note: {
+            type: 'string',
+            title: 'หมายเหตุ',
+            maxLength: 2000,
+            'x-multiline': true,
+            'x-order': 30,
+          },
+        },
+      },
+      requiredDocs: [
+        { code: 'COMPANY_CERT', name: 'หนังสือรับรองบริษัท' },
+        { code: 'VAT20', name: 'ภ.พ.20 / เอกสารภาษี' },
+        { code: 'AUTH_SIGNATORY', name: 'เอกสารผู้มีอำนาจลงนาม' },
+      ],
+      returnReasonCodes: [
+        { code: 'DOC_INCOMPLETE', name: 'เอกสารไม่ครบ' },
+        { code: 'DOC_EXPIRED', name: 'เอกสารหมดอายุ' },
+        { code: 'OTHER', name: 'อื่น ๆ' },
+      ],
+      approvalPolicy: {},
+      slaHours: 48,
+    },
+    {
       code: 'LEAD',
       name: 'ส่งต่อโอกาสการขาย',
       receiverOrgUnitId: sales?.id ?? null,
@@ -651,6 +746,85 @@ async function seedRequestTypes(
   console.log(`  request types: ${types.map((t) => t.code).join(', ')}`);
 }
 
+/**
+ * CM-07 — the four starter dimensions the spec names. Values are
+ * configuration an admin edits from the screen; `size` and `potential` get
+ * conventional starters so UAT has something to assign.
+ */
+async function seedCrmDefaults(companyId: string) {
+  const dimensions: {
+    code: string;
+    nameTh: string;
+    sortOrder: number;
+    values: { code: string; nameTh: string; sortOrder: number }[];
+  }[] = [
+    { code: 'type', nameTh: 'ประเภทลูกค้า', sortOrder: 1, values: [] },
+    {
+      code: 'size',
+      nameTh: 'ขนาด',
+      sortOrder: 2,
+      values: [
+        { code: 's', nameTh: 'เล็ก (S)', sortOrder: 1 },
+        { code: 'm', nameTh: 'กลาง (M)', sortOrder: 2 },
+        { code: 'l', nameTh: 'ใหญ่ (L)', sortOrder: 3 },
+      ],
+    },
+    { code: 'industry', nameTh: 'อุตสาหกรรม', sortOrder: 3, values: [] },
+    {
+      code: 'potential',
+      nameTh: 'ศักยภาพ',
+      sortOrder: 4,
+      values: [
+        { code: 'a', nameTh: 'ศักยภาพสูง (A)', sortOrder: 1 },
+        { code: 'b', nameTh: 'ศักยภาพปานกลาง (B)', sortOrder: 2 },
+        { code: 'c', nameTh: 'ศักยภาพทั่วไป (C)', sortOrder: 3 },
+      ],
+    },
+  ];
+
+  for (const dim of dimensions) {
+    const saved = await prisma.customerSegmentDimension.upsert({
+      where: { companyId_code: { companyId, code: dim.code } },
+      update: { nameTh: dim.nameTh, sortOrder: dim.sortOrder },
+      create: {
+        companyId,
+        code: dim.code,
+        nameTh: dim.nameTh,
+        sortOrder: dim.sortOrder,
+      },
+    });
+
+    for (const value of dim.values) {
+      await prisma.customerSegmentValue.upsert({
+        where: { dimensionId_code: { dimensionId: saved.id, code: value.code } },
+        update: { nameTh: value.nameTh, sortOrder: value.sortOrder },
+        create: { dimensionId: saved.id, ...value },
+      });
+    }
+  }
+
+  console.log(`  crm segment dimensions: ${dimensions.length}`);
+
+  // เหตุผลปิดแพ้มาตรฐาน (spec: ปิดแพ้ต้องระบุเหตุผลจากรายการมาตรฐาน
+  // เพื่อนำมาวิเคราะห์ได้) — ค่าตั้งต้น แก้/เพิ่มได้ภายหลัง.
+  const lostReasons = [
+    { code: 'price', name: 'ราคาสู้ไม่ได้', sortOrder: 1 },
+    { code: 'competitor', name: 'แพ้คู่แข่ง', sortOrder: 2 },
+    { code: 'no_budget', name: 'ลูกค้าไม่มีงบ/เลื่อนงบ', sortOrder: 3 },
+    { code: 'no_decision', name: 'ลูกค้าไม่ตัดสินใจ/เงียบหาย', sortOrder: 4 },
+    { code: 'requirement', name: 'ตอบโจทย์ความต้องการไม่ได้', sortOrder: 5 },
+    { code: 'other', name: 'อื่น ๆ (ระบุ)', sortOrder: 9 },
+  ];
+  for (const reason of lostReasons) {
+    await prisma.dealLostReason.upsert({
+      where: { companyId_code: { companyId, code: reason.code } },
+      update: { name: reason.name, sortOrder: reason.sortOrder, active: true },
+      create: { companyId, ...reason },
+    });
+  }
+  console.log(`  deal lost reasons: ${lostReasons.length}`);
+}
+
 async function main() {
   console.log('Seeding CTD foundation data…');
 
@@ -669,6 +843,7 @@ async function main() {
   // any roles at all.
   for (const company of companies) {
     await seedRoles(company.id);
+    await seedCrmDefaults(company.id);
   }
 
   await seedOrgTree(demo.id);

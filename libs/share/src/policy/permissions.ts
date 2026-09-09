@@ -30,6 +30,38 @@ export const PERMISSIONS = {
     'request.sensitive.read',
   ],
   approval: ['approval.decide', 'approval.delegate', 'approval.history.read'],
+  crm: [
+    'crm.customer.read',
+    /**
+     * Every customer in the active company, not just the caller's own book —
+     * the same shape as `request.read.all`: "sees everything" is a permission
+     * visible in the role editor, never a hidden scope rule.
+     */
+    'crm.customer.read.all',
+    'crm.customer.manage',
+    /** CM-08: unmasks เลขผู้เสียภาษี and other flagged customer fields. */
+    'crm.customer.sensitive.read',
+    /**
+     * CM-03 (PO 8 ก.ย. 2569): confirming a create despite a similar-name
+     * warning is its own permission, not part of `manage` — most people who
+     * can register customers must not be able to wave the warning away.
+     */
+    'crm.customer.dedup.override',
+    /**
+     * C360-02 (PO 8 ก.ย. 2569): seeing ยอดค้างชำระ/AR from Odoo is a separate
+     * grant from reading the customer — configured per role on the Role
+     * screen. Declared now so the catalog is complete before ชุดงาน D wires
+     * the Odoo read.
+     */
+    'crm.customer.financial.read',
+
+    /** Lead + โอกาสการขาย (ดีล) — read within own/team scope. */
+    'crm.sales.read',
+    /** ทั้งบริษัท — หัวหน้าขาย/ผู้บริหาร. */
+    'crm.sales.read.all',
+    /** สร้าง/แก้/ปิดดีล และจัดการ Lead. */
+    'crm.sales.manage',
+  ],
   report: [
     'report.request.read',
     /** CD-92: see the embedded Metabase dashboards (menu + signed URLs). */
@@ -52,6 +84,12 @@ export const PERMISSIONS = {
      * into the shared corporate realm.
      */
     'admin.identity.manage',
+    /**
+     * CM-02/03/07: CRM configuration — customer-code prefix, dedup threshold,
+     * segment dimensions/values, external-code mappings. Configuration over
+     * code, per D-09.
+     */
+    'admin.crm.manage',
   ],
   /** AUTH-06: service-account scopes, never granted to a human role. */
   integration: ['integration.request.create', 'integration.approval.create'],

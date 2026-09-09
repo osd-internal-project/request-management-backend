@@ -172,7 +172,21 @@ export function visibleRequestsWhere(subject: AccessSubject): AccessWhere {
  * ฝ่าย was granted a view of another ฝ่าย reaches many of the same units twice,
  * and a duplicated id in an `IN (…)` is a wider query for no extra rows.
  */
-export function reachableUnitIds(subject: AccessSubject): string[] {
+export function reachableUnitIds(
+  /*
+    Structural rather than `Pick<AccessSubject, …>` so the CRM subjects
+    (`CustomerAccessSubject`, `SalesAccessSubject`) fit without carrying every
+    field a request subject needs. `levelUnitIds` is optional for the same
+    reason the body spreads it with `?? []`: a caller that does not model
+    role visibility levels reaches the groups it leads and was granted, which
+    is the answer it had before this parameter was widened.
+  */
+  subject: {
+    readonly ledUnitIds: readonly string[];
+    readonly levelUnitIds?: readonly string[];
+    readonly scopedUnitIds: readonly string[];
+  },
+): string[] {
   /*
     `?? []` because core-service builds its principal from user-service's JSON,
     and during a rolling deploy the older service answers without these fields.

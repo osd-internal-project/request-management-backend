@@ -21,6 +21,7 @@ import { PrincipalModule } from './principal/principal.module';
 import { ExternalModule } from './external/external.module';
 import { RemotePrincipalGuard } from './principal/remote-principal.guard';
 import { EventsModule } from './events/events.module';
+import { CrmModule } from './crm/crm.module';
 import { RequestsModule } from './requests/requests.module';
 import { SlaModule } from './sla/sla.module';
 import { SensitiveReadAuditRecorder } from './policy/sensitive-read.recorder';
@@ -48,6 +49,7 @@ import configs from './configs';
     PrincipalModule,
     HealthModule,
     RequestsModule,
+    CrmModule,
     ApprovalsModule,
     ExternalModule,
     SlaModule,

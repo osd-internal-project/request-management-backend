@@ -1932,6 +1932,11 @@ export class RequestsService {
 
     if (query.type_code) narrowing.push({ typeCode: query.type_code });
 
+    // REQ-06 / C360 — the 360° page's "คำขอ" tab: everything raised against
+    // one entity, still inside the caller's scope.
+    if (query.ref_type) narrowing.push({ refType: query.ref_type });
+    if (query.ref_id) narrowing.push({ refId: query.ref_id });
+
     if (query.q) {
       narrowing.push({
         OR: [
