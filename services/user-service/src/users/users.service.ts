@@ -1,13 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import {
   accessSubject,
+  DirectoryEntry,
+  DirectoryService,
   paginated,
   Paginated,
   Principal,
   toSkipTake,
-  visibleUsersWhere,
 } from '@request-management/share';
-import type { Prisma, User } from '@prisma/client';
+import type { User } from '@prisma/client';
 import {
   KeycloakAdminService,
   KeycloakUser,
@@ -37,6 +38,7 @@ export class UsersService {
   constructor(
     private readonly usersRepository: UsersRepository,
     private readonly keycloak: KeycloakAdminService,
+    private readonly directory: DirectoryService,
   ) {}
 
   /**
@@ -54,62 +56,10 @@ export class UsersService {
   async search(
     query: SearchUsersDto,
     principal: Principal,
-  ): Promise<Paginated<User>> {
-    const scoped = visibleUsersWhere(
-      accessSubject(principal),
-    ) as Prisma.UserWhereInput;
-
-    const where: Prisma.UserWhereInput = {
-      AND: [
-        scoped,
-        { status: 'ACTIVE' },
-        ...(query.org_unit_id ? [{ orgUnitId: query.org_unit_id }] : []),
-        ...(query.q
-          ? [
-              {
-                OR: [
-                  {
-                    displayName: {
-                      contains: query.q,
-                      mode: 'insensitive' as const,
-                    },
-                  },
-                  {
-                    username: {
-                      contains: query.q,
-                      mode: 'insensitive' as const,
-                    },
-                  },
-                  {
-                    email: { contains: query.q, mode: 'insensitive' as const },
-                  },
-                ],
-              },
-            ]
-          : []),
-      ],
-    };
-
-    const [rows, total] = await Promise.all([
-      this.usersRepository.search(where, toSkipTake(query)),
-      this.usersRepository.countWhere(where),
-    ]);
-
-    return paginated(rows, query, total);
+  ): Promise<Paginated<DirectoryEntry>> {
+    return this.directory.searchUsers(accessSubject(principal), query);
   }
 
-  /**
-   * Read-only Keycloak directory, exposed only to callers with `user.read`.
-   *
-   * Enriched from this database in **one** extra query for the whole page:
-   * job title, the group they sit in, the groups they head, and their roles.
-   *
-   * The last two are per company (ROLE-04), so they are read for the caller's
-   * active company — the header switcher is what changes them. An account with no local profile — somebody who
-   * exists in the realm but has never signed in here — still comes back, with
-   * both fields null: this list is the realm's directory, and dropping the
-   * rows we happen to know nothing about would make it a different list.
-   */
   async searchKeycloak(
     query: SearchKeycloakUsersDto,
     principal: Principal,

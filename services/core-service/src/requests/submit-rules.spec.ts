@@ -1,4 +1,4 @@
-import type { AppError } from '@request-management/share';
+import type { AppError, ErrorDetail } from '@request-management/share';
 import {
   assertKnownReturnReason,
   assertReceiverFormComplete,
@@ -480,5 +480,184 @@ describe('REQ-01 a table an admin authors must be one the screen can draw', () =
     expect(author({ ...columns, maxItems: 0 })).toThrow();
     expect(author({ ...columns, maxItems: 2.5 })).toThrow();
     expect(author({ ...columns, maxItems: 1 })).not.toThrow();
+  });
+});
+
+/*
+  REQ-03's other half, added 9 ก.ย. 2569. Until then a submit checked only that
+  required fields were non-empty; `enum`, `type`, `format`, `maxLength` and the
+  numeric bounds were declared in every schema and read by nobody.
+*/
+describe('REQ-03 — an answer that is present but not allowed', () => {
+  const schema = {
+    required: ['subject'],
+    properties: {
+      subject: { type: 'string', title: 'เรื่อง', maxLength: 10 },
+      priority: {
+        type: 'string',
+        title: 'ความเร่งด่วน',
+        enum: ['LOW', 'HIGH'],
+      },
+      amount: { type: 'number', title: 'จำนวนเงิน', minimum: 0, maximum: 100 },
+      count: { type: 'integer', title: 'จำนวน' },
+      urgent: { type: 'boolean', title: 'ด่วน' },
+      needed_by: { type: 'string', title: 'ต้องการภายใน', format: 'date' },
+    },
+  };
+
+  const submit = (formData: Record<string, unknown>) => () =>
+    assertSubmittable({
+      formSchema: schema,
+      requiredDocs: [],
+      formData: { subject: 'ok', ...formData },
+      attachmentCodes: [],
+    });
+
+  const detailsOf = (run: () => void): readonly ErrorDetail[] => {
+    try {
+      run();
+    } catch (error) {
+      return (error as AppError).details ?? [];
+    }
+
+    throw new Error('expected assertSubmittable to reject');
+  };
+
+  it('rejects a value outside the enum and names the choices', () => {
+    const [detail] = detailsOf(submit({ priority: 'ด่วนสุด ๆ' }));
+
+    expect(detail.field).toBe('priority');
+    expect(detail.reason).toContain('LOW / HIGH');
+  });
+
+  it('rejects a number sent as a string — the OSD `deal_value` defect', () => {
+    expect(detailsOf(submit({ amount: '80' }))).toEqual([
+      { field: 'amount', reason: 'จำนวนเงิน: ต้องเป็นตัวเลข' },
+    ]);
+  });
+
+  it('enforces the numeric bounds the schema declares', () => {
+    expect(detailsOf(submit({ amount: 101 }))[0].reason).toContain(
+      'ไม่เกิน 100',
+    );
+    expect(detailsOf(submit({ amount: -1 }))[0].reason).toContain(
+      'ไม่น้อยกว่า 0',
+    );
+  });
+
+  it('rejects a fraction where the schema asked for a whole number', () => {
+    expect(detailsOf(submit({ count: 1.5 }))[0].reason).toContain('จำนวนเต็ม');
+  });
+
+  it('rejects a string where the schema asked for a boolean', () => {
+    expect(detailsOf(submit({ urgent: 'true' }))[0].reason).toContain(
+      'true หรือ false',
+    );
+  });
+
+  it('rejects a date that is not ปปปป-ดด-วว', () => {
+    expect(detailsOf(submit({ needed_by: 'อาทิตย์หน้า' }))[0].reason).toContain(
+      'ปปปป-ดด-วว',
+    );
+  });
+
+  /*
+    The pattern alone accepts 31 February. Round-tripping through `Date` is what
+    rejects it, and it is the case a regex-only check always misses.
+  */
+  it('rejects a date that matches the pattern but does not exist', () => {
+    expect(detailsOf(submit({ needed_by: '2026-02-31' }))[0].field).toBe(
+      'needed_by',
+    );
+  });
+
+  it('accepts a real date', () => {
+    expect(submit({ needed_by: '2026-09-15' })).not.toThrow();
+  });
+
+  it('rejects a string longer than maxLength', () => {
+    expect(
+      detailsOf(() =>
+        assertSubmittable({
+          formSchema: schema,
+          requiredDocs: [],
+          formData: { subject: 'ยาวเกินสิบตัวอักษรแน่นอน' },
+          attachmentCodes: [],
+        }),
+      )[0].reason,
+    ).toContain('ยาวเกิน 10');
+  });
+
+  it('leaves an empty optional field alone — absent is not wrong', () => {
+    expect(
+      submit({ priority: '', amount: null, needed_by: undefined }),
+    ).not.toThrow();
+  });
+
+  it('accepts 0 and false, which are answers rather than blanks', () => {
+    expect(submit({ amount: 0, urgent: false })).not.toThrow();
+  });
+
+  it('reports every problem at once, missing and invalid together', () => {
+    const details = detailsOf(() =>
+      assertSubmittable({
+        formSchema: schema,
+        requiredDocs: [],
+        formData: { priority: 'นะจ๊ะ', amount: '5' },
+        attachmentCodes: [],
+      }),
+    );
+
+    expect(details.map((detail) => detail.field).sort()).toEqual([
+      'amount',
+      'priority',
+      'subject',
+    ]);
+  });
+
+  it('names the row and column when a table cell is wrong', () => {
+    const details = detailsOf(() =>
+      assertSubmittable({
+        formSchema: {
+          properties: {
+            lines: {
+              type: 'array',
+              items: {
+                properties: { qty: { type: 'number', title: 'จำนวน' } },
+              },
+            },
+          },
+        },
+        requiredDocs: [],
+        formData: { lines: [{ qty: 1 }, { qty: 'สอง' }] },
+        attachmentCodes: [],
+      }),
+    );
+
+    expect(details).toEqual([
+      { field: 'lines[1].qty', reason: 'จำนวน: ต้องเป็นตัวเลข' },
+    ]);
+  });
+});
+
+describe('REQ-08 — the receiver form is checked the same way', () => {
+  it('rejects a value outside the enum on complete', () => {
+    try {
+      assertReceiverFormComplete(
+        {
+          required: ['result'],
+          properties: {
+            result: { type: 'string', enum: ['ผ่าน', 'ไม่ผ่าน'] },
+          },
+        },
+        { result: 'ก็งั้น ๆ' },
+      );
+    } catch (error) {
+      expect((error as AppError).code).toBe('REQ_FIELD_MISSING');
+      expect((error as AppError).details?.[0].field).toBe('result');
+      return;
+    }
+
+    throw new Error('expected assertReceiverFormComplete to reject');
   });
 });

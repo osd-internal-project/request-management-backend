@@ -1,5 +1,7 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, OmitType } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import {
+  IsBoolean,
   IsIn,
   IsNotEmpty,
   IsObject,
@@ -119,6 +121,14 @@ export const EXTERNAL_VIEWS = [
   'created',
   'incoming',
   'approver',
+  /*
+    `approver` answers "my name is on this ladder", which is wider than "this
+    is waiting on me": somebody named at level 3 sees a request still climbing
+    towards level 2. A caller that wanted the queue had to fetch every row and
+    ask `GET .../actions` about each one. `awaiting` is that question, and the
+    rule behind it (`awaitingDecisionWhere`) already existed for the web tab.
+  */
+  'awaiting',
 ] as const;
 
 export class ExternalListRequestsDto extends PageQueryDto {
@@ -154,6 +164,58 @@ export class ExternalListRequestsDto extends PageQueryDto {
   @IsOptional()
   @IsString()
   q?: string;
+
+  @ApiPropertyOptional({
+    type: Boolean,
+    description:
+      'เฉพาะที่เกินกำหนดตาม SLA — นับทั้งใบที่ถูกทำเครื่องหมายแล้ว ' +
+      'และใบที่เลยกำหนดจริงแต่ระบบยังไม่ได้กวาด',
+  })
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true')
+  @IsBoolean()
+  overdue?: boolean;
+}
+
+/**
+ * The same filters as the list, minus paging — a count has no pages.
+ *
+ * Extends the list DTO rather than repeating it so the two cannot drift: a
+ * filter the list understands and the summary ignores would answer a different
+ * question with the same words, which is the failure SCOPE-02 exists to stop.
+ */
+export class ExternalSummaryDto extends OmitType(ExternalListRequestsDto, [
+  'page',
+  'page_size',
+  'sort',
+] as const) {}
+
+/** How wide to cast when looking somebody up. */
+export const DIRECTORY_SCOPES = ['company', 'team'] as const;
+
+export class ExternalUsersDto extends PageQueryDto {
+  @ApiPropertyOptional({
+    description: 'ค้นจากชื่อ ชื่อผู้ใช้ หรืออีเมล',
+    example: 'ชนะกุล',
+  })
+  @IsOptional()
+  @IsString()
+  q?: string;
+
+  @ApiPropertyOptional({
+    enum: DIRECTORY_SCOPES,
+    description:
+      '`company` (ค่าตั้งต้น) ทั้งบริษัท · ' +
+      '`team` เฉพาะหน่วยงานของผู้ใช้รายนี้และหน่วยงานที่อยู่ใต้ลงไป',
+  })
+  @IsOptional()
+  @IsIn([...DIRECTORY_SCOPES])
+  scope?: (typeof DIRECTORY_SCOPES)[number];
+
+  @ApiPropertyOptional({ description: 'จำกัดเฉพาะหน่วยงานเดียว' })
+  @IsOptional()
+  @IsString()
+  org_unit_id?: string;
 }
 
 /**

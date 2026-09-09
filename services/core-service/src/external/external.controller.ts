@@ -32,16 +32,20 @@ import {
   ExternalActionDto,
   ExternalCreateRequestDto,
   ExternalListRequestsDto,
+  ExternalSummaryDto as ExternalSummaryQueryDto,
   ExternalTypeQueryDto,
+  ExternalUsersDto as ExternalUsersQueryDto,
 } from './dto/external.dto';
 import {
   ExternalActionsDto,
   ExternalCommentDto,
   ExternalRequestDto,
   ExternalRequestPageDto,
+  ExternalSummaryDto,
   ExternalTreeDto,
   ExternalTypeFormDto,
   ExternalTypeSummaryDto,
+  ExternalUserPageDto,
 } from './dto/external-response.dto';
 
 /**
@@ -56,7 +60,17 @@ import {
  * This is the set of *possible* names, not the set a given caller may use now.
  * That answer is per-request and comes from `GET .../actions`.
  */
-const PERFORMABLE_ACTIONS = ACTIONS.map((spec) => spec.action);
+const PERFORMABLE_ACTIONS = ACTIONS.map((spec) => spec.action).filter(
+  /*
+    `create_child` is in the flow's table because spawning a child is something
+    the flow allows — but there is no verb to send for it. A child request is an
+    ordinary request with a parent, raised through `POST external/requests`, and
+    the dispatcher answers 400 to anyone who sends the name. Documenting it as a
+    choice was documenting a button that does not work; `GET .../actions` now
+    reports `can_create_child` instead.
+  */
+  (action) => action !== 'create_child',
+);
 
 /** `{ref}` means the same thing on all four routes that take it. */
 const REF_PARAM = {
@@ -206,6 +220,58 @@ export class ExternalController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.external.list(principal, query);
+  }
+
+  /**
+   * How much work there is, without listing it.
+   *
+   * Declared **before** `requests/{ref}`: Nest matches in declaration order, so
+   * the parameterised route would otherwise swallow `summary` and answer
+   * "ไม่พบคำขอที่ระบุ" for a word that is not a document number.
+   */
+  @ApiOperation({
+    summary: 'จำนวนคำขอแยกตามสถานะ — ตอบคำถาม "งานค้างกี่ใบ" ในครั้งเดียว',
+    description:
+      'รับ filter ชุดเดียวกับ `GET external/requests` และนับจากเงื่อนไขเดียวกัน ' +
+      'ตัวเลขกับรายการเบื้องหลังจึงตรงกันเสมอ',
+  })
+  @ApiOkResponse({
+    description: 'จำนวนแยกตามสถานะ พร้อมยอดรวมงานที่ยังไม่จบ',
+    type: ExternalSummaryDto,
+  })
+  @ApiExternalReadErrors()
+  @Get('requests/summary')
+  summary(
+    @Query() query: ExternalSummaryQueryDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.external.summary(principal, query);
+  }
+
+  /**
+   * Look somebody up by name.
+   *
+   * Every id this API accepts is a uuid, and a person speaking to a chatbot
+   * says a name. Scoped to what the acting user may see, by the same rule that
+   * answers `GET /users` on the web.
+   */
+  @ApiOperation({
+    summary: 'ค้นหาคนในบริษัท — แปลงชื่อหรืออีเมลเป็น id ที่ API รับ',
+    description:
+      'ใช้ `id` ที่ได้เป็น `receiver_user_id` ตอนเปิดคำขอ ' +
+      'หรือ `assignee_user_id` ตอนมอบหมายงาน',
+  })
+  @ApiOkResponse({
+    description: 'รายชื่อหนึ่งหน้า เรียงตามชื่อ',
+    type: ExternalUserPageDto,
+  })
+  @ApiExternalReadErrors()
+  @Get('users')
+  searchUsers(
+    @Query() query: ExternalUsersQueryDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.external.searchUsers(principal, query);
   }
 
   /** Steps 7 and 13 — by uuid or by document number. */

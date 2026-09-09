@@ -147,6 +147,88 @@ export class ExternalTypeSummaryDto {
   ref_required!: boolean;
 }
 
+/** One value a `select` field accepts. */
+export class ExternalFormFieldOptionDto {
+  @ApiProperty({
+    description: 'ค่าที่ต้องส่งกลับใน `form_data`',
+    example: 'URGENT',
+  })
+  value!: string;
+
+  @ApiProperty({
+    description:
+      'ข้อความที่แสดงให้คนอ่าน — เท่ากับ `value` จนกว่า schema จะเก็บป้ายแยก',
+    example: 'URGENT',
+  })
+  label!: string;
+}
+
+/**
+ * One field of a form, ready to be asked.
+ *
+ * Derived from the type's JSON Schema by `toFormFields`, so it cannot describe
+ * a field the schema does not have. Read this instead of parsing `form_schema`:
+ * the two agree by construction, and only one of them is a contract.
+ */
+export class ExternalFormFieldDto {
+  @ApiProperty({
+    description: 'คีย์ที่ต้องส่งกลับใน `form_data` — ไม่ใช่ `label`',
+    example: 'priority',
+  })
+  key!: string;
+
+  @ApiProperty({ description: 'ชื่อที่ใช้ถามคน', example: 'ความเร่งด่วน' })
+  label!: string;
+
+  @ApiProperty({
+    description:
+      '`select` มี `options` · `table` มี `columns` · ' +
+      '`date` รับ `ปปปป-ดด-วว` · `multiline` คือข้อความหลายบรรทัด',
+    enum: ['text', 'multiline', 'number', 'boolean', 'select', 'date', 'table'],
+    enumName: 'ExternalFormFieldType',
+    example: 'select',
+  })
+  type!: string;
+
+  @ApiProperty({ example: true })
+  required!: boolean;
+
+  @ApiProperty({
+    description: 'ลำดับที่ควรถาม เรียงจากน้อยไปมาก',
+    example: 80,
+  })
+  order!: number;
+
+  @ApiPropertyOptional({ type: [ExternalFormFieldOptionDto] })
+  options?: ExternalFormFieldOptionDto[];
+
+  @ApiPropertyOptional({ example: 200 })
+  maxLength?: number;
+
+  @ApiPropertyOptional({ example: 0 })
+  minimum?: number;
+
+  @ApiPropertyOptional({ example: 1000000 })
+  maximum?: number;
+
+  @ApiPropertyOptional({ description: 'เฉพาะ `table`', example: 20 })
+  maxItems?: number;
+
+  @ApiPropertyOptional({
+    description: 'เฉพาะ `table` — คอลัมน์ เป็นฟิลด์เต็มรูปแบบเช่นกัน',
+    type: [ExternalFormFieldDto],
+  })
+  columns?: ExternalFormFieldDto[];
+
+  @ApiPropertyOptional({
+    description:
+      'SCOPE-04 — ฟิลด์นี้ถูกปิดบังสำหรับคนที่ไม่มีสิทธิ์ `request.sensitive.read` ' +
+      'เตือนผู้ใช้ก่อนถามได้ว่าจะอ่านย้อนกลับไม่เห็น',
+    example: true,
+  })
+  sensitive?: boolean;
+}
+
 /**
  * Step 3 — everything a chatbot needs to conduct the conversation.
  *
@@ -190,6 +272,26 @@ export class ExternalTypeFormDto extends ExternalTypeSummaryDto {
   return_reason_codes!: ExternalReturnReasonDto[];
 
   /*
+    The same two schemas, translated. `form_schema` stays exactly as it was —
+    the web app renders from it and no client should have to change — but a
+    caller conducting a conversation needs the questions, not the storage
+    format, and every one of them had written that translation itself.
+  */
+  @ApiProperty({
+    description:
+      'ฟิลด์ผู้ขอในรูปแบบที่ถามได้ทันที — เรียงตามลำดับที่ควรถามแล้ว ' +
+      '`options` คือตัวเลือกทั้งหมดของฟิลด์แบบเลือก',
+    type: [ExternalFormFieldDto],
+  })
+  form_fields!: ExternalFormFieldDto[];
+
+  @ApiProperty({
+    description: 'ฟิลด์ฟอร์มผู้รับ ใช้ตอน action `complete`',
+    type: [ExternalFormFieldDto],
+  })
+  receiver_form_fields!: ExternalFormFieldDto[];
+
+  /*
     Empty whenever the type names no receiving team, or names one nobody sits
     under. `receiver_user_id` is required at submit either way, so a caller that
     trusts this list to be populated cannot raise a request at all.
@@ -202,6 +304,15 @@ export class ExternalTypeFormDto extends ExternalTypeSummaryDto {
     example: [],
   })
   receiver_candidates!: ExternalReceiverCandidateDto[];
+}
+
+/** A person named on a request — id to act on, name to speak. */
+export class ExternalNamedPersonDto {
+  @ApiProperty({ example: 'e0e90f78-98d3-4b74-b2bd-94e05700f989' })
+  id!: string;
+
+  @ApiProperty({ example: 'นายชนะกุล แก้วทรงเกษ' })
+  displayName!: string;
 }
 
 /**
@@ -238,6 +349,28 @@ export class ExternalRequestDto {
 
   @ApiProperty({ example: '1a8a478b-9c8c-4ebc-a552-5a1122030a35' })
   requesterId!: string;
+
+  /*
+    The names, added 9 ก.ย. 2569. The ids were always here and the tree
+    endpoint was the only place that said who they belonged to, so a caller
+    reading one request could print an owner but not name them.
+  */
+  @ApiProperty({ description: 'ผู้ยื่น', type: ExternalNamedPersonDto })
+  requester!: ExternalNamedPersonDto;
+
+  @ApiProperty({
+    description: 'ผู้รับเรื่อง — null จนกว่าจะมีการระบุ',
+    nullable: true,
+    type: ExternalNamedPersonDto,
+  })
+  receiver!: ExternalNamedPersonDto | null;
+
+  @ApiProperty({
+    description: 'ผู้ถืองาน — ตั้งอัตโนมัติเมื่อ action `receive` สำเร็จ',
+    nullable: true,
+    type: ExternalNamedPersonDto,
+  })
+  assignee!: ExternalNamedPersonDto | null;
 
   @ApiProperty({ nullable: true, type: String })
   requesterOrgUnitId!: string | null;
@@ -463,6 +596,103 @@ export class ExternalActionsDto {
     ],
   })
   actions!: ExternalActionDescriptorDto[];
+
+  /*
+    A fact, not an action, and that is the whole point. `create_child` used to
+    appear in the list above and answered 400 to every caller that believed it
+    — a listed choice the handler refuses is worse than no choice at all, which
+    is the rule `available-actions.ts` states about itself. Spawning a child is
+    an ordinary `POST external/requests` with `parent_request_id`, so what a
+    caller needs to know is whether it is allowed, not a verb to send.
+  */
+  @ApiProperty({
+    description:
+      'แตกคำขอลูกจากใบนี้ได้ไหม — ถ้าได้ ให้เรียก `POST external/requests` ' +
+      'พร้อม `parent_request_id` เป็น **uuid** ของใบนี้ ' +
+      'ไม่มี action ชื่อ `create_child` ให้ยิง',
+    example: true,
+  })
+  can_create_child!: boolean;
+}
+
+/** Steps 5 and 11 — how much work there is, without listing it. */
+export class ExternalSummaryDto {
+  @ApiProperty({
+    description:
+      'จำนวนคำขอแยกตามสถานะ — มีเฉพาะสถานะที่นับได้มากกว่า 0 ' +
+      'สถานะที่ไม่ปรากฏคือ 0 ไม่ใช่ "ไม่ทราบ"',
+    type: Object,
+    example: { submitted: 2, in_progress: 3, pending_approval: 2 },
+  })
+  counts!: Record<string, number>;
+
+  @ApiProperty({
+    description:
+      'รวมเฉพาะงานที่ยังไม่จบ — ไม่นับ rejected · closed · cancelled',
+    example: 7,
+  })
+  open_total!: number;
+
+  @ApiProperty({ description: 'รวมทุกสถานะที่นับได้', example: 19 })
+  total!: number;
+
+  @ApiProperty({ description: 'จำนวนที่เกินกำหนดตาม SLA', example: 1 })
+  overdue!: number;
+}
+
+/** One colleague, as the directory answers. */
+export class ExternalUserDto {
+  @ApiProperty({
+    description: 'ค่าที่ส่งเป็น `receiver_user_id` หรือ `assignee_user_id`',
+    example: 'e0e90f78-98d3-4b74-b2bd-94e05700f989',
+  })
+  id!: string;
+
+  @ApiProperty({ example: 'นายชนะกุล แก้วทรงเกษ' })
+  displayName!: string;
+
+  @ApiProperty({ example: 'chanakulk' })
+  username!: string;
+
+  @ApiProperty({ nullable: true, type: String, example: 'chanakulk@osd.co.th' })
+  email!: string | null;
+
+  @ApiProperty({
+    description: 'ตำแหน่งตามข้อมูล HR',
+    nullable: true,
+    type: String,
+    example: 'Solution Architect',
+  })
+  position!: string | null;
+
+  @ApiProperty({
+    description: 'null = ยังไม่ถูกจัดสังกัด (คิว รอจัดสังกัด)',
+    nullable: true,
+    type: String,
+  })
+  orgUnitId!: string | null;
+
+  @ApiProperty({
+    nullable: true,
+    type: String,
+    example: 'Business Solution Consulting',
+  })
+  orgUnitName!: string | null;
+}
+
+/** One page of the directory. */
+export class ExternalUserPageDto {
+  @ApiProperty({ type: [ExternalUserDto] })
+  data!: ExternalUserDto[];
+
+  @ApiProperty({ example: 42 })
+  total!: number;
+
+  @ApiProperty({ example: 1 })
+  page!: number;
+
+  @ApiProperty({ example: 20 })
+  page_size!: number;
 }
 
 /** Step 8 — a comment as it lands on the timeline. */

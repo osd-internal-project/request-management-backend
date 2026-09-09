@@ -26,7 +26,20 @@ export type RequestWithType = Request & {
 export type RequestListRow = RequestWithType & {
   /** Who raised it. A list that crosses people is unreadable without a name. */
   requester: { id: string; displayName: string };
-  slaClock: { state: string; dueAt: Date } | null;
+  /*
+    The other two names, added 9 ก.ย. 2569. The row already carried the ids, so
+    a caller with no directory could print "ผู้รับเรื่อง: e0e90f78-98d3-…" and
+    nothing better — the tree endpoint was the only place in the API that ever
+    answered who a person was.
+  */
+  receiver: { id: string; displayName: string } | null;
+  assignee: { id: string; displayName: string } | null;
+  /*
+    `breachedAt` travels with the row because it is the fact the `overdue`
+    filter tests. Without it a client renders its badge from `state`/`dueAt` and
+    disagrees with the list it is rendering.
+  */
+  slaClock: { state: string; dueAt: Date; breachedAt: Date | null } | null;
   approvalCases: {
     /** The decision endpoint addresses the case, so the row has to carry it. */
     id: string;
@@ -60,6 +73,14 @@ export type RequestListRow = RequestWithType & {
 export const REQUEST_DETAIL_INCLUDE = {
   requestType: true,
   attachments: true,
+  /*
+    The three people a request is about. Absent until 9 ก.ย. 2569, which left
+    the detail endpoint answering with uuids while the timeline beneath it
+    printed names — the same person, twice, unrecognisably.
+  */
+  requester: { select: { id: true, displayName: true } },
+  receiver: { select: { id: true, displayName: true } },
+  assignee: { select: { id: true, displayName: true } },
   approvalCases: {
     orderBy: { createdAt: 'desc' },
     take: 1,
@@ -207,7 +228,11 @@ export class RequestRepository extends BaseRepository<
         requestType: true,
         attachments: true,
         requester: { select: { id: true, displayName: true } },
-        slaClock: { select: { state: true, dueAt: true } },
+        receiver: { select: { id: true, displayName: true } },
+        assignee: { select: { id: true, displayName: true } },
+        slaClock: {
+          select: { state: true, dueAt: true, breachedAt: true },
+        },
         approvalCases: {
           orderBy: { createdAt: 'desc' },
           take: 1,
@@ -239,5 +264,32 @@ export class RequestRepository extends BaseRepository<
     option?: TxOption,
   ): Promise<number> {
     return this.count({ where }, option);
+  }
+
+  /**
+   * How many requests sit at each status, under the caller's own filter.
+   *
+   * One query rather than one per status. The chatbot's "งานค้างกี่ใบ แยกตาม
+   * สถานะ" was eight round trips against a moving table, so the eight answers
+   * could disagree with each other — somebody receiving a request between the
+   * third call and the fourth was counted twice, or not at all.
+   *
+   * `groupBy` is reached through the raw client because `BaseRepository` does
+   * not expose it. The `where` still arrives from the same place every list and
+   * single read gets theirs (SCOPE-02); this method must never build one.
+   */
+  async countByStatus(
+    where: Prisma.RequestWhereInput,
+    option?: TxOption,
+  ): Promise<Record<string, number>> {
+    const client = option?.prisma ?? this.prisma;
+
+    const rows = await client.request.groupBy({
+      by: ['status'],
+      where,
+      _count: { _all: true },
+    });
+
+    return Object.fromEntries(rows.map((row) => [row.status, row._count._all]));
   }
 }

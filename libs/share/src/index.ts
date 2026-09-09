@@ -1,5 +1,6 @@
 export * from './access';
 export * from './context';
+export * from './directory';
 export * from './errors';
 export * from './http';
 export * from './modules';

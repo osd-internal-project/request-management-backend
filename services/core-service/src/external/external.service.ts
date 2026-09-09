@@ -6,6 +6,9 @@ import { ApprovalsService } from '../approvals/approvals.service';
 import { RequestRepository } from '../requests/request.repository';
 import { OrgUnitRepository } from '../access/org-unit.repository';
 import { CompanyMemberRepository } from '../access/company-member.repository';
+import { accessSubject, DirectoryService } from '@request-management/share';
+import { toFormFields } from '../requests/form-schema';
+import { OPEN_STATUSES } from '../requests/request-state-machine';
 import {
   availableActions,
   toRequestAction,
@@ -15,7 +18,9 @@ import {
   ExternalActionDto,
   ExternalCreateRequestDto,
   ExternalListRequestsDto,
+  ExternalSummaryDto as ExternalSummaryQueryDto,
   ExternalTypeQueryDto,
+  ExternalUsersDto as ExternalUsersQueryDto,
 } from './dto/external.dto';
 
 /** Matches a uuid, so a reference can be told from a document number. */
@@ -55,6 +60,7 @@ export class ExternalService {
     private readonly requestRows: RequestRepository,
     private readonly orgUnits: OrgUnitRepository,
     private readonly members: CompanyMemberRepository,
+    private readonly directory: DirectoryService,
   ) {}
 
   /**
@@ -123,6 +129,13 @@ export class ExternalService {
       required_docs: type.requiredDocs,
       /** REQ-04 — the only reasons `return` accepts for this type. */
       return_reason_codes: type.returnReasonCodes,
+      /*
+        The same two schemas, asked-ready. Kept beside the raw ones rather than
+        replacing them: the web app renders from `form_schema`, and a caller
+        that already parses it should not have to change to keep working.
+      */
+      form_fields: toFormFields(type.formSchema),
+      receiver_form_fields: toFormFields(type.receiverFormSchema),
       receiver_org_unit: type.receiverOrgUnit,
       receiver_candidates: await this.receiverCandidates(type, actor),
     };
@@ -166,11 +179,96 @@ export class ExternalService {
   }
 
   /** The person's own queues (steps 5 and 11). */
-  list(actor: Principal, query: ExternalListRequestsDto) {
-    return this.requests.list(actor, {
+  async list(actor: Principal, query: ExternalListRequestsDto) {
+    const page = await this.requests.list(actor, {
       ...query,
       view: query.view ?? 'involved',
     });
+
+    return {
+      ...page,
+      data: page.data.map((row) => ({
+        ...row,
+        available_actions: performable(row.available_actions),
+      })),
+    };
+  }
+
+  /**
+   * How much work there is, without listing it (G-02).
+   *
+   * Counted from `scopedWhere` — the same filter the list builds its page from
+   * — so the number and the rows behind it cannot disagree (SCOPE-02). A
+   * summary that computed its own condition would be a second visibility rule,
+   * and the one it disagreed with would be the one nobody was looking at.
+   */
+  async summary(actor: Principal, query: ExternalSummaryQueryDto) {
+    const covering = await this.approvals.coveringFor(actor);
+    const filters = { ...query, view: query.view ?? 'involved' };
+
+    const [counts, overdue] = await Promise.all([
+      this.requestRows.countByStatus(
+        this.requests.scopedWhere(actor, filters, covering),
+      ),
+      this.requestRows.countWhere(
+        this.requests.scopedWhere(
+          actor,
+          { ...filters, overdue: true },
+          covering,
+        ),
+      ),
+    ]);
+
+    const total = Object.values(counts).reduce((sum, n) => sum + n, 0);
+
+    /*
+      `open_total` is the answer to "งานค้าง", which is not "everything".
+      A closed request is still counted in `counts` — a caller asking for a
+      breakdown wants the whole picture — but rolling it into the outstanding
+      figure would overstate somebody's workload every time.
+    */
+    const open_total = OPEN_STATUSES.reduce(
+      (sum, status) => sum + (counts[status] ?? 0),
+      0,
+    );
+
+    return { counts, open_total, total, overdue };
+  }
+
+  /**
+   * Look somebody up by name (G-03).
+   *
+   * Every id the API accepts — `receiver_user_id`, `assignee_user_id` — is a
+   * uuid, and a person speaking to a chatbot says "คุณจารุภา". Until this
+   * existed the only names an integration could resolve were the receiving
+   * team of one request type, so handing work to anybody else was impossible
+   * without a screen.
+   *
+   * The rows come from the shared {@link DirectoryService}, which is also what
+   * answers `GET /users` — one query, so the two cannot disagree about who
+   * exists.
+   */
+  async searchUsers(actor: Principal, query: ExternalUsersQueryDto) {
+    const orgUnitIds =
+      query.scope === 'team' ? await this.teamUnitsOf(actor) : undefined;
+
+    return this.directory.searchUsers(accessSubject(actor), {
+      ...query,
+      ...(orgUnitIds ? { orgUnitIds } : {}),
+    });
+  }
+
+  /**
+   * This person's own group and everything under it.
+   *
+   * `[]` for somebody still in the รอจัดสังกัด queue, which
+   * `DirectoryService` turns into "nobody" rather than "everybody" — asking
+   * for a team you do not have must not answer with the whole company.
+   */
+  private async teamUnitsOf(actor: Principal): Promise<string[]> {
+    if (!actor.orgUnitId) return [];
+
+    return this.orgUnits.descendantIdsOf(actor.orgUnitId);
   }
 
   /** One request, by uuid or by document number (steps 7 and 13). */
@@ -209,11 +307,23 @@ export class ExternalService {
         (pendingStep.candidateUserIds.length === 0 &&
           pendingStep.approverUserId === actor.userId));
 
+    const allowed = availableActions(request, actor, isDecider);
+
     return {
       request_id: request.id,
       request_no: request.requestNo,
       status: request.status,
-      actions: availableActions(request, actor, isDecider).map(describe),
+      actions: allowed
+        .filter((spec) => spec.action !== 'create_child')
+        .map(describe),
+      /*
+        Reported as a fact rather than offered as an action. `create_child` is
+        in the flow's table because spawning a child is something the flow
+        allows, but there is no verb to send: a child request is an ordinary
+        request with a parent, raised through `POST external/requests`. It used
+        to appear in `actions` and answer 400 to anyone who believed it.
+      */
+      can_create_child: allowed.some((spec) => spec.action === 'create_child'),
     };
   }
 
@@ -420,6 +530,20 @@ export class ExternalService {
 }
 
 /** Turns a spec into the shape a caller reads — snake_case, no internals. */
+/**
+ * The actions a caller may actually send, out of what the flow allows.
+ *
+ * `create_child` is the whole of the difference, and it is not an oversight in
+ * the flow's table: the table describes what may happen to a request, and
+ * spawning a child may. What it is not is a verb this API accepts, so offering
+ * it here would be offering a button that answers 400 — the failure
+ * `available-actions.ts` names as worse than offering nothing, because the
+ * caller has already told somebody it would work.
+ */
+function performable(actions: readonly string[] = []): string[] {
+  return actions.filter((action) => action !== 'create_child');
+}
+
 function describe(spec: ActionSpec) {
   return {
     action: spec.action,

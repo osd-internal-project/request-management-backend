@@ -19,6 +19,16 @@ export interface FormSchemaProperty {
   type?: string;
   items?: FormSchema;
   maxItems?: number;
+  /*
+    The constraints below were declared in every stored schema and read by
+    nobody until 9 ก.ย. 2569. A form could say `enum: ['ปกติ','เร่งด่วน']` and
+    accept "ด่วนสุด ๆ" without a murmur — see `invalidFields`.
+  */
+  enum?: unknown[];
+  format?: string;
+  maxLength?: number;
+  minimum?: number;
+  maximum?: number;
 }
 
 /** One entry of `RequestType.requiredDocs`. */
@@ -46,6 +56,7 @@ export function assertSubmittable(input: {
 }): void {
   const details: ErrorDetail[] = [
     ...missingFields(input.formSchema, input.formData),
+    ...invalidFields(input.formSchema, input.formData),
     /*
       `อ้างอิงดีล` is not part of `formSchema` — it is a column on the request —
       so no schema rule reaches it and the check has to be here. It lived only
@@ -83,7 +94,10 @@ export function assertReceiverFormComplete(
 ): void {
   if (!schema) return;
 
-  const details = missingFields(schema, formData);
+  const details = [
+    ...missingFields(schema, formData),
+    ...invalidFields(schema, formData),
+  ];
   if (!details.length) return;
 
   throw new AppError('REQ_FIELD_MISSING', 'กรอกฟอร์มผู้รับคำขอไม่ครบ', details);
@@ -151,6 +165,132 @@ function tableProblems(
   }
 
   return details;
+}
+
+/**
+ * What is *wrong* with the answers that are there — REQ-03's other half.
+ *
+ * Until 9 ก.ย. 2569 a submit checked only that required fields were non-empty.
+ * Every other rule the schema declared — `enum`, `type`, `format`, `maxLength`,
+ * `minimum`/`maximum` — was decoration: a value outside the list was written to
+ * the database in silence, and the first sign of it was a report that would not
+ * add up. Two rows in the OSD import prove it, `priority: "ปกติ"` against an
+ * enum of four English codes, and `deal_value: "800000"` as a string in a
+ * number field.
+ *
+ * Deliberately separate from {@link missingFields}: that one asks whether an
+ * answer is *there*, this one asks whether it is *allowed*. A blank optional
+ * field is not wrong, so everything empty is skipped here and left to the
+ * required check.
+ */
+function invalidFields(
+  schema: unknown,
+  formData: Record<string, unknown>,
+  prefix = '',
+): ErrorDetail[] {
+  const parsed = asSchema(schema);
+  if (!parsed) return [];
+
+  const details: ErrorDetail[] = [];
+
+  for (const [name, property] of Object.entries(parsed.properties ?? {})) {
+    const value = formData?.[name];
+
+    // Absent is `missingFields`' business, whether or not it is required.
+    if (isBlank(value)) continue;
+
+    const field = `${prefix}${name}`;
+    const columns = tableOf(property);
+
+    if (columns) {
+      const rows = rowsOf(value) ?? [];
+
+      rows.forEach((row, index) => {
+        details.push(...invalidFields(columns, row, `${field}[${index}].`));
+      });
+
+      continue;
+    }
+
+    const problem = problemWith(property, value);
+
+    if (problem) details.push({ field, reason: problem });
+  }
+
+  return details;
+}
+
+/** The one rule this value breaks, in the words the person will read. */
+function problemWith(
+  property: FormSchemaProperty,
+  value: unknown,
+): string | null {
+  const label = property.title ?? '';
+  const named = label ? `${label}: ` : '';
+
+  /*
+    `enum` first, and before the type check. A choice stored as
+    `{ type: 'string', enum: [...] }` that is given a number should be told it
+    is not one of the choices — which is what the person has to fix — rather
+    than that it is not a string, which is true but useless.
+  */
+  if (Array.isArray(property.enum) && property.enum.length) {
+    return property.enum.includes(value)
+      ? null
+      : `${named}ต้องเป็นหนึ่งใน ${property.enum.map(String).join(' / ')}`;
+  }
+
+  if (property.type === 'number' || property.type === 'integer') {
+    if (typeof value !== 'number' || Number.isNaN(value)) {
+      return `${named}ต้องเป็นตัวเลข`;
+    }
+    if (property.type === 'integer' && !Number.isInteger(value)) {
+      return `${named}ต้องเป็นจำนวนเต็ม`;
+    }
+    if (property.minimum !== undefined && value < property.minimum) {
+      return `${named}ต้องไม่น้อยกว่า ${property.minimum}`;
+    }
+    if (property.maximum !== undefined && value > property.maximum) {
+      return `${named}ต้องไม่เกิน ${property.maximum}`;
+    }
+
+    return null;
+  }
+
+  if (property.type === 'boolean' && typeof value !== 'boolean') {
+    return `${named}ต้องเป็น true หรือ false`;
+  }
+
+  if (property.type === 'string' || property.format || property.maxLength) {
+    if (typeof value !== 'string') return `${named}ต้องเป็นข้อความ`;
+
+    if (property.format === 'date' && !isCalendarDate(value)) {
+      return `${named}ต้องเป็นวันที่รูปแบบ ปปปป-ดด-วว`;
+    }
+    if (property.maxLength !== undefined && value.length > property.maxLength) {
+      return `${named}ยาวเกิน ${property.maxLength} ตัวอักษร`;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * `YYYY-MM-DD`, and a date that exists.
+ *
+ * The pattern alone accepts `2026-02-31`; round-tripping through `Date` is what
+ * rejects it. `Date.parse` on its own is far too generous — it accepts
+ * `"December 2026"` and every locale string a person might type.
+ */
+function isCalendarDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+
+  const parsed = new Date(`${value}T00:00:00Z`);
+
+  return (
+    !Number.isNaN(parsed.getTime()) &&
+    parsed.toISOString().slice(0, 10) === value
+  );
 }
 
 function missingDocs(

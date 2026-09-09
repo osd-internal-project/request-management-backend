@@ -4,6 +4,7 @@ import { ConfigModule } from '@nestjs/config';
 import {
   IdempotencyInterceptor,
   CompanyGuard,
+  DirectoryModule,
   PolicyGuard,
   PrismaModule,
   SENSITIVE_READ_RECORDER,
@@ -46,6 +47,7 @@ import configs from './configs';
     }),
     PrismaModule,
     AuditModule,
+    DirectoryModule,
     UsersModule,
     OrgModule,
     RolesModule,

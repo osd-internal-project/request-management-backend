@@ -1,0 +1,417 @@
+[
+  {
+    "name": "get_request_types",
+    "description": "ขั้น 2 — ประเภทคำขอที่ผู้ใช้รายนี้เปิดได้",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "q": {
+          "example": "pre-sales",
+          "type": "string"
+        },
+        "department": {
+          "type": "string",
+          "description": "รหัสหน่วยงานผู้รับ"
+        }
+      }
+    },
+    "x-request": {
+      "method": "GET",
+      "path": "/api/v1/external/request-types"
+    }
+  },
+  {
+    "name": "get_request_types_code_form",
+    "description": "ขั้น 3 — ฟอร์มและตัวเลือกที่ต้องถาม มาจากประเภทคำขอโดยตรง",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "example": "PS01",
+          "type": "string",
+          "description": "รหัสประเภทคำขอ จาก `code` ที่ `GET external/request-types` คืนมา"
+        }
+      },
+      "required": [
+        "code"
+      ]
+    },
+    "x-request": {
+      "method": "GET",
+      "path": "/api/v1/external/request-types/{code}/form"
+    }
+  },
+  {
+    "name": "get_requests",
+    "description": "ขั้น 5 และ 11 — คิวงานของผู้ใช้รายนี้",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "page": {
+          "minimum": 1,
+          "default": 1,
+          "type": "number",
+          "description": "เลขหน้าที่ต้องการ เริ่มที่ 1"
+        },
+        "page_size": {
+          "minimum": 1,
+          "maximum": 100,
+          "default": 20,
+          "type": "number",
+          "description": "จำนวนรายการต่อหน้า"
+        },
+        "sort": {
+          "example": "-createdAt",
+          "type": "string",
+          "description": "`sort=field` เรียงขึ้น, `sort=-field` เรียงลง"
+        },
+        "view": {
+          "type": "string",
+          "enum": [
+            "involved",
+            "created",
+            "incoming",
+            "approver",
+            "awaiting"
+          ]
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "draft",
+            "submitted",
+            "returned",
+            "pending_approval",
+            "approved",
+            "rejected",
+            "in_progress",
+            "on_hold",
+            "completed",
+            "closed",
+            "cancelled"
+          ],
+          "description": "กรองตามสถานะคำขอ"
+        },
+        "type_code": {
+          "type": "string"
+        },
+        "q": {
+          "type": "string",
+          "description": "ค้นหาเลขที่ / อ้างอิง"
+        },
+        "overdue": {
+          "type": "boolean",
+          "description": "เฉพาะที่เกินกำหนดตาม SLA — นับทั้งใบที่ถูกทำเครื่องหมายแล้ว และใบที่เลยกำหนดจริงแต่ระบบยังไม่ได้กวาด"
+        }
+      }
+    },
+    "x-request": {
+      "method": "GET",
+      "path": "/api/v1/external/requests"
+    }
+  },
+  {
+    "name": "get_requests_ref",
+    "description": "ขั้น 7 และ 13 — อ่านคำขอด้วย uuid หรือเลขที่เอกสาร",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "ref": {
+          "example": "REQ-OSD-PS01-26090003",
+          "type": "string",
+          "description": "เลขที่คำขอ หรือ uuid ก็ได้ — คนอ่านเลขที่จากอีเมลแล้วพิมพ์ ไม่ใช่ uuid"
+        }
+      },
+      "required": [
+        "ref"
+      ]
+    },
+    "x-request": {
+      "method": "GET",
+      "path": "/api/v1/external/requests/{ref}"
+    }
+  },
+  {
+    "name": "get_requests_ref_actions",
+    "description": "ขั้น 8 และ 14 — ตอนนี้ผู้ใช้รายนี้ทำอะไรกับคำขอได้บ้าง — ถามก่อนเสนอตัวเลือกเสมอ คำตอบเปลี่ยนตามสถานะของคำขอ และบทบาทของผู้ใช้ในคำขอนั้น",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "ref": {
+          "example": "REQ-OSD-PS01-26090003",
+          "type": "string",
+          "description": "เลขที่คำขอ หรือ uuid ก็ได้ — คนอ่านเลขที่จากอีเมลแล้วพิมพ์ ไม่ใช่ uuid"
+        }
+      },
+      "required": [
+        "ref"
+      ]
+    },
+    "x-request": {
+      "method": "GET",
+      "path": "/api/v1/external/requests/{ref}/actions"
+    }
+  },
+  {
+    "name": "get_requests_ref_tree",
+    "description": "ขั้น 14 — ใบนี้ ใบพ่อ และทุกใบลูกที่แตกออกไป",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "ref": {
+          "example": "REQ-OSD-PS01-26090003",
+          "type": "string",
+          "description": "เลขที่คำขอ หรือ uuid ก็ได้ — คนอ่านเลขที่จากอีเมลแล้วพิมพ์ ไม่ใช่ uuid"
+        }
+      },
+      "required": [
+        "ref"
+      ]
+    },
+    "x-request": {
+      "method": "GET",
+      "path": "/api/v1/external/requests/{ref}/tree"
+    }
+  },
+  {
+    "name": "get_requests_summary",
+    "description": "จำนวนคำขอแยกตามสถานะ — ตอบคำถาม \"งานค้างกี่ใบ\" ในครั้งเดียว — รับ filter ชุดเดียวกับ `GET external/requests` และนับจากเงื่อนไขเดียวกัน ตัวเลขกับรายการเบื้องหลังจึงตรงกันเสมอ",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "view": {
+          "type": "string",
+          "enum": [
+            "involved",
+            "created",
+            "incoming",
+            "approver",
+            "awaiting"
+          ]
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "draft",
+            "submitted",
+            "returned",
+            "pending_approval",
+            "approved",
+            "rejected",
+            "in_progress",
+            "on_hold",
+            "completed",
+            "closed",
+            "cancelled"
+          ],
+          "description": "กรองตามสถานะคำขอ"
+        },
+        "type_code": {
+          "type": "string"
+        },
+        "q": {
+          "type": "string",
+          "description": "ค้นหาเลขที่ / อ้างอิง"
+        },
+        "overdue": {
+          "type": "boolean",
+          "description": "เฉพาะที่เกินกำหนดตาม SLA — นับทั้งใบที่ถูกทำเครื่องหมายแล้ว และใบที่เลยกำหนดจริงแต่ระบบยังไม่ได้กวาด"
+        }
+      }
+    },
+    "x-request": {
+      "method": "GET",
+      "path": "/api/v1/external/requests/summary"
+    }
+  },
+  {
+    "name": "get_users",
+    "description": "ค้นหาคนในบริษัท — แปลงชื่อหรืออีเมลเป็น id ที่ API รับ — ใช้ `id` ที่ได้เป็น `receiver_user_id` ตอนเปิดคำขอ หรือ `assignee_user_id` ตอนมอบหมายงาน",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "page": {
+          "minimum": 1,
+          "default": 1,
+          "type": "number",
+          "description": "เลขหน้าที่ต้องการ เริ่มที่ 1"
+        },
+        "page_size": {
+          "minimum": 1,
+          "maximum": 100,
+          "default": 20,
+          "type": "number",
+          "description": "จำนวนรายการต่อหน้า"
+        },
+        "sort": {
+          "example": "-createdAt",
+          "type": "string",
+          "description": "`sort=field` เรียงขึ้น, `sort=-field` เรียงลง"
+        },
+        "q": {
+          "example": "ชนะกุล",
+          "type": "string",
+          "description": "ค้นจากชื่อ ชื่อผู้ใช้ หรืออีเมล"
+        },
+        "scope": {
+          "type": "string",
+          "enum": [
+            "company",
+            "team"
+          ],
+          "description": "`company` (ค่าตั้งต้น) ทั้งบริษัท · `team` เฉพาะหน่วยงานของผู้ใช้รายนี้และหน่วยงานที่อยู่ใต้ลงไป"
+        },
+        "org_unit_id": {
+          "type": "string",
+          "description": "จำกัดเฉพาะหน่วยงานเดียว"
+        }
+      }
+    },
+    "x-request": {
+      "method": "GET",
+      "path": "/api/v1/external/users"
+    }
+  },
+  {
+    "name": "post_requests",
+    "description": "ขั้น 4 และ 10 — สร้างคำขอพร้อมยื่นในครั้งเดียว — ส่ง `parent_request_id` เพื่อสร้างเป็นคำขอลูกของใบที่มีอยู่ — เป็น endpoint เดียวกัน เพราะคำขอลูกคือคำขอธรรมดาที่มีต้นเรื่อง ควรส่ง header `Idempotency-Key` ทุกครั้ง: ถ้า response หายกลางทาง การยิงซ้ำโดยไม่มี key จะกลายเป็นคำขอสองใบคนละเลข",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "type_code": {
+          "type": "string",
+          "example": "PS01"
+        },
+        "form_data": {
+          "type": "object",
+          "description": "คำตอบตาม `form_schema` ของประเภทนั้น — ดึงจาก `GET external/request-types/{code}/form` ก่อนเสมอ คีย์คือชื่อ property ใน schema ไม่ใช่ `title` ที่แสดงให้คนอ่าน",
+          "example": {
+            "subject": "ออกแบบ solution ระบบ CCTV สาขาใหม่",
+            "requester_department": "ฝ่ายขาย",
+            "objective": "ทำ solution design เพื่อเสนอราคาลูกค้า",
+            "customer_project": "บมจ. ตัวอย่าง / โครงการสาขาระยอง",
+            "urgency": "เร่งด่วน",
+            "needed_by": "2026-09-15"
+          }
+        },
+        "receiver_user_id": {
+          "type": "string",
+          "description": "ผู้รับเรื่อง — ใช้ `id` จาก `receiver_candidates` ของ endpoint form ส่งอีเมลหรือชื่อมาจะได้ `NOT_FOUND` ตอนยื่น เพราะระบบค้นด้วย id เท่านั้น",
+          "example": "e0e90f78-98d3-4b74-b2bd-94e05700f989"
+        },
+        "receiver_org_unit_id": {
+          "type": "string",
+          "description": "ทีมผู้รับ — ค่าตั้งต้นมาจากประเภทคำขอ ถ้าจะระบุเอง ให้ส่ง `receiver_org_unit.id` ที่ endpoint form คืนมา ไม่ใช่ทั้ง object"
+        },
+        "parent_request_id": {
+          "type": "string",
+          "description": "คำขอต้นเรื่อง — เป็น **uuid** ของใบแม่ ไม่ใช่เลขที่คำขอ นี่คือวิธีเดียวที่สร้างคำขอลูก ไม่มี action `create_child`",
+          "example": "f7f7609e-9317-454e-875d-ec543bc4caf0"
+        },
+        "ref_type": {
+          "type": "string",
+          "description": "ประเภทของสิ่งที่อ้างถึง — **บังคับคู่กับ `ref_id` เมื่อประเภทคำขอนั้น ตอบ `ref_required: true`** ขาดไปจะได้ 422 `REQ_FIELD_MISSING` ที่ `ref_id`",
+          "example": "deal"
+        },
+        "ref_id": {
+          "type": "string",
+          "description": "รหัสของสิ่งที่อ้างถึง — บังคับคู่กับ `ref_type` (ดูด้านบน)",
+          "example": "D-501"
+        }
+      },
+      "required": [
+        "type_code",
+        "form_data",
+        "receiver_user_id"
+      ]
+    },
+    "x-request": {
+      "method": "POST",
+      "path": "/api/v1/external/requests"
+    }
+  },
+  {
+    "name": "post_requests_ref_actions_action",
+    "description": "ขั้น 9 — สั่งทำหนึ่งใน action ที่ได้จาก endpoint ด้านบน — `comment` คืนตัว comment ที่เพิ่งเขียน (ExternalCommentDto) ส่วน action อื่นคืนคำขอหลังเปลี่ยนสถานะ (ExternalRequestDto)",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "ref": {
+          "example": "REQ-OSD-PS01-26090003",
+          "type": "string",
+          "description": "เลขที่คำขอ หรือ uuid ก็ได้ — คนอ่านเลขที่จากอีเมลแล้วพิมพ์ ไม่ใช่ uuid"
+        },
+        "action": {
+          "enum": [
+            "submit",
+            "resubmit",
+            "receive",
+            "assign",
+            "hold",
+            "resume",
+            "complete",
+            "return",
+            "approve",
+            "reject",
+            "send_back",
+            "cancel",
+            "close",
+            "comment"
+          ],
+          "type": "string",
+          "description": "ต้องเป็นค่าที่ `GET external/requests/{ref}/actions` คืนมาสำหรับคนนี้ ณ ตอนนั้น ห้ามเดาจากรายการนี้ — รายการนี้คือ action ทั้งหมดที่ระบบมี ไม่ใช่ที่ทำได้ตอนนี้ `create_child` อยู่ในรายการแต่ยิงแล้วได้ 400 เสมอ: คำขอลูกสร้างด้วย `POST external/requests` พร้อม `parent_request_id`"
+        },
+        "receiver_form_data": {
+          "type": "object",
+          "description": "**`complete`** — คำตอบตาม `receiver_form_schema` ของประเภทนั้น (คนละฟอร์มกับตอนเปิดคำขอ) ดึงได้จาก `GET external/request-types/{code}/form`",
+          "example": {
+            "note": "ส่ง solution design และ BOM แล้ว"
+          }
+        },
+        "form_data": {
+          "type": "object",
+          "description": "**`submit`, `resubmit`** — ฟอร์มผู้ขอที่แก้แล้ว **ต้องส่งทั้งใบ** ระบบแทนที่ทั้งก้อนแล้วตรวจ required ใหม่หมด ส่งมาเฉพาะฟิลด์ที่แก้จะได้ `REQ_FIELD_MISSING`",
+          "example": {
+            "subject": "ออกแบบ solution ระบบ CCTV (แก้ไข)"
+          }
+        },
+        "assignee_user_id": {
+          "type": "string",
+          "description": "**`assign`** — id ของคนที่จะถือเรื่องต่อ ต้องเป็น `id` ไม่ใช่อีเมลหรือชื่อ",
+          "example": "e0e90f78-98d3-4b74-b2bd-94e05700f989"
+        },
+        "reason_code": {
+          "type": "string",
+          "description": "**`return`** — ต้องเป็นรหัสจาก `return_reason_codes` ของประเภทนั้น รหัสนอกรายการถูกปฏิเสธ (REQ-04) — รายการมีไว้ให้นับสาเหตุการตีกลับได้",
+          "example": "INFO_INCOMPLETE"
+        },
+        "reason": {
+          "type": "string",
+          "description": "**`hold`, `cancel`** — เหตุผล (สองตัวนี้ใช้ `reason` ไม่ใช่ `note`)",
+          "maxLength": 2000,
+          "example": "รอใบเสนอราคาจาก vendor"
+        },
+        "body": {
+          "type": "string",
+          "description": "**`comment`** — ข้อความ · action นี้คืน `ExternalCommentDto` ไม่ใช่คำขอ จึงไม่มี `status` ให้อ่าน",
+          "maxLength": 4000,
+          "example": "รับเรื่องแล้ว จะส่ง draft ภายในวันศุกร์"
+        },
+        "note": {
+          "type": "string",
+          "description": "**`approve`, `reject`, `send_back`** — เหตุผลการตัดสิน (สามตัวนี้ใช้ `note` ไม่ใช่ `reason`) · **`resume`, `close`, `return`** — หมายเหตุเพิ่มเติม ไม่บังคับ",
+          "maxLength": 2000,
+          "example": "ตรวจแล้ว ถูกต้อง"
+        }
+      },
+      "required": [
+        "ref",
+        "action"
+      ]
+    },
+    "x-request": {
+      "method": "POST",
+      "path": "/api/v1/external/requests/{ref}/actions/{action}"
+    }
+  }
+]

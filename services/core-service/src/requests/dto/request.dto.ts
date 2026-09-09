@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PageQueryDto } from '@request-management/share';
 import { SlaCoverage } from '@prisma/client';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsArray,
   IsBoolean,
@@ -246,10 +246,18 @@ export class ListRequestsQueryDto extends PageQueryDto {
   @IsString()
   q?: string;
 
-  @ApiPropertyOptional({ description: 'เฉพาะเกินกำหนด' })
+  /*
+    Declared as a boolean and coerced, rather than compared against the string
+    `'true'` at the point of use. A query string carries `?overdue=true`, an
+    external caller sends JSON `true`, and the filter is the same filter — one
+    representation reaching `scopedWhere` is what stops it being read correctly
+    for one caller and silently ignored for the other.
+  */
+  @ApiPropertyOptional({ type: Boolean, description: 'เฉพาะเกินกำหนด' })
   @IsOptional()
-  @IsString()
-  overdue?: string;
+  @Transform(({ value }) => value === true || value === 'true')
+  @IsBoolean()
+  overdue?: boolean;
 }
 
 /**

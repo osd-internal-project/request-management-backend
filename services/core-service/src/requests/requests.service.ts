@@ -1834,7 +1834,15 @@ export class RequestsService {
 
   // --- internals ----------------------------------------------------------
 
-  private scopedWhere(
+  /**
+   * The one filter behind every list, single read and count (SCOPE-02).
+   *
+   * No longer private, so the external summary endpoint can count the rows this
+   * builds rather than describe them a second time. That is the only reason to
+   * call it: a caller that composes its own `where` is how a total and the page
+   * beneath it start disagreeing, which is the defect SCOPE-02 names.
+   */
+  scopedWhere(
     actor: Principal,
     // Partial because `visibleTo` reuses this with no filters at all — the
     // visibility half is what it needs, not the search box.
@@ -1933,8 +1941,8 @@ export class RequestsService {
       });
     }
 
-    if (query.overdue === 'true') {
-      narrowing.push({ slaClock: { is: { breachedAt: { not: null } } } });
+    if (isOverdueRequested(query.overdue)) {
+      narrowing.push({ slaClock: { is: overdueClockWhere() } });
     }
 
     return { AND: [scoped, ...narrowing] };
@@ -2097,6 +2105,47 @@ function snapshotOf(request: RequestWithType): Record<string, unknown> {
  * — eighteen of the forty request types carry no approval step, and those rows
  * must not be treated as though a decision were owed on them.
  */
+/**
+ * A clock that is late — by either of the two ways a clock can be late.
+ *
+ * `breachedAt` is written by the SLA sweep, which runs on a 60-second interval
+ * and can be switched off entirely (`slaSweepIntervalMs <= 0`, which tests and
+ * one-off scripts do). Filtering on it alone meant "เฉพาะเกินกำหนด" answered
+ * *nothing is late* in any environment without a sweeper, and missed the first
+ * minute of every breach in the ones that have it.
+ *
+ * The second branch asks the question directly. It is not a replacement for the
+ * first: a clock that has stopped keeps `breachedAt` and loses `state:
+ * 'running'`, and a request that finished late is still a request that finished
+ * late. `SlaClock` is indexed on `[state, dueAt]`, so the added branch is a
+ * range scan rather than a table walk.
+ *
+ * Not extended to `paused`: a clock parked on `on_hold` is not accruing time,
+ * and calling it late would blame the receiving team for a wait that is
+ * somebody else's. That the sweeper never marks such a clock at all is a
+ * separate defect, recorded in the gap analysis rather than papered over here.
+ */
+function overdueClockWhere(): Prisma.SlaClockWhereInput {
+  return {
+    OR: [
+      { breachedAt: { not: null } },
+      { state: 'running', dueAt: { lt: new Date() } },
+    ],
+  };
+}
+
+/**
+ * Whether the caller asked for the overdue filter.
+ *
+ * The web app declares `overdue` as a string and sends `"true"`; the external
+ * API declares it as a boolean and sends `true`. Both reach the same `where`,
+ * so both have to be understood here — reading only one is how the filter
+ * silently did nothing for one of its two callers.
+ */
+function isOverdueRequested(value: unknown): boolean {
+  return value === true || value === 'true';
+}
+
 function currentStepOf(row: RequestListRow) {
   const activeCase = row.approvalCases[0];
 

@@ -385,7 +385,8 @@
                 "involved",
                 "created",
                 "incoming",
-                "approver"
+                "approver",
+                "awaiting"
               ]
             }
           },
@@ -413,6 +414,15 @@
             "description": "ค้นหาเลขที่ / อ้างอิง",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "overdue",
+            "required": false,
+            "in": "query",
+            "description": "เฉพาะที่เกินกำหนดตาม SLA — นับทั้งใบที่ถูกทำเครื่องหมายแล้ว และใบที่เลยกำหนดจริงแต่ระบบยังไม่ได้กวาด",
+            "schema": {
+              "type": "boolean"
             }
           },
           {
@@ -483,6 +493,295 @@
           }
         ],
         "summary": "ขั้น 5 และ 11 — คิวงานของผู้ใช้รายนี้",
+        "tags": [
+          "external"
+        ]
+      }
+    },
+    "/api/v1/external/requests/summary": {
+      "get": {
+        "description": "รับ filter ชุดเดียวกับ `GET external/requests` และนับจากเงื่อนไขเดียวกัน ตัวเลขกับรายการเบื้องหลังจึงตรงกันเสมอ",
+        "operationId": "ExternalController_summary",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "view",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "involved",
+                "created",
+                "incoming",
+                "approver",
+                "awaiting"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "กรองตามสถานะคำขอ",
+            "schema": {
+              "$ref": "#/components/schemas/ExternalRequestStatus"
+            }
+          },
+          {
+            "name": "type_code",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "ค้นหาเลขที่ / อ้างอิง",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "overdue",
+            "required": false,
+            "in": "query",
+            "description": "เฉพาะที่เกินกำหนดตาม SLA — นับทั้งใบที่ถูกทำเครื่องหมายแล้ว และใบที่เลยกำหนดจริงแต่ระบบยังไม่ได้กวาด",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "จำนวนแยกตามสถานะ พร้อมยอดรวมงานที่ยังไม่จบ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalSummaryDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDATION_FAILED` — ขาด header `X-Acting-User` หรือ body ผิดรูป",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — token หมดอายุ/ไม่ถูกต้อง หรือ API key ถูกเพิกถอนแล้ว",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`FORBIDDEN` เมื่อ token ไม่ใช่บัญชีบริการ หรือขาดสิทธิ์ `integration.request.create`; `COMPANY_FORBIDDEN` เมื่อคนที่สวมสิทธิ์ ไม่ได้อยู่บริษัทนั้น",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NOT_FOUND` — ไม่พบคำขอ หรืออีเมลใน `X-Acting-User` ไม่มีในระบบ/ยังไม่เคยเข้าสู่ระบบ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "จำนวนคำขอแยกตามสถานะ — ตอบคำถาม \"งานค้างกี่ใบ\" ในครั้งเดียว",
+        "tags": [
+          "external"
+        ]
+      }
+    },
+    "/api/v1/external/users": {
+      "get": {
+        "description": "ใช้ `id` ที่ได้เป็น `receiver_user_id` ตอนเปิดคำขอ หรือ `assignee_user_id` ตอนมอบหมายงาน",
+        "operationId": "ExternalController_searchUsers",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "เลขหน้าที่ต้องการ เริ่มที่ 1",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "page_size",
+            "required": false,
+            "in": "query",
+            "description": "จำนวนรายการต่อหน้า",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "`sort=field` เรียงขึ้น, `sort=-field` เรียงลง",
+            "schema": {
+              "example": "-createdAt",
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "ค้นจากชื่อ ชื่อผู้ใช้ หรืออีเมล",
+            "schema": {
+              "example": "ชนะกุล",
+              "type": "string"
+            }
+          },
+          {
+            "name": "scope",
+            "required": false,
+            "in": "query",
+            "description": "`company` (ค่าตั้งต้น) ทั้งบริษัท · `team` เฉพาะหน่วยงานของผู้ใช้รายนี้และหน่วยงานที่อยู่ใต้ลงไป",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "company",
+                "team"
+              ]
+            }
+          },
+          {
+            "name": "org_unit_id",
+            "required": false,
+            "in": "query",
+            "description": "จำกัดเฉพาะหน่วยงานเดียว",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "รายชื่อหนึ่งหน้า เรียงตามชื่อ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalUserPageDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDATION_FAILED` — ขาด header `X-Acting-User` หรือ body ผิดรูป",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — token หมดอายุ/ไม่ถูกต้อง หรือ API key ถูกเพิกถอนแล้ว",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`FORBIDDEN` เมื่อ token ไม่ใช่บัญชีบริการ หรือขาดสิทธิ์ `integration.request.create`; `COMPANY_FORBIDDEN` เมื่อคนที่สวมสิทธิ์ ไม่ได้อยู่บริษัทนั้น",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NOT_FOUND` — ไม่พบคำขอ หรืออีเมลใน `X-Acting-User` ไม่มีในระบบ/ยังไม่เคยเข้าสู่ระบบ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ค้นหาคนในบริษัท — แปลงชื่อหรืออีเมลเป็น id ที่ API รับ",
         "tags": [
           "external"
         ]
@@ -725,8 +1024,7 @@
                 "send_back",
                 "cancel",
                 "close",
-                "comment",
-                "create_child"
+                "comment"
               ],
               "type": "string"
             }
@@ -1103,13 +1401,19 @@
             "items": {
               "$ref": "#/components/schemas/ExternalActionDescriptorDto"
             }
+          },
+          "can_create_child": {
+            "type": "boolean",
+            "description": "แตกคำขอลูกจากใบนี้ได้ไหม — ถ้าได้ ให้เรียก `POST external/requests` พร้อม `parent_request_id` เป็น **uuid** ของใบนี้ ไม่มี action ชื่อ `create_child` ให้ยิง",
+            "example": true
           }
         },
         "required": [
           "request_id",
           "request_no",
           "status",
-          "actions"
+          "actions",
+          "can_create_child"
         ]
       },
       "ExternalCommentDto": {
@@ -1241,6 +1545,130 @@
           "message"
         ]
       },
+      "ExternalFormFieldDto": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "คีย์ที่ต้องส่งกลับใน `form_data` — ไม่ใช่ `label`",
+            "example": "priority"
+          },
+          "label": {
+            "type": "string",
+            "description": "ชื่อที่ใช้ถามคน",
+            "example": "ความเร่งด่วน"
+          },
+          "type": {
+            "description": "`select` มี `options` · `table` มี `columns` · `date` รับ `ปปปป-ดด-วว` · `multiline` คือข้อความหลายบรรทัด",
+            "example": "select",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExternalFormFieldType"
+              }
+            ]
+          },
+          "required": {
+            "type": "boolean",
+            "example": true
+          },
+          "order": {
+            "type": "number",
+            "description": "ลำดับที่ควรถาม เรียงจากน้อยไปมาก",
+            "example": 80
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExternalFormFieldOptionDto"
+            }
+          },
+          "maxLength": {
+            "type": "number",
+            "example": 200
+          },
+          "minimum": {
+            "type": "number",
+            "example": 0
+          },
+          "maximum": {
+            "type": "number",
+            "example": 1000000
+          },
+          "maxItems": {
+            "type": "number",
+            "description": "เฉพาะ `table`",
+            "example": 20
+          },
+          "columns": {
+            "description": "เฉพาะ `table` — คอลัมน์ เป็นฟิลด์เต็มรูปแบบเช่นกัน",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExternalFormFieldDto"
+            }
+          },
+          "sensitive": {
+            "type": "boolean",
+            "description": "SCOPE-04 — ฟิลด์นี้ถูกปิดบังสำหรับคนที่ไม่มีสิทธิ์ `request.sensitive.read` เตือนผู้ใช้ก่อนถามได้ว่าจะอ่านย้อนกลับไม่เห็น",
+            "example": true
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "type",
+          "required",
+          "order"
+        ]
+      },
+      "ExternalFormFieldOptionDto": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "description": "ค่าที่ต้องส่งกลับใน `form_data`",
+            "example": "URGENT"
+          },
+          "label": {
+            "type": "string",
+            "description": "ข้อความที่แสดงให้คนอ่าน — เท่ากับ `value` จนกว่า schema จะเก็บป้ายแยก",
+            "example": "URGENT"
+          }
+        },
+        "required": [
+          "value",
+          "label"
+        ]
+      },
+      "ExternalFormFieldType": {
+        "type": "string",
+        "enum": [
+          "text",
+          "multiline",
+          "number",
+          "boolean",
+          "select",
+          "date",
+          "table"
+        ],
+        "description": "`select` มี `options` · `table` มี `columns` · `date` รับ `ปปปป-ดด-วว` · `multiline` คือข้อความหลายบรรทัด"
+      },
+      "ExternalNamedPersonDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "e0e90f78-98d3-4b74-b2bd-94e05700f989"
+          },
+          "displayName": {
+            "type": "string",
+            "example": "นายชนะกุล แก้วทรงเกษ"
+          }
+        },
+        "required": [
+          "id",
+          "displayName"
+        ]
+      },
       "ExternalOrgUnitDto": {
         "type": "object",
         "properties": {
@@ -1331,6 +1759,34 @@
           "requesterId": {
             "type": "string",
             "example": "1a8a478b-9c8c-4ebc-a552-5a1122030a35"
+          },
+          "requester": {
+            "description": "ผู้ยื่น",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExternalNamedPersonDto"
+              }
+            ]
+          },
+          "receiver": {
+            "description": "ผู้รับเรื่อง — null จนกว่าจะมีการระบุ",
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExternalNamedPersonDto"
+              }
+            ]
+          },
+          "assignee": {
+            "description": "ผู้ถืองาน — ตั้งอัตโนมัติเมื่อ action `receive` สำเร็จ",
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExternalNamedPersonDto"
+              }
+            ]
           },
           "requesterOrgUnitId": {
             "type": "string",
@@ -1495,6 +1951,9 @@
           "companyId",
           "status",
           "requesterId",
+          "requester",
+          "receiver",
+          "assignee",
           "requesterOrgUnitId",
           "receiverUserId",
           "assigneeUserId",
@@ -1592,6 +2051,41 @@
         "required": [
           "code",
           "name"
+        ]
+      },
+      "ExternalSummaryDto": {
+        "type": "object",
+        "properties": {
+          "counts": {
+            "type": "object",
+            "description": "จำนวนคำขอแยกตามสถานะ — มีเฉพาะสถานะที่นับได้มากกว่า 0 สถานะที่ไม่ปรากฏคือ 0 ไม่ใช่ \"ไม่ทราบ\"",
+            "example": {
+              "submitted": 2,
+              "in_progress": 3,
+              "pending_approval": 2
+            }
+          },
+          "open_total": {
+            "type": "number",
+            "description": "รวมเฉพาะงานที่ยังไม่จบ — ไม่นับ rejected · closed · cancelled",
+            "example": 7
+          },
+          "total": {
+            "type": "number",
+            "description": "รวมทุกสถานะที่นับได้",
+            "example": 19
+          },
+          "overdue": {
+            "type": "number",
+            "description": "จำนวนที่เกินกำหนดตาม SLA",
+            "example": 1
+          }
+        },
+        "required": [
+          "counts",
+          "open_total",
+          "total",
+          "overdue"
         ]
       },
       "ExternalTreeDto": {
@@ -1774,6 +2268,20 @@
               "$ref": "#/components/schemas/ExternalReturnReasonDto"
             }
           },
+          "form_fields": {
+            "description": "ฟิลด์ผู้ขอในรูปแบบที่ถามได้ทันที — เรียงตามลำดับที่ควรถามแล้ว `options` คือตัวเลือกทั้งหมดของฟิลด์แบบเลือก",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExternalFormFieldDto"
+            }
+          },
+          "receiver_form_fields": {
+            "description": "ฟิลด์ฟอร์มผู้รับ ใช้ตอน action `complete`",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExternalFormFieldDto"
+            }
+          },
           "receiver_candidates": {
             "description": "ผู้รับที่เลือกได้ — ว่างได้ ถ้าว่างต้องหา receiver_user_id เอง ผู้ใช้พิมพ์ชื่อหรืออีเมลมา ให้จับคู่กับรายการนี้แล้วส่ง `id`",
             "example": [],
@@ -1793,6 +2301,8 @@
           "receiver_form_schema",
           "required_docs",
           "return_reason_codes",
+          "form_fields",
+          "receiver_form_fields",
           "receiver_candidates"
         ]
       },
@@ -1835,6 +2345,83 @@
           "sla_hours",
           "receiver_org_unit",
           "ref_required"
+        ]
+      },
+      "ExternalUserDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "ค่าที่ส่งเป็น `receiver_user_id` หรือ `assignee_user_id`",
+            "example": "e0e90f78-98d3-4b74-b2bd-94e05700f989"
+          },
+          "displayName": {
+            "type": "string",
+            "example": "นายชนะกุล แก้วทรงเกษ"
+          },
+          "username": {
+            "type": "string",
+            "example": "chanakulk"
+          },
+          "email": {
+            "type": "string",
+            "nullable": true,
+            "example": "chanakulk@osd.co.th"
+          },
+          "position": {
+            "type": "string",
+            "description": "ตำแหน่งตามข้อมูล HR",
+            "nullable": true,
+            "example": "Solution Architect"
+          },
+          "orgUnitId": {
+            "type": "string",
+            "description": "null = ยังไม่ถูกจัดสังกัด (คิว รอจัดสังกัด)",
+            "nullable": true
+          },
+          "orgUnitName": {
+            "type": "string",
+            "nullable": true,
+            "example": "Business Solution Consulting"
+          }
+        },
+        "required": [
+          "id",
+          "displayName",
+          "username",
+          "email",
+          "position",
+          "orgUnitId",
+          "orgUnitName"
+        ]
+      },
+      "ExternalUserPageDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExternalUserDto"
+            }
+          },
+          "total": {
+            "type": "number",
+            "example": 42
+          },
+          "page": {
+            "type": "number",
+            "example": 1
+          },
+          "page_size": {
+            "type": "number",
+            "example": 20
+          }
+        },
+        "required": [
+          "data",
+          "total",
+          "page",
+          "page_size"
         ]
       }
     }

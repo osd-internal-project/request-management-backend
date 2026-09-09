@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   AppError,
@@ -10,6 +10,7 @@ import type { User } from '@prisma/client';
 import { OrgService } from '../org/org.service';
 import { PolicyService } from '../policy/policy.service';
 import { RolesService } from '../roles/roles.service';
+import { KeycloakAdminService } from '../keycloak-admin/keycloak-admin.service';
 import { UsersRepository } from '../users/users.repository';
 import { KeycloakJwtPayload } from '../auth/strategies/jwt.strategy';
 
@@ -50,12 +51,15 @@ function displayNameOf(payload: KeycloakJwtPayload): string {
  */
 @Injectable()
 export class PrincipalService {
+  private readonly logger = new Logger(PrincipalService.name);
+
   constructor(
     private readonly users: UsersRepository,
     private readonly org: OrgService,
     private readonly roles: RolesService,
     private readonly policy: PolicyService,
     private readonly config: ConfigService,
+    private readonly keycloak: KeycloakAdminService,
   ) {}
 
   async resolve(
@@ -118,7 +122,65 @@ export class PrincipalService {
       );
     }
 
-    return this.principalFor(user, user.keycloakRoles, requestedCompanyId);
+    const keycloakRoles = user.keycloakRoles.length
+      ? user.keycloakRoles
+      : await this.backfillKeycloakRoles(user);
+
+    return this.principalFor(user, keycloakRoles, requestedCompanyId);
+  }
+
+  /**
+   * Read this person's realm roles from Keycloak, once, because nothing else
+   * ever will.
+   *
+   * `keycloakRoles` is written when somebody logs in through the web app, and
+   * this path has no login: an integration acts for a person who may never have
+   * opened a browser. Everyone imported by `org:adopt` or `user:add` therefore
+   * resolved to no roles at all, and the chatbot's whole promise — "you do not
+   * have to open the web app" — required opening the web app first.
+   *
+   * Persisted rather than resolved per call, so this costs one round trip in a
+   * person's lifetime rather than one per minute of cache expiry.
+   *
+   * **Failure is silent by design.** Keycloak being unreachable must not take
+   * the External API down with it; the caller then resolves with no roles,
+   * exactly as it did before this method existed, and the next call tries
+   * again.
+   */
+  private async backfillKeycloakRoles(user: {
+    id: string;
+    username: string;
+  }): Promise<string[]> {
+    try {
+      const account = await this.keycloak.findUserByUsername(user.username);
+
+      if (!account) return [];
+
+      const roles = (await this.keycloak.listUserRoles(account.id)).map(
+        (role) => role.name,
+      );
+
+      if (!roles.length) return [];
+
+      await this.users.update({
+        where: { id: user.id },
+        data: { keycloakRoles: roles },
+      });
+
+      this.logger.log(
+        `Backfilled ${roles.length} Keycloak role(s) for ${user.username}`,
+      );
+
+      return roles;
+    } catch (error) {
+      this.logger.warn(
+        `Could not read Keycloak roles for ${user.username}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+
+      return [];
+    }
   }
 
   /**
