@@ -23,6 +23,27 @@ export class OrgUnitRepository extends BaseRepository<
     return this.findUnique({ where: { id } }, option);
   }
 
+  /**
+   * The distinct levels of this unit's direct children.
+   *
+   * Read before a unit changes level: the children do not move, so raising a
+   * แผนก to a ฝ่าย would leave its ทีม two levels down with nothing in between.
+   */
+  async childKindsOf(
+    id: string,
+    option?: TxOption,
+  ): Promise<OrgUnit['kind'][]> {
+    const client = option?.prisma ?? this.prisma;
+
+    const rows = await client.orgUnit.findMany({
+      where: { parentId: id },
+      distinct: ['kind'],
+      select: { kind: true },
+    });
+
+    return rows.map((row) => row.kind);
+  }
+
   findForCompany(companyId: string, option?: TxOption): Promise<OrgUnit[]> {
     return this.findMany(
       { where: { companyId }, orderBy: [{ kind: 'asc' }, { name: 'asc' }] },
