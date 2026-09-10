@@ -88,7 +88,7 @@ describe('CM-04 ชุดงาน B — KYC callback ติด kycVerified เ�
   });
 
   it('CM-04 a KYC request without a customer ref logs and stops', async () => {
-    const { service, updates } = harness({ refType: 'deal' });
+    const { service, updates } = harness({ refType: 'opportunity' });
 
     await service.onRequestCompleted({ request_id: 'req-1', type_code: 'KYC' });
 

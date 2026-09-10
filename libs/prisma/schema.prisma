@@ -168,7 +168,7 @@ enum IntegrationJobStatus {
   failed
 }
 
-/// CRM — สถานะ Lead: รับเข้า → คัดกรอง → แปลงเป็นดีล (หรือคัดออกพร้อมเหตุผล).
+/// CRM — สถานะ Lead: รับเข้า → คัดกรอง → แปลงเป็นโอกาสการขาย (หรือคัดออกพร้อมเหตุผล).
 enum LeadStatus {
   new
   qualified
@@ -176,9 +176,9 @@ enum LeadStatus {
   converted
 }
 
-/// CRM — ขั้นของดีล. `won`/`lost` เป็นสถานะปิด; ปิดแพ้ต้องมีเหตุผลมาตรฐาน
+/// CRM — ขั้นของโอกาสการขาย. `won`/`lost` เป็นสถานะปิด; ปิดแพ้ต้องมีเหตุผลมาตรฐาน
 /// (spec: "ปิดแพ้ต้องระบุเหตุผลจากรายการมาตรฐานเพื่อนำมาวิเคราะห์ได้").
-enum DealStage {
+enum OpportunityStage {
   qualifying
   proposing
   negotiating
@@ -212,7 +212,7 @@ model Company {
   updatedAt    DateTime @updatedAt
 
   users                   UserCompany[]
-  primaryUsers            User[]                   @relation("PrimaryCompany")
+  primaryUsers            User[]                     @relation("PrimaryCompany")
   orgUnits                OrgUnit[]
   roles                   Role[]
   userRoles               UserRole[]
@@ -237,9 +237,9 @@ model Company {
   crmConfig               CrmCompanyConfig?
   kycProductRules         KycProductRule[]
   leads                   Lead[]
-  deals                   Deal[]
-  dealLostReasons         DealLostReason[]
-  dealCodeCounter         DealCodeCounter?
+  opportunities           Opportunity[]
+  opportunityLostReasons  OpportunityLostReason[]
+  opportunityCodeCounter  OpportunityCodeCounter?
 
   @@map("companies")
 }
@@ -679,7 +679,7 @@ model RequestType {
   slaCoverage SlaCoverage @default(H24X7)
 
   /// Whether ยื่นคำขอ demands `refId` — §16 marks it required, but only on the
-  /// DSC mockup, and most types have no deal to point at. Per type rather than
+  /// DSC mockup, and most types have no opportunity to point at. Per type rather than
   /// hard-coded on the screen, which is what it was until 1 ก.ย. 2569.
   refRequired Boolean @default(false)
 
@@ -813,7 +813,7 @@ model Request {
   /// `{}` for a type with no second form, which is most of them.
   receiverFormData Json @default("{}")
 
-  /// REQ-06: link back to the originating entity (deal, customer, …).
+  /// REQ-06: link back to the originating entity (opportunity, customer, …).
   refType String?
   refId   String?
 
@@ -1465,7 +1465,7 @@ model Customer {
   taxId String?
 
   /// รหัสสาขาสรรพากร 5 หลัก. `00000` = สำนักงานใหญ่ (redesign #2, 8 ก.ย. 2569:
-  /// the PO wants each branch to BE a customer row — separate deals, separate
+  /// the PO wants each branch to BE a customer row — separate opportunities, separate
   /// billing identity — not a child record under one customer).
   branchCode String @default("00000")
 
@@ -1482,7 +1482,7 @@ model Customer {
 
   /// CM-04: set by the KYC request callback (ชุดงาน B), never directly by a
   /// screen. A customer is usable without it until a KYC-flagged product
-  /// enters a deal.
+  /// enters a opportunity.
   kycVerified   Boolean   @default(false)
   kycVerifiedAt DateTime?
 
@@ -1514,15 +1514,15 @@ model Customer {
   updatedAt DateTime @updatedAt
   updatedBy String?
 
-  company      Company    @relation(fields: [companyId], references: [id])
-  accountOwner User?      @relation("CustomerAccountOwner", fields: [accountOwnerUserId], references: [id])
-  mergedInto   Customer?  @relation("CustomerMerge", fields: [mergedIntoCustomerId], references: [id])
-  aliases      Customer[] @relation("CustomerMerge")
-  headOffice   Customer?  @relation("CustomerHeadOffice", fields: [headOfficeId], references: [id])
+  company         Company    @relation(fields: [companyId], references: [id])
+  accountOwner    User?      @relation("CustomerAccountOwner", fields: [accountOwnerUserId], references: [id])
+  mergedInto      Customer?  @relation("CustomerMerge", fields: [mergedIntoCustomerId], references: [id])
+  aliases         Customer[] @relation("CustomerMerge")
+  headOffice      Customer?  @relation("CustomerHeadOffice", fields: [headOfficeId], references: [id])
   branchCustomers Customer[] @relation("CustomerHeadOffice")
 
   leads          Lead[]
-  deals          Deal[]
+  opportunities  Opportunity[]
   locations      CustomerLocation[]
   contacts       CustomerContact[]
   externalCodes  CustomerExternalCode[]
@@ -1772,7 +1772,7 @@ model CustomerTimelineEvent {
   companyId  String
   customerId String
 
-  /// What the event points back at: `customer`, `request`, `deal`, … plus the
+  /// What the event points back at: `customer`, `request`, `opportunity`, … plus the
   /// row id, the same ref mechanism as REQ-06.
   refType String
   refId   String?
@@ -1806,17 +1806,17 @@ model IntegrationSyncJob {
   id String @id @default(uuid())
 
   /// 'odoo' — one queue for every external system the layer fronts.
-  system String
+  system     String
   /// 'customer_upsert' | 'receivables_refresh'
-  kind   String
+  kind       String
   /// The row being synced — customerId for both current kinds.
   resourceId String
 
-  status   IntegrationJobStatus @default(pending)
-  attempts Int                  @default(0)
+  status    IntegrationJobStatus @default(pending)
+  attempts  Int                  @default(0)
   /// The last failure, verbatim — what an operator reads first.
   lastError String?
-  runAfter  DateTime @default(now())
+  runAfter  DateTime             @default(now())
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1828,7 +1828,7 @@ model IntegrationSyncJob {
 
 /// CM-04 (ชุดงาน B) — product ใดต้องยืนยันตัวตน (KYC). Configuration แก้จาก
 /// หน้าจอผู้ดูแลไม่ต้อง deploy; PO ยืนยัน 8 ก.ย. 2569 ว่า KYC ไม่ block —
-/// โมดูลดีล (CRM ระยะถัดไป) อ่านตารางนี้เพื่อ "แจ้งเตือน" เมื่อดีลมี product
+/// โมดูลโอกาสการขาย (CRM ระยะถัดไป) อ่านตารางนี้เพื่อ "แจ้งเตือน" เมื่อโอกาสการขายมี product
 /// ที่เข้าเงื่อนไขและลูกค้ายังไม่ kycVerified. รายการจริงยังรอ PO/การเงิน —
 /// นี่คือโครง + หน้าจอกรอกที่พร้อมรับค่าวันเปิดใช้.
 model KycProductRule {
@@ -1876,8 +1876,8 @@ model Lead {
   /// ลูกค้าเดิมที่ Lead นี้เป็นเรื่องของเขา (ถ้า match ได้).
   customerId String?
 
-  /// ดีลที่เกิดจากการแปลง — ข้อมูลไหลต่อ ไม่พิมพ์ซ้ำ.
-  convertedDealId String? @unique
+  /// โอกาสการขายที่เกิดจากการแปลง — ข้อมูลไหลต่อ ไม่พิมพ์ซ้ำ.
+  convertedOpportunityId String? @unique
 
   ownerUserId    String
   ownerOrgUnitId String?
@@ -1887,9 +1887,9 @@ model Lead {
   updatedAt DateTime @updatedAt
   updatedBy String?
 
-  company       Company   @relation(fields: [companyId], references: [id])
-  customer      Customer? @relation(fields: [customerId], references: [id])
-  convertedDeal Deal?     @relation(fields: [convertedDealId], references: [id])
+  company              Company      @relation(fields: [companyId], references: [id])
+  customer             Customer?    @relation(fields: [customerId], references: [id])
+  convertedOpportunity Opportunity? @relation(fields: [convertedOpportunityId], references: [id])
 
   @@index([companyId, status])
   @@index([companyId, ownerUserId])
@@ -1897,29 +1897,29 @@ model Lead {
   @@map("leads")
 }
 
-/// CRM โอกาสการขาย (ดีล) — ขั้น มูลค่า ความน่าจะเป็น วันคาดปิด. `dealCode`
-/// is what requests reference (`ref_type=deal`, e.g. the D-501 the request
+/// CRM โอกาสการขาย (Opportunity) — ขั้น มูลค่า ความน่าจะเป็น วันคาดปิด. `opportunityCode`
+/// is what requests reference (`ref_type=opportunity`, e.g. the D-501 the request
 /// form always suggested). Won/lost are closed states; reopening is a later
 /// decision, not an accident.
-model Deal {
-  id       String @id @default(uuid())
-  dealCode String @unique
+model Opportunity {
+  id              String @id @default(uuid())
+  opportunityCode String @unique
 
   companyId  String
   customerId String
 
   title String
 
-  stage           DealStage @default(qualifying)
-  amount          Decimal?  @db.Decimal(14, 2)
-  currency        String    @default("THB")
+  stage           OpportunityStage @default(qualifying)
+  amount          Decimal?         @db.Decimal(14, 2)
+  currency        String           @default("THB")
   /// 0–100.
   probability     Int?
   expectedCloseAt DateTime?
 
   wonAt          DateTime?
   lostAt         DateTime?
-  /// From `DealLostReason` — เหตุผลมาตรฐาน วิเคราะห์ได้.
+  /// From `OpportunityLostReason` — เหตุผลมาตรฐาน วิเคราะห์ได้.
   lostReasonCode String?
   lostReasonText String?
 
@@ -1931,35 +1931,35 @@ model Deal {
   updatedAt DateTime @updatedAt
   updatedBy String?
 
-  company  Company       @relation(fields: [companyId], references: [id])
-  customer Customer      @relation(fields: [customerId], references: [id])
-  products DealProduct[]
+  company  Company              @relation(fields: [companyId], references: [id])
+  customer Customer             @relation(fields: [customerId], references: [id])
+  products OpportunityProduct[]
   fromLead Lead?
 
   @@index([companyId, stage])
   @@index([companyId, customerId])
   @@index([companyId, ownerUserId])
   @@index([companyId, ownerOrgUnitId])
-  @@map("deals")
+  @@map("opportunities")
 }
 
-/// สินค้า/บริการที่เกี่ยวกับดีล — รหัสต้องตรง Odoo (D-30). ชุดงาน B ใช้คู่กับ
-/// `kyc_product_rules`: ดีลที่มี product เข้าเงื่อนไข + ลูกค้ายังไม่
+/// สินค้า/บริการที่เกี่ยวกับโอกาสการขาย — รหัสต้องตรง Odoo (D-30). ชุดงาน B ใช้คู่กับ
+/// `kyc_product_rules`: โอกาสการขายที่มี product เข้าเงื่อนไข + ลูกค้ายังไม่
 /// kycVerified = banner แจ้งเตือน (ไม่ block).
-model DealProduct {
-  id       String  @id @default(uuid())
-  dealId   String
-  productCode String
-  name     String?
+model OpportunityProduct {
+  id            String  @id @default(uuid())
+  opportunityId String
+  productCode   String
+  name          String?
 
-  deal Deal @relation(fields: [dealId], references: [id])
+  opportunity Opportunity @relation(fields: [opportunityId], references: [id])
 
-  @@unique([dealId, productCode])
-  @@map("deal_products")
+  @@unique([opportunityId, productCode])
+  @@map("opportunity_products")
 }
 
 /// เหตุผลปิดแพ้มาตรฐาน — configuration ต่อบริษัท seeded with defaults.
-model DealLostReason {
+model OpportunityLostReason {
   id        String  @id @default(uuid())
   companyId String
   code      String
@@ -1970,11 +1970,11 @@ model DealLostReason {
   company Company @relation(fields: [companyId], references: [id])
 
   @@unique([companyId, code])
-  @@map("deal_lost_reasons")
+  @@map("opportunity_lost_reasons")
 }
 
-/// ตัวนับ dealCode ต่อบริษัท — atomic แบบเดียวกับ CustomerCodeCounter.
-model DealCodeCounter {
+/// ตัวนับ opportunityCode ต่อบริษัท — atomic แบบเดียวกับ CustomerCodeCounter.
+model OpportunityCodeCounter {
   id        String   @id @default(uuid())
   companyId String   @unique
   lastSeq   Int      @default(0)
@@ -1982,5 +1982,5 @@ model DealCodeCounter {
 
   company Company @relation(fields: [companyId], references: [id])
 
-  @@map("deal_code_counters")
+  @@map("opportunity_code_counters")
 }

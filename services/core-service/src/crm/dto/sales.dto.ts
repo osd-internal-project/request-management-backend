@@ -26,7 +26,7 @@ export const LEAD_STATUSES = [
   'converted',
 ] as const;
 
-export const DEAL_STAGES = [
+export const OPPORTUNITY_STAGES = [
   'qualifying',
   'proposing',
   'negotiating',
@@ -35,7 +35,7 @@ export const DEAL_STAGES = [
 ] as const;
 
 /** ขั้นที่แก้ผ่าน update ได้ — ปิด won/lost ต้องผ่าน endpoint ของมันเอง. */
-export const OPEN_DEAL_STAGES = [
+export const OPEN_OPPORTUNITY_STAGES = [
   'qualifying',
   'proposing',
   'negotiating',
@@ -92,7 +92,7 @@ export class DisqualifyLeadDto {
   reason!: string;
 }
 
-/** แปลง Lead → ดีล: ข้อมูลไหลต่อ + ต้องชี้ลูกค้า (มีอยู่แล้วในทะเบียน). */
+/** แปลง Lead → โอกาสการขาย: ข้อมูลไหลต่อ + ต้องชี้ลูกค้า (มีอยู่แล้วในทะเบียน). */
 export class ConvertLeadDto {
   @IsString()
   @IsNotEmpty()
@@ -177,7 +177,7 @@ export class ImportLeadsDto {
   rows!: ImportLeadRowDto[];
 }
 
-export class CreateDealDto {
+export class CreateOpportunityDto {
   @IsString()
   @IsNotEmpty()
   customer_id!: string;
@@ -208,7 +208,7 @@ export class CreateDealDto {
   product_codes?: string[];
 }
 
-export class UpdateDealDto {
+export class UpdateOpportunityDto {
   @IsOptional()
   @IsString()
   @IsNotEmpty()
@@ -216,8 +216,8 @@ export class UpdateDealDto {
   title?: string;
 
   @IsOptional()
-  @IsIn(OPEN_DEAL_STAGES)
-  stage?: (typeof OPEN_DEAL_STAGES)[number];
+  @IsIn(OPEN_OPPORTUNITY_STAGES)
+  stage?: (typeof OPEN_OPPORTUNITY_STAGES)[number];
 
   @IsOptional()
   @IsNumber()
@@ -241,7 +241,7 @@ export class UpdateDealDto {
   product_codes?: string[];
 }
 
-export class LoseDealDto {
+export class LoseOpportunityDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(50)
@@ -253,14 +253,14 @@ export class LoseDealDto {
   reason_text?: string;
 }
 
-export class ListDealsQueryDto extends PageQueryDto {
+export class ListOpportunitiesQueryDto extends PageQueryDto {
   @IsOptional()
   @IsString()
   search?: string;
 
   @IsOptional()
-  @IsIn(DEAL_STAGES)
-  stage?: (typeof DEAL_STAGES)[number];
+  @IsIn(OPPORTUNITY_STAGES)
+  stage?: (typeof OPPORTUNITY_STAGES)[number];
 
   /** เปิดอยู่ทั้งหมด (ไม่ won/lost) — ใช้โดยแท็บ 360°. */
   @IsOptional()

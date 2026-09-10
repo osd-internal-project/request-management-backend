@@ -31,8 +31,8 @@ export class CreateRequestDto {
   @IsObject()
   form_data?: Record<string, unknown>;
 
-  /** REQ-06: the entity this request came from, e.g. a deal. */
-  @ApiPropertyOptional({ example: 'deal' })
+  /** REQ-06: the entity this request came from, e.g. an opportunity. */
+  @ApiPropertyOptional({ example: 'opportunity' })
   @IsOptional()
   @IsString()
   ref_type?: string;
@@ -562,7 +562,7 @@ export class CreateIntegrationRequestDto {
   @IsObject()
   form_data?: Record<string, unknown>;
 
-  @ApiPropertyOptional({ example: 'deal' })
+  @ApiPropertyOptional({ example: 'opportunity' })
   @IsOptional()
   @IsString()
   ref_type?: string;

@@ -566,7 +566,7 @@ async function seedRequestTypes(
         properties: {
           deal_value: {
             type: 'number',
-            title: 'มูลค่าดีล (THB)',
+            title: 'มูลค่าโอกาสการขาย (THB)',
             minimum: 0,
             'x-order': 10,
           },
@@ -585,8 +585,8 @@ async function seedRequestTypes(
             'x-sensitive': true,
             'x-order': 30,
           },
-          // §16 shows this filled from the deal and therefore unmarked. There
-          // is no deal lookup yet (REQ-06), so it stays a required field the
+          // §16 shows this filled from the opportunity and therefore unmarked. There
+          // is no opportunity lookup yet (REQ-06), so it stays a required field the
           // requester types — an input that pretends to autofill and does not
           // is worse than an honest one.
           customer_name: { type: 'string', title: 'ลูกค้า', 'x-order': 40 },
@@ -816,13 +816,13 @@ async function seedCrmDefaults(companyId: string) {
     { code: 'other', name: 'อื่น ๆ (ระบุ)', sortOrder: 9 },
   ];
   for (const reason of lostReasons) {
-    await prisma.dealLostReason.upsert({
+    await prisma.opportunityLostReason.upsert({
       where: { companyId_code: { companyId, code: reason.code } },
       update: { name: reason.name, sortOrder: reason.sortOrder, active: true },
       create: { companyId, ...reason },
     });
   }
-  console.log(`  deal lost reasons: ${lostReasons.length}`);
+  console.log(`  opportunity lost reasons: ${lostReasons.length}`);
 }
 
 async function main() {

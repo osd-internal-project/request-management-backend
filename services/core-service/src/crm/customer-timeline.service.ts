@@ -11,7 +11,7 @@ import {
 export interface TimelineEventInput {
   readonly companyId: string;
   readonly customerId: string;
-  /** `customer`, `request`, `deal`, … + the row id (REQ-06 ref mechanism). */
+  /** `customer`, `request`, `opportunity`, … + the row id (REQ-06 ref mechanism). */
   readonly refType: string;
   readonly refId?: string | null;
   readonly eventType: string;

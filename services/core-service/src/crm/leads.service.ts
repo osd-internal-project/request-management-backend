@@ -12,7 +12,7 @@ import {
   visibleSalesWhere,
 } from '@request-management/share';
 import { LeadRepository } from './sales.repositories';
-import { DealsService } from './deals.service';
+import { OpportunitiesService } from './opportunities.service';
 import { CustomerRepository } from './customer.repository';
 import {
   ConvertLeadDto,
@@ -23,7 +23,7 @@ import {
 } from './dto/sales.dto';
 
 /**
- * CRM Lead — รับ → คัดกรอง → แปลงเป็นดีล (ข้อมูลไหลต่อ) หรือคัดออกพร้อม
+ * CRM Lead — รับ → คัดกรอง → แปลงเป็นโอกาสการขาย (ข้อมูลไหลต่อ) หรือคัดออกพร้อม
  * เหตุผล. Scope ผ่าน `visibleSalesWhere` (SCOPE-02) — คนขายเห็น Lead ของตน
  * และของทีม, `crm.sales.read.all` เห็นทั้งบริษัท. No hard delete.
  */
@@ -32,7 +32,7 @@ export class LeadsService {
   constructor(
     private readonly leads: LeadRepository,
     private readonly customers: CustomerRepository,
-    private readonly deals: DealsService,
+    private readonly opportunities: OpportunitiesService,
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
   ) {}
@@ -62,7 +62,7 @@ export class LeadsService {
         where,
         include: {
           customer: { select: { id: true, customerCode: true, nameTh: true } },
-          convertedDeal: { select: { id: true, dealCode: true } },
+          convertedOpportunity: { select: { id: true, opportunityCode: true } },
         },
         skip,
         take,
@@ -157,15 +157,15 @@ export class LeadsService {
   }
 
   /**
-   * แปลงเป็นดีล — spec: "แปลงเป็นโอกาสการขายโดยข้อมูลไหลต่อทั้งหมด". The
-   * deal is created through DealsService (same code path as a hand-made
-   * deal), then the lead points at it and closes as `converted`.
+   * แปลงเป็นโอกาสการขาย — spec: "แปลงเป็นโอกาสการขายโดยข้อมูลไหลต่อทั้งหมด". The
+   * opportunity is created through OpportunitiesService (same code path as a hand-made
+   * opportunity), then the lead points at it and closes as `converted`.
    */
   async convert(id: string, dto: ConvertLeadDto, actor: Principal) {
     const lead = await this.requireOpen(id, actor);
     await this.assertCustomer(dto.customer_id, actor);
 
-    const deal = await this.deals.create(
+    const opportunity = await this.opportunities.create(
       {
         customer_id: dto.customer_id,
         title: dto.title?.trim() || lead.name,
@@ -179,7 +179,7 @@ export class LeadsService {
       where: { id },
       data: {
         status: 'converted',
-        convertedDealId: deal.id,
+        convertedOpportunityId: opportunity.id,
         customerId: dto.customer_id,
         updatedBy: actor.userId,
       },
@@ -191,10 +191,10 @@ export class LeadsService {
       ...auditActor(actor),
       resourceType: 'lead',
       resourceId: id,
-      after: { dealId: deal.id, dealCode: deal.dealCode },
+      after: { opportunityId: opportunity.id, opportunityCode: opportunity.opportunityCode },
     });
 
-    return deal;
+    return opportunity;
   }
 
   /** Visible AND still workable (new/qualified). SCOPE-03: unseen = 404. */
@@ -214,7 +214,7 @@ export class LeadsService {
     if (found.status === 'converted' || found.status === 'disqualified') {
       throw new AppError(
         'CONFLICT',
-        'Lead นี้ถูกปิดแล้ว (แปลงเป็นดีลหรือคัดออก) — แก้ไขไม่ได้',
+        'Lead นี้ถูกปิดแล้ว (แปลงเป็นโอกาสการขายหรือคัดออก) — แก้ไขไม่ได้',
       );
     }
 

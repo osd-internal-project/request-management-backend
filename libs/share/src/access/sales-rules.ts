@@ -1,5 +1,5 @@
 /**
- * Who may see which leads and deals — one place, shared by both (they carry
+ * Who may see which leads and opportunities — one place, shared by both (they carry
  * the same ownership columns). Mirrors `customer-rules.ts`: owner, author, or
  * a book sitting in a unit the caller leads/was granted; whole-company reading
  * is `crm.sales.read.all`. SCOPE-02/03 contract as everywhere else.
@@ -31,7 +31,7 @@ export function salesAccessSubject(principal: {
   };
 }
 
-/** The rows of `leads`/`deals` this caller may see. */
+/** The rows of `leads`/`opportunities` this caller may see. */
 export function visibleSalesWhere(subject: SalesAccessSubject): AccessWhere {
   const company = { companyId: subject.activeCompanyId };
 

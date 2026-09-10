@@ -39,7 +39,7 @@ import {
 import { CustomerTimelineService } from './customer-timeline.service';
 import { CustomerOdooSyncService } from './customer-odoo-sync.service';
 import { KycProductRuleRepository } from './kyc-product.repository';
-import { DealRepository } from './sales.repositories';
+import { OpportunityRepository } from './sales.repositories';
 import { PDPA_CLIENT } from '../pdpa/pdpa-client';
 import type { ContactConsentStatus, PdpaClient } from '../pdpa/pdpa-client';
 import { assertCustomerTransition } from './customer-state-machine';
@@ -106,7 +106,7 @@ export class CustomersService {
     private readonly odooSync: CustomerOdooSyncService,
     @Inject(PDPA_CLIENT) private readonly pdpa: PdpaClient,
     private readonly kycProducts: KycProductRuleRepository,
-    private readonly deals: DealRepository,
+    private readonly opportunities: OpportunityRepository,
   ) {}
 
   private readonly logger = new Logger(CustomersService.name);
@@ -204,7 +204,7 @@ export class CustomersService {
         } as never)
       : null;
 
-    const [contacts, locations, branchCustomers, requestTotal, requestOpen, odooCode, dealOpenCount, dealOpenSum] =
+    const [contacts, locations, branchCustomers, requestTotal, requestOpen, odooCode, opportunityOpenCount, opportunityOpenSum] =
       await Promise.all([
         this.contacts.count({ where: { customerId: id, active: true } }),
         this.locations.count({ where: { customerId: id, active: true } }),
@@ -234,7 +234,7 @@ export class CustomersService {
           select: { payload: true },
         }) as Promise<{ payload: unknown } | null>,
         salesWhere
-          ? this.deals.count({
+          ? this.opportunities.count({
               where: {
                 AND: [
                   salesWhere,
@@ -244,7 +244,7 @@ export class CustomersService {
             })
           : Promise.resolve(null),
         salesWhere
-          ? this.deals.sumAmount({
+          ? this.opportunities.sumAmount({
               AND: [
                 salesWhere,
                 { stage: { in: ['qualifying', 'proposing', 'negotiating'] } },
@@ -264,14 +264,14 @@ export class CustomersService {
       contacts,
       locations,
       branchCustomers,
-      // C360-01 — ดีลนับผ่าน visibleSalesWhere เดียวกับแท็บ (SCOPE-02);
+      // C360-01 — โอกาสการขายนับผ่าน visibleSalesWhere เดียวกับแท็บ (SCOPE-02);
       // null = viewer ไม่มี crm.sales.read → การ์ดถูกซ่อน (C360-04).
-      deals:
-        dealOpenCount === null
+      opportunities:
+        opportunityOpenCount === null
           ? null
           : {
-              open: dealOpenCount,
-              openAmount: dealOpenSum ?? 0,
+              open: opportunityOpenCount,
+              openAmount: opportunityOpenSum ?? 0,
             },
       requests:
         requestTotal === null

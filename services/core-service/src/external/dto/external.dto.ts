@@ -100,7 +100,7 @@ export class ExternalCreateRequestDto {
     description:
       'ประเภทของสิ่งที่อ้างถึง — **บังคับคู่กับ `ref_id` เมื่อประเภทคำขอนั้น ' +
       'ตอบ `ref_required: true`** ขาดไปจะได้ 422 `REQ_FIELD_MISSING` ที่ `ref_id`',
-    example: 'deal',
+    example: 'opportunity',
   })
   @IsOptional()
   @IsString()

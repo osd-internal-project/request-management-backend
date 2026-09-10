@@ -12,17 +12,17 @@ import { CurrentPrincipal, Permissions } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import { LeadsService } from './leads.service';
 import { LeadImportService } from './lead-import.service';
-import { DealsService } from './deals.service';
+import { OpportunitiesService } from './opportunities.service';
 import {
   ConvertLeadDto,
-  CreateDealDto,
+  CreateOpportunityDto,
   CreateLeadDto,
   DisqualifyLeadDto,
   ImportLeadsDto,
-  ListDealsQueryDto,
+  ListOpportunitiesQueryDto,
   ListLeadsQueryDto,
-  LoseDealDto,
-  UpdateDealDto,
+  LoseOpportunityDto,
+  UpdateOpportunityDto,
   UpdateLeadDto,
 } from './dto/sales.dto';
 
@@ -85,7 +85,7 @@ export class LeadsController {
     return this.leads.disqualify(id, dto, principal);
   }
 
-  /** แปลงเป็นดีล — ข้อมูลไหลต่อ. */
+  /** แปลงเป็นโอกาสการขาย — ข้อมูลไหลต่อ. */
   @Post(':id/convert')
   @Permissions('crm.sales.manage')
   convert(
@@ -97,58 +97,58 @@ export class LeadsController {
   }
 }
 
-/** CRM โอกาสการขาย (ดีล). */
-@ApiTags('deals')
+/** CRM โอกาสการขาย (Opportunity). */
+@ApiTags('opportunities')
 @ApiBearerAuth()
-@Controller('deals')
-export class DealsController {
-  constructor(private readonly deals: DealsService) {}
+@Controller('opportunities')
+export class OpportunitiesController {
+  constructor(private readonly opportunities: OpportunitiesService) {}
 
   @Get()
   @Permissions('crm.sales.read')
   list(
     @CurrentPrincipal() principal: Principal,
-    @Query() query: ListDealsQueryDto,
+    @Query() query: ListOpportunitiesQueryDto,
   ) {
-    return this.deals.list(principal, query);
+    return this.opportunities.list(principal, query);
   }
 
   /** เหตุผลปิดแพ้มาตรฐาน — declared before `:id`. */
   @Get('lost-reasons')
   @Permissions('crm.sales.read')
   lostReasons(@CurrentPrincipal() principal: Principal) {
-    return this.deals.lostReasonOptions(principal);
+    return this.opportunities.lostReasonOptions(principal);
   }
 
   @Post()
   @Permissions('crm.sales.manage')
   create(
-    @Body() dto: CreateDealDto,
+    @Body() dto: CreateOpportunityDto,
     @CurrentPrincipal() principal: Principal,
   ) {
-    return this.deals.create(dto, principal);
+    return this.opportunities.create(dto, principal);
   }
 
   @Get(':id')
   @Permissions('crm.sales.read')
   findOne(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
-    return this.deals.findOne(id, principal);
+    return this.opportunities.findOne(id, principal);
   }
 
   @Patch(':id')
   @Permissions('crm.sales.manage')
   update(
     @Param('id') id: string,
-    @Body() dto: UpdateDealDto,
+    @Body() dto: UpdateOpportunityDto,
     @CurrentPrincipal() principal: Principal,
   ) {
-    return this.deals.update(id, dto, principal);
+    return this.opportunities.update(id, dto, principal);
   }
 
   @Post(':id/win')
   @Permissions('crm.sales.manage')
   win(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
-    return this.deals.win(id, principal);
+    return this.opportunities.win(id, principal);
   }
 
   /** ปิดแพ้ — เหตุผลมาตรฐานบังคับ (spec CRM). */
@@ -156,9 +156,9 @@ export class DealsController {
   @Permissions('crm.sales.manage')
   lose(
     @Param('id') id: string,
-    @Body() dto: LoseDealDto,
+    @Body() dto: LoseOpportunityDto,
     @CurrentPrincipal() principal: Principal,
   ) {
-    return this.deals.lose(id, dto, principal);
+    return this.opportunities.lose(id, dto, principal);
   }
 }

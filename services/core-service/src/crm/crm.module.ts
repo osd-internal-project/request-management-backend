@@ -31,15 +31,15 @@ import { IntegrationSyncJobRepository } from './integration-job.repository';
 import { KycProductRuleRepository } from './kyc-product.repository';
 import { KycCallbackService } from './kyc-callback.service';
 import {
-  DealLostReasonRepository,
-  DealProductRepository,
-  DealRepository,
+  OpportunityLostReasonRepository,
+  OpportunityProductRepository,
+  OpportunityRepository,
   LeadRepository,
 } from './sales.repositories';
-import { DealCodeService } from './deal-code.service';
+import { OpportunityCodeService } from './opportunity-code.service';
 import { LeadsService } from './leads.service';
-import { DealsService } from './deals.service';
-import { DealsController, LeadsController } from './sales.controllers';
+import { OpportunitiesService } from './opportunities.service';
+import { OpportunitiesController, LeadsController } from './sales.controllers';
 import { LeadImportService } from './lead-import.service';
 
 /**
@@ -47,12 +47,12 @@ import { LeadImportService } from './lead-import.service';
  * that live on the customer itself (CD-68 / C360-03 timeline).
  *
  * `CustomerTimelineService` is exported: it is the one interface other
- * modules (requests today; deals, cases later) publish customer-timeline
+ * modules (requests today; opportunities, cases later) publish customer-timeline
  * events through — nothing writes the table directly (C360-03).
  */
 @Module({
   imports: [AccessModule, RequestsModule, OdooModule, PdpaModule, EventsModule],
-  controllers: [CustomersController, CrmAdminController, LeadsController, DealsController],
+  controllers: [CustomersController, CrmAdminController, LeadsController, OpportunitiesController],
   providers: [
     CustomersService,
     CrmAdminService,
@@ -74,13 +74,13 @@ import { LeadImportService } from './lead-import.service';
     KycProductRuleRepository,
     KycCallbackService,
     LeadRepository,
-    DealRepository,
-    DealProductRepository,
-    DealLostReasonRepository,
-    DealCodeService,
+    OpportunityRepository,
+    OpportunityProductRepository,
+    OpportunityLostReasonRepository,
+    OpportunityCodeService,
     LeadsService,
     LeadImportService,
-    DealsService,
+    OpportunitiesService,
     PrismaTransactionService,
   ],
   exports: [CustomerTimelineService, CustomerRepository],

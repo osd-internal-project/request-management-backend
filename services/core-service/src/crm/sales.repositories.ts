@@ -19,10 +19,10 @@ export class LeadRepository extends BaseRepository<PrismaService['lead']> {
   }
 }
 
-/** What the deal list and the 360° tab both select. */
-export const DEAL_LIST_SELECT = {
+/** What the opportunity list and the 360° tab both select. */
+export const OPPORTUNITY_LIST_SELECT = {
   id: true,
-  dealCode: true,
+  opportunityCode: true,
   title: true,
   stage: true,
   amount: true,
@@ -34,21 +34,21 @@ export const DEAL_LIST_SELECT = {
   ownerUserId: true,
   createdAt: true,
   updatedAt: true,
-} satisfies Prisma.DealSelect;
+} satisfies Prisma.OpportunitySelect;
 
 @Injectable()
-export class DealRepository extends BaseRepository<PrismaService['deal']> {
+export class OpportunityRepository extends BaseRepository<PrismaService['opportunity']> {
   constructor(prisma: PrismaService) {
     super(prisma);
   }
 
   protected delegate(client: TQueryClient) {
-    return client.deal;
+    return client.opportunity;
   }
 
-  /** มูลค่ารวมของดีลตาม where — used by the 360° summary card. */
-  async sumAmount(where: Prisma.DealWhereInput): Promise<number> {
-    const result = await this.prisma.deal.aggregate({
+  /** มูลค่ารวมของโอกาสการขายตาม where — used by the 360° summary card. */
+  async sumAmount(where: Prisma.OpportunityWhereInput): Promise<number> {
+    const result = await this.prisma.opportunity.aggregate({
       where,
       _sum: { amount: true },
     });
@@ -57,27 +57,27 @@ export class DealRepository extends BaseRepository<PrismaService['deal']> {
 }
 
 @Injectable()
-export class DealProductRepository extends BaseRepository<
-  PrismaService['dealProduct']
+export class OpportunityProductRepository extends BaseRepository<
+  PrismaService['opportunityProduct']
 > {
   constructor(prisma: PrismaService) {
     super(prisma);
   }
 
   protected delegate(client: TQueryClient) {
-    return client.dealProduct;
+    return client.opportunityProduct;
   }
 }
 
 @Injectable()
-export class DealLostReasonRepository extends BaseRepository<
-  PrismaService['dealLostReason']
+export class OpportunityLostReasonRepository extends BaseRepository<
+  PrismaService['opportunityLostReason']
 > {
   constructor(prisma: PrismaService) {
     super(prisma);
   }
 
   protected delegate(client: TQueryClient) {
-    return client.dealLostReason;
+    return client.opportunityLostReason;
   }
 }

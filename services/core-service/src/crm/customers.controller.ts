@@ -74,7 +74,7 @@ export class CustomersController {
 
   /**
    * CM-04 ชุดงาน B — active KYC product rules, for any screen or module that
-   * must warn "product นี้ต้องทำ KYC" (โมดูลดีลจะใช้; declared before `:id`).
+   * must warn "product นี้ต้องทำ KYC" (โมดูลโอกาสการขายจะใช้; declared before `:id`).
    */
   @Get('kyc-products')
   @Permissions('crm.customer.read')

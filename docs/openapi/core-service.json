@@ -3650,6 +3650,45 @@
         ]
       }
     },
+    "/api/v1/leads/import": {
+      "post": {
+        "operationId": "LeadsController_import",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportLeadsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "leads"
+        ]
+      }
+    },
     "/api/v1/leads/{id}": {
       "patch": {
         "operationId": "LeadsController_update",
@@ -3791,9 +3830,9 @@
         ]
       }
     },
-    "/api/v1/deals": {
+    "/api/v1/opportunities": {
       "get": {
-        "operationId": "DealsController_list",
+        "operationId": "OpportunitiesController_list",
         "parameters": [
           {
             "name": "page",
@@ -3849,11 +3888,11 @@
           }
         ],
         "tags": [
-          "deals"
+          "opportunities"
         ]
       },
       "post": {
-        "operationId": "DealsController_create",
+        "operationId": "OpportunitiesController_create",
         "parameters": [
           {
             "name": "X-Company-Id",
@@ -3870,7 +3909,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateDealDto"
+                "$ref": "#/components/schemas/CreateOpportunityDto"
               }
             }
           }
@@ -3886,13 +3925,13 @@
           }
         ],
         "tags": [
-          "deals"
+          "opportunities"
         ]
       }
     },
-    "/api/v1/deals/lost-reasons": {
+    "/api/v1/opportunities/lost-reasons": {
       "get": {
-        "operationId": "DealsController_lostReasons",
+        "operationId": "OpportunitiesController_lostReasons",
         "parameters": [
           {
             "name": "X-Company-Id",
@@ -3915,13 +3954,13 @@
           }
         ],
         "tags": [
-          "deals"
+          "opportunities"
         ]
       }
     },
-    "/api/v1/deals/{id}": {
+    "/api/v1/opportunities/{id}": {
       "get": {
-        "operationId": "DealsController_findOne",
+        "operationId": "OpportunitiesController_findOne",
         "parameters": [
           {
             "name": "id",
@@ -3952,11 +3991,11 @@
           }
         ],
         "tags": [
-          "deals"
+          "opportunities"
         ]
       },
       "patch": {
-        "operationId": "DealsController_update",
+        "operationId": "OpportunitiesController_update",
         "parameters": [
           {
             "name": "id",
@@ -3981,7 +4020,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpdateDealDto"
+                "$ref": "#/components/schemas/UpdateOpportunityDto"
               }
             }
           }
@@ -3997,13 +4036,13 @@
           }
         ],
         "tags": [
-          "deals"
+          "opportunities"
         ]
       }
     },
-    "/api/v1/deals/{id}/win": {
+    "/api/v1/opportunities/{id}/win": {
       "post": {
-        "operationId": "DealsController_win",
+        "operationId": "OpportunitiesController_win",
         "parameters": [
           {
             "name": "id",
@@ -4034,13 +4073,13 @@
           }
         ],
         "tags": [
-          "deals"
+          "opportunities"
         ]
       }
     },
-    "/api/v1/deals/{id}/lose": {
+    "/api/v1/opportunities/{id}/lose": {
       "post": {
-        "operationId": "DealsController_lose",
+        "operationId": "OpportunitiesController_lose",
         "parameters": [
           {
             "name": "id",
@@ -4065,7 +4104,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/LoseDealDto"
+                "$ref": "#/components/schemas/LoseOpportunityDto"
               }
             }
           }
@@ -4081,7 +4120,7 @@
           }
         ],
         "tags": [
-          "deals"
+          "opportunities"
         ]
       }
     },
@@ -5576,7 +5615,7 @@
           },
           "ref_type": {
             "type": "string",
-            "example": "deal"
+            "example": "opportunity"
           },
           "ref_id": {
             "type": "string",
@@ -5762,7 +5801,7 @@
           },
           "ref_type": {
             "type": "string",
-            "example": "deal"
+            "example": "opportunity"
           },
           "ref_id": {
             "type": "string",
@@ -6307,6 +6346,10 @@
         "type": "object",
         "properties": {}
       },
+      "ImportLeadsDto": {
+        "type": "object",
+        "properties": {}
+      },
       "CreateLeadDto": {
         "type": "object",
         "properties": {}
@@ -6323,15 +6366,15 @@
         "type": "object",
         "properties": {}
       },
-      "CreateDealDto": {
+      "CreateOpportunityDto": {
         "type": "object",
         "properties": {}
       },
-      "UpdateDealDto": {
+      "UpdateOpportunityDto": {
         "type": "object",
         "properties": {}
       },
-      "LoseDealDto": {
+      "LoseOpportunityDto": {
         "type": "object",
         "properties": {}
       },
@@ -6811,7 +6854,7 @@
           "ref_type": {
             "type": "string",
             "description": "ประเภทของสิ่งที่อ้างถึง — **บังคับคู่กับ `ref_id` เมื่อประเภทคำขอนั้น ตอบ `ref_required: true`** ขาดไปจะได้ 422 `REQ_FIELD_MISSING` ที่ `ref_id`",
-            "example": "deal"
+            "example": "opportunity"
           },
           "ref_id": {
             "type": "string",

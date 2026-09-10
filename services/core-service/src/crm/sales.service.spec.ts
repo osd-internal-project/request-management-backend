@@ -1,5 +1,5 @@
 import { Principal } from '@request-management/share';
-import { DealsService } from './deals.service';
+import { OpportunitiesService } from './opportunities.service';
 import { LeadsService } from './leads.service';
 
 function principal(permissions: string[] = ['crm.sales.read', 'crm.sales.manage']): Principal {
@@ -14,7 +14,7 @@ function principal(permissions: string[] = ['crm.sales.read', 'crm.sales.manage'
   } as unknown as Principal;
 }
 
-function dealHarness(options: {
+function opportunityHarness(options: {
   found?: Record<string, unknown> | null;
   reason?: { code: string; name: string } | null;
   kycRules?: { productCode: string }[];
@@ -22,9 +22,9 @@ function dealHarness(options: {
   const audits: { eventType: string }[] = [];
   const timelineEvents: { eventType: string; summary: string }[] = [];
 
-  const openDeal = {
-    id: 'deal-1',
-    dealCode: 'DL-OSD-000001',
+  const openOpportunity = {
+    id: 'opportunity-1',
+    opportunityCode: 'OPP-OSD-000001',
     stage: 'negotiating',
     customerId: 'cust-1',
     companyId: 'osd',
@@ -32,14 +32,14 @@ function dealHarness(options: {
     customer: { kycVerified: false },
   };
 
-  const deals = {
+  const opportunities = {
     findFirst: jest.fn(() =>
-      Promise.resolve(options.found === undefined ? openDeal : options.found),
+      Promise.resolve(options.found === undefined ? openOpportunity : options.found),
     ),
     findMany: jest.fn(() => Promise.resolve([])),
     count: jest.fn(() => Promise.resolve(0)),
     create: jest.fn(() =>
-      Promise.resolve({ id: 'deal-1', dealCode: 'DL-OSD-000001' }),
+      Promise.resolve({ id: 'opportunity-1', opportunityCode: 'OPP-OSD-000001' }),
     ),
     update: jest.fn(() => Promise.resolve({})),
     sumAmount: jest.fn(() => Promise.resolve(0)),
@@ -63,7 +63,7 @@ function dealHarness(options: {
   const kycProducts = {
     findMany: jest.fn(() => Promise.resolve(options.kycRules ?? [])),
   };
-  const codes = { issue: jest.fn(() => Promise.resolve('DL-OSD-000001')) };
+  const codes = { issue: jest.fn(() => Promise.resolve('OPP-OSD-000001')) };
   const timeline = {
     publish: jest.fn((event: { eventType: string; summary: string }) => {
       timelineEvents.push(event);
@@ -78,12 +78,12 @@ function dealHarness(options: {
   };
   const transactions = {
     execute: jest.fn((work: (prisma: unknown) => Promise<unknown>) =>
-      work({ dealProduct: { deleteMany: jest.fn() } }),
+      work({ opportunityProduct: { deleteMany: jest.fn() } }),
     ),
   };
 
-  const service = new DealsService(
-    deals as never,
+  const service = new OpportunitiesService(
+    opportunities as never,
     products as never,
     lostReasons as never,
     customers as never,
@@ -94,69 +94,69 @@ function dealHarness(options: {
     transactions as never,
   );
 
-  return { service, deals, audits, timelineEvents, lostReasons };
+  return { service, opportunities, audits, timelineEvents, lostReasons };
 }
 
-describe('CRM ดีล — ปิดชนะ/แพ้ และคำเตือน KYC ระดับ product', () => {
+describe('CRM โอกาสการขาย — ปิดชนะ/แพ้ และคำเตือน KYC ระดับ product', () => {
   it('ปิดแพ้ด้วยเหตุผลนอกรายการมาตรฐาน = ถูกปฏิเสธ (spec CRM)', async () => {
-    const { service } = dealHarness({ reason: null });
+    const { service } = opportunityHarness({ reason: null });
 
     await expect(
-      service.lose('deal-1', { reason_code: 'made-up' }, principal()),
+      service.lose('opportunity-1', { reason_code: 'made-up' }, principal()),
     ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
   });
 
-  it('ปิดแพ้สำเร็จ → audit crm.deal.lost + เหตุการณ์เข้าไทม์ไลน์ลูกค้า', async () => {
-    const { service, audits, timelineEvents } = dealHarness();
+  it('ปิดแพ้สำเร็จ → audit crm.opportunity.lost + เหตุการณ์เข้าไทม์ไลน์ลูกค้า', async () => {
+    const { service, audits, timelineEvents } = opportunityHarness();
     jest
       .spyOn(service, 'findOne')
-      .mockResolvedValue({ id: 'deal-1' } as never);
+      .mockResolvedValue({ id: 'opportunity-1' } as never);
 
     await service.lose(
-      'deal-1',
+      'opportunity-1',
       { reason_code: 'price', reason_text: 'ต่ำกว่าทุน' },
       principal(),
     );
 
-    expect(audits.map((a) => a.eventType)).toContain('crm.deal.lost');
-    expect(timelineEvents.map((t) => t.eventType)).toContain('deal.lost');
+    expect(audits.map((a) => a.eventType)).toContain('crm.opportunity.lost');
+    expect(timelineEvents.map((t) => t.eventType)).toContain('opportunity.lost');
   });
 
-  it('ดีลที่ปิดแล้วแก้ไข/ปิดซ้ำไม่ได้', async () => {
-    const { service } = dealHarness({
-      found: { id: 'deal-1', dealCode: 'DL-1', stage: 'won', customerId: 'c' },
+  it('โอกาสการขายที่ปิดแล้วแก้ไข/ปิดซ้ำไม่ได้', async () => {
+    const { service } = opportunityHarness({
+      found: { id: 'opportunity-1', opportunityCode: 'OPP-1', stage: 'won', customerId: 'c' },
     });
 
-    await expect(service.win('deal-1', principal())).rejects.toMatchObject({
+    await expect(service.win('opportunity-1', principal())).rejects.toMatchObject({
       code: 'CONFLICT',
     });
   });
 
-  it('CM-04 ชุดงาน B — ดีลที่มี product เข้าเงื่อนไข + ลูกค้ายังไม่ KYC = คำเตือน ไม่ error', async () => {
-    const { service } = dealHarness({
+  it('CM-04 ชุดงาน B — โอกาสการขายที่มี product เข้าเงื่อนไข + ลูกค้ายังไม่ KYC = คำเตือน ไม่ error', async () => {
+    const { service } = opportunityHarness({
       kycRules: [{ productCode: 'SIP-TRUNK' }],
     });
 
-    const deal = (await service.findOne('deal-1', principal())) as {
+    const opportunity = (await service.findOne('opportunity-1', principal())) as {
       kycWarning: { required: boolean; products: string[] };
     };
 
-    expect(deal.kycWarning).toEqual({
+    expect(opportunity.kycWarning).toEqual({
       required: true,
       products: ['SIP-TRUNK'],
     });
   });
 
-  it('SCOPE-03 ดีลนอกขอบเขต = 404', async () => {
-    const { service } = dealHarness({ found: null });
+  it('SCOPE-03 โอกาสการขายนอกขอบเขต = 404', async () => {
+    const { service } = opportunityHarness({ found: null });
 
-    await expect(service.findOne('deal-x', principal())).rejects.toMatchObject({
+    await expect(service.findOne('opportunity-x', principal())).rejects.toMatchObject({
       code: 'NOT_FOUND',
     });
   });
 });
 
-describe('CRM Lead — แปลงเป็นดีลโดยข้อมูลไหลต่อ', () => {
+describe('CRM Lead — แปลงเป็นโอกาสการขายโดยข้อมูลไหลต่อ', () => {
   function leadHarness(options: { status?: string } = {}) {
     const leads = {
       findFirst: jest.fn(() =>
@@ -174,9 +174,9 @@ describe('CRM Lead — แปลงเป็นดีลโดยข้อมู
     const customers = {
       findFirst: jest.fn(() => Promise.resolve({ id: 'cust-1' })),
     };
-    const deals = {
+    const opportunities = {
       create: jest.fn(() =>
-        Promise.resolve({ id: 'deal-9', dealCode: 'DL-OSD-000009' }),
+        Promise.resolve({ id: 'opportunity-9', opportunityCode: 'OPP-OSD-000009' }),
       ),
     };
     const audit = { record: jest.fn(() => Promise.resolve()) };
@@ -185,25 +185,25 @@ describe('CRM Lead — แปลงเป็นดีลโดยข้อมู
     const service = new LeadsService(
       leads as never,
       customers as never,
-      deals as never,
+      opportunities as never,
       audit as never,
       transactions as never,
     );
 
-    return { service, leads, deals };
+    return { service, leads, opportunities };
   }
 
-  it('convert สร้างดีลผ่าน DealsService แล้วปิด Lead เป็น converted พร้อมชี้ดีล', async () => {
-    const { service, leads, deals } = leadHarness();
+  it('convert สร้างโอกาสการขายผ่าน OpportunitiesService แล้วปิด Lead เป็น converted พร้อมชี้โอกาสการขาย', async () => {
+    const { service, leads, opportunities } = leadHarness();
 
-    const deal = await service.convert(
+    const opportunity = await service.convert(
       'lead-1',
       { customer_id: 'cust-1' },
       principal(),
     );
 
-    expect(deal.dealCode).toBe('DL-OSD-000009');
-    expect(deals.create).toHaveBeenCalledWith(
+    expect(opportunity.opportunityCode).toBe('OPP-OSD-000009');
+    expect(opportunities.create).toHaveBeenCalledWith(
       expect.objectContaining({ customer_id: 'cust-1' }),
       expect.anything(),
       { fromLeadId: 'lead-1' },
@@ -212,7 +212,7 @@ describe('CRM Lead — แปลงเป็นดีลโดยข้อมู
       expect.objectContaining({
         data: expect.objectContaining({
           status: 'converted',
-          convertedDealId: 'deal-9',
+          convertedOpportunityId: 'opportunity-9',
         }),
       }),
     );
