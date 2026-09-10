@@ -40,6 +40,7 @@ import { DealCodeService } from './deal-code.service';
 import { LeadsService } from './leads.service';
 import { DealsService } from './deals.service';
 import { DealsController, LeadsController } from './sales.controllers';
+import { LeadImportService } from './lead-import.service';
 
 /**
  * CRM ระยะ 1 — Customer Master (CD-59 / CM-01…09) + the parts of มุมมอง 360°
@@ -78,6 +79,7 @@ import { DealsController, LeadsController } from './sales.controllers';
     DealLostReasonRepository,
     DealCodeService,
     LeadsService,
+    LeadImportService,
     DealsService,
     PrismaTransactionService,
   ],

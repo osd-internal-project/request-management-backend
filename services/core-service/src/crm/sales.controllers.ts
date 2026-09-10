@@ -11,12 +11,14 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentPrincipal, Permissions } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import { LeadsService } from './leads.service';
+import { LeadImportService } from './lead-import.service';
 import { DealsService } from './deals.service';
 import {
   ConvertLeadDto,
   CreateDealDto,
   CreateLeadDto,
   DisqualifyLeadDto,
+  ImportLeadsDto,
   ListDealsQueryDto,
   ListLeadsQueryDto,
   LoseDealDto,
@@ -29,7 +31,10 @@ import {
 @ApiBearerAuth()
 @Controller('leads')
 export class LeadsController {
-  constructor(private readonly leads: LeadsService) {}
+  constructor(
+    private readonly leads: LeadsService,
+    private readonly importer: LeadImportService,
+  ) {}
 
   @Get()
   @Permissions('crm.sales.read')
@@ -38,6 +43,16 @@ export class LeadsController {
     @Query() query: ListLeadsQueryDto,
   ) {
     return this.leads.list(principal, query);
+  }
+
+  /** Import จาก Excel (parse ฝั่ง client) — dry_run ตอบรายงานเต็มไม่เขียน. */
+  @Post('import')
+  @Permissions('crm.sales.manage')
+  import(
+    @Body() dto: ImportLeadsDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.importer.run(dto, principal);
   }
 
   @Post()

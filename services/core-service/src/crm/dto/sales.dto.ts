@@ -1,4 +1,6 @@
+import { Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
   IsArray,
   IsEmail,
   IsIn,
@@ -11,6 +13,7 @@ import {
   Max,
   MaxLength,
   Min,
+  ValidateNested,
 } from 'class-validator';
 import { PageQueryDto } from '@request-management/share';
 
@@ -118,6 +121,60 @@ export class ListLeadsQueryDto extends PageQueryDto {
   @IsOptional()
   @IsIn(['mine', 'all'])
   view?: 'mine' | 'all';
+}
+
+// --- Lead import (สูตรเดียวกับ CM-10: rows เป็น JSON, dry_run/commit) -------
+
+export class ImportLeadRowDto {
+  @IsInt()
+  @Min(1)
+  row_no!: number;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  name!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  contact_name?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  phone?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  email?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  source_code?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  note?: string;
+}
+
+export class ImportLeadsDto {
+  @IsIn(['dry_run', 'commit'])
+  mode!: 'dry_run' | 'commit';
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(64)
+  import_id!: string;
+
+  @IsArray()
+  @ArrayMaxSize(500)
+  @ValidateNested({ each: true })
+  @Type(() => ImportLeadRowDto)
+  rows!: ImportLeadRowDto[];
 }
 
 export class CreateDealDto {
