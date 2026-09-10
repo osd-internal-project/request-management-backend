@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import {
   AppError,
+  canHoldMembers,
+  childKindOf,
+  isValidChildOf,
+  parentKindOf,
   PrismaTransactionService,
   TxOption,
 } from '@request-management/share';
@@ -112,6 +116,18 @@ export interface OrgMember {
    */
   keycloakRoles: string[];
 }
+
+/**
+ * Level names as screen A3 prints them, so a refusal can say which level would
+ * have been right rather than echoing an enum value at the admin.
+ */
+const LEVEL_LABELS: Record<OrgUnit['kind'], string> = {
+  COMPANY: 'บริษัท',
+  DIVISION: 'ฝ่าย',
+  DEPARTMENT: 'แผนก',
+  TEAM: 'ทีม',
+  POSITION: 'ตำแหน่ง',
+};
 
 @Injectable()
 export class OrgService {
@@ -270,16 +286,25 @@ export class OrgService {
     return this.transactions.execute(async (prisma) => {
       const option = { prisma };
 
-      if (dto.parent_id) {
-        await this.requireSameCompany(dto.parent_id, dto.company_id, option);
-      }
+      const parent = dto.parent_id
+        ? await this.requireSameCompany(dto.parent_id, dto.company_id, option)
+        : null;
+
+      /*
+        Omitting the level means "the one that goes here", which is the only
+        level that fits under this parent. The previous default of `TEAM` was
+        written when ทีม was the only leaf kind, and screen A3 still sends it
+        for every new box regardless of where it is dropped.
+      */
+      const kind = dto.kind ?? this.onlyKindUnder(parent);
+      this.assertLevelFits(kind, parent);
 
       const unit = await this.orgUnits.createUnit(
         {
           companyId: dto.company_id,
           code: dto.code,
           name: dto.name,
-          kind: dto.kind ?? 'TEAM',
+          kind,
           parentId: dto.parent_id ?? null,
           managerUserId: dto.manager_user_id ?? null,
           createdBy: actor.userId,
@@ -321,6 +346,25 @@ export class OrgService {
 
       if (dto.parent_id !== undefined && dto.parent_id !== before.parentId) {
         await this.assertNoCycle(id, dto.parent_id, before.companyId, option);
+      }
+
+      const kindChanged = dto.kind !== undefined && dto.kind !== before.kind;
+      const parentChanged =
+        dto.parent_id !== undefined && dto.parent_id !== before.parentId;
+
+      if (kindChanged || parentChanged) {
+        const parentId =
+          dto.parent_id !== undefined ? dto.parent_id : before.parentId;
+        const parent = parentId
+          ? await this.orgUnits.findById(parentId, option)
+          : null;
+
+        const kind = dto.kind ?? before.kind;
+        this.assertLevelFits(kind, parent);
+
+        // Children keep their own level through this, so raising a แผนก to a
+        // ฝ่าย would strand its ทีม two levels down.
+        if (kindChanged) await this.assertChildrenFit(id, kind, option);
       }
 
       const after = await this.orgUnits.updateUnit(
@@ -442,6 +486,10 @@ export class OrgService {
       const before = await this.users.findById(userId, option);
       if (!before) {
         throw new AppError('NOT_FOUND', 'ไม่พบผู้ใช้ที่ระบุ');
+      }
+
+      if (dto.org_unit_id) {
+        await this.assertCanHoldMembers(dto.org_unit_id, option);
       }
 
       if (dto.companies?.length) {
@@ -951,7 +999,7 @@ export class OrgService {
     parentId: string,
     companyId: string,
     option?: TxOption,
-  ): Promise<void> {
+  ): Promise<OrgUnit> {
     const parent = await this.orgUnits.findById(parentId, option);
 
     if (!parent || parent.companyId !== companyId) {
@@ -961,6 +1009,104 @@ export class OrgService {
         [{ field: 'parent_id', reason: parentId }],
       );
     }
+
+    return parent;
+  }
+
+  /**
+   * The level a new unit takes when the caller does not name one: the single
+   * level that may sit under this parent, or บริษัท with no parent at all.
+   */
+  private onlyKindUnder(parent: OrgUnit | null): OrgUnit['kind'] {
+    if (!parent) return 'COMPANY';
+
+    const kind = childKindOf(parent.kind);
+    if (kind) return kind;
+
+    throw new AppError(
+      'ORG_UNIT_LEVEL_INVALID',
+      `${LEVEL_LABELS[parent.kind]}เป็นชั้นล่างสุดของผัง จะมีหน่วยงานย่อยไม่ได้`,
+      [{ field: 'parent_id', reason: parent.id }],
+    );
+  }
+
+  /**
+   * The chart is five adjacent levels and no level may be skipped
+   * (`ORG_UNIT_LEVELS`). Enforced here on every write, and only on writes —
+   * charts built before the rule keep whatever shape they have, because a
+   * company whose existing units are refused is a company locked out of screen
+   * A3 and therefore unable to correct itself.
+   */
+  private assertLevelFits(
+    kind: OrgUnit['kind'],
+    parent: OrgUnit | null,
+  ): void {
+    if (isValidChildOf(kind, parent?.kind ?? null)) return;
+
+    const required = parentKindOf(kind);
+
+    throw new AppError(
+      'ORG_UNIT_LEVEL_INVALID',
+      required
+        ? `${LEVEL_LABELS[kind]}ต้องอยู่ใต้${LEVEL_LABELS[required]}เท่านั้น`
+        : `${LEVEL_LABELS[kind]}เป็นชั้นบนสุด จะอยู่ใต้หน่วยงานอื่นไม่ได้`,
+      [
+        {
+          field: 'kind',
+          reason: parent
+            ? `พ่อเป็น${LEVEL_LABELS[parent.kind]}`
+            : 'ไม่มีหน่วยงานแม่',
+        },
+      ],
+    );
+  }
+
+  /** Children do not move when a unit changes level, so they have a say. */
+  private async assertChildrenFit(
+    id: string,
+    kind: OrgUnit['kind'],
+    option?: TxOption,
+  ): Promise<void> {
+    const kinds = await this.orgUnits.childKindsOf(id, option);
+    const allowed = childKindOf(kind);
+
+    const stranded = kinds.filter((child) => child !== allowed);
+    if (!stranded.length) return;
+
+    throw new AppError(
+      'ORG_UNIT_LEVEL_INVALID',
+      allowed
+        ? `หน่วยงานนี้มีลูกเป็น${stranded.map((child) => LEVEL_LABELS[child]).join(' และ ')} ` +
+          `เปลี่ยนเป็น${LEVEL_LABELS[kind]}ไม่ได้ เพราะใต้${LEVEL_LABELS[kind]}ต้องเป็น${LEVEL_LABELS[allowed]}`
+        : `${LEVEL_LABELS[kind]}เป็นชั้นล่างสุดของผัง หน่วยงานที่มีลูกเปลี่ยนเป็นชั้นนี้ไม่ได้`,
+      [{ field: 'kind', reason: stranded.join(', ') }],
+    );
+  }
+
+  /**
+   * People sit at แผนก or below (`canHoldMembers`). A บริษัท or ฝ่าย unit that
+   * held people as well as sub-departments would have no answer to "who is my
+   * supervisor", which is what approval step 1 and escalation walk.
+   */
+  private async assertCanHoldMembers(
+    orgUnitId: string,
+    option?: TxOption,
+  ): Promise<void> {
+    const unit = await this.orgUnits.findById(orgUnitId, option);
+
+    if (!unit) {
+      throw new AppError('NOT_FOUND', 'ไม่พบหน่วยงานที่ระบุ', [
+        { field: 'org_unit_id', reason: orgUnitId },
+      ]);
+    }
+
+    if (canHoldMembers(unit.kind)) return;
+
+    throw new AppError(
+      'ORG_UNIT_CANNOT_HOLD_MEMBERS',
+      `สังกัดคนไว้ที่${LEVEL_LABELS[unit.kind]}ไม่ได้ — ต้องเป็นแผนก ทีม หรือตำแหน่ง`,
+      [{ field: 'org_unit_id', reason: `${unit.code} เป็น${LEVEL_LABELS[unit.kind]}` }],
+    );
   }
 
   /**

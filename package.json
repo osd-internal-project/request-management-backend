@@ -37,6 +37,7 @@
     "matrix:clear-legacy": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/clear-legacy-matrices.ts",
     "org:adopt": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/adopt-org-chart.ts",
     "org:clear": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/clear-org-tree.ts",
+    "org:flatten-positions": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/flatten-positions.ts",
     "uat:seed": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/seed-uat.ts",
     "presales:seed": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/seed-presales-type.ts",
     "user:add": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/add-user.ts",

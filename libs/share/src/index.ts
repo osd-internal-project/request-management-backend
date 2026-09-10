@@ -4,6 +4,7 @@ export * from './directory';
 export * from './errors';
 export * from './http';
 export * from './modules';
+export * from './org';
 export * from './policy';
 export * from './repositories';
 export * from './audit/audit-writer.service';
