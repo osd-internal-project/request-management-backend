@@ -28,14 +28,18 @@ enum UserStatus {
   SUSPENDED
 }
 
-/// Ordered widest first, so the enum reads like the chart it describes:
-/// บริษัท → ฝ่าย → แผนก → ตำแหน่ง. `DIVISION` was added on 28 Aug 2026 when the
-/// real OSD org chart arrived — the staff register keeps `ฝ่าย` and `แผนก` in
-/// separate columns and flattening them lost a whole level.
+/// The five levels of the chart: บริษัท → ฝ่าย → แผนก → ทีม → ตำแหน่ง.
 ///
-/// `POSITION` is the fourth level: people sit in a position, not directly in a
-/// department. `TEAM` is kept because the demo company and `seed.ts` are built
-/// on it and it is still this column's default; new charts should not use it.
+/// **The order is declared in `libs/share/src/org/org-levels.ts`, not here.**
+/// This list is not in chart order — `TEAM` predates `DIVISION` and `POSITION`,
+/// which were appended as the chart grew, and Postgres cannot reorder an enum
+/// without swapping the whole type. Anything that needs to know which level is
+/// above which reads `ORG_UNIT_LEVELS`; reading this declaration instead ranks
+/// ทีม below ตำแหน่ง, which is wrong.
+///
+/// `OrgService` enforces two rules over those levels on every write: a unit's
+/// parent is the level immediately above it, and people sit at แผนก or below.
+/// ทีม and ตำแหน่ง are optional — a chart that stops at แผนก is complete.
 enum OrgUnitKind {
   COMPANY
   DIVISION
