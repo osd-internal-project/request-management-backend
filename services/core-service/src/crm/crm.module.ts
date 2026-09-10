@@ -34,12 +34,20 @@ import {
   OpportunityLostReasonRepository,
   OpportunityProductRepository,
   OpportunityRepository,
+  LeadActivityRepository,
   LeadRepository,
+  SaleOrderRepository,
 } from './sales.repositories';
 import { OpportunityCodeService } from './opportunity-code.service';
+import { SaleOrderCodeService } from './sale-order-code.service';
 import { LeadsService } from './leads.service';
 import { OpportunitiesService } from './opportunities.service';
-import { OpportunitiesController, LeadsController } from './sales.controllers';
+import { SaleOrdersService } from './sale-orders.service';
+import {
+  OpportunitiesController,
+  LeadsController,
+  SaleOrdersController,
+} from './sales.controllers';
 import { LeadImportService } from './lead-import.service';
 
 /**
@@ -52,7 +60,13 @@ import { LeadImportService } from './lead-import.service';
  */
 @Module({
   imports: [AccessModule, RequestsModule, OdooModule, PdpaModule, EventsModule],
-  controllers: [CustomersController, CrmAdminController, LeadsController, OpportunitiesController],
+  controllers: [
+    CustomersController,
+    CrmAdminController,
+    LeadsController,
+    OpportunitiesController,
+    SaleOrdersController,
+  ],
   providers: [
     CustomersService,
     CrmAdminService,
@@ -74,13 +88,17 @@ import { LeadImportService } from './lead-import.service';
     KycProductRuleRepository,
     KycCallbackService,
     LeadRepository,
+    LeadActivityRepository,
     OpportunityRepository,
     OpportunityProductRepository,
     OpportunityLostReasonRepository,
     OpportunityCodeService,
+    SaleOrderRepository,
+    SaleOrderCodeService,
     LeadsService,
     LeadImportService,
     OpportunitiesService,
+    SaleOrdersService,
     PrismaTransactionService,
   ],
   exports: [CustomerTimelineService, CustomerRepository],

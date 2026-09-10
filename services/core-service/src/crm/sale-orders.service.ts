@@ -1,0 +1,520 @@
+import { Injectable } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
+import {
+  AppError,
+  AuditWriter,
+  auditActor,
+  paginated,
+  Principal,
+  PrismaTransactionService,
+  salesAccessSubject,
+  toSkipTake,
+  visibleSalesWhere,
+} from '@request-management/share';
+import {
+  LeadRepository,
+  OpportunityRepository,
+  SALE_ORDER_LIST_SELECT,
+  SaleOrderRepository,
+} from './sales.repositories';
+import { SaleOrderCodeService } from './sale-order-code.service';
+import { CustomerRepository } from './customer.repository';
+import { CustomersService } from './customers.service';
+import { CustomerTimelineService } from './customer-timeline.service';
+import type { CreateCustomerDto } from './dto/customer.dto';
+import {
+  CancelSaleOrderDto,
+  ListSaleOrdersQueryDto,
+  OpenSaleOrderDto,
+} from './dto/sales.dto';
+
+/**
+ * CRM ใบสั่งขาย (Sale Order) — โครงระยะ 1 ของ CD-77 และ **จุดเดียวที่ลูกค้าใน
+ * ทะเบียนเกิด** (PO 10 ก.ย. 2569: "การเปิด opportunity ยังไม่ถือเป็น customer
+ * — customer จะเกิดได้ต้องเป็นการเปิด Sale order แล้วเท่านั้น").
+ *
+ * `open` ทำสามอย่างเป็นก้อนเดียว: หา/สร้างลูกค้าจากผู้มุ่งหวังของโอกาสการขาย
+ * (ผ่าน `CustomersService.create` — ออกรหัส, dedup CM-03, Odoo sync เหมือนสร้าง
+ * จากหน้าจอ), ออกเลข SO, แล้วผูกลูกค้ากลับไปที่โอกาสการขาย (+ Lead ต้นทาง) และ
+ * ปิดโอกาสการขายเป็น won. รายการสินค้า/ราคาต่อบรรทัดยังไม่อยู่ที่นี่ — มาจาก
+ * ใบเสนอราคา/BOQ ของโมดูล Sales ระยะถัดไป.
+ */
+@Injectable()
+export class SaleOrdersService {
+  constructor(
+    private readonly saleOrders: SaleOrderRepository,
+    private readonly opportunities: OpportunityRepository,
+    private readonly leads: LeadRepository,
+    private readonly customers: CustomerRepository,
+    private readonly customersService: CustomersService,
+    private readonly codes: SaleOrderCodeService,
+    private readonly timeline: CustomerTimelineService,
+    private readonly audit: AuditWriter,
+    private readonly transactions: PrismaTransactionService,
+  ) {}
+
+  async list(actor: Principal, query: ListSaleOrdersQueryDto) {
+    const { skip, take } = toSkipTake(query);
+    const filters: Prisma.SaleOrderWhereInput = {};
+
+    if (query.status) filters.status = query.status;
+    if (query.opportunity_id) filters.opportunityId = query.opportunity_id;
+    if (query.customer_id) filters.customerId = query.customer_id;
+    if (query.view === 'mine') filters.ownerUserId = actor.userId;
+
+    const where = {
+      AND: [visibleSalesWhere(salesAccessSubject(actor)), filters],
+    } as Prisma.SaleOrderWhereInput;
+
+    const [rows, total] = await Promise.all([
+      this.saleOrders.findMany({
+        where,
+        select: SALE_ORDER_LIST_SELECT,
+        skip,
+        take,
+        orderBy: { orderedAt: 'desc' },
+      }),
+      this.saleOrders.count({ where }),
+    ]);
+
+    return paginated(rows as unknown[], query, total);
+  }
+
+  /** SCOPE-03: unseen = 404. */
+  async findOne(id: string, actor: Principal) {
+    const found = await this.saleOrders.findFirst({
+      where: {
+        id,
+        AND: [visibleSalesWhere(salesAccessSubject(actor))],
+      },
+      select: SALE_ORDER_LIST_SELECT,
+    });
+
+    if (!found) throw new AppError('NOT_FOUND', 'ไม่พบใบสั่งขายที่ระบุ');
+    return found;
+  }
+
+  /**
+   * เปิดใบสั่งขายจากโอกาสการขายที่ยังเปิดอยู่. ลำดับ:
+   *   1. ลูกค้า — รายที่โอกาสการขายผูกอยู่ → รายที่ผู้ใช้เลือก (`customer_id`) →
+   *      รายเดิมที่เลขภาษี+สาขาตรง (ไม่สร้างซ้ำ) → สร้างใหม่จากผู้มุ่งหวัง.
+   *      การสร้างเป็น transaction ของตัวเอง (ออกรหัส + Odoo หลัง commit) — ถ้า
+   *      ขั้นถัดไปล้ม ลูกค้ายังอยู่และรอบต่อไปจะจับคู่ด้วยเลขภาษีได้เอง.
+   *   2. ออกเลข SO, สร้างแถว, ผูกลูกค้ากลับที่โอกาสการขาย + Lead, ปิดชนะ —
+   *      transaction เดียว.
+   */
+  async open(opportunityId: string, dto: OpenSaleOrderDto, actor: Principal) {
+    const opportunity = await this.requireOpenOpportunity(opportunityId, actor);
+    const customer = await this.resolveCustomer(opportunity, dto, actor);
+
+    const created = await this.transactions.execute(async (prisma) => {
+      const saleOrderCode = await this.codes.issue(
+        actor.activeCompanyId,
+        prisma,
+      );
+      const amount = dto.amount ?? opportunity.amount ?? null;
+
+      const row = (await this.saleOrders.create(
+        {
+          data: {
+            saleOrderCode,
+            companyId: actor.activeCompanyId,
+            opportunityId: opportunity.id,
+            customerId: customer.id,
+            amount,
+            currency: opportunity.currency,
+            note: dto.note?.trim() || null,
+            ownerUserId: opportunity.ownerUserId,
+            ownerOrgUnitId: opportunity.ownerOrgUnitId,
+            createdBy: actor.userId,
+          },
+        },
+        { prisma },
+      )) as { id: string; saleOrderCode: string };
+
+      await this.opportunities.update(
+        {
+          where: { id: opportunity.id },
+          data: {
+            customerId: customer.id,
+            stage: 'won',
+            wonAt: new Date(),
+            lostReasonCode: null,
+            lostReasonText: null,
+            updatedBy: actor.userId,
+          },
+        },
+        { prisma },
+      );
+
+      if (opportunity.fromLead && !opportunity.fromLead.customerId) {
+        await this.leads.update(
+          {
+            where: { id: opportunity.fromLead.id },
+            data: { customerId: customer.id, updatedBy: actor.userId },
+          },
+          { prisma },
+        );
+      }
+
+      await this.audit.record(
+        {
+          eventType: 'crm.sale_order.opened',
+          companyId: actor.activeCompanyId,
+          ...auditActor(actor),
+          resourceType: 'sale_order',
+          resourceId: row.id,
+          after: {
+            saleOrderCode,
+            opportunityId: opportunity.id,
+            opportunityCode: opportunity.opportunityCode,
+            customerId: customer.id,
+            customerCode: customer.customerCode,
+            customerCreated: customer.created,
+            amount,
+          },
+        },
+        { prisma },
+      );
+
+      await this.audit.record(
+        {
+          eventType: 'crm.opportunity.won',
+          companyId: actor.activeCompanyId,
+          ...auditActor(actor),
+          resourceType: 'opportunity',
+          resourceId: opportunity.id,
+          before: {
+            stage: opportunity.stage,
+            customerId: opportunity.customerId,
+          },
+          after: { stage: 'won', customerId: customer.id, saleOrderCode },
+        },
+        { prisma },
+      );
+
+      const actorMeta = {
+        actorId: auditActor(actor).actorId,
+        actorName: actor.displayName,
+      };
+
+      await this.timeline.publish(
+        {
+          companyId: actor.activeCompanyId,
+          customerId: customer.id,
+          refType: 'opportunity',
+          refId: opportunity.id,
+          eventType: 'opportunity.won',
+          summary: `ปิดโอกาสการขาย ${opportunity.opportunityCode} สำเร็จ (ชนะ) — เปิดใบสั่งขาย ${saleOrderCode}`,
+          ...actorMeta,
+        },
+        { prisma },
+      );
+
+      await this.timeline.publish(
+        {
+          companyId: actor.activeCompanyId,
+          customerId: customer.id,
+          refType: 'sale_order',
+          refId: row.id,
+          eventType: 'sale_order.opened',
+          summary: `เปิดใบสั่งขาย ${saleOrderCode} · ${opportunity.title}${
+            customer.created ? ' — สร้างทะเบียนลูกค้าจากผู้มุ่งหวัง' : ''
+          }`,
+          ...actorMeta,
+        },
+        { prisma },
+      );
+
+      return row;
+    });
+
+    const saleOrder = await this.findOne(created.id, actor);
+    return {
+      ...saleOrder,
+      customerCreated: customer.created,
+    };
+  }
+
+  /** ยกเลิก — สถานะ + เหตุผล, ไม่มีการลบ; โอกาสการขายคงสถานะ won ไว้เป็นประวัติ. */
+  async cancel(id: string, dto: CancelSaleOrderDto, actor: Principal) {
+    const found = (await this.saleOrders.findFirst({
+      where: {
+        id,
+        AND: [visibleSalesWhere(salesAccessSubject(actor))],
+      },
+      select: { id: true, saleOrderCode: true, status: true, customerId: true },
+    })) as {
+      id: string;
+      saleOrderCode: string;
+      status: string;
+      customerId: string;
+    } | null;
+
+    if (!found) throw new AppError('NOT_FOUND', 'ไม่พบใบสั่งขายที่ระบุ');
+    if (found.status === 'cancelled') {
+      throw new AppError('CONFLICT', 'ใบสั่งขายนี้ถูกยกเลิกแล้ว');
+    }
+
+    await this.transactions.execute(async (prisma) => {
+      await this.saleOrders.update(
+        {
+          where: { id },
+          data: {
+            status: 'cancelled',
+            cancelledAt: new Date(),
+            cancelReason: dto.reason.trim(),
+            updatedBy: actor.userId,
+          },
+        },
+        { prisma },
+      );
+
+      await this.audit.record(
+        {
+          eventType: 'crm.sale_order.cancelled',
+          companyId: actor.activeCompanyId,
+          ...auditActor(actor),
+          resourceType: 'sale_order',
+          resourceId: id,
+          before: { status: found.status },
+          after: { status: 'cancelled', reason: dto.reason },
+        },
+        { prisma },
+      );
+
+      await this.timeline.publish(
+        {
+          companyId: actor.activeCompanyId,
+          customerId: found.customerId,
+          refType: 'sale_order',
+          refId: id,
+          eventType: 'sale_order.cancelled',
+          summary: `ยกเลิกใบสั่งขาย ${found.saleOrderCode} — ${dto.reason.trim()}`,
+          actorId: auditActor(actor).actorId,
+          actorName: actor.displayName,
+        },
+        { prisma },
+      );
+    });
+
+    return this.findOne(id, actor);
+  }
+
+  // --- helpers ---------------------------------------------------------------
+
+  /** Visible AND still open (not won/lost). SCOPE-03: unseen = 404. */
+  private async requireOpenOpportunity(
+    id: string,
+    actor: Principal,
+  ): Promise<OpenOpportunityForSale> {
+    const found = (await this.opportunities.findFirst({
+      where: {
+        id,
+        AND: [visibleSalesWhere(salesAccessSubject(actor))],
+      },
+      select: {
+        id: true,
+        opportunityCode: true,
+        title: true,
+        stage: true,
+        amount: true,
+        currency: true,
+        customerId: true,
+        prospectName: true,
+        prospectTaxId: true,
+        prospectContactName: true,
+        prospectPhone: true,
+        prospectEmail: true,
+        ownerUserId: true,
+        ownerOrgUnitId: true,
+        fromLead: {
+          select: {
+            id: true,
+            customerId: true,
+            nameEn: true,
+            contactPosition: true,
+            addressLine: true,
+            district: true,
+            province: true,
+            postalCode: true,
+            country: true,
+          },
+        },
+      },
+    })) as OpenOpportunityForSale | null;
+
+    if (!found) throw new AppError('NOT_FOUND', 'ไม่พบโอกาสการขายที่ระบุ');
+    if (found.stage === 'won' || found.stage === 'lost') {
+      throw new AppError(
+        'CONFLICT',
+        'โอกาสการขายนี้ปิดแล้ว — เปิดใบสั่งขายได้เฉพาะโอกาสการขายที่ยังเปิดอยู่',
+      );
+    }
+
+    return found;
+  }
+
+  private async resolveCustomer(
+    opportunity: OpenOpportunityForSale,
+    dto: OpenSaleOrderDto,
+    actor: Principal,
+  ): Promise<ResolvedCustomer> {
+    // 1) โอกาสการขายของลูกค้าเดิม — ไม่มีอะไรต้องสร้าง.
+    if (opportunity.customerId) {
+      return this.existing(opportunity.customerId, actor, 'customer_id');
+    }
+
+    // 2) ผู้ใช้ชี้ลูกค้าเดิมเอง (เช่น หลังระบบเตือนชื่อคล้าย).
+    if (dto.customer_id) {
+      return this.existing(dto.customer_id, actor, 'customer_id');
+    }
+
+    // 3) เลขภาษี + สาขา ตรงกับรายเดิม → ใช้รายเดิม (ไม่ชนกับ CM-03 hard block).
+    const taxId = digits(dto.customer?.tax_id ?? opportunity.prospectTaxId);
+    const branchCode = dto.customer?.branch_code ?? '00000';
+    if (taxId) {
+      const match = (await this.customers.findFirst({
+        where: {
+          companyId: actor.activeCompanyId,
+          taxId,
+          branchCode,
+          mergedIntoCustomerId: null,
+        },
+        select: { id: true, customerCode: true, nameTh: true },
+      })) as Omit<ResolvedCustomer, 'created'> | null;
+      if (match) return { ...match, created: false };
+    }
+
+    // 4) สร้างใหม่จากผู้มุ่งหวัง — ทางเดียวกับหน้าจอสร้างลูกค้า (รหัส, dedup, Odoo).
+    const nameTh = dto.customer?.name_th?.trim() || opportunity.prospectName;
+    if (!nameTh) {
+      throw new AppError(
+        'VALIDATION_FAILED',
+        'โอกาสการขายนี้ไม่มีชื่อผู้มุ่งหวัง — ระบุชื่อลูกค้าเพื่อสร้างทะเบียน',
+        [{ field: 'customer.name_th', reason: 'required' }],
+      );
+    }
+
+    const lead = opportunity.fromLead;
+    const customerDto: CreateCustomerDto = {
+      type: dto.customer?.type ?? 'corporate',
+      name_th: nameTh,
+      name_en: dto.customer?.name_en?.trim() || lead?.nameEn || undefined,
+      tax_id: taxId || undefined,
+      branch_code: dto.customer?.branch_code,
+      branch_name: dto.customer?.branch_name?.trim() || undefined,
+      account_owner_user_id: opportunity.ownerUserId,
+      status: 'active',
+      contacts: opportunity.prospectContactName
+        ? [
+            {
+              name: opportunity.prospectContactName,
+              position: lead?.contactPosition ?? undefined,
+              phone: opportunity.prospectPhone ?? undefined,
+              email: opportunity.prospectEmail ?? undefined,
+              is_primary: true,
+            },
+          ]
+        : [],
+      locations: lead?.addressLine
+        ? [
+            {
+              name: 'ที่อยู่จดทะเบียน',
+              line1: lead.addressLine,
+              district: lead.district ?? undefined,
+              province: lead.province ?? undefined,
+              postal_code: /^\d{5}$/.test(lead.postalCode ?? '')
+                ? (lead.postalCode as string)
+                : undefined,
+              country: lead.country ?? undefined,
+              is_billing: true,
+              is_primary: true,
+            },
+          ]
+        : [],
+      confirm_duplicate: dto.customer?.confirm_duplicate,
+      override_reason: dto.customer?.override_reason,
+    };
+
+    const created = (await this.customersService.create(
+      customerDto,
+      actor,
+    )) as {
+      id: string;
+      customerCode: string;
+      nameTh: string;
+    };
+
+    return {
+      id: created.id,
+      customerCode: created.customerCode,
+      nameTh: created.nameTh,
+      created: true,
+    };
+  }
+
+  private async existing(
+    customerId: string,
+    actor: Principal,
+    field: string,
+  ): Promise<ResolvedCustomer> {
+    const customer = (await this.customers.findFirst({
+      where: {
+        id: customerId,
+        companyId: actor.activeCompanyId,
+        mergedIntoCustomerId: null,
+      },
+      select: { id: true, customerCode: true, nameTh: true },
+    })) as Omit<ResolvedCustomer, 'created'> | null;
+
+    if (!customer) {
+      throw new AppError('VALIDATION_FAILED', 'ไม่พบลูกค้าที่ระบุ', [
+        { field, reason: customerId },
+      ]);
+    }
+
+    return { ...customer, created: false };
+  }
+}
+
+interface OpenOpportunityForSale {
+  id: string;
+  opportunityCode: string;
+  title: string;
+  stage: string;
+  amount: Prisma.Decimal | null;
+  currency: string;
+  customerId: string | null;
+  prospectName: string | null;
+  prospectTaxId: string | null;
+  prospectContactName: string | null;
+  prospectPhone: string | null;
+  prospectEmail: string | null;
+  ownerUserId: string;
+  ownerOrgUnitId: string | null;
+  fromLead: {
+    id: string;
+    customerId: string | null;
+    nameEn: string | null;
+    contactPosition: string | null;
+    addressLine: string | null;
+    district: string | null;
+    province: string | null;
+    postalCode: string | null;
+    country: string | null;
+  } | null;
+}
+
+interface ResolvedCustomer {
+  id: string;
+  customerCode: string;
+  nameTh: string;
+  /** true = ทะเบียนลูกค้าเพิ่งเกิดจากใบสั่งขายนี้. */
+  created: boolean;
+}
+
+function digits(value: string | null | undefined): string | null {
+  const only = (value ?? '').replace(/[^0-9]/g, '');
+  return only.length ? only : null;
+}

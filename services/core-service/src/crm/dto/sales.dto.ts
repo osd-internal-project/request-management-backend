@@ -2,6 +2,8 @@ import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   IsArray,
+  IsBoolean,
+  IsDateString,
   IsEmail,
   IsIn,
   IsInt,
@@ -16,14 +18,36 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { PageQueryDto } from '@request-management/share';
+import { CUSTOMER_TYPES } from './customer.dto';
 
 /** CRM sales DTOs — snake_case per the §11.1 API contract. */
 
 export const LEAD_STATUSES = [
   'new',
+  'cannot_contact',
+  'contacted',
   'qualified',
   'disqualified',
   'converted',
+] as const;
+
+/**
+ * สถานะที่เลื่อนได้จากหน้ารายละเอียด (pipeline) — `converted`/`disqualified`
+ * เป็นสถานะปิด ต้องผ่าน endpoint ของมันเอง (convert / disqualify).
+ */
+export const WORKABLE_LEAD_STATUSES = [
+  'new',
+  'cannot_contact',
+  'contacted',
+  'qualified',
+] as const;
+
+export const LEAD_ACTIVITY_TYPES = [
+  'call',
+  'email',
+  'meeting',
+  'task',
+  'note',
 ] as const;
 
 export const OPPORTUNITY_STAGES = [
@@ -75,6 +99,78 @@ export class CreateLeadDto {
   @IsOptional()
   @IsString()
   customer_id?: string;
+
+  // --- หน้ารายละเอียด Lead: ผู้ติดต่อ / บริษัท / ที่อยู่ (10 ก.ย. 2569) ---------
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  contact_position?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  name_en?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  tax_id?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  industry?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  company_size?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  employee_count?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  product_group?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  sub_product?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  project_revenue?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  address_line?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  district?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  province?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  postal_code?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2)
+  country?: string;
 }
 
 export class UpdateLeadDto extends CreateLeadDto {
@@ -85,6 +181,58 @@ export class UpdateLeadDto extends CreateLeadDto {
   declare name: string;
 }
 
+/** เลื่อนขั้นใน pipeline จากหน้ารายละเอียด — ถอยกลับได้ (ติดต่อไม่ได้ → ติดต่อแล้ว). */
+export class UpdateLeadStatusDto {
+  @IsIn(WORKABLE_LEAD_STATUSES)
+  status!: (typeof WORKABLE_LEAD_STATUSES)[number];
+}
+
+/**
+ * ลงกิจกรรมบน Lead — ไม่มี `due_at` = บันทึกสิ่งที่ทำไปแล้ว (ปิดทันที),
+ * มี `due_at` = นัด/งานที่ต้องตามต่อ.
+ */
+export class CreateLeadActivityDto {
+  @IsIn(LEAD_ACTIVITY_TYPES)
+  type!: (typeof LEAD_ACTIVITY_TYPES)[number];
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  subject!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  detail?: string;
+
+  @IsOptional()
+  @IsDateString()
+  due_at?: string;
+}
+
+export class UpdateLeadActivityDto {
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  subject?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  detail?: string;
+
+  /** `null` = ถอดกำหนดออก. */
+  @IsOptional()
+  @IsDateString()
+  due_at?: string | null;
+
+  /** true = ทำเสร็จแล้ว, false = เปิดกลับ. */
+  @IsOptional()
+  @IsBoolean()
+  completed?: boolean;
+}
+
 export class DisqualifyLeadDto {
   @IsString()
   @IsNotEmpty()
@@ -92,11 +240,16 @@ export class DisqualifyLeadDto {
   reason!: string;
 }
 
-/** แปลง Lead → โอกาสการขาย: ข้อมูลไหลต่อ + ต้องชี้ลูกค้า (มีอยู่แล้วในทะเบียน). */
+/**
+ * แปลง Lead → โอกาสการขาย: ข้อมูลไหลต่อ. PO 10 ก.ย. 2569: ไม่ต้องมีลูกค้าใน
+ * ทะเบียน — ว่างไว้ = โอกาสการขายของผู้มุ่งหวัง (ชื่อ/เลขภาษี/ผู้ติดต่อ copy จาก
+ * Lead) และลูกค้าจะถูกสร้างเมื่อเปิดใบสั่งขาย; ระบุได้เมื่อ Lead นี้เป็นเรื่องของ
+ * ลูกค้าเดิม.
+ */
 export class ConvertLeadDto {
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  customer_id!: string;
+  customer_id?: string;
 
   @IsOptional()
   @IsString()
@@ -178,9 +331,40 @@ export class ImportLeadsDto {
 }
 
 export class CreateOpportunityDto {
+  /**
+   * ลูกค้าเดิมในทะเบียน (repeat business). ว่างได้ — PO 10 ก.ย. 2569: การเปิด
+   * โอกาสการขายยังไม่ถือเป็นลูกค้า; กรณีนั้นต้องมี `prospect_name` แทน และ
+   * ลูกค้าจะเกิดเมื่อเปิดใบสั่งขาย.
+   */
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  customer_id!: string;
+  customer_id?: string;
+
+  /** ชื่อผู้มุ่งหวัง (บริษัท/บุคคล) — บังคับเมื่อไม่ระบุ `customer_id`. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  prospect_name?: string;
+
+  /** เลขผู้เสียภาษีของผู้มุ่งหวัง — free text ที่นี่ ตรวจ checksum ตอนสร้างลูกค้า. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  prospect_tax_id?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  prospect_contact_name?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  prospect_phone?: string;
+
+  @IsOptional()
+  @IsEmail()
+  prospect_email?: string;
 
   @IsString()
   @IsNotEmpty()
@@ -270,6 +454,107 @@ export class ListOpportunitiesQueryDto extends PageQueryDto {
   @IsOptional()
   @IsString()
   customer_id?: string;
+
+  @IsOptional()
+  @IsIn(['mine', 'all'])
+  view?: 'mine' | 'all';
+}
+
+// --- ใบสั่งขาย (Sale Order, CD-77 โครงระยะ 1) ---------------------------------
+
+export const SALE_ORDER_STATUSES = ['open', 'cancelled'] as const;
+
+/**
+ * ค่าที่ผู้ใช้ปรับก่อนระบบสร้างลูกค้าใหม่จากผู้มุ่งหวัง ตอนเปิดใบสั่งขาย — ทุก
+ * ช่องว่างได้ (ค่าตั้งต้นมาจากโอกาสการขาย/Lead). Same shape and rules as
+ * `CreateCustomerDto`, including the CM-03 similar-name override.
+ */
+export class SaleOrderCustomerDto {
+  @IsOptional()
+  @IsIn(CUSTOMER_TYPES)
+  type?: (typeof CUSTOMER_TYPES)[number];
+
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  name_th?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  name_en?: string;
+
+  @IsOptional()
+  @Matches(/^\d{13}$/, { message: 'เลขผู้เสียภาษีต้องเป็นตัวเลข 13 หลัก' })
+  tax_id?: string;
+
+  @IsOptional()
+  @Matches(/^\d{5}$/)
+  branch_code?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  branch_name?: string;
+
+  /** CM-03: ยืนยันสร้างทั้งที่ระบบเตือนชื่อคล้าย — ต้องมีสิทธิ์ + เหตุผล. */
+  @IsOptional()
+  @IsBoolean()
+  confirm_duplicate?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  override_reason?: string;
+}
+
+/**
+ * เปิดใบสั่งขายจากโอกาสการขาย — จุดเดียวที่ลูกค้าในทะเบียน "เกิด" (PO 10 ก.ย.
+ * 2569). ถ้าโอกาสการขายผูกลูกค้าอยู่แล้ว ทั้ง `customer_id`/`customer` ถูกข้าม.
+ */
+export class OpenSaleOrderDto {
+  /** ใช้ลูกค้าเดิมรายนี้แทนการสร้างใหม่ (เช่น ระบบเตือนว่ามีชื่อคล้ายอยู่แล้ว). */
+  @IsOptional()
+  @IsString()
+  customer_id?: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => SaleOrderCustomerDto)
+  customer?: SaleOrderCustomerDto;
+
+  /** ว่าง = ใช้มูลค่าของโอกาสการขาย. */
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  amount?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  note?: string;
+}
+
+export class CancelSaleOrderDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(500)
+  reason!: string;
+}
+
+export class ListSaleOrdersQueryDto extends PageQueryDto {
+  @IsOptional()
+  @IsString()
+  opportunity_id?: string;
+
+  @IsOptional()
+  @IsString()
+  customer_id?: string;
+
+  @IsOptional()
+  @IsIn(SALE_ORDER_STATUSES)
+  status?: (typeof SALE_ORDER_STATUSES)[number];
 
   @IsOptional()
   @IsIn(['mine', 'all'])

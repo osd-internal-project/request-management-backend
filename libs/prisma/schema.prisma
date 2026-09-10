@@ -171,9 +171,21 @@ enum IntegrationJobStatus {
 /// CRM — สถานะ Lead: รับเข้า → คัดกรอง → แปลงเป็นโอกาสการขาย (หรือคัดออกพร้อมเหตุผล).
 enum LeadStatus {
   new
+  /// ติดต่อไม่ได้ — ยังเปิดอยู่ กลับมา contacted ได้.
+  cannot_contact
+  contacted
   qualified
   disqualified
   converted
+}
+
+/// CRM — กิจกรรมบน Lead: โทร / อีเมล / นัดหมาย / งาน / บันทึก.
+enum LeadActivityType {
+  call
+  email
+  meeting
+  task
+  note
 }
 
 /// CRM — ขั้นของโอกาสการขาย. `won`/`lost` เป็นสถานะปิด; ปิดแพ้ต้องมีเหตุผลมาตรฐาน
@@ -184,6 +196,13 @@ enum OpportunityStage {
   negotiating
   won
   lost
+}
+
+/// CRM — สถานะใบสั่งขาย (Sale Order). PO 10 ก.ย. 2569: ลูกค้าในทะเบียน "เกิด"
+/// ที่จุดเปิดใบสั่งขายเท่านั้น — ขั้นตอนก่อนหน้า (Lead, โอกาสการขาย) เป็นผู้มุ่งหวัง.
+enum SaleOrderStatus {
+  open
+  cancelled
 }
 
 /// CM-05: บทบาทผู้ติดต่อตามสเปค.
@@ -240,6 +259,8 @@ model Company {
   opportunities           Opportunity[]
   opportunityLostReasons  OpportunityLostReason[]
   opportunityCodeCounter  OpportunityCodeCounter?
+  saleOrders              SaleOrder[]
+  saleOrderCodeCounter    SaleOrderCodeCounter?
 
   @@map("companies")
 }
@@ -1523,6 +1544,7 @@ model Customer {
 
   leads          Lead[]
   opportunities  Opportunity[]
+  saleOrders     SaleOrder[]
   locations      CustomerLocation[]
   contacts       CustomerContact[]
   externalCodes  CustomerExternalCode[]
@@ -1866,6 +1888,27 @@ model Lead {
   email       String?
   note        String?
 
+  /// ตำแหน่ง/ฝ่ายของผู้ติดต่อ (หน้ารายละเอียด Lead, 10 ก.ย. 2569).
+  contactPosition String?
+
+  /// ข้อมูลบริษัท/ลูกค้าเป้าหมาย — กรอกได้ระหว่างคัดกรอง ก่อนที่ Lead จะกลาย
+  /// เป็นลูกค้าในทะเบียน; free text ทั้งหมด ไม่ผูก master ใด.
+  nameEn         String?
+  taxId          String?
+  industry       String?
+  companySize    String?
+  employeeCount  Int?
+  productGroup   String?
+  subProduct     String?
+  projectRevenue Decimal? @db.Decimal(14, 2)
+
+  /// ที่อยู่ 1 ชุด — พอสำหรับ Lead; ที่อยู่หลายชุดอยู่บนลูกค้า (CustomerLocation).
+  addressLine String?
+  district    String?
+  province    String?
+  postalCode  String?
+  country     String  @default("TH")
+
   /// แหล่งที่มา — free code วันนี้ (LINE OA, เว็บไซต์, งานอีเวนต์, AI SMART
   /// จะเข้ามาเป็นค่าหนึ่งในระยะ 2).
   sourceCode String?
@@ -1887,14 +1930,43 @@ model Lead {
   updatedAt DateTime @updatedAt
   updatedBy String?
 
-  company              Company      @relation(fields: [companyId], references: [id])
-  customer             Customer?    @relation(fields: [customerId], references: [id])
-  convertedOpportunity Opportunity? @relation(fields: [convertedOpportunityId], references: [id])
+  company              Company        @relation(fields: [companyId], references: [id])
+  customer             Customer?      @relation(fields: [customerId], references: [id])
+  convertedOpportunity Opportunity?   @relation(fields: [convertedOpportunityId], references: [id])
+  activities           LeadActivity[]
 
   @@index([companyId, status])
   @@index([companyId, ownerUserId])
   @@index([companyId, ownerOrgUnitId])
   @@map("leads")
+}
+
+/// CRM — กิจกรรมที่ลงบน Lead (โทร / อีเมล / นัดหมาย / งาน / บันทึก). A row is
+/// either a log of something done (no `dueAt`, completed on creation) or a
+/// planned item (`dueAt` set, `completedAt` null until ticked). Nothing is
+/// deleted: a wrong entry is completed or left as history.
+model LeadActivity {
+  id        String @id @default(uuid())
+  companyId String
+  leadId    String
+
+  type    LeadActivityType
+  subject String
+  detail  String?
+
+  dueAt       DateTime?
+  completedAt DateTime?
+  completedBy String?
+
+  createdAt DateTime @default(now())
+  createdBy String
+  updatedAt DateTime @updatedAt
+
+  lead Lead @relation(fields: [leadId], references: [id])
+
+  @@index([leadId, dueAt])
+  @@index([companyId, createdAt])
+  @@map("lead_activities")
 }
 
 /// CRM โอกาสการขาย (Opportunity) — ขั้น มูลค่า ความน่าจะเป็น วันคาดปิด. `opportunityCode`
@@ -1905,8 +1977,22 @@ model Opportunity {
   id              String @id @default(uuid())
   opportunityCode String @unique
 
-  companyId  String
-  customerId String
+  companyId String
+
+  /// PO 10 ก.ย. 2569: การเปิดโอกาสการขาย **ยังไม่ถือเป็นลูกค้า** — NULL จนกว่าจะ
+  /// เปิดใบสั่งขาย (`SaleOrder`) ซึ่งเป็นจุดเดียวที่สร้างลูกค้าในทะเบียนแล้วผูกกลับ
+  /// มาที่นี่. ไม่ NULL ตั้งแต่ต้นได้เมื่อเป็นโอกาสการขายของลูกค้าเดิม (repeat business).
+  customerId String?
+
+  /// ผู้มุ่งหวัง (prospect) — ใช้แทนลูกค้าระหว่างที่ `customerId` ยัง NULL; copy มา
+  /// จาก Lead ตอน convert หรือกรอกตรงเมื่อเปิดด้วยมือ. DB CHECK บังคับว่าต้องมี
+  /// อย่างใดอย่างหนึ่ง (`customerId` หรือ `prospectName`). เมื่อเปิดใบสั่งขาย
+  /// ค่าเหล่านี้กลายเป็นค่าตั้งต้นของทะเบียนลูกค้า แล้วคงไว้เป็นประวัติ.
+  prospectName        String?
+  prospectTaxId       String?
+  prospectContactName String?
+  prospectPhone       String?
+  prospectEmail       String?
 
   title String
 
@@ -1931,10 +2017,11 @@ model Opportunity {
   updatedAt DateTime @updatedAt
   updatedBy String?
 
-  company  Company              @relation(fields: [companyId], references: [id])
-  customer Customer             @relation(fields: [customerId], references: [id])
-  products OpportunityProduct[]
-  fromLead Lead?
+  company    Company              @relation(fields: [companyId], references: [id])
+  customer   Customer?            @relation(fields: [customerId], references: [id])
+  products   OpportunityProduct[]
+  saleOrders SaleOrder[]
+  fromLead   Lead?
 
   @@index([companyId, stage])
   @@index([companyId, customerId])
@@ -1983,4 +2070,60 @@ model OpportunityCodeCounter {
   company Company @relation(fields: [companyId], references: [id])
 
   @@map("opportunity_code_counters")
+}
+
+/// CRM ใบสั่งขาย (Sale Order) — โครงระยะ 1 (CD-77): ออกเลข SO-{docPrefix}-xxxxxx
+/// จากโอกาสการขายที่เปิดอยู่, และเป็น **จุดเดียวที่สร้างลูกค้าในทะเบียน** (PO 10 ก.ย.
+/// 2569): ถ้าโอกาสการขายยังไม่มีลูกค้า ระบบสร้างจากข้อมูลผู้มุ่งหวังแล้วผูกกลับ
+/// ทั้งโอกาสการขายและ Lead ต้นทาง; เปิดใบสั่งขายถือว่าปิดโอกาสการขายแบบชนะ.
+/// รายการสินค้า/ราคาต่อบรรทัดยังไม่อยู่ที่นี่ — มาจากใบเสนอราคา/BOQ ของโมดูล Sales
+/// (ระยะถัดไป) และการส่งเข้า Odoo ใช้คิว integration_sync_jobs เดิม.
+model SaleOrder {
+  id            String @id @default(uuid())
+  saleOrderCode String @unique
+
+  companyId     String
+  opportunityId String
+  customerId    String
+
+  status SaleOrderStatus @default(open)
+
+  amount   Decimal? @db.Decimal(14, 2)
+  currency String   @default("THB")
+  note     String?
+
+  orderedAt    DateTime  @default(now())
+  cancelledAt  DateTime?
+  cancelReason String?
+
+  /// Scope columns identical to Opportunity/Lead so `visibleSalesWhere` applies.
+  ownerUserId    String
+  ownerOrgUnitId String?
+
+  createdAt DateTime @default(now())
+  createdBy String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  company     Company     @relation(fields: [companyId], references: [id])
+  opportunity Opportunity @relation(fields: [opportunityId], references: [id])
+  customer    Customer    @relation(fields: [customerId], references: [id])
+
+  @@index([companyId, opportunityId])
+  @@index([companyId, customerId])
+  @@index([companyId, status])
+  @@index([companyId, ownerUserId])
+  @@index([companyId, ownerOrgUnitId])
+  @@map("sale_orders")
+}
+
+model SaleOrderCodeCounter {
+  id        String   @id @default(uuid())
+  companyId String   @unique
+  lastSeq   Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@map("sale_order_code_counters")
 }

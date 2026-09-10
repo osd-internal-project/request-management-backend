@@ -16,6 +16,7 @@ import {
   OpportunityLostReasonRepository,
   OpportunityProductRepository,
   OpportunityRepository,
+  SALE_ORDER_LIST_SELECT,
 } from './sales.repositories';
 import { OpportunityCodeService } from './opportunity-code.service';
 import { CustomerRepository } from './customer.repository';
@@ -28,13 +29,23 @@ import {
   UpdateOpportunityDto,
 } from './dto/sales.dto';
 
-const OPEN_STAGES: OpportunityStage[] = ['qualifying', 'proposing', 'negotiating'];
+const OPEN_STAGES: OpportunityStage[] = [
+  'qualifying',
+  'proposing',
+  'negotiating',
+];
 
 /**
- * CRM โอกาสการขาย — ขั้น มูลค่า ความน่าจะเป็น วันคาดปิด; ปิดชนะ/แพ้เป็น
- * endpoint ของตัวเอง และปิดแพ้ต้องมีเหตุผลมาตรฐาน (วิเคราะห์ได้). ทุก
- * เหตุการณ์สำคัญไหลเข้าไทม์ไลน์ลูกค้า (C360-03) และชุดงาน B จบที่นี่:
- * โอกาสการขายที่มี product เข้าเงื่อนไข KYC + ลูกค้ายังไม่ verified = คำเตือน ไม่ block.
+ * CRM โอกาสการขาย — ขั้น มูลค่า ความน่าจะเป็น วันคาดปิด; ปิดแพ้เป็น endpoint
+ * ของตัวเองและต้องมีเหตุผลมาตรฐาน (วิเคราะห์ได้). ทุกเหตุการณ์สำคัญไหลเข้า
+ * ไทม์ไลน์ลูกค้า (C360-03) และชุดงาน B จบที่นี่: โอกาสการขายที่มี product เข้า
+ * เงื่อนไข KYC + ลูกค้ายังไม่ verified = คำเตือน ไม่ block.
+ *
+ * PO 10 ก.ย. 2569: **การเปิดโอกาสการขายยังไม่ถือเป็นลูกค้า** — `customerId` ว่าง
+ * ได้ (ผู้มุ่งหวัง ถือชื่อ/เลขภาษี/ผู้ติดต่อไว้ใน `prospect*`), ลูกค้าในทะเบียน
+ * เกิดเมื่อเปิดใบสั่งขายเท่านั้น (`SaleOrdersService.open`) ซึ่งเป็นทางเดียวที่
+ * โอกาสการขายจะปิดชนะ — จึงไม่มี endpoint `win` แยกอีก. ไทม์ไลน์ลูกค้าเขียนได้
+ * เฉพาะเมื่อมีลูกค้าแล้ว.
  */
 @Injectable()
 export class OpportunitiesService {
@@ -64,6 +75,7 @@ export class OpportunitiesService {
         { title: { contains: q, mode: 'insensitive' } },
         { opportunityCode: { contains: q, mode: 'insensitive' } },
         { customer: { nameTh: { contains: q, mode: 'insensitive' } } },
+        { prospectName: { contains: q, mode: 'insensitive' } },
       ];
     }
 
@@ -91,7 +103,7 @@ export class OpportunitiesService {
       where: {
         id,
         AND: [visibleSalesWhere(salesAccessSubject(actor))],
-      } as Prisma.OpportunityWhereInput,
+      },
       include: {
         customer: {
           select: {
@@ -105,23 +117,28 @@ export class OpportunitiesService {
         },
         products: { select: { productCode: true, name: true } },
         fromLead: { select: { id: true, name: true, sourceCode: true } },
+        saleOrders: {
+          select: SALE_ORDER_LIST_SELECT,
+          orderBy: { orderedAt: 'desc' },
+        },
       },
     })) as
       | ({
           companyId: string;
           products: { productCode: string; name: string | null }[];
-          customer: { kycVerified: boolean };
+          customer: { kycVerified: boolean } | null;
         } & Record<string, unknown>)
       | null;
 
     if (!found) throw new AppError('NOT_FOUND', 'ไม่พบโอกาสการขายที่ระบุ');
 
     // CM-04 ชุดงาน B — เงื่อนไขระดับ product: เตือน ไม่ block (PO 8 ก.ย. 2569).
+    // ผู้มุ่งหวัง (ยังไม่มีลูกค้า) นับว่ายังไม่ verified — ยื่น KYC ได้เมื่อเปิดใบสั่งขายแล้ว.
     let kycWarning: { required: boolean; products: string[] } = {
       required: false,
       products: [],
     };
-    if (!found.customer.kycVerified && found.products.length) {
+    if (!found.customer?.kycVerified && found.products.length) {
       const rules = (await this.kycProducts.findMany({
         where: {
           companyId: found.companyId,
@@ -152,17 +169,44 @@ export class OpportunitiesService {
     actor: Principal,
     options?: { fromLeadId?: string },
   ) {
-    const customer = await this.assertCustomer(dto.customer_id, actor);
+    // PO 10 ก.ย. 2569: ลูกค้าเดิม หรือ ผู้มุ่งหวัง อย่างใดอย่างหนึ่ง — ไม่บังคับให้
+    // มีทะเบียนลูกค้าก่อน (ลูกค้าเกิดตอนเปิดใบสั่งขาย).
+    const customer = dto.customer_id
+      ? await this.assertCustomer(dto.customer_id, actor)
+      : null;
+    const prospect = customer
+      ? null
+      : {
+          prospectName: dto.prospect_name?.trim() || null,
+          prospectTaxId: dto.prospect_tax_id?.replace(/[^0-9]/g, '') || null,
+          prospectContactName: dto.prospect_contact_name?.trim() || null,
+          prospectPhone: dto.prospect_phone?.trim() || null,
+          prospectEmail: dto.prospect_email?.trim() || null,
+        };
+
+    if (!customer && !prospect?.prospectName) {
+      throw new AppError(
+        'VALIDATION_FAILED',
+        'ต้องระบุลูกค้าเดิมในทะเบียน หรือชื่อผู้มุ่งหวัง อย่างใดอย่างหนึ่ง',
+        [{ field: 'prospect_name', reason: 'required_without_customer_id' }],
+      );
+    }
+
+    const partyName = customer?.nameTh ?? prospect?.prospectName ?? '';
 
     const created = await this.transactions.execute(async (prisma) => {
-      const opportunityCode = await this.codes.issue(actor.activeCompanyId, prisma);
+      const opportunityCode = await this.codes.issue(
+        actor.activeCompanyId,
+        prisma,
+      );
 
       const row = (await this.opportunities.create(
         {
           data: {
             opportunityCode,
             companyId: actor.activeCompanyId,
-            customerId: dto.customer_id,
+            customerId: customer?.id ?? null,
+            ...(prospect ?? {}),
             title: dto.title.trim(),
             amount: dto.amount ?? null,
             probability: dto.probability ?? null,
@@ -192,7 +236,8 @@ export class OpportunitiesService {
           after: {
             opportunityCode,
             title: dto.title,
-            customerId: dto.customer_id,
+            customerId: customer?.id ?? null,
+            prospectName: prospect?.prospectName ?? null,
             amount: dto.amount ?? null,
             fromLeadId: options?.fromLeadId ?? null,
           },
@@ -200,19 +245,22 @@ export class OpportunitiesService {
         { prisma },
       );
 
-      await this.timeline.publish(
-        {
-          companyId: actor.activeCompanyId,
-          customerId: dto.customer_id,
-          refType: 'opportunity',
-          refId: row.id,
-          eventType: 'opportunity.created',
-          summary: `เปิดโอกาสการขาย ${opportunityCode} · ${dto.title.trim()} (${customer.nameTh})`,
-          actorId: auditActor(actor).actorId,
-          actorName: actor.displayName,
-        },
-        { prisma },
-      );
+      // ไทม์ไลน์เป็นของลูกค้า — ผู้มุ่งหวังยังไม่มีหน้า 360° ให้ลง.
+      if (customer) {
+        await this.timeline.publish(
+          {
+            companyId: actor.activeCompanyId,
+            customerId: customer.id,
+            refType: 'opportunity',
+            refId: row.id,
+            eventType: 'opportunity.created',
+            summary: `เปิดโอกาสการขาย ${opportunityCode} · ${dto.title.trim()} (${partyName})`,
+            actorId: auditActor(actor).actorId,
+            actorName: actor.displayName,
+          },
+          { prisma },
+        );
+      }
 
       return row;
     });
@@ -248,17 +296,28 @@ export class OpportunitiesService {
       );
 
       if (dto.product_codes !== undefined) {
-        await prisma.opportunityProduct.deleteMany({ where: { opportunityId: id } });
+        await prisma.opportunityProduct.deleteMany({
+          where: { opportunityId: id },
+        });
         const codes = dedupe(dto.product_codes);
         if (codes.length) {
           await this.products.createMany(
-            { data: codes.map((code) => ({ opportunityId: id, productCode: code })) },
+            {
+              data: codes.map((code) => ({
+                opportunityId: id,
+                productCode: code,
+              })),
+            },
             { prisma },
           );
         }
       }
 
-      if (dto.stage !== undefined && dto.stage !== found.stage) {
+      if (
+        dto.stage !== undefined &&
+        dto.stage !== found.stage &&
+        found.customerId
+      ) {
         await this.timeline.publish(
           {
             companyId: actor.activeCompanyId,
@@ -278,12 +337,10 @@ export class OpportunitiesService {
     return this.findOne(id, actor);
   }
 
-  async win(id: string, actor: Principal) {
-    const found = await this.requireOpen(id, actor);
-    return this.close(found, 'won', actor, {});
-  }
-
-  /** ปิดแพ้ — เหตุผลจากรายการมาตรฐานเท่านั้น (spec CRM). */
+  /**
+   * ปิดแพ้ — เหตุผลจากรายการมาตรฐานเท่านั้น (spec CRM). ปิดชนะไม่มีที่นี่:
+   * PO 10 ก.ย. 2569 — ชนะ = เปิดใบสั่งขาย (`SaleOrdersService.open`).
+   */
   async lose(id: string, dto: LoseOpportunityDto, actor: Principal) {
     const found = await this.requireOpen(id, actor);
 
@@ -313,7 +370,7 @@ export class OpportunitiesService {
 
   private async close(
     found: OpenOpportunity,
-    to: 'won' | 'lost',
+    to: 'lost',
     actor: Principal,
     extra: {
       lostReasonCode?: string;
@@ -327,7 +384,7 @@ export class OpportunitiesService {
           where: { id: found.id },
           data: {
             stage: to,
-            ...(to === 'won' ? { wonAt: new Date() } : { lostAt: new Date() }),
+            lostAt: new Date(),
             lostReasonCode: extra.lostReasonCode ?? null,
             lostReasonText: extra.lostReasonText ?? null,
             updatedBy: actor.userId,
@@ -338,7 +395,7 @@ export class OpportunitiesService {
 
       await this.audit.record(
         {
-          eventType: to === 'won' ? 'crm.opportunity.won' : 'crm.opportunity.lost',
+          eventType: 'crm.opportunity.lost',
           companyId: actor.activeCompanyId,
           ...auditActor(actor),
           resourceType: 'opportunity',
@@ -353,34 +410,36 @@ export class OpportunitiesService {
         { prisma },
       );
 
-      await this.timeline.publish(
-        {
-          companyId: actor.activeCompanyId,
-          customerId: found.customerId,
-          refType: 'opportunity',
-          refId: found.id,
-          eventType: to === 'won' ? 'opportunity.won' : 'opportunity.lost',
-          summary:
-            to === 'won'
-              ? `ปิดโอกาสการขาย ${found.opportunityCode} สำเร็จ (ชนะ)`
-              : `ปิดโอกาสการขาย ${found.opportunityCode} — แพ้ (${extra.reasonName})`,
-          actorId: auditActor(actor).actorId,
-          actorName: actor.displayName,
-        },
-        { prisma },
-      );
+      if (found.customerId) {
+        await this.timeline.publish(
+          {
+            companyId: actor.activeCompanyId,
+            customerId: found.customerId,
+            refType: 'opportunity',
+            refId: found.id,
+            eventType: 'opportunity.lost',
+            summary: `ปิดโอกาสการขาย ${found.opportunityCode} — แพ้ (${extra.reasonName})`,
+            actorId: auditActor(actor).actorId,
+            actorName: actor.displayName,
+          },
+          { prisma },
+        );
+      }
     });
 
     return this.findOne(found.id, actor);
   }
 
   /** Visible AND still open. SCOPE-03: unseen = 404. */
-  private async requireOpen(id: string, actor: Principal): Promise<OpenOpportunity> {
+  private async requireOpen(
+    id: string,
+    actor: Principal,
+  ): Promise<OpenOpportunity> {
     const found = (await this.opportunities.findFirst({
       where: {
         id,
         AND: [visibleSalesWhere(salesAccessSubject(actor))],
-      } as Prisma.OpportunityWhereInput,
+      },
       select: {
         id: true,
         opportunityCode: true,
@@ -421,7 +480,8 @@ interface OpenOpportunity {
   id: string;
   opportunityCode: string;
   stage: OpportunityStage;
-  customerId: string;
+  /** null = ผู้มุ่งหวัง (ยังไม่เปิดใบสั่งขาย). */
+  customerId: string | null;
 }
 
 function dedupe(codes: string[] | undefined): string[] {

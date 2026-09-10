@@ -13,17 +13,24 @@ import type { Principal } from '@request-management/share';
 import { LeadsService } from './leads.service';
 import { LeadImportService } from './lead-import.service';
 import { OpportunitiesService } from './opportunities.service';
+import { SaleOrdersService } from './sale-orders.service';
 import {
+  CancelSaleOrderDto,
   ConvertLeadDto,
+  CreateLeadActivityDto,
   CreateOpportunityDto,
   CreateLeadDto,
   DisqualifyLeadDto,
   ImportLeadsDto,
   ListOpportunitiesQueryDto,
   ListLeadsQueryDto,
+  ListSaleOrdersQueryDto,
   LoseOpportunityDto,
+  OpenSaleOrderDto,
+  UpdateLeadActivityDto,
   UpdateOpportunityDto,
   UpdateLeadDto,
+  UpdateLeadStatusDto,
 } from './dto/sales.dto';
 
 /** CRM Lead — deny-by-default like every controller here. */
@@ -57,11 +64,15 @@ export class LeadsController {
 
   @Post()
   @Permissions('crm.sales.manage')
-  create(
-    @Body() dto: CreateLeadDto,
-    @CurrentPrincipal() principal: Principal,
-  ) {
+  create(@Body() dto: CreateLeadDto, @CurrentPrincipal() principal: Principal) {
     return this.leads.create(dto, principal);
+  }
+
+  /** หน้ารายละเอียด — Lead + กิจกรรม + ชื่อผู้รับผิดชอบ. SCOPE-03: 404 นอกขอบเขต. */
+  @Get(':id')
+  @Permissions('crm.sales.read')
+  findOne(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.leads.findOne(id, principal);
   }
 
   @Patch(':id')
@@ -72,6 +83,40 @@ export class LeadsController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.leads.update(id, dto, principal);
+  }
+
+  /** เลื่อนขั้น pipeline (new / ติดต่อไม่ได้ / ติดต่อแล้ว / ผ่านคัดกรอง). */
+  @Patch(':id/status')
+  @Permissions('crm.sales.manage')
+  setStatus(
+    @Param('id') id: string,
+    @Body() dto: UpdateLeadStatusDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.leads.setStatus(id, dto, principal);
+  }
+
+  /** ลงกิจกรรม — โทร / อีเมล / นัดหมาย / งาน / บันทึก. */
+  @Post(':id/activities')
+  @Permissions('crm.sales.manage')
+  addActivity(
+    @Param('id') id: string,
+    @Body() dto: CreateLeadActivityDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.leads.addActivity(id, dto, principal);
+  }
+
+  /** ติ๊กเสร็จ / เปิดกลับ / แก้กิจกรรม. */
+  @Patch(':id/activities/:activityId')
+  @Permissions('crm.sales.manage')
+  updateActivity(
+    @Param('id') id: string,
+    @Param('activityId') activityId: string,
+    @Body() dto: UpdateLeadActivityDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.leads.updateActivity(id, activityId, dto, principal);
   }
 
   /** คัดออกพร้อมเหตุผล — ไม่มี DELETE. */
@@ -102,7 +147,10 @@ export class LeadsController {
 @ApiBearerAuth()
 @Controller('opportunities')
 export class OpportunitiesController {
-  constructor(private readonly opportunities: OpportunitiesService) {}
+  constructor(
+    private readonly opportunities: OpportunitiesService,
+    private readonly saleOrders: SaleOrdersService,
+  ) {}
 
   @Get()
   @Permissions('crm.sales.read')
@@ -145,10 +193,18 @@ export class OpportunitiesController {
     return this.opportunities.update(id, dto, principal);
   }
 
-  @Post(':id/win')
+  /**
+   * เปิดใบสั่งขาย = ปิดชนะ + จุดเดียวที่ลูกค้าในทะเบียนเกิด (PO 10 ก.ย. 2569).
+   * แทน endpoint `win` เดิม.
+   */
+  @Post(':id/sale-orders')
   @Permissions('crm.sales.manage')
-  win(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
-    return this.opportunities.win(id, principal);
+  openSaleOrder(
+    @Param('id') id: string,
+    @Body() dto: OpenSaleOrderDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.saleOrders.open(id, dto, principal);
   }
 
   /** ปิดแพ้ — เหตุผลมาตรฐานบังคับ (spec CRM). */
@@ -160,5 +216,39 @@ export class OpportunitiesController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.opportunities.lose(id, dto, principal);
+  }
+}
+
+/** CRM ใบสั่งขาย (Sale Order) — โครงระยะ 1 (CD-77). */
+@ApiTags('sale-orders')
+@ApiBearerAuth()
+@Controller('sale-orders')
+export class SaleOrdersController {
+  constructor(private readonly saleOrders: SaleOrdersService) {}
+
+  @Get()
+  @Permissions('crm.sales.read')
+  list(
+    @CurrentPrincipal() principal: Principal,
+    @Query() query: ListSaleOrdersQueryDto,
+  ) {
+    return this.saleOrders.list(principal, query);
+  }
+
+  @Get(':id')
+  @Permissions('crm.sales.read')
+  findOne(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.saleOrders.findOne(id, principal);
+  }
+
+  /** ยกเลิกพร้อมเหตุผล — ไม่มี DELETE. */
+  @Post(':id/cancel')
+  @Permissions('crm.sales.manage')
+  cancel(
+    @Param('id') id: string,
+    @Body() dto: CancelSaleOrderDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.saleOrders.cancel(id, dto, principal);
   }
 }

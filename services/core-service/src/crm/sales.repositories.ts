@@ -19,6 +19,20 @@ export class LeadRepository extends BaseRepository<PrismaService['lead']> {
   }
 }
 
+/** กิจกรรมบน Lead — append-mostly: complete/reopen แต่ไม่ลบ. */
+@Injectable()
+export class LeadActivityRepository extends BaseRepository<
+  PrismaService['leadActivity']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.leadActivity;
+  }
+}
+
 /** What the opportunity list and the 360° tab both select. */
 export const OPPORTUNITY_LIST_SELECT = {
   id: true,
@@ -31,13 +45,18 @@ export const OPPORTUNITY_LIST_SELECT = {
   expectedCloseAt: true,
   customerId: true,
   customer: { select: { id: true, customerCode: true, nameTh: true } },
+  /// ผู้มุ่งหวัง — shown in place of the customer while `customerId` is null. */
+  prospectName: true,
+  prospectTaxId: true,
   ownerUserId: true,
   createdAt: true,
   updatedAt: true,
 } satisfies Prisma.OpportunitySelect;
 
 @Injectable()
-export class OpportunityRepository extends BaseRepository<PrismaService['opportunity']> {
+export class OpportunityRepository extends BaseRepository<
+  PrismaService['opportunity']
+> {
   constructor(prisma: PrismaService) {
     super(prisma);
   }
@@ -79,5 +98,39 @@ export class OpportunityLostReasonRepository extends BaseRepository<
 
   protected delegate(client: TQueryClient) {
     return client.opportunityLostReason;
+  }
+}
+
+/** What the sale-order list and the opportunity detail both select. */
+export const SALE_ORDER_LIST_SELECT = {
+  id: true,
+  saleOrderCode: true,
+  status: true,
+  amount: true,
+  currency: true,
+  note: true,
+  orderedAt: true,
+  cancelledAt: true,
+  cancelReason: true,
+  opportunityId: true,
+  opportunity: { select: { id: true, opportunityCode: true, title: true } },
+  customerId: true,
+  customer: { select: { id: true, customerCode: true, nameTh: true } },
+  ownerUserId: true,
+  createdAt: true,
+  updatedAt: true,
+} satisfies Prisma.SaleOrderSelect;
+
+/** ใบสั่งขาย — the point where a prospect becomes a customer (PO 10 ก.ย. 2569). */
+@Injectable()
+export class SaleOrderRepository extends BaseRepository<
+  PrismaService['saleOrder']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.saleOrder;
   }
 }

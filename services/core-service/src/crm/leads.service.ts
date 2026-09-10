@@ -11,21 +11,84 @@ import {
   toSkipTake,
   visibleSalesWhere,
 } from '@request-management/share';
-import { LeadRepository } from './sales.repositories';
+import { CompanyMemberRepository } from '../access/company-member.repository';
+import { LeadActivityRepository, LeadRepository } from './sales.repositories';
 import { OpportunitiesService } from './opportunities.service';
 import { CustomerRepository } from './customer.repository';
 import {
   ConvertLeadDto,
+  CreateLeadActivityDto,
   CreateLeadDto,
   DisqualifyLeadDto,
   ListLeadsQueryDto,
+  UpdateLeadActivityDto,
   UpdateLeadDto,
+  UpdateLeadStatusDto,
 } from './dto/sales.dto';
 
 /**
- * CRM Lead — รับ → คัดกรอง → แปลงเป็นโอกาสการขาย (ข้อมูลไหลต่อ) หรือคัดออกพร้อม
- * เหตุผล. Scope ผ่าน `visibleSalesWhere` (SCOPE-02) — คนขายเห็น Lead ของตน
- * และของทีม, `crm.sales.read.all` เห็นทั้งบริษัท. No hard delete.
+ * snake_case DTO field → Lead column, for every free-text column the form
+ * edits. One table so create and update cannot disagree about which fields
+ * exist (the customer form grew that bug once).
+ */
+const TEXT_COLUMNS = [
+  ['contact_name', 'contactName'],
+  ['phone', 'phone'],
+  ['email', 'email'],
+  ['note', 'note'],
+  ['source_code', 'sourceCode'],
+  ['contact_position', 'contactPosition'],
+  ['name_en', 'nameEn'],
+  ['tax_id', 'taxId'],
+  ['industry', 'industry'],
+  ['company_size', 'companySize'],
+  ['product_group', 'productGroup'],
+  ['sub_product', 'subProduct'],
+  ['address_line', 'addressLine'],
+  ['district', 'district'],
+  ['province', 'province'],
+  ['postal_code', 'postalCode'],
+] as const;
+
+/**
+ * The column values a DTO carries. `onlyGiven` (update) leaves out fields the
+ * caller did not send, so a PATCH with one field touches one column; create
+ * writes every column, blank = NULL.
+ */
+function leadColumns(
+  dto: Partial<CreateLeadDto>,
+  onlyGiven: boolean,
+): Record<string, unknown> {
+  const data: Record<string, unknown> = {};
+
+  for (const [field, column] of TEXT_COLUMNS) {
+    const value = dto[field];
+    if (onlyGiven && value === undefined) continue;
+    data[column] = value?.trim() || null;
+  }
+
+  if (!onlyGiven || dto.employee_count !== undefined) {
+    data.employeeCount = dto.employee_count ?? null;
+  }
+  if (!onlyGiven || dto.project_revenue !== undefined) {
+    data.projectRevenue = dto.project_revenue ?? null;
+  }
+  if (!onlyGiven || dto.country !== undefined) {
+    data.country = dto.country?.trim().toUpperCase() || 'TH';
+  }
+  if (!onlyGiven || dto.customer_id !== undefined) {
+    data.customerId = dto.customer_id || null;
+  }
+
+  return data;
+}
+
+/**
+ * CRM Lead — รับ → คัดกรอง (new → ติดต่อไม่ได้/ติดต่อแล้ว → ผ่านคัดกรอง) →
+ * แปลงเป็นโอกาสการขาย (ข้อมูลไหลต่อ) หรือคัดออกพร้อมเหตุผล. หน้ารายละเอียด
+ * ลงกิจกรรม (โทร/อีเมล/นัดหมาย/งาน/บันทึก) บน Lead ได้ตลอดที่ยังเปิดอยู่.
+ * Scope ผ่าน `visibleSalesWhere` (SCOPE-02) — คนขายเห็น Lead ของตนและของทีม,
+ * `crm.sales.read.all` เห็นทั้งบริษัท. No hard delete.
  */
 @Injectable()
 export class LeadsService {
@@ -35,6 +98,8 @@ export class LeadsService {
     private readonly opportunities: OpportunitiesService,
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
+    private readonly activities: LeadActivityRepository,
+    private readonly members: CompanyMemberRepository,
   ) {}
 
   async list(actor: Principal, query: ListLeadsQueryDto) {
@@ -74,6 +139,66 @@ export class LeadsService {
     return paginated(rows as unknown[], query, total);
   }
 
+  /**
+   * หน้ารายละเอียด — Lead + ลูกค้าที่ผูก + โอกาสการขายที่แปลงไป + กิจกรรมทั้งหมด
+   * (ใหม่สุดก่อน; หน้าจอแยกเองว่าอันไหนค้าง/เกินกำหนด/เสร็จแล้ว). User ids
+   * are resolved to display names here so the page never has to look them up.
+   * SCOPE-03: unseen = 404.
+   */
+  async findOne(id: string, actor: Principal) {
+    const found = (await this.leads.findFirst({
+      where: {
+        id,
+        AND: [visibleSalesWhere(salesAccessSubject(actor))],
+      },
+      include: {
+        customer: {
+          select: {
+            id: true,
+            customerCode: true,
+            nameTh: true,
+            branchName: true,
+          },
+        },
+        convertedOpportunity: {
+          select: { id: true, opportunityCode: true, title: true, stage: true },
+        },
+        activities: { orderBy: { createdAt: 'desc' } },
+      },
+    })) as
+      | ({
+          ownerUserId: string;
+          activities: {
+            createdBy: string;
+            completedBy: string | null;
+          }[];
+        } & Record<string, unknown>)
+      | null;
+
+    if (!found) throw new AppError('NOT_FOUND', 'ไม่พบ Lead ที่ระบุ');
+
+    const nameOf = await this.displayNames([
+      found.ownerUserId,
+      ...found.activities.map((activity) => activity.createdBy),
+      ...found.activities.map((activity) => activity.completedBy),
+    ]);
+
+    return {
+      ...found,
+      owner: {
+        id: found.ownerUserId,
+        displayName: nameOf.get(found.ownerUserId) ?? found.ownerUserId,
+      },
+      activities: found.activities.map((activity) => ({
+        ...activity,
+        createdByName: nameOf.get(activity.createdBy) ?? activity.createdBy,
+        completedByName: activity.completedBy
+          ? (nameOf.get(activity.completedBy) ?? activity.completedBy)
+          : null,
+      })),
+    };
+  }
+
   async create(dto: CreateLeadDto, actor: Principal) {
     if (dto.customer_id) await this.assertCustomer(dto.customer_id, actor);
 
@@ -81,12 +206,7 @@ export class LeadsService {
       data: {
         companyId: actor.activeCompanyId,
         name: dto.name.trim(),
-        contactName: dto.contact_name?.trim() || null,
-        phone: dto.phone?.trim() || null,
-        email: dto.email?.trim() || null,
-        note: dto.note?.trim() || null,
-        sourceCode: dto.source_code?.trim() || null,
-        customerId: dto.customer_id ?? null,
+        ...leadColumns(dto, false),
         ownerUserId: actor.userId,
         ownerOrgUnitId: actor.orgUnitId,
         createdBy: actor.userId,
@@ -113,21 +233,102 @@ export class LeadsService {
       where: { id },
       data: {
         ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
-        ...(dto.contact_name !== undefined
-          ? { contactName: dto.contact_name?.trim() || null }
-          : {}),
-        ...(dto.phone !== undefined ? { phone: dto.phone?.trim() || null } : {}),
-        ...(dto.email !== undefined ? { email: dto.email?.trim() || null } : {}),
-        ...(dto.note !== undefined ? { note: dto.note?.trim() || null } : {}),
-        ...(dto.source_code !== undefined
-          ? { sourceCode: dto.source_code?.trim() || null }
-          : {}),
-        ...(dto.customer_id !== undefined
-          ? { customerId: dto.customer_id || null }
-          : {}),
+        ...leadColumns(dto, true),
         updatedBy: actor.userId,
       },
     });
+  }
+
+  /**
+   * เลื่อนขั้นใน pipeline — new / ติดต่อไม่ได้ / ติดต่อแล้ว / ผ่านคัดกรอง ไปมาได้
+   * (ติดต่อไม่ได้วันนี้ ติดต่อได้พรุ่งนี้). ปิดต้องผ่าน convert/disqualify เท่านั้น.
+   */
+  async setStatus(id: string, dto: UpdateLeadStatusDto, actor: Principal) {
+    const found = await this.requireOpen(id, actor);
+
+    if (found.status !== dto.status) {
+      await this.leads.update({
+        where: { id },
+        data: { status: dto.status, updatedBy: actor.userId },
+      });
+
+      await this.audit.record({
+        eventType: 'crm.lead.status_changed',
+        companyId: actor.activeCompanyId,
+        ...auditActor(actor),
+        resourceType: 'lead',
+        resourceId: id,
+        before: { status: found.status },
+        after: { status: dto.status },
+      });
+    }
+
+    return this.findOne(id, actor);
+  }
+
+  /**
+   * ลงกิจกรรม — ไม่มีกำหนด = บันทึกสิ่งที่ทำไปแล้ว (ปิดทันที), มีกำหนด =
+   * นัด/งานที่ต้องตามต่อ. Only on an open lead: once converted the work
+   * continues on the opportunity, once disqualified there is nothing to log.
+   */
+  async addActivity(id: string, dto: CreateLeadActivityDto, actor: Principal) {
+    await this.requireOpen(id, actor);
+
+    const dueAt = dto.due_at ? new Date(dto.due_at) : null;
+    const done = dueAt === null;
+
+    const activity = (await this.activities.create({
+      data: {
+        companyId: actor.activeCompanyId,
+        leadId: id,
+        type: dto.type,
+        subject: dto.subject.trim(),
+        detail: dto.detail?.trim() || null,
+        dueAt,
+        completedAt: done ? new Date() : null,
+        completedBy: done ? actor.userId : null,
+        createdBy: actor.userId,
+      },
+    })) as { id: string };
+
+    await this.audit.record({
+      eventType: 'crm.lead.activity_logged',
+      companyId: actor.activeCompanyId,
+      ...auditActor(actor),
+      resourceType: 'lead',
+      resourceId: id,
+      after: { activityId: activity.id, type: dto.type, subject: dto.subject },
+    });
+
+    return activity;
+  }
+
+  /** ติ๊กเสร็จ / เปิดกลับ / แก้หัวข้อ-กำหนด. The row must belong to this lead. */
+  async updateActivity(
+    id: string,
+    activityId: string,
+    dto: UpdateLeadActivityDto,
+    actor: Principal,
+  ) {
+    await this.requireOpen(id, actor);
+
+    const activity = (await this.activities.findFirst({
+      where: { id: activityId, leadId: id },
+    })) as { id: string; completedAt: Date | null } | null;
+    if (!activity) throw new AppError('NOT_FOUND', 'ไม่พบกิจกรรมที่ระบุ');
+
+    const data: Prisma.LeadActivityUncheckedUpdateInput = {};
+    if (dto.subject !== undefined) data.subject = dto.subject.trim();
+    if (dto.detail !== undefined) data.detail = dto.detail?.trim() || null;
+    if (dto.due_at !== undefined) {
+      data.dueAt = dto.due_at ? new Date(dto.due_at) : null;
+    }
+    if (dto.completed !== undefined) {
+      data.completedAt = dto.completed ? new Date() : null;
+      data.completedBy = dto.completed ? actor.userId : null;
+    }
+
+    return this.activities.update({ where: { id: activityId }, data });
   }
 
   /** คัดออก — สถานะ + เหตุผล, ไม่มีการลบ. */
@@ -163,14 +364,28 @@ export class LeadsService {
    */
   async convert(id: string, dto: ConvertLeadDto, actor: Principal) {
     const lead = await this.requireOpen(id, actor);
-    await this.assertCustomer(dto.customer_id, actor);
+
+    // PO 10 ก.ย. 2569: ไม่ต้องมีลูกค้าในทะเบียนก่อน — ว่างไว้ = ผู้มุ่งหวัง ข้อมูล
+    // ระบุตัวจาก Lead ไหลไปอยู่บนโอกาสการขาย และลูกค้าจะเกิดตอนเปิดใบสั่งขาย.
+    const customerId = dto.customer_id || lead.customerId || undefined;
+    if (customerId) await this.assertCustomer(customerId, actor);
 
     const opportunity = await this.opportunities.create(
-      {
-        customer_id: dto.customer_id,
-        title: dto.title?.trim() || lead.name,
-        amount: dto.amount,
-      },
+      customerId
+        ? {
+            customer_id: customerId,
+            title: dto.title?.trim() || lead.name,
+            amount: dto.amount,
+          }
+        : {
+            prospect_name: lead.name,
+            prospect_tax_id: lead.taxId ?? undefined,
+            prospect_contact_name: lead.contactName ?? undefined,
+            prospect_phone: lead.phone ?? undefined,
+            prospect_email: lead.email ?? undefined,
+            title: dto.title?.trim() || lead.name,
+            amount: dto.amount,
+          },
       actor,
       { fromLeadId: id },
     );
@@ -180,7 +395,7 @@ export class LeadsService {
       data: {
         status: 'converted',
         convertedOpportunityId: opportunity.id,
-        customerId: dto.customer_id,
+        customerId: customerId ?? null,
         updatedBy: actor.userId,
       },
     });
@@ -191,23 +406,31 @@ export class LeadsService {
       ...auditActor(actor),
       resourceType: 'lead',
       resourceId: id,
-      after: { opportunityId: opportunity.id, opportunityCode: opportunity.opportunityCode },
+      after: {
+        opportunityId: opportunity.id,
+        opportunityCode: opportunity.opportunityCode,
+      },
     });
 
     return opportunity;
   }
 
-  /** Visible AND still workable (new/qualified). SCOPE-03: unseen = 404. */
+  /** Visible AND still workable (anything but converted/disqualified). SCOPE-03: unseen = 404. */
   private async requireOpen(id: string, actor: Principal) {
     const found = (await this.leads.findFirst({
       where: {
         id,
         AND: [visibleSalesWhere(salesAccessSubject(actor))],
-      } as Prisma.LeadWhereInput,
+      },
     })) as {
       id: string;
       name: string;
       status: string;
+      customerId: string | null;
+      taxId: string | null;
+      contactName: string | null;
+      phone: string | null;
+      email: string | null;
     } | null;
 
     if (!found) throw new AppError('NOT_FOUND', 'ไม่พบ Lead ที่ระบุ');
@@ -236,5 +459,17 @@ export class LeadsService {
         { field: 'customer_id', reason: customerId },
       ]);
     }
+  }
+
+  private async displayNames(ids: (string | null)[]) {
+    const unique = [...new Set(ids.filter(Boolean))] as string[];
+    if (!unique.length) return new Map<string, string>();
+
+    const users = (await this.members.findMany({
+      where: { id: { in: unique } },
+      select: { id: true, displayName: true },
+    })) as { id: string; displayName: string }[];
+
+    return new Map(users.map((user) => [user.id, user.displayName]));
   }
 }
