@@ -9,6 +9,7 @@ import {
   IsNumberString,
   IsOptional,
   IsString,
+  IsUUID,
   MaxLength,
   ValidateNested,
 } from 'class-validator';
@@ -209,8 +210,22 @@ export class CreateDelegationDto {
  * APV-02 preview input (§16 หน้าที่ 3).
  *
  * Deliberately not a subset of `OpenCaseDto`: a preview names no subject and
- * carries no payload, because nothing is being opened. The requester is always
- * the caller — previewing somebody else's route would leak the org chart.
+ * carries no payload, because nothing is being opened. The *requester* is
+ * always the caller — APV-02 removes them from every level, and letting that
+ * be chosen would let anyone ask who approves for somebody else.
+ *
+ * The **chart owner** is a separate question, and it is the one this DTO used
+ * to refuse. A ladder for `request:<CODE>` climbs the chart of whoever carries
+ * the work (`AFTER_WORK.chartOwnerOf` in `requests/approval-stage.ts`), not the
+ * requester's. Without a way to say who that is, the preview on หน้าที่ 3
+ * answered with the requester's own supervisors and called them the reviewers
+ * — wrong by construction, on the screen whose whole purpose is to show the
+ * route before anyone commits to it.
+ *
+ * **The trade-off, taken deliberately:** a requester can now see who heads the
+ * chart of the person they picked as receiver. `GET /org-units` returns no
+ * `managerUserId`, so that is new information, bounded by
+ * `AccessService.assertChartOwnerInCompany` to the caller's own company.
  */
 export class PreviewChainDto {
   @ApiProperty({ example: 'request:DSC' })
@@ -231,4 +246,14 @@ export class PreviewChainDto {
   @IsOptional()
   @IsString()
   currency?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Whose chart a supervisor level climbs. Omitted means the caller — ' +
+      'which is right for the before-work ladder and wrong for the one that ' +
+      'reviews finished work.',
+  })
+  @IsOptional()
+  @IsUUID()
+  chart_owner_user_id?: string;
 }

@@ -210,6 +210,8 @@ export class ApprovalsService {
     chartOwnerId?: string | null;
     companyId: string;
     authorization: string;
+    /** Preview only — see `resolveLevels`. */
+    keepUnresolved?: boolean;
   }): Promise<{
     matrix: ApprovalMatrix;
     chain: ResolvedApprover[];
@@ -253,10 +255,14 @@ export class ApprovalsService {
       );
     }
 
-    const chain = await this.resolveLevels(levels, {
-      requesterId: input.requesterId,
-      orgUnitId: context.orgUnitId ?? null,
-    });
+    const chain = await this.resolveLevels(
+      levels,
+      {
+        requesterId: input.requesterId,
+        orgUnitId: context.orgUnitId ?? null,
+      },
+      { keepUnresolved: input.keepUnresolved ?? false },
+    );
 
     return { matrix, chain, context };
   }
@@ -268,20 +274,35 @@ export class ApprovalsService {
    * self-approval rule has always behaved for a named office, and a step with
    * no possible approver would stall the case for ever. Step 1 having nobody
    * is the one case that is refused, by `assertStepOneResolvable`.
+   *
+   * `keepUnresolved` is the preview's exception, and only the preview's.
+   * Dropping a level is right when steps are being *written* — a case cannot
+   * wait on nobody. It is wrong when the ladder is being *shown*: the level is
+   * configured, it simply has no holder, and silently omitting it made หน้าที่ 3
+   * report a shorter ladder than the one the submit would refuse over. Nothing
+   * routes off a preview, so nothing stalls.
    */
   private async resolveLevels(
     levels: readonly MatrixLevel[],
     subject: { requesterId: string; orgUnitId: string | null },
+    options?: { readonly keepUnresolved?: boolean },
   ): Promise<ResolvedApprover[]> {
     const resolved: ResolvedApprover[] = [];
 
     for (const level of levels) {
       const candidates = await this.access.approverCandidatesOf(level, subject);
-      if (!candidates.length) continue;
+      const position =
+        level.type === 'supervisor' ? `supervisor:${level.up}` : 'org';
+
+      if (!candidates.length) {
+        if (!options?.keepUnresolved) continue;
+
+        resolved.push({ position, userId: null, candidateUserIds: [] });
+        continue;
+      }
 
       resolved.push({
-        position:
-          level.type === 'supervisor' ? `supervisor:${level.up}` : 'org',
+        position,
         userId: candidates[0],
         candidateUserIds: candidates,
       });
@@ -298,7 +319,13 @@ export class ApprovalsService {
    * on every change to the amount. `assertStepOneResolvable` is deliberately
    * **not** called: a requester with no supervisor should see *why* they
    * cannot submit rather than a bare error, so the missing step is reported as
-   * data (`user_id: null`) and the submit itself is what refuses.
+   * data (`user_id: null`) and the submit itself is what refuses. That promise
+   * is kept by `keepUnresolved` below; for a long time the comment made it and
+   * `resolveLevels` quietly dropped the step instead.
+   *
+   * `chart_owner_user_id` says whose chart a supervisor level climbs. Omitted,
+   * it is the caller — right for the before-work ladder, and wrong for the one
+   * that reviews finished work, which climbs the chart of whoever carries it.
    */
   async previewChain(
     dto: PreviewChainDto,
@@ -306,14 +333,49 @@ export class ApprovalsService {
     authorization: string,
   ): Promise<ChainPreview> {
     const amount = dto.amount ?? null;
+    const chartOwnerId = dto.chart_owner_user_id ?? null;
+
+    /*
+      Checked here because nothing downstream does. user-service resolves a
+      context by user id and ignores the company it was handed, so an id from
+      another company would answer with that company's supervisors.
+    */
+    if (chartOwnerId && chartOwnerId !== actor.userId) {
+      await this.access.assertChartOwnerInCompany(
+        chartOwnerId,
+        actor.activeCompanyId,
+      );
+    }
 
     const { chain, context } = await this.planChain({
       subjectType: dto.subject_type,
       amount,
       requesterId: actor.userId,
+      chartOwnerId,
       companyId: actor.activeCompanyId,
       authorization,
+      keepUnresolved: true,
     });
+
+    /*
+      The names, from the same place the ids came from.
+
+      `context.displayNames` covers only what user-service resolved — the
+      requester's personal supervisor chain and the role holders. A
+      `supervisor:N` level is resolved here instead, off `OrgUnit.managerUserId`,
+      and in this chart those are different columns: 80 of 90 users carry no
+      `User.supervisorUserId` at all. Every such step arrived with an id and no
+      name, and the screen printed the level's storage code — `supervisor:1` —
+      where the head of the department belonged.
+
+      Local names win where both answer: the persisted request detail reads the
+      `user` table through a relation, and two screens naming the same person
+      differently is worse than either name alone.
+    */
+    const resolved = await this.access.displayNamesOf(
+      chain.flatMap((step) => (step.userId ? [step.userId] : [])),
+      actor.activeCompanyId,
+    );
 
     return {
       amount,
@@ -323,7 +385,9 @@ export class ApprovalsService {
         position: step.position,
         user_id: step.userId,
         display_name: step.userId
-          ? (context.displayNames[step.userId] ?? null)
+          ? (resolved.get(step.userId) ??
+            context.displayNames[step.userId] ??
+            null)
           : null,
         candidate_user_ids: [...step.candidateUserIds],
       })),

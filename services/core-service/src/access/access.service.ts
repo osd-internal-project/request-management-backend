@@ -109,6 +109,45 @@ export class AccessService {
   }
 
   /**
+   * Refuses a chart owner who is not in this company.
+   *
+   * The preview endpoint is the one place a caller names *somebody else* whose
+   * chart gets climbed, and user-service resolves a context by user id alone —
+   * `ApprovalContextService.resolve` takes a company but never checks the user
+   * against it. Without this, asking for the route of a user in another
+   * company would answer with their supervisors, which is SCOPE-03's boundary
+   * being crossed by a read.
+   */
+  async assertChartOwnerInCompany(
+    userId: string,
+    companyId: string,
+  ): Promise<void> {
+    const members = await this.members.memberIdsOf([userId], companyId);
+
+    if (!members.has(userId)) {
+      throw new AppError(
+        'VALIDATION_FAILED',
+        'ผู้รับที่เลือกไม่ได้อยู่ในบริษัทนี้',
+        [{ field: 'chart_owner_user_id', reason: 'not a member' }],
+      );
+    }
+  }
+
+  /**
+   * What to call the people a level resolved to.
+   *
+   * The ids come from this service's own reading of the chart, so the names
+   * come from the same database — see `CompanyMemberRepository.displayNamesOf`
+   * for why that is not a break of the identity boundary.
+   */
+  async displayNamesOf(
+    userIds: readonly string[],
+    companyId: string,
+  ): Promise<Map<string, string>> {
+    return this.members.displayNamesOf(userIds, companyId);
+  }
+
+  /**
    * Everyone allowed to decide this level, for this requester.
    *
    * **Nobody approves their own request** (APV-02). The requester is removed
