@@ -2,6 +2,10 @@ import { Principal } from '@request-management/share';
 import { OpportunitiesService } from './opportunities.service';
 import { SaleOrdersService } from './sale-orders.service';
 import { LeadsService } from './leads.service';
+import {
+  DEFAULT_LEAD_STATUSES,
+  type LeadStatusRow,
+} from './lead-status.service';
 
 /**
  * PO 10 ก.ย. 2569 — "การเปิด opportunity ยังไม่ถือเป็น customer; customer จะเกิด
@@ -187,6 +191,26 @@ describe('CRM Lead — convert โดยไม่ต้องมีลูกค�
         }),
       ),
     };
+    // ชุดสถานะตั้งต้นเดียวกับที่ migration seed — convert ยังเดินจาก 'qualified'
+    // ไป 'converted' ตามเดิม โดยรหัสมาจากข้อมูล ไม่ใช่จากโค้ด.
+    const rows = DEFAULT_LEAD_STATUSES.map((row, index) => ({
+      ...row,
+      id: `status-${index}`,
+      companyId: 'osd',
+    })) as LeadStatusRow[];
+    const statuses = {
+      listAll: jest.fn(() => Promise.resolve(rows)),
+      require: jest.fn((_companyId: string, code: string) =>
+        Promise.resolve(rows.find((row) => row.code === code)),
+      ),
+      defaultCode: jest.fn(() => Promise.resolve('new')),
+      closingCode: jest.fn((_companyId: string, kind: string) =>
+        Promise.resolve(
+          rows.find((row) => row.kind === kind)?.code ?? 'converted',
+        ),
+      ),
+    };
+
     const service = new LeadsService(
       leads as never,
       customers as never,
@@ -195,6 +219,7 @@ describe('CRM Lead — convert โดยไม่ต้องมีลูกค�
       { execute: jest.fn() } as never,
       {} as never,
       {} as never,
+      statuses as never,
     );
     return { service, leads, customers, opportunities };
   }

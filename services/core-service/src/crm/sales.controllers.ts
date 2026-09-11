@@ -11,6 +11,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentPrincipal, Permissions } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import { LeadsService } from './leads.service';
+import { LeadStatusService } from './lead-status.service';
 import { LeadImportService } from './lead-import.service';
 import { OpportunitiesService } from './opportunities.service';
 import { SaleOrdersService } from './sale-orders.service';
@@ -41,7 +42,21 @@ export class LeadsController {
   constructor(
     private readonly leads: LeadsService,
     private readonly importer: LeadImportService,
+    private readonly statuses: LeadStatusService,
   ) {}
+
+  /**
+   * สถานะที่หน้า Lead ใช้วาด pipeline และตัวกรอง. ส่งทั้งชุด **รวมที่ปิดใช้งาน**
+   * เพราะ Lead ที่ค้างอยู่บนขั้นที่เพิ่งถูกปิดยังต้องมีชื่อและสีให้แสดง — หน้าจอ
+   * เป็นคนกรอง `active` ออกจากตัวเลือกที่กดได้เอง. อ่านได้ด้วยสิทธิ์อ่าน Lead
+   * ธรรมดา: การแก้รายการนี้เท่านั้นที่เป็นงานของผู้ดูแล.
+   * ประกาศก่อน `:id` ไม่งั้น `statuses` จะถูกอ่านเป็น id ของ Lead.
+   */
+  @Get('statuses')
+  @Permissions('crm.sales.read')
+  listStatuses(@CurrentPrincipal() principal: Principal) {
+    return this.statuses.listAll(principal.activeCompanyId);
+  }
 
   @Get()
   @Permissions('crm.sales.read')

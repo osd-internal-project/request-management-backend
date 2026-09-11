@@ -168,15 +168,14 @@ enum IntegrationJobStatus {
   failed
 }
 
-/// CRM — สถานะ Lead: รับเข้า → คัดกรอง → แปลงเป็นโอกาสการขาย (หรือคัดออกพร้อมเหตุผล).
-enum LeadStatus {
-  new
-  /// ติดต่อไม่ได้ — ยังเปิดอยู่ กลับมา contacted ได้.
-  cannot_contact
-  contacted
-  qualified
-  disqualified
-  converted
+/// CRM — ชนิดของสถานะ Lead. ตัวสถานะเองเป็น **ข้อมูล** ไม่ใช่ enum (ตั้งค่า CRM →
+/// แท็บ "สถานะ Lead" เพิ่ม/ลบได้เอง, D-09); ชนิดคือสิ่งที่โค้ดตัดสินใจด้วย —
+/// `open` = ยังทำงานต่อได้, `won` = ปลายทางเมื่อแปลงเป็นโอกาสการขาย,
+/// `lost` = ปลายทางเมื่อคัดออก. หนึ่งบริษัทมี `won`/`lost` อย่างละหนึ่งเสมอ.
+enum LeadStatusKind {
+  open
+  won
+  lost
 }
 
 /// CRM — กิจกรรมบน Lead: โทร / อีเมล / นัดหมาย / งาน / บันทึก.
@@ -255,6 +254,7 @@ model Company {
   customerCodeCounter     CustomerCodeCounter?
   crmConfig               CrmCompanyConfig?
   kycProductRules         KycProductRule[]
+  leadStatuses            LeadStatusSetting[]
   leads                   Lead[]
   opportunities           Opportunity[]
   opportunityLostReasons  OpportunityLostReason[]
@@ -1874,6 +1874,54 @@ model KycProductRule {
   @@map("kyc_product_rules")
 }
 
+/// CRM — รายการสถานะของ Lead ต่อบริษัท. หน้า "ตั้งค่า CRM → สถานะ Lead" เพิ่ม
+/// ลบ เปลี่ยนชื่อ สลับลำดับได้เอง โดยไม่ต้อง migrate (D-09).
+///
+/// ตารางนี้คือ **รายการขั้น** เท่านั้น — *กฎ* ว่าเลื่อนจากขั้นไหนไปขั้นไหนได้
+/// เมื่อไร ไม่ได้อยู่ที่นี่และไม่ได้อยู่ใน core-service เลย: PO ตัดสิน 10 ก.ย. 2569
+/// ว่า workflow ของ CRM อยู่บน service `workflowable` ตามหลัก "Workflow owns
+/// Process, Core owns Data". ถ้ามีคนกำลังจะเพิ่มคอลัมน์ประเภท "ขั้นนี้ต้องมี X
+/// ก่อน" หรือ "ขั้นนี้ไปต่อได้" ลงตารางนี้ — นั่นคือ process กำลังงอกที่สอง
+/// และจะ drift กับ workflow แน่นอน.
+///
+/// สามแถวเป็น **สถานะระบบ** (`isSystem`): สถานะเริ่มต้นของ Lead ใหม่, ปลายทาง
+/// `won` (แปลงเป็นโอกาสการขาย) และปลายทาง `lost` (คัดออก) — ลบไม่ได้และปิดไม่ได้
+/// เพราะ `convert`/`disqualify` ต้องมีปลายทางเสมอ. ที่เหลือเป็นขั้นระหว่างทางที่
+/// ผู้ดูแลกำหนดเองทั้งหมด.
+model LeadStatusSetting {
+  id        String @id @default(uuid())
+  companyId String
+
+  /// รหัสที่ `leads.status` เก็บ — ตั้งครั้งเดียว แก้ไม่ได้ (Lead เดิมอ้างอยู่).
+  code   String
+  nameTh String
+
+  kind LeadStatusKind @default(open)
+
+  /// สีป้ายบนหน้าจอ (ชื่อสีของ antd Tag เช่น `blue`, `green`).
+  color String @default("default")
+
+  /// สถานะตั้งต้นของ Lead ที่เพิ่งรับเข้า — มีได้หนึ่งเดียวต่อบริษัท.
+  isDefault Boolean @default(false)
+
+  /// สถานะระบบ: ลบไม่ได้ ปิดไม่ได้ เปลี่ยนชนิดไม่ได้.
+  isSystem Boolean @default(false)
+
+  active    Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  createdAt DateTime @default(now())
+  createdBy String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, code])
+  @@index([companyId, sortOrder])
+  @@map("lead_statuses")
+}
+
 /// CRM Lead — รับ Lead ทุกช่องทาง บันทึกแหล่งที่มา คัดกรอง แล้วแปลงเป็น
 /// โอกาสการขายโดยข้อมูลไหลต่อ (spec CRM ฟีเจอร์ Lead). No hard delete:
 /// `disqualified` + เหตุผล คือทางออกเดียว. Ownership columns mirror
@@ -1913,7 +1961,12 @@ model Lead {
   /// จะเข้ามาเป็นค่าหนึ่งในระยะ 2).
   sourceCode String?
 
-  status           LeadStatus @default(new)
+  /// รหัสสถานะ — อ้าง `lead_statuses.code` ของบริษัทเดียวกัน. เก็บเป็น text
+  /// ไม่ใช่ enum เพราะรายการสถานะแก้ได้จากหน้าตั้งค่าโดยไม่ต้อง migrate; ความ
+  /// ถูกต้องบังคับที่ `LeadStatusService` (และการลบสถานะที่ยังมี Lead ใช้อยู่
+  /// ถูกปฏิเสธ) แทน FK เพราะคีย์ต้องเป็นคู่ (companyId, code) ซึ่ง Prisma
+  /// ผูกซ้ำกับ `company` ไม่ได้.
+  status           String @default("new")
   disqualifyReason String?
 
   /// ลูกค้าเดิมที่ Lead นี้เป็นเรื่องของเขา (ถ้า match ได้).
@@ -1921,6 +1974,7 @@ model Lead {
 
   /// โอกาสการขายที่เกิดจากการแปลง — ข้อมูลไหลต่อ ไม่พิมพ์ซ้ำ.
   convertedOpportunityId String? @unique
+
 
   ownerUserId    String
   ownerOrgUnitId String?

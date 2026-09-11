@@ -36,11 +36,13 @@ import {
   OpportunityRepository,
   LeadActivityRepository,
   LeadRepository,
+  LeadStatusRepository,
   SaleOrderRepository,
 } from './sales.repositories';
 import { OpportunityCodeService } from './opportunity-code.service';
 import { SaleOrderCodeService } from './sale-order-code.service';
 import { LeadsService } from './leads.service';
+import { LeadStatusService } from './lead-status.service';
 import { OpportunitiesService } from './opportunities.service';
 import { SaleOrdersService } from './sale-orders.service';
 import {
@@ -89,6 +91,7 @@ import { LeadImportService } from './lead-import.service';
     KycCallbackService,
     LeadRepository,
     LeadActivityRepository,
+    LeadStatusRepository,
     OpportunityRepository,
     OpportunityProductRepository,
     OpportunityLostReasonRepository,
@@ -96,6 +99,7 @@ import { LeadImportService } from './lead-import.service';
     SaleOrderRepository,
     SaleOrderCodeService,
     LeadsService,
+    LeadStatusService,
     LeadImportService,
     OpportunitiesService,
     SaleOrdersService,

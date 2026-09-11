@@ -12,6 +12,7 @@ import {
   visibleSalesWhere,
 } from '@request-management/share';
 import { CompanyMemberRepository } from '../access/company-member.repository';
+import { LeadStatusService } from './lead-status.service';
 import { LeadActivityRepository, LeadRepository } from './sales.repositories';
 import { OpportunitiesService } from './opportunities.service';
 import { CustomerRepository } from './customer.repository';
@@ -100,6 +101,7 @@ export class LeadsService {
     private readonly transactions: PrismaTransactionService,
     private readonly activities: LeadActivityRepository,
     private readonly members: CompanyMemberRepository,
+    private readonly statuses: LeadStatusService,
   ) {}
 
   async list(actor: Principal, query: ListLeadsQueryDto) {
@@ -207,6 +209,9 @@ export class LeadsService {
         companyId: actor.activeCompanyId,
         name: dto.name.trim(),
         ...leadColumns(dto, false),
+        // ขั้นตั้งต้นมาจากหน้าตั้งค่า ไม่ใช่ค่า default ของคอลัมน์ — ผู้ดูแลที่ย้ายธง
+        // "สถานะตั้งต้น" ไปขั้นอื่นต้องเห็นผลกับ Lead ใบถัดไปทันที.
+        status: await this.statuses.defaultCode(actor.activeCompanyId),
         ownerUserId: actor.userId,
         ownerOrgUnitId: actor.orgUnitId,
         createdBy: actor.userId,
@@ -240,16 +245,44 @@ export class LeadsService {
   }
 
   /**
-   * เลื่อนขั้นใน pipeline — new / ติดต่อไม่ได้ / ติดต่อแล้ว / ผ่านคัดกรอง ไปมาได้
+   * เลื่อนขั้นใน pipeline — ขั้นระหว่างทาง (`kind = open`) ไปมาได้อิสระ
    * (ติดต่อไม่ได้วันนี้ ติดต่อได้พรุ่งนี้). ปิดต้องผ่าน convert/disqualify เท่านั้น.
+   *
+   * **สิ่งที่ตรวจที่นี่คือความถูกต้องของข้อมูล ไม่ใช่กฎ workflow** — รหัสสถานะต้อง
+   * มีจริงในบริษัทนี้, ต้องไม่ใช่ปลายทาง, ต้องยังเปิดใช้งาน. เงื่อนไขว่า *ควร*
+   * เลื่อนได้ไหม (เช่นต้องมีกิจกรรมที่ทำเสร็จก่อน) อยู่บน workflow `lwf-0001` บน
+   * service `workflowable` — PO 10 ก.ย. 2569: "Workflow owns Process, Core owns
+   * Data". อย่าเติมด่านเชิง process กลับมาที่นี่ จะได้ process สองที่แล้ว drift.
    */
   async setStatus(id: string, dto: UpdateLeadStatusDto, actor: Principal) {
     const found = await this.requireOpen(id, actor);
+    const target = await this.statuses.require(
+      actor.activeCompanyId,
+      dto.status,
+    );
 
-    if (found.status !== dto.status) {
+    // ปลายทางมีข้อมูลกำกับของมันเอง (โอกาสการขายที่เกิด / เหตุผลที่คัดออก) — เลื่อน
+    // เข้ามาตรง ๆ จะได้ Lead ที่ปิดแล้วโดยไม่มีอะไรอธิบายว่าปิดเพราะอะไร.
+    if (target.kind !== 'open') {
+      throw new AppError(
+        'CONFLICT',
+        `สถานะ "${target.nameTh}" เป็นสถานะปิด — ใช้ปุ่มแปลงเป็นโอกาสการขายหรือคัดออก`,
+        [{ field: 'status', reason: target.kind }],
+      );
+    }
+
+    if (!target.active) {
+      throw new AppError(
+        'CONFLICT',
+        `สถานะ "${target.nameTh}" ถูกปิดใช้งานอยู่`,
+        [{ field: 'status', reason: 'inactive' }],
+      );
+    }
+
+    if (found.status !== target.code) {
       await this.leads.update({
         where: { id },
-        data: { status: dto.status, updatedBy: actor.userId },
+        data: { status: target.code, updatedBy: actor.userId },
       });
 
       await this.audit.record({
@@ -259,7 +292,7 @@ export class LeadsService {
         resourceType: 'lead',
         resourceId: id,
         before: { status: found.status },
-        after: { status: dto.status },
+        after: { status: target.code },
       });
     }
 
@@ -338,7 +371,7 @@ export class LeadsService {
     await this.leads.update({
       where: { id },
       data: {
-        status: 'disqualified',
+        status: await this.statuses.closingCode(actor.activeCompanyId, 'lost'),
         disqualifyReason: dto.reason.trim(),
         updatedBy: actor.userId,
       },
@@ -360,7 +393,11 @@ export class LeadsService {
   /**
    * แปลงเป็นโอกาสการขาย — spec: "แปลงเป็นโอกาสการขายโดยข้อมูลไหลต่อทั้งหมด". The
    * opportunity is created through OpportunitiesService (same code path as a hand-made
-   * opportunity), then the lead points at it and closes as `converted`.
+   * opportunity), then the lead points at it and closes at the company's `won` status.
+   *
+   * ด่านเดียวที่เหลือที่นี่คือ "Lead ต้องยังเปิดอยู่" (`requireOpen`) ซึ่งเป็น
+   * integrity ไม่ใช่ process. เงื่อนไขว่าแปลงได้จากขั้นไหน อยู่บน workflow
+   * `lwf-0001` — ดู `setStatus`.
    */
   async convert(id: string, dto: ConvertLeadDto, actor: Principal) {
     const lead = await this.requireOpen(id, actor);
@@ -393,7 +430,7 @@ export class LeadsService {
     await this.leads.update({
       where: { id },
       data: {
-        status: 'converted',
+        status: await this.statuses.closingCode(actor.activeCompanyId, 'won'),
         convertedOpportunityId: opportunity.id,
         customerId: customerId ?? null,
         updatedBy: actor.userId,
@@ -434,7 +471,15 @@ export class LeadsService {
     } | null;
 
     if (!found) throw new AppError('NOT_FOUND', 'ไม่พบ Lead ที่ระบุ');
-    if (found.status === 'converted' || found.status === 'disqualified') {
+
+    // "ปิดแล้ว" ถามจากชนิดของสถานะ ไม่ใช่จากรหัสสองตัวที่เขียนตายไว้ — ผู้ดูแล
+    // เปลี่ยนชื่อหรือรหัสของปลายทางได้ และด่านนี้ต้องไม่หลุดตาม.
+    const status = await this.statuses.require(
+      actor.activeCompanyId,
+      found.status,
+    );
+
+    if (status.kind !== 'open') {
       throw new AppError(
         'CONFLICT',
         'Lead นี้ถูกปิดแล้ว (แปลงเป็นโอกาสการขายหรือคัดออก) — แก้ไขไม่ได้',
