@@ -32,9 +32,12 @@ export class ApprovalContextClient {
     userId: string,
     companyId: string,
   ): Promise<ApprovalContext> {
-    const base =
-      this.config.get<string>('services.userServiceUrl') ??
-      'http://localhost:3001/api/v1';
+    // `userServiceUrl`, not `services.userServiceUrl`: configs/index.ts
+    // declares it at the top level, and the nested key resolved to undefined —
+    // so every deployed environment silently fell back to localhost and the
+    // approval chain could not be resolved while the pod still reported
+    // healthy. One place holds the default; there is no second literal here.
+    const base = this.config.get<string>('userServiceUrl')!;
 
     const url =
       `${base}/internal/org/approval-context` +

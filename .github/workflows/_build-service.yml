@@ -1,0 +1,104 @@
+# Reusable BUILD — one job, called once per service by a thin caller workflow.
+# Replace every <placeholder>.
+name: Build Service (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      service_path:
+        description: "Path to the service, e.g. services/user — '.' for a single-app repo"
+        required: true
+        type: string
+      image_name:
+        description: "Image name, e.g. <project>-<domain>-be"
+        required: true
+        type: string
+      build_args:
+        description: |
+          Optional `--build-arg` lines, one per line. Only for values a build
+          bakes in — NEXT_PUBLIC_* in a Next.js app. Anything read at runtime
+          belongs in the chart's configmap, not here: baking it means a rebuild
+          per environment and one image that cannot be promoted sit → prod.
+        required: false
+        type: string
+        default: ""
+    outputs:
+      image_tag:
+        description: "The immutable tag that was pushed: <version>-<short sha>"
+        value: ${{ jobs.build.outputs.image_tag }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.pkg.outputs.tag }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # The tag carries the commit, so it can never be pushed over. That is what
+      # lets the chart run pullPolicy: IfNotPresent — a node may trust its cache,
+      # and a pod restarts while the registry is unreachable. A tag of the
+      # package.json version alone is reused whenever someone forgets to bump it,
+      # and the deploy then ships the previous build with every check green.
+      - name: Read Package Info
+        id: pkg
+        run: |
+          VER=$(jq -r .version ${{ inputs.service_path }}/package.json)
+          SHA=$(git rev-parse --short=7 HEAD)
+          echo "ver=${VER}"        >> "$GITHUB_OUTPUT"
+          echo "tag=${VER}-${SHA}" >> "$GITHUB_OUTPUT"
+          echo "📦 ${{ inputs.image_name }} version: ${VER}"
+          echo "🏷️  Image tag: ${VER}-${SHA}"
+
+      # Build context is the REPO ROOT even for a service in a subdirectory: a
+      # monorepo service imports libs/ as source and the Dockerfile must see it.
+      - name: Build Docker Image
+        # build_args comes in through the environment, and the flags are built
+        # in an array — same reasoning as the Helm step in _deploy-service.yml:
+        # a value interpolated into the script body is parsed by bash, and one
+        # holding a space or a `*` is split or glob-expanded before docker
+        # sees it.
+        env:
+          BUILD_ARGS: ${{ inputs.build_args }}
+        run: |
+          set -e
+          ARGS=()
+          while IFS= read -r line; do
+            [ -n "$line" ] && ARGS+=(--build-arg "$line")
+          done <<< "$BUILD_ARGS"
+
+          docker build --no-cache --platform linux/amd64 "${ARGS[@]}" \
+            -t "${{ inputs.image_name }}:${{ steps.pkg.outputs.tag }}" \
+            -f "${{ inputs.service_path }}/Dockerfile" .
+
+      # Both halves of the credential are secrets. A Huawei SWR username is an
+      # access-key id — in the file it is half a credential in git.
+      - name: Login to Registry
+        # --password-stdin, not -p: a password on the command line is visible
+        # in `ps` to anything else on the runner for the life of the call.
+        env:
+          REGISTRY_USERNAME: ${{ secrets.HUAWEI_REGISTRY_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.HUAWEI_REGISTRY_PASSWORD }}
+        run: |
+          set -e
+          echo "$REGISTRY_PASSWORD" | docker login \
+            -u "$REGISTRY_USERNAME" --password-stdin \
+            swr.ap-southeast-2.myhuaweicloud.com
+
+      - name: Tag and Push Docker Image
+        run: |
+          set -e
+          SRC="${{ inputs.image_name }}:${{ steps.pkg.outputs.tag }}"
+          DST="swr.ap-southeast-2.myhuaweicloud.com/osd-internal/${{ inputs.image_name }}:${{ steps.pkg.outputs.tag }}"
+          docker tag "$SRC" "$DST"
+          docker push "$DST"
+
+      - name: Cleanup Docker Images
+        if: always()
+        run: |
+          docker rmi ${{ inputs.image_name }}:${{ steps.pkg.outputs.tag }} || true
+          docker rmi swr.ap-southeast-2.myhuaweicloud.com/osd-internal/${{ inputs.image_name }}:${{ steps.pkg.outputs.tag }} || true
+          docker image prune -f
+          docker builder prune -f

@@ -1,0 +1,82 @@
+# BACKEND caller — ONE COPY PER SERVICE, named deploy-<domain>.yml.
+# Thin by design: everything it does is name the service. The steps live in
+# _build-service.yml / _deploy-service.yml, so a fix lands once for all services
+# instead of being applied n times and missed on the (n+1)th.
+name: Deploy Core Service
+
+on:
+  # Enable per service once the deploy is trusted. Never add prod to a push
+  # trigger — deploying is a decision, not a consequence of merging.
+  # push:
+  #   branches: [main]
+  #   paths:
+  #     - "services/core-service/**"
+  #     - "libs/**"
+  workflow_dispatch:
+    inputs:
+      deploy_env:
+        description: 'Deploy env'
+        required: true
+        type: choice
+        default: sit
+        options:
+          - sit
+          - uat
+          - prod
+      image_tag:
+        description: 'Existing tag to deploy (skips the build). Promote sit → prod, or roll back.'
+        required: false
+        type: string
+
+permissions:
+  contents: write          # only for the deployment tag at the end
+
+jobs:
+  build:
+    if: inputs.image_tag == ''
+    uses: ./.github/workflows/_build-service.yml
+    with:
+      service_path: services/core-service
+      image_name: request-core-be
+    secrets: inherit
+
+  # `build` is skipped when a tag was supplied, so this cannot read its output
+  # directly — a skipped job's outputs are empty and `needs` would block.
+  resolve-tag:
+    runs-on: ubuntu-latest
+    needs: [build]
+    if: always()
+    outputs:
+      image_tag: ${{ steps.r.outputs.image_tag }}
+    steps:
+      - name: Resolve Image Tag
+        id: r
+        run: |
+          if [ -n "${{ inputs.image_tag }}" ]; then
+            echo "image_tag=${{ inputs.image_tag }}" >> "$GITHUB_OUTPUT"
+            echo "↩️  Deploying existing tag ${{ inputs.image_tag }} (build skipped)"
+          elif [ -n "${{ needs.build.outputs.image_tag }}" ]; then
+            echo "image_tag=${{ needs.build.outputs.image_tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::build did not produce a tag"; exit 1
+          fi
+
+  deploy:
+    needs: [resolve-tag]
+    if: always() && needs.resolve-tag.result == 'success'
+    uses: ./.github/workflows/_deploy-service.yml
+    with:
+      image_name: request-core-be
+      image_tag: ${{ needs.resolve-tag.outputs.image_tag }}
+      chart_dir: chart/request-core-chart
+      namespace_prefix: request-management
+      deploy_env: ${{ inputs.deploy_env || 'sit' }}
+      # 10m on the chart that owns migration-job.yaml: the pre-upgrade hook runs
+      # before any pod starts and --atomic counts that time. 5m on the others.
+      helm_timeout: "10m"
+      # Only the secrets THIS chart declares.
+      set_secrets: |
+        secrets.DATABASE_URL=${{ secrets.DATABASE_URL }}
+        secrets.INTEGRATION_CLIENT_SECRET=${{ secrets.INTEGRATION_CLIENT_SECRET }}
+        secrets.METABASE_EMBED_SECRET=${{ secrets.METABASE_EMBED_SECRET }}
+    secrets: inherit

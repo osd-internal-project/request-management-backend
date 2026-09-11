@@ -1,0 +1,195 @@
+# Reusable DEPLOY — helm upgrade for one chart. Replace every <placeholder>.
+#
+# Release name and app label are READ FROM THE CHART, not passed in. Two values
+# that would otherwise have to agree between the chart and this file, and a
+# mismatched release name does not fail: `helm upgrade --install` under a new
+# name creates a SECOND release, two Deployments on one Service selector, both
+# green, traffic split across two image versions.
+name: Deploy Service (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      image_name:
+        required: true
+        type: string
+      image_tag:
+        description: "Immutable tag to deploy: <version>-<short sha>"
+        required: true
+        type: string
+      chart_dir:
+        description: "e.g. chart/<project>-<domain>-chart"
+        required: true
+        type: string
+      namespace_prefix:
+        description: "Namespace without the env suffix, e.g. <project>"
+        required: true
+        type: string
+      deploy_env:
+        required: true
+        type: string
+        default: sit
+      helm_timeout:
+        description: "10m on a chart with a migration hook; 5m otherwise"
+        required: false
+        type: string
+        default: "5m"
+      set_secrets:
+        description: |
+          Optional `--set-string` lines, one per line, e.g.
+            secrets.DATABASE_URL=${{ secrets.DATABASE_URL }}
+          --set-string, never --set: a value containing a comma is split into
+          two by --set and the error surfaces as a template failure nowhere
+          near the cause. Pass only the secrets THIS chart declares.
+        required: false
+        type: string
+        default: ""
+
+env:
+  DEPLOY_ENV: ${{ inputs.deploy_env }}
+
+concurrency:
+  group: deploy-${{ inputs.namespace_prefix }}-${{ inputs.image_name }}-${{ inputs.deploy_env }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, k8s]
+    environment: ${{ inputs.deploy_env == 'sit' && 'SIT' || inputs.deploy_env == 'uat' && 'UAT' || inputs.deploy_env == 'prod' && 'PROD' || 'SIT' }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # One place that resolves every name, from the chart itself.
+      - name: Resolve Names
+        id: n
+        run: |
+          CHART="${{ inputs.chart_dir }}"
+          REL=$(grep '^name:' ${CHART}/Chart.yaml | awk '{print $2}')
+          APP=$(grep '^appName:' ${CHART}/values.yaml | awk '{print $2}')
+          NS="${{ inputs.namespace_prefix }}-${{ inputs.deploy_env }}"
+          [ -n "${REL}" ] || { echo "::error::no name: in ${CHART}/Chart.yaml"; exit 1; }
+          [ -n "${APP}" ] || { echo "::error::no appName: in ${CHART}/values.yaml"; exit 1; }
+          echo "release=${REL}" >> "$GITHUB_OUTPUT"
+          echo "app=${APP}"     >> "$GITHUB_OUTPUT"
+          echo "ns=${NS}"       >> "$GITHUB_OUTPUT"
+          echo "release=${REL}  app=${APP}  ns=${NS}"
+
+      # Name must match imagePullSecretName in values.yaml.
+      - name: Create Image Pull Secret
+        run: |
+          kubectl create secret docker-registry huawei-swr-secret \
+            --docker-server=swr.ap-southeast-2.myhuaweicloud.com \
+            --docker-username=${{ secrets.HUAWEI_REGISTRY_USERNAME }} \
+            --docker-password=${{ secrets.HUAWEI_REGISTRY_PASSWORD }} \
+            --namespace=${{ steps.n.outputs.ns }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      # A cancelled run leaves the release in pending-*, and every later upgrade
+      # then fails with "another operation is in progress".
+      - name: Fix Stuck Helm Release
+        run: |
+          set -e
+          REL="${{ steps.n.outputs.release }}"
+          NS="${{ steps.n.outputs.ns }}"
+          STATUS=$(helm status ${REL} -n ${NS} -o json 2>/dev/null | jq -r '.info.status' 2>/dev/null || echo "not-found")
+          echo "Current Helm status for ${REL}: ${STATUS}"
+          if [[ "${STATUS}" == "pending-"* ]]; then
+            echo "Release stuck in ${STATUS}, rolling back..."
+            helm rollback ${REL} 0 -n ${NS} --wait --timeout 2m || \
+              helm uninstall ${REL} -n ${NS} --no-hooks || true
+          fi
+
+      - name: Set Chart appVersion
+        run: |
+          sed -i "s/^appVersion:.*/appVersion: \"${{ inputs.image_tag }}\"/" \
+            ${{ inputs.chart_dir }}/Chart.yaml
+
+      # image.tag is the only image value set here. pullPolicy stays in
+      # values.yaml so the chart states its own contract.
+      - name: Helm Upgrade
+        # The secrets arrive as an environment variable, never interpolated
+        # into the script body: `${{ }}` is substituted as TEXT before bash
+        # parses anything, so a secret containing a backtick or $(…) would run
+        # as a command on a runner that holds the cluster's kubeconfig.
+        env:
+          SET_SECRETS: ${{ inputs.set_secrets }}
+        run: |
+          set -e
+          CHART="${{ inputs.chart_dir }}"
+          REL="${{ steps.n.outputs.release }}"
+          NS="${{ steps.n.outputs.ns }}"
+          IMG="swr.ap-southeast-2.myhuaweicloud.com/osd-internal/${{ inputs.image_name }}"
+          VER="${{ inputs.image_tag }}"
+          ENV_NAME="${{ inputs.deploy_env }}"
+
+          # An array, not a string: each element stays one argument however it
+          # is quoted, so a password containing a space or a `*` reaches helm
+          # intact instead of being word-split or glob-expanded into filenames.
+          SETS=()
+          while IFS= read -r line; do
+            [ -n "$line" ] && SETS+=(--set-string "$line")
+          done <<< "$SET_SECRETS"
+
+          echo "🚀 Helm upgrade ${REL} (env: ${ENV_NAME})"
+          echo "📦 Image: ${IMG}:${VER}"
+
+          helm upgrade --install "$REL" "./$CHART" \
+            -f "./$CHART/values-${ENV_NAME}.yaml" \
+            --set image.repository="$IMG" \
+            --set image.tag="$VER" \
+            "${SETS[@]}" \
+            --namespace "$NS" \
+            --atomic \
+            --timeout "${{ inputs.helm_timeout }}" \
+            --history-max 10
+
+          echo "✅ Deployed ${REL}:${VER} to ${{ inputs.deploy_env }}"
+
+      - name: Verify Deployment
+        run: |
+          kubectl rollout status deployment/${{ steps.n.outputs.app }} -n ${{ steps.n.outputs.ns }}
+          kubectl get pods -n ${{ steps.n.outputs.ns }} -l app=${{ steps.n.outputs.app }}
+
+      - name: Tag Deployment
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          TAG="${{ inputs.image_name }}/${{ inputs.deploy_env }}/${{ inputs.image_tag }}"
+          git tag -f "${TAG}" -m "Deployed ${{ inputs.image_name }}:${{ inputs.image_tag }} to ${{ inputs.deploy_env }}"
+          git push origin "${TAG}" --force
+
+      # --atomic rolls back before a human can look. This is the only chance to
+      # see the failure. The migration Job goes first: on a chart with a hook,
+      # that is where the real error is, and the pods never started.
+      - name: Debug on Failure
+        if: failure()
+        run: |
+          NS="${{ steps.n.outputs.ns }}"
+          APP="${{ steps.n.outputs.app }}"
+
+          echo "====== MIGRATION / HOOK JOBS ======"
+          kubectl get jobs -n ${NS} -l app=${APP} -o wide || true
+          for job in $(kubectl get jobs -n ${NS} -l app=${APP} \
+            --no-headers -o custom-columns=':metadata.name' 2>/dev/null); do
+            echo "--- Logs: job/${job} ---"
+            kubectl logs -n ${NS} job/${job} --tail=100 2>/dev/null || echo "(no logs)"
+          done
+
+          echo "====== POD STATUS ======"
+          kubectl get pods -n ${NS} -l app=${APP} -o wide
+
+          echo "====== POD EVENTS ======"
+          kubectl get events -n ${NS} --sort-by='.lastTimestamp' \
+            --field-selector involvedObject.kind=Pod | tail -40
+
+          echo "====== POD DESCRIBE ======"
+          kubectl describe pods -n ${NS} -l app=${APP} | tail -80
+
+          echo "====== POD LOGS ======"
+          for pod in $(kubectl get pods -n ${NS} -l app=${APP} \
+            --no-headers -o custom-columns=':metadata.name'); do
+            echo "--- Logs: ${pod} ---"
+            kubectl logs -n ${NS} ${pod} --tail=50 2>/dev/null || echo "(no logs)"
+          done

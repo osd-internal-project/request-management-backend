@@ -1,0 +1,36 @@
+namespace: request-management-prod
+
+replicaCount: 2
+
+ingress:
+  host: request-management.osd.co.th
+  tls:
+    enabled: true
+    secretName: request-management-prod-tls
+
+# Helm merges maps key by key, so the WHOLE map is written in every env file —
+# a partial one silently keeps a value from values.yaml.
+configmap:
+  NODE_ENV: "production"
+  USER_SERVICE_PORT: "4004"
+  KEYCLOAK_BASE_URL: "https://sso.osd.co.th"
+  KEYCLOAK_REALM: "enterprise-request"
+  KEYCLOAK_CLIENT_ID: "request-form"
+
+secrets:
+  DATABASE_URL: ""
+  KEYCLOAK_CLIENT_SECRET: ""
+
+hostAliases:
+  - ip: "10.134.1.5"
+    hostnames:
+      - "request-management.osd.co.th"
+      - "sso.osd.co.th"
+
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "100m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"

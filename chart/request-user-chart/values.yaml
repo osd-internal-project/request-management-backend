@@ -1,0 +1,115 @@
+# BACKEND profile — NestJS user-service. Carries the shared Prisma schema
+# (libs/prisma), so it runs the migration hook; request-core-chart does too.
+# `prisma migrate deploy` applies only what is pending and takes an advisory
+# lock, so whichever deploys first wins and the other is a no-op. There is no
+# deploy order between the two charts.
+
+appName: request-user-service
+ingressName: request-user-ingress
+configmapName: request-user-service-config
+secretName: request-user-service-secret
+namespace: request-management-prod
+
+replicaCount: 2
+
+image:
+  # The pipeline overrides this with --set image.repository=
+  repository: swr.ap-southeast-2.myhuaweicloud.com/osd-internal/request-user-be
+  # Overridden per deploy with --set image.tag=<version>-<short sha>. The tag is
+  # immutable — one commit produces one tag and it is never pushed over — which
+  # is what makes IfNotPresent safe: a node may trust its cache, and a pod can
+  # restart while the registry is unreachable.
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+
+imagePullSecretName: huawei-swr-secret
+
+# services/user-service/Dockerfile: EXPOSE 4004, the process reads
+# USER_SERVICE_PORT (services/user-service/src/configs/index.ts).
+containerPort: 4004
+
+strategy:
+  rollingUpdate:
+    maxSurge: 1
+    maxUnavailable: 0
+
+service:
+  type: ClusterIP
+  port: 8884
+  targetPort: 4004
+
+# One host for the whole project, split by path segment. The frontend chart
+# owns `/` on the same host; request-core-chart owns `/public/api/v1/core`.
+# nginx strips the whole matched prefix, so rewrite-target must spell out the
+# app's own global prefix — main.ts does setGlobalPrefix('api/v1').
+ingress:
+  enabled: true
+  className: nginx
+  host: request-management.osd.co.th
+  path: /public/api/v1/users(/|$)(.*)
+  pathType: ImplementationSpecific
+  tls:
+    enabled: true
+    secretName: request-management-prod-tls
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /api/v1/$2
+    # Keycloak bearer tokens with many realm roles overflow the default proxy
+    # buffers and the request dies as a 502.
+    nginx.ingress.kubernetes.io/proxy-buffer-size: "16k"
+    nginx.ingress.kubernetes.io/proxy-buffers-number: "8"
+    nginx.ingress.kubernetes.io/proxy-busy-buffers-size: "32k"
+    nginx.ingress.kubernetes.io/large-client-header-buffers: "4 32k"
+
+configmap:
+  NODE_ENV: "production"
+  USER_SERVICE_PORT: "4004"
+  KEYCLOAK_BASE_URL: "https://sso.osd.co.th"
+  KEYCLOAK_REALM: "enterprise-request"
+  KEYCLOAK_CLIENT_ID: "request-form"
+
+# Committed file — every value stays empty. Real values arrive from the
+# pipeline as --set-string secrets.X=…
+secrets:
+  DATABASE_URL: ""
+  KEYCLOAK_CLIENT_SECRET: ""
+
+# Runs on EVERY chart carrying libs/prisma, not on one "owner".
+migration:
+  enabled: true
+  command: "cd /app && npx prisma migrate deploy"
+  envFromSecrets:
+    - DATABASE_URL
+  activeDeadlineSeconds: 300
+  backoffLimit: 1
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 60
+  targetMemoryUtilizationPercentage: 70
+
+# main.ts: setGlobalPrefix('api/v1'); UserServiceController @Get('health').
+livenessProbe:
+  enabled: true
+  path: /api/v1/health
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+
+readinessProbe:
+  enabled: true
+  path: /api/v1/health
+  initialDelaySeconds: 10
+  periodSeconds: 5
+  timeoutSeconds: 3
+
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "100m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"

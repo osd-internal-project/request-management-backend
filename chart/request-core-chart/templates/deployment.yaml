@@ -1,0 +1,115 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.appName }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.appName }}
+spec:
+  {{- if not (and .Values.autoscaling .Values.autoscaling.enabled) }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      app: {{ .Values.appName }}
+  {{- if .Values.strategy }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: {{ .Values.strategy.rollingUpdate.maxSurge }}
+      maxUnavailable: {{ .Values.strategy.rollingUpdate.maxUnavailable }}
+  {{- end }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.appName }}
+    spec:
+      imagePullSecrets:
+        - name: {{ .Values.imagePullSecretName }}
+      {{- if .Values.hostAliases }}
+      hostAliases:
+      {{- toYaml .Values.hostAliases | nindent 6 }}
+      {{- end }}
+      containers:
+      - name: {{ .Values.appName }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - containerPort: {{ .Values.containerPort }}
+          protocol: TCP
+        {{- if or .Values.configmap .Values.secrets }}
+        envFrom:
+          {{- if .Values.configmap }}
+          - configMapRef:
+              name: {{ .Values.configmapName }}
+          {{- end }}
+          {{- if .Values.secrets }}
+          - secretRef:
+              name: {{ .Values.secretName }}
+          {{- end }}
+        {{- end }}
+        {{- if .Values.env }}
+        # Inline env, for a chart that has not moved to `configmap:` yet. Both
+        # are honoured so that swapping in these templates cannot silently drop
+        # a service's entire environment.
+        env:
+        {{- range $key, $value := .Values.env }}
+        - name: {{ $key }}
+          value: {{ $value | quote }}
+        {{- end }}
+        {{- end }}
+        {{- if and .Values.livenessProbe (ne .Values.livenessProbe.enabled false) }}
+        livenessProbe:
+          {{- if .Values.livenessProbe.path }}
+          httpGet:
+            path: {{ .Values.livenessProbe.path }}
+            port: {{ .Values.containerPort }}
+          {{- else }}
+          # No path — a TCP check, for a service with no HTTP health route.
+          tcpSocket:
+            port: {{ .Values.containerPort }}
+          {{- end }}
+          {{- with .Values.livenessProbe.initialDelaySeconds }}
+          initialDelaySeconds: {{ . }}
+          {{- end }}
+          {{- with .Values.livenessProbe.periodSeconds }}
+          periodSeconds: {{ . }}
+          {{- end }}
+          {{- with .Values.livenessProbe.timeoutSeconds }}
+          timeoutSeconds: {{ . }}
+          {{- end }}
+        {{- end }}
+        {{- if and .Values.readinessProbe (ne .Values.readinessProbe.enabled false) }}
+        readinessProbe:
+          {{- if .Values.readinessProbe.path }}
+          httpGet:
+            path: {{ .Values.readinessProbe.path }}
+            port: {{ .Values.containerPort }}
+          {{- else }}
+          # No path — a TCP check, for a service with no HTTP health route.
+          tcpSocket:
+            port: {{ .Values.containerPort }}
+          {{- end }}
+          {{- with .Values.readinessProbe.initialDelaySeconds }}
+          initialDelaySeconds: {{ . }}
+          {{- end }}
+          {{- with .Values.readinessProbe.periodSeconds }}
+          periodSeconds: {{ . }}
+          {{- end }}
+          {{- with .Values.readinessProbe.timeoutSeconds }}
+          timeoutSeconds: {{ . }}
+          {{- end }}
+        {{- end }}
+        {{- if .Values.resources }}
+        resources:
+          {{- with .Values.resources.requests }}
+          requests:
+            memory: {{ .memory | quote }}
+            cpu: {{ .cpu | quote }}
+          {{- end }}
+          {{- with .Values.resources.limits }}
+          limits:
+            memory: {{ .memory | quote }}
+            cpu: {{ .cpu | quote }}
+          {{- end }}
+        {{- end }}

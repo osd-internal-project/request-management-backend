@@ -1,0 +1,39 @@
+{{- if and .Values.migration .Values.migration.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Values.appName }}-migrate
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.appName }}
+  annotations:
+    "helm.sh/hook": pre-upgrade,pre-install
+    "helm.sh/hook-weight": "-1"
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  backoffLimit: {{ .Values.migration.backoffLimit | default 1 }}
+  activeDeadlineSeconds: {{ .Values.migration.activeDeadlineSeconds | default 300 }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.appName }}-migrate
+    spec:
+      imagePullSecrets:
+        - name: {{ .Values.imagePullSecretName }}
+      {{- if .Values.hostAliases }}
+      hostAliases:
+      {{- toYaml .Values.hostAliases | nindent 6 }}
+      {{- end }}
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          command: ["sh", "-c", {{ .Values.migration.command | quote }}]
+          # A hook runs BEFORE the Secret object exists — inline, never secretKeyRef.
+          env:
+          {{- $root := . }}
+          {{- range $key := .Values.migration.envFromSecrets }}
+            - name: {{ $key }}
+              value: {{ index $root.Values.secrets $key | quote }}
+          {{- end }}
+{{- end }}

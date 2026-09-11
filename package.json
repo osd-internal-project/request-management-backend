@@ -56,6 +56,9 @@
     "data:import-requests": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/import-osd-requests.ts",
     "tools": "ts-node --compiler-options '{\"module\":\"commonjs\"}' scripts/generate-tools.ts"
   },
+  "dependencies": {
+    "prisma": "^6.3.1"
+  },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
     "@eslint/js": "^9.18.0",
@@ -72,7 +75,6 @@
     "globals": "^17.0.0",
     "jest": "^30.0.0",
     "prettier": "^3.4.2",
-    "prisma": "^6.3.1",
     "rimraf": "^6.0.1",
     "source-map-support": "^0.5.21",
     "supertest": "^7.0.0",
@@ -84,6 +86,7 @@
     "typescript-eslint": "^8.20.0"
   },
   "prisma": {
+    "schema": "libs/prisma/schema.prisma",
     "seed": "ts-node --compiler-options '{\"module\":\"commonjs\"}' libs/prisma/seed.ts"
   },
   "packageManager": "yarn@1.22.19"
