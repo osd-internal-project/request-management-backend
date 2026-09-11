@@ -1,0 +1,102 @@
+# SIT overrides for the vendored CloudPirates Keycloak chart
+# (keycloak-0.13.5.tgz — do not edit that archive, only this values file).
+#
+# Deploy with:
+#   helm upgrade --install keycloak ./chart/keycloak/keycloak-0.13.5.tgz \
+#     -f ./chart/keycloak/values-sit.yaml -n request-management-sit --timeout 5m \
+#     --set-string keycloak.adminPassword=$KEYCLOAK_ADMIN_PASSWORD \
+#     --set-string database.password=$KEYCLOAK_DB_PASSWORD
+#
+# Release name MUST be "keycloak" — the chart's own fullname helper collapses
+# "keycloak-keycloak" to "keycloak" only when the release name already
+# contains the chart name, which is also what keycloak-config's `serverUrl`
+# below assumes.
+
+replicaCount: 1
+
+image:
+  # Same mirror pattern as atom-portal-console's chart/keycloak/values-sit.yaml
+  # (registry + pullSecrets), applied to this project's own repository path.
+  # This image must actually exist at that path before first deploy — mirror
+  # it the same way atom-portal's eportal-keycloak was pushed, it does not
+  # appear there automatically just because this file names it.
+  registry: swr.ap-southeast-2.myhuaweicloud.com
+  repository: osd-internal/request-management-keycloak
+  pullSecrets:
+    - huawei-swr-secret
+  tag: "26.5.2"
+  imagePullPolicy: IfNotPresent
+
+keycloak:
+  adminUser: admin
+  # Never a real value here — supplied at deploy time with
+  # --set-string keycloak.adminPassword=$KEYCLOAK_ADMIN_PASSWORD
+  adminPassword: ""
+  production: true
+  # Public hostname confirmed by the project (2026-09-11).
+  hostname: "https://auth.request-management-sit.osd.co.th"
+  hostnameStrict: false
+  httpEnabled: true
+  httpsEnabled: false
+  proxyHeaders: xforwarded
+
+# TLS terminates at the ingress (nginx), matching every other chart in this
+# repo — Keycloak itself only ever serves plain HTTP inside the cluster.
+extraEnvVars:
+  - name: KC_PROXY_HEADERS
+    value: xforwarded
+
+database:
+  type: postgres
+  # External Postgres already provisioned for this project (confirmed
+  # 2026-09-11) — never the bundled subchart.
+  host: "10.134.2.3"
+  port: "5432"
+  name: "keycloak_request_management_sit"
+  # Default username for the CloudPirates chart's external-DB path. Confirm
+  # this is the actual role name on 10.134.2.3 before the first deploy — not
+  # verified this session.
+  username: "request_admin"
+  # Never a real value here — supplied at deploy time with
+  # --set-string database.password=$KEYCLOAK_DB_PASSWORD
+  password: ""
+
+postgres:
+  enabled: false
+
+service:
+  type: ClusterIP
+  httpPort: 8080
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+  hosts:
+    - host: "auth.request-management-sit.osd.co.th"
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: request-management-sit-auth-tls
+      hosts:
+        - "auth.request-management-sit.osd.co.th"
+
+# NOTE: the vendored keycloak-0.13.5 chart has no hostAliases hook (checked
+# templates/statefulset.yaml — no such field is templated), unlike the
+# app charts in this repo. Not needed here anyway: this pod never calls its
+# own public hostname, only the config chart's Job does (via the internal
+# ClusterIP DNS name below, not this public host), so the 10.134.1.5 mapping
+# the app charts rely on has nothing to do inside this chart.
+
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "50m"
+  limits:
+    memory: "1Gi"
+    cpu: "200m"
+
+preserveThemes: true

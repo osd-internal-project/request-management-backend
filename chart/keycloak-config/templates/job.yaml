@@ -1,0 +1,68 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-job
+  namespace: {{ .Values.namespace }}
+  annotations:
+    # Runs after every install AND every upgrade — a client added to values
+    # must reach Keycloak on the next deploy, not only the first one.
+    "helm.sh/hook": post-install,post-upgrade
+    # Deletes the previous run's Job before creating this one. Without this,
+    # the second `helm upgrade` fails outright: Job's pod template is
+    # immutable and Kubernetes refuses to replace a completed Job under the
+    # same name.
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 300
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-job
+    spec:
+      restartPolicy: OnFailure
+      {{- if .Values.keycloak.imagePullSecrets }}
+      imagePullSecrets:
+        {{- range .Values.keycloak.imagePullSecrets }}
+        - name: {{ . }}
+        {{- end }}
+      {{- end }}
+      containers:
+        - name: keycloak-config
+          image: {{ .Values.keycloak.image }}
+          command: ["/bin/bash", "/scripts/configure.sh"]
+          env:
+            - name: KEYCLOAK_SERVER_URL
+              value: {{ .Values.keycloak.serverUrl | quote }}
+            - name: KEYCLOAK_REALM
+              value: {{ .Values.keycloak.realm | quote }}
+            - name: KEYCLOAK_REALM_DISPLAY_NAME
+              value: {{ .Values.keycloak.realmDisplayName | quote }}
+            - name: KC_BOOTSTRAP_ADMIN_USERNAME
+              value: {{ .Values.keycloak.adminUser | quote }}
+            - name: KC_BOOTSTRAP_ADMIN_PASSWORD
+              value: {{ .Values.keycloak.adminPassword | quote }}
+            - name: ENSURE_DEFAULT_SCOPE
+              value: {{ .Values.ensureDefaultScope | default "" | quote }}
+            - name: SUPPORTED_LOCALES
+              value: {{ .Values.keycloak.supportedLocales | toJson | quote }}
+            - name: DEFAULT_LOCALE
+              value: {{ .Values.keycloak.defaultLocale | quote }}
+          volumeMounts:
+            - name: config-script
+              mountPath: /scripts
+            - name: client-configs
+              mountPath: /config/clients
+            - name: service-roles
+              mountPath: /config/service-roles
+      volumes:
+        - name: config-script
+          configMap:
+            name: {{ .Release.Name }}-script
+            defaultMode: 0755
+        - name: client-configs
+          configMap:
+            name: {{ .Release.Name }}-client-configs
+        - name: service-roles
+          configMap:
+            name: {{ .Release.Name }}-service-roles

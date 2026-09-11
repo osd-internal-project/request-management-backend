@@ -1,0 +1,179 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-script
+  namespace: {{ .Values.namespace }}
+data:
+  configure.sh: |
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    server_url="${KEYCLOAK_SERVER_URL}"
+    realm_name="${KEYCLOAK_REALM}"
+    realm_display_name="${KEYCLOAK_REALM_DISPLAY_NAME}"
+    admin_user="${KC_BOOTSTRAP_ADMIN_USERNAME}"
+    admin_password="${KC_BOOTSTRAP_ADMIN_PASSWORD}"
+    default_scope_name="${ENSURE_DEFAULT_SCOPE:-}"
+    supported_locales="${SUPPORTED_LOCALES:-[\"en\"]}"
+    default_locale="${DEFAULT_LOCALE:-en}"
+    kcadm="/opt/keycloak/bin/kcadm.sh"
+    kcadm_config="/tmp/kcadm.config"
+
+    echo "Connecting to ${server_url}..."
+    "${kcadm}" config credentials \
+      --config "${kcadm_config}" \
+      --server "${server_url}" \
+      --realm master \
+      --user "${admin_user}" \
+      --password "${admin_password}"
+
+    # Create realm if not exists — idempotent: a second `helm upgrade` must
+    # not fail because the realm is already there.
+    if ! "${kcadm}" get "realms/${realm_name}" --config "${kcadm_config}" >/dev/null 2>&1; then
+      "${kcadm}" create realms \
+        --config "${kcadm_config}" \
+        -s "realm=${realm_name}" \
+        -s enabled=true \
+        -s "displayName=${realm_display_name}"
+      echo "Created realm ${realm_name}"
+    fi
+
+    "${kcadm}" update "realms/${realm_name}" \
+      --config "${kcadm_config}" \
+      -s enabled=true \
+      -s registrationAllowed=true \
+      -s registrationEmailAsUsername=true \
+      -s resetPasswordAllowed=true \
+      -s loginWithEmailAllowed=true \
+      -s duplicateEmailsAllowed=false \
+      -s internationalizationEnabled=true \
+      -s "supportedLocales=${supported_locales}" \
+      -s "defaultLocale=${default_locale}"
+    echo "Updated realm ${realm_name}"
+
+    # Create/update every client from its rendered JSON file. Update-if-exists
+    # by clientId is what makes this safe to re-run on every deploy — a bare
+    # `create` here would fail the Job on the second `helm upgrade`.
+    for client_file in /config/clients/*.json; do
+      [[ -e "${client_file}" ]] || continue
+      client_id="$(sed -n 's/.*"clientId"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "${client_file}" | head -n 1)"
+      client_uuid="$(
+        "${kcadm}" get clients \
+          --config "${kcadm_config}" \
+          -r "${realm_name}" \
+          -q "clientId=${client_id}" \
+          --fields id | sed -n 's/.*"id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1
+      )"
+
+      if [[ -n "${client_uuid}" ]]; then
+        "${kcadm}" update "clients/${client_uuid}" \
+          --config "${kcadm_config}" \
+          -r "${realm_name}" \
+          -f "${client_file}"
+        echo "Updated ${client_id}"
+      else
+        "${kcadm}" create clients \
+          --config "${kcadm_config}" \
+          -r "${realm_name}" \
+          -f "${client_file}"
+        echo "Created ${client_id}"
+      fi
+    done
+
+    # Ensure the configured default scope (e.g. `basic`, for a stable `sub`
+    # claim) on every BROWSER client — detected as "has a non-empty
+    # redirectUris array", since a service-account client's JSON always
+    # renders `"redirectUris": []`.
+    if [[ -n "${default_scope_name}" ]]; then
+      scope_uuid="$(
+        "${kcadm}" get client-scopes \
+          --config "${kcadm_config}" \
+          -r "${realm_name}" \
+          --fields id,name | sed -n "/\"name\"[[:space:]]*:[[:space:]]*\"${default_scope_name}\"/ { x; s/.*\"id\"[[:space:]]*:[[:space:]]*\"\\([^\"]*\\)\".*/\\1/p; x; }; h"
+      )"
+
+      if [[ -n "${scope_uuid}" ]]; then
+        for client_file in /config/clients/*.json; do
+          [[ -e "${client_file}" ]] || continue
+          grep -q '"redirectUris": \[\]' "${client_file}" && continue
+          client_id="$(sed -n 's/.*"clientId"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "${client_file}" | head -n 1)"
+          client_uuid="$(
+            "${kcadm}" get clients \
+              --config "${kcadm_config}" \
+              -r "${realm_name}" \
+              -q "clientId=${client_id}" \
+              --fields id | sed -n 's/.*"id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1
+          )"
+          if [[ -n "${client_uuid}" ]]; then
+            "${kcadm}" update \
+              "clients/${client_uuid}/default-client-scopes/${scope_uuid}" \
+              --config "${kcadm_config}" \
+              -r "${realm_name}" \
+              -b '{}' -n 2>/dev/null || true
+            echo "Ensured ${default_scope_name} scope on ${client_id}"
+          fi
+        done
+      else
+        echo "WARNING: client scope '${default_scope_name}' not found in realm ${realm_name} — skipping"
+      fi
+    fi
+
+    # Bind realm-management roles to each service-account client that asked
+    # for them (one <clientId>.roles file per client, one role name per line).
+    realm_mgmt_uuid=""
+    for role_file in /config/service-roles/*.roles; do
+      [[ -e "${role_file}" ]] || continue
+
+      if [[ -z "${realm_mgmt_uuid}" ]]; then
+        realm_mgmt_uuid="$(
+          "${kcadm}" get clients \
+            --config "${kcadm_config}" \
+            -r "${realm_name}" \
+            -q clientId=realm-management \
+            --fields id | sed -n 's/.*"id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1
+        )"
+      fi
+
+      client_id="$(basename "${role_file}" .roles)"
+      client_uuid="$(
+        "${kcadm}" get clients \
+          --config "${kcadm_config}" \
+          -r "${realm_name}" \
+          -q "clientId=${client_id}" \
+          --fields id | sed -n 's/.*"id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1
+      )"
+      [[ -z "${client_uuid}" ]] && { echo "WARNING: client ${client_id} not found, skipping its role bindings"; continue; }
+
+      sa_username="$(
+        "${kcadm}" get "clients/${client_uuid}/service-account-user" \
+          --config "${kcadm_config}" \
+          -r "${realm_name}" \
+          --fields username | sed -n 's/.*"username"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1
+      )"
+      [[ -z "${sa_username}" ]] && { echo "WARNING: ${client_id} has no service account, skipping its role bindings"; continue; }
+
+      while IFS= read -r role_name; do
+        [[ -z "${role_name}" ]] && continue
+        "${kcadm}" add-roles \
+          --config "${kcadm_config}" \
+          -r "${realm_name}" \
+          --uusername "${sa_username}" \
+          --cclientid realm-management \
+          --rolename "${role_name}" 2>/dev/null || true
+
+        role_repr="$(
+          "${kcadm}" get "clients/${realm_mgmt_uuid}/roles/${role_name}" \
+            --config "${kcadm_config}" \
+            -r "${realm_name}" \
+            --fields id,name
+        )"
+        "${kcadm}" create \
+          "clients/${client_uuid}/scope-mappings/clients/${realm_mgmt_uuid}" \
+          --config "${kcadm_config}" \
+          -r "${realm_name}" \
+          -b "[${role_repr}]" 2>/dev/null || true
+      done < "${role_file}"
+      echo "Configured ${client_id} service account permissions"
+    done
+
+    echo "Keycloak configuration complete"

@@ -1,0 +1,72 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-client-configs
+  namespace: {{ .Values.namespace }}
+data:
+  {{- range $key, $c := .Values.clients }}
+  {{ $c.clientId }}.json: |
+    {{- if eq $c.type "service-account" }}
+    {
+      "clientId": {{ $c.clientId | quote }},
+      "name": {{ $c.name | quote }},
+      "enabled": true,
+      "protocol": "openid-connect",
+      "clientAuthenticatorType": "client-secret",
+      "secret": {{ $c.secret | default "" | quote }},
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "frontchannelLogout": false,
+      "fullScopeAllowed": false,
+      "redirectUris": [],
+      "webOrigins": [],
+      "defaultClientScopes": [],
+      "optionalClientScopes": []
+    }
+    {{- else }}
+    {
+      "clientId": {{ $c.clientId | quote }},
+      "name": {{ $c.name | quote }},
+      "enabled": true,
+      "protocol": "openid-connect",
+      "clientAuthenticatorType": "client-secret",
+      "secret": {{ $c.secret | default "" | quote }},
+      "publicClient": false,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      {{- /*
+        "hybrid" is a third client type, not in the generalized reference:
+        one client that both logs a browser in AND runs the Admin API's
+        service account (request-management's `request-form` client — see
+        keycloak.config.ts, which deliberately reuses one client/secret for
+        both rather than keeping two identities in sync). "browser" (the
+        reference's other non-service-account type) always gets
+        serviceAccountsEnabled: false; only "hybrid" turns it on here.
+      */}}
+      "serviceAccountsEnabled": {{ eq $c.type "hybrid" }},
+      "frontchannelLogout": true,
+      "rootUrl": {{ $.Values.portalUrl | quote }},
+      "baseUrl": {{ printf "%s%s" $.Values.portalUrl $c.baseUrl | quote }},
+      "redirectUris": [
+        {{- range $i, $uri := $c.redirectUris }}
+        {{- if $i }},{{ end }}
+        {{ printf "%s%s" $.Values.portalUrl $uri | quote }}
+        {{- end }}
+      ],
+      "webOrigins": [{{ $.Values.portalUrl | quote }}],
+      "attributes": {
+        {{- if $c.loginTheme }}
+        "login_theme": {{ $c.loginTheme | quote }},
+        {{- end }}
+        "post.logout.redirect.uris": {{ printf "%s%s" $.Values.portalUrl $c.postLogoutRedirectUri | quote }},
+        "pkce.code.challenge.method": "S256"
+      },
+      "defaultClientScopes": {{ $c.defaultClientScopes | toJson }},
+      "optionalClientScopes": {{ $c.optionalClientScopes | toJson }}
+    }
+    {{- end }}
+  {{- end }}

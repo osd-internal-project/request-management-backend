@@ -66,7 +66,7 @@ configmap:
   NODE_ENV: "production"
   CORE_SERVICE_PORT: "4005"
   USER_SERVICE_URL: "http://request-user-service.request-management-prod.svc.cluster.local:8884/api/v1"
-  KEYCLOAK_BASE_URL: "https://sso.osd.co.th"
+  KEYCLOAK_BASE_URL: "https://auth-request-management.osd.co.th"
   KEYCLOAK_REALM: "enterprise-request"
   INTEGRATION_CLIENT_ID: "request-integration"
   ODOO_MODE: "mock"

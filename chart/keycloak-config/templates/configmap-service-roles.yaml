@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-service-roles
+  namespace: {{ .Values.namespace }}
+data:
+  # One file per client that needs realm-management roles bound to ITS OWN
+  # service account: "service-account" (pure M2M) or "hybrid" (a browser
+  # login client whose service account also drives the Admin API — see
+  # configmap-clients.yaml's comment on why that third type exists).
+  # configure.sh reads these by filename (<clientId>.roles), one role name
+  # per line. A pure browser client, or a service-account/hybrid client with
+  # no serviceAccountRoles, gets no file — the script's glob loop skips it.
+  {{- range $key, $c := .Values.clients }}
+  {{- if and (or (eq $c.type "service-account") (eq $c.type "hybrid")) $c.serviceAccountRoles }}
+  {{ $c.clientId }}.roles: |
+    {{- range $c.serviceAccountRoles }}
+    {{ . }}
+    {{- end }}
+  {{- end }}
+  {{- end }}

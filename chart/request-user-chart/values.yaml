@@ -65,7 +65,7 @@ ingress:
 configmap:
   NODE_ENV: "production"
   USER_SERVICE_PORT: "4004"
-  KEYCLOAK_BASE_URL: "https://sso.osd.co.th"
+  KEYCLOAK_BASE_URL: "https://auth-request-management.osd.co.th"
   KEYCLOAK_REALM: "enterprise-request"
   KEYCLOAK_CLIENT_ID: "request-form"
 

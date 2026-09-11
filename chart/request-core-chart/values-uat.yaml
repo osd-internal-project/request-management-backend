@@ -14,8 +14,8 @@ configmap:
   NODE_ENV: "production"
   CORE_SERVICE_PORT: "4005"
   USER_SERVICE_URL: "http://request-user-service.request-management-uat.svc.cluster.local:8884/api/v1"
-  KEYCLOAK_BASE_URL: "https://sso.osd.co.th"
-  KEYCLOAK_REALM: "enterprise-request"
+  KEYCLOAK_BASE_URL: "https://auth-request-management-uat.osd.co.th"
+  KEYCLOAK_REALM: "enterprise-request-uat"
   INTEGRATION_CLIENT_ID: "request-integration"
   ODOO_MODE: "mock"
   PDPA_MODE: "mock"
@@ -33,7 +33,7 @@ hostAliases:
   - ip: "10.134.1.5"
     hostnames:
       - "request-management-uat.osd.co.th"
-      - "sso.osd.co.th"
+      - "auth-request-management-uat.osd.co.th"
 
 resources:
   requests:

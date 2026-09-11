@@ -1,0 +1,5 @@
+apiVersion: v2
+name: keycloak-config
+description: Create/update a Keycloak realm and its clients via kcadm (post-install/post-upgrade hook)
+version: 0.1.0
+appVersion: "1.0.0"

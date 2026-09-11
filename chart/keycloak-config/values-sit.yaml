@@ -1,0 +1,17 @@
+# SIT overrides — namespace, serverUrl, portalUrl, realm, adminPassword only.
+# `clients:` stays exclusively in values.yaml (see its own comment on the
+# map-merge footgun).
+#
+# Deploy with:
+#   helm upgrade --install keycloak-config ./chart/keycloak-config \
+#     -f ./chart/keycloak-config/values-sit.yaml -n request-management-sit --timeout 3m \
+#     --set-string keycloak.adminPassword=$KEYCLOAK_ADMIN_PASSWORD \
+#     --set-string clients.request-form.secret=$KEYCLOAK_CLIENT_SECRET \
+#     --set-string clients.request-integration.secret=$INTEGRATION_CLIENT_SECRET
+
+namespace: request-management-sit
+keycloak:
+  serverUrl: "http://keycloak.request-management-sit.svc.cluster.local:8080"
+  realm: enterprise-request
+  adminPassword: ""
+portalUrl: "https://request-management-sit.osd.co.th"

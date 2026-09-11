@@ -13,7 +13,7 @@ ingress:
 configmap:
   NODE_ENV: "production"
   USER_SERVICE_PORT: "4004"
-  KEYCLOAK_BASE_URL: "https://sso.osd.co.th"
+  KEYCLOAK_BASE_URL: "https://auth.request-management-sit.osd.co.th"
   KEYCLOAK_REALM: "enterprise-request"
   KEYCLOAK_CLIENT_ID: "request-form"
 
@@ -25,7 +25,7 @@ hostAliases:
   - ip: "10.134.1.5"
     hostnames:
       - "request-management-sit.osd.co.th"
-      - "sso.osd.co.th"
+      - "auth.request-management-sit.osd.co.th"
 
 resources:
   requests:

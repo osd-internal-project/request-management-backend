@@ -1,0 +1,141 @@
+# Installs and configures Keycloak for one environment. Two Helm releases,
+# in order — the config chart's Job needs the install chart's Service already
+# serving. `workflow_dispatch` only: deploying Keycloak is a decision, never a
+# consequence of a push, same as every other deploy-*.yml in this repo.
+#
+# SIT-only for now (see deploy_env choices below) — uat/prod values files can
+# exist without being wired in here until those environments are real.
+name: Deploy Keycloak
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_env:
+        description: 'Deploy env'
+        required: true
+        type: choice
+        default: sit
+        options:
+          - sit
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-keycloak-${{ inputs.deploy_env }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, k8s]
+    environment: ${{ inputs.deploy_env == 'sit' && 'SIT' || 'SIT' }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Resolve Namespace
+        id: n
+        run: |
+          NS="request-management-${{ inputs.deploy_env }}"
+          echo "ns=${NS}" >> "$GITHUB_OUTPUT"
+          echo "Deploying to namespace ${NS}"
+
+      # A cancelled run leaves either release in pending-*, and every later
+      # upgrade then fails with "another operation is in progress" — same
+      # guard as _deploy-service.yml.
+      - name: Fix Stuck Helm Releases
+        run: |
+          set -e
+          NS="${{ steps.n.outputs.ns }}"
+          for REL in keycloak keycloak-config; do
+            STATUS=$(helm status "${REL}" -n "${NS}" -o json 2>/dev/null | jq -r '.info.status' 2>/dev/null || echo "not-found")
+            echo "Current Helm status for ${REL}: ${STATUS}"
+            if [[ "${STATUS}" == "pending-"* ]]; then
+              echo "Release ${REL} stuck in ${STATUS}, rolling back..."
+              helm rollback "${REL}" 0 -n "${NS}" --wait --timeout 2m || \
+                helm uninstall "${REL}" -n "${NS}" --no-hooks || true
+            fi
+          done
+
+      # Install/upgrade Keycloak itself first. Its own readiness (StatefulSet
+      # rollout) is what the config chart's Job depends on next.
+      - name: Helm Upgrade — keycloak (install chart)
+        env:
+          KEYCLOAK_ADMIN_PASSWORD: ${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}
+          KEYCLOAK_DB_PASSWORD: ${{ secrets.KEYCLOAK_DB_PASSWORD }}
+        run: |
+          set -e
+          NS="${{ steps.n.outputs.ns }}"
+          ENV_NAME="${{ inputs.deploy_env }}"
+          helm upgrade --install keycloak ./chart/keycloak/keycloak-0.13.5.tgz \
+            -f "./chart/keycloak/values-${ENV_NAME}.yaml" \
+            --set-string keycloak.adminPassword="$KEYCLOAK_ADMIN_PASSWORD" \
+            --set-string database.password="$KEYCLOAK_DB_PASSWORD" \
+            --namespace "$NS" \
+            --timeout 5m \
+            --history-max 10
+
+      - name: Wait For Keycloak
+        run: |
+          NS="${{ steps.n.outputs.ns }}"
+          kubectl rollout status statefulset/keycloak -n "$NS" --timeout=5m
+
+      # Realm + clients. Re-runs safely on every upgrade — see
+      # chart/keycloak-config/templates/job.yaml's hook annotations.
+      - name: Helm Upgrade — keycloak-config (realm + clients)
+        env:
+          KEYCLOAK_ADMIN_PASSWORD: ${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}
+          KEYCLOAK_CLIENT_SECRET: ${{ secrets.KEYCLOAK_CLIENT_SECRET }}
+          INTEGRATION_CLIENT_SECRET: ${{ secrets.INTEGRATION_CLIENT_SECRET }}
+        run: |
+          set -e
+          NS="${{ steps.n.outputs.ns }}"
+          ENV_NAME="${{ inputs.deploy_env }}"
+          helm upgrade --install keycloak-config ./chart/keycloak-config \
+            -f "./chart/keycloak-config/values-${ENV_NAME}.yaml" \
+            --set-string keycloak.adminPassword="$KEYCLOAK_ADMIN_PASSWORD" \
+            --set-string clients.request-form.secret="$KEYCLOAK_CLIENT_SECRET" \
+            --set-string clients.request-integration.secret="$INTEGRATION_CLIENT_SECRET" \
+            --namespace "$NS" \
+            --timeout 3m \
+            --history-max 10
+
+      - name: Wait For Config Job
+        run: |
+          NS="${{ steps.n.outputs.ns }}"
+          JOB=$(kubectl get jobs -n "$NS" -l app=keycloak-config-job --no-headers -o custom-columns=':metadata.name' | tail -1)
+          if [ -z "$JOB" ]; then
+            echo "::error::no keycloak-config-job found in ${NS}"; exit 1
+          fi
+          kubectl wait --for=condition=complete "job/${JOB}" -n "$NS" --timeout=3m || {
+            echo "::error::job/${JOB} did not complete"; exit 1;
+          }
+
+      - name: Config Job Logs
+        if: always()
+        run: |
+          NS="${{ steps.n.outputs.ns }}"
+          JOB=$(kubectl get jobs -n "$NS" -l app=keycloak-config-job --no-headers -o custom-columns=':metadata.name' 2>/dev/null | tail -1)
+          [ -n "$JOB" ] || { echo "(no job found)"; exit 0; }
+          echo "====== job/${JOB} logs ======"
+          kubectl logs -n "$NS" "job/${JOB}" --tail=200 || echo "(no logs)"
+
+      - name: Debug On Failure
+        if: failure()
+        run: |
+          NS="${{ steps.n.outputs.ns }}"
+          echo "====== HELM RELEASES ======"
+          helm list -n "$NS" || true
+          echo "====== KEYCLOAK POD STATUS ======"
+          kubectl get pods -n "$NS" -l app.kubernetes.io/name=keycloak -o wide || true
+          echo "====== KEYCLOAK POD DESCRIBE ======"
+          kubectl describe pods -n "$NS" -l app.kubernetes.io/name=keycloak | tail -80 || true
+          echo "====== KEYCLOAK POD LOGS ======"
+          for pod in $(kubectl get pods -n "$NS" -l app.kubernetes.io/name=keycloak --no-headers -o custom-columns=':metadata.name' 2>/dev/null); do
+            echo "--- Logs: ${pod} ---"
+            kubectl logs -n "$NS" "${pod}" --tail=100 2>/dev/null || echo "(no logs)"
+          done
+          echo "====== CONFIG JOB EVENTS ======"
+          kubectl get events -n "$NS" --sort-by='.lastTimestamp' \
+            --field-selector involvedObject.kind=Job | tail -40 || true

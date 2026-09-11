@@ -1,0 +1,102 @@
+namespace: request-management-sit
+
+keycloak:
+  # Must match the vendor chart's own image (chart/keycloak/values-sit.yaml),
+  # so kcadm.sh is guaranteed present and version-matched to the server it is
+  # configuring.
+  image: swr.ap-southeast-2.myhuaweicloud.com/osd-internal/request-management-keycloak:26.5.2
+  # Same private registry as the image above — the Job's pod needs this or
+  # it ImagePullBackOffs, same as any other pod in this cluster pulling from
+  # Huawei SWR (see the app charts' imagePullSecretName).
+  imagePullSecrets:
+    - huawei-swr-secret
+  # Cluster-internal DNS name of the install chart's Service — never the
+  # public hostname. Release name "keycloak" collapses "keycloak-keycloak" to
+  # "keycloak" (CloudPirates' fullname helper trims the chart name out of the
+  # release name when the release name already contains it) — see
+  # chart/keycloak/values-sit.yaml's header comment.
+  serverUrl: "http://keycloak.request-management-sit.svc.cluster.local:8080"
+  # Per-environment Keycloak instance (confirmed 2026-09-11) — sit has its own
+  # DB and its own install, so the realm needs no env suffix. This deliberately
+  # does NOT match the "enterprise-request-sit" currently sitting in
+  # chart/request-core-chart/values-sit.yaml and
+  # chart/request-user-chart/values-sit.yaml, which was a provisional guess
+  # from earlier this session that itself needs the same fix — see those
+  # charts' values-sit.yaml (already corrected alongside this chart) and
+  # values-uat.yaml (still carries "enterprise-request-uat", flagged, not
+  # touched here since uat is out of scope for this deploy).
+  realm: enterprise-request
+  realmDisplayName: "Request Management"
+  adminUser: admin
+  # Never a real value here — supplied at deploy time with
+  # --set-string keycloak.adminPassword=$KEYCLOAK_ADMIN_PASSWORD
+  adminPassword: ""
+  supportedLocales: ["en", "th"]
+  defaultLocale: en
+
+# Every browser/hybrid client's baseUrl/redirectUris/postLogoutRedirectUri are
+# relative paths, joined to this at render time. One app, one origin — the
+# frontend is the only browser-facing client here.
+portalUrl: "https://request-management-sit.osd.co.th"
+
+# request-management's JwtStrategy keys only on the standard OIDC `sub` and
+# `preferred_username` claims (services/user-service/src/auth/strategies/jwt.strategy.ts),
+# both already present on every access token without a custom client scope.
+# Unlike the atom-portal-console realm this pattern was generalized from,
+# there is no "basic" scope to ensure here — leave this unset so the script's
+# scope-binding step is a no-op rather than warning about a scope that was
+# never meant to exist in this realm.
+ensureDefaultScope: ""
+
+# request-management has two clients, and neither is a plain "browser" or
+# "service-account" — request-form needs the third, project-added `hybrid`
+# type (see templates/configmap-clients.yaml and
+# templates/configmap-service-roles.yaml for what that adds to the reference).
+#
+# Keep `clients:` only in THIS file, not repeated in values-sit.yaml — see
+# the map-merge footgun already hit once in this org's app charts
+# (chart/request-core-chart/values-*.yaml's own comment on it).
+clients:
+  # AUTH-01/AUTH-04. The SAME client backs both browser login (Authorization
+  # Code + PKCE) and the Admin REST API — services/user-service/src/auth/keycloak.config.ts
+  # and keycloak-admin.service.ts both key off KEYCLOAK_CLIENT_ID=request-form,
+  # by design ("one client and one secret rather than a second identity to
+  # keep in sync"). Its service account needs exactly the five
+  # realm-management roles the Admin API calls check for — anything less and
+  # KeycloakAdminService raises KEYCLOAK_ADMIN_UNAVAILABLE (503) while the
+  # login half keeps working, which is the "looks fine but isn't" failure
+  # mode keycloak.config.ts's own comment warns about.
+  request-form:
+    clientId: request-form
+    name: "Request Management — Web (login + admin API)"
+    type: hybrid
+    secret: ""                    # supplied at deploy time, see keycloak.adminPassword above
+    baseUrl: /
+    redirectUris:
+      - /api/auth/callback
+    postLogoutRedirectUri: /
+    loginTheme: ""                 # blank = default Keycloak theme
+    defaultClientScopes: ["basic", "profile", "email", "roles", "web-origins", "acr"]
+    optionalClientScopes: ["address", "phone", "offline_access"]
+    serviceAccountRoles:
+      - view-users
+      - query-users
+      - query-groups
+      - manage-users
+      - view-realm
+
+  # AUTH-06. core-service exchanges an `rfk_…` integration API key for a
+  # client_credentials token from this client, then forwards it like any
+  # other bearer (services/core-service's INTEGRATION_CLIENT_ID). Its actual
+  # permission — the realm role `integration.request.create` — is an
+  # application role, not a `realm-management` role, so it is deliberately
+  # NOT listed under serviceAccountRoles here: that field only binds
+  # realm-management roles (see configure.sh). The application role itself is
+  # created and bound by `yarn keycloak:provision`
+  # (libs/prisma/keycloak-provision.ts), run once against this realm after
+  # this chart's Job has created the client.
+  request-integration:
+    clientId: request-integration
+    name: "Request Management — Integration service account"
+    type: service-account
+    secret: ""                    # must match core-service's INTEGRATION_CLIENT_SECRET — see values-sit.yaml
