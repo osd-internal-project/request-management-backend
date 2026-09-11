@@ -82,4 +82,42 @@ export class CompanyMemberRepository extends BaseRepository<
 
     return new Set(rows.map((row) => row.id));
   }
+
+  /**
+   * What to call these people, for ids this service resolved itself.
+   *
+   * core-service asks user-service for identity facts (§03), and for the
+   * approval chain that arrives as `GET /internal/org/approval-context`. But
+   * that payload names only the ids *it* produced — the requester's personal
+   * supervisor chain and the role holders. A `supervisor:N` ladder level is
+   * resolved here instead, from `OrgUnit.managerUserId`, and those ids were
+   * never in it: the preview showed `supervisor:1` where a name belonged.
+   *
+   * Read locally rather than through a new user-service route because the
+   * persisted view already does exactly that — `ApprovalStep.approver` is a
+   * Prisma relation on the same database (`request.repository.ts`). A remote
+   * hop here would make the same two screens name the same person differently.
+   *
+   * Company-pinned like `memberIdsOf` (SCOPE-03): an id from outside this
+   * company answers with no name, and the caller falls back to the level's
+   * label. Losing a name is the safer failure.
+   */
+  async displayNamesOf(
+    ids: readonly string[],
+    companyId: string,
+    option?: TxOption,
+  ): Promise<Map<string, string>> {
+    const unique = [...new Set(ids)];
+    if (!unique.length) return new Map();
+
+    const rows = (await this.findMany(
+      {
+        where: { id: { in: unique }, companies: { some: { companyId } } },
+        select: { id: true, displayName: true },
+      },
+      option,
+    )) as { id: string; displayName: string }[];
+
+    return new Map(rows.map((row) => [row.id, row.displayName]));
+  }
 }
