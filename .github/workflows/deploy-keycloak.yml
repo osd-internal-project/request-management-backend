@@ -27,7 +27,7 @@ concurrency:
 
 jobs:
   deploy:
-    runs-on: self-hosted
+    runs-on: [self-hosted, k8s]
     environment: ${{ inputs.deploy_env == 'sit' && 'SIT' || 'SIT' }}
 
     steps:
