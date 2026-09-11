@@ -267,6 +267,9 @@ describe('CRM Lead — แปลงเป็นโอกาสการขาย
       ),
     };
 
+    // Lead ใบใหม่เปิด instance ของ `lwf-0001` — ยิงแบบไม่รอผล ที่นี่แค่ดักว่าถูกเรียก.
+    const workflowSync = { kickLead: jest.fn() };
+
     const service = new LeadsService(
       leads as never,
       customers as never,
@@ -276,9 +279,10 @@ describe('CRM Lead — แปลงเป็นโอกาสการขาย
       activities as never,
       members as never,
       statuses as never,
+      workflowSync as never,
     );
 
-    return { service, leads, opportunities, activities, audits };
+    return { service, leads, opportunities, activities, audits, workflowSync };
   }
 
   it('หน้ารายละเอียด: findOne คืนชื่อผู้รับผิดชอบและชื่อผู้ลงกิจกรรม ไม่ใช่แค่ user id', async () => {

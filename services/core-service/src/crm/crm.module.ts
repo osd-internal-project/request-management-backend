@@ -5,6 +5,7 @@ import { RequestsModule } from '../requests/requests.module';
 import { OdooModule } from '../odoo/odoo.module';
 import { PdpaModule } from '../pdpa/pdpa.module';
 import { EventsModule } from '../events/events.module';
+import { WorkflowModule } from '../workflow/workflow.module';
 import { CustomersController } from './customers.controller';
 import { CrmAdminController } from './crm-admin.controller';
 import { CustomersService } from './customers.service';
@@ -51,6 +52,9 @@ import {
   SaleOrdersController,
 } from './sales.controllers';
 import { LeadImportService } from './lead-import.service';
+import { LeadWorkflowController } from './lead-workflow.controller';
+import { LeadWorkflowService } from './lead-workflow.service';
+import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
 
 /**
  * CRM ระยะ 1 — Customer Master (CD-59 / CM-01…09) + the parts of มุมมอง 360°
@@ -61,13 +65,21 @@ import { LeadImportService } from './lead-import.service';
  * events through — nothing writes the table directly (C360-03).
  */
 @Module({
-  imports: [AccessModule, RequestsModule, OdooModule, PdpaModule, EventsModule],
+  imports: [
+    AccessModule,
+    RequestsModule,
+    OdooModule,
+    PdpaModule,
+    EventsModule,
+    WorkflowModule,
+  ],
   controllers: [
     CustomersController,
     CrmAdminController,
     LeadsController,
     OpportunitiesController,
     SaleOrdersController,
+    LeadWorkflowController,
   ],
   providers: [
     CustomersService,
@@ -101,6 +113,8 @@ import { LeadImportService } from './lead-import.service';
     LeadsService,
     LeadStatusService,
     LeadImportService,
+    LeadWorkflowService,
+    LeadWorkflowSyncService,
     OpportunitiesService,
     SaleOrdersService,
     PrismaTransactionService,

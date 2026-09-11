@@ -14,6 +14,7 @@ import {
 import { CompanyMemberRepository } from '../access/company-member.repository';
 import { LeadStatusService } from './lead-status.service';
 import { LeadActivityRepository, LeadRepository } from './sales.repositories';
+import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
 import { OpportunitiesService } from './opportunities.service';
 import { CustomerRepository } from './customer.repository';
 import {
@@ -102,6 +103,7 @@ export class LeadsService {
     private readonly activities: LeadActivityRepository,
     private readonly members: CompanyMemberRepository,
     private readonly statuses: LeadStatusService,
+    private readonly workflowSync: LeadWorkflowSyncService,
   ) {}
 
   async list(actor: Principal, query: ListLeadsQueryDto) {
@@ -226,6 +228,13 @@ export class LeadsService {
       resourceId: row.id,
       after: { name: dto.name, sourceCode: dto.source_code },
     });
+
+    /*
+      Lead ใบใหม่ = process ใบใหม่ (PO 10 ก.ย. 2569). ยิงหลัง audit เขียนเสร็จ
+      และไม่ `await` — OSD Workflow ล่มต้องไม่ทำให้เพิ่ม Lead ไม่ได้; งานที่ยิง
+      ไม่ผ่านลงคิว `integration_sync_jobs` แล้ว sweeper ตามเก็บเอง.
+    */
+    this.workflowSync.kickLead(row.id);
 
     return row;
   }

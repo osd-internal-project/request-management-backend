@@ -220,6 +220,7 @@ describe('CRM Lead — convert โดยไม่ต้องมีลูกค�
       {} as never,
       {} as never,
       statuses as never,
+      { kickLead: jest.fn() } as never,
     );
     return { service, leads, customers, opportunities };
   }

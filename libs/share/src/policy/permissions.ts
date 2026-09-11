@@ -92,7 +92,22 @@ export const PERMISSIONS = {
     'admin.crm.manage',
   ],
   /** AUTH-06: service-account scopes, never granted to a human role. */
-  integration: ['integration.request.create', 'integration.approval.create'],
+  integration: [
+    'integration.request.create',
+    'integration.approval.create',
+    /**
+     * The workflow engine reading the facts its Decision nodes test
+     * ("Workflow owns Process, Core owns Data", PO 10 ก.ย. 2569). Read-only and
+     * separate from `crm.sales.read` so a human role can never pick it up.
+     */
+    'integration.crm.lead.read',
+    /**
+     * The workflow engine applying a stage it has already decided. Whether the
+     * move is *allowed* is settled on `lwf-0001`; this permission only says
+     * which caller may hand the answer back.
+     */
+    'integration.crm.lead.stage',
+  ],
 } as const;
 
 /**

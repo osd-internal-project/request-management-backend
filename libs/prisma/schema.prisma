@@ -1827,11 +1827,12 @@ model CustomerTimelineEvent {
 model IntegrationSyncJob {
   id String @id @default(uuid())
 
-  /// 'odoo' — one queue for every external system the layer fronts.
+  /// 'odoo' | 'workflow' — one queue for every external system the layer fronts.
   system     String
-  /// 'customer_upsert' | 'receivables_refresh'
+  /// odoo: 'customer_upsert' | 'receivables_refresh'
+  /// workflow: 'lead_start'
   kind       String
-  /// The row being synced — customerId for both current kinds.
+  /// The row being synced — customerId for the odoo kinds, leadId for 'lead_start'.
   resourceId String
 
   status    IntegrationJobStatus @default(pending)
@@ -1975,6 +1976,14 @@ model Lead {
   /// โอกาสการขายที่เกิดจากการแปลง — ข้อมูลไหลต่อ ไม่พิมพ์ซ้ำ.
   convertedOpportunityId String? @unique
 
+  /// instance ของ workflow `lwf-0001` บน OSD Workflow ที่กำลังเดิน Lead ใบนี้
+  /// (PO 10 ก.ย. 2569: "Workflow owns Process, Core owns Data").
+  ///
+  /// ต้องเก็บเพราะการส่ง signal เข้าไปบอกว่า "มีกิจกรรมเสร็จแล้ว" ยิงไปที่
+  /// `POST /workflow-instances/{id}/signal` ซึ่งอ้าง instance ตรง ๆ ไม่ได้อ้าง
+  /// business key. NULL = ยังไม่ได้ start (หรือ start ไม่สำเร็จและยังค้างในคิว
+  /// `integration_sync_jobs`) — Lead ยังใช้งานได้ตามปกติ ไม่ผูกชะตากับ workflow.
+  workflowInstanceId String?
 
   ownerUserId    String
   ownerOrgUnitId String?
