@@ -17,7 +17,7 @@ x-common: &common
   # through a workflow log and can be corrected without re-running a pipeline.
   # See .env.labs.example for the full list.
   env_file: /home/chareefm/docker-env/.backend-env
-  networks: [rm-labs]
+  networks: [rm-net]
   logging:
     driver: json-file
     options: { max-size: "10m", max-file: "3" }
@@ -57,8 +57,9 @@ services:
       start_period: 30s
 
 networks:
-  rm-labs:
-    # Created once by hand on the VM (docs/labs-server-setup.md). External
-    # because the frontend stack is a separate compose project that has to
-    # reach these containers by name.
+  rm-net:
+    # External so that no compose project owns it — that is what lets the
+    # frontend stack, a separate project, reach these containers by name.
+    # The deploy workflow's `Ensure Shared Network` step creates it when it is
+    # missing, because `external` also means compose will not.
     external: true

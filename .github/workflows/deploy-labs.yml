@@ -112,6 +112,17 @@ jobs:
             | docker login -u "${{ secrets.HUAWEI_REGISTRY_USERNAME }}" \
                 --password-stdin "${{ env.REGISTRY }}"
 
+      # The compose file declares rm-net as `external: true`, which means "this
+      # already exists, do not create it" — so without this step the deploy dies
+      # on `network rm-net declared as external, but could not be found`.
+      #
+      # `inspect || create` rather than `create || true`: the latter would also
+      # swallow a real failure, such as the docker daemon being down.
+      - name: Ensure Shared Network
+        run: |
+          docker network inspect rm-net >/dev/null 2>&1 \
+            || docker network create rm-net
+
       # --wait blocks until both healthchecks pass, so a container that starts
       # and immediately fails its check fails the deploy rather than being
       # reported as shipped.

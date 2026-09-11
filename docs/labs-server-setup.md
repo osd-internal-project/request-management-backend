@@ -97,16 +97,24 @@ install_runner actions-runner-rm-fe \
 
 ---
 
-## 3. The shared network
+## 3. The shared network — nothing to do
 
-The two stacks are separate compose projects. They find each other by container name over one
-external network, which compose will not create for you:
+The two stacks are separate compose projects, and they find each other by container name over
+one shared network, `rm-net`. It is declared `external: true` in both compose files, meaning
+no project owns it — which is exactly what lets the frontend resolve `user-service` even
+though that container belongs to the other project.
+
+`external: true` also means compose will not create it, so **each deploy job creates it first**
+(`Ensure Shared Network`, guarded by `docker network inspect`, so it is a no-op once it
+exists). Nothing to run here by hand, including on a rebuilt VM.
+
+For reference, the manual equivalent is:
 
 ```bash
-docker network create rm-labs
+docker network create rm-net
 ```
 
-Without it both `docker compose up` calls fail immediately with `network rm-labs declared as
+Without the network, `docker compose up` fails immediately with `network rm-net declared as
 external, but could not be found`.
 
 ---
@@ -190,15 +198,47 @@ against a schema they do not match.
 ## 7. Firewall
 
 Open **3000** to whoever uses the app. 3001 and 3002 only need to be reachable from the VM
-itself — the frontend talks to them over the `rm-labs` network, not through the host.
+itself — the frontend talks to them over the `rm-net` network, not through the host.
+
+---
+
+## Pre-flight — run these on the VM before pushing
+
+Each failed deploy costs a full image build, so it is worth two minutes to check the things a
+deploy cannot check for itself. All of these run **on the VM, as the runner's user**.
+
+```bash
+# 1. Can this machine reach the database? If not, core-service starts, answers
+#    /health with 200, and reports "database":"down" — so `--wait` times out and
+#    the deploy goes red with nothing obviously wrong in the logs.
+nc -zv 192.168.31.55 5432
+
+# 2. Can it reach Keycloak?
+curl -sf http://192.168.31.51:8180/realms/enterprise-request >/dev/null && echo keycloak-ok
+
+# 3. Are the env files readable BY THE RUNNER'S USER? Root-owned 600 files fail
+#    here with "env file … not found", which reads like the file is missing.
+head -1 ~/docker-env/.backend-env
+head -1 ~/docker-env/.frontend-env
+
+# 4. Is docker usable without sudo? The runner has no terminal to sudo from.
+docker ps >/dev/null && echo docker-ok
+```
+
+Two more prerequisites will **not** turn the deploy red — they fail later, in use:
+
+- **Keycloak redirect URIs** (step 5). Deploy goes green, then login dies with
+  *"Invalid parameter: redirect_uri"*.
+- **Database migrations** (step 6). The services start against a schema they do not match;
+  queries fail one endpoint at a time rather than at boot.
 
 ---
 
 ## Deploying, after all of the above
 
 Push to `deploys/labs` in either repo. The workflow builds on GitHub's runners, pushes to SWR,
-then the `deploy` job on this VM pulls and restarts that stack with `--wait`, so the job only
-goes green once the healthchecks pass.
+then the `deploy` job on this VM creates the shared network if needed, pulls, and restarts that
+stack with `--wait`, so the job only goes green once the healthchecks pass.
 
 ### Rolling back
 
