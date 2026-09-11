@@ -1,0 +1,21 @@
+# The build context is the repo root (see the header of each services/*/Dockerfile),
+# so without this the host's node_modules — hundreds of MB, and the wrong
+# architecture's binaries — is uploaded to the daemon on every build.
+node_modules
+**/node_modules
+
+# Build output. The builder stage produces its own; a stale copy from the host
+# would be shadowed at best and copied over the fresh one at worst.
+**/dist
+**/.tsbuildinfo
+
+.git
+.github
+
+# Local secrets must never reach an image layer.
+.env
+.env.*
+
+docs
+coverage
+artifacts

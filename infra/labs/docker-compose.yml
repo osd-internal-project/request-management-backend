@@ -1,0 +1,64 @@
+# The labs stack: both API services, pulled from SWR.
+#
+# Started by .github/workflows/deploy-labs.yml on the VM's self-hosted runner:
+#
+#   IMAGE_TAG=1.0.0-abc1234 docker compose -f infra/labs/docker-compose.yml \
+#     up -d --pull always --wait
+#
+# There is deliberately no `build:` key. The only thing that may run here is an
+# image CI produced and pushed — a local build would put bytes on the server
+# that no commit corresponds to.
+
+name: request-management-labs
+
+x-common: &common
+  restart: unless-stopped
+  # Real values live on the VM, outside the repo, so a secret never passes
+  # through a workflow log and can be corrected without re-running a pipeline.
+  # See .env.labs.example for the full list.
+  env_file: /opt/request-management/labs/backend.env
+  networks: [rm-labs]
+  logging:
+    driver: json-file
+    options: { max-size: "10m", max-file: "3" }
+
+services:
+  user-service:
+    <<: *common
+    image: ${REGISTRY}/${SWR_ORG}/request-management-user-service:${IMAGE_TAG}
+    container_name: user-service
+    ports: ["3001:3001"]
+    healthcheck:
+      # user-service's /health is static by design — it reports that the process
+      # is answering, nothing more.
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3001/api/v1/health | grep -q '\"status\":\"ok\"'"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  core-service:
+    <<: *common
+    image: ${REGISTRY}/${SWR_ORG}/request-management-core-service:${IMAGE_TAG}
+    container_name: core-service
+    ports: ["3002:3002"]
+    # Ordering only. core-service resolves callers through user-service on every
+    # request, so it must not refuse to start when user-service is slow — it
+    # retries per request.
+    depends_on: [user-service]
+    healthcheck:
+      # The body, not the status code: health.repository.ts catches the query
+      # error and still answers 200 with `"database":"down"`. A status-code
+      # check stays green through a total database outage.
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3002/api/v1/health | grep -q '\"database\":\"up\"'"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+networks:
+  rm-labs:
+    # Created once by hand on the VM (docs/labs-server-setup.md). External
+    # because the frontend stack is a separate compose project that has to
+    # reach these containers by name.
+    external: true

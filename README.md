@@ -208,6 +208,31 @@ docker build -t request-management/core-service -f services/core-service/Dockerf
 Build from the repo root — yarn needs every workspace manifest in the context to link them, and
 `libs/share` is copied in as source.
 
+### Publishing to Huawei SWR
+
+`.github/workflows/deploy-labs.yml` builds both services, pushes them to
+`swr.ap-southeast-2.myhuaweicloud.com`, and restarts the labs stack — on every push to
+`deploys/labs`. It needs two **repository** secrets (Settings → Secrets and variables →
+Actions), set on this repo rather than at the organisation level:
+
+| Secret | Value |
+|---|---|
+| `HUAWEI_REGISTRY_USERNAME` | `ap-southeast-2@<ACCESS_KEY>` |
+| `HUAWEI_REGISTRY_PASSWORD` | the login key SWR issues, not the raw Secret Access Key |
+
+Both come from *SWR console → My Images → Client Upload → Generate Login Command*. A login key
+is derived per region, so a key issued for another region answers 401 here.
+
+The organisation defaults to `osd-internal`; set the `HUAWEI_SWR_ORG` repository *variable*
+(a different tab from secrets) to override it without editing the workflow.
+
+Images are tagged `<package.json version>-<short sha>`, which is never pushed over.
+
+The deploy half runs on a self-hosted runner on the labs VM and needs that machine prepared
+first — runner, Docker, network, env files, Keycloak redirect URIs. All of it is in
+[`docs/labs-server-setup.md`](./docs/labs-server-setup.md). **With no self-hosted runner online
+for this repo, the deploy job sits in `Queued` indefinitely without erroring.**
+
 ## Adding a new service
 
 1. `mkdir -p services/<name>/src` and add a `package.json` named `@request-management/<name>`
