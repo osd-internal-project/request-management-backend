@@ -233,6 +233,10 @@ first — runner, Docker, network, env files, Keycloak redirect URIs. All of it 
 [`docs/labs-server-setup.md`](./docs/labs-server-setup.md). **With no self-hosted runner online
 for this repo, the deploy job sits in `Queued` indefinitely without erroring.**
 
+[`docs/labs-deploy.md`](./docs/labs-deploy.md) covers the day-to-day side: what triggers a
+deploy, how to ship work that was written on another branch, how to roll back, and what to look
+at when a deploy fails.
+
 ## Adding a new service
 
 1. `mkdir -p services/<name>/src` and add a `package.json` named `@request-management/<name>`
