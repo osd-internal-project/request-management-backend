@@ -44,6 +44,19 @@ export const ErrorCatalog = {
   /** AUTH-04: moving an org unit under its own descendant would cycle the tree. */
   ORG_UNIT_CYCLE: HttpStatus.UNPROCESSABLE_ENTITY,
   /**
+   * A unit placed at a level that is not directly under its parent's — the
+   * chart is บริษัท → ฝ่าย → แผนก → ทีม → ตำแหน่ง with no level skipped
+   * (`ORG_UNIT_LEVELS`). `details` names the level that would have been
+   * correct, because "invalid" alone leaves an admin guessing.
+   */
+  ORG_UNIT_LEVEL_INVALID: HttpStatus.UNPROCESSABLE_ENTITY,
+  /**
+   * Someone assigned to a บริษัท or ฝ่าย unit. People sit at แผนก or below, so
+   * that "the supervisor above this person" has one answer; a unit holding
+   * both people and sub-departments has none.
+   */
+  ORG_UNIT_CANNOT_HOLD_MEMBERS: HttpStatus.UNPROCESSABLE_ENTITY,
+  /**
    * A group still has people, sub-groups, or configuration pointing at it.
    *
    * The chart is configuration, so a genuinely unused group may be deleted —

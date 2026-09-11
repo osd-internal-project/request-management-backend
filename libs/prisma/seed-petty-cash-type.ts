@@ -259,8 +259,20 @@ async function seedPettyCashType(): Promise<void> {
     );
   }
 
+  /*
+    Matched on `code` *or* `name`, because the two ways an org chart reaches
+    this database disagree about which column carries the abbreviation. A chart
+    written by `yarn prisma:seed` puts `FAC` in `code`; one imported from the
+    company's own spreadsheet numbers the codes (`OSD-OU0011`) and leaves the
+    abbreviation in `name`. Matching one column only found nothing on the
+    imported chart and seeded the type with no receiving team — silently, since
+    the miss is a warning rather than an error.
+  */
   const receiverUnit = await prisma.orgUnit.findFirst({
-    where: { companyId: company.id, code: RECEIVER_UNIT_CODE },
+    where: {
+      companyId: company.id,
+      OR: [{ code: RECEIVER_UNIT_CODE }, { name: RECEIVER_UNIT_CODE }],
+    },
   });
 
   /*
