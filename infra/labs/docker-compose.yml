@@ -16,7 +16,7 @@ x-common: &common
   # Real values live on the VM, outside the repo, so a secret never passes
   # through a workflow log and can be corrected without re-running a pipeline.
   # See .env.labs.example for the full list.
-  env_file: /opt/request-management/labs/backend.env
+  env_file: /home/chareefm/docker-env/.backend-env
   networks: [rm-labs]
   logging:
     driver: json-file

@@ -117,22 +117,30 @@ Real configuration lives on the VM, never in git and never in a workflow log —
 not echoed on every deploy, and a wrong value is fixed by editing a file instead of re-running
 a pipeline.
 
+They live in the **runner user's** home, and compose reads them as that user — so no `sudo`
+anywhere in this section. A root-owned `600` file here is unreadable by the runner, and the
+deploy fails with `env file … not found` even though the file is plainly there.
+
 ```bash
-sudo mkdir -p /opt/request-management/labs
-sudo chmod 700 /opt/request-management/labs
+mkdir -p ~/docker-env
+chmod 700 ~/docker-env
 ```
 
 Copy the two templates from the repos and fill them in:
 
 | Template | Goes to |
 |---|---|
-| backend `.env.labs.example` | `/opt/request-management/labs/backend.env` |
-| frontend `.env.labs.example` | `/opt/request-management/labs/frontend.env` |
+| backend `.env.labs.example` | `~/docker-env/.backend-env` |
+| frontend `.env.labs.example` | `~/docker-env/.frontend-env` |
 
 ```bash
-sudo install -m 600 /tmp/backend.env  /opt/request-management/labs/backend.env
-sudo install -m 600 /tmp/frontend.env /opt/request-management/labs/frontend.env
+install -m 600 /tmp/backend.env  ~/docker-env/.backend-env
+install -m 600 /tmp/frontend.env ~/docker-env/.frontend-env
 ```
+
+> The compose files name these paths absolutely (`/home/chareefm/docker-env/…`), so they are
+> tied to that account. Moving the runner to a different user means editing `env_file` in both
+> `infra/labs/docker-compose.yml` — there is no indirection to adjust instead.
 
 > **The trap worth naming.** `USER_SERVICE_URL` appears in both files and means opposite
 > things. core-service wants `http://user-service:3001/api/v1` — the prefix is part of the
