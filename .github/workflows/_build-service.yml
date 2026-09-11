@@ -1,6 +1,6 @@
 # Reusable BUILD — one job, called once per service by a thin caller workflow.
 # Replace every <placeholder>.
-name: Build Service (Reusable)
+name: Reusable Build Service
 
 on:
   workflow_call:

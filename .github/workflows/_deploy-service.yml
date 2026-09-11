@@ -5,7 +5,7 @@
 # mismatched release name does not fail: `helm upgrade --install` under a new
 # name creates a SECOND release, two Deployments on one Service selector, both
 # green, traffic split across two image versions.
-name: Deploy Service (Reusable)
+name: Reusable Deploy Service
 
 on:
   workflow_call:
