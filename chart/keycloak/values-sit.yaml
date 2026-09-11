@@ -24,7 +24,7 @@ image:
   repository: osd-internal/request-management-keycloak
   pullSecrets:
     - huawei-swr-secret
-  tag: "26.5.2"
+  tag: "26.5.2-amd64"
   imagePullPolicy: IfNotPresent
 
 keycloak:
