@@ -5,10 +5,24 @@ Do this once; after that a push to `deploys/labs` in either repo ships on its ow
 
 Both repos deploy to this same VM:
 
-| Repo | Stack | Ports |
+| Repo | Containers | Host port → container port |
 |---|---|---|
-| `request-mangement-backend` | `user-service`, `core-service` | 3001, 3002 |
-| `request-management-frontend` | `frontend` | 3000 |
+| `request-mangement-backend` | `rm-user`, `rm-core` | 3501 → 3001, 3502 → 3002 |
+| `request-management-frontend` | `rm-fe` | 3500 → 3000 |
+
+Those container names and host ports are the same ones the `docker run` commands use, so the
+stack looks identical whether compose or a person started it:
+
+```bash
+docker run -d --name rm-core --network rm-net -p 3502:3002 --env-file .backend-env  <image>
+docker run -d --name rm-user --network rm-net -p 3501:3001 --env-file .backend-env  <image>
+docker run -d --name rm-fe   --network rm-net -p 3500:3000 --env-file .frontend-env <image>
+```
+
+> **The cost of sharing the names.** compose refuses to adopt a container it did not create.
+> Start one of these by hand and the next deploy stops with
+> `Conflict. The container name "/rm-core" is already in use`. The fix is
+> `docker rm -f rm-user rm-core rm-fe`, then re-run the workflow.
 
 **The machine must be linux/amd64.** The images are built `--platform linux/amd64`; an ARM VM
 cannot run them.
@@ -101,8 +115,8 @@ install_runner actions-runner-rm-fe \
 
 The two stacks are separate compose projects, and they find each other by container name over
 one shared network, `rm-net`. It is declared `external: true` in both compose files, meaning
-no project owns it — which is exactly what lets the frontend resolve `user-service` even
-though that container belongs to the other project.
+no project owns it — which is exactly what lets the frontend resolve `rm-user` even though
+that container belongs to the other project.
 
 `external: true` also means compose will not create it, so **each deploy job creates it first**
 (`Ensure Shared Network`, guarded by `docker network inspect`, so it is a no-op once it
@@ -151,10 +165,15 @@ install -m 600 /tmp/frontend.env ~/docker-env/.frontend-env
 > `infra/labs/docker-compose.yml` — there is no indirection to adjust instead.
 
 > **The trap worth naming.** `USER_SERVICE_URL` appears in both files and means opposite
-> things. core-service wants `http://user-service:3001/api/v1` — the prefix is part of the
-> value. The frontend wants `http://user-service:3001` — an origin, because
+> things. core-service wants `http://rm-user:3001/api/v1` — the prefix is part of the
+> value. The frontend wants `http://rm-user:3001` — an origin, because
 > `src/lib/backend.ts` appends `/api/v1` itself. Copying the line from one file to the other
 > breaks whichever side receives it.
+
+> **Which port goes where.** Service-to-service URLs use the port *inside* the container
+> (3001, 3002) because those calls cross `rm-net` directly and never touch the host. Only
+> `APP_ORIGIN` and the Keycloak redirect URIs use the published host port (3500), because a
+> browser is what follows them.
 
 Replace `<LABS_HOST>` in both files with this VM's address on the `192.168.31.x` network. It
 has to be the address a **browser** uses, not a container name — it ends up in `APP_ORIGIN`
@@ -166,9 +185,9 @@ and in the Keycloak redirect, both of which the browser follows.
 
 On `192.168.31.51:8180`, realm `enterprise-request`, client `request-form`:
 
-- **Valid redirect URIs** — add `http://<LABS_HOST>:3000/*`
-- **Valid post logout redirect URIs** — add `http://<LABS_HOST>:3000/*`
-- **Web origins** — add `http://<LABS_HOST>:3000`
+- **Valid redirect URIs** — add `http://<LABS_HOST>:3500/*`
+- **Valid post logout redirect URIs** — add `http://<LABS_HOST>:3500/*`
+- **Web origins** — add `http://<LABS_HOST>:3500`
 
 Absolute URLs only. A bare `/*` is resolved against the client's root URL and login fails with
 *"Invalid parameter: redirect_uri"* — the warning `.env.example` already carries.
@@ -197,7 +216,7 @@ against a schema they do not match.
 
 ## 7. Firewall
 
-Open **3000** to whoever uses the app. 3001 and 3002 only need to be reachable from the VM
+Open **3500** to whoever uses the app. 3501 and 3502 only need to be reachable from the VM
 itself — the frontend talks to them over the `rm-net` network, not through the host.
 
 ---
@@ -263,7 +282,7 @@ docker compose -f infra/labs/docker-compose.yml ps
 docker compose -f infra/labs/docker-compose.yml logs --tail=100 core-service
 
 # The check that distinguishes "running" from "actually working":
-curl -s localhost:3002/api/v1/health     # must say "database":"up"
+curl -s localhost:3502/api/v1/health     # must say "database":"up"
 ```
 
 `/health` on core-service answers **200 even when the database is down** — the failure shows

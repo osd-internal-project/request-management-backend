@@ -26,8 +26,11 @@ services:
   user-service:
     <<: *common
     image: ${REGISTRY}/${SWR_ORG}/request-management-user-service:${IMAGE_TAG}
-    container_name: user-service
-    ports: ["3001:3001"]
+    container_name: rm-user
+    # Host 3501 → container 3001. The high ports keep 3000-3002 free on a VM
+    # that already uses them, and match the `docker run` commands people use to
+    # start these by hand.
+    ports: ["3501:3001"]
     healthcheck:
       # user-service's /health is static by design — it reports that the process
       # is answering, nothing more.
@@ -40,8 +43,8 @@ services:
   core-service:
     <<: *common
     image: ${REGISTRY}/${SWR_ORG}/request-management-core-service:${IMAGE_TAG}
-    container_name: core-service
-    ports: ["3002:3002"]
+    container_name: rm-core
+    ports: ["3502:3002"]
     # Ordering only. core-service resolves callers through user-service on every
     # request, so it must not refuse to start when user-service is slow — it
     # retries per request.

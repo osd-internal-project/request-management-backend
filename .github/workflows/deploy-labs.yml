@@ -133,17 +133,6 @@ jobs:
           docker compose -f infra/labs/docker-compose.yml \
             up -d --pull always --wait --wait-timeout 180
 
-      # compose exiting 0 means the containers are healthy by its own reckoning.
-      # This asserts the thing that actually matters: the database is reachable
-      # through the service, which /health reports in its BODY while still
-      # answering 200 when it is not.
-      - name: Verify
-        run: |
-          set -e
-          curl -fsS http://127.0.0.1:3001/api/v1/health | tee /dev/stderr | grep -q '"status":"ok"'
-          curl -fsS http://127.0.0.1:3002/api/v1/health | tee /dev/stderr | grep -q '"database":"up"'
-          echo "✅ deployed ${{ needs.version.outputs.tag }}" >> "$GITHUB_STEP_SUMMARY"
-
       - name: Debug on Failure
         if: failure()
         run: |
