@@ -85,9 +85,11 @@ curl -s -X POST "$KEYCLOAK_BASE_URL/realms/$KEYCLOAK_REALM/protocol/openid-conne
 
 ---
 
-## 4. สามวิธีเอา credential มา
+## 4. วิธีเข้าถึง
 
-เลือกวิธีเดียวก็พอ ทั้งสามจบลงที่ header เดียวกัน — `Authorization: Bearer <ค่า>`
+§4.1-4.3 คือวิธี **เอา credential มา** เลือกอย่างเดียวก็พอ ทั้งสามจบลงที่ header
+เดียวกัน — `Authorization: Bearer <ค่า>` ส่วน §4.4 เป็น **ช่องทางเรียกอีกแบบ**
+(MCP) ที่ใช้ credential จากสามข้อแรกได้ทั้งหมด
 
 | | 4.1 `curl` ตรง | 4.2 `yarn mcp:token` | 4.3 `yarn apikey:issue` |
 |---|---|---|---|
@@ -154,6 +156,86 @@ yarn apikey:list
 
 ออก key ในเครื่อง production ต้องใส่ `APIKEY_ISSUE_ALLOW=1` นำหน้า เป็นกันชน
 กันรันผิด `DATABASE_URL`
+
+### 4.4 MCP over HTTP — ให้ LibreChat หรือ chat client ต่อตรง
+
+`POST /api/v1/mcp` — **endpoint เดียวสำหรับทุก tool** ชื่อ tool อยู่ใน body
+ไม่ใช่ใน path จึงไม่มี `/mcp/request-types` และ URL เดิมทั้งสิบตัวไม่ถูกเติม
+`/mcp` นำหน้า
+
+```bash
+curl -s -X POST http://localhost:3002/api/v1/mcp \
+  -H 'content-type: application/json' \
+  -H "Authorization: Bearer <token หรือ rfk_...>" \
+  -H 'X-Acting-User: someone@example.com' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+```
+
+เปลี่ยน tool โดยแก้ `params.name` **ไม่ใช่เปลี่ยน URL**:
+
+```json
+{"jsonrpc":"2.0","id":2,"method":"tools/call",
+ "params":{"name":"get_request_types","arguments":{}}}
+```
+
+รายชื่อ tool ทั้งสิบอยู่ที่ `docs/openapi/external-tools.json` และ `tools/list`
+อ่านจากไฟล์นั้นตรง ๆ — เพิ่ม endpoint ใน External API แล้วรัน
+`yarn openapi && yarn tools` tool ก็เพิ่มเองโดยไม่ต้องแก้โค้ด MCP
+
+**ตัวตนผู้ใช้ทำงานสองแบบ ต่างจาก `/external/*` ตรงนี้ที่เดียว**
+
+| credential ที่ส่ง | ระบบรู้จักใครจาก | `X-Acting-User` |
+|---|---|---|
+| token ของ **คน** (เช่น LibreChat หลัง login) | ตัว token | **ห้ามส่ง** — ส่งแล้วถูกปฏิเสธ |
+| `rfk_` key หรือ token บัญชีบริการ | header | **ต้องส่ง** เหมือนเดิม |
+
+ที่ห้ามส่งเมื่อใช้ token ของคน เพราะถ้ายอมรับ ใครที่ login แล้วก็สวมเป็นคนอื่นได้ทันที
+
+#### ตั้งใน LibreChat
+
+**ช่องในหน้า "เพิ่มเซิร์ฟเวอร์ MCP"**
+
+| ช่อง | ค่า |
+|---|---|
+| ชื่อ | อะไรก็ได้ เช่น `osd-rm-mcp` |
+| MCP Server URL | `http://<host>:3502/api/v1/mcp` |
+| Transport | **Streamable HTTPS** |
+| การยืนยันตัวตน | **OAuth** (แยกคนได้) หรือ **คีย์ API** (ทุกคนเป็นคนเดียวกัน) |
+
+**ถ้าเลือก "คีย์ API"** — ใช้ได้ทันที ไม่ต้องตั้งอะไรเพิ่มใน Keycloak
+
+- ใส่ `rfk_…` เป็นคีย์
+- ต้องส่ง header `X-Acting-User` ด้วย เพราะคีย์ผูกกับบัญชีบริการ ไม่ใช่คน
+- ทุกคนใน LibreChat จะกลายเป็นคนคนเดียวกันตามอีเมลใน header นั้น
+
+**ถ้าเลือก "OAuth"** — แยกคนได้ แต่ต้องตั้ง client ใน Keycloak ก่อน
+
+`GET /.well-known/oauth-protected-resource` บอก LibreChat เองว่าให้ไป login ที่
+realm ไหน และเมื่อยิงมาโดยไม่มี credential จะได้ `401` พร้อม header
+`WWW-Authenticate: Bearer resource_metadata="…"` ซึ่งเป็นตัวชี้ทางให้ปุ่มเชื่อมต่อ
+โผล่ขึ้นมา — ทั้งสองอย่างนี้ทำไว้แล้ว ไม่ต้องตั้งค่าเพิ่ม
+
+**สิ่งที่ต้องทำเองใน Keycloak** (ทำครั้งเดียว ไม่กระทบ client เดิม)
+
+| ตั้งค่า | ค่า |
+|---|---|
+| ชื่อ client | เช่น `librechat` |
+| Client authentication | **Off** (public client) |
+| Standard flow | **เปิด** |
+| PKCE method | **S256** |
+| Valid redirect URIs | callback ของ LibreChat (ดูจากหน้าตั้งค่าของมัน) |
+| Web origins | origin ของ LibreChat |
+
+**ห้ามใช้ `request-form`** เป็น client ของ LibreChat — ตัวนั้นเป็น confidential
+client ที่ถือสิทธิ์ Keycloak Admin API และ redirect URI ของมันเป็นของหน้าเว็บ
+
+ผู้ใช้ที่ login ต้องมีสิทธิ์ `request.create` (คือพนักงานทั่วไปที่ถูกจัดเข้าผังทีมแล้ว)
+ไม่ต้องมี `integration.*` — สิทธิ์นั้นเป็นของบัญชีบริการเท่านั้น
+
+**เมื่อ login ผ่านแล้ว `X-Acting-User` ห้ามส่ง** — token บอกอยู่แล้วว่าเป็นใคร
+ถ้าส่งมาจะถูกปฏิเสธ เพราะถ้ายอมรับ ใครที่ login แล้วก็สวมเป็นคนอื่นได้
+
+---
 
 ---
 

@@ -32,6 +32,20 @@ export default () => ({
   },
 
   /**
+   * Where callers outside this machine reach core-service.
+   *
+   * Needed only by the MCP OAuth discovery document, which has to state its
+   * own address: a client is told "this resource lives at X, authorise at Y",
+   * and X must be the URL *it* used, not `localhost`. Everything else in this
+   * service answers on whatever host the request arrived at and never has to
+   * name itself.
+   *
+   * Docker maps 3502 → 3002 (`infra/labs/docker-compose.yml`), so the default
+   * is the port a caller on the network actually uses.
+   */
+  publicBaseUrl: process.env.PUBLIC_BASE_URL ?? 'http://192.168.31.52:3502',
+
+  /**
    * CD-92: the embedded BI menu. `siteUrl` is where browsers reach Metabase;
    * `embedSecret` is Metabase's "embedding secret key" (Admin → Embedding) —
    * signing with it is what lets an app login stand in for a Metabase login.
