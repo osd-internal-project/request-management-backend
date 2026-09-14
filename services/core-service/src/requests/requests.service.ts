@@ -1930,6 +1930,19 @@ export class RequestsService {
       narrowing.push({ status: query.status as RequestStatus });
     }
 
+    /*
+      "งานค้าง" — the same set `open_total` counts, so the number on the
+      dashboard and the rows under it cannot disagree.
+
+      ANDed like every other filter rather than replacing `status`: asking for
+      both an exact status and open-only is a contradiction the caller can
+      express, and answering it with nothing is the honest result. The screens
+      send one or the other.
+    */
+    if (isOpenOnlyRequested(query.open)) {
+      narrowing.push({ status: { in: [...OPEN_STATUSES] } });
+    }
+
     if (query.type_code) narrowing.push({ typeCode: query.type_code });
 
     // REQ-06 / C360 — the 360° page's "คำขอ" tab: everything raised against
@@ -2148,6 +2161,11 @@ function overdueClockWhere(): Prisma.SlaClockWhereInput {
  * silently did nothing for one of its two callers.
  */
 function isOverdueRequested(value: unknown): boolean {
+  return value === true || value === 'true';
+}
+
+/** Same two representations as `overdue`, for the same two callers. */
+function isOpenOnlyRequested(value: unknown): boolean {
   return value === true || value === 'true';
 }
 

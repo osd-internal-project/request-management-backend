@@ -391,13 +391,29 @@ Postman/Bruno collection for QA.
 | | |
 |---|---|
 | Base URL | `/api/v1` — REST + JSON (UTF-8) |
-| Auth | `Authorization: Bearer <access_token>` (Keycloak JWT) on **every** endpoint, no exceptions |
+| Auth | `Authorization: Bearer <access_token>` (Keycloak JWT) on **every** endpoint, no exceptions — see the amendment below |
 | Company | `X-Company-Id` on every request; the backend verifies membership or answers `403 COMPANY_FORBIDDEN` |
 | Pagination | `page` (from 1), `page_size` (default 20, max 100) |
 | Sort / filter | `sort=field` or `sort=-field`; filters are query params named after the field |
 | Time | ISO 8601 UTC — `2026-08-24T07:30:00Z` |
 | Money | decimal **string** plus a separate currency field: `{"amount":"150000.00","currency":"THB"}` |
 | Idempotency | every state-changing POST accepts `Idempotency-Key`; replaying a key returns the original result and creates nothing new (NFR-03) |
+
+> **AMENDMENT, 8 ก.ย. 2569 — the bearer is not always a JWT (AUTH-06).**
+>
+> The `/external/*` group also accepts an API key beginning `rfk_`, so that an
+> integration holds one credential that does not expire and **can be revoked** —
+> which a very long-lived Keycloak token cannot be without rotating the client
+> secret for every integration at once.
+>
+> It does not weaken the row above. core-service exchanges the key for a
+> client-credentials token and forwards *that*, so user-service is still the only
+> service that verifies a bearer (§03) and the permissions are the same set
+> either way. The key answers *may this caller in*; the token answers *what may
+> they do*.
+>
+> Implementation: `services/core-service/src/principal/api-key.service.ts`,
+> issued by `yarn apikey:issue`. Guide: `docs/EXTERNAL_API.md`.
 
 Every list response uses one envelope:
 

@@ -267,6 +267,25 @@ export class ListRequestsQueryDto extends PageQueryDto {
   @Transform(({ value }) => value === true || value === 'true')
   @IsBoolean()
   overdue?: boolean;
+
+  /**
+   * Only work somebody still has to finish — `OPEN_STATUSES`.
+   *
+   * A second state filter beside `status`, not a replacement: `status` answers
+   * "show me exactly this one", this answers "show me the ones that are not
+   * over". Expressing the second with the first would mean eight requests.
+   *
+   * **This must never move into a `view`.** A tab narrowing by status as well
+   * as by access is the defect of 4 ก.ย. 2569 — a receiver whose tickets had
+   * all been closed read `รับเรื่อง · 0` as data loss, with nothing on screen
+   * to say a filter was in play. Kept as a filter the caller sets and can see,
+   * so the screen can always say what it is hiding.
+   */
+  @ApiPropertyOptional({ type: Boolean, description: 'เฉพาะงานที่ยังไม่จบ' })
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true')
+  @IsBoolean()
+  open?: boolean;
 }
 
 /**
