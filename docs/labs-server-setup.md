@@ -14,9 +14,9 @@ Those container names and host ports are the same ones the `docker run` commands
 stack looks identical whether compose or a person started it:
 
 ```bash
-docker run -d --name rm-core --network rm-net -p 3502:3002 --env-file .backend-env  <image>
-docker run -d --name rm-user --network rm-net -p 3501:3001 --env-file .backend-env  <image>
-docker run -d --name rm-fe   --network rm-net -p 3500:3000 --env-file .frontend-env <image>
+docker run -d --name rm-core --network rm-net -p 3502:3002 --env-file .backend.env  <image>
+docker run -d --name rm-user --network rm-net -p 3501:3001 --env-file .backend.env  <image>
+docker run -d --name rm-fe   --network rm-net -p 3500:3000 --env-file .frontend.env <image>
 ```
 
 > **The cost of sharing the names.** compose refuses to adopt a container it did not create.
@@ -152,12 +152,12 @@ Copy the two templates from the repos and fill them in:
 
 | Template | Goes to |
 |---|---|
-| backend `.env.labs.example` | `~/docker-env/.backend-env` |
-| frontend `.env.labs.example` | `~/docker-env/.frontend-env` |
+| backend `.env.labs.example` | `~/docker-env/.backend.env` |
+| frontend `.env.labs.example` | `~/docker-env/.frontend.env` |
 
 ```bash
-install -m 600 /tmp/backend.env  ~/docker-env/.backend-env
-install -m 600 /tmp/frontend.env ~/docker-env/.frontend-env
+install -m 600 /tmp/backend.env  ~/docker-env/.backend.env
+install -m 600 /tmp/frontend.env ~/docker-env/.frontend.env
 ```
 
 > The compose files name these paths absolutely (`/etc/request-management/…`), so they are
@@ -237,8 +237,8 @@ curl -sf http://192.168.31.51:8180/realms/enterprise-request >/dev/null && echo 
 
 # 3. Are the env files readable BY THE RUNNER'S USER? Root-owned 600 files fail
 #    here with "env file … not found", which reads like the file is missing.
-head -1 ~/docker-env/.backend-env
-head -1 ~/docker-env/.frontend-env
+head -1 ~/docker-env/.backend.env
+head -1 ~/docker-env/.frontend.env
 
 # 4. Is docker usable without sudo? The runner has no terminal to sudo from.
 docker ps >/dev/null && echo docker-ok

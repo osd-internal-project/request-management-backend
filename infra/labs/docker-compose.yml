@@ -16,7 +16,7 @@ x-common: &common
   # Real values live on the VM, outside the repo, so a secret never passes
   # through a workflow log and can be corrected without re-running a pipeline.
   # See .env.labs.example for the full list.
-  env_file: /etc/request-management/.backend-env
+  env_file: /etc/request-management/.backend.env
   networks: [rm-net]
   logging:
     driver: json-file

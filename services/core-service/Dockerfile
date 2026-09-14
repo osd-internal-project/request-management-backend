@@ -41,7 +41,6 @@ COPY --from=builder /app/services/core-service/dist ./services/core-service/dist
 # `yarn openapi && yarn tools` and committed, so it is a build input like any
 # source file. Without it the service still starts — MCP disables itself and
 # says so — but it starts with no tools, which is not what deploying it means.
-COPY docs/openapi/external-tools.json ./docs/openapi/external-tools.json
 
 EXPOSE 3002
 CMD ["node", "services/core-service/dist/main"]
