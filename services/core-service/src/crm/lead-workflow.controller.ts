@@ -1,8 +1,9 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
+  Authenticated,
   CurrentPrincipal,
-  Permissions,
+  // Permissions,
   ServiceAccountOnly,
 } from '@request-management/share';
 import type { Principal } from '@request-management/share';
@@ -22,11 +23,12 @@ import { LeadWorkflowService } from './lead-workflow.service';
 @ApiBearerAuth()
 @Controller('integrations/crm/leads')
 @ServiceAccountOnly()
+@Authenticated()
 export class LeadWorkflowController {
   constructor(private readonly workflow: LeadWorkflowService) {}
 
   @Get(':id/facts')
-  @Permissions('integration.crm.lead.read')
+  // @Permissions('integration.crm.lead.read')
   @ApiOperation({
     summary: 'ข้อเท็จจริงของ Lead สำหรับ Decision node — สถานะ + จำนวนกิจกรรม',
   })
@@ -35,7 +37,7 @@ export class LeadWorkflowController {
   }
 
   @Post(':id/stage')
-  @Permissions('integration.crm.lead.stage')
+  // @Permissions('integration.crm.lead.stage')
   @ApiOperation({
     summary:
       'บันทึกขั้นที่ workflow ตัดสินใจแล้ว — core ไม่ตัดสินว่าเลื่อนได้ไหม',
