@@ -54,12 +54,10 @@ jobs:
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
           echo "Image tag: ${TAG}"
 
-      - name: Build Docker Image
-        run: |
-          docker build --no-cache --platform linux/amd64 \
-            -t "${IMAGE_NAME}:${{ steps.version.outputs.tag }}" \
-            -f ./keycloak-theme/Dockerfile ./keycloak-theme
-
+      # Must come before the build: the Dockerfile's FROM pulls a PRIVATE
+      # base image (chart/keycloak's own mirrored, verified-amd64 tag), not
+      # a public one — `docker build` needs to authenticate to resolve that
+      # layer, not just to push the result afterward.
       - name: Login to Huawei Cloud SWR
         env:
           REGISTRY_USERNAME: ${{ secrets.HUAWEI_REGISTRY_USERNAME }}
@@ -68,6 +66,12 @@ jobs:
           echo "$REGISTRY_PASSWORD" | docker login \
             -u "$REGISTRY_USERNAME" --password-stdin \
             swr.ap-southeast-2.myhuaweicloud.com
+
+      - name: Build Docker Image
+        run: |
+          docker build --no-cache --platform linux/amd64 \
+            -t "${IMAGE_NAME}:${{ steps.version.outputs.tag }}" \
+            -f ./keycloak-theme/Dockerfile ./keycloak-theme
 
       - name: Tag and Push Docker Image
         run: |
