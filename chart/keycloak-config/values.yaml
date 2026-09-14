@@ -75,7 +75,8 @@ clients:
     redirectUris:
       - /api/auth/callback
     postLogoutRedirectUri: /
-    loginTheme: ""                 # blank = default Keycloak theme
+    # Deployed by .github/workflows/deploy-keycloak-theme.yml, keycloak-theme/
+    loginTheme: "request-management"
     defaultClientScopes: ["basic", "profile", "email", "roles", "web-origins", "acr"]
     optionalClientScopes: ["address", "phone", "offline_access"]
     serviceAccountRoles:

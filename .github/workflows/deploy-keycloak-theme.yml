@@ -1,0 +1,130 @@
+# Builds a new Keycloak image (the mirrored base + this repo's theme layered
+# on top — see keycloak-theme/Dockerfile) and re-deploys the install chart
+# pointed at it. Separate from deploy-keycloak.yml: a theme change is a
+# different release cadence from a realm/client change, and re-tagging the
+# base image here keeps the install chart's own values-sit.yaml (which pins
+# 26.5.2-amd64, the vendor version) untouched — this workflow overrides
+# image.tag at deploy time instead of editing that file.
+#
+# SIT-only for now, matching deploy-keycloak.yml.
+name: Deploy Keycloak Theme
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_env:
+        description: 'Deploy env'
+        required: true
+        type: choice
+        default: sit
+        options:
+          - sit
+
+env:
+  DEPLOY_ENV: ${{ inputs.deploy_env || 'sit' }}
+  IMAGE_NAME: request-management-keycloak
+  REGISTRY: swr.ap-southeast-2.myhuaweicloud.com/osd-internal
+
+permissions:
+  contents: read
+
+jobs:
+  # A GitHub-hosted runner, not [self-hosted, k8s] — guaranteed amd64,
+  # avoiding the arch mismatch that a laptop-built image hit on 11 Sep 2026
+  # (see keycloak-theme/Dockerfile's comment). This job only builds and
+  # pushes; it never touches the cluster.
+  build-and-push:
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.version.outputs.tag }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # Not the app's own immutable <version>-<sha> scheme (_build-service.yml)
+      # — this image has no package.json version of its own, just theme files
+      # layered on a pinned vendor base. Date+sha is enough to make every tag
+      # unique and traceable back to the commit, which is all IfNotPresent
+      # needs.
+      - name: Generate Version Tag
+        id: version
+        run: |
+          TAG="theme-$(date +%Y%m%d)-${GITHUB_SHA::7}"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Image tag: ${TAG}"
+
+      - name: Build Docker Image
+        run: |
+          docker build --no-cache --platform linux/amd64 \
+            -t "${IMAGE_NAME}:${{ steps.version.outputs.tag }}" \
+            -f ./keycloak-theme/Dockerfile ./keycloak-theme
+
+      - name: Login to Huawei Cloud SWR
+        env:
+          REGISTRY_USERNAME: ${{ secrets.HUAWEI_REGISTRY_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.HUAWEI_REGISTRY_PASSWORD }}
+        run: |
+          echo "$REGISTRY_PASSWORD" | docker login \
+            -u "$REGISTRY_USERNAME" --password-stdin \
+            swr.ap-southeast-2.myhuaweicloud.com
+
+      - name: Tag and Push Docker Image
+        run: |
+          set -e
+          SRC="${IMAGE_NAME}:${{ steps.version.outputs.tag }}"
+          DST="${REGISTRY}/${IMAGE_NAME}:${{ steps.version.outputs.tag }}"
+          docker tag "$SRC" "$DST"
+          docker push "$DST"
+
+      - name: Cleanup Docker Images
+        if: always()
+        run: |
+          docker rmi "${IMAGE_NAME}:${{ steps.version.outputs.tag }}" || true
+          docker rmi "${REGISTRY}/${IMAGE_NAME}:${{ steps.version.outputs.tag }}" || true
+          docker image prune -f
+
+  deploy:
+    runs-on: [self-hosted, k8s]
+    needs: build-and-push
+    environment: ${{ inputs.deploy_env == 'sit' && 'SIT' || 'SIT' }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Helm Upgrade — keycloak (new theme tag)
+        env:
+          KEYCLOAK_ADMIN_PASSWORD: ${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}
+          KEYCLOAK_DB_PASSWORD: ${{ secrets.KEYCLOAK_DB_PASSWORD }}
+        run: |
+          set -e
+          NS="request-management-${{ env.DEPLOY_ENV }}"
+          TAG="${{ needs.build-and-push.outputs.image_tag }}"
+          helm upgrade --install keycloak ./chart/keycloak/keycloak-0.13.5.tgz \
+            -f "./chart/keycloak/values-${{ env.DEPLOY_ENV }}.yaml" \
+            --set image.tag="$TAG" \
+            --set-string keycloak.adminPassword="$KEYCLOAK_ADMIN_PASSWORD" \
+            --set-string database.password="$KEYCLOAK_DB_PASSWORD" \
+            --namespace "$NS" \
+            --timeout 5m \
+            --history-max 10
+
+      - name: Wait For Keycloak
+        run: |
+          NS="request-management-${{ env.DEPLOY_ENV }}"
+          kubectl rollout status statefulset/keycloak -n "$NS" --timeout=5m
+
+      - name: Debug On Failure
+        if: failure()
+        run: |
+          NS="request-management-${{ env.DEPLOY_ENV }}"
+          echo "====== HELM RELEASE ======"
+          helm list -n "$NS" || true
+          echo "====== KEYCLOAK POD STATUS ======"
+          kubectl get pods -n "$NS" -l app.kubernetes.io/name=keycloak -o wide || true
+          echo "====== KEYCLOAK POD LOGS ======"
+          for pod in $(kubectl get pods -n "$NS" -l app.kubernetes.io/name=keycloak --no-headers -o custom-columns=':metadata.name' 2>/dev/null); do
+            echo "--- Logs: ${pod} ---"
+            kubectl logs -n "$NS" "${pod}" --tail=100 2>/dev/null || echo "(no logs)"
+          done
