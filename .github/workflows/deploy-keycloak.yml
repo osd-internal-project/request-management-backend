@@ -131,7 +131,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: yarn
+
+      # This runner is self-hosted for kubectl/helm access, not a general
+      # Node dev box — yarn isn't preinstalled the way it is on GitHub-hosted
+      # runners, and `cache: yarn` above would fail before yarn even exists.
+      # corepack ships with Node itself, so this needs nothing extra.
+      - name: Enable Yarn
+        run: corepack enable && corepack prepare yarn@1.22.19 --activate
 
       - name: Install
         run: yarn install --frozen-lockfile
