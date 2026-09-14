@@ -121,6 +121,42 @@ jobs:
           echo "====== job/${JOB} logs ======"
           kubectl logs -n "$NS" "job/${JOB}" --tail=200 || echo "(no logs)"
 
+      # Realm roles + their mapping to this app's own roles per company
+      # (libs/prisma/keycloak-provision.ts). The Job above only creates the
+      # realm and its clients; without this, every user who is not the
+      # uat:seed bootstrap admin resolves to no roles at all on login —
+      # discovered the hard way against this same realm on 14 Sep 2026.
+      # Idempotent, so safe to run on every deploy rather than once by hand.
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: yarn
+
+      - name: Install
+        run: yarn install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        run: yarn prisma:generate
+
+      - name: Provision Keycloak Roles
+        env:
+          # Hardcoded to sit — this workflow only offers `sit` in deploy_env
+          # today (see the choice list above). Add a case here when uat/prod
+          # join it; each is its own Keycloak instance per this project's
+          # per-environment design, so this is not simply `-${deploy_env}`.
+          KEYCLOAK_BASE_URL: "https://auth.request-management-sit.osd.co.th"
+          KEYCLOAK_REALM: enterprise-request
+          KEYCLOAK_CLIENT_ID: request-form
+          KEYCLOAK_CLIENT_SECRET: ${{ secrets.KEYCLOAK_CLIENT_SECRET }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          # sit's ingress has no real TLS cert yet (see auth.module.ts's
+          # KEYCLOAK_TLS_INSECURE) — this script's own `fetch` call needs the
+          # same exemption, scoped to this one process, not the running
+          # service. Remove once the ingress has a real certificate.
+          NODE_TLS_REJECT_UNAUTHORIZED: "0"
+        run: yarn keycloak:provision
+
       - name: Debug On Failure
         if: failure()
         run: |

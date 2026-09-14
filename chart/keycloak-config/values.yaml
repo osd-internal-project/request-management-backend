@@ -84,6 +84,19 @@ clients:
       - query-groups
       - manage-users
       - view-realm
+      # These three are ONLY for `yarn keycloak:provision`
+      # (libs/prisma/keycloak-provision.ts), which this client also
+      # authenticates as: manage-realm creates the realm roles, query-clients
+      # + view-clients look request-integration up by clientId to grant it
+      # the integration.* roles. This is a real elevation — manage-realm lets
+      # this client edit realm configuration, not just users — flagged in
+      # docs/open-questions.md item K. Accepted here because automating
+      # provisioning in the deploy pipeline requires it; the documented
+      # alternative is dropping these three and creating the realm roles by
+      # hand once per environment instead.
+      - manage-realm
+      - query-clients
+      - view-clients
 
   # AUTH-06. core-service exchanges an `rfk_…` integration API key for a
   # client_credentials token from this client, then forwards it like any
