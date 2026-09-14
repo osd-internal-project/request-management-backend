@@ -94,12 +94,20 @@ jobs:
 
   deploy:
     needs: [version, build-and-push]
-    # The labs VM. Matched on the bare `self-hosted` label because this repo's
-    # runner (`worker-02`) carries only the automatic labels — a name is not a
-    # label. Add a distinguishing label here the moment this repo gains a second
-    # self-hosted runner, or a deploy will land on whichever one is free.
-    # docs/labs-server-setup.md covers registering it and confirming it is up.
-    runs-on: [self-hosted]
+    # The labs VM, pinned by the `labs` label.
+    #
+    # This used to match the bare `self-hosted` label, on the reasoning that
+    # there was only one runner to match. A second one appeared, and because a
+    # runner's *name* is not a label, nothing distinguished them: deploys began
+    # landing on whichever machine was free. The tell was two consecutive runs
+    # failing on the same env file for opposite reasons — `permission denied`
+    # on one machine (the file was there, unreadable) and `not found` on the
+    # other (it had never been moved there).
+    #
+    # So the label is not decoration. The env files live on one machine
+    # (/etc/request-management/), and a deploy anywhere else cannot work.
+    # Registering the runner and setting this label: docs/labs-server-setup.md.
+    runs-on: [self-hosted, labs]
 
     steps:
       - name: Checkout Repository
