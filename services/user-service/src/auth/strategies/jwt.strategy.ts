@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import * as jwksRsa from 'jwks-rsa';
+import { Agent as HttpsAgent } from 'node:https';
 
 export interface KeycloakJwtPayload {
   sub: string;
@@ -31,6 +32,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         rateLimit: true,
         jwksRequestsPerMinute: 5,
         jwksUri: config.get<string>('keycloak.jwksUri')!,
+        // Same KEYCLOAK_TLS_INSECURE escape hatch as auth.module.ts's
+        // HttpService — jwks-rsa fetches the JWKS with its own HTTP client,
+        // entirely separate from Nest's HttpService, so that fix alone left
+        // every token verification (i.e. every authenticated request)
+        // failing 401 against the same self-signed cert. Same rule applies:
+        // sit-only, remove once the ingress has a real certificate.
+        ...(process.env.KEYCLOAK_TLS_INSECURE === 'true'
+          ? { requestAgent: new HttpsAgent({ rejectUnauthorized: false }) }
+          : {}),
       }),
       issuer,
       algorithms: ['RS256'],
