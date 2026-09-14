@@ -97,13 +97,17 @@ describe('MCP — who the call is done as', () => {
 });
 
 describe('MCP — the protocol', () => {
-  function serviceWith(toolAnswer: () => Promise<unknown>) {
+  function serviceWith(
+    toolAnswer: () => Promise<unknown>,
+    unavailable: string | null = null,
+  ) {
     const tools = {
       list: () => [
         { name: 'get_request_types', description: '', inputSchema: {} },
       ],
       has: (name: string) => name === 'get_request_types',
       call: jest.fn(toolAnswer),
+      reasonUnavailable: () => unavailable,
     };
 
     const actors = { resolve: jest.fn(() => Promise.resolve(principal())) };
@@ -149,6 +153,40 @@ describe('MCP — the protocol', () => {
     );
 
     expect(answer).toMatchObject({ error: { code: -32602 } });
+  });
+
+  /**
+   * A catalogue that never loaded is an operator problem, and answering with
+   * an empty list looks exactly like a server that has no tools to offer. The
+   * container that would not boot is what made this a degraded mode at all —
+   * so the degraded mode has to be audible.
+   */
+  it('says why it has no tools rather than answering with none', async () => {
+    const { service } = serviceWith(
+      () => Promise.resolve({}),
+      'ไม่พบ docs/openapi/external-tools.json',
+    );
+
+    await expect(
+      service.handle(
+        { jsonrpc: '2.0', id: 9, method: 'tools/list' },
+        httpRequest(),
+        principal(),
+      ),
+    ).resolves.toMatchObject({ error: { code: -32603 } });
+
+    await expect(
+      service.handle(
+        {
+          jsonrpc: '2.0',
+          id: 10,
+          method: 'tools/call',
+          params: { name: 'get_request_types', arguments: {} },
+        },
+        httpRequest(),
+        principal(),
+      ),
+    ).resolves.toMatchObject({ error: { code: -32603 } });
   });
 
   /**

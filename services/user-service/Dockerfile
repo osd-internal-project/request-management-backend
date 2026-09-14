@@ -19,7 +19,8 @@ COPY webpack.config.js ./
 COPY libs ./libs
 COPY services/user-service ./services/user-service
 
-# libs/share must be compiled before the service that consumes its dist.
+# webpack.config.js aliases @request-management/share to libs/share/src and bundles it
+# into dist/main.js, so this one command produces everything the runner needs.
 RUN yarn build:user-service
 
 FROM node:22-alpine AS runner
@@ -34,7 +35,6 @@ COPY services/core-service/package.json ./services/core-service/
 COPY libs/prisma/schema.prisma ./libs/prisma/
 RUN yarn install --production --frozen-lockfile
 
-COPY --from=builder /app/libs/share/dist ./libs/share/dist
 COPY --from=builder /app/services/user-service/dist ./services/user-service/dist
 
 EXPOSE 3001

@@ -20,6 +20,7 @@ import {
   type JsonRpcRequest,
   type JsonRpcResponse,
   PROTOCOL_VERSION,
+  RPC_INTERNAL_ERROR,
   RPC_INVALID_PARAMS,
   RPC_INVALID_REQUEST,
   RPC_METHOD_NOT_FOUND,
@@ -70,8 +71,19 @@ export class McpService {
       case 'notifications/initialized':
         return null;
 
-      case 'tools/list':
+      case 'tools/list': {
+        /*
+          An empty list and a broken deployment look identical to a client, so
+          the second one says so. `RPC_INTERNAL_ERROR` rather than an empty
+          result: nothing the caller did is wrong, and this needs an operator.
+        */
+        const unavailable = this.tools.reasonUnavailable();
+        if (unavailable) {
+          return rpcError(rpc.id, RPC_INTERNAL_ERROR, `MCP ปิดใช้งาน: ${unavailable}`);
+        }
+
         return rpcResult(rpc.id, { tools: this.tools.list() });
+      }
 
       case 'tools/call':
         return this.callTool(rpc, request, caller);
@@ -92,6 +104,15 @@ export class McpService {
     request: RequestWithPrincipal,
     caller: Principal,
   ): Promise<JsonRpcResponse> {
+    const unavailable = this.tools.reasonUnavailable();
+    if (unavailable) {
+      return rpcError(
+        rpc.id,
+        RPC_INTERNAL_ERROR,
+        `MCP ปิดใช้งาน: ${unavailable}`,
+      );
+    }
+
     const name = rpc.params?.name;
 
     if (typeof name !== 'string' || !this.tools.has(name)) {

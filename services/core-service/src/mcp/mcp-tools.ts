@@ -61,9 +61,21 @@ const CATALOGUE_RELATIVE = join('docs', 'openapi', 'external-tools.json');
  *
  * `MCP_TOOLS_PATH` overrides it for a deployment that puts the file elsewhere.
  */
-function findCatalogue(): string {
+function findCatalogue(): { path: string | null; tried: string[] } {
+  /*
+    The override is checked like any other candidate, not trusted.
+
+    It was returned unchecked at first, so a wrong `MCP_TOOLS_PATH` sailed past
+    the "is it there" test and threw at `readFileSync` instead — the very crash
+    this function exists to prevent, reached by the one route that skipped it.
+  */
   const override = process.env.MCP_TOOLS_PATH;
-  if (override) return override;
+  if (override) {
+    return {
+      path: existsSync(override) ? override : null,
+      tried: [override],
+    };
+  }
 
   const tried: string[] = [];
   let directory = process.cwd();
@@ -73,17 +85,14 @@ function findCatalogue(): string {
     const candidate = join(directory, CATALOGUE_RELATIVE);
     tried.push(candidate);
 
-    if (existsSync(candidate)) return candidate;
+    if (existsSync(candidate)) return { path: candidate, tried };
 
     const parent = dirname(directory);
     if (parent === directory) break;
     directory = parent;
   }
 
-  throw new Error(
-    `MCP: ไม่พบ ${CATALOGUE_RELATIVE} — รัน \`yarn openapi && yarn tools\` ก่อน\n` +
-      `  looked in:\n${tried.map((path) => `    ${path}`).join('\n')}`,
-  );
+  return { path: null, tried };
 }
 
 /**
@@ -119,6 +128,8 @@ function requireString(args: ToolArgs, field: string): string {
 export class McpToolRegistry implements OnModuleInit {
   private readonly logger = new Logger(McpToolRegistry.name);
   private tools: McpTool[] = [];
+  /** Why MCP has no tools, when that is a fault rather than a catalogue. */
+  private unavailable: string | null = null;
 
   constructor(private readonly external: ExternalService) {}
 
@@ -176,10 +187,41 @@ export class McpToolRegistry implements OnModuleInit {
    * user as the model's mistake.
    */
   onModuleInit(): void {
-    const specs = JSON.parse(
-      readFileSync(findCatalogue(), 'utf8'),
-    ) as ToolSpec[];
+    const { path, tried } = findCatalogue();
 
+    /*
+      A missing catalogue disables MCP. It does **not** take the service down.
+
+      This threw once, and the container would not boot: requests, approvals
+      and CRM all offline because one optional endpoint could not find a JSON
+      file the image had never been given a copy of. `rm-core is unhealthy`,
+      and nothing about the message said which feature was at fault. The blast
+      radius has to match the fault.
+
+      Loud, though — the log names the file and the command that regenerates
+      it, and every MCP call answers with the same sentence, so a disabled
+      feature cannot be mistaken for one that simply has nothing to offer.
+    */
+    if (!path) {
+      this.unavailable =
+        `ไม่พบ ${CATALOGUE_RELATIVE} — รัน \`yarn openapi && yarn tools\` ` +
+        'แล้ว build ใหม่ (หรือกำหนด MCP_TOOLS_PATH)';
+
+      this.logger.error(
+        `MCP ปิดใช้งาน: ${this.unavailable}\n` +
+          `  looked in:\n${tried.map((entry) => `    ${entry}`).join('\n')}`,
+      );
+      return;
+    }
+
+    const specs = JSON.parse(readFileSync(path, 'utf8')) as ToolSpec[];
+
+    /*
+      A catalogue that *is* present but disagrees with the dispatch table is a
+      different kind of fault — a programming error, not a packaging one, and
+      one that would offer a model a tool nothing implements. That still
+      refuses to start.
+    */
     this.assertCatalogueMatches(specs);
 
     this.tools = specs.map((spec) => ({
@@ -214,6 +256,11 @@ export class McpToolRegistry implements OnModuleInit {
 
   list(): McpTool[] {
     return this.tools;
+  }
+
+  /** The reason MCP cannot serve, so callers are told rather than left to guess. */
+  reasonUnavailable(): string | null {
+    return this.unavailable;
   }
 
   has(name: string): boolean {
