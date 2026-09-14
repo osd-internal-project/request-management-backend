@@ -4,7 +4,6 @@ import { ApprovalsService } from './approvals.service';
 import type { MatrixLevel } from '../access/access.service';
 
 const OSD = 'company-osd';
-const OTHER = 'company-other';
 
 const REQUESTER = 'user-requester';
 const RECEIVER = 'user-receiver';
@@ -119,7 +118,10 @@ function serviceWith(
       if (members.includes(userId)) return Promise.resolve();
 
       return Promise.reject(
-        new AppError('VALIDATION_FAILED', 'ผู้รับที่เลือกไม่ได้อยู่ในบริษัทนี้'),
+        new AppError(
+          'VALIDATION_FAILED',
+          'ผู้รับที่เลือกไม่ได้อยู่ในบริษัทนี้',
+        ),
       );
     }),
     /** The `user` table, which knows everyone in this company by name. */

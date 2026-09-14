@@ -44,6 +44,7 @@
     "apikey:issue": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/api-key.ts issue",
     "apikey:revoke": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/api-key.ts revoke",
     "apikey:list": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/api-key.ts list",
+    "mcp:token": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config scripts/mcp-keycloak-token.ts",
     "petty:seed": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/seed-petty-cash-type.ts",
     "uat:users": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/seed-uat-users.ts",
     "keycloak:provision": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/keycloak-provision.ts",

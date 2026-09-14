@@ -23,9 +23,15 @@ express, and the endpoint map with delivery status.
 **Base URL** `/api/v1` in the spec; currently `/api` — see the note at the end.
 REST + JSON, UTF-8.
 
-**Authentication** `Authorization: Bearer <access_token>` on every endpoint, no
+**Authentication** `Authorization: Bearer <credential>` on every endpoint, no
 exceptions beyond the handful marked `@Public()` (health, login redirect,
 callback).
+
+*Amendment, 8 ก.ย. 2569 (AUTH-06).* That header no longer carries only a
+Keycloak JWT. The `/external/*` group also accepts an API key beginning `rfk_`,
+which core-service exchanges for a client-credentials token before forwarding it
+— so user-service remains the only verifier and the permission set is identical
+either way. See [`EXTERNAL_API.md`](./EXTERNAL_API.md).
 
 **Active company** `X-Company-Id` selects the company a request works in. The
 caller must belong to it, else `403 COMPANY_FORBIDDEN`. Omitted means their
@@ -183,8 +189,9 @@ principal is swapped to that person before any handler runs, so visibility,
 older `POST /integrations/requests` acts as the robot instead and is left
 untouched.
 
-**The full guide, with a worked `curl` walkthrough, is
-[`docs/EXTERNAL_API.md`](../../docs/EXTERNAL_API.md)** at the repository root.
+**The full guide — both credential types, the `INTEGRATION_*` settings they
+need, and a worked `curl` walkthrough — is
+[`EXTERNAL_API.md`](./EXTERNAL_API.md)**, beside this file.
 
 | Endpoint | Permission | Requirement | Status |
 |---|---|---|---|
