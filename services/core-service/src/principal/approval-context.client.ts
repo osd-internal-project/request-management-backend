@@ -32,9 +32,10 @@ export class ApprovalContextClient {
     userId: string,
     companyId: string,
   ): Promise<ApprovalContext> {
-    const base =
-      this.config.get<string>('services.userServiceUrl') ??
-      'http://localhost:3001/api/v1';
+    // `userServiceUrl`, not `services.userServiceUrl`: the key is flat in
+    // configs/index.ts. Reading the nested name always missed and fell back to
+    // localhost, which resolves to this container rather than user-service.
+    const base = this.config.get<string>('userServiceUrl')!;
 
     const url =
       `${base}/internal/org/approval-context` +

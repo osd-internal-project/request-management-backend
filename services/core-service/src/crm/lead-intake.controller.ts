@@ -7,8 +7,9 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import {
+  Authenticated,
   CurrentPrincipal,
-  Permissions,
+  // Permissions,
   ServiceAccountOnly,
 } from '@request-management/share';
 import type { Principal } from '@request-management/share';
@@ -57,11 +58,12 @@ import { LeadIntakeService } from './lead-intake.service';
 })
 @Controller('integrations/crm/leads')
 @ServiceAccountOnly()
+@Authenticated()
 export class LeadIntakeController {
   constructor(private readonly intake: LeadIntakeService) {}
 
   @Post()
-  @Permissions('integration.crm.lead.create')
+  // @Permissions('integration.crm.lead.create')
   @ApiOperation({
     summary: 'รับ Lead จากระบบภายนอก — เข้ากองกลาง รอพนักงานขายรับ',
     description:
