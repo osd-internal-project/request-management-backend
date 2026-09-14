@@ -160,7 +160,7 @@ install -m 600 /tmp/backend.env  ~/docker-env/.backend-env
 install -m 600 /tmp/frontend.env ~/docker-env/.frontend-env
 ```
 
-> The compose files name these paths absolutely (`/home/chareefm/docker-env/…`), so they are
+> The compose files name these paths absolutely (`/etc/request-management/…`), so they are
 > tied to that account. Moving the runner to a different user means editing `env_file` in both
 > `infra/labs/docker-compose.yml` — there is no indirection to adjust instead.
 

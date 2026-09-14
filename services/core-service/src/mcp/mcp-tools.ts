@@ -62,8 +62,20 @@ const CATALOGUE_RELATIVE = join('docs', 'openapi', 'external-tools.json');
  * `MCP_TOOLS_PATH` overrides it for a deployment that puts the file elsewhere.
  */
 function findCatalogue(): { path: string | null; tried: string[] } {
+  /*
+    The override is checked like any other candidate, not trusted.
+
+    It was returned unchecked at first, so a wrong `MCP_TOOLS_PATH` sailed past
+    the "is it there" test and threw at `readFileSync` instead — the very crash
+    this function exists to prevent, reached by the one route that skipped it.
+  */
   const override = process.env.MCP_TOOLS_PATH;
-  if (override) return { path: override, tried: [override] };
+  if (override) {
+    return {
+      path: existsSync(override) ? override : null,
+      tried: [override],
+    };
+  }
 
   const tried: string[] = [];
   let directory = process.cwd();
