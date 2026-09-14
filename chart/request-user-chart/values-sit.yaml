@@ -16,6 +16,10 @@ configmap:
   KEYCLOAK_BASE_URL: "https://auth.request-management-sit.osd.co.th"
   KEYCLOAK_REALM: "enterprise-request"
   KEYCLOAK_CLIENT_ID: "request-form"
+  # TEMPORARY — see auth.module.ts's comment on KEYCLOAK_TLS_INSECURE. Remove
+  # once request-management-sit-auth-tls carries a real certificate. Must
+  # never be set in values-uat.yaml / values-prod.yaml.
+  KEYCLOAK_TLS_INSECURE: "true"
 
 secrets:
   DATABASE_URL: ""
