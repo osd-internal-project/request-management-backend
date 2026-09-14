@@ -447,7 +447,6 @@ export class LeadStatusService {
         [{ field: 'active', reason: 'no_open_status' }],
       );
     }
-
   }
 
   private async clearDefault(companyId: string, prisma: TQueryClient) {

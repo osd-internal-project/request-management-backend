@@ -1,6 +1,8 @@
 import { KycCallbackService } from './kyc-callback.service';
 
-function harness(options: { kycVerified?: boolean; refType?: string | null } = {}) {
+function harness(
+  options: { kycVerified?: boolean; refType?: string | null } = {},
+) {
   const updates: Record<string, unknown>[] = [];
   const audits: { eventType: string }[] = [];
   const timelineEvents: { eventType: string }[] = [];
@@ -30,7 +32,9 @@ function harness(options: { kycVerified?: boolean; refType?: string | null } = {
       return Promise.resolve({});
     }),
   };
-  const fieldChanges = { createMany: jest.fn(() => Promise.resolve({ count: 1 })) };
+  const fieldChanges = {
+    createMany: jest.fn(() => Promise.resolve({ count: 1 })),
+  };
   const timeline = {
     publish: jest.fn((event: { eventType: string }) => {
       timelineEvents.push(event);
@@ -63,7 +67,9 @@ describe('CM-04 ชุดงาน B — KYC callback ติด kycVerified เ�
     await service.onRequestCompleted({ request_id: 'req-1', type_code: 'KYC' });
 
     expect(updates[0]).toMatchObject({ kycVerified: true });
-    expect(audits.map((a) => a.eventType)).toContain('crm.customer.kyc_verified');
+    expect(audits.map((a) => a.eventType)).toContain(
+      'crm.customer.kyc_verified',
+    );
     expect(timelineEvents.map((t) => t.eventType)).toContain(
       'customer.kyc_verified',
     );
