@@ -147,20 +147,22 @@ jobs:
 
       - name: Provision Keycloak Roles
         env:
-          # Hardcoded to sit — this workflow only offers `sit` in deploy_env
-          # today (see the choice list above). Add a case here when uat/prod
-          # join it; each is its own Keycloak instance per this project's
-          # per-environment design, so this is not simply `-${deploy_env}`.
-          KEYCLOAK_BASE_URL: "https://auth.request-management-sit.osd.co.th"
+          # Cluster-internal DNS, same as chart/keycloak-config's own
+          # serverUrl — this runner already talks to the cluster directly for
+          # kubectl/helm, and this script (a one-off CI job, not the running
+          # service) has no reason to leave it: nothing here validates an
+          # `issuer` claim against this URL the way user-service's own
+          # KEYCLOAK_BASE_URL does, so there's no requirement to match the
+          # public hostname. Plain HTTP inside the cluster also sidesteps the
+          # self-signed-cert problem entirely — no NODE_TLS_REJECT_UNAUTHORIZED
+          # needed here. (The public hostname failed outright with a generic
+          # "fetch failed" from this runner on 14 Sep 2026 — likely no route
+          # to the public DNS name from inside the cluster network.)
+          KEYCLOAK_BASE_URL: "http://keycloak.request-management-sit.svc.cluster.local:8080"
           KEYCLOAK_REALM: enterprise-request
           KEYCLOAK_CLIENT_ID: request-form
           KEYCLOAK_CLIENT_SECRET: ${{ secrets.KEYCLOAK_CLIENT_SECRET }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          # sit's ingress has no real TLS cert yet (see auth.module.ts's
-          # KEYCLOAK_TLS_INSECURE) — this script's own `fetch` call needs the
-          # same exemption, scoped to this one process, not the running
-          # service. Remove once the ingress has a real certificate.
-          NODE_TLS_REJECT_UNAUTHORIZED: "0"
         run: yarn keycloak:provision
 
       - name: Debug On Failure
