@@ -121,49 +121,24 @@ jobs:
           echo "====== job/${JOB} logs ======"
           kubectl logs -n "$NS" "job/${JOB}" --tail=200 || echo "(no logs)"
 
-      # Realm roles + their mapping to this app's own roles per company
-      # (libs/prisma/keycloak-provision.ts). The Job above only creates the
-      # realm and its clients; without this, every user who is not the
-      # uat:seed bootstrap admin resolves to no roles at all on login —
-      # discovered the hard way against this same realm on 14 Sep 2026.
-      # Idempotent, so safe to run on every deploy rather than once by hand.
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      # This runner is self-hosted for kubectl/helm access, not a general
-      # Node dev box — yarn isn't preinstalled the way it is on GitHub-hosted
-      # runners, and `cache: yarn` above would fail before yarn even exists.
-      # corepack ships with Node itself, so this needs nothing extra.
-      - name: Enable Yarn
-        run: corepack enable && corepack prepare yarn@1.22.19 --activate
-
-      - name: Install
-        run: yarn install --frozen-lockfile
-
-      - name: Generate Prisma Client
-        run: yarn prisma:generate
-
-      - name: Provision Keycloak Roles
-        env:
-          # Cluster-internal DNS, same as chart/keycloak-config's own
-          # serverUrl — this runner already talks to the cluster directly for
-          # kubectl/helm, and this script (a one-off CI job, not the running
-          # service) has no reason to leave it: nothing here validates an
-          # `issuer` claim against this URL the way user-service's own
-          # KEYCLOAK_BASE_URL does, so there's no requirement to match the
-          # public hostname. Plain HTTP inside the cluster also sidesteps the
-          # self-signed-cert problem entirely — no NODE_TLS_REJECT_UNAUTHORIZED
-          # needed here. (The public hostname failed outright with a generic
-          # "fetch failed" from this runner on 14 Sep 2026 — likely no route
-          # to the public DNS name from inside the cluster network.)
-          KEYCLOAK_BASE_URL: "http://keycloak.request-management-sit.svc.cluster.local:8080"
-          KEYCLOAK_REALM: enterprise-request
-          KEYCLOAK_CLIENT_ID: request-form
-          KEYCLOAK_CLIENT_SECRET: ${{ secrets.KEYCLOAK_CLIENT_SECRET }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: yarn keycloak:provision
+      # yarn keycloak:provision (libs/prisma/keycloak-provision.ts) — realm
+      # roles + their mapping to this app's own roles per company — is run
+      # manually, not from this pipeline. It needs `ts-node`/`typescript`,
+      # both devDependencies stripped from every service's production image,
+      # and this runner has no route to the cluster's pod network to reach
+      # Keycloak directly (confirmed via `getaddrinfo EAI_AGAIN` on
+      # keycloak.<ns>.svc.cluster.local on 14 Sep 2026) — making either "run
+      # it here" or "run it as a Job from an existing image" real work for a
+      # command that, like `uat:seed`, is already a deliberate one-off run
+      # by a person, not something every deploy needs to repeat.
+      #
+      # Run it from a machine with a full `yarn install` (devDependencies
+      # included) and DB access, via a temporary tunnel to Keycloak:
+      #   kubectl port-forward -n <ns> svc/keycloak 18080:8080 &
+      #   KEYCLOAK_BASE_URL=http://localhost:18080 \
+      #   KEYCLOAK_REALM=enterprise-request KEYCLOAK_CLIENT_ID=request-form \
+      #   KEYCLOAK_CLIENT_SECRET=<value> DATABASE_URL=<sit's> \
+      #   yarn keycloak:provision
 
       - name: Debug On Failure
         if: failure()
