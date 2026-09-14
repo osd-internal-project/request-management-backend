@@ -52,6 +52,8 @@ import {
   SaleOrdersController,
 } from './sales.controllers';
 import { LeadImportService } from './lead-import.service';
+import { LeadIntakeController } from './lead-intake.controller';
+import { LeadIntakeService } from './lead-intake.service';
 import { LeadWorkflowController } from './lead-workflow.controller';
 import { LeadWorkflowService } from './lead-workflow.service';
 import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
@@ -80,6 +82,7 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     OpportunitiesController,
     SaleOrdersController,
     LeadWorkflowController,
+    LeadIntakeController,
   ],
   providers: [
     CustomersService,
@@ -113,6 +116,7 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     LeadsService,
     LeadStatusService,
     LeadImportService,
+    LeadIntakeService,
     LeadWorkflowService,
     LeadWorkflowSyncService,
     OpportunitiesService,

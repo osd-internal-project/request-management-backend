@@ -263,9 +263,30 @@ export class ListLeadsQueryDto extends PageQueryDto {
   @Matches(STATUS_CODE_PATTERN)
   status?: string;
 
+  /**
+   * `unassigned` = กองกลาง — ใบที่ยังไม่มีเจ้าของ ส่วนใหญ่มาจาก
+   * `POST /integrations/crm/leads`. เป็นตัวกรอง ไม่ใช่สิทธิ์: ใบพวกนี้อยู่ใน
+   * ขอบเขตที่ทุกคนอ่าน Lead ได้เห็นอยู่แล้ว (`visibleSalesWhere`) — ค่านี้แค่
+   * ตัดใบที่มีคนดูแลแล้วออก ให้เหลือหน้าจอ "งานที่ยังไม่มีใครรับ".
+   */
   @IsOptional()
-  @IsIn(['mine', 'all'])
-  view?: 'mine' | 'all';
+  @IsIn(['mine', 'all', 'unassigned'])
+  view?: 'mine' | 'all' | 'unassigned';
+}
+
+/**
+ * มอบหมายเจ้าของ Lead — ทั้งหัวหน้าที่แจกงาน และคนขายที่กดรับใบจากกองกลางเอง
+ * ใช้ทางเดียวกัน.
+ *
+ * `owner_user_id` ว่าง = รับเอง. ไม่ใช่ความสะดวกอย่างเดียว: "รับใบนี้" เป็นการ
+ * กระทำที่คนขายทำกับตัวเองและต้องไม่ต้องรู้ id ของตัวเอง ส่วน "แจกให้คนนี้"
+ * ต้องระบุปลายทางเสมอ — ช่องว่างจึงแปลว่าอย่างแรกได้โดยไม่กำกวม.
+ */
+export class AssignLeadDto {
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  owner_user_id?: string;
 }
 
 // --- ตั้งค่า CRM → สถานะ Lead (admin.crm.manage) ---------------------------

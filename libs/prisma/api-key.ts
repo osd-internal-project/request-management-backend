@@ -2,12 +2,28 @@
  * Issue and revoke the API keys an integration authenticates with (AUTH-06).
  *
  *   APIKEY_ISSUE_ALLOW=1 yarn apikey:issue "Aiyara chatbot (prod)" [--days 365]
+ *   yarn apikey:issue "เว็บไซต์ osd.co.th" --company <id> --source website \
+ *     --scope integration.crm.lead.create
  *   yarn apikey:revoke <prefix>
  *   yarn apikey:list
  *
- * A script rather than an admin screen because issuing one is rare, and
- * because the plaintext must reach exactly one person: a screen would put it
- * in a browser, a proxy log and a screenshot on the way there.
+ * **หนึ่ง key ต่อหนึ่งช่องทาง** (14 ก.ย. 2569) — `--company`, `--source` และ
+ * `--scope` ทำให้ผู้เรียกไม่ต้องส่งอะไรนอกจากตัว key: บริษัทและช่องทางอยู่บน
+ * กุญแจ ไม่ใช่บน header กับ body ที่กรอกผิดได้. เว้นทั้งสามไว้ = key แบบเดิม
+ * (ผู้เรียกส่ง `X-Company-Id` เอง, สิทธิ์เต็มชุดของ integration client).
+ *
+ * **ทางหลักย้ายไปหน้าจอแล้ว** (14 ก.ย. 2569) — ผู้ดูแลระบบ → "API Key ช่องทาง
+ * ภายนอก" (`admin.integration.manage`). เหตุผลเดิมที่ว่า "ออกไม่บ่อยเลยเป็น
+ * สคริปต์พอ" หมดอายุไปพร้อมกับกฎหนึ่งกุญแจต่อหนึ่งช่องทาง: การออกกุญแจกลาย
+ * เป็นงานประจำของคนดูแล CRM ไม่ใช่ของคนที่ ssh เข้าเครื่องได้ และการต้องรอ dev
+ * มารันคำสั่งให้ จบลงด้วยการใช้กุญแจใบเดิมซ้ำทุกช่องทาง ซึ่งแย่กว่าปัญหาเดิม.
+ *
+ * ข้อกังวลอีกข้อ — ค่าเต็มต้องถึงมือคนเดียว ไม่ใช่ไปนอนใน proxy log — ยังจริงอยู่
+ * และถูกกันไว้ที่หน้าจอนั้นแทน (คืนค่าครั้งเดียว ไม่มี endpoint อ่านกลับ ไม่ลง
+ * audit). ดู `ApiKeyAdminService`.
+ *
+ * สคริปต์นี้ยังอยู่สำหรับสิ่งที่หน้าจอตั้งใจทำไม่ได้: กุญแจที่ **ไม่ผูกบริษัท**
+ * (แชตบอตที่ทำงานข้ามบริษัทด้วยใบเดียว) และงานกู้สถานการณ์ตอนหน้าจอเข้าไม่ได้.
  *
  * **The key is printed once and cannot be recovered.** Only its sha256 is
  * stored, which is what makes a leak of the table harmless — and what makes
@@ -53,7 +69,14 @@ function assertMayIssue(): void {
   }
 }
 
-async function issue(name: string, days?: number): Promise<void> {
+interface IssueOptions {
+  days?: number;
+  companyId?: string;
+  sourceCode?: string;
+  scopes: string[];
+}
+
+async function issue(name: string, options: IssueOptions): Promise<void> {
   assertMayIssue();
 
   if (!name.trim()) {
@@ -62,9 +85,54 @@ async function issue(name: string, days?: number): Promise<void> {
     );
   }
 
+  /*
+    ตรวจว่าบริษัทมีจริงตั้งแต่ตอนออกกุญแจ. กุญแจที่ผูกกับ id ที่พิมพ์ตกไปหนึ่ง
+    ตัวจะผ่านทุกด่านแล้วไปตายเงียบ ๆ ตอนคำขอจริงของช่องทางนั้น — ซึ่งคือหลัง
+    ส่งกุญแจให้พาร์ตเนอร์ไปแล้ว.
+  */
+  if (options.companyId) {
+    const company = await prisma.company.findUnique({
+      where: { id: options.companyId },
+      select: { id: true, name: true },
+    });
+
+    if (!company) {
+      throw new Error(`No company with id "${options.companyId}".`);
+    }
+  }
+
+  /*
+    ตรวจชื่อสิทธิ์กับตาราง `permissions` ซึ่ง sync มาจาก catalog ใน libs/share
+    ตอน boot — ไม่ import catalog ตรง ๆ เพราะสคริปต์นี้ตั้งใจไม่พึ่ง path alias
+    ของ workspace (รันด้วย ts-node เปล่า ๆ ได้ทุกเครื่อง).
+
+    ที่ต้องตรวจเพราะ `scopes` เป็น intersect: พิมพ์ผิดหนึ่งตัวอักษรไม่ได้ error
+    ที่ไหนเลย — ได้กุญแจที่ตัดสิทธิ์เหลือศูนย์ แล้วไปรู้ตอนช่องทางนั้นยิงจริง
+    และได้ 403 โดยไม่มีอะไรบอกว่าเพราะอะไร.
+  */
+  if (options.scopes.length) {
+    const known = await prisma.permission.findMany({
+      where: { code: { in: options.scopes } },
+      select: { code: true },
+    });
+    const missing = options.scopes.filter(
+      (scope) => !known.some((row) => row.code === scope),
+    );
+
+    if (missing.length) {
+      throw new Error(
+        `ไม่รู้จักสิทธิ์: ${missing.join(', ')}\n` +
+          '  ดูรายการที่มีได้จากตาราง permissions ' +
+          '(sync จาก libs/share/src/policy/permissions.ts ตอน boot)',
+      );
+    }
+  }
+
   const { key, prefix, keyHash } = mint();
   const expiresAt =
-    days === undefined ? null : new Date(Date.now() + days * 86_400_000);
+    options.days === undefined
+      ? null
+      : new Date(Date.now() + options.days * 86_400_000);
 
   await prisma.apiKey.create({
     data: {
@@ -72,6 +140,9 @@ async function issue(name: string, days?: number): Promise<void> {
       prefix,
       keyHash,
       expiresAt,
+      companyId: options.companyId ?? null,
+      sourceCode: options.sourceCode ?? null,
+      scopes: options.scopes,
       createdBy: process.env.USER ?? 'cli',
     },
   });
@@ -82,6 +153,15 @@ async function issue(name: string, days?: number): Promise<void> {
   );
   console.log(
     `  expires: ${expiresAt ? expiresAt.toISOString() : 'never — เพิกถอนด้วย yarn apikey:revoke เท่านั้น'}`,
+  );
+  console.log(
+    `  company: ${options.companyId ?? '— (ผู้เรียกต้องส่ง X-Company-Id เอง)'}`,
+  );
+  console.log(
+    `  source:  ${options.sourceCode ?? '— (ต้องส่ง source_code มาใน body)'}`,
+  );
+  console.log(
+    `  scopes:  ${options.scopes.length ? options.scopes.join(', ') : '— (เต็มชุดของ integration client)'}`,
   );
   console.log(
     '\n  ── key (แสดงครั้งเดียว เก็บทันที) ──────────────────────────',
@@ -140,9 +220,65 @@ async function list(): Promise<void> {
 
     console.log(
       `  ${key.prefix}  ${state.padEnd(8)}  ` +
+        `${(key.sourceCode ?? '—').padEnd(16)}  ` +
         `last used ${key.lastUsedAt?.toISOString() ?? '—'}  ${key.name}`,
     );
   }
+}
+
+/**
+ * `--flag value` pairs, with everything before the first flag as the name.
+ *
+ * Hand-rolled rather than a library because this script has no dependencies of
+ * its own on purpose — it is run from a terminal against a production database,
+ * and the list of things that can go wrong should stay short enough to read.
+ *
+ * `--scope` repeats (a key may hold several); the rest take the last value.
+ */
+function parseIssueArgs(argv: string[]): {
+  name: string;
+  values: { days?: string; company?: string; source?: string; scope?: string[] };
+} {
+  const values: {
+    days?: string;
+    company?: string;
+    source?: string;
+    scope?: string[];
+  } = {};
+  const words: string[] = [];
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const argument = argv[index];
+
+    if (!argument.startsWith('--')) {
+      // หลังเจอ flag แรกแล้ว คำลอย ๆ คือค่าที่หลงมา ไม่ใช่ส่วนหนึ่งของชื่อ
+      if (Object.keys(values).length === 0) words.push(argument);
+      continue;
+    }
+
+    const flag = argument.slice(2);
+    const value = argv[index + 1];
+
+    if (value === undefined || value.startsWith('--')) {
+      throw new Error(`--${flag} ต้องตามด้วยค่า`);
+    }
+    index += 1;
+
+    switch (flag) {
+      case 'days':
+      case 'company':
+      case 'source':
+        values[flag] = value;
+        break;
+      case 'scope':
+        values.scope = [...(values.scope ?? []), value];
+        break;
+      default:
+        throw new Error(`ไม่รู้จัก --${flag}`);
+    }
+  }
+
+  return { name: words.join(' '), values };
 }
 
 async function main(): Promise<void> {
@@ -150,13 +286,20 @@ async function main(): Promise<void> {
 
   switch (command) {
     case 'issue': {
-      const flag = rest.indexOf('--days');
-      const days = flag === -1 ? undefined : Number(rest[flag + 1]);
+      const { name, values } = parseIssueArgs(rest);
+
+      const days = values.days === undefined ? undefined : Number(values.days);
       if (days !== undefined && (!Number.isInteger(days) || days < 1)) {
         throw new Error('--days must be a whole number of days, 1 or more.');
       }
-      const name = (flag === -1 ? rest : rest.slice(0, flag)).join(' ');
-      return issue(name, days);
+
+      return issue(name, {
+        days,
+        companyId: values.company,
+        sourceCode: values.source,
+        // ซ้ำกันได้ไม่มีความหมาย และ order ไม่สำคัญ — เก็บเป็น set แล้วคลี่ออก
+        scopes: [...new Set(values.scope ?? [])],
+      });
     }
     case 'revoke':
       if (!rest[0]) throw new Error('Usage: yarn apikey:revoke <prefix>');
@@ -166,7 +309,8 @@ async function main(): Promise<void> {
     default:
       throw new Error(
         'Usage:\n' +
-          '  yarn apikey:issue "<name>" [--days N]\n' +
+          '  yarn apikey:issue "<name>" [--days N] [--company <id>]\n' +
+          '                             [--source <code>] [--scope <permission>]…\n' +
           '  yarn apikey:revoke <prefix>\n' +
           '  yarn apikey:list',
       );

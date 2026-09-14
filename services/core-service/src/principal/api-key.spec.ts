@@ -49,6 +49,10 @@ describe('ApiKeyService (AUTH-06)', () => {
   const usable = {
     id: 'k1',
     prefix: KEY.slice(0, 12),
+    name: 'Aiyara chatbot (prod)',
+    companyId: null,
+    sourceCode: null,
+    scopes: [],
     active: true,
     expiresAt: null,
     revokedAt: null,
@@ -67,14 +71,18 @@ describe('ApiKeyService (AUTH-06)', () => {
   it('exchanges a key that never expires', async () => {
     const { service, findByHash } = serviceWith(usable);
 
-    await expect(service.resolve(`Bearer ${KEY}`)).resolves.toBe(TOKEN);
+    await expect(service.resolve(`Bearer ${KEY}`)).resolves.toMatchObject({
+      accessToken: TOKEN,
+    });
     expect(findByHash).toHaveBeenCalledWith(HASH);
   });
 
   it('accepts the key with no Bearer scheme, as Postman sends it', async () => {
     const { service } = serviceWith(usable);
 
-    await expect(service.resolve(KEY)).resolves.toBe(TOKEN);
+    await expect(service.resolve(KEY)).resolves.toMatchObject({
+      accessToken: TOKEN,
+    });
   });
 
   it.each([
@@ -94,13 +102,36 @@ describe('ApiKeyService (AUTH-06)', () => {
     const ahead = new Date(Date.now() + 86_400_000);
     const { service } = serviceWith({ ...usable, expiresAt: ahead });
 
-    await expect(service.resolve(`Bearer ${KEY}`)).resolves.toBe(TOKEN);
+    await expect(service.resolve(`Bearer ${KEY}`)).resolves.toMatchObject({
+      accessToken: TOKEN,
+    });
   });
 
   it('does not fail the call when the last-used stamp cannot be written', async () => {
     const { service, touch } = serviceWith(usable);
     touch.mockRejectedValue(new Error('write contended'));
 
-    await expect(service.resolve(`Bearer ${KEY}`)).resolves.toBe(TOKEN);
+    await expect(service.resolve(`Bearer ${KEY}`)).resolves.toMatchObject({
+      accessToken: TOKEN,
+    });
+  });
+
+  it('hands back what the key says about itself — company, channel, scopes', async () => {
+    const { service } = serviceWith({
+      ...usable,
+      name: 'เว็บไซต์ osd.co.th',
+      companyId: 'osd',
+      sourceCode: 'website',
+      scopes: ['integration.crm.lead.create'],
+    });
+
+    await expect(service.resolve(`Bearer ${KEY}`)).resolves.toMatchObject({
+      accessToken: TOKEN,
+      key: {
+        companyId: 'osd',
+        sourceCode: 'website',
+        scopes: ['integration.crm.lead.create'],
+      },
+    });
   });
 });

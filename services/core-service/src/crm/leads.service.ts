@@ -18,6 +18,7 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
 import { OpportunitiesService } from './opportunities.service';
 import { CustomerRepository } from './customer.repository';
 import {
+  AssignLeadDto,
   ConvertLeadDto,
   CreateLeadActivityDto,
   CreateLeadDto,
@@ -112,6 +113,9 @@ export class LeadsService {
 
     if (query.status) filters.status = query.status;
     if (query.view === 'mine') filters.ownerUserId = actor.userId;
+    // กองกลาง — ใบที่ยังไม่มีใครรับ. ตัวกรอง ไม่ใช่ประตู: `visibleSalesWhere`
+    // ด้านล่างยังผูกทุกแถวไว้กับขอบเขตของคนเรียกเหมือนเดิม.
+    if (query.view === 'unassigned') filters.ownerUserId = null;
     if (query.search) {
       const q = query.search.trim();
       filters.OR = [
@@ -171,7 +175,7 @@ export class LeadsService {
       },
     })) as
       | ({
-          ownerUserId: string;
+          ownerUserId: string | null;
           activities: {
             createdBy: string;
             completedBy: string | null;
@@ -189,10 +193,17 @@ export class LeadsService {
 
     return {
       ...found,
-      owner: {
-        id: found.ownerUserId,
-        displayName: nameOf.get(found.ownerUserId) ?? found.ownerUserId,
-      },
+      /*
+        `null` = กองกลาง ยังไม่มีใครรับ. ส่ง null ทั้งก้อนแทนที่จะแต่งชื่อปลอมอย่าง
+        "ยังไม่ระบุ" ลงไป — ข้อความให้คนอ่านเป็นงานของหน้าจอ และค่าที่ไม่มีจริง
+        ต้องหน้าตาต่างจาก id ที่หาชื่อไม่เจอ (ซึ่งคืน id กลับไปตามเดิม).
+      */
+      owner: found.ownerUserId
+        ? {
+            id: found.ownerUserId,
+            displayName: nameOf.get(found.ownerUserId) ?? found.ownerUserId,
+          }
+        : null,
       activities: found.activities.map((activity) => ({
         ...activity,
         createdByName: nameOf.get(activity.createdBy) ?? activity.createdBy,
@@ -203,7 +214,22 @@ export class LeadsService {
     };
   }
 
-  async create(dto: CreateLeadDto, actor: Principal) {
+  /**
+   * `options.unowned` = ใบนี้เข้ากองกลาง ไม่มีเจ้าของ.
+   *
+   * มีไว้ให้ทางเข้าที่ *ไม่มีคน* อยู่ปลายสาย — `POST /integrations/crm/leads`
+   * ที่ระบบภายนอกยิงมาด้วยบัญชีบริการ (14 ก.ย. 2569). ไม่ใช่ธงสำหรับหน้าจอ:
+   * คนกดเพิ่ม Lead เองย่อมเป็นเจ้าของใบนั้น.
+   *
+   * ทางเข้าเดียวกันทั้งสองแบบโดยตั้งใจ — ขั้นตั้งต้นมาจากหน้าตั้งค่า, audit
+   * เขียนเหมือนกัน, workflow ถูก start เหมือนกัน. แยก path ให้ integration
+   * เมื่อไร คือวันที่ Lead จากเว็บฟอร์มเริ่มมี pipeline คนละชุดกับใบที่คนกรอก.
+   */
+  async create(
+    dto: CreateLeadDto,
+    actor: Principal,
+    options: { unowned?: boolean } = {},
+  ) {
     if (dto.customer_id) await this.assertCustomer(dto.customer_id, actor);
 
     const row = (await this.leads.create({
@@ -214,8 +240,8 @@ export class LeadsService {
         // ขั้นตั้งต้นมาจากหน้าตั้งค่า ไม่ใช่ค่า default ของคอลัมน์ — ผู้ดูแลที่ย้ายธง
         // "สถานะตั้งต้น" ไปขั้นอื่นต้องเห็นผลกับ Lead ใบถัดไปทันที.
         status: await this.statuses.defaultCode(actor.activeCompanyId),
-        ownerUserId: actor.userId,
-        ownerOrgUnitId: actor.orgUnitId,
+        ownerUserId: options.unowned ? null : actor.userId,
+        ownerOrgUnitId: options.unowned ? null : actor.orgUnitId,
         createdBy: actor.userId,
       },
     })) as { id: string };
@@ -226,7 +252,13 @@ export class LeadsService {
       ...auditActor(actor),
       resourceType: 'lead',
       resourceId: row.id,
-      after: { name: dto.name, sourceCode: dto.source_code },
+      after: {
+        name: dto.name,
+        sourceCode: dto.source_code,
+        // ตอบคำถาม "ใบนี้เข้ามาแล้วไปอยู่กับใคร" ได้จาก audit ใบเดียว — ค่า null
+        // คือกองกลาง และเป็นจุดเริ่มของคู่ before/after ที่ `crm.lead.assigned` เขียนต่อ.
+        ownerUserId: options.unowned ? null : actor.userId,
+      },
     });
 
     /*
@@ -251,6 +283,76 @@ export class LeadsService {
         updatedBy: actor.userId,
       },
     });
+  }
+
+  /**
+   * มอบหมายเจ้าของ — ทั้ง "หัวหน้าแจกงาน" และ "คนขายกดรับใบจากกองกลาง"
+   * (14 ก.ย. 2569).
+   *
+   * หนึ่ง endpoint สำหรับสองเรื่องนี้เพราะมันคือการกระทำเดียวกัน: เขียนชื่อคน
+   * ลงบนใบที่ยังไม่มี หรือย้ายจากคนหนึ่งไปอีกคน. แยกเป็น `claim` กับ `assign`
+   * จะได้โค้ดสองชุดที่ต้องเขียน audit เหมือนกัน แล้ววันหนึ่งจะเหมือนกันไม่หมด.
+   *
+   * ปลายทางต้องเป็นคนที่ **ยัง active และอยู่ในบริษัทนี้** — ไม่ใช่กฎ process
+   * แต่เป็นความถูกต้องของข้อมูล (SCOPE-03): ใบที่ชี้ไปยังคนนอกบริษัทคือใบที่
+   * หลุดจากทุกคิว. ส่วนคำถามว่า *ควร* แจกให้ใคร (โควตา, เขตการขาย, เวร) เป็น
+   * process — อยู่บน workflow ไม่ใช่ที่นี่.
+   */
+  async assign(id: string, dto: AssignLeadDto, actor: Principal) {
+    const found = await this.requireOpen(id, actor);
+    const targetId = dto.owner_user_id?.trim() || actor.userId;
+    const target = await this.requireCompanyMember(targetId, actor);
+
+    /*
+      ไม่มีอะไรเปลี่ยน = ไม่เขียนอะไร. กดรับซ้ำใบที่ตัวเองถืออยู่แล้วได้ใบเดิม
+      กลับไปเงียบ ๆ โดยไม่มี audit ปลอมว่า "มอบหมายให้ตัวเอง" เพิ่มมาอีกใบ.
+    */
+    if (found.ownerUserId === target.id) {
+      return this.leads.findFirst({ where: { id } });
+    }
+
+    /*
+      แย่งใบกันในกองกลาง — เงื่อนไข "ยังไม่มีเจ้าของ" อยู่ใน statement ไม่ใช่ใน if
+      ด้านบน. คนขายสองคนกดรับพร้อมกันจะอ่าน `ownerUserId: null` ได้ทั้งคู่ ถ้าตัด
+      สินจากค่าที่อ่านมา คนที่สองจะเขียนทับคนแรกแบบเงียบ ๆ แล้วทั้งคู่เห็นว่า
+      "ได้ใบแล้ว" — ฐานข้อมูลต้องเป็นคนตัดสิน และ `count: 0` คือคำตอบของคนที่แพ้.
+
+      การ *โอน* (ระบุ `owner_user_id` มาชัด ๆ) ไม่มีเงื่อนไขนี้: เป็นการตัดสินใจ
+      ของคนแจกว่าใบนี้ต้องไปอยู่กับใคร ไม่ใช่การแข่งกันหยิบ.
+    */
+    const written = await this.leads.updateMany({
+      where: dto.owner_user_id ? { id } : { id, ownerUserId: null },
+      data: {
+        ownerUserId: target.id,
+        ownerOrgUnitId: target.orgUnitId,
+        updatedBy: actor.userId,
+      },
+    });
+
+    if (written.count === 0) {
+      throw new AppError(
+        'CONFLICT',
+        'Lead ใบนี้มีผู้รับผิดชอบแล้ว — ถ้าต้องการโอนให้คนอื่น ระบุ owner_user_id',
+        [{ field: 'owner_user_id', reason: 'already_assigned' }],
+      );
+    }
+
+    await this.audit.record({
+      eventType: 'crm.lead.assigned',
+      companyId: actor.activeCompanyId,
+      ...auditActor(actor),
+      resourceType: 'lead',
+      resourceId: id,
+      before: { ownerUserId: found.ownerUserId },
+      after: { ownerUserId: target.id },
+    });
+
+    /*
+      อ่านกลับตรง ๆ ไม่ผ่าน `findOne` — คนที่โอนใบให้คนอื่นอาจมองไม่เห็นใบนั้น
+      อีกแล้วหลังโอน (SCOPE-02) และการอ่านซ้ำผ่านตัวกรองจะตอบ 404 ให้กับงานที่
+      เพิ่งสำเร็จ. ด่านขอบเขตผ่านไปแล้วตอน `requireOpen` ต้นเมธอด.
+    */
+    return this.leads.findFirst({ where: { id } });
   }
 
   /**
@@ -472,6 +574,7 @@ export class LeadsService {
       id: string;
       name: string;
       status: string;
+      ownerUserId: string | null;
       customerId: string | null;
       taxId: string | null;
       contactName: string | null;
@@ -496,6 +599,28 @@ export class LeadsService {
     }
 
     return found;
+  }
+
+  /** ปลายทางของการมอบหมาย: ต้องเป็นคนที่ยังทำงานอยู่ในบริษัทที่ active. */
+  private async requireCompanyMember(userId: string, actor: Principal) {
+    const member = (await this.members.findFirst({
+      where: {
+        id: userId,
+        status: 'ACTIVE',
+        companies: { some: { companyId: actor.activeCompanyId } },
+      },
+      select: { id: true, orgUnitId: true },
+    })) as { id: string; orgUnitId: string | null } | null;
+
+    if (!member) {
+      throw new AppError(
+        'VALIDATION_FAILED',
+        'ไม่พบผู้ใช้ที่ระบุ หรือผู้ใช้ไม่ได้อยู่ในบริษัทนี้',
+        [{ field: 'owner_user_id', reason: userId }],
+      );
+    }
+
+    return member;
   }
 
   private async assertCustomer(customerId: string, actor: Principal) {

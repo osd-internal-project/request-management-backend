@@ -166,7 +166,8 @@ export class LeadWorkflowService {
       companyId: string;
       name: string;
       status: string;
-      ownerUserId: string;
+      /** null = กองกลาง — ใบที่ระบบภายนอกยิงเข้ามาและยังไม่มีใครรับ. */
+      ownerUserId: string | null;
       convertedOpportunityId: string | null;
     } | null;
 

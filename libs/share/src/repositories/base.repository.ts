@@ -14,6 +14,7 @@ export interface PrismaDelegate {
   create: DelegateFn;
   createMany: DelegateFn;
   update: DelegateFn;
+  updateMany: DelegateFn;
   upsert: DelegateFn;
   delete: DelegateFn;
   count: DelegateFn;
@@ -76,6 +77,21 @@ export abstract class BaseRepository<TDelegate extends PrismaDelegate> {
 
   update(args: Args<TDelegate, 'update'>, option?: TxOption) {
     return this.call('update', args, option);
+  }
+
+  /**
+   * Conditional write — the `where` may name columns that are not unique, and
+   * the returned `count` says whether the row still matched.
+   *
+   * That count is the point. `update` addresses a row by id and overwrites it
+   * whatever it now holds, so "claim this lead only while nobody owns it"
+   * written with `update` is a read followed by a write with a gap in between:
+   * two people claiming at once both read `NULL` and the second silently wins.
+   * With the condition in the statement, the database decides, and `count: 0`
+   * is the loser's answer.
+   */
+  updateMany(args: Args<TDelegate, 'updateMany'>, option?: TxOption) {
+    return this.call('updateMany', args, option);
   }
 
   upsert(args: Args<TDelegate, 'upsert'>, option?: TxOption) {

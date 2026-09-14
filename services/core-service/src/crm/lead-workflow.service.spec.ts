@@ -303,7 +303,12 @@ describe('LeadWorkflowService — หน้าต่างที่ workflow eng
     const where = whereUsed() as { AND: Record<string, unknown>[] };
     expect(where.AND[0]).toMatchObject({
       companyId: 'osd',
-      OR: [{ ownerUserId: 'svc-workflow' }, { createdBy: 'svc-workflow' }],
+      OR: [
+        { ownerUserId: 'svc-workflow' },
+        { createdBy: 'svc-workflow' },
+        // กองกลาง — ใบที่ยังไม่มีเจ้าของอยู่ในขอบเขตของทุกคนในบริษัทนั้น
+        { ownerUserId: null },
+      ],
     });
   });
 });
