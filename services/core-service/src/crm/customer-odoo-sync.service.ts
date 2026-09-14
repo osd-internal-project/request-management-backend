@@ -195,7 +195,11 @@ export class CustomerOdooSyncService implements OnModuleInit, OnModuleDestroy {
   /** The sweeper — due queue rows, oldest first. Public so tests drive it. */
   async processQueue(): Promise<void> {
     const due = (await this.jobs.findMany({
-      where: { system: SYSTEM, status: 'pending', runAfter: { lte: new Date() } },
+      where: {
+        system: SYSTEM,
+        status: 'pending',
+        runAfter: { lte: new Date() },
+      },
       orderBy: { createdAt: 'asc' },
       take: 20,
     })) as JobRow[];
@@ -311,7 +315,7 @@ function withPartner(
     ...(asObject(previous) ?? {}),
     lastPushedAt: new Date().toISOString(),
     lastPushed: { name: payload.name, active: payload.active },
-  } as Prisma.InputJsonValue;
+  };
 }
 
 function asObject(value: unknown): Record<string, unknown> | null {

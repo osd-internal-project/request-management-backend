@@ -67,6 +67,25 @@ export default () => ({
     refreshIntervalMs: Number(process.env.ODOO_REFRESH_INTERVAL_MS ?? 3600000),
   },
 
+  /**
+   * OSD Workflow (workflowable) — เจ้าของ *process* ของ CRM ตั้งแต่
+   * 10 ก.ย. 2569. `mode=mock` (ค่าตั้งต้น) ใช้สแตนด์อินในหน่วยความจำ เพื่อให้
+   * ทุกสภาพแวดล้อมทำงานได้โดยไม่ต้องต่อของจริง.
+   *
+   * `channelKey` คือคีย์ของ channel ชนิด APPLICATION_API บน `lwf-0001` —
+   * หมุนได้จากหน้าจอ Channels ของแพลตฟอร์ม ไม่ต้อง deploy. `workspaceId` เป็น
+   * `default` ตามที่ curl ของ channel ระบุ ไม่ใช่ชื่อทีมที่หน้าจอโชว์.
+   */
+  workflow: {
+    mode: process.env.WORKFLOW_MODE ?? 'mock',
+    baseUrl: process.env.WORKFLOW_BASE_URL ?? '',
+    channelId: process.env.WORKFLOW_CHANNEL_ID ?? '',
+    channelKey: process.env.WORKFLOW_CHANNEL_KEY ?? '',
+    organizationId: process.env.WORKFLOW_ORGANIZATION_ID ?? 'osd-company',
+    workspaceId: process.env.WORKFLOW_WORKSPACE_ID ?? 'default',
+    retryIntervalMs: Number(process.env.WORKFLOW_RETRY_INTERVAL_MS ?? 300000),
+  },
+
   /** CM-05/D-35 — the PDPA integration layer; mock until the central
    * service (DPO-owned) exists. */
   pdpa: {

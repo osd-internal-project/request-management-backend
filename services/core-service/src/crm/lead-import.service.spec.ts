@@ -12,7 +12,9 @@ function principal(): Principal {
   } as unknown as Principal;
 }
 
-function harness(options: { existing?: { id: string; name: string } | null } = {}) {
+function harness(
+  options: { existing?: { id: string; name: string } | null } = {},
+) {
   const leads = {
     findFirst: jest.fn(() => Promise.resolve(options.existing ?? null)),
     create: jest.fn(() => Promise.resolve({ id: 'lead-new' })),
@@ -22,17 +24,26 @@ function harness(options: { existing?: { id: string; name: string } | null } = {
     execute: jest.fn((work: (prisma: unknown) => unknown) => work({})),
   };
 
+  // ขั้นตั้งต้นมาจากหน้าตั้งค่า — importer ถามครั้งเดียวต่อรอบ
+  const statuses = { defaultCode: jest.fn(() => Promise.resolve('new')) };
+
   const service = new LeadImportService(
     leads as never,
     audit as never,
     transactions as never,
+    statuses as never,
   );
 
   return { service, leads, audit };
 }
 
 function dto(overrides: Partial<ImportLeadsDto> = {}): ImportLeadsDto {
-  return { mode: 'commit', import_id: 'imp-1', rows: [], ...overrides } as ImportLeadsDto;
+  return {
+    mode: 'commit',
+    import_id: 'imp-1',
+    rows: [],
+    ...overrides,
+  };
 }
 
 describe('Import Lead จาก Excel — สูตรเดียวกับ CM-10', () => {
@@ -103,7 +114,10 @@ describe('Import Lead จาก Excel — สูตรเดียวกับ C
     );
 
     const imported = (audit.record.mock.calls as never[][])
-      .map((call) => call[0] as { eventType: string; after?: { importId?: string } })
+      .map(
+        (call) =>
+          call[0] as { eventType: string; after?: { importId?: string } },
+      )
       .find((entry) => entry.eventType === 'crm.lead.imported');
     expect(imported?.after?.importId).toBe('imp-42');
   });

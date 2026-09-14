@@ -1,11 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AppError } from '@request-management/share';
-import {
-  OdooClient,
-  OdooPartnerPayload,
-  OdooReceivables,
-} from './odoo-client';
+import { OdooClient, OdooPartnerPayload, OdooReceivables } from './odoo-client';
 
 /**
  * The real driver (ODOO_MODE=http) — Odoo's external JSON-RPC API
@@ -121,7 +117,8 @@ export class HttpOdooClient implements OdooClient {
     };
 
     if (body.error) {
-      const detail = body.error.data?.message ?? body.error.message ?? 'unknown';
+      const detail =
+        body.error.data?.message ?? body.error.message ?? 'unknown';
       this.logger.warn(`odoo ${model}.${method} failed: ${detail}`);
       throw new AppError('UPSTREAM_ERROR', `Odoo ปฏิเสธ: ${detail}`);
     }

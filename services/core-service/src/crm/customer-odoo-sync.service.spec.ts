@@ -61,11 +61,13 @@ function harness(options: { odooDown?: boolean } = {}) {
       });
       return Promise.resolve(jobs[jobs.length - 1]);
     }),
-    update: jest.fn((args: { where: { id: string }; data: Record<string, unknown> }) => {
-      const job = jobs.find((row) => row.id === args.where.id);
-      Object.assign(job ?? {}, args.data);
-      return Promise.resolve(job);
-    }),
+    update: jest.fn(
+      (args: { where: { id: string }; data: Record<string, unknown> }) => {
+        const job = jobs.find((row) => row.id === args.where.id);
+        Object.assign(job ?? {}, args.data);
+        return Promise.resolve(job);
+      },
+    ),
   };
 
   const odoo: OdooClient = {

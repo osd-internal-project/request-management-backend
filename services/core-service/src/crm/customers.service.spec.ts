@@ -197,7 +197,15 @@ function harness(options: {
     } as never,
   );
 
-  return { service, audits, timelineEvents, fieldChangeRows, customers, requestCount, odooKicks };
+  return {
+    service,
+    audits,
+    timelineEvents,
+    fieldChangeRows,
+    customers,
+    requestCount,
+    odooKicks,
+  };
 }
 
 function createDto(overrides: Record<string, unknown> = {}) {
@@ -227,7 +235,12 @@ describe('CM-03 duplicate prevention on create', () => {
 
   it('CM-03 warns on a similar name until the caller confirms', async () => {
     const { service } = harness({
-      checkResult: { duplicate: null, headOffice: null, similar: [similar()], threshold: 0.85 },
+      checkResult: {
+        duplicate: null,
+        headOffice: null,
+        similar: [similar()],
+        threshold: 0.85,
+      },
     });
 
     await expect(service.create(createDto(), principal())).rejects.toThrow(
@@ -237,7 +250,12 @@ describe('CM-03 duplicate prevention on create', () => {
 
   it('CM-03 refuses the override without the dedicated permission', async () => {
     const { service } = harness({
-      checkResult: { duplicate: null, headOffice: null, similar: [similar()], threshold: 0.85 },
+      checkResult: {
+        duplicate: null,
+        headOffice: null,
+        similar: [similar()],
+        threshold: 0.85,
+      },
     });
 
     await expect(
@@ -253,7 +271,12 @@ describe('CM-03 duplicate prevention on create', () => {
 
   it('CM-03 refuses the override without a reason', async () => {
     const { service } = harness({
-      checkResult: { duplicate: null, headOffice: null, similar: [similar()], threshold: 0.85 },
+      checkResult: {
+        duplicate: null,
+        headOffice: null,
+        similar: [similar()],
+        threshold: 0.85,
+      },
     });
 
     await expect(
@@ -266,7 +289,12 @@ describe('CM-03 duplicate prevention on create', () => {
 
   it('CM-03 records an audited override when permitted, with the reason', async () => {
     const { service, audits } = harness({
-      checkResult: { duplicate: null, headOffice: null, similar: [similar()], threshold: 0.85 },
+      checkResult: {
+        duplicate: null,
+        headOffice: null,
+        similar: [similar()],
+        threshold: 0.85,
+      },
     });
 
     await service.create(

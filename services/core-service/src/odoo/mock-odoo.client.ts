@@ -1,9 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import {
-  OdooClient,
-  OdooPartnerPayload,
-  OdooReceivables,
-} from './odoo-client';
+import { OdooClient, OdooPartnerPayload, OdooReceivables } from './odoo-client';
 
 /**
  * The stand-in driver (ODOO_MODE=mock, the default until the sandbox
@@ -21,13 +17,17 @@ export class MockOdooClient implements OdooClient {
     // Stable across restarts: derived from the customerCode, not a counter.
     const partnerId = `MOCK-${seedOf(payload.customerCode) % 90000}`;
     this.partners.set(partnerId, payload);
-    this.logger.log(`mock createPartner ${payload.customerCode} → ${partnerId}`);
+    this.logger.log(
+      `mock createPartner ${payload.customerCode} → ${partnerId}`,
+    );
     return Promise.resolve({ partnerId });
   }
 
   updatePartner(partnerId: string, payload: OdooPartnerPayload): Promise<void> {
     this.partners.set(partnerId, payload);
-    this.logger.log(`mock updatePartner ${partnerId} (${payload.customerCode})`);
+    this.logger.log(
+      `mock updatePartner ${partnerId} (${payload.customerCode})`,
+    );
     return Promise.resolve();
   }
 

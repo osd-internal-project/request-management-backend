@@ -22,25 +22,13 @@ import { CUSTOMER_TYPES } from './customer.dto';
 
 /** CRM sales DTOs — snake_case per the §11.1 API contract. */
 
-export const LEAD_STATUSES = [
-  'new',
-  'cannot_contact',
-  'contacted',
-  'qualified',
-  'disqualified',
-  'converted',
-] as const;
-
 /**
- * สถานะที่เลื่อนได้จากหน้ารายละเอียด (pipeline) — `converted`/`disqualified`
- * เป็นสถานะปิด ต้องผ่าน endpoint ของมันเอง (convert / disqualify).
+ * สถานะ Lead ไม่ใช่รายการตายตัวอีกต่อไป — อยู่ในตาราง `lead_statuses` ต่อบริษัท
+ * (ตั้งค่า CRM → สถานะ Lead). DTO จึงรับเป็นรหัสสตริง แล้วให้ `LeadStatusService`
+ * เป็นคนบอกว่ารหัสนั้นมีจริงและเลื่อนเข้าไปได้ไหม — ด่านอยู่ที่เดียว ไม่ใช่ที่
+ * decorator ซึ่งจะกลายเป็นรายการที่ต้องแก้ทุกครั้งที่ผู้ดูแลเพิ่มขั้นใหม่.
  */
-export const WORKABLE_LEAD_STATUSES = [
-  'new',
-  'cannot_contact',
-  'contacted',
-  'qualified',
-] as const;
+const STATUS_CODE_PATTERN = /^[a-z][a-z0-9_]{0,29}$/;
 
 export const LEAD_ACTIVITY_TYPES = [
   'call',
@@ -181,10 +169,14 @@ export class UpdateLeadDto extends CreateLeadDto {
   declare name: string;
 }
 
-/** เลื่อนขั้นใน pipeline จากหน้ารายละเอียด — ถอยกลับได้ (ติดต่อไม่ได้ → ติดต่อแล้ว). */
+/**
+ * เลื่อนขั้นใน pipeline จากหน้ารายละเอียด — ถอยกลับได้ (ติดต่อไม่ได้ → ติดต่อแล้ว).
+ * รับได้เฉพาะขั้นระหว่างทาง (`kind = open`); ปลายทางต้องผ่าน convert/disqualify
+ * ซึ่งมีข้อมูลกำกับของมันเอง — `LeadsService.setStatus` เป็นคนปฏิเสธ.
+ */
 export class UpdateLeadStatusDto {
-  @IsIn(WORKABLE_LEAD_STATUSES)
-  status!: (typeof WORKABLE_LEAD_STATUSES)[number];
+  @Matches(STATUS_CODE_PATTERN)
+  status!: string;
 }
 
 /**
@@ -268,12 +260,103 @@ export class ListLeadsQueryDto extends PageQueryDto {
   search?: string;
 
   @IsOptional()
-  @IsIn(LEAD_STATUSES)
-  status?: (typeof LEAD_STATUSES)[number];
+  @Matches(STATUS_CODE_PATTERN)
+  status?: string;
+
+  /**
+   * `unassigned` = กองกลาง — ใบที่ยังไม่มีเจ้าของ ส่วนใหญ่มาจาก
+   * `POST /integrations/crm/leads`. เป็นตัวกรอง ไม่ใช่สิทธิ์: ใบพวกนี้อยู่ใน
+   * ขอบเขตที่ทุกคนอ่าน Lead ได้เห็นอยู่แล้ว (`visibleSalesWhere`) — ค่านี้แค่
+   * ตัดใบที่มีคนดูแลแล้วออก ให้เหลือหน้าจอ "งานที่ยังไม่มีใครรับ".
+   */
+  @IsOptional()
+  @IsIn(['mine', 'all', 'unassigned'])
+  view?: 'mine' | 'all' | 'unassigned';
+}
+
+/**
+ * มอบหมายเจ้าของ Lead — ทั้งหัวหน้าที่แจกงาน และคนขายที่กดรับใบจากกองกลางเอง
+ * ใช้ทางเดียวกัน.
+ *
+ * `owner_user_id` ว่าง = รับเอง. ไม่ใช่ความสะดวกอย่างเดียว: "รับใบนี้" เป็นการ
+ * กระทำที่คนขายทำกับตัวเองและต้องไม่ต้องรู้ id ของตัวเอง ส่วน "แจกให้คนนี้"
+ * ต้องระบุปลายทางเสมอ — ช่องว่างจึงแปลว่าอย่างแรกได้โดยไม่กำกวม.
+ */
+export class AssignLeadDto {
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  owner_user_id?: string;
+}
+
+// --- ตั้งค่า CRM → สถานะ Lead (admin.crm.manage) ---------------------------
+
+/**
+ * ขั้นใหม่ใน pipeline. ไม่มี `kind`: สถานะที่เพิ่มเองเป็นขั้นระหว่างทางเสมอ —
+ * ปลายทาง "แปลงแล้ว"/"คัดออก" มีอย่างละหนึ่งและเป็นของระบบ.
+ *
+ * ไม่มีธงเชิงเงื่อนไข (เช่น "ต้องมีกิจกรรมก่อน" / "แปลงต่อได้") โดยตั้งใจ — กฎ
+ * พวกนั้นอยู่บน workflow `lwf-0001` (PO 10 ก.ย. 2569: Workflow owns Process).
+ */
+export class CreateLeadStatusDto {
+  @Matches(STATUS_CODE_PATTERN)
+  code!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(60)
+  name_th!: string;
+
+  /** ชื่อสีของป้ายบนหน้าจอ เช่น `blue`, `green`. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  color?: string;
+
+  /** ให้เป็นสถานะตั้งต้นของ Lead ใหม่ — ธงเดิมจะถูกถอดให้อัตโนมัติ. */
+  @IsOptional()
+  @IsBoolean()
+  is_default?: boolean;
 
   @IsOptional()
-  @IsIn(['mine', 'all'])
-  view?: 'mine' | 'all';
+  @IsInt()
+  @Min(0)
+  sort_order?: number;
+}
+
+/** แก้ขั้นที่มีอยู่ — `code` และ `kind` แก้ไม่ได้ (Lead เดิมอ้างรหัสอยู่). */
+export class UpdateLeadStatusSettingDto {
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(60)
+  name_th?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  color?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  is_default?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  active?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  sort_order?: number;
+}
+
+/** ลำดับใหม่ทั้งชุด — ต้องส่ง id ครบทุกแถวของบริษัท. */
+export class ReorderLeadStatusesDto {
+  @IsArray()
+  @ArrayMaxSize(100)
+  @IsString({ each: true })
+  ids!: string[];
 }
 
 // --- Lead import (สูตรเดียวกับ CM-10: rows เป็น JSON, dry_run/commit) -------

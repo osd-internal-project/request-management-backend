@@ -3,11 +3,12 @@ import { Reflector } from '@nestjs/core';
 import {
   AppError,
   COMPANY_HEADER,
+  Permission,
   PUBLIC_KEY,
   RequestWithPrincipal,
   setPrincipal,
 } from '@request-management/share';
-import { ApiKeyService } from './api-key.service';
+import { ApiKeyContext, ApiKeyService, setApiKey } from './api-key.service';
 import { RemotePrincipalService } from './remote-principal.service';
 
 /**
@@ -47,16 +48,86 @@ export class RemotePrincipalGuard implements CanActivate {
       verifies it. They neither know nor need to know that a key was involved.
     */
     const exchanged = await this.apiKeys.resolve(presented);
-    if (exchanged) request.headers.authorization = `Bearer ${exchanged}`;
+    if (exchanged) {
+      request.headers.authorization = `Bearer ${exchanged.accessToken}`;
+      setApiKey(request, exchanged.key);
+    }
 
     const authorization = request.headers.authorization ?? presented;
-    const requestedCompany = request.headers[COMPANY_HEADER];
+    const requestedCompany = this.companyFor(request, exchanged?.key);
     const principal = await this.principals.resolve(
       authorization,
-      typeof requestedCompany === 'string' ? requestedCompany : undefined,
+      requestedCompany,
     );
 
-    setPrincipal(request, principal);
+    setPrincipal(request, this.narrowed(principal, exchanged?.key));
     return true;
+  }
+
+  /**
+   * Which company this request works in.
+   *
+   * A key that names one **decides**, and the header cannot argue: the whole
+   * point of binding a channel's key to a company is that the caller — a web
+   * form on somebody else's server — has no say in where its leads land. A
+   * header naming a different company is refused rather than ignored, because
+   * a caller that sent one believes something about this request that is not
+   * true, and silently writing elsewhere is the worse of the two answers.
+   *
+   * An unbound key (`companyId: null`) is every key issued before 14 ก.ย. 2569
+   * and the chatbot's, which legitimately works across companies: it keeps the
+   * old contract exactly — the header decides, and omitting it means the
+   * caller's primary company.
+   */
+  private companyFor(
+    request: RequestWithPrincipal,
+    key: ApiKeyContext | undefined,
+  ): string | undefined {
+    const header = request.headers[COMPANY_HEADER];
+    const requested = typeof header === 'string' ? header : undefined;
+
+    if (!key?.companyId) return requested;
+
+    if (requested && requested !== key.companyId) {
+      throw new AppError(
+        'COMPANY_FORBIDDEN',
+        'API key นี้ผูกกับบริษัทอื่น — ไม่ต้องส่ง X-Company-Id',
+        [{ field: 'X-Company-Id', reason: requested }],
+      );
+    }
+
+    /*
+      เขียนกลับลง header ด้วย ไม่ใช่ส่งต่อเฉพาะตัวแปร — `CompanyGuard` (global,
+      รันถัดจากนี้) อ่าน header ตรง ๆ เพื่อตั้ง `activeCompanyId` ของบัญชีบริการ
+      ถ้าไม่เขียนกลับ principal จะถูกแก้ทีหลังเป็นบริษัทว่าง แล้วทุก query ที่พึ่ง
+      SCOPE-03 จะชี้ผิดบริษัทโดยที่ guard ทั้งสองตัวต่างก็ "ทำถูก" ของตัวเอง.
+    */
+    request.headers[COMPANY_HEADER] = key.companyId;
+    return key.companyId;
+  }
+
+  /**
+   * The principal this key may act as — never wider than the key's `scopes`.
+   *
+   * Intersection, and only intersection. The permissions themselves still come
+   * from one place (the service account's roles, §03); a key can hold fewer of
+   * them but never one the account does not have, so there is no second
+   * authority here that could disagree with the first.
+   *
+   * Empty `scopes` means "whatever the account holds" — the contract every key
+   * issued before this column existed was given, and the chatbot's still.
+   */
+  private narrowed(
+    principal: Awaited<ReturnType<RemotePrincipalService['resolve']>>,
+    key: ApiKeyContext | undefined,
+  ) {
+    if (!key?.scopes.length) return principal;
+
+    return {
+      ...principal,
+      permissions: principal.permissions.filter((permission) =>
+        key.scopes.includes(permission),
+      ) as readonly Permission[],
+    };
   }
 }

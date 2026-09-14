@@ -52,7 +52,7 @@ function dto(overrides: Partial<ImportCustomersDto> = {}): ImportCustomersDto {
     import_id: 'imp-1',
     rows: [],
     ...overrides,
-  } as ImportCustomersDto;
+  };
 }
 
 describe('CM-10 import ลูกค้าเดิมจาก Excel', () => {
@@ -128,7 +128,10 @@ describe('CM-10 import ลูกค้าเดิมจาก Excel', () => {
     );
 
     const imported = (audit.record.mock.calls as never[][])
-      .map((call) => call[0] as { eventType: string; after?: { importId?: string } })
+      .map(
+        (call) =>
+          call[0] as { eventType: string; after?: { importId?: string } },
+      )
       .find((entry) => entry.eventType === 'crm.customer.imported');
     expect(imported?.after?.importId).toBe('imp-42');
   });

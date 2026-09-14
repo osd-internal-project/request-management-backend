@@ -59,8 +59,15 @@ const PERMISSIONS: Record<string, string[]> = {
     'admin.bi.manage',
     'admin.identity.manage',
     'admin.crm.manage',
+    'admin.integration.manage',
   ],
-  integration: ['integration.request.create', 'integration.approval.create'],
+  integration: [
+    'integration.request.create',
+    'integration.approval.create',
+    'integration.crm.lead.read',
+    'integration.crm.lead.stage',
+    'integration.crm.lead.create',
+  ],
 };
 
 /**

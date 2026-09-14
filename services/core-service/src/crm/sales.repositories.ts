@@ -19,6 +19,20 @@ export class LeadRepository extends BaseRepository<PrismaService['lead']> {
   }
 }
 
+/** รายการสถานะ Lead ต่อบริษัท — ตั้งค่าได้จากหน้า admin, ไม่ใช่ enum ในโค้ด. */
+@Injectable()
+export class LeadStatusRepository extends BaseRepository<
+  PrismaService['leadStatusSetting']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.leadStatusSetting;
+  }
+}
+
 /** กิจกรรมบน Lead — append-mostly: complete/reopen แต่ไม่ลบ. */
 @Injectable()
 export class LeadActivityRepository extends BaseRepository<

@@ -107,6 +107,12 @@ export const ErrorCatalog = {
    * never deleted — deleting it would orphan the assignments Pricing reads.
    */
   CRM_SEGMENT_IN_USE: HttpStatus.CONFLICT,
+  /**
+   * A Lead status still in use may be closed off (`active = false`) but never
+   * deleted — Lead rows store the code, and removing it would leave them
+   * pointing at a status the screens cannot name. `details` says how many.
+   */
+  CRM_LEAD_STATUS_IN_USE: HttpStatus.CONFLICT,
 } as const;
 
 export type ErrorCode = keyof typeof ErrorCatalog;
