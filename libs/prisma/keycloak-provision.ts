@@ -305,8 +305,12 @@ main()
     // connection, TLS — into the same generic "fetch failed", with the real
     // reason nested one level down in `.cause`. Printing only `.message`
     // (above) hid that reason entirely and cost a debugging round-trip.
-    if (error instanceof Error && error.cause) {
-      console.error('cause:', error.cause);
+    // Cast, not a `lib` bump: `Error.cause` (ES2022) isn't in this script's
+    // compile target, and changing that is a bigger change than one log line
+    // needs.
+    const cause = (error as { cause?: unknown } | undefined)?.cause;
+    if (cause) {
+      console.error('cause:', cause);
     }
     process.exit(1);
   })
