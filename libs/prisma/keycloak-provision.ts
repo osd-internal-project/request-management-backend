@@ -301,6 +301,13 @@ async function main(): Promise<void> {
 main()
   .catch((error: unknown) => {
     console.error(error instanceof Error ? error.message : error);
+    // Node's `fetch` collapses every network-level failure — DNS, refused
+    // connection, TLS — into the same generic "fetch failed", with the real
+    // reason nested one level down in `.cause`. Printing only `.message`
+    // (above) hid that reason entirely and cost a debugging round-trip.
+    if (error instanceof Error && error.cause) {
+      console.error('cause:', error.cause);
+    }
     process.exit(1);
   })
   .finally(() => void prisma.$disconnect());
