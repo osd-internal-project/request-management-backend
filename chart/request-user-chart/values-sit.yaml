@@ -16,6 +16,15 @@ configmap:
   KEYCLOAK_BASE_URL: "https://auth.request-management-sit.osd.co.th"
   KEYCLOAK_REALM: "enterprise-request"
   KEYCLOAK_CLIENT_ID: "request-form"
+  # Must match what chart/keycloak-config registered for this client
+  # (baseUrl "/" and redirectUris ["/api/auth/callback"], relative to
+  # portalUrl). The login flow overrides KEYCLOAK_REDIRECT_URI per-request
+  # from the frontend, but endSessionUrl() (auth.service.ts) reads
+  # KEYCLOAK_POST_LOGOUT_REDIRECT_URI from static config with no override —
+  # unset, it fell back to the http://localhost:3000/ default and Keycloak
+  # refused it as an unregistered redirect URI.
+  KEYCLOAK_REDIRECT_URI: "https://request-management-sit.osd.co.th/api/auth/callback"
+  KEYCLOAK_POST_LOGOUT_REDIRECT_URI: "https://request-management-sit.osd.co.th/"
   # TEMPORARY — see auth.module.ts's comment on KEYCLOAK_TLS_INSECURE. Remove
   # once request-management-sit-auth-tls carries a real certificate. Must
   # never be set in values-uat.yaml / values-prod.yaml.
