@@ -109,9 +109,7 @@ export class CustomerDedupService {
     ];
 
     const similar = candidates
-      .filter(
-        (candidate) => !input.taxId || candidate.taxId !== input.taxId,
-      )
+      .filter((candidate) => !input.taxId || candidate.taxId !== input.taxId)
       .map((candidate) => ({
         candidate,
         similarity: Math.max(

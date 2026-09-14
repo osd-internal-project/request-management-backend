@@ -63,7 +63,12 @@ export class KycCallbackService implements OnModuleInit {
 
     const customer = (await this.customers.findFirst({
       where: { id: request.refId, mergedIntoCustomerId: null },
-      select: { id: true, companyId: true, customerCode: true, kycVerified: true },
+      select: {
+        id: true,
+        companyId: true,
+        customerCode: true,
+        kycVerified: true,
+      },
     })) as {
       id: string;
       companyId: string;

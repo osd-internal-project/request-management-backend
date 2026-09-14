@@ -13,6 +13,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentPrincipal, Permissions } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import { CrmAdminService } from './crm-admin.service';
+import { LeadStatusService } from './lead-status.service';
 import {
   CreateKycProductDto,
   CreateSegmentDimensionDto,
@@ -22,6 +23,11 @@ import {
   UpdateSegmentDimensionDto,
   UpdateSegmentValueDto,
 } from './dto/customer.dto';
+import {
+  CreateLeadStatusDto,
+  ReorderLeadStatusesDto,
+  UpdateLeadStatusSettingDto,
+} from './dto/sales.dto';
 
 /**
  * CRM configuration (admin.crm.manage) — CM-07 segmentation and the CM-02/03
@@ -31,7 +37,59 @@ import {
 @ApiBearerAuth()
 @Controller('admin/crm')
 export class CrmAdminController {
-  constructor(private readonly admin: CrmAdminService) {}
+  constructor(
+    private readonly admin: CrmAdminService,
+    private readonly leadStatuses: LeadStatusService,
+  ) {}
+
+  // --- สถานะ Lead: หน้า Lead มีสถานะอะไรบ้าง (D-09) -----------------------
+
+  /** ทั้งชุดรวมที่ปิดใช้งาน — หน้า admin ต้องเห็นของที่ปิดไว้ด้วย. */
+  @Get('lead-statuses')
+  @Permissions('admin.crm.manage')
+  listLeadStatuses(@CurrentPrincipal() principal: Principal) {
+    return this.leadStatuses.list(principal);
+  }
+
+  @Post('lead-statuses')
+  @Permissions('admin.crm.manage')
+  createLeadStatus(
+    @Body() dto: CreateLeadStatusDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.leadStatuses.create(dto, principal);
+  }
+
+  /** ลำดับใหม่ทั้งชุด — ประกาศก่อน `:id` ไม่งั้น `reorder` จะถูกอ่านเป็น id. */
+  @Patch('lead-statuses/reorder')
+  @Permissions('admin.crm.manage')
+  reorderLeadStatuses(
+    @Body() dto: ReorderLeadStatusesDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.leadStatuses.reorder(dto, principal);
+  }
+
+  @Patch('lead-statuses/:id')
+  @Permissions('admin.crm.manage')
+  updateLeadStatus(
+    @Param('id') id: string,
+    @Body() dto: UpdateLeadStatusSettingDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.leadStatuses.update(id, dto, principal);
+  }
+
+  /** Refused with `CRM_LEAD_STATUS_IN_USE` once Lead ใช้สถานะนี้อยู่. */
+  @Delete('lead-statuses/:id')
+  @Permissions('admin.crm.manage')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteLeadStatus(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ): Promise<void> {
+    await this.leadStatuses.remove(id, principal);
+  }
 
   // --- CM-04 ชุดงาน B: product ที่ต้องยืนยันตัวตน (KYC) --------------------
 

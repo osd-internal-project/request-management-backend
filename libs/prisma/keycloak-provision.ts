@@ -52,6 +52,18 @@ const INTEGRATION_ROLES = [
     name: 'integration.approval.create',
     description: 'ระบบภายนอกเปิดเคสอนุมัติ (APV-07)',
   },
+  {
+    name: 'integration.crm.lead.read',
+    description: 'workflow engine อ่านข้อเท็จจริงของ Lead (lwf-0001)',
+  },
+  {
+    name: 'integration.crm.lead.stage',
+    description: 'workflow engine บันทึกขั้นที่ตัดสินใจแล้วกลับมาที่ Lead',
+  },
+  {
+    name: 'integration.crm.lead.create',
+    description: 'ช่องทางภายนอกยิง Lead เข้ากองกลาง (เว็บฟอร์ม / LINE OA)',
+  },
 ];
 
 interface Env {

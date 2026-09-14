@@ -1,6 +1,10 @@
 import { Principal } from '@request-management/share';
 import { OpportunitiesService } from './opportunities.service';
 import { LeadsService } from './leads.service';
+import {
+  DEFAULT_LEAD_STATUSES,
+  type LeadStatusRow,
+} from './lead-status.service';
 
 function principal(
   permissions: string[] = ['crm.sales.read', 'crm.sales.manage'],
@@ -240,6 +244,32 @@ describe('CRM Lead — แปลงเป็นโอกาสการขาย
       ),
     };
 
+    // รายการสถานะเป็นข้อมูลของบริษัท — harness ใช้ชุดตั้งต้นชุดเดียวกับที่
+    // migration seed ให้ ทำให้ test ยังพูดถึง 'qualified'/'converted' ได้ตามเดิม
+    // ทั้งที่โค้ดไม่รู้จักรหัสพวกนั้นแล้ว.
+    const rows = DEFAULT_LEAD_STATUSES.map((row, index) => ({
+      ...row,
+      id: `status-${index}`,
+      companyId: 'osd',
+    })) as LeadStatusRow[];
+    const statuses = {
+      listAll: jest.fn(() => Promise.resolve(rows)),
+      require: jest.fn((_companyId: string, code: string) => {
+        const found = rows.find((row) => row.code === code);
+        if (!found) throw new Error(`unknown status ${code}`);
+        return Promise.resolve(found);
+      }),
+      defaultCode: jest.fn(() => Promise.resolve('new')),
+      closingCode: jest.fn((_companyId: string, kind: string) =>
+        Promise.resolve(
+          rows.find((row) => row.kind === kind)?.code ?? 'converted',
+        ),
+      ),
+    };
+
+    // Lead ใบใหม่เปิด instance ของ `lwf-0001` — ยิงแบบไม่รอผล ที่นี่แค่ดักว่าถูกเรียก.
+    const workflowSync = { kickLead: jest.fn() };
+
     const service = new LeadsService(
       leads as never,
       customers as never,
@@ -248,9 +278,11 @@ describe('CRM Lead — แปลงเป็นโอกาสการขาย
       transactions as never,
       activities as never,
       members as never,
+      statuses as never,
+      workflowSync as never,
     );
 
-    return { service, leads, opportunities, activities, audits };
+    return { service, leads, opportunities, activities, audits, workflowSync };
   }
 
   it('หน้ารายละเอียด: findOne คืนชื่อผู้รับผิดชอบและชื่อผู้ลงกิจกรรม ไม่ใช่แค่ user id', async () => {

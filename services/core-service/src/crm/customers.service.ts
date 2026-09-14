@@ -204,54 +204,62 @@ export class CustomersService {
         } as never)
       : null;
 
-    const [contacts, locations, branchCustomers, requestTotal, requestOpen, odooCode, opportunityOpenCount, opportunityOpenSum] =
-      await Promise.all([
-        this.contacts.count({ where: { customerId: id, active: true } }),
-        this.locations.count({ where: { customerId: id, active: true } }),
-        this.customers.countWhere({
-          headOfficeId: id,
-          mergedIntoCustomerId: null,
-        }),
-        hasPermission(actor, 'request.read')
-          ? this.requests.count({ where: requestWhere as never })
-          : Promise.resolve(null),
-        hasPermission(actor, 'request.read')
-          ? this.requests.count({
-              where: {
-                AND: [
-                  requestWhere,
-                  {
-                    status: {
-                      notIn: ['completed', 'closed', 'cancelled', 'rejected'],
-                    },
+    const [
+      contacts,
+      locations,
+      branchCustomers,
+      requestTotal,
+      requestOpen,
+      odooCode,
+      opportunityOpenCount,
+      opportunityOpenSum,
+    ] = await Promise.all([
+      this.contacts.count({ where: { customerId: id, active: true } }),
+      this.locations.count({ where: { customerId: id, active: true } }),
+      this.customers.countWhere({
+        headOfficeId: id,
+        mergedIntoCustomerId: null,
+      }),
+      hasPermission(actor, 'request.read')
+        ? this.requests.count({ where: requestWhere })
+        : Promise.resolve(null),
+      hasPermission(actor, 'request.read')
+        ? this.requests.count({
+            where: {
+              AND: [
+                requestWhere,
+                {
+                  status: {
+                    notIn: ['completed', 'closed', 'cancelled', 'rejected'],
                   },
-                ],
-              } as never,
-            })
-          : Promise.resolve(null),
-        this.externalCodes.findFirst({
-          where: { customerId: id, system: 'odoo' },
-          select: { payload: true },
-        }) as Promise<{ payload: unknown } | null>,
-        salesWhere
-          ? this.opportunities.count({
-              where: {
-                AND: [
-                  salesWhere,
-                  { stage: { in: ['qualifying', 'proposing', 'negotiating'] } },
-                ],
-              } as never,
-            })
-          : Promise.resolve(null),
-        salesWhere
-          ? this.opportunities.sumAmount({
+                },
+              ],
+            } as never,
+          })
+        : Promise.resolve(null),
+      this.externalCodes.findFirst({
+        where: { customerId: id, system: 'odoo' },
+        select: { payload: true },
+      }) as Promise<{ payload: unknown } | null>,
+      salesWhere
+        ? this.opportunities.count({
+            where: {
               AND: [
                 salesWhere,
                 { stage: { in: ['qualifying', 'proposing', 'negotiating'] } },
               ],
-            } as never)
-          : Promise.resolve(null),
-      ]);
+            } as never,
+          })
+        : Promise.resolve(null),
+      salesWhere
+        ? this.opportunities.sumAmount({
+            AND: [
+              salesWhere,
+              { stage: { in: ['qualifying', 'proposing', 'negotiating'] } },
+            ],
+          } as never)
+        : Promise.resolve(null),
+    ]);
 
     // C360-02 — ยอดค้างชำระอ่านจาก cache ที่รอบ sync รายชั่วโมงเติมไว้ (CM-06);
     // ไม่มี = ยังไม่เคย sync สำเร็จ และการ์ดฝั่งหน้าจอบอกตรง ๆ ว่ารอ.

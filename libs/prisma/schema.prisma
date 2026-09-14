@@ -172,15 +172,14 @@ enum IntegrationJobStatus {
   failed
 }
 
-/// CRM — สถานะ Lead: รับเข้า → คัดกรอง → แปลงเป็นโอกาสการขาย (หรือคัดออกพร้อมเหตุผล).
-enum LeadStatus {
-  new
-  /// ติดต่อไม่ได้ — ยังเปิดอยู่ กลับมา contacted ได้.
-  cannot_contact
-  contacted
-  qualified
-  disqualified
-  converted
+/// CRM — ชนิดของสถานะ Lead. ตัวสถานะเองเป็น **ข้อมูล** ไม่ใช่ enum (ตั้งค่า CRM →
+/// แท็บ "สถานะ Lead" เพิ่ม/ลบได้เอง, D-09); ชนิดคือสิ่งที่โค้ดตัดสินใจด้วย —
+/// `open` = ยังทำงานต่อได้, `won` = ปลายทางเมื่อแปลงเป็นโอกาสการขาย,
+/// `lost` = ปลายทางเมื่อคัดออก. หนึ่งบริษัทมี `won`/`lost` อย่างละหนึ่งเสมอ.
+enum LeadStatusKind {
+  open
+  won
+  lost
 }
 
 /// CRM — กิจกรรมบน Lead: โทร / อีเมล / นัดหมาย / งาน / บันทึก.
@@ -259,6 +258,7 @@ model Company {
   customerCodeCounter     CustomerCodeCounter?
   crmConfig               CrmCompanyConfig?
   kycProductRules         KycProductRule[]
+  leadStatuses            LeadStatusSetting[]
   leads                   Lead[]
   opportunities           Opportunity[]
   opportunityLostReasons  OpportunityLostReason[]
@@ -1438,6 +1438,35 @@ model ApiKey {
   /// its checksum.
   expiresAt DateTime?
 
+  /// บริษัทที่ key นี้ทำงานแทน (14 ก.ย. 2569).
+  ///
+  /// ย้ายมาไว้ที่ key เพราะช่องทางภายนอก — เว็บฟอร์ม, LINE OA — ยิงเข้ามาโดยไม่มี
+  /// คนคอยใส่ header ให้ และ `X-Company-Id` ที่ผู้เรียกกรอกเองคือช่องที่กรอกผิด
+  /// แล้วข้อมูลไปโผล่ผิดบริษัท. ตั้งที่นี่ = ผู้ถือ key เลือกไม่ได้.
+  ///
+  /// NULL = key แบบเดิมที่ผู้เรียกต้องส่ง `X-Company-Id` เอง (chatbot ซึ่งทำงาน
+  /// ให้หลายบริษัทผ่าน key ใบเดียว) — ยังใช้ได้เหมือนเดิมทุกประการ.
+  companyId String?
+
+  /// ช่องทางที่ key ใบนี้ *เป็น* — `website`, `line-oa`, `event-2026-q4`.
+  ///
+  /// หนึ่ง key ต่อหนึ่งช่องทาง คือเหตุผลที่คอลัมน์นี้อยู่ตรงนี้: แหล่งที่มาของ
+  /// Lead เป็นข้อเท็จจริงที่ *กุญแจ* รู้ ไม่ใช่ค่าที่ผู้เรียกพิมพ์มาใน body
+  /// ซึ่งพิมพ์ผิดได้ พิมพ์ปลอมได้ และพอตัวเลขการตลาดผิดก็ไล่ไม่ได้ว่าใบไหนมาจากไหน.
+  sourceCode String?
+
+  /// สิทธิ์ที่ key ใบนี้ใช้ได้ — ตัดจากสิทธิ์ที่บัญชีบริการถืออยู่ ไม่ใช่เพิ่มให้.
+  ///
+  /// ว่าง = ไม่จำกัด คือ key เดิมทุกใบก่อน 14 ก.ย. 2569 ซึ่งได้สิทธิ์เต็มชุดของ
+  /// integration client ตามเดิม. ใส่ค่า = key ใบนั้นทำได้เท่าที่ระบุ เช่น key ของ
+  /// เว็บฟอร์มถือแค่ `integration.crm.lead.create` — หลุดออกไปก็เปิด Lead ได้
+  /// อย่างเดียว อ่านคำขอของบริษัทไม่ได้.
+  ///
+  /// **ตัดอย่างเดียว ไม่เคยเพิ่ม** — คำตอบว่า "ทำอะไรได้" ยังมาจาก role ของ
+  /// บัญชีบริการที่เดียวเหมือนเดิม (ดู `ApiKeyService`); คอลัมน์นี้เป็น intersect
+  /// ไม่ใช่แหล่งสิทธิ์ที่สอง จึงไม่มีทางที่สองที่จะขัดกัน.
+  scopes String[] @default([])
+
   /// Written at most once a minute, not on every call: an audit trail worth
   /// having, not a write amplifier on the hot path.
   lastUsedAt DateTime?
@@ -1831,11 +1860,12 @@ model CustomerTimelineEvent {
 model IntegrationSyncJob {
   id String @id @default(uuid())
 
-  /// 'odoo' — one queue for every external system the layer fronts.
+  /// 'odoo' | 'workflow' — one queue for every external system the layer fronts.
   system     String
-  /// 'customer_upsert' | 'receivables_refresh'
+  /// odoo: 'customer_upsert' | 'receivables_refresh'
+  /// workflow: 'lead_start'
   kind       String
-  /// The row being synced — customerId for both current kinds.
+  /// The row being synced — customerId for the odoo kinds, leadId for 'lead_start'.
   resourceId String
 
   status    IntegrationJobStatus @default(pending)
@@ -1878,6 +1908,54 @@ model KycProductRule {
   @@map("kyc_product_rules")
 }
 
+/// CRM — รายการสถานะของ Lead ต่อบริษัท. หน้า "ตั้งค่า CRM → สถานะ Lead" เพิ่ม
+/// ลบ เปลี่ยนชื่อ สลับลำดับได้เอง โดยไม่ต้อง migrate (D-09).
+///
+/// ตารางนี้คือ **รายการขั้น** เท่านั้น — *กฎ* ว่าเลื่อนจากขั้นไหนไปขั้นไหนได้
+/// เมื่อไร ไม่ได้อยู่ที่นี่และไม่ได้อยู่ใน core-service เลย: PO ตัดสิน 10 ก.ย. 2569
+/// ว่า workflow ของ CRM อยู่บน service `workflowable` ตามหลัก "Workflow owns
+/// Process, Core owns Data". ถ้ามีคนกำลังจะเพิ่มคอลัมน์ประเภท "ขั้นนี้ต้องมี X
+/// ก่อน" หรือ "ขั้นนี้ไปต่อได้" ลงตารางนี้ — นั่นคือ process กำลังงอกที่สอง
+/// และจะ drift กับ workflow แน่นอน.
+///
+/// สามแถวเป็น **สถานะระบบ** (`isSystem`): สถานะเริ่มต้นของ Lead ใหม่, ปลายทาง
+/// `won` (แปลงเป็นโอกาสการขาย) และปลายทาง `lost` (คัดออก) — ลบไม่ได้และปิดไม่ได้
+/// เพราะ `convert`/`disqualify` ต้องมีปลายทางเสมอ. ที่เหลือเป็นขั้นระหว่างทางที่
+/// ผู้ดูแลกำหนดเองทั้งหมด.
+model LeadStatusSetting {
+  id        String @id @default(uuid())
+  companyId String
+
+  /// รหัสที่ `leads.status` เก็บ — ตั้งครั้งเดียว แก้ไม่ได้ (Lead เดิมอ้างอยู่).
+  code   String
+  nameTh String
+
+  kind LeadStatusKind @default(open)
+
+  /// สีป้ายบนหน้าจอ (ชื่อสีของ antd Tag เช่น `blue`, `green`).
+  color String @default("default")
+
+  /// สถานะตั้งต้นของ Lead ที่เพิ่งรับเข้า — มีได้หนึ่งเดียวต่อบริษัท.
+  isDefault Boolean @default(false)
+
+  /// สถานะระบบ: ลบไม่ได้ ปิดไม่ได้ เปลี่ยนชนิดไม่ได้.
+  isSystem Boolean @default(false)
+
+  active    Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  createdAt DateTime @default(now())
+  createdBy String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, code])
+  @@index([companyId, sortOrder])
+  @@map("lead_statuses")
+}
+
 /// CRM Lead — รับ Lead ทุกช่องทาง บันทึกแหล่งที่มา คัดกรอง แล้วแปลงเป็น
 /// โอกาสการขายโดยข้อมูลไหลต่อ (spec CRM ฟีเจอร์ Lead). No hard delete:
 /// `disqualified` + เหตุผล คือทางออกเดียว. Ownership columns mirror
@@ -1917,7 +1995,12 @@ model Lead {
   /// จะเข้ามาเป็นค่าหนึ่งในระยะ 2).
   sourceCode String?
 
-  status           LeadStatus @default(new)
+  /// รหัสสถานะ — อ้าง `lead_statuses.code` ของบริษัทเดียวกัน. เก็บเป็น text
+  /// ไม่ใช่ enum เพราะรายการสถานะแก้ได้จากหน้าตั้งค่าโดยไม่ต้อง migrate; ความ
+  /// ถูกต้องบังคับที่ `LeadStatusService` (และการลบสถานะที่ยังมี Lead ใช้อยู่
+  /// ถูกปฏิเสธ) แทน FK เพราะคีย์ต้องเป็นคู่ (companyId, code) ซึ่ง Prisma
+  /// ผูกซ้ำกับ `company` ไม่ได้.
+  status           String @default("new")
   disqualifyReason String?
 
   /// ลูกค้าเดิมที่ Lead นี้เป็นเรื่องของเขา (ถ้า match ได้).
@@ -1926,7 +2009,22 @@ model Lead {
   /// โอกาสการขายที่เกิดจากการแปลง — ข้อมูลไหลต่อ ไม่พิมพ์ซ้ำ.
   convertedOpportunityId String? @unique
 
-  ownerUserId    String
+  /// instance ของ workflow `lwf-0001` บน OSD Workflow ที่กำลังเดิน Lead ใบนี้
+  /// (PO 10 ก.ย. 2569: "Workflow owns Process, Core owns Data").
+  ///
+  /// ต้องเก็บเพราะการส่ง signal เข้าไปบอกว่า "มีกิจกรรมเสร็จแล้ว" ยิงไปที่
+  /// `POST /workflow-instances/{id}/signal` ซึ่งอ้าง instance ตรง ๆ ไม่ได้อ้าง
+  /// business key. NULL = ยังไม่ได้ start (หรือ start ไม่สำเร็จและยังค้างในคิว
+  /// `integration_sync_jobs`) — Lead ยังใช้งานได้ตามปกติ ไม่ผูกชะตากับ workflow.
+  workflowInstanceId String?
+
+  /// NULL = **กองกลาง** — ใบที่ยังไม่มีเจ้าของ. เกิดจาก Lead ที่ระบบภายนอกยิง
+  /// เข้ามาเอง (`POST /integrations/crm/leads`, 14 ก.ย. 2569): ผู้ยิงเป็น
+  /// service account ไม่ใช่คน จึงไม่มีพนักงานขายคนไหนที่จะเป็นเจ้าของได้ตอนนั้น
+  /// และการยัดบัญชีบริการลงช่องนี้จะได้ Lead ที่ "มีเจ้าของ" ซึ่งไม่มีใครดูแลจริง.
+  /// ใบกองกลางทุกคนในบริษัทที่อ่าน Lead ได้เห็น (`visibleSalesWhere`) จนกว่าจะ
+  /// ถูก assign — ดู `LeadsService.assign`.
+  ownerUserId    String?
   ownerOrgUnitId String?
 
   createdAt DateTime @default(now())

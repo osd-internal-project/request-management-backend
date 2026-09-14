@@ -6,6 +6,7 @@ import {
   PrismaTransactionService,
 } from '@request-management/share';
 import { LeadRepository } from './sales.repositories';
+import { LeadStatusService } from './lead-status.service';
 import { ImportLeadRowDto, ImportLeadsDto } from './dto/sales.dto';
 
 export interface LeadImportRowResult {
@@ -39,13 +40,18 @@ export class LeadImportService {
     private readonly leads: LeadRepository,
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
+    private readonly statuses: LeadStatusService,
   ) {}
 
   async run(dto: ImportLeadsDto, actor: Principal): Promise<LeadImportResult> {
     const results: LeadImportRowResult[] = [];
 
+    // ขั้นตั้งต้นอ่านครั้งเดียวต่อรอบนำเข้า ไม่ใช่ต่อแถว — และอ่านจากหน้าตั้งค่า
+    // เดียวกับที่ฟอร์ม "เพิ่ม Lead" ใช้ ไม่งั้นสองทางเข้าจะลง Lead คนละสถานะ.
+    const status = await this.statuses.defaultCode(actor.activeCompanyId);
+
     for (const row of dto.rows) {
-      results.push(await this.runRow(row, dto, actor));
+      results.push(await this.runRow(row, dto, actor, status));
     }
 
     const summary = {
@@ -72,6 +78,7 @@ export class LeadImportService {
     row: ImportLeadRowDto,
     dto: ImportLeadsDto,
     actor: Principal,
+    status: string,
   ): Promise<LeadImportRowResult> {
     const reasons = this.validate(row);
     if (reasons.length) {
@@ -85,10 +92,7 @@ export class LeadImportService {
       const existing = (await this.leads.findFirst({
         where: {
           companyId: actor.activeCompanyId,
-          OR: [
-            ...(email ? [{ email }] : []),
-            ...(phone ? [{ phone }] : []),
-          ],
+          OR: [...(email ? [{ email }] : []), ...(phone ? [{ phone }] : [])],
         },
         select: { id: true, name: true },
       })) as { id: string; name: string } | null;
@@ -119,6 +123,7 @@ export class LeadImportService {
               email,
               sourceCode: row.source_code?.trim() || null,
               note: row.note?.trim() || null,
+              status,
               ownerUserId: actor.userId,
               ownerOrgUnitId: actor.orgUnitId,
               createdBy: actor.userId,

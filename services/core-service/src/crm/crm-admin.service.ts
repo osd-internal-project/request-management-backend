@@ -270,7 +270,6 @@ export class CrmAdminService {
     });
   }
 
-
   // --- CM-04 ชุดงาน B: product ที่ต้องยืนยันตัวตน (KYC) --------------------
 
   /** ทั้งชุดรวม inactive — หน้า admin สลับเปิด/ปิดได้โดยไม่ลบประวัติ. */
@@ -291,9 +290,11 @@ export class CrmAdminService {
     })) as { id: string } | null;
 
     if (clash) {
-      throw new AppError('CONFLICT', 'รหัส product นี้อยู่ในเงื่อนไข KYC แล้ว', [
-        { field: 'product_code', reason: 'duplicate' },
-      ]);
+      throw new AppError(
+        'CONFLICT',
+        'รหัส product นี้อยู่ในเงื่อนไข KYC แล้ว',
+        [{ field: 'product_code', reason: 'duplicate' }],
+      );
     }
 
     const row = await this.kycProducts.create({
@@ -343,7 +344,10 @@ export class CrmAdminService {
       resourceType: 'kyc_product_rule',
       resourceId: id,
       before: { name: found.name, active: found.active },
-      after: { name: dto.name ?? found.name, active: dto.active ?? found.active },
+      after: {
+        name: dto.name ?? found.name,
+        active: dto.active ?? found.active,
+      },
     });
 
     return row;

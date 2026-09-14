@@ -90,9 +90,41 @@ export const PERMISSIONS = {
      * code, per D-09.
      */
     'admin.crm.manage',
+    /**
+     * ออกและเพิกถอน API key ของช่องทางภายนอก (14 ก.ย. 2569).
+     *
+     * แยกจาก `admin.identity.manage` เพราะคนละความเสี่ยง: อันนั้นแก้ผู้ใช้และ
+     * role ใน realm ที่คนใช้งานอยู่ ส่วนอันนี้ **สร้างเครดentialใหม่** ที่เดินออก
+     * นอกองค์กรไปอยู่บนเซิร์ฟเวอร์ของพาร์ตเนอร์. คนที่ดูแลผังองค์กรไม่จำเป็น
+     * ต้องเป็นคนเดียวกับคนที่แจกกุญแจให้ระบบภายนอก และเมื่อแยกได้ก็ควรแยก.
+     */
+    'admin.integration.manage',
   ],
   /** AUTH-06: service-account scopes, never granted to a human role. */
-  integration: ['integration.request.create', 'integration.approval.create'],
+  integration: [
+    'integration.request.create',
+    'integration.approval.create',
+    /**
+     * The workflow engine reading the facts its Decision nodes test
+     * ("Workflow owns Process, Core owns Data", PO 10 ก.ย. 2569). Read-only and
+     * separate from `crm.sales.read` so a human role can never pick it up.
+     */
+    'integration.crm.lead.read',
+    /**
+     * The workflow engine applying a stage it has already decided. Whether the
+     * move is *allowed* is settled on `lwf-0001`; this permission only says
+     * which caller may hand the answer back.
+     */
+    'integration.crm.lead.stage',
+    /**
+     * ระบบภายนอกยิง Lead เข้ามาเอง — เว็บฟอร์ม, LINE OA, งานอีเวนต์
+     * (14 ก.ย. 2569). แยกจาก `crm.sales.manage` ด้วยเหตุผลเดียวกับสองตัวบน:
+     * ผู้ถือคือบัญชีบริการที่ *เพิ่ม* ใบเข้ากองกลางได้อย่างเดียว อ่านทะเบียนที่
+     * มีอยู่ไม่ได้ เลื่อนขั้นไม่ได้ แปลงไม่ได้ — ประตูเปิดกว้างเท่าที่การรับ
+     * ข้อมูลเข้าต้องใช้ ไม่ใช่เท่าที่พนักงานขายหนึ่งคนทำได้.
+     */
+    'integration.crm.lead.create',
+  ],
 } as const;
 
 /**

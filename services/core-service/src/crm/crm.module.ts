@@ -5,6 +5,7 @@ import { RequestsModule } from '../requests/requests.module';
 import { OdooModule } from '../odoo/odoo.module';
 import { PdpaModule } from '../pdpa/pdpa.module';
 import { EventsModule } from '../events/events.module';
+import { WorkflowModule } from '../workflow/workflow.module';
 import { CustomersController } from './customers.controller';
 import { CrmAdminController } from './crm-admin.controller';
 import { CustomersService } from './customers.service';
@@ -36,11 +37,13 @@ import {
   OpportunityRepository,
   LeadActivityRepository,
   LeadRepository,
+  LeadStatusRepository,
   SaleOrderRepository,
 } from './sales.repositories';
 import { OpportunityCodeService } from './opportunity-code.service';
 import { SaleOrderCodeService } from './sale-order-code.service';
 import { LeadsService } from './leads.service';
+import { LeadStatusService } from './lead-status.service';
 import { OpportunitiesService } from './opportunities.service';
 import { SaleOrdersService } from './sale-orders.service';
 import {
@@ -49,6 +52,11 @@ import {
   SaleOrdersController,
 } from './sales.controllers';
 import { LeadImportService } from './lead-import.service';
+import { LeadIntakeController } from './lead-intake.controller';
+import { LeadIntakeService } from './lead-intake.service';
+import { LeadWorkflowController } from './lead-workflow.controller';
+import { LeadWorkflowService } from './lead-workflow.service';
+import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
 
 /**
  * CRM ระยะ 1 — Customer Master (CD-59 / CM-01…09) + the parts of มุมมอง 360°
@@ -59,13 +67,22 @@ import { LeadImportService } from './lead-import.service';
  * events through — nothing writes the table directly (C360-03).
  */
 @Module({
-  imports: [AccessModule, RequestsModule, OdooModule, PdpaModule, EventsModule],
+  imports: [
+    AccessModule,
+    RequestsModule,
+    OdooModule,
+    PdpaModule,
+    EventsModule,
+    WorkflowModule,
+  ],
   controllers: [
     CustomersController,
     CrmAdminController,
     LeadsController,
     OpportunitiesController,
     SaleOrdersController,
+    LeadWorkflowController,
+    LeadIntakeController,
   ],
   providers: [
     CustomersService,
@@ -89,6 +106,7 @@ import { LeadImportService } from './lead-import.service';
     KycCallbackService,
     LeadRepository,
     LeadActivityRepository,
+    LeadStatusRepository,
     OpportunityRepository,
     OpportunityProductRepository,
     OpportunityLostReasonRepository,
@@ -96,7 +114,11 @@ import { LeadImportService } from './lead-import.service';
     SaleOrderRepository,
     SaleOrderCodeService,
     LeadsService,
+    LeadStatusService,
     LeadImportService,
+    LeadIntakeService,
+    LeadWorkflowService,
+    LeadWorkflowSyncService,
     OpportunitiesService,
     SaleOrdersService,
     PrismaTransactionService,
