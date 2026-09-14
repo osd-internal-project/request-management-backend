@@ -23,5 +23,11 @@ import { ExternalService } from './external.service';
   imports: [RequestsModule, ApprovalsModule, AccessModule, PrincipalModule],
   controllers: [ExternalController],
   providers: [ExternalService, ActingUserGuard],
+  /*
+    Exported for `McpModule`, which serves the same ten calls over JSON-RPC.
+    The service is the shared half; the acting-user swap is not — MCP resolves
+    identity per tool call because a person's own token names them already.
+  */
+  exports: [ExternalService],
 })
 export class ExternalModule {}

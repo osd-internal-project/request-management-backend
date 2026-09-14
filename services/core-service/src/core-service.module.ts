@@ -19,6 +19,7 @@ import { HealthModule } from './health/health.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PrincipalModule } from './principal/principal.module';
 import { ExternalModule } from './external/external.module';
+import { McpModule } from './mcp/mcp.module';
 import { RemotePrincipalGuard } from './principal/remote-principal.guard';
 import { EventsModule } from './events/events.module';
 import { CrmModule } from './crm/crm.module';
@@ -52,6 +53,7 @@ import configs from './configs';
     CrmModule,
     ApprovalsModule,
     ExternalModule,
+    McpModule,
     SlaModule,
     NotificationsModule,
     BiModule,

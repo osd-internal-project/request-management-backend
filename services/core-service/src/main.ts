@@ -10,7 +10,19 @@ import { logger } from './logger.middleware';
 async function bootstrap() {
   const app = await NestFactory.create(CoreServiceModule);
 
-  app.setGlobalPrefix('api/v1');
+  /*
+    Everything lives under `api/v1` except the two OAuth discovery documents.
+    Well-known URIs are defined relative to the origin (RFC 8615) and a client
+    looking for one will not try a prefix — served under `api/v1` they would
+    simply never be found, and the MCP connect button would fail with nothing
+    to explain it. See `mcp/oauth-metadata.controller.ts`.
+  */
+  app.setGlobalPrefix('api/v1', {
+    exclude: [
+      '.well-known/oauth-protected-resource',
+      '.well-known/oauth-protected-resource/api/v1/mcp',
+    ],
+  });
   app.enableCors();
   app.use(helmet());
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
