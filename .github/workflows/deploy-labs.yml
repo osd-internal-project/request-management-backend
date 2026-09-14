@@ -107,7 +107,7 @@ jobs:
     # So the label is not decoration. The env files live on one machine
     # (/etc/request-management/), and a deploy anywhere else cannot work.
     # Registering the runner and setting this label: docs/labs-server-setup.md.
-    runs-on: [self-hosted, labs]
+    runs-on: [self-hosted]
 
     steps:
       - name: Checkout Repository
