@@ -28,7 +28,6 @@ on:
       deploy_env:
         required: true
         type: string
-        default: sit
       helm_timeout:
         description: "10m on a chart with a migration hook; 5m otherwise"
         required: false
@@ -36,11 +35,14 @@ on:
         default: "5m"
       set_secrets:
         description: |
-          Optional `--set-string` lines, one per line, e.g.
-            secrets.DATABASE_URL=${{ secrets.DATABASE_URL }}
-          --set-string, never --set: a value containing a comma is split into
-          two by --set and the error surfaces as a template failure nowhere
-          near the cause. Pass only the secrets THIS chart declares.
+          Optional lines, one per --set-string target, e.g.
+            secrets.DATABASE_URL=DATABASE_URL
+          The right-hand side is a SECRET NAME, not its value — the `secrets`
+          context cannot be referenced from a caller's `with:` block (GitHub
+          rejects the workflow file outright, "context secrets is not allowed
+          here"), only from inside this reusable workflow's own steps, which
+          is why this job reads secrets itself below via `secrets: inherit`.
+          Pass only the secrets THIS chart declares.
         required: false
         type: string
         default: ""
@@ -109,12 +111,18 @@ jobs:
       # image.tag is the only image value set here. pullPolicy stays in
       # values.yaml so the chart states its own contract.
       - name: Helm Upgrade
-        # The secrets arrive as an environment variable, never interpolated
-        # into the script body: `${{ }}` is substituted as TEXT before bash
-        # parses anything, so a secret containing a backtick or $(…) would run
-        # as a command on a runner that holds the cluster's kubeconfig.
+        # set_secrets carries SECRET NAMES, not values: the `secrets` context
+        # cannot be read from the caller's `with:` block (GitHub rejects the
+        # whole workflow file for it — "context secrets is not allowed here"),
+        # only from a step inside this reusable workflow itself, which is what
+        # ALL_SECRETS does here via `secrets: inherit`. The value never touches
+        # the script body as text either way — `${{ }}` is substituted before
+        # bash parses anything, so a secret containing a backtick or $(…)
+        # would run as a command on a runner that holds the cluster's
+        # kubeconfig.
         env:
           SET_SECRETS: ${{ inputs.set_secrets }}
+          ALL_SECRETS: ${{ toJSON(secrets) }}
         run: |
           set -e
           CHART="${{ inputs.chart_dir }}"
@@ -128,8 +136,14 @@ jobs:
           # is quoted, so a password containing a space or a `*` reaches helm
           # intact instead of being word-split or glob-expanded into filenames.
           SETS=()
-          while IFS= read -r line; do
-            [ -n "$line" ] && SETS+=(--set-string "$line")
+          while IFS='=' read -r chart_key secret_name; do
+            [ -n "$chart_key" ] || continue
+            secret_value=$(jq -r --arg k "$secret_name" '.[$k] // empty' <<< "$ALL_SECRETS")
+            if [ -z "$secret_value" ]; then
+              echo "::error::secret '${secret_name}' (for ${chart_key}) is empty or not set — check it exists in this environment"
+              exit 1
+            fi
+            SETS+=(--set-string "${chart_key}=${secret_value}")
           done <<< "$SET_SECRETS"
 
           echo "🚀 Helm upgrade ${REL} (env: ${ENV_NAME})"

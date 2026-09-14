@@ -75,7 +75,9 @@ jobs:
       # before any pod starts and --atomic counts that time. 5m on the others.
       helm_timeout: "10m"
       # Only the secrets THIS chart declares.
+      # SECRET NAMES, not values — `secrets` cannot be read from a `with:`
+      # block (see _deploy-service.yml's set_secrets description).
       set_secrets: |
-        secrets.DATABASE_URL=${{ secrets.DATABASE_URL }}
-        secrets.KEYCLOAK_CLIENT_SECRET=${{ secrets.KEYCLOAK_CLIENT_SECRET }}
+        secrets.DATABASE_URL=DATABASE_URL
+        secrets.KEYCLOAK_CLIENT_SECRET=KEYCLOAK_CLIENT_SECRET
     secrets: inherit
