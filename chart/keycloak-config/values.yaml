@@ -4,7 +4,7 @@ keycloak:
   # Must match the vendor chart's own image (chart/keycloak/values-sit.yaml),
   # so kcadm.sh is guaranteed present and version-matched to the server it is
   # configuring.
-  image: swr.ap-southeast-2.myhuaweicloud.com/osd-internal/request-management-keycloak:26.5.2
+  image: swr.ap-southeast-2.myhuaweicloud.com/osd-internal/request-management-keycloak:26.5.2-amd64
   # Same private registry as the image above — the Job's pod needs this or
   # it ImagePullBackOffs, same as any other pod in this cluster pulling from
   # Huawei SWR (see the app charts' imagePullSecretName).
