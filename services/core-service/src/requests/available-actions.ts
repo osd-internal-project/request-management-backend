@@ -251,7 +251,10 @@ export const ACTIONS: readonly ActionSpec[] = [
     to: ['submitted', 'approved'],
     authority: 'decider',
     scopePermission: null,
-    fields: [{ name: 'note', required: false }],
+    // Required, like reject and send_back: ApprovalsService.decide refuses a
+    // blank note on every decision, so advertising it as optional here is what
+    // made integrations POST an empty body and get a 400 they could not read.
+    fields: [{ name: 'note', required: true }],
   },
   {
     action: 'reject',
