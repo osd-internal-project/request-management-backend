@@ -139,30 +139,34 @@ Real configuration lives on the VM, never in git and never in a workflow log —
 not echoed on every deploy, and a wrong value is fixed by editing a file instead of re-running
 a pipeline.
 
-They live in the **runner user's** home, and compose reads them as that user — so no `sudo`
-anywhere in this section. A root-owned `600` file here is unreadable by the runner, and the
-deploy fails with `env file … not found` even though the file is plainly there.
+They live in `/etc/request-management/`, which is the path both `infra/labs/docker-compose.yml`
+files name in `env_file`. **Compose reads them as the runner's user**, so what matters is not
+where they are but whether that user can read them: a root-owned `600` file fails the deploy
+with `env file … not found`, which reads like the file is missing when it is merely unreadable.
 
 ```bash
-mkdir -p ~/docker-env
-chmod 700 ~/docker-env
+sudo install -d -m 755 /etc/request-management
 ```
 
 Copy the two templates from the repos and fill them in:
 
 | Template | Goes to |
 |---|---|
-| backend `.env.labs.example` | `~/docker-env/.backend.env` |
-| frontend `.env.labs.example` | `~/docker-env/.frontend.env` |
+| backend `.env.labs.example` | `/etc/request-management/.backend.env` |
+| frontend `.env.labs.example` | `/etc/request-management/.frontend.env` |
+
+`640` with the group set to the runner's own: readable by the deploy, not by anyone else with
+an account on this VM.
 
 ```bash
-install -m 600 /tmp/backend.env  ~/docker-env/.backend.env
-install -m 600 /tmp/frontend.env ~/docker-env/.frontend.env
+sudo install -m 640 -g "$(id -gn)" /tmp/backend.env  /etc/request-management/.backend.env
+sudo install -m 640 -g "$(id -gn)" /tmp/frontend.env /etc/request-management/.frontend.env
 ```
 
-> The compose files name these paths absolutely (`/etc/request-management/…`), so they are
-> tied to that account. Moving the runner to a different user means editing `env_file` in both
-> `infra/labs/docker-compose.yml` — there is no indirection to adjust instead.
+> These paths are absolute and belong to the machine, not to an account, so moving the runner
+> to a different user needs no change to `env_file` — only the group on the two files. Earlier
+> revisions kept them under a home directory (`~/docker-env/`, and before that a hard-coded
+> `/home/<user>/`), and every move left the other half of the docs pointing at the old place.
 
 > **The trap worth naming.** `USER_SERVICE_URL` appears in both files and means opposite
 > things. core-service wants `http://rm-user:3001/api/v1` — the prefix is part of the
@@ -237,8 +241,8 @@ curl -sf http://192.168.31.51:8180/realms/enterprise-request >/dev/null && echo 
 
 # 3. Are the env files readable BY THE RUNNER'S USER? Root-owned 600 files fail
 #    here with "env file … not found", which reads like the file is missing.
-head -1 ~/docker-env/.backend.env
-head -1 ~/docker-env/.frontend.env
+head -1 /etc/request-management/.backend.env
+head -1 /etc/request-management/.frontend.env
 
 # 4. Is docker usable without sudo? The runner has no terminal to sudo from.
 docker ps >/dev/null && echo docker-ok
