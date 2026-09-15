@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '@request-management/share';
+import { firstFreeCode } from './doc-code';
 
 export function formatOpportunityCode(docPrefix: string, seq: number): string {
   return `OPP-${docPrefix}-${String(seq).padStart(6, '0')}`;
@@ -24,14 +25,26 @@ export class OpportunityCodeService {
       select: { docPrefix: true },
     });
 
-    const rows = await prisma.$queryRaw<{ lastSeq: number }[]>`
-      INSERT INTO "opportunity_code_counters" ("id", "companyId", "lastSeq", "updatedAt")
-      VALUES (gen_random_uuid(), ${companyId}, 1, NOW())
-      ON CONFLICT ("companyId")
-      DO UPDATE SET "lastSeq" = "opportunity_code_counters"."lastSeq" + 1, "updatedAt" = NOW()
-      RETURNING "lastSeq"
-    `;
-
-    return formatOpportunityCode(company?.docPrefix ?? 'CTD', rows[0].lastSeq);
+    return firstFreeCode(
+      `opportunity counter for company ${companyId}`,
+      async () => {
+        const rows = await prisma.$queryRaw<{ lastSeq: number }[]>`
+          INSERT INTO "opportunity_code_counters" ("id", "companyId", "lastSeq", "updatedAt")
+          VALUES (gen_random_uuid(), ${companyId}, 1, NOW())
+          ON CONFLICT ("companyId")
+          DO UPDATE SET "lastSeq" = "opportunity_code_counters"."lastSeq" + 1, "updatedAt" = NOW()
+          RETURNING "lastSeq"
+        `;
+        return formatOpportunityCode(
+          company?.docPrefix ?? 'CTD',
+          rows[0].lastSeq,
+        );
+      },
+      async (code) =>
+        !!(await prisma.opportunity.findUnique({
+          where: { opportunityCode: code },
+          select: { id: true },
+        })),
+    );
   }
 }

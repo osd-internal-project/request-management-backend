@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@request-management/share';
 import type { Prisma } from '@prisma/client';
+import { firstFreeCode } from './doc-code';
 
 /** `CUS-OSD-000001` — prefix, company doc prefix, zero-padded sequence. */
 export function formatCustomerCode(
@@ -49,13 +50,20 @@ export class CustomerCodeService {
       prisma.crmCompanyConfig.findUnique({ where: { companyId } }),
     ]);
 
-    const seq = await this.nextSequence(prisma, companyId);
-
-    return formatCustomerCode(
-      config?.codePrefix ?? 'CUS',
-      company?.docPrefix ?? 'CTD',
-      seq,
-      config?.codePadding ?? 6,
+    return firstFreeCode(
+      `customer code counter for company ${companyId}`,
+      async () =>
+        formatCustomerCode(
+          config?.codePrefix ?? 'CUS',
+          company?.docPrefix ?? 'CTD',
+          await this.nextSequence(prisma, companyId),
+          config?.codePadding ?? 6,
+        ),
+      async (code) =>
+        !!(await prisma.customer.findUnique({
+          where: { customerCode: code },
+          select: { id: true },
+        })),
     );
   }
 
