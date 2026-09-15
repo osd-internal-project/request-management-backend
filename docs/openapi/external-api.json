@@ -982,7 +982,7 @@
     },
     "/api/v1/external/requests/{ref}/actions/{action}": {
       "post": {
-        "description": "`comment` คืนตัว comment ที่เพิ่งเขียน (ExternalCommentDto) ส่วน action อื่นคืนคำขอหลังเปลี่ยนสถานะ (ExternalRequestDto)",
+        "description": "`comment` คืนตัว comment ที่เพิ่งเขียน (ExternalCommentDto) ส่วน action อื่นคืนคำขอหลังเปลี่ยนสถานะ (ExternalRequestDto) · **ทุก action มี field ที่บังคับต่างกัน** ดูจาก `fields` ที่ `GET external/requests/{ref}/actions` คืนมา — โดยเฉพาะ `approve`, `reject`, `send_back` ต้องมี `note` เสมอ ไม่งั้นได้ `400 VALIDATION_FAILED`",
         "operationId": "ExternalController_perform",
         "parameters": [
           {
@@ -1333,7 +1333,7 @@
           },
           "note": {
             "type": "string",
-            "description": "**`approve`, `reject`, `send_back`** — เหตุผลการตัดสิน (สามตัวนี้ใช้ `note` ไม่ใช่ `reason`) · **`resume`, `close`, `return`** — หมายเหตุเพิ่มเติม ไม่บังคับ",
+            "description": "**`approve`, `reject`, `send_back`** — เหตุผลการตัดสิน **บังคับทั้งสามตัว** ส่ง body ว่างหรือเว้นวรรคล้วนจะได้ `400 VALIDATION_FAILED` (field `note`, reason `required`) (สามตัวนี้ใช้ `note` ไม่ใช่ `reason`) · **`resume`, `close`, `return`** — หมายเหตุเพิ่มเติม ไม่บังคับ",
             "maxLength": 2000,
             "example": "ตรวจแล้ว ถูกต้อง"
           }

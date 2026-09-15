@@ -306,10 +306,15 @@ export class ExternalActionDto {
   /**
    * `approve`, `reject`, `send_back` — the decision's reason, and required
    * there; optional on `resume`, `close`, `return`.
+   *
+   * Optional on the class because one DTO serves all 14 actions; the three
+   * decisions enforce it at `ExternalService.decide` and `ApprovalsService`.
    */
   @ApiPropertyOptional({
     description:
-      '**`approve`, `reject`, `send_back`** — เหตุผลการตัดสิน (สามตัวนี้ใช้ `note` ไม่ใช่ `reason`) ' +
+      '**`approve`, `reject`, `send_back`** — เหตุผลการตัดสิน **บังคับทั้งสามตัว** ' +
+      'ส่ง body ว่างหรือเว้นวรรคล้วนจะได้ `400 VALIDATION_FAILED` (field `note`, reason `required`) ' +
+      '(สามตัวนี้ใช้ `note` ไม่ใช่ `reason`) ' +
       '· **`resume`, `close`, `return`** — หมายเหตุเพิ่มเติม ไม่บังคับ',
     maxLength: 2000,
     example: 'ตรวจแล้ว ถูกต้อง',

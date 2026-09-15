@@ -349,6 +349,15 @@
             }
           },
           {
+            "name": "open",
+            "required": false,
+            "in": "query",
+            "description": "เฉพาะงานที่ยังไม่จบ",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
             "name": "X-Company-Id",
             "in": "header",
             "required": false,
@@ -6023,7 +6032,7 @@
     },
     "/api/v1/external/requests/{ref}/actions/{action}": {
       "post": {
-        "description": "`comment` คืนตัว comment ที่เพิ่งเขียน (ExternalCommentDto) ส่วน action อื่นคืนคำขอหลังเปลี่ยนสถานะ (ExternalRequestDto)",
+        "description": "`comment` คืนตัว comment ที่เพิ่งเขียน (ExternalCommentDto) ส่วน action อื่นคืนคำขอหลังเปลี่ยนสถานะ (ExternalRequestDto) · **ทุก action มี field ที่บังคับต่างกัน** ดูจาก `fields` ที่ `GET external/requests/{ref}/actions` คืนมา — โดยเฉพาะ `approve`, `reject`, `send_back` ต้องมี `note` เสมอ ไม่งั้นได้ `400 VALIDATION_FAILED`",
         "operationId": "ExternalController_perform",
         "parameters": [
           {
@@ -6283,6 +6292,37 @@
         "summary": "ขั้น 14 — ใบนี้ ใบพ่อ และทุกใบลูกที่แตกออกไป",
         "tags": [
           "external"
+        ]
+      }
+    },
+    "/api/v1/mcp": {
+      "post": {
+        "description": "Endpoint เดียวสำหรับทุก tool — ชื่อ tool อยู่ใน body ไม่ใช่ใน path รายการ tool ทั้งหมดอยู่ที่ docs/openapi/external-tools.json ดูวิธีใช้ที่ docs/EXTERNAL_API.md",
+        "operationId": "McpController_handle",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "MCP (JSON-RPC) — initialize · tools/list · tools/call",
+        "tags": [
+          "mcp"
         ]
       }
     },
@@ -7091,6 +7131,10 @@
           "currency": {
             "type": "string",
             "example": "THB"
+          },
+          "chart_owner_user_id": {
+            "type": "string",
+            "description": "Whose chart a supervisor level climbs. Omitted means the caller — which is right for the before-work ladder and wrong for the one that reviews finished work."
           }
         },
         "required": [
@@ -8717,7 +8761,7 @@
           },
           "note": {
             "type": "string",
-            "description": "**`approve`, `reject`, `send_back`** — เหตุผลการตัดสิน (สามตัวนี้ใช้ `note` ไม่ใช่ `reason`) · **`resume`, `close`, `return`** — หมายเหตุเพิ่มเติม ไม่บังคับ",
+            "description": "**`approve`, `reject`, `send_back`** — เหตุผลการตัดสิน **บังคับทั้งสามตัว** ส่ง body ว่างหรือเว้นวรรคล้วนจะได้ `400 VALIDATION_FAILED` (field `note`, reason `required`) (สามตัวนี้ใช้ `note` ไม่ใช่ `reason`) · **`resume`, `close`, `return`** — หมายเหตุเพิ่มเติม ไม่บังคับ",
             "maxLength": 2000,
             "example": "ตรวจแล้ว ถูกต้อง"
           }

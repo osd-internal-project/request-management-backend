@@ -321,7 +321,10 @@ export class ExternalController {
     summary: 'ขั้น 9 — สั่งทำหนึ่งใน action ที่ได้จาก endpoint ด้านบน',
     description:
       '`comment` คืนตัว comment ที่เพิ่งเขียน (ExternalCommentDto) ' +
-      'ส่วน action อื่นคืนคำขอหลังเปลี่ยนสถานะ (ExternalRequestDto)',
+      'ส่วน action อื่นคืนคำขอหลังเปลี่ยนสถานะ (ExternalRequestDto) ' +
+      '· **ทุก action มี field ที่บังคับต่างกัน** ดูจาก `fields` ที่ ' +
+      '`GET external/requests/{ref}/actions` คืนมา — โดยเฉพาะ `approve`, `reject`, ' +
+      '`send_back` ต้องมี `note` เสมอ ไม่งั้นได้ `400 VALIDATION_FAILED`',
   })
   @ApiParam(REF_PARAM)
   @ApiParam({
