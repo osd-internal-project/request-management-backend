@@ -53,9 +53,14 @@ owner() {
 }
 
 # Printed unconditionally and first. Every verdict below is relative to one
-# identity, and a log that does not name it cannot be re-read six months later.
+# machine and one identity, and a log that names neither cannot be re-read six
+# months later. `hostname` earns its line because the env files live on ONE
+# VM: the day this repo gains a second self-hosted runner, deploys land on
+# whichever is free and this check fails on the unprovisioned one — and the
+# host name is the only thing in the log that tells those two stories apart.
 # That the runner is `github-runner` is asserted in prose in
 # docs/labs-server-setup.md and has never been checked by anything that runs.
+echo "host   : $(hostname)"
 echo "user   : $(id -un) (uid $(id -u))"
 echo "groups : $(id -Gn)"
 echo "target : ${ENV_FILE}"
