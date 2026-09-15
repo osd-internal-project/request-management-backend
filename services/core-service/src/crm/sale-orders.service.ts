@@ -170,6 +170,16 @@ export class SaleOrdersService {
         );
       }
 
+      // ใบเสนอราคาที่ออกตอนยังเป็นผู้มุ่งหวังไม่มีลูกค้าผูก — ผูกให้พร้อมกัน
+      // ไม่งั้นแท็บใบเสนอราคาและไทม์ไลน์ของลูกค้ามองไม่เห็นใบพวกนี้
+      await this.quotations.updateMany(
+        {
+          where: { opportunityId: opportunity.id, customerId: null },
+          data: { customerId: customer.id },
+        },
+        { prisma },
+      );
+
       await this.audit.record(
         {
           eventType: 'crm.sale_order.opened',

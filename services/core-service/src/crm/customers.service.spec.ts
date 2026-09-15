@@ -81,6 +81,10 @@ function harness(options: {
   checkResult?: DuplicateCheckResult;
   pdpaDown?: boolean;
   detail?: Record<string, unknown> | null;
+  /** ODOO_MODE=http (true) หรือ mock (ค่าตั้งต้น). */
+  odooLive?: boolean;
+  /** payload ใน customer_external_codes ที่รอบ sync เติมไว้. */
+  odooPayload?: Record<string, unknown>;
 }): Harness {
   const audits: Harness['audits'] = [];
   const timelineEvents: Harness['timelineEvents'] = [];
@@ -117,7 +121,11 @@ function harness(options: {
     } as never,
     {
       findMany: jest.fn(() => Promise.resolve([])),
-      findFirst: jest.fn(() => Promise.resolve(null)),
+      findFirst: jest.fn(() =>
+        Promise.resolve(
+          options.odooPayload ? { payload: options.odooPayload } : null,
+        ),
+      ),
       upsert: jest.fn(),
     } as never,
     {
@@ -171,6 +179,7 @@ function harness(options: {
         }),
     } as never,
     {
+      receivablesLive: options.odooLive ?? false,
       kickCustomer: jest.fn((id: string) => {
         odooKicks.push(id);
       }),
@@ -455,6 +464,26 @@ describe('C360-01 summary — ตัวเลขการ์ดหน้า 360�
 
     expect(summary.requests).toBeNull();
     expect(requestCount).not.toHaveBeenCalled();
+  });
+
+  const cachedReceivables = {
+    receivables: { outstanding: 75000, invoiceCount: 2, asOf: '2026-09-15T06:51:00.000Z' },
+  };
+
+  it('C360-02 ODOO_MODE=mock — ยอดค้างชำระใน cache เป็นตัวเลขปลอม ตอบ null ไม่โชว์เป็นยอดจริง', async () => {
+    const { service } = harness({ odooPayload: cachedReceivables });
+
+    const summary = await service.summaryOf('cust-1', principal(['crm.customer.read']));
+
+    expect(summary.financials).toBeNull();
+  });
+
+  it('C360-02 ODOO_MODE=http — ยอดค้างชำระอ่านจาก cache ของรอบ sync', async () => {
+    const { service } = harness({ odooLive: true, odooPayload: cachedReceivables });
+
+    const summary = await service.summaryOf('cust-1', principal(['crm.customer.read']));
+
+    expect(summary.financials).toEqual(cachedReceivables.receivables);
   });
 
   it('SCOPE-03 a customer outside the caller answers 404 before any counting', async () => {

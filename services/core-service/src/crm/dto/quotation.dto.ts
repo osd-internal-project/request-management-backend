@@ -143,6 +143,11 @@ export class ListQuotationsQueryDto extends PageQueryDto {
   @IsString()
   opportunity_id?: string;
 
+  /** แท็บใบเสนอราคาบนหน้าลูกค้า 360°. */
+  @IsOptional()
+  @IsString()
+  customer_id?: string;
+
   @IsOptional()
   @IsIn(QUOTATION_STATUSES)
   status?: (typeof QUOTATION_STATUSES)[number];

@@ -97,6 +97,15 @@ export class QuotationsService {
     const filters: Prisma.QuotationWhereInput = {};
 
     if (query.opportunity_id) filters.opportunityId = query.opportunity_id;
+    // ใบที่ออกก่อนเปิดใบสั่งขายยังไม่มี customerId ของตัวเอง — ดูผ่านโอกาสการขายด้วย
+    const customerFilter: Prisma.QuotationWhereInput | null = query.customer_id
+      ? {
+          OR: [
+            { customerId: query.customer_id },
+            { opportunity: { customerId: query.customer_id } },
+          ],
+        }
+      : null;
     if (query.status) filters.status = query.status;
     else if (query.current === 'true') filters.status = { not: 'superseded' };
     if (query.view === 'mine') filters.ownerUserId = actor.userId;
@@ -110,7 +119,11 @@ export class QuotationsService {
     }
 
     const where = {
-      AND: [visibleSalesWhere(salesAccessSubject(actor)), filters],
+      AND: [
+        visibleSalesWhere(salesAccessSubject(actor)),
+        filters,
+        ...(customerFilter ? [customerFilter] : []),
+      ],
     } as Prisma.QuotationWhereInput;
 
     const [rows, total] = await Promise.all([
