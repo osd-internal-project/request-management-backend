@@ -14,7 +14,7 @@ configmap:
   NODE_ENV: "production"
   CORE_SERVICE_PORT: "4005"
   USER_SERVICE_URL: "http://request-user-service.request-management-sit.svc.cluster.local:8884/api/v1"
-  KEYCLOAK_BASE_URL: "https://auth.request-management-sit.osd.co.th"
+  KEYCLOAK_BASE_URL: "https://auth-request-management-sit.osd.co.th"
   KEYCLOAK_REALM: "enterprise-request"
   # TEMPORARY — see main.ts's comment on KEYCLOAK_TLS_INSECURE. Wider blast
   # radius here than user-service's equivalent flag (process-wide, not
@@ -39,7 +39,7 @@ hostAliases:
   - ip: "10.134.1.5"
     hostnames:
       - "request-management-sit.osd.co.th"
-      - "auth.request-management-sit.osd.co.th"
+      - "auth-request-management-sit.osd.co.th"
 
 resources:
   requests:

@@ -34,7 +34,7 @@ keycloak:
   adminPassword: ""
   production: true
   # Public hostname confirmed by the project (2026-09-11).
-  hostname: "https://auth.request-management-sit.osd.co.th"
+  hostname: "https://auth-request-management-sit.osd.co.th"
   hostnameStrict: false
   httpEnabled: true
   httpsEnabled: false
@@ -75,14 +75,14 @@ ingress:
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
   hosts:
-    - host: "auth.request-management-sit.osd.co.th"
+    - host: "auth-request-management-sit.osd.co.th"
       paths:
         - path: /
           pathType: Prefix
   tls:
     - secretName: request-management-sit-auth-tls
       hosts:
-        - "auth.request-management-sit.osd.co.th"
+        - "auth-request-management-sit.osd.co.th"
 
 # NOTE: the vendored keycloak-0.13.5 chart has no hostAliases hook (checked
 # templates/statefulset.yaml — no such field is templated), unlike the
