@@ -25,10 +25,6 @@ configmap:
   # refused it as an unregistered redirect URI.
   KEYCLOAK_REDIRECT_URI: "https://request-management-sit.osd.co.th/api/auth/callback"
   KEYCLOAK_POST_LOGOUT_REDIRECT_URI: "https://request-management-sit.osd.co.th/"
-  # TEMPORARY — see auth.module.ts's comment on KEYCLOAK_TLS_INSECURE. Remove
-  # once request-management-sit-auth-tls carries a real certificate. Must
-  # never be set in values-uat.yaml / values-prod.yaml.
-  KEYCLOAK_TLS_INSECURE: "true"
 
 secrets:
   DATABASE_URL: ""
