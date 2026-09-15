@@ -46,8 +46,15 @@ docker compose version              # must report v2.x
 ## 2. Self-hosted runners — one per repo
 
 A runner belongs to exactly one repository and nothing is registered at the organisation
-level, so the VM runs two instances in separate directories. The machine is `worker-02`, and
-both runners are named after it.
+level, so the VM runs two instances in separate directories.
+
+**On the machine in use today** both runners run as the user **`github-runner`**, from
+directories under its home such as
+`/home/github-runner/runner-request-management-console-sit/`. That user name is what §4's
+`install -g github-runner` refers to — get it wrong and compose cannot read the env files.
+Confirm it rather than assuming: the runner's own path appears at the top of any deploy log,
+in the temp script it executes. The directory names used by `install_runner` below are for
+registering a *fresh* runner and need not match what is already there.
 
 Each deploy job says `runs-on: [self-hosted]` — the bare automatic label, because these
 runners carry no custom one. **A runner's name is not a label**, so `worker-02` is not
@@ -98,8 +105,8 @@ install_runner actions-runner-rm-fe \
 
 - **Web** — Settings → Actions → Runners on each repo: a green **Idle** dot. `Offline` means
   the service is not running.
-- **On the VM** — `sudo ~/actions-runner-rm-be/svc.sh status` reports `active (running)`;
-  same for the frontend directory.
+- **On the VM** — `sudo <runner dir>/svc.sh status` reports `active (running)`, for each of
+  the two directories (`ls ~github-runner` to find their real names).
 - **API** — with a PAT that has `repo` scope:
 
   ```bash
@@ -159,8 +166,8 @@ Copy the two templates from the repos and fill them in:
 an account on this VM.
 
 ```bash
-sudo install -m 640 -g "$(id -gn)" /tmp/backend.env  /etc/request-management/.backend.env
-sudo install -m 640 -g "$(id -gn)" /tmp/frontend.env /etc/request-management/.frontend.env
+sudo install -m 640 -g github-runner /tmp/backend.env  /etc/request-management/.backend.env
+sudo install -m 640 -g github-runner /tmp/frontend.env /etc/request-management/.frontend.env
 ```
 
 > These paths are absolute and belong to the machine, not to an account, so moving the runner

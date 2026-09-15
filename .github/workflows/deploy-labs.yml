@@ -24,10 +24,25 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # A workflow's `run:` is only a string to YAML, so a file can be valid YAML and
+  # still hand the runner a script bash refuses. That shipped once: a `flock`
+  # block landed between `for REPO in \` and its list, and nothing caught it
+  # until the deploy job failed on the self-hosted runner — after a full image
+  # build. Seconds here, one wasted build cycle otherwise.
+  lint-workflows:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Check workflow shell syntax
+        run: python3 scripts/check-workflow-shell.py
+
   # A job of its own so both services and the deploy agree on one tag. A matrix
   # job cannot publish outputs — each leg would overwrite the others, and which
   # one lands is undefined.
   version:
+    needs: lint-workflows
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.pkg.outputs.tag }}
@@ -209,19 +224,13 @@ jobs:
           KEEP: 3
         run: |
           set -euo pipefail
-          for REPO in \
-          # Both repos deploy to this one VM and their images share base layers.
-          # A GitHub `concurrency` group is per-repository, so it cannot see the
-          # other repo's deploy — the mutex has to live on the machine. Without
-          # it, one job's `docker image prune` collects a layer the other has
-          # just committed but not yet referenced, and the pull dies on
+          # The same machine-wide lock Pull and Start takes. This is the step
+          # that deletes layers, so it must never run while the other repo's
+          # deploy is pulling — that race is what produced
           # `rename .../ingest/... no such file or directory`.
-          #
-          # The lock is held on fd 9 for the life of this step's shell, so the
-          # script below needs no re-quoting. -w 600 fails loudly rather than
-          # queueing behind a stuck deploy until GitHub cancels the run.
           exec 9>/var/tmp/rm-labs-deploy.lock
           flock -w 600 9
+          for REPO in \
             "${{ env.REGISTRY }}/${{ env.SWR_ORG }}/request-management-user-service" \
             "${{ env.REGISTRY }}/${{ env.SWR_ORG }}/request-management-core-service"; do
             echo "=== ${REPO}"
