@@ -3,6 +3,9 @@
 Everything the labs machine needs before `.github/workflows/deploy-labs.yml` can deploy to it.
 Do this once; after that a push to `deploys/labs` in either repo ships on its own.
 
+For the per-deploy checklist — Keycloak redirect URIs, the pre-push checks, and what to do
+when a deploy goes red — see [`labs-setup-th.md`](./labs-setup-th.md) (Thai).
+
 Both repos deploy to this same VM:
 
 | Repo | Containers | Host port → container port |
@@ -53,7 +56,9 @@ directories under its home such as
 `/home/github-runner/runner-request-management-console-sit/`. That user name is what §4's
 `install -g github-runner` refers to — get it wrong and compose cannot read the env files.
 Confirm it rather than assuming: the runner's own path appears at the top of any deploy log,
-in the temp script it executes. The directory names used by `install_runner` below are for
+in the temp script it executes — and the `Check Labs Env File` step now prints `id -un` and
+`id -Gn` on every deploy, so the identity that actually reads the env files is a fact in the
+log rather than a claim in this paragraph. The directory names used by `install_runner` below are for
 registering a *fresh* runner and need not match what is already there.
 
 Each deploy job says `runs-on: [self-hosted]` — the bare automatic label, because these
@@ -151,6 +156,12 @@ files name in `env_file`. **Compose reads them as the runner's user**, so what m
 where they are but whether that user can read them: a root-owned `600` file fails the deploy
 with `env file … not found`, which reads like the file is missing when it is merely unreadable.
 
+Both deploy workflows now check this themselves, in a `Check Labs Env File` step that runs
+straight after checkout — before the registry login, and long before `docker compose up`. It
+separates "absent" from "unreadable by this user" and prints the fix for each, so this
+paragraph is no longer the only thing standing between a wrong group and a baffling deploy.
+The same check is runnable by hand: `scripts/check-labs-env.sh`.
+
 ```bash
 sudo install -d -m 755 /etc/request-management
 ```
@@ -247,9 +258,15 @@ nc -zv 192.168.31.55 5432
 curl -sf http://192.168.31.51:8180/realms/enterprise-request >/dev/null && echo keycloak-ok
 
 # 3. Are the env files readable BY THE RUNNER'S USER? Root-owned 600 files fail
-#    here with "env file … not found", which reads like the file is missing.
-head -1 /etc/request-management/.backend.env
-head -1 /etc/request-management/.frontend.env
+#    with "env file … not found", which reads like the file is missing. The
+#    script separates the two, and every other way this path can break, and
+#    prints the fix for each. Run it from a runner work directory.
+#
+#    `sudo -u github-runner` is load-bearing: as root it reads every file
+#    regardless of mode, so a bare `sudo` passes the exact 600 file that fails
+#    the deploy.
+sudo -u github-runner bash scripts/check-labs-env.sh /etc/request-management/.backend.env
+sudo -u github-runner bash scripts/check-labs-env.sh /etc/request-management/.frontend.env
 
 # 4. Is docker usable without sudo? The runner has no terminal to sudo from.
 docker ps >/dev/null && echo docker-ok

@@ -36,7 +36,14 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Check workflow shell syntax
-        run: python3 scripts/check-workflow-shell.py
+        run: |
+          set -euo pipefail
+          python3 scripts/check-workflow-shell.py
+          # Not reached by the checker above — that one parses `run:` bodies out
+          # of the workflows, and this script is a file of its own. Same
+          # argument for checking it here: seconds now against a wasted image
+          # build when the deploy job trips over it on the self-hosted runner.
+          bash -n scripts/check-labs-env.sh
 
   # A job of its own so both services and the deploy agree on one tag. A matrix
   # job cannot publish outputs — each leg would overwrite the others, and which
@@ -128,6 +135,33 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      # `env_file:` failure prints one message for five different causes. The
+      # file being absent and the file being present but unreadable by this
+      # user both come out as "no such file or directory" — a frontend deploy
+      # died that way and a re-run passed, which is what a message that does
+      # not describe the failure looks like from the outside.
+      #
+      # compose reads the env file as THIS step's user, so a check that runs
+      # here answers exactly the question compose asks a few steps later.
+      #
+      # Placed before the registry login rather than merely before Pull and
+      # Start: a deploy that cannot possibly work should not first log in to a
+      # registry and `docker rm -f` a running container.
+      - name: Check Labs Env File
+        env:
+          # `config` interpolates the image refs. Without a tag it warns on
+          # every run, and a step that always warns is a step people stop
+          # reading.
+          IMAGE_TAG: ${{ needs.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          bash scripts/check-labs-env.sh /etc/request-management/.backend.env
+          # The script proves the file is readable; this proves compose agrees.
+          # `config` walks the same env_file resolution as `up` but touches
+          # neither the registry nor a container, so it is the cheapest
+          # possible rehearsal of the step that actually failed.
+          docker compose -f infra/labs/docker-compose.yml config --quiet
+
       # A different machine from the build job, with its own docker credentials.
       - name: Login to Huawei Cloud SWR
         run: |
@@ -202,13 +236,36 @@ jobs:
           docker compose -f infra/labs/docker-compose.yml \
             up -d --pull always --remove-orphans --wait --wait-timeout 180
 
+      # Runs only when something above went red, so nothing in it may go red
+      # itself: a failing debug step replaces the real error in the UI with its
+      # own. Hence `|| true` on every command — and it is not defensive
+      # padding. `compose ps` re-reads the compose file, so it is itself one of
+      # the things that fails when the env file cannot be resolved, and under
+      # the default `bash -e` shell that aborted this step before the logs
+      # section ever ran.
       - name: Debug on Failure
         if: failure()
         run: |
+          echo "====== ENV FILE ======"
+          # Re-run the preflight in report-only mode. If the env file is the
+          # problem, this names it — including the case where the guard passed
+          # at the top of the job and something changed the file mid-run.
+          bash scripts/check-labs-env.sh /etc/request-management/.backend.env || true
+          echo "====== COMPOSE RESOLUTION ======"
+          # Prints the error `up` died on, without pulling anything.
+          docker compose -f infra/labs/docker-compose.yml config --quiet || true
           echo "====== CONTAINERS ======"
-          docker compose -f infra/labs/docker-compose.yml ps
+          # -a, so a container that started and exited is listed rather than
+          # silently absent. "No containers" and "one container, exit 1" are
+          # different failures and plain `ps` shows neither of them clearly.
+          docker compose -f infra/labs/docker-compose.yml ps -a || true
+          if [ -z "$(docker compose -f infra/labs/docker-compose.yml ps -aq 2>/dev/null)" ]; then
+            echo "compose created no container at all — it failed before starting"
+            echo "anything, so the LOGS section below is empty by definition."
+            echo "The cause is in the two sections above, not in this stack's code."
+          fi
           echo "====== LOGS ======"
-          docker compose -f infra/labs/docker-compose.yml logs --tail=50
+          docker compose -f infra/labs/docker-compose.yml logs --tail=50 --no-color || true
 
       # Old tags accumulate on the VM — every deploy leaves the previous image
       # behind, and nothing else reclaims it. Keeping a fixed number of tags per
