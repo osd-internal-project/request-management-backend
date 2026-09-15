@@ -196,6 +196,10 @@ export class CrmAdminService {
         codePrefix: 'CUS',
         codePadding: 6,
         dedupThreshold: 0.85,
+        minMarginPct: 15,
+        quotationValidityDays: 30,
+        vatPct: 7,
+        quotationApprovalTypeCode: 'DSC',
       }
     );
   }
@@ -210,12 +214,21 @@ export class CrmAdminService {
             codePrefix: dto.code_prefix ?? 'CUS',
             codePadding: dto.code_padding ?? 6,
             dedupThreshold: dto.dedup_threshold ?? 0.85,
+            minMarginPct: dto.min_margin_pct ?? 15,
+            quotationValidityDays: dto.quotation_validity_days ?? 30,
+            vatPct: dto.vat_pct ?? 7,
+            quotationApprovalTypeCode:
+              dto.quotation_approval_type_code ?? 'DSC',
             updatedBy: actor.userId,
           },
           update: {
             codePrefix: dto.code_prefix,
             codePadding: dto.code_padding,
             dedupThreshold: dto.dedup_threshold,
+            minMarginPct: dto.min_margin_pct,
+            quotationValidityDays: dto.quotation_validity_days,
+            vatPct: dto.vat_pct,
+            quotationApprovalTypeCode: dto.quotation_approval_type_code,
             updatedBy: actor.userId,
           },
         },

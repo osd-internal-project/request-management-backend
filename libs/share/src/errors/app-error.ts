@@ -113,6 +113,20 @@ export const ErrorCatalog = {
    * pointing at a status the screens cannot name. `details` says how many.
    */
   CRM_LEAD_STATUS_IN_USE: HttpStatus.CONFLICT,
+  /**
+   * CD-76: the action does not fit the quotation's status — editing a version
+   * that was already submitted or sent, sending one not yet approved, etc.
+   * A sent quotation is never edited; the answer is a new version.
+   */
+  CRM_QUOTATION_STATE_INVALID: HttpStatus.CONFLICT,
+  /** CD-76: `validUntil` has passed — send/accept refused; issue a new version. */
+  CRM_QUOTATION_EXPIRED: HttpStatus.CONFLICT,
+  /**
+   * CD-76: margin is below the company minimum and the approval request type
+   * configured in CRM settings is not available to this company, so there is
+   * no route to get the quotation approved. Configuration, not a code fault.
+   */
+  CRM_QUOTATION_APPROVAL_UNAVAILABLE: HttpStatus.UNPROCESSABLE_ENTITY,
 } as const;
 
 export type ErrorCode = keyof typeof ErrorCatalog;

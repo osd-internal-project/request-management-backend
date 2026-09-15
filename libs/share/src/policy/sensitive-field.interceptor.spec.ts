@@ -131,3 +131,53 @@ describe('SCOPE-04 masking reaches inside table rows', () => {
     expect(result.form_data.lines).toEqual(['a', 'b']);
   });
 });
+
+/**
+ * CD-76 — a quotation keeps its lines at the top level (`lines[].unit_price`
+ * here stands in for `unitCost`), not inside a form container. Masking that
+ * only walked containers would ship the cost of every line.
+ */
+describe('SCOPE-04 masking reaches rows of a top-level array', () => {
+  const body = {
+    id: 'qt-1',
+    margin: 22,
+    lines: [
+      { description: 'SIP Trunk', unit_price: 1500 },
+      { description: 'ติดตั้ง', unit_price: 900 },
+    ],
+  };
+
+  it('removes the column from every top-level row and keeps the rest', async () => {
+    const { result } = (await through(body, principal([]))) as {
+      result: Record<string, unknown> & { lines: Record<string, unknown>[] };
+    };
+
+    expect(result).not.toHaveProperty('margin');
+    for (const row of result.lines) {
+      expect(row).not.toHaveProperty('unit_price');
+      expect(row).toHaveProperty('description');
+    }
+  });
+
+  it('records the unmasked read of a top-level row column', async () => {
+    const { result, recorded } = (await through(
+      body,
+      principal(['unit_price']),
+    )) as {
+      result: { lines: Record<string, unknown>[] };
+      recorded: { fields: string[] }[];
+    };
+
+    expect(result.lines[0].unit_price).toBe(1500);
+    expect(recorded[0].fields).toContain('unit_price');
+  });
+
+  it('masks each row of a paginated list the same way', async () => {
+    const page = { data: [body], total: 1 };
+    const { result } = (await through(page, principal([]))) as {
+      result: { data: { lines: Record<string, unknown>[] }[] };
+    };
+
+    expect(result.data[0].lines[0]).not.toHaveProperty('unit_price');
+  });
+});

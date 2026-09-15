@@ -372,6 +372,7 @@ describe('CRM ใบสั่งขาย — จุดเดียวที่�
           work({}),
         ),
       } as never,
+      { findFirst: jest.fn(() => Promise.resolve(null)) } as never,
     );
 
     return {

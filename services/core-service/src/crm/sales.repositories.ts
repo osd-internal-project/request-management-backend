@@ -130,6 +130,8 @@ export const SALE_ORDER_LIST_SELECT = {
   opportunity: { select: { id: true, opportunityCode: true, title: true } },
   customerId: true,
   customer: { select: { id: true, customerCode: true, nameTh: true } },
+  quotationId: true,
+  quotation: { select: { id: true, quotationNo: true, version: true } },
   ownerUserId: true,
   createdAt: true,
   updatedAt: true,
@@ -146,5 +148,67 @@ export class SaleOrderRepository extends BaseRepository<
 
   protected delegate(client: TQueryClient) {
     return client.saleOrder;
+  }
+}
+
+/**
+ * What the quotation list and the opportunity detail both select — no lines.
+ * `costTotal`/`marginAmount`/`marginPct` are here on purpose: the
+ * `SensitiveFieldInterceptor` (resource `quotation`) removes them for callers
+ * who may not see cost, so every endpoint returning this shape must declare
+ * `@SensitiveResource('quotation')`.
+ */
+export const QUOTATION_LIST_SELECT = {
+  id: true,
+  quotationNo: true,
+  version: true,
+  title: true,
+  status: true,
+  currency: true,
+  validUntil: true,
+  netTotal: true,
+  vatAmount: true,
+  grandTotal: true,
+  costTotal: true,
+  marginAmount: true,
+  marginPct: true,
+  approvalRequired: true,
+  approvalRequestId: true,
+  opportunityId: true,
+  opportunity: { select: { id: true, opportunityCode: true, title: true } },
+  customerId: true,
+  partyName: true,
+  ownerUserId: true,
+  submittedAt: true,
+  sentAt: true,
+  respondedAt: true,
+  createdAt: true,
+  updatedAt: true,
+} satisfies Prisma.QuotationSelect;
+
+/** ใบเสนอราคา (CD-76) — one row per version. */
+@Injectable()
+export class QuotationRepository extends BaseRepository<
+  PrismaService['quotation']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.quotation;
+  }
+}
+
+@Injectable()
+export class QuotationLineRepository extends BaseRepository<
+  PrismaService['quotationLine']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.quotationLine;
   }
 }

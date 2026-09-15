@@ -14,6 +14,7 @@ import {
 import {
   LeadRepository,
   OpportunityRepository,
+  QuotationRepository,
   SALE_ORDER_LIST_SELECT,
   SaleOrderRepository,
 } from './sales.repositories';
@@ -51,6 +52,7 @@ export class SaleOrdersService {
     private readonly timeline: CustomerTimelineService,
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
+    private readonly quotations: QuotationRepository,
   ) {}
 
   async list(actor: Principal, query: ListSaleOrdersQueryDto) {
@@ -105,6 +107,15 @@ export class SaleOrdersService {
    */
   async open(opportunityId: string, dto: OpenSaleOrderDto, actor: Principal) {
     const opportunity = await this.requireOpenOpportunity(opportunityId, actor);
+    // Checked before the customer is resolved: a wrong quotation must not leave
+    // a freshly created customer behind it.
+    const quotation = dto.quotation_id
+      ? await this.requireAcceptedQuotation(
+          dto.quotation_id,
+          opportunity.id,
+          actor,
+        )
+      : null;
     const customer = await this.resolveCustomer(opportunity, dto, actor);
 
     const created = await this.transactions.execute(async (prisma) => {
@@ -112,7 +123,8 @@ export class SaleOrdersService {
         actor.activeCompanyId,
         prisma,
       );
-      const amount = dto.amount ?? opportunity.amount ?? null;
+      const amount =
+        dto.amount ?? quotation?.netTotal ?? opportunity.amount ?? null;
 
       const row = (await this.saleOrders.create(
         {
@@ -124,6 +136,7 @@ export class SaleOrdersService {
             amount,
             currency: opportunity.currency,
             note: dto.note?.trim() || null,
+            quotationId: quotation?.id ?? null,
             ownerUserId: opportunity.ownerUserId,
             ownerOrgUnitId: opportunity.ownerOrgUnitId,
             createdBy: actor.userId,
@@ -172,6 +185,10 @@ export class SaleOrdersService {
             customerCode: customer.customerCode,
             customerCreated: customer.created,
             amount,
+            quotationId: quotation?.id ?? null,
+            quotationNo: quotation
+              ? `${quotation.quotationNo} v${quotation.version}`
+              : null,
           },
         },
         { prisma },
@@ -302,6 +319,54 @@ export class SaleOrdersService {
   }
 
   // --- helpers ---------------------------------------------------------------
+
+  /**
+   * CD-77: "สร้างจากใบเสนอราคาที่ลูกค้ายอมรับ" — only an `accepted` version of a
+   * quotation on this same opportunity. Another opportunity's quotation is
+   * reported as not found for this one rather than as a scope question.
+   */
+  private async requireAcceptedQuotation(
+    id: string,
+    opportunityId: string,
+    actor: Principal,
+  ) {
+    const found = (await this.quotations.findFirst({
+      where: {
+        id,
+        opportunityId,
+        AND: [visibleSalesWhere(salesAccessSubject(actor))],
+      },
+      select: {
+        id: true,
+        quotationNo: true,
+        version: true,
+        status: true,
+        netTotal: true,
+      },
+    })) as {
+      id: string;
+      quotationNo: string;
+      version: number;
+      status: string;
+      netTotal: Prisma.Decimal;
+    } | null;
+
+    if (!found) {
+      throw new AppError(
+        'VALIDATION_FAILED',
+        'ไม่พบใบเสนอราคานี้ในโอกาสการขายที่ระบุ',
+        [{ field: 'quotation_id', reason: id }],
+      );
+    }
+    if (found.status !== 'accepted') {
+      throw new AppError(
+        'CRM_QUOTATION_STATE_INVALID',
+        'เปิดใบสั่งขายได้จากใบเสนอราคาที่ลูกค้ายอมรับแล้วเท่านั้น',
+        [{ field: 'quotation_id', reason: found.status }],
+      );
+    }
+    return found;
+  }
 
   /** Visible AND still open (not won/lost). SCOPE-03: unseen = 404. */
   private async requireOpenOpportunity(
