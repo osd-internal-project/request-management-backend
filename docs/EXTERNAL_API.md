@@ -1,11 +1,71 @@
-# External API — การยืนยันตัวตน
+# External API — วิธียืนยันตัวตนและวิธีตรวจสอบ
 
-เอกสารนี้ตอบคำถามเดียว: **จะยิง `/api/v1/external/*` จาก Postman, Swagger UI หรือ
-ระบบภายนอกได้อย่างไร** รายการ endpoint ไม่ได้อยู่ที่นี่ — อยู่ที่
-[`docs/openapi/external-api.json`](./openapi/external-api.json) (9 endpoints) และ
-[`docs/openapi/external-tools.json`](./openapi/external-tools.json) สำหรับ
+**ทุก API ที่ระบบภายนอกเรียกได้อยู่ที่ external-service พอร์ตเดียว** —
+`3003` ในคอนเทนเนอร์ publish เป็น `3503` core-service (`3002`) เหลือแต่ API
+ของหน้าเว็บ และไม่มี endpoint ไหนที่ระบบภายนอกเรียกได้อีกแล้ว
+
+แยกเป็น service ของตัวเองเพราะ **การยืนยันตัวตนคนละแบบกับหน้าเว็บ** ไม่ใช่เพราะ
+อยากได้พอร์ตใหม่ หน้าเว็บส่ง token ของคน ส่วนที่นี่ส่ง credential ของเครื่อง
+แล้วบอกว่าทำแทนใคร ก่อนหน้านี้ของแบบนี้กระจายอยู่สามคำนำหน้า (`/request/*`,
+`/integrations/crm/leads`, `/integrations/approval-cases`) โดย auth ไม่เหมือนกัน
+ทั้งสามแบบ และแบบหนึ่งมี `@Permissions` ที่ถูกคอมเมนต์ทิ้งไว้
+
+รายการ endpoint ไม่ได้อยู่ที่นี่ — อยู่ที่
+[`docs/openapi/external-api.json`](./openapi/external-api.json) (87 operations)
+และ [`docs/openapi/external-tools.json`](./openapi/external-tools.json) สำหรับ
 tool-caller ทั้งสองไฟล์สร้างด้วย `yarn openapi` และ `yarn tools`
 **อย่าลอกรายการ endpoint มาไว้ที่นี่อีกชุด** — สองชุดจะเริ่มไม่ตรงกันทันทีที่แก้อันเดียว
+
+## โครงสร้างตาม module
+
+| Module | operations | เนื้อหา |
+|---|---|---|
+| `api/v1/request/*` | 11 | คำขอ — เปิด, ติดตาม, ดำเนินการ, ปิด |
+| `api/v1/crm/*` | 74 | ทะเบียนลูกค้า, Lead, โอกาสการขาย, ใบเสนอราคา, ใบสั่งขาย, ตั้งค่า CRM |
+| `api/v1/approval/*` | 1 | เปิดเคสอนุมัติจากโมดูลอื่น (APV-07) |
+| `api/v1/mcp` | 1 | tool-caller — ทุก tool ผ่าน endpoint เดียว |
+
+โค้ดวางตามนี้ตรง ๆ: `services/external-service/src/{request,crm,approval,mcp}/`
+และ `auth/` ที่รวมเรื่อง credential ของเครื่องไว้ที่เดียว **คำถามว่า
+"เครื่องจักรแตะอะไรได้บ้าง" จึงตอบได้ด้วยการอ่านไดเรกทอรีเดียว**
+
+---
+
+## 0. สองประตู — อ่านข้อนี้ก่อนตรวจสอบสิทธิ์
+
+ทุก route บนพอร์ตนี้ประกาศสองอย่าง และมันตอบคำถามต่างกัน
+
+| | ถามว่าอะไร | ประกาศด้วย | ตรวจโดย | ตรวจเมื่อไร |
+|---|---|---|---|---|
+| ประตูของเครื่อง | integration ตัวนี้เรียก endpoint นี้ได้ไหม | `@Permissions('integration.…')` | `PolicyGuard` (global) | **ก่อน** สลับตัวตน |
+| ประตูของคน | คนใน `X-Acting-User` ทำสิ่งนี้ได้ไหม | `@ActingPermissions('crm.…')` | `ActingPolicyGuard` | **หลัง** สลับตัวตน |
+
+ลำดับนี้จงใจ และเปลี่ยนไม่ได้ — `ActingUserGuard` เป็น route guard จึงทำงานหลัง
+global guard ทุกตัว ถ้าสลับตัวตนก่อน `PolicyGuard` คนที่ถือ `request.create`
+จะเดินผ่านประตูที่ทำไว้ให้หุ่นเท่านั้น (เหตุผลเต็มอยู่ใน
+`services/external-service/src/auth/acting-user.guard.ts`)
+
+**ผลที่ตามมาคือเหตุผลที่ต้องมีประตูที่สอง** — หลังสลับตัวตนแล้วไม่มีอะไรตรวจ
+สิทธิ์ของคนเลย ฝั่ง request รอดมาได้เพราะ `RequestsService` เรียก `assertMayAct`
+ตรวจซ้ำข้างใน แต่ CRM ประกาศ `crm.*` ไว้บน controller อย่างเดียว ถ้าเปิด CRM
+ออกมาโดยไม่มี `@ActingPermissions` บัญชีบริการจะแก้ข้อมูลลูกค้าในนามคนที่ไม่มี
+สิทธิ์แก้ได้
+
+`@ActingPermissions` ต้องขอเท่ากับที่ route ของหน้าเว็บขอ ไม่ใช่น้อยกว่า —
+`crm-route-parity.spec.ts` fail ถ้าไม่ตรง ทั้ง 72 คู่
+
+### สามตัวที่ไม่มีประตูของคน และเป็นเจตนา
+
+| route | ทำไมไม่มีคน |
+|---|---|
+| `POST /api/v1/request/intake` | ระบบยื่นคำขอในนามตัวเอง `source: "system"` (REQ-10) |
+| `POST /api/v1/crm/leads` | เว็บฟอร์มของลูกค้า — คนกรอกคือลูกค้า ไม่ใช่พนักงาน |
+| `GET\|POST /api/v1/crm/leads/{id}/facts\|stage` | workflow engine บันทึกขั้นที่ตัดสินแล้ว |
+| `POST /api/v1/approval/cases` | โมดูลอื่นเปิดเคส ไม่ใช่คนกด (APV-07) |
+
+สามตัวนี้ **ห้ามส่ง** `X-Acting-User` และมีแต่ประตูของเครื่อง audit จึงบันทึก
+ชื่อบัญชีบริการ ซึ่งถูกต้องแล้ว — การใส่ชื่อคนให้มันคือการบันทึกว่ามีคนทำสิ่งที่
+ไม่มีใครทำ เพิ่มตัวที่สี่ได้ แต่ต้องประกาศเหตุผลไว้ในไฟล์นั้น ไม่ใช่ทำโดยปริยาย
 
 ---
 
@@ -33,7 +93,7 @@ handler ทำงาน ผลคือขอบเขตการมองเ�
 | ยกเลิก | รอหมดอายุ | `yarn apikey:revoke` มีผลทันที |
 | ได้มาอย่างไร | `yarn mcp:token` หรือ `client_credentials` ตรง ๆ | `yarn apikey:issue` |
 
-**key ตัดสินว่า *เข้าได้ไหม* token บอกว่า *ทำอะไรได้*** — core-service แลก `rfk_`
+**key ตัดสินว่า *เข้าได้ไหม* token บอกว่า *ทำอะไรได้*** — external-service แลก `rfk_`
 key เป็น Keycloak token ให้เองแล้วส่งต่อเหมือน bearer ธรรมดา (`ApiKeyService`)
 user-service จึงยังเป็นตัวเดียวที่ตรวจ token และไม่ต้องรู้จัก credential แบบที่สอง
 เลย สิทธิ์ที่ได้จึงเท่ากันทั้งสองแบบ
@@ -144,7 +204,7 @@ yarn apikey:revoke <prefix>
 yarn apikey:list
 ```
 
-ใช้แทน token ได้ตรง ๆ ในช่องเดียวกัน — core-service เห็นคำนำหน้า `rfk_` แล้วแลก
+ใช้แทน token ได้ตรง ๆ ในช่องเดียวกัน — external-service เห็นคำนำหน้า `rfk_` แล้วแลก
 เป็น Keycloak token ให้เองก่อนส่งต่อ ผู้เรียกจึงไม่ต้องรู้เรื่อง OAuth เลย
 
 **key เต็มพิมพ์ครั้งเดียวแล้วกู้ไม่ได้** ฐานข้อมูลเก็บแค่ `sha256` ของมัน
@@ -164,7 +224,7 @@ yarn apikey:list
 `/mcp` นำหน้า
 
 ```bash
-curl -s -X POST http://localhost:3002/api/v1/mcp \
+curl -s -X POST http://localhost:3003/api/v1/mcp \
   -H 'content-type: application/json' \
   -H "Authorization: Bearer <token หรือ rfk_...>" \
   -H 'X-Acting-User: someone@example.com' \
@@ -175,14 +235,14 @@ curl -s -X POST http://localhost:3002/api/v1/mcp \
 
 ```json
 {"jsonrpc":"2.0","id":2,"method":"tools/call",
- "params":{"name":"get_request_types","arguments":{}}}
+ "params":{"name":"request_get_request_types","arguments":{}}}
 ```
 
-รายชื่อ tool ทั้งสิบอยู่ที่ `docs/openapi/external-tools.json` และ `tools/list`
+ชื่อ tool ขึ้นต้นด้วย module ที่มันอยู่ (`request_…`) — ใช้ขีดล่างไม่ใช่จุด เพราะ tool name ถูกตรวจด้วย `^[a-zA-Z0-9_-]{1,64}$} ทั้ง Claude API และตัวอื่น\n\nตอนนี้ catalogue มีแต่ module `request` (10 tool) ไม่ได้มี CRM ด้วย — `TOOL_MODULES` ใน `scripts/generate-tools.ts` อธิบายว่าทำไม โดยย่อคือ tool catalogue เป็นเมนูที่ยื่นให้โมเดลเลือก ไม่ใช่สัญญา REST และ 82 tool ทำให้โมเดลเลือกแย่กว่า 10 tool\n\nรายชื่อ tool ทั้งสิบอยู่ที่ `docs/openapi/external-tools.json` และ `tools/list`
 อ่านจากไฟล์นั้นตรง ๆ — เพิ่ม endpoint ใน External API แล้วรัน
 `yarn openapi && yarn tools` tool ก็เพิ่มเองโดยไม่ต้องแก้โค้ด MCP
 
-**ตัวตนผู้ใช้ทำงานสองแบบ ต่างจาก `/external/*` ตรงนี้ที่เดียว**
+**ตัวตนผู้ใช้ทำงานสองแบบ ต่างจาก `/request/*` ตรงนี้ที่เดียว**
 
 | credential ที่ส่ง | ระบบรู้จักใครจาก | `X-Acting-User` |
 |---|---|---|
@@ -198,7 +258,7 @@ curl -s -X POST http://localhost:3002/api/v1/mcp \
 | ช่อง | ค่า |
 |---|---|
 | ชื่อ | อะไรก็ได้ เช่น `osd-rm-mcp` |
-| MCP Server URL | `http://<host>:3502/api/v1/mcp` |
+| MCP Server URL | `http://<host>:3503/api/v1/mcp` |
 | Transport | **Streamable HTTPS** |
 | การยืนยันตัวตน | **OAuth** (แยกคนได้) หรือ **คีย์ API** (ทุกคนเป็นคนเดียวกัน) |
 
@@ -245,7 +305,7 @@ client ที่ถือสิทธิ์ Keycloak Admin API และ redirec
 curl -i \
   -H "Authorization: Bearer <token หรือ rfk_...>" \
   -H "X-Acting-User: someone@example.com" \
-  http://localhost:3002/api/v1/external/request-types
+  http://localhost:3003/api/v1/request/request-types
 ```
 
 ได้ 200 พร้อมรายการประเภทคำขอ = ครบทุกชิ้น
@@ -267,8 +327,12 @@ curl -i \
 
 ## 7. Swagger UI
 
-`http://localhost:3002/api/docs` — **ตอนนี้ยังไม่มีปุ่ม Authorize** เพราะ
-`services/core-service/src/main.ts` ไม่ได้ประกาศ security scheme
-(`user-service` และ `scripts/generate-openapi.ts` ประกาศ) ระหว่างนี้ให้ใช้ Postman
-หรือ `curl` ส่วนไฟล์ static ใน `docs/openapi/` ประกาศ scheme ไว้ครบ import เข้า
-Postman ได้เลย
+`http://localhost:3003/api/docs` — **มีปุ่ม Authorize แล้ว** `main.ts` ของ
+external-service ประกาศ `addBearerAuth()` ต่างจาก core-service ที่ไม่ประกาศและ
+เป็นเหตุผลที่เอกสารฉบับก่อนบอกให้ไปใช้ Postman
+
+ทุก route ใน Swagger บอกสิทธิ์ทั้งสองประตู — `integration.*` ที่กุญแจต้องถือ และ
+`crm.*` / `request.*` ที่คนใน `X-Acting-User` ต้องถือ ใช้หน้านี้ตรวจสอบได้เลยว่า
+endpoint ไหนขออะไร
+
+ไฟล์ static ใน `docs/openapi/` ประกาศ scheme ไว้ครบเช่นกัน import เข้า Postman ได้

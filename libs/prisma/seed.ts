@@ -67,6 +67,11 @@ const PERMISSIONS: Record<string, string[]> = {
     'integration.crm.lead.read',
     'integration.crm.lead.stage',
     'integration.crm.lead.create',
+    'integration.crm.customer.read',
+    'integration.crm.customer.manage',
+    'integration.crm.sales.read',
+    'integration.crm.sales.manage',
+    'integration.crm.admin.manage',
   ],
 };
 

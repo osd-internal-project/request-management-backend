@@ -98,11 +98,21 @@ that hands one account a company list it has no roles in.
 | The permission catalog (declared in code) | `libs/share/src/policy/permissions.ts` |
 | One Prisma schema for every service | `libs/prisma/schema.prisma` |
 | Identity, org, roles, policy, audit | `services/user-service/src/` |
-| Request, approval, SLA, notification | `services/core-service/src/` |
+| Request, approval, SLA, notification, CRM | `services/core-service/src/` |
+| The outward-facing API (machines, MCP) | `services/external-service/src/` |
+| What external-service may import from core | `services/core-service/src/index.ts` |
 
 Data access goes through repositories extending `BaseRepository`, provided by
 the feature module that owns them — never `PrismaService` directly from a
 service class.
+
+**Every domain module is split in two.** `requests.module.ts` holds providers
+and exports; `requests-http.module.ts` holds the controllers and imports the
+first. core-service imports the `-http` half; external-service imports only the
+domain half, because Nest registers the controllers of everything it imports
+transitively and the screens' routes must never answer on the external port.
+`services/core-service/src/index.ts` carries the full reasoning and is the one
+place that decides what crosses the boundary.
 
 `libs/share` is consumed as TypeScript **source** — no build step, no ordering.
 See "Build traps" below for the four config pieces that make that work.
@@ -244,13 +254,49 @@ the Prisma failure went unnoticed.
 
 1. Declare its permission with `@Permissions('module.action')`. If the
    permission is new, add it to the catalog in `libs/share` first — the
-   `permissions` table syncs from that catalog at boot.
+   `permissions` table syncs from that catalog at boot. Adding it there is not
+   enough on its own for a service account: `libs/prisma/keycloak-provision.ts`
+   and `libs/prisma/seed.ts` each repeat the `integration.*` list, and a realm
+   role that does not exist is a permission nobody can hold.
 2. Filter every read through `buildScopeWhere`.
 3. If it changes state, make it transactional and accept `Idempotency-Key`.
 4. Write the audit entry inside the same transaction as the change.
 5. Add a test named for the requirement code, plus a negative case for a user
    without the permission and a user on the wrong company. The DoD requires
    both.
+
+### On external-service: two gates, not one
+
+An endpoint on the external port declares **both**:
+
+```ts
+@Permissions('integration.crm.customer.manage')   // may this machine call it
+@ServiceAccountOnly()
+@ActingPermissions('crm.customer.manage')         // may this person do it
+@UseGuards(ActingUserGuard, ActingPolicyGuard)
+```
+
+`PolicyGuard` is global, so it runs before any route guard and always judges
+the credential that arrived — the service account. The acting-user swap happens
+afterwards, deliberately: swapping earlier would test the human against the
+integration's gate, and anyone holding `request.create` would be let through a
+door meant only for the robot (`auth/acting-user.guard.ts` states this).
+
+The consequence is that **after the swap, nothing checks the human unless you
+say so.** The request API survived that because `RequestsService` re-checks with
+`assertMayAct`; CRM declares `crm.*` on its controllers and nowhere else, so
+exposing it without the second gate would let an integration act as somebody
+who lacks the permission. `@ActingPermissions` must name exactly what the
+equivalent screen route names — `crm-route-parity.spec.ts` fails if it does not.
+
+Three routes carry no acting user, and each says why in its own file:
+`request/intake`, `crm/leads*`, `approval/cases`. There is nobody at the other
+end of those — a customer's web form, a workflow engine, another module. Adding
+a fourth is a decision to state out loud, not a default.
+
+`POST requests/:ref/actions/:action` is the other exception: one route, fourteen
+verbs, a different permission each, so the check reads `ACTION_PERMISSIONS` in
+`available-actions.ts` inside `perform` instead of a decorator.
 
 ## Errors
 

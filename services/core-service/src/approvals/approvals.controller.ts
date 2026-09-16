@@ -17,7 +17,6 @@ import {
   Permissions,
   resolveTargetCompany,
   SensitiveResource,
-  ServiceAccountOnly,
 } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import { ApprovalsService } from './approvals.service';
@@ -27,7 +26,6 @@ import {
   BatchDecideDto,
   CreateDelegationDto,
   DecideDto,
-  OpenCaseDto,
   PreviewChainDto,
   PublishMatrixDto,
 } from './dto/approval.dto';
@@ -180,24 +178,5 @@ export class ApprovalMatrixAdminController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.matrix.publish(dto, principal);
-  }
-}
-
-/** APV-07: other modules raise approvals without a Platform Request. */
-@ApiTags('integrations')
-@ApiBearerAuth()
-@Controller('integrations/approval-cases')
-export class ApprovalIntegrationController {
-  constructor(private readonly approvals: ApprovalsService) {}
-
-  @Post()
-  @Permissions('integration.approval.create')
-  @ServiceAccountOnly()
-  create(
-    @Body() dto: OpenCaseDto,
-    @CurrentPrincipal() principal: Principal,
-    @Headers('authorization') authorization: string,
-  ) {
-    return this.approvals.openCase(dto, principal, authorization);
   }
 }

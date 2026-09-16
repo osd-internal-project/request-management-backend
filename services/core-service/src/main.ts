@@ -11,18 +11,13 @@ async function bootstrap() {
   const app = await NestFactory.create(CoreServiceModule);
 
   /*
-    Everything lives under `api/v1` except the two OAuth discovery documents.
-    Well-known URIs are defined relative to the origin (RFC 8615) and a client
-    looking for one will not try a prefix — served under `api/v1` they would
-    simply never be found, and the MCP connect button would fail with nothing
-    to explain it. See `mcp/oauth-metadata.controller.ts`.
+    Everything lives under `api/v1`, with nothing excluded. The two OAuth
+    discovery documents that used to need an exemption moved to
+    external-service along with MCP — see
+    `services/external-service/src/main.ts`, which carries the RFC 8615
+    reasoning for why they cannot live under a prefix.
   */
-  app.setGlobalPrefix('api/v1', {
-    exclude: [
-      '.well-known/oauth-protected-resource',
-      '.well-known/oauth-protected-resource/api/v1/mcp',
-    ],
-  });
+  app.setGlobalPrefix('api/v1');
   app.enableCors();
   app.use(helmet());
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));

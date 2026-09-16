@@ -124,6 +124,33 @@ export const PERMISSIONS = {
      * ข้อมูลเข้าต้องใช้ ไม่ใช่เท่าที่พนักงานขายหนึ่งคนทำได้.
      */
     'integration.crm.lead.create',
+    /**
+     * CRM ทั้งชุดที่เปิดให้ระบบภายนอกเรียกผ่าน external-service
+     * (`api/v1/crm/*`). สี่ตัวนี้เป็น **ประตูของเครื่อง** อย่างเดียว — ตอบแค่ว่า
+     * integration ตัวนี้ได้รับอนุญาตให้แตะ CRM ไหม ไม่ได้ตอบว่าใครทำอะไรได้.
+     *
+     * สิทธิ์ของคนที่ integration ทำแทนถูกตรวจแยกด้วย `@ActingPermissions`
+     * ซึ่งประกาศ `crm.customer.*` / `crm.sales.*` ตัวเดิมที่ route ของหน้าเว็บ
+     * ประกาศ — สองประตู คนละคำถาม ดู `ActingPolicyGuard`.
+     *
+     * แยก read กับ manage เพื่อให้กุญแจของ chatbot ที่ต้องอ่านอย่างเดียวออกได้
+     * โดยไม่พ่วงสิทธิ์เขียน และแยก customer กับ sales ตามแนวเดียวกับ
+     * `crm.customer.*` / `crm.sales.*` ที่มีอยู่แล้ว.
+     */
+    'integration.crm.customer.read',
+    'integration.crm.customer.manage',
+    'integration.crm.sales.read',
+    'integration.crm.sales.manage',
+    /**
+     * หน้าตั้งค่า CRM (สถานะ Lead, กฎ KYC, มิติ segment, ค่าคอนฟิกบริษัท)
+     * ที่เปิดให้ระบบภายนอกอ่าน/แก้ผ่าน `api/v1/crm/admin/*`.
+     *
+     * แยกจาก `admin.crm.manage` ไม่ใช่ใช้ตัวเดียวกัน เพราะสองคำถามต่างกัน:
+     * ตัวนี้ตอบว่า integration ตัวไหนแตะหน้าตั้งค่าได้ ส่วน `admin.crm.manage`
+     * ยังถูกตรวจกับ *คน* ใน `X-Acting-User` ต่อไปด้วย `@ActingPermissions`.
+     * กุญแจที่ถือตัวนี้จึงยังทำอะไรไม่ได้ ถ้าคนที่มันทำแทนไม่ใช่ผู้ดูแล CRM.
+     */
+    'integration.crm.admin.manage',
   ],
 } as const;
 

@@ -1,0 +1,15 @@
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": ".",
+  "testEnvironment": "node",
+  "testRegex": ".e2e-spec.ts$",
+  "transform": {
+    "^.+\\.(t|j)s$": "ts-jest"
+  },
+  "moduleNameMapper": {
+    "^@request-management/share$": "<rootDir>/../../../libs/share/src/index.ts",
+    "^@request-management/share/(.*)$": "<rootDir>/../../../libs/share/src/$1",
+    "^@request-management/core-service$": "<rootDir>/../../core-service/src/index.ts",
+    "^@request-management/core-service/(.*)$": "<rootDir>/../../core-service/src/$1"
+  }
+}

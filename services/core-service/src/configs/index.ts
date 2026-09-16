@@ -26,24 +26,27 @@ export default () => ({
     baseUrl: process.env.KEYCLOAK_BASE_URL ?? 'http://192.168.31.51:8180',
     realm: process.env.KEYCLOAK_REALM ?? 'enterprise-request',
   },
+  /**
+   * Still here after the external API moved to external-service, because
+   * `RemotePrincipalGuard` is global and still exchanges an `rfk_` key for a
+   * token if one is presented.
+   *
+   * Left deliberately rather than removed. A key *can* still authenticate
+   * here, and then does nothing: `PolicyGuard` refuses a service account on
+   * any route that declares neither `@ServiceAccountOnly` nor
+   * `@ServiceAccountAllowed`, and after the move this service has no such
+   * business route left. Removing the exchange would be a second, different
+   * answer to the same credential — `UNAUTHORIZED` instead of `FORBIDDEN` —
+   * for no gain.
+   *
+   * The admin screen that *issues* keys lives here too
+   * (`PrincipalHttpModule`), and that is the right place for it: minting a
+   * credential is an internal act.
+   */
   integration: {
     clientId: process.env.INTEGRATION_CLIENT_ID ?? '',
     clientSecret: process.env.INTEGRATION_CLIENT_SECRET ?? '',
   },
-
-  /**
-   * Where callers outside this machine reach core-service.
-   *
-   * Needed only by the MCP OAuth discovery document, which has to state its
-   * own address: a client is told "this resource lives at X, authorise at Y",
-   * and X must be the URL *it* used, not `localhost`. Everything else in this
-   * service answers on whatever host the request arrived at and never has to
-   * name itself.
-   *
-   * Docker maps 3502 → 3002 (`infra/labs/docker-compose.yml`), so the default
-   * is the port a caller on the network actually uses.
-   */
-  publicBaseUrl: process.env.PUBLIC_BASE_URL ?? 'http://192.168.31.52:3502',
 
   /**
    * CD-92: the embedded BI menu. `siteUrl` is where browsers reach Metabase;

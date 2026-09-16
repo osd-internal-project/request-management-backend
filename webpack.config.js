@@ -31,9 +31,21 @@ const path = require('node:path');
  * install. Nest's default ts rule carries `exclude: /node_modules/`, which does
  * not get in the way — webpack resolves to the real path `libs/share/src/…`,
  * outside `node_modules`, so ts-loader compiles it like any other source file.
+ *
+ * ---------------------------------------------------------------------------
+ * 3. `core-service` resolves from SOURCE too, for external-service
+ * ---------------------------------------------------------------------------
+ * external-service serves the outward-facing API against the same domain
+ * rules, so it imports core-service's providers the same way — as source, via
+ * `@request-management/core-service`. See `services/core-service/src/index.ts`
+ * for what that package deliberately does *not* export, and why.
+ *
+ * Harmless for the other two services: an alias for a package they never
+ * import costs nothing.
  */
 const REPO_ROOT = __dirname;
 const SHARE_SRC = path.resolve(REPO_ROOT, 'libs/share/src');
+const CORE_SRC = path.resolve(REPO_ROOT, 'services/core-service/src');
 
 const PRISMA_MODULES = /^(@prisma\/client|\.prisma\/client)(\/|$)/;
 
@@ -60,6 +72,7 @@ module.exports = (config) => {
       alias: {
         ...config.resolve?.alias,
         '@request-management/share': SHARE_SRC,
+        '@request-management/core-service': CORE_SRC,
       },
     },
   };

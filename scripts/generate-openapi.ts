@@ -4,6 +4,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import type { OpenAPIObject } from '@nestjs/swagger';
 import { CoreServiceModule } from '../services/core-service/src/core-service.module';
 import { UserServiceModule } from '../services/user-service/src/user-service.module';
+import { ExternalServiceModule } from '../services/external-service/src/external-service.module';
 
 /**
  * §14 — the OpenAPI document is **generated from the code**, never hand-written.
@@ -60,11 +61,22 @@ function collectRefs(
  * actually serves.
  */
 function writeExternalDocument(document: OpenAPIObject, prefix: string): void {
-  const externalPrefix = `/${prefix}/external`;
+  /*
+    Every module external-service serves, less its own health check. The old
+    filter was a single `/external` prefix because there was a single external
+    controller; the surface is now split by module — `request`, `crm`,
+    `approval` — which is the whole point of the split, so the filter names
+    what it excludes rather than what it includes.
+  */
+  const EXCLUDED = ['health'];
   const paths = Object.fromEntries(
-    Object.entries(document.paths).filter(([path]) =>
-      path.startsWith(externalPrefix),
-    ),
+    Object.entries(document.paths).filter(([path]) => {
+      if (!path.startsWith(`/${prefix}/`)) return false;
+
+      const module = path.slice(prefix.length + 2).split('/')[0];
+
+      return !EXCLUDED.includes(module);
+    }),
   );
 
   const allSchemas = (document.components?.schemas ?? {}) as Record<
@@ -79,11 +91,18 @@ function writeExternalDocument(document: OpenAPIObject, prefix: string): void {
     info: {
       title: 'Request Form — External API',
       description:
-        'API สำหรับระบบภายนอก (เช่น chatbot) ขับเคลื่อนคำขอตั้งแต่เปิดจนปิด\n\n' +
-        'ทุก request ต้องมีสองอย่าง: bearer ที่ถือสิทธิ์ ' +
-        '`integration.request.create` และ header `X-Acting-User` ' +
-        'ที่ระบุอีเมลของคนที่ระบบกำลังทำแทน — ระบบจะทำงานในนามคนนั้น ' +
-        'timeline จึงบันทึกชื่อคนจริง ไม่ใช่ชื่อบัญชีบริการ\n\n' +
+        'API สำหรับระบบภายนอก (เช่น chatbot) แยกตาม module — ' +
+        '`request` คำขอตั้งแต่เปิดจนปิด, `crm` ทะเบียนลูกค้าและงานขาย, ' +
+        '`approval` เปิดเคสอนุมัติจากโมดูลอื่น\n\n' +
+        '**ทุก route มีสองประตู** และ Swagger ของแต่ละ route บอกไว้ทั้งคู่: ' +
+        'bearer ต้องถือสิทธิ์ `integration.*` ของ route นั้น (ประตูของเครื่อง) ' +
+        'และคนที่ระบุใน header `X-Acting-User` ต้องถือสิทธิ์ของงานนั้นเอง ' +
+        '(ประตูของคน) — ระบบทำงานในนามคนนั้น timeline จึงบันทึกชื่อคนจริง ' +
+        'ไม่ใช่ชื่อบัญชีบริการ\n\n' +
+        'ข้อยกเว้นสามตัวที่ **ไม่มี** `X-Acting-User` เพราะไม่มีคนอยู่ปลายสาย: ' +
+        '`POST /crm/leads` (เว็บฟอร์มลูกค้า), ' +
+        '`GET|POST /crm/leads/{id}/facts|stage` (workflow engine) และ ' +
+        '`POST /approval/cases` (โมดูลอื่นเปิดเคส)\n\n' +
         '**bearer รับได้สองแบบ**\n\n' +
         '1. access token ของ service account จาก Keycloak (client_credentials) ' +
         'อายุสั้น ต้องขอใหม่เมื่อหมดอายุ\n' +
@@ -96,10 +115,13 @@ function writeExternalDocument(document: OpenAPIObject, prefix: string): void {
     },
     tags: [
       {
-        name: 'external',
-        description:
-          'External Request API สำหรับ chatbot, workflow และระบบ integration',
+        name: 'request',
+        description: 'คำขอ (Platform Request) — เปิด, ติดตาม, ดำเนินการ, ปิด',
       },
+      { name: 'crm', description: 'ทะเบียนลูกค้า, Lead, โอกาสการขาย, ใบเสนอราคา' },
+      { name: 'crm-intake', description: 'ช่องทางรับ Lead จากระบบภายนอก' },
+      { name: 'crm-workflow', description: 'workflow engine อ่านและเลื่อนขั้น Lead' },
+      { name: 'approval', description: 'เปิดเคสอนุมัติจากโมดูลอื่น (APV-07)' },
     ],
     /*
       Where the document was true of when it was generated. Integrators import
@@ -114,7 +136,7 @@ function writeExternalDocument(document: OpenAPIObject, prefix: string): void {
     */
     servers: [
       {
-        url: process.env.EXTERNAL_API_PUBLIC_URL ?? 'http://192.168.31.52:3502',
+        url: process.env.EXTERNAL_API_PUBLIC_URL ?? 'http://192.168.31.52:3503',
         description: 'เครื่องภายใน OSD',
       },
     ],
@@ -174,7 +196,7 @@ async function generate(
   const paths = Object.keys(document.paths).length;
   console.log(`${name}: ${paths} paths → docs/openapi/${name}.json`);
 
-  if (name === 'core-service') writeExternalDocument(document, prefix);
+  if (name === 'external-service') writeExternalDocument(document, prefix);
 
   await app.close();
 }
@@ -182,6 +204,7 @@ async function generate(
 async function main(): Promise<void> {
   await generate('core-service', CoreServiceModule, 'api/v1');
   await generate('user-service', UserServiceModule, 'api/v1');
+  await generate('external-service', ExternalServiceModule, 'api/v1');
 }
 
 void main();

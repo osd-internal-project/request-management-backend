@@ -10,6 +10,7 @@ COPY libs/prisma/package.json ./libs/prisma/
 COPY libs/share/package.json ./libs/share/
 COPY services/user-service/package.json ./services/user-service/
 COPY services/core-service/package.json ./services/core-service/
+COPY services/external-service/package.json ./services/external-service/
 COPY libs/prisma/schema.prisma ./libs/prisma/
 RUN yarn install --frozen-lockfile
 
@@ -32,6 +33,7 @@ COPY libs/prisma/package.json ./libs/prisma/
 COPY libs/share/package.json ./libs/share/
 COPY services/user-service/package.json ./services/user-service/
 COPY services/core-service/package.json ./services/core-service/
+COPY services/external-service/package.json ./services/external-service/
 COPY libs/prisma/schema.prisma ./libs/prisma/
 RUN yarn install --production --frozen-lockfile
 

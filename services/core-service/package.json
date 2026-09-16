@@ -4,6 +4,8 @@
   "description": "Core domain service.",
   "private": true,
   "license": "UNLICENSED",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
   "scripts": {
     "build": "nest build",
     "start": "nest start",

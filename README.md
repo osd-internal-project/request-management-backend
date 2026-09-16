@@ -18,8 +18,30 @@ following the house pattern from `/Users/taksapongk/Documents/Project/d-service/
 |---|---|---|
 | `@request-management/user-service` | `services/user-service` | `3001` |
 | `@request-management/core-service` | `services/core-service` | `3002` |
+| `@request-management/external-service` | `services/external-service` | `3003` |
 | `@request-management/share` | `libs/share` | — |
 | `@request-management/prisma` | `libs/prisma` | — |
+
+Each is published at `+500` on the host (`3501`/`3502`/`3503`), which is a compose
+mapping and not a second listener — see `infra/labs/docker-compose.yml` on the
+`deploys/labs` branch.
+
+**`external-service` is the only one an outside system reaches.** It serves no
+screens; it serves machines, which authenticate differently (an `rfk_` API key
+or a service-account token, plus `X-Acting-User`). It runs core-service's domain
+providers in its own process rather than duplicating them — see
+[`services/core-service/src/index.ts`](./services/core-service/src/index.ts) for
+what it may import and the one thing it may never. Routes are grouped by module:
+
+| Module | Routes |
+|---|---|
+| `api/v1/request/*` | the request flow, acting for a person |
+| `api/v1/crm/*` | customers, leads, opportunities, quotations, sale orders, CRM admin |
+| `api/v1/approval/*` | APV-07 — another module opens an approval case |
+| `api/v1/mcp` | the same request calls over JSON-RPC, for tool callers |
+
+Full documentation, including the two gates every route applies, is in
+[`docs/EXTERNAL_API.md`](./docs/EXTERNAL_API.md).
 
 ```
 ├── package.json                  # private root: workspaces + orchestration + prisma scripts
@@ -33,7 +55,11 @@ following the house pattern from `/Users/taksapongk/Documents/Project/d-service/
 │       └── errors/               # AppError, AppErrorExceptionFilter
 └── services/
     ├── user-service/src/{configs,auth,users}/
-    └── core-service/src/{configs,health}/
+    ├── core-service/src/{configs,health}/
+    │   └── index.ts              # what external-service may import — and may not
+    └── external-service/src/
+        ├── auth/                 # machine credentials: API key exchange, X-Acting-User
+        └── {request,crm,approval,mcp}/
 ```
 
 Services consume `@request-management/share` as a workspace dependency, importing its **source**.
@@ -203,6 +229,7 @@ return **500**, and their messages are withheld when `NODE_ENV=production`.
 ```bash
 docker build -t request-management/user-service -f services/user-service/Dockerfile .
 docker build -t request-management/core-service -f services/core-service/Dockerfile .
+docker build -t request-management/external-service -f services/external-service/Dockerfile .
 ```
 
 Build from the repo root — yarn needs every workspace manifest in the context to link them, and
@@ -214,5 +241,9 @@ Build from the repo root — yarn needs every workspace manifest in the context 
    (copy `services/core-service/package.json` — it has the smaller dependency set), plus
    `nest-cli.json`, `tsconfig.json`, `tsconfig.build.json`, and a `Dockerfile`.
 2. Add `start:<name>` / `build:<name>` scripts to the root `package.json` and include the package in
-   `build:services`.
-3. `yarn install` to link the new workspace.
+   `build:services` and `test`.
+3. **Add the new manifest to every other service's `Dockerfile`.** Each one copies *all* workspace
+   manifests before `yarn install` so yarn can link them; miss one and that image stops building.
+4. Add it to `scripts/generate-openapi.ts` (an import plus a `generate()` call) and to
+   `strategy.matrix.service` in `.github/workflows/deploy-labs.yml` on `deploys/labs`.
+5. `yarn install` to link the new workspace.
