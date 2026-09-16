@@ -64,6 +64,34 @@ export type RequestListRow = RequestWithType & {
 };
 
 /**
+ * A person, as the detail screen introduces them.
+ *
+ * More than a name because the question the screen is asked is "who is holding
+ * this, and how do I reach them" — a display name alone sends the reader to the
+ * directory in another tab.
+ *
+ * `orgUnit.name` is the person's **current** team, deliberately not the
+ * request's own `receiverOrgUnitId` / `requesterOrgUnitId`. Those two columns
+ * carry no relation on purpose (see their doc comments in schema.prisma): they
+ * are a snapshot of where the work sat when it was raised, which is the right
+ * answer for reporting and the wrong one for "who do I call".
+ *
+ * Every field here reaches anyone who can open the request. There is no
+ * masking on user columns — `SensitiveFieldInterceptor` only knows about
+ * `request:DSC` fields — so adding to this list publishes to that whole
+ * audience.
+ */
+const REQUEST_PERSON_SELECT = {
+  id: true,
+  displayName: true,
+  position: true,
+  email: true,
+  extension: true,
+  phone: true,
+  orgUnit: { select: { name: true } },
+} as const;
+
+/**
  * What §16 หน้าที่ 4 needs, derived from the query rather than restated.
  *
  * Writing this shape by hand meant keeping two declarations in step, and they
@@ -77,10 +105,21 @@ export const REQUEST_DETAIL_INCLUDE = {
     The three people a request is about. Absent until 9 ก.ย. 2569, which left
     the detail endpoint answering with uuids while the timeline beneath it
     printed names — the same person, twice, unrecognisably.
+
+    One shared select rather than three copies: they answer the same question
+    and had no reason to differ, which is exactly the condition under which
+    three literals drift apart.
   */
-  requester: { select: { id: true, displayName: true } },
-  receiver: { select: { id: true, displayName: true } },
-  assignee: { select: { id: true, displayName: true } },
+  requester: { select: REQUEST_PERSON_SELECT },
+  receiver: { select: REQUEST_PERSON_SELECT },
+  assignee: { select: REQUEST_PERSON_SELECT },
+  /*
+    The SLA clock, which the list has carried since the badge was written and
+    the detail screen never had — so §16 หน้าที่ 4's `เกินกำหนด 3 ชม.` had
+    nothing to render from, while the row that linked to it showed the badge.
+    Same three columns as `search()` below, so the two screens cannot disagree.
+  */
+  slaClock: { select: { state: true, dueAt: true, breachedAt: true } },
   approvalCases: {
     orderBy: { createdAt: 'desc' },
     take: 1,
@@ -99,6 +138,13 @@ export const REQUEST_DETAIL_INCLUDE = {
           status: true,
           decision: true,
           decidedAt: true,
+          /*
+            The decider's own words. Required on approve, reject and send_back,
+            and until now selected nowhere — so the one place a reader could
+            find "why was this rejected" was a timeline entry in the other
+            column, next to a stepper that showed the decision without it.
+          */
+          note: true,
           approver: { select: { displayName: true } },
           // A level can name several people, any one of whom may decide. The
           // screen prints them so "waiting on" is not one name out of three.
