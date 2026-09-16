@@ -337,6 +337,10 @@ describe('CRM ใบสั่งขาย — จุดเดียวที่�
       update: jest.fn(() => Promise.resolve({})),
     };
     const leads = { update: jest.fn(() => Promise.resolve({})) };
+    const quotations = {
+      findFirst: jest.fn(() => Promise.resolve(null)),
+      updateMany: jest.fn(() => Promise.resolve({ count: 0 })),
+    };
     const customers = {
       findFirst: jest.fn((args: { where: Record<string, unknown> }) => {
         if (args.where.taxId)
@@ -372,6 +376,7 @@ describe('CRM ใบสั่งขาย — จุดเดียวที่�
           work({}),
         ),
       } as never,
+      quotations as never,
     );
 
     return {
@@ -379,6 +384,7 @@ describe('CRM ใบสั่งขาย — จุดเดียวที่�
       saleOrders,
       opportunities,
       leads,
+      quotations,
       customers,
       customersService,
       audit,
@@ -447,6 +453,11 @@ describe('CRM ใบสั่งขาย — จุดเดียวที่�
         data: expect.objectContaining({ customerId: 'cust-new' }) as unknown,
       }),
     );
+    // ใบเสนอราคาที่ออกตอนเป็นผู้มุ่งหวังถูกผูกลูกค้าตาม
+    expect(firstArg(h.quotations.updateMany)).toEqual({
+      where: { opportunityId: 'opportunity-1', customerId: null },
+      data: { customerId: 'cust-new' },
+    });
 
     expect(h.audit.events.map((a) => a.eventType)).toEqual([
       'crm.sale_order.opened',

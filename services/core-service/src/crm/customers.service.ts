@@ -285,7 +285,10 @@ export class CustomersService {
         requestTotal === null
           ? null
           : { total: requestTotal, open: requestOpen },
-      financials: (payload?.receivables ?? null) as {
+      // ODOO_MODE=mock → ตัวเลขใน cache เป็นของปลอม: ตอบ null ให้การ์ดบอกว่ารอ Odoo
+      financials: (this.odooSync.receivablesLive
+        ? (payload?.receivables ?? null)
+        : null) as {
         outstanding: number;
         invoiceCount: number;
         asOf: string;

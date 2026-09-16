@@ -17,6 +17,14 @@ export interface DirectoryEntry {
   readonly email: string | null;
   /** The HR job title, free text. Empty for anyone imported without one. */
   readonly position: string | null;
+  /** HR's staff number, e.g. `EMP-094`. Format varies; see the schema. */
+  readonly employeeId: string | null;
+  /** Desk extension. Shared by several people in 14 known cases. */
+  readonly extension: string | null;
+  /** Start date. Only the date part means anything. */
+  readonly startWork: Date | null;
+  /** Contact number exactly as the previous system recorded it. */
+  readonly phone: string | null;
   /** Null while the person sits in the `รอจัดสังกัด` queue (AUTH-04). */
   readonly orgUnitId: string | null;
   readonly orgUnitName: string | null;
@@ -116,6 +124,10 @@ function toEntry(row: DirectoryRow): DirectoryEntry {
     username: row.username,
     email: row.email,
     position: row.position,
+    employeeId: row.employeeId,
+    extension: row.extension,
+    startWork: row.startWork,
+    phone: row.phone,
     orgUnitId: row.orgUnitId,
     orgUnitName: row.orgUnit?.name ?? null,
   };

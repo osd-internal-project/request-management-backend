@@ -38,10 +38,16 @@ import {
   LeadActivityRepository,
   LeadRepository,
   LeadStatusRepository,
+  QuotationLineRepository,
+  QuotationRepository,
   SaleOrderRepository,
 } from './sales.repositories';
 import { OpportunityCodeService } from './opportunity-code.service';
 import { SaleOrderCodeService } from './sale-order-code.service';
+import { QuotationCodeService } from './quotation-code.service';
+import { QuotationsService } from './quotations.service';
+import { QuotationApprovalSyncService } from './quotation-approval-sync.service';
+import { QuotationsController } from './quotations.controller';
 import { LeadsService } from './leads.service';
 import { LeadStatusService } from './lead-status.service';
 import { OpportunitiesService } from './opportunities.service';
@@ -81,6 +87,7 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     LeadsController,
     OpportunitiesController,
     SaleOrdersController,
+    QuotationsController,
     LeadWorkflowController,
     LeadIntakeController,
   ],
@@ -113,6 +120,11 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     OpportunityCodeService,
     SaleOrderRepository,
     SaleOrderCodeService,
+    QuotationRepository,
+    QuotationLineRepository,
+    QuotationCodeService,
+    QuotationsService,
+    QuotationApprovalSyncService,
     LeadsService,
     LeadStatusService,
     LeadImportService,

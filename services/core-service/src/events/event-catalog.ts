@@ -15,6 +15,16 @@ export const DOMAIN_EVENTS = {
   requestResubmitted: 'request.resubmitted',
   requestCancelled: 'request.cancelled',
   requestCompleted: 'request.completed',
+  /**
+   * The result stands — whether an approver signed the last step or the type
+   * has no matrix and was accepted as delivered. One name for both, because a
+   * consumer waiting on "was this approved" must not have to know which
+   * branch `complete` took. Pre-work approval (`:pre`) is not this event: it
+   * only hands the ticket to its receiver.
+   */
+  requestApproved: 'request.approved',
+  /** An approver rejected the request outright (terminal). */
+  requestRejected: 'request.rejected',
   /** What triggers "you have work waiting". */
   approvalStepPending: 'approval.step.pending',
   approvalCompleted: 'approval.completed',
@@ -63,6 +73,8 @@ export type DomainEvent =
   | { name: 'request.resubmitted'; payload: RequestEventPayload }
   | { name: 'request.cancelled'; payload: RequestEventPayload }
   | { name: 'request.completed'; payload: RequestEventPayload }
+  | { name: 'request.approved'; payload: RequestEventPayload }
+  | { name: 'request.rejected'; payload: RequestEventPayload }
   | { name: 'approval.step.pending'; payload: ApprovalEventPayload }
   | { name: 'approval.completed'; payload: ApprovalEventPayload }
   | { name: 'approval.rejected'; payload: ApprovalEventPayload }

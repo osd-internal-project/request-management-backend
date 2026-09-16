@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '@request-management/share';
+import { firstFreeCode } from './doc-code';
 
 export function formatSaleOrderCode(docPrefix: string, seq: number): string {
   return `SO-${docPrefix}-${String(seq).padStart(6, '0')}`;
@@ -24,14 +25,26 @@ export class SaleOrderCodeService {
       select: { docPrefix: true },
     });
 
-    const rows = await prisma.$queryRaw<{ lastSeq: number }[]>`
-      INSERT INTO "sale_order_code_counters" ("id", "companyId", "lastSeq", "updatedAt")
-      VALUES (gen_random_uuid(), ${companyId}, 1, NOW())
-      ON CONFLICT ("companyId")
-      DO UPDATE SET "lastSeq" = "sale_order_code_counters"."lastSeq" + 1, "updatedAt" = NOW()
-      RETURNING "lastSeq"
-    `;
-
-    return formatSaleOrderCode(company?.docPrefix ?? 'CTD', rows[0].lastSeq);
+    return firstFreeCode(
+      `sale order counter for company ${companyId}`,
+      async () => {
+        const rows = await prisma.$queryRaw<{ lastSeq: number }[]>`
+          INSERT INTO "sale_order_code_counters" ("id", "companyId", "lastSeq", "updatedAt")
+          VALUES (gen_random_uuid(), ${companyId}, 1, NOW())
+          ON CONFLICT ("companyId")
+          DO UPDATE SET "lastSeq" = "sale_order_code_counters"."lastSeq" + 1, "updatedAt" = NOW()
+          RETURNING "lastSeq"
+        `;
+        return formatSaleOrderCode(
+          company?.docPrefix ?? 'CTD',
+          rows[0].lastSeq,
+        );
+      },
+      async (code) =>
+        !!(await prisma.saleOrder.findUnique({
+          where: { saleOrderCode: code },
+          select: { id: true },
+        })),
+    );
   }
 }

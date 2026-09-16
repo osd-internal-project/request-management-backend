@@ -546,4 +546,33 @@ export class UpdateCrmConfigDto {
   @Min(0.5)
   @Max(1)
   dedup_threshold?: number;
+
+  /**
+   * CD-76: margin ขั้นต่ำ (%) ก่อนออกใบเสนอราคา — ต่ำกว่านี้ต้องผ่านคำขออนุมัติ.
+   * ตั้งจากหน้าจอแทนการรอ CD-26 ยืนยันตัวเลข.
+   */
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  min_margin_pct?: number;
+
+  /** CD-76: จำนวนวันที่ใบเสนอราคาใหม่มีผล (ค่าตั้งต้นของ valid_until). */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(365)
+  quotation_validity_days?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(30)
+  vat_pct?: number;
+
+  /** รหัสประเภทคำขอที่ใช้ขออนุมัติ margin ต่ำ — ค่าตั้งต้น `DSC`. */
+  @IsOptional()
+  @IsString()
+  @Matches(/^[A-Z0-9_-]{1,20}$/)
+  quotation_approval_type_code?: string;
 }

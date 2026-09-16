@@ -52,6 +52,14 @@ export class CustomerOdooSyncService implements OnModuleInit, OnModuleDestroy {
     private readonly config: ConfigService,
   ) {}
 
+  /**
+   * C360-02 — ยอดค้างชำระมาจาก Odoo จริงหรือไม่. driver mock สร้างตัวเลขปลอม
+   * (ใช้ทดสอบ sync ได้) แต่ห้ามโชว์บนการ์ดลูกค้าเหมือนเป็นยอดจริง.
+   */
+  get receivablesLive(): boolean {
+    return this.odoo.mode === 'http';
+  }
+
   onModuleInit(): void {
     const retryMs = this.config.get<number>('odoo.retryIntervalMs') ?? 300_000;
     const refreshMs =

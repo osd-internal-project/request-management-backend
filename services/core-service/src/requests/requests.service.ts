@@ -1158,7 +1158,7 @@ export class RequestsService {
       // that is, all of them until somebody publishes one.
       if (!stage.recordsAcceptance) return completed;
 
-      return this.transactions.execute(async (prisma) => {
+      const accepted = await this.transactions.execute(async (prisma) => {
         const updated = await prisma.request.update({
           where: { id },
           data: { status: 'approved', updatedBy: actor.userId },
@@ -1177,6 +1177,22 @@ export class RequestsService {
 
         return updated;
       });
+
+      // §11.8 — after the commit. Same event an approver's final sign-off
+      // emits, so a consumer waiting on the outcome need not know that this
+      // type has no matrix.
+      await this.domainEvents.emit({
+        name: DOMAIN_EVENTS.requestApproved,
+        payload: {
+          company_id: before.companyId,
+          request_id: id,
+          request_no: before.requestNo,
+          type_code: before.typeCode,
+          requester_id: before.requesterId,
+        },
+      });
+
+      return accepted;
     }
 
     const approvalCase = await this.approvals.openCase(

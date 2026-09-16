@@ -8,13 +8,19 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { CurrentPrincipal, Permissions } from '@request-management/share';
+import {
+  CurrentPrincipal,
+  Permissions,
+  SensitiveResource,
+} from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import { LeadsService } from './leads.service';
 import { LeadStatusService } from './lead-status.service';
 import { LeadImportService } from './lead-import.service';
 import { OpportunitiesService } from './opportunities.service';
 import { SaleOrdersService } from './sale-orders.service';
+import { QuotationsService } from './quotations.service';
+import { CreateQuotationDto } from './dto/quotation.dto';
 import {
   AssignLeadDto,
   CancelSaleOrderDto,
@@ -183,6 +189,7 @@ export class OpportunitiesController {
   constructor(
     private readonly opportunities: OpportunitiesService,
     private readonly saleOrders: SaleOrdersService,
+    private readonly quotations: QuotationsService,
   ) {}
 
   @Get()
@@ -238,6 +245,21 @@ export class OpportunitiesController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.saleOrders.open(id, dto, principal);
+  }
+
+  /**
+   * ร่างใบเสนอราคาใหม่ (CD-76) จากโอกาสการขายที่ยังเปิดอยู่ — การกระทำหลังจากนี้
+   * อยู่ที่ `/quotations/:id`. ตอบกลับพร้อมต้นทุน/margin จึงต้องปกปิดเหมือนกัน.
+   */
+  @Post(':id/quotations')
+  @Permissions('crm.sales.manage')
+  @SensitiveResource('quotation')
+  createQuotation(
+    @Param('id') id: string,
+    @Body() dto: CreateQuotationDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.quotations.createForOpportunity(id, dto, principal);
   }
 
   /** ปิดแพ้ — เหตุผลมาตรฐานบังคับ (spec CRM). */

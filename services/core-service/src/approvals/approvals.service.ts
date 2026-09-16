@@ -45,7 +45,7 @@ import {
 } from '../principal/approval-context.client';
 import { NotificationsService } from '../notifications/notifications.service';
 import { DomainEventsService } from '../events/domain-events.service';
-import { DOMAIN_EVENTS } from '../events/event-catalog';
+import { DOMAIN_EVENTS, type DomainEvent } from '../events/event-catalog';
 import {
   BatchDecideDto,
   DecideDto,
@@ -465,6 +465,14 @@ export class ApprovalsService {
       );
     }
 
+    /*
+      What the request became, captured inside the transaction and announced
+      only after it commits (§11.8). An object rather than a `let`: TypeScript
+      does not see an assignment made inside the callback and would narrow a
+      `let` back to `null` at the emit.
+    */
+    const outcome: { event: DomainEvent | null } = { event: null };
+
     const decided = await this.transactions.execute(async (prisma) => {
       const found = await prisma.approvalCase.findUnique({
         where: { id: caseId },
@@ -473,7 +481,8 @@ export class ApprovalsService {
           /*
             The four columns a scope grant is matched against. Selected rather
             than joined whole: this runs on every decision, and the case has no
-            other use for the request's payload.
+            other use for the request's payload. `typeCode`/`requestNo` ride
+            along for the outcome event.
           */
           request: {
             select: {
@@ -482,6 +491,8 @@ export class ApprovalsService {
               assigneeUserId: true,
               requesterOrgUnitId: true,
               receiverOrgUnitId: true,
+              typeCode: true,
+              requestNo: true,
             },
           },
         },
@@ -602,6 +613,25 @@ export class ApprovalsService {
           data: { status: toStatus, updatedBy: actor.userId },
         });
 
+        if (
+          (toStatus === 'approved' || toStatus === 'rejected') &&
+          found.request
+        ) {
+          outcome.event = {
+            name:
+              toStatus === 'approved'
+                ? DOMAIN_EVENTS.requestApproved
+                : DOMAIN_EVENTS.requestRejected,
+            payload: {
+              company_id: found.companyId,
+              request_id: found.requestId,
+              request_no: found.request.requestNo,
+              type_code: found.request.typeCode,
+              requester_id: found.request.requesterId,
+            },
+          };
+        }
+
         await prisma.requestEvent.create({
           data: {
             requestId: found.requestId,
@@ -674,6 +704,8 @@ export class ApprovalsService {
     });
 
     await this.notifications.decisionMade(decided, dto.decision);
+
+    if (outcome.event) await this.domainEvents.emit(outcome.event);
 
     return decided;
   }

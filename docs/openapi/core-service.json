@@ -4714,6 +4714,53 @@
         ]
       }
     },
+    "/api/v1/opportunities/{id}/quotations": {
+      "post": {
+        "operationId": "OpportunitiesController_createQuotation",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateQuotationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "opportunities"
+        ]
+      }
+    },
     "/api/v1/opportunities/{id}/lose": {
       "post": {
         "operationId": "OpportunitiesController_lose",
@@ -4904,6 +4951,412 @@
         ],
         "tags": [
           "sale-orders"
+        ]
+      }
+    },
+    "/api/v1/quotations": {
+      "get": {
+        "operationId": "QuotationsController_list",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "เลขหน้าที่ต้องการ เริ่มที่ 1",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "page_size",
+            "required": false,
+            "in": "query",
+            "description": "จำนวนรายการต่อหน้า",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "`sort=field` เรียงขึ้น, `sort=-field` เรียงลง",
+            "schema": {
+              "example": "-createdAt",
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "quotations"
+        ]
+      }
+    },
+    "/api/v1/quotations/{id}": {
+      "get": {
+        "operationId": "QuotationsController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "quotations"
+        ]
+      },
+      "patch": {
+        "operationId": "QuotationsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateQuotationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "quotations"
+        ]
+      }
+    },
+    "/api/v1/quotations/{id}/submit": {
+      "post": {
+        "operationId": "QuotationsController_submit",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitQuotationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "quotations"
+        ]
+      }
+    },
+    "/api/v1/quotations/{id}/send": {
+      "post": {
+        "operationId": "QuotationsController_send",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "quotations"
+        ]
+      }
+    },
+    "/api/v1/quotations/{id}/accept": {
+      "post": {
+        "operationId": "QuotationsController_accept",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptQuotationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "quotations"
+        ]
+      }
+    },
+    "/api/v1/quotations/{id}/decline": {
+      "post": {
+        "operationId": "QuotationsController_decline",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeclineQuotationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "quotations"
+        ]
+      }
+    },
+    "/api/v1/quotations/{id}/revise": {
+      "post": {
+        "operationId": "QuotationsController_revise",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "quotations"
+        ]
+      }
+    },
+    "/api/v1/quotations/{id}/cancel": {
+      "post": {
+        "operationId": "QuotationsController_cancel",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelQuotationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "quotations"
         ]
       }
     },
@@ -7554,11 +8007,35 @@
         "type": "object",
         "properties": {}
       },
+      "CreateQuotationDto": {
+        "type": "object",
+        "properties": {}
+      },
       "LoseOpportunityDto": {
         "type": "object",
         "properties": {}
       },
       "CancelSaleOrderDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "UpdateQuotationDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "SubmitQuotationDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "AcceptQuotationDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "DeclineQuotationDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CancelQuotationDto": {
         "type": "object",
         "properties": {}
       },
@@ -8573,6 +9050,31 @@
             "nullable": true,
             "example": "Solution Architect"
           },
+          "employeeId": {
+            "type": "string",
+            "description": "รหัสพนักงานตามข้อมูล HR — รูปแบบไม่คงที่ ส่วนใหญ่เป็น `EMP-NNN` แต่มี `Consult-005`, `M-008` และเลขล้วนปนอยู่ ห้ามใช้เป็นคีย์",
+            "nullable": true,
+            "example": "EMP-094"
+          },
+          "extension": {
+            "type": "string",
+            "description": "เบอร์ภายใน — **ซ้ำกันได้** หลายคนที่นั่งโต๊ะเดียวกันใช้เบอร์เดียวกัน",
+            "nullable": true,
+            "example": "3006"
+          },
+          "startWork": {
+            "type": "string",
+            "description": "วันเริ่มงาน — มีความหมายเฉพาะส่วนวันที่ เวลาเป็น 00:00 เสมอ",
+            "nullable": true,
+            "format": "date-time",
+            "example": "2019-05-21T00:00:00.000Z"
+          },
+          "phone": {
+            "type": "string",
+            "description": "เบอร์ติดต่อตามที่ระบบเดิมบันทึกไว้ ไม่ได้จัดรูปแบบ — บางเลขขึ้นต้นด้วยรหัสประเทศ บางเลขไม่มี",
+            "nullable": true,
+            "example": "617130550"
+          },
           "orgUnitId": {
             "type": "string",
             "description": "null = ยังไม่ถูกจัดสังกัด (คิว รอจัดสังกัด)",
@@ -8590,6 +9092,10 @@
           "username",
           "email",
           "position",
+          "employeeId",
+          "extension",
+          "startWork",
+          "phone",
           "orgUnitId",
           "orgUnitName"
         ]

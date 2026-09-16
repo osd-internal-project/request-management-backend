@@ -208,6 +208,20 @@ enum SaleOrderStatus {
   cancelled
 }
 
+/// CRM — สถานะใบเสนอราคา (CD-76). แก้ได้เฉพาะ `draft`; ส่งลูกค้าแล้วแก้ไม่ได้ ต้อง
+/// ออกเวอร์ชันใหม่ (`superseded` คือฉบับที่ถูกเวอร์ชันใหม่แทน). margin ต่ำกว่าเกณฑ์ =
+/// `pending_approval` รอคำขออนุมัติ (ประเภทตาม CrmCompanyConfig) ผ่านก่อนเป็น `approved`.
+enum QuotationStatus {
+  draft
+  pending_approval
+  approved
+  sent
+  accepted
+  declined
+  superseded
+  cancelled
+}
+
 /// CM-05: บทบาทผู้ติดต่อตามสเปค.
 enum CustomerContactRole {
   decision_maker
@@ -265,6 +279,8 @@ model Company {
   opportunityCodeCounter  OpportunityCodeCounter?
   saleOrders              SaleOrder[]
   saleOrderCodeCounter    SaleOrderCodeCounter?
+  quotations              Quotation[]
+  quotationCodeCounter    QuotationCodeCounter?
 
   @@map("companies")
 }
@@ -297,6 +313,37 @@ model User {
   /// register holds 67 distinct titles across 102 people, so the same title
   /// appears under several departments and each is its own box on the chart.
   position String?
+
+  /// HR's own staff number, e.g. `EMP-094`.
+  ///
+  /// Not unique and not validated, because the source register genuinely is not
+  /// uniform: 98 of 101 rows are `EMP-NNN`, the rest are `Consult-005`, `M-008`
+  /// and a bare `888`. A format check here would reject real people.
+  ///
+  /// `import-osd-catalog.ts` already reads this concept as `employeeCode` but
+  /// only as a join key — it was never persisted. This column is its home; do
+  /// not add a third name for it.
+  employeeId String?
+
+  /// Desk phone extension, four digits.
+  ///
+  /// Deliberately **not** unique: 14 of the 75 known values are shared, because
+  /// a team sitting around one handset all give out the same number.
+  extension String?
+
+  /// The day the person started work.
+  ///
+  /// Only the date carries meaning — every value in the source register is
+  /// midnight — but stored as a timestamp because nothing else in this schema
+  /// uses `@db.Date` and one exception would be the surprising thing.
+  startWork DateTime?
+
+  /// Contact number carried over from the previous system.
+  ///
+  /// Stored exactly as the source wrote it, without normalising: the register
+  /// mixes `66` country prefixes with bare nine-digit numbers, and guessing
+  /// which is which would invent data.
+  phone String?
 
   /// Null until an admin assigns the user — these are the "รอจัดสังกัด" queue.
   orgUnitId String?
@@ -1578,6 +1625,7 @@ model Customer {
   leads          Lead[]
   opportunities  Opportunity[]
   saleOrders     SaleOrder[]
+  quotations     Quotation[]
   locations      CustomerLocation[]
   contacts       CustomerContact[]
   externalCodes  CustomerExternalCode[]
@@ -1805,6 +1853,15 @@ model CrmCompanyConfig {
   /// 0..1 — Dice-coefficient threshold above which two normalized names are
   /// reported as "similar" by check-duplicate.
   dedupThreshold Float @default(0.85)
+
+  /// CD-76: margin ขั้นต่ำ (%) ของใบเสนอราคา — ต่ำกว่านี้ต้องผ่านคำขออนุมัติก่อนส่ง
+  /// ลูกค้า. ตั้งค่าได้แทนการรอเกณฑ์จาก CD-26 (ยังไม่ยืนยัน).
+  minMarginPct              Float  @default(15)
+  /// จำนวนวันที่ใบเสนอราคาใหม่มีผล — ค่าตั้งต้นของ `Quotation.validUntil`.
+  quotationValidityDays     Int    @default(30)
+  vatPct                    Float  @default(7)
+  /// ประเภทคำขอที่ระบบสร้างร่างให้เมื่อ margin ต่ำ — ต้องเปิดให้บริษัทนี้ใช้อยู่.
+  quotationApprovalTypeCode String @default("DSC")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2123,6 +2180,7 @@ model Opportunity {
   customer   Customer?            @relation(fields: [customerId], references: [id])
   products   OpportunityProduct[]
   saleOrders SaleOrder[]
+  quotations Quotation[]
   fromLead   Lead?
 
   @@index([companyId, stage])
@@ -2207,15 +2265,21 @@ model SaleOrder {
   updatedAt DateTime @updatedAt
   updatedBy String?
 
+  /// CD-77: ใบเสนอราคาที่ลูกค้ายอมรับซึ่งใบสั่งขายนี้เปิดตาม — ว่างได้ (ใบสั่งขายที่
+  /// เปิดก่อนมีโมดูลใบเสนอราคา หรือเปิดตรงจากโอกาสการขาย).
+  quotationId String?
+
   company     Company     @relation(fields: [companyId], references: [id])
   opportunity Opportunity @relation(fields: [opportunityId], references: [id])
   customer    Customer    @relation(fields: [customerId], references: [id])
+  quotation   Quotation?  @relation(fields: [quotationId], references: [id])
 
   @@index([companyId, opportunityId])
   @@index([companyId, customerId])
   @@index([companyId, status])
   @@index([companyId, ownerUserId])
   @@index([companyId, ownerOrgUnitId])
+  @@index([quotationId])
   @@map("sale_orders")
 }
 
@@ -2228,4 +2292,119 @@ model SaleOrderCodeCounter {
   company Company @relation(fields: [companyId], references: [id])
 
   @@map("sale_order_code_counters")
+}
+
+/// CRM ใบเสนอราคา (CD-76) — เลข QT-{docPrefix}-xxxxxx ต่อโอกาสการขาย, **หนึ่งเลขมี
+/// หลายเวอร์ชัน** (`@@unique([quotationNo, version])`). แก้ได้เฉพาะ draft; ฉบับที่
+/// ส่ง/อนุมัติแล้วแก้ไม่ได้ — `revise` ออกเวอร์ชันใหม่เป็น draft และติด `superseded`
+/// ให้ฉบับเดิม. ยอดรวม/ต้นทุน/margin คำนวณตอนบันทึกแล้วเก็บเป็น snapshot ของเวอร์ชัน
+/// นั้น (ต้นทุนกรอกเองต่อบรรทัดจนกว่าจะมี BOQ/ทะเบียนสินค้า, ผู้ใช้ 15 ก.ย. 2569).
+/// ต้นทุนและ margin เป็นข้อมูลอ่อนไหว — ปกปิดผ่าน sensitive_field_rules resource `quotation`.
+model Quotation {
+  id          String @id @default(uuid())
+  quotationNo String
+  version     Int    @default(1)
+
+  companyId     String
+  opportunityId String
+  /// ลูกค้าในทะเบียน ถ้าโอกาสการขายผูกอยู่แล้วตอนสร้างเวอร์ชันนี้ — ผู้มุ่งหวังเป็น NULL.
+  customerId String?
+
+  /// คู่ค้าที่พิมพ์บนเอกสาร — snapshot จากลูกค้า/ผู้มุ่งหวังตอนสร้างเวอร์ชัน.
+  partyName   String
+  partyTaxId  String?
+  contactName String?
+
+  title        String
+  status       QuotationStatus @default(draft)
+  currency     String          @default("THB")
+  validUntil   DateTime?
+  paymentTerms String?
+  note         String?
+
+  /// ผลรวม จำนวน × ราคาต่อหน่วย ก่อนส่วนลด.
+  subtotal      Decimal @default(0) @db.Decimal(14, 2)
+  discountTotal Decimal @default(0) @db.Decimal(14, 2)
+  /// หลังส่วนลด ก่อน VAT — ฐานของ margin และมูลค่าที่ส่งต่อไปใบสั่งขาย.
+  netTotal      Decimal @default(0) @db.Decimal(14, 2)
+  vatPct        Decimal @default(7) @db.Decimal(5, 2)
+  vatAmount     Decimal @default(0) @db.Decimal(14, 2)
+  grandTotal    Decimal @default(0) @db.Decimal(14, 2)
+  costTotal     Decimal @default(0) @db.Decimal(14, 2)
+  marginAmount  Decimal @default(0) @db.Decimal(14, 2)
+  /// NULL เมื่อ netTotal = 0 (หารไม่ได้).
+  marginPct     Decimal? @db.Decimal(7, 2)
+
+  /// เกณฑ์ที่ใช้ตัดสินตอนยื่น — เก็บไว้ เพราะแก้ค่าในหน้าตั้งค่าภายหลังต้องไม่ตัดสินใหม่.
+  minMarginPct      Decimal? @db.Decimal(5, 2)
+  approvalRequired  Boolean  @default(false)
+  /// คำขอขออนุมัติ margin ต่ำ (`requests.id`) — sync กลับด้วย request.approved/rejected.
+  approvalRequestId String?
+
+  submittedAt  DateTime?
+  approvedAt   DateTime?
+  sentAt       DateTime?
+  respondedAt  DateTime?
+  /// หมายเหตุตอนลูกค้าตอบรับ/ปฏิเสธ (เช่น เลข PO ลูกค้า).
+  responseNote String?
+  cancelledAt  DateTime?
+  cancelReason String?
+
+  /// Scope columns identical to Opportunity so `visibleSalesWhere` applies.
+  ownerUserId    String
+  ownerOrgUnitId String?
+
+  createdAt DateTime @default(now())
+  createdBy String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  company     Company         @relation(fields: [companyId], references: [id])
+  opportunity Opportunity     @relation(fields: [opportunityId], references: [id])
+  customer    Customer?       @relation(fields: [customerId], references: [id])
+  lines       QuotationLine[]
+  saleOrders  SaleOrder[]
+
+  @@unique([quotationNo, version])
+  @@index([companyId, opportunityId])
+  @@index([companyId, status])
+  @@index([companyId, ownerUserId])
+  @@index([companyId, ownerOrgUnitId])
+  @@index([approvalRequestId])
+  @@map("quotations")
+}
+
+/// บรรทัดใบเสนอราคา — แทนที่ทั้งชุดได้เฉพาะตอนใบยังเป็น draft (แก้ร่าง ไม่ใช่ลบธุรกรรม).
+model QuotationLine {
+  id          String  @id @default(uuid())
+  quotationId String
+  lineNo      Int
+  /// รหัสสินค้า/บริการ (ตรง Odoo ถ้ามี) — ว่างได้สำหรับบรรทัดบริการ/ค่าแรง.
+  productCode String?
+  description String
+  quantity    Decimal @db.Decimal(14, 3)
+  unit        String?
+  unitPrice   Decimal @db.Decimal(14, 2)
+  unitCost    Decimal @default(0) @db.Decimal(14, 2)
+  discountPct Decimal @default(0) @db.Decimal(5, 2)
+  /// จำนวน × ราคา × (1 − ส่วนลด%).
+  lineTotal   Decimal @db.Decimal(14, 2)
+  lineCost    Decimal @db.Decimal(14, 2)
+
+  quotation Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+
+  @@unique([quotationId, lineNo])
+  @@map("quotation_lines")
+}
+
+/// ตัวนับ quotationNo ต่อบริษัท — atomic แบบเดียวกับ SaleOrderCodeCounter.
+model QuotationCodeCounter {
+  id        String   @id @default(uuid())
+  companyId String   @unique
+  lastSeq   Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@map("quotation_code_counters")
 }

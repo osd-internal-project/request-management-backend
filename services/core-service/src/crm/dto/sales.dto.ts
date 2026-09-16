@@ -607,7 +607,15 @@ export class OpenSaleOrderDto {
   @Type(() => SaleOrderCustomerDto)
   customer?: SaleOrderCustomerDto;
 
-  /** ว่าง = ใช้มูลค่าของโอกาสการขาย. */
+  /**
+   * CD-77: เปิดตามใบเสนอราคาที่ลูกค้ายอมรับ (`accepted`) ของโอกาสการขายนี้ —
+   * มูลค่าตั้งต้นเป็นยอดสุทธิก่อน VAT ของใบนั้น. ว่างได้ (เปิดตรงจากโอกาสการขาย).
+   */
+  @IsOptional()
+  @IsString()
+  quotation_id?: string;
+
+  /** ว่าง = ใช้มูลค่าของใบเสนอราคา (ถ้าระบุ) หรือของโอกาสการขาย. */
   @IsOptional()
   @IsNumber()
   @Min(0)

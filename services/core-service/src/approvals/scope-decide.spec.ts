@@ -58,6 +58,8 @@ function decidingCase(overrides: Record<string, unknown> = {}) {
       assigneeUserId: null,
       requesterOrgUnitId: RND,
       receiverOrgUnitId: null,
+      typeCode: 'DSC',
+      requestNo: 'OSD-DSC-202609-0001',
     },
     ...overrides,
   };
@@ -66,6 +68,7 @@ function decidingCase(overrides: Record<string, unknown> = {}) {
 /** The service with only the collaborators a decision reaches. */
 function serviceWith(found: Record<string, unknown> | null = decidingCase()) {
   const stepUpdates: Record<string, unknown>[] = [];
+  const emitted: { name: string; payload: Record<string, unknown> }[] = [];
 
   const prisma = {
     approvalCase: {
@@ -94,7 +97,12 @@ function serviceWith(found: Record<string, unknown> | null = decidingCase()) {
     {} as never, // access
     {} as never, // context
     { decisionMade: jest.fn(() => Promise.resolve()) } as never,
-    { publish: jest.fn(() => Promise.resolve()) } as never,
+    {
+      emit: jest.fn((event: (typeof emitted)[number]) => {
+        emitted.push(event);
+        return Promise.resolve();
+      }),
+    } as never,
     { record: jest.fn(() => Promise.resolve()) } as never,
     {
       execute: jest.fn((work: (client: unknown) => Promise<unknown>) =>
@@ -103,8 +111,61 @@ function serviceWith(found: Record<string, unknown> | null = decidingCase()) {
     } as never,
   );
 
-  return { service, stepUpdates };
+  return { service, stepUpdates, emitted };
 }
+
+/**
+ * The outcome leaves the approval engine as a domain event once the decision
+ * has committed — CD-76 ใบเสนอราคา waits on it instead of reading cases.
+ */
+describe('the outcome of a finished case is announced', () => {
+  const named = principal(NAMED);
+
+  it('emits request.approved when the last step approves', async () => {
+    const { service, emitted } = serviceWith();
+
+    await service.decide('case-1', { decision: 'approve', note: 'ok' }, named);
+
+    expect(emitted).toEqual([
+      {
+        name: 'request.approved',
+        payload: {
+          company_id: OSD,
+          request_id: 'req-1',
+          request_no: 'OSD-DSC-202609-0001',
+          type_code: 'DSC',
+          requester_id: 'user-requester',
+        },
+      },
+    ]);
+  });
+
+  it('emits request.rejected on a rejection', async () => {
+    const { service, emitted } = serviceWith();
+
+    await service.decide('case-1', { decision: 'reject', note: 'no' }, named);
+
+    expect(emitted.map((event) => event.name)).toEqual(['request.rejected']);
+  });
+
+  it('emits nothing for a send-back — the work goes back, nothing is decided', async () => {
+    const { service, emitted } = serviceWith();
+
+    await service.decide('case-1', { decision: 'return', note: 'fix' }, named);
+
+    expect(emitted).toEqual([]);
+  });
+
+  it('emits nothing for a pre-work approval — that only hands the ticket on', async () => {
+    const { service, emitted } = serviceWith(
+      decidingCase({ subjectType: 'request:DSC:pre' }),
+    );
+
+    await service.decide('case-1', { decision: 'approve', note: 'ok' }, named);
+
+    expect(emitted).toEqual([]);
+  });
+});
 
 async function refused(work: Promise<unknown>): Promise<AppError> {
   try {

@@ -155,6 +155,24 @@ export class SensitiveFieldInterceptor implements NestInterceptor {
     for (const field of masked) {
       delete result[field];
 
+      /*
+        A record whose own rows sit at the top level — a quotation's `lines`
+        (CD-76) carry `unitCost` per row, not inside a form container. Same
+        one-level rule as the container walk below: rows of a top-level array
+        are masked, nothing deeper.
+      */
+      for (const [key, value] of Object.entries(result)) {
+        if (!Array.isArray(value) || NESTED_CONTAINERS.includes(key)) continue;
+
+        result[key] = (value as unknown[]).map((row): unknown => {
+          if (!isPlainObject(row) || !(field in row)) return row;
+
+          const cell = { ...row };
+          delete cell[field];
+          return cell;
+        });
+      }
+
       for (const container of NESTED_CONTAINERS) {
         const nested = result[container];
         if (!isPlainObject(nested)) continue;
@@ -206,7 +224,7 @@ export class SensitiveFieldInterceptor implements NestInterceptor {
     );
 
     /** Rows of a table field — where a sensitive column actually sits. */
-    const rows = nested.flatMap((container) =>
+    const rows = [body, ...nested].flatMap((container) =>
       Object.values(container)
         .filter(Array.isArray)
         .flat()
