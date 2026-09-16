@@ -6,8 +6,6 @@ import { OdooModule } from '../odoo/odoo.module';
 import { PdpaModule } from '../pdpa/pdpa.module';
 import { EventsModule } from '../events/events.module';
 import { WorkflowModule } from '../workflow/workflow.module';
-import { CustomersController } from './customers.controller';
-import { CrmAdminController } from './crm-admin.controller';
 import { CustomersService } from './customers.service';
 import { CrmAdminService } from './crm-admin.service';
 import { CustomerRepository } from './customer.repository';
@@ -47,20 +45,12 @@ import { SaleOrderCodeService } from './sale-order-code.service';
 import { QuotationCodeService } from './quotation-code.service';
 import { QuotationsService } from './quotations.service';
 import { QuotationApprovalSyncService } from './quotation-approval-sync.service';
-import { QuotationsController } from './quotations.controller';
 import { LeadsService } from './leads.service';
 import { LeadStatusService } from './lead-status.service';
 import { OpportunitiesService } from './opportunities.service';
 import { SaleOrdersService } from './sale-orders.service';
-import {
-  OpportunitiesController,
-  LeadsController,
-  SaleOrdersController,
-} from './sales.controllers';
 import { LeadImportService } from './lead-import.service';
-import { LeadIntakeController } from './lead-intake.controller';
 import { LeadIntakeService } from './lead-intake.service';
-import { LeadWorkflowController } from './lead-workflow.controller';
 import { LeadWorkflowService } from './lead-workflow.service';
 import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
 
@@ -80,16 +70,6 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     PdpaModule,
     EventsModule,
     WorkflowModule,
-  ],
-  controllers: [
-    CustomersController,
-    CrmAdminController,
-    LeadsController,
-    OpportunitiesController,
-    SaleOrdersController,
-    QuotationsController,
-    LeadWorkflowController,
-    LeadIntakeController,
   ],
   providers: [
     CustomersService,
@@ -135,6 +115,30 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     SaleOrdersService,
     PrismaTransactionService,
   ],
-  exports: [CustomerTimelineService, CustomerRepository],
+  /*
+    `CustomerTimelineService` and `CustomerRepository` are the long-standing
+    exports — the timeline is the one interface other modules publish events
+    through (C360-03).
+
+    The services below are exported for the two modules that own CRM's
+    routes: `CrmHttpModule` for the screens, and external-service's `crm`
+    module for the integration surface. Exporting a service is not exporting a
+    route — see `src/index.ts`.
+  */
+  exports: [
+    CustomerTimelineService,
+    CustomerRepository,
+    CustomersService,
+    CustomerImportService,
+    CrmAdminService,
+    LeadStatusService,
+    LeadsService,
+    LeadImportService,
+    LeadIntakeService,
+    LeadWorkflowService,
+    OpportunitiesService,
+    SaleOrdersService,
+    QuotationsService,
+  ],
 })
 export class CrmModule {}

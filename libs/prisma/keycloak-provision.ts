@@ -64,6 +64,26 @@ const INTEGRATION_ROLES = [
     name: 'integration.crm.lead.create',
     description: 'ช่องทางภายนอกยิง Lead เข้ากองกลาง (เว็บฟอร์ม / LINE OA)',
   },
+  {
+    name: 'integration.crm.customer.read',
+    description: 'ระบบภายนอกอ่านทะเบียนลูกค้าผ่าน external-service',
+  },
+  {
+    name: 'integration.crm.customer.manage',
+    description: 'ระบบภายนอกแก้ทะเบียนลูกค้าผ่าน external-service',
+  },
+  {
+    name: 'integration.crm.sales.read',
+    description: 'ระบบภายนอกอ่าน Lead / Opportunity / ใบเสนอราคา',
+  },
+  {
+    name: 'integration.crm.sales.manage',
+    description: 'ระบบภายนอกแก้ Lead / Opportunity / ใบเสนอราคา',
+  },
+  {
+    name: 'integration.crm.admin.manage',
+    description: 'ระบบภายนอกอ่าน/แก้หน้าตั้งค่า CRM',
+  },
 ];
 
 interface Env {

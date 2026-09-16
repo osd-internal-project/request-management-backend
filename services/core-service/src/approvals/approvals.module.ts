@@ -1,10 +1,5 @@
 import { Module } from '@nestjs/common';
 import { PrismaTransactionService } from '@request-management/share';
-import {
-  ApprovalIntegrationController,
-  ApprovalMatrixAdminController,
-  ApprovalsController,
-} from './approvals.controller';
 import { ApprovalsService } from './approvals.service';
 import { ApprovalMatrixService } from './approval-matrix.service';
 import { DelegationsService } from './delegations.service';
@@ -18,11 +13,6 @@ import { AccessModule } from '../access/access.module';
 /** S2 — the central Approval Engine (D-31). */
 @Module({
   imports: [AccessModule, PrincipalModule, NotificationsModule],
-  controllers: [
-    ApprovalsController,
-    ApprovalMatrixAdminController,
-    ApprovalIntegrationController,
-  ],
   providers: [
     ApprovalsService,
     ApprovalMatrixService,
@@ -32,6 +22,10 @@ import { AccessModule } from '../access/access.module';
     DelegationRepository,
     PrismaTransactionService,
   ],
-  exports: [ApprovalsService],
+  /*
+    `ApprovalMatrixService` and `DelegationsService` are exported for
+    `ApprovalsHttpModule`, which owns the controllers that inject them.
+  */
+  exports: [ApprovalsService, ApprovalMatrixService, DelegationsService],
 })
 export class ApprovalsModule {}

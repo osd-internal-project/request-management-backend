@@ -12,7 +12,14 @@ import { join } from 'node:path';
  * written, whether or not anyone remembers to test it.
  *
  * It reads source rather than Nest metadata deliberately — no database, no
- * module wiring, and it covers both services from one place.
+ * module wiring, and it covers every service from one place.
+ *
+ * `@ActingPermissions` is **not** in `GUARD` below, and must not be added.
+ * It declares what the person an integration acts for may do — a second gate
+ * *behind* the first, never a substitute for it. Counting it as a guard would
+ * let a route on the external port declare only the human's permission and
+ * pass this check while the machine's gate was missing, which is the one
+ * mistake on that surface that matters most.
  */
 const SERVICES = join(__dirname, '..', '..', '..', '..', 'services');
 
@@ -121,7 +128,7 @@ describe('ROLE-01 — no endpoint is open by default', () => {
     },
   );
 
-  it('leaves nothing unguarded across either service', () => {
+  it('leaves nothing unguarded across any service', () => {
     const unguarded = controllers.filter(
       (c) => !c.guardedAtClassLevel && c.guards < c.routes,
     );
@@ -133,11 +140,31 @@ describe('ROLE-01 — no endpoint is open by default', () => {
     The class-level shortcut is only safe while it is rare and deliberate.
     Named here so that a controller acquiring one is a visible edit rather
     than a quiet way past the check above.
+
+    Both are on external-service, and both are the same case: one permission
+    genuinely covers every route in the file.
+
+    - `request.controller.ts` — all nine routes need
+      `integration.request.create`, so the machine gate is declared once on
+      the class. Each route still names the *person's* permission
+      individually with `@ActingPermissions`, which is the check that differs
+      between them.
+    - `mcp.controller.ts` — one route, and its `@AnyPermission` sits on the
+      class because the tool name is in the body rather than the path.
+
+    The generated CRM controllers are deliberately *not* here: their routes
+    differ in whether they read or write, so each declares its own gate.
   */
   it('names every controller relying on a class-level guard', () => {
     expect(
-      controllers.filter((c) => c.guardedAtClassLevel).map((c) => c.file),
-    ).toEqual(['core-service/src/external/external.controller.ts']);
+      controllers
+        .filter((c) => c.guardedAtClassLevel)
+        .map((c) => c.file)
+        .sort(),
+    ).toEqual([
+      'external-service/src/mcp/mcp.controller.ts',
+      'external-service/src/request/request.controller.ts',
+    ]);
   });
 });
 

@@ -16,7 +16,6 @@ import {
   CurrentPrincipal,
   Permissions,
   SensitiveResource,
-  ServiceAccountOnly,
 } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import { RequestsService } from './requests.service';
@@ -32,7 +31,6 @@ import {
   ReturnRequestDto,
   UpdateRequestDto,
   AddAttachmentDto,
-  CreateIntegrationRequestDto,
   AddCommentDto,
   CloseRequestDto,
   CompleteRequestDto,
@@ -285,18 +283,6 @@ export class RequestsController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.bottleneck.report(query, principal);
-  }
-
-  /** REQ-10 / AUTH-06: raised by a system, via a service account. */
-  @Post('integrations/requests')
-  @Permissions('integration.request.create')
-  @ServiceAccountOnly()
-  createFromIntegration(
-    @Body() dto: CreateIntegrationRequestDto,
-    @CurrentPrincipal() principal: Principal,
-    @Headers('authorization') authorization: string,
-  ) {
-    return this.requests.createFromIntegration(dto, principal, authorization);
   }
 }
 

@@ -1,6 +1,6 @@
 [
   {
-    "name": "get_request_types",
+    "name": "request_get_request_types",
     "description": "ขั้น 2 — ประเภทคำขอที่ผู้ใช้รายนี้เปิดได้",
     "input_schema": {
       "type": "object",
@@ -17,11 +17,11 @@
     },
     "x-request": {
       "method": "GET",
-      "path": "/api/v1/external/request-types"
+      "path": "/api/v1/request/request-types"
     }
   },
   {
-    "name": "get_request_types_code_form",
+    "name": "request_get_request_types_code_form",
     "description": "ขั้น 3 — ฟอร์มและตัวเลือกที่ต้องถาม มาจากประเภทคำขอโดยตรง",
     "input_schema": {
       "type": "object",
@@ -38,11 +38,11 @@
     },
     "x-request": {
       "method": "GET",
-      "path": "/api/v1/external/request-types/{code}/form"
+      "path": "/api/v1/request/request-types/{code}/form"
     }
   },
   {
-    "name": "get_requests",
+    "name": "request_get_requests",
     "description": "ขั้น 5 และ 11 — คิวงานของผู้ใช้รายนี้",
     "input_schema": {
       "type": "object",
@@ -107,11 +107,11 @@
     },
     "x-request": {
       "method": "GET",
-      "path": "/api/v1/external/requests"
+      "path": "/api/v1/request/requests"
     }
   },
   {
-    "name": "get_requests_ref",
+    "name": "request_get_requests_ref",
     "description": "ขั้น 7 และ 13 — อ่านคำขอด้วย uuid หรือเลขที่เอกสาร",
     "input_schema": {
       "type": "object",
@@ -128,11 +128,11 @@
     },
     "x-request": {
       "method": "GET",
-      "path": "/api/v1/external/requests/{ref}"
+      "path": "/api/v1/request/requests/{ref}"
     }
   },
   {
-    "name": "get_requests_ref_actions",
+    "name": "request_get_requests_ref_actions",
     "description": "ขั้น 8 และ 14 — ตอนนี้ผู้ใช้รายนี้ทำอะไรกับคำขอได้บ้าง — ถามก่อนเสนอตัวเลือกเสมอ คำตอบเปลี่ยนตามสถานะของคำขอ และบทบาทของผู้ใช้ในคำขอนั้น",
     "input_schema": {
       "type": "object",
@@ -149,11 +149,11 @@
     },
     "x-request": {
       "method": "GET",
-      "path": "/api/v1/external/requests/{ref}/actions"
+      "path": "/api/v1/request/requests/{ref}/actions"
     }
   },
   {
-    "name": "get_requests_ref_tree",
+    "name": "request_get_requests_ref_tree",
     "description": "ขั้น 14 — ใบนี้ ใบพ่อ และทุกใบลูกที่แตกออกไป",
     "input_schema": {
       "type": "object",
@@ -170,12 +170,12 @@
     },
     "x-request": {
       "method": "GET",
-      "path": "/api/v1/external/requests/{ref}/tree"
+      "path": "/api/v1/request/requests/{ref}/tree"
     }
   },
   {
-    "name": "get_requests_summary",
-    "description": "จำนวนคำขอแยกตามสถานะ — ตอบคำถาม \"งานค้างกี่ใบ\" ในครั้งเดียว — รับ filter ชุดเดียวกับ `GET external/requests` และนับจากเงื่อนไขเดียวกัน ตัวเลขกับรายการเบื้องหลังจึงตรงกันเสมอ",
+    "name": "request_get_requests_summary",
+    "description": "จำนวนคำขอแยกตามสถานะ — ตอบคำถาม \"งานค้างกี่ใบ\" ในครั้งเดียว — รับ filter ชุดเดียวกับ `GET request/requests` และนับจากเงื่อนไขเดียวกัน ตัวเลขกับรายการเบื้องหลังจึงตรงกันเสมอ",
     "input_schema": {
       "type": "object",
       "properties": {
@@ -221,11 +221,11 @@
     },
     "x-request": {
       "method": "GET",
-      "path": "/api/v1/external/requests/summary"
+      "path": "/api/v1/request/requests/summary"
     }
   },
   {
-    "name": "get_users",
+    "name": "request_get_users",
     "description": "ค้นหาคนในบริษัท — แปลงชื่อหรืออีเมลเป็น id ที่ API รับ — ใช้ `id` ที่ได้เป็น `receiver_user_id` ตอนเปิดคำขอ หรือ `assignee_user_id` ตอนมอบหมายงาน",
     "input_schema": {
       "type": "object",
@@ -269,11 +269,11 @@
     },
     "x-request": {
       "method": "GET",
-      "path": "/api/v1/external/users"
+      "path": "/api/v1/request/users"
     }
   },
   {
-    "name": "post_requests",
+    "name": "request_post_requests",
     "description": "ขั้น 4 และ 10 — สร้างคำขอพร้อมยื่นในครั้งเดียว — ส่ง `parent_request_id` เพื่อสร้างเป็นคำขอลูกของใบที่มีอยู่ — เป็น endpoint เดียวกัน เพราะคำขอลูกคือคำขอธรรมดาที่มีต้นเรื่อง ควรส่ง header `Idempotency-Key` ทุกครั้ง: ถ้า response หายกลางทาง การยิงซ้ำโดยไม่มี key จะกลายเป็นคำขอสองใบคนละเลข",
     "input_schema": {
       "type": "object",
@@ -327,12 +327,12 @@
     },
     "x-request": {
       "method": "POST",
-      "path": "/api/v1/external/requests"
+      "path": "/api/v1/request/requests"
     }
   },
   {
-    "name": "post_requests_ref_actions_action",
-    "description": "ขั้น 9 — สั่งทำหนึ่งใน action ที่ได้จาก endpoint ด้านบน — `comment` คืนตัว comment ที่เพิ่งเขียน (ExternalCommentDto) ส่วน action อื่นคืนคำขอหลังเปลี่ยนสถานะ (ExternalRequestDto) · **ทุก action มี field ที่บังคับต่างกัน** ดูจาก `fields` ที่ `GET external/requests/{ref}/actions` คืนมา — โดยเฉพาะ `approve`, `reject`, `send_back` ต้องมี `note` เสมอ ไม่งั้นได้ `400 VALIDATION_FAILED`",
+    "name": "request_post_requests_ref_actions_action",
+    "description": "ขั้น 9 — สั่งทำหนึ่งใน action ที่ได้จาก endpoint ด้านบน — `comment` คืนตัว comment ที่เพิ่งเขียน (ExternalCommentDto) ส่วน action อื่นคืนคำขอหลังเปลี่ยนสถานะ (ExternalRequestDto) · **ทุก action มี field ที่บังคับต่างกัน** ดูจาก `fields` ที่ `GET request/requests/{ref}/actions` คืนมา — โดยเฉพาะ `approve`, `reject`, `send_back` ต้องมี `note` เสมอ ไม่งั้นได้ `400 VALIDATION_FAILED`",
     "input_schema": {
       "type": "object",
       "properties": {
@@ -359,7 +359,7 @@
             "comment"
           ],
           "type": "string",
-          "description": "ต้องเป็นค่าที่ `GET external/requests/{ref}/actions` คืนมาสำหรับคนนี้ ณ ตอนนั้น ห้ามเดาจากรายการนี้ — รายการนี้คือ action ทั้งหมดที่ระบบมี ไม่ใช่ที่ทำได้ตอนนี้ `create_child` อยู่ในรายการแต่ยิงแล้วได้ 400 เสมอ: คำขอลูกสร้างด้วย `POST external/requests` พร้อม `parent_request_id`"
+          "description": "ต้องเป็นค่าที่ `GET request/requests/{ref}/actions` คืนมาสำหรับคนนี้ ณ ตอนนั้น ห้ามเดาจากรายการนี้ — รายการนี้คือ action ทั้งหมดที่ระบบมี ไม่ใช่ที่ทำได้ตอนนี้ `create_child` อยู่ในรายการแต่ยิงแล้วได้ 400 เสมอ: คำขอลูกสร้างด้วย `POST request/requests` พร้อม `parent_request_id`"
         },
         "receiver_form_data": {
           "type": "object",
@@ -411,7 +411,7 @@
     },
     "x-request": {
       "method": "POST",
-      "path": "/api/v1/external/requests/{ref}/actions/{action}"
+      "path": "/api/v1/request/requests/{ref}/actions/{action}"
     }
   }
 ]

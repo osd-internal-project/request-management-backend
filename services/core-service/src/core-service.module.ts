@@ -13,18 +13,16 @@ import {
 } from '@request-management/share';
 import { CoreServiceController } from './core-service.controller';
 import { CoreServiceService } from './core-service.service';
-import { ApprovalsModule } from './approvals/approvals.module';
+import { ApprovalsHttpModule } from './approvals/approvals-http.module';
 import { BiModule } from './bi/bi.module';
 import { HealthModule } from './health/health.module';
-import { NotificationsModule } from './notifications/notifications.module';
-import { PrincipalModule } from './principal/principal.module';
-import { ExternalModule } from './external/external.module';
-import { McpModule } from './mcp/mcp.module';
+import { NotificationsHttpModule } from './notifications/notifications-http.module';
+import { PrincipalHttpModule } from './principal/principal-http.module';
 import { RemotePrincipalGuard } from './principal/remote-principal.guard';
 import { EventsModule } from './events/events.module';
-import { CrmModule } from './crm/crm.module';
-import { RequestsModule } from './requests/requests.module';
-import { SlaModule } from './sla/sla.module';
+import { CrmHttpModule } from './crm/crm-http.module';
+import { RequestsHttpModule } from './requests/requests-http.module';
+import { SlaHttpModule } from './sla/sla-http.module';
 import { SensitiveReadAuditRecorder } from './policy/sensitive-read.recorder';
 import configs from './configs';
 
@@ -47,15 +45,18 @@ import configs from './configs';
     PrismaModule,
     AuditModule,
     DirectoryModule,
-    PrincipalModule,
+    /*
+      The `*HttpModule`s below carry the controllers; each imports the domain
+      module that carries the providers. That is the whole difference from
+      before, and `src/index.ts` explains why it matters.
+    */
+    PrincipalHttpModule,
     HealthModule,
-    RequestsModule,
-    CrmModule,
-    ApprovalsModule,
-    ExternalModule,
-    McpModule,
-    SlaModule,
-    NotificationsModule,
+    RequestsHttpModule,
+    CrmHttpModule,
+    ApprovalsHttpModule,
+    SlaHttpModule,
+    NotificationsHttpModule,
     BiModule,
   ],
   controllers: [CoreServiceController],

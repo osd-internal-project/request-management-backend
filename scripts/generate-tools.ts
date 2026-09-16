@@ -103,20 +103,79 @@ function inline(schema: JsonSchema | undefined, seen = new Set<string>()): JsonS
   return resolved;
 }
 
-/** `GET /api/v1/external/requests/{ref}/actions` → `get_requests_ref_actions`. */
+/**
+ * The modules of external-service that become tools, in order.
+ *
+ * Not simply "every path in the document". `external-api.json` is the REST
+ * contract and carries all of `request`, `crm` and `approval`; a tool
+ * catalogue is a different thing — it is a menu handed to a language model,
+ * and CRM alone would add seventy-two entries covering segment dimensions,
+ * KYC product rules and company configuration. A model choosing from eighty
+ * tools chooses worse than one choosing from ten, so which CRM operations
+ * belong in a *chat* surface is a product decision, not a consequence of
+ * having exposed them over REST.
+ *
+ * Add a module here when that decision is made; `McpToolRegistry` will then
+ * refuse to boot until each new tool has a handler, which is the intended
+ * order of events.
+ */
+const TOOL_MODULES = ['request'] as const;
+
+/**
+ * Routes that are in the module but not in the catalogue, because there is
+ * nobody at the other end of them.
+ *
+ * MCP resolves *a person* per tool call — either from their own token or from
+ * `X-Acting-User` — so a robot-only route has no caller it can be offered to.
+ * `POST /request/intake` raises a request in the *system's* name with
+ * `source: "system"`, which is the opposite of what a tool call is: a person
+ * asking a model to do something for them. A model reaching it would file
+ * requests that nobody raised.
+ *
+ * `api/v1/crm/leads*` and `api/v1/approval/cases` are the other robot-only
+ * routes and are excluded already, by their modules not being listed above.
+ */
+const ROBOT_ONLY = ['/request/intake'];
+
+/**
+ * `GET /api/v1/request/requests/{ref}/actions` → `request_get_requests_ref_actions`.
+ *
+ * The module prefix is what keeps `crm_get_leads` and `request_get_requests`
+ * from colliding the day CRM joins the catalogue, and it tells a model which
+ * surface it is reaching.
+ *
+ * **Underscore, not a dot.** `request.get_requests` reads better but tool
+ * names are validated against `^[a-zA-Z0-9_-]{1,64}$` by the Claude API and
+ * others like it, so a dotted name is rejected before the model ever sees it.
+ */
 function nameOf(method: string, path: string): string {
-  const tail = path
-    .replace(/^\/api\/v\d+\/external\/?/, '')
+  const withoutPrefix = path.replace(/^\/api\/v\d+\//, '');
+  const [module] = withoutPrefix.split('/');
+  const tail = withoutPrefix
+    .slice(module.length)
     .replace(/[{}]/g, '')
     .replace(/[^a-zA-Z0-9]+/g, '_')
     .replace(/^_|_$/g, '');
 
-  return `${method}_${tail || 'root'}`.toLowerCase();
+  return `${module}_${method}_${tail || 'root'}`.toLowerCase();
+}
+
+/** Whether this path belongs to a module the catalogue covers. */
+function inCatalogue(path: string): boolean {
+  const withoutVersion = path.replace(/^\/api\/v\d+/, '');
+
+  if (ROBOT_ONLY.includes(withoutVersion)) return false;
+
+  return (TOOL_MODULES as readonly string[]).includes(
+    withoutVersion.split('/')[1],
+  );
 }
 
 const tools: Tool[] = [];
 
 for (const [path, methods] of Object.entries(document.paths)) {
+  if (!inCatalogue(path)) continue;
+
   for (const [method, operation] of Object.entries(methods)) {
     const properties: Record<string, JsonSchema> = {};
     const required: string[] = [];

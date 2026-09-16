@@ -1,9 +1,5 @@
 import { Module } from '@nestjs/common';
 import { PrismaTransactionService } from '@request-management/share';
-import {
-  RequestsController,
-  RequestTypeAdminController,
-} from './requests.controller';
 import { RequestsService } from './requests.service';
 import { BottleneckService } from '../reports/bottleneck.service';
 import { RequestRepository } from './request.repository';
@@ -19,7 +15,6 @@ import { AccessModule } from '../access/access.module';
 /** S3 — Platform Request (§16 หน้าที่ 2–4, A2). */
 @Module({
   imports: [AccessModule, ApprovalsModule, NotificationsModule, SlaModule],
-  controllers: [RequestsController, RequestTypeAdminController],
   providers: [
     RequestsService,
     BottleneckService,
@@ -35,6 +30,6 @@ import { AccessModule } from '../access/access.module';
     API's one need the service cannot meet: turning a document number into an
     id. A chatbot is handed `REQ-OSD-PS01-26090001` by a person, never a uuid.
   */
-  exports: [RequestsService, RequestRepository],
+  exports: [RequestsService, RequestRepository, BottleneckService],
 })
 export class RequestsModule {}

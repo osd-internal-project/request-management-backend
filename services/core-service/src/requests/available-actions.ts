@@ -1,5 +1,9 @@
 import { RequestStatus } from '@prisma/client';
-import type { Principal, ScopePermission } from '@request-management/share';
+import type {
+  Permission,
+  Principal,
+  ScopePermission,
+} from '@request-management/share';
 import {
   REQUEST_TRANSITIONS,
   TERMINAL_STATUSES,
@@ -521,3 +525,50 @@ export function toRequestAction(value: string): RequestAction | null {
 
 /** Used by the spec that pins this table to `REQUEST_TRANSITIONS`. */
 export { REQUEST_TRANSITIONS };
+
+/**
+ * The permission each action requires of the person performing it.
+ *
+ * `hasAuthority` above answers *is this person the requester / the carrier /
+ * an approver on this request* — a question about one row. This answers a
+ * different one: *is this person allowed to do this kind of thing at all* —
+ * the question `PolicyGuard` asks from a route's `@Permissions()`.
+ *
+ * Both have always applied on the screens, one per route
+ * (`POST requests/:id/hold` declares `request.hold`, and so on). The external
+ * API collapses all fourteen verbs into one dispatcher, so it cannot state
+ * them in a decorator; it reads them from here and checks the acting user
+ * against them before dispatching. Without this table that check simply did
+ * not happen for an integration, because the swap runs after `PolicyGuard`
+ * (see `ActingPolicyGuard`).
+ *
+ * `action-permissions.spec.ts` fails if an action in {@link ACTIONS} is
+ * missing here, so a new verb cannot ship without deciding who may send it.
+ *
+ * Suggestion: `requests.controller.ts` currently repeats these in its
+ * decorators, which makes this the second copy. Having the controller read
+ * this table — or generating its decorators from it — would remove the drift
+ * for good; say the word and I'll do it.
+ */
+export const ACTION_PERMISSIONS: Readonly<Record<RequestAction, Permission>> = {
+  submit: 'request.create',
+  resubmit: 'request.create',
+  receive: 'request.complete',
+  assign: 'request.complete',
+  comment: 'request.read',
+  hold: 'request.hold',
+  resume: 'request.hold',
+  complete: 'request.complete',
+  return: 'request.return',
+  approve: 'approval.decide',
+  reject: 'approval.decide',
+  send_back: 'approval.decide',
+  cancel: 'request.cancel.own',
+  close: 'request.create',
+  /*
+    Listed for completeness, never reached: a child request is an ordinary
+    request raised through the create route, and the dispatcher refuses this
+    verb with an explanation. `request.create` is what that route asks for.
+  */
+  create_child: 'request.create',
+};

@@ -1,5 +1,4 @@
 import { Global, Module } from '@nestjs/common';
-import { ApiKeyAdminController } from './api-key-admin.controller';
 import { ApiKeyAdminService } from './api-key-admin.service';
 import { ApiKeyRepository } from './api-key.repository';
 import { ApiKeyService } from './api-key.service';
@@ -9,7 +8,6 @@ import { ApprovalContextClient } from './approval-context.client';
 
 @Global()
 @Module({
-  controllers: [ApiKeyAdminController],
   providers: [
     ApiKeyRepository,
     ApiKeyService,
@@ -19,6 +17,8 @@ import { ApprovalContextClient } from './approval-context.client';
     RemotePrincipalGuard,
   ],
   exports: [
+    /* For `PrincipalHttpModule`'s admin controller. */
+    ApiKeyAdminService,
     ApiKeyService,
     RemotePrincipalService,
     ApprovalContextClient,
