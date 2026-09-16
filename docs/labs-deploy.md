@@ -27,7 +27,7 @@ Both repos work this way and each deploys only its own containers:
 
 | Repo | Deploys |
 |---|---|
-| `request-mangement-backend` | `rm-user`, `rm-core` |
+| `request-mangement-backend` | `rm-user`, `rm-core`, `rm-external` |
 | `request-management-frontend` | `rm-fe` |
 
 Merging into `deploys/labs` in one repo does not touch the other.
@@ -42,7 +42,7 @@ push → deploys/labs
   ├─ version            (ubuntu-latest)
   │     package.json version + short sha  →  tag, e.g. 1.0.0-a046161
   │     ↓
-  ├─ build-and-push     (ubuntu-latest, matrix: user-service, core-service)
+  ├─ build-and-push     (ubuntu-latest, matrix: user-service, core-service, external-service)
   │     docker build --platform linux/amd64
   │     docker login  →  push to swr.ap-southeast-2.myhuaweicloud.com
   │     ↓
@@ -54,7 +54,7 @@ push → deploys/labs
 The frontend pipeline is the same shape without the matrix; it reads its tag inside
 `build-and-push` because a single job can publish outputs and a matrix job cannot.
 
-`version` is a job of its own so both services get **one** tag. A matrix job cannot publish
+`version` is a job of its own so all three services get **one** tag. A matrix job cannot publish
 outputs — each leg would overwrite the others and which one lands is undefined.
 
 `--wait` holds the step until every healthcheck passes, so a container that starts and then
@@ -89,7 +89,7 @@ To redeploy the branch as it already stands, with no new commit: Actions → *La
 | **Changes to compose, workflow, or Dockerfile behave the same** | They take effect when they land on `deploys/labs`, not when you save them. |
 | **`concurrency: cancel-in-progress: true`** | Two pushes in quick succession leave only the newer run. Deliberate: overlapping deploys would fight over the same containers. |
 | **No `paths:` filter** | Editing only a README still rebuilds and redeploys everything. Simpler to reason about than a filter that occasionally skips a build you needed. |
-| **Container names are shared with the manual `docker run` commands** | compose will not adopt a container it did not create. Start one by hand and the next deploy stops with `Conflict. The container name "/rm-core" is already in use` — fix with `docker rm -f rm-user rm-core rm-fe`, then re-run. |
+| **Container names are shared with the manual `docker run` commands** | compose will not adopt a container it did not create. Start one by hand and the next deploy stops with `Conflict. The container name "/rm-core" is already in use` — fix with `docker rm -f rm-user rm-core rm-external rm-fe`, then re-run. |
 | **Image tags are `<version>-<short sha>`** | A tag is never pushed over, which is what makes re-running an old workflow a real rollback. |
 
 ---
@@ -115,9 +115,15 @@ that, on the VM:
 ```bash
 docker compose -f infra/labs/docker-compose.yml ps
 docker compose -f infra/labs/docker-compose.yml logs --tail=100 core-service
+docker compose -f infra/labs/docker-compose.yml logs --tail=100 external-service
 
 # the check that separates "running" from "actually working":
 curl -s localhost:3502/api/v1/health     # must say "database":"up"
+curl -s localhost:3503/api/v1/health     # same, external-service
+
+# 3503 only: the address MCP clients are handed. Wrong host here and every
+# integration still works while the MCP connect button fails on its own.
+curl -s localhost:3503/.well-known/oauth-protected-resource
 ```
 
 `/health` on core-service answers **200 even when the database is down** — the failure shows

@@ -1,4 +1,4 @@
-# Builds both services, pushes them to Huawei SWR (ap-southeast-2), and restarts
+# Builds all three services, pushes them to Huawei SWR (ap-southeast-2), and restarts
 # the labs stack on the VM.
 #
 # The deploy half runs on a self-hosted runner on that VM. Preparing the machine
@@ -73,10 +73,10 @@ jobs:
     runs-on: ubuntu-latest
 
     strategy:
-      # One service failing to build must not hide whether the other one did.
+      # One service failing to build must not hide whether the others did.
       fail-fast: false
       matrix:
-        service: [user-service, core-service]
+        service: [user-service, core-service, external-service]
 
     steps:
       - name: Checkout Repository
@@ -189,7 +189,7 @@ jobs:
           PROJECT: request-management-labs
         run: |
           set -euo pipefail
-          for NAME in rm-user rm-core; do
+          for NAME in rm-user rm-core rm-external; do
             # Anchored: the name filter is a substring regex, so a bare `rm-user`
             # would also match `rm-user-old`.
             ID=$(docker ps -aq --filter "name=^/${NAME}$")
@@ -283,7 +283,8 @@ jobs:
           flock -w 600 9
           for REPO in \
             "${{ env.REGISTRY }}/${{ env.SWR_ORG }}/request-management-user-service" \
-            "${{ env.REGISTRY }}/${{ env.SWR_ORG }}/request-management-core-service"; do
+            "${{ env.REGISTRY }}/${{ env.SWR_ORG }}/request-management-core-service" \
+            "${{ env.REGISTRY }}/${{ env.SWR_ORG }}/request-management-external-service"; do
             echo "=== ${REPO}"
             # CreatedAt is fixed-width and single-timezone on one host, so sorting
             # it as text sorts it by time.

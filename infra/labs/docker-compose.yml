@@ -1,4 +1,4 @@
-# The labs stack: both API services, pulled from SWR.
+# The labs stack: all three API services, pulled from SWR.
 #
 # Started by .github/workflows/deploy-labs.yml on the VM's self-hosted runner:
 #
@@ -54,6 +54,35 @@ services:
       # error and still answers 200 with `"database":"down"`. A status-code
       # check stays green through a total database outage.
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3002/api/v1/health | grep -q '\"database\":\"up\"'"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  external-service:
+    <<: *common
+    image: ${REGISTRY}/${SWR_ORG}/request-management-external-service:${IMAGE_TAG}
+    container_name: rm-external
+    # Host 3503 → container 3003, the same +500 offset as the other two.
+    #
+    # Unlike 3501 and 3502, this one is published for callers OUTSIDE the VM —
+    # chatbots, the Lead intake web form, the workflow engine, MCP clients. They
+    # are not on `rm-net`, so they arrive through the host. See §7 Firewall in
+    # docs/labs-server-setup.md.
+    ports: ["3503:3003"]
+    # Ordering only, same reasoning as core-service: it resolves callers through
+    # user-service on every request and retries, so it must not refuse to start
+    # when user-service is slow.
+    #
+    # Not on core-service, deliberately. It runs core-service's domain providers
+    # in its own process rather than calling them over HTTP, so rm-core being
+    # down does not stop it — see services/core-service/src/index.ts.
+    depends_on: [user-service]
+    healthcheck:
+      # The body, not the status code — the same trap as core-service, and for
+      # the same reason: this service reaches the database directly, and health
+      # answers 200 with `"database":"down"` when it cannot.
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3003/api/v1/health | grep -q '\"database\":\"up\"'"]
       interval: 15s
       timeout: 5s
       retries: 5

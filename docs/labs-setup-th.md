@@ -17,7 +17,7 @@
 
 | ไฟล์ | ใครใช้ |
 |---|---|
-| `/etc/request-management/.backend.env` | `rm-user`, `rm-core` |
+| `/etc/request-management/.backend.env` | `rm-user`, `rm-core`, `rm-external` |
 | `/etc/request-management/.frontend.env` | `rm-fe` |
 
 compose อ่านผ่าน `env_file:` ใน `infra/labs/docker-compose.yml` ของแต่ละ repo
@@ -80,7 +80,7 @@ push ทั้งสองรีโปขึ้น branch `deploys/labs`
 
 ```bash
 # ทั้งสามต้องได้ healthy
-docker inspect --format '{{.State.Health.Status}}' rm-user rm-core rm-fe
+docker inspect --format '{{.State.Health.Status}}' rm-user rm-core rm-external rm-fe
 ```
 
 เปิดเบราว์เซอร์ไปที่ `APP_ORIGIN` แล้ว **login ให้เข้าหน้าแรกได้จริง** —

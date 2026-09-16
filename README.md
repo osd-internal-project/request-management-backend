@@ -237,7 +237,7 @@ Build from the repo root — yarn needs every workspace manifest in the context 
 
 ### Publishing to Huawei SWR
 
-`.github/workflows/deploy-labs.yml` builds both services, pushes them to
+`.github/workflows/deploy-labs.yml` builds all three services, pushes them to
 `swr.ap-southeast-2.myhuaweicloud.com`, and restarts the labs stack — on every push to
 `deploys/labs`. It needs two **repository** secrets (Settings → Secrets and variables →
 Actions), set on this repo rather than at the organisation level:

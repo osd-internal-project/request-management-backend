@@ -10,22 +10,23 @@ Both repos deploy to this same VM:
 
 | Repo | Containers | Host port → container port |
 |---|---|---|
-| `request-mangement-backend` | `rm-user`, `rm-core` | 3501 → 3001, 3502 → 3002 |
+| `request-mangement-backend` | `rm-user`, `rm-core`, `rm-external` | 3501 → 3001, 3502 → 3002, 3503 → 3003 |
 | `request-management-frontend` | `rm-fe` | 3500 → 3000 |
 
 Those container names and host ports are the same ones the `docker run` commands use, so the
 stack looks identical whether compose or a person started it:
 
 ```bash
-docker run -d --name rm-core --network rm-net -p 3502:3002 --env-file .backend.env  <image>
-docker run -d --name rm-user --network rm-net -p 3501:3001 --env-file .backend.env  <image>
-docker run -d --name rm-fe   --network rm-net -p 3500:3000 --env-file .frontend.env <image>
+docker run -d --name rm-core     --network rm-net -p 3502:3002 --env-file .backend.env  <image>
+docker run -d --name rm-user     --network rm-net -p 3501:3001 --env-file .backend.env  <image>
+docker run -d --name rm-external --network rm-net -p 3503:3003 --env-file .backend.env  <image>
+docker run -d --name rm-fe       --network rm-net -p 3500:3000 --env-file .frontend.env <image>
 ```
 
 > **The cost of sharing the names.** compose refuses to adopt a container it did not create.
 > Start one of these by hand and the next deploy stops with
 > `Conflict. The container name "/rm-core" is already in use`. The fix is
-> `docker rm -f rm-user rm-core rm-fe`, then re-run the workflow.
+> `docker rm -f rm-user rm-core rm-external rm-fe`, then re-run the workflow.
 
 **The machine must be linux/amd64.** The images are built `--platform linux/amd64`; an ARM VM
 cannot run them.
@@ -240,6 +241,16 @@ against a schema they do not match.
 
 Open **3500** to whoever uses the app. 3501 and 3502 only need to be reachable from the VM
 itself — the frontend talks to them over the `rm-net` network, not through the host.
+
+**3503 is the exception, and it is the whole point of external-service.** Its callers are
+outside this machine — a chatbot, the Lead intake web form, the workflow engine, an MCP
+client — and none of them is on `rm-net`, so they arrive through the host. A closed 3503
+means every integration fails while the app itself looks healthy.
+
+How far to open it is a decision for whoever runs the VM, and it is not the same decision as
+3500: this port is the machine-facing API, reached with an `rfk_…` key or a service-account
+token. Open it to the networks those callers actually come from, not wider. `PUBLIC_BASE_URL`
+in `.backend.env` must name the address they use, or MCP discovery hands them the wrong one.
 
 ---
 
