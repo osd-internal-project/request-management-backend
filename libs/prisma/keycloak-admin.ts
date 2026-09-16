@@ -22,9 +22,20 @@ export interface KeycloakEnv {
   readonly password: string;
 }
 
-export interface KeycloakContext {
+/**
+ * Enough to read and amend the realm, and nothing more.
+ *
+ * Split out from {@link KeycloakContext} so that a script which only corrects
+ * an email never has to hold a password it has no use for — and so that
+ * `readKeycloakEnv`'s demand for `UAT_DEFAULT_PASSWORD`, which exists to gate
+ * *account creation*, does not become a toll on every admin call.
+ */
+export interface KeycloakAdminContext {
   readonly base: string;
   readonly headers: Record<string, string>;
+}
+
+export interface KeycloakContext extends KeycloakAdminContext {
   readonly password: string;
 }
 
@@ -35,31 +46,12 @@ export interface KeycloakContext {
  * characters" and "yes, create 73 real employees" stay separate decisions —
  * granting one must never quietly grant the other.
  */
-export function readKeycloakEnv(allowVar: string, howToRun: string): KeycloakEnv {
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('Refusing to create accounts in production.');
-  }
-
-  if (process.env[allowVar] !== '1') {
-    throw new Error(
-      `Refusing to run without ${allowVar}=1.\n` +
-        'This creates real, sign-in-able accounts in the shared realm. Re-run as:\n' +
-        `  ${howToRun}`,
-    );
-  }
-
-  const baseUrl = process.env.KEYCLOAK_BASE_URL;
-  const realm = process.env.KEYCLOAK_REALM;
-  const clientId = process.env.KEYCLOAK_CLIENT_ID;
-  const clientSecret = process.env.KEYCLOAK_CLIENT_SECRET;
+export function readKeycloakEnv(
+  allowVar: string,
+  howToRun: string,
+): KeycloakEnv {
+  const settings = readRealmSettings(allowVar, howToRun);
   const password = process.env.UAT_DEFAULT_PASSWORD;
-
-  if (!baseUrl || !realm || !clientId || !clientSecret) {
-    throw new Error(
-      'Missing Keycloak settings. KEYCLOAK_BASE_URL, KEYCLOAK_REALM,\n' +
-        'KEYCLOAK_CLIENT_ID and KEYCLOAK_CLIENT_SECRET must all be set in .env.',
-    );
-  }
 
   // No default in code: a password baked into the repository would be a
   // credential in version control, and these accounts can sign in.
@@ -70,7 +62,61 @@ export function readKeycloakEnv(allowVar: string, howToRun: string): KeycloakEnv
     );
   }
 
-  return { baseUrl, realm, clientId, clientSecret, password };
+  return { ...settings, password };
+}
+
+/**
+ * The same refusals, for a caller that amends accounts instead of creating them.
+ *
+ * Deliberately not a flag on `readKeycloakEnv`: "yes, create sign-in-able
+ * accounts" and "yes, correct email addresses in the shared realm" are
+ * different decisions with different blast radii, and the opt-in variable is
+ * how this module keeps them from being granted by the same gesture.
+ */
+export function readRealmSettings(
+  allowVar: string,
+  howToRun: string,
+): Omit<KeycloakEnv, 'password'> {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('Refusing to touch realm accounts in production.');
+  }
+
+  if (process.env[allowVar] !== '1') {
+    throw new Error(
+      `Refusing to run without ${allowVar}=1.\n` +
+        'This writes to accounts in the shared corporate realm. Re-run as:\n' +
+        `  ${howToRun}`,
+    );
+  }
+
+  const baseUrl = process.env.KEYCLOAK_BASE_URL;
+  const realm = process.env.KEYCLOAK_REALM;
+  const clientId = process.env.KEYCLOAK_CLIENT_ID;
+  const clientSecret = process.env.KEYCLOAK_CLIENT_SECRET;
+
+  if (!baseUrl || !realm || !clientId || !clientSecret) {
+    throw new Error(
+      'Missing Keycloak settings. KEYCLOAK_BASE_URL, KEYCLOAK_REALM,\n' +
+        'KEYCLOAK_CLIENT_ID and KEYCLOAK_CLIENT_SECRET must all be set in .env.',
+    );
+  }
+
+  return { baseUrl, realm, clientId, clientSecret };
+}
+
+/** A context for reads and amendments — no password, so no account creation. */
+export async function connectAdmin(
+  env: Omit<KeycloakEnv, 'password'>,
+): Promise<KeycloakAdminContext> {
+  const token = await adminToken({ ...env, password: '' });
+
+  return {
+    base: `${env.baseUrl}/admin/realms/${env.realm}`,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  };
 }
 
 export async function adminToken(env: KeycloakEnv): Promise<string> {
@@ -112,9 +158,22 @@ export async function connect(env: KeycloakEnv): Promise<KeycloakContext> {
 }
 
 export async function findByUsername(
-  keycloak: KeycloakContext,
+  keycloak: KeycloakAdminContext,
   username: string,
 ): Promise<string | null> {
+  return (await findAccount(keycloak, username))?.id ?? null;
+}
+
+/** The realm account behind a username, with the fields a caller may compare. */
+export interface RealmAccount {
+  readonly id: string;
+  readonly email: string | null;
+}
+
+export async function findAccount(
+  keycloak: KeycloakAdminContext,
+  username: string,
+): Promise<RealmAccount | null> {
   const response = await fetch(
     `${keycloak.base}/users?username=${encodeURIComponent(username)}&exact=true`,
     { headers: keycloak.headers },
@@ -126,8 +185,50 @@ export async function findByUsername(
     );
   }
 
-  const found = (await response.json()) as { id: string }[];
-  return found[0]?.id ?? null;
+  const found = (await response.json()) as { id: string; email?: string }[];
+  const account = found[0];
+  return account ? { id: account.id, email: account.email ?? null } : null;
+}
+
+/**
+ * Corrects one account's email address, and touches nothing else.
+ *
+ * The body is a closed allowlist of exactly one field, and that is the whole
+ * point of the function rather than an implementation detail. Keycloak's
+ * `PUT /users/{id}` accepts `realmRoles`, `groups`, `clientRoles` and
+ * `attributes` in the same call — a generic `updateUser(id, body)` here would
+ * be a second door around `assertGrantable` in the running service, which
+ * exists so that an application admin cannot grant themselves control of a
+ * realm shared with other projects. Adding a field to this signature is
+ * therefore a security decision, not a convenience.
+ *
+ * `emailVerified` is deliberately left alone: whether an address has been
+ * confirmed is a fact about the person, and a bulk correction has no standing
+ * to assert it.
+ */
+export async function updateAccountEmail(
+  keycloak: KeycloakAdminContext,
+  userId: string,
+  email: string,
+): Promise<void> {
+  const response = await fetch(`${keycloak.base}/users/${userId}`, {
+    method: 'PUT',
+    headers: keycloak.headers,
+    body: JSON.stringify({ email }),
+  });
+
+  if (response.status === 409) {
+    throw new Error(
+      `Another realm account already holds "${email}" — Keycloak answered 409.`,
+    );
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      `Could not set the email on ${userId} (HTTP ${response.status}). ` +
+        'The service account needs the realm-management role manage-users.',
+    );
+  }
 }
 
 export interface NewAccount {

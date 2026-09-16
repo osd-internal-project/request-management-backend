@@ -1,6 +1,6 @@
 {
   "name": "request-management-backend",
-  "version": "1.0.01",
+  "version": "1.0.02",
   "description": "npm workspaces monorepo: user-service and core-service, versioned independently.",
   "private": true,
   "license": "UNLICENSED",
@@ -55,7 +55,8 @@
     "loadtest:clean": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config scripts/clean-load-test.ts",
     "data:extract": "python3 scripts/extract-request-log.py",
     "data:import-catalog": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/import-osd-catalog.ts",
-    "data:import-requests": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/import-osd-requests.ts",
+    "data:import-users": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/import-users-csv.ts",
+  "data:import-requests": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/import-osd-requests.ts",
     "tools": "ts-node --compiler-options '{\"module\":\"commonjs\"}' scripts/generate-tools.ts"
   },
   "devDependencies": {

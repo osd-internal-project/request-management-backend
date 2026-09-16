@@ -314,6 +314,37 @@ model User {
   /// appears under several departments and each is its own box on the chart.
   position String?
 
+  /// HR's own staff number, e.g. `EMP-094`.
+  ///
+  /// Not unique and not validated, because the source register genuinely is not
+  /// uniform: 98 of 101 rows are `EMP-NNN`, the rest are `Consult-005`, `M-008`
+  /// and a bare `888`. A format check here would reject real people.
+  ///
+  /// `import-osd-catalog.ts` already reads this concept as `employeeCode` but
+  /// only as a join key — it was never persisted. This column is its home; do
+  /// not add a third name for it.
+  employeeId String?
+
+  /// Desk phone extension, four digits.
+  ///
+  /// Deliberately **not** unique: 14 of the 75 known values are shared, because
+  /// a team sitting around one handset all give out the same number.
+  extension String?
+
+  /// The day the person started work.
+  ///
+  /// Only the date carries meaning — every value in the source register is
+  /// midnight — but stored as a timestamp because nothing else in this schema
+  /// uses `@db.Date` and one exception would be the surprising thing.
+  startWork DateTime?
+
+  /// Contact number carried over from the previous system.
+  ///
+  /// Stored exactly as the source wrote it, without normalising: the register
+  /// mixes `66` country prefixes with bare nine-digit numbers, and guessing
+  /// which is which would invent data.
+  phone String?
+
   /// Null until an admin assigns the user — these are the "รอจัดสังกัด" queue.
   orgUnitId String?
   orgUnit   OrgUnit? @relation("OrgUnitMembers", fields: [orgUnitId], references: [id])

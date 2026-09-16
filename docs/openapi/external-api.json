@@ -2374,6 +2374,31 @@
             "nullable": true,
             "example": "Solution Architect"
           },
+          "employeeId": {
+            "type": "string",
+            "description": "รหัสพนักงานตามข้อมูล HR — รูปแบบไม่คงที่ ส่วนใหญ่เป็น `EMP-NNN` แต่มี `Consult-005`, `M-008` และเลขล้วนปนอยู่ ห้ามใช้เป็นคีย์",
+            "nullable": true,
+            "example": "EMP-094"
+          },
+          "extension": {
+            "type": "string",
+            "description": "เบอร์ภายใน — **ซ้ำกันได้** หลายคนที่นั่งโต๊ะเดียวกันใช้เบอร์เดียวกัน",
+            "nullable": true,
+            "example": "3006"
+          },
+          "startWork": {
+            "type": "string",
+            "description": "วันเริ่มงาน — มีความหมายเฉพาะส่วนวันที่ เวลาเป็น 00:00 เสมอ",
+            "nullable": true,
+            "format": "date-time",
+            "example": "2019-05-21T00:00:00.000Z"
+          },
+          "phone": {
+            "type": "string",
+            "description": "เบอร์ติดต่อตามที่ระบบเดิมบันทึกไว้ ไม่ได้จัดรูปแบบ — บางเลขขึ้นต้นด้วยรหัสประเทศ บางเลขไม่มี",
+            "nullable": true,
+            "example": "617130550"
+          },
           "orgUnitId": {
             "type": "string",
             "description": "null = ยังไม่ถูกจัดสังกัด (คิว รอจัดสังกัด)",
@@ -2391,6 +2416,10 @@
           "username",
           "email",
           "position",
+          "employeeId",
+          "extension",
+          "startWork",
+          "phone",
           "orgUnitId",
           "orgUnitName"
         ]

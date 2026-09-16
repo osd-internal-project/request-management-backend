@@ -666,6 +666,44 @@ export class ExternalUserDto {
   position!: string | null;
 
   @ApiProperty({
+    description:
+      'รหัสพนักงานตามข้อมูล HR — รูปแบบไม่คงที่ ส่วนใหญ่เป็น `EMP-NNN` ' +
+      'แต่มี `Consult-005`, `M-008` และเลขล้วนปนอยู่ ห้ามใช้เป็นคีย์',
+    nullable: true,
+    type: String,
+    example: 'EMP-094',
+  })
+  employeeId!: string | null;
+
+  @ApiProperty({
+    description:
+      'เบอร์ภายใน — **ซ้ำกันได้** หลายคนที่นั่งโต๊ะเดียวกันใช้เบอร์เดียวกัน',
+    nullable: true,
+    type: String,
+    example: '3006',
+  })
+  extension!: string | null;
+
+  @ApiProperty({
+    description: 'วันเริ่มงาน — มีความหมายเฉพาะส่วนวันที่ เวลาเป็น 00:00 เสมอ',
+    nullable: true,
+    type: String,
+    format: 'date-time',
+    example: '2019-05-21T00:00:00.000Z',
+  })
+  startWork!: Date | null;
+
+  @ApiProperty({
+    description:
+      'เบอร์ติดต่อตามที่ระบบเดิมบันทึกไว้ ไม่ได้จัดรูปแบบ — ' +
+      'บางเลขขึ้นต้นด้วยรหัสประเทศ บางเลขไม่มี',
+    nullable: true,
+    type: String,
+    example: '617130550',
+  })
+  phone!: string | null;
+
+  @ApiProperty({
     description: 'null = ยังไม่ถูกจัดสังกัด (คิว รอจัดสังกัด)',
     nullable: true,
     type: String,

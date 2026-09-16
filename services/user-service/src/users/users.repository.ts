@@ -302,4 +302,79 @@ export class UsersRepository extends BaseRepository<PrismaService['user']> {
   countWhere(where: Prisma.UserWhereInput, option?: TxOption): Promise<number> {
     return this.count({ where }, option);
   }
+
+  /**
+   * One page of the admin Users screen, profile and per-company facts together.
+   *
+   * The same four relation-backed facts `profilesByUsername` reads, but keyed
+   * on the row rather than on a username handed in from the realm — because
+   * this screen now starts from this database instead of from Keycloak.
+   *
+   * No `status` filter. `DirectoryService.searchUsers` pins its results to
+   * `ACTIVE` because it answers "who may I pick", and picking a suspended
+   * colleague is a mistake. An administrator's list answers a different
+   * question, and a suspended account that silently vanishes from it is how
+   * somebody concludes the account was deleted.
+   */
+  async adminDirectory(
+    where: Prisma.UserWhereInput,
+    companyId: string,
+    args: { skip: number; take: number },
+    option?: TxOption,
+  ): Promise<AdminDirectoryRow[]> {
+    const client = option?.prisma ?? this.prisma;
+
+    return client.user.findMany({
+      where,
+      skip: args.skip,
+      take: args.take,
+      orderBy: { displayName: 'asc' },
+      select: {
+        id: true,
+        username: true,
+        displayName: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        status: true,
+        position: true,
+        employeeId: true,
+        extension: true,
+        startWork: true,
+        phone: true,
+        orgUnit: { select: { name: true } },
+        managedUnits: {
+          where: { active: true, companyId },
+          select: { name: true },
+          orderBy: { name: 'asc' },
+        },
+        roles: {
+          where: { companyId, role: { active: true } },
+          select: { role: { select: { name: true } } },
+          orderBy: { grantedAt: 'asc' },
+        },
+      },
+    });
+  }
 }
+
+/** One row of {@link UsersRepository.adminDirectory}. */
+export type AdminDirectoryRow = Prisma.UserGetPayload<{
+  select: {
+    id: true;
+    username: true;
+    displayName: true;
+    firstName: true;
+    lastName: true;
+    email: true;
+    status: true;
+    position: true;
+    employeeId: true;
+    extension: true;
+    startWork: true;
+    phone: true;
+    orgUnit: { select: { name: true } };
+    managedUnits: { select: { name: true } };
+    roles: { select: { role: { select: { name: true } } } };
+  };
+}>;
