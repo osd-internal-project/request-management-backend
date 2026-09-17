@@ -310,7 +310,12 @@ const SEED_ROLES: {
 
 async function seedPermissions() {
   const rows = Object.entries(PERMISSIONS).flatMap(([module, codes]) =>
-    codes.map((code) => ({ code, module })),
+    codes.map((code) => ({
+      code,
+      module,
+      // AUTH-06 — scope ของบัญชีบริการ ไม่ใช่สิทธิ์ที่คนถือทำงานประจำวัน
+      type: module === 'integration' ? 'service' : 'human',
+    })),
   );
 
   await prisma.permission.createMany({ data: rows, skipDuplicates: true });

@@ -100,7 +100,12 @@ export const PERMISSIONS = {
      */
     'admin.integration.manage',
   ],
-  /** AUTH-06: service-account scopes, never granted to a human role. */
+  /**
+   * AUTH-06: สิทธิ์ของบัญชีบริการ — ออกให้กุญแจ API ที่หน้าจอ API key ไม่ใช่
+   * สิทธิ์ที่คนทำงานประจำวันควรถือ. หน้า Role ยังแสดงและติ๊กได้ (ทุกสิทธิ์ที่มี
+   * ในระบบต้องมองเห็นจากที่เดียว) แต่ขึ้นเป็น `type: 'service'` เพื่อให้รู้ว่า
+   * กำลังให้สิทธิ์ของเครื่องกับคน.
+   */
   integration: [
     'integration.request.create',
     'integration.approval.create',
@@ -220,4 +225,17 @@ export function permissionModule(permission: Permission): PermissionModule {
 
   // Unreachable for a valid Permission; the type guard above is the gate.
   return found ?? 'request';
+}
+
+/**
+ * ผู้ถือสิทธิ์: คนที่อยู่ใน role หรือบัญชีบริการที่ถือกุญแจ API.
+ *
+ * เก็บเป็นคอลัมน์ `type` ของตาราง `permissions` เพื่อให้หน้าจอจัดกลุ่มได้จากข้อมูล
+ * ไม่ใช่จากรายการที่ frontend เขียนไว้เอง — รายการแบบนั้นคือเหตุที่กลุ่ม CRM
+ * หายไปทั้งกลุ่มโดยไม่มีใครเห็น.
+ */
+export type PermissionType = 'human' | 'service';
+
+export function permissionType(permission: Permission): PermissionType {
+  return permissionModule(permission) === 'integration' ? 'service' : 'human';
 }
