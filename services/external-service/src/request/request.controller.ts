@@ -145,7 +145,7 @@ export class RequestController {
   constructor(private readonly requests: RequestApiService) {}
 
   /** Step 2 — the request types this person may open. */
-  @ApiOperation({ summary: 'ขั้น 2 — ประเภทคำขอที่ผู้ใช้รายนี้เปิดได้' })
+  @ApiOperation({ summary: 'ประเภทคำขอที่ผู้ใช้รายนี้เปิดได้ ณ ตอนนี้' })
   @ApiOkResponse({
     description: 'ประเภทคำขอที่เปิดได้ — ว่างได้ถ้าไม่มีอันไหนตรงเงื่อนไข',
     type: [ExternalTypeSummaryDto],
@@ -162,7 +162,7 @@ export class RequestController {
 
   /** Step 4 — the fields and options to ask for, straight from the type. */
   @ApiOperation({
-    summary: 'ขั้น 3 — ฟอร์มและตัวเลือกที่ต้องถาม มาจากประเภทคำขอโดยตรง',
+    summary: 'ฟอร์ม ตัวเลือก ผู้รับที่เลือกได้ และกติกาของประเภทคำขอนี้',
   })
   @ApiOkResponse({
     description: 'ฟอร์มของประเภทคำขอ พร้อมเหตุผลการตีกลับที่เลือกได้',
@@ -194,10 +194,15 @@ export class RequestController {
    * dropped response becomes two requests with two numbers.
    */
   @ApiOperation({
-    summary: 'ขั้น 4 และ 10 — สร้างคำขอพร้อมยื่นในครั้งเดียว',
+    summary: 'สร้างคำขอและยื่นในครั้งเดียว',
     description:
-      'ส่ง `parent_request_id` เพื่อสร้างเป็นคำขอลูกของใบที่มีอยู่ — ' +
-      'เป็น endpoint เดียวกัน เพราะคำขอลูกคือคำขอธรรมดาที่มีต้นเรื่อง ' +
+      '`receiver_user_id` รับ **uuid เท่านั้น** ส่งอีเมลหรือชื่อไปถูกปฏิเสธ — ' +
+      'หา id ด้วย `GET request/users` ก่อน\n\n' +
+      '**ถ้าประเภทคำขอตอบ `ref_required: true`** ต้องส่ง `ref_type` และ `ref_id` ' +
+      'คู่กันด้วย สองตัวนี้ไม่ได้อยู่ใน `form_data` แต่เป็นคอลัมน์ของตัวคำขอ ' +
+      'กรอกฟอร์มครบแต่ไม่ส่งจะได้ `422 REQ_FIELD_MISSING` ที่ field `ref_id`\n\n' +
+      'ส่ง `parent_request_id` (uuid ของใบแม่ ไม่ใช่เลขที่) เพื่อสร้างเป็นคำขอลูก — ' +
+      'เป็น endpoint เดียวกัน เพราะคำขอลูกคือคำขอธรรมดาที่มีต้นเรื่อง\n\n' +
       'ควรส่ง header `Idempotency-Key` ทุกครั้ง: ถ้า response หายกลางทาง ' +
       'การยิงซ้ำโดยไม่มี key จะกลายเป็นคำขอสองใบคนละเลข',
   })
@@ -219,7 +224,7 @@ export class RequestController {
   }
 
   /** Steps 5 and 11 — this person's own queues. */
-  @ApiOperation({ summary: 'ขั้น 5 และ 11 — คิวงานของผู้ใช้รายนี้' })
+  @ApiOperation({ summary: 'คิวงานของผู้ใช้รายนี้ แบ่งตามมุมมองที่เลือก' })
   @ApiOkResponse({
     description: 'คำขอหนึ่งหน้า พร้อมจำนวนรวมสำหรับแบ่งหน้า',
     type: ExternalRequestPageDto,
@@ -290,7 +295,7 @@ export class RequestController {
 
   /** Steps 7 and 13 — by uuid or by document number. */
   @ApiOperation({
-    summary: 'ขั้น 7 และ 13 — อ่านคำขอด้วย uuid หรือเลขที่เอกสาร',
+    summary: 'อ่านคำขอหนึ่งใบ ด้วยเลขที่เอกสารหรือ uuid',
   })
   @ApiOkResponse({ description: 'คำขอใบนั้น', type: ExternalRequestDto })
   @ApiExternalReadErrors()
@@ -309,7 +314,7 @@ export class RequestController {
    * and this person's part in it, so it changes as the ticket moves.
    */
   @ApiOperation({
-    summary: 'ขั้น 8 และ 14 — ตอนนี้ผู้ใช้รายนี้ทำอะไรกับคำขอได้บ้าง',
+    summary: 'ตอนนี้ผู้ใช้รายนี้ทำอะไรกับคำขอใบนี้ได้บ้าง',
     description:
       'ถามก่อนเสนอตัวเลือกเสมอ คำตอบเปลี่ยนตามสถานะของคำขอ ' +
       'และบทบาทของผู้ใช้ในคำขอนั้น',
@@ -334,13 +339,26 @@ export class RequestController {
    * the audit entry are the ones already in force.
    */
   @ApiOperation({
-    summary: 'ขั้น 9 — สั่งทำหนึ่งใน action ที่ได้จาก endpoint ด้านบน',
+    summary: 'สั่งทำหนึ่ง action กับคำขอใบนี้',
     description:
+      '`:action` ต้องเป็นค่าที่ `GET request/requests/{ref}/actions` คืนมาสำหรับคนนี้ ' +
+      '**ณ ตอนนั้น** — รายการใน enum คือ action ทั้งหมดที่ระบบมี ไม่ใช่ที่ทำได้ตอนนี้\n\n' +
+      '**แต่ละ action ใช้คีย์ไม่เหมือนกัน และสลับกันไม่ได้**\n\n' +
+      '| action | คีย์ที่ต้องส่ง |\n' +
+      '|---|---|\n' +
+      '| `receive` | — |\n' +
+      '| `assign` | `assignee_user_id` (uuid) |\n' +
+      '| `hold`, `cancel` | `reason` |\n' +
+      '| `resume`, `close` | `note` (ไม่บังคับ) |\n' +
+      '| `complete` | `receiver_form_data` — **คนละฟอร์มกับตอนเปิดคำขอ** |\n' +
+      '| `return` | `reason_code` จาก `return_reason_codes` ของประเภทนั้น + `note` |\n' +
+      '| `resubmit` | `form_data` **ทั้งใบ** ระบบแทนที่ทั้งก้อนแล้วตรวจ required ใหม่ |\n' +
+      '| `approve` | `note` |\n' +
+      '| `reject`, `send_back` | `note` **บังคับ** ว่างแล้วได้ `400 VALIDATION_FAILED` |\n' +
+      '| `comment` | `body` |\n\n' +
+      'ความยาวสูงสุด `reason`/`note` 2,000 ตัวอักษร · `body` 4,000\n\n' +
       '`comment` คืนตัว comment ที่เพิ่งเขียน (ExternalCommentDto) ' +
-      'ส่วน action อื่นคืนคำขอหลังเปลี่ยนสถานะ (ExternalRequestDto) ' +
-      '· **ทุก action มี field ที่บังคับต่างกัน** ดูจาก `fields` ที่ ' +
-      '`GET request/requests/{ref}/actions` คืนมา — โดยเฉพาะ `approve`, `reject`, ' +
-      '`send_back` ต้องมี `note` เสมอ ไม่งั้นได้ `400 VALIDATION_FAILED`',
+      'ส่วน action อื่นคืนคำขอหลังเปลี่ยนสถานะ (ExternalRequestDto)',
   })
   @ApiParam(REF_PARAM)
   @ApiParam({
@@ -386,7 +404,7 @@ export class RequestController {
   }
 
   /** Step 14 — this request, its parent, and everything spawned under it. */
-  @ApiOperation({ summary: 'ขั้น 14 — ใบนี้ ใบพ่อ และทุกใบลูกที่แตกออกไป' })
+  @ApiOperation({ summary: 'ใบนี้ ใบพ่อ และทุกใบลูกที่แตกออกไป' })
   @ApiOkResponse({
     description: 'ใบพ่อและใบลูกทั้งหมดของคำขอนี้',
     type: ExternalTreeDto,

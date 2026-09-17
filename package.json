@@ -63,7 +63,8 @@
     "data:import-users": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/import-users-csv.ts",
   "data:import-requests": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/import-osd-requests.ts",
     "tools": "ts-node --compiler-options '{\"module\":\"commonjs\"}' scripts/generate-tools.ts",
-    "crm:gen": "python3 scripts/generate-crm-controllers.py"
+    "crm:gen": "python3 scripts/generate-crm-controllers.py",
+    "postman": "ts-node --compiler-options '{\"module\":\"commonjs\"}' scripts/generate-postman.ts"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",

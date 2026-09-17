@@ -1,0 +1,123 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/v1/approval/cases": {
+      "post": {
+        "description": "ไม่ต้องส่ง `X-Acting-User` และส่งมาก็ไม่มีผล — เคสนี้เปิดโดยระบบ ไม่ใช่โดยคน ชื่อที่บันทึกใน audit จึงเป็นบัญชีบริการ",
+        "operationId": "ExternalApprovalController_create",
+        "parameters": [
+          {
+            "name": "authorization",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenCaseDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เปิดเคสอนุมัติจากโมดูลอื่น — ไม่ผูกกับคำขอในระบบ (APV-07)",
+        "tags": [
+          "approval"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "Request Form — External API · Approval",
+    "description": "เปิดเคสอนุมัติจากโมดูลอื่นที่ไม่มีคำขอในระบบรองรับ (APV-07)\n\n**ทุก route มีสองประตู** และ Swagger ของแต่ละ route บอกไว้ทั้งคู่: bearer ต้องถือสิทธิ์ `integration.*` ของ route นั้น (ประตูของเครื่อง) และคนที่ระบุใน header `X-Acting-User` ต้องถือสิทธิ์ของงานนั้นเอง (ประตูของคน) — ระบบทำงานในนามคนนั้น timeline จึงบันทึกชื่อคนจริง ไม่ใช่ชื่อบัญชีบริการ\n\n**bearer รับได้สองแบบ**\n\n1. access token ของ service account จาก Keycloak (client_credentials) อายุสั้น ต้องขอใหม่เมื่อหมดอายุ\n2. **API key** ที่ขึ้นต้นด้วย `rfk_` — ไม่มีวันหมดอายุ ไม่ต้องต่ออายุ ระบบแลกเป็น token ให้เองตอนใช้ ออกด้วย `yarn apikey:issue` และเพิกถอนด้วย `yarn apikey:revoke` (มีผลทันที)\n\nทั้งสองแบบส่งเหมือนกัน: `Authorization: Bearer <ค่า>` และได้สิทธิ์ชุดเดียวกัน — key ตัดสินว่า *เข้าได้ไหม* token บอกว่า *ทำอะไรได้*\n\n**endpoint นี้ไม่มีคนทั้งเส้น** ผู้เรียกคือโมดูล ไม่ใช่คน จึงไม่ต้องส่ง `X-Acting-User` และส่งมาก็ไม่มีผล ชื่อที่บันทึกใน audit เป็นบัญชีบริการ ซึ่งถูกต้องแล้ว — การใส่ชื่อคนให้มันคือการบันทึกว่ามีคนทำสิ่งที่ไม่มีใครทำ",
+    "version": "1.0"
+  },
+  "tags": [
+    {
+      "name": "approval",
+      "description": "เปิดเคสอนุมัติจากโมดูลอื่น (APV-07)"
+    }
+  ],
+  "servers": [
+    {
+      "url": "http://192.168.31.52:3503",
+      "description": "เครื่องภายใน OSD"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
+    "schemas": {
+      "OpenCaseDto": {
+        "type": "object",
+        "properties": {
+          "subject_type": {
+            "type": "string",
+            "example": "request:DSC"
+          },
+          "subject_id": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "object",
+            "description": "Decimal string. Omit for subjects with no monetary dimension.",
+            "nullable": true
+          },
+          "currency": {
+            "type": "string",
+            "example": "THB"
+          },
+          "requester_user_id": {
+            "type": "string",
+            "description": "Who the case is raised for."
+          },
+          "chart_owner_user_id": {
+            "type": "object",
+            "description": "Whose chart a supervisor level climbs. Defaults to the requester."
+          },
+          "callback_event": {
+            "type": "string",
+            "description": "APV-07: event published on outcome."
+          },
+          "payload": {
+            "type": "object",
+            "description": "The data the decision binds to."
+          }
+        },
+        "required": [
+          "subject_type",
+          "subject_id"
+        ]
+      }
+    }
+  }
+}

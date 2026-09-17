@@ -111,8 +111,8 @@ and exports; `requests-http.module.ts` holds the controllers and imports the
 first. core-service imports the `-http` half; external-service imports only the
 domain half, because Nest registers the controllers of everything it imports
 transitively and the screens' routes must never answer on the external port.
-`services/core-service/src/index.ts` carries the full reasoning and is the one
-place that decides what crosses the boundary.
+`services/core-service/src/index.ts` is the one place that decides what crosses
+the boundary — the reasoning is here, not in a comment there.
 
 `libs/share` is consumed as TypeScript **source** — no build step, no ordering.
 See "Build traps" below for the four config pieces that make that work.
@@ -158,8 +158,8 @@ text — §16 มีของจริงอยู่แล้ว
 
 **A request is handed to a named person, accepted, worked on — possibly broken
 into further requests — and only then checked and closed by whoever asked.**
-`request-state-machine.ts` is the authority; its doc comment carries the full
-reasoning and the list of what to remove if the PO declines.
+`request-state-machine.ts` is the authority for the transitions. The reasoning
+and the list of what to remove if the PO declines are the three points below.
 
 Three things in it are **not** in the source specification, and none of them may
 be justified by citing §7.1 or §8.1:
@@ -280,7 +280,8 @@ An endpoint on the external port declares **both**:
 the credential that arrived — the service account. The acting-user swap happens
 afterwards, deliberately: swapping earlier would test the human against the
 integration's gate, and anyone holding `request.create` would be let through a
-door meant only for the robot (`auth/acting-user.guard.ts` states this).
+door meant only for the robot. `auth/acting-user.guard.ts` is where the order is
+implemented; this is where it is explained.
 
 The consequence is that **after the swap, nothing checks the human unless you
 say so.** The request API survived that because `RequestsService` re-checks with
@@ -289,10 +290,10 @@ exposing it without the second gate would let an integration act as somebody
 who lacks the permission. `@ActingPermissions` must name exactly what the
 equivalent screen route names — `crm-route-parity.spec.ts` fails if it does not.
 
-Three routes carry no acting user, and each says why in its own file:
-`request/intake`, `crm/leads*`, `approval/cases`. There is nobody at the other
-end of those — a customer's web form, a workflow engine, another module. Adding
-a fourth is a decision to state out loud, not a default.
+Three routes carry no acting user: `request/intake`, `crm/leads*`,
+`approval/cases`. There is nobody at the other end of those — a customer's web
+form, a workflow engine, another module. Adding a fourth is a decision to state
+out loud here, not a default and not a paragraph in the controller.
 
 `POST requests/:ref/actions/:action` is the other exception: one route, fourteen
 verbs, a different permission each, so the check reads `ACTION_PERMISSIONS` in
@@ -312,10 +313,17 @@ ROLE, SCOPE, SUP-04, including the four requirements that were previously
 claimed done but were not: SCOPE-04 masking, SCOPE-05 read auditing, AUTH-06
 service-account scoping, and ROLE-03 role mapping. **S2 (Approval Engine) is delivered
 and verified live** — APV-01…05 and APV-07 complete, SUP-03 in-app complete
-(email blocked on SMTP). **S3 is scaffolded**:
-routes and permissions are declared and appear in the OpenAPI, but handlers
-throw `501` naming their requirement. The domain rules most at risk of drifting
-are already written and unit-tested:
+(email blocked on SMTP). **S3 (CRM) is implemented, not scaffolded** — customers,
+leads, opportunities, quotations and sale orders all resolve to real service
+methods with Prisma writes, audit rows, timeline events and unit tests.
+`grep -rn NotImplementedException services/ libs/` returns nothing;
+`services/core-service/src/common/not-implemented.ts` is declared and imported
+nowhere. The lifecycle and what is genuinely still absent are in
+[`docs/crm-flow.md`](./docs/crm-flow.md).
+
+The domain rules most at risk of drifting are written and unit-tested:
 
 - `services/core-service/src/requests/request-state-machine.ts` (§7.1)
 - `services/core-service/src/approvals/approval-chain.ts` (§8.1)
+- `services/core-service/src/crm/customer-state-machine.ts` (CM-04)
+- `services/core-service/src/crm/quotation-math.ts` (CD-76)

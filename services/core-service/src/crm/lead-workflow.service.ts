@@ -5,7 +5,7 @@ import {
   auditActor,
   Principal,
   salesAccessSubject,
-  visibleSalesWhere,
+  visibleLeadsWhere,
 } from '@request-management/share';
 import { ApplyLeadStageDto } from './dto/lead-workflow.dto';
 import { LeadStatusService } from './lead-status.service';
@@ -159,7 +159,7 @@ export class LeadWorkflowService {
     const found = (await this.leads.findFirst({
       where: {
         id,
-        AND: [visibleSalesWhere(salesAccessSubject(actor))],
+        AND: [visibleLeadsWhere(salesAccessSubject(actor))],
       },
     })) as {
       id: string;

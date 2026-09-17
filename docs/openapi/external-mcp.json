@@ -1,0 +1,63 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/v1/mcp": {
+      "post": {
+        "description": "Endpoint เดียวสำหรับทุก tool — ชื่อ tool อยู่ใน body ไม่ใช่ใน path รายการ tool ทั้งหมดอยู่ที่ docs/openapi/external-tools.json ดูวิธีใช้ที่ docs/EXTERNAL_API.md",
+        "operationId": "McpController_handle",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "MCP (JSON-RPC) — initialize · tools/list · tools/call",
+        "tags": [
+          "mcp"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "Request Form — External API · MCP",
+    "description": "ช่องทาง JSON-RPC สำหรับ tool-caller (LibreChat, MCP client)\n\n**ทุก route มีสองประตู** และ Swagger ของแต่ละ route บอกไว้ทั้งคู่: bearer ต้องถือสิทธิ์ `integration.*` ของ route นั้น (ประตูของเครื่อง) และคนที่ระบุใน header `X-Acting-User` ต้องถือสิทธิ์ของงานนั้นเอง (ประตูของคน) — ระบบทำงานในนามคนนั้น timeline จึงบันทึกชื่อคนจริง ไม่ใช่ชื่อบัญชีบริการ\n\n**bearer รับได้สองแบบ**\n\n1. access token ของ service account จาก Keycloak (client_credentials) อายุสั้น ต้องขอใหม่เมื่อหมดอายุ\n2. **API key** ที่ขึ้นต้นด้วย `rfk_` — ไม่มีวันหมดอายุ ไม่ต้องต่ออายุ ระบบแลกเป็น token ให้เองตอนใช้ ออกด้วย `yarn apikey:issue` และเพิกถอนด้วย `yarn apikey:revoke` (มีผลทันที)\n\nทั้งสองแบบส่งเหมือนกัน: `Authorization: Bearer <ค่า>` และได้สิทธิ์ชุดเดียวกัน — key ตัดสินว่า *เข้าได้ไหม* token บอกว่า *ทำอะไรได้*\n\n**นี่ไม่ใช่ REST API และเอกสารนี้อธิบายมันได้แค่ครึ่งเดียว** — มี endpoint เดียว ชื่อ tool อยู่ใน `params.name` ของ body ไม่ใช่ใน path จึงไม่มี `/mcp/request-types` และไม่มี URL ต่อ tool\n\nรายการ tool จริงอยู่ที่ `docs/openapi/external-tools.json` ซึ่ง `tools/list` อ่านจากไฟล์นั้นตรง ๆ วิธีเรียกและวิธีตั้งค่าใน LibreChat อยู่ใน `docs/EXTERNAL_API.md` §4.4\n\nแยกไฟล์ออกมาเพราะเหตุนี้: ปล่อยให้ปนอยู่กับ path ที่ยิงแบบ REST ได้ ทำให้ integrator เข้าใจว่ายิงแบบเดียวกันได้",
+    "version": "1.0"
+  },
+  "tags": [
+    {
+      "name": "mcp",
+      "description": "JSON-RPC — ชื่อ tool อยู่ใน body"
+    }
+  ],
+  "servers": [
+    {
+      "url": "http://192.168.31.52:3503",
+      "description": "เครื่องภายใน OSD"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
+    "schemas": {}
+  }
+}

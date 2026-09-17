@@ -10,10 +10,21 @@
 `/integrations/crm/leads`, `/integrations/approval-cases`) โดย auth ไม่เหมือนกัน
 ทั้งสามแบบ และแบบหนึ่งมี `@Permissions` ที่ถูกคอมเมนต์ทิ้งไว้
 
-รายการ endpoint ไม่ได้อยู่ที่นี่ — อยู่ที่
-[`docs/openapi/external-api.json`](./openapi/external-api.json) (87 operations)
-และ [`docs/openapi/external-tools.json`](./openapi/external-tools.json) สำหรับ
-tool-caller ทั้งสองไฟล์สร้างด้วย `yarn openapi` และ `yarn tools`
+รายการ endpoint ไม่ได้อยู่ที่นี่ — **หนึ่งไฟล์ต่อหนึ่ง module** ทุกไฟล์สร้างด้วย
+`yarn openapi` (เดิมเป็นไฟล์รวม `external-api.json` ไฟล์เดียว 70 path 221 KB
+คนที่ต่อแค่ CRM ต้องอ่านผ่าน request กับ approval ไปก่อน)
+
+| ไฟล์ | paths | สำหรับ |
+|---|---|---|
+| [`openapi/external-request.json`](./openapi/external-request.json) | 10 | คำขอตั้งแต่เปิดจนปิด |
+| [`openapi/external-crm.json`](./openapi/external-crm.json) | 58 | ลูกค้า, Lead, โอกาสการขาย, ใบเสนอราคา |
+| [`openapi/external-approval.json`](./openapi/external-approval.json) | 1 | เปิดเคสอนุมัติจากโมดูลอื่น |
+| [`openapi/external-mcp.json`](./openapi/external-mcp.json) | 1 | คำอธิบาย JSON-RPC — ไม่ใช่ REST |
+| [`openapi/external-tools.json`](./openapi/external-tools.json) | 10 tools | tool-caller (`yarn tools`) |
+
+Postman collection สร้างจากสามไฟล์แรกด้วย `yarn postman` เขียนลง
+`../docs/postman/Request-Form-External-{Request,CRM,Approval}.postman_collection.json`
+
 **อย่าลอกรายการ endpoint มาไว้ที่นี่อีกชุด** — สองชุดจะเริ่มไม่ตรงกันทันทีที่แก้อันเดียว
 
 ## โครงสร้างตาม module
