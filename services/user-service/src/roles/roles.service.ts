@@ -6,6 +6,7 @@ import {
   assertSeparationOfDuties,
   Permission,
   permissionModule,
+  permissionType,
   Principal,
   PrismaTransactionService,
   TxOption,
@@ -69,6 +70,7 @@ export class RolesService implements OnModuleInit {
         ALL_PERMISSIONS.map((code) => ({
           code,
           module: permissionModule(code),
+          type: permissionType(code),
         })),
       );
 

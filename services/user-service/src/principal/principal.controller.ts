@@ -17,8 +17,8 @@ import { PrincipalService } from './principal.service';
  *   - `@ServiceAccountOnly` — a person's token is refused here. Nobody can ask
  *     this on their own behalf, so it can never be used to widen a session.
  *   - `@Permissions('integration.request.create')` — AUTH-06's integration
- *     permission, which is never granted to a human role. The chatbot's client
- *     holds this and nothing else; it must not hold `admin.*`.
+ *     permission, a service-account scope. The chatbot's client holds this and
+ *     nothing else; it must not hold `admin.*`.
  *
  * Its own controller rather than a route beside `resolve`: `PrincipalModule`
  * already imports `PolicyModule`, so putting it there would close a cycle.

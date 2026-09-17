@@ -65,10 +65,26 @@ export class AppErrorExceptionFilter implements ExceptionFilter {
         error instanceof Error ? error.stack : '',
       );
     } else {
-      this.logger.warn(`${body.code}: ${body.message}`);
+      this.logger.warn(this.warnLine(body));
     }
 
     response.status(status).json(body);
+  }
+
+  /**
+   * `VALIDATION_FAILED: … · title=title should not be empty` — the failing
+   * fields on the same line as the code. Without them a rejected payload leaves
+   * nothing in the log but "Bad Request Exception".
+   */
+  private warnLine(body: ErrorResponseBody): string {
+    const head = `${body.code}: ${body.message}`;
+    if (!body.details?.length) return head;
+
+    const fields = body.details
+      .map((detail) => `${detail.field}=${detail.reason}`)
+      .join('; ');
+
+    return `${head} · ${fields}`;
   }
 
   private describe(error: unknown): {

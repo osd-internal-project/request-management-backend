@@ -612,13 +612,16 @@ model Role {
 /// synced at boot. The table exists for referential integrity only — admins
 /// compose roles from these but cannot create new ones (§11.3).
 model Permission {
-  code        String  @id
-  module      String
+  code   String @id
+  module String
+  /// human = สิทธิ์ของคนใน role · service = scope ของบัญชีบริการ (AUTH-06)
+  type        String  @default("human")
   description String?
 
   roles RolePermission[]
 
   @@index([module])
+  @@index([type])
   @@map("permissions")
 }
 
