@@ -1,4 +1,4 @@
-import { Principal, visibleSalesWhere } from '@request-management/share';
+import { Principal, visibleLeadsWhere } from '@request-management/share';
 import { LeadIntakeService } from './lead-intake.service';
 import { LeadsService } from './leads.service';
 import {
@@ -272,7 +272,7 @@ describe('รับ Lead จากระบบภายนอก — POST integr
 
 describe('กองกลาง — ใครเห็น และรับไปดูแลอย่างไร', () => {
   it('SCOPE-02: คนที่ไม่ได้ถือ crm.sales.read.all ยังเห็นใบที่ไม่มีเจ้าของ', () => {
-    const where = visibleSalesWhere({
+    const where = visibleLeadsWhere({
       userId: 'sales-1',
       activeCompanyId: 'osd',
       ledUnitIds: [],

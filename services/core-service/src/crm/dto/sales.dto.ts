@@ -266,7 +266,7 @@ export class ListLeadsQueryDto extends PageQueryDto {
   /**
    * `unassigned` = กองกลาง — ใบที่ยังไม่มีเจ้าของ ส่วนใหญ่มาจาก
    * `POST /integrations/crm/leads`. เป็นตัวกรอง ไม่ใช่สิทธิ์: ใบพวกนี้อยู่ใน
-   * ขอบเขตที่ทุกคนอ่าน Lead ได้เห็นอยู่แล้ว (`visibleSalesWhere`) — ค่านี้แค่
+   * ขอบเขตที่ทุกคนอ่าน Lead ได้เห็นอยู่แล้ว (`visibleLeadsWhere`) — ค่านี้แค่
    * ตัดใบที่มีคนดูแลแล้วออก ให้เหลือหน้าจอ "งานที่ยังไม่มีใครรับ".
    */
   @IsOptional()

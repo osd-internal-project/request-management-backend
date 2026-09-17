@@ -1,7 +1,7 @@
 [
   {
     "name": "request_get_request_types",
-    "description": "ขั้น 2 — ประเภทคำขอที่ผู้ใช้รายนี้เปิดได้",
+    "description": "ประเภทคำขอที่ผู้ใช้รายนี้เปิดได้ ณ ตอนนี้",
     "input_schema": {
       "type": "object",
       "properties": {
@@ -22,7 +22,7 @@
   },
   {
     "name": "request_get_request_types_code_form",
-    "description": "ขั้น 3 — ฟอร์มและตัวเลือกที่ต้องถาม มาจากประเภทคำขอโดยตรง",
+    "description": "ฟอร์ม ตัวเลือก ผู้รับที่เลือกได้ และกติกาของประเภทคำขอนี้",
     "input_schema": {
       "type": "object",
       "properties": {
@@ -43,7 +43,7 @@
   },
   {
     "name": "request_get_requests",
-    "description": "ขั้น 5 และ 11 — คิวงานของผู้ใช้รายนี้",
+    "description": "คิวงานของผู้ใช้รายนี้ แบ่งตามมุมมองที่เลือก",
     "input_schema": {
       "type": "object",
       "properties": {
@@ -112,7 +112,7 @@
   },
   {
     "name": "request_get_requests_ref",
-    "description": "ขั้น 7 และ 13 — อ่านคำขอด้วย uuid หรือเลขที่เอกสาร",
+    "description": "อ่านคำขอหนึ่งใบ ด้วยเลขที่เอกสารหรือ uuid",
     "input_schema": {
       "type": "object",
       "properties": {
@@ -133,7 +133,7 @@
   },
   {
     "name": "request_get_requests_ref_actions",
-    "description": "ขั้น 8 และ 14 — ตอนนี้ผู้ใช้รายนี้ทำอะไรกับคำขอได้บ้าง — ถามก่อนเสนอตัวเลือกเสมอ คำตอบเปลี่ยนตามสถานะของคำขอ และบทบาทของผู้ใช้ในคำขอนั้น",
+    "description": "ตอนนี้ผู้ใช้รายนี้ทำอะไรกับคำขอใบนี้ได้บ้าง — ถามก่อนเสนอตัวเลือกเสมอ คำตอบเปลี่ยนตามสถานะของคำขอ และบทบาทของผู้ใช้ในคำขอนั้น",
     "input_schema": {
       "type": "object",
       "properties": {
@@ -154,7 +154,7 @@
   },
   {
     "name": "request_get_requests_ref_tree",
-    "description": "ขั้น 14 — ใบนี้ ใบพ่อ และทุกใบลูกที่แตกออกไป",
+    "description": "ใบนี้ ใบพ่อ และทุกใบลูกที่แตกออกไป",
     "input_schema": {
       "type": "object",
       "properties": {
@@ -274,7 +274,7 @@
   },
   {
     "name": "request_post_requests",
-    "description": "ขั้น 4 และ 10 — สร้างคำขอพร้อมยื่นในครั้งเดียว — ส่ง `parent_request_id` เพื่อสร้างเป็นคำขอลูกของใบที่มีอยู่ — เป็น endpoint เดียวกัน เพราะคำขอลูกคือคำขอธรรมดาที่มีต้นเรื่อง ควรส่ง header `Idempotency-Key` ทุกครั้ง: ถ้า response หายกลางทาง การยิงซ้ำโดยไม่มี key จะกลายเป็นคำขอสองใบคนละเลข",
+    "description": "สร้างคำขอและยื่นในครั้งเดียว — `receiver_user_id` รับ **uuid เท่านั้น** ส่งอีเมลหรือชื่อไปถูกปฏิเสธ — หา id ด้วย `GET request/users` ก่อน\n\n**ถ้าประเภทคำขอตอบ `ref_required: true`** ต้องส่ง `ref_type` และ `ref_id` คู่กันด้วย สองตัวนี้ไม่ได้อยู่ใน `form_data` แต่เป็นคอลัมน์ของตัวคำขอ กรอกฟอร์มครบแต่ไม่ส่งจะได้ `422 REQ_FIELD_MISSING` ที่ field `ref_id`\n\nส่ง `parent_request_id` (uuid ของใบแม่ ไม่ใช่เลขที่) เพื่อสร้างเป็นคำขอลูก — เป็น endpoint เดียวกัน เพราะคำขอลูกคือคำขอธรรมดาที่มีต้นเรื่อง\n\nควรส่ง header `Idempotency-Key` ทุกครั้ง: ถ้า response หายกลางทาง การยิงซ้ำโดยไม่มี key จะกลายเป็นคำขอสองใบคนละเลข",
     "input_schema": {
       "type": "object",
       "properties": {
@@ -332,7 +332,7 @@
   },
   {
     "name": "request_post_requests_ref_actions_action",
-    "description": "ขั้น 9 — สั่งทำหนึ่งใน action ที่ได้จาก endpoint ด้านบน — `comment` คืนตัว comment ที่เพิ่งเขียน (ExternalCommentDto) ส่วน action อื่นคืนคำขอหลังเปลี่ยนสถานะ (ExternalRequestDto) · **ทุก action มี field ที่บังคับต่างกัน** ดูจาก `fields` ที่ `GET request/requests/{ref}/actions` คืนมา — โดยเฉพาะ `approve`, `reject`, `send_back` ต้องมี `note` เสมอ ไม่งั้นได้ `400 VALIDATION_FAILED`",
+    "description": "สั่งทำหนึ่ง action กับคำขอใบนี้ — `:action` ต้องเป็นค่าที่ `GET request/requests/{ref}/actions` คืนมาสำหรับคนนี้ **ณ ตอนนั้น** — รายการใน enum คือ action ทั้งหมดที่ระบบมี ไม่ใช่ที่ทำได้ตอนนี้\n\n**แต่ละ action ใช้คีย์ไม่เหมือนกัน และสลับกันไม่ได้**\n\n| action | คีย์ที่ต้องส่ง |\n|---|---|\n| `receive` | — |\n| `assign` | `assignee_user_id` (uuid) |\n| `hold`, `cancel` | `reason` |\n| `resume`, `close` | `note` (ไม่บังคับ) |\n| `complete` | `receiver_form_data` — **คนละฟอร์มกับตอนเปิดคำขอ** |\n| `return` | `reason_code` จาก `return_reason_codes` ของประเภทนั้น + `note` |\n| `resubmit` | `form_data` **ทั้งใบ** ระบบแทนที่ทั้งก้อนแล้วตรวจ required ใหม่ |\n| `approve` | `note` |\n| `reject`, `send_back` | `note` **บังคับ** ว่างแล้วได้ `400 VALIDATION_FAILED` |\n| `comment` | `body` |\n\nความยาวสูงสุด `reason`/`note` 2,000 ตัวอักษร · `body` 4,000\n\n`comment` คืนตัว comment ที่เพิ่งเขียน (ExternalCommentDto) ส่วน action อื่นคืนคำขอหลังเปลี่ยนสถานะ (ExternalRequestDto)",
     "input_schema": {
       "type": "object",
       "properties": {

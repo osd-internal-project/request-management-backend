@@ -9,7 +9,7 @@ import {
   PrismaTransactionService,
   salesAccessSubject,
   toSkipTake,
-  visibleSalesWhere,
+  visibleLeadsWhere,
 } from '@request-management/share';
 import { CompanyMemberRepository } from '../access/company-member.repository';
 import { LeadStatusService } from './lead-status.service';
@@ -90,7 +90,7 @@ function leadColumns(
  * CRM Lead — รับ → คัดกรอง (new → ติดต่อไม่ได้/ติดต่อแล้ว → ผ่านคัดกรอง) →
  * แปลงเป็นโอกาสการขาย (ข้อมูลไหลต่อ) หรือคัดออกพร้อมเหตุผล. หน้ารายละเอียด
  * ลงกิจกรรม (โทร/อีเมล/นัดหมาย/งาน/บันทึก) บน Lead ได้ตลอดที่ยังเปิดอยู่.
- * Scope ผ่าน `visibleSalesWhere` (SCOPE-02) — คนขายเห็น Lead ของตนและของทีม,
+ * Scope ผ่าน `visibleLeadsWhere` (SCOPE-02) — คนขายเห็น Lead ของตนและของทีม,
  * `crm.sales.read.all` เห็นทั้งบริษัท. No hard delete.
  */
 @Injectable()
@@ -113,7 +113,7 @@ export class LeadsService {
 
     if (query.status) filters.status = query.status;
     if (query.view === 'mine') filters.ownerUserId = actor.userId;
-    // กองกลาง — ใบที่ยังไม่มีใครรับ. ตัวกรอง ไม่ใช่ประตู: `visibleSalesWhere`
+    // กองกลาง — ใบที่ยังไม่มีใครรับ. ตัวกรอง ไม่ใช่ประตู: `visibleLeadsWhere`
     // ด้านล่างยังผูกทุกแถวไว้กับขอบเขตของคนเรียกเหมือนเดิม.
     if (query.view === 'unassigned') filters.ownerUserId = null;
     if (query.search) {
@@ -127,7 +127,7 @@ export class LeadsService {
     }
 
     const where = {
-      AND: [visibleSalesWhere(salesAccessSubject(actor)), filters],
+      AND: [visibleLeadsWhere(salesAccessSubject(actor)), filters],
     } as Prisma.LeadWhereInput;
 
     const [rows, total] = await Promise.all([
@@ -157,7 +157,7 @@ export class LeadsService {
     const found = (await this.leads.findFirst({
       where: {
         id,
-        AND: [visibleSalesWhere(salesAccessSubject(actor))],
+        AND: [visibleLeadsWhere(salesAccessSubject(actor))],
       },
       include: {
         customer: {
@@ -568,7 +568,7 @@ export class LeadsService {
     const found = (await this.leads.findFirst({
       where: {
         id,
-        AND: [visibleSalesWhere(salesAccessSubject(actor))],
+        AND: [visibleLeadsWhere(salesAccessSubject(actor))],
       },
     })) as {
       id: string;

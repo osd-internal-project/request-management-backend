@@ -4,7 +4,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
  * What the external API answers with.
  *
  * These classes exist for the OpenAPI document and nothing else — no handler
- * constructs one. `docs/openapi/external-api.json` is generated from them and
+ * constructs one. `docs/openapi/external-request.json` is generated from them and
  * handed to the teams writing integrations, who have no other way to learn the
  * shape of a reply.
  *
