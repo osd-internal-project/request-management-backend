@@ -86,9 +86,13 @@ export class NotificationsService {
 
   // --- reads --------------------------------------------------------------
 
-  async list(actor: Principal, query: PageQueryDto) {
+  async list(actor: Principal, query: PageQueryDto & { unread?: 'true' }) {
     const { skip, take } = toSkipTake(query);
-    const where = { userId: actor.userId, companyId: actor.activeCompanyId };
+    const where = {
+      userId: actor.userId,
+      companyId: actor.activeCompanyId,
+      ...(query.unread === 'true' ? { readAt: null } : {}),
+    };
 
     const [rows, total] = await Promise.all([
       this.prisma.notification.findMany({
@@ -101,6 +105,18 @@ export class NotificationsService {
     ]);
 
     return paginated(rows, query, total);
+  }
+
+  /** ที่ยังไม่อ่านในบริษัทที่เปิดอยู่ — ตัวเลขบนกระดิ่ง. */
+  async unreadCount(actor: Principal): Promise<{ count: number }> {
+    const count = await this.prisma.notification.count({
+      where: {
+        userId: actor.userId,
+        companyId: actor.activeCompanyId,
+        readAt: null,
+      },
+    });
+    return { count };
   }
 
   /** Scoped to the owner, so one person cannot mark another's as read. */
