@@ -18,6 +18,7 @@ import { LeadsService } from './leads.service';
 import { LeadStatusService } from './lead-status.service';
 import { LeadImportService } from './lead-import.service';
 import { OpportunitiesService } from './opportunities.service';
+import { OpportunityActivitiesService } from './opportunity-activities.service';
 import { SaleOrdersService } from './sale-orders.service';
 import { QuotationsService } from './quotations.service';
 import { CreateQuotationDto } from './dto/quotation.dto';
@@ -248,6 +249,7 @@ export class OpportunitiesController {
     private readonly opportunities: OpportunitiesService,
     private readonly saleOrders: SaleOrdersService,
     private readonly quotations: QuotationsService,
+    private readonly activities: OpportunityActivitiesService,
   ) {}
 
   @ApiOperation({
@@ -312,6 +314,51 @@ export class OpportunitiesController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.opportunities.update(id, dto, principal);
+  }
+
+  /** CD-65 กิจกรรมและนัดติดตาม — ใหม่สุดก่อน, อ่านได้แม้ปิดแล้ว. */
+  @ApiOperation({
+    summary: 'กิจกรรมและนัดติดตามของโอกาสการขาย',
+    description: 'ใหม่สุดก่อน · อ่านได้แม้โอกาสการขายปิดแล้ว',
+  })
+  @Get(':id/activities')
+  @Permissions('crm.sales.read')
+  listActivities(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.activities.list(id, principal);
+  }
+
+  /** ลงกิจกรรม — ไม่มี `due_at` = ทำแล้ว, มี = นัดติดตามครั้งถัดไป. */
+  @ApiOperation({
+    summary: 'ลงกิจกรรมของโอกาสการขาย',
+    description:
+      'type: call · email · meeting · task · note — ไม่มี due_at = ทำแล้ว, มี = นัดติดตามครั้งถัดไป',
+  })
+  @Post(':id/activities')
+  @Permissions('crm.sales.manage')
+  addActivity(
+    @Param('id') id: string,
+    @Body() dto: CreateLeadActivityDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.activities.add(id, dto, principal);
+  }
+
+  /** ติ๊กเสร็จ / เปิดกลับ / แก้กิจกรรม. */
+  @ApiOperation({
+    summary: 'แก้กิจกรรมของโอกาสการขาย หรือติ๊กเสร็จ',
+  })
+  @Patch(':id/activities/:activityId')
+  @Permissions('crm.sales.manage')
+  updateActivity(
+    @Param('id') id: string,
+    @Param('activityId') activityId: string,
+    @Body() dto: UpdateLeadActivityDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.activities.update(id, activityId, dto, principal);
   }
 
   /**

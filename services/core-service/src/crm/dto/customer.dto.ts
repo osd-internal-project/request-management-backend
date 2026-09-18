@@ -564,6 +564,13 @@ export class UpdateCrmConfigDto {
   @Max(365)
   quotation_validity_days?: number;
 
+  /** CD-65: ดีลเปิดที่ไม่มีกิจกรรมเสร็จนานเกินกี่วันจึงแจ้งหัวหน้า. 0 = ปิดการแจ้ง. */
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(365)
+  stale_opportunity_days?: number;
+
   @IsOptional()
   @IsNumber()
   @Min(0)

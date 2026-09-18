@@ -148,6 +148,28 @@ export class NotificationsService {
     });
   }
 
+  /**
+   * CD-65 — an open opportunity has had no completed activity for `days`
+   * days. Worded as a fact for the same reason as `slaBreached`: the owner and
+   * their head get the same message.
+   */
+  async opportunityStale(
+    userId: string,
+    companyId: string,
+    opportunity: { id: string; opportunityCode: string; title: string },
+    days: number,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'crm.opportunity.stale',
+      title: 'โอกาสการขายไม่มีความเคลื่อนไหว',
+      body: `${opportunity.opportunityCode} ${opportunity.title} ไม่มีกิจกรรมมาแล้วเกิน ${days} วัน`,
+      resourceType: 'opportunity',
+      resourceId: opportunity.id,
+    });
+  }
+
   private async emit(entry: {
     userId: string;
     companyId: string;

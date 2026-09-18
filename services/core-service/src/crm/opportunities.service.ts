@@ -69,6 +69,14 @@ export class OpportunitiesService {
     if (query.open === 'true') filters.stage = { in: OPEN_STAGES };
     if (query.customer_id) filters.customerId = query.customer_id;
     if (query.view === 'mine') filters.ownerUserId = actor.userId;
+    if (query.follow_up === 'overdue') {
+      filters.nextFollowUpAt = { lt: new Date() };
+      filters.stage = { in: OPEN_STAGES };
+    }
+    if (query.follow_up === 'stale') {
+      filters.staleAlertedAt = { not: null };
+      filters.stage = { in: OPEN_STAGES };
+    }
     if (query.search) {
       const q = query.search.trim();
       filters.OR = [

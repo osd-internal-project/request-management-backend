@@ -53,6 +53,7 @@ export { LeadStatusService } from './crm/lead-status.service';
 export { LeadIntakeService } from './crm/lead-intake.service';
 export { LeadWorkflowService } from './crm/lead-workflow.service';
 export { OpportunitiesService } from './crm/opportunities.service';
+export { OpportunityActivitiesService } from './crm/opportunity-activities.service';
 export { SaleOrdersService } from './crm/sale-orders.service';
 export { QuotationsService } from './crm/quotations.service';
 export * from './crm/dto/customer.dto';

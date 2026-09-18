@@ -1876,6 +1876,10 @@ model CrmCompanyConfig {
   /// ประเภทคำขอที่ระบบสร้างร่างให้เมื่อ margin ต่ำ — ต้องเปิดให้บริษัทนี้ใช้อยู่.
   quotationApprovalTypeCode String @default("DSC")
 
+  /// CD-65: โอกาสการขายที่เปิดอยู่และไม่มีกิจกรรมเสร็จนานเกินจำนวนวันนี้ = "เงียบ"
+  /// → แจ้งหัวหน้าของเจ้าของดีล. 0 = ปิดการแจ้งเตือน.
+  staleOpportunityDays Int @default(14)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   updatedBy String?
@@ -2070,7 +2074,7 @@ model Lead {
   /// ถูกต้องบังคับที่ `LeadStatusService` (และการลบสถานะที่ยังมี Lead ใช้อยู่
   /// ถูกปฏิเสธ) แทน FK เพราะคีย์ต้องเป็นคู่ (companyId, code) ซึ่ง Prisma
   /// ผูกซ้ำกับ `company` ไม่ได้.
-  status           String @default("new")
+  status           String  @default("new")
   disqualifyReason String?
 
   /// ลูกค้าเดิมที่ Lead นี้เป็นเรื่องของเขา (ถ้า match ได้).
@@ -2184,13 +2188,24 @@ model Opportunity {
   ownerUserId    String
   ownerOrgUnitId String?
 
+  /// CD-65 — กิจกรรมที่ทำเสร็จล่าสุด (NULL = ยังไม่เคยมี นับความเงียบจาก `createdAt`).
+  /// เก็บซ้ำไว้บนแถวเพื่อให้ sweeper และหน้ารายการหาดีลเงียบได้ด้วย index เดียว
+  /// แทนการ group กิจกรรมทุกครั้ง. เขียนโดย `OpportunityActivitiesService` เท่านั้น.
+  lastActivityAt DateTime?
+  /// กำหนดติดตามที่ใกล้ที่สุดของกิจกรรมที่ยังไม่เสร็จ — NULL = ไม่มีนัดค้าง.
+  nextFollowUpAt DateTime?
+  /// ครั้งล่าสุดที่แจ้งหัวหน้าว่าดีลนี้เงียบ; ล้างเป็น NULL เมื่อมีกิจกรรมใหม่
+  /// ทำเสร็จ — กันแจ้งซ้ำทุกรอบ sweep แบบเดียวกับ `SlaClock.escalatedAt`.
+  staleAlertedAt DateTime?
+
   createdAt DateTime @default(now())
   createdBy String?
   updatedAt DateTime @updatedAt
   updatedBy String?
 
-  company    Company              @relation(fields: [companyId], references: [id])
-  customer   Customer?            @relation(fields: [customerId], references: [id])
+  company    Company               @relation(fields: [companyId], references: [id])
+  customer   Customer?             @relation(fields: [customerId], references: [id])
+  activities OpportunityActivity[]
   products   OpportunityProduct[]
   saleOrders SaleOrder[]
   quotations Quotation[]
@@ -2200,7 +2215,35 @@ model Opportunity {
   @@index([companyId, customerId])
   @@index([companyId, ownerUserId])
   @@index([companyId, ownerOrgUnitId])
+  @@index([stage, lastActivityAt])
   @@map("opportunities")
+}
+
+/// CD-65 กิจกรรมบนโอกาสการขาย — รูปเดียวกับ `LeadActivity` (ใช้ enum เดียวกัน):
+/// ไม่มี `dueAt` = บันทึกสิ่งที่ทำไปแล้ว (เสร็จทันที), มี `dueAt` = นัดติดตาม.
+/// append-mostly: ติ๊กเสร็จ/เปิดกลับได้ ไม่มีการลบ.
+model OpportunityActivity {
+  id            String @id @default(uuid())
+  companyId     String
+  opportunityId String
+
+  type    LeadActivityType
+  subject String
+  detail  String?
+
+  dueAt       DateTime?
+  completedAt DateTime?
+  completedBy String?
+
+  createdAt DateTime @default(now())
+  createdBy String
+  updatedAt DateTime @updatedAt
+
+  opportunity Opportunity @relation(fields: [opportunityId], references: [id])
+
+  @@index([opportunityId, dueAt])
+  @@index([companyId, createdAt])
+  @@map("opportunity_activities")
 }
 
 /// สินค้า/บริการที่เกี่ยวกับโอกาสการขาย — รหัสต้องตรง Odoo (D-30). ชุดงาน B ใช้คู่กับ
@@ -2321,7 +2364,7 @@ model Quotation {
   companyId     String
   opportunityId String
   /// ลูกค้าในทะเบียน ถ้าโอกาสการขายผูกอยู่แล้วตอนสร้างเวอร์ชันนี้ — ผู้มุ่งหวังเป็น NULL.
-  customerId String?
+  customerId    String?
 
   /// คู่ค้าที่พิมพ์บนเอกสาร — snapshot จากลูกค้า/ผู้มุ่งหวังตอนสร้างเวอร์ชัน.
   partyName   String
@@ -2336,15 +2379,15 @@ model Quotation {
   note         String?
 
   /// ผลรวม จำนวน × ราคาต่อหน่วย ก่อนส่วนลด.
-  subtotal      Decimal @default(0) @db.Decimal(14, 2)
-  discountTotal Decimal @default(0) @db.Decimal(14, 2)
+  subtotal      Decimal  @default(0) @db.Decimal(14, 2)
+  discountTotal Decimal  @default(0) @db.Decimal(14, 2)
   /// หลังส่วนลด ก่อน VAT — ฐานของ margin และมูลค่าที่ส่งต่อไปใบสั่งขาย.
-  netTotal      Decimal @default(0) @db.Decimal(14, 2)
-  vatPct        Decimal @default(7) @db.Decimal(5, 2)
-  vatAmount     Decimal @default(0) @db.Decimal(14, 2)
-  grandTotal    Decimal @default(0) @db.Decimal(14, 2)
-  costTotal     Decimal @default(0) @db.Decimal(14, 2)
-  marginAmount  Decimal @default(0) @db.Decimal(14, 2)
+  netTotal      Decimal  @default(0) @db.Decimal(14, 2)
+  vatPct        Decimal  @default(7) @db.Decimal(5, 2)
+  vatAmount     Decimal  @default(0) @db.Decimal(14, 2)
+  grandTotal    Decimal  @default(0) @db.Decimal(14, 2)
+  costTotal     Decimal  @default(0) @db.Decimal(14, 2)
+  marginAmount  Decimal  @default(0) @db.Decimal(14, 2)
   /// NULL เมื่อ netTotal = 0 (หารไม่ได้).
   marginPct     Decimal? @db.Decimal(7, 2)
 

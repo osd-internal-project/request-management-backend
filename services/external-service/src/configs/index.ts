@@ -76,6 +76,10 @@ export default () => ({
     workspaceId: process.env.WORKFLOW_WORKSPACE_ID ?? 'default',
     retryIntervalMs: 0,
   },
+  /** CD-65 ดีลเงียบ — the sweep is core-service's, like every clock above. */
+  crm: {
+    staleSweepIntervalMs: 0,
+  },
   pdpa: {
     mode: process.env.PDPA_MODE ?? 'mock',
     baseUrl: process.env.PDPA_BASE_URL ?? '',

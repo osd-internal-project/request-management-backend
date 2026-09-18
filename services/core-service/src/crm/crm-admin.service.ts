@@ -200,6 +200,7 @@ export class CrmAdminService {
         quotationValidityDays: 30,
         vatPct: 7,
         quotationApprovalTypeCode: 'DSC',
+        staleOpportunityDays: 14,
       }
     );
   }
@@ -219,6 +220,7 @@ export class CrmAdminService {
             vatPct: dto.vat_pct ?? 7,
             quotationApprovalTypeCode:
               dto.quotation_approval_type_code ?? 'DSC',
+            staleOpportunityDays: dto.stale_opportunity_days ?? 14,
             updatedBy: actor.userId,
           },
           update: {
@@ -229,6 +231,7 @@ export class CrmAdminService {
             quotationValidityDays: dto.quotation_validity_days,
             vatPct: dto.vat_pct,
             quotationApprovalTypeCode: dto.quotation_approval_type_code,
+            staleOpportunityDays: dto.stale_opportunity_days,
             updatedBy: actor.userId,
           },
         },
