@@ -47,6 +47,20 @@ export class LeadActivityRepository extends BaseRepository<
   }
 }
 
+/** CD-65 กิจกรรมบนโอกาสการขาย — append-mostly เหมือนของ Lead. */
+@Injectable()
+export class OpportunityActivityRepository extends BaseRepository<
+  PrismaService['opportunityActivity']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.opportunityActivity;
+  }
+}
+
 /** What the opportunity list and the 360° tab both select. */
 export const OPPORTUNITY_LIST_SELECT = {
   id: true,
@@ -63,6 +77,10 @@ export const OPPORTUNITY_LIST_SELECT = {
   prospectName: true,
   prospectTaxId: true,
   ownerUserId: true,
+  /// CD-65 — วันติดตามถัดไป / ดีลเงียบ บนรายการและกระดาน.
+  lastActivityAt: true,
+  nextFollowUpAt: true,
+  staleAlertedAt: true,
   createdAt: true,
   updatedAt: true,
 } satisfies Prisma.OpportunitySelect;

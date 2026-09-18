@@ -35,57 +35,6 @@ const REALM_ROLES: { name: string; description: string }[] = [
   { name: 'auditor', description: 'ผู้ตรวจสอบ — อ่านอย่างเดียว' },
 ];
 
-/**
- * AUTH-06 scopes a service account **per client**, and a service account has
- * no company membership to resolve roles against — so its Keycloak roles are
- * its permissions directly. These are named after the permission they grant.
- *
- * Granted to this client's own service account, which is what lets an
- * integration raise a request or an approval case and nothing else.
- */
-const INTEGRATION_ROLES = [
-  {
-    name: 'integration.request.create',
-    description: 'ระบบภายนอกยื่นคำขอ (REQ-10)',
-  },
-  {
-    name: 'integration.approval.create',
-    description: 'ระบบภายนอกเปิดเคสอนุมัติ (APV-07)',
-  },
-  {
-    name: 'integration.crm.lead.read',
-    description: 'workflow engine อ่านข้อเท็จจริงของ Lead (lwf-0001)',
-  },
-  {
-    name: 'integration.crm.lead.stage',
-    description: 'workflow engine บันทึกขั้นที่ตัดสินใจแล้วกลับมาที่ Lead',
-  },
-  {
-    name: 'integration.crm.lead.create',
-    description: 'ช่องทางภายนอกยิง Lead เข้ากองกลาง (เว็บฟอร์ม / LINE OA)',
-  },
-  {
-    name: 'integration.crm.customer.read',
-    description: 'ระบบภายนอกอ่านทะเบียนลูกค้าผ่าน external-service',
-  },
-  {
-    name: 'integration.crm.customer.manage',
-    description: 'ระบบภายนอกแก้ทะเบียนลูกค้าผ่าน external-service',
-  },
-  {
-    name: 'integration.crm.sales.read',
-    description: 'ระบบภายนอกอ่าน Lead / Opportunity / ใบเสนอราคา',
-  },
-  {
-    name: 'integration.crm.sales.manage',
-    description: 'ระบบภายนอกแก้ Lead / Opportunity / ใบเสนอราคา',
-  },
-  {
-    name: 'integration.crm.admin.manage',
-    description: 'ระบบภายนอกอ่าน/แก้หน้าตั้งค่า CRM',
-  },
-];
-
 interface Env {
   baseUrl: string;
   realm: string;
@@ -158,10 +107,15 @@ async function createRealmRoles(env: Env, token: string): Promise<void> {
   const existing = (await existingResponse.json()) as { name: string }[];
   const have = new Set(existing.map((role) => role.name));
 
-  // The §5.2 system roles and the two §8.1 approval offices, plus the
-  // integration scopes AUTH-06 grants to the service account rather than to
-  // any person.
-  const wanted = [...REALM_ROLES, ...INTEGRATION_ROLES];
+  /*
+    §5.2 system roles และตำแหน่งอนุมัติสอง office ตาม §8.1 — ของคนล้วน.
+
+    ไม่มี realm role ของ integration อีกแล้ว: สิทธิ์ของเครื่องอ่านจาก `ApiKey.scopes`
+    ใน DB (ดู `RemotePrincipalGuard.permissionsOfKey`) ไม่ใช่จากชื่อ realm role
+    การเก็บ permission เป็น role คือสิ่งที่ทำให้กุญแจที่ถือสิทธิ์อยู่แท้ ๆ โดนปฏิเสธ
+    เพราะไม่มีใครไปสร้าง role ชื่อนั้นใน realm ให้.
+  */
+  const wanted = REALM_ROLES;
 
   let created = 0;
   for (const role of wanted) {
@@ -184,79 +138,6 @@ async function createRealmRoles(env: Env, token: string): Promise<void> {
 
   console.log(
     `  realm roles: ${created} created, ${wanted.length - created} already present`,
-  );
-
-  await grantIntegrationRoles(env, token, headers, base);
-}
-
-/**
- * Gives this client's own service account the integration permissions.
- *
- * Without it the integration endpoints answer 403 for the only kind of caller
- * they accept — which looks like a broken deployment rather than a missing
- * grant.
- */
-async function grantIntegrationRoles(
-  env: Env,
-  token: string,
-  headers: Record<string, string>,
-  base: string,
-): Promise<void> {
-  const clientResponse = await fetch(
-    `${base}/clients?clientId=${encodeURIComponent(env.clientId)}`,
-    { headers },
-  );
-  if (!clientResponse.ok) {
-    throw new Error(
-      `Could not look up client "${env.clientId}" (HTTP ${clientResponse.status}).`,
-    );
-  }
-
-  const clients = (await clientResponse.json()) as { id: string }[];
-
-  if (!clients.length) {
-    // An empty list here usually means missing `query-clients`/`view-clients`
-    // rather than a missing client — the Admin API filters rather than 403s,
-    // which is why this says both.
-    throw new Error(
-      `Client "${env.clientId}" not visible to the service account.\n` +
-        'Either KEYCLOAK_CLIENT_ID is wrong, or the service account is missing\n' +
-        'the realm-management roles query-clients and view-clients.',
-    );
-  }
-
-  const saResponse = await fetch(
-    `${base}/clients/${clients[0].id}/service-account-user`,
-    { headers },
-  );
-  if (!saResponse.ok) {
-    console.log('  integration roles: no service account on this client');
-    return;
-  }
-  const serviceAccount = (await saResponse.json()) as { id: string };
-
-  const rolesResponse = await fetch(`${base}/roles`, { headers });
-  const allRoles = (await rolesResponse.json()) as {
-    id: string;
-    name: string;
-  }[];
-  const grant = allRoles.filter((role) =>
-    INTEGRATION_ROLES.some((wanted) => wanted.name === role.name),
-  );
-
-  const response = await fetch(
-    `${base}/users/${serviceAccount.id}/role-mappings/realm`,
-    { method: 'POST', headers, body: JSON.stringify(grant) },
-  );
-
-  if (!response.ok && response.status !== 409) {
-    throw new Error(
-      `Could not grant integration roles to the service account (HTTP ${response.status}).`,
-    );
-  }
-
-  console.log(
-    `  integration roles: granted to service-account-${env.clientId}`,
   );
 }
 

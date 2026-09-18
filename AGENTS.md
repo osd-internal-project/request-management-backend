@@ -254,10 +254,13 @@ the Prisma failure went unnoticed.
 
 1. Declare its permission with `@Permissions('module.action')`. If the
    permission is new, add it to the catalog in `libs/share` first — the
-   `permissions` table syncs from that catalog at boot. Adding it there is not
-   enough on its own for a service account: `libs/prisma/keycloak-provision.ts`
-   and `libs/prisma/seed.ts` each repeat the `integration.*` list, and a realm
-   role that does not exist is a permission nobody can hold.
+   `permissions` table syncs from that catalog at boot, and that is now the
+   only place a permission has to be declared. An `integration.*` permission
+   becomes tickable on the API-key screen the moment it is in the catalog:
+   `ISSUABLE_SCOPES` derives from `permissionType`, and a key's `scopes` are
+   what the caller may do (`RemotePrincipalGuard.permissionsOfKey`). There is
+   no realm role to create — Keycloak authenticates the machine and grants it
+   nothing.
 2. Filter every read through `buildScopeWhere`.
 3. If it changes state, make it transactional and accept `Idempotency-Key`.
 4. Write the audit entry inside the same transaction as the change.

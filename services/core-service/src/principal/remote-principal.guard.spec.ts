@@ -39,8 +39,11 @@ describe('RemotePrincipalGuard — API key ตัดสินบริษัท�
     } as never;
   }
 
-  function guardWith(key: Record<string, unknown> | null) {
-    const resolve = jest.fn().mockResolvedValue(PRINCIPAL);
+  function guardWith(
+    key: Record<string, unknown> | null,
+    principal: Principal = PRINCIPAL,
+  ) {
+    const resolve = jest.fn().mockResolvedValue(principal);
     const principals = { resolve } as never;
     const apiKeys = {
       resolve: jest
@@ -94,7 +97,7 @@ describe('RemotePrincipalGuard — API key ตัดสินบริษัท�
     ).rejects.toMatchObject({ code: 'COMPANY_FORBIDDEN' });
   });
 
-  it('scopes ตัดสิทธิ์ลง ไม่เพิ่ม — กุญแจเว็บฟอร์มเปิดได้แค่ Lead', async () => {
+  it('scopes คือสิทธิ์ — กุญแจเว็บฟอร์มเปิดได้แค่ Lead', async () => {
     const { guard } = guardWith(channelKey);
     const call = request({});
 
@@ -105,19 +108,37 @@ describe('RemotePrincipalGuard — API key ตัดสินบริษัท�
     ]);
   });
 
-  it('scopes ที่ระบุสิทธิ์ซึ่งบัญชีบริการไม่มี ไม่ทำให้ได้สิทธิ์นั้นมา', async () => {
+  it('scopes ที่ token ไม่ได้ให้มา ก็ยังใช้ได้ — token พิสูจน์ตัวตน ไม่ได้ให้สิทธิ์', async () => {
+    // `integration.crm.customer.read` ไม่อยู่ใน PRINCIPAL.permissions กฎเดิมจึงตัดทิ้ง
+    // กฎใหม่ให้ผ่าน — นี่คือเคสจริงที่เคยตอบ FORBIDDEN ทั้งที่กุญแจถือสิทธิ์อยู่
     const { guard } = guardWith({
       ...channelKey,
-      scopes: ['admin.role.manage'],
+      scopes: ['integration.crm.customer.read'],
     });
     const call = request({});
 
     await guard.canActivate(contextFor(call));
 
-    expect(getPrincipal(call)?.permissions).toEqual([]);
+    expect(getPrincipal(call)?.permissions).toEqual([
+      'integration.crm.customer.read',
+    ]);
   });
 
-  it('key แบบเดิม (ไม่ผูกอะไรเลย) ทำงานเหมือนเดิมทุกประการ', async () => {
+  it('รหัสที่ไม่มีใน catalog บนกุญแจเก่า ถูกทิ้ง ไม่ใช่ส่งต่อ', async () => {
+    const { guard } = guardWith({
+      ...channelKey,
+      scopes: ['integration.crm.lead.create', 'integration.ที่ถูกถอดไปแล้ว'],
+    });
+    const call = request({});
+
+    await guard.canActivate(contextFor(call));
+
+    expect(getPrincipal(call)?.permissions).toEqual([
+      'integration.crm.lead.create',
+    ]);
+  });
+
+  it('key ที่ scopes ว่าง = ไม่มีสิทธิ์เลย ไม่ใช่สิทธิ์เต็มของบัญชีบริการ', async () => {
     const { guard, resolve } = guardWith({
       ...channelKey,
       companyId: null,
@@ -129,7 +150,17 @@ describe('RemotePrincipalGuard — API key ตัดสินบริษัท�
     await guard.canActivate(contextFor(call));
 
     expect(resolve).toHaveBeenCalledWith('Bearer minted', 'osd-demo');
-    expect(getPrincipal(call)?.permissions).toEqual(PRINCIPAL.permissions);
+    expect(getPrincipal(call)?.permissions).toEqual([]);
+  });
+
+  it('บัญชีบริการที่ยิงมาโดยไม่มีกุญแจ ถูกปฏิเสธ', async () => {
+    const { guard } = guardWith(null);
+
+    await expect(
+      guard.canActivate(
+        contextFor(request({ authorization: 'Bearer eyJhbGciOi.jwt' })),
+      ),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
   });
 
   it('กุญแจถูกแนบไว้กับ request ให้ handler อ่านช่องทางได้', async () => {
@@ -142,13 +173,17 @@ describe('RemotePrincipalGuard — API key ตัดสินบริษัท�
   });
 
   it('token ของคนธรรมดา (ไม่ใช่ key) ไม่ถูกแตะต้อง', async () => {
-    const { guard, resolve } = guardWith(null);
+    const { guard, resolve } = guardWith(null, {
+      ...PRINCIPAL,
+      isServiceAccount: false,
+    });
     const call = request({ authorization: 'Bearer eyJhbGciOi.jwt' });
 
     await guard.canActivate(contextFor(call));
 
     expect(resolve).toHaveBeenCalledWith('Bearer eyJhbGciOi.jwt', undefined);
     expect(getApiKey(call)).toBeUndefined();
+    expect(getPrincipal(call)?.permissions).toEqual(PRINCIPAL.permissions);
   });
 
   it('ไม่มี Authorization = 401 ก่อนจะไปแตะอะไร', async () => {

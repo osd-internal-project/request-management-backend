@@ -1,7 +1,11 @@
 import { writeFileSync, mkdirSync } from 'node:fs';
-import { NestFactory } from '@nestjs/core';
+import { MetadataScanner, ModulesContainer, NestFactory } from '@nestjs/core';
+import { PATH_METADATA, METHOD_METADATA } from '@nestjs/common/constants';
+import { RequestMethod } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import type { INestApplication } from '@nestjs/common';
 import type { OpenAPIObject } from '@nestjs/swagger';
+import { ACTING_PERMISSIONS_KEY } from '@request-management/share';
 import { CoreServiceModule } from '../services/core-service/src/core-service.module';
 import { UserServiceModule } from '../services/user-service/src/user-service.module';
 import { ExternalServiceModule } from '../services/external-service/src/external-service.module';
@@ -308,6 +312,11 @@ async function generate(
 
   const document = SwaggerModule.createDocument(app, config);
 
+  const stamped = stampActingPermissions(
+    document,
+    actingPermissionsByRoute(app, prefix),
+  );
+
   mkdirSync('docs/openapi', { recursive: true });
   writeFileSync(
     `docs/openapi/${name}.json`,
@@ -315,11 +324,107 @@ async function generate(
   );
 
   const paths = Object.keys(document.paths).length;
-  console.log(`${name}: ${paths} paths → docs/openapi/${name}.json`);
+  console.log(
+    `${name}: ${paths} paths, ${stamped} acting-permission → docs/openapi/${name}.json`,
+  );
 
   if (name === 'external-service') writeExternalDocuments(document, prefix);
 
   await app.close();
+}
+
+/**
+ * `@ActingPermissions` ของทุก route คีย์ด้วย `METHOD /path` แบบ OpenAPI.
+ *
+ * ประตูที่สองประกาศด้วย decorator ซึ่ง Swagger ไม่รู้จัก — ถ้าไม่ดึงออกมาไว้ในเอกสาร
+ * ตัวสร้าง tool ของ MCP ก็ไม่มีทางรู้ว่า tool ไหนต้องตรวจสิทธิ์อะไรของคน และ MCP จะ
+ * เหลือประตูเดียวตลอดไป
+ *
+ * อ่านจาก metadata ที่เซิร์ฟเวอร์ใช้จริง ไม่ใช่ parse ข้อความในไฟล์ — route ที่ถูก
+ * เปลี่ยนชื่อแล้วจะหลุดออกไปเอง ไม่ค้างอยู่เพราะไม่มีใครมาลบ
+ */
+function actingPermissionsByRoute(
+  app: INestApplication,
+  prefix: string,
+): Map<string, string[]> {
+  // `ModulesContainer` เป็น core provider ที่มีอยู่เสมอ ต่างจาก `DiscoveryService`
+  // ซึ่งต้อง import `DiscoveryModule` เข้ามาก่อน — และแอปนี้ไม่ได้ import
+  const modules = app.get(ModulesContainer);
+  const scanner = new MetadataScanner();
+  const found = new Map<string, string[]>();
+
+  const controllers = [...modules.values()].flatMap((module) => [
+    ...module.controllers.values(),
+  ]);
+
+  const join = (...parts: string[]) =>
+    `/${parts.filter((part) => part && part !== '/').join('/')}`
+      .replace(/\/+/g, '/')
+      .replace(/:([^/]+)/g, '{$1}');
+
+  for (const wrapper of controllers) {
+    const target = wrapper.metatype;
+    if (!target) continue;
+
+    const controllerPath = Reflect.getMetadata(PATH_METADATA, target) as
+      | string
+      | undefined;
+
+    const onClass = Reflect.getMetadata(ACTING_PERMISSIONS_KEY, target) as
+      | string[]
+      | undefined;
+
+    const proto = target.prototype as object;
+
+    for (const name of scanner.getAllMethodNames(proto)) {
+      const handler = (proto as Record<string, unknown>)[name];
+      if (typeof handler !== 'function') continue;
+
+      const method = Reflect.getMetadata(METHOD_METADATA, handler) as
+        | number
+        | undefined;
+      if (method === undefined) continue;
+
+      const permissions =
+        (Reflect.getMetadata(ACTING_PERMISSIONS_KEY, handler) as
+          | string[]
+          | undefined) ?? onClass;
+      if (!permissions?.length) continue;
+
+      const routePath = Reflect.getMetadata(PATH_METADATA, handler) as
+        | string
+        | undefined;
+
+      const verb = RequestMethod[method];
+      const path = join(prefix, controllerPath ?? '', routePath ?? '');
+
+      found.set(`${verb} ${path}`, [...permissions]);
+    }
+  }
+
+  return found;
+}
+
+/** ประทับ `x-acting-permission` ลงบน operation ที่ประกาศประตูที่สองไว้. */
+function stampActingPermissions(
+  document: OpenAPIObject,
+  acting: Map<string, string[]>,
+): number {
+  let stamped = 0;
+
+  for (const [path, item] of Object.entries(document.paths)) {
+    for (const [verb, operation] of Object.entries(item)) {
+      if (typeof operation !== 'object' || operation === null) continue;
+
+      const permissions = acting.get(`${verb.toUpperCase()} ${path}`);
+      if (!permissions) continue;
+
+      Object.assign(operation, { 'x-acting-permission': permissions });
+      stamped += 1;
+    }
+  }
+
+  return stamped;
 }
 
 async function main(): Promise<void> {
@@ -328,4 +433,9 @@ async function main(): Promise<void> {
   await generate('external-service', ExternalServiceModule, 'api/v1');
 }
 
-void main();
+main().catch((error) => {
+  // เดิมเป็น `void main()` ซึ่งทำให้ unhandled rejection ออกมาเป็น exit 1 เปล่า ๆ
+  // ไม่มีข้อความอะไรเลย — หาสาเหตุไม่ได้จนกว่าจะไปแก้ไฟล์นี้ก่อน
+  console.error(error);
+  process.exit(1);
+});

@@ -6,6 +6,7 @@ import { OdooModule } from '../odoo/odoo.module';
 import { PdpaModule } from '../pdpa/pdpa.module';
 import { EventsModule } from '../events/events.module';
 import { WorkflowModule } from '../workflow/workflow.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { CustomersService } from './customers.service';
 import { CrmAdminService } from './crm-admin.service';
 import { CustomerRepository } from './customer.repository';
@@ -35,6 +36,7 @@ import {
   OpportunityRepository,
   LeadActivityRepository,
   LeadRepository,
+  OpportunityActivityRepository,
   LeadStatusRepository,
   QuotationLineRepository,
   QuotationRepository,
@@ -44,10 +46,13 @@ import { OpportunityCodeService } from './opportunity-code.service';
 import { SaleOrderCodeService } from './sale-order-code.service';
 import { QuotationCodeService } from './quotation-code.service';
 import { QuotationsService } from './quotations.service';
+import { QuotationPrintService } from './quotation-print.service';
 import { QuotationApprovalSyncService } from './quotation-approval-sync.service';
 import { LeadsService } from './leads.service';
 import { LeadStatusService } from './lead-status.service';
 import { OpportunitiesService } from './opportunities.service';
+import { OpportunityActivitiesService } from './opportunity-activities.service';
+import { OpportunityStaleMonitorService } from './opportunity-stale-monitor.service';
 import { SaleOrdersService } from './sale-orders.service';
 import { LeadImportService } from './lead-import.service';
 import { LeadIntakeService } from './lead-intake.service';
@@ -70,6 +75,7 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     PdpaModule,
     EventsModule,
     WorkflowModule,
+    NotificationsModule,
   ],
   providers: [
     CustomersService,
@@ -104,6 +110,7 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     QuotationLineRepository,
     QuotationCodeService,
     QuotationsService,
+    QuotationPrintService,
     QuotationApprovalSyncService,
     LeadsService,
     LeadStatusService,
@@ -112,6 +119,9 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     LeadWorkflowService,
     LeadWorkflowSyncService,
     OpportunitiesService,
+    OpportunityActivityRepository,
+    OpportunityActivitiesService,
+    OpportunityStaleMonitorService,
     SaleOrdersService,
     PrismaTransactionService,
   ],
@@ -137,8 +147,10 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     LeadIntakeService,
     LeadWorkflowService,
     OpportunitiesService,
+    OpportunityActivitiesService,
     SaleOrdersService,
     QuotationsService,
+    QuotationPrintService,
   ],
 })
 export class CrmModule {}

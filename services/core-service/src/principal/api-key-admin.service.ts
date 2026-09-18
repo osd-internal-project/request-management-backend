@@ -4,7 +4,8 @@ import {
   AppError,
   AuditWriter,
   auditActor,
-  PERMISSIONS,
+  ALL_PERMISSIONS,
+  permissionType,
   Principal,
 } from '@request-management/share';
 import { ApiKeyRepository } from './api-key.repository';
@@ -19,13 +20,19 @@ import {
 const DISPLAY_LENGTH = 12;
 
 /**
- * สิทธิ์ที่หน้าจอออกให้กุญแจได้ — `integration.*` เท่านั้น.
+ * สิทธิ์ที่ออกให้กุญแจได้ — สิทธิ์ที่ catalog บอกว่าเป็นของบัญชีบริการ (AUTH-06).
  *
- * อ่านจาก catalog ไม่ใช่พิมพ์รายการไว้เอง: สิทธิ์ integration ตัวถัดไปที่ใครเพิ่ม
- * จะโผล่บนหน้าจอเองโดยไม่มีใครต้องจำว่าต้องมาแก้ที่นี่ด้วย — และที่สำคัญกว่าคือ
- * ตัวที่ *ไม่ใช่* integration จะไม่มีทางโผล่ขึ้นมาเพราะเผลอ.
+ * ถาม `permissionType` ไม่ใช่อ้างชื่อ module: ทั้งสองให้คำตอบเดียวกันวันนี้ แต่
+ * "สิทธิ์ของเครื่อง" เป็นคำถามที่ catalog ตอบ ส่วน "อยู่ใน module integration" เป็น
+ * รายละเอียดว่ามันถูกจัดเก็บไว้ที่ไหน ผูกกับอันหลังคือผูกกับสิ่งที่เปลี่ยนได้โดยไม่ตั้งใจ
+ *
+ * อ่านจาก catalog ไม่ใช่พิมพ์รายการไว้เอง: สิทธิ์ของเครื่องตัวถัดไปที่ใครเพิ่มจะโผล่
+ * บนหน้าจอเองโดยไม่มีใครต้องจำว่าต้องมาแก้ที่นี่ด้วย — และที่สำคัญกว่าคือสิทธิ์ของคน
+ * จะไม่มีทางโผล่ขึ้นมาเพราะเผลอ.
  */
-const ISSUABLE_SCOPES: readonly string[] = PERMISSIONS.integration;
+const ISSUABLE_SCOPES: readonly string[] = ALL_PERMISSIONS.filter(
+  (code) => permissionType(code) === 'service',
+);
 
 /**
  * ออกและเพิกถอน API key ของช่องทางภายนอก จากหน้าจอผู้ดูแล (14 ก.ย. 2569).

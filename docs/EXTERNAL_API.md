@@ -104,10 +104,15 @@ handler ทำงาน ผลคือขอบเขตการมองเ�
 | ยกเลิก | รอหมดอายุ | `yarn apikey:revoke` มีผลทันที |
 | ได้มาอย่างไร | `yarn mcp:token` หรือ `client_credentials` ตรง ๆ | `yarn apikey:issue` |
 
-**key ตัดสินว่า *เข้าได้ไหม* token บอกว่า *ทำอะไรได้*** — external-service แลก `rfk_`
-key เป็น Keycloak token ให้เองแล้วส่งต่อเหมือน bearer ธรรมดา (`ApiKeyService`)
-user-service จึงยังเป็นตัวเดียวที่ตรวจ token และไม่ต้องรู้จัก credential แบบที่สอง
-เลย สิทธิ์ที่ได้จึงเท่ากันทั้งสองแบบ
+**เครื่องต้องใช้ key เท่านั้น** — `client_credentials` token ที่ยิงตรงมาโดยไม่มีแถวใน
+`api_keys` ได้ `FORBIDDEN` เพราะไม่มีที่ให้อ่านสิทธิ์ ตารางข้างบนคงคอลัมน์ token ไว้เพราะ
+**คน**ยังใช้ token ของตัวเองกับ `POST /api/v1/mcp` ได้
+
+**key บอกทั้ง *เข้าได้ไหม* และ *ทำอะไรได้*** — external-service แลก `rfk_` key เป็น
+Keycloak token ให้เองแล้วส่งต่อเหมือน bearer ธรรมดา (`ApiKeyService`) user-service จึง
+ยังเป็นตัวเดียวที่ตรวจ token และไม่ต้องรู้จัก credential แบบที่สองเลย แต่ token ที่แลกมา
+ทำหน้าที่เดียวคือ**พิสูจน์ว่าคำขอมาจากระบบเรา** ส่วนสิทธิ์อ่านจาก `scopes` ของ key
+(`RemotePrincipalGuard.permissionsOfKey`) ดูข้อ 3.2
 
 > Postman จะใส่ `Bearer ` ให้เองเมื่อเลือก Auth type = Bearer Token — วางเฉพาะ
 > ตัวค่า ไม่ต้องพิมพ์คำว่า `Bearer` ซ้ำ ฝั่งเซิร์ฟเวอร์รับทั้งสองแบบอยู่แล้ว
@@ -124,56 +129,62 @@ INTEGRATION_CLIENT_ID=request-form            # ค่าเดียวกั�
 INTEGRATION_CLIENT_SECRET=<ค่าเดียวกับ KEYCLOAK_CLIENT_SECRET>
 ```
 
-**ใช้ client ตัวเดียวกับ login ไม่ใช่สร้างใหม่** — `yarn keycloak:provision` สร้าง
-realm role `integration.request.create` / `integration.approval.create` แล้วยกให้
-service account ของ `KEYCLOAK_CLIENT_ID` เอง (`grantIntegrationRoles` ใน
-`libs/prisma/keycloak-provision.ts`) สร้าง client เปล่าตัวใหม่แล้วชี้ `INTEGRATION_*`
-ไปที่มันจะได้ `FORBIDDEN` เพราะ service account ตัวนั้นไม่มี role
+**client ตัวไหนก็ได้ที่ขอ `client_credentials` ได้** — service account ไม่ต้องถือ realm
+role อะไรทั้งนั้น เพราะสิทธิ์ไม่ได้มาจาก role อีกแล้ว (ดูข้อ 3.2) ที่ตั้งเป็นค่าเดียวกับ
+`KEYCLOAK_CLIENT_ID` เพราะไม่มีเหตุผลต้องมีสอง client ไม่ใช่เพราะ client นั้นพิเศษ
 
 ตั้งไม่ครบ → ยิงแล้วได้ `UNKNOWN` พร้อมข้อความ
 *"ระบบยังไม่ได้ตั้งค่า INTEGRATION_CLIENT_ID / INTEGRATION_CLIENT_SECRET"*
 
-### 3.2 ชื่อ realm role ต้องตรงเป๊ะ
+### 3.2 สิทธิ์ของกุญแจอยู่ที่ `scopes` ไม่ใช่ที่ Keycloak
 
-service account **ไม่ผ่าน** ตาราง `keycloak_role_mappings` — ตารางนั้นใช้กับ *คน*
-เท่านั้น `keycloakRolesOf` (`principal.service.ts`) เอาชื่อ realm/client role
-**ดิบ ๆ** มาเป็น permission ดังนั้น role ต้องชื่อ `integration.request.create`
-ตรงตัวอักษร ไม่ใช่ตั้งชื่ออื่นแล้วไป map
+กุญแจแต่ละใบถือรายการสิทธิ์ของตัวเองในคอลัมน์ `api_keys.scopes` และนั่นคือคำตอบเดียวว่า
+มันทำอะไรได้ `RemotePrincipalGuard.permissionsOfKey` อ่านจากตรงนั้น ไม่ได้อ่านจาก
+realm role ของ service account อีกแล้ว
 
-ตรวจว่าถือ role จริงหรือยัง:
+> **เคยไม่เป็นแบบนี้** — ก่อนหน้านี้ `scopes` เป็นแค่ตัวตัด (intersect) กับ realm role
+> ที่ชื่อตรงกับ permission ผลคือกุญแจที่ถือ `integration.crm.customer.read` อยู่แท้ ๆ
+> ตอบ `FORBIDDEN` เพราะไม่มีใครไปสร้าง realm role ชื่อนั้น การเก็บ permission เป็น role
+> ในระบบที่มีตาราง permission อยู่แล้วคือรากของปัญหานั้น
+
+ดูว่ากุญแจใบไหนถืออะไร:
 
 ```bash
-set -a; . ./.env; set +a
-curl -s -X POST "$KEYCLOAK_BASE_URL/realms/$KEYCLOAK_REALM/protocol/openid-connect/token" \
-  -H 'content-type: application/x-www-form-urlencoded' \
-  --data-urlencode grant_type=client_credentials \
-  --data-urlencode "client_id=$INTEGRATION_CLIENT_ID" \
-  --data-urlencode "client_secret=$INTEGRATION_CLIENT_SECRET" \
-| python3 -c "import sys,json,base64;t=json.load(sys.stdin)['access_token'];s=t.split('.')[1];s+='='*(-len(s)%4);print(json.loads(base64.urlsafe_b64decode(s))['realm_access']['roles'])"
+yarn apikey:list
 ```
 
-ต้องเห็น `integration.request.create` ในผลลัพธ์ ไม่เห็น → `yarn keycloak:provision`
+ออกกุญแจพร้อมสิทธิ์ — ติ๊กเท่าที่ช่องทางนั้นใช้จริง:
+
+```bash
+APIKEY_ISSUE_ALLOW=1 yarn apikey:issue "เว็บไซต์ osd.co.th" \
+  --company <company-id> --source website \
+  --scope integration.crm.lead.create
+```
+
+ทางหลักคือหน้าจอ **ผู้ดูแลระบบ → กุญแจ API** ซึ่งแสดงสิทธิ์จัดกลุ่มตามโมดูลพร้อมคำอธิบายไทย
+และออกให้ได้เฉพาะสิทธิ์ที่ catalog บอกว่าเป็นของบัญชีบริการ (`type: 'service'`)
+
+**ข้อควรระวังสองข้อ**
+
+- **`scopes` ว่าง = ไม่มีสิทธิ์เลย** ไม่ใช่ "สิทธิ์เต็ม" เหมือนที่กุญแจก่อน 14 ก.ย. 2569
+  เคยได้ กุญแจเก่าต้องเติม scopes ก่อนใช้ต่อ
+- **กุญแจถือสิทธิ์ของคนไม่ได้** ทั้ง CLI และหน้าจอปฏิเสธ `crm.*` / `admin.*` — สิ่งที่คน
+  ทำได้ตัดสินจาก `X-Acting-User` ที่ประตูที่สอง ไม่ใช่จากกุญแจ
 
 ---
 
 ## 4. วิธีเข้าถึง
 
-§4.1-4.3 คือวิธี **เอา credential มา** เลือกอย่างเดียวก็พอ ทั้งสามจบลงที่ header
-เดียวกัน — `Authorization: Bearer <ค่า>` ส่วน §4.4 เป็น **ช่องทางเรียกอีกแบบ**
-(MCP) ที่ใช้ credential จากสามข้อแรกได้ทั้งหมด
+**เครื่องใช้ API key ทางเดียว** (§4.3) — credential แบบเดียวทั้ง REST และ MCP
+`client_credentials` token ที่ไม่มีแถวใน `api_keys` ได้ `FORBIDDEN` เพราะไม่มีที่ให้
+อ่านสิทธิ์ §4.1 และ §4.2 จึงเหลือไว้สำหรับงานที่ไม่ใช่การเรียก External API
 
-| | 4.1 `curl` ตรง | 4.2 `yarn mcp:token` | 4.3 `yarn apikey:issue` |
-|---|---|---|---|
-| ได้อะไรมา | Keycloak token | Keycloak token (ตัวเดียวกับ 4.1) | API key `rfk_…` |
-| อายุ | ตามที่ realm ตั้ง | ตามที่ realm ตั้ง | **ไม่หมดอายุ** เว้นแต่ใส่ `--days` |
-| ต้องขอใหม่ไหม | ทุกครั้งที่หมดอายุ | ทุกครั้งที่หมดอายุ | ไม่ต้อง |
-| ยกเลิกอย่างไร | รอหมดอายุ หรือหมุน client secret | เหมือน 4.1 | `yarn apikey:revoke` มีผลทันที |
-| เหมาะกับ | ทดสอบครั้งเดียว, สคริปต์ CI | ใช้มือระหว่างพัฒนา | ระบบที่รันยาว เช่น chatbot |
+§4.4 เป็น **ช่องทางเรียกอีกแบบ** (MCP) ที่ใช้กุญแจใบเดียวกับ REST
 
-**4.1 กับ 4.2 เป็นคำขอเดียวกัน** — MCP แค่ห่อ `client_credentials` ไว้ให้เรียกจาก
-เครื่องมือที่คุยกับ MCP ได้ ไม่ใช่ credential คนละชนิด ส่วน 4.3 เป็นคนละชนิดจริง
+### 4.1 ขอ Keycloak token ตรง ๆ — ใช้เรียก External API ไม่ได้แล้ว
 
-### 4.1 ขอ Keycloak token ตรง ๆ
+> เก็บไว้เพราะยังใช้ตรวจ realm/secret ว่าตั้งถูกไหม และใช้กับ user-service ได้
+> แต่ยิง External API ด้วย token นี้จะได้ `FORBIDDEN` พร้อมข้อความให้ไปออกกุญแจ
 
 ```bash
 set -a; . ./.env; set +a
@@ -190,9 +201,10 @@ curl -s -X POST "$KEYCLOAK_BASE_URL/realms/$KEYCLOAK_REALM/protocol/openid-conne
 ### 4.2 `yarn mcp:token`
 
 MCP server (stdio) tool เดียวชื่อ `get_keycloak_token` คืนบรรทัด
-`Authorization: Bearer …` ที่วางลง Postman ได้เลย พร้อมบอกอายุที่เหลือและ
-realm roles ที่ token นั้นถือ — ถ้าไม่มี `integration.request.create` มันจะเตือน
-ให้ไปรัน `yarn keycloak:provision` แทนที่จะปล่อยไปเจอ `FORBIDDEN` ตอนยิงจริง
+`Authorization: Bearer …` พร้อมอายุที่เหลือและ realm roles ที่ token นั้นถือ
+
+> **คำเตือนเรื่อง `integration.request.create` ในเครื่องมือนี้ล้าสมัยแล้ว** — realm role
+> ชื่อ permission ไม่มีอีกต่อไป ยิง External API ต้องใช้กุญแจตาม §4.3
 
 ตั้งใน MCP client:
 
@@ -314,12 +326,29 @@ client ที่ถือสิทธิ์ Keycloak Admin API และ redirec
 
 ```bash
 curl -i \
-  -H "Authorization: Bearer <token หรือ rfk_...>" \
+  -H "Authorization: Bearer rfk_..." \
   -H "X-Acting-User: someone@example.com" \
   http://localhost:3003/api/v1/request/request-types
 ```
 
 ได้ 200 พร้อมรายการประเภทคำขอ = ครบทุกชิ้น
+
+### 5.1 ตรวจทั้งชุดด้วยสคริปต์เดียว
+
+```bash
+API_KEY=rfk_… ACTING_USER=someone@osd.co.th bash scripts/smoke-external.sh
+```
+
+ยิงเจ็ดเคส — สามเคสที่ต้องได้ 200 และสี่เคสที่**ต้องถูกปฏิเสธ** (ไม่มี credential,
+กุญแจปลอม, ขาด `X-Acting-User`, อีเมลที่ไม่มีตัวตน) ครึ่งหลังคือส่วนที่พิสูจน์ว่าประตู
+ยังปิดอยู่ ไม่ใช่แค่ว่าเปิดได้ ตั้ง `BASE_URL` เพื่อยิงเซิร์ฟเวอร์อื่น
+
+### 5.2 Postman
+
+`yarn postman` สร้าง collection จากสเปกเดียวกับที่โค้ดประกาศ ลงที่ `docs/postman/`
+(Request 11 · CRM 74 · Approval 1 request) import พร้อม environment
+`Request-Form-External-Key` แล้ววาง `rfk_…` ลงช่อง `access_token` — collection ตั้ง
+auth เป็น bearer ไว้แล้ว กุญแจจึงใช้แทน token ได้ตรง ๆ ไม่ต้องแก้อะไรใน collection
 
 ---
 
@@ -331,7 +360,9 @@ curl -i \
 |---|---|
 | `UNKNOWN` + ข้อความเรื่อง `INTEGRATION_*` | `.env` ยังไม่ได้ตั้ง — ดูข้อ 3.1 |
 | `UNAUTHORIZED` | key ผิด / ถูกเพิกถอน / หมดอายุ **หรือ** ไม่ได้ส่ง `Authorization` เลย ทั้งสามกรณีตอบข้อความเดียวกันโดยตั้งใจ ไม่บอกว่าผิดข้อไหน |
-| `FORBIDDEN` | token ใช้ได้แต่ service account ไม่มี `integration.request.create` — ดูข้อ 3.2 |
+| `FORBIDDEN` + `reason: api key required` | ยิงด้วย Keycloak token ไม่ใช่กุญแจ — ออกกุญแจตามข้อ 4.3 |
+| `FORBIDDEN` ระบุชื่อ `integration.…` | กุญแจใบนั้นไม่มีสิทธิ์นั้นใน `scopes` — `yarn apikey:list` แล้วออกใบใหม่ให้ครบ ดูข้อ 3.2 |
+| `FORBIDDEN` "ผู้ใช้ที่ระบุใน X-Acting-User ไม่มีสิทธิ์" | ประตูที่สอง — คนคนนั้นไม่มีสิทธิ์ ไม่ใช่กุญแจ |
 | `NOT_FOUND` ตั้งแต่คำขอแรก | อีเมลใน `X-Acting-User` ยังไม่เคย login เว็บ ให้เข้าเว็บหนึ่งครั้งก่อน |
 
 ---

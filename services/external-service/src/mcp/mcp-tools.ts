@@ -26,6 +26,17 @@ interface ToolSpec {
   description: string;
   input_schema: Record<string, unknown>;
   'x-request': { method: string; path: string };
+  /**
+   * ประตูที่สอง — สิทธิ์ที่คนใน `X-Acting-User` ต้องถือ.
+   *
+   * REST ได้ประตูนี้จาก `ActingPolicyGuard` ซึ่ง MCP ใช้ไม่ได้เพราะตัวตนของคนถูก
+   * resolve ต่อ *การเรียก tool* ไม่ใช่ต่อ HTTP request (`mcp-actor.ts` อธิบายไว้)
+   * ก่อนมีฟิลด์นี้ MCP จึงมีประตูเดียวและปล่อยให้ชั้นล่างตรวจเอาเอง
+   *
+   * ว่าง = route นั้นตรวจสิทธิ์ข้างในเอง — วันนี้มีตัวเดียวคือ
+   * `POST requests/:ref/actions/:action` ที่อ่าน `ACTION_PERMISSIONS` ใน `perform`
+   */
+  'x-acting-permission'?: string[];
 }
 
 /** What MCP's `tools/list` returns per tool. */
@@ -128,6 +139,9 @@ function requireString(args: ToolArgs, field: string): string {
 export class McpToolRegistry implements OnModuleInit {
   private readonly logger = new Logger(McpToolRegistry.name);
   private tools: McpTool[] = [];
+
+  /** ชื่อ tool → สิทธิ์ที่คนใน `X-Acting-User` ต้องถือ. */
+  private actingPermissions = new Map<string, string[]>();
   /** Why MCP has no tools, when that is a fault rather than a catalogue. */
   private unavailable: string | null = null;
 
@@ -238,10 +252,26 @@ export class McpToolRegistry implements OnModuleInit {
       inputSchema: spec.input_schema,
     }));
 
+    this.actingPermissions = new Map(
+      specs.map((spec) => [spec.name, spec['x-acting-permission'] ?? []]),
+    );
+
     this.logger.log(`MCP: ${this.tools.length} tools`);
   }
 
   private assertCatalogueMatches(specs: ToolSpec[]): void {
+    const stale = specs.filter((spec) => !('x-acting-permission' in spec));
+
+    if (stale.length) {
+      throw new Error(
+        'external-tools.json มาจากก่อนที่ MCP จะมีประตูที่สอง — ' +
+          `${stale.length} tool ไม่มี x-acting-permission\n` +
+          '  รัน `yarn openapi && yarn tools` ใหม่\n' +
+          '  ปฏิเสธที่นี่แทนที่จะปล่อยผ่าน เพราะ tool ที่ไม่ประกาศสิทธิ์จะกลายเป็น\n' +
+          '  tool ที่ใครก็เรียกได้เงียบ ๆ ซึ่งคือสภาพก่อนหน้านี้พอดี',
+      );
+    }
+
     const advertised = new Set(specs.map((spec) => spec.name));
     const implemented = new Set(Object.keys(this.handlers));
 
@@ -276,6 +306,27 @@ export class McpToolRegistry implements OnModuleInit {
   }
 
   call(name: string, args: ToolArgs, context: ToolContext): Promise<unknown> {
+    this.assertActorMay(name, context.actor);
     return this.handlers[name](args, context);
+  }
+
+  /**
+   * ประตูที่สอง ตรวจ *หลัง* `mcp-actor.ts` สลับตัวตนเป็นคนแล้ว.
+   *
+   * ข้อความเดียวกับ `ActingPolicyGuard` โดยตั้งใจ — คนที่ debug อยู่ไม่ควรต้องรู้ว่า
+   * คำขอเดินมาทาง REST หรือ MCP ถึงจะอ่าน error ออก
+   */
+  private assertActorMay(name: string, actor: Principal): void {
+    const required = this.actingPermissions.get(name) ?? [];
+    const held = new Set<string>(actor.permissions);
+    const missing = required.filter((permission) => !held.has(permission));
+
+    if (!missing.length) return;
+
+    throw new AppError(
+      'FORBIDDEN',
+      'ผู้ใช้ที่ระบุใน X-Acting-User ไม่มีสิทธิ์ทำรายการนี้',
+      missing.map((permission) => ({ field: 'permission', reason: permission })),
+    );
   }
 }

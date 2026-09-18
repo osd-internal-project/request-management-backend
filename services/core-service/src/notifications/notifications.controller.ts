@@ -13,11 +13,13 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import {
   Authenticated,
   CurrentPrincipal,
-  PageQueryDto,
   Permissions,
 } from '@request-management/share';
 import type { Principal } from '@request-management/share';
-import { UpdateNotificationPreferencesDto } from './dto/notification.dto';
+import {
+  ListNotificationsQueryDto,
+  UpdateNotificationPreferencesDto,
+} from './dto/notification.dto';
 import { NotificationsService } from './notifications.service';
 
 /**
@@ -33,8 +35,18 @@ export class NotificationsController {
 
   @Get()
   @Permissions('notification.read')
-  list(@CurrentPrincipal() principal: Principal, @Query() query: PageQueryDto) {
+  list(
+    @CurrentPrincipal() principal: Principal,
+    @Query() query: ListNotificationsQueryDto,
+  ) {
     return this.notifications.list(principal, query);
+  }
+
+  /** ตัวเลขบนกระดิ่ง — เบากว่าดึงรายการทั้งหน้าทุกครั้งที่ polling. */
+  @Get('unread-count')
+  @Permissions('notification.read')
+  unreadCount(@CurrentPrincipal() principal: Principal) {
+    return this.notifications.unreadCount(principal);
   }
 
   @Post(':id/read')
