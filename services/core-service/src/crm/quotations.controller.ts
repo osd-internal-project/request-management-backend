@@ -15,6 +15,7 @@ import {
 } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import { QuotationsService } from './quotations.service';
+import { QuotationPrintService } from './quotation-print.service';
 import {
   AcceptQuotationDto,
   CancelQuotationDto,
@@ -37,7 +38,10 @@ import {
 @SensitiveResource('quotation')
 @Controller('quotations')
 export class QuotationsController {
-  constructor(private readonly quotations: QuotationsService) {}
+  constructor(
+    private readonly quotations: QuotationsService,
+    private readonly print: QuotationPrintService,
+  ) {}
 
   @ApiOperation({
     summary: 'ค้นใบเสนอราคา',
@@ -63,6 +67,17 @@ export class QuotationsController {
   }
 
   /** แก้ร่างเท่านั้น. */
+  @ApiOperation({
+    summary: 'ใบเสนอราคาฉบับพิมพ์ส่งลูกค้า',
+    description:
+      'หัวกระดาษ + ผู้ซื้อ + รายการ — ไม่มีต้นทุนและ margin ไม่ว่าผู้เรียกมีสิทธิ์อะไร',
+  })
+  @Get(':id/print')
+  @Permissions('crm.sales.read')
+  printView(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.print.printView(id, principal);
+  }
+
   @ApiOperation({
     summary: 'แก้ใบเสนอราคา',
     description: 'แก้ได้เฉพาะสถานะ draft — ใบที่ยื่นหรือส่งแล้วต้องใช้ /revise',

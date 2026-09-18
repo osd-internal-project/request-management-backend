@@ -46,6 +46,7 @@ import { OpportunityCodeService } from './opportunity-code.service';
 import { SaleOrderCodeService } from './sale-order-code.service';
 import { QuotationCodeService } from './quotation-code.service';
 import { QuotationsService } from './quotations.service';
+import { QuotationPrintService } from './quotation-print.service';
 import { QuotationApprovalSyncService } from './quotation-approval-sync.service';
 import { LeadsService } from './leads.service';
 import { LeadStatusService } from './lead-status.service';
@@ -109,6 +110,7 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     QuotationLineRepository,
     QuotationCodeService,
     QuotationsService,
+    QuotationPrintService,
     QuotationApprovalSyncService,
     LeadsService,
     LeadStatusService,
@@ -148,6 +150,7 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     OpportunityActivitiesService,
     SaleOrdersService,
     QuotationsService,
+    QuotationPrintService,
   ],
 })
 export class CrmModule {}

@@ -56,6 +56,7 @@ export { OpportunitiesService } from './crm/opportunities.service';
 export { OpportunityActivitiesService } from './crm/opportunity-activities.service';
 export { SaleOrdersService } from './crm/sale-orders.service';
 export { QuotationsService } from './crm/quotations.service';
+export { QuotationPrintService } from './crm/quotation-print.service';
 export * from './crm/dto/customer.dto';
 export * from './crm/dto/sales.dto';
 export * from './crm/dto/quotation.dto';

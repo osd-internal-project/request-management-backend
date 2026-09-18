@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client';
 import { Injectable } from '@nestjs/common';
 import {
   AppError,
@@ -201,42 +202,57 @@ export class CrmAdminService {
         vatPct: 7,
         quotationApprovalTypeCode: 'DSC',
         staleOpportunityDays: 14,
+        ...EMPTY_LETTERHEAD,
       }
     );
   }
 
   async updateConfig(dto: UpdateCrmConfigDto, actor: Principal) {
-    return this.audited(actor, 'crm.config.updated', (prisma) =>
-      this.configs.upsert(
-        {
-          where: { companyId: actor.activeCompanyId },
-          create: {
-            companyId: actor.activeCompanyId,
-            codePrefix: dto.code_prefix ?? 'CUS',
-            codePadding: dto.code_padding ?? 6,
-            dedupThreshold: dto.dedup_threshold ?? 0.85,
-            minMarginPct: dto.min_margin_pct ?? 15,
-            quotationValidityDays: dto.quotation_validity_days ?? 30,
-            vatPct: dto.vat_pct ?? 7,
-            quotationApprovalTypeCode:
-              dto.quotation_approval_type_code ?? 'DSC',
-            staleOpportunityDays: dto.stale_opportunity_days ?? 14,
-            updatedBy: actor.userId,
+    return this.audited(
+      actor,
+      'crm.config.updated',
+      (prisma) =>
+        this.configs.upsert(
+          {
+            where: { companyId: actor.activeCompanyId },
+            create: {
+              companyId: actor.activeCompanyId,
+              codePrefix: dto.code_prefix ?? 'CUS',
+              codePadding: dto.code_padding ?? 6,
+              dedupThreshold: dto.dedup_threshold ?? 0.85,
+              minMarginPct: dto.min_margin_pct ?? 15,
+              quotationValidityDays: dto.quotation_validity_days ?? 30,
+              vatPct: dto.vat_pct ?? 7,
+              quotationApprovalTypeCode:
+                dto.quotation_approval_type_code ?? 'DSC',
+              staleOpportunityDays: dto.stale_opportunity_days ?? 14,
+              ...letterheadColumns(dto),
+              updatedBy: actor.userId,
+            },
+            update: {
+              codePrefix: dto.code_prefix,
+              codePadding: dto.code_padding,
+              dedupThreshold: dto.dedup_threshold,
+              minMarginPct: dto.min_margin_pct,
+              quotationValidityDays: dto.quotation_validity_days,
+              vatPct: dto.vat_pct,
+              quotationApprovalTypeCode: dto.quotation_approval_type_code,
+              staleOpportunityDays: dto.stale_opportunity_days,
+              ...letterheadColumns(dto),
+              updatedBy: actor.userId,
+            },
           },
-          update: {
-            codePrefix: dto.code_prefix,
-            codePadding: dto.code_padding,
-            dedupThreshold: dto.dedup_threshold,
-            minMarginPct: dto.min_margin_pct,
-            quotationValidityDays: dto.quotation_validity_days,
-            vatPct: dto.vat_pct,
-            quotationApprovalTypeCode: dto.quotation_approval_type_code,
-            staleOpportunityDays: dto.stale_opportunity_days,
-            updatedBy: actor.userId,
-          },
-        },
-        { prisma },
-      ),
+          { prisma },
+        ),
+      // The logo is a data URL of up to ~375KB — the append-only audit log
+      // records that it changed, not a copy of the image on every save.
+      (config) => ({
+        ...config,
+        letterheadLogo: (config as { letterheadLogo?: string | null })
+          .letterheadLogo
+          ? '[logo]'
+          : null,
+      }),
     );
   }
 
@@ -266,6 +282,8 @@ export class CrmAdminService {
     actor: Principal,
     eventType: string,
     work: (prisma: TQueryClient) => Promise<T>,
+    /** What goes in `after` — defaults to the whole result. */
+    describe: (result: T) => unknown = (result) => result,
   ): Promise<T> {
     return this.transactions.execute(async (prisma) => {
       const result = await work(prisma);
@@ -277,7 +295,7 @@ export class CrmAdminService {
           ...auditActor(actor),
           resourceType: 'crm_config',
           resourceId: typeof result?.id === 'string' ? result.id : undefined,
-          after: result,
+          after: describe(result) as Prisma.InputJsonValue,
         },
         { prisma },
       );
@@ -368,4 +386,39 @@ export class CrmAdminService {
 
     return row;
   }
+}
+
+const EMPTY_LETTERHEAD = {
+  letterheadNameTh: null,
+  letterheadNameEn: null,
+  letterheadTaxId: null,
+  letterheadBranch: null,
+  letterheadAddress: null,
+  letterheadPhone: null,
+  letterheadEmail: null,
+  letterheadWebsite: null,
+  letterheadLogo: null,
+  quotationTerms: null,
+};
+
+/**
+ * หัวกระดาษ — ไม่ส่ง = ไม่แตะ, "" = ล้างเป็น NULL (หน้าจอจึงลบค่าที่เคยตั้งได้),
+ * อย่างอื่น trim แล้วเก็บ.
+ */
+function letterheadColumns(dto: UpdateCrmConfigDto) {
+  const pick = (value: string | undefined) =>
+    value === undefined ? undefined : value.trim() || null;
+
+  return {
+    letterheadNameTh: pick(dto.letterhead_name_th),
+    letterheadNameEn: pick(dto.letterhead_name_en),
+    letterheadTaxId: pick(dto.letterhead_tax_id),
+    letterheadBranch: pick(dto.letterhead_branch),
+    letterheadAddress: pick(dto.letterhead_address),
+    letterheadPhone: pick(dto.letterhead_phone),
+    letterheadEmail: pick(dto.letterhead_email),
+    letterheadWebsite: pick(dto.letterhead_website),
+    letterheadLogo: pick(dto.letterhead_logo),
+    quotationTerms: pick(dto.quotation_terms),
+  };
 }
