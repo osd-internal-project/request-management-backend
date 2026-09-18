@@ -3,7 +3,7 @@ import { Reflector } from '@nestjs/core';
 import {
   AppError,
   COMPANY_HEADER,
-  Permission,
+  isPermission,
   PUBLIC_KEY,
   RequestWithPrincipal,
   setPrincipal,
@@ -60,7 +60,7 @@ export class RemotePrincipalGuard implements CanActivate {
       requestedCompany,
     );
 
-    setPrincipal(request, this.narrowed(principal, exchanged?.key));
+    setPrincipal(request, this.permissionsOfKey(principal, exchanged?.key));
     return true;
   }
 
@@ -107,27 +107,42 @@ export class RemotePrincipalGuard implements CanActivate {
   }
 
   /**
-   * The principal this key may act as — never wider than the key's `scopes`.
+   * สิทธิ์ของผู้เรียกที่เป็นเครื่อง — `ApiKey.scopes` คือคำตอบ.
    *
-   * Intersection, and only intersection. The permissions themselves still come
-   * from one place (the service account's roles, §03); a key can hold fewer of
-   * them but never one the account does not have, so there is no second
-   * authority here that could disagree with the first.
+   * เดิมบรรทัดนี้เป็น intersect ระหว่าง scopes กับ realm role ของบัญชีบริการ แปลว่า
+   * คำตอบจริงอยู่ในชื่อ realm role ซึ่งเป็น **สิทธิ์ที่ถูกเก็บเป็น role** — คนละโมเดล
+   * กับสิทธิ์ของคนที่ผ่าน `roles` / `role_permissions` และเป็นเหตุให้กุญแจที่ถือ
+   * `integration.crm.customer.read` อยู่แท้ ๆ ถูกปฏิเสธ เพราะ realm ไม่เคยมี role
+   * ชื่อนั้น
    *
-   * Empty `scopes` means "whatever the account holds" — the contract every key
-   * issued before this column existed was given, and the chatbot's still.
+   * ตอนนี้ token ที่แลกมาทำหน้าที่เดียวคือพิสูจน์ว่าคำขอมาจากระบบเรา ส่วน "ทำอะไร
+   * ได้" ตอบจากแถวใน `api_keys` ที่เดียว — ยังเป็นแหล่งเดียว ไม่ใช่สองแหล่งที่ขัดกัน
+   * ได้เหมือนที่คอมเมนต์เดิมกลัว เพียงแต่ย้ายจาก Keycloak มาอยู่ DB
+   *
+   * `isPermission` กรองรหัสที่ไม่มีใน catalog แล้วทิ้ง — สิทธิ์ที่ถูกถอดออกจากระบบ
+   * ต้องหมดผลทันที ไม่ใช่ค้างอยู่บนกุญแจที่ออกไว้ก่อน
+   *
+   * **`scopes` ว่าง = ไม่มีสิทธิ์เลย** ต่างจากเดิมที่แปลว่า "เท่าที่บัญชีบริการถือ"
+   * กุญแจที่ออกก่อน 14 ก.ย. 2569 จึงต้องเติม scopes ก่อน ไม่ใช่ปล่อยให้ไปเจอ 403 เอง
    */
-  private narrowed(
+  private permissionsOfKey(
     principal: Awaited<ReturnType<RemotePrincipalService['resolve']>>,
     key: ApiKeyContext | undefined,
   ) {
-    if (!key?.scopes.length) return principal;
+    if (key) {
+      return { ...principal, permissions: key.scopes.filter(isPermission) };
+    }
 
-    return {
-      ...principal,
-      permissions: principal.permissions.filter((permission) =>
-        key.scopes.includes(permission),
-      ) as readonly Permission[],
-    };
+    // เครื่องที่ยิงมาด้วย client_credentials token ตรง ๆ โดยไม่มีกุญแจ: ไม่มีแถวใน
+    // `api_keys` ก็ไม่มีที่ให้อ่านสิทธิ์ และ realm role ไม่ใช่คำตอบอีกแล้ว
+    if (principal.isServiceAccount) {
+      throw new AppError(
+        'FORBIDDEN',
+        'บัญชีบริการต้องเรียกผ่าน API key — สิทธิ์อ่านจากกุญแจ ไม่ใช่จาก token',
+        [{ field: 'authorization', reason: 'api key required' }],
+      );
+    }
+
+    return principal;
   }
 }

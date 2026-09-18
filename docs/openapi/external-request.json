@@ -105,6 +105,9 @@
         "summary": "ประเภทคำขอที่ผู้ใช้รายนี้เปิดได้ ณ ตอนนี้",
         "tags": [
           "external"
+        ],
+        "x-acting-permission": [
+          "request.create"
         ]
       }
     },
@@ -201,6 +204,9 @@
         "summary": "ฟอร์ม ตัวเลือก ผู้รับที่เลือกได้ และกติกาของประเภทคำขอนี้",
         "tags": [
           "external"
+        ],
+        "x-acting-permission": [
+          "request.create"
         ]
       }
     },
@@ -328,6 +334,9 @@
         "summary": "สร้างคำขอและยื่นในครั้งเดียว",
         "tags": [
           "external"
+        ],
+        "x-acting-permission": [
+          "request.create"
         ]
       },
       "get": {
@@ -495,6 +504,9 @@
         "summary": "คิวงานของผู้ใช้รายนี้ แบ่งตามมุมมองที่เลือก",
         "tags": [
           "external"
+        ],
+        "x-acting-permission": [
+          "request.read"
         ]
       }
     },
@@ -632,6 +644,9 @@
         "summary": "จำนวนคำขอแยกตามสถานะ — ตอบคำถาม \"งานค้างกี่ใบ\" ในครั้งเดียว",
         "tags": [
           "external"
+        ],
+        "x-acting-permission": [
+          "request.read"
         ]
       }
     },
@@ -784,6 +799,9 @@
         "summary": "ค้นหาคนในบริษัท — แปลงชื่อหรืออีเมลเป็น id ที่ API รับ",
         "tags": [
           "external"
+        ],
+        "x-acting-permission": [
+          "request.create"
         ]
       }
     },
@@ -880,6 +898,9 @@
         "summary": "อ่านคำขอหนึ่งใบ ด้วยเลขที่เอกสารหรือ uuid",
         "tags": [
           "external"
+        ],
+        "x-acting-permission": [
+          "request.read"
         ]
       }
     },
@@ -977,6 +998,9 @@
         "summary": "ตอนนี้ผู้ใช้รายนี้ทำอะไรกับคำขอใบนี้ได้บ้าง",
         "tags": [
           "external"
+        ],
+        "x-acting-permission": [
+          "request.read"
         ]
       }
     },
@@ -1242,6 +1266,9 @@
         "summary": "ใบนี้ ใบพ่อ และทุกใบลูกที่แตกออกไป",
         "tags": [
           "external"
+        ],
+        "x-acting-permission": [
+          "request.read"
         ]
       }
     },

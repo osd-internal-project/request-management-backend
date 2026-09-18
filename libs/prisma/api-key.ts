@@ -113,7 +113,7 @@ async function issue(name: string, options: IssueOptions): Promise<void> {
   if (options.scopes.length) {
     const known = await prisma.permission.findMany({
       where: { code: { in: options.scopes } },
-      select: { code: true },
+      select: { code: true, type: true },
     });
     const missing = options.scopes.filter(
       (scope) => !known.some((row) => row.code === scope),
@@ -124,6 +124,24 @@ async function issue(name: string, options: IssueOptions): Promise<void> {
         `ไม่รู้จักสิทธิ์: ${missing.join(', ')}\n` +
           '  ดูรายการที่มีได้จากตาราง permissions ' +
           '(sync จาก libs/share/src/policy/permissions.ts ตอน boot)',
+      );
+    }
+
+    /*
+      AUTH-06 — กุญแจถือได้เฉพาะสิทธิ์ของบัญชีบริการ.
+
+      แยกจากการตรวจข้างบนเพราะตอบคนละคำถาม: อันนั้นถามว่ารหัสนี้มีจริงไหม อันนี้
+      ถามว่ามันเป็นของเครื่องหรือของคน. ก่อนหน้านี้ CLI ตรวจแค่ข้อแรก จึงหลวมกว่า
+      หน้าจอทั้งที่อันตรายกว่า — ออกกุญแจถือ `admin.role.manage` ได้.
+    */
+    const human = known.filter((row) => row.type !== 'service');
+
+    if (human.length) {
+      throw new Error(
+        `กุญแจถือสิทธิ์ของผู้ใช้ไม่ได้: ${human
+          .map((row) => row.code)
+          .join(', ')}\n` +
+          '  สิ่งที่คนทำได้ตัดสินจาก X-Acting-User ไม่ใช่จากกุญแจ',
       );
     }
   }

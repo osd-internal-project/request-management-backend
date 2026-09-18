@@ -129,6 +129,9 @@
         "summary": "ประเภทคำขอที่ผู้ใช้รายนี้เปิดได้ ณ ตอนนี้",
         "tags": [
           "external"
+        ],
+        "x-acting-permission": [
+          "request.create"
         ]
       }
     },
@@ -225,6 +228,9 @@
         "summary": "ฟอร์ม ตัวเลือก ผู้รับที่เลือกได้ และกติกาของประเภทคำขอนี้",
         "tags": [
           "external"
+        ],
+        "x-acting-permission": [
+          "request.create"
         ]
       }
     },
@@ -352,6 +358,9 @@
         "summary": "สร้างคำขอและยื่นในครั้งเดียว",
         "tags": [
           "external"
+        ],
+        "x-acting-permission": [
+          "request.create"
         ]
       },
       "get": {
@@ -519,6 +528,9 @@
         "summary": "คิวงานของผู้ใช้รายนี้ แบ่งตามมุมมองที่เลือก",
         "tags": [
           "external"
+        ],
+        "x-acting-permission": [
+          "request.read"
         ]
       }
     },
@@ -656,6 +668,9 @@
         "summary": "จำนวนคำขอแยกตามสถานะ — ตอบคำถาม \"งานค้างกี่ใบ\" ในครั้งเดียว",
         "tags": [
           "external"
+        ],
+        "x-acting-permission": [
+          "request.read"
         ]
       }
     },
@@ -808,6 +823,9 @@
         "summary": "ค้นหาคนในบริษัท — แปลงชื่อหรืออีเมลเป็น id ที่ API รับ",
         "tags": [
           "external"
+        ],
+        "x-acting-permission": [
+          "request.create"
         ]
       }
     },
@@ -904,6 +922,9 @@
         "summary": "อ่านคำขอหนึ่งใบ ด้วยเลขที่เอกสารหรือ uuid",
         "tags": [
           "external"
+        ],
+        "x-acting-permission": [
+          "request.read"
         ]
       }
     },
@@ -1001,6 +1022,9 @@
         "summary": "ตอนนี้ผู้ใช้รายนี้ทำอะไรกับคำขอใบนี้ได้บ้าง",
         "tags": [
           "external"
+        ],
+        "x-acting-permission": [
+          "request.read"
         ]
       }
     },
@@ -1266,6 +1290,9 @@
         "summary": "ใบนี้ ใบพ่อ และทุกใบลูกที่แตกออกไป",
         "tags": [
           "external"
+        ],
+        "x-acting-permission": [
+          "request.read"
         ]
       }
     },
@@ -1388,6 +1415,9 @@
         "summary": "ค้นทะเบียนลูกค้า",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.customer.read"
         ]
       },
       "post": {
@@ -1436,6 +1466,9 @@
         "summary": "สร้างทะเบียนลูกค้า",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.customer.manage"
         ]
       }
     },
@@ -1475,6 +1508,9 @@
         "summary": "มิติและค่าการแบ่งกลุ่มที่ยังใช้งาน",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.customer.read"
         ]
       }
     },
@@ -1514,6 +1550,9 @@
         "summary": "สินค้าที่บังคับทำ KYC",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.customer.read"
         ]
       }
     },
@@ -1564,6 +1603,9 @@
         "summary": "ตรวจลูกค้าซ้ำก่อนบันทึก",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.customer.read"
         ]
       }
     },
@@ -1614,6 +1656,9 @@
         "summary": "นำเข้าลูกค้าเดิมจาก Excel",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "admin.crm.manage"
         ]
       }
     },
@@ -1662,6 +1707,9 @@
         "summary": "รายละเอียดลูกค้า",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.customer.read"
         ]
       },
       "patch": {
@@ -1718,6 +1766,9 @@
         "summary": "แก้ข้อมูลลูกค้า",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.customer.manage"
         ]
       }
     },
@@ -1766,6 +1817,9 @@
         "summary": "สถานะความยินยอมของผู้ติดต่อ",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.customer.read"
         ]
       }
     },
@@ -1813,6 +1867,9 @@
         "summary": "ตัวเลขสรุปหน้าลูกค้า 360°",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.customer.read"
         ]
       }
     },
@@ -1861,6 +1918,9 @@
         "summary": "เปิดใช้งานลูกค้า",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.customer.manage"
         ]
       }
     },
@@ -1919,6 +1979,9 @@
         "summary": "ระงับลูกค้าพร้อมเหตุผล",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.customer.manage"
         ]
       }
     },
@@ -1977,6 +2040,9 @@
         "summary": "ปิดใช้งานลูกค้าพร้อมเหตุผล",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.customer.manage"
         ]
       }
     },
@@ -2034,6 +2100,9 @@
         "summary": "เพิ่มที่อยู่หรือไซต์งาน",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.customer.manage"
         ]
       }
     },
@@ -2099,6 +2168,9 @@
         "summary": "แก้ที่อยู่หรือไซต์งาน",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.customer.manage"
         ]
       },
       "delete": {
@@ -2153,6 +2225,9 @@
         "summary": "ลบที่อยู่ออกจากทะเบียน",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.customer.manage"
         ]
       }
     },
@@ -2211,6 +2286,9 @@
         "summary": "เพิ่มผู้ติดต่อ",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.customer.manage"
         ]
       }
     },
@@ -2276,6 +2354,9 @@
         "summary": "แก้ผู้ติดต่อ",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.customer.manage"
         ]
       },
       "delete": {
@@ -2330,6 +2411,9 @@
         "summary": "ลบผู้ติดต่อ",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.customer.manage"
         ]
       }
     },
@@ -2388,6 +2472,9 @@
         "summary": "ตั้งกลุ่มของลูกค้าทั้งชุด",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.customer.manage"
         ]
       }
     },
@@ -2436,6 +2523,9 @@
         "summary": "ประวัติการแก้ไขรายฟิลด์",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.customer.read"
         ]
       }
     },
@@ -2484,6 +2574,9 @@
         "summary": "ไทม์ไลน์เหตุการณ์ของลูกค้า",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.customer.read"
         ]
       }
     },
@@ -2532,6 +2625,9 @@
         "summary": "รหัสลูกค้าในระบบภายนอก",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "admin.crm.manage"
         ]
       },
       "put": {
@@ -2588,6 +2684,9 @@
         "summary": "ตั้งหรือแก้รหัสในระบบภายนอก",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "admin.crm.manage"
         ]
       }
     },
@@ -2626,6 +2725,9 @@
         ],
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "admin.crm.manage"
         ]
       },
       "post": {
@@ -2672,6 +2774,9 @@
         ],
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "admin.crm.manage"
         ]
       }
     },
@@ -2720,6 +2825,9 @@
         ],
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "admin.crm.manage"
         ]
       }
     },
@@ -2776,6 +2884,9 @@
         ],
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "admin.crm.manage"
         ]
       },
       "delete": {
@@ -2820,6 +2931,9 @@
         ],
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "admin.crm.manage"
         ]
       }
     },
@@ -2858,6 +2972,9 @@
         ],
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "admin.crm.manage"
         ]
       },
       "post": {
@@ -2904,6 +3021,9 @@
         ],
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "admin.crm.manage"
         ]
       }
     },
@@ -2960,6 +3080,9 @@
         ],
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "admin.crm.manage"
         ]
       }
     },
@@ -2998,6 +3121,9 @@
         ],
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "admin.crm.manage"
         ]
       },
       "post": {
@@ -3044,6 +3170,9 @@
         ],
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "admin.crm.manage"
         ]
       }
     },
@@ -3100,6 +3229,9 @@
         ],
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "admin.crm.manage"
         ]
       }
     },
@@ -3156,6 +3288,9 @@
         ],
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "admin.crm.manage"
         ]
       }
     },
@@ -3212,6 +3347,9 @@
         ],
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "admin.crm.manage"
         ]
       },
       "delete": {
@@ -3256,6 +3394,9 @@
         ],
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "admin.crm.manage"
         ]
       }
     },
@@ -3294,6 +3435,9 @@
         ],
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "admin.crm.manage"
         ]
       },
       "patch": {
@@ -3340,6 +3484,9 @@
         ],
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "admin.crm.manage"
         ]
       }
     },
@@ -3380,6 +3527,9 @@
         "summary": "ขั้นของ Lead ทั้งชุด",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.sales.read"
         ]
       }
     },
@@ -3453,6 +3603,9 @@
         "summary": "ค้นรายชื่อ Lead",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.sales.read"
         ]
       },
       "post": {
@@ -3509,6 +3662,9 @@
         "summary": "รับ Lead จากระบบภายนอก — เข้ากองกลาง รอพนักงานขายรับ",
         "tags": [
           "crm-intake"
+        ],
+        "x-acting-permission": [
+          "crm.sales.manage"
         ]
       }
     },
@@ -3559,6 +3715,9 @@
         "summary": "นำเข้า Lead จาก Excel",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.sales.manage"
         ]
       }
     },
@@ -3607,6 +3766,9 @@
         "summary": "รายละเอียด Lead พร้อมกิจกรรม",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.sales.read"
         ]
       },
       "patch": {
@@ -3663,6 +3825,9 @@
         "summary": "แก้ข้อมูล Lead",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.sales.manage"
         ]
       }
     },
@@ -3721,6 +3886,9 @@
         "summary": "รับ Lead หรือแจกให้คนอื่น",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.sales.manage"
         ]
       }
     },
@@ -3779,6 +3947,9 @@
         "summary": "เลื่อนขั้น Lead ในไปป์ไลน์",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.sales.manage"
         ]
       }
     },
@@ -3837,6 +4008,9 @@
         "summary": "ลงกิจกรรมของ Lead",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.sales.manage"
         ]
       }
     },
@@ -3902,6 +4076,9 @@
         "summary": "แก้กิจกรรม หรือติ๊กเสร็จ",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.sales.manage"
         ]
       }
     },
@@ -3960,6 +4137,9 @@
         "summary": "คัด Lead ออกพร้อมเหตุผล",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.sales.manage"
         ]
       }
     },
@@ -4018,6 +4198,9 @@
         "summary": "แปลง Lead เป็นโอกาสการขาย",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.sales.manage"
         ]
       }
     },
@@ -4091,6 +4274,9 @@
         "summary": "ค้นโอกาสการขาย",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.sales.read"
         ]
       },
       "post": {
@@ -4139,6 +4325,9 @@
         "summary": "สร้างโอกาสการขาย",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.sales.manage"
         ]
       }
     },
@@ -4179,6 +4368,9 @@
         "summary": "เหตุผลปิดแพ้ที่เลือกได้",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.sales.read"
         ]
       }
     },
@@ -4226,6 +4418,9 @@
         "summary": "รายละเอียดโอกาสการขาย",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.sales.read"
         ]
       },
       "patch": {
@@ -4282,6 +4477,9 @@
         "summary": "แก้โอกาสการขาย",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.sales.manage"
         ]
       }
     },
@@ -4340,6 +4538,9 @@
         "summary": "เปิดใบสั่งขาย = ปิดชนะ + สร้างทะเบียนลูกค้า",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.sales.manage"
         ]
       }
     },
@@ -4398,6 +4599,9 @@
         "summary": "ร่างใบเสนอราคา v1",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.sales.manage"
         ]
       }
     },
@@ -4456,6 +4660,9 @@
         "summary": "ปิดแพ้พร้อมเหตุผลมาตรฐาน",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.sales.manage"
         ]
       }
     },
@@ -4529,6 +4736,9 @@
         "summary": "ค้นใบสั่งขาย",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.sales.read"
         ]
       }
     },
@@ -4576,6 +4786,9 @@
         "summary": "รายละเอียดใบสั่งขาย",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.sales.read"
         ]
       }
     },
@@ -4634,6 +4847,9 @@
         "summary": "ยกเลิกใบสั่งขายพร้อมเหตุผล",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.sales.manage"
         ]
       }
     },
@@ -4707,6 +4923,9 @@
         "summary": "ค้นใบเสนอราคา",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.sales.read"
         ]
       }
     },
@@ -4755,6 +4974,9 @@
         "summary": "รายละเอียดใบเสนอราคา",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.sales.read"
         ]
       },
       "patch": {
@@ -4811,6 +5033,9 @@
         "summary": "แก้ใบเสนอราคา",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.sales.manage"
         ]
       }
     },
@@ -4869,6 +5094,9 @@
         "summary": "ยื่นใบเสนอราคาเข้าตรวจ margin",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.sales.manage"
         ]
       }
     },
@@ -4917,6 +5145,9 @@
         "summary": "ส่งใบเสนอราคาให้ลูกค้า",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.sales.manage"
         ]
       }
     },
@@ -4975,6 +5206,9 @@
         "summary": "บันทึกว่าลูกค้าตอบรับ",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.sales.manage"
         ]
       }
     },
@@ -5033,6 +5267,9 @@
         "summary": "บันทึกว่าลูกค้าปฏิเสธ",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.sales.manage"
         ]
       }
     },
@@ -5081,6 +5318,9 @@
         "summary": "ออกใบเสนอราคาเวอร์ชันใหม่",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.sales.manage"
         ]
       }
     },
@@ -5139,6 +5379,9 @@
         "summary": "ยกเลิกใบเสนอราคาพร้อมเหตุผล",
         "tags": [
           "crm"
+        ],
+        "x-acting-permission": [
+          "crm.sales.manage"
         ]
       }
     },

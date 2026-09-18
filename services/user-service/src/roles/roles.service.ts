@@ -3,6 +3,7 @@ import {
   ALL_PERMISSIONS,
   AppError,
   assertCompanyMember,
+  assertHumanPermissions,
   assertSeparationOfDuties,
   Permission,
   permissionModule,
@@ -154,6 +155,7 @@ export class RolesService implements OnModuleInit {
     if (dto.company_id) assertCompanyMember(actor, dto.company_id);
 
     assertSeparationOfDuties(dto.permissions);
+    assertHumanPermissions(dto.permissions);
 
     return this.transactions.execute(async (prisma) => {
       const option = { prisma };
@@ -213,7 +215,10 @@ export class RolesService implements OnModuleInit {
       // rule existed must still be renameable and — more importantly —
       // deactivatable, which is the remedy for it. Blocking every PATCH on a
       // legacy violation would leave it in place with no way to retire it.
-      if (dto.permissions) assertSeparationOfDuties(dto.permissions);
+      if (dto.permissions) {
+        assertSeparationOfDuties(dto.permissions);
+        assertHumanPermissions(dto.permissions);
+      }
 
       // ROLE-02: a role with holders can be switched off but never removed,
       // so historical grants stay explainable.

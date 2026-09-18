@@ -37,6 +37,8 @@ interface Operation {
   operationId?: string;
   summary?: string;
   description?: string;
+  /** ประตูที่สอง — สิทธิ์ของคนใน `X-Acting-User` (ประทับโดย `yarn openapi`). */
+  'x-acting-permission'?: string[];
   parameters?: Parameter[];
   requestBody?: {
     required?: boolean;
@@ -49,6 +51,17 @@ interface Tool {
   description: string;
   input_schema: JsonSchema;
   'x-request': { method: string; path: string };
+  /**
+   * สิทธิ์ที่คนใน `X-Acting-User` ต้องถือ — ประตูที่สองของ MCP.
+   *
+   * REST ได้ประตูนี้จาก `ActingPolicyGuard` ซึ่ง MCP ใช้ไม่ได้ เพราะตัวตนของคน
+   * ถูก resolve ต่อ *การเรียก tool* ไม่ใช่ต่อ HTTP request (`mcp-actor.ts`)
+   * `McpToolRegistry.call` จึงตรวจจากค่านี้แทน
+   *
+   * ว่าง = route นั้นตรวจสิทธิ์ข้างในเอง เช่น `POST requests/:ref/actions/:action`
+   * ที่หนึ่ง route ทำสิบสี่กริยาและอ่าน `ACTION_PERMISSIONS` ใน `perform`
+   */
+  'x-acting-permission': string[];
 }
 
 const document = JSON.parse(readFileSync(SOURCE, 'utf8')) as {
@@ -168,6 +181,7 @@ for (const [path, methods] of Object.entries(document.paths)) {
         ...(required.length ? { required: [...new Set(required)] } : {}),
       },
       'x-request': { method: method.toUpperCase(), path },
+      'x-acting-permission': operation['x-acting-permission'] ?? [],
     });
   }
 }

@@ -18,7 +18,10 @@
     "x-request": {
       "method": "GET",
       "path": "/api/v1/request/request-types"
-    }
+    },
+    "x-acting-permission": [
+      "request.create"
+    ]
   },
   {
     "name": "request_get_request_types_code_form",
@@ -39,7 +42,10 @@
     "x-request": {
       "method": "GET",
       "path": "/api/v1/request/request-types/{code}/form"
-    }
+    },
+    "x-acting-permission": [
+      "request.create"
+    ]
   },
   {
     "name": "request_get_requests",
@@ -108,7 +114,10 @@
     "x-request": {
       "method": "GET",
       "path": "/api/v1/request/requests"
-    }
+    },
+    "x-acting-permission": [
+      "request.read"
+    ]
   },
   {
     "name": "request_get_requests_ref",
@@ -129,7 +138,10 @@
     "x-request": {
       "method": "GET",
       "path": "/api/v1/request/requests/{ref}"
-    }
+    },
+    "x-acting-permission": [
+      "request.read"
+    ]
   },
   {
     "name": "request_get_requests_ref_actions",
@@ -150,7 +162,10 @@
     "x-request": {
       "method": "GET",
       "path": "/api/v1/request/requests/{ref}/actions"
-    }
+    },
+    "x-acting-permission": [
+      "request.read"
+    ]
   },
   {
     "name": "request_get_requests_ref_tree",
@@ -171,7 +186,10 @@
     "x-request": {
       "method": "GET",
       "path": "/api/v1/request/requests/{ref}/tree"
-    }
+    },
+    "x-acting-permission": [
+      "request.read"
+    ]
   },
   {
     "name": "request_get_requests_summary",
@@ -222,7 +240,10 @@
     "x-request": {
       "method": "GET",
       "path": "/api/v1/request/requests/summary"
-    }
+    },
+    "x-acting-permission": [
+      "request.read"
+    ]
   },
   {
     "name": "request_get_users",
@@ -270,7 +291,10 @@
     "x-request": {
       "method": "GET",
       "path": "/api/v1/request/users"
-    }
+    },
+    "x-acting-permission": [
+      "request.create"
+    ]
   },
   {
     "name": "request_post_requests",
@@ -328,7 +352,10 @@
     "x-request": {
       "method": "POST",
       "path": "/api/v1/request/requests"
-    }
+    },
+    "x-acting-permission": [
+      "request.create"
+    ]
   },
   {
     "name": "request_post_requests_ref_actions_action",
@@ -412,6 +439,7 @@
     "x-request": {
       "method": "POST",
       "path": "/api/v1/request/requests/{ref}/actions/{action}"
-    }
+    },
+    "x-acting-permission": []
   }
 ]
