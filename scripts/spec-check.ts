@@ -381,15 +381,23 @@ function writeReport(reports: readonly Report[], screenRows: readonly string[]):
 }
 
 /**
- * Every top-level path core-service serves, from its own decorators.
+ * Every top-level path a service serves, from its own decorators.
  *
  * A controller's `@Controller('x')` prefix plus each method's route, reduced to
  * the first one or two segments — which is the granularity the frontend routes
  * on. `@Controller()` with no prefix means the route path stands alone.
+ *
+ * The route string is optional: `@Get()` on a prefixed controller serves the
+ * prefix itself, and dropping those hid four whole prefixes from this list.
  */
-function coreServicePaths(): string[] {
-  const files = filesUnder(join(SERVICES, 'core-service', 'src'), (name) =>
-    name.endsWith('.controller.ts'),
+function servicePaths(service: string): string[] {
+  // `.controllers.ts` too: `crm/sales.controllers.ts` holds three of them, and
+  // matching the singular alone dropped every route it declares.
+  const files = filesUnder(
+    join(SERVICES, service, 'src'),
+    (name) =>
+      (name.endsWith('.controller.ts') || name.endsWith('.controllers.ts')) &&
+      !name.endsWith('.spec.ts'),
   );
 
   const paths = new Set<string>();
@@ -404,10 +412,12 @@ function coreServicePaths(): string[] {
       const prefix = /^'([^']*)'/.exec(block)?.[1] ?? '';
 
       for (const route of block.matchAll(
-        /@(?:Get|Post|Put|Patch|Delete)\(\s*'([^']*)'/g,
+        /@(?:Get|Post|Put|Patch|Delete)\(\s*(?:'([^']*)')?/g,
       )) {
-        const full = [prefix, route[1]].filter(Boolean).join('/');
-        const segments = full.split('/').filter((part) => !part.startsWith(':'));
+        const full = [prefix, route[1] ?? ''].filter(Boolean).join('/');
+        const segments = full
+          .split('/')
+          .filter((part) => part && !part.startsWith(':'));
         if (!segments.length) continue;
 
         paths.add(
@@ -422,15 +432,25 @@ function coreServicePaths(): string[] {
 
 /**
  * The BFF sends a path to whichever service owns it, from a list held in the
- * frontend. A path missing from that list is sent to user-service, which
- * answers 404 — a well-formed request to an endpoint that exists, just not
- * there, which is the hardest kind of 404 to read.
+ * frontend. Both directions are wrong in their own way, so both are checked.
  *
- * `/admin/holiday-calendars` was missing for a week for exactly that reason.
- * This compares the two so the next omission is reported here instead.
+ * A path missing from the list is sent to user-service, which answers 404 — a
+ * well-formed request to an endpoint that exists, just not there, which is the
+ * hardest kind of 404 to read. `/admin/holiday-calendars` was missing for a
+ * week for exactly that reason.
+ *
+ * A prefix left in the list after its routes moved is the same failure delayed:
+ * it stops matching nothing and starts shadowing whatever is added under that
+ * name next. `/external` and `/integrations` sat there after external-service
+ * took the outward-facing API, and the one-way check could not see them.
  */
 function checkServiceRouting(): Report {
-  const declared = coreServicePaths();
+  // `/health` is infrastructure, not a screen route — nothing proxies it, so
+  // listing it in the frontend would be the mistake, not the omission.
+  const declared = servicePaths('core-service').filter(
+    (path) => path !== '/health',
+  );
+  const external = servicePaths('external-service');
 
   const table = read(
     join(FRONTEND_SRC, 'lib', 'backend.ts'),
@@ -443,13 +463,27 @@ function checkServiceRouting(): Report {
     ),
   ].map((match) => match[1] ?? match[2]);
 
-  const missing = declared.filter(
+  const unlisted = declared.filter(
     (path) => !listed.some((prefix) => path.startsWith(prefix)),
   );
 
+  // external-service is named in the message rather than accepted, because a
+  // prefix that moved there does not belong in this list either — outside
+  // callers reach it directly, never through the BFF.
+  const stale = listed
+    .filter((prefix) => !declared.some((path) => path.startsWith(prefix)))
+    .map((prefix) =>
+      external.some((path) => path.startsWith(prefix))
+        ? `${prefix} → ย้ายไป external-service แล้ว ลบออกจาก list`
+        : `${prefix} → ไม่มี service ไหนเสิร์ฟแล้ว ลบออกจาก list`,
+    );
+
   return {
     heading: `เส้นทาง core-service ${declared.length} กลุ่ม — frontend ส่งถูก service`,
-    missing: missing.map((path) => `${path} → ถูกส่งไป user-service`),
+    missing: [
+      ...unlisted.map((path) => `${path} → ถูกส่งไป user-service`),
+      ...stale,
+    ],
     note: 'CORE_SERVICE_PREFIXES ใน request-management-frontend/src/lib/backend.ts',
   };
 }

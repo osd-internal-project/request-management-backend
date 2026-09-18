@@ -13,6 +13,7 @@ import { RolesService } from '../roles/roles.service';
 import { KeycloakAdminService } from '../keycloak-admin/keycloak-admin.service';
 import { UsersRepository } from '../users/users.repository';
 import { KeycloakJwtPayload } from '../auth/strategies/jwt.strategy';
+import { pickActiveCompany } from './active-company';
 
 /**
  * Pulls the realm and client roles out of a verified token. Per D-07 these
@@ -84,6 +85,23 @@ export class PrincipalService {
     const user = await this.provision(payload, keycloakRoles);
 
     return this.principalFor(user, keycloakRoles, requestedCompanyId);
+  }
+
+  /**
+   * จำบริษัทที่ผู้ใช้เพิ่งสลับไป เพื่อให้ login ครั้งถัดไปเข้าที่เดิม (AUTH-05).
+   *
+   * เขียนจาก `POST /auth/switch-company` เท่านั้น ไม่ใช่จาก `resolve()` ซึ่งทำงานทุก
+   * request — การเขียนตรงนั้นคือ write หนึ่งครั้งต่อการเรียก API ทุกครั้ง เพื่อบันทึก
+   * ค่าที่แทบไม่เคยเปลี่ยน
+   */
+  async rememberActiveCompany(
+    userId: string,
+    companyId: string,
+  ): Promise<void> {
+    await this.users.update({
+      where: { id: userId },
+      data: { lastCompanyId: companyId },
+    });
   }
 
   /**
@@ -203,9 +221,10 @@ export class PrincipalService {
       isPrimary: membership.isPrimary,
     }));
 
-    const activeCompanyId = this.pickActiveCompany(
+    const activeCompanyId = pickActiveCompany(
       companies,
       requestedCompanyId,
+      user.lastCompanyId,
       user.primaryCompanyId,
     );
 
@@ -309,29 +328,6 @@ export class PrincipalService {
           ? payload['family_name']
           : null,
     });
-  }
-
-  private pickActiveCompany(
-    companies: readonly PrincipalCompany[],
-    requested: string | undefined,
-    primaryCompanyId: string | null,
-  ): string | null {
-    if (requested && companies.some((company) => company.id === requested)) {
-      return requested;
-    }
-
-    if (
-      primaryCompanyId &&
-      companies.some((company) => company.id === primaryCompanyId)
-    ) {
-      return primaryCompanyId;
-    }
-
-    return (
-      companies.find((company) => company.isPrimary)?.id ??
-      companies[0]?.id ??
-      null
-    );
   }
 
   private pendingPrincipal(

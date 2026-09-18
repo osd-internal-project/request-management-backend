@@ -7,7 +7,7 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   CurrentPrincipal,
   Permissions,
@@ -39,6 +39,10 @@ import {
 export class QuotationsController {
   constructor(private readonly quotations: QuotationsService) {}
 
+  @ApiOperation({
+    summary: 'ค้นใบเสนอราคา',
+    description: 'current=true คัดเฉพาะเวอร์ชันล่าสุดของแต่ละเลขที่',
+  })
   @Get()
   @Permissions('crm.sales.read')
   list(
@@ -48,6 +52,10 @@ export class QuotationsController {
     return this.quotations.list(principal, query);
   }
 
+  @ApiOperation({
+    summary: 'รายละเอียดใบเสนอราคา',
+    description: 'ต้นทุนและ margin ถูกปกปิดถ้าไม่มีสิทธิ์อ่านข้อมูลอ่อนไหว',
+  })
   @Get(':id')
   @Permissions('crm.sales.read')
   findOne(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
@@ -55,6 +63,10 @@ export class QuotationsController {
   }
 
   /** แก้ร่างเท่านั้น. */
+  @ApiOperation({
+    summary: 'แก้ใบเสนอราคา',
+    description: 'แก้ได้เฉพาะสถานะ draft — ใบที่ยื่นหรือส่งแล้วต้องใช้ /revise',
+  })
   @Patch(':id')
   @Permissions('crm.sales.manage')
   update(
@@ -66,6 +78,14 @@ export class QuotationsController {
   }
 
   /** ตรวจ margin → อนุมัติทันที หรือร่างคำขออนุมัติแล้วรอ. */
+  @ApiOperation({
+    summary: 'ยื่นใบเสนอราคาเข้าตรวจ margin',
+    description:
+      'margin ถึงเกณฑ์ → approved ทันที. ต่ำกว่าเกณฑ์ → ต้องมี reason ' +
+      'และระบบเปิดคำขอส่วนลด (ค่าตั้งต้น DSC) แล้วใบค้างที่ ' +
+      'pending_approval. ถ้าประเภทคำขอนั้นปิดอยู่ ได้ ' +
+      'CRM_QUOTATION_APPROVAL_UNAVAILABLE และใบคงอยู่ที่ draft',
+  })
   @Post(':id/submit')
   @Permissions('crm.sales.manage')
   submit(
@@ -76,12 +96,20 @@ export class QuotationsController {
     return this.quotations.submit(id, dto, principal);
   }
 
+  @ApiOperation({
+    summary: 'ส่งใบเสนอราคาให้ลูกค้า',
+    description: 'approved → sent',
+  })
   @Post(':id/send')
   @Permissions('crm.sales.manage')
   send(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
     return this.quotations.send(id, principal);
   }
 
+  @ApiOperation({
+    summary: 'บันทึกว่าลูกค้าตอบรับ',
+    description: 'sent → accepted — สถานะที่ใช้เปิดใบสั่งขายได้',
+  })
   @Post(':id/accept')
   @Permissions('crm.sales.manage')
   accept(
@@ -92,6 +120,10 @@ export class QuotationsController {
     return this.quotations.accept(id, dto, principal);
   }
 
+  @ApiOperation({
+    summary: 'บันทึกว่าลูกค้าปฏิเสธ',
+    description: 'sent → declined พร้อมเหตุผล',
+  })
   @Post(':id/decline')
   @Permissions('crm.sales.manage')
   decline(
@@ -103,6 +135,12 @@ export class QuotationsController {
   }
 
   /** ออกเวอร์ชันใหม่ — ทางเดียวที่จะแก้ใบที่ยื่น/ส่งไปแล้ว. */
+  @ApiOperation({
+    summary: 'ออกใบเสนอราคาเวอร์ชันใหม่',
+    description:
+      'ใบเดิมเป็น superseded และได้ร่าง v(n+1). ทำได้จาก pending_approval ' +
+      '· approved · sent · declined',
+  })
   @Post(':id/revise')
   @Permissions('crm.sales.manage')
   revise(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
@@ -110,6 +148,11 @@ export class QuotationsController {
   }
 
   /** ยกเลิกพร้อมเหตุผล — ไม่มี DELETE. */
+  @ApiOperation({
+    summary: 'ยกเลิกใบเสนอราคาพร้อมเหตุผล',
+    description:
+      'ทำได้จาก draft · pending_approval · approved · sent — ไม่มี DELETE',
+  })
   @Post(':id/cancel')
   @Permissions('crm.sales.manage')
   cancel(

@@ -96,7 +96,14 @@ for src_name, prefixes in FILES.items():
     # the acting-user swap and the second gate.
     common = sorted({n.strip() for n in nest_common.split(',') if n.strip()} | {'UseGuards'})
     out += "import {\n%s,\n} from '@nestjs/common';\n" % ',\n'.join('  ' + n for n in common)
-    out += "import { ApiBearerAuth, ApiHeader, ApiTags } from '@nestjs/swagger';\n"
+    # ApiOperation ตามมาก็ต่อเมื่อ body ที่ก๊อปมาใช้จริง — import ที่ไม่ได้ใช้ทำ lint แตก
+    swagger = ['ApiBearerAuth', 'ApiHeader']
+    if '@ApiOperation(' in src:
+        swagger.append('ApiOperation')
+    swagger.append('ApiTags')
+    one_line = "import { %s } from '@nestjs/swagger';" % ', '.join(swagger)
+    out += (one_line + '\n') if len(one_line) <= 80 else (
+        "import {\n%s,\n} from '@nestjs/swagger';\n" % ',\n'.join('  ' + n for n in swagger))
     out += "import {\n%s,\n} from '@request-management/share';\n" % ',\n'.join('  ' + n for n in share_names)
     out += "import type { Principal } from '@request-management/share';\n"
     out += "import {\n%s,\n} from '@request-management/core-service';\n" % ',\n'.join('  ' + n for n in core_names)

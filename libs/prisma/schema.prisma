@@ -249,6 +249,7 @@ model Company {
 
   users                   UserCompany[]
   primaryUsers            User[]                     @relation("PrimaryCompany")
+  lastActiveUsers         User[]                     @relation("LastCompany")
   orgUnits                OrgUnit[]
   roles                   Role[]
   userRoles               UserRole[]
@@ -301,6 +302,14 @@ model User {
 
   primaryCompanyId String?
   primaryCompany   Company? @relation("PrimaryCompany", fields: [primaryCompanyId], references: [id])
+
+  /// บริษัทที่ผู้ใช้สลับไปล่าสุด — บริษัทตั้งต้นเมื่อ login ครั้งถัดไป (AUTH-05).
+  ///
+  /// คนละความหมายกับ `primaryCompanyId` ซึ่งเป็นสังกัดหลักที่ผู้ดูแลกำหนดให้ อันนี้คือ
+  /// ที่ที่เจ้าตัวเลือกทำงานอยู่ตอนนี้ และเปลี่ยนเองได้จาก company switcher
+  /// null = ยังไม่เคยสลับ จึงตกไปใช้ `primaryCompanyId` เหมือนเดิม
+  lastCompanyId String?
+  lastCompany   Company? @relation("LastCompany", fields: [lastCompanyId], references: [id])
 
   /// Job title as HR records it, e.g. `Senior Purchasing Officer`.
   ///
@@ -389,6 +398,7 @@ model User {
 
   @@index([orgUnitId])
   @@index([supervisorUserId])
+  @@index([lastCompanyId])
   @@map("users")
 }
 

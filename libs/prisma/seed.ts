@@ -18,62 +18,49 @@
  * mistaken for a signed-off number.
  */
 import { PrismaClient } from '@prisma/client';
+import {
+  ALL_PERMISSIONS,
+  Permission,
+  permissionModule,
+  permissionType,
+} from '../share/src/policy/permissions';
 
 const prisma = new PrismaClient();
 
-/** Mirrors libs/share/src/policy/permissions.ts. */
-const PERMISSIONS: Record<string, string[]> = {
-  request: [
-    'request.create',
-    'request.read',
-    'request.read.all',
-    'request.cancel.own',
-    'request.cancel.any',
-    'request.complete',
-    'request.return',
-    'request.hold',
-    'request.sensitive.read',
-  ],
-  approval: ['approval.decide', 'approval.delegate', 'approval.history.read'],
-  crm: [
-    'crm.customer.read',
-    'crm.customer.read.all',
-    'crm.customer.manage',
-    'crm.customer.sensitive.read',
-    'crm.customer.dedup.override',
-    'crm.customer.financial.read',
-    'crm.sales.read',
-    'crm.sales.read.all',
-    'crm.sales.manage',
-  ],
-  report: ['report.request.read', 'report.dashboard.read'],
-  user: ['user.read'],
-  notification: ['notification.read'],
-  audit: ['audit.read'],
-  admin: [
-    'admin.role.manage',
-    'admin.org.manage',
-    'admin.request-type.manage',
-    'admin.approval-matrix.manage',
-    'admin.sla.manage',
-    'admin.bi.manage',
-    'admin.identity.manage',
-    'admin.crm.manage',
-    'admin.integration.manage',
-  ],
-  integration: [
-    'integration.request.create',
-    'integration.approval.create',
-    'integration.crm.lead.read',
-    'integration.crm.lead.stage',
-    'integration.crm.lead.create',
-    'integration.crm.customer.read',
-    'integration.crm.customer.manage',
-    'integration.crm.sales.read',
-    'integration.crm.sales.manage',
-    'integration.crm.admin.manage',
-  ],
-};
+/**
+ * ทุกสิทธิ์อ่านของคนที่ `admin` ไม่ได้รับ แม้ชื่อจะลงท้าย `.read`.
+ *
+ * `request.sensitive.read` ถูก §5.4 ห้ามถือคู่กับ `admin.*` — ใส่เข้าไปจะโดน
+ * `assertSeparationOfDuties` ตีกลับ 422 อีกสองตัวเป็นการถอดหน้ากากข้อมูล ซึ่ง
+ * CM-08/C360-02 ออกแบบให้ตั้งรายบทบาท ไม่ใช่ของแถมของผู้ดูแลระบบ.
+ */
+const ADMIN_READ_EXCLUSIONS: readonly Permission[] = [
+  'request.sensitive.read',
+  'crm.customer.sensitive.read',
+  'crm.customer.financial.read',
+];
+
+/**
+ * สิทธิ์ของ `admin` — ทุกสิทธิ์ตั้งค่า บวกทุกสิทธิ์อ่านของคน.
+ *
+ * คำนวณจาก catalog แทนที่จะพิมพ์เป็นรายการ เพราะรายการเดิมตกหล่น
+ * `admin.integration.manage` เงียบ ๆ ตั้งแต่ 14 ก.ย. 2569 และจะตกหล่นซ้ำทุกครั้งที่
+ * เพิ่มหน้า admin ใหม่ — หน้าที่ผู้ดูแลระบบมองไม่เห็นคือหน้าที่ไม่มีใครดูแล.
+ *
+ * `permissionType` กัน `integration.*` ออก: นั่นคือสิทธิ์ของบัญชีบริการ (AUTH-06)
+ * ไม่ใช่ของคน. `approval.decide` ไม่เข้าเงื่อนไขอยู่แล้วเพราะไม่ใช่สิทธิ์อ่าน ซึ่งตรงกับ
+ * §5.2 ที่ว่าผู้ดูแลระบบตั้งค่าได้แต่อนุมัติแทนใครไม่ได้.
+ */
+function adminPermissions(): Permission[] {
+  return ALL_PERMISSIONS.filter(
+    (code) =>
+      permissionType(code) === 'human' &&
+      !ADMIN_READ_EXCLUSIONS.includes(code) &&
+      (code.startsWith('admin.') ||
+        code.endsWith('.read') ||
+        code.endsWith('.read.all')),
+  );
+}
 
 /**
  * §5.2 seed roles and what each can do.
@@ -270,23 +257,7 @@ const SEED_ROLES: {
     code: 'admin',
     name: 'ผู้ดูแลระบบ',
     description: 'ทีมที่ดูแลการตั้งค่า — ไม่มีสิทธิ์อนุมัติแทนใคร',
-    permissions: [
-      'admin.role.manage',
-      'admin.org.manage',
-      'admin.request-type.manage',
-      'admin.approval-matrix.manage',
-      'admin.sla.manage',
-      'admin.bi.manage',
-      'admin.identity.manage',
-      'admin.crm.manage',
-      'audit.read',
-      'user.read',
-      'notification.read',
-      'request.read',
-      'request.read.all',
-      'crm.customer.read',
-      'crm.customer.read.all',
-    ],
+    permissions: adminPermissions(),
   },
   {
     code: 'auditor',
@@ -309,14 +280,12 @@ const SEED_ROLES: {
 ];
 
 async function seedPermissions() {
-  const rows = Object.entries(PERMISSIONS).flatMap(([module, codes]) =>
-    codes.map((code) => ({
-      code,
-      module,
-      // AUTH-06 — scope ของบัญชีบริการ ไม่ใช่สิทธิ์ที่คนถือทำงานประจำวัน
-      type: module === 'integration' ? 'service' : 'human',
-    })),
-  );
+  const rows = ALL_PERMISSIONS.map((code) => ({
+    code,
+    module: permissionModule(code),
+    // AUTH-06 — scope ของบัญชีบริการ ไม่ใช่สิทธิ์ที่คนถือทำงานประจำวัน
+    type: permissionType(code),
+  }));
 
   await prisma.permission.createMany({ data: rows, skipDuplicates: true });
   console.log(`  permissions: ${rows.length}`);

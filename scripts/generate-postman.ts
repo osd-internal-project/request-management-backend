@@ -160,13 +160,21 @@ function buildModule(doc: Document, module: string): Built {
     const tail = path.replace(new RegExp(`^/api/v\\d+/${module}/?`), '');
     const folder = tail.split('/')[0] || module;
 
+    /*
+      The URL keeps the module segment; only the version prefix is dropped.
+      `{{base_url}}` is the external service root plus `/api/v1`, shared by all
+      three collections — a URL built from `tail` alone resolved to
+      `/api/v1/customers`, which is not a route on any service.
+    */
+    const urlTail = path.replace(/^\/api\/v\d+\//, '');
+
     for (const method of METHODS) {
       const operation = item[method];
       if (!operation) continue;
       count += 1;
 
       const parameters = operation.parameters ?? [];
-      const segments = tail.split('/').filter(Boolean);
+      const segments = urlTail.split('/').filter(Boolean);
 
       /*
         Path parameters become collection variables named for their folder:
