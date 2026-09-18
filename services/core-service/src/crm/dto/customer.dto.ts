@@ -564,6 +564,73 @@ export class UpdateCrmConfigDto {
   @Max(365)
   quotation_validity_days?: number;
 
+  /** CD-65: ดีลเปิดที่ไม่มีกิจกรรมเสร็จนานเกินกี่วันจึงแจ้งหัวหน้า. 0 = ปิดการแจ้ง. */
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(365)
+  stale_opportunity_days?: number;
+
+  // --- หัวกระดาษเอกสารขาย (ใบเสนอราคา PDF) — "" = ล้างค่า -----------------
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  letterhead_name_th?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  letterhead_name_en?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  letterhead_tax_id?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  letterhead_branch?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  letterhead_address?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  letterhead_phone?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  letterhead_email?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  letterhead_website?: string;
+
+  /**
+   * โลโก้เป็น data URL — png / jpeg / webp เท่านั้น (ไม่รับ svg: เป็นเอกสาร
+   * ที่มีสคริปต์ได้). "" = ลบโลโก้. ~375KB หลัง base64.
+   */
+  @IsOptional()
+  @IsString()
+  @MaxLength(500_000)
+  @Matches(/^(data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+)?$/, {
+    message: 'โลโก้ต้องเป็นไฟล์ png, jpeg หรือ webp',
+  })
+  letterhead_logo?: string;
+
+  /** เงื่อนไขมาตรฐานท้ายใบเสนอราคา. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  quotation_terms?: string;
+
   @IsOptional()
   @IsNumber()
   @Min(0)

@@ -89,6 +89,13 @@ export default () => ({
     retryIntervalMs: Number(process.env.WORKFLOW_RETRY_INTERVAL_MS ?? 300000),
   },
 
+  /** CD-65 — รอบตรวจโอกาสการขายที่เงียบเกินเกณฑ์ (ms); 0 = ปิด (tests). */
+  crm: {
+    staleSweepIntervalMs: Number(
+      process.env.CRM_STALE_SWEEP_INTERVAL_MS ?? 3600000,
+    ),
+  },
+
   /** CM-05/D-35 — the PDPA integration layer; mock until the central
    * service (DPO-owned) exists. */
   pdpa: {

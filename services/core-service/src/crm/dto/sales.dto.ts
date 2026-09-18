@@ -541,6 +541,14 @@ export class ListOpportunitiesQueryDto extends PageQueryDto {
   @IsOptional()
   @IsIn(['mine', 'all'])
   view?: 'mine' | 'all';
+
+  /**
+   * CD-65 — `overdue` = มีนัดติดตามที่เลยกำหนดแล้ว, `stale` = ถูกแจ้งว่าเงียบ
+   * เกินเกณฑ์และยังไม่มีกิจกรรมใหม่.
+   */
+  @IsOptional()
+  @IsIn(['overdue', 'stale'])
+  follow_up?: 'overdue' | 'stale';
 }
 
 // --- ใบสั่งขาย (Sale Order, CD-77 โครงระยะ 1) ---------------------------------

@@ -86,9 +86,13 @@ export class NotificationsService {
 
   // --- reads --------------------------------------------------------------
 
-  async list(actor: Principal, query: PageQueryDto) {
+  async list(actor: Principal, query: PageQueryDto & { unread?: 'true' }) {
     const { skip, take } = toSkipTake(query);
-    const where = { userId: actor.userId, companyId: actor.activeCompanyId };
+    const where = {
+      userId: actor.userId,
+      companyId: actor.activeCompanyId,
+      ...(query.unread === 'true' ? { readAt: null } : {}),
+    };
 
     const [rows, total] = await Promise.all([
       this.prisma.notification.findMany({
@@ -101,6 +105,18 @@ export class NotificationsService {
     ]);
 
     return paginated(rows, query, total);
+  }
+
+  /** ที่ยังไม่อ่านในบริษัทที่เปิดอยู่ — ตัวเลขบนกระดิ่ง. */
+  async unreadCount(actor: Principal): Promise<{ count: number }> {
+    const count = await this.prisma.notification.count({
+      where: {
+        userId: actor.userId,
+        companyId: actor.activeCompanyId,
+        readAt: null,
+      },
+    });
+    return { count };
   }
 
   /** Scoped to the owner, so one person cannot mark another's as read. */
@@ -145,6 +161,28 @@ export class NotificationsService {
       body: `คำขอ ${requestNo ?? requestId} เกินกำหนดเวลาที่ตั้งไว้แล้ว`,
       resourceType: 'request',
       resourceId: requestId,
+    });
+  }
+
+  /**
+   * CD-65 — an open opportunity has had no completed activity for `days`
+   * days. Worded as a fact for the same reason as `slaBreached`: the owner and
+   * their head get the same message.
+   */
+  async opportunityStale(
+    userId: string,
+    companyId: string,
+    opportunity: { id: string; opportunityCode: string; title: string },
+    days: number,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'crm.opportunity.stale',
+      title: 'โอกาสการขายไม่มีความเคลื่อนไหว',
+      body: `${opportunity.opportunityCode} ${opportunity.title} ไม่มีกิจกรรมมาแล้วเกิน ${days} วัน`,
+      resourceType: 'opportunity',
+      resourceId: opportunity.id,
     });
   }
 
