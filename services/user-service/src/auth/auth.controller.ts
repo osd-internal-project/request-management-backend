@@ -186,6 +186,13 @@ export class AuthController {
       dto.company_id,
     );
 
+    // จำไว้ให้ login ครั้งถัดไปเข้าบริษัทนี้ — cookie ฝั่ง frontend ถูกลบตอน logout
+    // จึงจำข้ามรอบ login ไม่ได้ด้วยตัวเอง
+    await this.principals.rememberActiveCompany(
+      principal.userId,
+      dto.company_id,
+    );
+
     await this.audit.record({
       eventType: AuditEvent.COMPANY_SWITCHED,
       companyId: dto.company_id,

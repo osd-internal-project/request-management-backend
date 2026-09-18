@@ -3,6 +3,7 @@
   "paths": {
     "/api/v1/crm/customers": {
       "get": {
+        "description": "status: draft · active · suspended · inactive",
         "operationId": "ExternalCustomersController_list",
         "parameters": [
           {
@@ -67,11 +68,13 @@
             "bearer": []
           }
         ],
+        "summary": "ค้นทะเบียนลูกค้า",
         "tags": [
           "crm"
         ]
       },
       "post": {
+        "description": "ตรวจเลขผู้เสียภาษีและกันซ้ำ — ข้ามการกันซ้ำต้องส่ง confirm_duplicate พร้อม override_reason และมีสิทธิ์ crm.customer.dedup.override. เลขภาษีเดียวกันคนละสาขาถูกผูกเป็นสาขาให้เอง",
         "operationId": "ExternalCustomersController_create",
         "parameters": [
           {
@@ -113,6 +116,7 @@
             "bearer": []
           }
         ],
+        "summary": "สร้างทะเบียนลูกค้า",
         "tags": [
           "crm"
         ]
@@ -151,6 +155,7 @@
             "bearer": []
           }
         ],
+        "summary": "มิติและค่าการแบ่งกลุ่มที่ยังใช้งาน",
         "tags": [
           "crm"
         ]
@@ -189,6 +194,7 @@
             "bearer": []
           }
         ],
+        "summary": "สินค้าที่บังคับทำ KYC",
         "tags": [
           "crm"
         ]
@@ -196,6 +202,7 @@
     },
     "/api/v1/crm/customers/check-duplicate": {
       "post": {
+        "description": "ใช้เกณฑ์ความคล้ายของชื่อจากค่าตั้งของบริษัท (CM-03)",
         "operationId": "ExternalCustomersController_checkDuplicate",
         "parameters": [
           {
@@ -237,6 +244,7 @@
             "bearer": []
           }
         ],
+        "summary": "ตรวจลูกค้าซ้ำก่อนบันทึก",
         "tags": [
           "crm"
         ]
@@ -244,6 +252,7 @@
     },
     "/api/v1/crm/customers/import": {
       "post": {
+        "description": "งานของผู้ดูแล — dry_run ตอบรายงานรายบรรทัดโดยไม่เขียน",
         "operationId": "ExternalCustomersController_import",
         "parameters": [
           {
@@ -285,6 +294,7 @@
             "bearer": []
           }
         ],
+        "summary": "นำเข้าลูกค้าเดิมจาก Excel",
         "tags": [
           "crm"
         ]
@@ -292,6 +302,7 @@
     },
     "/api/v1/crm/customers/{id}": {
       "get": {
+        "description": "เลขผู้เสียภาษีถูกปกปิดถ้าไม่มีสิทธิ์อ่านข้อมูลอ่อนไหว (CM-08)",
         "operationId": "ExternalCustomersController_findOne",
         "parameters": [
           {
@@ -331,11 +342,13 @@
             "bearer": []
           }
         ],
+        "summary": "รายละเอียดลูกค้า",
         "tags": [
           "crm"
         ]
       },
       "patch": {
+        "description": "ทุกฟิลด์ที่เปลี่ยนถูกบันทึกลงประวัติใน transaction เดียวกัน",
         "operationId": "ExternalCustomersController_update",
         "parameters": [
           {
@@ -385,6 +398,7 @@
             "bearer": []
           }
         ],
+        "summary": "แก้ข้อมูลลูกค้า",
         "tags": [
           "crm"
         ]
@@ -392,6 +406,7 @@
     },
     "/api/v1/crm/customers/{id}/contacts/consents": {
       "get": {
+        "description": "อ่านสดจากระบบ PDPA กลาง ไม่ได้เก็บซ้ำไว้ที่นี่",
         "operationId": "ExternalCustomersController_contactConsents",
         "parameters": [
           {
@@ -431,6 +446,7 @@
             "bearer": []
           }
         ],
+        "summary": "สถานะความยินยอมของผู้ติดต่อ",
         "tags": [
           "crm"
         ]
@@ -477,6 +493,7 @@
             "bearer": []
           }
         ],
+        "summary": "ตัวเลขสรุปหน้าลูกค้า 360°",
         "tags": [
           "crm"
         ]
@@ -484,6 +501,7 @@
     },
     "/api/v1/crm/customers/{id}/activate": {
       "post": {
+        "description": "มาจาก draft · suspended · inactive ได้ — ผิดทางได้ CRM_CUSTOMER_STATE_INVALID",
         "operationId": "ExternalCustomersController_activate",
         "parameters": [
           {
@@ -523,6 +541,7 @@
             "bearer": []
           }
         ],
+        "summary": "เปิดใช้งานลูกค้า",
         "tags": [
           "crm"
         ]
@@ -530,6 +549,7 @@
     },
     "/api/v1/crm/customers/{id}/suspend": {
       "post": {
+        "description": "ทำได้จาก active เท่านั้น",
         "operationId": "ExternalCustomersController_suspend",
         "parameters": [
           {
@@ -579,6 +599,7 @@
             "bearer": []
           }
         ],
+        "summary": "ระงับลูกค้าพร้อมเหตุผล",
         "tags": [
           "crm"
         ]
@@ -586,6 +607,7 @@
     },
     "/api/v1/crm/customers/{id}/deactivate": {
       "post": {
+        "description": "ปิดแล้วกลับไป draft ไม่ได้ กลับได้แค่ active",
         "operationId": "ExternalCustomersController_deactivate",
         "parameters": [
           {
@@ -635,6 +657,7 @@
             "bearer": []
           }
         ],
+        "summary": "ปิดใช้งานลูกค้าพร้อมเหตุผล",
         "tags": [
           "crm"
         ]
@@ -691,6 +714,7 @@
             "bearer": []
           }
         ],
+        "summary": "เพิ่มที่อยู่หรือไซต์งาน",
         "tags": [
           "crm"
         ]
@@ -755,11 +779,13 @@
             "bearer": []
           }
         ],
+        "summary": "แก้ที่อยู่หรือไซต์งาน",
         "tags": [
           "crm"
         ]
       },
       "delete": {
+        "description": "ลบแบบซ่อน — แถวยังอ้างอิงได้จากเอกสารที่ออกไปแล้ว",
         "operationId": "ExternalCustomersController_removeLocation",
         "parameters": [
           {
@@ -807,6 +833,7 @@
             "bearer": []
           }
         ],
+        "summary": "ลบที่อยู่ออกจากทะเบียน",
         "tags": [
           "crm"
         ]
@@ -814,6 +841,7 @@
     },
     "/api/v1/crm/customers/{id}/contacts": {
       "post": {
+        "description": "role: decision_maker · user · procurement · finance · other",
         "operationId": "ExternalCustomersController_addContact",
         "parameters": [
           {
@@ -863,6 +891,7 @@
             "bearer": []
           }
         ],
+        "summary": "เพิ่มผู้ติดต่อ",
         "tags": [
           "crm"
         ]
@@ -927,11 +956,13 @@
             "bearer": []
           }
         ],
+        "summary": "แก้ผู้ติดต่อ",
         "tags": [
           "crm"
         ]
       },
       "delete": {
+        "description": "ลบแบบซ่อน เช่นเดียวกับที่อยู่",
         "operationId": "ExternalCustomersController_removeContact",
         "parameters": [
           {
@@ -979,6 +1010,7 @@
             "bearer": []
           }
         ],
+        "summary": "ลบผู้ติดต่อ",
         "tags": [
           "crm"
         ]
@@ -986,6 +1018,7 @@
     },
     "/api/v1/crm/customers/{id}/segments": {
       "put": {
+        "description": "แทนที่ทั้งชุด ไม่ใช่เพิ่มทีละค่า",
         "operationId": "ExternalCustomersController_setSegments",
         "parameters": [
           {
@@ -1035,6 +1068,7 @@
             "bearer": []
           }
         ],
+        "summary": "ตั้งกลุ่มของลูกค้าทั้งชุด",
         "tags": [
           "crm"
         ]
@@ -1042,6 +1076,7 @@
     },
     "/api/v1/crm/customers/{id}/history": {
       "get": {
+        "description": "ใคร เมื่อไร ค่าก่อนและหลัง",
         "operationId": "ExternalCustomersController_history",
         "parameters": [
           {
@@ -1081,6 +1116,7 @@
             "bearer": []
           }
         ],
+        "summary": "ประวัติการแก้ไขรายฟิลด์",
         "tags": [
           "crm"
         ]
@@ -1088,6 +1124,7 @@
     },
     "/api/v1/crm/customers/{id}/timeline": {
       "get": {
+        "description": "เขียนเพิ่มอย่างเดียว ไม่มีทางแก้หรือลบ",
         "operationId": "ExternalCustomersController_timeline",
         "parameters": [
           {
@@ -1127,6 +1164,7 @@
             "bearer": []
           }
         ],
+        "summary": "ไทม์ไลน์เหตุการณ์ของลูกค้า",
         "tags": [
           "crm"
         ]
@@ -1134,6 +1172,7 @@
     },
     "/api/v1/crm/customers/{id}/external-codes": {
       "get": {
+        "description": "Odoo และระบบสายบัญชี — งานของผู้ดูแล",
         "operationId": "ExternalCustomersController_externalCodes",
         "parameters": [
           {
@@ -1173,11 +1212,13 @@
             "bearer": []
           }
         ],
+        "summary": "รหัสลูกค้าในระบบภายนอก",
         "tags": [
           "crm"
         ]
       },
       "put": {
+        "description": "หนึ่งรหัสต่อหนึ่งระบบต่อหนึ่งลูกค้า",
         "operationId": "ExternalCustomersController_upsertExternalCode",
         "parameters": [
           {
@@ -1227,6 +1268,7 @@
             "bearer": []
           }
         ],
+        "summary": "ตั้งหรือแก้รหัสในระบบภายนอก",
         "tags": [
           "crm"
         ]
@@ -1986,6 +2028,7 @@
     },
     "/api/v1/crm/leads/statuses": {
       "get": {
+        "description": "ส่งทั้งชุดรวมที่ปิดใช้งาน เพราะ Lead ที่ค้างบนขั้นที่เพิ่งปิดยังต้องมีชื่อและสีให้แสดง — หน้าจอเป็นคนกรอง active เอง. โค้ดตั้งได้ต่อบริษัท ไม่ใช่ enum",
         "operationId": "ExternalLeadsController_listStatuses",
         "parameters": [
           {
@@ -2017,6 +2060,7 @@
             "bearer": []
           }
         ],
+        "summary": "ขั้นของ Lead ทั้งชุด",
         "tags": [
           "crm"
         ]
@@ -2024,6 +2068,7 @@
     },
     "/api/v1/crm/leads": {
       "get": {
+        "description": "view=mine|all|unassigned — unassigned คือกองกลางที่ยังไม่มีเจ้าของ",
         "operationId": "ExternalLeadsController_list",
         "parameters": [
           {
@@ -2088,6 +2133,7 @@
             "bearer": []
           }
         ],
+        "summary": "ค้นรายชื่อ Lead",
         "tags": [
           "crm"
         ]
@@ -2151,6 +2197,7 @@
     },
     "/api/v1/crm/leads/import": {
       "post": {
+        "description": "mode=dry_run ตอบรายงานเต็มโดยไม่เขียนอะไรลงฐานข้อมูล",
         "operationId": "ExternalLeadsController_import",
         "parameters": [
           {
@@ -2192,6 +2239,7 @@
             "bearer": []
           }
         ],
+        "summary": "นำเข้า Lead จาก Excel",
         "tags": [
           "crm"
         ]
@@ -2199,6 +2247,7 @@
     },
     "/api/v1/crm/leads/{id}": {
       "get": {
+        "description": "นอกขอบเขตที่มองเห็นตอบ 404 ไม่ใช่ 403 (SCOPE-03)",
         "operationId": "ExternalLeadsController_findOne",
         "parameters": [
           {
@@ -2238,11 +2287,13 @@
             "bearer": []
           }
         ],
+        "summary": "รายละเอียด Lead พร้อมกิจกรรม",
         "tags": [
           "crm"
         ]
       },
       "patch": {
+        "description": "Lead ที่ปิดแล้ว (kind won/lost) แก้ไม่ได้",
         "operationId": "ExternalLeadsController_update",
         "parameters": [
           {
@@ -2292,6 +2343,7 @@
             "bearer": []
           }
         ],
+        "summary": "แก้ข้อมูล Lead",
         "tags": [
           "crm"
         ]
@@ -2299,6 +2351,7 @@
     },
     "/api/v1/crm/leads/{id}/owner": {
       "patch": {
+        "description": "owner_user_id ว่าง = รับเอง. ใบที่มีเจ้าของแล้วต้องระบุปลายทางว่าโอนให้ใคร",
         "operationId": "ExternalLeadsController_assign",
         "parameters": [
           {
@@ -2348,6 +2401,7 @@
             "bearer": []
           }
         ],
+        "summary": "รับ Lead หรือแจกให้คนอื่น",
         "tags": [
           "crm"
         ]
@@ -2355,6 +2409,7 @@
     },
     "/api/v1/crm/leads/{id}/status": {
       "patch": {
+        "description": "ปลายทางต้องเป็น kind open เท่านั้น — ขั้นที่เป็น won/lost ถูกปฏิเสธด้วย 409 ให้ใช้ convert หรือ disqualify แทน",
         "operationId": "ExternalLeadsController_setStatus",
         "parameters": [
           {
@@ -2404,6 +2459,7 @@
             "bearer": []
           }
         ],
+        "summary": "เลื่อนขั้น Lead ในไปป์ไลน์",
         "tags": [
           "crm"
         ]
@@ -2411,6 +2467,7 @@
     },
     "/api/v1/crm/leads/{id}/activities": {
       "post": {
+        "description": "type: call · email · meeting · task · note",
         "operationId": "ExternalLeadsController_addActivity",
         "parameters": [
           {
@@ -2460,6 +2517,7 @@
             "bearer": []
           }
         ],
+        "summary": "ลงกิจกรรมของ Lead",
         "tags": [
           "crm"
         ]
@@ -2524,6 +2582,7 @@
             "bearer": []
           }
         ],
+        "summary": "แก้กิจกรรม หรือติ๊กเสร็จ",
         "tags": [
           "crm"
         ]
@@ -2531,6 +2590,7 @@
     },
     "/api/v1/crm/leads/{id}/disqualify": {
       "post": {
+        "description": "ปิดด้วยสถานะ kind lost — ไม่มี DELETE ในโมดูลนี้",
         "operationId": "ExternalLeadsController_disqualify",
         "parameters": [
           {
@@ -2580,6 +2640,7 @@
             "bearer": []
           }
         ],
+        "summary": "คัด Lead ออกพร้อมเหตุผล",
         "tags": [
           "crm"
         ]
@@ -2587,6 +2648,7 @@
     },
     "/api/v1/crm/leads/{id}/convert": {
       "post": {
+        "description": "ปิด Lead ด้วยสถานะ kind won แล้วคืน **โอกาสการขาย** — ยังไม่สร้างทะเบียนลูกค้า ทะเบียนเกิดตอนเปิดใบสั่งขาย. ไม่ส่ง customer_id ก็ได้ ข้อมูลจาก Lead จะไปอยู่เป็น prospect บนโอกาสการขาย",
         "operationId": "ExternalLeadsController_convert",
         "parameters": [
           {
@@ -2636,6 +2698,7 @@
             "bearer": []
           }
         ],
+        "summary": "แปลง Lead เป็นโอกาสการขาย",
         "tags": [
           "crm"
         ]
@@ -2643,6 +2706,7 @@
     },
     "/api/v1/crm/opportunities": {
       "get": {
+        "description": "stage: qualifying · proposing · negotiating · won · lost",
         "operationId": "ExternalOpportunitiesController_list",
         "parameters": [
           {
@@ -2707,11 +2771,13 @@
             "bearer": []
           }
         ],
+        "summary": "ค้นโอกาสการขาย",
         "tags": [
           "crm"
         ]
       },
       "post": {
+        "description": "ส่ง customer_id หรือ prospect_name อย่างใดอย่างหนึ่ง — ฐานข้อมูลบังคับไว้",
         "operationId": "ExternalOpportunitiesController_create",
         "parameters": [
           {
@@ -2753,6 +2819,7 @@
             "bearer": []
           }
         ],
+        "summary": "สร้างโอกาสการขาย",
         "tags": [
           "crm"
         ]
@@ -2760,6 +2827,7 @@
     },
     "/api/v1/crm/opportunities/lost-reasons": {
       "get": {
+        "description": "ใช้เป็นค่าของ reason_code ตอนปิดแพ้",
         "operationId": "ExternalOpportunitiesController_lostReasons",
         "parameters": [
           {
@@ -2791,6 +2859,7 @@
             "bearer": []
           }
         ],
+        "summary": "เหตุผลปิดแพ้ที่เลือกได้",
         "tags": [
           "crm"
         ]
@@ -2837,11 +2906,13 @@
             "bearer": []
           }
         ],
+        "summary": "รายละเอียดโอกาสการขาย",
         "tags": [
           "crm"
         ]
       },
       "patch": {
+        "description": "stage ที่ส่งได้มีแค่ขั้นที่ยังเปิด — ปิดชนะเกิดจากการเปิดใบสั่งขาย ปิดแพ้ใช้ /lose",
         "operationId": "ExternalOpportunitiesController_update",
         "parameters": [
           {
@@ -2891,6 +2962,7 @@
             "bearer": []
           }
         ],
+        "summary": "แก้โอกาสการขาย",
         "tags": [
           "crm"
         ]
@@ -2898,6 +2970,7 @@
     },
     "/api/v1/crm/opportunities/{id}/sale-orders": {
       "post": {
+        "description": "จุดเดียวที่ทะเบียนลูกค้าเกิด. ลำดับการหาลูกค้า: รายที่โอกาสผูกอยู่ → customer_id ที่ส่งมา → รายเดิมที่เลขภาษี+รหัสสาขาตรง → สร้างใหม่จาก prospect. ต้องมีใบเสนอราคาสถานะ accepted และคำตอบมี customerCreated บอกว่าสร้างใหม่หรือไม่",
         "operationId": "ExternalOpportunitiesController_openSaleOrder",
         "parameters": [
           {
@@ -2947,6 +3020,7 @@
             "bearer": []
           }
         ],
+        "summary": "เปิดใบสั่งขาย = ปิดชนะ + สร้างทะเบียนลูกค้า",
         "tags": [
           "crm"
         ]
@@ -2954,6 +3028,7 @@
     },
     "/api/v1/crm/opportunities/{id}/quotations": {
       "post": {
+        "description": "สร้างได้จากที่นี่ที่เดียว — ไม่มี POST /quotations",
         "operationId": "ExternalOpportunitiesController_createQuotation",
         "parameters": [
           {
@@ -3003,6 +3078,7 @@
             "bearer": []
           }
         ],
+        "summary": "ร่างใบเสนอราคา v1",
         "tags": [
           "crm"
         ]
@@ -3010,6 +3086,7 @@
     },
     "/api/v1/crm/opportunities/{id}/lose": {
       "post": {
+        "description": "reason_code ต้องมีอยู่จริงและยัง active. ปิดแล้วเปิดใหม่ไม่ได้",
         "operationId": "ExternalOpportunitiesController_lose",
         "parameters": [
           {
@@ -3059,6 +3136,7 @@
             "bearer": []
           }
         ],
+        "summary": "ปิดแพ้พร้อมเหตุผลมาตรฐาน",
         "tags": [
           "crm"
         ]
@@ -3066,6 +3144,7 @@
     },
     "/api/v1/crm/sale-orders": {
       "get": {
+        "description": "status: open · cancelled",
         "operationId": "ExternalSaleOrdersController_list",
         "parameters": [
           {
@@ -3130,6 +3209,7 @@
             "bearer": []
           }
         ],
+        "summary": "ค้นใบสั่งขาย",
         "tags": [
           "crm"
         ]
@@ -3176,6 +3256,7 @@
             "bearer": []
           }
         ],
+        "summary": "รายละเอียดใบสั่งขาย",
         "tags": [
           "crm"
         ]
@@ -3183,6 +3264,7 @@
     },
     "/api/v1/crm/sale-orders/{id}/cancel": {
       "post": {
+        "description": "ไม่มี DELETE และการยกเลิกไม่ย้อนโอกาสการขายกลับจาก won",
         "operationId": "ExternalSaleOrdersController_cancel",
         "parameters": [
           {
@@ -3232,6 +3314,7 @@
             "bearer": []
           }
         ],
+        "summary": "ยกเลิกใบสั่งขายพร้อมเหตุผล",
         "tags": [
           "crm"
         ]
@@ -3239,6 +3322,7 @@
     },
     "/api/v1/crm/quotations": {
       "get": {
+        "description": "current=true คัดเฉพาะเวอร์ชันล่าสุดของแต่ละเลขที่",
         "operationId": "ExternalQuotationsController_list",
         "parameters": [
           {
@@ -3303,6 +3387,7 @@
             "bearer": []
           }
         ],
+        "summary": "ค้นใบเสนอราคา",
         "tags": [
           "crm"
         ]
@@ -3310,6 +3395,7 @@
     },
     "/api/v1/crm/quotations/{id}": {
       "get": {
+        "description": "ต้นทุนและ margin ถูกปกปิดถ้าไม่มีสิทธิ์อ่านข้อมูลอ่อนไหว",
         "operationId": "ExternalQuotationsController_findOne",
         "parameters": [
           {
@@ -3349,11 +3435,13 @@
             "bearer": []
           }
         ],
+        "summary": "รายละเอียดใบเสนอราคา",
         "tags": [
           "crm"
         ]
       },
       "patch": {
+        "description": "แก้ได้เฉพาะสถานะ draft — ใบที่ยื่นหรือส่งแล้วต้องใช้ /revise",
         "operationId": "ExternalQuotationsController_update",
         "parameters": [
           {
@@ -3403,6 +3491,7 @@
             "bearer": []
           }
         ],
+        "summary": "แก้ใบเสนอราคา",
         "tags": [
           "crm"
         ]
@@ -3410,6 +3499,7 @@
     },
     "/api/v1/crm/quotations/{id}/submit": {
       "post": {
+        "description": "margin ถึงเกณฑ์ → approved ทันที. ต่ำกว่าเกณฑ์ → ต้องมี reason และระบบเปิดคำขอส่วนลด (ค่าตั้งต้น DSC) แล้วใบค้างที่ pending_approval. ถ้าประเภทคำขอนั้นปิดอยู่ ได้ CRM_QUOTATION_APPROVAL_UNAVAILABLE และใบคงอยู่ที่ draft",
         "operationId": "ExternalQuotationsController_submit",
         "parameters": [
           {
@@ -3459,6 +3549,7 @@
             "bearer": []
           }
         ],
+        "summary": "ยื่นใบเสนอราคาเข้าตรวจ margin",
         "tags": [
           "crm"
         ]
@@ -3466,6 +3557,7 @@
     },
     "/api/v1/crm/quotations/{id}/send": {
       "post": {
+        "description": "approved → sent",
         "operationId": "ExternalQuotationsController_send",
         "parameters": [
           {
@@ -3505,6 +3597,7 @@
             "bearer": []
           }
         ],
+        "summary": "ส่งใบเสนอราคาให้ลูกค้า",
         "tags": [
           "crm"
         ]
@@ -3512,6 +3605,7 @@
     },
     "/api/v1/crm/quotations/{id}/accept": {
       "post": {
+        "description": "sent → accepted — สถานะที่ใช้เปิดใบสั่งขายได้",
         "operationId": "ExternalQuotationsController_accept",
         "parameters": [
           {
@@ -3561,6 +3655,7 @@
             "bearer": []
           }
         ],
+        "summary": "บันทึกว่าลูกค้าตอบรับ",
         "tags": [
           "crm"
         ]
@@ -3568,6 +3663,7 @@
     },
     "/api/v1/crm/quotations/{id}/decline": {
       "post": {
+        "description": "sent → declined พร้อมเหตุผล",
         "operationId": "ExternalQuotationsController_decline",
         "parameters": [
           {
@@ -3617,6 +3713,7 @@
             "bearer": []
           }
         ],
+        "summary": "บันทึกว่าลูกค้าปฏิเสธ",
         "tags": [
           "crm"
         ]
@@ -3624,6 +3721,7 @@
     },
     "/api/v1/crm/quotations/{id}/revise": {
       "post": {
+        "description": "ใบเดิมเป็น superseded และได้ร่าง v(n+1). ทำได้จาก pending_approval · approved · sent · declined",
         "operationId": "ExternalQuotationsController_revise",
         "parameters": [
           {
@@ -3663,6 +3761,7 @@
             "bearer": []
           }
         ],
+        "summary": "ออกใบเสนอราคาเวอร์ชันใหม่",
         "tags": [
           "crm"
         ]
@@ -3670,6 +3769,7 @@
     },
     "/api/v1/crm/quotations/{id}/cancel": {
       "post": {
+        "description": "ทำได้จาก draft · pending_approval · approved · sent — ไม่มี DELETE",
         "operationId": "ExternalQuotationsController_cancel",
         "parameters": [
           {
@@ -3719,6 +3819,7 @@
             "bearer": []
           }
         ],
+        "summary": "ยกเลิกใบเสนอราคาพร้อมเหตุผล",
         "tags": [
           "crm"
         ]

@@ -1372,6 +1372,7 @@
     },
     "/api/v1/customers": {
       "get": {
+        "description": "status: draft · active · suspended · inactive",
         "operationId": "CustomersController_list",
         "parameters": [
           {
@@ -1427,11 +1428,13 @@
             "bearer": []
           }
         ],
+        "summary": "ค้นทะเบียนลูกค้า",
         "tags": [
           "customers"
         ]
       },
       "post": {
+        "description": "ตรวจเลขผู้เสียภาษีและกันซ้ำ — ข้ามการกันซ้ำต้องส่ง confirm_duplicate พร้อม override_reason และมีสิทธิ์ crm.customer.dedup.override. เลขภาษีเดียวกันคนละสาขาถูกผูกเป็นสาขาให้เอง",
         "operationId": "CustomersController_create",
         "parameters": [
           {
@@ -1464,6 +1467,7 @@
             "bearer": []
           }
         ],
+        "summary": "สร้างทะเบียนลูกค้า",
         "tags": [
           "customers"
         ]
@@ -1493,6 +1497,7 @@
             "bearer": []
           }
         ],
+        "summary": "มิติและค่าการแบ่งกลุ่มที่ยังใช้งาน",
         "tags": [
           "customers"
         ]
@@ -1522,6 +1527,7 @@
             "bearer": []
           }
         ],
+        "summary": "สินค้าที่บังคับทำ KYC",
         "tags": [
           "customers"
         ]
@@ -1529,6 +1535,7 @@
     },
     "/api/v1/customers/check-duplicate": {
       "post": {
+        "description": "ใช้เกณฑ์ความคล้ายของชื่อจากค่าตั้งของบริษัท (CM-03)",
         "operationId": "CustomersController_checkDuplicate",
         "parameters": [
           {
@@ -1561,6 +1568,7 @@
             "bearer": []
           }
         ],
+        "summary": "ตรวจลูกค้าซ้ำก่อนบันทึก",
         "tags": [
           "customers"
         ]
@@ -1568,6 +1576,7 @@
     },
     "/api/v1/customers/import": {
       "post": {
+        "description": "งานของผู้ดูแล — dry_run ตอบรายงานรายบรรทัดโดยไม่เขียน",
         "operationId": "CustomersController_import",
         "parameters": [
           {
@@ -1600,6 +1609,7 @@
             "bearer": []
           }
         ],
+        "summary": "นำเข้าลูกค้าเดิมจาก Excel",
         "tags": [
           "customers"
         ]
@@ -1607,6 +1617,7 @@
     },
     "/api/v1/customers/{id}": {
       "get": {
+        "description": "เลขผู้เสียภาษีถูกปกปิดถ้าไม่มีสิทธิ์อ่านข้อมูลอ่อนไหว (CM-08)",
         "operationId": "CustomersController_findOne",
         "parameters": [
           {
@@ -1637,11 +1648,13 @@
             "bearer": []
           }
         ],
+        "summary": "รายละเอียดลูกค้า",
         "tags": [
           "customers"
         ]
       },
       "patch": {
+        "description": "ทุกฟิลด์ที่เปลี่ยนถูกบันทึกลงประวัติใน transaction เดียวกัน",
         "operationId": "CustomersController_update",
         "parameters": [
           {
@@ -1682,6 +1695,7 @@
             "bearer": []
           }
         ],
+        "summary": "แก้ข้อมูลลูกค้า",
         "tags": [
           "customers"
         ]
@@ -1689,6 +1703,7 @@
     },
     "/api/v1/customers/{id}/contacts/consents": {
       "get": {
+        "description": "อ่านสดจากระบบ PDPA กลาง ไม่ได้เก็บซ้ำไว้ที่นี่",
         "operationId": "CustomersController_contactConsents",
         "parameters": [
           {
@@ -1719,6 +1734,7 @@
             "bearer": []
           }
         ],
+        "summary": "สถานะความยินยอมของผู้ติดต่อ",
         "tags": [
           "customers"
         ]
@@ -1756,6 +1772,7 @@
             "bearer": []
           }
         ],
+        "summary": "ตัวเลขสรุปหน้าลูกค้า 360°",
         "tags": [
           "customers"
         ]
@@ -1763,6 +1780,7 @@
     },
     "/api/v1/customers/{id}/activate": {
       "post": {
+        "description": "มาจาก draft · suspended · inactive ได้ — ผิดทางได้ CRM_CUSTOMER_STATE_INVALID",
         "operationId": "CustomersController_activate",
         "parameters": [
           {
@@ -1793,6 +1811,7 @@
             "bearer": []
           }
         ],
+        "summary": "เปิดใช้งานลูกค้า",
         "tags": [
           "customers"
         ]
@@ -1800,6 +1819,7 @@
     },
     "/api/v1/customers/{id}/suspend": {
       "post": {
+        "description": "ทำได้จาก active เท่านั้น",
         "operationId": "CustomersController_suspend",
         "parameters": [
           {
@@ -1840,6 +1860,7 @@
             "bearer": []
           }
         ],
+        "summary": "ระงับลูกค้าพร้อมเหตุผล",
         "tags": [
           "customers"
         ]
@@ -1847,6 +1868,7 @@
     },
     "/api/v1/customers/{id}/deactivate": {
       "post": {
+        "description": "ปิดแล้วกลับไป draft ไม่ได้ กลับได้แค่ active",
         "operationId": "CustomersController_deactivate",
         "parameters": [
           {
@@ -1887,6 +1909,7 @@
             "bearer": []
           }
         ],
+        "summary": "ปิดใช้งานลูกค้าพร้อมเหตุผล",
         "tags": [
           "customers"
         ]
@@ -1934,6 +1957,7 @@
             "bearer": []
           }
         ],
+        "summary": "เพิ่มที่อยู่หรือไซต์งาน",
         "tags": [
           "customers"
         ]
@@ -1989,11 +2013,13 @@
             "bearer": []
           }
         ],
+        "summary": "แก้ที่อยู่หรือไซต์งาน",
         "tags": [
           "customers"
         ]
       },
       "delete": {
+        "description": "ลบแบบซ่อน — แถวยังอ้างอิงได้จากเอกสารที่ออกไปแล้ว",
         "operationId": "CustomersController_removeLocation",
         "parameters": [
           {
@@ -2032,6 +2058,7 @@
             "bearer": []
           }
         ],
+        "summary": "ลบที่อยู่ออกจากทะเบียน",
         "tags": [
           "customers"
         ]
@@ -2039,6 +2066,7 @@
     },
     "/api/v1/customers/{id}/contacts": {
       "post": {
+        "description": "role: decision_maker · user · procurement · finance · other",
         "operationId": "CustomersController_addContact",
         "parameters": [
           {
@@ -2079,6 +2107,7 @@
             "bearer": []
           }
         ],
+        "summary": "เพิ่มผู้ติดต่อ",
         "tags": [
           "customers"
         ]
@@ -2134,11 +2163,13 @@
             "bearer": []
           }
         ],
+        "summary": "แก้ผู้ติดต่อ",
         "tags": [
           "customers"
         ]
       },
       "delete": {
+        "description": "ลบแบบซ่อน เช่นเดียวกับที่อยู่",
         "operationId": "CustomersController_removeContact",
         "parameters": [
           {
@@ -2177,6 +2208,7 @@
             "bearer": []
           }
         ],
+        "summary": "ลบผู้ติดต่อ",
         "tags": [
           "customers"
         ]
@@ -2184,6 +2216,7 @@
     },
     "/api/v1/customers/{id}/segments": {
       "put": {
+        "description": "แทนที่ทั้งชุด ไม่ใช่เพิ่มทีละค่า",
         "operationId": "CustomersController_setSegments",
         "parameters": [
           {
@@ -2224,6 +2257,7 @@
             "bearer": []
           }
         ],
+        "summary": "ตั้งกลุ่มของลูกค้าทั้งชุด",
         "tags": [
           "customers"
         ]
@@ -2231,6 +2265,7 @@
     },
     "/api/v1/customers/{id}/history": {
       "get": {
+        "description": "ใคร เมื่อไร ค่าก่อนและหลัง",
         "operationId": "CustomersController_history",
         "parameters": [
           {
@@ -2261,6 +2296,7 @@
             "bearer": []
           }
         ],
+        "summary": "ประวัติการแก้ไขรายฟิลด์",
         "tags": [
           "customers"
         ]
@@ -2268,6 +2304,7 @@
     },
     "/api/v1/customers/{id}/timeline": {
       "get": {
+        "description": "เขียนเพิ่มอย่างเดียว ไม่มีทางแก้หรือลบ",
         "operationId": "CustomersController_timeline",
         "parameters": [
           {
@@ -2298,6 +2335,7 @@
             "bearer": []
           }
         ],
+        "summary": "ไทม์ไลน์เหตุการณ์ของลูกค้า",
         "tags": [
           "customers"
         ]
@@ -2305,6 +2343,7 @@
     },
     "/api/v1/customers/{id}/external-codes": {
       "get": {
+        "description": "Odoo และระบบสายบัญชี — งานของผู้ดูแล",
         "operationId": "CustomersController_externalCodes",
         "parameters": [
           {
@@ -2335,11 +2374,13 @@
             "bearer": []
           }
         ],
+        "summary": "รหัสลูกค้าในระบบภายนอก",
         "tags": [
           "customers"
         ]
       },
       "put": {
+        "description": "หนึ่งรหัสต่อหนึ่งระบบต่อหนึ่งลูกค้า",
         "operationId": "CustomersController_upsertExternalCode",
         "parameters": [
           {
@@ -2380,6 +2421,7 @@
             "bearer": []
           }
         ],
+        "summary": "ตั้งหรือแก้รหัสในระบบภายนอก",
         "tags": [
           "customers"
         ]
@@ -2995,6 +3037,7 @@
     },
     "/api/v1/leads/statuses": {
       "get": {
+        "description": "ส่งทั้งชุดรวมที่ปิดใช้งาน เพราะ Lead ที่ค้างบนขั้นที่เพิ่งปิดยังต้องมีชื่อและสีให้แสดง — หน้าจอเป็นคนกรอง active เอง. โค้ดตั้งได้ต่อบริษัท ไม่ใช่ enum",
         "operationId": "LeadsController_listStatuses",
         "parameters": [
           {
@@ -3017,6 +3060,7 @@
             "bearer": []
           }
         ],
+        "summary": "ขั้นของ Lead ทั้งชุด",
         "tags": [
           "leads"
         ]
@@ -3024,6 +3068,7 @@
     },
     "/api/v1/leads": {
       "get": {
+        "description": "view=mine|all|unassigned — unassigned คือกองกลางที่ยังไม่มีเจ้าของ",
         "operationId": "LeadsController_list",
         "parameters": [
           {
@@ -3079,6 +3124,7 @@
             "bearer": []
           }
         ],
+        "summary": "ค้นรายชื่อ Lead",
         "tags": [
           "leads"
         ]
@@ -3116,6 +3162,7 @@
             "bearer": []
           }
         ],
+        "summary": "สร้าง Lead",
         "tags": [
           "leads"
         ]
@@ -3123,6 +3170,7 @@
     },
     "/api/v1/leads/import": {
       "post": {
+        "description": "mode=dry_run ตอบรายงานเต็มโดยไม่เขียนอะไรลงฐานข้อมูล",
         "operationId": "LeadsController_import",
         "parameters": [
           {
@@ -3155,6 +3203,7 @@
             "bearer": []
           }
         ],
+        "summary": "นำเข้า Lead จาก Excel",
         "tags": [
           "leads"
         ]
@@ -3162,6 +3211,7 @@
     },
     "/api/v1/leads/{id}": {
       "get": {
+        "description": "นอกขอบเขตที่มองเห็นตอบ 404 ไม่ใช่ 403 (SCOPE-03)",
         "operationId": "LeadsController_findOne",
         "parameters": [
           {
@@ -3192,11 +3242,13 @@
             "bearer": []
           }
         ],
+        "summary": "รายละเอียด Lead พร้อมกิจกรรม",
         "tags": [
           "leads"
         ]
       },
       "patch": {
+        "description": "Lead ที่ปิดแล้ว (kind won/lost) แก้ไม่ได้",
         "operationId": "LeadsController_update",
         "parameters": [
           {
@@ -3237,6 +3289,7 @@
             "bearer": []
           }
         ],
+        "summary": "แก้ข้อมูล Lead",
         "tags": [
           "leads"
         ]
@@ -3244,6 +3297,7 @@
     },
     "/api/v1/leads/{id}/owner": {
       "patch": {
+        "description": "owner_user_id ว่าง = รับเอง. ใบที่มีเจ้าของแล้วต้องระบุปลายทางว่าโอนให้ใคร",
         "operationId": "LeadsController_assign",
         "parameters": [
           {
@@ -3284,6 +3338,7 @@
             "bearer": []
           }
         ],
+        "summary": "รับ Lead หรือแจกให้คนอื่น",
         "tags": [
           "leads"
         ]
@@ -3291,6 +3346,7 @@
     },
     "/api/v1/leads/{id}/status": {
       "patch": {
+        "description": "ปลายทางต้องเป็น kind open เท่านั้น — ขั้นที่เป็น won/lost ถูกปฏิเสธด้วย 409 ให้ใช้ convert หรือ disqualify แทน",
         "operationId": "LeadsController_setStatus",
         "parameters": [
           {
@@ -3331,6 +3387,7 @@
             "bearer": []
           }
         ],
+        "summary": "เลื่อนขั้น Lead ในไปป์ไลน์",
         "tags": [
           "leads"
         ]
@@ -3338,6 +3395,7 @@
     },
     "/api/v1/leads/{id}/activities": {
       "post": {
+        "description": "type: call · email · meeting · task · note",
         "operationId": "LeadsController_addActivity",
         "parameters": [
           {
@@ -3378,6 +3436,7 @@
             "bearer": []
           }
         ],
+        "summary": "ลงกิจกรรมของ Lead",
         "tags": [
           "leads"
         ]
@@ -3433,6 +3492,7 @@
             "bearer": []
           }
         ],
+        "summary": "แก้กิจกรรม หรือติ๊กเสร็จ",
         "tags": [
           "leads"
         ]
@@ -3440,6 +3500,7 @@
     },
     "/api/v1/leads/{id}/disqualify": {
       "post": {
+        "description": "ปิดด้วยสถานะ kind lost — ไม่มี DELETE ในโมดูลนี้",
         "operationId": "LeadsController_disqualify",
         "parameters": [
           {
@@ -3480,6 +3541,7 @@
             "bearer": []
           }
         ],
+        "summary": "คัด Lead ออกพร้อมเหตุผล",
         "tags": [
           "leads"
         ]
@@ -3487,6 +3549,7 @@
     },
     "/api/v1/leads/{id}/convert": {
       "post": {
+        "description": "ปิด Lead ด้วยสถานะ kind won แล้วคืน **โอกาสการขาย** — ยังไม่สร้างทะเบียนลูกค้า ทะเบียนเกิดตอนเปิดใบสั่งขาย. ไม่ส่ง customer_id ก็ได้ ข้อมูลจาก Lead จะไปอยู่เป็น prospect บนโอกาสการขาย",
         "operationId": "LeadsController_convert",
         "parameters": [
           {
@@ -3527,6 +3590,7 @@
             "bearer": []
           }
         ],
+        "summary": "แปลง Lead เป็นโอกาสการขาย",
         "tags": [
           "leads"
         ]
@@ -3534,6 +3598,7 @@
     },
     "/api/v1/opportunities": {
       "get": {
+        "description": "stage: qualifying · proposing · negotiating · won · lost",
         "operationId": "OpportunitiesController_list",
         "parameters": [
           {
@@ -3589,11 +3654,13 @@
             "bearer": []
           }
         ],
+        "summary": "ค้นโอกาสการขาย",
         "tags": [
           "opportunities"
         ]
       },
       "post": {
+        "description": "ส่ง customer_id หรือ prospect_name อย่างใดอย่างหนึ่ง — ฐานข้อมูลบังคับไว้",
         "operationId": "OpportunitiesController_create",
         "parameters": [
           {
@@ -3626,6 +3693,7 @@
             "bearer": []
           }
         ],
+        "summary": "สร้างโอกาสการขาย",
         "tags": [
           "opportunities"
         ]
@@ -3633,6 +3701,7 @@
     },
     "/api/v1/opportunities/lost-reasons": {
       "get": {
+        "description": "ใช้เป็นค่าของ reason_code ตอนปิดแพ้",
         "operationId": "OpportunitiesController_lostReasons",
         "parameters": [
           {
@@ -3655,6 +3724,7 @@
             "bearer": []
           }
         ],
+        "summary": "เหตุผลปิดแพ้ที่เลือกได้",
         "tags": [
           "opportunities"
         ]
@@ -3692,11 +3762,13 @@
             "bearer": []
           }
         ],
+        "summary": "รายละเอียดโอกาสการขาย",
         "tags": [
           "opportunities"
         ]
       },
       "patch": {
+        "description": "stage ที่ส่งได้มีแค่ขั้นที่ยังเปิด — ปิดชนะเกิดจากการเปิดใบสั่งขาย ปิดแพ้ใช้ /lose",
         "operationId": "OpportunitiesController_update",
         "parameters": [
           {
@@ -3737,6 +3809,7 @@
             "bearer": []
           }
         ],
+        "summary": "แก้โอกาสการขาย",
         "tags": [
           "opportunities"
         ]
@@ -3744,6 +3817,7 @@
     },
     "/api/v1/opportunities/{id}/sale-orders": {
       "post": {
+        "description": "จุดเดียวที่ทะเบียนลูกค้าเกิด. ลำดับการหาลูกค้า: รายที่โอกาสผูกอยู่ → customer_id ที่ส่งมา → รายเดิมที่เลขภาษี+รหัสสาขาตรง → สร้างใหม่จาก prospect. ต้องมีใบเสนอราคาสถานะ accepted และคำตอบมี customerCreated บอกว่าสร้างใหม่หรือไม่",
         "operationId": "OpportunitiesController_openSaleOrder",
         "parameters": [
           {
@@ -3784,6 +3858,7 @@
             "bearer": []
           }
         ],
+        "summary": "เปิดใบสั่งขาย = ปิดชนะ + สร้างทะเบียนลูกค้า",
         "tags": [
           "opportunities"
         ]
@@ -3791,6 +3866,7 @@
     },
     "/api/v1/opportunities/{id}/quotations": {
       "post": {
+        "description": "สร้างได้จากที่นี่ที่เดียว — ไม่มี POST /quotations",
         "operationId": "OpportunitiesController_createQuotation",
         "parameters": [
           {
@@ -3831,6 +3907,7 @@
             "bearer": []
           }
         ],
+        "summary": "ร่างใบเสนอราคา v1",
         "tags": [
           "opportunities"
         ]
@@ -3838,6 +3915,7 @@
     },
     "/api/v1/opportunities/{id}/lose": {
       "post": {
+        "description": "reason_code ต้องมีอยู่จริงและยัง active. ปิดแล้วเปิดใหม่ไม่ได้",
         "operationId": "OpportunitiesController_lose",
         "parameters": [
           {
@@ -3878,6 +3956,7 @@
             "bearer": []
           }
         ],
+        "summary": "ปิดแพ้พร้อมเหตุผลมาตรฐาน",
         "tags": [
           "opportunities"
         ]
@@ -3885,6 +3964,7 @@
     },
     "/api/v1/sale-orders": {
       "get": {
+        "description": "status: open · cancelled",
         "operationId": "SaleOrdersController_list",
         "parameters": [
           {
@@ -3940,6 +4020,7 @@
             "bearer": []
           }
         ],
+        "summary": "ค้นใบสั่งขาย",
         "tags": [
           "sale-orders"
         ]
@@ -3977,6 +4058,7 @@
             "bearer": []
           }
         ],
+        "summary": "รายละเอียดใบสั่งขาย",
         "tags": [
           "sale-orders"
         ]
@@ -3984,6 +4066,7 @@
     },
     "/api/v1/sale-orders/{id}/cancel": {
       "post": {
+        "description": "ไม่มี DELETE และการยกเลิกไม่ย้อนโอกาสการขายกลับจาก won",
         "operationId": "SaleOrdersController_cancel",
         "parameters": [
           {
@@ -4024,6 +4107,7 @@
             "bearer": []
           }
         ],
+        "summary": "ยกเลิกใบสั่งขายพร้อมเหตุผล",
         "tags": [
           "sale-orders"
         ]
@@ -4031,6 +4115,7 @@
     },
     "/api/v1/quotations": {
       "get": {
+        "description": "current=true คัดเฉพาะเวอร์ชันล่าสุดของแต่ละเลขที่",
         "operationId": "QuotationsController_list",
         "parameters": [
           {
@@ -4086,6 +4171,7 @@
             "bearer": []
           }
         ],
+        "summary": "ค้นใบเสนอราคา",
         "tags": [
           "quotations"
         ]
@@ -4093,6 +4179,7 @@
     },
     "/api/v1/quotations/{id}": {
       "get": {
+        "description": "ต้นทุนและ margin ถูกปกปิดถ้าไม่มีสิทธิ์อ่านข้อมูลอ่อนไหว",
         "operationId": "QuotationsController_findOne",
         "parameters": [
           {
@@ -4123,11 +4210,13 @@
             "bearer": []
           }
         ],
+        "summary": "รายละเอียดใบเสนอราคา",
         "tags": [
           "quotations"
         ]
       },
       "patch": {
+        "description": "แก้ได้เฉพาะสถานะ draft — ใบที่ยื่นหรือส่งแล้วต้องใช้ /revise",
         "operationId": "QuotationsController_update",
         "parameters": [
           {
@@ -4168,6 +4257,7 @@
             "bearer": []
           }
         ],
+        "summary": "แก้ใบเสนอราคา",
         "tags": [
           "quotations"
         ]
@@ -4175,6 +4265,7 @@
     },
     "/api/v1/quotations/{id}/submit": {
       "post": {
+        "description": "margin ถึงเกณฑ์ → approved ทันที. ต่ำกว่าเกณฑ์ → ต้องมี reason และระบบเปิดคำขอส่วนลด (ค่าตั้งต้น DSC) แล้วใบค้างที่ pending_approval. ถ้าประเภทคำขอนั้นปิดอยู่ ได้ CRM_QUOTATION_APPROVAL_UNAVAILABLE และใบคงอยู่ที่ draft",
         "operationId": "QuotationsController_submit",
         "parameters": [
           {
@@ -4215,6 +4306,7 @@
             "bearer": []
           }
         ],
+        "summary": "ยื่นใบเสนอราคาเข้าตรวจ margin",
         "tags": [
           "quotations"
         ]
@@ -4222,6 +4314,7 @@
     },
     "/api/v1/quotations/{id}/send": {
       "post": {
+        "description": "approved → sent",
         "operationId": "QuotationsController_send",
         "parameters": [
           {
@@ -4252,6 +4345,7 @@
             "bearer": []
           }
         ],
+        "summary": "ส่งใบเสนอราคาให้ลูกค้า",
         "tags": [
           "quotations"
         ]
@@ -4259,6 +4353,7 @@
     },
     "/api/v1/quotations/{id}/accept": {
       "post": {
+        "description": "sent → accepted — สถานะที่ใช้เปิดใบสั่งขายได้",
         "operationId": "QuotationsController_accept",
         "parameters": [
           {
@@ -4299,6 +4394,7 @@
             "bearer": []
           }
         ],
+        "summary": "บันทึกว่าลูกค้าตอบรับ",
         "tags": [
           "quotations"
         ]
@@ -4306,6 +4402,7 @@
     },
     "/api/v1/quotations/{id}/decline": {
       "post": {
+        "description": "sent → declined พร้อมเหตุผล",
         "operationId": "QuotationsController_decline",
         "parameters": [
           {
@@ -4346,6 +4443,7 @@
             "bearer": []
           }
         ],
+        "summary": "บันทึกว่าลูกค้าปฏิเสธ",
         "tags": [
           "quotations"
         ]
@@ -4353,6 +4451,7 @@
     },
     "/api/v1/quotations/{id}/revise": {
       "post": {
+        "description": "ใบเดิมเป็น superseded และได้ร่าง v(n+1). ทำได้จาก pending_approval · approved · sent · declined",
         "operationId": "QuotationsController_revise",
         "parameters": [
           {
@@ -4383,6 +4482,7 @@
             "bearer": []
           }
         ],
+        "summary": "ออกใบเสนอราคาเวอร์ชันใหม่",
         "tags": [
           "quotations"
         ]
@@ -4390,6 +4490,7 @@
     },
     "/api/v1/quotations/{id}/cancel": {
       "post": {
+        "description": "ทำได้จาก draft · pending_approval · approved · sent — ไม่มี DELETE",
         "operationId": "QuotationsController_cancel",
         "parameters": [
           {
@@ -4430,6 +4531,7 @@
             "bearer": []
           }
         ],
+        "summary": "ยกเลิกใบเสนอราคาพร้อมเหตุผล",
         "tags": [
           "quotations"
         ]

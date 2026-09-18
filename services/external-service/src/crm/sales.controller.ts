@@ -27,7 +27,12 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiHeader, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiHeader,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import {
   ActingPermissions,
   ActingPolicyGuard,
@@ -93,6 +98,13 @@ export class ExternalLeadsController {
    * ธรรมดา: การแก้รายการนี้เท่านั้นที่เป็นงานของผู้ดูแล.
    * ประกาศก่อน `:id` ไม่งั้น `statuses` จะถูกอ่านเป็น id ของ Lead.
    */
+  @ApiOperation({
+    summary: 'ขั้นของ Lead ทั้งชุด',
+    description:
+      'ส่งทั้งชุดรวมที่ปิดใช้งาน เพราะ Lead ' +
+      'ที่ค้างบนขั้นที่เพิ่งปิดยังต้องมีชื่อและสีให้แสดง — ' +
+      'หน้าจอเป็นคนกรอง active เอง. โค้ดตั้งได้ต่อบริษัท ไม่ใช่ enum',
+  })
   @Get('statuses')
   @Permissions('integration.crm.sales.read')
   @ActingPermissions('crm.sales.read')
@@ -100,6 +112,11 @@ export class ExternalLeadsController {
     return this.statuses.listAll(principal.activeCompanyId);
   }
 
+  @ApiOperation({
+    summary: 'ค้นรายชื่อ Lead',
+    description:
+      'view=mine|all|unassigned — unassigned คือกองกลางที่ยังไม่มีเจ้าของ',
+  })
   @Get()
   @Permissions('integration.crm.sales.read')
   @ActingPermissions('crm.sales.read')
@@ -111,6 +128,10 @@ export class ExternalLeadsController {
   }
 
   /** Import จาก Excel (parse ฝั่ง client) — dry_run ตอบรายงานเต็มไม่เขียน. */
+  @ApiOperation({
+    summary: 'นำเข้า Lead จาก Excel',
+    description: 'mode=dry_run ตอบรายงานเต็มโดยไม่เขียนอะไรลงฐานข้อมูล',
+  })
   @Post('import')
   @Permissions('integration.crm.sales.manage')
   @ActingPermissions('crm.sales.manage')
@@ -121,6 +142,9 @@ export class ExternalLeadsController {
     return this.importer.run(dto, principal);
   }
 
+  @ApiOperation({
+    summary: 'สร้าง Lead',
+  })
   @Post()
   @Permissions('integration.crm.sales.manage')
   @ActingPermissions('crm.sales.manage')
@@ -129,6 +153,10 @@ export class ExternalLeadsController {
   }
 
   /** หน้ารายละเอียด — Lead + กิจกรรม + ชื่อผู้รับผิดชอบ. SCOPE-03: 404 นอกขอบเขต. */
+  @ApiOperation({
+    summary: 'รายละเอียด Lead พร้อมกิจกรรม',
+    description: 'นอกขอบเขตที่มองเห็นตอบ 404 ไม่ใช่ 403 (SCOPE-03)',
+  })
   @Get(':id')
   @Permissions('integration.crm.sales.read')
   @ActingPermissions('crm.sales.read')
@@ -136,6 +164,10 @@ export class ExternalLeadsController {
     return this.leads.findOne(id, principal);
   }
 
+  @ApiOperation({
+    summary: 'แก้ข้อมูล Lead',
+    description: 'Lead ที่ปิดแล้ว (kind won/lost) แก้ไม่ได้',
+  })
   @Patch(':id')
   @Permissions('integration.crm.sales.manage')
   @ActingPermissions('crm.sales.manage')
@@ -154,6 +186,12 @@ export class ExternalLeadsController {
    * ดูแลได้ และการมอบหมายไม่ได้เปิดอะไรที่กว้างกว่านั้น. ใบที่มีเจ้าของแล้วจะ
    * "รับ" ซ้ำไม่ได้ — ต้องระบุปลายทางชัดเจนว่าโอนให้ใคร (`LeadsService.assign`).
    */
+  @ApiOperation({
+    summary: 'รับ Lead หรือแจกให้คนอื่น',
+    description:
+      'owner_user_id ว่าง = รับเอง. ' +
+      'ใบที่มีเจ้าของแล้วต้องระบุปลายทางว่าโอนให้ใคร',
+  })
   @Patch(':id/owner')
   @Permissions('integration.crm.sales.manage')
   @ActingPermissions('crm.sales.manage')
@@ -166,6 +204,12 @@ export class ExternalLeadsController {
   }
 
   /** เลื่อนขั้น pipeline (new / ติดต่อไม่ได้ / ติดต่อแล้ว / ผ่านคัดกรอง). */
+  @ApiOperation({
+    summary: 'เลื่อนขั้น Lead ในไปป์ไลน์',
+    description:
+      'ปลายทางต้องเป็น kind open เท่านั้น — ขั้นที่เป็น won/lost ' +
+      'ถูกปฏิเสธด้วย 409 ให้ใช้ convert หรือ disqualify แทน',
+  })
   @Patch(':id/status')
   @Permissions('integration.crm.sales.manage')
   @ActingPermissions('crm.sales.manage')
@@ -178,6 +222,10 @@ export class ExternalLeadsController {
   }
 
   /** ลงกิจกรรม — โทร / อีเมล / นัดหมาย / งาน / บันทึก. */
+  @ApiOperation({
+    summary: 'ลงกิจกรรมของ Lead',
+    description: 'type: call · email · meeting · task · note',
+  })
   @Post(':id/activities')
   @Permissions('integration.crm.sales.manage')
   @ActingPermissions('crm.sales.manage')
@@ -190,6 +238,9 @@ export class ExternalLeadsController {
   }
 
   /** ติ๊กเสร็จ / เปิดกลับ / แก้กิจกรรม. */
+  @ApiOperation({
+    summary: 'แก้กิจกรรม หรือติ๊กเสร็จ',
+  })
   @Patch(':id/activities/:activityId')
   @Permissions('integration.crm.sales.manage')
   @ActingPermissions('crm.sales.manage')
@@ -203,6 +254,10 @@ export class ExternalLeadsController {
   }
 
   /** คัดออกพร้อมเหตุผล — ไม่มี DELETE. */
+  @ApiOperation({
+    summary: 'คัด Lead ออกพร้อมเหตุผล',
+    description: 'ปิดด้วยสถานะ kind lost — ไม่มี DELETE ในโมดูลนี้',
+  })
   @Post(':id/disqualify')
   @Permissions('integration.crm.sales.manage')
   @ActingPermissions('crm.sales.manage')
@@ -215,6 +270,14 @@ export class ExternalLeadsController {
   }
 
   /** แปลงเป็นโอกาสการขาย — ข้อมูลไหลต่อ. */
+  @ApiOperation({
+    summary: 'แปลง Lead เป็นโอกาสการขาย',
+    description:
+      'ปิด Lead ด้วยสถานะ kind won แล้วคืน **โอกาสการขาย** — ' +
+      'ยังไม่สร้างทะเบียนลูกค้า ทะเบียนเกิดตอนเปิดใบสั่งขาย. ไม่ส่ง ' +
+      'customer_id ก็ได้ ข้อมูลจาก Lead จะไปอยู่เป็น prospect ' +
+      'บนโอกาสการขาย',
+  })
   @Post(':id/convert')
   @Permissions('integration.crm.sales.manage')
   @ActingPermissions('crm.sales.manage')
@@ -245,6 +308,10 @@ export class ExternalOpportunitiesController {
     private readonly quotations: QuotationsService,
   ) {}
 
+  @ApiOperation({
+    summary: 'ค้นโอกาสการขาย',
+    description: 'stage: qualifying · proposing · negotiating · won · lost',
+  })
   @Get()
   @Permissions('integration.crm.sales.read')
   @ActingPermissions('crm.sales.read')
@@ -256,6 +323,10 @@ export class ExternalOpportunitiesController {
   }
 
   /** เหตุผลปิดแพ้มาตรฐาน — declared before `:id`. */
+  @ApiOperation({
+    summary: 'เหตุผลปิดแพ้ที่เลือกได้',
+    description: 'ใช้เป็นค่าของ reason_code ตอนปิดแพ้',
+  })
   @Get('lost-reasons')
   @Permissions('integration.crm.sales.read')
   @ActingPermissions('crm.sales.read')
@@ -263,6 +334,12 @@ export class ExternalOpportunitiesController {
     return this.opportunities.lostReasonOptions(principal);
   }
 
+  @ApiOperation({
+    summary: 'สร้างโอกาสการขาย',
+    description:
+      'ส่ง customer_id หรือ prospect_name อย่างใดอย่างหนึ่ง — ' +
+      'ฐานข้อมูลบังคับไว้',
+  })
   @Post()
   @Permissions('integration.crm.sales.manage')
   @ActingPermissions('crm.sales.manage')
@@ -273,6 +350,9 @@ export class ExternalOpportunitiesController {
     return this.opportunities.create(dto, principal);
   }
 
+  @ApiOperation({
+    summary: 'รายละเอียดโอกาสการขาย',
+  })
   @Get(':id')
   @Permissions('integration.crm.sales.read')
   @ActingPermissions('crm.sales.read')
@@ -280,6 +360,12 @@ export class ExternalOpportunitiesController {
     return this.opportunities.findOne(id, principal);
   }
 
+  @ApiOperation({
+    summary: 'แก้โอกาสการขาย',
+    description:
+      'stage ที่ส่งได้มีแค่ขั้นที่ยังเปิด — ปิดชนะเกิดจากการเปิดใบสั่งขาย ' +
+      'ปิดแพ้ใช้ /lose',
+  })
   @Patch(':id')
   @Permissions('integration.crm.sales.manage')
   @ActingPermissions('crm.sales.manage')
@@ -295,6 +381,14 @@ export class ExternalOpportunitiesController {
    * เปิดใบสั่งขาย = ปิดชนะ + จุดเดียวที่ลูกค้าในทะเบียนเกิด (PO 10 ก.ย. 2569).
    * แทน endpoint `win` เดิม.
    */
+  @ApiOperation({
+    summary: 'เปิดใบสั่งขาย = ปิดชนะ + สร้างทะเบียนลูกค้า',
+    description:
+      'จุดเดียวที่ทะเบียนลูกค้าเกิด. ลำดับการหาลูกค้า: รายที่โอกาสผูกอยู่ ' +
+      '→ customer_id ที่ส่งมา → รายเดิมที่เลขภาษี+รหัสสาขาตรง → ' +
+      'สร้างใหม่จาก prospect. ต้องมีใบเสนอราคาสถานะ accepted และคำตอบมี ' +
+      'customerCreated บอกว่าสร้างใหม่หรือไม่',
+  })
   @Post(':id/sale-orders')
   @Permissions('integration.crm.sales.manage')
   @ActingPermissions('crm.sales.manage')
@@ -310,6 +404,10 @@ export class ExternalOpportunitiesController {
    * ร่างใบเสนอราคาใหม่ (CD-76) จากโอกาสการขายที่ยังเปิดอยู่ — การกระทำหลังจากนี้
    * อยู่ที่ `/quotations/:id`. ตอบกลับพร้อมต้นทุน/margin จึงต้องปกปิดเหมือนกัน.
    */
+  @ApiOperation({
+    summary: 'ร่างใบเสนอราคา v1',
+    description: 'สร้างได้จากที่นี่ที่เดียว — ไม่มี POST /quotations',
+  })
   @Post(':id/quotations')
   @Permissions('integration.crm.sales.manage')
   @ActingPermissions('crm.sales.manage')
@@ -323,6 +421,11 @@ export class ExternalOpportunitiesController {
   }
 
   /** ปิดแพ้ — เหตุผลมาตรฐานบังคับ (spec CRM). */
+  @ApiOperation({
+    summary: 'ปิดแพ้พร้อมเหตุผลมาตรฐาน',
+    description:
+      'reason_code ต้องมีอยู่จริงและยัง active. ปิดแล้วเปิดใหม่ไม่ได้',
+  })
   @Post(':id/lose')
   @Permissions('integration.crm.sales.manage')
   @ActingPermissions('crm.sales.manage')
@@ -349,6 +452,10 @@ export class ExternalOpportunitiesController {
 export class ExternalSaleOrdersController {
   constructor(private readonly saleOrders: SaleOrdersService) {}
 
+  @ApiOperation({
+    summary: 'ค้นใบสั่งขาย',
+    description: 'status: open · cancelled',
+  })
   @Get()
   @Permissions('integration.crm.sales.read')
   @ActingPermissions('crm.sales.read')
@@ -359,6 +466,9 @@ export class ExternalSaleOrdersController {
     return this.saleOrders.list(principal, query);
   }
 
+  @ApiOperation({
+    summary: 'รายละเอียดใบสั่งขาย',
+  })
   @Get(':id')
   @Permissions('integration.crm.sales.read')
   @ActingPermissions('crm.sales.read')
@@ -367,6 +477,10 @@ export class ExternalSaleOrdersController {
   }
 
   /** ยกเลิกพร้อมเหตุผล — ไม่มี DELETE. */
+  @ApiOperation({
+    summary: 'ยกเลิกใบสั่งขายพร้อมเหตุผล',
+    description: 'ไม่มี DELETE และการยกเลิกไม่ย้อนโอกาสการขายกลับจาก won',
+  })
   @Post(':id/cancel')
   @Permissions('integration.crm.sales.manage')
   @ActingPermissions('crm.sales.manage')

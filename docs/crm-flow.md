@@ -3,11 +3,13 @@
 เอกสารนี้อธิบายว่า **CRM วันนี้ทำอะไรได้จริง** ไล่จากโค้ดที่รันอยู่ ไม่ใช่จากสเปก
 ทุกหัวข้ออ้าง `path:line` ให้ไปอ่านของจริงต่อได้
 
-**ตรวจครั้งล่าสุด 17 ก.ย. 2569** — `yarn jest --testPathPatterns=crm` ใน
-`services/core-service` ได้ **17 suites / 162 tests ผ่านทั้งหมด**
+**ตรวจครั้งล่าสุด 18 ก.ย. 2569** — `npx jest --testPathPatterns=crm` ใน
+`services/core-service` ได้ **17 suites / 162 tests ผ่านทั้งหมด** และ
+`docs/openapi/external-crm.json` ยังเป็น **58 path / 74 operation** โดย **58 ตัวมี
+`summary` แล้ว** ที่เหลือ 16 เป็นกลุ่ม admin
 
-> **CRM ไม่ใช่โครงเปล่า** `grep -rn "NotImplementedException\|notImplemented(" services/ libs/`
-> ไม่เจออะไรเลย ตัวช่วย `services/core-service/src/common/not-implemented.ts` ถูก
+> **CRM ไม่ใช่โครงเปล่า** `grep -rn "NotImplementedException\|notImplemented(" services/*/src libs/`
+> ไม่เจออะไรเลย (ต้องจำกัดที่ `src` — ไม่งั้นติด `dist/` ที่เป็นผลของ build) ตัวช่วย `services/core-service/src/common/not-implemented.ts` ถูก
 > ประกาศไว้แต่ไม่มีใคร import ทุก route ต่อกับ service จริง เขียน Prisma จริง มี audit
 > และ timeline จริง (ก่อน 17 ก.ย. `AGENTS.md` เขียนว่า handler โยน `501` — นั่นเป็น
 > ข้อมูลค้างจาก S3 ตอนเริ่มโครง และถูกแก้แล้ว)
@@ -217,7 +219,9 @@ external สี่ตัวถูก generate จาก `scripts/generate-crm-co
 `crm.customer.dedup.override` (CM-03) · `crm.customer.financial.read` (C360-02) ·
 `crm.sales.read` · `crm.sales.read.all` · `crm.sales.manage` · `admin.crm.manage`
 
-ของเครื่องเท่านั้น ห้ามยกให้ role ของคน (AUTH-06):
+ของบัญชีบริการ (AUTH-06) — ออกให้กุญแจ API ที่หน้า **กุญแจ API**
+(`admin.integration.manage`) ส่วนหน้า Role แสดงเป็น `type: service` และ **ติ๊กให้
+role ของคนได้** ตั้งแต่ 17 ก.ย. 2569 ไม่มี seed role ไหนถืออยู่:
 `integration.crm.lead.read` · `integration.crm.lead.stage` ·
 `integration.crm.lead.create` · `integration.crm.customer.read` ·
 `integration.crm.customer.manage` · `integration.crm.sales.read` ·
@@ -234,10 +238,12 @@ external สี่ตัวถูก generate จาก `scripts/generate-crm-co
 | product master / BOQ | ไม่มี `unitCost` ต่อบรรทัดใบเสนอราคากรอกมือ รอ CD-11/CD-12 |
 | เปิดใบที่ปิดแล้วใหม่ | ไม่มีทางกลับจาก won/lost |
 | **CRM ใน MCP** | **ไม่มี tool CRM สักตัว** — `mcp-tools.ts` พูดถึง CRM แค่ในคอมเมนต์สองบรรทัด (`:140`, `:204`) ที่เผื่อไว้ว่าจะมีวันหนึ่ง chat วันนี้ครอบคลุมแค่ request |
-| summary/description ใน OpenAPI ของ CRM | **71 จาก 74 operation ไม่มี summary** — มีแค่สาม route robot-only ที่เขียนมือไว้ ส่วนที่เหลือ generator ก๊อป handler มาแต่ไม่เคยมีใครเขียน `@ApiOperation` |
+| summary/description ใน OpenAPI ของ CRM | **ปิดแล้ว 18 ก.ย. 2569** — 58 จาก 74 operation มี `summary` ที่เหลือ 16 ตัวเป็นกลุ่ม admin ซึ่งไม่ใช่ทางเดินของงานขาย |
 
-> **สองข้อล่างคือสิ่งที่ต้องปิดก่อนทำ chat CRM** — โมเดลที่อ่าน tool catalogue ของ CRM
-> วันนี้จะเห็น description ว่างทั้งหมด และไม่มี tool ให้เรียกตั้งแต่แรก
+> **เหลือข้อเดียวก่อน chat CRM จะทำรายการได้** — spec อ่านรู้เรื่องแล้วและ Postman
+> ยิงโดนทั้ง 74 เส้น แต่ **ยังไม่มี tool CRM ให้โมเดลเรียกสักตัว**
+> prompt ที่มีวันนี้คือ `docs/aiyara-prompt/AIYARA_CRM_SYSTEM_PROMPT_V1.md` ซึ่ง
+> อธิบายวงจรและพาไปหน้าจอ ไม่ได้ลงมือทำแทน
 
 ---
 
@@ -247,6 +253,7 @@ external สี่ตัวถูก generate จาก `scripts/generate-crm-co
 
 | ไฟล์ | อธิบายอะไร |
 |---|---|
+| `docs/aiyara-prompt/AIYARA_CRM_SYSTEM_PROMPT_V1.md` | วงจรทั้งหมดในรูปที่วางลง chat platform ได้ |
 | `services/core-service/src/crm/crm.module.ts` | ทำไม module แยกสองชั้น และ export อะไรบ้าง |
 | `services/external-service/src/crm/lead-intake.controller.ts` | เหตุผลเต็มของกองกลางและการเอา source จาก API key |
 | `services/core-service/src/crm/lead-workflow.service.ts` | มติ "Workflow owns Process, Core owns Data" |

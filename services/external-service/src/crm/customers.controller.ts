@@ -31,7 +31,12 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiHeader, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiHeader,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import {
   ActingPermissions,
   ActingPolicyGuard,
@@ -86,6 +91,10 @@ export class ExternalCustomersController {
     private readonly importer: CustomerImportService,
   ) {}
 
+  @ApiOperation({
+    summary: 'ค้นทะเบียนลูกค้า',
+    description: 'status: draft · active · suspended · inactive',
+  })
   @Get()
   @Permissions('integration.crm.customer.read')
   @ActingPermissions('crm.customer.read')
@@ -101,6 +110,9 @@ export class ExternalCustomersController {
    * CM-07 — active dimensions/values for pickers and filters. Declared before
    * `:id` so the literal path wins the route match.
    */
+  @ApiOperation({
+    summary: 'มิติและค่าการแบ่งกลุ่มที่ยังใช้งาน',
+  })
   @Get('segment-options')
   @Permissions('integration.crm.customer.read')
   @ActingPermissions('crm.customer.read')
@@ -112,6 +124,9 @@ export class ExternalCustomersController {
    * CM-04 ชุดงาน B — active KYC product rules, for any screen or module that
    * must warn "product นี้ต้องทำ KYC" (โมดูลโอกาสการขายจะใช้; declared before `:id`).
    */
+  @ApiOperation({
+    summary: 'สินค้าที่บังคับทำ KYC',
+  })
   @Get('kyc-products')
   @Permissions('integration.crm.customer.read')
   @ActingPermissions('crm.customer.read')
@@ -120,6 +135,10 @@ export class ExternalCustomersController {
   }
 
   /** CM-03 — the inline check the form runs before submit. */
+  @ApiOperation({
+    summary: 'ตรวจลูกค้าซ้ำก่อนบันทึก',
+    description: 'ใช้เกณฑ์ความคล้ายของชื่อจากค่าตั้งของบริษัท (CM-03)',
+  })
   @Post('check-duplicate')
   @Permissions('integration.crm.customer.read')
   @ActingPermissions('crm.customer.read')
@@ -135,6 +154,10 @@ export class ExternalCustomersController {
    * CM-10 — import ลูกค้าเดิมจาก Excel (rows parsed client-side). Admin
    * surface; `dry_run` answers the full per-row report without writing.
    */
+  @ApiOperation({
+    summary: 'นำเข้าลูกค้าเดิมจาก Excel',
+    description: 'งานของผู้ดูแล — dry_run ตอบรายงานรายบรรทัดโดยไม่เขียน',
+  })
   @Post('import')
   @Permissions('integration.crm.admin.manage')
   @ActingPermissions('admin.crm.manage')
@@ -147,6 +170,14 @@ export class ExternalCustomersController {
   }
 
   /** CM-01/02/03 — dup-check + ออก customerCode. Idempotency-Key honoured. */
+  @ApiOperation({
+    summary: 'สร้างทะเบียนลูกค้า',
+    description:
+      'ตรวจเลขผู้เสียภาษีและกันซ้ำ — ข้ามการกันซ้ำต้องส่ง ' +
+      'confirm_duplicate พร้อม override_reason และมีสิทธิ์ ' +
+      'crm.customer.dedup.override. ' +
+      'เลขภาษีเดียวกันคนละสาขาถูกผูกเป็นสาขาให้เอง',
+  })
   @Post()
   @Permissions('integration.crm.customer.manage')
   @ActingPermissions('crm.customer.manage')
@@ -157,6 +188,11 @@ export class ExternalCustomersController {
     return this.customers.create(dto, principal);
   }
 
+  @ApiOperation({
+    summary: 'รายละเอียดลูกค้า',
+    description:
+      'เลขผู้เสียภาษีถูกปกปิดถ้าไม่มีสิทธิ์อ่านข้อมูลอ่อนไหว (CM-08)',
+  })
   @Get(':id')
   @Permissions('integration.crm.customer.read')
   @ActingPermissions('crm.customer.read')
@@ -166,6 +202,10 @@ export class ExternalCustomersController {
   }
 
   /** CM-05 — consent badge อ่านสดจากระบบ PDPA กลาง (ห้ามเก็บซ้ำ). */
+  @ApiOperation({
+    summary: 'สถานะความยินยอมของผู้ติดต่อ',
+    description: 'อ่านสดจากระบบ PDPA กลาง ไม่ได้เก็บซ้ำไว้ที่นี่',
+  })
   @Get(':id/contacts/consents')
   @Permissions('integration.crm.customer.read')
   @ActingPermissions('crm.customer.read')
@@ -177,6 +217,9 @@ export class ExternalCustomersController {
   }
 
   /** C360-01 — ตัวเลขการ์ดบนหน้า 360°; นับผ่าน filter เดียวกับแท็บ. */
+  @ApiOperation({
+    summary: 'ตัวเลขสรุปหน้าลูกค้า 360°',
+  })
   @Get(':id/summary')
   @Permissions('integration.crm.customer.read')
   @ActingPermissions('crm.customer.read')
@@ -185,6 +228,10 @@ export class ExternalCustomersController {
   }
 
   /** CM-01 — every changed field lands in the history, in the same tx. */
+  @ApiOperation({
+    summary: 'แก้ข้อมูลลูกค้า',
+    description: 'ทุกฟิลด์ที่เปลี่ยนถูกบันทึกลงประวัติใน transaction เดียวกัน',
+  })
   @Patch(':id')
   @Permissions('integration.crm.customer.manage')
   @ActingPermissions('crm.customer.manage')
@@ -198,6 +245,12 @@ export class ExternalCustomersController {
 
   // --- CM-04 lifecycle. No DELETE route exists, deliberately. --------------
 
+  @ApiOperation({
+    summary: 'เปิดใช้งานลูกค้า',
+    description:
+      'มาจาก draft · suspended · inactive ได้ — ผิดทางได้ ' +
+      'CRM_CUSTOMER_STATE_INVALID',
+  })
   @Post(':id/activate')
   @Permissions('integration.crm.customer.manage')
   @ActingPermissions('crm.customer.manage')
@@ -205,6 +258,10 @@ export class ExternalCustomersController {
     return this.customers.activate(id, principal);
   }
 
+  @ApiOperation({
+    summary: 'ระงับลูกค้าพร้อมเหตุผล',
+    description: 'ทำได้จาก active เท่านั้น',
+  })
   @Post(':id/suspend')
   @Permissions('integration.crm.customer.manage')
   @ActingPermissions('crm.customer.manage')
@@ -216,6 +273,10 @@ export class ExternalCustomersController {
     return this.customers.suspend(id, dto.reason, principal);
   }
 
+  @ApiOperation({
+    summary: 'ปิดใช้งานลูกค้าพร้อมเหตุผล',
+    description: 'ปิดแล้วกลับไป draft ไม่ได้ กลับได้แค่ active',
+  })
   @Post(':id/deactivate')
   @Permissions('integration.crm.customer.manage')
   @ActingPermissions('crm.customer.manage')
@@ -229,6 +290,9 @@ export class ExternalCustomersController {
 
   // --- CM-01 locations — ที่อยู่/ไซต์ (redesign #2, 8 ก.ย. 2569) -----------
 
+  @ApiOperation({
+    summary: 'เพิ่มที่อยู่หรือไซต์งาน',
+  })
   @Post(':id/locations')
   @Permissions('integration.crm.customer.manage')
   @ActingPermissions('crm.customer.manage')
@@ -240,6 +304,9 @@ export class ExternalCustomersController {
     return this.customers.addLocation(id, dto, principal);
   }
 
+  @ApiOperation({
+    summary: 'แก้ที่อยู่หรือไซต์งาน',
+  })
   @Patch(':id/locations/:locationId')
   @Permissions('integration.crm.customer.manage')
   @ActingPermissions('crm.customer.manage')
@@ -254,6 +321,10 @@ export class ExternalCustomersController {
 
   /** Soft delete — the row stays resolvable from issued documents and the
    * installed base. */
+  @ApiOperation({
+    summary: 'ลบที่อยู่ออกจากทะเบียน',
+    description: 'ลบแบบซ่อน — แถวยังอ้างอิงได้จากเอกสารที่ออกไปแล้ว',
+  })
   @Delete(':id/locations/:locationId')
   @Permissions('integration.crm.customer.manage')
   @ActingPermissions('crm.customer.manage')
@@ -268,6 +339,10 @@ export class ExternalCustomersController {
 
   // --- CM-05 contacts (consent badge arrives with ชุดงาน C) ----------------
 
+  @ApiOperation({
+    summary: 'เพิ่มผู้ติดต่อ',
+    description: 'role: decision_maker · user · procurement · finance · other',
+  })
   @Post(':id/contacts')
   @Permissions('integration.crm.customer.manage')
   @ActingPermissions('crm.customer.manage')
@@ -279,6 +354,9 @@ export class ExternalCustomersController {
     return this.customers.addContact(id, dto, principal);
   }
 
+  @ApiOperation({
+    summary: 'แก้ผู้ติดต่อ',
+  })
   @Patch(':id/contacts/:contactId')
   @Permissions('integration.crm.customer.manage')
   @ActingPermissions('crm.customer.manage')
@@ -291,6 +369,10 @@ export class ExternalCustomersController {
     return this.customers.updateContact(id, contactId, dto, principal);
   }
 
+  @ApiOperation({
+    summary: 'ลบผู้ติดต่อ',
+    description: 'ลบแบบซ่อน เช่นเดียวกับที่อยู่',
+  })
   @Delete(':id/contacts/:contactId')
   @Permissions('integration.crm.customer.manage')
   @ActingPermissions('crm.customer.manage')
@@ -305,6 +387,10 @@ export class ExternalCustomersController {
 
   // --- CM-07 segments ------------------------------------------------------
 
+  @ApiOperation({
+    summary: 'ตั้งกลุ่มของลูกค้าทั้งชุด',
+    description: 'แทนที่ทั้งชุด ไม่ใช่เพิ่มทีละค่า',
+  })
   @Put(':id/segments')
   @Permissions('integration.crm.customer.manage')
   @ActingPermissions('crm.customer.manage')
@@ -319,6 +405,10 @@ export class ExternalCustomersController {
   // --- history / timeline / external codes ---------------------------------
 
   /** CM-01 — ประวัติการแก้ไข: ใคร เมื่อไร ค่าก่อน/หลัง. */
+  @ApiOperation({
+    summary: 'ประวัติการแก้ไขรายฟิลด์',
+    description: 'ใคร เมื่อไร ค่าก่อนและหลัง',
+  })
   @Get(':id/history')
   @Permissions('integration.crm.customer.read')
   @ActingPermissions('crm.customer.read')
@@ -327,6 +417,10 @@ export class ExternalCustomersController {
   }
 
   /** C360-03 — append-only feed; no update or delete route exists. */
+  @ApiOperation({
+    summary: 'ไทม์ไลน์เหตุการณ์ของลูกค้า',
+    description: 'เขียนเพิ่มอย่างเดียว ไม่มีทางแก้หรือลบ',
+  })
   @Get(':id/timeline')
   @Permissions('integration.crm.customer.read')
   @ActingPermissions('crm.customer.read')
@@ -339,6 +433,10 @@ export class ExternalCustomersController {
   }
 
   /** CM-02 — Odoo partner id + ระบบสายบัญชีทั้ง 7 (admin surface). */
+  @ApiOperation({
+    summary: 'รหัสลูกค้าในระบบภายนอก',
+    description: 'Odoo และระบบสายบัญชี — งานของผู้ดูแล',
+  })
   @Get(':id/external-codes')
   @Permissions('integration.crm.admin.manage')
   @ActingPermissions('admin.crm.manage')
@@ -349,6 +447,10 @@ export class ExternalCustomersController {
     return this.customers.listExternalCodes(id, principal);
   }
 
+  @ApiOperation({
+    summary: 'ตั้งหรือแก้รหัสในระบบภายนอก',
+    description: 'หนึ่งรหัสต่อหนึ่งระบบต่อหนึ่งลูกค้า',
+  })
   @Put(':id/external-codes')
   @Permissions('integration.crm.admin.manage')
   @ActingPermissions('admin.crm.manage')
