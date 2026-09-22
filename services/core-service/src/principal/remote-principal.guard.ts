@@ -3,6 +3,7 @@ import { Reflector } from '@nestjs/core';
 import {
   AppError,
   COMPANY_HEADER,
+  INTERNAL_SERVICE_KEY,
   isPermission,
   PUBLIC_KEY,
   RequestWithPrincipal,
@@ -60,7 +61,15 @@ export class RemotePrincipalGuard implements CanActivate {
       requestedCompany,
     );
 
-    setPrincipal(request, this.permissionsOfKey(principal, exchanged?.key));
+    const internal = this.reflector.getAllAndOverride<boolean>(
+      INTERNAL_SERVICE_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+
+    setPrincipal(
+      request,
+      this.permissionsOfKey(principal, exchanged?.key, internal),
+    );
     return true;
   }
 
@@ -128,6 +137,7 @@ export class RemotePrincipalGuard implements CanActivate {
   private permissionsOfKey(
     principal: Awaited<ReturnType<RemotePrincipalService['resolve']>>,
     key: ApiKeyContext | undefined,
+    internal?: boolean,
   ) {
     if (key) {
       return { ...principal, permissions: key.scopes.filter(isPermission) };
@@ -136,6 +146,12 @@ export class RemotePrincipalGuard implements CanActivate {
     // เครื่องที่ยิงมาด้วย client_credentials token ตรง ๆ โดยไม่มีกุญแจ: ไม่มีแถวใน
     // `api_keys` ก็ไม่มีที่ให้อ่านสิทธิ์ และ realm role ไม่ใช่คำตอบอีกแล้ว
     if (principal.isServiceAccount) {
+      /*
+        `@InternalService()` — token พิสูจน์ได้แค่ว่ามาจากระบบเรา สิทธิ์จึงว่าง
+        route ที่ประกาศ `@Permissions()` ยังปฏิเสธเหมือนเดิม (AUTH-06 ไม่เปลี่ยน)
+      */
+      if (internal) return { ...principal, permissions: [] };
+
       throw new AppError(
         'FORBIDDEN',
         'บัญชีบริการต้องเรียกผ่าน API key — สิทธิ์อ่านจากกุญแจ ไม่ใช่จาก token',

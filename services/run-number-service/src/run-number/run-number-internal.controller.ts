@@ -3,7 +3,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import {
   Authenticated,
   CurrentPrincipal,
-  ServiceAccountAllowed,
+  InternalService,
   type Principal,
 } from '@request-management/share';
 import { IssueRunNumberDto } from './dto/run-number.dto';
@@ -21,8 +21,8 @@ export class RunNumberInternalController {
 
   @Post('issue')
   @Authenticated()
-  // ผู้เรียกเป็น service account ที่ระบุบริษัทผ่าน `X-Company-Id`.
-  @ServiceAccountAllowed()
+  // ผู้เรียกคือ service ในระบบ ระบุบริษัทผ่าน `X-Company-Id`.
+  @InternalService()
   issue(
     @Body() dto: IssueRunNumberDto,
     @CurrentPrincipal() principal: Principal,

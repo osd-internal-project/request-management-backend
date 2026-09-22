@@ -40,10 +40,10 @@ export class RunNumberSettingsService {
   ) {}
 
   async list(actor: Principal): Promise<RunNumberSettingRow[]> {
-    return (await this.settings.findMany({
+    return await this.settings.findMany({
       where: { companyId: actor.activeCompanyId },
       orderBy: [{ docType: 'asc' }, { scopeKey: 'asc' }],
-    })) as RunNumberSettingRow[];
+    });
   }
 
   /** ตัวแปรที่ชนิดเอกสารนี้อ้างได้ — หน้าตั้งค่าแสดงรายการนี้ ไม่ฝังเอง. */

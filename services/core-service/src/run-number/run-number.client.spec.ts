@@ -1,15 +1,4 @@
-import { requestContextMiddleware } from '@request-management/share';
 import { RunNumberClient } from './run-number.client';
-
-function inRequest(authorization: string | undefined, work: () => Promise<void>) {
-  return new Promise<void>((resolve, reject) => {
-    requestContextMiddleware(
-      { headers: authorization ? { authorization } : {} } as never,
-      {} as never,
-      () => void work().then(resolve, reject),
-    );
-  });
-}
 
 function harness(response: unknown = { number: 'REQ-OSD-PS01-26090001' }) {
   const calls: { url: string; init: RequestInit }[] = [];
@@ -23,18 +12,29 @@ function harness(response: unknown = { number: 'REQ-OSD-PS01-26090001' }) {
     });
   }) as never;
 
+  const config = { get: jest.fn(() => 'http://run-number/api/v1') };
+  const tokens = {
+    integrationToken: jest.fn(() => Promise.resolve('service-token')),
+  };
   const companies = {
     findUnique: jest.fn(() =>
       Promise.resolve({ code: 'OSD', docPrefix: 'OSD' }),
     ),
   };
-  const config = { get: jest.fn(() => 'http://run-number/api/v1') };
 
   return {
-    client: new RunNumberClient(config as never, companies as never),
+    client: new RunNumberClient(
+      config as never,
+      tokens as never,
+      companies as never,
+    ),
     calls,
+    tokens,
   };
 }
+
+const headersOf = (call: { init: RequestInit }) =>
+  call.init.headers as Record<string, string>;
 
 const input = {
   companyId: 'company-osd',
@@ -43,50 +43,27 @@ const input = {
 };
 
 describe('ขอเลขรันข้าม service', () => {
-  it('ส่งต่อ credential ของคำขอที่กำลังทำงานอยู่', async () => {
-    const { client, calls } = harness();
+  it('ยืนยันตัวด้วย token ของ core เอง ไม่ใช่ของผู้ใช้', async () => {
+    const { client, calls, tokens } = harness();
 
-    await inRequest('Bearer user-token', async () => {
-      await client.issue(input);
-    });
+    await client.issue(input);
 
-    expect(calls).toHaveLength(1);
-    expect(
-      (calls[0].init.headers as Record<string, string>).authorization,
-    ).toBe('Bearer user-token');
-  });
-
-  /** external-service ยิงมาด้วยกุญแจ `rfk_` — ต้องส่งต่อดิบเหมือนกัน. */
-  it('ส่งต่อกุญแจ API ดิบ ไม่แปลงเป็นอย่างอื่น', async () => {
-    const { client, calls } = harness();
-
-    await inRequest('Bearer rfk_abc123', async () => {
-      await client.issue(input);
-    });
-
-    expect(
-      (calls[0].init.headers as Record<string, string>).authorization,
-    ).toBe('Bearer rfk_abc123');
+    expect(tokens.integrationToken).toHaveBeenCalled();
+    expect(headersOf(calls[0]).authorization).toBe('Bearer service-token');
   });
 
   it('ปักบริษัทของเอกสารผ่าน X-Company-Id', async () => {
     const { client, calls } = harness();
 
-    await inRequest('Bearer user-token', async () => {
-      await client.issue(input);
-    });
+    await client.issue(input);
 
-    expect(
-      (calls[0].init.headers as Record<string, string>)['x-company-id'],
-    ).toBe('company-osd');
+    expect(headersOf(calls[0])['x-company-id']).toBe('company-osd');
   });
 
   it('ส่ง prefix ของบริษัทที่อ่านเอง ผู้เรียกไม่ต้องรู้', async () => {
     const { client, calls } = harness();
 
-    await inRequest('Bearer user-token', async () => {
-      await client.issue(input);
-    });
+    await client.issue(input);
 
     expect(JSON.parse(calls[0].init.body as string)).toMatchObject({
       doc_type: 'REQUEST',
@@ -96,11 +73,17 @@ describe('ขอเลขรันข้าม service', () => {
     });
   });
 
-  it('ปฏิเสธเมื่อไม่ได้อยู่ในคำขอที่มี credential', async () => {
-    const { client } = harness();
+  it('ปฏิเสธเมื่อไม่พบบริษัทของเอกสาร', async () => {
+    harness();
 
-    await expect(client.issue(input)).rejects.toMatchObject({
-      code: 'UNAUTHORIZED',
+    const missing = new RunNumberClient(
+      { get: jest.fn(() => 'http://run-number/api/v1') } as never,
+      { integrationToken: jest.fn(() => Promise.resolve('t')) } as never,
+      { findUnique: jest.fn(() => Promise.resolve(null)) } as never,
+    );
+
+    await expect(missing.issue(input)).rejects.toMatchObject({
+      code: 'NOT_FOUND',
     });
   });
 
@@ -120,19 +103,13 @@ describe('ขอเลขรันข้าม service', () => {
       },
     );
 
-    await inRequest('Bearer user-token', async () => {
-      const code = await client.issueUnused(
-        { ...input, idempotencyKey: 'run-number:REQUEST:r1:PS01' },
-        (candidate) => Promise.resolve(candidate === 'REQ-1'),
-      );
-
-      expect(code).toBe('REQ-2');
-    });
-
-    const keys = calls.map(
-      (call) => (call.init.headers as Record<string, string>)['idempotency-key'],
+    const code = await client.issueUnused(
+      { ...input, idempotencyKey: 'run-number:REQUEST:r1:PS01' },
+      (candidate) => Promise.resolve(candidate === 'REQ-1'),
     );
-    expect(keys).toEqual([
+
+    expect(code).toBe('REQ-2');
+    expect(calls.map((call) => headersOf(call)['idempotency-key'])).toEqual([
       'run-number:REQUEST:r1:PS01:0',
       'run-number:REQUEST:r1:PS01:1',
     ]);

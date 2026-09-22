@@ -489,10 +489,7 @@ describe('C360-01 summary — ตัวเลขการ์ดหน้า 360�
   it('C360-02 ODOO_MODE=mock — ยอดค้างชำระใน cache เป็นตัวเลขปลอม ตอบ null ไม่โชว์เป็นยอดจริง', async () => {
     const { service } = harness({ odooPayload: cachedReceivables });
 
-    const summary = await service.summaryOf(
-      'cust-1',
-      principal(['crm.customer.read']),
-    );
+    const summary = await service.summaryOf('cust-1', financeViewer());
 
     expect(summary.financials).toBeNull();
   });
@@ -503,10 +500,7 @@ describe('C360-01 summary — ตัวเลขการ์ดหน้า 360�
       odooPayload: cachedReceivables,
     });
 
-    const summary = await service.summaryOf(
-      'cust-1',
-      principal(['crm.customer.read']),
-    );
+    const summary = await service.summaryOf('cust-1', financeViewer());
 
     expect(summary.financials).toEqual(cachedReceivables.receivables);
   });
