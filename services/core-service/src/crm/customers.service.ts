@@ -183,7 +183,9 @@ export class CustomersService {
    * counted through the same filters as the tabs' own queries (SCOPE-02), so
    * a card can never disagree with the rows under it. The requests block is
    * `null` for a viewer without `request.read` — the frontend hides the card
-   * instead of showing a number that would 403 on click (C360-04).
+   * instead of showing a number that would 403 on click (C360-04). The same
+   * holds per section: โอกาสการขาย needs `crm.sales.read` and ยอดค้างชำระ needs
+   * `crm.customer.financial.read`, each gated before its query runs.
    */
   async summaryOf(id: string, actor: Principal) {
     await this.findOne(id, actor);
@@ -194,6 +196,8 @@ export class CustomersService {
         { refType: 'customer', refId: id },
       ],
     };
+
+    const seesFinancials = hasPermission(actor, 'crm.customer.financial.read');
 
     const salesWhere = hasPermission(actor, 'crm.sales.read')
       ? ({
@@ -237,10 +241,15 @@ export class CustomersService {
             } as never,
           })
         : Promise.resolve(null),
-      this.externalCodes.findFirst({
-        where: { customerId: id, system: 'odoo' },
-        select: { payload: true },
-      }) as Promise<{ payload: unknown } | null>,
+      // C360-02/C360-04 — ยอดค้างชำระเป็น permission แยกจาก crm.customer.read
+      // (PO ยืนยัน 8 ก.ย.): ไม่มีสิทธิ์ = ไม่อ่าน cache เลย และไม่มี field
+      // ให้เห็นใน payload ไม่ใช่ซ่อนแค่ฝั่งหน้าจอ
+      seesFinancials
+        ? (this.externalCodes.findFirst({
+            where: { customerId: id, system: 'odoo' },
+            select: { payload: true },
+          }) as Promise<{ payload: unknown } | null>)
+        : Promise.resolve(null),
       salesWhere
         ? this.opportunities.count({
             where: {
@@ -286,6 +295,7 @@ export class CustomersService {
           ? null
           : { total: requestTotal, open: requestOpen },
       // ODOO_MODE=mock → ตัวเลขใน cache เป็นของปลอม: ตอบ null ให้การ์ดบอกว่ารอ Odoo
+      // (ไม่มี crm.customer.financial.read ก็ null ด้วย — ไม่เคยอ่าน cache ข้างบน)
       financials: (this.odooSync.receivablesLive
         ? (payload?.receivables ?? null)
         : null) as {
