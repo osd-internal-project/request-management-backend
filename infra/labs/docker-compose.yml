@@ -1,4 +1,4 @@
-# The labs stack: all three API services, pulled from SWR.
+# The labs stack: all four API services, pulled from SWR.
 #
 # Started by .github/workflows/deploy-labs.yml on the VM's self-hosted runner:
 #
@@ -47,8 +47,9 @@ services:
     ports: ["3502:3002"]
     # Ordering only. core-service resolves callers through user-service on every
     # request, so it must not refuse to start when user-service is slow — it
-    # retries per request.
-    depends_on: [user-service]
+    # retries per request. Same for run-number-service, which it calls to issue
+    # a document number.
+    depends_on: [user-service, run-number-service]
     healthcheck:
       # The body, not the status code: health.repository.ts catches the query
       # error and still answers 200 with `"database":"down"`. A status-code
@@ -76,13 +77,35 @@ services:
     #
     # Not on core-service, deliberately. It runs core-service's domain providers
     # in its own process rather than calling them over HTTP, so rm-core being
-    # down does not stop it — see services/core-service/src/index.ts.
-    depends_on: [user-service]
+    # down does not stop it — see services/core-service/src/index.ts. It does
+    # depend on run-number-service: those providers issue document numbers.
+    depends_on: [user-service, run-number-service]
     healthcheck:
       # The body, not the status code — the same trap as core-service, and for
       # the same reason: this service reaches the database directly, and health
       # answers 200 with `"database":"down"` when it cannot.
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3003/api/v1/health | grep -q '\"database\":\"up\"'"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  run-number-service:
+    <<: *common
+    image: ${REGISTRY}/${SWR_ORG}/request-management-run-number-service:${IMAGE_TAG}
+    container_name: rm-runnumber
+    # Host 3504 → container 3004, the same +500 offset. Published for symmetry
+    # and for `curl` from the VM only — no caller outside the VM reaches it, so
+    # it stays closed at the firewall. See §7 in docs/labs-server-setup.md.
+    ports: ["3504:3004"]
+    # Ordering only, same reasoning as the others: it resolves callers through
+    # user-service on every request and retries.
+    depends_on: [user-service]
+    healthcheck:
+      # The body, not the status code — same trap as core-service: this service
+      # reaches the database directly and answers 200 with `"database":"down"`
+      # when it cannot.
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3004/api/v1/health | grep -q '\"database\":\"up\"'"]
       interval: 15s
       timeout: 5s
       retries: 5

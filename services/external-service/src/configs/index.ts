@@ -11,6 +11,13 @@ export default () => ({
     process.env.USER_SERVICE_URL ?? 'http://localhost:3001/api/v1',
 
   /**
+   * ที่ที่ขอเลขรัน — service นี้รัน `RequestsModule` ของ core ในโปรเซสตัวเอง
+   * จึงเรียก `RunNumberClient` ด้วย (docs/run-number.md).
+   */
+  runNumberServiceUrl:
+    process.env.RUN_NUMBER_SERVICE_URL ?? 'http://localhost:3004/api/v1',
+
+  /**
    * AUTH-06: what an API key is exchanged for.
    *
    * An `rfk_` key resolves to a Keycloak client-credentials token for this

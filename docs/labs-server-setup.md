@@ -10,7 +10,7 @@ Both repos deploy to this same VM:
 
 | Repo | Containers | Host port → container port |
 |---|---|---|
-| `request-mangement-backend` | `rm-user`, `rm-core`, `rm-external` | 3501 → 3001, 3502 → 3002, 3503 → 3003 |
+| `request-mangement-backend` | `rm-user`, `rm-core`, `rm-external`, `rm-runnumber` | 3501 → 3001, 3502 → 3002, 3503 → 3003, 3504 → 3004 |
 | `request-management-frontend` | `rm-fe` | 3500 → 3000 |
 
 Those container names and host ports are the same ones the `docker run` commands use, so the
@@ -20,13 +20,14 @@ stack looks identical whether compose or a person started it:
 docker run -d --name rm-core     --network rm-net -p 3502:3002 --env-file .backend.env  <image>
 docker run -d --name rm-user     --network rm-net -p 3501:3001 --env-file .backend.env  <image>
 docker run -d --name rm-external --network rm-net -p 3503:3003 --env-file .backend.env  <image>
+docker run -d --name rm-runnumber --network rm-net -p 3504:3004 --env-file .backend.env  <image>
 docker run -d --name rm-fe       --network rm-net -p 3500:3000 --env-file .frontend.env <image>
 ```
 
 > **The cost of sharing the names.** compose refuses to adopt a container it did not create.
 > Start one of these by hand and the next deploy stops with
 > `Conflict. The container name "/rm-core" is already in use`. The fix is
-> `docker rm -f rm-user rm-core rm-external rm-fe`, then re-run the workflow.
+> `docker rm -f rm-user rm-core rm-external rm-runnumber rm-fe`, then re-run the workflow.
 
 **The machine must be linux/amd64.** The images are built `--platform linux/amd64`; an ARM VM
 cannot run them.
@@ -192,6 +193,11 @@ sudo install -m 640 -g github-runner /tmp/frontend.env /etc/request-management/.
 > value. The frontend wants `http://rm-user:3001` — an origin, because
 > `src/lib/backend.ts` appends `/api/v1` itself. Copying the line from one file to the other
 > breaks whichever side receives it.
+>
+> `RUN_NUMBER_SERVICE_URL` is the same trap a second time: the backend file wants
+> `http://rm-runnumber:3004/api/v1`, the frontend file wants `http://rm-runnumber:3004`.
+> Miss it in the backend file and every document number fails; miss it in the frontend
+> file and the "เลขรันเอกสาร" screen cannot load.
 
 > **Which port goes where.** Service-to-service URLs use the port *inside* the container
 > (3001, 3002) because those calls cross `rm-net` directly and never touch the host. Only
@@ -239,8 +245,10 @@ against a schema they do not match.
 
 ## 7. Firewall
 
-Open **3500** to whoever uses the app. 3501 and 3502 only need to be reachable from the VM
-itself — the frontend talks to them over the `rm-net` network, not through the host.
+Open **3500** to whoever uses the app. 3501, 3502 and 3504 only need to be reachable from
+the VM itself — the frontend and the services talk to each other over the `rm-net` network,
+not through the host. **3504 in particular must stay closed**: run-number-service issues
+document numbers and has no business being reachable from outside.
 
 **3503 is the exception, and it is the whole point of external-service.** Its callers are
 outside this machine — a chatbot, the Lead intake web form, the workflow engine, an MCP
@@ -322,6 +330,7 @@ docker compose -f infra/labs/docker-compose.yml logs --tail=100 core-service
 
 # The check that distinguishes "running" from "actually working":
 curl -s localhost:3502/api/v1/health     # must say "database":"up"
+curl -s localhost:3504/api/v1/health     # same, run-number-service
 ```
 
 `/health` on core-service answers **200 even when the database is down** — the failure shows

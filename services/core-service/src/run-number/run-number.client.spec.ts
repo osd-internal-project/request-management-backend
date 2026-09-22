@@ -87,6 +87,22 @@ describe('ขอเลขรันข้าม service', () => {
     });
   });
 
+  it('ปฏิเสธเมื่อยังไม่ได้ตั้ง RUN_NUMBER_SERVICE_URL', async () => {
+    const unconfigured = new RunNumberClient(
+      { get: jest.fn(() => undefined) } as never,
+      { integrationToken: jest.fn(() => Promise.resolve('t')) } as never,
+      {
+        findUnique: jest.fn(() =>
+          Promise.resolve({ code: 'OSD', docPrefix: 'OSD' }),
+        ),
+      } as never,
+    );
+
+    await expect(unconfigured.issue(input)).rejects.toMatchObject({
+      message: expect.stringContaining('RUN_NUMBER_SERVICE_URL'),
+    });
+  });
+
   /** เลขที่ชนของบริษัทอื่นต้องถูกข้าม และแต่ละครั้งใช้คีย์ idempotency คนละตัว. */
   it('วนขอเลขใหม่จนได้เลขที่ยังว่าง', async () => {
     let issued = 0;

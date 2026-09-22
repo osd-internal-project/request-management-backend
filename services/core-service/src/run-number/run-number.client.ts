@@ -76,7 +76,16 @@ export class RunNumberClient {
   }
 
   private async post(input: IssueRunNumberInput): Promise<IssueResponse> {
-    const baseUrl = this.config.get<string>('runNumberServiceUrl')!;
+    const baseUrl = this.config.get<string>('runNumberServiceUrl');
+
+    if (!baseUrl) {
+      // การตั้งค่าขาด ไม่ใช่ปลายทางล่ม — ยิงไป `undefined/...` แล้วอ่าน error ไม่ออก
+      throw new AppError(
+        'UNKNOWN',
+        'ระบบยังไม่ได้ตั้งค่า RUN_NUMBER_SERVICE_URL',
+      );
+    }
+
     const url = `${baseUrl}/internal/run-numbers/issue`;
     const company = (await this.companies.findUnique({
       where: { id: input.companyId },
