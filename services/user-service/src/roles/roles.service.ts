@@ -201,20 +201,13 @@ export class RolesService implements OnModuleInit {
     actor: Principal,
   ): Promise<RoleWithPermissions> {
     return this.transactions.execute(async (prisma) => {
+     
       const option = { prisma };
 
       const before = await this.roles.findById(id, option);
       if (!before) {
         throw new AppError('NOT_FOUND', 'ไม่พบบทบาทที่ระบุ');
-      }
-
-      // §5.4 guardrail 1. `updateRole` replaces the permission set wholesale,
-      // so `dto.permissions` is exactly what the role ends up holding.
-      //
-      // Checked only when permissions are supplied: a role seeded before this
-      // rule existed must still be renameable and — more importantly —
-      // deactivatable, which is the remedy for it. Blocking every PATCH on a
-      // legacy violation would leave it in place with no way to retire it.
+      } 
       if (dto.permissions) {
         assertSeparationOfDuties(dto.permissions);
         assertHumanPermissions(dto.permissions);
