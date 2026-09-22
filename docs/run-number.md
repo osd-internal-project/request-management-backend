@@ -88,13 +88,24 @@ Postgres ไม่ได้ เลขจึงออก **นอก** transactio
 
 ### การยืนยันตัวตนระหว่าง service
 
-core-service ยิงมาด้วย service-account token ของตัวเอง (`ApiKeyService.integrationToken`)
-พร้อม `X-Company-Id` ของเอกสารนั้น `CompanyGuard` รองรับกรณีนี้อยู่แล้วโดยให้
-header กลายเป็นบริษัทที่ทำงานอยู่ บริษัทจึงมาจากด่านไม่ใช่จาก body
+core-service **ส่งต่อ credential ของคำขอ** ไม่ได้ใช้ credential ของตัวเอง ซึ่งเป็น
+แบบเดียวกับที่ `internal/policy/resolve` ของ user-service ใช้อยู่
 
-route จึงประกาศ `@Authenticated()` + `@ServiceAccountAllowed()` ไม่ใช่
-`@Permissions()` — สิทธิ์สร้างเอกสาร (`request.create`, `crm.sales.manage`)
-ถูกตรวจที่ service ต้นทางไปแล้ว
+`requestContextMiddleware` (`libs/share/src/context/request-context.ts`) เก็บ header
+`authorization` ตามที่มาถึงไว้ใน AsyncLocalStorage ก่อน guard ตัวใดจะแก้ แล้ว
+`RunNumberClient` หยิบไปใช้ — จุดเรียกทั้งหกจึงไม่ต้องรับ token ผ่าน signature
+ลงทะเบียนไว้ใน `main.ts` ของ core-service และ external-service
+
+เก็บ **ดิบ** โดยตั้งใจ: คำขอจากหน้าจอพา token ของคนมา ส่วน external-service พากุญแจ
+`rfk_` มา ปลายทางตีความทั้งสองแบบได้ด้วย guard ชุดเดิม ถ้าแปลงเป็น service-account
+token ของ core เองจะโดน `RemotePrincipalGuard` ปฏิเสธ เพราะ AUTH-06 กำหนดว่า
+บัญชีบริการต้องมาพร้อมกุญแจ สิทธิ์อ่านจาก `api_keys.scopes` ที่เดียว
+
+`X-Company-Id` ส่งเป็นบริษัทของเอกสารนั้น บริษัทจึงมาจากด่านไม่ใช่จาก body
+
+route ประกาศ `@Authenticated()` + `@ServiceAccountAllowed()` ไม่ใช่ `@Permissions()`
+— สิทธิ์สร้างเอกสาร (`request.create`, `crm.sales.manage`) ถูกตรวจที่ service
+ต้นทางไปแล้ว
 
 ### การข้ามรหัสที่ถูกใช้ไปแล้ว
 

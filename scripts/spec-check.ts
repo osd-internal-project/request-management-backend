@@ -445,27 +445,55 @@ function servicePaths(service: string): string[] {
  * took the outward-facing API, and the one-way check could not see them.
  */
 function checkServiceRouting(): Report {
-  // `/health` is infrastructure, not a screen route — nothing proxies it, so
-  // listing it in the frontend would be the mistake, not the omission.
-  const declared = servicePaths('core-service').filter(
-    (path) => path !== '/health',
-  );
-  const external = servicePaths('external-service');
-
   const table = read(
     join(FRONTEND_SRC, 'lib', 'backend.ts'),
     'frontend backend.ts',
   );
+  const external = servicePaths('external-service');
+
+  const core = routingGap(
+    'core-service',
+    'CORE_SERVICE_PREFIXES',
+    table,
+    external,
+  );
+  const runNumber = routingGap(
+    'run-number-service',
+    'RUN_NUMBER_SERVICE_PREFIXES',
+    table,
+    external,
+  );
+
+  return {
+    heading: `เส้นทาง ${core.count + runNumber.count} กลุ่ม — frontend ส่งถูก service`,
+    missing: [...core.missing, ...runNumber.missing],
+    note: '*_SERVICE_PREFIXES ใน request-management-frontend/src/lib/backend.ts',
+  };
+}
+
+/**
+ * ส่วนต่างของ service หนึ่งตัวกับ prefix list ที่ frontend ถือไว้ ทั้งสองทาง.
+ * `/health` และ `/internal` ไม่ผ่าน BFF จึงไม่นับ.
+ */
+function routingGap(
+  service: string,
+  constant: string,
+  table: string,
+  external: string[],
+): { count: number; missing: string[] } {
+  const declared = servicePaths(service).filter(
+    (path) => path !== '/health' && !path.startsWith('/internal'),
+  );
 
   const listed = [
-    ...(/CORE_SERVICE_PREFIXES = \[([^\]]*)\]/.exec(table)?.[1] ?? '').matchAll(
+    ...(new RegExp(`${constant} = \\[([^\\]]*)\\]`).exec(table)?.[1] ?? '').matchAll(
       /'([^']*)'|"([^"]*)"/g,
     ),
   ].map((match) => match[1] ?? match[2]);
 
-  const unlisted = declared.filter(
-    (path) => !listed.some((prefix) => path.startsWith(prefix)),
-  );
+  const unlisted = declared
+    .filter((path) => !listed.some((prefix) => path.startsWith(prefix)))
+    .map((path) => `${path} (${service}) → ถูกส่งไป user-service`);
 
   // external-service is named in the message rather than accepted, because a
   // prefix that moved there does not belong in this list either — outside
@@ -474,18 +502,11 @@ function checkServiceRouting(): Report {
     .filter((prefix) => !declared.some((path) => path.startsWith(prefix)))
     .map((prefix) =>
       external.some((path) => path.startsWith(prefix))
-        ? `${prefix} → ย้ายไป external-service แล้ว ลบออกจาก list`
-        : `${prefix} → ไม่มี service ไหนเสิร์ฟแล้ว ลบออกจาก list`,
+        ? `${prefix} → ย้ายไป external-service แล้ว ลบออกจาก ${constant}`
+        : `${prefix} → ไม่มี service ไหนเสิร์ฟแล้ว ลบออกจาก ${constant}`,
     );
 
-  return {
-    heading: `เส้นทาง core-service ${declared.length} กลุ่ม — frontend ส่งถูก service`,
-    missing: [
-      ...unlisted.map((path) => `${path} → ถูกส่งไป user-service`),
-      ...stale,
-    ],
-    note: 'CORE_SERVICE_PREFIXES ใน request-management-frontend/src/lib/backend.ts',
-  };
+  return { count: declared.length, missing: [...unlisted, ...stale] };
 }
 
 function main(): void {

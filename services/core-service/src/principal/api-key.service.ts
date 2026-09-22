@@ -166,11 +166,7 @@ export class ApiKeyService {
    * today (`libs/share/src/policy/permissions.ts` via the token's roles) and
    * adding another is how two answers to "may they?" start to differ.
    */
-  /**
-   * token แบบ client_credentials ของ client นี้ พร้อม cache.
-   * public เพราะ `RunNumberClient` ใช้ตัวเดียวกัน — ไม่แลก token สองที่.
-   */
-  async integrationToken(): Promise<string> {
+  private async integrationToken(): Promise<string> {
     if (this.minted && this.minted.expiresAt - RENEW_BEFORE_MS > Date.now()) {
       return this.minted.accessToken;
     }
