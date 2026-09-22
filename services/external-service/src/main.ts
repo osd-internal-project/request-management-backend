@@ -2,10 +2,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import {
-  AppErrorExceptionFilter,
-  requestContextMiddleware,
-} from '@request-management/share';
+import { AppErrorExceptionFilter } from '@request-management/share';
 import helmet from 'helmet';
 import { ExternalServiceModule } from './external-service.module';
 import { logger } from './logger.middleware';
@@ -26,8 +23,6 @@ async function bootstrap() {
       '.well-known/oauth-protected-resource/api/v1/mcp',
     ],
   });
-  // ต้องมาก่อน guard ทุกตัว: เก็บ credential ดิบไว้ให้ client ของ service อื่น
-  app.use(requestContextMiddleware);
   app.enableCors();
   app.use(helmet());
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));

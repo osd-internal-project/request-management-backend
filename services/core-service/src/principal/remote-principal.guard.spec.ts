@@ -3,6 +3,7 @@ import {
   AppError,
   getPrincipal,
   COMPANY_HEADER,
+  INTERNAL_SERVICE_KEY,
 } from '@request-management/share';
 import type {
   Principal,
@@ -192,5 +193,75 @@ describe('RemotePrincipalGuard — API key ตัดสินบริษัท�
     await expect(
       guard.canActivate(contextFor({ headers: {} } as never)),
     ).rejects.toBeInstanceOf(AppError);
+  });
+});
+
+/**
+ * `@InternalService()` — ทางเดียวที่บัญชีบริการไม่มีกุญแจผ่านได้ และผ่านด้วยสิทธิ์ว่าง.
+ * ข้อที่สำคัญคือข้อที่สอง: route ปกติต้องยังปฏิเสธเหมือนเดิม.
+ */
+describe('RemotePrincipalGuard — route ที่ service เรียกกันเอง', () => {
+  const SERVICE = {
+    userId: 'svc',
+    activeCompanyId: 'osd',
+    isServiceAccount: true,
+    permissions: ['request.read'],
+  } as unknown as Principal;
+
+  const PERSON = {
+    userId: 'somchai',
+    activeCompanyId: 'osd',
+    isServiceAccount: false,
+    permissions: ['request.read'],
+  } as unknown as Principal;
+
+  function contextFor(request: RequestWithPrincipal) {
+    return {
+      getHandler: () => undefined,
+      getClass: () => undefined,
+      switchToHttp: () => ({ getRequest: () => request }),
+    } as never;
+  }
+
+  function guardWith(principal: Principal, internal: boolean) {
+    const principals = {
+      resolve: jest.fn().mockResolvedValue(principal),
+    } as never;
+    const apiKeys = { resolve: jest.fn().mockResolvedValue(null) } as never;
+    const reflector = {
+      getAllAndOverride: (token: string) =>
+        token === INTERNAL_SERVICE_KEY ? internal : false,
+    } as unknown as Reflector;
+
+    return new RemotePrincipalGuard(reflector, principals, apiKeys);
+  }
+
+  const request = () =>
+    ({
+      headers: { authorization: 'Bearer machine-token' },
+    }) as never as RequestWithPrincipal;
+
+  it('ติดป้าย = ผ่าน และได้สิทธิ์ว่าง ไม่ใช่สิทธิ์ของบัญชีบริการ', async () => {
+    const req = request();
+
+    await expect(
+      guardWith(SERVICE, true).canActivate(contextFor(req)),
+    ).resolves.toBe(true);
+    expect(getPrincipal(req)?.permissions).toEqual([]);
+  });
+
+  it('ไม่ติดป้าย = บัญชีบริการไม่มีกุญแจยังถูกปฏิเสธ (AUTH-06 ไม่เปลี่ยน)', async () => {
+    await expect(
+      guardWith(SERVICE, false).canActivate(contextFor(request())),
+    ).rejects.toBeInstanceOf(AppError);
+  });
+
+  it('ป้ายนี้ไม่แตะสิทธิ์ของคน', async () => {
+    const req = request();
+
+    await expect(
+      guardWith(PERSON, true).canActivate(contextFor(req)),
+    ).resolves.toBe(true);
+    expect(getPrincipal(req)?.permissions).toEqual(['request.read']);
   });
 });

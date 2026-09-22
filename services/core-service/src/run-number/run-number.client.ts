@@ -3,10 +3,10 @@ import { ConfigService } from '@nestjs/config';
 import {
   AppError,
   COMPANY_HEADER,
-  currentAuthorization,
   firstFreeCode,
   type RunNumberDocType,
 } from '@request-management/share';
+import { ApiKeyService } from '../principal/api-key.service';
 import { CompanyPrefixRepository } from './company-prefix.repository';
 
 /** เท่ากับที่ `RemotePrincipalService` ให้ user-service — hop ภายในเครือข่ายเดียวกัน. */
@@ -33,7 +33,7 @@ interface IssueResponse {
 }
 
 /**
- * ขอเลขรันจาก run-number-service โดยส่งต่อ credential ของคำขอ.
+ * ขอเลขรันจาก run-number-service โดยยืนยันตัวในฐานะ core-service.
  * ออกเลขนอก transaction ของผู้เรียก — docs/run-number.md.
  */
 @Injectable()
@@ -42,6 +42,7 @@ export class RunNumberClient {
 
   constructor(
     private readonly config: ConfigService,
+    private readonly tokens: ApiKeyService,
     private readonly companies: CompanyPrefixRepository,
   ) {}
 
@@ -77,12 +78,6 @@ export class RunNumberClient {
   private async post(input: IssueRunNumberInput): Promise<IssueResponse> {
     const baseUrl = this.config.get<string>('runNumberServiceUrl')!;
     const url = `${baseUrl}/internal/run-numbers/issue`;
-    const authorization = currentAuthorization();
-
-    if (!authorization) {
-      throw new AppError('UNAUTHORIZED', 'ต้องเข้าสู่ระบบก่อนใช้งาน');
-    }
-
     const company = (await this.companies.findUnique({
       where: { id: input.companyId },
       select: { code: true, docPrefix: true },
@@ -99,7 +94,7 @@ export class RunNumberClient {
       response = await fetch(url, {
         method: 'POST',
         headers: {
-          authorization,
+          authorization: `Bearer ${await this.tokens.integrationToken()}`,
           'content-type': 'application/json',
           [COMPANY_HEADER]: input.companyId,
           ...(input.idempotencyKey

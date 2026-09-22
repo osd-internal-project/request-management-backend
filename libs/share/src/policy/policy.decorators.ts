@@ -1,4 +1,4 @@
-import { SetMetadata } from '@nestjs/common';
+import { applyDecorators, SetMetadata } from '@nestjs/common';
 import { Permission } from './permissions';
 
 export const PERMISSIONS_KEY = 'ctd:permissions';
@@ -8,6 +8,7 @@ export const PUBLIC_KEY = 'ctd:public';
 export const SERVICE_ACCOUNT_ONLY_KEY = 'ctd:service-account-only';
 export const SERVICE_ACCOUNT_ALLOWED_KEY = 'ctd:service-account-allowed';
 export const ACTING_PERMISSIONS_KEY = 'ctd:acting-permissions';
+export const INTERNAL_SERVICE_KEY = 'ctd:internal-service';
 
 /**
  * Declares the permissions an endpoint requires. The caller must hold **all**
@@ -73,6 +74,16 @@ export const ServiceAccountOnly = () =>
  */
 export const ServiceAccountAllowed = () =>
   SetMetadata(SERVICE_ACCOUNT_ALLOWED_KEY, true);
+
+/**
+ * เรียกโดย service ในระบบด้วยกันเท่านั้น ด้วย token ของ service เอง.
+ * บัญชีบริการที่ไม่มี API key ผ่านได้เฉพาะที่นี่ และได้สิทธิ์ว่าง — docs/run-number.md.
+ */
+export const InternalService = () =>
+  applyDecorators(
+    SetMetadata(INTERNAL_SERVICE_KEY, true),
+    ServiceAccountAllowed(),
+  );
 
 /**
  * Declares the permissions the **person an integration is acting for** must
