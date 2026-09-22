@@ -127,6 +127,62 @@
         ]
       }
     },
+    "/api/v1/admin/api-keys/{id}/scopes": {
+      "patch": {
+        "description": "แทนที่ `scopes` ทั้งชุด ไม่ใช่เพิ่มเข้าไป ช่องทางที่ต้องการสิทธิ์เพิ่มจึงไม่ต้องเปลี่ยนกุญแจ ซึ่งแปลว่าไม่ต้องไปแก้ ค่าที่ฝังอยู่บนเครื่องของพาร์ตเนอร์ — งานที่มักจบลงด้วยการใช้กุญแจสิทธิ์เต็ม ใบเดียวกับทุกช่องทางเพราะขอแก้ทีไรก็ยาก",
+        "operationId": "ApiKeyAdminController_updateScopes",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateApiKeyScopesDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiKeyRowDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แก้สิทธิ์ของกุญแจที่ออกไปแล้ว — มีผลกับคำขอถัดไปทันที",
+        "tags": [
+          "admin/api-keys"
+        ]
+      }
+    },
     "/api/v1/admin/api-keys/{id}/revoke": {
       "post": {
         "operationId": "ApiKeyAdminController_revoke",
@@ -3815,6 +3871,148 @@
         ]
       }
     },
+    "/api/v1/opportunities/{id}/activities": {
+      "get": {
+        "description": "ใหม่สุดก่อน · อ่านได้แม้โอกาสการขายปิดแล้ว",
+        "operationId": "OpportunitiesController_listActivities",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "กิจกรรมและนัดติดตามของโอกาสการขาย",
+        "tags": [
+          "opportunities"
+        ]
+      },
+      "post": {
+        "description": "type: call · email · meeting · task · note — ไม่มี due_at = ทำแล้ว, มี = นัดติดตามครั้งถัดไป",
+        "operationId": "OpportunitiesController_addActivity",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateLeadActivityDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ลงกิจกรรมของโอกาสการขาย",
+        "tags": [
+          "opportunities"
+        ]
+      }
+    },
+    "/api/v1/opportunities/{id}/activities/{activityId}": {
+      "patch": {
+        "operationId": "OpportunitiesController_updateActivity",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "activityId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateLeadActivityDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แก้กิจกรรมของโอกาสการขาย หรือติ๊กเสร็จ",
+        "tags": [
+          "opportunities"
+        ]
+      }
+    },
     "/api/v1/opportunities/{id}/sale-orders": {
       "post": {
         "description": "จุดเดียวที่ทะเบียนลูกค้าเกิด. ลำดับการหาลูกค้า: รายที่โอกาสผูกอยู่ → customer_id ที่ส่งมา → รายเดิมที่เลขภาษี+รหัสสาขาตรง → สร้างใหม่จาก prospect. ต้องมีใบเสนอราคาสถานะ accepted และคำตอบมี customerCreated บอกว่าสร้างใหม่หรือไม่",
@@ -4258,6 +4456,45 @@
           }
         ],
         "summary": "แก้ใบเสนอราคา",
+        "tags": [
+          "quotations"
+        ]
+      }
+    },
+    "/api/v1/quotations/{id}/print": {
+      "get": {
+        "description": "หัวกระดาษ + ผู้ซื้อ + รายการ — ไม่มีต้นทุนและ margin ไม่ว่าผู้เรียกมีสิทธิ์อะไร",
+        "operationId": "QuotationsController_printView",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ใบเสนอราคาฉบับพิมพ์ส่งลูกค้า",
         "tags": [
           "quotations"
         ]
@@ -5212,6 +5449,46 @@
             }
           },
           {
+            "name": "unread",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true"
+              ]
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/api/v1/notifications/unread-count": {
+      "get": {
+        "operationId": "NotificationsController_unreadCount",
+        "parameters": [
+          {
             "name": "X-Company-Id",
             "in": "header",
             "required": false,
@@ -5787,6 +6064,25 @@
           "created_at",
           "created_by",
           "key"
+        ]
+      },
+      "UpdateApiKeyScopesDto": {
+        "type": "object",
+        "properties": {
+          "scopes": {
+            "description": "ชุดสิทธิ์ใหม่ทั้งชุด — แทนที่ของเดิม ไม่ใช่เพิ่มเข้าไป",
+            "example": [
+              "integration.crm.lead.create",
+              "integration.crm.lead.read"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "scopes"
         ]
       },
       "CreateRequestDto": {

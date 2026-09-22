@@ -6,7 +6,7 @@ import {
   PrismaTransactionService,
 } from '@request-management/share';
 import { CustomerRepository } from './customer.repository';
-import { CustomerCodeService } from './customer-code.service';
+import { RunNumberClient } from '../run-number/run-number.client';
 import { CustomerDedupService } from './customer-dedup.service';
 import { CustomerTimelineService } from './customer-timeline.service';
 import { isValidThaiTaxId, normalizeCustomerName } from './customer-name';
@@ -50,7 +50,7 @@ export interface ImportResult {
 export class CustomerImportService {
   constructor(
     private readonly customers: CustomerRepository,
-    private readonly codes: CustomerCodeService,
+    private readonly runNumbers: RunNumberClient,
     private readonly dedup: CustomerDedupService,
     private readonly timeline: CustomerTimelineService,
     private readonly audit: AuditWriter,
@@ -133,6 +133,12 @@ export class CustomerImportService {
     }
 
     try {
+      // ออกเลขนอก transaction และหลังตรวจทุกอย่างผ่าน — docs/run-number.md
+      const customerCode = await this.runNumbers.issueUnused(
+        { companyId: actor.activeCompanyId, docType: 'CUSTOMER' },
+        (code) => this.customers.codeTaken(code),
+      );
+
       return await this.transactions.execute(async (prisma) => {
         const head = row.tax_id
           ? await this.dedup.headOfficeOf(
@@ -141,10 +147,6 @@ export class CustomerImportService {
               prisma,
             )
           : null;
-        const customerCode = await this.codes.issue(
-          actor.activeCompanyId,
-          prisma,
-        );
 
         const created = await this.customers.create(
           {

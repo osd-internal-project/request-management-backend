@@ -204,6 +204,19 @@ export class RequestRepository extends BaseRepository<
    * and a number from another company must read as "not found", not as a
    * request the caller then fails to open (SCOPE-03).
    */
+  /**
+   * เลขที่นี้ถูกใช้ไปแล้วหรือยัง — ไม่ปักบริษัท ต่างจาก `findIdByNumber`.
+   * ตอบว่าดัชนี unique จะยอมรับเลขนี้ไหม ไม่ใช่ว่าผู้เรียกเห็นคำขอไหม.
+   */
+  async requestNoTaken(requestNo: string, option?: TxOption): Promise<boolean> {
+    const row = (await this.findFirst(
+      { where: { requestNo }, select: { id: true } },
+      option,
+    )) as { id: string } | null;
+
+    return row !== null;
+  }
+
   async findIdByNumber(
     requestNo: string,
     companyId: string,

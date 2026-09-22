@@ -4,6 +4,7 @@ import {
   BaseRepository,
   PrismaService,
   TQueryClient,
+  TxOption,
 } from '@request-management/share';
 
 /** CRM sales objects — thin repositories, rules live in the services. */
@@ -97,6 +98,22 @@ export class OpportunityRepository extends BaseRepository<
     return client.opportunity;
   }
 
+  /**
+   * รหัสนี้ถูกใช้ไปแล้วหรือยัง — ไม่ปักบริษัท ต่างจากการค้นหาเอกสาร.
+   * ตอบว่าดัชนี unique จะยอมรับรหัสนี้ไหม ไม่ใช่ว่าผู้เรียกเห็นแถวไหม.
+   */
+  async codeTaken(
+    opportunityCode: string,
+    option?: TxOption,
+  ): Promise<boolean> {
+    const row = (await this.findUnique(
+      { where: { opportunityCode }, select: { id: true } },
+      option,
+    )) as { id: string } | null;
+
+    return row !== null;
+  }
+
   /** มูลค่ารวมของโอกาสการขายตาม where — used by the 360° summary card. */
   async sumAmount(where: Prisma.OpportunityWhereInput): Promise<number> {
     const result = await this.prisma.opportunity.aggregate({
@@ -167,6 +184,19 @@ export class SaleOrderRepository extends BaseRepository<
   protected delegate(client: TQueryClient) {
     return client.saleOrder;
   }
+
+  /**
+   * รหัสนี้ถูกใช้ไปแล้วหรือยัง — ไม่ปักบริษัท ต่างจากการค้นหาเอกสาร.
+   * ตอบว่าดัชนี unique จะยอมรับรหัสนี้ไหม ไม่ใช่ว่าผู้เรียกเห็นแถวไหม.
+   */
+  async codeTaken(saleOrderCode: string, option?: TxOption): Promise<boolean> {
+    const row = (await this.findUnique(
+      { where: { saleOrderCode }, select: { id: true } },
+      option,
+    )) as { id: string } | null;
+
+    return row !== null;
+  }
 }
 
 /**
@@ -215,6 +245,19 @@ export class QuotationRepository extends BaseRepository<
 
   protected delegate(client: TQueryClient) {
     return client.quotation;
+  }
+
+  /**
+   * รหัสนี้ถูกใช้ไปแล้วหรือยัง — ไม่ปักบริษัท ต่างจากการค้นหาเอกสาร.
+   * ตอบว่าดัชนี unique จะยอมรับรหัสนี้ไหม ไม่ใช่ว่าผู้เรียกเห็นแถวไหม.
+   */
+  async codeTaken(quotationNo: string, option?: TxOption): Promise<boolean> {
+    const row = (await this.findFirst(
+      { where: { quotationNo }, select: { id: true } },
+      option,
+    )) as { id: string } | null;
+
+    return row !== null;
   }
 }
 

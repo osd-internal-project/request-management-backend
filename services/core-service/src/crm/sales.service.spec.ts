@@ -76,7 +76,9 @@ function opportunityHarness(
   const kycProducts = {
     findMany: jest.fn(() => Promise.resolve(options.kycRules ?? [])),
   };
-  const codes = { issue: jest.fn(() => Promise.resolve('OPP-OSD-000001')) };
+  const codes = {
+    issueUnused: jest.fn(() => Promise.resolve('OPP-OSD-000001')),
+  };
   const timeline = {
     publish: jest.fn((event: { eventType: string; summary: string }) => {
       timelineEvents.push(event);

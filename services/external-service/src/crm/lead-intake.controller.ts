@@ -66,7 +66,19 @@ import {
 export class ExternalLeadIntakeController {
   constructor(private readonly intake: LeadIntakeService) {}
 
-  @Post()
+  /*
+    `intake` ต่อท้าย ไม่ใช่ `POST crm/leads` เปล่า ๆ (21 ก.ย. 2569).
+
+    เดิมทั้งคอนโทรลเลอร์นี้และ `ExternalLeadsController.create` ผูก `POST crm/leads`
+    เส้นเดียวกัน และ `ExternalLeadsController` ถูก register ก่อนใน `crm.module.ts`
+    Express จึงจับตัวนั้นเสมอ — **เส้นนี้เรียกไม่ถึงเลย** เว็บฟอร์มที่ยิงมาด้วยกุญแจ
+    อย่างเดียวตามที่เอกสารบอก ได้ 400 `ต้องระบุ header x-acting-user` ไม่ใช่ Lead
+
+    แยก path แทนการสลับลำดับ register เพราะการสลับจะทำให้ `create` ตายแทน — สองเส้นนี้
+    รับคนละ DTO และคนละประตู อยู่ร่วม path เดียวกันไม่ได้ตั้งแต่ต้น ชื่อ `intake`
+    ตรงกับ `POST request/intake` ที่ฝั่งคำขอใช้อยู่แล้วสำหรับความหมายเดียวกัน
+  */
+  @Post('intake')
   @Permissions('integration.crm.lead.create')
   @ApiOperation({
     summary: 'รับ Lead จากระบบภายนอก — เข้ากองกลาง รอพนักงานขายรับ',

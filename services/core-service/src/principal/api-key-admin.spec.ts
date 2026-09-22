@@ -246,6 +246,107 @@ describe('ApiKeyAdminService — ออกกุญแจช่องทาง�
     expect(audits).toHaveLength(0);
   });
 
+  describe('แก้สิทธิ์ของกุญแจที่ออกไปแล้ว', () => {
+    const live = (overrides: Record<string, unknown> = {}) => [
+      {
+        id: 'key-1',
+        prefix: 'rfk_aaaaaaaa',
+        name: 'เว็บไซต์',
+        sourceCode: 'website',
+        scopes: ['integration.crm.lead.create'],
+        active: true,
+        expiresAt: null,
+        revokedAt: null,
+        lastUsedAt: null,
+        createdAt: new Date('2026-09-14T09:00:00.000Z'),
+        createdBy: 'admin-1',
+        ...overrides,
+      },
+    ];
+
+    it('แทนที่ทั้งชุด ไม่ใช่เพิ่มเข้าไป — เอาสิทธิ์ออกได้ด้วย', async () => {
+      const { service, keys } = harness(live());
+
+      await service.updateScopes(
+        'key-1',
+        { scopes: ['integration.crm.lead.read'] },
+        admin(),
+      );
+
+      expect(keys.update.mock.calls[0][0].data).toEqual({
+        scopes: ['integration.crm.lead.read'],
+      });
+    });
+
+    it('audit เก็บทั้งชุดเดิมและชุดใหม่ ไม่ใช่แค่ผลลัพธ์', async () => {
+      const { service, audits } = harness(live());
+
+      await service.updateScopes(
+        'key-1',
+        { scopes: ['integration.crm.lead.read'] },
+        admin(),
+      );
+
+      expect(audits[0]).toMatchObject({
+        eventType: 'admin.api_key.scopes_changed',
+        before: { scopes: ['integration.crm.lead.create'] },
+        after: { scopes: ['integration.crm.lead.read'] },
+      });
+    });
+
+    it('ติ๊กสิทธิ์นอก integration.* ไม่ได้ เหมือนตอนออกใบใหม่', async () => {
+      const { service, keys } = harness(live());
+
+      await expect(
+        service.updateScopes('key-1', { scopes: ['admin.role.manage'] }, admin()),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+      expect(keys.update).not.toHaveBeenCalled();
+    });
+
+    it('สิทธิ์ซ้ำถูกยุบ เหมือนตอนออกใบใหม่', async () => {
+      const { service, keys } = harness(live());
+
+      await service.updateScopes(
+        'key-1',
+        {
+          scopes: ['integration.crm.lead.read', 'integration.crm.lead.read'],
+        },
+        admin(),
+      );
+
+      expect(keys.update.mock.calls[0][0].data.scopes).toEqual([
+        'integration.crm.lead.read',
+      ]);
+    });
+
+    it('กุญแจที่เพิกถอนแล้วแก้ไม่ได้ — หน้าจอต้องไม่ดูเหมือนคืนชีพให้มันได้', async () => {
+      const { service, keys } = harness(
+        live({ active: false, revokedAt: new Date('2026-09-10') }),
+      );
+
+      await expect(
+        service.updateScopes(
+          'key-1',
+          { scopes: ['integration.crm.lead.read'] },
+          admin(),
+        ),
+      ).rejects.toMatchObject({ code: 'UNPROCESSABLE' });
+      expect(keys.update).not.toHaveBeenCalled();
+    });
+
+    it('SCOPE-03: แก้กุญแจของบริษัทอื่น = 404', async () => {
+      const { service } = harness([]);
+
+      await expect(
+        service.updateScopes(
+          'key-x',
+          { scopes: ['integration.crm.lead.read'] },
+          admin(),
+        ),
+      ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    });
+  });
+
   it('SCOPE-03: กุญแจของบริษัทอื่น = 404 ไม่ใช่ 403', async () => {
     const { service } = harness([]);
 

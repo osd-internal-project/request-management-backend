@@ -100,8 +100,9 @@ export class OpportunityStaleMonitorService
     for (const opportunity of found) {
       const days = daysOf.get(opportunity.companyId) ?? DEFAULT_STALE_DAYS;
       const head = await this.headOf(opportunity);
-      const recipients = [...new Set([opportunity.ownerUserId, head ?? ''])]
-        .filter(Boolean);
+      const recipients = [
+        ...new Set([opportunity.ownerUserId, head ?? '']),
+      ].filter(Boolean);
 
       // Mark first: a notification that fails must not turn into one every
       // hour — `emit` already logs its own failures.
@@ -176,7 +177,9 @@ export class OpportunityStaleMonitorService
     const rows = (await this.configs.findMany({
       select: { companyId: true, staleOpportunityDays: true },
     })) as { companyId: string; staleOpportunityDays: number }[];
-    return new Map(rows.map((row) => [row.companyId, row.staleOpportunityDays]));
+    return new Map(
+      rows.map((row) => [row.companyId, row.staleOpportunityDays]),
+    );
   }
 
   /** Nearest head above the owner who is not the owner. */

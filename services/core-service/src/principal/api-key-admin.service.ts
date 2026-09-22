@@ -14,6 +14,7 @@ import {
   ApiKeyRowDto,
   IssueApiKeyDto,
   IssuedApiKeyDto,
+  UpdateApiKeyScopesDto,
 } from './dto/api-key.dto';
 
 /** How much of the key is stored in the clear, to name one without quoting it. */
@@ -80,16 +81,7 @@ export class ApiKeyAdminService {
   }
 
   async issue(dto: IssueApiKeyDto, actor: Principal): Promise<IssuedApiKeyDto> {
-    const scopes = [...new Set(dto.scopes)];
-    const unknown = scopes.filter((scope) => !ISSUABLE_SCOPES.includes(scope));
-
-    if (unknown.length) {
-      throw new AppError(
-        'VALIDATION_FAILED',
-        `ออกกุญแจด้วยสิทธิ์เหล่านี้จากหน้าจอไม่ได้: ${unknown.join(', ')}`,
-        unknown.map((scope) => ({ field: 'scopes', reason: scope })),
-      );
-    }
+    const scopes = assertIssuable(dto.scopes);
 
     const key = API_KEY_PREFIX + randomBytes(32).toString('base64url');
     const prefix = key.slice(0, DISPLAY_LENGTH);
@@ -131,6 +123,58 @@ export class ApiKeyAdminService {
     });
 
     return { ...toRow(row), key };
+  }
+
+  /**
+   * แก้สิทธิ์ของกุญแจที่ออกไปแล้ว — มีผลกับคำขอถัดไปทันที.
+   *
+   * ทันทีจริง ๆ เพราะกุญแจถูกอ่านจากตารางนี้ทุกคำขอ (`ApiKeyService.resolve`
+   * เรียก `findByHash` ทุกครั้ง มีแต่ token ที่แลกมาเท่านั้นที่ถูก cache) — ไม่มี
+   * ช่วงที่ช่องทางยังใช้สิทธิ์เก่าอยู่
+   *
+   * แทนที่ทั้งชุด ไม่ใช่เพิ่มเข้าไป: หน้าจอส่งสิ่งที่ติ๊กไว้มาทั้งหมด และ "เอาออก"
+   * ต้องทำได้เท่า ๆ กับ "ใส่เข้า" ไม่งั้นกุญแจมีแต่จะกว้างขึ้นเรื่อย ๆ
+   *
+   * กุญแจที่เพิกถอนแล้วแก้ไม่ได้ — มันใช้ไม่ได้อยู่แล้ว การยอมให้แก้จะทำให้หน้าจอ
+   * ดูเหมือนคืนชีพให้มันได้
+   */
+  async updateScopes(
+    id: string,
+    dto: UpdateApiKeyScopesDto,
+    actor: Principal,
+  ): Promise<ApiKeyRowDto> {
+    const found = (await this.keys.findFirst({
+      where: { id, companyId: actor.activeCompanyId },
+    })) as ApiKeyRow | null;
+
+    // SCOPE-03: กุญแจของบริษัทอื่น = ไม่มีอยู่จริงสำหรับผู้เรียกคนนี้
+    if (!found) throw new AppError('NOT_FOUND', 'ไม่พบ API key ที่ระบุ');
+
+    if (found.revokedAt || !found.active) {
+      throw new AppError(
+        'UNPROCESSABLE',
+        'กุญแจที่เพิกถอนแล้วแก้สิทธิ์ไม่ได้ — ออกใบใหม่แทน',
+      );
+    }
+
+    const scopes = assertIssuable(dto.scopes);
+
+    const row = (await this.keys.update({
+      where: { id },
+      data: { scopes },
+    })) as ApiKeyRow;
+
+    await this.audit.record({
+      eventType: 'admin.api_key.scopes_changed',
+      companyId: actor.activeCompanyId,
+      ...auditActor(actor),
+      resourceType: 'api_key',
+      resourceId: id,
+      before: { prefix: found.prefix, name: found.name, scopes: found.scopes },
+      after: { prefix: found.prefix, name: found.name, scopes },
+    });
+
+    return toRow(row);
   }
 
   /**
@@ -212,6 +256,27 @@ function toRow(row: ApiKeyRow): ApiKeyRowDto {
  * เก็บไว้เป็นคอลัมน์เมื่อไร ก็ต้องมีอะไรสักอย่างคอยเดินอัปเดตตอนกุญแจหมดอายุ
  * และวันที่มันไม่เดิน หน้าจอจะบอกว่า active ทั้งที่ backend ปฏิเสธไปแล้ว.
  */
+/**
+ * ชุดสิทธิ์ที่ออกให้กุญแจได้ — dedupe แล้วตรวจว่าทุกตัวเป็นสิทธิ์ของบัญชีบริการ.
+ *
+ * ใช้ร่วมกันระหว่างการออกใบใหม่กับการแก้ใบเดิม เพราะสองทางนั้นต้องรับค่าชุดเดียวกัน
+ * เสมอ — กฎที่หลวมกว่าอยู่ทางใดทางหนึ่งคือช่องที่คนจะเดินเข้า
+ */
+function assertIssuable(requested: readonly string[]): string[] {
+  const scopes = [...new Set(requested)];
+  const unknown = scopes.filter((scope) => !ISSUABLE_SCOPES.includes(scope));
+
+  if (unknown.length) {
+    throw new AppError(
+      'VALIDATION_FAILED',
+      `ออกกุญแจด้วยสิทธิ์เหล่านี้จากหน้าจอไม่ได้: ${unknown.join(', ')}`,
+      unknown.map((scope) => ({ field: 'scopes', reason: scope })),
+    );
+  }
+
+  return scopes;
+}
+
 function statusOf(row: ApiKeyRow): 'active' | 'expired' | 'revoked' {
   if (row.revokedAt || !row.active) return 'revoked';
   if (row.expiresAt && row.expiresAt.getTime() <= Date.now()) return 'expired';

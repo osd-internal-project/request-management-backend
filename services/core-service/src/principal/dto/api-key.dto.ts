@@ -74,6 +74,26 @@ export class IssueApiKeyDto {
   expires_in_days?: number;
 }
 
+/**
+ * แก้สิทธิ์ของกุญแจที่ออกไปแล้ว.
+ *
+ * มีเฉพาะ `scopes` โดยตั้งใจ — `sourceCode` กับ `companyId` เป็นข้อเท็จจริงที่
+ * ประทับอยู่บนข้อมูลที่กุญแจใบนี้สร้างไว้แล้ว การแก้ทีหลังจะทำให้ Lead เก่าบอกว่า
+ * มาจากช่องทางที่ตอนนั้นยังไม่มี ส่วนตัวกุญแจแก้ไม่ได้อยู่แล้วเพราะเก็บแต่ sha256
+ */
+export class UpdateApiKeyScopesDto {
+  @ApiProperty({
+    description: 'ชุดสิทธิ์ใหม่ทั้งชุด — แทนที่ของเดิม ไม่ใช่เพิ่มเข้าไป',
+    example: ['integration.crm.lead.create', 'integration.crm.lead.read'],
+    type: [String],
+  })
+  @IsArray()
+  @ArrayNotEmpty()
+  @ArrayMaxSize(20)
+  @IsString({ each: true })
+  scopes!: string[];
+}
+
 /** แถวที่หน้าจอแสดง — ไม่มีตัวกุญแจ และไม่มี hash ของมัน. */
 export class ApiKeyRowDto {
   @ApiProperty() id!: string;

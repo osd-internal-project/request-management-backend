@@ -50,6 +50,19 @@ export class CustomerRepository extends BaseRepository<
     return client.customer;
   }
 
+  /**
+   * รหัสนี้ถูกใช้ไปแล้วหรือยัง — ไม่ปักบริษัท ต่างจากการค้นหาเอกสาร.
+   * ตอบว่าดัชนี unique จะยอมรับรหัสนี้ไหม ไม่ใช่ว่าผู้เรียกเห็นแถวไหม.
+   */
+  async codeTaken(customerCode: string, option?: TxOption): Promise<boolean> {
+    const row = (await this.findUnique(
+      { where: { customerCode }, select: { id: true } },
+      option,
+    )) as { id: string } | null;
+
+    return row !== null;
+  }
+
   /** One page of the register, and the count from the same `where` (SCOPE-02). */
   search(
     where: Prisma.CustomerWhereInput,

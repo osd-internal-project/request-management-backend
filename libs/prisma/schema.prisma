@@ -231,6 +231,15 @@ enum CustomerContactRole {
   other
 }
 
+/// รอบที่ลำดับเลขรันกลับไปเริ่มที่ `startNumber` ใหม่ — คุมค่า `periodKey` ของ
+/// `RunNumberCounter`. `none` = นับต่อไปเรื่อย ๆ ไม่มีรีเซ็ต.
+enum RunNumberResetPeriod {
+  none
+  yearly
+  monthly
+  daily
+}
+
 // ---------------------------------------------------------------------------
 // Identity & Org
 // ---------------------------------------------------------------------------
@@ -258,6 +267,8 @@ model Company {
   requests                Request[]
   docNumberConfigs        DocNumberConfig[]
   docNumberCounter        DocNumberCounter[]
+  runNumberSettings       RunNumberSetting[]
+  runNumberCounters       RunNumberCounter[]
   approvalMatrices        ApprovalMatrix[]
   approvalCases           ApprovalCase[]
   delegations             Delegation[]
@@ -1082,6 +1093,64 @@ model DocNumberCounter {
 
   @@unique([companyId, typeCode, yearMonth])
   @@map("doc_number_counters")
+}
+
+// ---------------------------------------------------------------------------
+// Run number  (เลขรันทุกชนิดเอกสาร — run-number-service เท่านั้นที่แตะสองตารางนี้)
+// ---------------------------------------------------------------------------
+
+/// รูปแบบเลขรันต่อบริษัทต่อชนิดเอกสาร แก้ได้จากหน้าตั้งค่าโดยไม่ deploy.
+///
+/// §03: เจ้าของตารางนี้คือ `run-number-service` — service อื่นออกเลขผ่าน
+/// `POST internal/run-numbers/issue` ห้าม query ตรง. `doc_number_configs` และ
+/// `crm_company_configs.codePrefix/codePadding` คือที่เก่าของข้อมูลนี้ ยังไม่ถูกลบ
+/// (ดู docs/run-number.md).
+model RunNumberSetting {
+  id        String @id @default(uuid())
+  companyId String
+  /// `REQUEST` | `CUSTOMER` | `OPPORTUNITY` | `SALE_ORDER` | `QUOTATION`
+  docType   String
+  /// แยกรูปแบบย่อยในชนิดเดียวกัน — `typeCode` ของคำขอ, หรือ `*` = ใช้กับทุกตัว
+  scopeKey  String @default("*")
+
+  /// เช่น `REQ-{COMPANY_PREFIX}-{M:REQUEST_TYPE}-{BYY}{MM}{SEQ}`
+  pattern     String
+  seqPadding  Int                  @default(4)
+  startNumber Int                  @default(1)
+  resetPeriod RunNumberResetPeriod @default(none)
+  active      Boolean              @default(true)
+
+  createdAt DateTime @default(now())
+  createdBy String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, docType, scopeKey])
+  @@index([companyId, docType])
+  @@map("run_number_settings")
+}
+
+/// ลำดับเลขเอง หนึ่งแถวต่อหนึ่งช่วงรีเซ็ต.
+///
+/// **ไม่มี FK ไป `RunNumberSetting` โดยตั้งใจ** — ถ้าผูกไว้ การลบ setting แล้วสร้าง
+/// ใหม่จะพาลำดับกลับไปเริ่มที่ 1 แล้วออกเลขซ้ำกับเอกสารที่ส่งออกไปแล้ว (NFR-03).
+model RunNumberCounter {
+  id        String @id @default(uuid())
+  companyId String
+  docType   String
+  scopeKey  String
+  /// `-` (ไม่รีเซ็ต) | `2026` | `202609` | `20260922`
+  periodKey String
+  lastSeq   Int    @default(0)
+
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, docType, scopeKey, periodKey])
+  @@map("run_number_counters")
 }
 
 // ---------------------------------------------------------------------------

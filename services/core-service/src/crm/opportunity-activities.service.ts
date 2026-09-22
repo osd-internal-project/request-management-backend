@@ -16,10 +16,7 @@ import {
   OpportunityRepository,
 } from './sales.repositories';
 import { CustomerTimelineService } from './customer-timeline.service';
-import {
-  CreateLeadActivityDto,
-  UpdateLeadActivityDto,
-} from './dto/sales.dto';
+import { CreateLeadActivityDto, UpdateLeadActivityDto } from './dto/sales.dto';
 
 interface VisibleOpportunity {
   id: string;

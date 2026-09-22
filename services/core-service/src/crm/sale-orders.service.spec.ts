@@ -88,7 +88,9 @@ describe('CRM โอกาสการขาย — เปิดได้โด�
       {
         findMany: jest.fn(() => Promise.resolve(options.kycRules ?? [])),
       } as never,
-      { issue: jest.fn(() => Promise.resolve('OPP-OSD-000001')) } as never,
+      {
+        issueUnused: jest.fn(() => Promise.resolve('OPP-OSD-000001')),
+      } as never,
       { publish: timeline.fn } as never,
       { record: audit.fn } as never,
       {
@@ -368,7 +370,7 @@ describe('CRM ใบสั่งขาย — จุดเดียวที่�
       leads as never,
       customers as never,
       customersService as never,
-      { issue: jest.fn(() => Promise.resolve('SO-OSD-000001')) } as never,
+      { issueUnused: jest.fn(() => Promise.resolve('SO-OSD-000001')) } as never,
       { publish: timeline.fn } as never,
       { record: audit.fn } as never,
       {

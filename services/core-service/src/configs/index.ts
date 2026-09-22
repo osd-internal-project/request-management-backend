@@ -11,6 +11,16 @@ export default () => ({
     process.env.USER_SERVICE_URL ?? 'http://localhost:3001/api/v1',
 
   /**
+   * ที่ที่ขอเลขรันทุกชนิดเอกสาร (REQ-02 / CM-02).
+   *
+   * service นี้ต้องขึ้นก่อน core-service — ถ้ามันไม่ตอบ การสร้างเอกสารทุกชนิด
+   * จะล้มพร้อมกัน ไม่ใช่แค่ช้าลง. นั่นคือราคาของการแยกเลขรันออกไป deploy เอง
+   * และเป็นเหตุที่ลำดับ deploy ต้องเขียนไว้ใน PR.
+   */
+  runNumberServiceUrl:
+    process.env.RUN_NUMBER_SERVICE_URL ?? 'http://localhost:3004/api/v1',
+
+  /**
    * AUTH-06: what an API key is exchanged for.
    *
    * core-service does not verify tokens (§03) and does not start doing so here.

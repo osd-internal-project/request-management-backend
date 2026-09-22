@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
@@ -14,6 +14,7 @@ import {
   ApiKeyScopeDto,
   IssueApiKeyDto,
   IssuedApiKeyDto,
+  UpdateApiKeyScopesDto,
 } from './dto/api-key.dto';
 
 /**
@@ -70,6 +71,25 @@ export class ApiKeyAdminController {
   @ApiCreatedResponse({ type: IssuedApiKeyDto })
   issue(@Body() dto: IssueApiKeyDto, @CurrentPrincipal() principal: Principal) {
     return this.keys.issue(dto, principal);
+  }
+
+  @Patch(':id/scopes')
+  @Permissions('admin.integration.manage')
+  @ApiOperation({
+    summary: 'แก้สิทธิ์ของกุญแจที่ออกไปแล้ว — มีผลกับคำขอถัดไปทันที',
+    description:
+      'แทนที่ `scopes` ทั้งชุด ไม่ใช่เพิ่มเข้าไป ' +
+      'ช่องทางที่ต้องการสิทธิ์เพิ่มจึงไม่ต้องเปลี่ยนกุญแจ ซึ่งแปลว่าไม่ต้องไปแก้ ' +
+      'ค่าที่ฝังอยู่บนเครื่องของพาร์ตเนอร์ — งานที่มักจบลงด้วยการใช้กุญแจสิทธิ์เต็ม ' +
+      'ใบเดียวกับทุกช่องทางเพราะขอแก้ทีไรก็ยาก',
+  })
+  @ApiOkResponse({ type: ApiKeyRowDto })
+  updateScopes(
+    @Param('id') id: string,
+    @Body() dto: UpdateApiKeyScopesDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.keys.updateScopes(id, dto, principal);
   }
 
   @Post(':id/revoke')

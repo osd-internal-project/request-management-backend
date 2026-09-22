@@ -76,6 +76,13 @@ export const PERMISSIONS = {
     'admin.request-type.manage',
     'admin.approval-matrix.manage',
     'admin.sla.manage',
+    /**
+     * REQ-02: รูปแบบเลขรันของทุกชนิดเอกสาร — pattern, ความยาวลำดับ, รอบรีเซ็ต,
+     * เลขเริ่มต้น. แยกจาก `admin.crm.manage` และ `admin.request-type.manage`
+     * เพราะเลขรันเป็นของกลางข้ามโดเมน และคนที่แก้มันเปลี่ยนหน้าตาเอกสารที่ส่ง
+     * ออกนอกองค์กรได้ทุกชนิดในคราวเดียว.
+     */
+    'admin.run-number.manage',
     /** CD-92: the "Metabase settings" menu item — a link into the BI admin UI. */
     'admin.bi.manage',
     /**

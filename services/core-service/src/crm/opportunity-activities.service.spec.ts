@@ -96,9 +96,7 @@ function harness(
     },
   };
   const transactions = {
-    execute: jest.fn((work: (prisma: unknown) => Promise<unknown>) =>
-      work(tx),
-    ),
+    execute: jest.fn((work: (prisma: unknown) => Promise<unknown>) => work(tx)),
   };
 
   const service = new OpportunityActivitiesService(
@@ -164,9 +162,7 @@ describe('CD-65 กิจกรรมและการติดตามบน�
       lastActivityAt: null,
       nextFollowUpAt: due,
     });
-    expect(timelineEvents[0].eventType).toBe(
-      'opportunity.follow_up_scheduled',
-    );
+    expect(timelineEvents[0].eventType).toBe('opportunity.follow_up_scheduled');
   });
 
   it('CD-65 new completed work after a stale alert clears staleAlertedAt', async () => {
@@ -189,7 +185,11 @@ describe('CD-65 กิจกรรมและการติดตามบน�
 
     await service.add(
       'opp-1',
-      { type: 'task', subject: 'ตามใบเสนอราคา', due_at: '2026-09-25T00:00:00Z' },
+      {
+        type: 'task',
+        subject: 'ตามใบเสนอราคา',
+        due_at: '2026-09-25T00:00:00Z',
+      },
       principal(),
     );
 
@@ -234,8 +234,10 @@ describe('CD-65 กิจกรรมและการติดตามบน�
     const permissionsOf = (handler: string) =>
       Reflect.getMetadata(
         PERMISSIONS_KEY,
-        Object.getOwnPropertyDescriptor(OpportunitiesController.prototype, handler)
-          ?.value as object,
+        Object.getOwnPropertyDescriptor(
+          OpportunitiesController.prototype,
+          handler,
+        )?.value as object,
       ) as string[];
 
     expect(permissionsOf('listActivities')).toEqual(['crm.sales.read']);

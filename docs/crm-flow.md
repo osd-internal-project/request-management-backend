@@ -3,9 +3,9 @@
 เอกสารนี้อธิบายว่า **CRM วันนี้ทำอะไรได้จริง** ไล่จากโค้ดที่รันอยู่ ไม่ใช่จากสเปก
 ทุกหัวข้ออ้าง `path:line` ให้ไปอ่านของจริงต่อได้
 
-**ตรวจครั้งล่าสุด 18 ก.ย. 2569** — `npx jest --testPathPatterns=crm` ใน
-`services/core-service` ได้ **17 suites / 162 tests ผ่านทั้งหมด** และ
-`docs/openapi/external-crm.json` ยังเป็น **58 path / 74 operation** โดย **58 ตัวมี
+**ตรวจครั้งล่าสุด 21 ก.ย. 2569** — `npx jest --testPathPatterns=crm` ใน
+`services/core-service` ได้ **21 suites / 183 tests ผ่านทั้งหมด** และ
+`docs/openapi/external-crm.json` เป็น **62 path / 79 operation** โดย **63 ตัวมี
 `summary` แล้ว** ที่เหลือ 16 เป็นกลุ่ม admin
 
 > **CRM ไม่ใช่โครงเปล่า** `grep -rn "NotImplementedException\|notImplemented(" services/*/src libs/`
@@ -30,7 +30,13 @@ Lead  ── เข้ากองกลาง ไม่มีเจ้าขอ
         Opportunity  stage: qualifying → proposing → negotiating
           │          (customerId ว่างได้ ใช้ prospect snapshot แทน)
           │
-          ├─ lose                  → stage lost        opportunities.service.ts:344
+          ├─ addActivity           กิจกรรม / นัดติดตาม   opportunity-activities.service.ts:77
+          │                        ไม่มี due_at = ทำแล้ว · มี due_at = นัดไว้
+          │                        refreshSummary เขียน lastActivityAt ·
+          │                        nextFollowUpAt · ล้าง staleAlertedAt
+          ├─ updateActivity        ติ๊กเสร็จ / เปิดกลับ  opportunity-activities.service.ts:145
+          │
+          ├─ lose                  → stage lost        opportunities.service.ts:352
           │
           ├─ createForOpportunity  → Quotation v1 draft  quotations.service.ts:206
           │     │
@@ -40,10 +46,17 @@ Lead  ── เข้ากองกลาง ไม่มีเจ้าขอ
           │     ├─ send     approved → sent               quotations.service.ts:477
           │     ├─ accept   sent → accepted               quotations.service.ts:499
           │     ├─ decline  sent → declined               quotations.service.ts:526
-          │     └─ revise   → superseded + v(n+1) draft   quotations.service.ts:584
+          │     ├─ revise   → superseded + v(n+1) draft   quotations.service.ts:584
+          │     └─ printView ฉบับพิมพ์ + หัวกระดาษ (CD-76)  quotation-print.service.ts:81
+          │                 ไม่ดึงต้นทุน/margin จึงอ่านได้ด้วย crm.sales.read
           │
           └─ open Sale Order   ◀── จุดที่ทะเบียนลูกค้าถูกสร้าง
                                และโอกาสการขายถูกปิดชนะ    sale-orders.service.ts:108
+
+  (ไม่มีคนกด)  sweep รายชั่วโมงของ core-service           opportunity-stale-monitor.service.ts:82
+               โอกาสที่เปิดอยู่และเงียบเกิน staleOpportunityDays
+               → ประทับ staleAlertedAt แล้วแจ้งเจ้าของ + หัวหน้า (CD-65)
+               external-service ตั้ง interval เป็น 0 — นาฬิกาเป็นของ core เท่านั้น
 ```
 
 **สามอย่างที่ผิดความคาดหมายมากที่สุด และไม่มีบันทึกไว้ที่อื่น** — อ่านสามข้อนี้ก่อน
@@ -135,7 +148,7 @@ Quotation.submit (quotations.service.ts:354)
 | `CustomerStatus` | `draft` · `active` · `suspended` · `inactive` |
 | `CustomerContactRole` | `decision_maker` · `user` · `procurement` · `finance` · `other` |
 | `LeadStatusKind` | `open` · `won` · `lost` |
-| `LeadActivityType` | `call` · `email` · `meeting` · `task` · `note` |
+| `LeadActivityType` | `call` · `email` · `meeting` · `task` · `note` — **ใช้ร่วมกับ `opportunity_activities` ด้วย** ไม่ได้เป็นของ Lead อย่างเดียวตั้งแต่ CD-65 |
 | `OpportunityStage` | `qualifying` · `proposing` · `negotiating` · `won` · `lost` |
 | `QuotationStatus` | `draft` · `pending_approval` · `approved` · `sent` · `accepted` · `declined` · `superseded` · `cancelled` |
 | `SaleOrderStatus` | `open` · `cancelled` |
@@ -169,25 +182,39 @@ CANCELLABLE = draft · pending_approval · approved · sent
 **Opportunity** ไม่มีตาราง — `requireOpen()` กันแก้ไขเมื่อ won/lost และ `lose()`
 บังคับว่า `reason_code` ต้องมีใน `OpportunityLostReason` ของบริษัทและยัง active
 
+### สามคอลัมน์ที่ CD-65 เพิ่มบน Opportunity — ไม่ใช่สถานะ แต่ตัดสินว่าดีลไหน "เงียบ"
+
+| คอลัมน์ | ใครเขียน | ความหมาย |
+|---|---|---|
+| `lastActivityAt` | `refreshSummary` เท่านั้น | กิจกรรมที่ **ทำเสร็จ** ล่าสุด · NULL = ยังไม่เคยมี นับความเงียบจาก `createdAt` |
+| `nextFollowUpAt` | `refreshSummary` เท่านั้น | กำหนดที่ใกล้ที่สุดของกิจกรรมที่ **ยังไม่เสร็จ** · NULL = ไม่มีนัดค้าง |
+| `staleAlertedAt` | sweep เขียน · `refreshSummary` ล้าง | ครั้งล่าสุดที่แจ้งหัวหน้า ล้างเมื่อมีงานเสร็จใหม่กว่า ดีลที่เงียบซ้ำจึงถูกจับได้อีก |
+
+**ห้ามเขียนสามคอลัมน์นี้จากที่อื่น** — class doc ของ `opportunity-activities.service.ts`
+เขียนไว้ตรง ๆ ว่า "จึงต้องไม่มีทางเขียนกิจกรรมโดยไม่ผ่านที่นี่" การเขียนตรงจะทำให้
+รายการติดตามกับความจริงแยกจากกันเงียบ ๆ
+
+กรองได้จาก `GET /opportunities?follow_up=overdue|stale` (`dto/sales.dto.ts`)
+
 ---
 
 ## 4. API ที่เปิดให้ระบบภายนอก
 
-`docs/openapi/external-crm.json` — **58 path / 74 operation** ทั้งหมดอยู่ใต้
+`docs/openapi/external-crm.json` — **62 path / 79 operation** ทั้งหมดอยู่ใต้
 `/api/v1/crm/*` บน external-service
 
 | กลุ่ม | ops | สิทธิ์ที่ใช้ |
 |---|---|---|
 | customers | 24 | `crm.customer.read` / `crm.customer.manage` · `import` ใช้ `admin.crm.manage` |
 | admin (ตั้งค่า CRM) | 16 | `admin.crm.manage` ทั้งหมด |
-| leads | 14 | `crm.sales.read` / `crm.sales.manage` · สามตัวเป็น robot-only |
-| quotations | 9 | `crm.sales.read` / `crm.sales.manage` |
-| opportunities | 8 | `crm.sales.read` / `crm.sales.manage` |
+| leads | 15 | `crm.sales.read` / `crm.sales.manage` · สามตัวเป็น robot-only |
+| quotations | 10 | `crm.sales.read` / `crm.sales.manage` · `print` อ่านได้ด้วย `crm.sales.read` เพราะไม่ดึงต้นทุน |
+| opportunities | 11 | `crm.sales.read` / `crm.sales.manage` · รวมกิจกรรมและการติดตาม (CD-65) |
 | sale-orders | 3 | `crm.sales.read` / `crm.sales.manage` |
 
 ### สองประตูเหมือน request ทุกประการ
 
-71 จาก 74 operation ประกาศครบทั้งคู่ — `@Permissions('integration.crm.*')` สำหรับ
+76 จาก 79 operation ประกาศครบทั้งคู่ — `@Permissions('integration.crm.*')` สำหรับ
 เครื่อง และ `@ActingPermissions('crm.*')` สำหรับคน พร้อม `@ServiceAccountOnly()` และ
 `@UseGuards(ActingUserGuard, ActingPolicyGuard)`
 
@@ -204,12 +231,18 @@ external สี่ตัวถูก generate จาก `scripts/generate-crm-co
 
 | route | สิทธิ์เครื่อง | ทำไมไม่มี `X-Acting-User` |
 |---|---|---|
-| `POST /crm/leads` | `integration.crm.lead.create` | เว็บฟอร์มลูกค้า — ใบที่เข้ามาไม่มีเจ้าของ รอพนักงานขายกดรับ |
+| `POST /crm/leads/intake` | `integration.crm.lead.create` | เว็บฟอร์มลูกค้า — ใบที่เข้ามาไม่มีเจ้าของ รอพนักงานขายกดรับ |
 | `GET /crm/leads/{id}/facts` | `integration.crm.lead.read` | workflow engine อ่านข้อเท็จจริง |
 | `POST /crm/leads/{id}/stage` | `integration.crm.lead.stage` | workflow engine บันทึกขั้นที่ตัดสินแล้ว |
 
 `sourceOf()` ใน `lead-intake.service.ts` เอา `sourceCode` **จาก API key** ก่อน body
 ไม่มีทั้งคู่ = 422 ไม่มี fallback เป็น "unknown"
+
+> **`intake` ต่อท้ายตั้งแต่ 21 ก.ย. 2569** — เดิมเส้นนี้คือ `POST /crm/leads` ซึ่ง
+> `ExternalLeadsController.create` ผูกอยู่ด้วย และ controller ตัวนั้น register ก่อนใน
+> `crm.module.ts` **เส้น intake จึงเรียกไม่ถึงเลย** เว็บฟอร์มที่ยิงด้วยกุญแจอย่างเดียว
+> ได้ 400 `ต้องระบุ header x-acting-user` ไม่ใช่ Lead · `yarn openapi` เตือนแล้วเมื่อมี
+> handler สองตัวผูก METHOD+path เดียวกัน
 
 ### สิทธิ์ทั้งหมด
 
@@ -238,10 +271,10 @@ role ของคนได้** ตั้งแต่ 17 ก.ย. 2569 ไม่
 | product master / BOQ | ไม่มี `unitCost` ต่อบรรทัดใบเสนอราคากรอกมือ รอ CD-11/CD-12 |
 | เปิดใบที่ปิดแล้วใหม่ | ไม่มีทางกลับจาก won/lost |
 | **CRM ใน MCP** | **ไม่มี tool CRM สักตัว** — `mcp-tools.ts` พูดถึง CRM แค่ในคอมเมนต์สองบรรทัด (`:140`, `:204`) ที่เผื่อไว้ว่าจะมีวันหนึ่ง chat วันนี้ครอบคลุมแค่ request |
-| summary/description ใน OpenAPI ของ CRM | **ปิดแล้ว 18 ก.ย. 2569** — 58 จาก 74 operation มี `summary` ที่เหลือ 16 ตัวเป็นกลุ่ม admin ซึ่งไม่ใช่ทางเดินของงานขาย |
+| summary/description ใน OpenAPI ของ CRM | **ปิดแล้ว 18 ก.ย. 2569** — 63 จาก 79 operation มี `summary` ที่เหลือ 16 ตัวเป็นกลุ่ม admin ซึ่งไม่ใช่ทางเดินของงานขาย |
 
 > **เหลือข้อเดียวก่อน chat CRM จะทำรายการได้** — spec อ่านรู้เรื่องแล้วและ Postman
-> ยิงโดนทั้ง 74 เส้น แต่ **ยังไม่มี tool CRM ให้โมเดลเรียกสักตัว**
+> ยิงโดนทั้ง 79 เส้น แต่ **ยังไม่มี tool CRM ให้โมเดลเรียกสักตัว**
 > prompt ที่มีวันนี้คือ `docs/aiyara-prompt/AIYARA_CRM_SYSTEM_PROMPT_V1.md` ซึ่ง
 > อธิบายวงจรและพาไปหน้าจอ ไม่ได้ลงมือทำแทน
 
@@ -253,7 +286,10 @@ role ของคนได้** ตั้งแต่ 17 ก.ย. 2569 ไม่
 
 | ไฟล์ | อธิบายอะไร |
 |---|---|
-| `docs/aiyara-prompt/AIYARA_CRM_SYSTEM_PROMPT_V1.md` | วงจรทั้งหมดในรูปที่วางลง chat platform ได้ |
+| `docs/aiyara-prompt/AIYARA_CRM_SYSTEM_PROMPT_V2.md` | วงจรทั้งหมดในรูปที่วางลง chat platform ได้ (v1 ยังอยู่แต่เนื้อหาค้างก่อน CD-65/CD-76) |
+| `services/core-service/src/crm/opportunity-activities.service.ts` | กิจกรรมและการติดตาม — ทำไม `refreshSummary` ต้องเป็นทางเดียวที่เขียนสามคอลัมน์นั้น |
+| `services/core-service/src/crm/opportunity-stale-monitor.service.ts` | sweep ดีลเงียบ และเหตุผลที่ประทับธงก่อนส่งแจ้งเตือน |
+| `services/core-service/src/crm/quotation-print.service.ts` | ฉบับพิมพ์ที่ไม่ดึงต้นทุน จึงอ่านได้ด้วย `crm.sales.read` |
 | `services/core-service/src/crm/crm.module.ts` | ทำไม module แยกสองชั้น และ export อะไรบ้าง |
 | `services/external-service/src/crm/lead-intake.controller.ts` | เหตุผลเต็มของกองกลางและการเอา source จาก API key |
 | `services/core-service/src/crm/lead-workflow.service.ts` | มติ "Workflow owns Process, Core owns Data" |

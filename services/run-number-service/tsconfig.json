@@ -1,0 +1,32 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "tsBuildInfoFile": "dist/.tsbuildinfo",
+    "baseUrl": ".",
+    "paths": {
+      "@request-management/share": [
+        "../../libs/share/src"
+      ],
+      "@request-management/share/*": [
+        "../../libs/share/src/*"
+      ],
+      "@request-management/core-service": [
+        "../core-service/src"
+      ],
+      "@request-management/core-service/*": [
+        "../core-service/src/*"
+      ]
+    }
+  },
+  "include": [
+    "src/**/*",
+    "test/**/*",
+    "../../libs/share/src/**/*",
+    "../core-service/src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}

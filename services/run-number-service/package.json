@@ -1,0 +1,58 @@
+{
+  "name": "@request-management/run-number-service",
+  "version": "1.0.0",
+  "description": "เลขรันทุกชนิดเอกสาร: ออกเลข ตั้งค่ารูปแบบ และเป็นเจ้าของ run_number_* ตามลำพัง.",
+  "private": true,
+  "license": "UNLICENSED",
+  "scripts": {
+    "build": "nest build",
+    "start": "nest start",
+    "start:dev": "nest start --watch",
+    "start:debug": "nest start --debug --watch",
+    "start:prod": "node dist/main",
+    "lint": "eslint \"{src,test}/**/*.ts\" --fix",
+    "test": "jest --passWithNoTests",
+    "test:watch": "jest --watch",
+    "test:cov": "jest --coverage",
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "docker:build": "cd ../.. && docker build -t request-management/run-number-service -f services/run-number-service/Dockerfile ."
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.0.1",
+    "@nestjs/config": "^4.0.0",
+    "@nestjs/core": "^11.0.1",
+    "@nestjs/platform-express": "^11.0.1",
+    "@nestjs/swagger": "^11.4.6",
+    "@prisma/client": "^6.3.1",
+    "@request-management/core-service": "^1.0.0",
+    "@request-management/share": "^1.0.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.1",
+    "helmet": "^8.3.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1"
+  },
+  "jest": {
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
+    "rootDir": "src",
+    "testRegex": ".*\\.spec\\.ts$",
+    "transform": {
+      "^.+\\.(t|j)s$": "ts-jest"
+    },
+    "collectCoverageFrom": [
+      "**/*.(t|j)s"
+    ],
+    "coverageDirectory": "../coverage",
+    "testEnvironment": "node",
+    "moduleNameMapper": {
+      "^@request-management/share$": "<rootDir>/../../../libs/share/src/index.ts",
+      "^@request-management/share/(.*)$": "<rootDir>/../../../libs/share/src/$1",
+      "^@request-management/core-service$": "<rootDir>/../../core-service/src/index.ts",
+      "^@request-management/core-service/(.*)$": "<rootDir>/../../core-service/src/$1"
+    }
+  }
+}

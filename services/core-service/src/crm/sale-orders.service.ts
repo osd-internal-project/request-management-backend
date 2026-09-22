@@ -18,7 +18,7 @@ import {
   SALE_ORDER_LIST_SELECT,
   SaleOrderRepository,
 } from './sales.repositories';
-import { SaleOrderCodeService } from './sale-order-code.service';
+import { RunNumberClient } from '../run-number/run-number.client';
 import { CustomerRepository } from './customer.repository';
 import { CustomersService } from './customers.service';
 import { CustomerTimelineService } from './customer-timeline.service';
@@ -48,7 +48,7 @@ export class SaleOrdersService {
     private readonly leads: LeadRepository,
     private readonly customers: CustomerRepository,
     private readonly customersService: CustomersService,
-    private readonly codes: SaleOrderCodeService,
+    private readonly runNumbers: RunNumberClient,
     private readonly timeline: CustomerTimelineService,
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
@@ -118,11 +118,13 @@ export class SaleOrdersService {
       : null;
     const customer = await this.resolveCustomer(opportunity, dto, actor);
 
+    // ออกเลขนอก transaction และหลังตรวจทุกอย่างผ่าน — docs/run-number.md
+    const saleOrderCode = await this.runNumbers.issueUnused(
+      { companyId: actor.activeCompanyId, docType: 'SALE_ORDER' },
+      (code) => this.saleOrders.codeTaken(code),
+    );
+
     const created = await this.transactions.execute(async (prisma) => {
-      const saleOrderCode = await this.codes.issue(
-        actor.activeCompanyId,
-        prisma,
-      );
       const amount =
         dto.amount ?? quotation?.netTotal ?? opportunity.amount ?? null;
 

@@ -3609,17 +3609,15 @@
         ]
       },
       "post": {
-        "description": "ต้องมีแค่ `Authorization: Bearer rfk_…` — บริษัทและช่องทางมาจากตัว API key ไม่ต้องส่ง `X-Company-Id` และไม่ต้องส่ง `source_code`\n\nใบที่สร้างจะไม่มีเจ้าของ (`owner_user_id: null`) และแสดงในหน้ารายการของ ทุกคนที่อ่าน Lead ได้ในบริษัทนั้น จนกว่าจะมีคนกด `PATCH /leads/{id}/owner` เพื่อรับไปดูแล ขั้นตั้งต้นและ workflow เดินเหมือนกับ Lead ที่พนักงานกรอกเองทุกประการ",
-        "operationId": "ExternalLeadIntakeController_receive",
+        "operationId": "ExternalLeadsController_create",
         "parameters": [
           {
-            "name": "Idempotency-Key",
+            "name": "X-Acting-User",
             "in": "header",
-            "description": "ควรส่งทุกครั้ง — หนึ่งค่าต่อหนึ่งใบ ยิงซ้ำด้วยค่าเดิมและ body เดิมจะได้ใบเดิมกลับไป ไม่เกิดใบที่สอง ไม่ส่งก็ทำงานได้ แต่ response ที่หายกลางทางแล้ว retry จะกลายเป็น Lead สองใบ",
-            "required": false,
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
             "schema": {
-              "type": "string",
-              "example": "6f6bd3a7-7308-4d2e-a4de-75e1f89b6871"
+              "type": "string"
             }
           },
           {
@@ -3637,21 +3635,14 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/IntakeLeadDto"
+                "$ref": "#/components/schemas/CreateLeadDto"
               }
             }
           }
         },
         "responses": {
           "201": {
-            "description": "Lead ที่รับเข้ากองกลางแล้ว",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/IntakeLeadResultDto"
-                }
-              }
-            }
+            "description": ""
           }
         },
         "security": [
@@ -3659,9 +3650,9 @@
             "bearer": []
           }
         ],
-        "summary": "รับ Lead จากระบบภายนอก — เข้ากองกลาง รอพนักงานขายรับ",
+        "summary": "สร้าง Lead",
         "tags": [
-          "crm-intake"
+          "crm"
         ],
         "x-acting-permission": [
           "crm.sales.manage"
@@ -4483,6 +4474,184 @@
         ]
       }
     },
+    "/api/v1/crm/opportunities/{id}/activities": {
+      "get": {
+        "description": "ใหม่สุดก่อน · อ่านได้แม้โอกาสการขายปิดแล้ว",
+        "operationId": "ExternalOpportunitiesController_listActivities",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "กิจกรรมและนัดติดตามของโอกาสการขาย",
+        "tags": [
+          "crm"
+        ],
+        "x-acting-permission": [
+          "crm.sales.read"
+        ]
+      },
+      "post": {
+        "description": "type: call · email · meeting · task · note — ไม่มี due_at = ทำแล้ว, มี = นัดติดตามครั้งถัดไป",
+        "operationId": "ExternalOpportunitiesController_addActivity",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateLeadActivityDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ลงกิจกรรมของโอกาสการขาย",
+        "tags": [
+          "crm"
+        ],
+        "x-acting-permission": [
+          "crm.sales.manage"
+        ]
+      }
+    },
+    "/api/v1/crm/opportunities/{id}/activities/{activityId}": {
+      "patch": {
+        "operationId": "ExternalOpportunitiesController_updateActivity",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "activityId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateLeadActivityDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แก้กิจกรรมของโอกาสการขาย หรือติ๊กเสร็จ",
+        "tags": [
+          "crm"
+        ],
+        "x-acting-permission": [
+          "crm.sales.manage"
+        ]
+      }
+    },
     "/api/v1/crm/opportunities/{id}/sale-orders": {
       "post": {
         "description": "จุดเดียวที่ทะเบียนลูกค้าเกิด. ลำดับการหาลูกค้า: รายที่โอกาสผูกอยู่ → customer_id ที่ส่งมา → รายเดิมที่เลขภาษี+รหัสสาขาตรง → สร้างใหม่จาก prospect. ต้องมีใบเสนอราคาสถานะ accepted และคำตอบมี customerCreated บอกว่าสร้างใหม่หรือไม่",
@@ -5039,6 +5208,57 @@
         ]
       }
     },
+    "/api/v1/crm/quotations/{id}/print": {
+      "get": {
+        "description": "หัวกระดาษ + ผู้ซื้อ + รายการ — ไม่มีต้นทุนและ margin ไม่ว่าผู้เรียกมีสิทธิ์อะไร",
+        "operationId": "ExternalQuotationsController_printView",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ใบเสนอราคาฉบับพิมพ์ส่งลูกค้า",
+        "tags": [
+          "crm"
+        ],
+        "x-acting-permission": [
+          "crm.sales.read"
+        ]
+      }
+    },
     "/api/v1/crm/quotations/{id}/submit": {
       "post": {
         "description": "margin ถึงเกณฑ์ → approved ทันที. ต่ำกว่าเกณฑ์ → ต้องมี reason และระบบเปิดคำขอส่วนลด (ค่าตั้งต้น DSC) แล้วใบค้างที่ pending_approval. ถ้าประเภทคำขอนั้นปิดอยู่ ได้ CRM_QUOTATION_APPROVAL_UNAVAILABLE และใบคงอยู่ที่ draft",
@@ -5382,6 +5602,64 @@
         ],
         "x-acting-permission": [
           "crm.sales.manage"
+        ]
+      }
+    },
+    "/api/v1/crm/leads/intake": {
+      "post": {
+        "description": "ต้องมีแค่ `Authorization: Bearer rfk_…` — บริษัทและช่องทางมาจากตัว API key ไม่ต้องส่ง `X-Company-Id` และไม่ต้องส่ง `source_code`\n\nใบที่สร้างจะไม่มีเจ้าของ (`owner_user_id: null`) และแสดงในหน้ารายการของ ทุกคนที่อ่าน Lead ได้ในบริษัทนั้น จนกว่าจะมีคนกด `PATCH /leads/{id}/owner` เพื่อรับไปดูแล ขั้นตั้งต้นและ workflow เดินเหมือนกับ Lead ที่พนักงานกรอกเองทุกประการ",
+        "operationId": "ExternalLeadIntakeController_receive",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "ควรส่งทุกครั้ง — หนึ่งค่าต่อหนึ่งใบ ยิงซ้ำด้วยค่าเดิมและ body เดิมจะได้ใบเดิมกลับไป ไม่เกิดใบที่สอง ไม่ส่งก็ทำงานได้ แต่ response ที่หายกลางทางแล้ว retry จะกลายเป็น Lead สองใบ",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "6f6bd3a7-7308-4d2e-a4de-75e1f89b6871"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IntakeLeadDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Lead ที่รับเข้ากองกลางแล้ว",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntakeLeadResultDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "รับ Lead จากระบบภายนอก — เข้ากองกลาง รอพนักงานขายรับ",
+        "tags": [
+          "crm-intake"
         ]
       }
     },
