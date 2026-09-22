@@ -74,6 +74,10 @@ interface Harness {
     findDetail: jest.Mock;
   };
   requestCount: jest.Mock;
+  /** C360-04 — the ยอดค้างชำระ cache read, asserted *not* to run without permission. */
+  odooLookup: jest.Mock;
+  /** C360-04 — the โอกาสการขาย count, same. */
+  opportunityCount: jest.Mock;
   odooKicks: string[];
 }
 
@@ -103,6 +107,12 @@ function harness(options: {
   };
 
   const requestCount = jest.fn(() => Promise.resolve(0));
+  const odooLookup = jest.fn(() =>
+    Promise.resolve(
+      options.odooPayload ? { payload: options.odooPayload } : null,
+    ),
+  );
+  const opportunityCount = jest.fn(() => Promise.resolve(0));
   const odooKicks: string[] = [];
 
   const service = new CustomersService(
@@ -121,11 +131,7 @@ function harness(options: {
     } as never,
     {
       findMany: jest.fn(() => Promise.resolve([])),
-      findFirst: jest.fn(() =>
-        Promise.resolve(
-          options.odooPayload ? { payload: options.odooPayload } : null,
-        ),
-      ),
+      findFirst: odooLookup,
       upsert: jest.fn(),
     } as never,
     {
@@ -201,7 +207,7 @@ function harness(options: {
     } as never,
     { findMany: jest.fn(() => Promise.resolve([])) } as never,
     {
-      count: jest.fn(() => Promise.resolve(0)),
+      count: opportunityCount,
       sumAmount: jest.fn(() => Promise.resolve(0)),
     } as never,
   );
@@ -213,6 +219,8 @@ function harness(options: {
     fieldChangeRows,
     customers,
     requestCount,
+    odooLookup,
+    opportunityCount,
     odooKicks,
   };
 }
@@ -474,6 +482,10 @@ describe('C360-01 summary — ตัวเลขการ์ดหน้า 360�
     },
   };
 
+  /** C360-02 — ผู้ที่ config ให้เห็นยอดค้างชำระ (เช่น ผู้จัดการฝ่าย/ผู้บริหาร). */
+  const financeViewer = () =>
+    principal(['crm.customer.read', 'crm.customer.financial.read']);
+
   it('C360-02 ODOO_MODE=mock — ยอดค้างชำระใน cache เป็นตัวเลขปลอม ตอบ null ไม่โชว์เป็นยอดจริง', async () => {
     const { service } = harness({ odooPayload: cachedReceivables });
 
@@ -497,6 +509,33 @@ describe('C360-01 summary — ตัวเลขการ์ดหน้า 360�
     );
 
     expect(summary.financials).toEqual(cachedReceivables.receivables);
+  });
+
+  it('C360-04 ไม่มี crm.customer.financial.read — ไม่อ่าน cache และไม่มียอดใน payload', async () => {
+    const { service, odooLookup } = harness({
+      odooLive: true,
+      odooPayload: cachedReceivables,
+    });
+
+    const summary = await service.summaryOf(
+      'cust-1',
+      principal(['crm.customer.read']),
+    );
+
+    expect(summary.financials).toBeNull();
+    expect(odooLookup).not.toHaveBeenCalled();
+  });
+
+  it('C360-04 a viewer without crm.sales.read never counts opportunities', async () => {
+    const { service, opportunityCount } = harness({});
+
+    const summary = await service.summaryOf(
+      'cust-1',
+      principal(['crm.customer.read']),
+    );
+
+    expect(summary.opportunities).toBeNull();
+    expect(opportunityCount).not.toHaveBeenCalled();
   });
 
   it('SCOPE-03 a customer outside the caller answers 404 before any counting', async () => {
