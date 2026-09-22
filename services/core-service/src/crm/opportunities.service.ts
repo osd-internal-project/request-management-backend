@@ -18,7 +18,7 @@ import {
   OpportunityRepository,
   SALE_ORDER_LIST_SELECT,
 } from './sales.repositories';
-import { OpportunityCodeService } from './opportunity-code.service';
+import { RunNumberClient } from '../run-number/run-number.client';
 import { CustomerRepository } from './customer.repository';
 import { KycProductRuleRepository } from './kyc-product.repository';
 import { CustomerTimelineService } from './customer-timeline.service';
@@ -55,7 +55,7 @@ export class OpportunitiesService {
     private readonly lostReasons: OpportunityLostReasonRepository,
     private readonly customers: CustomerRepository,
     private readonly kycProducts: KycProductRuleRepository,
-    private readonly codes: OpportunityCodeService,
+    private readonly runNumbers: RunNumberClient,
     private readonly timeline: CustomerTimelineService,
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
@@ -202,12 +202,13 @@ export class OpportunitiesService {
 
     const partyName = customer?.nameTh ?? prospect?.prospectName ?? '';
 
-    const created = await this.transactions.execute(async (prisma) => {
-      const opportunityCode = await this.codes.issue(
-        actor.activeCompanyId,
-        prisma,
-      );
+    // ออกเลขนอก transaction และหลังตรวจทุกอย่างผ่าน — docs/run-number.md
+    const opportunityCode = await this.runNumbers.issueUnused(
+      { companyId: actor.activeCompanyId, docType: 'OPPORTUNITY' },
+      (code) => this.opportunities.codeTaken(code),
+    );
 
+    const created = await this.transactions.execute(async (prisma) => {
       const row = (await this.opportunities.create(
         {
           data: {

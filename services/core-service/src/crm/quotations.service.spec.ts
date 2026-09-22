@@ -105,7 +105,7 @@ function harness(
     } as never,
     requestsService as never,
     { findFirst: jest.fn(() => Promise.resolve(null)) } as never,
-    { issue: jest.fn() },
+    { issueUnused: jest.fn(() => Promise.resolve('QT-OSD-000001')) } as never,
     { publish: jest.fn() } as never,
     {
       record: jest.fn((entry: (typeof audits)[number]) => {

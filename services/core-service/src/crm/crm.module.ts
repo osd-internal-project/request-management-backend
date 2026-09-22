@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { RunNumberClientModule } from '../run-number/run-number-client.module';
 import { PrismaTransactionService } from '@request-management/share';
 import { AccessModule } from '../access/access.module';
 import { RequestsModule } from '../requests/requests.module';
@@ -22,7 +23,6 @@ import {
   CustomerSegmentDimensionRepository,
   CustomerSegmentValueRepository,
 } from './segment.repositories';
-import { CustomerCodeService } from './customer-code.service';
 import { CustomerDedupService } from './customer-dedup.service';
 import { CustomerTimelineService } from './customer-timeline.service';
 import { CustomerImportService } from './customer-import.service';
@@ -42,9 +42,6 @@ import {
   QuotationRepository,
   SaleOrderRepository,
 } from './sales.repositories';
-import { OpportunityCodeService } from './opportunity-code.service';
-import { SaleOrderCodeService } from './sale-order-code.service';
-import { QuotationCodeService } from './quotation-code.service';
 import { QuotationsService } from './quotations.service';
 import { QuotationPrintService } from './quotation-print.service';
 import { QuotationApprovalSyncService } from './quotation-approval-sync.service';
@@ -69,6 +66,7 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
  */
 @Module({
   imports: [
+    RunNumberClientModule,
     AccessModule,
     RequestsModule,
     OdooModule,
@@ -89,7 +87,6 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     CustomerSegmentValueRepository,
     CustomerSegmentAssignmentRepository,
     CrmConfigRepository,
-    CustomerCodeService,
     CustomerDedupService,
     CustomerTimelineService,
     CustomerImportService,
@@ -103,12 +100,9 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     OpportunityRepository,
     OpportunityProductRepository,
     OpportunityLostReasonRepository,
-    OpportunityCodeService,
     SaleOrderRepository,
-    SaleOrderCodeService,
     QuotationRepository,
     QuotationLineRepository,
-    QuotationCodeService,
     QuotationsService,
     QuotationPrintService,
     QuotationApprovalSyncService,

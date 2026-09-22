@@ -397,8 +397,25 @@ function actingPermissionsByRoute(
 
       const verb = RequestMethod[method];
       const path = join(prefix, controllerPath ?? '', routePath ?? '');
+      const key = `${verb} ${path}`;
 
-      found.set(`${verb} ${path}`, [...permissions]);
+      /*
+        สอง handler ที่ผูก METHOD+path เดียวกันคือ route ที่ทับกัน — Express จับตัวที่
+        register ก่อน อีกตัวกลายเป็นโค้ดที่เรียกไม่ถึง และ OpenAPI เก็บได้ operation
+        เดียวต่อ path จึงบรรยายตัวหนึ่งแต่ประทับสิทธิ์ของอีกตัว
+
+        เคยเกิดจริงกับ `POST crm/leads` (intake vs sales create) และไม่มีอะไรส่งเสียง
+        เลยจนกว่าจะมีคนยิงแล้วได้ error ที่อ่านไม่ออก — เตือนที่นี่เพราะที่นี่คือที่แรก
+        ที่มองเห็นทั้งสองตัวพร้อมกัน
+      */
+      if (found.has(key)) {
+        console.warn(
+          `  ⚠ route ซ้ำ: ${key} — มีมากกว่าหนึ่ง handler ผูกอยู่ ` +
+            'ตัวที่ register ทีหลังเรียกไม่ถึง',
+        );
+      }
+
+      found.set(key, [...permissions]);
     }
   }
 

@@ -34,7 +34,7 @@ import {
   assertUsableFormSchema,
 } from './submit-rules';
 import { AFTER_WORK, BEFORE_WORK, type ApprovalStage } from './approval-stage';
-import { DocNumberService } from './doc-number.service';
+import { RunNumberClient } from '../run-number/run-number.client';
 import {
   RequestDetail,
   RequestRepository,
@@ -87,7 +87,7 @@ export class RequestsService {
     private readonly comments: RequestCommentRepository,
     private readonly types: RequestTypeRepository,
     private readonly orgUnits: OrgUnitRepository,
-    private readonly docNumbers: DocNumberService,
+    private readonly runNumbers: RunNumberClient,
     private readonly approvals: ApprovalsService,
     private readonly sla: SlaService,
     private readonly notifications: NotificationsService,
@@ -1344,19 +1344,24 @@ export class RequestsService {
      */
     await this.assertReceivable(before);
 
-    const submitted = await this.transactions.execute(async (prisma) => {
-      // REQ-02: the number is issued **once**, at the first submit. A resubmit
-      // after a return keeps it — re-issuing would give one request two
-      // identities over its life, and a number already quoted in an email would
-      // stop resolving.
-      const requestNo =
-        before.requestNo ??
-        (await this.docNumbers.issue(
-          before.companyId,
-          before.typeCode,
-          prisma,
-        ));
+    /*
+      REQ-02: issued once, at the first submit; a resubmit keeps its number.
+      Outside the transaction and after every assert — docs/run-number.md.
+    */
+    const requestNo =
+      before.requestNo ??
+      (await this.runNumbers.issueUnused(
+        {
+          companyId: before.companyId,
+          docType: 'REQUEST',
+          scopeKey: before.typeCode,
+          master: { 'M:REQUEST_TYPE': before.typeCode },
+          idempotencyKey: `run-number:REQUEST:${id}:${before.typeCode}`,
+        },
+        (code) => this.requests.requestNoTaken(code),
+      ));
 
+    const submitted = await this.transactions.execute(async (prisma) => {
       const now = new Date();
 
       const updated = await prisma.request.update({

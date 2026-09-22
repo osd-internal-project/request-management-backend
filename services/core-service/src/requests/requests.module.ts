@@ -6,7 +6,7 @@ import { RequestRepository } from './request.repository';
 import { AttachmentRepository } from './attachment.repository';
 import { RequestTypeRepository } from './request-type.repository';
 import { RequestCommentRepository } from './request-comment.repository';
-import { DocNumberService } from './doc-number.service';
+import { RunNumberClientModule } from '../run-number/run-number-client.module';
 import { ApprovalsModule } from '../approvals/approvals.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { SlaModule } from '../sla/sla.module';
@@ -14,7 +14,13 @@ import { AccessModule } from '../access/access.module';
 
 /** S3 — Platform Request (§16 หน้าที่ 2–4, A2). */
 @Module({
-  imports: [AccessModule, ApprovalsModule, NotificationsModule, SlaModule],
+  imports: [
+    RunNumberClientModule,
+    AccessModule,
+    ApprovalsModule,
+    NotificationsModule,
+    SlaModule,
+  ],
   providers: [
     RequestsService,
     BottleneckService,
@@ -22,7 +28,6 @@ import { AccessModule } from '../access/access.module';
     AttachmentRepository,
     RequestTypeRepository,
     RequestCommentRepository,
-    DocNumberService,
     PrismaTransactionService,
   ],
   /*

@@ -26,7 +26,9 @@ function harness(options: { existing?: { customerCode: string } | null } = {}) {
       }),
     ),
   };
-  const codes = { issue: jest.fn(() => Promise.resolve('CUS-OSD-000010')) };
+  const codes = {
+    issueUnused: jest.fn(() => Promise.resolve('CUS-OSD-000010')),
+  };
   const dedup = { headOfficeOf: jest.fn(() => Promise.resolve(null)) };
   const timeline = { publish: jest.fn(() => Promise.resolve()) };
   const audit = { record: jest.fn(() => Promise.resolve()) };

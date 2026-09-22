@@ -114,6 +114,11 @@ export const ErrorCatalog = {
    */
   CRM_LEAD_STATUS_IN_USE: HttpStatus.CONFLICT,
   /**
+   * รูปแบบเลขรันแถวสุดท้ายของชนิดเอกสารนั้นลบไม่ได้ — ถ้าลบ การออกเลขครั้งถัดไป
+   * จะไม่มีรูปแบบให้ใช้ ปิดการใช้งาน (`active = false`) ได้ ลบไม่ได้.
+   */
+  RUN_NUMBER_SETTING_IN_USE: HttpStatus.CONFLICT,
+  /**
    * CD-76: the action does not fit the quotation's status — editing a version
    * that was already submitted or sent, sending one not yet approved, etc.
    * A sent quotation is never edited; the answer is a new version.

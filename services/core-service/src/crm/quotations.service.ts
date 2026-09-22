@@ -20,7 +20,7 @@ import {
   QuotationRepository,
 } from './sales.repositories';
 import { CrmConfigRepository } from './segment.repositories';
-import { QuotationCodeService } from './quotation-code.service';
+import { RunNumberClient } from '../run-number/run-number.client';
 import { CustomerTimelineService } from './customer-timeline.service';
 import {
   computeQuotationTotals,
@@ -86,7 +86,7 @@ export class QuotationsService {
     private readonly configs: CrmConfigRepository,
     private readonly requestsService: RequestsService,
     private readonly requestRows: RequestRepository,
-    private readonly codes: QuotationCodeService,
+    private readonly runNumbers: RunNumberClient,
     private readonly timeline: CustomerTimelineService,
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
@@ -213,9 +213,13 @@ export class QuotationsService {
     const lines = dto.lines ?? [];
     const totals = computeQuotationTotals(lines.map(lineInput), config.vatPct);
 
-    const created = await this.transactions.execute(async (prisma) => {
-      const quotationNo = await this.codes.issue(actor.activeCompanyId, prisma);
+    // ออกเลขนอก transaction และหลังตรวจทุกอย่างผ่าน — docs/run-number.md
+    const quotationNo = await this.runNumbers.issueUnused(
+      { companyId: actor.activeCompanyId, docType: 'QUOTATION' },
+      (code) => this.quotations.codeTaken(code),
+    );
 
+    const created = await this.transactions.execute(async (prisma) => {
       const row = (await this.quotations.create(
         {
           data: {

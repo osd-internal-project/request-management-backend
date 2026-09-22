@@ -142,7 +142,7 @@ function harness(options: {
     } as never,
     { findFirst: jest.fn(() => Promise.resolve(null)) } as never,
     { count: requestCount } as never,
-    { issue: jest.fn(() => Promise.resolve('CUS-OSD-000001')) } as never,
+    { issueUnused: jest.fn(() => Promise.resolve('CUS-OSD-000001')) } as never,
     {
       headOfficeOf: jest.fn(() => Promise.resolve(null)),
       check: jest.fn(() =>
@@ -467,21 +467,34 @@ describe('C360-01 summary — ตัวเลขการ์ดหน้า 360�
   });
 
   const cachedReceivables = {
-    receivables: { outstanding: 75000, invoiceCount: 2, asOf: '2026-09-15T06:51:00.000Z' },
+    receivables: {
+      outstanding: 75000,
+      invoiceCount: 2,
+      asOf: '2026-09-15T06:51:00.000Z',
+    },
   };
 
   it('C360-02 ODOO_MODE=mock — ยอดค้างชำระใน cache เป็นตัวเลขปลอม ตอบ null ไม่โชว์เป็นยอดจริง', async () => {
     const { service } = harness({ odooPayload: cachedReceivables });
 
-    const summary = await service.summaryOf('cust-1', principal(['crm.customer.read']));
+    const summary = await service.summaryOf(
+      'cust-1',
+      principal(['crm.customer.read']),
+    );
 
     expect(summary.financials).toBeNull();
   });
 
   it('C360-02 ODOO_MODE=http — ยอดค้างชำระอ่านจาก cache ของรอบ sync', async () => {
-    const { service } = harness({ odooLive: true, odooPayload: cachedReceivables });
+    const { service } = harness({
+      odooLive: true,
+      odooPayload: cachedReceivables,
+    });
 
-    const summary = await service.summaryOf('cust-1', principal(['crm.customer.read']));
+    const summary = await service.summaryOf(
+      'cust-1',
+      principal(['crm.customer.read']),
+    );
 
     expect(summary.financials).toEqual(cachedReceivables.receivables);
   });

@@ -31,7 +31,7 @@ import {
   CustomerSegmentAssignmentRepository,
   CustomerSegmentValueRepository,
 } from './segment.repositories';
-import { CustomerCodeService } from './customer-code.service';
+import { RunNumberClient } from '../run-number/run-number.client';
 import {
   CustomerDedupService,
   SimilarCustomer,
@@ -98,7 +98,7 @@ export class CustomersService {
     private readonly assignments: CustomerSegmentAssignmentRepository,
     private readonly members: CompanyMemberRepository,
     private readonly requests: RequestRepository,
-    private readonly codes: CustomerCodeService,
+    private readonly runNumbers: RunNumberClient,
     private readonly dedup: CustomerDedupService,
     private readonly timeline: CustomerTimelineService,
     private readonly audit: AuditWriter,
@@ -360,6 +360,12 @@ export class CustomersService {
       actor.activeCompanyId,
     );
 
+    // ออกเลขนอก transaction และหลังตรวจทุกอย่างผ่าน — docs/run-number.md
+    const customerCode = await this.runNumbers.issueUnused(
+      { companyId: actor.activeCompanyId, docType: 'CUSTOMER' },
+      (code) => this.customers.codeTaken(code),
+    );
+
     const created = await this.transactions.execute(async (prisma) => {
       const overridden = await this.guardDuplicates(
         {
@@ -382,11 +388,6 @@ export class CustomersService {
             prisma,
           )
         : null;
-
-      const customerCode = await this.codes.issue(
-        actor.activeCompanyId,
-        prisma,
-      );
 
       const status: CustomerStatus = dto.status ?? 'active';
 

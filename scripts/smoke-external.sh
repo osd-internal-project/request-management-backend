@@ -41,6 +41,9 @@ echo "ต้องผ่าน — สองประตูครบ"
 check 'GET /crm/customers'        200 "${auth[@]}" "${acting[@]}" "$BASE_URL/crm/customers"
 check 'GET /request/request-types' 200 "${auth[@]}" "${acting[@]}" "$BASE_URL/request/request-types"
 check 'GET /crm/leads/statuses'   200 "${auth[@]}" "${acting[@]}" "$BASE_URL/crm/leads/statuses"
+# ประตูเดียว ห้ามส่ง X-Acting-User — เคยเรียกไม่ถึงเพราะชน path กับ sales create
+check 'POST /crm/leads/intake'    201 -X POST "${auth[@]}" -H 'content-type: application/json' \
+  -d '{"name":"smoke intake"}' "$BASE_URL/crm/leads/intake"
 
 echo
 echo "ต้องถูกปฏิเสธ — และนั่นคือความถูกต้อง"

@@ -100,7 +100,9 @@ that hands one account a company list it has no roles in.
 | Identity, org, roles, policy, audit | `services/user-service/src/` |
 | Request, approval, SLA, notification, CRM | `services/core-service/src/` |
 | The outward-facing API (machines, MCP) | `services/external-service/src/` |
+| เลขรันทุกชนิดเอกสาร (`run_number_*` เป็นของที่นี่เท่านั้น) | `services/run-number-service/src/` |
 | What external-service may import from core | `services/core-service/src/index.ts` |
+| Design reasoning too long for a comment | `docs/<topic>.md`, one file per topic |
 
 Data access goes through repositories extending `BaseRepository`, provided by
 the feature module that owns them — never `PrismaService` directly from a
@@ -293,10 +295,17 @@ exposing it without the second gate would let an integration act as somebody
 who lacks the permission. `@ActingPermissions` must name exactly what the
 equivalent screen route names — `crm-route-parity.spec.ts` fails if it does not.
 
-Three routes carry no acting user: `request/intake`, `crm/leads*`,
-`approval/cases`. There is nobody at the other end of those — a customer's web
-form, a workflow engine, another module. Adding a fourth is a decision to state
-out loud here, not a default and not a paragraph in the controller.
+Three routes carry no acting user: `request/intake`, `crm/leads/intake` (plus
+`crm/leads/:id/facts|stage`), and `approval/cases`. There is nobody at the other
+end of those — a customer's web form, a workflow engine, another module. Adding
+a fourth is a decision to state out loud here, not a default and not a paragraph
+in the controller.
+
+`crm/leads/intake` earned its suffix on 21 Sep 2026: it used to be `POST
+crm/leads`, which `ExternalLeadsController.create` also bound. That controller
+registers first, so the intake route was unreachable and every web form calling
+it got `400 ต้องระบุ header x-acting-user`. Two handlers on one METHOD+path is
+always that bug — `yarn openapi` now warns when it sees one.
 
 `POST requests/:ref/actions/:action` is the other exception: one route, fourteen
 verbs, a different permission each, so the check reads `ACTION_PERMISSIONS` in
