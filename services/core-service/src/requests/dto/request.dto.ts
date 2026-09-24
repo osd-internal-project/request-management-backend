@@ -373,6 +373,14 @@ export class CreateRequestTypeDto {
   @IsString()
   receiver_org_unit_id?: string;
 
+  /** When set, every request of this type goes to this person; the requester cannot pick. */
+  @ApiPropertyOptional({
+    description: 'Fixed receiver (user id) for this type.',
+  })
+  @IsOptional()
+  @IsString()
+  receiver_user_id?: string;
+
   @ApiProperty({ description: "JSON Schema for the requester's form." })
   @IsObject()
   form_schema!: Record<string, unknown>;
@@ -482,6 +490,12 @@ export class UpdateRequestTypeDto {
   @IsOptional()
   @IsString()
   receiver_org_unit_id?: string | null;
+
+  /** `null` clears the fixed receiver so the requester picks again; absent leaves it alone. */
+  @ApiPropertyOptional({ type: String, nullable: true })
+  @IsOptional()
+  @IsString()
+  receiver_user_id?: string | null;
 
   @ApiPropertyOptional()
   @IsOptional()

@@ -201,13 +201,12 @@ export class RolesService implements OnModuleInit {
     actor: Principal,
   ): Promise<RoleWithPermissions> {
     return this.transactions.execute(async (prisma) => {
-     
       const option = { prisma };
 
       const before = await this.roles.findById(id, option);
       if (!before) {
         throw new AppError('NOT_FOUND', 'ไม่พบบทบาทที่ระบุ');
-      } 
+      }
       if (dto.permissions) {
         assertSeparationOfDuties(dto.permissions);
         assertHumanPermissions(dto.permissions);

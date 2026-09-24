@@ -392,6 +392,7 @@ model User {
   managedUnits            OrgUnit[]                @relation("OrgUnitManager")
   requests                Request[]                @relation("Requester")
   receivedRequests        Request[]                @relation("Receiver")
+  receiverOfTypes         RequestType[]            @relation("TypeReceiver")
   assignedRequests        Request[]                @relation("Assignee")
   requestEvents           RequestEvent[]
   requestComments         RequestComment[]
@@ -752,7 +753,8 @@ model RequestType {
   id                String  @id @default(uuid())
   code              String  @unique
   name              String
-  receiverOrgUnitId String?
+  receiverOrgUnitId String? 
+  receiverUserId    String?
 
   /// JSON Schema for the form the **requester** fills in.
   formSchema         Json
@@ -786,6 +788,7 @@ model RequestType {
   updatedBy String?
 
   receiverOrgUnit OrgUnit?             @relation("ReceiverUnit", fields: [receiverOrgUnitId], references: [id])
+  receiverUser    User?                @relation("TypeReceiver", fields: [receiverUserId], references: [id], onDelete: SetNull)
   companies       RequestTypeCompany[]
   eligibleUnits   RequestTypeOrgUnit[]
   requests        Request[]

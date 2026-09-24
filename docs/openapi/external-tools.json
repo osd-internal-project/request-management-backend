@@ -1,5 +1,796 @@
 [
   {
+    "name": "crm_get_customers",
+    "description": "ค้นทะเบียนลูกค้า — status: draft · active · suspended · inactive",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "page": {
+          "minimum": 1,
+          "default": 1,
+          "type": "integer",
+          "description": "เลขหน้าที่ต้องการ เริ่มที่ 1"
+        },
+        "page_size": {
+          "minimum": 1,
+          "maximum": 100,
+          "default": 20,
+          "type": "integer",
+          "description": "จำนวนรายการต่อหน้า"
+        },
+        "sort": {
+          "example": "-createdAt",
+          "type": "string",
+          "pattern": "^-?[a-zA-Z_][a-zA-Z0-9_]*$",
+          "description": "`sort=field` เรียงขึ้น, `sort=-field` เรียงลง"
+        },
+        "search": {
+          "example": "ตัวอย่าง",
+          "type": "string",
+          "description": "ค้นจากชื่อไทย ชื่ออังกฤษ รหัสลูกค้า หรือเลขผู้เสียภาษี"
+        },
+        "status": {
+          "example": "active",
+          "type": "string",
+          "enum": [
+            "draft",
+            "active",
+            "suspended",
+            "inactive"
+          ]
+        },
+        "segment_value_id": {
+          "type": "string",
+          "description": "id ค่ากลุ่มลูกค้าตามที่บริษัทตั้งค่าไว้"
+        },
+        "account_owner_user_id": {
+          "type": "string",
+          "description": "id ผู้ดูแลบัญชีจาก `GET /request/users`"
+        },
+        "view": {
+          "example": "mine",
+          "type": "string",
+          "enum": [
+            "mine",
+            "all"
+          ],
+          "description": "`mine` เฉพาะลูกค้าที่ฉันเป็นผู้ดูแลบัญชี"
+        }
+      }
+    },
+    "x-request": {
+      "method": "GET",
+      "path": "/api/v1/crm/customers"
+    },
+    "x-acting-permission": [
+      "crm.customer.read"
+    ],
+    "x-sensitive-resource": "customer"
+  },
+  {
+    "name": "crm_get_customers_id",
+    "description": "รายละเอียดลูกค้า — เลขผู้เสียภาษีถูกปกปิดถ้าไม่มีสิทธิ์อ่านข้อมูลอ่อนไหว (CM-08)",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "x-request": {
+      "method": "GET",
+      "path": "/api/v1/crm/customers/{id}"
+    },
+    "x-acting-permission": [
+      "crm.customer.read"
+    ],
+    "x-sensitive-resource": "customer"
+  },
+  {
+    "name": "crm_get_customers_id_summary",
+    "description": "ตัวเลขสรุปหน้าลูกค้า 360°",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "x-request": {
+      "method": "GET",
+      "path": "/api/v1/crm/customers/{id}/summary"
+    },
+    "x-acting-permission": [
+      "crm.customer.read"
+    ],
+    "x-sensitive-resource": ""
+  },
+  {
+    "name": "crm_get_leads",
+    "description": "ค้นรายชื่อ Lead — view=mine|all|unassigned — unassigned คือกองกลางที่ยังไม่มีเจ้าของ",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "page": {
+          "minimum": 1,
+          "default": 1,
+          "type": "integer",
+          "description": "เลขหน้าที่ต้องการ เริ่มที่ 1"
+        },
+        "page_size": {
+          "minimum": 1,
+          "maximum": 100,
+          "default": 20,
+          "type": "integer",
+          "description": "จำนวนรายการต่อหน้า"
+        },
+        "sort": {
+          "example": "-createdAt",
+          "type": "string",
+          "pattern": "^-?[a-zA-Z_][a-zA-Z0-9_]*$",
+          "description": "`sort=field` เรียงขึ้น, `sort=-field` เรียงลง"
+        },
+        "search": {
+          "example": "ตัวอย่าง",
+          "type": "string",
+          "description": "ค้นจากชื่อ ชื่อผู้ติดต่อ อีเมล หรือเบอร์โทร"
+        },
+        "status": {
+          "example": "new",
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{0,29}$",
+          "description": "รหัสขั้นจาก `GET /crm/leads/statuses`"
+        },
+        "view": {
+          "example": "unassigned",
+          "type": "string",
+          "enum": [
+            "mine",
+            "all",
+            "unassigned"
+          ],
+          "description": "`mine` ของฉัน · `all` ทั้งหมดที่เห็นได้ · `unassigned` กองกลางที่ยังไม่มีเจ้าของ"
+        }
+      }
+    },
+    "x-request": {
+      "method": "GET",
+      "path": "/api/v1/crm/leads"
+    },
+    "x-acting-permission": [
+      "crm.sales.read"
+    ],
+    "x-sensitive-resource": ""
+  },
+  {
+    "name": "crm_get_leads_id",
+    "description": "รายละเอียด Lead พร้อมกิจกรรม — นอกขอบเขตที่มองเห็นตอบ 404 ไม่ใช่ 403 (SCOPE-03)",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "x-request": {
+      "method": "GET",
+      "path": "/api/v1/crm/leads/{id}"
+    },
+    "x-acting-permission": [
+      "crm.sales.read"
+    ],
+    "x-sensitive-resource": ""
+  },
+  {
+    "name": "crm_get_leads_statuses",
+    "description": "ขั้นของ Lead ทั้งชุด — ส่งทั้งชุดรวมที่ปิดใช้งาน เพราะ Lead ที่ค้างบนขั้นที่เพิ่งปิดยังต้องมีชื่อและสีให้แสดง — หน้าจอเป็นคนกรอง active เอง. โค้ดตั้งได้ต่อบริษัท ไม่ใช่ enum",
+    "input_schema": {
+      "type": "object",
+      "properties": {}
+    },
+    "x-request": {
+      "method": "GET",
+      "path": "/api/v1/crm/leads/statuses"
+    },
+    "x-acting-permission": [
+      "crm.sales.read"
+    ],
+    "x-sensitive-resource": ""
+  },
+  {
+    "name": "crm_get_opportunities",
+    "description": "ค้นโอกาสการขาย — stage: qualifying · proposing · negotiating · won · lost",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "page": {
+          "minimum": 1,
+          "default": 1,
+          "type": "integer",
+          "description": "เลขหน้าที่ต้องการ เริ่มที่ 1"
+        },
+        "page_size": {
+          "minimum": 1,
+          "maximum": 100,
+          "default": 20,
+          "type": "integer",
+          "description": "จำนวนรายการต่อหน้า"
+        },
+        "sort": {
+          "example": "-createdAt",
+          "type": "string",
+          "pattern": "^-?[a-zA-Z_][a-zA-Z0-9_]*$",
+          "description": "`sort=field` เรียงขึ้น, `sort=-field` เรียงลง"
+        },
+        "search": {
+          "example": "ตัวอย่าง",
+          "type": "string",
+          "description": "ค้นจากชื่อโอกาส รหัสโอกาส ชื่อผู้มุ่งหวัง หรือชื่อลูกค้า"
+        },
+        "stage": {
+          "example": "proposing",
+          "allOf": [
+            {
+              "$ref": "#/components/schemas/Object"
+            }
+          ],
+          "enum": [
+            "qualifying",
+            "proposing",
+            "negotiating",
+            "won",
+            "lost"
+          ],
+          "type": "string"
+        },
+        "open": {
+          "example": "true",
+          "type": "string",
+          "enum": [
+            "true"
+          ],
+          "description": "`true` = เฉพาะที่ยังไม่ won/lost"
+        },
+        "customer_id": {
+          "type": "string",
+          "description": "id ลูกค้าจาก `GET /crm/customers`"
+        },
+        "view": {
+          "example": "mine",
+          "type": "string",
+          "enum": [
+            "mine",
+            "all"
+          ]
+        },
+        "follow_up": {
+          "example": "overdue",
+          "type": "string",
+          "enum": [
+            "overdue",
+            "stale"
+          ],
+          "description": "`overdue` เลยนัดติดตามแล้ว · `stale` ถูกเตือนว่าเงียบเกินเกณฑ์"
+        }
+      }
+    },
+    "x-request": {
+      "method": "GET",
+      "path": "/api/v1/crm/opportunities"
+    },
+    "x-acting-permission": [
+      "crm.sales.read"
+    ],
+    "x-sensitive-resource": ""
+  },
+  {
+    "name": "crm_get_opportunities_id",
+    "description": "รายละเอียดโอกาสการขาย",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "x-request": {
+      "method": "GET",
+      "path": "/api/v1/crm/opportunities/{id}"
+    },
+    "x-acting-permission": [
+      "crm.sales.read"
+    ],
+    "x-sensitive-resource": ""
+  },
+  {
+    "name": "crm_get_quotations",
+    "description": "ค้นใบเสนอราคา — current=true คัดเฉพาะเวอร์ชันล่าสุดของแต่ละเลขที่",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "page": {
+          "minimum": 1,
+          "default": 1,
+          "type": "integer",
+          "description": "เลขหน้าที่ต้องการ เริ่มที่ 1"
+        },
+        "page_size": {
+          "minimum": 1,
+          "maximum": 100,
+          "default": 20,
+          "type": "integer",
+          "description": "จำนวนรายการต่อหน้า"
+        },
+        "sort": {
+          "example": "-createdAt",
+          "type": "string",
+          "pattern": "^-?[a-zA-Z_][a-zA-Z0-9_]*$",
+          "description": "`sort=field` เรียงขึ้น, `sort=-field` เรียงลง"
+        },
+        "opportunity_id": {
+          "type": "string",
+          "description": "id โอกาสการขายจาก `GET /crm/opportunities`"
+        },
+        "customer_id": {
+          "type": "string",
+          "description": "id ลูกค้าจาก `GET /crm/customers`"
+        },
+        "status": {
+          "example": "sent",
+          "allOf": [
+            {
+              "$ref": "#/components/schemas/Object"
+            }
+          ],
+          "enum": [
+            "draft",
+            "pending_approval",
+            "approved",
+            "sent",
+            "accepted",
+            "declined",
+            "superseded",
+            "cancelled"
+          ],
+          "type": "string"
+        },
+        "search": {
+          "example": "ตัวอย่าง",
+          "type": "string",
+          "description": "ค้นจากเลขที่ใบเสนอราคา ชื่อเรื่อง หรือชื่อคู่ค้า"
+        },
+        "current": {
+          "example": "true",
+          "type": "string",
+          "enum": [
+            "true"
+          ],
+          "description": "`true` = ซ่อนฉบับที่ถูกเวอร์ชันใหม่แทนแล้ว"
+        },
+        "view": {
+          "example": "mine",
+          "type": "string",
+          "enum": [
+            "mine",
+            "all"
+          ]
+        }
+      }
+    },
+    "x-request": {
+      "method": "GET",
+      "path": "/api/v1/crm/quotations"
+    },
+    "x-acting-permission": [
+      "crm.sales.read"
+    ],
+    "x-sensitive-resource": "quotation"
+  },
+  {
+    "name": "crm_get_quotations_id",
+    "description": "รายละเอียดใบเสนอราคา — ต้นทุนและ margin ถูกปกปิดถ้าไม่มีสิทธิ์อ่านข้อมูลอ่อนไหว",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "x-request": {
+      "method": "GET",
+      "path": "/api/v1/crm/quotations/{id}"
+    },
+    "x-acting-permission": [
+      "crm.sales.read"
+    ],
+    "x-sensitive-resource": "quotation"
+  },
+  {
+    "name": "crm_patch_leads_id_owner",
+    "description": "รับ Lead หรือแจกให้คนอื่น — owner_user_id ว่าง = รับเอง. ใบที่มีเจ้าของแล้วต้องระบุปลายทางว่าโอนให้ใคร",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "owner_user_id": {
+          "type": "string",
+          "description": "id ผู้รับจาก `GET /request/users` — ว่าง = รับเอง · ใบที่มีเจ้าของแล้วต้องระบุ",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "x-request": {
+      "method": "PATCH",
+      "path": "/api/v1/crm/leads/{id}/owner"
+    },
+    "x-acting-permission": [
+      "crm.sales.manage"
+    ],
+    "x-sensitive-resource": ""
+  },
+  {
+    "name": "crm_patch_leads_id_status",
+    "description": "เลื่อนขั้น Lead ในไปป์ไลน์ — ปลายทางต้องเป็น kind open เท่านั้น — ขั้นที่เป็น won/lost ถูกปฏิเสธด้วย 409 ให้ใช้ convert หรือ disqualify แทน",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "example": "contacted",
+          "description": "รหัสขั้นจาก `GET /crm/leads/statuses` — ต้องเป็นขั้น kind `open` ขั้น won/lost ตอบ 409",
+          "pattern": "^[a-z][a-z0-9_]{0,29}$"
+        }
+      },
+      "required": [
+        "id",
+        "status"
+      ]
+    },
+    "x-request": {
+      "method": "PATCH",
+      "path": "/api/v1/crm/leads/{id}/status"
+    },
+    "x-acting-permission": [
+      "crm.sales.manage"
+    ],
+    "x-sensitive-resource": ""
+  },
+  {
+    "name": "crm_post_leads",
+    "description": "สร้าง Lead",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "example": "บริษัท ตัวอย่าง จำกัด",
+          "description": "ชื่อบริษัทหรือชื่อผู้มุ่งหวัง",
+          "maxLength": 255,
+          "minLength": 1
+        },
+        "contact_name": {
+          "type": "string",
+          "example": "สมชาย ใจดี",
+          "description": "ชื่อผู้ติดต่อ",
+          "maxLength": 255
+        },
+        "phone": {
+          "type": "string",
+          "example": "081-234-5678",
+          "maxLength": 50
+        },
+        "email": {
+          "type": "string",
+          "example": "somchai@example.com",
+          "format": "email"
+        },
+        "note": {
+          "type": "string",
+          "example": "สนใจระบบ ERP สำหรับ 50 ผู้ใช้",
+          "maxLength": 2000
+        },
+        "source_code": {
+          "type": "string",
+          "example": "website",
+          "description": "รหัสแหล่งที่มาตามที่บริษัทตั้งค่าไว้",
+          "maxLength": 64
+        },
+        "customer_id": {
+          "type": "string",
+          "description": "id ลูกค้าเดิมจาก `GET /crm/customers` — เว้นว่างถ้ายังไม่มีในทะเบียน"
+        },
+        "contact_position": {
+          "type": "string",
+          "example": "ผู้จัดการฝ่ายไอที",
+          "maxLength": 255
+        },
+        "name_en": {
+          "type": "string",
+          "example": "Example Co., Ltd.",
+          "maxLength": 255
+        },
+        "tax_id": {
+          "type": "string",
+          "example": "0000000000000",
+          "description": "เลขประจำตัวผู้เสียภาษี 13 หลัก",
+          "maxLength": 20
+        },
+        "industry": {
+          "type": "string",
+          "example": "การผลิต",
+          "maxLength": 120
+        },
+        "company_size": {
+          "type": "string",
+          "example": "ขนาดกลาง (51–200 คน)",
+          "maxLength": 60
+        },
+        "employee_count": {
+          "type": "integer",
+          "example": 120,
+          "minimum": 0
+        },
+        "product_group": {
+          "type": "string",
+          "example": "ERP",
+          "maxLength": 120
+        },
+        "sub_product": {
+          "type": "string",
+          "example": "Finance",
+          "maxLength": 120
+        },
+        "project_revenue": {
+          "type": "number",
+          "example": 1500000,
+          "description": "มูลค่าโครงการที่คาด (บาท)",
+          "minimum": 0
+        },
+        "address_line": {
+          "type": "string",
+          "example": "99/9 ถนนตัวอย่าง",
+          "maxLength": 500
+        },
+        "district": {
+          "type": "string",
+          "example": "บางรัก",
+          "maxLength": 120
+        },
+        "province": {
+          "type": "string",
+          "example": "กรุงเทพมหานคร",
+          "maxLength": 120
+        },
+        "postal_code": {
+          "type": "string",
+          "example": "10500",
+          "maxLength": 10
+        },
+        "country": {
+          "type": "string",
+          "example": "TH",
+          "description": "รหัสประเทศ 2 ตัวอักษร (ISO 3166-1)",
+          "maxLength": 2
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "x-request": {
+      "method": "POST",
+      "path": "/api/v1/crm/leads"
+    },
+    "x-acting-permission": [
+      "crm.sales.manage"
+    ],
+    "x-sensitive-resource": ""
+  },
+  {
+    "name": "crm_post_leads_id_activities",
+    "description": "ลงกิจกรรมของ Lead — type: call · email · meeting · task · note",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "call",
+            "email",
+            "meeting",
+            "task",
+            "note"
+          ],
+          "example": "call"
+        },
+        "subject": {
+          "type": "string",
+          "example": "โทรนัดเดโม",
+          "maxLength": 255,
+          "minLength": 1
+        },
+        "detail": {
+          "type": "string",
+          "example": "ลูกค้าขอดูโมดูลบัญชีก่อน",
+          "maxLength": 4000
+        },
+        "due_at": {
+          "type": "string",
+          "example": "2026-09-30T10:00:00+07:00",
+          "description": "ใส่ = นัดไว้ ยังไม่ทำ · ไม่ใส่ = ทำไปแล้ว ปิดทันที — ลงผิดช่องแล้วระบบนับความเคลื่อนไหวผิด",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "subject",
+        "type"
+      ]
+    },
+    "x-request": {
+      "method": "POST",
+      "path": "/api/v1/crm/leads/{id}/activities"
+    },
+    "x-acting-permission": [
+      "crm.sales.manage"
+    ],
+    "x-sensitive-resource": ""
+  },
+  {
+    "name": "crm_post_leads_id_convert",
+    "description": "แปลง Lead เป็นโอกาสการขาย — ปิด Lead ด้วยสถานะ kind won แล้วคืน **โอกาสการขาย** — ยังไม่สร้างทะเบียนลูกค้า ทะเบียนเกิดตอนเปิดใบสั่งขาย. ไม่ส่ง customer_id ก็ได้ ข้อมูลจาก Lead จะไปอยู่เป็น prospect บนโอกาสการขาย",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "customer_id": {
+          "type": "string",
+          "description": "id ลูกค้าเดิมจาก `GET /crm/customers` — ว่าง = ผู้มุ่งหวัง ลูกค้าเกิดตอนเปิดใบสั่งขาย"
+        },
+        "title": {
+          "type": "string",
+          "example": "ERP สำหรับบริษัท ตัวอย่าง จำกัด",
+          "description": "ชื่อโอกาสการขาย — ว่าง = ใช้ชื่อ Lead",
+          "maxLength": 255
+        },
+        "amount": {
+          "type": "number",
+          "example": 1500000,
+          "description": "มูลค่าที่คาด (บาท)",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "x-request": {
+      "method": "POST",
+      "path": "/api/v1/crm/leads/{id}/convert"
+    },
+    "x-acting-permission": [
+      "crm.sales.manage"
+    ],
+    "x-sensitive-resource": ""
+  },
+  {
+    "name": "crm_post_opportunities",
+    "description": "สร้างโอกาสการขาย — ส่ง customer_id หรือ prospect_name อย่างใดอย่างหนึ่ง — ฐานข้อมูลบังคับไว้",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "customer_id": {
+          "type": "string",
+          "description": "id ลูกค้าเดิมจาก `GET /crm/customers` — ว่างได้ แต่ต้องส่ง `prospect_name` แทน"
+        },
+        "prospect_name": {
+          "type": "string",
+          "example": "บริษัท ตัวอย่าง จำกัด",
+          "description": "บังคับเมื่อไม่ส่ง `customer_id`",
+          "maxLength": 255
+        },
+        "prospect_tax_id": {
+          "type": "string",
+          "example": "0000000000000",
+          "maxLength": 20
+        },
+        "prospect_contact_name": {
+          "type": "string",
+          "example": "สมชาย ใจดี",
+          "maxLength": 255
+        },
+        "prospect_phone": {
+          "type": "string",
+          "example": "081-234-5678",
+          "maxLength": 50
+        },
+        "prospect_email": {
+          "type": "string",
+          "example": "somchai@example.com",
+          "format": "email"
+        },
+        "title": {
+          "type": "string",
+          "example": "ERP สำหรับบริษัท ตัวอย่าง จำกัด",
+          "maxLength": 255,
+          "minLength": 1
+        },
+        "amount": {
+          "type": "number",
+          "example": 1500000,
+          "description": "มูลค่าที่คาด (บาท)",
+          "minimum": 0
+        },
+        "probability": {
+          "type": "integer",
+          "example": 40,
+          "description": "โอกาสปิดได้ (%)",
+          "maximum": 100,
+          "minimum": 0
+        },
+        "expected_close_at": {
+          "type": "string",
+          "example": "2026-12-31",
+          "description": "วันที่คาดว่าจะปิด"
+        },
+        "product_codes": {
+          "example": [
+            "ERP-FIN"
+          ],
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_.-]+$"
+          }
+        }
+      },
+      "required": [
+        "title"
+      ]
+    },
+    "x-request": {
+      "method": "POST",
+      "path": "/api/v1/crm/opportunities"
+    },
+    "x-acting-permission": [
+      "crm.sales.manage"
+    ],
+    "x-sensitive-resource": ""
+  },
+  {
     "name": "request_get_request_types",
     "description": "ประเภทคำขอที่ผู้ใช้รายนี้เปิดได้ ณ ตอนนี้",
     "input_schema": {
@@ -21,7 +812,8 @@
     },
     "x-acting-permission": [
       "request.create"
-    ]
+    ],
+    "x-sensitive-resource": ""
   },
   {
     "name": "request_get_request_types_code_form",
@@ -45,7 +837,8 @@
     },
     "x-acting-permission": [
       "request.create"
-    ]
+    ],
+    "x-sensitive-resource": ""
   },
   {
     "name": "request_get_requests",
@@ -56,19 +849,20 @@
         "page": {
           "minimum": 1,
           "default": 1,
-          "type": "number",
+          "type": "integer",
           "description": "เลขหน้าที่ต้องการ เริ่มที่ 1"
         },
         "page_size": {
           "minimum": 1,
           "maximum": 100,
           "default": 20,
-          "type": "number",
+          "type": "integer",
           "description": "จำนวนรายการต่อหน้า"
         },
         "sort": {
           "example": "-createdAt",
           "type": "string",
+          "pattern": "^-?[a-zA-Z_][a-zA-Z0-9_]*$",
           "description": "`sort=field` เรียงขึ้น, `sort=-field` เรียงลง"
         },
         "view": {
@@ -117,7 +911,8 @@
     },
     "x-acting-permission": [
       "request.read"
-    ]
+    ],
+    "x-sensitive-resource": ""
   },
   {
     "name": "request_get_requests_ref",
@@ -141,7 +936,8 @@
     },
     "x-acting-permission": [
       "request.read"
-    ]
+    ],
+    "x-sensitive-resource": ""
   },
   {
     "name": "request_get_requests_ref_actions",
@@ -165,7 +961,8 @@
     },
     "x-acting-permission": [
       "request.read"
-    ]
+    ],
+    "x-sensitive-resource": ""
   },
   {
     "name": "request_get_requests_ref_tree",
@@ -189,7 +986,8 @@
     },
     "x-acting-permission": [
       "request.read"
-    ]
+    ],
+    "x-sensitive-resource": ""
   },
   {
     "name": "request_get_requests_summary",
@@ -243,7 +1041,8 @@
     },
     "x-acting-permission": [
       "request.read"
-    ]
+    ],
+    "x-sensitive-resource": ""
   },
   {
     "name": "request_get_users",
@@ -254,19 +1053,20 @@
         "page": {
           "minimum": 1,
           "default": 1,
-          "type": "number",
+          "type": "integer",
           "description": "เลขหน้าที่ต้องการ เริ่มที่ 1"
         },
         "page_size": {
           "minimum": 1,
           "maximum": 100,
           "default": 20,
-          "type": "number",
+          "type": "integer",
           "description": "จำนวนรายการต่อหน้า"
         },
         "sort": {
           "example": "-createdAt",
           "type": "string",
+          "pattern": "^-?[a-zA-Z_][a-zA-Z0-9_]*$",
           "description": "`sort=field` เรียงขึ้น, `sort=-field` เรียงลง"
         },
         "q": {
@@ -294,7 +1094,8 @@
     },
     "x-acting-permission": [
       "request.create"
-    ]
+    ],
+    "x-sensitive-resource": ""
   },
   {
     "name": "request_post_requests",
@@ -304,7 +1105,8 @@
       "properties": {
         "type_code": {
           "type": "string",
-          "example": "PS01"
+          "example": "PS01",
+          "minLength": 1
         },
         "form_data": {
           "type": "object",
@@ -321,7 +1123,8 @@
         "receiver_user_id": {
           "type": "string",
           "description": "ผู้รับเรื่อง — ใช้ `id` จาก `receiver_candidates` ของ endpoint form ส่งอีเมลหรือชื่อมาจะได้ `NOT_FOUND` ตอนยื่น เพราะระบบค้นด้วย id เท่านั้น",
-          "example": "e0e90f78-98d3-4b74-b2bd-94e05700f989"
+          "example": "e0e90f78-98d3-4b74-b2bd-94e05700f989",
+          "minLength": 1
         },
         "receiver_org_unit_id": {
           "type": "string",
@@ -344,9 +1147,9 @@
         }
       },
       "required": [
-        "type_code",
         "form_data",
-        "receiver_user_id"
+        "receiver_user_id",
+        "type_code"
       ]
     },
     "x-request": {
@@ -355,7 +1158,8 @@
     },
     "x-acting-permission": [
       "request.create"
-    ]
+    ],
+    "x-sensitive-resource": ""
   },
   {
     "name": "request_post_requests_ref_actions_action",
@@ -440,6 +1244,7 @@
       "method": "POST",
       "path": "/api/v1/request/requests/{ref}/actions/{action}"
     },
-    "x-acting-permission": []
+    "x-acting-permission": [],
+    "x-sensitive-resource": ""
   }
 ]

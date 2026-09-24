@@ -17,6 +17,7 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { PageQueryDto } from '@request-management/share';
 
 /**
@@ -251,23 +252,38 @@ export class UpdateCustomerDto {
 }
 
 export class ListCustomersQueryDto extends PageQueryDto {
+  @ApiPropertyOptional({
+    example: 'ตัวอย่าง',
+    description: 'ค้นจากชื่อไทย ชื่ออังกฤษ รหัสลูกค้า หรือเลขผู้เสียภาษี',
+  })
   @IsOptional()
   @IsString()
   search?: string;
 
+  @ApiPropertyOptional({ example: 'active' })
   @IsOptional()
   @IsIn(['draft', 'active', 'suspended', 'inactive'])
   status?: 'draft' | 'active' | 'suspended' | 'inactive';
 
+  @ApiPropertyOptional({
+    description: 'id ค่ากลุ่มลูกค้าตามที่บริษัทตั้งค่าไว้',
+  })
   @IsOptional()
   @IsString()
   segment_value_id?: string;
 
+  @ApiPropertyOptional({
+    description: 'id ผู้ดูแลบัญชีจาก `GET /request/users`',
+  })
   @IsOptional()
   @IsString()
   account_owner_user_id?: string;
 
   /** `mine` = only customers the caller is account owner of. */
+  @ApiPropertyOptional({
+    example: 'mine',
+    description: '`mine` เฉพาะลูกค้าที่ฉันเป็นผู้ดูแลบัญชี',
+  })
   @IsOptional()
   @IsIn(['mine', 'all'])
   view?: 'mine' | 'all';

@@ -115,10 +115,10 @@ export class UsersService {
   ): Prisma.UserWhereInput {
     const scoped = visibleUsersWhere(accessSubject(principal));
     const q = term?.trim();
-    if (!q) return scoped as Prisma.UserWhereInput;
+    if (!q) return scoped;
     return {
       AND: [
-        scoped as Prisma.UserWhereInput,
+        scoped,
         {
           OR: [
             { displayName: { contains: q, mode: 'insensitive' } },

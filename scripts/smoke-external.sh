@@ -58,5 +58,66 @@ check 'ขาด X-Acting-User'         400 "${auth[@]}" "$BASE_URL/crm/customer
 check 'X-Acting-User ที่ไม่มีตัวตน' 404 "${auth[@]}" -H 'X-Acting-User: ไม่มีคนนี้@example.com' "$BASE_URL/crm/customers"
 
 echo
+echo "MCP — endpoint เดียว ทุก tool อยู่ใน body"
+
+# JSON-RPC ตอบ 200 แม้ตอนที่มันปฏิเสธ status code จึงบอกอะไรไม่ได้ ต้องอ่าน body
+# `expr` เป็นนิพจน์ python บนตัวแปร `r` ที่ต้องเป็นจริง
+rpc() {
+  local label="$1" expr="$2" body="$3"; shift 3
+  local out
+  out=$(curl -s -m 20 -X POST -H 'content-type: application/json' "$@" -d "$body" "$BASE_URL/mcp")
+
+  if printf '%s' "$out" | python3 -c \
+    "import sys,json;r=json.load(sys.stdin);sys.exit(0 if ($expr) else 1)" 2>/dev/null; then
+    printf '  [ผ่าน] %s\n' "$label"
+    pass=$((pass + 1))
+  else
+    printf '  [ตก]  %s — %.200s\n' "$label" "$out"
+    fail=$((fail + 1))
+  fi
+}
+
+rpc 'initialize ตอบรุ่นที่พูดได้จริง' \
+  "r['result']['protocolVersion'] == '2024-11-05'" \
+  '{"jsonrpc":"2.0","id":1,"method":"initialize"}' "${auth[@]}"
+
+# เคสที่จับกรณี catalogue ไม่ติดไปกับ image: MCP ปิดตัวเองเงียบ ๆ โดย service อื่นยังเขียว
+rpc 'tools/list มี tool มากกว่าศูนย์' \
+  "len(r['result']['tools']) > 0" \
+  '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' "${auth[@]}"
+
+rpc 'tools/call ทำงานสำเร็จ' \
+  "not r['result'].get('isError')" \
+  '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"request_get_request_types","arguments":{}}}' \
+  "${auth[@]}" "${acting[@]}"
+
+rpc 'ชื่อ tool ที่ไม่มี → -32602' \
+  "r['error']['code'] == -32602" \
+  '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"ไม่มี tool นี้","arguments":{}}}' \
+  "${auth[@]}" "${acting[@]}"
+
+# ตัวตนถูก resolve ต่อการเรียก tool ไม่ใช่ต่อ HTTP request — initialize/tools/list จึงผ่านได้
+# โดยไม่มี header นี้ แต่ tools/call ต้องมี
+rpc 'ขาด X-Acting-User ตอน tools/call' \
+  "r['result']['isError'] and 'VALIDATION_FAILED' in r['result']['content'][0]['text']" \
+  '{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"request_get_request_types","arguments":{}}}' \
+  "${auth[@]}"
+
+check 'MCP ไม่มี credential' 401 -X POST -H 'content-type: application/json' \
+  -d '{"jsonrpc":"2.0","id":6,"method":"tools/list"}' "$BASE_URL/mcp"
+
+# RFC 9728 — ตัวชี้ทางที่ทำให้ปุ่ม "เชื่อมต่อ" ของ chat client โผล่ขึ้นมา ขาดไปแล้ว
+# ไคลเอนต์เจอ 401 เปล่า ๆ โดยไม่รู้ว่าต้องไป login ที่ไหน
+if curl -s -m 20 -D - -o /dev/null -X POST -H 'content-type: application/json' \
+    -d '{"jsonrpc":"2.0","id":7,"method":"tools/list"}' "$BASE_URL/mcp" \
+    | grep -qi '^www-authenticate:.*resource_metadata'; then
+  printf '  [ผ่าน] 401 ชี้ทางไป resource_metadata\n'
+  pass=$((pass + 1))
+else
+  printf '  [ตก]  401 ไม่มี header WWW-Authenticate\n'
+  fail=$((fail + 1))
+fi
+
+echo
 echo "ผ่าน $pass · ตก $fail"
 [ "$fail" -eq 0 ]

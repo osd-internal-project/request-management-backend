@@ -47,6 +47,9 @@ COPY libs/prisma/schema.prisma ./libs/prisma/
 RUN yarn install --production --frozen-lockfile
 
 COPY --from=builder /app/services/external-service/dist ./services/external-service/dist
+# Runtime input, not documentation: McpToolRegistry loads its tool catalogue
+# from here and disables MCP when it is missing (mcp-tools.ts).
+COPY docs/openapi/external-tools.json ./docs/openapi/external-tools.json
 
 EXPOSE 3003
 CMD ["node", "services/external-service/dist/main"]

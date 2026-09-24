@@ -31,9 +31,9 @@ describe('AUTH-05 pickActiveCompany', () => {
   });
 
   it('สมาชิกภาพถูกถอนหลังเลือกไว้ ค่าที่ค้างอยู่ต้องตกไปสังกัดหลัก', () => {
-    expect(
-      pickActiveCompany([OSD, BCO], undefined, CTD.id, BCO.id),
-    ).toBe(BCO.id);
+    expect(pickActiveCompany([OSD, BCO], undefined, CTD.id, BCO.id)).toBe(
+      BCO.id,
+    );
   });
 
   it('header ที่ไม่ได้เป็นสมาชิกไม่ชนะ — CompanyGuard จะปฏิเสธต่ออีกชั้น', () => {

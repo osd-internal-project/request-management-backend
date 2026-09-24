@@ -1,14 +1,17 @@
 import { writeFileSync, mkdirSync } from 'node:fs';
-import { MetadataScanner, ModulesContainer, NestFactory } from '@nestjs/core';
-import { PATH_METADATA, METHOD_METADATA } from '@nestjs/common/constants';
-import { RequestMethod } from '@nestjs/common';
+import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import type { INestApplication } from '@nestjs/common';
 import type { OpenAPIObject } from '@nestjs/swagger';
-import { ACTING_PERMISSIONS_KEY } from '@request-management/share';
+import {
+  ACTING_PERMISSIONS_KEY,
+  PERMISSIONS_KEY,
+  SENSITIVE_RESOURCE_KEY,
+} from '@request-management/share';
 import { CoreServiceModule } from '../services/core-service/src/core-service.module';
 import { UserServiceModule } from '../services/user-service/src/user-service.module';
 import { ExternalServiceModule } from '../services/external-service/src/external-service.module';
+import { enrichFromValidators, routesOf } from './openapi-validators';
 
 /**
  * §14 — the OpenAPI document is **generated from the code**, never hand-written.
@@ -89,7 +92,7 @@ interface ModuleDoc {
  *
  * The prose is per module on purpose. An integrator wiring up CRM should not
  * have to read the request flow's exceptions to find out that
- * `POST /crm/leads` takes no `X-Acting-User`; that fact belongs in the CRM
+ * `POST /crm/leads/intake` takes no `X-Acting-User`; that fact belongs in the CRM
  * document and nowhere else.
  */
 const MODULE_DOCS: Readonly<Record<string, ModuleDoc>> = {
@@ -128,7 +131,7 @@ const MODULE_DOCS: Readonly<Record<string, ModuleDoc>> = {
       'ทะเบียนลูกค้า, Lead, โอกาสการขาย, ใบเสนอราคา, ใบสั่งขาย และหน้าตั้งค่า CRM',
     notes:
       'สาม route ที่ **ไม่มี** `X-Acting-User` เพราะไม่มีคนอยู่ปลายสาย: ' +
-      '`POST /crm/leads` (เว็บฟอร์มของลูกค้า — ใบที่เข้ามาไม่มีเจ้าของ ' +
+      '`POST /crm/leads/intake` (เว็บฟอร์มของลูกค้า — ใบที่เข้ามาไม่มีเจ้าของ ' +
       'รอพนักงานขายกดรับ) และ `GET|POST /crm/leads/{id}/facts|stage` ' +
       '(workflow engine อ่านและบันทึกขั้นที่ตัดสินใจแล้ว)\n\n' +
       'การมองเห็นแถวยังเดินผ่านตัวกรองเดิมทุกเส้นทาง และการอ่านข้ามบริษัทตอบ ' +
@@ -312,10 +315,8 @@ async function generate(
 
   const document = SwaggerModule.createDocument(app, config);
 
-  const stamped = stampActingPermissions(
-    document,
-    actingPermissionsByRoute(app, prefix),
-  );
+  const stamped = stampRouteGates(document, routeGatesByRoute(app, prefix));
+  const enriched = enrichFromValidators(app, document, prefix);
 
   mkdirSync('docs/openapi', { recursive: true });
   writeFileSync(
@@ -325,7 +326,12 @@ async function generate(
 
   const paths = Object.keys(document.paths).length;
   console.log(
-    `${name}: ${paths} paths, ${stamped} acting-permission → docs/openapi/${name}.json`,
+    `${name}: ${paths} paths, ${stamped.declared} permission, ` +
+      `${stamped.acting} acting-permission, ` +
+      `${stamped.sensitive} sensitive-resource · ` +
+      `${enriched.constraints} constraint · ${enriched.properties} property · ` +
+      `${enriched.queryParams} query param · ${enriched.requiredFixed} required แก้ ` +
+      `→ docs/openapi/${name}.json`,
   );
 
   if (name === 'external-service') writeExternalDocuments(document, prefix);
@@ -333,111 +339,109 @@ async function generate(
   await app.close();
 }
 
+/** สิ่งที่ decorator ประกาศไว้ต่อ route แต่ Swagger มองไม่เห็น. */
+interface RouteGates {
+  /**
+   * `@Permissions` — สิทธิ์ที่ตัดสิน credential ที่ยิงเข้ามา บนพอร์ตภายนอกคือ
+   * `scopes` ของกุญแจ (`integration.*`) บนพอร์ตของหน้าเว็บคือสิทธิ์ของคน.
+   */
+  declared?: string[];
+  /** `@ActingPermissions` — สิทธิ์ของคนใน `X-Acting-User`. */
+  acting?: string[];
+  /** `@SensitiveResource` — ชุดกฎปกปิดที่ใช้กับคำตอบของ route นี้. */
+  sensitive?: string;
+}
+
 /**
- * `@ActingPermissions` ของทุก route คีย์ด้วย `METHOD /path` แบบ OpenAPI.
+ * สิ่งที่ decorator ประกาศไว้ต่อ route คีย์ด้วย `METHOD /path` แบบ OpenAPI.
  *
- * ประตูที่สองประกาศด้วย decorator ซึ่ง Swagger ไม่รู้จัก — ถ้าไม่ดึงออกมาไว้ในเอกสาร
- * ตัวสร้าง tool ของ MCP ก็ไม่มีทางรู้ว่า tool ไหนต้องตรวจสิทธิ์อะไรของคน และ MCP จะ
- * เหลือประตูเดียวตลอดไป
+ * ทั้งสองอย่างประกาศด้วย decorator ซึ่ง Swagger ไม่รู้จัก — ถ้าไม่ดึงออกมาไว้ในเอกสาร
+ * ตัวสร้าง tool ของ MCP ก็ไม่มีทางรู้ว่า tool ไหนต้องตรวจสิทธิ์อะไรของคน และ tool ไหน
+ * ต้องปกปิดฟิลด์ไหน — MCP จะเหลือประตูเดียวและไม่ปกปิดอะไรเลยตลอดไป
+ *
+ * `@SensitiveResource` สำคัญเป็นพิเศษกับ MCP เพราะฝั่ง REST มันถูกบังคับโดย
+ * interceptor ที่อ่าน metadata จาก handler ที่ถูกเรียก — MCP เรียก service ตรง ๆ
+ * interceptor จึงไม่ทำงาน และต้องมีค่านี้ติดมากับ tool ถึงจะปกปิดเองได้
  *
  * อ่านจาก metadata ที่เซิร์ฟเวอร์ใช้จริง ไม่ใช่ parse ข้อความในไฟล์ — route ที่ถูก
  * เปลี่ยนชื่อแล้วจะหลุดออกไปเอง ไม่ค้างอยู่เพราะไม่มีใครมาลบ
  */
-function actingPermissionsByRoute(
+function routeGatesByRoute(
   app: INestApplication,
   prefix: string,
-): Map<string, string[]> {
-  // `ModulesContainer` เป็น core provider ที่มีอยู่เสมอ ต่างจาก `DiscoveryService`
-  // ซึ่งต้อง import `DiscoveryModule` เข้ามาก่อน — และแอปนี้ไม่ได้ import
-  const modules = app.get(ModulesContainer);
-  const scanner = new MetadataScanner();
-  const found = new Map<string, string[]>();
+): Map<string, RouteGates> {
+  const found = new Map<string, RouteGates>();
 
-  const controllers = [...modules.values()].flatMap((module) => [
-    ...module.controllers.values(),
-  ]);
+  for (const { key, controller, handler } of routesOf(app, prefix)) {
+    const read = <T>(metaKey: string): T | undefined =>
+      (Reflect.getMetadata(metaKey, handler) as T | undefined) ??
+      (Reflect.getMetadata(metaKey, controller) as T | undefined);
 
-  const join = (...parts: string[]) =>
-    `/${parts.filter((part) => part && part !== '/').join('/')}`
-      .replace(/\/+/g, '/')
-      .replace(/:([^/]+)/g, '{$1}');
+    const permissions = read<string[]>(ACTING_PERMISSIONS_KEY);
+    const sensitive = read<string>(SENSITIVE_RESOURCE_KEY);
+    const declared = read<string[]>(PERMISSIONS_KEY);
 
-  for (const wrapper of controllers) {
-    const target = wrapper.metatype;
-    if (!target) continue;
+    if (!permissions?.length && !sensitive && !declared?.length) continue;
 
-    const controllerPath = Reflect.getMetadata(PATH_METADATA, target) as
-      | string
-      | undefined;
+    /*
+      สอง handler ที่ผูก METHOD+path เดียวกันคือ route ที่ทับกัน — Express จับตัวที่
+      register ก่อน อีกตัวกลายเป็นโค้ดที่เรียกไม่ถึง และ OpenAPI เก็บได้ operation
+      เดียวต่อ path จึงบรรยายตัวหนึ่งแต่ประทับสิทธิ์ของอีกตัว
 
-    const onClass = Reflect.getMetadata(ACTING_PERMISSIONS_KEY, target) as
-      | string[]
-      | undefined;
-
-    const proto = target.prototype as object;
-
-    for (const name of scanner.getAllMethodNames(proto)) {
-      const handler = (proto as Record<string, unknown>)[name];
-      if (typeof handler !== 'function') continue;
-
-      const method = Reflect.getMetadata(METHOD_METADATA, handler) as
-        | number
-        | undefined;
-      if (method === undefined) continue;
-
-      const permissions =
-        (Reflect.getMetadata(ACTING_PERMISSIONS_KEY, handler) as
-          | string[]
-          | undefined) ?? onClass;
-      if (!permissions?.length) continue;
-
-      const routePath = Reflect.getMetadata(PATH_METADATA, handler) as
-        | string
-        | undefined;
-
-      const verb = RequestMethod[method];
-      const path = join(prefix, controllerPath ?? '', routePath ?? '');
-      const key = `${verb} ${path}`;
-
-      /*
-        สอง handler ที่ผูก METHOD+path เดียวกันคือ route ที่ทับกัน — Express จับตัวที่
-        register ก่อน อีกตัวกลายเป็นโค้ดที่เรียกไม่ถึง และ OpenAPI เก็บได้ operation
-        เดียวต่อ path จึงบรรยายตัวหนึ่งแต่ประทับสิทธิ์ของอีกตัว
-
-        เคยเกิดจริงกับ `POST crm/leads` (intake vs sales create) และไม่มีอะไรส่งเสียง
-        เลยจนกว่าจะมีคนยิงแล้วได้ error ที่อ่านไม่ออก — เตือนที่นี่เพราะที่นี่คือที่แรก
-        ที่มองเห็นทั้งสองตัวพร้อมกัน
-      */
-      if (found.has(key)) {
-        console.warn(
-          `  ⚠ route ซ้ำ: ${key} — มีมากกว่าหนึ่ง handler ผูกอยู่ ` +
-            'ตัวที่ register ทีหลังเรียกไม่ถึง',
-        );
-      }
-
-      found.set(key, [...permissions]);
+      เคยเกิดจริงกับ `POST crm/leads` (intake vs sales create) และไม่มีอะไรส่งเสียง
+      เลยจนกว่าจะมีคนยิงแล้วได้ error ที่อ่านไม่ออก — เตือนที่นี่เพราะที่นี่คือที่แรก
+      ที่มองเห็นทั้งสองตัวพร้อมกัน
+    */
+    if (found.has(key)) {
+      console.warn(
+        `  ⚠ route ซ้ำ: ${key} — มีมากกว่าหนึ่ง handler ผูกอยู่ ` +
+          'ตัวที่ register ทีหลังเรียกไม่ถึง',
+      );
     }
+
+    found.set(key, {
+      ...(declared?.length ? { declared: [...declared] } : {}),
+      ...(permissions?.length ? { acting: [...permissions] } : {}),
+      ...(sensitive ? { sensitive } : {}),
+    });
   }
 
   return found;
 }
 
-/** ประทับ `x-acting-permission` ลงบน operation ที่ประกาศประตูที่สองไว้. */
-function stampActingPermissions(
+/**
+ * ประทับสิทธิ์ของทั้งสองประตูและกฎปกปิดลงบน operation.
+ *
+ * คืนจำนวนที่ประทับแยกกัน เพราะ route ส่วนใหญ่มีอย่างแรกอย่างเดียว การรวมเป็นเลข
+ * เดียวทำให้มองไม่ออกว่าการปกปิดหลุดไปทั้งชุดหรือเปล่า
+ */
+function stampRouteGates(
   document: OpenAPIObject,
-  acting: Map<string, string[]>,
-): number {
-  let stamped = 0;
+  gates: Map<string, RouteGates>,
+): { declared: number; acting: number; sensitive: number } {
+  const stamped = { declared: 0, acting: 0, sensitive: 0 };
 
   for (const [path, item] of Object.entries(document.paths)) {
     for (const [verb, operation] of Object.entries(item)) {
       if (typeof operation !== 'object' || operation === null) continue;
 
-      const permissions = acting.get(`${verb.toUpperCase()} ${path}`);
-      if (!permissions) continue;
+      const gate = gates.get(`${verb.toUpperCase()} ${path}`);
+      if (!gate) continue;
 
-      Object.assign(operation, { 'x-acting-permission': permissions });
-      stamped += 1;
+      if (gate.declared) {
+        Object.assign(operation, { 'x-permission': gate.declared });
+        stamped.declared += 1;
+      }
+
+      if (gate.acting) {
+        Object.assign(operation, { 'x-acting-permission': gate.acting });
+        stamped.acting += 1;
+      }
+
+      if (gate.sensitive) {
+        Object.assign(operation, { 'x-sensitive-resource': gate.sensitive });
+        stamped.sensitive += 1;
+      }
     }
   }
 

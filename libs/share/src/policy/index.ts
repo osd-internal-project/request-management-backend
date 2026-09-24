@@ -4,4 +4,5 @@ export * from './policy.guard';
 export * from './acting-policy.guard';
 export * from './separation-of-duties';
 export * from './permission-types';
+export * from './sensitive-field.masker';
 export * from './sensitive-field.interceptor';

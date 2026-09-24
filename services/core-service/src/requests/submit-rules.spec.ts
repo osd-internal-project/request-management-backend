@@ -661,3 +661,100 @@ describe('REQ-08 — the receiver form is checked the same way', () => {
     throw new Error('expected assertReceiverFormComplete to reject');
   });
 });
+
+describe('REQ-03 — date-time answers', () => {
+  const schema = {
+    properties: {
+      meet_at: { type: 'string', title: 'นัดหมาย', format: 'date-time' },
+    },
+  };
+  const submit = (meet_at: unknown) => () =>
+    assertSubmittable({
+      formSchema: schema,
+      requiredDocs: [],
+      formData: { meet_at },
+      attachmentCodes: [],
+    });
+
+  it('accepts ISO 8601 with Z or an offset', () => {
+    expect(submit('2026-09-23T07:30:00.000Z')).not.toThrow();
+    expect(submit('2026-09-23T14:30+07:00')).not.toThrow();
+  });
+
+  it('rejects a date alone, a missing offset, and an impossible date', () => {
+    for (const value of [
+      '2026-09-23',
+      '2026-09-23T14:30:00',
+      '2026-02-31T10:00:00Z',
+    ]) {
+      let details: readonly ErrorDetail[] = [];
+      try {
+        submit(value)();
+      } catch (error) {
+        details = (error as AppError).details ?? [];
+      }
+
+      expect(details).toHaveLength(1);
+      expect(details[0].field).toBe('meet_at');
+      expect(details[0].reason).toContain('ISO 8601');
+    }
+  });
+});
+
+describe('REQ-01 — choices, formats and boolean labels an admin saves', () => {
+  const reasonsOf = (properties: Record<string, unknown>): string[] => {
+    try {
+      assertUsableFormSchema({ properties });
+    } catch (error) {
+      return ((error as AppError).details ?? []).map((detail) => detail.reason);
+    }
+    return [];
+  };
+
+  it('accepts the kinds the editor writes', () => {
+    expect(
+      reasonsOf({
+        due: { type: 'string', format: 'date' },
+        at: { type: 'string', format: 'date-time' },
+        pick: { type: 'string', enum: ['A', 'B'] },
+        ok: {
+          type: 'boolean',
+          'x-true-label': 'อนุมัติ',
+          'x-false-label': 'ไม่อนุมัติ',
+        },
+      }),
+    ).toEqual([]);
+  });
+
+  it('refuses an empty, non-text or duplicated choice list', () => {
+    expect(reasonsOf({ pick: { type: 'string', enum: [] } })[0]).toContain(
+      'อย่างน้อยหนึ่งค่า',
+    );
+    expect(reasonsOf({ pick: { type: 'string', enum: [1, 2] } })[0]).toContain(
+      'เป็นข้อความ',
+    );
+    expect(
+      reasonsOf({ pick: { type: 'string', enum: ['A', 'A'] } })[0],
+    ).toContain('ซ้ำ');
+  });
+
+  it('refuses a format no renderer knows, inside a table too', () => {
+    expect(reasonsOf({ at: { type: 'string', format: 'time' } })[0]).toContain(
+      '"time"',
+    );
+    expect(
+      reasonsOf({
+        rows: {
+          type: 'array',
+          items: { properties: { at: { type: 'string', format: 'email' } } },
+        },
+      }),
+    ).toContain('ไม่รู้จักรูปแบบ "email"');
+  });
+
+  it('refuses a boolean label that is not text', () => {
+    expect(
+      reasonsOf({ ok: { type: 'boolean', 'x-true-label': true } })[0],
+    ).toContain('x-true-label');
+  });
+});

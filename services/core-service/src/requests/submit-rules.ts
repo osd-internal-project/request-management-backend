@@ -29,7 +29,13 @@ export interface FormSchemaProperty {
   maxLength?: number;
   minimum?: number;
   maximum?: number;
+  /** Boolean only: what to call `true` / `false` on screen. Defaults ใช่ / ไม่ใช่. */
+  'x-true-label'?: string;
+  'x-false-label'?: string;
 }
+
+/** `format` values the renderers know; anything else would save and render as plain text. */
+export const FORM_FIELD_FORMATS = ['date', 'date-time'] as const;
 
 /** One entry of `RequestType.requiredDocs`. */
 export interface RequiredDoc {
@@ -101,6 +107,28 @@ export function assertReceiverFormComplete(
   if (!details.length) return;
 
   throw new AppError('REQ_FIELD_MISSING', 'กรอกฟอร์มผู้รับคำขอไม่ครบ', details);
+}
+
+/**
+ * Who receives a request of this type: the type's fixed receiver when it has
+ * one, otherwise the requester's choice. Naming anyone else is refused, not overwritten.
+ */
+export function receiverFor(
+  type: { receiverUserId: string | null },
+  chosen: string | null | undefined,
+): string | null {
+  const fixed = type.receiverUserId;
+  if (!fixed) return chosen ?? null;
+
+  if (chosen && chosen !== fixed) {
+    throw new AppError(
+      'VALIDATION_FAILED',
+      'ประเภทคำขอนี้กำหนดผู้รับเรื่องไว้แล้ว เปลี่ยนไม่ได้',
+      [{ field: 'receiver_user_id', reason: 'fixed_by_type' }],
+    );
+  }
+
+  return fixed;
 }
 
 function missingFields(
@@ -267,6 +295,9 @@ function problemWith(
     if (property.format === 'date' && !isCalendarDate(value)) {
       return `${named}ต้องเป็นวันที่รูปแบบ ปปปป-ดด-วว`;
     }
+    if (property.format === 'date-time' && !isDateTime(value)) {
+      return `${named}ต้องเป็นวันที่และเวลา (ISO 8601 พร้อมเขตเวลา)`;
+    }
     if (property.maxLength !== undefined && value.length > property.maxLength) {
       return `${named}ยาวเกิน ${property.maxLength} ตัวอักษร`;
     }
@@ -291,6 +322,19 @@ function isCalendarDate(value: string): boolean {
     !Number.isNaN(parsed.getTime()) &&
     parsed.toISOString().slice(0, 10) === value
   );
+}
+
+/** ISO 8601 with an explicit offset, on a real calendar date — what the web picker sends. */
+function isDateTime(value: string): boolean {
+  if (
+    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,3})?)?(Z|[+-]\d{2}:\d{2})$/.test(
+      value,
+    )
+  ) {
+    return false;
+  }
+
+  return isCalendarDate(value.slice(0, 10)) && !Number.isNaN(Date.parse(value));
 }
 
 function missingDocs(
@@ -461,6 +505,7 @@ export function assertUsableFormSchema(
   }
 
   details.push(...unusableTables(parsed));
+  details.push(...unusableFields(parsed, 'form_schema.properties'));
 
   const codes = (requiredDocs ?? []).map((doc) => doc.code);
   const duplicate = codes.find((code, i) => codes.indexOf(code) !== i);
@@ -475,6 +520,52 @@ export function assertUsableFormSchema(
   if (!details.length) return;
 
   throw new AppError('VALIDATION_FAILED', 'โครงสร้างฟอร์มไม่ถูกต้อง', details);
+}
+
+/** Choices, formats and boolean labels the renderers read — checked at save, columns included. */
+function unusableFields(
+  parsed: FormSchema | null,
+  path: string,
+): ErrorDetail[] {
+  const details: ErrorDetail[] = [];
+
+  for (const [name, property] of Object.entries(parsed?.properties ?? {})) {
+    const field = `${path}.${name}`;
+
+    if (property.enum !== undefined) {
+      const options = Array.isArray(property.enum) ? property.enum : [];
+      const invalid =
+        !options.length ||
+        options.some((option) => typeof option !== 'string' || !option.trim());
+      if (invalid) {
+        details.push({
+          field,
+          reason: 'ตัวเลือกต้องมีอย่างน้อยหนึ่งค่าและเป็นข้อความ',
+        });
+      } else if (new Set(options).size !== options.length) {
+        details.push({ field, reason: 'ตัวเลือกซ้ำกัน' });
+      }
+    }
+
+    if (
+      property.format !== undefined &&
+      !(FORM_FIELD_FORMATS as readonly string[]).includes(property.format)
+    ) {
+      details.push({ field, reason: `ไม่รู้จักรูปแบบ "${property.format}"` });
+    }
+
+    for (const key of ['x-true-label', 'x-false-label'] as const) {
+      if (property[key] !== undefined && typeof property[key] !== 'string') {
+        details.push({ field, reason: `${key} ต้องเป็นข้อความ` });
+      }
+    }
+
+    if (property.type === 'array' && property.items) {
+      details.push(...unusableFields(property.items, `${field}.items`));
+    }
+  }
+
+  return details;
 }
 
 /**

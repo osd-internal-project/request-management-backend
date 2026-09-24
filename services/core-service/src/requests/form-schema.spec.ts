@@ -178,3 +178,31 @@ describe('a schema that is not usable yet', () => {
     expect(toFormFields(value)).toEqual([]);
   });
 });
+
+describe('date-time and boolean labels', () => {
+  const [at, ok, plain] = toFormFields({
+    properties: {
+      at: { type: 'string', format: 'date-time', 'x-order': 1 },
+      ok: {
+        type: 'boolean',
+        'x-order': 2,
+        'x-true-label': 'อนุมัติ',
+        'x-false-label': 'ไม่อนุมัติ',
+      },
+      plain: { type: 'boolean', 'x-order': 3 },
+    },
+  });
+
+  it('reads format date-time as datetime', () => {
+    expect(at.type).toBe('datetime');
+  });
+
+  it('carries the labels an admin set, and ใช่ / ไม่ใช่ otherwise', () => {
+    expect(ok).toMatchObject({
+      trueLabel: 'อนุมัติ',
+      falseLabel: 'ไม่อนุมัติ',
+    });
+    expect(plain).toMatchObject({ trueLabel: 'ใช่', falseLabel: 'ไม่ใช่' });
+    expect(at.trueLabel).toBeUndefined();
+  });
+});

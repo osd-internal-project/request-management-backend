@@ -17,22 +17,29 @@
 | ไฟล์ | paths | สำหรับ |
 |---|---|---|
 | [`openapi/external-request.json`](./openapi/external-request.json) | 10 | คำขอตั้งแต่เปิดจนปิด |
-| [`openapi/external-crm.json`](./openapi/external-crm.json) | 58 | ลูกค้า, Lead, โอกาสการขาย, ใบเสนอราคา |
+| [`openapi/external-crm.json`](./openapi/external-crm.json) | 62 | ลูกค้า, Lead, โอกาสการขาย, ใบเสนอราคา |
 | [`openapi/external-approval.json`](./openapi/external-approval.json) | 1 | เปิดเคสอนุมัติจากโมดูลอื่น |
 | [`openapi/external-mcp.json`](./openapi/external-mcp.json) | 1 | คำอธิบาย JSON-RPC — ไม่ใช่ REST |
-| [`openapi/external-tools.json`](./openapi/external-tools.json) | 10 tools | tool-caller (`yarn tools`) |
+| [`openapi/external-tools.json`](./openapi/external-tools.json) | 26 tools | tool-caller (`yarn tools`) |
 
 Postman collection สร้างจากสามไฟล์แรกด้วย `yarn postman` เขียนลง
 `../docs/postman/Request-Form-External-{Request,CRM,Approval}.postman_collection.json`
 
 **อย่าลอกรายการ endpoint มาไว้ที่นี่อีกชุด** — สองชุดจะเริ่มไม่ตรงกันทันทีที่แก้อันเดียว
 
+**enum ขอบเขต และฟิลด์บังคับในสเปกมาจาก class-validator** ไม่ใช่จาก `@ApiProperty`
+อย่างเดียว — Swagger อ่านแค่ `@ApiProperty` จึงเคยทิ้งฟิลด์ของ CRM ไป 177 ตัวและ query ของหน้า
+รายการทั้งหมด (`GET /crm/leads` ไม่มี `view`) `scripts/openapi-validators.ts` เติมกลับจาก
+metadata ที่ `ValidationPipe` ใช้จริง ⇒ **เพิ่ม `@IsIn` บน DTO = enum โผล่ในสเปก tool และ
+Postman ทันที** ไม่ต้องเขียน `@ApiProperty({ enum })` ซ้ำ ที่ยังต้องเขียนเองคือ `example` กับ
+`description` — validator ไม่รู้ว่าค่าตัวอย่างที่ดีคืออะไร
+
 ## โครงสร้างตาม module
 
 | Module | operations | เนื้อหา |
 |---|---|---|
 | `api/v1/request/*` | 11 | คำขอ — เปิด, ติดตาม, ดำเนินการ, ปิด |
-| `api/v1/crm/*` | 74 | ทะเบียนลูกค้า, Lead, โอกาสการขาย, ใบเสนอราคา, ใบสั่งขาย, ตั้งค่า CRM |
+| `api/v1/crm/*` | 79 | ทะเบียนลูกค้า, Lead, โอกาสการขาย, ใบเสนอราคา, ใบสั่งขาย, ตั้งค่า CRM |
 | `api/v1/approval/*` | 1 | เปิดเคสอนุมัติจากโมดูลอื่น (APV-07) |
 | `api/v1/mcp` | 1 | tool-caller — ทุก tool ผ่าน endpoint เดียว |
 
@@ -65,7 +72,7 @@ global guard ทุกตัว ถ้าสลับตัวตนก่อน
 `@ActingPermissions` ต้องขอเท่ากับที่ route ของหน้าเว็บขอ ไม่ใช่น้อยกว่า —
 `crm-route-parity.spec.ts` fail ถ้าไม่ตรง ทั้ง 72 คู่
 
-### สามตัวที่ไม่มีประตูของคน และเป็นเจตนา
+### สี่ route ที่ไม่มีประตูของคน และเป็นเจตนา
 
 | route | ทำไมไม่มีคน |
 |---|---|
@@ -78,9 +85,9 @@ global guard ทุกตัว ถ้าสลับตัวตนก่อน
 > เปล่า ๆ ซึ่งชนกับ `ExternalLeadsController.create` ที่บังคับ `X-Acting-User` และ
 > **ถูกบังจนเรียกไม่ถึงเลย** เว็บฟอร์มที่ยิงมาตามเอกสารเดิมได้ 400 ไม่ใช่ Lead
 
-สามตัวนี้ **ห้ามส่ง** `X-Acting-User` และมีแต่ประตูของเครื่อง audit จึงบันทึก
+สี่เส้นนี้ **ห้ามส่ง** `X-Acting-User` และมีแต่ประตูของเครื่อง audit จึงบันทึก
 ชื่อบัญชีบริการ ซึ่งถูกต้องแล้ว — การใส่ชื่อคนให้มันคือการบันทึกว่ามีคนทำสิ่งที่
-ไม่มีใครทำ เพิ่มตัวที่สี่ได้ แต่ต้องประกาศเหตุผลไว้ในไฟล์นั้น ไม่ใช่ทำโดยปริยาย
+ไม่มีใครทำ เพิ่มเส้นที่ห้าได้ แต่ต้องประกาศเหตุผลไว้ในไฟล์นั้น ไม่ใช่ทำโดยปริยาย
 
 ---
 
@@ -202,26 +209,23 @@ curl -s -X POST "$KEYCLOAK_BASE_URL/realms/$KEYCLOAK_REALM/protocol/openid-conne
 
 ไม่มี dependency ไม่ต้องรันอะไรค้าง แลกกับต้องสั่งใหม่ทุกครั้งที่ token หมดอายุ
 
-### 4.2 `yarn mcp:token`
+### 4.2 `yarn mcp:token` — เครื่องมือ debug ไม่ใช่ทางเข้า
 
-MCP server (stdio) tool เดียวชื่อ `get_keycloak_token` คืนบรรทัด
-`Authorization: Bearer …` พร้อมอายุที่เหลือและ realm roles ที่ token นั้นถือ
+**อย่าเริ่มที่นี่** — นี่คือ §4.1 ห่อเป็น MCP server แบบ stdio เพื่อความสะดวก มันคืน
+token ที่ **เรียก External API ไม่ได้** ประโยชน์ที่เหลืออยู่อย่างเดียวคือตรวจว่า realm,
+`INTEGRATION_CLIENT_ID` และ secret ตั้งถูกหรือยัง
 
-> **คำเตือนเรื่อง `integration.request.create` ในเครื่องมือนี้ล้าสมัยแล้ว** — realm role
-> ชื่อ permission ไม่มีอีกต่อไป ยิง External API ต้องใช้กุญแจตาม §4.3
-
-ตั้งใน MCP client:
-
-```json
-{ "command": "yarn", "args": ["mcp:token"], "cwd": "<path>/request-management-backend" }
-```
-
-เรียกจากบรรทัดคำสั่งเพื่อทดสอบก็ได้ — มันอ่าน JSON-RPC จาก stdin:
+อย่าสับสนกับ §4.4 ซึ่งเป็น MCP ของ External API จริง ๆ — คนละตัวคนละ transport
+ตัวนี้เป็น stdio มี tool เดียวชื่อ `get_keycloak_token` ส่วนตัวนั้นเป็น HTTP
+และขน tool ของ External API ทั้งชุด
 
 ```bash
 echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_keycloak_token"}}' \
   | yarn --silent mcp:token
 ```
+
+> realm roles ที่มันรายงาน — รวมถึงคำเตือนเรื่อง `integration.request.create` —
+> **ล้าสมัยแล้ว** สิทธิ์ย้ายไปอยู่ที่ `api_keys.scopes` ตั้งแต่ 14 ก.ย. 2569 (§3.2)
 
 ### 4.3 API key ที่ไม่หมดอายุ
 
@@ -247,7 +251,7 @@ yarn apikey:list
 ### 4.4 MCP over HTTP — ให้ LibreChat หรือ chat client ต่อตรง
 
 `POST /api/v1/mcp` — **endpoint เดียวสำหรับทุก tool** ชื่อ tool อยู่ใน body
-ไม่ใช่ใน path จึงไม่มี `/mcp/request-types` และ URL เดิมทั้งสิบตัวไม่ถูกเติม
+ไม่ใช่ใน path จึงไม่มี `/mcp/request-types` และ URL เดิมของ REST ไม่ถูกเติม
 `/mcp` นำหน้า
 
 ```bash
@@ -265,9 +269,36 @@ curl -s -X POST http://localhost:3003/api/v1/mcp \
  "params":{"name":"request_get_request_types","arguments":{}}}
 ```
 
-ชื่อ tool ขึ้นต้นด้วย module ที่มันอยู่ (`request_…`) — ใช้ขีดล่างไม่ใช่จุด เพราะ tool name ถูกตรวจด้วย `^[a-zA-Z0-9_-]{1,64}$} ทั้ง Claude API และตัวอื่น\n\nตอนนี้ catalogue มีแต่ module `request` (10 tool) ไม่ได้มี CRM ด้วย — `TOOL_MODULES` ใน `scripts/generate-tools.ts` อธิบายว่าทำไม โดยย่อคือ tool catalogue เป็นเมนูที่ยื่นให้โมเดลเลือก ไม่ใช่สัญญา REST และ 82 tool ทำให้โมเดลเลือกแย่กว่า 10 tool\n\nรายชื่อ tool ทั้งสิบอยู่ที่ `docs/openapi/external-tools.json` และ `tools/list`
+ชื่อ tool ขึ้นต้นด้วย module ที่มันอยู่ (`request_…`) — ใช้ขีดล่างไม่ใช่จุด เพราะ tool
+name ถูกตรวจด้วย `^[a-zA-Z0-9_-]{1,64}$` ทั้ง Claude API และตัวอื่น
+
+catalogue มี **26 tool** — `request` ทั้ง 10 เส้น และ CRM อีก 16 ที่**เลือกมา ไม่ใช่เอา
+ทั้งก้อน** `CRM_IN_CHAT` ใน `scripts/generate-tools.ts` คือรายการนั้น และคอมเมนต์เหนือมัน
+อธิบายว่าทำไม โดยย่อคือ tool catalogue เป็นเมนูที่ยื่นให้โมเดลเลือก ไม่ใช่สัญญา REST —
+CRM มี 62 path การยื่นทั้งหมดทำให้โมเดลเลือกแย่ลง ไม่ใช่ดีขึ้น สิบหกเส้นที่เลือกคือสิ่งที่
+เซลส์ทำจริงในแชท: ค้นหา, รับ Lead, ขยับสถานะ, บันทึกการติดต่อ, เปิดโอกาสการขาย
+
+เพิ่ม tool = เติมเส้นลง `CRM_IN_CHAT` เท่านั้น generator เก็บเอง และ `McpToolRegistry`
+ไม่ยอม boot จนกว่าจะมี handler รองรับ
+
+**CRM ผ่าน MCP ปกปิดฟิลด์อ่อนไหวเท่ากับหน้าจอ** — เลขผู้เสียภาษี (CM-08) และ
+ต้นทุน/margin ของใบเสนอราคา หายออกจากคำตอบถ้าคนใน `X-Acting-User` ไม่มีสิทธิ์เห็น
+(หายไปเลย ไม่ใช่เป็น `null` ผู้เรียกจึงแยกไม่ออกว่า "ไม่ให้ดู" กับ "ไม่มีค่า")
+
+ฝั่ง REST งานนี้เป็นของ `SensitiveFieldInterceptor` ซึ่ง **MCP ใช้ไม่ได้** — handler
+ที่ Nest เห็นคือ `McpController.handle` ที่ไม่มี `@SensitiveResource` และคำตอบถูกห่อ
+เป็น `content[].text` ไปก่อนที่ interceptor จะได้จับ `McpToolRegistry.call` จึงปกปิด
+เองจาก `x-sensitive-resource` ที่ `yarn openapi` ประทับมากับ tool และ catalogue ที่
+ไม่มีฟิลด์นั้นทำให้ boot ไม่ผ่าน — ปฏิเสธดังกว่าปล่อยให้ margin หลุดเงียบ ๆ
+
+รายชื่อ tool ทั้ง 26 ตัวอยู่ที่ `docs/openapi/external-tools.json` และ `tools/list`
 อ่านจากไฟล์นั้นตรง ๆ — เพิ่ม endpoint ใน External API แล้วรัน
 `yarn openapi && yarn tools` tool ก็เพิ่มเองโดยไม่ต้องแก้โค้ด MCP
+
+> **ไฟล์นี้เป็น input ตอนรัน ไม่ใช่เอกสาร** — `McpToolRegistry` อ่านมันตอน boot และ
+> ปิด MCP ทั้งตัวถ้าหาไม่เจอ (service อื่นยังทำงานปกติ จึงไม่มีอะไรฟ้อง) `Dockerfile`
+> ของ external-service จึง `COPY` มันเข้า image และ `.dockerignore` มีข้อยกเว้นให้
+> ไฟล์นี้ไฟล์เดียวรอดจากการตัด `docs` ทั้งโฟลเดอร์
 
 **ตัวตนผู้ใช้ทำงานสองแบบ ต่างจาก `/request/*` ตรงนี้ที่เดียว**
 
@@ -322,6 +353,33 @@ client ที่ถือสิทธิ์ Keycloak Admin API และ redirec
 **เมื่อ login ผ่านแล้ว `X-Acting-User` ห้ามส่ง** — token บอกอยู่แล้วว่าเป็นใคร
 ถ้าส่งมาจะถูกปฏิเสธ เพราะถ้ายอมรับ ใครที่ login แล้วก็สวมเป็นคนอื่นได้
 
+#### `PUBLIC_BASE_URL` ต้องเป็น URL ที่ LibreChat มองเห็น
+
+ค่านี้ไปโผล่สองที่: ฟิลด์ `resource` ในเอกสาร discovery และใน header
+`WWW-Authenticate` ที่มากับ `401` ตั้งเป็น `localhost` ในขณะที่ LibreChat อยู่คนละ
+เครื่อง = ไคลเอนต์ถูกชี้ไปยัง URL ที่มันเข้าไม่ถึง แล้วปุ่มเชื่อมต่อจะวนไม่จบโดยไม่มี
+อะไรใน log บอกว่าทำไม ค่าตั้งต้นอยู่ที่ `services/external-service/src/configs/index.ts`
+
+#### ตรวจว่า discovery เดินถูกก่อนไปกด connect
+
+สองเส้นทาง เพราะไคลเอนต์ไม่ตรงกันว่าจะถามอันไหน — เสิร์ฟทั้งคู่และต้องตอบเหมือนกัน:
+
+```bash
+curl -s http://<host>:3503/.well-known/oauth-protected-resource
+curl -s http://<host>:3503/.well-known/oauth-protected-resource/api/v1/mcp
+curl -sI -X POST http://<host>:3503/api/v1/mcp | grep -i www-authenticate
+```
+
+สองคำสั่งแรกต้องคืน `resource` และ `authorization_servers` ที่ชี้ไป realm ของจริง
+คำสั่งที่สามต้องเห็น `Bearer resource_metadata="…"` — ขาดไปแล้วปุ่มเชื่อมต่อจะไม่โผล่
+
+#### ข้อจำกัดของ transport ที่รู้ตัว
+
+LibreChat ให้เลือก "Streamable HTTPS" แต่ endpoint นี้เป็น `POST` ที่ตอบ
+`application/json` ล้วน — **ไม่มี SSE ไม่มี `Mcp-Session-Id` และไม่มี `GET /mcp`**
+ซึ่งเพียงพอสำหรับไคลเอนต์ที่ยอมรับคำตอบเป็น JSON ตรง ๆ ตาม Streamable HTTP
+ถ้าเจอไคลเอนต์ที่ยืนยันจะเปิด stream ค้างไว้ นั่นคืองานเพิ่ม ไม่ใช่การตั้งค่าผิด
+
 ---
 
 ---
@@ -343,14 +401,18 @@ curl -i \
 API_KEY=rfk_… ACTING_USER=someone@osd.co.th bash scripts/smoke-external.sh
 ```
 
-ยิงเจ็ดเคส — สามเคสที่ต้องได้ 200 และสี่เคสที่**ต้องถูกปฏิเสธ** (ไม่มี credential,
+REST แปดเคส — สี่เคสที่ต้องผ่าน และสี่เคสที่**ต้องถูกปฏิเสธ** (ไม่มี credential,
 กุญแจปลอม, ขาด `X-Acting-User`, อีเมลที่ไม่มีตัวตน) ครึ่งหลังคือส่วนที่พิสูจน์ว่าประตู
 ยังปิดอยู่ ไม่ใช่แค่ว่าเปิดได้ ตั้ง `BASE_URL` เพื่อยิงเซิร์ฟเวอร์อื่น
+
+ตามด้วย **MCP เจ็ดเคส** ซึ่งอ่าน body ไม่ใช่ status เพราะ JSON-RPC ตอบ `200` แม้ตอน
+ที่มันปฏิเสธ เคสที่สำคัญที่สุดคือ *"tools/list มี tool มากกว่าศูนย์"* — มันจับกรณีที่
+catalogue ไม่ได้ติดไปกับ image ซึ่ง MCP จะปิดตัวเองเงียบ ๆ โดย health check ยังเขียว
 
 ### 5.2 Postman
 
 `yarn postman` สร้าง collection จากสเปกเดียวกับที่โค้ดประกาศ ลงที่ `docs/postman/`
-(Request 11 · CRM 74 · Approval 1 request) import พร้อม environment
+(Request 11 · CRM 79 · Approval 1 request) import พร้อม environment
 `Request-Form-External-Key` แล้ววาง `rfk_…` ลงช่อง `access_token` — collection ตั้ง
 auth เป็น bearer ไว้แล้ว กุญแจจึงใช้แทน token ได้ตรง ๆ ไม่ต้องแก้อะไรใน collection
 

@@ -17,5 +17,9 @@ node_modules
 .env.*
 
 docs
+# MCP reads its tool catalogue from this file at boot and disables itself
+# without it, so the one document that is runtime input escapes the exclusion
+# above. See services/external-service/src/mcp/mcp-tools.ts.
+!docs/openapi/external-tools.json
 coverage
 artifacts

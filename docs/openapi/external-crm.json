@@ -23,7 +23,7 @@
             "schema": {
               "minimum": 1,
               "default": 1,
-              "type": "number"
+              "type": "integer"
             }
           },
           {
@@ -35,7 +35,7 @@
               "minimum": 1,
               "maximum": 100,
               "default": 20,
-              "type": "number"
+              "type": "integer"
             }
           },
           {
@@ -45,7 +45,65 @@
             "description": "`sort=field` เรียงขึ้น, `sort=-field` เรียงลง",
             "schema": {
               "example": "-createdAt",
+              "type": "string",
+              "pattern": "^-?[a-zA-Z_][a-zA-Z0-9_]*$"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "ค้นจากชื่อไทย ชื่ออังกฤษ รหัสลูกค้า หรือเลขผู้เสียภาษี",
+            "schema": {
+              "example": "ตัวอย่าง",
               "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "active",
+              "type": "string",
+              "enum": [
+                "draft",
+                "active",
+                "suspended",
+                "inactive"
+              ]
+            }
+          },
+          {
+            "name": "segment_value_id",
+            "required": false,
+            "in": "query",
+            "description": "id ค่ากลุ่มลูกค้าตามที่บริษัทตั้งค่าไว้",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "account_owner_user_id",
+            "required": false,
+            "in": "query",
+            "description": "id ผู้ดูแลบัญชีจาก `GET /request/users`",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "view",
+            "required": false,
+            "in": "query",
+            "description": "`mine` เฉพาะลูกค้าที่ฉันเป็นผู้ดูแลบัญชี",
+            "schema": {
+              "example": "mine",
+              "type": "string",
+              "enum": [
+                "mine",
+                "all"
+              ]
             }
           },
           {
@@ -72,9 +130,13 @@
         "tags": [
           "crm"
         ],
+        "x-permission": [
+          "integration.crm.customer.read"
+        ],
         "x-acting-permission": [
           "crm.customer.read"
-        ]
+        ],
+        "x-sensitive-resource": "customer"
       },
       "post": {
         "description": "ตรวจเลขผู้เสียภาษีและกันซ้ำ — ข้ามการกันซ้ำต้องส่ง confirm_duplicate พร้อม override_reason และมีสิทธิ์ crm.customer.dedup.override. เลขภาษีเดียวกันคนละสาขาถูกผูกเป็นสาขาให้เอง",
@@ -123,6 +185,9 @@
         "tags": [
           "crm"
         ],
+        "x-permission": [
+          "integration.crm.customer.manage"
+        ],
         "x-acting-permission": [
           "crm.customer.manage"
         ]
@@ -165,6 +230,9 @@
         "tags": [
           "crm"
         ],
+        "x-permission": [
+          "integration.crm.customer.read"
+        ],
         "x-acting-permission": [
           "crm.customer.read"
         ]
@@ -206,6 +274,9 @@
         "summary": "สินค้าที่บังคับทำ KYC",
         "tags": [
           "crm"
+        ],
+        "x-permission": [
+          "integration.crm.customer.read"
         ],
         "x-acting-permission": [
           "crm.customer.read"
@@ -260,6 +331,9 @@
         "tags": [
           "crm"
         ],
+        "x-permission": [
+          "integration.crm.customer.read"
+        ],
         "x-acting-permission": [
           "crm.customer.read"
         ]
@@ -313,6 +387,9 @@
         "tags": [
           "crm"
         ],
+        "x-permission": [
+          "integration.crm.admin.manage"
+        ],
         "x-acting-permission": [
           "admin.crm.manage"
         ]
@@ -364,9 +441,13 @@
         "tags": [
           "crm"
         ],
+        "x-permission": [
+          "integration.crm.customer.read"
+        ],
         "x-acting-permission": [
           "crm.customer.read"
-        ]
+        ],
+        "x-sensitive-resource": "customer"
       },
       "patch": {
         "description": "ทุกฟิลด์ที่เปลี่ยนถูกบันทึกลงประวัติใน transaction เดียวกัน",
@@ -423,6 +504,9 @@
         "tags": [
           "crm"
         ],
+        "x-permission": [
+          "integration.crm.customer.manage"
+        ],
         "x-acting-permission": [
           "crm.customer.manage"
         ]
@@ -474,6 +558,9 @@
         "tags": [
           "crm"
         ],
+        "x-permission": [
+          "integration.crm.customer.read"
+        ],
         "x-acting-permission": [
           "crm.customer.read"
         ]
@@ -523,6 +610,9 @@
         "summary": "ตัวเลขสรุปหน้าลูกค้า 360°",
         "tags": [
           "crm"
+        ],
+        "x-permission": [
+          "integration.crm.customer.read"
         ],
         "x-acting-permission": [
           "crm.customer.read"
@@ -574,6 +664,9 @@
         "summary": "เปิดใช้งานลูกค้า",
         "tags": [
           "crm"
+        ],
+        "x-permission": [
+          "integration.crm.customer.manage"
         ],
         "x-acting-permission": [
           "crm.customer.manage"
@@ -636,6 +729,9 @@
         "tags": [
           "crm"
         ],
+        "x-permission": [
+          "integration.crm.customer.manage"
+        ],
         "x-acting-permission": [
           "crm.customer.manage"
         ]
@@ -697,6 +793,9 @@
         "tags": [
           "crm"
         ],
+        "x-permission": [
+          "integration.crm.customer.manage"
+        ],
         "x-acting-permission": [
           "crm.customer.manage"
         ]
@@ -756,6 +855,9 @@
         "summary": "เพิ่มที่อยู่หรือไซต์งาน",
         "tags": [
           "crm"
+        ],
+        "x-permission": [
+          "integration.crm.customer.manage"
         ],
         "x-acting-permission": [
           "crm.customer.manage"
@@ -825,6 +927,9 @@
         "tags": [
           "crm"
         ],
+        "x-permission": [
+          "integration.crm.customer.manage"
+        ],
         "x-acting-permission": [
           "crm.customer.manage"
         ]
@@ -881,6 +986,9 @@
         "summary": "ลบที่อยู่ออกจากทะเบียน",
         "tags": [
           "crm"
+        ],
+        "x-permission": [
+          "integration.crm.customer.manage"
         ],
         "x-acting-permission": [
           "crm.customer.manage"
@@ -942,6 +1050,9 @@
         "summary": "เพิ่มผู้ติดต่อ",
         "tags": [
           "crm"
+        ],
+        "x-permission": [
+          "integration.crm.customer.manage"
         ],
         "x-acting-permission": [
           "crm.customer.manage"
@@ -1011,6 +1122,9 @@
         "tags": [
           "crm"
         ],
+        "x-permission": [
+          "integration.crm.customer.manage"
+        ],
         "x-acting-permission": [
           "crm.customer.manage"
         ]
@@ -1067,6 +1181,9 @@
         "summary": "ลบผู้ติดต่อ",
         "tags": [
           "crm"
+        ],
+        "x-permission": [
+          "integration.crm.customer.manage"
         ],
         "x-acting-permission": [
           "crm.customer.manage"
@@ -1129,6 +1246,9 @@
         "tags": [
           "crm"
         ],
+        "x-permission": [
+          "integration.crm.customer.manage"
+        ],
         "x-acting-permission": [
           "crm.customer.manage"
         ]
@@ -1180,6 +1300,9 @@
         "tags": [
           "crm"
         ],
+        "x-permission": [
+          "integration.crm.customer.read"
+        ],
         "x-acting-permission": [
           "crm.customer.read"
         ]
@@ -1215,6 +1338,30 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -1230,6 +1377,9 @@
         "summary": "ไทม์ไลน์เหตุการณ์ของลูกค้า",
         "tags": [
           "crm"
+        ],
+        "x-permission": [
+          "integration.crm.customer.read"
         ],
         "x-acting-permission": [
           "crm.customer.read"
@@ -1281,6 +1431,9 @@
         "summary": "รหัสลูกค้าในระบบภายนอก",
         "tags": [
           "crm"
+        ],
+        "x-permission": [
+          "integration.crm.admin.manage"
         ],
         "x-acting-permission": [
           "admin.crm.manage"
@@ -1341,6 +1494,9 @@
         "tags": [
           "crm"
         ],
+        "x-permission": [
+          "integration.crm.admin.manage"
+        ],
         "x-acting-permission": [
           "admin.crm.manage"
         ]
@@ -1381,6 +1537,9 @@
         ],
         "tags": [
           "crm"
+        ],
+        "x-permission": [
+          "integration.crm.admin.manage"
         ],
         "x-acting-permission": [
           "admin.crm.manage"
@@ -1430,6 +1589,9 @@
         ],
         "tags": [
           "crm"
+        ],
+        "x-permission": [
+          "integration.crm.admin.manage"
         ],
         "x-acting-permission": [
           "admin.crm.manage"
@@ -1481,6 +1643,9 @@
         ],
         "tags": [
           "crm"
+        ],
+        "x-permission": [
+          "integration.crm.admin.manage"
         ],
         "x-acting-permission": [
           "admin.crm.manage"
@@ -1541,6 +1706,9 @@
         "tags": [
           "crm"
         ],
+        "x-permission": [
+          "integration.crm.admin.manage"
+        ],
         "x-acting-permission": [
           "admin.crm.manage"
         ]
@@ -1588,6 +1756,9 @@
         "tags": [
           "crm"
         ],
+        "x-permission": [
+          "integration.crm.admin.manage"
+        ],
         "x-acting-permission": [
           "admin.crm.manage"
         ]
@@ -1628,6 +1799,9 @@
         ],
         "tags": [
           "crm"
+        ],
+        "x-permission": [
+          "integration.crm.admin.manage"
         ],
         "x-acting-permission": [
           "admin.crm.manage"
@@ -1677,6 +1851,9 @@
         ],
         "tags": [
           "crm"
+        ],
+        "x-permission": [
+          "integration.crm.admin.manage"
         ],
         "x-acting-permission": [
           "admin.crm.manage"
@@ -1737,6 +1914,9 @@
         "tags": [
           "crm"
         ],
+        "x-permission": [
+          "integration.crm.admin.manage"
+        ],
         "x-acting-permission": [
           "admin.crm.manage"
         ]
@@ -1777,6 +1957,9 @@
         ],
         "tags": [
           "crm"
+        ],
+        "x-permission": [
+          "integration.crm.admin.manage"
         ],
         "x-acting-permission": [
           "admin.crm.manage"
@@ -1826,6 +2009,9 @@
         ],
         "tags": [
           "crm"
+        ],
+        "x-permission": [
+          "integration.crm.admin.manage"
         ],
         "x-acting-permission": [
           "admin.crm.manage"
@@ -1886,6 +2072,9 @@
         "tags": [
           "crm"
         ],
+        "x-permission": [
+          "integration.crm.admin.manage"
+        ],
         "x-acting-permission": [
           "admin.crm.manage"
         ]
@@ -1944,6 +2133,9 @@
         ],
         "tags": [
           "crm"
+        ],
+        "x-permission": [
+          "integration.crm.admin.manage"
         ],
         "x-acting-permission": [
           "admin.crm.manage"
@@ -2004,6 +2196,9 @@
         "tags": [
           "crm"
         ],
+        "x-permission": [
+          "integration.crm.admin.manage"
+        ],
         "x-acting-permission": [
           "admin.crm.manage"
         ]
@@ -2051,6 +2246,9 @@
         "tags": [
           "crm"
         ],
+        "x-permission": [
+          "integration.crm.admin.manage"
+        ],
         "x-acting-permission": [
           "admin.crm.manage"
         ]
@@ -2091,6 +2289,9 @@
         ],
         "tags": [
           "crm"
+        ],
+        "x-permission": [
+          "integration.crm.admin.manage"
         ],
         "x-acting-permission": [
           "admin.crm.manage"
@@ -2141,6 +2342,9 @@
         "tags": [
           "crm"
         ],
+        "x-permission": [
+          "integration.crm.admin.manage"
+        ],
         "x-acting-permission": [
           "admin.crm.manage"
         ]
@@ -2184,6 +2388,9 @@
         "tags": [
           "crm"
         ],
+        "x-permission": [
+          "integration.crm.sales.read"
+        ],
         "x-acting-permission": [
           "crm.sales.read"
         ]
@@ -2211,7 +2418,7 @@
             "schema": {
               "minimum": 1,
               "default": 1,
-              "type": "number"
+              "type": "integer"
             }
           },
           {
@@ -2223,7 +2430,7 @@
               "minimum": 1,
               "maximum": 100,
               "default": 20,
-              "type": "number"
+              "type": "integer"
             }
           },
           {
@@ -2233,7 +2440,44 @@
             "description": "`sort=field` เรียงขึ้น, `sort=-field` เรียงลง",
             "schema": {
               "example": "-createdAt",
+              "type": "string",
+              "pattern": "^-?[a-zA-Z_][a-zA-Z0-9_]*$"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "ค้นจากชื่อ ชื่อผู้ติดต่อ อีเมล หรือเบอร์โทร",
+            "schema": {
+              "example": "ตัวอย่าง",
               "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "รหัสขั้นจาก `GET /crm/leads/statuses`",
+            "schema": {
+              "example": "new",
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{0,29}$"
+            }
+          },
+          {
+            "name": "view",
+            "required": false,
+            "in": "query",
+            "description": "`mine` ของฉัน · `all` ทั้งหมดที่เห็นได้ · `unassigned` กองกลางที่ยังไม่มีเจ้าของ",
+            "schema": {
+              "example": "unassigned",
+              "type": "string",
+              "enum": [
+                "mine",
+                "all",
+                "unassigned"
+              ]
             }
           },
           {
@@ -2259,6 +2503,9 @@
         "summary": "ค้นรายชื่อ Lead",
         "tags": [
           "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.read"
         ],
         "x-acting-permission": [
           "crm.sales.read"
@@ -2309,6 +2556,9 @@
         "summary": "สร้าง Lead",
         "tags": [
           "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.manage"
         ],
         "x-acting-permission": [
           "crm.sales.manage"
@@ -2363,6 +2613,9 @@
         "tags": [
           "crm"
         ],
+        "x-permission": [
+          "integration.crm.sales.manage"
+        ],
         "x-acting-permission": [
           "crm.sales.manage"
         ]
@@ -2413,6 +2666,9 @@
         "summary": "รายละเอียด Lead พร้อมกิจกรรม",
         "tags": [
           "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.read"
         ],
         "x-acting-permission": [
           "crm.sales.read"
@@ -2472,6 +2728,9 @@
         "summary": "แก้ข้อมูล Lead",
         "tags": [
           "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.manage"
         ],
         "x-acting-permission": [
           "crm.sales.manage"
@@ -2534,6 +2793,9 @@
         "tags": [
           "crm"
         ],
+        "x-permission": [
+          "integration.crm.sales.manage"
+        ],
         "x-acting-permission": [
           "crm.sales.manage"
         ]
@@ -2595,6 +2857,9 @@
         "tags": [
           "crm"
         ],
+        "x-permission": [
+          "integration.crm.sales.manage"
+        ],
         "x-acting-permission": [
           "crm.sales.manage"
         ]
@@ -2655,6 +2920,9 @@
         "summary": "ลงกิจกรรมของ Lead",
         "tags": [
           "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.manage"
         ],
         "x-acting-permission": [
           "crm.sales.manage"
@@ -2724,6 +2992,9 @@
         "tags": [
           "crm"
         ],
+        "x-permission": [
+          "integration.crm.sales.manage"
+        ],
         "x-acting-permission": [
           "crm.sales.manage"
         ]
@@ -2784,6 +3055,9 @@
         "summary": "คัด Lead ออกพร้อมเหตุผล",
         "tags": [
           "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.manage"
         ],
         "x-acting-permission": [
           "crm.sales.manage"
@@ -2846,6 +3120,9 @@
         "tags": [
           "crm"
         ],
+        "x-permission": [
+          "integration.crm.sales.manage"
+        ],
         "x-acting-permission": [
           "crm.sales.manage"
         ]
@@ -2873,7 +3150,7 @@
             "schema": {
               "minimum": 1,
               "default": 1,
-              "type": "number"
+              "type": "integer"
             }
           },
           {
@@ -2885,7 +3162,7 @@
               "minimum": 1,
               "maximum": 100,
               "default": 20,
-              "type": "number"
+              "type": "integer"
             }
           },
           {
@@ -2895,7 +3172,88 @@
             "description": "`sort=field` เรียงขึ้น, `sort=-field` เรียงลง",
             "schema": {
               "example": "-createdAt",
+              "type": "string",
+              "pattern": "^-?[a-zA-Z_][a-zA-Z0-9_]*$"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "ค้นจากชื่อโอกาส รหัสโอกาส ชื่อผู้มุ่งหวัง หรือชื่อลูกค้า",
+            "schema": {
+              "example": "ตัวอย่าง",
               "type": "string"
+            }
+          },
+          {
+            "name": "stage",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "proposing",
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ],
+              "enum": [
+                "qualifying",
+                "proposing",
+                "negotiating",
+                "won",
+                "lost"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "open",
+            "required": false,
+            "in": "query",
+            "description": "`true` = เฉพาะที่ยังไม่ won/lost",
+            "schema": {
+              "example": "true",
+              "type": "string",
+              "enum": [
+                "true"
+              ]
+            }
+          },
+          {
+            "name": "customer_id",
+            "required": false,
+            "in": "query",
+            "description": "id ลูกค้าจาก `GET /crm/customers`",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "view",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "mine",
+              "type": "string",
+              "enum": [
+                "mine",
+                "all"
+              ]
+            }
+          },
+          {
+            "name": "follow_up",
+            "required": false,
+            "in": "query",
+            "description": "`overdue` เลยนัดติดตามแล้ว · `stale` ถูกเตือนว่าเงียบเกินเกณฑ์",
+            "schema": {
+              "example": "overdue",
+              "type": "string",
+              "enum": [
+                "overdue",
+                "stale"
+              ]
             }
           },
           {
@@ -2921,6 +3279,9 @@
         "summary": "ค้นโอกาสการขาย",
         "tags": [
           "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.read"
         ],
         "x-acting-permission": [
           "crm.sales.read"
@@ -2973,6 +3334,9 @@
         "tags": [
           "crm"
         ],
+        "x-permission": [
+          "integration.crm.sales.manage"
+        ],
         "x-acting-permission": [
           "crm.sales.manage"
         ]
@@ -3015,6 +3379,9 @@
         "summary": "เหตุผลปิดแพ้ที่เลือกได้",
         "tags": [
           "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.read"
         ],
         "x-acting-permission": [
           "crm.sales.read"
@@ -3065,6 +3432,9 @@
         "summary": "รายละเอียดโอกาสการขาย",
         "tags": [
           "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.read"
         ],
         "x-acting-permission": [
           "crm.sales.read"
@@ -3125,6 +3495,9 @@
         "tags": [
           "crm"
         ],
+        "x-permission": [
+          "integration.crm.sales.manage"
+        ],
         "x-acting-permission": [
           "crm.sales.manage"
         ]
@@ -3175,6 +3548,9 @@
         "summary": "กิจกรรมและนัดติดตามของโอกาสการขาย",
         "tags": [
           "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.read"
         ],
         "x-acting-permission": [
           "crm.sales.read"
@@ -3234,6 +3610,9 @@
         "summary": "ลงกิจกรรมของโอกาสการขาย",
         "tags": [
           "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.manage"
         ],
         "x-acting-permission": [
           "crm.sales.manage"
@@ -3303,6 +3682,9 @@
         "tags": [
           "crm"
         ],
+        "x-permission": [
+          "integration.crm.sales.manage"
+        ],
         "x-acting-permission": [
           "crm.sales.manage"
         ]
@@ -3363,6 +3745,9 @@
         "summary": "เปิดใบสั่งขาย = ปิดชนะ + สร้างทะเบียนลูกค้า",
         "tags": [
           "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.manage"
         ],
         "x-acting-permission": [
           "crm.sales.manage"
@@ -3425,9 +3810,13 @@
         "tags": [
           "crm"
         ],
+        "x-permission": [
+          "integration.crm.sales.manage"
+        ],
         "x-acting-permission": [
           "crm.sales.manage"
-        ]
+        ],
+        "x-sensitive-resource": "quotation"
       }
     },
     "/api/v1/crm/opportunities/{id}/lose": {
@@ -3486,6 +3875,9 @@
         "tags": [
           "crm"
         ],
+        "x-permission": [
+          "integration.crm.sales.manage"
+        ],
         "x-acting-permission": [
           "crm.sales.manage"
         ]
@@ -3513,7 +3905,7 @@
             "schema": {
               "minimum": 1,
               "default": 1,
-              "type": "number"
+              "type": "integer"
             }
           },
           {
@@ -3525,7 +3917,7 @@
               "minimum": 1,
               "maximum": 100,
               "default": 20,
-              "type": "number"
+              "type": "integer"
             }
           },
           {
@@ -3535,7 +3927,8 @@
             "description": "`sort=field` เรียงขึ้น, `sort=-field` เรียงลง",
             "schema": {
               "example": "-createdAt",
-              "type": "string"
+              "type": "string",
+              "pattern": "^-?[a-zA-Z_][a-zA-Z0-9_]*$"
             }
           },
           {
@@ -3545,6 +3938,46 @@
             "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "opportunity_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "customer_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "open",
+                "cancelled"
+              ]
+            }
+          },
+          {
+            "name": "view",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "mine",
+                "all"
+              ]
             }
           }
         ],
@@ -3561,6 +3994,9 @@
         "summary": "ค้นใบสั่งขาย",
         "tags": [
           "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.read"
         ],
         "x-acting-permission": [
           "crm.sales.read"
@@ -3611,6 +4047,9 @@
         "summary": "รายละเอียดใบสั่งขาย",
         "tags": [
           "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.read"
         ],
         "x-acting-permission": [
           "crm.sales.read"
@@ -3673,6 +4112,9 @@
         "tags": [
           "crm"
         ],
+        "x-permission": [
+          "integration.crm.sales.manage"
+        ],
         "x-acting-permission": [
           "crm.sales.manage"
         ]
@@ -3700,7 +4142,7 @@
             "schema": {
               "minimum": 1,
               "default": 1,
-              "type": "number"
+              "type": "integer"
             }
           },
           {
@@ -3712,7 +4154,7 @@
               "minimum": 1,
               "maximum": 100,
               "default": 20,
-              "type": "number"
+              "type": "integer"
             }
           },
           {
@@ -3722,7 +4164,86 @@
             "description": "`sort=field` เรียงขึ้น, `sort=-field` เรียงลง",
             "schema": {
               "example": "-createdAt",
+              "type": "string",
+              "pattern": "^-?[a-zA-Z_][a-zA-Z0-9_]*$"
+            }
+          },
+          {
+            "name": "opportunity_id",
+            "required": false,
+            "in": "query",
+            "description": "id โอกาสการขายจาก `GET /crm/opportunities`",
+            "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "customer_id",
+            "required": false,
+            "in": "query",
+            "description": "id ลูกค้าจาก `GET /crm/customers`",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "sent",
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ],
+              "enum": [
+                "draft",
+                "pending_approval",
+                "approved",
+                "sent",
+                "accepted",
+                "declined",
+                "superseded",
+                "cancelled"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "ค้นจากเลขที่ใบเสนอราคา ชื่อเรื่อง หรือชื่อคู่ค้า",
+            "schema": {
+              "example": "ตัวอย่าง",
+              "type": "string"
+            }
+          },
+          {
+            "name": "current",
+            "required": false,
+            "in": "query",
+            "description": "`true` = ซ่อนฉบับที่ถูกเวอร์ชันใหม่แทนแล้ว",
+            "schema": {
+              "example": "true",
+              "type": "string",
+              "enum": [
+                "true"
+              ]
+            }
+          },
+          {
+            "name": "view",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "mine",
+              "type": "string",
+              "enum": [
+                "mine",
+                "all"
+              ]
             }
           },
           {
@@ -3749,9 +4270,13 @@
         "tags": [
           "crm"
         ],
+        "x-permission": [
+          "integration.crm.sales.read"
+        ],
         "x-acting-permission": [
           "crm.sales.read"
-        ]
+        ],
+        "x-sensitive-resource": "quotation"
       }
     },
     "/api/v1/crm/quotations/{id}": {
@@ -3800,9 +4325,13 @@
         "tags": [
           "crm"
         ],
+        "x-permission": [
+          "integration.crm.sales.read"
+        ],
         "x-acting-permission": [
           "crm.sales.read"
-        ]
+        ],
+        "x-sensitive-resource": "quotation"
       },
       "patch": {
         "description": "แก้ได้เฉพาะสถานะ draft — ใบที่ยื่นหรือส่งแล้วต้องใช้ /revise",
@@ -3859,9 +4388,13 @@
         "tags": [
           "crm"
         ],
+        "x-permission": [
+          "integration.crm.sales.manage"
+        ],
         "x-acting-permission": [
           "crm.sales.manage"
-        ]
+        ],
+        "x-sensitive-resource": "quotation"
       }
     },
     "/api/v1/crm/quotations/{id}/print": {
@@ -3910,9 +4443,13 @@
         "tags": [
           "crm"
         ],
+        "x-permission": [
+          "integration.crm.sales.read"
+        ],
         "x-acting-permission": [
           "crm.sales.read"
-        ]
+        ],
+        "x-sensitive-resource": "quotation"
       }
     },
     "/api/v1/crm/quotations/{id}/submit": {
@@ -3971,9 +4508,13 @@
         "tags": [
           "crm"
         ],
+        "x-permission": [
+          "integration.crm.sales.manage"
+        ],
         "x-acting-permission": [
           "crm.sales.manage"
-        ]
+        ],
+        "x-sensitive-resource": "quotation"
       }
     },
     "/api/v1/crm/quotations/{id}/send": {
@@ -4022,9 +4563,13 @@
         "tags": [
           "crm"
         ],
+        "x-permission": [
+          "integration.crm.sales.manage"
+        ],
         "x-acting-permission": [
           "crm.sales.manage"
-        ]
+        ],
+        "x-sensitive-resource": "quotation"
       }
     },
     "/api/v1/crm/quotations/{id}/accept": {
@@ -4083,9 +4628,13 @@
         "tags": [
           "crm"
         ],
+        "x-permission": [
+          "integration.crm.sales.manage"
+        ],
         "x-acting-permission": [
           "crm.sales.manage"
-        ]
+        ],
+        "x-sensitive-resource": "quotation"
       }
     },
     "/api/v1/crm/quotations/{id}/decline": {
@@ -4144,9 +4693,13 @@
         "tags": [
           "crm"
         ],
+        "x-permission": [
+          "integration.crm.sales.manage"
+        ],
         "x-acting-permission": [
           "crm.sales.manage"
-        ]
+        ],
+        "x-sensitive-resource": "quotation"
       }
     },
     "/api/v1/crm/quotations/{id}/revise": {
@@ -4195,9 +4748,13 @@
         "tags": [
           "crm"
         ],
+        "x-permission": [
+          "integration.crm.sales.manage"
+        ],
         "x-acting-permission": [
           "crm.sales.manage"
-        ]
+        ],
+        "x-sensitive-resource": "quotation"
       }
     },
     "/api/v1/crm/quotations/{id}/cancel": {
@@ -4256,9 +4813,13 @@
         "tags": [
           "crm"
         ],
+        "x-permission": [
+          "integration.crm.sales.manage"
+        ],
         "x-acting-permission": [
           "crm.sales.manage"
-        ]
+        ],
+        "x-sensitive-resource": "quotation"
       }
     },
     "/api/v1/crm/leads/intake": {
@@ -4316,6 +4877,9 @@
         "summary": "รับ Lead จากระบบภายนอก — เข้ากองกลาง รอพนักงานขายรับ",
         "tags": [
           "crm-intake"
+        ],
+        "x-permission": [
+          "integration.crm.lead.create"
         ]
       }
     },
@@ -4354,6 +4918,9 @@
         "summary": "ข้อเท็จจริงของ Lead สำหรับ Decision node — สถานะ + จำนวนกิจกรรม",
         "tags": [
           "crm-workflow"
+        ],
+        "x-permission": [
+          "integration.crm.lead.read"
         ]
       }
     },
@@ -4402,13 +4969,16 @@
         "summary": "บันทึกขั้นที่ workflow ตัดสินใจแล้ว — core ไม่ตัดสินว่าเลื่อนได้ไหม",
         "tags": [
           "crm-workflow"
+        ],
+        "x-permission": [
+          "integration.crm.lead.stage"
         ]
       }
     }
   },
   "info": {
     "title": "Request Form — External API · CRM",
-    "description": "ทะเบียนลูกค้า, Lead, โอกาสการขาย, ใบเสนอราคา, ใบสั่งขาย และหน้าตั้งค่า CRM\n\n**ทุก route มีสองประตู** และ Swagger ของแต่ละ route บอกไว้ทั้งคู่: bearer ต้องถือสิทธิ์ `integration.*` ของ route นั้น (ประตูของเครื่อง) และคนที่ระบุใน header `X-Acting-User` ต้องถือสิทธิ์ของงานนั้นเอง (ประตูของคน) — ระบบทำงานในนามคนนั้น timeline จึงบันทึกชื่อคนจริง ไม่ใช่ชื่อบัญชีบริการ\n\n**bearer รับได้สองแบบ**\n\n1. access token ของ service account จาก Keycloak (client_credentials) อายุสั้น ต้องขอใหม่เมื่อหมดอายุ\n2. **API key** ที่ขึ้นต้นด้วย `rfk_` — ไม่มีวันหมดอายุ ไม่ต้องต่ออายุ ระบบแลกเป็น token ให้เองตอนใช้ ออกด้วย `yarn apikey:issue` และเพิกถอนด้วย `yarn apikey:revoke` (มีผลทันที)\n\nทั้งสองแบบส่งเหมือนกัน: `Authorization: Bearer <ค่า>` และได้สิทธิ์ชุดเดียวกัน — key ตัดสินว่า *เข้าได้ไหม* token บอกว่า *ทำอะไรได้*\n\nสาม route ที่ **ไม่มี** `X-Acting-User` เพราะไม่มีคนอยู่ปลายสาย: `POST /crm/leads` (เว็บฟอร์มของลูกค้า — ใบที่เข้ามาไม่มีเจ้าของ รอพนักงานขายกดรับ) และ `GET|POST /crm/leads/{id}/facts|stage` (workflow engine อ่านและบันทึกขั้นที่ตัดสินใจแล้ว)\n\nการมองเห็นแถวยังเดินผ่านตัวกรองเดิมทุกเส้นทาง และการอ่านข้ามบริษัทตอบ **404 ไม่ใช่ 403** (SCOPE-03) — เปิด CRM ออกมาทางนี้ไม่ได้ให้สิทธิ์ใหม่แก่ใคร",
+    "description": "ทะเบียนลูกค้า, Lead, โอกาสการขาย, ใบเสนอราคา, ใบสั่งขาย และหน้าตั้งค่า CRM\n\n**ทุก route มีสองประตู** และ Swagger ของแต่ละ route บอกไว้ทั้งคู่: bearer ต้องถือสิทธิ์ `integration.*` ของ route นั้น (ประตูของเครื่อง) และคนที่ระบุใน header `X-Acting-User` ต้องถือสิทธิ์ของงานนั้นเอง (ประตูของคน) — ระบบทำงานในนามคนนั้น timeline จึงบันทึกชื่อคนจริง ไม่ใช่ชื่อบัญชีบริการ\n\n**bearer รับได้สองแบบ**\n\n1. access token ของ service account จาก Keycloak (client_credentials) อายุสั้น ต้องขอใหม่เมื่อหมดอายุ\n2. **API key** ที่ขึ้นต้นด้วย `rfk_` — ไม่มีวันหมดอายุ ไม่ต้องต่ออายุ ระบบแลกเป็น token ให้เองตอนใช้ ออกด้วย `yarn apikey:issue` และเพิกถอนด้วย `yarn apikey:revoke` (มีผลทันที)\n\nทั้งสองแบบส่งเหมือนกัน: `Authorization: Bearer <ค่า>` และได้สิทธิ์ชุดเดียวกัน — key ตัดสินว่า *เข้าได้ไหม* token บอกว่า *ทำอะไรได้*\n\nสาม route ที่ **ไม่มี** `X-Acting-User` เพราะไม่มีคนอยู่ปลายสาย: `POST /crm/leads/intake` (เว็บฟอร์มของลูกค้า — ใบที่เข้ามาไม่มีเจ้าของ รอพนักงานขายกดรับ) และ `GET|POST /crm/leads/{id}/facts|stage` (workflow engine อ่านและบันทึกขั้นที่ตัดสินใจแล้ว)\n\nการมองเห็นแถวยังเดินผ่านตัวกรองเดิมทุกเส้นทาง และการอ่านข้ามบริษัทตอบ **404 ไม่ใช่ 403** (SCOPE-03) — เปิด CRM ออกมาทางนี้ไม่ได้ให้สิทธิ์ใหม่แก่ใคร",
     "version": "1.0"
   },
   "tags": [
@@ -4442,95 +5012,851 @@
     "schemas": {
       "AcceptQuotationDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "note": {
+            "maxLength": 1000,
+            "type": "string"
+          }
+        }
       },
       "ApplyLeadStageDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "stage": {
+            "maxLength": 50,
+            "type": "string",
+            "minLength": 1
+          },
+          "instance_id": {
+            "maxLength": 120,
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 200,
+            "type": "string"
+          }
+        },
+        "required": [
+          "stage"
+        ]
       },
       "AssignLeadDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "owner_user_id": {
+            "type": "string",
+            "description": "id ผู้รับจาก `GET /request/users` — ว่าง = รับเอง · ใบที่มีเจ้าของแล้วต้องระบุ",
+            "minLength": 1
+          }
+        }
       },
       "CancelQuotationDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "reason": {
+            "maxLength": 500,
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "reason"
+        ]
       },
       "CancelSaleOrderDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "reason": {
+            "maxLength": 500,
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "reason"
+        ]
       },
       "CheckDuplicateDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "name_th": {
+            "maxLength": 255,
+            "type": "string",
+            "minLength": 1
+          },
+          "name_en": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "tax_id": {
+            "pattern": "^\\d{13}$",
+            "type": "string"
+          },
+          "branch_code": {
+            "pattern": "^\\d{5}$",
+            "type": "string"
+          },
+          "exclude_customer_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name_th"
+        ]
       },
       "ConvertLeadDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "customer_id": {
+            "type": "string",
+            "description": "id ลูกค้าเดิมจาก `GET /crm/customers` — ว่าง = ผู้มุ่งหวัง ลูกค้าเกิดตอนเปิดใบสั่งขาย"
+          },
+          "title": {
+            "type": "string",
+            "example": "ERP สำหรับบริษัท ตัวอย่าง จำกัด",
+            "description": "ชื่อโอกาสการขาย — ว่าง = ใช้ชื่อ Lead",
+            "maxLength": 255
+          },
+          "amount": {
+            "type": "number",
+            "example": 1500000,
+            "description": "มูลค่าที่คาด (บาท)",
+            "minimum": 0
+          }
+        }
       },
       "CreateCustomerDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "type": {
+            "enum": [
+              "corporate",
+              "individual",
+              "government"
+            ],
+            "type": "string"
+          },
+          "name_th": {
+            "maxLength": 255,
+            "type": "string",
+            "minLength": 1
+          },
+          "name_en": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "tax_id": {
+            "pattern": "^\\d{13}$",
+            "type": "string"
+          },
+          "branch_code": {
+            "pattern": "^\\d{5}$",
+            "type": "string"
+          },
+          "branch_name": {
+            "maxLength": 120,
+            "type": "string"
+          },
+          "account_owner_user_id": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "draft",
+              "active"
+            ],
+            "type": "string"
+          },
+          "locations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomerLocationDto"
+            }
+          },
+          "contacts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomerContactDto"
+            }
+          },
+          "segment_value_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "confirm_duplicate": {
+            "type": "boolean"
+          },
+          "override_reason": {
+            "maxLength": 500,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name_th",
+          "type"
+        ]
       },
       "CreateKycProductDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "product_code": {
+            "maxLength": 64,
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "maxLength": 255,
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "name",
+          "product_code"
+        ]
       },
       "CreateLeadActivityDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "call",
+              "email",
+              "meeting",
+              "task",
+              "note"
+            ],
+            "example": "call"
+          },
+          "subject": {
+            "type": "string",
+            "example": "โทรนัดเดโม",
+            "maxLength": 255,
+            "minLength": 1
+          },
+          "detail": {
+            "type": "string",
+            "example": "ลูกค้าขอดูโมดูลบัญชีก่อน",
+            "maxLength": 4000
+          },
+          "due_at": {
+            "type": "string",
+            "example": "2026-09-30T10:00:00+07:00",
+            "description": "ใส่ = นัดไว้ ยังไม่ทำ · ไม่ใส่ = ทำไปแล้ว ปิดทันที — ลงผิดช่องแล้วระบบนับความเคลื่อนไหวผิด",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "subject",
+          "type"
+        ]
       },
       "CreateLeadDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "บริษัท ตัวอย่าง จำกัด",
+            "description": "ชื่อบริษัทหรือชื่อผู้มุ่งหวัง",
+            "maxLength": 255,
+            "minLength": 1
+          },
+          "contact_name": {
+            "type": "string",
+            "example": "สมชาย ใจดี",
+            "description": "ชื่อผู้ติดต่อ",
+            "maxLength": 255
+          },
+          "phone": {
+            "type": "string",
+            "example": "081-234-5678",
+            "maxLength": 50
+          },
+          "email": {
+            "type": "string",
+            "example": "somchai@example.com",
+            "format": "email"
+          },
+          "note": {
+            "type": "string",
+            "example": "สนใจระบบ ERP สำหรับ 50 ผู้ใช้",
+            "maxLength": 2000
+          },
+          "source_code": {
+            "type": "string",
+            "example": "website",
+            "description": "รหัสแหล่งที่มาตามที่บริษัทตั้งค่าไว้",
+            "maxLength": 64
+          },
+          "customer_id": {
+            "type": "string",
+            "description": "id ลูกค้าเดิมจาก `GET /crm/customers` — เว้นว่างถ้ายังไม่มีในทะเบียน"
+          },
+          "contact_position": {
+            "type": "string",
+            "example": "ผู้จัดการฝ่ายไอที",
+            "maxLength": 255
+          },
+          "name_en": {
+            "type": "string",
+            "example": "Example Co., Ltd.",
+            "maxLength": 255
+          },
+          "tax_id": {
+            "type": "string",
+            "example": "0000000000000",
+            "description": "เลขประจำตัวผู้เสียภาษี 13 หลัก",
+            "maxLength": 20
+          },
+          "industry": {
+            "type": "string",
+            "example": "การผลิต",
+            "maxLength": 120
+          },
+          "company_size": {
+            "type": "string",
+            "example": "ขนาดกลาง (51–200 คน)",
+            "maxLength": 60
+          },
+          "employee_count": {
+            "type": "integer",
+            "example": 120,
+            "minimum": 0
+          },
+          "product_group": {
+            "type": "string",
+            "example": "ERP",
+            "maxLength": 120
+          },
+          "sub_product": {
+            "type": "string",
+            "example": "Finance",
+            "maxLength": 120
+          },
+          "project_revenue": {
+            "type": "number",
+            "example": 1500000,
+            "description": "มูลค่าโครงการที่คาด (บาท)",
+            "minimum": 0
+          },
+          "address_line": {
+            "type": "string",
+            "example": "99/9 ถนนตัวอย่าง",
+            "maxLength": 500
+          },
+          "district": {
+            "type": "string",
+            "example": "บางรัก",
+            "maxLength": 120
+          },
+          "province": {
+            "type": "string",
+            "example": "กรุงเทพมหานคร",
+            "maxLength": 120
+          },
+          "postal_code": {
+            "type": "string",
+            "example": "10500",
+            "maxLength": 10
+          },
+          "country": {
+            "type": "string",
+            "example": "TH",
+            "description": "รหัสประเทศ 2 ตัวอักษร (ISO 3166-1)",
+            "maxLength": 2
+          }
+        },
+        "required": [
+          "name"
+        ]
       },
       "CreateLeadStatusDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "code": {
+            "pattern": "^[a-z][a-z0-9_]{0,29}$",
+            "type": "string"
+          },
+          "name_th": {
+            "maxLength": 60,
+            "type": "string",
+            "minLength": 1
+          },
+          "color": {
+            "maxLength": 20,
+            "type": "string"
+          },
+          "is_default": {
+            "type": "boolean"
+          },
+          "sort_order": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "code",
+          "name_th"
+        ]
       },
       "CreateOpportunityDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "customer_id": {
+            "type": "string",
+            "description": "id ลูกค้าเดิมจาก `GET /crm/customers` — ว่างได้ แต่ต้องส่ง `prospect_name` แทน"
+          },
+          "prospect_name": {
+            "type": "string",
+            "example": "บริษัท ตัวอย่าง จำกัด",
+            "description": "บังคับเมื่อไม่ส่ง `customer_id`",
+            "maxLength": 255
+          },
+          "prospect_tax_id": {
+            "type": "string",
+            "example": "0000000000000",
+            "maxLength": 20
+          },
+          "prospect_contact_name": {
+            "type": "string",
+            "example": "สมชาย ใจดี",
+            "maxLength": 255
+          },
+          "prospect_phone": {
+            "type": "string",
+            "example": "081-234-5678",
+            "maxLength": 50
+          },
+          "prospect_email": {
+            "type": "string",
+            "example": "somchai@example.com",
+            "format": "email"
+          },
+          "title": {
+            "type": "string",
+            "example": "ERP สำหรับบริษัท ตัวอย่าง จำกัด",
+            "maxLength": 255,
+            "minLength": 1
+          },
+          "amount": {
+            "type": "number",
+            "example": 1500000,
+            "description": "มูลค่าที่คาด (บาท)",
+            "minimum": 0
+          },
+          "probability": {
+            "type": "integer",
+            "example": 40,
+            "description": "โอกาสปิดได้ (%)",
+            "maximum": 100,
+            "minimum": 0
+          },
+          "expected_close_at": {
+            "type": "string",
+            "example": "2026-12-31",
+            "description": "วันที่คาดว่าจะปิด"
+          },
+          "product_codes": {
+            "example": [
+              "ERP-FIN"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_.-]+$"
+            }
+          }
+        },
+        "required": [
+          "title"
+        ]
       },
       "CreateQuotationDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "title": {
+            "maxLength": 255,
+            "type": "string",
+            "minLength": 1
+          },
+          "valid_until": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "payment_terms": {
+            "maxLength": 500,
+            "type": "string"
+          },
+          "note": {
+            "maxLength": 4000,
+            "type": "string"
+          },
+          "lines": {
+            "maxItems": 200,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuotationLineDto"
+            }
+          }
+        }
       },
       "CreateSegmentDimensionDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "code": {
+            "maxLength": 50,
+            "type": "string",
+            "pattern": "^[a-z0-9_-]+$",
+            "minLength": 1
+          },
+          "name_th": {
+            "maxLength": 120,
+            "type": "string",
+            "minLength": 1
+          },
+          "sort_order": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "code",
+          "name_th"
+        ]
       },
       "CreateSegmentValueDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "code": {
+            "maxLength": 50,
+            "type": "string",
+            "pattern": "^[a-z0-9_-]+$",
+            "minLength": 1
+          },
+          "name_th": {
+            "maxLength": 120,
+            "type": "string",
+            "minLength": 1
+          },
+          "sort_order": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "code",
+          "name_th"
+        ]
       },
       "CustomerContactDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "name": {
+            "maxLength": 255,
+            "type": "string",
+            "minLength": 1
+          },
+          "role": {
+            "enum": [
+              "decision_maker",
+              "user",
+              "procurement",
+              "finance",
+              "other"
+            ],
+            "type": "string"
+          },
+          "position": {
+            "maxLength": 120,
+            "type": "string"
+          },
+          "phone": {
+            "maxLength": 50,
+            "type": "string"
+          },
+          "email": {
+            "format": "email",
+            "type": "string"
+          },
+          "line_id": {
+            "maxLength": 120,
+            "type": "string"
+          },
+          "note": {
+            "maxLength": 500,
+            "type": "string"
+          },
+          "is_primary": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name"
+        ]
       },
       "CustomerLocationDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "name": {
+            "maxLength": 120,
+            "type": "string"
+          },
+          "line1": {
+            "maxLength": 255,
+            "type": "string",
+            "minLength": 1
+          },
+          "line2": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "sub_district": {
+            "maxLength": 120,
+            "type": "string"
+          },
+          "district": {
+            "maxLength": 120,
+            "type": "string"
+          },
+          "province": {
+            "maxLength": 120,
+            "type": "string"
+          },
+          "postal_code": {
+            "pattern": "^\\d{5}$",
+            "type": "string"
+          },
+          "country": {
+            "maxLength": 2,
+            "type": "string"
+          },
+          "is_billing": {
+            "type": "boolean"
+          },
+          "is_site": {
+            "type": "boolean"
+          },
+          "is_primary": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "line1"
+        ]
       },
       "DeactivateCustomerDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "reason": {
+            "maxLength": 500,
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "reason"
+        ]
       },
       "DeclineQuotationDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "reason": {
+            "maxLength": 1000,
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "reason"
+        ]
       },
       "DisqualifyLeadDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "reason": {
+            "maxLength": 500,
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "ImportCustomerRowDto": {
+        "type": "object",
+        "properties": {
+          "row_no": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "type": {
+            "enum": [
+              "corporate",
+              "individual",
+              "government"
+            ],
+            "type": "string"
+          },
+          "name_th": {
+            "maxLength": 255,
+            "type": "string",
+            "minLength": 1
+          },
+          "name_en": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "tax_id": {
+            "maxLength": 20,
+            "type": "string"
+          },
+          "branch_code": {
+            "maxLength": 10,
+            "type": "string"
+          },
+          "branch_name": {
+            "maxLength": 120,
+            "type": "string"
+          },
+          "line1": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "line2": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "sub_district": {
+            "maxLength": 120,
+            "type": "string"
+          },
+          "district": {
+            "maxLength": 120,
+            "type": "string"
+          },
+          "province": {
+            "maxLength": 120,
+            "type": "string"
+          },
+          "postal_code": {
+            "maxLength": 10,
+            "type": "string"
+          },
+          "contact_name": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "contact_phone": {
+            "maxLength": 50,
+            "type": "string"
+          },
+          "contact_email": {
+            "maxLength": 255,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name_th",
+          "row_no"
+        ]
       },
       "ImportCustomersDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "mode": {
+            "enum": [
+              "dry_run",
+              "commit"
+            ],
+            "type": "string"
+          },
+          "import_id": {
+            "maxLength": 64,
+            "type": "string",
+            "minLength": 1
+          },
+          "rows": {
+            "maxItems": 500,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImportCustomerRowDto"
+            }
+          }
+        },
+        "required": [
+          "import_id",
+          "mode",
+          "rows"
+        ]
+      },
+      "ImportLeadRowDto": {
+        "type": "object",
+        "properties": {
+          "row_no": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "name": {
+            "maxLength": 255,
+            "type": "string",
+            "minLength": 1
+          },
+          "contact_name": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "phone": {
+            "maxLength": 50,
+            "type": "string"
+          },
+          "email": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "source_code": {
+            "maxLength": 64,
+            "type": "string"
+          },
+          "note": {
+            "maxLength": 2000,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "row_no"
+        ]
       },
       "ImportLeadsDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "mode": {
+            "enum": [
+              "dry_run",
+              "commit"
+            ],
+            "type": "string"
+          },
+          "import_id": {
+            "maxLength": 64,
+            "type": "string",
+            "minLength": 1
+          },
+          "rows": {
+            "maxItems": 500,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImportLeadRowDto"
+            }
+          }
+        },
+        "required": [
+          "import_id",
+          "mode",
+          "rows"
+        ]
       },
       "IntakeLeadDto": {
         "type": "object",
@@ -4539,32 +5865,38 @@
             "type": "string",
             "description": "ชื่อผู้มุ่งหวัง — ชื่อบริษัท หรือชื่อคนถ้ายังไม่รู้บริษัท",
             "example": "บจก. ตัวอย่าง เทคโนโลยี",
-            "maxLength": 255
+            "maxLength": 255,
+            "minLength": 1
           },
           "source_code": {
             "type": "string",
             "description": "ช่องทางที่มา — ไม่ต้องส่งถ้า API key ผูกช่องทางไว้แล้ว (ค่าจาก key ชนะเสมอ). ส่งได้เฉพาะกรณี key ยังไม่ได้ผูก เช่น `website`, `line-oa`, `event-2026-q4`",
             "example": "website",
-            "maxLength": 64
+            "maxLength": 64,
+            "minLength": 1
           },
           "contact_name": {
             "type": "string",
             "description": "ชื่อผู้ติดต่อ",
-            "example": "สมชาย ใจดี"
+            "example": "สมชาย ใจดี",
+            "maxLength": 255
           },
           "contact_position": {
             "type": "string",
             "description": "ตำแหน่ง/ฝ่ายของผู้ติดต่อ",
-            "example": "ผู้จัดการฝ่ายไอที"
+            "example": "ผู้จัดการฝ่ายไอที",
+            "maxLength": 255
           },
           "phone": {
             "type": "string",
             "description": "เบอร์ติดต่อ",
-            "example": "0812345678"
+            "example": "0812345678",
+            "maxLength": 50
           },
           "email": {
             "type": "string",
-            "example": "somchai@example.co.th"
+            "example": "somchai@example.co.th",
+            "format": "email"
           },
           "note": {
             "type": "string",
@@ -4574,58 +5906,71 @@
           },
           "name_en": {
             "type": "string",
-            "description": "ชื่อภาษาอังกฤษ"
+            "description": "ชื่อภาษาอังกฤษ",
+            "maxLength": 255
           },
           "tax_id": {
             "type": "string",
-            "description": "เลขประจำตัวผู้เสียภาษี 13 หลัก"
+            "description": "เลขประจำตัวผู้เสียภาษี 13 หลัก",
+            "maxLength": 20
           },
           "industry": {
             "type": "string",
-            "example": "ค้าปลีก"
+            "example": "ค้าปลีก",
+            "maxLength": 120
           },
           "company_size": {
             "type": "string",
-            "example": "SME"
+            "example": "SME",
+            "maxLength": 60
           },
           "employee_count": {
-            "type": "number",
-            "example": 120
+            "type": "integer",
+            "example": 120,
+            "minimum": 0
           },
           "product_group": {
             "type": "string",
             "description": "กลุ่มสินค้าที่สนใจ",
-            "example": "Security"
+            "example": "Security",
+            "maxLength": 120
           },
           "sub_product": {
             "type": "string",
-            "example": "CCTV"
+            "example": "CCTV",
+            "maxLength": 120
           },
           "project_revenue": {
             "type": "number",
             "description": "มูลค่าโครงการโดยประมาณ",
-            "example": 250000
+            "example": 250000,
+            "minimum": 0
           },
           "address_line": {
             "type": "string",
-            "example": "99/1 ถนนสุขุมวิท"
+            "example": "99/1 ถนนสุขุมวิท",
+            "maxLength": 500
           },
           "district": {
             "type": "string",
-            "example": "คลองเตย"
+            "example": "คลองเตย",
+            "maxLength": 120
           },
           "province": {
             "type": "string",
-            "example": "กรุงเทพมหานคร"
+            "example": "กรุงเทพมหานคร",
+            "maxLength": 120
           },
           "postal_code": {
             "type": "string",
-            "example": "10110"
+            "example": "10110",
+            "maxLength": 10
           },
           "country": {
             "type": "string",
             "description": "รหัสประเทศ 2 ตัว — ไม่ส่งถือเป็น TH",
-            "example": "TH"
+            "example": "TH",
+            "maxLength": 2
           }
         },
         "required": [
@@ -4676,75 +6021,619 @@
       },
       "LoseOpportunityDto": {
         "type": "object",
+        "properties": {
+          "reason_code": {
+            "maxLength": 50,
+            "type": "string",
+            "minLength": 1
+          },
+          "reason_text": {
+            "maxLength": 500,
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason_code"
+        ]
+      },
+      "Object": {
+        "type": "object",
         "properties": {}
       },
       "OpenSaleOrderDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "customer_id": {
+            "type": "string"
+          },
+          "customer": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SaleOrderCustomerDto"
+              }
+            ]
+          },
+          "quotation_id": {
+            "type": "string"
+          },
+          "amount": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "note": {
+            "maxLength": 2000,
+            "type": "string"
+          }
+        }
+      },
+      "QuotationLineDto": {
+        "type": "object",
+        "properties": {
+          "product_code": {
+            "pattern": "^[A-Za-z0-9_.-]{1,64}$",
+            "type": "string"
+          },
+          "description": {
+            "maxLength": 1000,
+            "type": "string",
+            "minLength": 1
+          },
+          "quantity": {
+            "maximum": 99999999,
+            "minimum": 0.001,
+            "type": "number"
+          },
+          "unit": {
+            "maxLength": 30,
+            "type": "string"
+          },
+          "unit_price": {
+            "maximum": 999999999999,
+            "minimum": 0,
+            "type": "number"
+          },
+          "unit_cost": {
+            "maximum": 999999999999,
+            "minimum": 0,
+            "type": "number"
+          },
+          "discount_pct": {
+            "maximum": 100,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "description",
+          "quantity",
+          "unit_price"
+        ]
       },
       "ReorderLeadStatusesDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 100
+          }
+        },
+        "required": [
+          "ids"
+        ]
+      },
+      "SaleOrderCustomerDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "enum": [
+              "corporate",
+              "individual",
+              "government"
+            ],
+            "type": "string"
+          },
+          "name_th": {
+            "maxLength": 255,
+            "type": "string",
+            "minLength": 1
+          },
+          "name_en": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "tax_id": {
+            "pattern": "^\\d{13}$",
+            "type": "string"
+          },
+          "branch_code": {
+            "pattern": "^\\d{5}$",
+            "type": "string"
+          },
+          "branch_name": {
+            "maxLength": 120,
+            "type": "string"
+          },
+          "confirm_duplicate": {
+            "type": "boolean"
+          },
+          "override_reason": {
+            "maxLength": 500,
+            "type": "string"
+          }
+        }
       },
       "SetSegmentsDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "segment_value_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "segment_value_ids"
+        ]
       },
       "SubmitQuotationDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "reason": {
+            "maxLength": 2000,
+            "type": "string"
+          }
+        }
       },
       "SuspendCustomerDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "reason": {
+            "maxLength": 500,
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "reason"
+        ]
       },
       "UpdateCrmConfigDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "code_prefix": {
+            "pattern": "^[A-Z0-9]{1,10}$",
+            "type": "string"
+          },
+          "code_padding": {
+            "maximum": 10,
+            "minimum": 3,
+            "type": "integer"
+          },
+          "dedup_threshold": {
+            "maximum": 1,
+            "minimum": 0.5,
+            "type": "number"
+          },
+          "min_margin_pct": {
+            "maximum": 100,
+            "minimum": 0,
+            "type": "number"
+          },
+          "quotation_validity_days": {
+            "maximum": 365,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "stale_opportunity_days": {
+            "maximum": 365,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "letterhead_name_th": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "letterhead_name_en": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "letterhead_tax_id": {
+            "maxLength": 20,
+            "type": "string"
+          },
+          "letterhead_branch": {
+            "maxLength": 100,
+            "type": "string"
+          },
+          "letterhead_address": {
+            "maxLength": 1000,
+            "type": "string"
+          },
+          "letterhead_phone": {
+            "maxLength": 100,
+            "type": "string"
+          },
+          "letterhead_email": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "letterhead_website": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "letterhead_logo": {
+            "pattern": "^(data:image\\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+)?$",
+            "type": "string",
+            "maxLength": 500000
+          },
+          "quotation_terms": {
+            "maxLength": 4000,
+            "type": "string"
+          },
+          "vat_pct": {
+            "maximum": 30,
+            "minimum": 0,
+            "type": "number"
+          },
+          "quotation_approval_type_code": {
+            "pattern": "^[A-Z0-9_-]{1,20}$",
+            "type": "string"
+          }
+        }
       },
       "UpdateCustomerDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "type": {
+            "enum": [
+              "corporate",
+              "individual",
+              "government"
+            ],
+            "type": "string"
+          },
+          "name_th": {
+            "maxLength": 255,
+            "type": "string",
+            "minLength": 1
+          },
+          "name_en": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "tax_id": {
+            "pattern": "^\\d{13}$",
+            "type": "string"
+          },
+          "branch_code": {
+            "pattern": "^\\d{5}$",
+            "type": "string"
+          },
+          "branch_name": {
+            "maxLength": 120,
+            "type": "string"
+          },
+          "account_owner_user_id": {
+            "type": "string"
+          },
+          "confirm_duplicate": {
+            "type": "boolean"
+          },
+          "override_reason": {
+            "maxLength": 500,
+            "type": "string"
+          }
+        }
       },
       "UpdateKycProductDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "name": {
+            "maxLength": 255,
+            "type": "string",
+            "minLength": 1
+          },
+          "active": {
+            "type": "boolean"
+          }
+        }
       },
       "UpdateLeadActivityDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "subject": {
+            "maxLength": 255,
+            "type": "string",
+            "minLength": 1
+          },
+          "detail": {
+            "maxLength": 4000,
+            "type": "string"
+          },
+          "due_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "completed": {
+            "type": "boolean"
+          }
+        }
       },
       "UpdateLeadDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "บริษัท ตัวอย่าง จำกัด",
+            "description": "ชื่อบริษัทหรือชื่อผู้มุ่งหวัง",
+            "maxLength": 255,
+            "minLength": 1
+          },
+          "contact_name": {
+            "type": "string",
+            "example": "สมชาย ใจดี",
+            "description": "ชื่อผู้ติดต่อ",
+            "maxLength": 255
+          },
+          "phone": {
+            "type": "string",
+            "example": "081-234-5678",
+            "maxLength": 50
+          },
+          "email": {
+            "type": "string",
+            "example": "somchai@example.com",
+            "format": "email"
+          },
+          "note": {
+            "type": "string",
+            "example": "สนใจระบบ ERP สำหรับ 50 ผู้ใช้",
+            "maxLength": 2000
+          },
+          "source_code": {
+            "type": "string",
+            "example": "website",
+            "description": "รหัสแหล่งที่มาตามที่บริษัทตั้งค่าไว้",
+            "maxLength": 64
+          },
+          "customer_id": {
+            "type": "string",
+            "description": "id ลูกค้าเดิมจาก `GET /crm/customers` — เว้นว่างถ้ายังไม่มีในทะเบียน"
+          },
+          "contact_position": {
+            "type": "string",
+            "example": "ผู้จัดการฝ่ายไอที",
+            "maxLength": 255
+          },
+          "name_en": {
+            "type": "string",
+            "example": "Example Co., Ltd.",
+            "maxLength": 255
+          },
+          "tax_id": {
+            "type": "string",
+            "example": "0000000000000",
+            "description": "เลขประจำตัวผู้เสียภาษี 13 หลัก",
+            "maxLength": 20
+          },
+          "industry": {
+            "type": "string",
+            "example": "การผลิต",
+            "maxLength": 120
+          },
+          "company_size": {
+            "type": "string",
+            "example": "ขนาดกลาง (51–200 คน)",
+            "maxLength": 60
+          },
+          "employee_count": {
+            "type": "integer",
+            "example": 120,
+            "minimum": 0
+          },
+          "product_group": {
+            "type": "string",
+            "example": "ERP",
+            "maxLength": 120
+          },
+          "sub_product": {
+            "type": "string",
+            "example": "Finance",
+            "maxLength": 120
+          },
+          "project_revenue": {
+            "type": "number",
+            "example": 1500000,
+            "description": "มูลค่าโครงการที่คาด (บาท)",
+            "minimum": 0
+          },
+          "address_line": {
+            "type": "string",
+            "example": "99/9 ถนนตัวอย่าง",
+            "maxLength": 500
+          },
+          "district": {
+            "type": "string",
+            "example": "บางรัก",
+            "maxLength": 120
+          },
+          "province": {
+            "type": "string",
+            "example": "กรุงเทพมหานคร",
+            "maxLength": 120
+          },
+          "postal_code": {
+            "type": "string",
+            "example": "10500",
+            "maxLength": 10
+          },
+          "country": {
+            "type": "string",
+            "example": "TH",
+            "description": "รหัสประเทศ 2 ตัวอักษร (ISO 3166-1)",
+            "maxLength": 2
+          }
+        }
       },
       "UpdateLeadStatusDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "contacted",
+            "description": "รหัสขั้นจาก `GET /crm/leads/statuses` — ต้องเป็นขั้น kind `open` ขั้น won/lost ตอบ 409",
+            "pattern": "^[a-z][a-z0-9_]{0,29}$"
+          }
+        },
+        "required": [
+          "status"
+        ]
       },
       "UpdateLeadStatusSettingDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "name_th": {
+            "maxLength": 60,
+            "type": "string",
+            "minLength": 1
+          },
+          "color": {
+            "maxLength": 20,
+            "type": "string"
+          },
+          "is_default": {
+            "type": "boolean"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "sort_order": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        }
       },
       "UpdateOpportunityDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "title": {
+            "maxLength": 255,
+            "type": "string",
+            "minLength": 1
+          },
+          "stage": {
+            "enum": [
+              "qualifying",
+              "proposing",
+              "negotiating"
+            ],
+            "type": "string"
+          },
+          "amount": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "probability": {
+            "maximum": 100,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "expected_close_at": {
+            "type": "string"
+          },
+          "product_codes": {
+            "type": "array",
+            "items": {
+              "pattern": "^[A-Za-z0-9_.-]+$",
+              "type": "string"
+            }
+          }
+        }
       },
       "UpdateQuotationDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "title": {
+            "maxLength": 255,
+            "type": "string",
+            "minLength": 1
+          },
+          "valid_until": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "payment_terms": {
+            "maxLength": 500,
+            "type": "string"
+          },
+          "note": {
+            "maxLength": 4000,
+            "type": "string"
+          },
+          "lines": {
+            "maxItems": 200,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuotationLineDto"
+            }
+          }
+        }
       },
       "UpdateSegmentDimensionDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "name_th": {
+            "maxLength": 120,
+            "type": "string",
+            "minLength": 1
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "sort_order": {
+            "type": "integer"
+          }
+        }
       },
       "UpdateSegmentValueDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "name_th": {
+            "maxLength": 120,
+            "type": "string",
+            "minLength": 1
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "sort_order": {
+            "type": "integer"
+          }
+        }
       },
       "UpsertExternalCodeDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "system": {
+            "maxLength": 50,
+            "type": "string",
+            "minLength": 1
+          },
+          "external_code": {
+            "maxLength": 120,
+            "type": "string",
+            "minLength": 1
+          },
+          "payload": {}
+        },
+        "required": [
+          "external_code",
+          "system"
+        ]
       }
     }
   }

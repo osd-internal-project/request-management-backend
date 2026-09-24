@@ -559,9 +559,17 @@ export class RequestApiService {
    * from elsewhere in that case.
    */
   private async receiverCandidates(
-    type: { receiverOrgUnitId: string | null },
+    type: { receiverOrgUnitId: string | null; receiverUserId: string | null },
     actor: Principal,
   ) {
+    // A type with a fixed receiver accepts nobody else, so offer nobody else.
+    if (type.receiverUserId) {
+      return this.members.findActiveByIds(
+        [type.receiverUserId],
+        actor.activeCompanyId,
+      );
+    }
+
     if (!type.receiverOrgUnitId) return [];
 
     const units = await this.orgUnits.descendantIdsOf(type.receiverOrgUnitId);

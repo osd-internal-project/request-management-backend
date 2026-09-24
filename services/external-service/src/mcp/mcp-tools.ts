@@ -17,7 +17,14 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import type { Principal } from '@request-management/share';
-import { AppError } from '@request-management/share';
+import { AppError, SensitiveFieldMasker } from '@request-management/share';
+import {
+  CustomersService,
+  LeadStatusService,
+  LeadsService,
+  OpportunitiesService,
+  QuotationsService,
+} from '@request-management/core-service';
 import { RequestApiService } from '../request/request.service';
 
 /** One entry of `external-tools.json`. */
@@ -37,6 +44,15 @@ interface ToolSpec {
    * `POST requests/:ref/actions/:action` ที่อ่าน `ACTION_PERMISSIONS` ใน `perform`
    */
   'x-acting-permission'?: string[];
+  /**
+   * ชุดกฎปกปิด SCOPE-04 ของคำตอบ route นี้ — ว่าง = ไม่มีฟิลด์อ่อนไหว.
+   *
+   * REST ได้การปกปิดจาก `SensitiveFieldInterceptor` ที่อ่าน `@SensitiveResource`
+   * จาก handler ที่ถูกเรียก MCP ใช้ไม่ได้เพราะ handler ที่ Nest เห็นคือ
+   * `McpController.handle` และคำตอบถูกห่อเป็น `content[].text` ก่อนถึง interceptor
+   * — ค่านี้จึงต้องเดินทางมากับ tool แล้วให้ `call` ปกปิดเอง
+   */
+  'x-sensitive-resource'?: string;
 }
 
 /** What MCP's `tools/list` returns per tool. */
@@ -142,10 +158,20 @@ export class McpToolRegistry implements OnModuleInit {
 
   /** ชื่อ tool → สิทธิ์ที่คนใน `X-Acting-User` ต้องถือ. */
   private actingPermissions = new Map<string, string[]>();
+  /** ชื่อ tool → ชุดกฎปกปิดของคำตอบ (ว่าง = ไม่ต้องปกปิด). */
+  private sensitiveResources = new Map<string, string>();
   /** Why MCP has no tools, when that is a fault rather than a catalogue. */
   private unavailable: string | null = null;
 
-  constructor(private readonly external: RequestApiService) {}
+  constructor(
+    private readonly external: RequestApiService,
+    private readonly masker: SensitiveFieldMasker,
+    private readonly customers: CustomersService,
+    private readonly leads: LeadsService,
+    private readonly leadStatuses: LeadStatusService,
+    private readonly opportunities: OpportunitiesService,
+    private readonly quotations: QuotationsService,
+  ) {}
 
   /**
    * Every tool name mapped to the call behind it.
@@ -198,6 +224,67 @@ export class McpToolRegistry implements OnModuleInit {
         actor,
         authorization,
       ),
+
+    /*
+      CRM ผ่าน MCP เรียก service เดียวกับที่หน้าจอเรียก ไม่ใช่ผ่าน controller ของ
+      external-service — การมองเห็นแถว (`visibleCustomersWhere` /
+      `visibleSalesWhere`) และ 404 ข้ามบริษัทจึงยังเป็นของเดิมทุกประการ
+      สิ่งเดียวที่หายไปกับ controller คือการปกปิดฟิลด์ ซึ่ง `call` ทำคืนให้
+    */
+    crm_get_customers: (args, { actor }) =>
+      this.customers.list(actor, args as never),
+
+    crm_get_customers_id: (args, { actor }) =>
+      this.customers.findOne(requireString(args, 'id'), actor),
+
+    crm_get_customers_id_summary: (args, { actor }) =>
+      this.customers.summaryOf(requireString(args, 'id'), actor),
+
+    crm_get_leads_statuses: (_args, { actor }) =>
+      this.leadStatuses.listAll(actor.activeCompanyId),
+
+    crm_get_leads: (args, { actor }) => this.leads.list(actor, args as never),
+
+    crm_post_leads: (args, { actor }) =>
+      this.leads.create(args as never, actor),
+
+    crm_get_leads_id: (args, { actor }) =>
+      this.leads.findOne(requireString(args, 'id'), actor),
+
+    crm_patch_leads_id_owner: (args, { actor }) =>
+      this.leads.assign(requireString(args, 'id'), rest(args, 'id'), actor),
+
+    crm_patch_leads_id_status: (args, { actor }) =>
+      this.leads.setStatus(
+        requireString(args, 'id'),
+        rest(args, 'id') as never,
+        actor,
+      ),
+
+    crm_post_leads_id_activities: (args, { actor }) =>
+      this.leads.addActivity(
+        requireString(args, 'id'),
+        rest(args, 'id') as never,
+        actor,
+      ),
+
+    crm_post_leads_id_convert: (args, { actor }) =>
+      this.leads.convert(requireString(args, 'id'), rest(args, 'id'), actor),
+
+    crm_get_opportunities: (args, { actor }) =>
+      this.opportunities.list(actor, args as never),
+
+    crm_post_opportunities: (args, { actor }) =>
+      this.opportunities.create(args as never, actor),
+
+    crm_get_opportunities_id: (args, { actor }) =>
+      this.opportunities.findOne(requireString(args, 'id'), actor),
+
+    crm_get_quotations: (args, { actor }) =>
+      this.quotations.list(actor, args as never),
+
+    crm_get_quotations_id: (args, { actor }) =>
+      this.quotations.findOne(requireString(args, 'id'), actor),
   };
 
   /**
@@ -256,6 +343,10 @@ export class McpToolRegistry implements OnModuleInit {
       specs.map((spec) => [spec.name, spec['x-acting-permission'] ?? []]),
     );
 
+    this.sensitiveResources = new Map(
+      specs.map((spec) => [spec.name, spec['x-sensitive-resource'] ?? '']),
+    );
+
     this.logger.log(`MCP: ${this.tools.length} tools`);
   }
 
@@ -269,6 +360,20 @@ export class McpToolRegistry implements OnModuleInit {
           '  รัน `yarn openapi && yarn tools` ใหม่\n' +
           '  ปฏิเสธที่นี่แทนที่จะปล่อยผ่าน เพราะ tool ที่ไม่ประกาศสิทธิ์จะกลายเป็น\n' +
           '  tool ที่ใครก็เรียกได้เงียบ ๆ ซึ่งคือสภาพก่อนหน้านี้พอดี',
+      );
+    }
+
+    /*
+      เหตุผลเดียวกัน คนละฟิลด์ — catalogue ที่ไม่ประกาศการปกปิดจะทำให้ tool ของ CRM
+      ตอบเลขผู้เสียภาษีและ margin ให้ทุกคนที่เรียกได้ โดยไม่มีอะไรบอกว่าผิด
+    */
+    const unmasked = specs.filter((spec) => !('x-sensitive-resource' in spec));
+
+    if (unmasked.length) {
+      throw new Error(
+        'external-tools.json มาจากก่อนที่ MCP จะปกปิดฟิลด์อ่อนไหว — ' +
+          `${unmasked.length} tool ไม่มี x-sensitive-resource\n` +
+          '  รัน `yarn openapi && yarn tools` ใหม่',
       );
     }
 
@@ -305,9 +410,25 @@ export class McpToolRegistry implements OnModuleInit {
     return name in this.handlers;
   }
 
-  call(name: string, args: ToolArgs, context: ToolContext): Promise<unknown> {
+  /**
+   * เรียก tool แล้วปกปิดคำตอบตามสิทธิ์ของคนที่เรียก.
+   *
+   * การปกปิดอยู่ที่นี่ ไม่ใช่ในแต่ละ handler เพราะ handler ที่ลืมเรียกมันจะดูเหมือน
+   * ทำงานได้ปกติ — ความผิดพลาดที่มองไม่เห็นจนกว่าจะมีคนอ่าน response จริง
+   */
+  async call(
+    name: string,
+    args: ToolArgs,
+    context: ToolContext,
+  ): Promise<unknown> {
     this.assertActorMay(name, context.actor);
-    return this.handlers[name](args, context);
+
+    const value = await this.handlers[name](args, context);
+    const resource = this.sensitiveResources.get(name);
+
+    if (!resource) return value;
+
+    return this.masker.mask(resource, value, context.actor);
   }
 
   /**
@@ -326,7 +447,10 @@ export class McpToolRegistry implements OnModuleInit {
     throw new AppError(
       'FORBIDDEN',
       'ผู้ใช้ที่ระบุใน X-Acting-User ไม่มีสิทธิ์ทำรายการนี้',
-      missing.map((permission) => ({ field: 'permission', reason: permission })),
+      missing.map((permission) => ({
+        field: 'permission',
+        reason: permission,
+      })),
     );
   }
 }

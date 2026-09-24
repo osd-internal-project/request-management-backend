@@ -59,6 +59,28 @@ export class CompanyMemberRepository extends BaseRepository<
     );
   }
 
+  /** These people, if they are active members of this company — same shape as `findInUnits`. */
+  async findActiveByIds(
+    ids: readonly string[],
+    companyId: string,
+    option?: TxOption,
+  ): Promise<{ id: string; displayName: string; email: string | null }[]> {
+    if (!ids.length) return [];
+
+    return await this.findMany(
+      {
+        where: {
+          id: { in: [...ids] },
+          status: 'ACTIVE',
+          companies: { some: { companyId } },
+        },
+        select: { id: true, displayName: true, email: true },
+        orderBy: { displayName: 'asc' },
+      },
+      option,
+    );
+  }
+
   /**
    * Which of these ids are members of this company.
    *
