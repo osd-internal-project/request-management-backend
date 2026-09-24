@@ -23,6 +23,7 @@ import { CustomerRepository } from './customer.repository';
 import { CustomersService } from './customers.service';
 import { CustomerTimelineService } from './customer-timeline.service';
 import type { CreateCustomerDto } from './dto/customer.dto';
+import { SaleOrderErpSyncService } from './sale-order-erp-sync.service';
 import {
   CancelSaleOrderDto,
   ListSaleOrdersQueryDto,
@@ -37,8 +38,11 @@ import {
  * `open` ทำสามอย่างเป็นก้อนเดียว: หา/สร้างลูกค้าจากผู้มุ่งหวังของโอกาสการขาย
  * (ผ่าน `CustomersService.create` — ออกรหัส, dedup CM-03, SAP sync เหมือนสร้าง
  * จากหน้าจอ), ออกเลข SO, แล้วผูกลูกค้ากลับไปที่โอกาสการขาย (+ Lead ต้นทาง) และ
- * ปิดโอกาสการขายเป็น won. รายการสินค้า/ราคาต่อบรรทัดยังไม่อยู่ที่นี่ — มาจาก
- * ใบเสนอราคา/BOQ ของโมดูล Sales ระยะถัดไป.
+ * ปิดโอกาสการขายเป็น won.
+ *
+ * CD-88: เปิดตามใบเสนอราคา = copy รายการสินค้าของใบนั้นมาเป็น `SaleOrderLine`
+ * (snapshot) แล้วส่งเข้า SAP หลัง commit ผ่าน `SaleOrderErpSyncService` —
+ * SAP ล่มไม่ทำให้เปิดใบไม่ได้. เปิดตรงจากโอกาสการขายไม่มีรายการ → `not_ready`.
  */
 @Injectable()
 export class SaleOrdersService {
@@ -53,6 +57,7 @@ export class SaleOrdersService {
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
     private readonly quotations: QuotationRepository,
+    private readonly erpSync: SaleOrderErpSyncService,
   ) {}
 
   async list(actor: Principal, query: ListSaleOrdersQueryDto) {
@@ -127,6 +132,7 @@ export class SaleOrdersService {
     const created = await this.transactions.execute(async (prisma) => {
       const amount =
         dto.amount ?? quotation?.netTotal ?? opportunity.amount ?? null;
+      const lines = quotation?.lines ?? [];
 
       const row = (await this.saleOrders.create(
         {
@@ -142,6 +148,20 @@ export class SaleOrdersService {
             ownerUserId: opportunity.ownerUserId,
             ownerOrgUnitId: opportunity.ownerOrgUnitId,
             createdBy: actor.userId,
+            erpStatus: lines.length ? 'pending' : 'not_ready',
+            lines: {
+              create: lines.map((line) => ({
+                lineNo: line.lineNo,
+                productCode: line.productCode,
+                description: line.description,
+                quantity: line.quantity,
+                unit: line.unit,
+                unitPrice: line.unitPrice,
+                discountPct: line.discountPct,
+                lineTotal: line.lineTotal,
+                quotationLineId: line.id,
+              })),
+            },
           },
         },
         { prisma },
@@ -201,6 +221,7 @@ export class SaleOrdersService {
             quotationNo: quotation
               ? `${quotation.quotationNo} v${quotation.version}`
               : null,
+            lines: lines.length,
           },
         },
         { prisma },
@@ -255,8 +276,11 @@ export class SaleOrdersService {
         { prisma },
       );
 
-      return row;
+      return { ...row, lineCount: lines.length };
     });
+
+    // CD-88: SAP is called AFTER the commit — the user never waits on it.
+    if (created.lineCount) this.erpSync.kickCreate(created.id);
 
     const saleOrder = await this.findOne(created.id, actor);
     return {
@@ -272,12 +296,21 @@ export class SaleOrdersService {
         id,
         AND: [visibleSalesWhere(salesAccessSubject(actor))],
       },
-      select: { id: true, saleOrderCode: true, status: true, customerId: true },
+      select: {
+        id: true,
+        saleOrderCode: true,
+        status: true,
+        customerId: true,
+        erpStatus: true,
+        erpOrderNo: true,
+      },
     })) as {
       id: string;
       saleOrderCode: string;
       status: string;
       customerId: string;
+      erpStatus: string;
+      erpOrderNo: string | null;
     } | null;
 
     if (!found) throw new AppError('NOT_FOUND', 'ไม่พบใบสั่งขายที่ระบุ');
@@ -294,6 +327,12 @@ export class SaleOrdersService {
             cancelledAt: new Date(),
             cancelReason: dto.reason.trim(),
             updatedBy: actor.userId,
+            // CD-88: in SAP → cancel it there too; still on its way (pending)
+            // → the create job sees the cancel and skips; otherwise nothing to send.
+            erpStatus:
+              found.erpOrderNo || found.erpStatus === 'pending'
+                ? 'pending'
+                : 'skipped',
           },
         },
         { prisma },
@@ -327,6 +366,8 @@ export class SaleOrdersService {
       );
     });
 
+    if (found.erpOrderNo) this.erpSync.kickCancel(id);
+
     return this.findOne(id, actor);
   }
 
@@ -354,6 +395,20 @@ export class SaleOrdersService {
         version: true,
         status: true,
         netTotal: true,
+        lines: {
+          orderBy: { lineNo: 'asc' },
+          select: {
+            id: true,
+            lineNo: true,
+            productCode: true,
+            description: true,
+            quantity: true,
+            unit: true,
+            unitPrice: true,
+            discountPct: true,
+            lineTotal: true,
+          },
+        },
       },
     })) as {
       id: string;
@@ -361,6 +416,7 @@ export class SaleOrdersService {
       version: number;
       status: string;
       netTotal: Prisma.Decimal;
+      lines: QuotationLineForSale[];
     } | null;
 
     if (!found) {
@@ -581,6 +637,18 @@ interface OpenOpportunityForSale {
     postalCode: string | null;
     country: string | null;
   } | null;
+}
+
+interface QuotationLineForSale {
+  id: string;
+  lineNo: number;
+  productCode: string | null;
+  description: string;
+  quantity: Prisma.Decimal;
+  unit: string | null;
+  unitPrice: Prisma.Decimal;
+  discountPct: Prisma.Decimal;
+  lineTotal: Prisma.Decimal;
 }
 
 interface ResolvedCustomer {

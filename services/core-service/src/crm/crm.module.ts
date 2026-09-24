@@ -27,6 +27,7 @@ import { CustomerDedupService } from './customer-dedup.service';
 import { CustomerTimelineService } from './customer-timeline.service';
 import { CustomerImportService } from './customer-import.service';
 import { CustomerErpSyncService } from './customer-erp-sync.service';
+import { SaleOrderErpSyncService } from './sale-order-erp-sync.service';
 import { IntegrationSyncJobRepository } from './integration-job.repository';
 import { KycProductRuleRepository } from './kyc-product.repository';
 import { KycCallbackService } from './kyc-callback.service';
@@ -91,6 +92,7 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     CustomerTimelineService,
     CustomerImportService,
     CustomerErpSyncService,
+    SaleOrderErpSyncService,
     IntegrationSyncJobRepository,
     KycProductRuleRepository,
     KycCallbackService,

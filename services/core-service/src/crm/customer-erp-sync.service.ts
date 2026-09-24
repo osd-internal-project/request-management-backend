@@ -13,14 +13,15 @@ import type { ErpClient, ErpCustomerPayload } from '../erp/erp-client';
 import { CustomerRepository } from './customer.repository';
 import { CustomerExternalCodeRepository } from './customer-child.repositories';
 import { IntegrationSyncJobRepository } from './integration-job.repository';
+import {
+  enqueueErpJob,
+  errorMessage as message,
+  sweepErpJobs,
+} from './erp-sync-queue';
 
 const SYSTEM = ERP_SYSTEM;
-const MAX_ATTEMPTS = 10;
-
-/** Backoff: 1m, 2m, 4m … capped at 30m — a down SAP is retried, not hammered. */
-function backoffMs(attempts: number): number {
-  return Math.min(60_000 * 2 ** attempts, 30 * 60_000);
-}
+/** The queue kinds this service owns — sale-order kinds belong to CD-88's. */
+const KINDS = ['customer_upsert', 'receivables_refresh'] as const;
 
 /**
  * CM-06 — customer sync through the integration layer, store-and-forward
@@ -214,65 +215,36 @@ export class CustomerErpSyncService implements OnModuleInit, OnModuleDestroy {
 
   /** The sweeper — due queue rows, oldest first. Public so tests drive it. */
   async processQueue(): Promise<void> {
-    const due = (await this.jobs.findMany({
-      where: {
-        system: SYSTEM,
-        status: 'pending',
-        runAfter: { lte: new Date() },
-      },
-      orderBy: { createdAt: 'asc' },
-      take: 20,
-    })) as JobRow[];
-
-    for (const job of due) {
-      try {
+    await sweepErpJobs(
+      this.jobs,
+      KINDS,
+      async (job) => {
         if (job.kind === 'customer_upsert') {
           await this.syncCustomer(job.resourceId);
         } else {
           await this.refreshReceivables(job.resourceId);
         }
-        await this.jobs.update({
-          where: { id: job.id },
-          data: { status: 'succeeded', attempts: job.attempts + 1 },
-        });
-      } catch (error) {
-        const attempts = job.attempts + 1;
-        const exhausted = attempts >= MAX_ATTEMPTS;
-        await this.jobs.update({
-          where: { id: job.id },
-          data: {
-            attempts,
-            lastError: message(error),
-            status: exhausted ? 'failed' : 'pending',
-            runAfter: new Date(Date.now() + backoffMs(attempts)),
-          },
-        });
-        if (exhausted) {
-          this.logger.error(
-            `sap job ${job.id} (${job.kind} ${job.resourceId}) gave up after ${attempts}: ${message(error)}`,
-          );
-        }
-      }
-    }
+      },
+      this.logger,
+    );
   }
 
-  private async enqueue(
-    kind: 'customer_upsert' | 'receivables_refresh',
+  /**
+   * Queue a customer push for the sweeper instead of calling SAP now — what a
+   * sale order does when its customer has no BP yet (CD-88). Not an inline
+   * call: the customer's own `kickCustomer` may be in flight, and two creates
+   * racing past `findCustomer` would leave SAP with two BPs.
+   */
+  queueCustomer(customerId: string, reason: string): Promise<void> {
+    return enqueueErpJob(this.jobs, 'customer_upsert', customerId, reason);
+  }
+
+  private enqueue(
+    kind: (typeof KINDS)[number],
     resourceId: string,
     lastError: string,
   ): Promise<void> {
-    const pending = (await this.jobs.findFirst({
-      where: { system: SYSTEM, kind, resourceId, status: 'pending' },
-      select: { id: true },
-    })) as { id: string } | null;
-
-    // One pending row per (kind, customer): the sync always reads the latest
-    // state of the customer, so stacking duplicates buys nothing.
-    if (pending) return;
-
-    await this.jobs.create({
-      data: { system: SYSTEM, kind, resourceId, lastError },
-    });
+    return enqueueErpJob(this.jobs, kind, resourceId, lastError);
   }
 }
 
@@ -299,13 +271,6 @@ interface ExternalCodeRow {
   id: string;
   externalCode: string;
   payload: unknown;
-}
-
-interface JobRow {
-  id: string;
-  kind: string;
-  resourceId: string;
-  attempts: number;
 }
 
 function toErpPayload(customer: CustomerForSync): ErpCustomerPayload {
@@ -342,8 +307,4 @@ function asObject(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : null;
-}
-
-function message(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }

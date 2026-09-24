@@ -208,6 +208,21 @@ enum SaleOrderStatus {
   cancelled
 }
 
+/// สถานะการส่งใบสั่งขายเข้า SAP (CD-88) — แยกจากสถานะของใบเอง: ใบเปิดอยู่แต่ยัง
+/// ไม่ถึง SAP ได้ และ SAP ล่มต้องไม่ทำให้ใบหายหรือเปิดไม่ได้.
+///   not_ready — ยังไม่มีรายการสินค้า ส่งไม่ได้ (เปิดตรงจากโอกาสการขาย)
+///   pending   — อยู่ในคิว (รวมถึงรอลูกค้าได้เลข BP ก่อน)
+///   synced    — SAP ตอบเลขใบสั่งขายแล้ว (ถ้าใบถูกยกเลิก = SAP ยกเลิกแล้วด้วย)
+///   failed    — ลองครบรอบแล้วไม่สำเร็จ ต้องให้ผู้ดูแลดู `erpLastError`
+///   skipped   — ใบถูกยกเลิกก่อนถึง SAP ไม่มีอะไรต้องส่ง
+enum ErpSyncStatus {
+  not_ready
+  pending
+  synced
+  failed
+  skipped
+}
+
 /// CRM — สถานะใบเสนอราคา (CD-76). แก้ได้เฉพาะ `draft`; ส่งลูกค้าแล้วแก้ไม่ได้ ต้อง
 /// ออกเวอร์ชันใหม่ (`superseded` คือฉบับที่ถูกเวอร์ชันใหม่แทน). margin ต่ำกว่าเกณฑ์ =
 /// `pending_approval` รอคำขออนุมัติ (ประเภทตาม CrmCompanyConfig) ผ่านก่อนเป็น `approved`.
@@ -2022,10 +2037,11 @@ model IntegrationSyncJob {
 
   /// 'sap' | 'workflow' — one queue for every external system the layer fronts.
   system     String
-  /// sap: 'customer_upsert' | 'receivables_refresh'
+  /// sap: 'customer_upsert' | 'receivables_refresh' | 'sale_order_create' | 'sale_order_cancel'
   /// workflow: 'lead_start'
   kind       String
-  /// The row being synced — customerId for the sap kinds, leadId for 'lead_start'.
+  /// The row being synced — customerId for the sap customer kinds, saleOrderId
+  /// for the sale_order kinds, leadId for 'lead_start'.
   resourceId String
 
   status    IntegrationJobStatus @default(pending)
@@ -2411,10 +2427,20 @@ model SaleOrder {
   /// เปิดก่อนมีโมดูลใบเสนอราคา หรือเปิดตรงจากโอกาสการขาย).
   quotationId String?
 
-  company     Company     @relation(fields: [companyId], references: [id])
-  opportunity Opportunity @relation(fields: [opportunityId], references: [id])
-  customer    Customer    @relation(fields: [customerId], references: [id])
-  quotation   Quotation?  @relation(fields: [quotationId], references: [id])
+  /// CD-88 — การส่งเข้า SAP. เก็บที่ CTD ก่อนเสมอ แล้วค่อยส่งผ่านคิว
+  /// `integration_sync_jobs` (kind `sale_order_create` / `sale_order_cancel`).
+  erpStatus    ErpSyncStatus @default(not_ready)
+  /// เลขใบสั่งขายที่ SAP ตอบกลับ.
+  erpOrderNo   String?
+  erpSyncedAt  DateTime?
+  /// ข้อผิดพลาดล่าสุดตามที่ได้รับ — สิ่งแรกที่ผู้ดูแลอ่าน.
+  erpLastError String?
+
+  company     Company         @relation(fields: [companyId], references: [id])
+  opportunity Opportunity     @relation(fields: [opportunityId], references: [id])
+  customer    Customer        @relation(fields: [customerId], references: [id])
+  quotation   Quotation?      @relation(fields: [quotationId], references: [id])
+  lines       SaleOrderLine[]
 
   @@index([companyId, opportunityId])
   @@index([companyId, customerId])
@@ -2422,7 +2448,33 @@ model SaleOrder {
   @@index([companyId, ownerUserId])
   @@index([companyId, ownerOrgUnitId])
   @@index([quotationId])
+  @@index([erpStatus])
   @@map("sale_orders")
+}
+
+/// CD-88 — รายการสินค้าของใบสั่งขาย: snapshot จาก `QuotationLine` ตอนเปิดใบ
+/// (แก้ใบเสนอราคาภายหลังต้องไม่เปลี่ยนสิ่งที่สั่งไปแล้ว). ไม่มีต้นทุน — ใบสั่งขาย
+/// คือสิ่งที่ส่งให้ SAP และลูกค้า ต้นทุน/margin อยู่ที่ใบเสนอราคา.
+model SaleOrderLine {
+  id              String  @id @default(uuid())
+  saleOrderId     String
+  lineNo          Int
+  /// รหัส material ใน SAP — ว่างได้สำหรับบรรทัดบริการ/ค่าแรง.
+  productCode     String?
+  description     String
+  quantity        Decimal @db.Decimal(14, 3)
+  unit            String?
+  unitPrice       Decimal @db.Decimal(14, 2)
+  discountPct     Decimal @default(0) @db.Decimal(5, 2)
+  /// จำนวน × ราคา × (1 − ส่วนลด%) — ค่าเดียวกับบรรทัดต้นทาง.
+  lineTotal       Decimal @db.Decimal(14, 2)
+  /// บรรทัดใบเสนอราคาที่ copy มา.
+  quotationLineId String?
+
+  saleOrder SaleOrder @relation(fields: [saleOrderId], references: [id], onDelete: Cascade)
+
+  @@unique([saleOrderId, lineNo])
+  @@map("sale_order_lines")
 }
 
 model SaleOrderCodeCounter {

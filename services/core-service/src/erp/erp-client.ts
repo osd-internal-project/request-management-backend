@@ -54,6 +54,35 @@ export interface ErpReceivables {
   readonly asOf: string;
 }
 
+/** One line of a sales order as SAP receives it (CD-88). */
+export interface ErpSalesOrderLine {
+  readonly lineNo: number;
+  /** SAP material — null for a service/labour line. */
+  readonly productCode: string | null;
+  readonly description: string;
+  readonly quantity: number;
+  readonly unit: string | null;
+  readonly unitPrice: number;
+  readonly discountPct: number;
+  readonly lineTotal: number;
+}
+
+/** What a sale order looks like to SAP (Sales Order, the fields we own). */
+export interface ErpSalesOrderPayload {
+  /**
+   * Our saleOrderCode — carried as SAP's customer reference and the key
+   * `findSalesOrder` searches by, the same idempotency guard as customers.
+   */
+  readonly saleOrderCode: string;
+  /** The customer's BP number — the order cannot reach SAP before it. */
+  readonly customerExternalCode: string;
+  readonly currency: string;
+  readonly orderedAt: string;
+  /** Before VAT, the sum of the lines. */
+  readonly netTotal: number;
+  readonly lines: readonly ErpSalesOrderLine[];
+}
+
 export interface ErpClient {
   readonly mode: 'mock';
   /** The BP already carrying this customerCode, or null — idempotency guard. */
@@ -66,4 +95,13 @@ export interface ErpClient {
     payload: ErpCustomerPayload,
   ): Promise<void>;
   getReceivables(externalCode: string): Promise<ErpReceivables>;
+  /** The SAP order already carrying this saleOrderCode, or null. */
+  findSalesOrder(
+    saleOrderCode: string,
+  ): Promise<{ externalCode: string } | null>;
+  createSalesOrder(
+    payload: ErpSalesOrderPayload,
+  ): Promise<{ externalCode: string }>;
+  /** Idempotent — cancelling an already-cancelled order succeeds. */
+  cancelSalesOrder(externalCode: string, reason: string): Promise<void>;
 }

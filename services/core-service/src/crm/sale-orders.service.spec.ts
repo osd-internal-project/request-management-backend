@@ -316,7 +316,7 @@ describe('CRM ใบสั่งขาย — จุดเดียวที่�
       create: jest.fn(() =>
         Promise.resolve({ id: 'so-1', saleOrderCode: 'SO-OSD-000001' }),
       ),
-      findFirst: jest.fn(() =>
+      findFirst: jest.fn((): Promise<Args> =>
         Promise.resolve({
           id: 'so-1',
           saleOrderCode: 'SO-OSD-000001',
@@ -363,6 +363,7 @@ describe('CRM ใบสั่งขาย — จุดเดียวที่�
         }),
       ),
     };
+    const erpSync = { kickCreate: jest.fn(), kickCancel: jest.fn() };
 
     const service = new SaleOrdersService(
       saleOrders as never,
@@ -379,10 +380,12 @@ describe('CRM ใบสั่งขาย — จุดเดียวที่�
         ),
       } as never,
       quotations as never,
+      erpSync as never,
     );
 
     return {
       service,
+      erpSync,
       saleOrders,
       opportunities,
       leads,
@@ -629,5 +632,109 @@ describe('CRM ใบสั่งขาย — จุดเดียวที่�
     await expect(
       h.service.cancel('so-1', { reason: 'อีกครั้ง' }, principal()),
     ).rejects.toMatchObject({ code: 'CONFLICT' });
+  });
+
+  it('CD-88 เปิดตามใบเสนอราคา → copy รายการสินค้าเป็น snapshot, รอส่ง SAP และส่งหลัง commit', async () => {
+    const h = harness();
+    h.quotations.findFirst.mockResolvedValueOnce({
+      id: 'q-1',
+      quotationNo: 'QT-OSD-000001',
+      version: 2,
+      status: 'accepted',
+      netTotal: 95000,
+      lines: [
+        {
+          id: 'ql-1',
+          lineNo: 1,
+          productCode: 'SIP-TRUNK',
+          description: 'SIP Trunk 30 ช่อง',
+          quantity: 1,
+          unit: 'ชุด',
+          unitPrice: 100000,
+          discountPct: 5,
+          lineTotal: 95000,
+        },
+      ],
+    } as never);
+
+    await h.service.open('opportunity-1', { quotation_id: 'q-1' }, principal());
+
+    const data = firstArg<DataArgs>(h.saleOrders.create).data as Args & {
+      lines: { create: Args[] };
+    };
+    expect(data).toEqual(
+      expect.objectContaining({
+        quotationId: 'q-1',
+        amount: 95000,
+        erpStatus: 'pending',
+      }),
+    );
+    expect(data.lines.create).toEqual([
+      {
+        lineNo: 1,
+        productCode: 'SIP-TRUNK',
+        description: 'SIP Trunk 30 ช่อง',
+        quantity: 1,
+        unit: 'ชุด',
+        unitPrice: 100000,
+        discountPct: 5,
+        lineTotal: 95000,
+        quotationLineId: 'ql-1',
+      },
+    ]);
+    expect(h.erpSync.kickCreate).toHaveBeenCalledWith('so-1');
+  });
+
+  it('CD-88 เปิดตรงจากโอกาสการขาย (ไม่มีรายการ) → not_ready ไม่ส่ง SAP', async () => {
+    const h = harness();
+
+    await h.service.open('opportunity-1', {}, principal());
+
+    const data = firstArg<DataArgs>(h.saleOrders.create).data as Args & {
+      lines: { create: Args[] };
+    };
+    expect(data.erpStatus).toBe('not_ready');
+    expect(data.lines.create).toEqual([]);
+    expect(h.erpSync.kickCreate).not.toHaveBeenCalled();
+  });
+
+  it('CD-88 ยกเลิกใบที่ถึง SAP แล้ว → ยกเลิกใน SAP ด้วย; ใบที่ยังไม่เคยส่ง → skipped', async () => {
+    const inSap = harness();
+    inSap.saleOrders.findFirst.mockResolvedValueOnce({
+      id: 'so-1',
+      saleOrderCode: 'SO-OSD-000001',
+      status: 'open',
+      customerId: 'cust-new',
+      erpStatus: 'synced',
+      erpOrderNo: 'MOCK-SO-0000000001',
+    });
+
+    await inSap.service.cancel('so-1', { reason: 'ลูกค้ายกเลิก' }, principal());
+
+    expect(firstArg<DataArgs>(inSap.saleOrders.update).data).toEqual(
+      expect.objectContaining({ status: 'cancelled', erpStatus: 'pending' }),
+    );
+    expect(inSap.erpSync.kickCancel).toHaveBeenCalledWith('so-1');
+
+    const neverSent = harness();
+    neverSent.saleOrders.findFirst.mockResolvedValueOnce({
+      id: 'so-1',
+      saleOrderCode: 'SO-OSD-000001',
+      status: 'open',
+      customerId: 'cust-new',
+      erpStatus: 'not_ready',
+      erpOrderNo: null,
+    });
+
+    await neverSent.service.cancel(
+      'so-1',
+      { reason: 'ลูกค้ายกเลิก' },
+      principal(),
+    );
+
+    expect(firstArg<DataArgs>(neverSent.saleOrders.update).data).toEqual(
+      expect.objectContaining({ erpStatus: 'skipped' }),
+    );
+    expect(neverSent.erpSync.kickCancel).not.toHaveBeenCalled();
   });
 });

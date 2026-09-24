@@ -1,5 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ErpClient, ErpCustomerPayload, ErpReceivables } from './erp-client';
+import {
+  ErpClient,
+  ErpCustomerPayload,
+  ErpReceivables,
+  ErpSalesOrderPayload,
+} from './erp-client';
 
 /**
  * The stand-in driver (ERP_MODE=mock, the default until the SAP connection
@@ -13,6 +18,10 @@ export class MockSapClient implements ErpClient {
   readonly mode = 'mock' as const;
   private readonly logger = new Logger(MockSapClient.name);
   private readonly partners = new Map<string, ErpCustomerPayload>();
+  private readonly orders = new Map<
+    string,
+    { payload: ErpSalesOrderPayload; cancelled: boolean }
+  >();
 
   findCustomer(customerCode: string): Promise<{ externalCode: string } | null> {
     const externalCode = bpOf(customerCode);
@@ -52,10 +61,41 @@ export class MockSapClient implements ErpClient {
       asOf: new Date().toISOString(),
     });
   }
+
+  findSalesOrder(
+    saleOrderCode: string,
+  ): Promise<{ externalCode: string } | null> {
+    const externalCode = orderNoOf(saleOrderCode);
+    return Promise.resolve(
+      this.orders.has(externalCode) ? { externalCode } : null,
+    );
+  }
+
+  createSalesOrder(
+    payload: ErpSalesOrderPayload,
+  ): Promise<{ externalCode: string }> {
+    const externalCode = orderNoOf(payload.saleOrderCode);
+    this.orders.set(externalCode, { payload, cancelled: false });
+    this.logger.log(
+      `mock SAP create SO ${payload.saleOrderCode} → ${externalCode} (BP ${payload.customerExternalCode}, ${payload.lines.length} lines)`,
+    );
+    return Promise.resolve({ externalCode });
+  }
+
+  cancelSalesOrder(externalCode: string, reason: string): Promise<void> {
+    const order = this.orders.get(externalCode);
+    if (order) order.cancelled = true;
+    this.logger.log(`mock SAP cancel SO ${externalCode}: ${reason}`);
+    return Promise.resolve();
+  }
 }
 
 function bpOf(customerCode: string): string {
   return `MOCK-${String(seedOf(customerCode)).padStart(10, '0')}`;
+}
+
+function orderNoOf(saleOrderCode: string): string {
+  return `MOCK-SO-${String(seedOf(saleOrderCode)).padStart(10, '0')}`;
 }
 
 function seedOf(text: string): number {

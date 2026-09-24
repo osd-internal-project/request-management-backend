@@ -88,6 +88,9 @@ function harness(options: { erpDown?: boolean; bpInSap?: string } = {}) {
     getReceivables: jest.fn(() =>
       Promise.resolve({ outstanding: 25000, invoiceCount: 2, asOf: 'now' }),
     ),
+    findSalesOrder: jest.fn(() => Promise.resolve(null)),
+    createSalesOrder: jest.fn(() => Promise.resolve({ externalCode: 'X' })),
+    cancelSalesOrder: jest.fn(() => Promise.resolve()),
   };
 
   const audit = { record: jest.fn(() => Promise.resolve()) };
