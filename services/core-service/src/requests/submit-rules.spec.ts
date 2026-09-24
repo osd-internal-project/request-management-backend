@@ -1,5 +1,6 @@
 import type { AppError, ErrorDetail } from '@request-management/share';
 import {
+  assertKnownDocCode,
   assertKnownReturnReason,
   assertReceiverFormComplete,
   assertSubmittable,
@@ -756,5 +757,45 @@ describe('REQ-01 — choices, formats and boolean labels an admin saves', () => 
     expect(
       reasonsOf({ ok: { type: 'boolean', 'x-true-label': true } })[0],
     ).toContain('x-true-label');
+  });
+});
+
+describe('REQ-03 optional documents', () => {
+  const docs = [
+    { code: 'QUOTE_DRAFT', name: 'ใบเสนอราคาฉบับร่าง', required: true },
+    { code: 'PHOTO', name: 'รูปถ่ายหน้างาน', required: false },
+  ];
+
+  function submitWith(requiredDocs: unknown, attachmentCodes: string[]) {
+    return () =>
+      assertSubmittable({
+        formSchema: SCHEMA,
+        requiredDocs,
+        formData: COMPLETE,
+        attachmentCodes,
+      });
+  }
+
+  it('lets a request through without an optional document', () => {
+    expect(submitWith(docs, ['QUOTE_DRAFT'])).not.toThrow();
+  });
+
+  it('still blocks on a missing required document, naming only that one', () => {
+    expect(submitWith(docs, ['PHOTO'])).toThrow(
+      expect.objectContaining({
+        code: 'REQ_DOC_MISSING',
+        details: [{ field: 'attachments', reason: 'ใบเสนอราคาฉบับร่าง' }],
+      }),
+    );
+  });
+
+  it('treats an entry saved before the flag existed as required', () => {
+    expect(submitWith(DOCS, [])).toThrow(
+      expect.objectContaining({ code: 'REQ_DOC_MISSING' }),
+    );
+  });
+
+  it('accepts an optional document code at attach time', () => {
+    expect(() => assertKnownDocCode(docs, 'PHOTO')).not.toThrow();
   });
 });

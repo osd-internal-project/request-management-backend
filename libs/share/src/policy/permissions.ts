@@ -48,10 +48,10 @@ export const PERMISSIONS = {
      */
     'crm.customer.dedup.override',
     /**
-     * C360-02 (PO 8 ก.ย. 2569): seeing ยอดค้างชำระ/AR from Odoo is a separate
+     * C360-02 (PO 8 ก.ย. 2569): seeing ยอดค้างชำระ/AR from SAP is a separate
      * grant from reading the customer — configured per role on the Role
      * screen. Declared now so the catalog is complete before ชุดงาน D wires
-     * the Odoo read.
+     * the SAP read.
      */
     'crm.customer.financial.read',
 
@@ -98,7 +98,9 @@ export const PERMISSIONS = {
      */
     'admin.crm.manage',
     /**
-     * ออกและเพิกถอน API key ของช่องทางภายนอก (14 ก.ย. 2569).
+     * ออกและเพิกถอน API key ของช่องทางภายนอก (14 ก.ย. 2569) และดูแลคิวส่ง
+     * SAP — ดูงานที่ส่งไม่สำเร็จแล้วกดส่งใหม่ (24 ก.ย. 2569): ทั้งสองอย่างคือ
+     * ขอบของระบบที่คุยกับระบบภายนอก ไม่ใช่การตั้งค่าธุรกิจของ CRM.
      *
      * แยกจาก `admin.identity.manage` เพราะคนละความเสี่ยง: อันนั้นแก้ผู้ใช้และ
      * role ใน realm ที่คนใช้งานอยู่ ส่วนอันนี้ **สร้างเครดentialใหม่** ที่เดินออก

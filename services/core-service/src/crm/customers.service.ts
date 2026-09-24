@@ -37,7 +37,8 @@ import {
   SimilarCustomer,
 } from './customer-dedup.service';
 import { CustomerTimelineService } from './customer-timeline.service';
-import { CustomerOdooSyncService } from './customer-odoo-sync.service';
+import { CustomerErpSyncService } from './customer-erp-sync.service';
+import { ERP_SYSTEM } from '../erp/erp-client';
 import { KycProductRuleRepository } from './kyc-product.repository';
 import { OpportunityRepository } from './sales.repositories';
 import { PDPA_CLIENT } from '../pdpa/pdpa-client';
@@ -103,7 +104,7 @@ export class CustomersService {
     private readonly timeline: CustomerTimelineService,
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
-    private readonly odooSync: CustomerOdooSyncService,
+    private readonly erpSync: CustomerErpSyncService,
     @Inject(PDPA_CLIENT) private readonly pdpa: PdpaClient,
     private readonly kycProducts: KycProductRuleRepository,
     private readonly opportunities: OpportunityRepository,
@@ -214,7 +215,7 @@ export class CustomersService {
       branchCustomers,
       requestTotal,
       requestOpen,
-      odooCode,
+      erpCode,
       opportunityOpenCount,
       opportunityOpenSum,
     ] = await Promise.all([
@@ -246,7 +247,7 @@ export class CustomersService {
       // ให้เห็นใน payload ไม่ใช่ซ่อนแค่ฝั่งหน้าจอ
       seesFinancials
         ? (this.externalCodes.findFirst({
-            where: { customerId: id, system: 'odoo' },
+            where: { customerId: id, system: ERP_SYSTEM },
             select: { payload: true },
           }) as Promise<{ payload: unknown } | null>)
         : Promise.resolve(null),
@@ -273,8 +274,8 @@ export class CustomersService {
     // C360-02 — ยอดค้างชำระอ่านจาก cache ที่รอบ sync รายชั่วโมงเติมไว้ (CM-06);
     // ไม่มี = ยังไม่เคย sync สำเร็จ และการ์ดฝั่งหน้าจอบอกตรง ๆ ว่ารอ.
     const payload =
-      odooCode?.payload && typeof odooCode.payload === 'object'
-        ? (odooCode.payload as { receivables?: unknown })
+      erpCode?.payload && typeof erpCode.payload === 'object'
+        ? (erpCode.payload as { receivables?: unknown })
         : null;
 
     return {
@@ -294,9 +295,9 @@ export class CustomersService {
         requestTotal === null
           ? null
           : { total: requestTotal, open: requestOpen },
-      // ODOO_MODE=mock → ตัวเลขใน cache เป็นของปลอม: ตอบ null ให้การ์ดบอกว่ารอ Odoo
+      // ERP_MODE=mock → ตัวเลขใน cache เป็นของปลอม: ตอบ null ให้การ์ดบอกว่ารอ SAP
       // (ไม่มี crm.customer.financial.read ก็ null ด้วย — ไม่เคยอ่าน cache ข้างบน)
-      financials: (this.odooSync.receivablesLive
+      financials: (this.erpSync.receivablesLive
         ? (payload?.receivables ?? null)
         : null) as {
         outstanding: number;
@@ -499,9 +500,9 @@ export class CustomersService {
       return row;
     });
 
-    // CM-06: Odoo is called AFTER the commit — a slow upstream cannot hold a
+    // CM-06: SAP is called AFTER the commit — a slow upstream cannot hold a
     // database transaction open, and a down one becomes a queue row.
-    if (created.status === 'active') this.odooSync.kickCustomer(created.id);
+    if (created.status === 'active') this.erpSync.kickCustomer(created.id);
 
     return this.findOne(created.id, actor);
   }
@@ -608,7 +609,7 @@ export class CustomersService {
       );
     });
 
-    this.odooSync.kickCustomer(id);
+    this.erpSync.kickCustomer(id);
 
     return this.findOne(id, actor);
   }
@@ -713,7 +714,7 @@ export class CustomersService {
       );
     });
 
-    this.odooSync.kickCustomer(id);
+    this.erpSync.kickCustomer(id);
 
     return this.findOne(id, actor);
   }
@@ -1049,7 +1050,7 @@ export class CustomersService {
     }));
   }
 
-  /** CM-02 — Odoo partner id + 7 accounting systems. Admin surface. */
+  /** CM-02 — SAP BP number + 7 accounting systems. Admin surface. */
   async listExternalCodes(customerId: string, actor: Principal) {
     await this.findOne(customerId, actor);
 

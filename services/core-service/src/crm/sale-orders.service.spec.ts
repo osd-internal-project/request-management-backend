@@ -80,6 +80,7 @@ describe('CRM โอกาสการขาย — เปิดได้โด�
         Promise.resolve({ id: 'cust-1', nameTh: 'บริษัท กขค จำกัด' }),
       ),
     };
+    const catalog = { assertCodes: jest.fn(() => Promise.resolve()) };
     const service = new OpportunitiesService(
       opportunities as never,
       { createMany: jest.fn() } as never,
@@ -98,8 +99,9 @@ describe('CRM โอกาสการขาย — เปิดได้โด�
           work({}),
         ),
       } as never,
+      catalog as never,
     );
-    return { service, opportunities, customers, audit, timeline };
+    return { service, opportunities, customers, audit, timeline, catalog };
   }
 
   it('ไม่มีทั้ง customer_id และ prospect_name = VALIDATION_FAILED', async () => {
@@ -172,6 +174,36 @@ describe('CRM โอกาสการขาย — เปิดได้โด�
   it('ไม่มี win() แล้ว — ปิดชนะเกิดจากการเปิดใบสั่งขายเท่านั้น', () => {
     const { service } = harness();
     expect((service as unknown as { win?: unknown }).win).toBeUndefined();
+  });
+
+  it('CD-27 product ที่เกี่ยวข้องต้องเป็นรหัสจากรายการสินค้า SAP — ไม่ผ่าน = ไม่สร้างโอกาสการขาย', async () => {
+    const ok = harness();
+    await ok.service.create(
+      {
+        title: 'SIP',
+        customer_id: 'cust-1',
+        product_codes: ['SIP-TRUNK', 'HEADSET'],
+      },
+      principal(),
+    );
+    expect(ok.catalog.assertCodes).toHaveBeenCalledWith('osd', [
+      { code: 'SIP-TRUNK', field: 'product_codes[0]' },
+      { code: 'HEADSET', field: 'product_codes[1]' },
+    ]);
+
+    const rejected = harness();
+    rejected.catalog.assertCodes.mockRejectedValueOnce(
+      Object.assign(new Error('unknown'), {
+        code: 'VALIDATION_FAILED',
+      }),
+    );
+    await expect(
+      rejected.service.create(
+        { title: 'x', customer_id: 'cust-1', product_codes: ['TYPO'] },
+        principal(),
+      ),
+    ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+    expect(rejected.opportunities.create).not.toHaveBeenCalled();
   });
 });
 
@@ -316,7 +348,7 @@ describe('CRM ใบสั่งขาย — จุดเดียวที่�
       create: jest.fn(() =>
         Promise.resolve({ id: 'so-1', saleOrderCode: 'SO-OSD-000001' }),
       ),
-      findFirst: jest.fn(() =>
+      findFirst: jest.fn((): Promise<Args> =>
         Promise.resolve({
           id: 'so-1',
           saleOrderCode: 'SO-OSD-000001',
@@ -363,6 +395,8 @@ describe('CRM ใบสั่งขาย — จุดเดียวที่�
         }),
       ),
     };
+    const erpSync = { kickCreate: jest.fn(), kickCancel: jest.fn() };
+    const catalog = { assertKnownCodes: jest.fn(() => Promise.resolve()) };
 
     const service = new SaleOrdersService(
       saleOrders as never,
@@ -379,10 +413,14 @@ describe('CRM ใบสั่งขาย — จุดเดียวที่�
         ),
       } as never,
       quotations as never,
+      erpSync as never,
+      catalog as never,
     );
 
     return {
       service,
+      erpSync,
+      catalog,
       saleOrders,
       opportunities,
       leads,
@@ -629,5 +667,271 @@ describe('CRM ใบสั่งขาย — จุดเดียวที่�
     await expect(
       h.service.cancel('so-1', { reason: 'อีกครั้ง' }, principal()),
     ).rejects.toMatchObject({ code: 'CONFLICT' });
+  });
+
+  it('CD-88 เปิดตามใบเสนอราคา → copy รายการสินค้าเป็น snapshot, รอส่ง SAP และส่งหลัง commit', async () => {
+    const h = harness();
+    h.quotations.findFirst.mockResolvedValueOnce({
+      id: 'q-1',
+      quotationNo: 'QT-OSD-000001',
+      version: 2,
+      status: 'accepted',
+      netTotal: 95000,
+      lines: [
+        {
+          id: 'ql-1',
+          lineNo: 1,
+          productCode: 'SIP-TRUNK',
+          description: 'SIP Trunk 30 ช่อง',
+          quantity: 1,
+          unit: 'ชุด',
+          unitPrice: 100000,
+          discountPct: 5,
+          lineTotal: 95000,
+        },
+      ],
+    } as never);
+
+    await h.service.open('opportunity-1', { quotation_id: 'q-1' }, principal());
+
+    const data = firstArg<DataArgs>(h.saleOrders.create).data as Args & {
+      lines: { create: Args[] };
+    };
+    expect(data).toEqual(
+      expect.objectContaining({
+        quotationId: 'q-1',
+        amount: 95000,
+        erpStatus: 'pending',
+      }),
+    );
+    expect(data.lines.create).toEqual([
+      {
+        lineNo: 1,
+        productCode: 'SIP-TRUNK',
+        description: 'SIP Trunk 30 ช่อง',
+        quantity: 1,
+        unit: 'ชุด',
+        unitPrice: 100000,
+        discountPct: 5,
+        lineTotal: 95000,
+        quotationLineId: 'ql-1',
+      },
+    ]);
+    expect(h.erpSync.kickCreate).toHaveBeenCalledWith('so-1');
+  });
+
+  it('CD-88 เปิดตรงจากโอกาสการขาย (ไม่มีรายการ) → not_ready ไม่ส่ง SAP', async () => {
+    const h = harness();
+
+    await h.service.open('opportunity-1', {}, principal());
+
+    const data = firstArg<DataArgs>(h.saleOrders.create).data as Args & {
+      lines: { create: Args[] };
+    };
+    expect(data.erpStatus).toBe('not_ready');
+    expect(data.lines.create).toEqual([]);
+    expect(h.erpSync.kickCreate).not.toHaveBeenCalled();
+  });
+
+  it('CD-88 ยกเลิกใบที่ถึง SAP แล้ว → ยกเลิกใน SAP ด้วย; ใบที่ยังไม่เคยส่ง → skipped', async () => {
+    const inSap = harness();
+    inSap.saleOrders.findFirst.mockResolvedValueOnce({
+      id: 'so-1',
+      saleOrderCode: 'SO-OSD-000001',
+      status: 'open',
+      customerId: 'cust-new',
+      erpStatus: 'synced',
+      erpOrderNo: 'MOCK-SO-0000000001',
+    });
+
+    await inSap.service.cancel('so-1', { reason: 'ลูกค้ายกเลิก' }, principal());
+
+    expect(firstArg<DataArgs>(inSap.saleOrders.update).data).toEqual(
+      expect.objectContaining({ status: 'cancelled', erpStatus: 'pending' }),
+    );
+    expect(inSap.erpSync.kickCancel).toHaveBeenCalledWith('so-1');
+
+    const neverSent = harness();
+    neverSent.saleOrders.findFirst.mockResolvedValueOnce({
+      id: 'so-1',
+      saleOrderCode: 'SO-OSD-000001',
+      status: 'open',
+      customerId: 'cust-new',
+      erpStatus: 'not_ready',
+      erpOrderNo: null,
+    });
+
+    await neverSent.service.cancel(
+      'so-1',
+      { reason: 'ลูกค้ายกเลิก' },
+      principal(),
+    );
+
+    expect(firstArg<DataArgs>(neverSent.saleOrders.update).data).toEqual(
+      expect.objectContaining({ erpStatus: 'skipped' }),
+    );
+    expect(neverSent.erpSync.kickCancel).not.toHaveBeenCalled();
+  });
+
+  it('CD-88 (PO 24 ก.ย.) เปิดตรงจากโอกาสการขายพร้อมกรอกรายการเอง → ยอดคำนวณที่ server, มูลค่า = ยอดรวม, ส่ง SAP', async () => {
+    const h = harness();
+
+    await h.service.open(
+      'opportunity-1',
+      {
+        lines: [
+          {
+            product_code: 'SIP-TRUNK',
+            description: 'SIP Trunk',
+            quantity: 3,
+            unit: 'ช่อง',
+            unit_price: 1000,
+            discount_pct: 10,
+          },
+          { description: 'ค่าติดตั้ง', quantity: 1, unit_price: 5000.5 },
+        ],
+      },
+      principal(),
+    );
+
+    expect(h.catalog.assertKnownCodes).toHaveBeenCalledWith('osd', [
+      expect.objectContaining({ product_code: 'SIP-TRUNK' }),
+      expect.objectContaining({ description: 'ค่าติดตั้ง' }),
+    ]);
+    const data = firstArg<DataArgs>(h.saleOrders.create).data as Args & {
+      amount: { toString(): string };
+      lines: { create: (Args & { lineTotal: { toString(): string } })[] };
+    };
+    // 3 × 1000 − 10% = 2700 ; + 5000.50
+    expect(data.amount.toString()).toBe('7700.5');
+    expect(data.erpStatus).toBe('pending');
+    expect(data.lines.create.map((l) => l.lineTotal.toString())).toEqual([
+      '2700',
+      '5000.5',
+    ]);
+    expect(data.lines.create[1]).toMatchObject({
+      lineNo: 2,
+      productCode: null,
+      unit: null,
+      discountPct: 0,
+      quotationLineId: null,
+    });
+    expect(h.erpSync.kickCreate).toHaveBeenCalledWith('so-1');
+  });
+
+  it('CD-88 กรอกรายการเองพร้อมเลือกใบเสนอราคา = VALIDATION_FAILED ก่อนสร้างลูกค้า', async () => {
+    const h = harness();
+    h.quotations.findFirst.mockResolvedValueOnce({
+      id: 'q-1',
+      quotationNo: 'QT-OSD-000001',
+      version: 1,
+      status: 'accepted',
+      netTotal: 100,
+      lines: [],
+    } as never);
+
+    await expect(
+      h.service.open(
+        'opportunity-1',
+        {
+          quotation_id: 'q-1',
+          lines: [{ description: 'x', quantity: 1, unit_price: 1 }],
+        },
+        principal(),
+      ),
+    ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+    expect(h.customersService.create).not.toHaveBeenCalled();
+    expect(h.saleOrders.create).not.toHaveBeenCalled();
+  });
+
+  it('CD-88 มูลค่าที่พิมพ์ไม่ตรงยอดรวมรายการ = VALIDATION_FAILED (ใบเดียวต้องมีตัวเลขเดียว)', async () => {
+    const h = harness();
+
+    await expect(
+      h.service.open(
+        'opportunity-1',
+        {
+          amount: 9999,
+          lines: [{ description: 'x', quantity: 2, unit_price: 100 }],
+        },
+        principal(),
+      ),
+    ).rejects.toMatchObject({
+      code: 'VALIDATION_FAILED',
+      details: [{ field: 'amount', reason: '200.00' }],
+    });
+    expect(h.customersService.create).not.toHaveBeenCalled();
+  });
+
+  it('CD-88 รายการใบสั่งขาย: กรองสถานะส่ง SAP + ค้นเลขใบ/ลูกค้า/โอกาสการขาย ภายในขอบเขตที่เห็นเท่านั้น', async () => {
+    const h = harness();
+
+    await h.service.list(principal(), {
+      erp_status: 'failed',
+      search: ' CUS-OSD ',
+    } as never);
+
+    const where = firstArg<{ where: { AND: Args[] } }>(
+      h.saleOrders.findMany,
+    ).where;
+    expect(where.AND).toHaveLength(2); // visibleSalesWhere + filters
+    expect(where.AND[1]).toMatchObject({
+      erpStatus: 'failed',
+      OR: expect.arrayContaining([
+        { saleOrderCode: { contains: 'CUS-OSD', mode: 'insensitive' } },
+        {
+          customer: {
+            customerCode: { contains: 'CUS-OSD', mode: 'insensitive' },
+          },
+        },
+      ]) as unknown,
+    });
+  });
+
+  it('PO 24 ก.ย. เปิดตามใบเสนอราคา: มูลค่าล็อกเท่ายอดสุทธิของใบ — ส่งมูลค่าอื่น = VALIDATION_FAILED ก่อนสร้างลูกค้า', async () => {
+    const h = harness();
+    h.quotations.findFirst.mockResolvedValueOnce({
+      id: 'q-1',
+      quotationNo: 'QT-OSD-000001',
+      version: 1,
+      status: 'accepted',
+      netTotal: 1900000,
+      lines: [],
+    } as never);
+
+    await expect(
+      h.service.open(
+        'opportunity-1',
+        { quotation_id: 'q-1', amount: 1800000 },
+        principal(),
+      ),
+    ).rejects.toMatchObject({
+      code: 'VALIDATION_FAILED',
+      details: [{ field: 'amount', reason: '1900000.00' }],
+    });
+    expect(h.customersService.create).not.toHaveBeenCalled();
+    expect(h.saleOrders.create).not.toHaveBeenCalled();
+  });
+
+  it('PO 24 ก.ย. เปิดตามใบเสนอราคาโดยส่งมูลค่าตรงยอด (หรือไม่ส่ง) → ใช้ยอดสุทธิของใบ', async () => {
+    const h = harness();
+    h.quotations.findFirst.mockResolvedValueOnce({
+      id: 'q-1',
+      quotationNo: 'QT-OSD-000001',
+      version: 1,
+      status: 'accepted',
+      netTotal: 1900000,
+      lines: [],
+    } as never);
+
+    await h.service.open(
+      'opportunity-1',
+      { quotation_id: 'q-1', amount: 1900000 },
+      principal(),
+    );
+
+    expect(firstArg<DataArgs>(h.saleOrders.create).data).toEqual(
+      expect.objectContaining({ quotationId: 'q-1', amount: 1900000 }),
+    );
   });
 });

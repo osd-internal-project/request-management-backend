@@ -669,6 +669,14 @@ export class ListOpportunitiesQueryDto extends PageQueryDto {
 // --- ใบสั่งขาย (Sale Order, CD-77 โครงระยะ 1) ---------------------------------
 
 export const SALE_ORDER_STATUSES = ['open', 'cancelled'] as const;
+/** CD-88 — สถานะส่ง SAP ของใบสั่งขาย (enum `ErpSyncStatus`). */
+export const ERP_SYNC_STATUSES = [
+  'not_ready',
+  'pending',
+  'synced',
+  'failed',
+  'skipped',
+] as const;
 
 /**
  * ค่าที่ผู้ใช้ปรับก่อนระบบสร้างลูกค้าใหม่จากผู้มุ่งหวัง ตอนเปิดใบสั่งขาย — ทุก
@@ -719,6 +727,44 @@ export class SaleOrderCustomerDto {
  * เปิดใบสั่งขายจากโอกาสการขาย — จุดเดียวที่ลูกค้าในทะเบียน "เกิด" (PO 10 ก.ย.
  * 2569). ถ้าโอกาสการขายผูกลูกค้าอยู่แล้ว ทั้ง `customer_id`/`customer` ถูกข้าม.
  */
+/**
+ * CD-88 (PO 24 ก.ย. 2569) — บรรทัดที่กรอกเองตอนเปิดใบสั่งขายตรงจากโอกาสการขาย
+ * (ไม่ผ่านใบเสนอราคา). เหมือนบรรทัดใบเสนอราคาแต่ไม่มีต้นทุน; ยอดต่อบรรทัด server
+ * คำนวณเองเสมอ.
+ */
+export class SaleOrderLineDto {
+  @IsOptional()
+  @IsString()
+  @Matches(/^[A-Za-z0-9_.-]{1,64}$/)
+  product_code?: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(1000)
+  description!: string;
+
+  @IsNumber({ maxDecimalPlaces: 3 })
+  @Min(0.001)
+  @Max(99_999_999)
+  quantity!: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  unit?: string;
+
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(999_999_999_999)
+  unit_price!: number;
+
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(100)
+  discount_pct?: number;
+}
+
 export class OpenSaleOrderDto {
   /** ใช้ลูกค้าเดิมรายนี้แทนการสร้างใหม่ (เช่น ระบบเตือนว่ามีชื่อคล้ายอยู่แล้ว). */
   @IsOptional()
@@ -738,11 +784,26 @@ export class OpenSaleOrderDto {
   @IsString()
   quotation_id?: string;
 
-  /** ว่าง = ใช้มูลค่าของใบเสนอราคา (ถ้าระบุ) หรือของโอกาสการขาย. */
+  /**
+   * ว่าง = ใช้มูลค่าของใบเสนอราคา / ยอดรวมของ `lines` / มูลค่าของโอกาสการขาย.
+   * ถ้ามี `lines` ต้องเท่ากับยอดรวมของบรรทัด (SAP ได้ยอดจากบรรทัด).
+   */
   @IsOptional()
   @IsNumber()
   @Min(0)
   amount?: number;
+
+  /**
+   * รายการสินค้าเมื่อเปิดตรงจากโอกาสการขาย (ไม่มี `quotation_id`) — ใบที่มี
+   * รายการส่งเข้า SAP ได้; ไม่มีรายการ = `not_ready`. ส่งพร้อม `quotation_id`
+   * ไม่ได้: บรรทัดของใบเสนอราคาเป็นตัวจริงอยู่แล้ว.
+   */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(200)
+  @ValidateNested({ each: true })
+  @Type(() => SaleOrderLineDto)
+  lines?: SaleOrderLineDto[];
 
   @IsOptional()
   @IsString()
@@ -769,6 +830,17 @@ export class ListSaleOrdersQueryDto extends PageQueryDto {
   @IsOptional()
   @IsIn(SALE_ORDER_STATUSES)
   status?: (typeof SALE_ORDER_STATUSES)[number];
+
+  /** CD-88 — กรองตามสถานะส่ง SAP (เช่น `failed` = ใบที่ต้องมีคนดู). */
+  @IsOptional()
+  @IsIn(ERP_SYNC_STATUSES)
+  erp_status?: (typeof ERP_SYNC_STATUSES)[number];
+
+  /** เลขใบสั่งขาย / เลขใบของ SAP / รหัสหรือชื่อลูกค้า / รหัสโอกาสการขาย. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  search?: string;
 
   @IsOptional()
   @IsIn(['mine', 'all'])

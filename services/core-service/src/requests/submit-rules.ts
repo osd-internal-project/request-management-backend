@@ -41,6 +41,8 @@ export const FORM_FIELD_FORMATS = ['date', 'date-time'] as const;
 export interface RequiredDoc {
   code: string;
   name: string;
+  /** Absent in rows saved before the flag existed; those stay required. */
+  required: boolean;
 }
 
 /**
@@ -347,7 +349,10 @@ function missingDocs(
 
   return (requiredDocs as unknown[])
     .map(asDoc)
-    .filter((doc): doc is RequiredDoc => doc !== null && !present.has(doc.code))
+    .filter(
+      (doc): doc is RequiredDoc =>
+        doc !== null && doc.required && !present.has(doc.code),
+    )
     .map((doc) => ({ field: 'attachments', reason: doc.name }));
 }
 
@@ -405,6 +410,7 @@ function asDoc(value: unknown): RequiredDoc | null {
   return {
     code: record.code,
     name: typeof record.name === 'string' ? record.name : record.code,
+    required: record.required !== false,
   };
 }
 
@@ -463,7 +469,7 @@ export function assertKnownDocCode(
       field: 'doc_code',
       reason: known.length
         ? `ต้องเป็นหนึ่งใน: ${known.join(', ')} หรือเว้นว่างสำหรับเอกสารเพิ่มเติม`
-        : 'ประเภทคำขอนี้ไม่ได้กำหนดเอกสารบังคับ',
+        : 'ประเภทคำขอนี้ไม่ได้กำหนดรายการเอกสาร',
     },
   ]);
 }
@@ -483,7 +489,7 @@ export function assertKnownDocCode(
  */
 export function assertUsableFormSchema(
   schema: unknown,
-  requiredDocs?: readonly { code: string; name: string }[],
+  requiredDocs?: readonly { code: string; name: string; required?: boolean }[],
 ): void {
   const parsed = asSchema(schema);
   const details: ErrorDetail[] = [];

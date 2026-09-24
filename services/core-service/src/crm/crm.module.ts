@@ -3,7 +3,7 @@ import { RunNumberClientModule } from '../run-number/run-number-client.module';
 import { PrismaTransactionService } from '@request-management/share';
 import { AccessModule } from '../access/access.module';
 import { RequestsModule } from '../requests/requests.module';
-import { OdooModule } from '../odoo/odoo.module';
+import { ErpModule } from '../erp/erp.module';
 import { PdpaModule } from '../pdpa/pdpa.module';
 import { EventsModule } from '../events/events.module';
 import { WorkflowModule } from '../workflow/workflow.module';
@@ -26,7 +26,12 @@ import {
 import { CustomerDedupService } from './customer-dedup.service';
 import { CustomerTimelineService } from './customer-timeline.service';
 import { CustomerImportService } from './customer-import.service';
-import { CustomerOdooSyncService } from './customer-odoo-sync.service';
+import { CustomerErpSyncService } from './customer-erp-sync.service';
+import { SaleOrderErpSyncService } from './sale-order-erp-sync.service';
+import { ErpMockRetirementService } from './erp-mock-retirement.service';
+import { ErpSyncAdminService } from './erp-sync-admin.service';
+import { ProductCatalogService } from './product-catalog.service';
+import { CompanyRepository, ProductRepository } from './product.repositories';
 import { IntegrationSyncJobRepository } from './integration-job.repository';
 import { KycProductRuleRepository } from './kyc-product.repository';
 import { KycCallbackService } from './kyc-callback.service';
@@ -69,7 +74,7 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     RunNumberClientModule,
     AccessModule,
     RequestsModule,
-    OdooModule,
+    ErpModule,
     PdpaModule,
     EventsModule,
     WorkflowModule,
@@ -90,7 +95,13 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     CustomerDedupService,
     CustomerTimelineService,
     CustomerImportService,
-    CustomerOdooSyncService,
+    CustomerErpSyncService,
+    SaleOrderErpSyncService,
+    ErpMockRetirementService,
+    ErpSyncAdminService,
+    ProductRepository,
+    CompanyRepository,
+    ProductCatalogService,
     IntegrationSyncJobRepository,
     KycProductRuleRepository,
     KycCallbackService,
@@ -145,6 +156,8 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     SaleOrdersService,
     QuotationsService,
     QuotationPrintService,
+    ErpSyncAdminService,
+    ProductCatalogService,
   ],
 })
 export class CrmModule {}

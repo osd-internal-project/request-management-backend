@@ -165,7 +165,7 @@ enum CustomerStatus {
   inactive
 }
 
-/// CM-06 — สถานะงานในคิว sync ของชั้น integration (Odoo วันนี้ ระบบอื่นภายหลัง).
+/// CM-06 — สถานะงานในคิว sync ของชั้น integration (SAP + workflow วันนี้ ระบบอื่นภายหลัง).
 enum IntegrationJobStatus {
   pending
   succeeded
@@ -206,6 +206,21 @@ enum OpportunityStage {
 enum SaleOrderStatus {
   open
   cancelled
+}
+
+/// สถานะการส่งใบสั่งขายเข้า SAP (CD-88) — แยกจากสถานะของใบเอง: ใบเปิดอยู่แต่ยัง
+/// ไม่ถึง SAP ได้ และ SAP ล่มต้องไม่ทำให้ใบหายหรือเปิดไม่ได้.
+///   not_ready — ยังไม่มีรายการสินค้า ส่งไม่ได้ (เปิดตรงจากโอกาสการขาย)
+///   pending   — อยู่ในคิว (รวมถึงรอลูกค้าได้เลข BP ก่อน)
+///   synced    — SAP ตอบเลขใบสั่งขายแล้ว (ถ้าใบถูกยกเลิก = SAP ยกเลิกแล้วด้วย)
+///   failed    — ลองครบรอบแล้วไม่สำเร็จ ต้องให้ผู้ดูแลดู `erpLastError`
+///   skipped   — ใบถูกยกเลิกก่อนถึง SAP ไม่มีอะไรต้องส่ง
+enum ErpSyncStatus {
+  not_ready
+  pending
+  synced
+  failed
+  skipped
 }
 
 /// CRM — สถานะใบเสนอราคา (CD-76). แก้ได้เฉพาะ `draft`; ส่งลูกค้าแล้วแก้ไม่ได้ ต้อง
@@ -290,6 +305,7 @@ model Company {
   opportunityLostReasons  OpportunityLostReason[]
   opportunityCodeCounter  OpportunityCodeCounter?
   saleOrders              SaleOrder[]
+  products                Product[]
   saleOrderCodeCounter    SaleOrderCodeCounter?
   quotations              Quotation[]
   quotationCodeCounter    QuotationCodeCounter?
@@ -1616,13 +1632,13 @@ model ApiKey {
 // ---------------------------------------------------------------------------
 // CRM — Customer Master (CM-xx) + มุมมอง 360° (C360-xx)
 // Spec: artifact 856c08fd (8 ก.ย. 2569). One customer registry for every
-// module and for Odoo — no module may keep its own (D-30).
+// module and for SAP — no module may keep its own (D-30).
 // ---------------------------------------------------------------------------
 
 /// CM-01/02/04 — the single customer registry.
 ///
 /// `customerCode` is issued by THIS system (PO decision #1, 8 ก.ย. 2569):
-/// Odoo receives it and answers with its partner id, stored in
+/// SAP receives it and answers with its Business Partner number, stored in
 /// `CustomerExternalCode` — never the other way round.
 ///
 /// No hard delete: `inactive` + `deactivateReason` is the only way out, and a
@@ -1632,7 +1648,7 @@ model Customer {
   id String @id @default(uuid())
 
   /// Issued atomically at create (CM-02) — unique across the whole database,
-  /// like `Request.requestNo`, because Odoo and 7 accounting systems key on it.
+  /// like `Request.requestNo`, because SAP and 7 accounting systems key on it.
   customerCode String @unique
 
   companyId String
@@ -1807,7 +1823,7 @@ model CustomerContact {
   @@map("customer_contacts")
 }
 
-/// CM-02 — รหัสภายนอก: `system` = `odoo` for the partner id, plus the 7
+/// CM-02 — รหัสภายนอก: `system` = `sap` for the BP number, plus the 7
 /// accounting-line systems (D-30). `payload` keeps whatever else the external
 /// system answered at create (PO decision #1) so nothing is lost to a
 /// narrower column later.
@@ -2014,20 +2030,22 @@ model CustomerTimelineEvent {
   @@map("customer_timeline_events")
 }
 
-/// CM-06 — the retry queue behind the Odoo integration layer (PO 8 ก.ย. 2569:
-/// a customer create calls Odoo synchronously and gets the partner id back;
-/// when Odoo is down the work lands here instead of blocking the create, and
-/// a sweeper retries with backoff). Rows are kept after they finish — the
+/// CM-06 — the retry queue behind the ERP integration layer (PO 8 ก.ย. 2569;
+/// ERP = SAP since 24 ก.ย. 2569: data is saved here first, then a customer
+/// create calls SAP and gets the BP number back; when SAP is down the work
+/// lands here instead of blocking the create, and a sweeper retries with
+/// backoff). Rows are kept after they finish — the
 /// "ทุกรอบ sync มี log" AC is answered by this table plus the audit trail.
 model IntegrationSyncJob {
   id String @id @default(uuid())
 
-  /// 'odoo' | 'workflow' — one queue for every external system the layer fronts.
+  /// 'sap' | 'workflow' — one queue for every external system the layer fronts.
   system     String
-  /// odoo: 'customer_upsert' | 'receivables_refresh'
+  /// sap: 'customer_upsert' | 'receivables_refresh' | 'sale_order_create' | 'sale_order_cancel'
   /// workflow: 'lead_start'
   kind       String
-  /// The row being synced — customerId for the odoo kinds, leadId for 'lead_start'.
+  /// The row being synced — customerId for the sap customer kinds, saleOrderId
+  /// for the sale_order kinds, leadId for 'lead_start'.
   resourceId String
 
   status    IntegrationJobStatus @default(pending)
@@ -2053,7 +2071,7 @@ model KycProductRule {
   id        String @id @default(uuid())
   companyId String
 
-  /// รหัสสินค้า/บริการ — ต้องตรงกับรหัสใน Odoo (D-30, งาน mapping ระยะ 0).
+  /// รหัสสินค้า/บริการ — ต้องตรงกับรหัส material ใน SAP (D-30, งาน mapping ระยะ 0).
   productCode String
   name        String
 
@@ -2334,7 +2352,7 @@ model OpportunityActivity {
   @@map("opportunity_activities")
 }
 
-/// สินค้า/บริการที่เกี่ยวกับโอกาสการขาย — รหัสต้องตรง Odoo (D-30). ชุดงาน B ใช้คู่กับ
+/// สินค้า/บริการที่เกี่ยวกับโอกาสการขาย — รหัสต้องตรง material ใน SAP (D-30). ชุดงาน B ใช้คู่กับ
 /// `kyc_product_rules`: โอกาสการขายที่มี product เข้าเงื่อนไข + ลูกค้ายังไม่
 /// kycVerified = banner แจ้งเตือน (ไม่ block).
 model OpportunityProduct {
@@ -2381,7 +2399,7 @@ model OpportunityCodeCounter {
 /// 2569): ถ้าโอกาสการขายยังไม่มีลูกค้า ระบบสร้างจากข้อมูลผู้มุ่งหวังแล้วผูกกลับ
 /// ทั้งโอกาสการขายและ Lead ต้นทาง; เปิดใบสั่งขายถือว่าปิดโอกาสการขายแบบชนะ.
 /// รายการสินค้า/ราคาต่อบรรทัดยังไม่อยู่ที่นี่ — มาจากใบเสนอราคา/BOQ ของโมดูล Sales
-/// (ระยะถัดไป) และการส่งเข้า Odoo ใช้คิว integration_sync_jobs เดิม.
+/// (ระยะถัดไป) และการส่งเข้า SAP ใช้คิว integration_sync_jobs เดิม.
 model SaleOrder {
   id            String @id @default(uuid())
   saleOrderCode String @unique
@@ -2413,10 +2431,20 @@ model SaleOrder {
   /// เปิดก่อนมีโมดูลใบเสนอราคา หรือเปิดตรงจากโอกาสการขาย).
   quotationId String?
 
-  company     Company     @relation(fields: [companyId], references: [id])
-  opportunity Opportunity @relation(fields: [opportunityId], references: [id])
-  customer    Customer    @relation(fields: [customerId], references: [id])
-  quotation   Quotation?  @relation(fields: [quotationId], references: [id])
+  /// CD-88 — การส่งเข้า SAP. เก็บที่ CTD ก่อนเสมอ แล้วค่อยส่งผ่านคิว
+  /// `integration_sync_jobs` (kind `sale_order_create` / `sale_order_cancel`).
+  erpStatus    ErpSyncStatus @default(not_ready)
+  /// เลขใบสั่งขายที่ SAP ตอบกลับ.
+  erpOrderNo   String?
+  erpSyncedAt  DateTime?
+  /// ข้อผิดพลาดล่าสุดตามที่ได้รับ — สิ่งแรกที่ผู้ดูแลอ่าน.
+  erpLastError String?
+
+  company     Company         @relation(fields: [companyId], references: [id])
+  opportunity Opportunity     @relation(fields: [opportunityId], references: [id])
+  customer    Customer        @relation(fields: [customerId], references: [id])
+  quotation   Quotation?      @relation(fields: [quotationId], references: [id])
+  lines       SaleOrderLine[]
 
   @@index([companyId, opportunityId])
   @@index([companyId, customerId])
@@ -2424,7 +2452,33 @@ model SaleOrder {
   @@index([companyId, ownerUserId])
   @@index([companyId, ownerOrgUnitId])
   @@index([quotationId])
+  @@index([erpStatus])
   @@map("sale_orders")
+}
+
+/// CD-88 — รายการสินค้าของใบสั่งขาย: snapshot จาก `QuotationLine` ตอนเปิดใบ
+/// (แก้ใบเสนอราคาภายหลังต้องไม่เปลี่ยนสิ่งที่สั่งไปแล้ว). ไม่มีต้นทุน — ใบสั่งขาย
+/// คือสิ่งที่ส่งให้ SAP และลูกค้า ต้นทุน/margin อยู่ที่ใบเสนอราคา.
+model SaleOrderLine {
+  id              String  @id @default(uuid())
+  saleOrderId     String
+  lineNo          Int
+  /// รหัส material ใน SAP — ว่างได้สำหรับบรรทัดบริการ/ค่าแรง.
+  productCode     String?
+  description     String
+  quantity        Decimal @db.Decimal(14, 3)
+  unit            String?
+  unitPrice       Decimal @db.Decimal(14, 2)
+  discountPct     Decimal @default(0) @db.Decimal(5, 2)
+  /// จำนวน × ราคา × (1 − ส่วนลด%) — ค่าเดียวกับบรรทัดต้นทาง.
+  lineTotal       Decimal @db.Decimal(14, 2)
+  /// บรรทัดใบเสนอราคาที่ copy มา.
+  quotationLineId String?
+
+  saleOrder SaleOrder @relation(fields: [saleOrderId], references: [id], onDelete: Cascade)
+
+  @@unique([saleOrderId, lineNo])
+  @@map("sale_order_lines")
 }
 
 model SaleOrderCodeCounter {
@@ -2523,7 +2577,7 @@ model QuotationLine {
   id          String  @id @default(uuid())
   quotationId String
   lineNo      Int
-  /// รหัสสินค้า/บริการ (ตรง Odoo ถ้ามี) — ว่างได้สำหรับบรรทัดบริการ/ค่าแรง.
+  /// รหัสสินค้า/บริการ (ตรง material ใน SAP ถ้ามี) — ว่างได้สำหรับบรรทัดบริการ/ค่าแรง.
   productCode String?
   description String
   quantity    Decimal @db.Decimal(14, 3)
@@ -2551,4 +2605,31 @@ model QuotationCodeCounter {
   company Company @relation(fields: [companyId], references: [id])
 
   @@map("quotation_code_counters")
+}
+
+/// CD-27 — สินค้า/บริการที่ดึงสำเนามาจาก SAP (B1 `Items`, เฉพาะที่ขายได้) ต่อบริษัท.
+/// SAP เป็นเจ้าของ — ที่นี่อ่านอย่างเดียว เติมด้วยรอบ sync (รายชั่วโมง + ปุ่มในหน้า
+/// ผู้ดูแล). เก็บไว้ที่ CTD เพื่อให้ออกใบเสนอราคา/ใบสั่งขายได้แม้ SAP ล่ม และให้รหัส
+/// บนบรรทัดเป็นรหัสที่ SAP รู้จักจริง. หายไปจาก SAP = `active = false` ไม่ลบ.
+model Product {
+  id        String @id @default(uuid())
+  companyId String
+
+  /// B1 `ItemCode` — ค่าที่ใส่ใน `productCode` ของบรรทัดใบเสนอราคา/ใบสั่งขาย.
+  code   String
+  name   String
+  /// หน่วยขาย (B1 `SalesUnit`) — เติมลงบรรทัดตอนเลือกสินค้า.
+  unit   String?
+  active Boolean @default(true)
+
+  /// รอบ sync ล่าสุดที่เห็นรายการนี้ใน SAP.
+  syncedAt  DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, code])
+  @@index([companyId, active])
+  @@map("products")
 }

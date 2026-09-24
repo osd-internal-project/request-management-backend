@@ -73,9 +73,13 @@ export const ErrorCatalog = {
   /** NFR-03: same Idempotency-Key replayed with a different body. */
   IDEMPOTENCY_KEY_REUSED: HttpStatus.CONFLICT,
 
-  /** CM-06/D-30 — the integration layer's answer when Odoo (or a later
+  /** CM-06/D-30 — the integration layer's answer when SAP (or a later
    * external system) refuses or is unreachable; the sync queue retries. */
   UPSTREAM_ERROR: HttpStatus.BAD_GATEWAY,
+  /** Object storage (MinIO/S3) is unreachable or refused the call. */
+  STORAGE_UNAVAILABLE: HttpStatus.BAD_GATEWAY,
+  /** REQ-03: the attachment row predates file storage and has no bytes behind it. */
+  ATTACHMENT_NO_FILE: HttpStatus.NOT_FOUND,
   /**
    * The Keycloak Admin API is unreachable or the service account lacks its
    * realm-management roles. A distinct code so the UI can say "not configured"

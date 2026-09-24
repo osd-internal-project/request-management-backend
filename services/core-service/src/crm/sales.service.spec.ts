@@ -97,6 +97,8 @@ function opportunityHarness(
     ),
   };
 
+  // CD-27 — the SAP catalog check; individual tests make it reject.
+  const catalog = { assertCodes: jest.fn(() => Promise.resolve()) };
   const service = new OpportunitiesService(
     opportunities as never,
     products as never,
@@ -107,6 +109,7 @@ function opportunityHarness(
     timeline as never,
     audit as never,
     transactions as never,
+    catalog as never,
   );
 
   return { service, opportunities, audits, timelineEvents, lostReasons };

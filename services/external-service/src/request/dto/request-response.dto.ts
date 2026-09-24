@@ -67,6 +67,12 @@ export class ExternalRequiredDocDto {
 
   @ApiProperty({ example: 'ใบเสนอราคาฉบับร่าง' })
   name!: string;
+
+  @ApiPropertyOptional({
+    example: true,
+    description: 'false = optional; absent means required.',
+  })
+  required?: boolean;
 }
 
 /** A group in the org chart, as the type endpoints name one. */

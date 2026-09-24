@@ -289,16 +289,11 @@ export class ListRequestsQueryDto extends PageQueryDto {
 }
 
 /**
- * REQ-03 — an attached document, recorded as **metadata only**.
- *
- * Open question G has not named an object store, so no bytes are accepted or
- * kept. The row still matters: `assertSubmittable` counts required documents
- * from it, and without one a type with `requiredDocs` (DSC needs a draft
- * quotation) could never be submitted at all. `storageKey` is written as
- * `pending://<uuid>` so a later migration can tell at a glance which rows have
- * no file behind them.
+ * REQ-03 — the text part of the multipart upload. The file itself arrives as
+ * the `file` part; its name, type and size are read from it, never trusted
+ * from the client.
  */
-export class AddAttachmentDto {
+export class UploadAttachmentDto {
   @ApiPropertyOptional({
     example: 'quotation',
     description: "A code from the type's requiredDocs; omit for an extra file.",
@@ -307,27 +302,6 @@ export class AddAttachmentDto {
   @IsString()
   @MaxLength(64)
   doc_code?: string;
-
-  @ApiProperty({ example: 'quote-D501-v2.pdf' })
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(255)
-  file_name!: string;
-
-  @ApiProperty({ example: 'application/pdf' })
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(128)
-  mime_type!: string;
-
-  @ApiProperty({
-    example: 1258291,
-    description: 'Bytes, as reported by the browser.',
-  })
-  @IsInt()
-  @Min(0)
-  @Max(104_857_600)
-  size_bytes!: number;
 }
 
 /** One entry of `requiredDocs` / `returnReasonCodes` (REQ-03, REQ-04). */
@@ -343,6 +317,14 @@ export class CodedLabelDto {
   @IsNotEmpty()
   @MaxLength(255)
   name!: string;
+}
+
+/** One entry of `requiredDocs`; `required` omitted means required (REQ-03). */
+export class RequiredDocDto extends CodedLabelDto {
+  @ApiPropertyOptional({ example: true, default: true })
+  @IsOptional()
+  @IsBoolean()
+  required?: boolean;
 }
 
 /**
@@ -404,12 +386,12 @@ export class CreateRequestTypeDto {
   @IsString({ each: true })
   eligible_org_unit_ids?: string[];
 
-  @ApiPropertyOptional({ type: [CodedLabelDto] })
+  @ApiPropertyOptional({ type: [RequiredDocDto] })
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => CodedLabelDto)
-  required_docs?: CodedLabelDto[];
+  @Type(() => RequiredDocDto)
+  required_docs?: RequiredDocDto[];
 
   @ApiPropertyOptional({ type: [CodedLabelDto] })
   @IsOptional()
@@ -515,12 +497,12 @@ export class UpdateRequestTypeDto {
   @IsString({ each: true })
   eligible_org_unit_ids?: string[];
 
-  @ApiPropertyOptional({ type: [CodedLabelDto] })
+  @ApiPropertyOptional({ type: [RequiredDocDto] })
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => CodedLabelDto)
-  required_docs?: CodedLabelDto[];
+  @Type(() => RequiredDocDto)
+  required_docs?: RequiredDocDto[];
 
   @ApiPropertyOptional({ type: [CodedLabelDto] })
   @IsOptional()

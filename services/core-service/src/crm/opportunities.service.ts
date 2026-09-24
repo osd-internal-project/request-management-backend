@@ -21,6 +21,7 @@ import {
 import { RunNumberClient } from '../run-number/run-number.client';
 import { CustomerRepository } from './customer.repository';
 import { KycProductRuleRepository } from './kyc-product.repository';
+import { ProductCatalogService } from './product-catalog.service';
 import { CustomerTimelineService } from './customer-timeline.service';
 import {
   CreateOpportunityDto,
@@ -59,6 +60,7 @@ export class OpportunitiesService {
     private readonly timeline: CustomerTimelineService,
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
+    private readonly catalog: ProductCatalogService,
   ) {}
 
   async list(actor: Principal, query: ListOpportunitiesQueryDto) {
@@ -202,6 +204,16 @@ export class OpportunitiesService {
 
     const partyName = customer?.nameTh ?? prospect?.prospectName ?? '';
 
+    // CD-27: product ที่เกี่ยวข้องต้องเป็นรหัสที่ SAP รู้จัก — กฎเดียวกับบรรทัด
+    // ใบเสนอราคา ไม่งั้นการเตือน KYC เทียบรหัสกันไม่ตรง
+    await this.catalog.assertCodes(
+      actor.activeCompanyId,
+      (dto.product_codes ?? []).map((code, index) => ({
+        code,
+        field: `product_codes[${index}]`,
+      })),
+    );
+
     // ออกเลขนอก transaction และหลังตรวจทุกอย่างผ่าน — docs/run-number.md
     const opportunityCode = await this.runNumbers.issueUnused(
       { companyId: actor.activeCompanyId, docType: 'OPPORTUNITY' },
@@ -279,6 +291,15 @@ export class OpportunitiesService {
 
   async update(id: string, dto: UpdateOpportunityDto, actor: Principal) {
     const found = await this.requireOpen(id, actor);
+    if (dto.product_codes !== undefined) {
+      await this.catalog.assertCodes(
+        actor.activeCompanyId,
+        dto.product_codes.map((code, index) => ({
+          code,
+          field: `product_codes[${index}]`,
+        })),
+      );
+    }
 
     await this.transactions.execute(async (prisma) => {
       await this.opportunities.update(

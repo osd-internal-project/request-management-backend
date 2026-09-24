@@ -98,7 +98,7 @@ owner question, not an engineering one.
 | # | Question | Why it matters | Suggested default |
 |---|---|---|---|
 | **F** | ~~API base path: spec §11.1 says `/api/v1`, the services serve `/api`~~ | — | 🟢 **resolved** — both services now `setGlobalPrefix('api/v1')`; the Next BFF's own routes stay at `/api` |
-| **G** | Attachment storage backend (REQ-03) — the spec never names one | `RequestAttachment.storageKey` assumes object storage; local disk will not survive multiple instances | S3-compatible object storage; decide before S3 |
+| **G** | Attachment storage backend (REQ-03) — the spec never names one | **Resolved:** MinIO via the shared `StorageModule` (`libs/share/src/storage`, `STORAGE_MODE` + `MINIO_*`). Another S3 = a new implementation there, no attachment code change. Rows with `storageKey = pending://…` predate it and answer `ATTACHMENT_NO_FILE` | — |
 | **H** | Should `admin` be able to read sensitive fields? | §5.2 gives admins configuration rights but no approval authority; it is silent on masking. The seed currently does **not** grant them `request.sensitive.read` | Keep it withheld — configuring a system should not imply reading its commercial data |
 | **I** | Retention and archival of `AuditLog` beyond the initial 2 years (NFR-04) | The table grows without bound; no archival job exists | Partition by month, decide archival before production |
 | **J** | The Keycloak group `บริษัท OSD` duplicates the `ROOT` org unit | Two places now describe the same company. Nothing reads the group — the org tree lives in the database (D-08) — so the duplication is inert, but it will confuse whoever finds it | Delete the group, or repurpose it to bundle roles. Decide before anything starts reading groups |

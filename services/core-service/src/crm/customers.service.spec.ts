@@ -75,20 +75,20 @@ interface Harness {
   };
   requestCount: jest.Mock;
   /** C360-04 — the ยอดค้างชำระ cache read, asserted *not* to run without permission. */
-  odooLookup: jest.Mock;
+  erpLookup: jest.Mock;
   /** C360-04 — the โอกาสการขาย count, same. */
   opportunityCount: jest.Mock;
-  odooKicks: string[];
+  erpKicks: string[];
 }
 
 function harness(options: {
   checkResult?: DuplicateCheckResult;
   pdpaDown?: boolean;
   detail?: Record<string, unknown> | null;
-  /** ODOO_MODE=http (true) หรือ mock (ค่าตั้งต้น). */
-  odooLive?: boolean;
+  /** driver SAP จริง (true) หรือ mock (ค่าตั้งต้น). */
+  erpLive?: boolean;
   /** payload ใน customer_external_codes ที่รอบ sync เติมไว้. */
-  odooPayload?: Record<string, unknown>;
+  erpPayload?: Record<string, unknown>;
 }): Harness {
   const audits: Harness['audits'] = [];
   const timelineEvents: Harness['timelineEvents'] = [];
@@ -107,13 +107,13 @@ function harness(options: {
   };
 
   const requestCount = jest.fn(() => Promise.resolve(0));
-  const odooLookup = jest.fn(() =>
+  const erpLookup = jest.fn(() =>
     Promise.resolve(
-      options.odooPayload ? { payload: options.odooPayload } : null,
+      options.erpPayload ? { payload: options.erpPayload } : null,
     ),
   );
   const opportunityCount = jest.fn(() => Promise.resolve(0));
-  const odooKicks: string[] = [];
+  const erpKicks: string[] = [];
 
   const service = new CustomersService(
     customers as never,
@@ -131,7 +131,7 @@ function harness(options: {
     } as never,
     {
       findMany: jest.fn(() => Promise.resolve([])),
-      findFirst: odooLookup,
+      findFirst: erpLookup,
       upsert: jest.fn(),
     } as never,
     {
@@ -185,9 +185,9 @@ function harness(options: {
         }),
     } as never,
     {
-      receivablesLive: options.odooLive ?? false,
+      receivablesLive: options.erpLive ?? false,
       kickCustomer: jest.fn((id: string) => {
-        odooKicks.push(id);
+        erpKicks.push(id);
       }),
     } as never,
     {
@@ -219,9 +219,9 @@ function harness(options: {
     fieldChangeRows,
     customers,
     requestCount,
-    odooLookup,
+    erpLookup,
     opportunityCount,
-    odooKicks,
+    erpKicks,
   };
 }
 
@@ -486,18 +486,18 @@ describe('C360-01 summary — ตัวเลขการ์ดหน้า 360�
   const financeViewer = () =>
     principal(['crm.customer.read', 'crm.customer.financial.read']);
 
-  it('C360-02 ODOO_MODE=mock — ยอดค้างชำระใน cache เป็นตัวเลขปลอม ตอบ null ไม่โชว์เป็นยอดจริง', async () => {
-    const { service } = harness({ odooPayload: cachedReceivables });
+  it('C360-02 ERP_MODE=mock — ยอดค้างชำระใน cache เป็นตัวเลขปลอม ตอบ null ไม่โชว์เป็นยอดจริง', async () => {
+    const { service } = harness({ erpPayload: cachedReceivables });
 
     const summary = await service.summaryOf('cust-1', financeViewer());
 
     expect(summary.financials).toBeNull();
   });
 
-  it('C360-02 ODOO_MODE=http — ยอดค้างชำระอ่านจาก cache ของรอบ sync', async () => {
+  it('C360-02 driver SAP จริง — ยอดค้างชำระอ่านจาก cache ของรอบ sync', async () => {
     const { service } = harness({
-      odooLive: true,
-      odooPayload: cachedReceivables,
+      erpLive: true,
+      erpPayload: cachedReceivables,
     });
 
     const summary = await service.summaryOf('cust-1', financeViewer());
@@ -506,9 +506,9 @@ describe('C360-01 summary — ตัวเลขการ์ดหน้า 360�
   });
 
   it('C360-04 ไม่มี crm.customer.financial.read — ไม่อ่าน cache และไม่มียอดใน payload', async () => {
-    const { service, odooLookup } = harness({
-      odooLive: true,
-      odooPayload: cachedReceivables,
+    const { service, erpLookup } = harness({
+      erpLive: true,
+      erpPayload: cachedReceivables,
     });
 
     const summary = await service.summaryOf(
@@ -517,7 +517,7 @@ describe('C360-01 summary — ตัวเลขการ์ดหน้า 360�
     );
 
     expect(summary.financials).toBeNull();
-    expect(odooLookup).not.toHaveBeenCalled();
+    expect(erpLookup).not.toHaveBeenCalled();
   });
 
   it('C360-04 a viewer without crm.sales.read never counts opportunities', async () => {

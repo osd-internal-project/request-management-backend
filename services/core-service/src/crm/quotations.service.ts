@@ -19,6 +19,7 @@ import {
   QUOTATION_LIST_SELECT,
   QuotationRepository,
 } from './sales.repositories';
+import { ProductCatalogService } from './product-catalog.service';
 import { CrmConfigRepository } from './segment.repositories';
 import { RunNumberClient } from '../run-number/run-number.client';
 import { CustomerTimelineService } from './customer-timeline.service';
@@ -90,6 +91,7 @@ export class QuotationsService {
     private readonly timeline: CustomerTimelineService,
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
+    private readonly catalog: ProductCatalogService,
   ) {}
 
   async list(actor: Principal, query: ListQuotationsQueryDto) {
@@ -211,6 +213,8 @@ export class QuotationsService {
     const opportunity = await this.requireOpenOpportunity(opportunityId, actor);
     const config = await this.configOf(actor.activeCompanyId);
     const lines = dto.lines ?? [];
+    // CD-27: รหัสที่ SAP ไม่รู้จักจะทำให้ใบสั่งขายที่ตามมาถูกปฏิเสธ — กันตั้งแต่ร่าง
+    await this.catalog.assertKnownCodes(actor.activeCompanyId, lines);
     const totals = computeQuotationTotals(lines.map(lineInput), config.vatPct);
 
     // ออกเลขนอก transaction และหลังตรวจทุกอย่างผ่าน — docs/run-number.md
@@ -282,6 +286,10 @@ export class QuotationsService {
       ['draft'],
       'แก้ไขได้เฉพาะใบเสนอราคาที่ยังเป็นร่าง — ฉบับที่ยื่นแล้วต้องออกเวอร์ชันใหม่',
     );
+
+    if (dto.lines !== undefined) {
+      await this.catalog.assertKnownCodes(actor.activeCompanyId, dto.lines);
+    }
 
     const totals =
       dto.lines !== undefined

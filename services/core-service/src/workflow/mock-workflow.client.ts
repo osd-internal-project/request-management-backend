@@ -4,7 +4,7 @@ import type { WorkflowClient, WorkflowStarted } from './workflow-client';
 
 /**
  * สแตนด์อินในหน่วยความจำ (WORKFLOW_MODE=mock, ค่าตั้งต้น) — ทุกสภาพแวดล้อม
- * ทำงานได้โดยไม่ต้องมี OSD Workflow จริง เหมือน `MockOdooClient`.
+ * ทำงานได้โดยไม่ต้องมี OSD Workflow จริง เหมือน `MockSapClient`.
  *
  * คืน instance id ปลอมที่หน้าตาเหมือนของจริง เพื่อให้เส้นทางเก็บ
  * `leads.workflowInstanceId` ถูกเดินจริงในเทสต์และในเครื่อง dev.

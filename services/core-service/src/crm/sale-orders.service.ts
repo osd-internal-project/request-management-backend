@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import {
   AppError,
   AuditWriter,
@@ -23,6 +23,9 @@ import { CustomerRepository } from './customer.repository';
 import { CustomersService } from './customers.service';
 import { CustomerTimelineService } from './customer-timeline.service';
 import type { CreateCustomerDto } from './dto/customer.dto';
+import { SaleOrderErpSyncService } from './sale-order-erp-sync.service';
+import { ProductCatalogService } from './product-catalog.service';
+import { computeQuotationTotals } from './quotation-math';
 import {
   CancelSaleOrderDto,
   ListSaleOrdersQueryDto,
@@ -35,10 +38,14 @@ import {
  * — customer จะเกิดได้ต้องเป็นการเปิด Sale order แล้วเท่านั้น").
  *
  * `open` ทำสามอย่างเป็นก้อนเดียว: หา/สร้างลูกค้าจากผู้มุ่งหวังของโอกาสการขาย
- * (ผ่าน `CustomersService.create` — ออกรหัส, dedup CM-03, Odoo sync เหมือนสร้าง
+ * (ผ่าน `CustomersService.create` — ออกรหัส, dedup CM-03, SAP sync เหมือนสร้าง
  * จากหน้าจอ), ออกเลข SO, แล้วผูกลูกค้ากลับไปที่โอกาสการขาย (+ Lead ต้นทาง) และ
- * ปิดโอกาสการขายเป็น won. รายการสินค้า/ราคาต่อบรรทัดยังไม่อยู่ที่นี่ — มาจาก
- * ใบเสนอราคา/BOQ ของโมดูล Sales ระยะถัดไป.
+ * ปิดโอกาสการขายเป็น won.
+ *
+ * CD-88: เปิดตามใบเสนอราคา = copy รายการสินค้าของใบนั้นมาเป็น `SaleOrderLine`
+ * (snapshot) แล้วส่งเข้า SAP หลัง commit ผ่าน `SaleOrderErpSyncService` —
+ * SAP ล่มไม่ทำให้เปิดใบไม่ได้. เปิดตรงจากโอกาสการขาย: กรอกรายการเองได้ (PO 24
+ * ก.ย. 2569) — มีรายการ = ส่ง SAP เหมือนกัน, ไม่มี = `not_ready`.
  */
 @Injectable()
 export class SaleOrdersService {
@@ -53,6 +60,8 @@ export class SaleOrdersService {
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
     private readonly quotations: QuotationRepository,
+    private readonly erpSync: SaleOrderErpSyncService,
+    private readonly catalog: ProductCatalogService,
   ) {}
 
   async list(actor: Principal, query: ListSaleOrdersQueryDto) {
@@ -60,9 +69,24 @@ export class SaleOrdersService {
     const filters: Prisma.SaleOrderWhereInput = {};
 
     if (query.status) filters.status = query.status;
+    if (query.erp_status) filters.erpStatus = query.erp_status;
     if (query.opportunity_id) filters.opportunityId = query.opportunity_id;
     if (query.customer_id) filters.customerId = query.customer_id;
     if (query.view === 'mine') filters.ownerUserId = actor.userId;
+    if (query.search?.trim()) {
+      const q = query.search.trim();
+      filters.OR = [
+        { saleOrderCode: { contains: q, mode: 'insensitive' } },
+        { erpOrderNo: { contains: q, mode: 'insensitive' } },
+        { customer: { customerCode: { contains: q, mode: 'insensitive' } } },
+        { customer: { nameTh: { contains: q, mode: 'insensitive' } } },
+        {
+          opportunity: {
+            opportunityCode: { contains: q, mode: 'insensitive' },
+          },
+        },
+      ];
+    }
 
     const where = {
       AND: [visibleSalesWhere(salesAccessSubject(actor)), filters],
@@ -100,7 +124,7 @@ export class SaleOrdersService {
    * เปิดใบสั่งขายจากโอกาสการขายที่ยังเปิดอยู่. ลำดับ:
    *   1. ลูกค้า — รายที่โอกาสการขายผูกอยู่ → รายที่ผู้ใช้เลือก (`customer_id`) →
    *      รายเดิมที่เลขภาษี+สาขาตรง (ไม่สร้างซ้ำ) → สร้างใหม่จากผู้มุ่งหวัง.
-   *      การสร้างเป็น transaction ของตัวเอง (ออกรหัส + Odoo หลัง commit) — ถ้า
+   *      การสร้างเป็น transaction ของตัวเอง (ออกรหัส + SAP หลัง commit) — ถ้า
    *      ขั้นถัดไปล้ม ลูกค้ายังอยู่และรอบต่อไปจะจับคู่ด้วยเลขภาษีได้เอง.
    *   2. ออกเลข SO, สร้างแถว, ผูกลูกค้ากลับที่โอกาสการขาย + Lead, ปิดชนะ —
    *      transaction เดียว.
@@ -116,6 +140,11 @@ export class SaleOrdersService {
           actor,
         )
       : null;
+    // Same reason: manual lines are checked before anything is written.
+    const manual = await this.manualLines(dto, actor);
+    // PO 24 ก.ย. 2569: เปิดตามใบเสนอราคา = มูลค่าเท่ายอดสุทธิของใบนั้นเสมอ —
+    // ราคาเปลี่ยนต้องออกใบเสนอราคาเวอร์ชันใหม่ (ผ่านตรวจ margin + ลูกค้ายอมรับ).
+    if (quotation) assertAmountMatches(dto.amount, quotation.netTotal);
     const customer = await this.resolveCustomer(opportunity, dto, actor);
 
     // ออกเลขนอก transaction และหลังตรวจทุกอย่างผ่าน — docs/run-number.md
@@ -126,7 +155,24 @@ export class SaleOrdersService {
 
     const created = await this.transactions.execute(async (prisma) => {
       const amount =
-        dto.amount ?? quotation?.netTotal ?? opportunity.amount ?? null;
+        quotation?.netTotal ??
+        manual?.netTotal ??
+        dto.amount ??
+        opportunity.amount ??
+        null;
+      const lines: SaleOrderLineRow[] = quotation
+        ? quotation.lines.map((line) => ({
+            lineNo: line.lineNo,
+            productCode: line.productCode,
+            description: line.description,
+            quantity: line.quantity,
+            unit: line.unit,
+            unitPrice: line.unitPrice,
+            discountPct: line.discountPct,
+            lineTotal: line.lineTotal,
+            quotationLineId: line.id,
+          }))
+        : (manual?.lines ?? []);
 
       const row = (await this.saleOrders.create(
         {
@@ -142,6 +188,8 @@ export class SaleOrdersService {
             ownerUserId: opportunity.ownerUserId,
             ownerOrgUnitId: opportunity.ownerOrgUnitId,
             createdBy: actor.userId,
+            erpStatus: lines.length ? 'pending' : 'not_ready',
+            lines: { create: lines },
           },
         },
         { prisma },
@@ -201,6 +249,7 @@ export class SaleOrdersService {
             quotationNo: quotation
               ? `${quotation.quotationNo} v${quotation.version}`
               : null,
+            lines: lines.length,
           },
         },
         { prisma },
@@ -255,8 +304,11 @@ export class SaleOrdersService {
         { prisma },
       );
 
-      return row;
+      return { ...row, lineCount: lines.length };
     });
+
+    // CD-88: SAP is called AFTER the commit — the user never waits on it.
+    if (created.lineCount) this.erpSync.kickCreate(created.id);
 
     const saleOrder = await this.findOne(created.id, actor);
     return {
@@ -272,12 +324,21 @@ export class SaleOrdersService {
         id,
         AND: [visibleSalesWhere(salesAccessSubject(actor))],
       },
-      select: { id: true, saleOrderCode: true, status: true, customerId: true },
+      select: {
+        id: true,
+        saleOrderCode: true,
+        status: true,
+        customerId: true,
+        erpStatus: true,
+        erpOrderNo: true,
+      },
     })) as {
       id: string;
       saleOrderCode: string;
       status: string;
       customerId: string;
+      erpStatus: string;
+      erpOrderNo: string | null;
     } | null;
 
     if (!found) throw new AppError('NOT_FOUND', 'ไม่พบใบสั่งขายที่ระบุ');
@@ -294,6 +355,12 @@ export class SaleOrdersService {
             cancelledAt: new Date(),
             cancelReason: dto.reason.trim(),
             updatedBy: actor.userId,
+            // CD-88: in SAP → cancel it there too; still on its way (pending)
+            // → the create job sees the cancel and skips; otherwise nothing to send.
+            erpStatus:
+              found.erpOrderNo || found.erpStatus === 'pending'
+                ? 'pending'
+                : 'skipped',
           },
         },
         { prisma },
@@ -327,10 +394,61 @@ export class SaleOrdersService {
       );
     });
 
+    if (found.erpOrderNo) this.erpSync.kickCancel(id);
+
     return this.findOne(id, actor);
   }
 
   // --- helpers ---------------------------------------------------------------
+
+  /**
+   * บรรทัดที่กรอกเอง (ไม่มีใบเสนอราคา): รหัสต้องอยู่ในรายการสินค้าจาก SAP,
+   * ยอดคำนวณด้วยสูตรเดียวกับใบเสนอราคา, และถ้าผู้ใช้ระบุมูลค่ามาต้องเท่ากับยอด
+   * รวมบรรทัด — ใบเดียวต้องไม่มีสองตัวเลข (CTD กับ SAP).
+   */
+  private async manualLines(
+    dto: OpenSaleOrderDto,
+    actor: Principal,
+  ): Promise<{ lines: SaleOrderLineRow[]; netTotal: Prisma.Decimal } | null> {
+    const input = dto.lines ?? [];
+    if (!input.length) return null;
+
+    if (dto.quotation_id) {
+      throw new AppError(
+        'VALIDATION_FAILED',
+        'เปิดตามใบเสนอราคาแล้วกรอกรายการเองไม่ได้ — รายการมาจากใบเสนอราคา',
+        [{ field: 'lines', reason: 'quotation_has_lines' }],
+      );
+    }
+
+    await this.catalog.assertKnownCodes(actor.activeCompanyId, input);
+
+    const totals = computeQuotationTotals(
+      input.map((line) => ({
+        quantity: line.quantity,
+        unit_price: line.unit_price,
+        discount_pct: line.discount_pct,
+      })),
+      0,
+    );
+
+    assertAmountMatches(dto.amount, totals.netTotal);
+
+    return {
+      netTotal: totals.netTotal,
+      lines: input.map((line, index) => ({
+        lineNo: index + 1,
+        productCode: line.product_code?.trim() || null,
+        description: line.description.trim(),
+        quantity: line.quantity,
+        unit: line.unit?.trim() || null,
+        unitPrice: line.unit_price,
+        discountPct: line.discount_pct ?? 0,
+        lineTotal: totals.lines[index].lineTotal,
+        quotationLineId: null,
+      })),
+    };
+  }
 
   /**
    * CD-77: "สร้างจากใบเสนอราคาที่ลูกค้ายอมรับ" — only an `accepted` version of a
@@ -354,6 +472,20 @@ export class SaleOrdersService {
         version: true,
         status: true,
         netTotal: true,
+        lines: {
+          orderBy: { lineNo: 'asc' },
+          select: {
+            id: true,
+            lineNo: true,
+            productCode: true,
+            description: true,
+            quantity: true,
+            unit: true,
+            unitPrice: true,
+            discountPct: true,
+            lineTotal: true,
+          },
+        },
       },
     })) as {
       id: string;
@@ -361,6 +493,7 @@ export class SaleOrdersService {
       version: number;
       status: string;
       netTotal: Prisma.Decimal;
+      lines: QuotationLineForSale[];
     } | null;
 
     if (!found) {
@@ -463,7 +596,7 @@ export class SaleOrdersService {
       if (match) return { ...match, created: false };
     }
 
-    // 4) สร้างใหม่จากผู้มุ่งหวัง — ทางเดียวกับหน้าจอสร้างลูกค้า (รหัส, dedup, Odoo).
+    // 4) สร้างใหม่จากผู้มุ่งหวัง — ทางเดียวกับหน้าจอสร้างลูกค้า (รหัส, dedup, SAP).
     const nameTh = dto.customer?.name_th?.trim() || opportunity.prospectName;
     if (!nameTh) {
       throw new AppError(
@@ -583,12 +716,56 @@ interface OpenOpportunityForSale {
   } | null;
 }
 
+/** What becomes a `sale_order_lines` row — from a quotation or typed in. */
+interface SaleOrderLineRow {
+  lineNo: number;
+  productCode: string | null;
+  description: string;
+  quantity: Prisma.Decimal | number;
+  unit: string | null;
+  unitPrice: Prisma.Decimal | number;
+  discountPct: Prisma.Decimal | number;
+  lineTotal: Prisma.Decimal;
+  quotationLineId: string | null;
+}
+
+interface QuotationLineForSale {
+  id: string;
+  lineNo: number;
+  productCode: string | null;
+  description: string;
+  quantity: Prisma.Decimal;
+  unit: string | null;
+  unitPrice: Prisma.Decimal;
+  discountPct: Prisma.Decimal;
+  lineTotal: Prisma.Decimal;
+}
+
 interface ResolvedCustomer {
   id: string;
   customerCode: string;
   nameTh: string;
   /** true = ทะเบียนลูกค้าเพิ่งเกิดจากใบสั่งขายนี้. */
   created: boolean;
+}
+
+/**
+ * ใบสั่งขายที่มีรายการ (จากใบเสนอราคาหรือกรอกเอง) มีมูลค่าเดียว = ยอดรวม
+ * รายการ — SAP ได้ยอดจากบรรทัด. มูลค่าที่ส่งมาไม่ตรง = ปฏิเสธ แทนที่จะให้
+ * CTD กับ SAP ถือคนละตัวเลข; ไม่ส่งมา = ใช้ยอดรวมเอง.
+ */
+function assertAmountMatches(
+  amount: number | undefined,
+  total: Prisma.Decimal,
+): void {
+  if (amount === undefined) return;
+  if (new Prisma.Decimal(total).minus(amount).abs().gt(0.005)) {
+    throw new AppError(
+      'VALIDATION_FAILED',
+      `มูลค่าต้องเท่ากับยอดรวมรายการ (${new Prisma.Decimal(total).toFixed(2)}) — เว้นว่างให้ระบบใช้ยอดรวมเอง`,
+      [{ field: 'amount', reason: new Prisma.Decimal(total).toFixed(2) }],
+    );
+  }
 }
 
 function digits(value: string | null | undefined): string | null {

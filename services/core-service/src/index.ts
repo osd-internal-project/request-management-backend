@@ -62,3 +62,6 @@ export * from './crm/dto/sales.dto';
 export * from './crm/dto/quotation.dto';
 export * from './crm/dto/lead-intake.dto';
 export * from './crm/dto/lead-workflow.dto';
+
+// ERP config parsing — external-service builds the same `erp.b1` block.
+export { parseCompanyDbs } from './erp/sap-b1.config';

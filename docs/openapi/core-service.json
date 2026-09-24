@@ -2659,7 +2659,7 @@
     },
     "/api/v1/customers/{id}/external-codes": {
       "get": {
-        "description": "Odoo และระบบสายบัญชี — งานของผู้ดูแล",
+        "description": "SAP และระบบสายบัญชี — งานของผู้ดูแล",
         "operationId": "CustomersController_externalCodes",
         "parameters": [
           {

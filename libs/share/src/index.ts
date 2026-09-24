@@ -8,5 +8,6 @@ export * from './org';
 export * from './policy';
 export * from './repositories';
 export * from './run-number';
+export * from './storage';
 export * from './audit/audit-writer.service';
 export * from './audit/audit.module';

@@ -1,3 +1,5 @@
+import { parseCompanyDbs } from '../erp/sap-b1.config';
+
 export default () => ({
   env: process.env.NODE_ENV ?? 'local',
   port: Number(process.env.CORE_SERVICE_PORT ?? process.env.PORT ?? 3002),
@@ -65,19 +67,37 @@ export default () => ({
    * Dashboard ids come from the Metabase URL after each dashboard is created.
    */
   /**
-   * CM-06/D-30 — the Odoo integration layer. `mode=mock` (default) runs the
-   * in-memory stand-in so every environment works before the sandbox exists;
-   * point `mode=http` + the four credentials at the sandbox when it arrives.
-   * Intervals in ms; 0 disables the background timers (tests).
+   * CM-06/D-30 — the ERP (SAP B1) integration layer. `mode=mock` (default)
+   * runs the in-memory stand-in so every environment works end-to-end;
+   * `mode=sapb1` talks to the Service Layer below. Intervals in ms; 0
+   * disables the background timers (tests).
    */
-  odoo: {
-    mode: process.env.ODOO_MODE ?? 'mock',
-    baseUrl: process.env.ODOO_BASE_URL ?? '',
-    db: process.env.ODOO_DB ?? '',
-    uid: Number(process.env.ODOO_UID ?? 0),
-    apiKey: process.env.ODOO_API_KEY ?? '',
-    retryIntervalMs: Number(process.env.ODOO_RETRY_INTERVAL_MS ?? 300000),
-    refreshIntervalMs: Number(process.env.ODOO_REFRESH_INTERVAL_MS ?? 3600000),
+  erp: {
+    mode: process.env.ERP_MODE ?? 'mock',
+    retryIntervalMs: Number(process.env.ERP_RETRY_INTERVAL_MS ?? 300000),
+    refreshIntervalMs: Number(process.env.ERP_REFRESH_INTERVAL_MS ?? 3600000),
+    /** CD-27 — ดึงรายการสินค้าจาก SAP (และครั้งแรก ~15 วินาทีหลัง start). */
+    itemsRefreshIntervalMs: Number(
+      process.env.ERP_ITEMS_REFRESH_INTERVAL_MS ?? 3600000,
+    ),
+    /**
+     * ERP_MODE=sapb1 — SAP Business One Service Layer (on-premise).
+     * ERP_B1_COMPANY_DBS maps `companies.code` to a CompanyDB:
+     * `OSD=SBO_OSD,LEXTECH=SBO_LEX`. A self-signed Service Layer certificate
+     * is trusted through ERP_B1_CA_FILE; ERP_B1_TLS_INSECURE is the last resort.
+     */
+    b1: {
+      baseUrl: process.env.ERP_B1_BASE_URL ?? '',
+      username: process.env.ERP_B1_USERNAME ?? '',
+      password: process.env.ERP_B1_PASSWORD ?? '',
+      companyDbs: parseCompanyDbs(process.env.ERP_B1_COMPANY_DBS),
+      serviceItemCode: process.env.ERP_B1_SERVICE_ITEM || undefined,
+      warehouseCode: process.env.ERP_B1_WAREHOUSE || undefined,
+      vatGroup: process.env.ERP_B1_VAT_GROUP || undefined,
+      caFile: process.env.ERP_B1_CA_FILE || undefined,
+      tlsInsecure: process.env.ERP_B1_TLS_INSECURE === 'true',
+      timeoutMs: Number(process.env.ERP_B1_TIMEOUT_MS ?? 30000),
+    },
   },
 
   /**
@@ -121,6 +141,22 @@ export default () => ({
       requestOverview: Number(process.env.METABASE_DASHBOARD_REQUEST ?? 0),
       approval: Number(process.env.METABASE_DASHBOARD_APPROVAL ?? 0),
       sla: Number(process.env.METABASE_DASHBOARD_SLA ?? 0),
+    },
+  },
+
+  /**
+   * ที่เก็บไฟล์แนบ (REQ-03) — `minio` ต่อ MinIO จริง · `memory` เก็บใน process
+   * ใช้ตอน dev/test ที่ไม่มี MinIO. S3 เจ้าอื่นในอนาคต = เพิ่ม mode ใหม่ใน libs/share.
+   */
+  storage: {
+    mode: process.env.STORAGE_MODE ?? 'minio',
+    minio: {
+      endPoint: process.env.MINIO_ENDPOINT ?? '',
+      port: Number(process.env.MINIO_PORT ?? 9000),
+      useSSL: process.env.MINIO_USE_SSL === 'true',
+      accessKey: process.env.MINIO_ACCESSKEY ?? '',
+      secretKey: process.env.MINIO_SECRETKEY ?? '',
+      bucket: process.env.MINIO_BUCKET ?? '',
     },
   },
 });

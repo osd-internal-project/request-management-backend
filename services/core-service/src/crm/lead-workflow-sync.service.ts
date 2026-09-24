@@ -29,7 +29,7 @@ function message(error: unknown): string {
  * เปิด instance ของ `lwf-0001` ให้ Lead ทุกใบที่รับเข้ามา — จุดเชื่อมเดียวจาก
  * ฝั่งข้อมูลไปหาฝั่ง process.
  *
- * โครงเหมือน `CustomerOdooSyncService` ทุกประการ และด้วยเหตุผลเดียวกัน:
+ * โครงเหมือน `CustomerErpSyncService` ทุกประการ และด้วยเหตุผลเดียวกัน:
  *
  *   - `kickLead` ยิง **หลังทรานแซกชัน commit** ไม่เคยยิงข้างใน — workflow ที่
  *     ช้าต้องไม่ถือทรานแซกชันฐานข้อมูลค้างไว้;
@@ -125,7 +125,7 @@ export class LeadWorkflowSyncService implements OnModuleInit, OnModuleDestroy {
     return started.instanceId;
   }
 
-  /** รอบกวาดคิว — เหมือน Odoo: ทำทีละใบ ไม่ให้ใบเดียวล้มลากทั้งรอบ. */
+  /** รอบกวาดคิว — เหมือน SAP: ทำทีละใบ ไม่ให้ใบเดียวล้มลากทั้งรอบ. */
   async processQueue(): Promise<void> {
     const due = (await this.jobs.findMany({
       where: {
