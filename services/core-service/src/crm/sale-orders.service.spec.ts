@@ -80,6 +80,7 @@ describe('CRM โอกาสการขาย — เปิดได้โด�
         Promise.resolve({ id: 'cust-1', nameTh: 'บริษัท กขค จำกัด' }),
       ),
     };
+    const catalog = { assertCodes: jest.fn(() => Promise.resolve()) };
     const service = new OpportunitiesService(
       opportunities as never,
       { createMany: jest.fn() } as never,
@@ -98,8 +99,9 @@ describe('CRM โอกาสการขาย — เปิดได้โด�
           work({}),
         ),
       } as never,
+      catalog as never,
     );
-    return { service, opportunities, customers, audit, timeline };
+    return { service, opportunities, customers, audit, timeline, catalog };
   }
 
   it('ไม่มีทั้ง customer_id และ prospect_name = VALIDATION_FAILED', async () => {
@@ -172,6 +174,36 @@ describe('CRM โอกาสการขาย — เปิดได้โด�
   it('ไม่มี win() แล้ว — ปิดชนะเกิดจากการเปิดใบสั่งขายเท่านั้น', () => {
     const { service } = harness();
     expect((service as unknown as { win?: unknown }).win).toBeUndefined();
+  });
+
+  it('CD-27 product ที่เกี่ยวข้องต้องเป็นรหัสจากรายการสินค้า SAP — ไม่ผ่าน = ไม่สร้างโอกาสการขาย', async () => {
+    const ok = harness();
+    await ok.service.create(
+      {
+        title: 'SIP',
+        customer_id: 'cust-1',
+        product_codes: ['SIP-TRUNK', 'HEADSET'],
+      },
+      principal(),
+    );
+    expect(ok.catalog.assertCodes).toHaveBeenCalledWith('osd', [
+      { code: 'SIP-TRUNK', field: 'product_codes[0]' },
+      { code: 'HEADSET', field: 'product_codes[1]' },
+    ]);
+
+    const rejected = harness();
+    rejected.catalog.assertCodes.mockRejectedValueOnce(
+      Object.assign(new Error('unknown'), {
+        code: 'VALIDATION_FAILED',
+      }),
+    );
+    await expect(
+      rejected.service.create(
+        { title: 'x', customer_id: 'cust-1', product_codes: ['TYPO'] },
+        principal(),
+      ),
+    ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+    expect(rejected.opportunities.create).not.toHaveBeenCalled();
   });
 });
 

@@ -24,6 +24,7 @@ import {
   UpdateSegmentValueDto,
 } from './dto/customer.dto';
 import { KycProductRuleRepository } from './kyc-product.repository';
+import { ProductCatalogService } from './product-catalog.service';
 
 /**
  * CM-07 + CM-02/03 configuration — the admin surface behind
@@ -41,6 +42,7 @@ export class CrmAdminService {
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
     private readonly kycProducts: KycProductRuleRepository,
+    private readonly catalog: ProductCatalogService,
   ) {}
 
   // --- segmentation (CM-07) ------------------------------------------------
@@ -315,6 +317,12 @@ export class CrmAdminService {
   }
 
   async createKycProduct(dto: CreateKycProductDto, actor: Principal) {
+    // CD-27: เงื่อนไข KYC ผูกกับรหัสที่ SAP รู้จัก — รหัสสะกดผิดจะไม่มีวันตรงกับ
+    // product บนโอกาสการขาย/ใบเสนอราคา และการเตือนจะเงียบไป
+    await this.catalog.assertCodes(actor.activeCompanyId, [
+      { code: dto.product_code, field: 'product_code' },
+    ]);
+
     const clash = (await this.kycProducts.findFirst({
       where: {
         companyId: actor.activeCompanyId,

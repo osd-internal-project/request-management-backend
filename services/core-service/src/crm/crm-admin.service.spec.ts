@@ -51,6 +51,7 @@ function harness() {
     audit as never,
     transactions as never,
     {} as never,
+    { assertCodes: jest.fn(() => Promise.resolve()) } as never,
   );
   return { service, upserts, audits };
 }
