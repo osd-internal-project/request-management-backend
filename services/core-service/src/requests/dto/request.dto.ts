@@ -327,6 +327,19 @@ export class RequiredDocDto extends CodedLabelDto {
   required?: boolean;
 }
 
+/** One entry of `subRequestTypes`: a child type raised under the request. */
+export class SubRequestTypeDto {
+  @ApiProperty({ example: 'IT_ACCOUNT' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(32)
+  code!: string;
+
+  @ApiProperty({ example: true })
+  @IsBoolean()
+  required!: boolean;
+}
+
 /**
  * REQ-01 — a request type, authored from screen A2.
  *
@@ -399,6 +412,13 @@ export class CreateRequestTypeDto {
   @ValidateNested({ each: true })
   @Type(() => CodedLabelDto)
   return_reason_codes?: CodedLabelDto[];
+
+  @ApiPropertyOptional({ type: [SubRequestTypeDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SubRequestTypeDto)
+  sub_request_types?: SubRequestTypeDto[];
 
   @ApiPropertyOptional({ description: 'How APV-02 derives the chain.' })
   @IsOptional()
@@ -510,6 +530,13 @@ export class UpdateRequestTypeDto {
   @ValidateNested({ each: true })
   @Type(() => CodedLabelDto)
   return_reason_codes?: CodedLabelDto[];
+
+  @ApiPropertyOptional({ type: [SubRequestTypeDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SubRequestTypeDto)
+  sub_request_types?: SubRequestTypeDto[];
 
   @ApiPropertyOptional()
   @IsOptional()

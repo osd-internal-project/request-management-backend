@@ -97,6 +97,22 @@ Mark a field **ฟิลด์อ่อนไหว** to hide it from anyone wit
 `request.sensitive.read`. The field is *removed from the API response*, not
 hidden with styling — it cannot be read from the page source (SCOPE-04).
 
+**คำขอย่อยที่ต้องสร้าง** lists the child types a receiver raises under a
+request of this type. Each entry is either **บังคับ** or optional:
+
+- The receiver sees the list as a banner on the request, with a สร้าง button
+  per entry that opens the new-request form with the parent and type filled in.
+- `complete` answers `409 REQ_SUB_REQUEST_MISSING` while a required entry has
+  no child. A cancelled child does not count. The existing rule still applies:
+  every child must be closed first (`REQ_CHILDREN_OPEN`).
+- A type on the list may be raised from its parent even by someone outside its
+  eligible groups.
+- A type that another type lists cannot be deleted (`REQ_TYPE_IN_USE`).
+- The list is part of `typeSnapshot`, so editing it affects new requests only.
+  Requests submitted before the list existed have none.
+
+This is an addition to the source specification, not part of §16 A2.
+
 ### 7. SLA — `sla-configs`
 
 Hours per type per company, with a warning lead time (D-09). The clock starts

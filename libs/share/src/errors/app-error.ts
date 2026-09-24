@@ -30,6 +30,8 @@ export const ErrorCatalog = {
    * once the children close.
    */
   REQ_CHILDREN_OPEN: HttpStatus.CONFLICT,
+  /** A required sub request from the type's checklist was never raised. */
+  REQ_SUB_REQUEST_MISSING: HttpStatus.CONFLICT,
   REQ_TYPE_INACTIVE: HttpStatus.UNPROCESSABLE_ENTITY,
   ORG_SUPERVISOR_MISSING: HttpStatus.UNPROCESSABLE_ENTITY,
   APV_NOT_YOUR_TURN: HttpStatus.CONFLICT,
