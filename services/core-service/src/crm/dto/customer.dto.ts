@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
 import {
+  IsDateString,
   ArrayMaxSize,
   IsArray,
   IsBoolean,
@@ -352,12 +353,13 @@ export class UpsertExternalCodeDto {
 }
 
 export class TimelineQueryDto {
+  /** ISO 8601 — a malformed date is a 400, not an `Invalid Date` query. */
   @IsOptional()
-  @IsString()
+  @IsDateString()
   from?: string;
 
   @IsOptional()
-  @IsString()
+  @IsDateString()
   to?: string;
 
   @IsOptional()
