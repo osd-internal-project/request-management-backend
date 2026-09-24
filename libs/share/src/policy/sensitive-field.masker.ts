@@ -72,22 +72,80 @@ export class SensitiveFieldMasker {
    * lookup that tells it which resource a handler returns.
    */
   mask(resource: string, body: unknown, principal: Principal): unknown {
-    const prefix = `${resource}.`;
-    const declared = principal.sensitiveFieldsAll
-      .filter((entry) => entry.startsWith(prefix))
-      .map((entry) => entry.slice(prefix.length));
+    if (resource.includes('{'))
+      return this.maskPerRow(resource, body, principal);
+
+    return this.maskMatching(
+      (entryResource) => entryResource === resource,
+      resource,
+      body,
+      principal,
+    );
+  }
+
+  /** The rules whose resource satisfies `applies`, applied to `body`. */
+  private maskMatching(
+    applies: (entryResource: string) => boolean,
+    resource: string,
+    body: unknown,
+    principal: Principal,
+  ): unknown {
+    const fieldsOf = (entries: readonly string[]) =>
+      entries.flatMap((entry) => {
+        const dot = entry.lastIndexOf('.');
+        return dot > 0 && applies(entry.slice(0, dot))
+          ? [entry.slice(dot + 1)]
+          : [];
+      });
+
+    const declared = [...new Set(fieldsOf(principal.sensitiveFieldsAll))];
 
     if (!declared.length) return body;
 
-    const visible = new Set(
-      principal.sensitiveFieldsVisible
-        .filter((entry) => entry.startsWith(prefix))
-        .map((entry) => entry.slice(prefix.length)),
-    );
+    const visible = new Set(fieldsOf(principal.sensitiveFieldsVisible));
 
     const masked = declared.filter((field) => !visible.has(field));
 
     return this.apply(body, masked, [...visible], resource, principal);
+  }
+
+  /**
+   * A resource naming a row field — `request:{typeCode}` — resolves per row.
+   *
+   * Masking rules are configured per request type, and one list holds many
+   * types. A fixed `request:DSC` on the list would mask DSC rows and leave
+   * every other type's configured fields in the clear; a fixed one on the
+   * detail route did exactly that for any type but DSC (CD-127).
+   *
+   * Stays a string so the OpenAPI/MCP catalogue carries it unchanged and the
+   * MCP door masks the same way the HTTP one does.
+   */
+  private maskPerRow(
+    template: string,
+    body: unknown,
+    principal: Principal,
+  ): unknown {
+    const one = (row: unknown): unknown => {
+      if (!isPlainObject(row)) return row;
+      const resolved = resolveTemplate(template, row);
+      if (resolved) return this.mask(resolved, row, principal);
+
+      // A row the template cannot name gets every rule under the prefix —
+      // failing closed, since not knowing the type is no reason to show it.
+      const prefix = template.slice(0, template.indexOf('{'));
+      return this.maskMatching(
+        (entryResource) => entryResource.startsWith(prefix),
+        template,
+        row,
+        principal,
+      );
+    };
+
+    if (Array.isArray(body)) return body.map(one);
+    if (isPlainObject(body) && Array.isArray(body.data)) {
+      return { ...body, data: body.data.map(one) };
+    }
+    return one(body);
   }
 
   private apply(
@@ -212,4 +270,22 @@ export class SensitiveFieldMasker {
     // Fire-and-forget: an audit write must not fail the read it describes.
     void this.recorder.recordSensitiveRead(principal, resource, id, seen);
   }
+}
+
+/** `request:{typeCode}` + a row → `request:DSC`; null when the row lacks it. */
+function resolveTemplate(
+  template: string,
+  row: Record<string, unknown>,
+): string | null {
+  let missing = false;
+  const resolved = template.replace(/\{(\w+)\}/g, (_, key: string) => {
+    const snake = key.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
+    const value = row[key] ?? row[snake];
+    if (typeof value !== 'string' || !value) {
+      missing = true;
+      return '';
+    }
+    return value;
+  });
+  return missing ? null : resolved;
 }

@@ -439,9 +439,10 @@ export class QuotationsService {
             discount_pct: Number(overallDiscountPct(totals).toFixed(2)),
             est_margin_pct:
               marginPct === null ? 0 : Number(marginPct.toFixed(2)),
-            reason: `${label(found)} · margin ${
-              marginPct?.toFixed(2) ?? '—'
-            }% ต่ำกว่าเกณฑ์ ${config.minMarginPct}% — ${reason}`,
+            // The margin itself travels only in `est_margin_pct`, which the
+            // masking rule covers; repeating it in free text leaked it to
+            // everyone who can read the request (CD-127).
+            reason: `${label(found)} · margin ต่ำกว่าเกณฑ์ ${config.minMarginPct}% — ${reason}`,
           },
         },
         actor,

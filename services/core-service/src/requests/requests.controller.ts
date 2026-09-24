@@ -181,9 +181,13 @@ export class RequestsController {
     return this.requests.submit(id, principal, authorization);
   }
 
-  /** REQ-08 — งานค้างของฉัน (§16 หน้าที่ 2). */
+  /**
+   * REQ-08 — งานค้างของฉัน (§16 หน้าที่ 2). Each row is masked by its own
+   * type's rules (CD-127): one list holds many request types.
+   */
   @Get('requests')
   @Permissions('request.read')
+  @SensitiveResource('request:{typeCode}')
   list(
     @CurrentPrincipal() principal: Principal,
     @Query() query: ListRequestsQueryDto,
@@ -191,10 +195,14 @@ export class RequestsController {
     return this.requests.list(principal, query);
   }
 
-  /** Margin is stripped for callers without `request.sensitive.read`. */
+  /**
+   * Fields a masking rule declares for this request's type are stripped for
+   * callers without its permission — the type read off the row, not fixed to
+   * DSC, so a rule an admin adds for another type takes effect here too.
+   */
   @Get('requests/:id')
   @Permissions('request.read')
-  @SensitiveResource('request:DSC')
+  @SensitiveResource('request:{typeCode}')
   findOne(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
     return this.requests.findOne(id, principal);
   }
