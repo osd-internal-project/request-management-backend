@@ -1,3 +1,9 @@
+import {
+  accessSubject,
+  salesAccessSubject,
+  visibleRequestsWhere,
+  visibleSalesWhere,
+} from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import { CustomersService } from './customers.service';
 import type {
@@ -11,7 +17,11 @@ const ME = 'user-me';
 // 1234567890121 passes the 13-digit checksum; …0 does not (see customer-name.spec).
 const VALID_TAX_ID = '1234567890121';
 
-function principal(permissions: string[] = ['crm.customer.manage']): Principal {
+function principal(
+  permissions: string[] = ['crm.customer.manage'],
+  /** Whether the seeded `customer.taxId` rule lets this caller see it. */
+  seesTaxId = true,
+): Principal {
   return {
     userId: ME,
     activeCompanyId: OSD,
@@ -21,6 +31,8 @@ function principal(permissions: string[] = ['crm.customer.manage']): Principal {
     ledUnitIds: [],
     scopedUnitIds: [],
     permissions,
+    sensitiveFieldsAll: ['customer.taxId'],
+    sensitiveFieldsVisible: seesTaxId ? ['customer.taxId'] : [],
     isServiceAccount: false,
   } as unknown as Principal;
 }
@@ -72,6 +84,7 @@ interface Harness {
     create: jest.Mock;
     update: jest.Mock;
     findDetail: jest.Mock;
+    search: jest.Mock;
   };
   requestCount: jest.Mock;
   /** C360-04 — the ยอดค้างชำระ cache read, asserted *not* to run without permission. */
@@ -89,6 +102,8 @@ function harness(options: {
   erpLive?: boolean;
   /** payload ใน customer_external_codes ที่รอบ sync เติมไว้. */
   erpPayload?: Record<string, unknown>;
+  /** CM-01 field-history rows the history read returns. */
+  history?: Record<string, unknown>[];
 }): Harness {
   const audits: Harness['audits'] = [];
   const timelineEvents: Harness['timelineEvents'] = [];
@@ -139,7 +154,7 @@ function harness(options: {
         fieldChangeRows.push(...rows);
         return Promise.resolve({ count: rows.length });
       }),
-      findMany: jest.fn(() => Promise.resolve([])),
+      findMany: jest.fn(() => Promise.resolve(options.history ?? [])),
     } as never,
     { findMany: jest.fn(() => Promise.resolve([])) } as never,
     {
@@ -462,6 +477,38 @@ describe('C360-01 summary — ตัวเลขการ์ดหน้า 360�
     expect(summary.financials).toBeNull();
   });
 
+  it('CM-08/SCOPE-02 the card counts use the very filter the tabs use — compared, not assumed', async () => {
+    const { service, requestCount, opportunityCount } = harness({});
+    const viewer = principal([
+      'crm.customer.read',
+      'request.read',
+      'crm.sales.read',
+    ]);
+
+    await service.summaryOf('cust-1', viewer);
+
+    type Counted = { where: { AND: unknown[] } };
+    const requestWheres = (requestCount.mock.calls as [Counted][]).map(
+      ([args]) => args.where,
+    );
+    // total, and open = total's where AND a status filter
+    expect(requestWheres[0]).toEqual({
+      AND: [
+        visibleRequestsWhere(accessSubject(viewer)),
+        { refType: 'customer', refId: 'cust-1' },
+      ],
+    });
+    expect(requestWheres[1].AND[0]).toEqual(requestWheres[0]);
+
+    const [[opportunityArgs]] = opportunityCount.mock.calls as [Counted][];
+    expect(opportunityArgs.where.AND[0]).toEqual({
+      AND: [
+        visibleSalesWhere(salesAccessSubject(viewer)),
+        { customerId: 'cust-1' },
+      ],
+    });
+  });
+
   it('C360-04 a viewer without request.read gets null, not a number that 403s on click', async () => {
     const { service, requestCount } = harness({});
 
@@ -581,5 +628,154 @@ describe('CM-05 consent badge — อ่านสดจากระบบ PDPA �
       phone: null,
       doNotCall: false,
     });
+  });
+});
+
+describe('CM-08 เลขผู้เสียภาษีไม่หลุดถึงคนที่ไม่มี crm.customer.sensitive.read', () => {
+  const checked: DuplicateCheckResult = {
+    duplicate: similar({ id: 'cust-dup', taxId: VALID_TAX_ID, similarity: 1 }),
+    headOffice: similar({ id: 'cust-hq', taxId: VALID_TAX_ID }),
+    similar: [similar({ taxId: '3101234567891' })],
+    threshold: 0.85,
+  };
+  const dto = { name_th: 'บริษัท กขค จำกัด', tax_id: VALID_TAX_ID };
+
+  it('check-duplicate: ไม่มีสิทธิ์ = ไม่มีเลขภาษีในทุกแถว แต่ยังบอกว่าซ้ำกับใคร', async () => {
+    const { service } = harness({ checkResult: checked });
+
+    const result = await service.checkDuplicate(
+      dto,
+      principal(['crm.customer.read'], false),
+    );
+
+    expect(result.duplicate).toMatchObject({ id: 'cust-dup' });
+    expect(result.headOffice).toMatchObject({ id: 'cust-hq' });
+    expect(result.similar).toHaveLength(1);
+    for (const row of [
+      result.duplicate,
+      result.headOffice,
+      ...result.similar,
+    ]) {
+      expect(row).not.toHaveProperty('taxId');
+    }
+  });
+
+  it('check-duplicate: มีสิทธิ์ = ได้ครบ', async () => {
+    const { service } = harness({ checkResult: checked });
+
+    const result = await service.checkDuplicate(dto, principal());
+
+    expect(result).toEqual(checked);
+  });
+
+  it('history: เห็นว่าเลขภาษีถูกแก้เมื่อไร แต่ไม่เห็นค่าก่อน/หลัง; ฟิลด์อื่นเห็นปกติ', async () => {
+    const { service } = harness({
+      history: [
+        {
+          field: 'taxId',
+          before: '3101234567891',
+          after: VALID_TAX_ID,
+          changedBy: null,
+        },
+        { field: 'nameTh', before: 'เก่า', after: 'ใหม่', changedBy: null },
+      ],
+    });
+
+    const rows = await service.history(
+      'cust-1',
+      principal(['crm.customer.read'], false),
+    );
+
+    expect(rows[0]).toEqual({
+      field: 'taxId',
+      changedBy: null,
+      changedByName: null,
+    });
+    expect(rows[1]).toMatchObject({ before: 'เก่า', after: 'ใหม่' });
+  });
+
+  it('history: มีสิทธิ์ = เห็นค่าเลขภาษีก่อน/หลัง', async () => {
+    const { service } = harness({
+      history: [{ field: 'taxId', before: 'a', after: 'b', changedBy: null }],
+    });
+
+    const rows = await service.history('cust-1', principal());
+
+    expect(rows[0]).toMatchObject({ before: 'a', after: 'b' });
+  });
+
+  function taxIdClause(search: jest.Mock): unknown {
+    const [[where]] = search.mock.calls as [
+      {
+        AND: [unknown, { OR: Record<string, unknown>[] }];
+      },
+    ][];
+    return where.AND[1].OR.find((clause) => 'taxId' in clause)?.taxId;
+  }
+
+  it('ค้นรายการ: ไม่มีสิทธิ์ = เลขภาษีต้องตรงทั้งเลข ค้นบางส่วนไม่ได้', async () => {
+    const h = harness({});
+
+    await h.service.list(principal(['crm.customer.read'], false), {
+      search: '31012',
+    } as never);
+
+    expect(taxIdClause(h.customers.search)).toBe('31012');
+  });
+
+  it('ค้นรายการ: มีสิทธิ์ = ค้นเลขภาษีบางส่วนได้', async () => {
+    const h = harness({});
+
+    await h.service.list(principal(), { search: '31012' } as never);
+
+    expect(taxIdClause(h.customers.search)).toEqual({ contains: '31012' });
+  });
+});
+
+/**
+ * SCOPE-03 — every `:id` route answers 404 for a customer the caller cannot
+ * reach (another company, or outside their book), and writes nothing first.
+ * `findDetail` returning null is what the scoped, company-pinned lookup
+ * answers in that case.
+ */
+describe('SCOPE-03 every :id customer route answers 404 out of reach', () => {
+  const p = () => principal(['crm.customer.manage', 'admin.crm.manage']);
+  const routes: [string, (s: Harness['service']) => Promise<unknown>][] = [
+    ['findOne', (s) => s.findOne('x', p())],
+    ['contactConsents', (s) => s.contactConsents('x', p())],
+    ['summaryOf', (s) => s.summaryOf('x', p())],
+    ['update', (s) => s.update('x', { name_th: 'y' }, p())],
+    ['activate', (s) => s.activate('x', p())],
+    ['suspend', (s) => s.suspend('x', 'เหตุผล', p())],
+    ['deactivate', (s) => s.deactivate('x', 'เหตุผล', p())],
+    ['addLocation', (s) => s.addLocation('x', {} as never, p())],
+    ['updateLocation', (s) => s.updateLocation('x', 'l', {} as never, p())],
+    ['removeLocation', (s) => s.removeLocation('x', 'l', p())],
+    ['addContact', (s) => s.addContact('x', {} as never, p())],
+    ['updateContact', (s) => s.updateContact('x', 'c', {} as never, p())],
+    ['removeContact', (s) => s.removeContact('x', 'c', p())],
+    ['setSegments', (s) => s.setSegments('x', { segment_value_ids: [] }, p())],
+    ['history', (s) => s.history('x', p())],
+    ['timelineOf', (s) => s.timelineOf('x', p(), {})],
+    ['listExternalCodes', (s) => s.listExternalCodes('x', p())],
+    ['upsertExternalCode', (s) => s.upsertExternalCode('x', {} as never, p())],
+  ];
+
+  it.each(routes)('%s', async (_name, call) => {
+    const h = harness({ detail: null });
+
+    await expect(call(h.service)).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    expect(h.customers.update).not.toHaveBeenCalled();
+    expect(h.audits).toHaveLength(0);
+    expect(h.timelineEvents).toHaveLength(0);
+  });
+
+  it('the lookup behind them is pinned to the caller’s company', async () => {
+    const h = harness({ detail: null });
+
+    await h.service.findOne('x', p()).catch(() => undefined);
+
+    const [[lookup]] = h.customers.findDetail.mock.calls as [unknown][];
+    expect(JSON.stringify(lookup)).toContain(`"companyId":"${OSD}"`);
   });
 });

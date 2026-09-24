@@ -179,6 +179,7 @@ export class ExternalCustomersController {
       'เลขภาษีเดียวกันคนละสาขาถูกผูกเป็นสาขาให้เอง',
   })
   @Post()
+  @SensitiveResource('customer')
   @Permissions('integration.crm.customer.manage')
   @ActingPermissions('crm.customer.manage')
   create(
@@ -233,6 +234,7 @@ export class ExternalCustomersController {
     description: 'ทุกฟิลด์ที่เปลี่ยนถูกบันทึกลงประวัติใน transaction เดียวกัน',
   })
   @Patch(':id')
+  @SensitiveResource('customer')
   @Permissions('integration.crm.customer.manage')
   @ActingPermissions('crm.customer.manage')
   update(
@@ -252,6 +254,7 @@ export class ExternalCustomersController {
       'CRM_CUSTOMER_STATE_INVALID',
   })
   @Post(':id/activate')
+  @SensitiveResource('customer')
   @Permissions('integration.crm.customer.manage')
   @ActingPermissions('crm.customer.manage')
   activate(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
@@ -263,6 +266,7 @@ export class ExternalCustomersController {
     description: 'ทำได้จาก active เท่านั้น',
   })
   @Post(':id/suspend')
+  @SensitiveResource('customer')
   @Permissions('integration.crm.customer.manage')
   @ActingPermissions('crm.customer.manage')
   suspend(
@@ -278,6 +282,7 @@ export class ExternalCustomersController {
     description: 'ปิดแล้วกลับไป draft ไม่ได้ กลับได้แค่ active',
   })
   @Post(':id/deactivate')
+  @SensitiveResource('customer')
   @Permissions('integration.crm.customer.manage')
   @ActingPermissions('crm.customer.manage')
   deactivate(
@@ -392,6 +397,7 @@ export class ExternalCustomersController {
     description: 'แทนที่ทั้งชุด ไม่ใช่เพิ่มทีละค่า',
   })
   @Put(':id/segments')
+  @SensitiveResource('customer')
   @Permissions('integration.crm.customer.manage')
   @ActingPermissions('crm.customer.manage')
   setSegments(
