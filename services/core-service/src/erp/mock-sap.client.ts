@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import {
   ErpClient,
+  ErpContext,
   ErpCustomerPayload,
   ErpReceivables,
   ErpSalesOrderPayload,
@@ -23,7 +24,10 @@ export class MockSapClient implements ErpClient {
     { payload: ErpSalesOrderPayload; cancelled: boolean }
   >();
 
-  findCustomer(customerCode: string): Promise<{ externalCode: string } | null> {
+  findCustomer(
+    _ctx: ErpContext,
+    customerCode: string,
+  ): Promise<{ externalCode: string } | null> {
     const externalCode = bpOf(customerCode);
     return Promise.resolve(
       this.partners.has(externalCode) ? { externalCode } : null,
@@ -31,6 +35,7 @@ export class MockSapClient implements ErpClient {
   }
 
   createCustomer(
+    _ctx: ErpContext,
     payload: ErpCustomerPayload,
   ): Promise<{ externalCode: string }> {
     // Stable across restarts: derived from the customerCode, not a counter.
@@ -43,6 +48,7 @@ export class MockSapClient implements ErpClient {
   }
 
   updateCustomer(
+    _ctx: ErpContext,
     externalCode: string,
     payload: ErpCustomerPayload,
   ): Promise<void> {
@@ -53,7 +59,10 @@ export class MockSapClient implements ErpClient {
     return Promise.resolve();
   }
 
-  getReceivables(externalCode: string): Promise<ErpReceivables> {
+  getReceivables(
+    _ctx: ErpContext,
+    externalCode: string,
+  ): Promise<ErpReceivables> {
     const seed = seedOf(externalCode);
     return Promise.resolve({
       outstanding: (seed % 8) * 12500,
@@ -63,6 +72,7 @@ export class MockSapClient implements ErpClient {
   }
 
   findSalesOrder(
+    _ctx: ErpContext,
     saleOrderCode: string,
   ): Promise<{ externalCode: string } | null> {
     const externalCode = orderNoOf(saleOrderCode);
@@ -72,6 +82,7 @@ export class MockSapClient implements ErpClient {
   }
 
   createSalesOrder(
+    _ctx: ErpContext,
     payload: ErpSalesOrderPayload,
   ): Promise<{ externalCode: string }> {
     const externalCode = orderNoOf(payload.saleOrderCode);
@@ -82,10 +93,14 @@ export class MockSapClient implements ErpClient {
     return Promise.resolve({ externalCode });
   }
 
-  cancelSalesOrder(externalCode: string, reason: string): Promise<void> {
-    const order = this.orders.get(externalCode);
+  cancelSalesOrder(
+    _ctx: ErpContext,
+    target: { externalCode: string; saleOrderCode: string },
+    reason: string,
+  ): Promise<void> {
+    const order = this.orders.get(target.externalCode);
     if (order) order.cancelled = true;
-    this.logger.log(`mock SAP cancel SO ${externalCode}: ${reason}`);
+    this.logger.log(`mock SAP cancel SO ${target.externalCode}: ${reason}`);
     return Promise.resolve();
   }
 }

@@ -10,6 +10,7 @@ function harness(options: { erpDown?: boolean; bpInSap?: string } = {}) {
       Promise.resolve({
         id: 'cust-1',
         companyId: 'osd',
+        company: { code: 'OSD' },
         customerCode: 'CUS-OSD-000001',
         nameTh: 'บริษัท กขค จำกัด',
         taxId: '0107536001079',
@@ -34,7 +35,11 @@ function harness(options: { erpDown?: boolean; bpInSap?: string } = {}) {
     findFirst: jest.fn(() => Promise.resolve(externalRows[0] ?? null)),
     findMany: jest.fn(() => Promise.resolve([])),
     create: jest.fn((args: { data: Record<string, unknown> }) => {
-      externalRows.push({ id: 'ext-1', ...args.data });
+      externalRows.push({
+        id: 'ext-1',
+        customer: { company: { code: 'OSD' } },
+        ...args.data,
+      });
       return Promise.resolve(externalRows[0]);
     }),
     update: jest.fn((args: { data: Record<string, unknown> }) => {
@@ -138,9 +143,13 @@ describe('CM-06 SAP sync — สร้างแล้วได้เลขทั
     const externalCode = await service.syncCustomer('cust-1');
 
     expect(externalCode).toBe('BP-0001');
-    expect(calls.findCustomer).toHaveBeenCalledWith('CUS-OSD-000001');
+    expect(calls.findCustomer).toHaveBeenCalledWith(
+      { companyCode: 'OSD' },
+      'CUS-OSD-000001',
+    );
     expect(calls.createCustomer).not.toHaveBeenCalled();
     expect(calls.updateCustomer).toHaveBeenCalledWith(
+      { companyCode: 'OSD' },
       'BP-0001',
       expect.objectContaining({ customerCode: 'CUS-OSD-000001' }),
     );

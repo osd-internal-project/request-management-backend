@@ -108,6 +108,7 @@ export class CustomerErpSyncService implements OnModuleInit, OnModuleDestroy {
     const customer = (await this.customers.findFirst({
       where: { id: customerId, mergedIntoCustomerId: null },
       include: {
+        company: { select: { code: true } },
         locations: {
           where: { active: true },
           orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }],
@@ -126,6 +127,7 @@ export class CustomerErpSyncService implements OnModuleInit, OnModuleDestroy {
     }
 
     const payload = toErpPayload(customer);
+    const ctx = { companyCode: customer.company.code };
 
     const existing = (await this.externalCodes.findFirst({
       where: { customerId, system: SYSTEM },
@@ -134,7 +136,7 @@ export class CustomerErpSyncService implements OnModuleInit, OnModuleDestroy {
     let externalCode: string;
     if (existing) {
       externalCode = existing.externalCode;
-      await this.erp.updateCustomer(externalCode, payload);
+      await this.erp.updateCustomer(ctx, externalCode, payload);
       await this.externalCodes.update({
         where: { id: existing.id },
         data: { payload: withPushed(existing.payload, payload) },
@@ -142,12 +144,12 @@ export class CustomerErpSyncService implements OnModuleInit, OnModuleDestroy {
     } else {
       // SAP does not dedupe for us: an earlier attempt may have created the
       // BP and then timed out before we stored its number.
-      const found = await this.erp.findCustomer(payload.customerCode);
+      const found = await this.erp.findCustomer(ctx, payload.customerCode);
       if (found) {
         externalCode = found.externalCode;
-        await this.erp.updateCustomer(externalCode, payload);
+        await this.erp.updateCustomer(ctx, externalCode, payload);
       } else {
-        ({ externalCode } = await this.erp.createCustomer(payload));
+        ({ externalCode } = await this.erp.createCustomer(ctx, payload));
       }
       await this.externalCodes.create({
         data: {
@@ -180,10 +182,17 @@ export class CustomerErpSyncService implements OnModuleInit, OnModuleDestroy {
   async refreshReceivables(customerId: string): Promise<void> {
     const existing = (await this.externalCodes.findFirst({
       where: { customerId, system: SYSTEM },
-    })) as ExternalCodeRow | null;
+      include: {
+        customer: { select: { company: { select: { code: true } } } },
+      },
+    })) as
+      (ExternalCodeRow & { customer: { company: { code: string } } }) | null;
     if (!existing) return;
 
-    const receivables = await this.erp.getReceivables(existing.externalCode);
+    const receivables = await this.erp.getReceivables(
+      { companyCode: existing.customer.company.code },
+      existing.externalCode,
+    );
     await this.externalCodes.update({
       where: { id: existing.id },
       data: {
@@ -251,6 +260,7 @@ export class CustomerErpSyncService implements OnModuleInit, OnModuleDestroy {
 interface CustomerForSync {
   id: string;
   companyId: string;
+  company: { code: string };
   customerCode: string;
   nameTh: string;
   taxId: string | null;

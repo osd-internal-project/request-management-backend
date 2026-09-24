@@ -1,3 +1,5 @@
+import { parseCompanyDbs } from '@request-management/core-service';
+
 export default () => ({
   env: process.env.NODE_ENV ?? 'local',
   port: Number(process.env.EXTERNAL_SERVICE_PORT ?? process.env.PORT ?? 3003),
@@ -60,6 +62,24 @@ export default () => ({
   slaSweepIntervalMs: 0,
   erp: {
     mode: process.env.ERP_MODE ?? 'mock',
+    /**
+     * ERP_MODE=sapb1 — SAP Business One Service Layer (on-premise).
+     * ERP_B1_COMPANY_DBS maps `companies.code` to a CompanyDB:
+     * `OSD=SBO_OSD,LEXTECH=SBO_LEX`. A self-signed Service Layer certificate
+     * is trusted through ERP_B1_CA_FILE; ERP_B1_TLS_INSECURE is the last resort.
+     */
+    b1: {
+      baseUrl: process.env.ERP_B1_BASE_URL ?? '',
+      username: process.env.ERP_B1_USERNAME ?? '',
+      password: process.env.ERP_B1_PASSWORD ?? '',
+      companyDbs: parseCompanyDbs(process.env.ERP_B1_COMPANY_DBS),
+      serviceItemCode: process.env.ERP_B1_SERVICE_ITEM || undefined,
+      warehouseCode: process.env.ERP_B1_WAREHOUSE || undefined,
+      vatGroup: process.env.ERP_B1_VAT_GROUP || undefined,
+      caFile: process.env.ERP_B1_CA_FILE || undefined,
+      tlsInsecure: process.env.ERP_B1_TLS_INSECURE === 'true',
+      timeoutMs: Number(process.env.ERP_B1_TIMEOUT_MS ?? 30000),
+    },
     retryIntervalMs: 0,
     refreshIntervalMs: 0,
   },

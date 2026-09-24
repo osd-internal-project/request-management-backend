@@ -24,6 +24,7 @@ function harness(
     erpOrderNo: null,
     erpStatus: 'pending',
     customer: { customerCode: 'CUS-OSD-000001' },
+    company: { code: 'OSD' },
     lines: [
       {
         lineNo: 1,
@@ -145,6 +146,7 @@ describe('CD-88 ใบสั่งขายเข้า SAP — เก็บท�
 
     expect(erpOrderNo).toBe('MOCK-SO-1');
     expect(calls.createSalesOrder).toHaveBeenCalledWith(
+      { companyCode: 'OSD' },
       expect.objectContaining({
         saleOrderCode: 'SO-OSD-000001',
         customerExternalCode: 'BP-1',
@@ -276,7 +278,8 @@ describe('CD-88 ใบสั่งขายเข้า SAP — เก็บท�
     await service.cancelOrder('so-1');
 
     expect(calls.cancelSalesOrder).toHaveBeenCalledWith(
-      'MOCK-SO-1',
+      { companyCode: 'OSD' },
+      { externalCode: 'MOCK-SO-1', saleOrderCode: 'SO-OSD-000001' },
       'ลูกค้ายกเลิก',
     );
     expect(order).toMatchObject({ erpStatus: 'synced', erpLastError: null });

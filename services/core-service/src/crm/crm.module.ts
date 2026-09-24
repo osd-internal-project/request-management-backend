@@ -28,6 +28,7 @@ import { CustomerTimelineService } from './customer-timeline.service';
 import { CustomerImportService } from './customer-import.service';
 import { CustomerErpSyncService } from './customer-erp-sync.service';
 import { SaleOrderErpSyncService } from './sale-order-erp-sync.service';
+import { ErpMockRetirementService } from './erp-mock-retirement.service';
 import { IntegrationSyncJobRepository } from './integration-job.repository';
 import { KycProductRuleRepository } from './kyc-product.repository';
 import { KycCallbackService } from './kyc-callback.service';
@@ -93,6 +94,7 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     CustomerImportService,
     CustomerErpSyncService,
     SaleOrderErpSyncService,
+    ErpMockRetirementService,
     IntegrationSyncJobRepository,
     KycProductRuleRepository,
     KycCallbackService,

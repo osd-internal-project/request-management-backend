@@ -3,17 +3,18 @@
  * ERP directly (spec §03: "โมดูลธุรกิจไม่เรียกระบบภายนอกโดยตรง ผ่านชั้นนี้ชั้นเดียว");
  * they depend on this interface, and which driver answers is configuration.
  *
- * The ERP is **SAP** since 24 ก.ย. 2569 (Odoo dropped). Connect the Dot is the
- * system of record first: data is saved here, then pushed to SAP through the
- * `integration_sync_jobs` queue, so a down SAP never blocks a user.
+ * The ERP is **SAP Business One (B1), on-premise** since 24 ก.ย. 2569 (Odoo
+ * dropped). Connect the Dot is the system of record first: data is saved
+ * here, then pushed to SAP through the `integration_sync_jobs` queue, so a
+ * down SAP never blocks a user.
  *
- *   ERP_MODE=mock  (default, the only driver today) — in-memory stand-in with
- *                   SAP-shaped answers (Business Partner numbers), so every
- *                   environment runs end-to-end before the connection exists.
+ *   ERP_MODE=mock   (default) — in-memory stand-in with SAP-shaped answers,
+ *                    so every environment runs end-to-end without B1;
+ *   ERP_MODE=sapb1  — the B1 Service Layer driver (`sap-b1.client.ts`),
+ *                    configured by the ERP_B1_* variables.
  *
- * The real driver lands once the SAP team settles version + method (S/4HANA
- * OData `API_BUSINESS_PARTNER` or BAPI/RFC); swapping mock → SAP will be an
- * env change, not a code change outside `erp/`.
+ * Every call names the company it is for: in B1 one Connect the Dot company
+ * is one company database (CompanyDB), and the driver logs into each apart.
  */
 
 export const ERP_CLIENT = 'ERP_CLIENT';
@@ -24,6 +25,11 @@ export const ERP_CLIENT = 'ERP_CLIENT';
  */
 export const ERP_SYSTEM = 'sap';
 
+/** Which company a call is for — B1 maps it to a CompanyDB (ERP_B1_COMPANY_DBS). */
+export interface ErpContext {
+  /** `companies.code`, e.g. `OSD` — readable in config, unlike the uuid. */
+  readonly companyCode: string;
+}
 /** What a customer looks like to SAP (Business Partner, the fields we own). */
 export interface ErpCustomerPayload {
   /**
@@ -84,24 +90,42 @@ export interface ErpSalesOrderPayload {
 }
 
 export interface ErpClient {
-  readonly mode: 'mock';
+  readonly mode: 'mock' | 'sapb1';
   /** The BP already carrying this customerCode, or null — idempotency guard. */
-  findCustomer(customerCode: string): Promise<{ externalCode: string } | null>;
+  findCustomer(
+    ctx: ErpContext,
+    customerCode: string,
+  ): Promise<{ externalCode: string } | null>;
   createCustomer(
+    ctx: ErpContext,
     payload: ErpCustomerPayload,
   ): Promise<{ externalCode: string }>;
   updateCustomer(
+    ctx: ErpContext,
     externalCode: string,
     payload: ErpCustomerPayload,
   ): Promise<void>;
-  getReceivables(externalCode: string): Promise<ErpReceivables>;
+  getReceivables(
+    ctx: ErpContext,
+    externalCode: string,
+  ): Promise<ErpReceivables>;
   /** The SAP order already carrying this saleOrderCode, or null. */
   findSalesOrder(
+    ctx: ErpContext,
     saleOrderCode: string,
   ): Promise<{ externalCode: string } | null>;
   createSalesOrder(
+    ctx: ErpContext,
     payload: ErpSalesOrderPayload,
   ): Promise<{ externalCode: string }>;
-  /** Idempotent — cancelling an already-cancelled order succeeds. */
-  cancelSalesOrder(externalCode: string, reason: string): Promise<void>;
+  /**
+   * Idempotent — cancelling an already-cancelled order succeeds. Takes our
+   * saleOrderCode too: B1 cancels by DocEntry, which the driver looks up
+   * from it rather than asking callers to store a second SAP key.
+   */
+  cancelSalesOrder(
+    ctx: ErpContext,
+    order: { externalCode: string; saleOrderCode: string },
+    reason: string,
+  ): Promise<void>;
 }

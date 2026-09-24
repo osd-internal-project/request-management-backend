@@ -114,10 +114,11 @@ export class SaleOrderErpSyncService implements OnModuleInit, OnModuleDestroy {
       );
     }
 
+    const ctx = { companyCode: order.company.code };
     const payload = toPayload(order, bp.externalCode);
-    const found = await this.erp.findSalesOrder(order.saleOrderCode);
+    const found = await this.erp.findSalesOrder(ctx, order.saleOrderCode);
     const { externalCode } =
-      found ?? (await this.erp.createSalesOrder(payload));
+      found ?? (await this.erp.createSalesOrder(ctx, payload));
 
     await this.mark(saleOrderId, {
       erpStatus: 'synced',
@@ -162,7 +163,8 @@ export class SaleOrderErpSyncService implements OnModuleInit, OnModuleDestroy {
     }
 
     await this.erp.cancelSalesOrder(
-      order.erpOrderNo,
+      { companyCode: order.company.code },
+      { externalCode: order.erpOrderNo, saleOrderCode: order.saleOrderCode },
       order.cancelReason ?? 'ยกเลิกใน Connect the Dot',
     );
     await this.mark(saleOrderId, {
@@ -269,6 +271,7 @@ export class SaleOrderErpSyncService implements OnModuleInit, OnModuleDestroy {
         customerId: true,
         erpOrderNo: true,
         customer: { select: { customerCode: true } },
+        company: { select: { code: true } },
         lines: { orderBy: { lineNo: 'asc' } },
       },
     })) as SaleOrderForSync | null;
@@ -307,6 +310,7 @@ interface SaleOrderForSync {
   customerId: string;
   erpOrderNo: string | null;
   customer: { customerCode: string };
+  company: { code: string };
   lines: SaleOrderLineRow[];
 }
 
