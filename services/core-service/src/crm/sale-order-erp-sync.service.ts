@@ -20,6 +20,7 @@ import {
   sweepErpJobs,
   type ErpJobRow,
 } from './erp-sync-queue';
+import { backgroundTick } from '../common/background-tick';
 
 const KINDS = ['sale_order_create', 'sale_order_cancel'] as const;
 type SaleOrderJobKind = (typeof KINDS)[number];
@@ -58,7 +59,12 @@ export class SaleOrderErpSyncService implements OnModuleInit, OnModuleDestroy {
     const retryMs = this.config.get<number>('erp.retryIntervalMs') ?? 300_000;
     // `0` disables — tests, one-off scripts and external-service boot quiet.
     if (retryMs > 0) {
-      this.retryTimer = setInterval(() => void this.processQueue(), retryMs);
+      this.retryTimer = setInterval(
+        backgroundTick(this.logger, 'SAP sale-order sweep', () =>
+          this.processQueue(),
+        ),
+        retryMs,
+      );
       this.retryTimer.unref?.();
     }
   }

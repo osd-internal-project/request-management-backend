@@ -11,6 +11,7 @@ import { WORKFLOW_CLIENT } from '../workflow/workflow-client';
 import type { WorkflowClient } from '../workflow/workflow-client';
 import { IntegrationSyncJobRepository } from './integration-job.repository';
 import { LeadRepository } from './sales.repositories';
+import { backgroundTick } from '../common/background-tick';
 
 const SYSTEM = 'workflow';
 const KIND = 'lead_start';
@@ -60,7 +61,12 @@ export class LeadWorkflowSyncService implements OnModuleInit, OnModuleDestroy {
 
     // `0` ปิดตัวจับเวลา — เทสต์และสคริปต์ครั้งเดียวบูตได้โดยไม่มีอะไรเดินอยู่ข้างล่าง.
     if (retryMs > 0) {
-      this.retryTimer = setInterval(() => void this.processQueue(), retryMs);
+      this.retryTimer = setInterval(
+        backgroundTick(this.logger, 'workflow queue sweep', () =>
+          this.processQueue(),
+        ),
+        retryMs,
+      );
       this.retryTimer.unref?.();
     }
   }

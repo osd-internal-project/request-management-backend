@@ -11,6 +11,7 @@ import { OrgUnitRepository } from '../access/org-unit.repository';
 import { OpportunityRepository } from './sales.repositories';
 import { CrmConfigRepository } from './segment.repositories';
 import { NotificationsService } from '../notifications/notifications.service';
+import { backgroundTick } from '../common/background-tick';
 
 const DEFAULT_INTERVAL_MS = 3_600_000;
 const DEFAULT_STALE_DAYS = 14;
@@ -69,7 +70,12 @@ export class OpportunityStaleMonitorService
     // `0` disables the sweep — tests and one-off scripts.
     if (interval <= 0) return;
 
-    this.timer = setInterval(() => void this.sweep(), interval);
+    this.timer = setInterval(
+      backgroundTick(this.logger, 'stale-opportunity sweep', () =>
+        this.sweep(),
+      ),
+      interval,
+    );
     this.timer.unref?.();
   }
 

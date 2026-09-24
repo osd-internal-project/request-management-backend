@@ -12,6 +12,7 @@ import { ERP_CLIENT } from '../erp/erp-client';
 import type { ErpClient } from '../erp/erp-client';
 import { errorMessage } from './erp-sync-queue';
 import { CompanyRepository, ProductRepository } from './product.repositories';
+import { backgroundTick } from '../common/background-tick';
 
 /** How long after boot the first sync runs — out of the way of startup. */
 const FIRST_SYNC_DELAY_MS = 15_000;
@@ -62,9 +63,12 @@ export class ProductCatalogService implements OnModuleInit, OnModuleDestroy {
     // `0` disables — external-service and tests never sync the catalog.
     if (everyMs <= 0) return;
 
-    this.firstRun = setTimeout(() => void this.syncAll(), FIRST_SYNC_DELAY_MS);
+    const tick = backgroundTick(this.logger, 'SAP catalog sync', () =>
+      this.syncAll(),
+    );
+    this.firstRun = setTimeout(tick, FIRST_SYNC_DELAY_MS);
     this.firstRun.unref?.();
-    this.timer = setInterval(() => void this.syncAll(), everyMs);
+    this.timer = setInterval(tick, everyMs);
     this.timer.unref?.();
   }
 

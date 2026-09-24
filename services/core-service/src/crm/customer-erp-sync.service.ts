@@ -18,6 +18,7 @@ import {
   errorMessage as message,
   sweepErpJobs,
 } from './erp-sync-queue';
+import { backgroundTick } from '../common/background-tick';
 
 const SYSTEM = ERP_SYSTEM;
 /** The queue kinds this service owns — sale-order kinds belong to CD-88's. */
@@ -72,12 +73,19 @@ export class CustomerErpSyncService implements OnModuleInit, OnModuleDestroy {
 
     // `0` disables — tests and one-off scripts boot without timers underneath.
     if (retryMs > 0) {
-      this.retryTimer = setInterval(() => void this.processQueue(), retryMs);
+      this.retryTimer = setInterval(
+        backgroundTick(this.logger, 'SAP queue sweep', () =>
+          this.processQueue(),
+        ),
+        retryMs,
+      );
       this.retryTimer.unref?.();
     }
     if (refreshMs > 0) {
       this.refreshTimer = setInterval(
-        () => void this.refreshAllReceivables(),
+        backgroundTick(this.logger, 'SAP receivables refresh', () =>
+          this.refreshAllReceivables(),
+        ),
         refreshMs,
       );
       this.refreshTimer.unref?.();
