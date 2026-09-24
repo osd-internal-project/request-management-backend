@@ -785,6 +785,9 @@ model RequestType {
   requiredDocs       Json  @default("[]")
   /// [{ code, name }] — the standard return reasons (REQ-04).
   returnReasonCodes  Json  @default("[]")
+  /// [{ code, required }] — child types the receiver raises under this request;
+  /// a required one must exist before `complete`.
+  subRequestTypes    Json  @default("[]")
   /// { mode: "standard_chain", amount_field: "deal_value" } — how APV-02
   /// derives the approval chain.
   approvalPolicy     Json

@@ -150,7 +150,7 @@ permissions" from "waiting for an admin".
 
 | Endpoint | Permission | Requirement | Status |
 |---|---|---|---|
-| `GET /request-types` | `request.create` | REQ-01 | ✅ |
+| `GET /request-types` | `request.create` | REQ-01; `?parent={id}` adds the parent's sub-request checklist types regardless of eligible groups | ✅ |
 
 > **Group D approval endpoints are delivered.** `GET /approvals/inbox` (includes
 > work covered under a delegation), `GET /approvals/{caseId}` (margin masked
@@ -173,11 +173,11 @@ permissions" from "waiting for an admin".
 | `POST /requests/{id}/cancel` | `request.cancel.own` / `.any` | reason required (REQ-05) | ✅ |
 | `POST /requests/{id}/hold` | `request.hold` | §7.1 amendment; in_progress only; reason required; pauses the clock | ✅ |
 | `POST /requests/{id}/resume` | `request.hold` | on_hold only; clock resumes owing the same remaining hours | ✅ |
-| `POST /requests/{id}/complete` | `request.complete` | | ✅ |
+| `POST /requests/{id}/complete` | `request.complete` | open child → `409 REQ_CHILDREN_OPEN`; required checklist sub request never raised → `409 REQ_SUB_REQUEST_MISSING` | ✅ |
 | `GET /reports/request-bottleneck` | `report.request.read` | REQ-09 | ✅ |
 | `GET /bi/menu` | `report.dashboard.read` | CD-92: BI menu — dashboards as short-lived signed Metabase embed URLs; `settings_url` only for `admin.bi.manage` | ✅ |
 | `POST /integrations/requests` | `integration.request.create` | service accounts; `"source":"system"` (REQ-10) | ✅ |
-| `GET/POST /admin/request-types`, `PATCH /admin/request-types/{code}` | `admin.request-type.manage` | edits apply to new requests only | ✅ |
+| `GET/POST /admin/request-types`, `PATCH /admin/request-types/{code}` | `admin.request-type.manage` | edits apply to new requests only; `sub_request_types: [{code, required}]` | ✅ |
 
 ### Group C2 — External API  (`core-service`, 3 ก.ย. 2569)
 

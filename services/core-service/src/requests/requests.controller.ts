@@ -19,6 +19,7 @@ import {
   ApiBearerAuth,
   ApiBody,
   ApiConsumes,
+  ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
 import {
@@ -71,8 +72,16 @@ export class RequestsController {
   /** REQ-01: types are configuration — the form comes from `formSchema`. */
   @Get('request-types')
   @Permissions('request.create')
-  listTypes(@CurrentPrincipal() principal: Principal) {
-    return this.requests.listTypes(principal);
+  @ApiQuery({
+    name: 'parent',
+    required: false,
+    description: 'Parent request id',
+  })
+  listTypes(
+    @CurrentPrincipal() principal: Principal,
+    @Query('parent') parentRequestId?: string,
+  ) {
+    return this.requests.listTypes(principal, parentRequestId);
   }
 
   @Post('requests')

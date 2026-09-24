@@ -31,7 +31,10 @@ import {
   assertReceiverFormComplete,
   assertSubmittable,
   assertUsableFormSchema,
+  assertUsableSubRequestTypes,
+  missingRequiredSubRequests,
   receiverFor,
+  type SubRequestTypeRule,
 } from './submit-rules';
 import { AFTER_WORK, BEFORE_WORK, type ApprovalStage } from './approval-stage';
 import { RunNumberClient } from '../run-number/run-number.client';
@@ -103,9 +106,15 @@ export class RequestsService {
    * REQ-01: an inactive type is one still being configured, so offering it on
    * the submit screen would produce requests nobody can route.
    */
-  async listTypes(actor: Principal) {
+  async listTypes(actor: Principal, parentRequestId?: string) {
     const ancestors = actor.orgUnitId
       ? await this.orgUnits.ancestorIdsOf(actor.orgUnitId)
+      : [];
+    // Raising a checklist sub request from its parent skips the group rule.
+    const checklistCodes = parentRequestId
+      ? subRequestTypesOf(await this.require(parentRequestId, actor)).map(
+          (item) => item.code,
+        )
       : [];
     return this.types.findMany({
       where: {
@@ -114,6 +123,7 @@ export class RequestsService {
         OR: [
           { eligibleUnits: { none: {} } },
           { eligibleUnits: { some: { orgUnitId: { in: ancestors } } } },
+          { code: { in: checklistCodes } },
         ],
       },
       // The receiving team travels with the type so the submit screen can
@@ -153,7 +163,8 @@ export class RequestsService {
         receiverUser: { select: { id: true, displayName: true } },
         eligibleUnits: { select: { orgUnitId: true } },
       },
-      orderBy: { code: 'asc' },
+      // Active first so the ones in use lead A2's list; then by code.
+      orderBy: [{ active: 'desc' }, { code: 'asc' }],
     });
   }
 
@@ -176,6 +187,8 @@ export class RequestsService {
     if (dto.receiver_form_schema) {
       assertUsableFormSchema(dto.receiver_form_schema);
     }
+
+    await this.assertSubRequestTypes(dto.code, dto.sub_request_types);
 
     const existing = await this.types.findFirst({
       where: { code: dto.code },
@@ -208,6 +221,8 @@ export class RequestsService {
           requiredDocs: (dto.required_docs ??
             []) as unknown as Prisma.InputJsonValue,
           returnReasonCodes: (dto.return_reason_codes ??
+            []) as unknown as Prisma.InputJsonValue,
+          subRequestTypes: (dto.sub_request_types ??
             []) as unknown as Prisma.InputJsonValue,
           approvalPolicy: (dto.approval_policy ?? {}) as Prisma.InputJsonValue,
           slaHours: dto.sla_hours ?? null,
@@ -294,6 +309,8 @@ export class RequestsService {
       assertUsableFormSchema(dto.receiver_form_schema);
     }
 
+    await this.assertSubRequestTypes(code, dto.sub_request_types);
+
     if (dto.receiver_user_id) {
       await this.assertTypeReceiver(dto.receiver_user_id, actor);
     }
@@ -332,6 +349,12 @@ export class RequestsService {
             ? {
                 returnReasonCodes:
                   dto.return_reason_codes as unknown as Prisma.InputJsonValue,
+              }
+            : {}),
+          ...(dto.sub_request_types !== undefined
+            ? {
+                subRequestTypes:
+                  dto.sub_request_types as unknown as Prisma.InputJsonValue,
               }
             : {}),
           ...(dto.approval_policy !== undefined
@@ -402,12 +425,14 @@ export class RequestsService {
             active: before.active,
             slaHours: before.slaHours,
             formSchema: before.formSchema as Prisma.InputJsonValue,
+            subRequestTypes: before.subRequestTypes as Prisma.InputJsonValue,
           },
           after: {
             name: updated.name,
             active: updated.active,
             slaHours: updated.slaHours,
             formSchema: updated.formSchema as Prisma.InputJsonValue,
+            subRequestTypes: updated.subRequestTypes as Prisma.InputJsonValue,
           },
         },
         { prisma },
@@ -453,13 +478,21 @@ export class RequestsService {
       ]);
     }
 
-    const [requests, matrices] = await Promise.all([
+    const [requests, matrices, parentTypes] = await Promise.all([
       this.requests.countWhere({ requestTypeId: before.id }),
       this.approvals.countMatricesFor(`request:${code}`),
+      this.types.findMany({
+        where: { subRequestTypes: { array_contains: [{ code }] } },
+        select: { code: true },
+      }),
     ]);
 
     const blockers = [
       requests && { field: 'requests', reason: `คำขอ ${requests}` },
+      ...parentTypes.map((parent) => ({
+        field: 'sub_request_types',
+        reason: `เป็นคำขอย่อยของ ${parent.code}`,
+      })),
       matrices && {
         field: 'approval_matrix',
         reason: `ตารางอำนาจอนุมัติ ${matrices}`,
@@ -791,6 +824,63 @@ export class RequestsService {
     receiverFor(request.requestType, request.receiverUserId);
   }
 
+  /** A2 — checks a sub-request checklist against the types that exist. */
+  private async assertSubRequestTypes(
+    ownCode: string,
+    items: readonly SubRequestTypeRule[] | undefined,
+  ): Promise<void> {
+    if (!items?.length) return;
+
+    const known = await this.types.findMany({
+      where: { code: { in: items.map((item) => item.code) } },
+      select: { code: true },
+    });
+
+    assertUsableSubRequestTypes(
+      ownCode,
+      items,
+      known.map((type) => type.code),
+    );
+  }
+
+  /** The type's checklist with each name attached, as the snapshot keeps it. */
+  private async namedSubRequestTypes(
+    checklist: Prisma.JsonValue,
+  ): Promise<{ code: string; name: string; required: boolean }[]> {
+    const items = asSubRequestTypes(checklist);
+    if (!items.length) return [];
+
+    const types = await this.types.findMany({
+      where: { code: { in: items.map((item) => item.code) } },
+      select: { code: true, name: true },
+    });
+
+    return items.map((item) => ({
+      code: item.code,
+      name: types.find((type) => type.code === item.code)?.name ?? item.code,
+      required: item.required,
+    }));
+  }
+
+  /** Blocks `complete` while a required sub request from the checklist is missing. */
+  private async assertRequiredSubRequests(
+    request: RequestWithType,
+  ): Promise<void> {
+    const items = subRequestTypesOf(request);
+    if (!items.some((item) => item.required)) return;
+
+    const children = await this.requests.findChildTypes(request.id);
+    const missing = missingRequiredSubRequests(items, children);
+
+    if (missing.length) {
+      throw new AppError(
+        'REQ_SUB_REQUEST_MISSING',
+        'ยังไม่ได้สร้างคำขอย่อยที่บังคับ — ต้องสร้างให้ครบก่อน',
+        missing.map((code) => ({ field: 'sub_request_types', reason: code })),
+      );
+    }
+  }
+
   /** A2 — the fixed receiver must be a member of the company being administered. */
   private async assertTypeReceiver(
     userId: string,
@@ -1035,6 +1125,7 @@ export class RequestsService {
     assertTransition(before.status, 'completed');
 
     await this.assertNoOpenChildren(id);
+    await this.assertRequiredSubRequests(before);
 
     /*
       H2.2 ข้อ 3 — the receiver's own form, checked here rather than at submit.
@@ -1351,6 +1442,10 @@ export class RequestsService {
         (code) => this.requests.requestNoTaken(code),
       ));
 
+    const subRequestTypes = await this.namedSubRequestTypes(
+      before.requestType.subRequestTypes,
+    );
+
     const submitted = await this.transactions.execute(async (prisma) => {
       const now = new Date();
 
@@ -1378,6 +1473,7 @@ export class RequestsService {
             // it is what makes "did the requester send this somewhere else?"
             // answerable later, after the type has been edited.
             receiverOrgUnitId: before.requestType.receiverOrgUnitId,
+            subRequestTypes,
           },
           updatedBy: actor.userId,
         },
@@ -2117,6 +2213,23 @@ export class RequestsService {
       },
     });
   }
+}
+
+/**
+ * The checklist a request runs under: its snapshot once submitted (a snapshot
+ * taken before the column existed means none), the live type before that.
+ */
+function subRequestTypesOf(request: RequestWithType): SubRequestTypeRule[] {
+  return asSubRequestTypes(
+    request.typeSnapshot
+      ? snapshotOf(request).subRequestTypes
+      : request.requestType.subRequestTypes,
+  );
+}
+
+function asSubRequestTypes(value: unknown): SubRequestTypeRule[] {
+  // Written only through `SubRequestTypeDto`, so an array has that shape.
+  return Array.isArray(value) ? (value as SubRequestTypeRule[]) : [];
 }
 
 /** The `typeSnapshot` a running request carries, if it has one yet. */

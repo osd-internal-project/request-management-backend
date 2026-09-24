@@ -528,6 +528,62 @@ export function assertUsableFormSchema(
   throw new AppError('VALIDATION_FAILED', 'โครงสร้างฟอร์มไม่ถูกต้อง', details);
 }
 
+export interface SubRequestTypeRule {
+  readonly code: string;
+  readonly required: boolean;
+}
+
+/** A type's sub-request checklist: no self, no repeats, only codes that exist. */
+export function assertUsableSubRequestTypes(
+  ownCode: string,
+  items: readonly SubRequestTypeRule[],
+  knownCodes: readonly string[],
+): void {
+  const details: ErrorDetail[] = [];
+  const seen = new Set<string>();
+
+  for (const { code } of items) {
+    if (code === ownCode) {
+      details.push({
+        field: 'sub_request_types',
+        reason: `อ้างถึงตัวเอง: ${code}`,
+      });
+    } else if (seen.has(code)) {
+      details.push({
+        field: 'sub_request_types',
+        reason: `ประเภทซ้ำ: ${code}`,
+      });
+    } else if (!knownCodes.includes(code)) {
+      details.push({
+        field: 'sub_request_types',
+        reason: `ไม่พบประเภท: ${code}`,
+      });
+    }
+    seen.add(code);
+  }
+
+  if (!details.length) return;
+
+  throw new AppError('VALIDATION_FAILED', 'รายการคำขอย่อยไม่ถูกต้อง', details);
+}
+
+/** Required checklist codes with no child of that type other than a cancelled one. */
+export function missingRequiredSubRequests(
+  items: readonly SubRequestTypeRule[],
+  children: readonly { typeCode: string; status: string }[],
+): string[] {
+  return items
+    .filter((item) => item.required)
+    .filter(
+      (item) =>
+        !children.some(
+          (child) =>
+            child.typeCode === item.code && child.status !== 'cancelled',
+        ),
+    )
+    .map((item) => item.code);
+}
+
 /** Choices, formats and boolean labels the renderers read — checked at save, columns included. */
 function unusableFields(
   parsed: FormSchema | null,

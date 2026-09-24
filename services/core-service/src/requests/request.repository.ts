@@ -274,6 +274,18 @@ export class RequestRepository extends BaseRepository<
     });
   }
 
+  findChildTypes(
+    parentRequestId: string,
+    option?: TxOption,
+  ): Promise<{ typeCode: string; status: RequestStatus }[]> {
+    const client = option?.prisma ?? this.prisma;
+
+    return client.request.findMany({
+      where: { parentRequestId },
+      select: { typeCode: true, status: true },
+    });
+  }
+
   search(
     where: Prisma.RequestWhereInput,
     args: { skip: number; take: number },
