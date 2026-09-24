@@ -830,4 +830,29 @@ describe('CRM ใบสั่งขาย — จุดเดียวที่�
     });
     expect(h.customersService.create).not.toHaveBeenCalled();
   });
+
+  it('CD-88 รายการใบสั่งขาย: กรองสถานะส่ง SAP + ค้นเลขใบ/ลูกค้า/โอกาสการขาย ภายในขอบเขตที่เห็นเท่านั้น', async () => {
+    const h = harness();
+
+    await h.service.list(principal(), {
+      erp_status: 'failed',
+      search: ' CUS-OSD ',
+    } as never);
+
+    const where = firstArg<{ where: { AND: Args[] } }>(
+      h.saleOrders.findMany,
+    ).where;
+    expect(where.AND).toHaveLength(2); // visibleSalesWhere + filters
+    expect(where.AND[1]).toMatchObject({
+      erpStatus: 'failed',
+      OR: expect.arrayContaining([
+        { saleOrderCode: { contains: 'CUS-OSD', mode: 'insensitive' } },
+        {
+          customer: {
+            customerCode: { contains: 'CUS-OSD', mode: 'insensitive' },
+          },
+        },
+      ]) as unknown,
+    });
+  });
 });

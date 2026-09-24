@@ -69,9 +69,24 @@ export class SaleOrdersService {
     const filters: Prisma.SaleOrderWhereInput = {};
 
     if (query.status) filters.status = query.status;
+    if (query.erp_status) filters.erpStatus = query.erp_status;
     if (query.opportunity_id) filters.opportunityId = query.opportunity_id;
     if (query.customer_id) filters.customerId = query.customer_id;
     if (query.view === 'mine') filters.ownerUserId = actor.userId;
+    if (query.search?.trim()) {
+      const q = query.search.trim();
+      filters.OR = [
+        { saleOrderCode: { contains: q, mode: 'insensitive' } },
+        { erpOrderNo: { contains: q, mode: 'insensitive' } },
+        { customer: { customerCode: { contains: q, mode: 'insensitive' } } },
+        { customer: { nameTh: { contains: q, mode: 'insensitive' } } },
+        {
+          opportunity: {
+            opportunityCode: { contains: q, mode: 'insensitive' },
+          },
+        },
+      ];
+    }
 
     const where = {
       AND: [visibleSalesWhere(salesAccessSubject(actor)), filters],
