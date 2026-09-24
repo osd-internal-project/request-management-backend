@@ -520,7 +520,8 @@
         ],
         "x-acting-permission": [
           "request.read"
-        ]
+        ],
+        "x-sensitive-resource": "request:{typeCode}"
       }
     },
     "/api/v1/request/requests/summary": {
@@ -924,7 +925,8 @@
         ],
         "x-acting-permission": [
           "request.read"
-        ]
+        ],
+        "x-sensitive-resource": "request:{typeCode}"
       }
     },
     "/api/v1/request/requests/{ref}/actions": {
@@ -2189,6 +2191,11 @@
           "name": {
             "type": "string",
             "example": "ใบเสนอราคาฉบับร่าง"
+          },
+          "required": {
+            "type": "boolean",
+            "example": true,
+            "description": "false = optional; absent means required."
           }
         },
         "required": [

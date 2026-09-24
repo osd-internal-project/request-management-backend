@@ -272,6 +272,15 @@
         "operationId": "RequestsController_listTypes",
         "parameters": [
           {
+            "name": "parent",
+            "required": false,
+            "in": "query",
+            "description": "Parent request id",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "X-Company-Id",
             "in": "header",
             "required": false,
@@ -476,7 +485,8 @@
         ],
         "x-permission": [
           "request.read"
-        ]
+        ],
+        "x-sensitive-resource": "request:{typeCode}"
       }
     },
     "/api/v1/requests/{id}": {
@@ -565,7 +575,7 @@
         "x-permission": [
           "request.read"
         ],
-        "x-sensitive-resource": "request:DSC"
+        "x-sensitive-resource": "request:{typeCode}"
       }
     },
     "/api/v1/requests/{id}/attachments": {
@@ -593,9 +603,21 @@
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": {
+            "multipart/form-data": {
               "schema": {
-                "$ref": "#/components/schemas/AddAttachmentDto"
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "doc_code": {
+                    "type": "string"
+                  }
+                }
               }
             }
           }
@@ -615,6 +637,54 @@
         ],
         "x-permission": [
           "request.create"
+        ]
+      }
+    },
+    "/api/v1/requests/{id}/attachments/{attachmentId}/file": {
+      "get": {
+        "operationId": "RequestsController_downloadAttachment",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "attachmentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "requests"
+        ],
+        "x-permission": [
+          "request.read"
         ]
       }
     },
@@ -1701,7 +1771,8 @@
         ],
         "x-permission": [
           "crm.customer.manage"
-        ]
+        ],
+        "x-sensitive-resource": "customer"
       }
     },
     "/api/v1/customers/segment-options": {
@@ -1948,7 +2019,8 @@
         ],
         "x-permission": [
           "crm.customer.manage"
-        ]
+        ],
+        "x-sensitive-resource": "customer"
       }
     },
     "/api/v1/customers/{id}/contacts/consents": {
@@ -2073,7 +2145,8 @@
         ],
         "x-permission": [
           "crm.customer.manage"
-        ]
+        ],
+        "x-sensitive-resource": "customer"
       }
     },
     "/api/v1/customers/{id}/suspend": {
@@ -2125,7 +2198,8 @@
         ],
         "x-permission": [
           "crm.customer.manage"
-        ]
+        ],
+        "x-sensitive-resource": "customer"
       }
     },
     "/api/v1/customers/{id}/deactivate": {
@@ -2177,7 +2251,8 @@
         ],
         "x-permission": [
           "crm.customer.manage"
-        ]
+        ],
+        "x-sensitive-resource": "customer"
       }
     },
     "/api/v1/customers/{id}/locations": {
@@ -2546,7 +2621,8 @@
         ],
         "x-permission": [
           "crm.customer.manage"
-        ]
+        ],
+        "x-sensitive-resource": "customer"
       }
     },
     "/api/v1/customers/{id}/history": {
@@ -2618,7 +2694,8 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "date-time"
             }
           },
           {
@@ -2626,7 +2703,8 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "date-time"
             }
           },
           {
@@ -4739,6 +4817,30 @@
             }
           },
           {
+            "name": "erp_status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "not_ready",
+                "pending",
+                "synced",
+                "failed",
+                "skipped"
+              ]
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
             "name": "view",
             "in": "query",
             "required": false,
@@ -5443,6 +5545,209 @@
           "crm.sales.manage"
         ],
         "x-sensitive-resource": "quotation"
+      }
+    },
+    "/api/v1/admin/erp-sync/jobs": {
+      "get": {
+        "operationId": "ErpSyncAdminController_list",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "failed",
+                "pending",
+                "all"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "งานในคิวส่ง SAP ของบริษัทนี้ (ส่งไม่สำเร็จ / รอส่ง) พร้อมข้อผิดพลาดล่าสุด",
+        "tags": [
+          "admin/erp-sync"
+        ],
+        "x-permission": [
+          "admin.integration.manage"
+        ]
+      }
+    },
+    "/api/v1/admin/erp-sync/jobs/{id}/retry": {
+      "post": {
+        "operationId": "ErpSyncAdminController_retry",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ส่งใหม่ — เริ่มนับรอบใหม่และส่งทันที (ผลเห็นเมื่อโหลดหน้าอีกครั้ง)",
+        "tags": [
+          "admin/erp-sync"
+        ],
+        "x-permission": [
+          "admin.integration.manage"
+        ]
+      }
+    },
+    "/api/v1/admin/erp-sync/products/status": {
+      "get": {
+        "operationId": "ErpSyncAdminController_catalogStatus",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "รายการสินค้าจาก SAP ของบริษัทนี้ — จำนวน และ sync ล่าสุดเมื่อไร",
+        "tags": [
+          "admin/erp-sync"
+        ],
+        "x-permission": [
+          "admin.integration.manage"
+        ]
+      }
+    },
+    "/api/v1/admin/erp-sync/products/sync": {
+      "post": {
+        "operationId": "ErpSyncAdminController_syncCatalog",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ดึงรายการสินค้าจาก SAP ตอนนี้ (บริษัทที่ทำงานอยู่) แทนการรอรอบรายชั่วโมง",
+        "tags": [
+          "admin/erp-sync"
+        ],
+        "x-permission": [
+          "admin.integration.manage"
+        ]
+      }
+    },
+    "/api/v1/products": {
+      "get": {
+        "operationId": "ProductsController_search",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "include_inactive",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ค้นสินค้า/บริการจาก SAP (สำเนาใน CTD) ของบริษัทที่ทำงานอยู่",
+        "tags": [
+          "products"
+        ],
+        "x-permission": [
+          "crm.sales.read"
+        ]
       }
     },
     "/api/v1/approvals/inbox": {
@@ -6897,41 +7202,6 @@
           }
         }
       },
-      "AddAttachmentDto": {
-        "type": "object",
-        "properties": {
-          "doc_code": {
-            "type": "string",
-            "example": "quotation",
-            "description": "A code from the type's requiredDocs; omit for an extra file.",
-            "maxLength": 64
-          },
-          "file_name": {
-            "type": "string",
-            "example": "quote-D501-v2.pdf",
-            "maxLength": 255,
-            "minLength": 1
-          },
-          "mime_type": {
-            "type": "string",
-            "example": "application/pdf",
-            "maxLength": 128,
-            "minLength": 1
-          },
-          "size_bytes": {
-            "type": "integer",
-            "example": 1258291,
-            "description": "Bytes, as reported by the browser.",
-            "maximum": 104857600,
-            "minimum": 0
-          }
-        },
-        "required": [
-          "file_name",
-          "mime_type",
-          "size_bytes"
-        ]
-      },
       "ReturnRequestDto": {
         "type": "object",
         "properties": {
@@ -7031,6 +7301,32 @@
           "body"
         ]
       },
+      "RequiredDocDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "QUOTE_DRAFT",
+            "maxLength": 64,
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "example": "ใบเสนอราคาฉบับร่าง",
+            "maxLength": 255,
+            "minLength": 1
+          },
+          "required": {
+            "type": "boolean",
+            "example": true,
+            "default": true
+          }
+        },
+        "required": [
+          "code",
+          "name"
+        ]
+      },
       "CodedLabelDto": {
         "type": "object",
         "properties": {
@@ -7050,6 +7346,25 @@
         "required": [
           "code",
           "name"
+        ]
+      },
+      "SubRequestTypeDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "IT_ACCOUNT",
+            "maxLength": 32,
+            "minLength": 1
+          },
+          "required": {
+            "type": "boolean",
+            "example": true
+          }
+        },
+        "required": [
+          "code",
+          "required"
         ]
       },
       "CreateRequestTypeDto": {
@@ -7093,13 +7408,19 @@
           "required_docs": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/CodedLabelDto"
+              "$ref": "#/components/schemas/RequiredDocDto"
             }
           },
           "return_reason_codes": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/CodedLabelDto"
+            }
+          },
+          "sub_request_types": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SubRequestTypeDto"
             }
           },
           "approval_policy": {
@@ -7175,13 +7496,19 @@
           "required_docs": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/CodedLabelDto"
+              "$ref": "#/components/schemas/RequiredDocDto"
             }
           },
           "return_reason_codes": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/CodedLabelDto"
+            }
+          },
+          "sub_request_types": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SubRequestTypeDto"
             }
           },
           "approval_policy": {
@@ -8314,6 +8641,13 @@
             "minimum": 0,
             "type": "number"
           },
+          "lines": {
+            "maxItems": 200,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SaleOrderLineDto"
+            }
+          },
           "note": {
             "maxLength": 2000,
             "type": "string"
@@ -8804,6 +9138,15 @@
           }
         }
       },
+      "UploadAttachmentDto": {
+        "type": "object",
+        "properties": {
+          "doc_code": {
+            "maxLength": 64,
+            "type": "string"
+          }
+        }
+      },
       "ImportCustomerRowDto": {
         "type": "object",
         "properties": {
@@ -8960,6 +9303,44 @@
             "type": "string"
           }
         }
+      },
+      "SaleOrderLineDto": {
+        "type": "object",
+        "properties": {
+          "product_code": {
+            "pattern": "^[A-Za-z0-9_.-]{1,64}$",
+            "type": "string"
+          },
+          "description": {
+            "maxLength": 1000,
+            "type": "string",
+            "minLength": 1
+          },
+          "quantity": {
+            "maximum": 99999999,
+            "minimum": 0.001,
+            "type": "number"
+          },
+          "unit": {
+            "maxLength": 30,
+            "type": "string"
+          },
+          "unit_price": {
+            "maximum": 999999999999,
+            "minimum": 0,
+            "type": "number"
+          },
+          "discount_pct": {
+            "maximum": 100,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "description",
+          "quantity",
+          "unit_price"
+        ]
       },
       "QuotationLineDto": {
         "type": "object",

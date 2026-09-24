@@ -190,7 +190,8 @@
         ],
         "x-acting-permission": [
           "crm.customer.manage"
-        ]
+        ],
+        "x-sensitive-resource": "customer"
       }
     },
     "/api/v1/crm/customers/segment-options": {
@@ -509,7 +510,8 @@
         ],
         "x-acting-permission": [
           "crm.customer.manage"
-        ]
+        ],
+        "x-sensitive-resource": "customer"
       }
     },
     "/api/v1/crm/customers/{id}/contacts/consents": {
@@ -670,7 +672,8 @@
         ],
         "x-acting-permission": [
           "crm.customer.manage"
-        ]
+        ],
+        "x-sensitive-resource": "customer"
       }
     },
     "/api/v1/crm/customers/{id}/suspend": {
@@ -734,7 +737,8 @@
         ],
         "x-acting-permission": [
           "crm.customer.manage"
-        ]
+        ],
+        "x-sensitive-resource": "customer"
       }
     },
     "/api/v1/crm/customers/{id}/deactivate": {
@@ -798,7 +802,8 @@
         ],
         "x-acting-permission": [
           "crm.customer.manage"
-        ]
+        ],
+        "x-sensitive-resource": "customer"
       }
     },
     "/api/v1/crm/customers/{id}/locations": {
@@ -1251,7 +1256,8 @@
         ],
         "x-acting-permission": [
           "crm.customer.manage"
-        ]
+        ],
+        "x-sensitive-resource": "customer"
       }
     },
     "/api/v1/crm/customers/{id}/history": {
@@ -1344,7 +1350,8 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "date-time"
             }
           },
           {
@@ -1352,7 +1359,8 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "date-time"
             }
           },
           {
@@ -3969,6 +3977,30 @@
             }
           },
           {
+            "name": "erp_status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "not_ready",
+                "pending",
+                "synced",
+                "failed",
+                "skipped"
+              ]
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
             "name": "view",
             "in": "query",
             "required": false,
@@ -6060,6 +6092,13 @@
             "minimum": 0,
             "type": "number"
           },
+          "lines": {
+            "maxItems": 200,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SaleOrderLineDto"
+            }
+          },
           "note": {
             "maxLength": 2000,
             "type": "string"
@@ -6164,6 +6203,44 @@
             "type": "string"
           }
         }
+      },
+      "SaleOrderLineDto": {
+        "type": "object",
+        "properties": {
+          "product_code": {
+            "pattern": "^[A-Za-z0-9_.-]{1,64}$",
+            "type": "string"
+          },
+          "description": {
+            "maxLength": 1000,
+            "type": "string",
+            "minLength": 1
+          },
+          "quantity": {
+            "maximum": 99999999,
+            "minimum": 0.001,
+            "type": "number"
+          },
+          "unit": {
+            "maxLength": 30,
+            "type": "string"
+          },
+          "unit_price": {
+            "maximum": 999999999999,
+            "minimum": 0,
+            "type": "number"
+          },
+          "discount_pct": {
+            "maximum": 100,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "description",
+          "quantity",
+          "unit_price"
+        ]
       },
       "SetSegmentsDto": {
         "type": "object",
