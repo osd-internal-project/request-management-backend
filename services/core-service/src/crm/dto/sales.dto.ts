@@ -17,6 +17,7 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PageQueryDto } from '@request-management/share';
 import { CUSTOMER_TYPES } from './customer.dto';
 
@@ -54,107 +55,146 @@ export const OPEN_OPPORTUNITY_STAGES = [
 ] as const;
 
 export class CreateLeadDto {
+  @ApiProperty({
+    example: 'บริษัท ตัวอย่าง จำกัด',
+    description: 'ชื่อบริษัทหรือชื่อผู้มุ่งหวัง',
+  })
   @IsString()
   @IsNotEmpty()
   @MaxLength(255)
   name!: string;
 
+  @ApiPropertyOptional({ example: 'สมชาย ใจดี', description: 'ชื่อผู้ติดต่อ' })
   @IsOptional()
   @IsString()
   @MaxLength(255)
   contact_name?: string;
 
+  @ApiPropertyOptional({ example: '081-234-5678' })
   @IsOptional()
   @IsString()
   @MaxLength(50)
   phone?: string;
 
+  @ApiPropertyOptional({ example: 'somchai@example.com' })
   @IsOptional()
   @IsEmail()
   email?: string;
 
+  @ApiPropertyOptional({ example: 'สนใจระบบ ERP สำหรับ 50 ผู้ใช้' })
   @IsOptional()
   @IsString()
   @MaxLength(2000)
   note?: string;
 
+  @ApiPropertyOptional({
+    example: 'website',
+    description: 'รหัสแหล่งที่มาตามที่บริษัทตั้งค่าไว้',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(64)
   source_code?: string;
 
   /** ลูกค้าเดิม ถ้า Lead นี้เป็นเรื่องของลูกค้าที่มีอยู่แล้ว. */
+  @ApiPropertyOptional({
+    description:
+      'id ลูกค้าเดิมจาก `GET /crm/customers` — เว้นว่างถ้ายังไม่มีในทะเบียน',
+  })
   @IsOptional()
   @IsString()
   customer_id?: string;
 
   // --- หน้ารายละเอียด Lead: ผู้ติดต่อ / บริษัท / ที่อยู่ (10 ก.ย. 2569) ---------
 
+  @ApiPropertyOptional({ example: 'ผู้จัดการฝ่ายไอที' })
   @IsOptional()
   @IsString()
   @MaxLength(255)
   contact_position?: string;
 
+  @ApiPropertyOptional({ example: 'Example Co., Ltd.' })
   @IsOptional()
   @IsString()
   @MaxLength(255)
   name_en?: string;
 
+  @ApiPropertyOptional({
+    example: '0000000000000',
+    description: 'เลขประจำตัวผู้เสียภาษี 13 หลัก',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(20)
   tax_id?: string;
 
+  @ApiPropertyOptional({ example: 'การผลิต' })
   @IsOptional()
   @IsString()
   @MaxLength(120)
   industry?: string;
 
+  @ApiPropertyOptional({ example: 'ขนาดกลาง (51–200 คน)' })
   @IsOptional()
   @IsString()
   @MaxLength(60)
   company_size?: string;
 
+  @ApiPropertyOptional({ example: 120 })
   @IsOptional()
   @IsInt()
   @Min(0)
   employee_count?: number;
 
+  @ApiPropertyOptional({ example: 'ERP' })
   @IsOptional()
   @IsString()
   @MaxLength(120)
   product_group?: string;
 
+  @ApiPropertyOptional({ example: 'Finance' })
   @IsOptional()
   @IsString()
   @MaxLength(120)
   sub_product?: string;
 
+  @ApiPropertyOptional({
+    example: 1500000,
+    description: 'มูลค่าโครงการที่คาด (บาท)',
+  })
   @IsOptional()
   @IsNumber()
   @Min(0)
   project_revenue?: number;
 
+  @ApiPropertyOptional({ example: '99/9 ถนนตัวอย่าง' })
   @IsOptional()
   @IsString()
   @MaxLength(500)
   address_line?: string;
 
+  @ApiPropertyOptional({ example: 'บางรัก' })
   @IsOptional()
   @IsString()
   @MaxLength(120)
   district?: string;
 
+  @ApiPropertyOptional({ example: 'กรุงเทพมหานคร' })
   @IsOptional()
   @IsString()
   @MaxLength(120)
   province?: string;
 
+  @ApiPropertyOptional({ example: '10500' })
   @IsOptional()
   @IsString()
   @MaxLength(10)
   postal_code?: string;
 
+  @ApiPropertyOptional({
+    example: 'TH',
+    description: 'รหัสประเทศ 2 ตัวอักษร (ISO 3166-1)',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(2)
@@ -175,6 +215,11 @@ export class UpdateLeadDto extends CreateLeadDto {
  * ซึ่งมีข้อมูลกำกับของมันเอง — `LeadsService.setStatus` เป็นคนปฏิเสธ.
  */
 export class UpdateLeadStatusDto {
+  @ApiProperty({
+    example: 'contacted',
+    description:
+      'รหัสขั้นจาก `GET /crm/leads/statuses` — ต้องเป็นขั้น kind `open` ขั้น won/lost ตอบ 409',
+  })
   @Matches(STATUS_CODE_PATTERN)
   status!: string;
 }
@@ -184,19 +229,27 @@ export class UpdateLeadStatusDto {
  * มี `due_at` = นัด/งานที่ต้องตามต่อ.
  */
 export class CreateLeadActivityDto {
+  @ApiProperty({ enum: LEAD_ACTIVITY_TYPES, example: 'call' })
   @IsIn(LEAD_ACTIVITY_TYPES)
   type!: (typeof LEAD_ACTIVITY_TYPES)[number];
 
+  @ApiProperty({ example: 'โทรนัดเดโม' })
   @IsString()
   @IsNotEmpty()
   @MaxLength(255)
   subject!: string;
 
+  @ApiPropertyOptional({ example: 'ลูกค้าขอดูโมดูลบัญชีก่อน' })
   @IsOptional()
   @IsString()
   @MaxLength(4000)
   detail?: string;
 
+  @ApiPropertyOptional({
+    example: '2026-09-30T10:00:00+07:00',
+    description:
+      'ใส่ = นัดไว้ ยังไม่ทำ · ไม่ใส่ = ทำไปแล้ว ปิดทันที — ลงผิดช่องแล้วระบบนับความเคลื่อนไหวผิด',
+  })
   @IsOptional()
   @IsDateString()
   due_at?: string;
@@ -239,15 +292,24 @@ export class DisqualifyLeadDto {
  * ลูกค้าเดิม.
  */
 export class ConvertLeadDto {
+  @ApiPropertyOptional({
+    description:
+      'id ลูกค้าเดิมจาก `GET /crm/customers` — ว่าง = ผู้มุ่งหวัง ลูกค้าเกิดตอนเปิดใบสั่งขาย',
+  })
   @IsOptional()
   @IsString()
   customer_id?: string;
 
+  @ApiPropertyOptional({
+    example: 'ERP สำหรับบริษัท ตัวอย่าง จำกัด',
+    description: 'ชื่อโอกาสการขาย — ว่าง = ใช้ชื่อ Lead',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(255)
   title?: string;
 
+  @ApiPropertyOptional({ example: 1500000, description: 'มูลค่าที่คาด (บาท)' })
   @IsOptional()
   @IsNumber()
   @Min(0)
@@ -255,10 +317,18 @@ export class ConvertLeadDto {
 }
 
 export class ListLeadsQueryDto extends PageQueryDto {
+  @ApiPropertyOptional({
+    example: 'ตัวอย่าง',
+    description: 'ค้นจากชื่อ ชื่อผู้ติดต่อ อีเมล หรือเบอร์โทร',
+  })
   @IsOptional()
   @IsString()
   search?: string;
 
+  @ApiPropertyOptional({
+    example: 'new',
+    description: 'รหัสขั้นจาก `GET /crm/leads/statuses`',
+  })
   @IsOptional()
   @Matches(STATUS_CODE_PATTERN)
   status?: string;
@@ -269,6 +339,11 @@ export class ListLeadsQueryDto extends PageQueryDto {
    * ขอบเขตที่ทุกคนอ่าน Lead ได้เห็นอยู่แล้ว (`visibleLeadsWhere`) — ค่านี้แค่
    * ตัดใบที่มีคนดูแลแล้วออก ให้เหลือหน้าจอ "งานที่ยังไม่มีใครรับ".
    */
+  @ApiPropertyOptional({
+    example: 'unassigned',
+    description:
+      '`mine` ของฉัน · `all` ทั้งหมดที่เห็นได้ · `unassigned` กองกลางที่ยังไม่มีเจ้าของ',
+  })
   @IsOptional()
   @IsIn(['mine', 'all', 'unassigned'])
   view?: 'mine' | 'all' | 'unassigned';
@@ -283,6 +358,10 @@ export class ListLeadsQueryDto extends PageQueryDto {
  * ต้องระบุปลายทางเสมอ — ช่องว่างจึงแปลว่าอย่างแรกได้โดยไม่กำกวม.
  */
 export class AssignLeadDto {
+  @ApiPropertyOptional({
+    description:
+      'id ผู้รับจาก `GET /request/users` — ว่าง = รับเอง · ใบที่มีเจ้าของแล้วต้องระบุ',
+  })
   @IsOptional()
   @IsString()
   @IsNotEmpty()
@@ -419,56 +498,76 @@ export class CreateOpportunityDto {
    * โอกาสการขายยังไม่ถือเป็นลูกค้า; กรณีนั้นต้องมี `prospect_name` แทน และ
    * ลูกค้าจะเกิดเมื่อเปิดใบสั่งขาย.
    */
+  @ApiPropertyOptional({
+    description:
+      'id ลูกค้าเดิมจาก `GET /crm/customers` — ว่างได้ แต่ต้องส่ง `prospect_name` แทน',
+  })
   @IsOptional()
   @IsString()
   customer_id?: string;
 
   /** ชื่อผู้มุ่งหวัง (บริษัท/บุคคล) — บังคับเมื่อไม่ระบุ `customer_id`. */
+  @ApiPropertyOptional({
+    example: 'บริษัท ตัวอย่าง จำกัด',
+    description: 'บังคับเมื่อไม่ส่ง `customer_id`',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(255)
   prospect_name?: string;
 
   /** เลขผู้เสียภาษีของผู้มุ่งหวัง — free text ที่นี่ ตรวจ checksum ตอนสร้างลูกค้า. */
+  @ApiPropertyOptional({ example: '0000000000000' })
   @IsOptional()
   @IsString()
   @MaxLength(20)
   prospect_tax_id?: string;
 
+  @ApiPropertyOptional({ example: 'สมชาย ใจดี' })
   @IsOptional()
   @IsString()
   @MaxLength(255)
   prospect_contact_name?: string;
 
+  @ApiPropertyOptional({ example: '081-234-5678' })
   @IsOptional()
   @IsString()
   @MaxLength(50)
   prospect_phone?: string;
 
+  @ApiPropertyOptional({ example: 'somchai@example.com' })
   @IsOptional()
   @IsEmail()
   prospect_email?: string;
 
+  @ApiProperty({ example: 'ERP สำหรับบริษัท ตัวอย่าง จำกัด' })
   @IsString()
   @IsNotEmpty()
   @MaxLength(255)
   title!: string;
 
+  @ApiPropertyOptional({ example: 1500000, description: 'มูลค่าที่คาด (บาท)' })
   @IsOptional()
   @IsNumber()
   @Min(0)
   amount?: number;
 
+  @ApiPropertyOptional({ example: 40, description: 'โอกาสปิดได้ (%)' })
   @IsOptional()
   @IsInt()
   @Min(0)
   @Max(100)
   probability?: number;
 
+  @ApiPropertyOptional({
+    example: '2026-12-31',
+    description: 'วันที่คาดว่าจะปิด',
+  })
   @IsOptional()
   @IsString()
   expected_close_at?: string;
 
+  @ApiPropertyOptional({ type: [String], example: ['ERP-FIN'] })
   @IsOptional()
   @IsArray()
   @Matches(/^[A-Za-z0-9_.-]+$/, { each: true })
@@ -521,23 +620,34 @@ export class LoseOpportunityDto {
 }
 
 export class ListOpportunitiesQueryDto extends PageQueryDto {
+  @ApiPropertyOptional({
+    example: 'ตัวอย่าง',
+    description: 'ค้นจากชื่อโอกาส รหัสโอกาส ชื่อผู้มุ่งหวัง หรือชื่อลูกค้า',
+  })
   @IsOptional()
   @IsString()
   search?: string;
 
+  @ApiPropertyOptional({ example: 'proposing' })
   @IsOptional()
   @IsIn(OPPORTUNITY_STAGES)
   stage?: (typeof OPPORTUNITY_STAGES)[number];
 
   /** เปิดอยู่ทั้งหมด (ไม่ won/lost) — ใช้โดยแท็บ 360°. */
+  @ApiPropertyOptional({
+    example: 'true',
+    description: '`true` = เฉพาะที่ยังไม่ won/lost',
+  })
   @IsOptional()
   @IsIn(['true'])
   open?: string;
 
+  @ApiPropertyOptional({ description: 'id ลูกค้าจาก `GET /crm/customers`' })
   @IsOptional()
   @IsString()
   customer_id?: string;
 
+  @ApiPropertyOptional({ example: 'mine' })
   @IsOptional()
   @IsIn(['mine', 'all'])
   view?: 'mine' | 'all';
@@ -546,6 +656,11 @@ export class ListOpportunitiesQueryDto extends PageQueryDto {
    * CD-65 — `overdue` = มีนัดติดตามที่เลยกำหนดแล้ว, `stale` = ถูกแจ้งว่าเงียบ
    * เกินเกณฑ์และยังไม่มีกิจกรรมใหม่.
    */
+  @ApiPropertyOptional({
+    example: 'overdue',
+    description:
+      '`overdue` เลยนัดติดตามแล้ว · `stale` ถูกเตือนว่าเงียบเกินเกณฑ์',
+  })
   @IsOptional()
   @IsIn(['overdue', 'stale'])
   follow_up?: 'overdue' | 'stale';

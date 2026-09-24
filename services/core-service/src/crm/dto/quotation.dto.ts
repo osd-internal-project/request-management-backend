@@ -14,6 +14,7 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { PageQueryDto } from '@request-management/share';
 
 /** CRM ใบเสนอราคา (CD-76) DTOs — snake_case per the §11.1 API contract. */
@@ -139,28 +140,42 @@ export class CancelQuotationDto {
 }
 
 export class ListQuotationsQueryDto extends PageQueryDto {
+  @ApiPropertyOptional({
+    description: 'id โอกาสการขายจาก `GET /crm/opportunities`',
+  })
   @IsOptional()
   @IsString()
   opportunity_id?: string;
 
   /** แท็บใบเสนอราคาบนหน้าลูกค้า 360°. */
+  @ApiPropertyOptional({ description: 'id ลูกค้าจาก `GET /crm/customers`' })
   @IsOptional()
   @IsString()
   customer_id?: string;
 
+  @ApiPropertyOptional({ example: 'sent' })
   @IsOptional()
   @IsIn(QUOTATION_STATUSES)
   status?: (typeof QUOTATION_STATUSES)[number];
 
+  @ApiPropertyOptional({
+    example: 'ตัวอย่าง',
+    description: 'ค้นจากเลขที่ใบเสนอราคา ชื่อเรื่อง หรือชื่อคู่ค้า',
+  })
   @IsOptional()
   @IsString()
   search?: string;
 
   /** `true` = ซ่อนฉบับที่ถูกเวอร์ชันใหม่แทนแล้ว (`superseded`). */
+  @ApiPropertyOptional({
+    example: 'true',
+    description: '`true` = ซ่อนฉบับที่ถูกเวอร์ชันใหม่แทนแล้ว',
+  })
   @IsOptional()
   @IsIn(['true'])
   current?: string;
 
+  @ApiPropertyOptional({ example: 'mine' })
   @IsOptional()
   @IsIn(['mine', 'all'])
   view?: 'mine' | 'all';

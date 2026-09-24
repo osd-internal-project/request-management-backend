@@ -183,8 +183,18 @@ export class ExternalFormFieldDto {
   @ApiProperty({
     description:
       '`select` มี `options` · `table` มี `columns` · ' +
-      '`date` รับ `ปปปป-ดด-วว` · `multiline` คือข้อความหลายบรรทัด',
-    enum: ['text', 'multiline', 'number', 'boolean', 'select', 'date', 'table'],
+      '`date` รับ `ปปปป-ดด-วว` · `datetime` รับ ISO 8601 พร้อมเขตเวลา เช่น `2026-09-23T14:30:00+07:00` · ' +
+      '`boolean` รับ true/false และมี `trueLabel`/`falseLabel` ไว้ถาม · `multiline` คือข้อความหลายบรรทัด',
+    enum: [
+      'text',
+      'multiline',
+      'number',
+      'boolean',
+      'select',
+      'date',
+      'datetime',
+      'table',
+    ],
     enumName: 'ExternalFormFieldType',
     example: 'select',
   })
@@ -213,6 +223,18 @@ export class ExternalFormFieldDto {
 
   @ApiPropertyOptional({ description: 'เฉพาะ `table`', example: 20 })
   maxItems?: number;
+
+  @ApiPropertyOptional({
+    description: 'เฉพาะ `boolean` — คำที่ใช้แทน true',
+    example: 'อนุมัติ',
+  })
+  trueLabel?: string;
+
+  @ApiPropertyOptional({
+    description: 'เฉพาะ `boolean` — คำที่ใช้แทน false',
+    example: 'ไม่อนุมัติ',
+  })
+  falseLabel?: string;
 
   @ApiPropertyOptional({
     description: 'เฉพาะ `table` — คอลัมน์ เป็นฟิลด์เต็มรูปแบบเช่นกัน',
@@ -299,7 +321,8 @@ export class ExternalTypeFormDto extends ExternalTypeSummaryDto {
   @ApiProperty({
     description:
       'ผู้รับที่เลือกได้ — ว่างได้ ถ้าว่างต้องหา receiver_user_id เอง ' +
-      'ผู้ใช้พิมพ์ชื่อหรืออีเมลมา ให้จับคู่กับรายการนี้แล้วส่ง `id`',
+      'ผู้ใช้พิมพ์ชื่อหรืออีเมลมา ให้จับคู่กับรายการนี้แล้วส่ง `id` ' +
+      'ถ้า type กำหนดผู้รับเรื่องประจำไว้ รายการจะมีคนเดียว และส่งคนอื่นจะได้ `VALIDATION_FAILED`',
     type: [ExternalReceiverCandidateDto],
     example: [],
   })

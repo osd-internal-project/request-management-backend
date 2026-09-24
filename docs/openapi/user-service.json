@@ -61,7 +61,7 @@
             "schema": {
               "minimum": 1,
               "default": 1,
-              "type": "number"
+              "type": "integer"
             }
           },
           {
@@ -73,7 +73,7 @@
               "minimum": 1,
               "maximum": 100,
               "default": 20,
-              "type": "number"
+              "type": "integer"
             }
           },
           {
@@ -83,7 +83,8 @@
             "description": "`sort=field` เรียงขึ้น, `sort=-field` เรียงลง",
             "schema": {
               "example": "-createdAt",
-              "type": "string"
+              "type": "string",
+              "pattern": "^-?[a-zA-Z_][a-zA-Z0-9_]*$"
             }
           },
           {
@@ -91,6 +92,54 @@
             "in": "header",
             "required": false,
             "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "actor_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "event_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "resource_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "resource_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -108,6 +157,9 @@
         ],
         "tags": [
           "audit"
+        ],
+        "x-permission": [
+          "audit.read"
         ]
       }
     },
@@ -123,7 +175,7 @@
             "schema": {
               "minimum": 1,
               "default": 1,
-              "type": "number"
+              "type": "integer"
             }
           },
           {
@@ -135,7 +187,7 @@
               "minimum": 1,
               "maximum": 100,
               "default": 20,
-              "type": "number"
+              "type": "integer"
             }
           },
           {
@@ -145,7 +197,8 @@
             "description": "`sort=field` เรียงขึ้น, `sort=-field` เรียงลง",
             "schema": {
               "example": "-createdAt",
-              "type": "string"
+              "type": "string",
+              "pattern": "^-?[a-zA-Z_][a-zA-Z0-9_]*$"
             }
           },
           {
@@ -153,6 +206,22 @@
             "in": "header",
             "required": false,
             "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "org_unit_id",
+            "in": "query",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -185,7 +254,7 @@
             "schema": {
               "minimum": 1,
               "default": 1,
-              "type": "number"
+              "type": "integer"
             }
           },
           {
@@ -197,7 +266,7 @@
               "minimum": 1,
               "maximum": 100,
               "default": 20,
-              "type": "number"
+              "type": "integer"
             }
           },
           {
@@ -207,7 +276,8 @@
             "description": "`sort=field` เรียงขึ้น, `sort=-field` เรียงลง",
             "schema": {
               "example": "-createdAt",
-              "type": "string"
+              "type": "string",
+              "pattern": "^-?[a-zA-Z_][a-zA-Z0-9_]*$"
             }
           },
           {
@@ -215,6 +285,14 @@
             "in": "header",
             "required": false,
             "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -232,6 +310,9 @@
         ],
         "tags": [
           "users"
+        ],
+        "x-permission": [
+          "user.read"
         ]
       }
     },
@@ -261,6 +342,9 @@
         ],
         "tags": [
           "admin/keycloak"
+        ],
+        "x-permission": [
+          "admin.identity.manage"
         ]
       }
     },
@@ -290,6 +374,9 @@
         ],
         "tags": [
           "admin/keycloak"
+        ],
+        "x-permission": [
+          "admin.identity.manage"
         ]
       }
     },
@@ -319,6 +406,9 @@
         ],
         "tags": [
           "admin/keycloak"
+        ],
+        "x-permission": [
+          "admin.identity.manage"
         ]
       }
     },
@@ -356,6 +446,9 @@
         ],
         "tags": [
           "admin/keycloak"
+        ],
+        "x-permission": [
+          "admin.identity.manage"
         ]
       }
     },
@@ -401,6 +494,9 @@
         ],
         "tags": [
           "admin/keycloak"
+        ],
+        "x-permission": [
+          "admin.identity.manage"
         ]
       },
       "delete": {
@@ -444,6 +540,9 @@
         ],
         "tags": [
           "admin/keycloak"
+        ],
+        "x-permission": [
+          "admin.identity.manage"
         ]
       }
     },
@@ -489,6 +588,9 @@
         ],
         "tags": [
           "admin/keycloak"
+        ],
+        "x-permission": [
+          "admin.identity.manage"
         ]
       },
       "delete": {
@@ -532,6 +634,9 @@
         ],
         "tags": [
           "admin/keycloak"
+        ],
+        "x-permission": [
+          "admin.identity.manage"
         ]
       }
     },
@@ -569,6 +674,9 @@
         ],
         "tags": [
           "admin/org"
+        ],
+        "x-permission": [
+          "admin.org.manage"
         ]
       },
       "post": {
@@ -606,6 +714,9 @@
         ],
         "tags": [
           "admin/org"
+        ],
+        "x-permission": [
+          "admin.org.manage"
         ]
       }
     },
@@ -651,6 +762,9 @@
         ],
         "tags": [
           "admin/org"
+        ],
+        "x-permission": [
+          "admin.org.manage"
         ]
       }
     },
@@ -696,6 +810,9 @@
         ],
         "tags": [
           "admin/org"
+        ],
+        "x-permission": [
+          "admin.org.manage"
         ]
       }
     },
@@ -743,6 +860,9 @@
         ],
         "tags": [
           "admin/org"
+        ],
+        "x-permission": [
+          "admin.org.manage"
         ]
       },
       "delete": {
@@ -778,6 +898,9 @@
         ],
         "tags": [
           "admin/org"
+        ],
+        "x-permission": [
+          "admin.org.manage"
         ]
       }
     },
@@ -823,6 +946,9 @@
         ],
         "tags": [
           "admin/org"
+        ],
+        "x-permission": [
+          "admin.org.manage"
         ]
       },
       "put": {
@@ -876,6 +1002,9 @@
         ],
         "tags": [
           "admin/org"
+        ],
+        "x-permission": [
+          "admin.org.manage"
         ]
       }
     },
@@ -921,6 +1050,9 @@
         ],
         "tags": [
           "admin/org"
+        ],
+        "x-permission": [
+          "admin.org.manage"
         ]
       },
       "put": {
@@ -974,6 +1106,9 @@
         ],
         "tags": [
           "admin/org"
+        ],
+        "x-permission": [
+          "admin.org.manage"
         ]
       }
     },
@@ -1003,6 +1138,9 @@
         ],
         "tags": [
           "admin/org"
+        ],
+        "x-permission": [
+          "admin.org.manage"
         ]
       }
     },
@@ -1050,6 +1188,9 @@
         ],
         "tags": [
           "admin/org"
+        ],
+        "x-permission": [
+          "admin.org.manage"
         ]
       }
     },
@@ -1161,6 +1302,9 @@
         ],
         "tags": [
           "admin/roles"
+        ],
+        "x-permission": [
+          "admin.role.manage"
         ]
       }
     },
@@ -1198,6 +1342,9 @@
         ],
         "tags": [
           "admin/roles"
+        ],
+        "x-permission": [
+          "admin.role.manage"
         ]
       },
       "post": {
@@ -1235,6 +1382,9 @@
         ],
         "tags": [
           "admin/roles"
+        ],
+        "x-permission": [
+          "admin.role.manage"
         ]
       }
     },
@@ -1280,6 +1430,9 @@
         ],
         "tags": [
           "admin/roles"
+        ],
+        "x-permission": [
+          "admin.role.manage"
         ]
       }
     },
@@ -1327,6 +1480,9 @@
         ],
         "tags": [
           "admin/roles"
+        ],
+        "x-permission": [
+          "admin.role.manage"
         ]
       }
     },
@@ -1374,6 +1530,9 @@
         ],
         "tags": [
           "admin/roles"
+        ],
+        "x-permission": [
+          "admin.role.manage"
         ]
       }
     },
@@ -1427,6 +1586,9 @@
         ],
         "tags": [
           "admin/roles"
+        ],
+        "x-permission": [
+          "admin.role.manage"
         ]
       }
     },
@@ -1464,6 +1626,9 @@
         ],
         "tags": [
           "admin/roles"
+        ],
+        "x-permission": [
+          "admin.role.manage"
         ]
       },
       "put": {
@@ -1501,6 +1666,9 @@
         ],
         "tags": [
           "admin/roles"
+        ],
+        "x-permission": [
+          "admin.role.manage"
         ]
       }
     },
@@ -1538,6 +1706,9 @@
         ],
         "tags": [
           "admin/roles"
+        ],
+        "x-permission": [
+          "admin.role.manage"
         ]
       }
     },
@@ -1567,6 +1738,9 @@
         ],
         "tags": [
           "admin/policy"
+        ],
+        "x-permission": [
+          "admin.role.manage"
         ]
       },
       "put": {
@@ -1604,6 +1778,9 @@
         ],
         "tags": [
           "admin/policy"
+        ],
+        "x-permission": [
+          "admin.role.manage"
         ]
       }
     },
@@ -1633,6 +1810,9 @@
         ],
         "tags": [
           "admin/policy"
+        ],
+        "x-permission": [
+          "admin.role.manage"
         ]
       },
       "put": {
@@ -1670,6 +1850,9 @@
         ],
         "tags": [
           "admin/policy"
+        ],
+        "x-permission": [
+          "admin.role.manage"
         ]
       }
     },
@@ -1744,6 +1927,9 @@
         ],
         "tags": [
           "internal"
+        ],
+        "x-permission": [
+          "integration.request.create"
         ]
       }
     },
@@ -1969,55 +2155,526 @@
     "schemas": {
       "CreateOrgUnitDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "company_id": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "code": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "name": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "COMPANY",
+              "DIVISION",
+              "DEPARTMENT",
+              "POSITION",
+              "TEAM"
+            ],
+            "type": "string"
+          },
+          "parent_id": {
+            "type": "string"
+          },
+          "manager_user_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "company_id",
+          "name"
+        ]
       },
       "UpdateOrgUnitDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "name": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "COMPANY",
+              "DIVISION",
+              "DEPARTMENT",
+              "POSITION",
+              "TEAM"
+            ],
+            "type": "string"
+          },
+          "parent_id": {
+            "type": "string"
+          },
+          "manager_user_id": {
+            "type": "string"
+          },
+          "active": {
+            "type": "boolean"
+          }
+        }
       },
       "ReplaceOrgUnitScopesDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "scopes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrgUnitScopeEntryDto"
+            }
+          }
+        },
+        "required": [
+          "scopes"
+        ]
       },
       "AssignUserOrgDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "org_unit_id": {
+            "type": "string"
+          },
+          "supervisor_user_id": {
+            "type": "string"
+          },
+          "companies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "primary_company_id": {
+            "type": "string"
+          }
+        }
       },
       "CreateRoleDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "company_id": {
+            "type": "string"
+          },
+          "code": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "name": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "enum": [
+                "request.create",
+                "request.read",
+                "request.read.all",
+                "request.cancel.own",
+                "request.cancel.any",
+                "request.complete",
+                "request.return",
+                "request.hold",
+                "request.sensitive.read",
+                "approval.decide",
+                "approval.delegate",
+                "approval.history.read",
+                "crm.customer.read",
+                "crm.customer.read.all",
+                "crm.customer.manage",
+                "crm.customer.sensitive.read",
+                "crm.customer.dedup.override",
+                "crm.customer.financial.read",
+                "crm.sales.read",
+                "crm.sales.read.all",
+                "crm.sales.manage",
+                "report.request.read",
+                "report.dashboard.read",
+                "user.read",
+                "notification.read",
+                "audit.read",
+                "admin.role.manage",
+                "admin.org.manage",
+                "admin.request-type.manage",
+                "admin.approval-matrix.manage",
+                "admin.sla.manage",
+                "admin.run-number.manage",
+                "admin.bi.manage",
+                "admin.identity.manage",
+                "admin.crm.manage",
+                "admin.integration.manage",
+                "integration.request.create",
+                "integration.approval.create",
+                "integration.crm.lead.read",
+                "integration.crm.lead.stage",
+                "integration.crm.lead.create",
+                "integration.crm.customer.read",
+                "integration.crm.customer.manage",
+                "integration.crm.sales.read",
+                "integration.crm.sales.manage",
+                "integration.crm.admin.manage"
+              ],
+              "type": "string"
+            }
+          },
+          "visibility_level": {
+            "enum": [
+              "COMPANY",
+              "DIVISION",
+              "DEPARTMENT",
+              "POSITION",
+              "TEAM"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "permissions"
+        ]
       },
       "UpdateRoleDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "name": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "enum": [
+                "request.create",
+                "request.read",
+                "request.read.all",
+                "request.cancel.own",
+                "request.cancel.any",
+                "request.complete",
+                "request.return",
+                "request.hold",
+                "request.sensitive.read",
+                "approval.decide",
+                "approval.delegate",
+                "approval.history.read",
+                "crm.customer.read",
+                "crm.customer.read.all",
+                "crm.customer.manage",
+                "crm.customer.sensitive.read",
+                "crm.customer.dedup.override",
+                "crm.customer.financial.read",
+                "crm.sales.read",
+                "crm.sales.read.all",
+                "crm.sales.manage",
+                "report.request.read",
+                "report.dashboard.read",
+                "user.read",
+                "notification.read",
+                "audit.read",
+                "admin.role.manage",
+                "admin.org.manage",
+                "admin.request-type.manage",
+                "admin.approval-matrix.manage",
+                "admin.sla.manage",
+                "admin.run-number.manage",
+                "admin.bi.manage",
+                "admin.identity.manage",
+                "admin.crm.manage",
+                "admin.integration.manage",
+                "integration.request.create",
+                "integration.approval.create",
+                "integration.crm.lead.read",
+                "integration.crm.lead.stage",
+                "integration.crm.lead.create",
+                "integration.crm.customer.read",
+                "integration.crm.customer.manage",
+                "integration.crm.sales.read",
+                "integration.crm.sales.manage",
+                "integration.crm.admin.manage"
+              ],
+              "type": "string"
+            }
+          },
+          "visibility_level": {
+            "enum": [
+              "COMPANY",
+              "DIVISION",
+              "DEPARTMENT",
+              "POSITION",
+              "TEAM"
+            ],
+            "type": "string"
+          },
+          "active": {
+            "type": "boolean"
+          }
+        }
       },
       "GrantRoleDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "role_id": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "company_id": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "company_id",
+          "role_id"
+        ]
       },
       "ReplaceKeycloakMappingsDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "company_id": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "mappings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KeycloakRoleMappingEntryDto"
+            }
+          }
+        },
+        "required": [
+          "company_id",
+          "mappings"
+        ]
       },
       "ReplaceScopeRulesDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "rules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScopeRuleEntryDto"
+            }
+          }
+        },
+        "required": [
+          "rules"
+        ]
       },
       "ReplaceSensitiveFieldRulesDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "rules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SensitiveFieldRuleEntryDto"
+            }
+          }
+        },
+        "required": [
+          "rules"
+        ]
       },
       "CallbackDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "code": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "codeVerifier": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "redirectUri": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "codeVerifier"
+        ]
       },
       "RefreshTokenDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "refreshToken": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "refreshToken"
+        ]
       },
       "SwitchCompanyDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "company_id": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "company_id"
+        ]
+      },
+      "OrgUnitScopeEntryDto": {
+        "type": "object",
+        "properties": {
+          "target_org_unit_id": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "target_user_id": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "include_descendants": {
+            "type": "boolean"
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "enum": [
+                "request.complete",
+                "request.hold",
+                "request.return",
+                "request.cancel.any",
+                "approval.decide"
+              ],
+              "type": "string"
+            }
+          },
+          "can_act": {
+            "type": "boolean"
+          }
+        }
+      },
+      "KeycloakRoleMappingEntryDto": {
+        "type": "object",
+        "properties": {
+          "keycloak_role": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "role_id": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "keycloak_role",
+          "role_id"
+        ]
+      },
+      "ScopeRuleEntryDto": {
+        "type": "object",
+        "properties": {
+          "role_id": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "resource": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "scope": {
+            "enum": [
+              "own",
+              "team",
+              "department",
+              "company",
+              "all"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "resource",
+          "role_id",
+          "scope"
+        ]
+      },
+      "SensitiveFieldRuleEntryDto": {
+        "type": "object",
+        "properties": {
+          "resource": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "visible_to_permission": {
+            "enum": [
+              "request.create",
+              "request.read",
+              "request.read.all",
+              "request.cancel.own",
+              "request.cancel.any",
+              "request.complete",
+              "request.return",
+              "request.hold",
+              "request.sensitive.read",
+              "approval.decide",
+              "approval.delegate",
+              "approval.history.read",
+              "crm.customer.read",
+              "crm.customer.read.all",
+              "crm.customer.manage",
+              "crm.customer.sensitive.read",
+              "crm.customer.dedup.override",
+              "crm.customer.financial.read",
+              "crm.sales.read",
+              "crm.sales.read.all",
+              "crm.sales.manage",
+              "report.request.read",
+              "report.dashboard.read",
+              "user.read",
+              "notification.read",
+              "audit.read",
+              "admin.role.manage",
+              "admin.org.manage",
+              "admin.request-type.manage",
+              "admin.approval-matrix.manage",
+              "admin.sla.manage",
+              "admin.run-number.manage",
+              "admin.bi.manage",
+              "admin.identity.manage",
+              "admin.crm.manage",
+              "admin.integration.manage",
+              "integration.request.create",
+              "integration.approval.create",
+              "integration.crm.lead.read",
+              "integration.crm.lead.stage",
+              "integration.crm.lead.create",
+              "integration.crm.customer.read",
+              "integration.crm.customer.manage",
+              "integration.crm.sales.read",
+              "integration.crm.sales.manage",
+              "integration.crm.admin.manage"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "fields",
+          "resource",
+          "visible_to_permission"
+        ]
       }
     }
   }

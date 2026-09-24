@@ -298,7 +298,11 @@ describe('ApiKeyAdminService — ออกกุญแจช่องทาง�
       const { service, keys } = harness(live());
 
       await expect(
-        service.updateScopes('key-1', { scopes: ['admin.role.manage'] }, admin()),
+        service.updateScopes(
+          'key-1',
+          { scopes: ['admin.role.manage'] },
+          admin(),
+        ),
       ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
       expect(keys.update).not.toHaveBeenCalled();
     });

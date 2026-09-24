@@ -74,13 +74,19 @@ describe('AUTH-06 แยกสิทธิ์ของคนกับของ�
     });
 
     it('ฟิลด์ที่รายงานคือ scopes ไม่ใช่ permissions', () => {
-      expect(caught(() => assertServicePermissions(['approval.decide']))
-        .details[0].field).toBe('scopes');
+      expect(
+        caught(() => assertServicePermissions(['approval.decide'])).details[0]
+          .field,
+      ).toBe('scopes');
     });
   });
 
   it('รหัสที่ไม่มีใน catalog ไม่ถูกตัดสินที่นี่', () => {
-    expect(() => assertHumanPermissions(['ไม่มีจริง.อะไรสักอย่าง'])).not.toThrow();
-    expect(() => assertServicePermissions(['ไม่มีจริง.อะไรสักอย่าง'])).not.toThrow();
+    expect(() =>
+      assertHumanPermissions(['ไม่มีจริง.อะไรสักอย่าง']),
+    ).not.toThrow();
+    expect(() =>
+      assertServicePermissions(['ไม่มีจริง.อะไรสักอย่าง']),
+    ).not.toThrow();
   });
 });

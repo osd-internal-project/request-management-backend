@@ -106,6 +106,9 @@
         "tags": [
           "external"
         ],
+        "x-permission": [
+          "integration.request.create"
+        ],
         "x-acting-permission": [
           "request.create"
         ]
@@ -204,6 +207,9 @@
         "summary": "ฟอร์ม ตัวเลือก ผู้รับที่เลือกได้ และกติกาของประเภทคำขอนี้",
         "tags": [
           "external"
+        ],
+        "x-permission": [
+          "integration.request.create"
         ],
         "x-acting-permission": [
           "request.create"
@@ -335,6 +341,9 @@
         "tags": [
           "external"
         ],
+        "x-permission": [
+          "integration.request.create"
+        ],
         "x-acting-permission": [
           "request.create"
         ]
@@ -359,7 +368,7 @@
             "schema": {
               "minimum": 1,
               "default": 1,
-              "type": "number"
+              "type": "integer"
             }
           },
           {
@@ -371,7 +380,7 @@
               "minimum": 1,
               "maximum": 100,
               "default": 20,
-              "type": "number"
+              "type": "integer"
             }
           },
           {
@@ -381,7 +390,8 @@
             "description": "`sort=field` เรียงขึ้น, `sort=-field` เรียงลง",
             "schema": {
               "example": "-createdAt",
-              "type": "string"
+              "type": "string",
+              "pattern": "^-?[a-zA-Z_][a-zA-Z0-9_]*$"
             }
           },
           {
@@ -504,6 +514,9 @@
         "summary": "คิวงานของผู้ใช้รายนี้ แบ่งตามมุมมองที่เลือก",
         "tags": [
           "external"
+        ],
+        "x-permission": [
+          "integration.request.create"
         ],
         "x-acting-permission": [
           "request.read"
@@ -645,6 +658,9 @@
         "tags": [
           "external"
         ],
+        "x-permission": [
+          "integration.request.create"
+        ],
         "x-acting-permission": [
           "request.read"
         ]
@@ -672,7 +688,7 @@
             "schema": {
               "minimum": 1,
               "default": 1,
-              "type": "number"
+              "type": "integer"
             }
           },
           {
@@ -684,7 +700,7 @@
               "minimum": 1,
               "maximum": 100,
               "default": 20,
-              "type": "number"
+              "type": "integer"
             }
           },
           {
@@ -694,7 +710,8 @@
             "description": "`sort=field` เรียงขึ้น, `sort=-field` เรียงลง",
             "schema": {
               "example": "-createdAt",
-              "type": "string"
+              "type": "string",
+              "pattern": "^-?[a-zA-Z_][a-zA-Z0-9_]*$"
             }
           },
           {
@@ -800,6 +817,9 @@
         "tags": [
           "external"
         ],
+        "x-permission": [
+          "integration.request.create"
+        ],
         "x-acting-permission": [
           "request.create"
         ]
@@ -898,6 +918,9 @@
         "summary": "อ่านคำขอหนึ่งใบ ด้วยเลขที่เอกสารหรือ uuid",
         "tags": [
           "external"
+        ],
+        "x-permission": [
+          "integration.request.create"
         ],
         "x-acting-permission": [
           "request.read"
@@ -998,6 +1021,9 @@
         "summary": "ตอนนี้ผู้ใช้รายนี้ทำอะไรกับคำขอใบนี้ได้บ้าง",
         "tags": [
           "external"
+        ],
+        "x-permission": [
+          "integration.request.create"
         ],
         "x-acting-permission": [
           "request.read"
@@ -1170,6 +1196,9 @@
         "summary": "สั่งทำหนึ่ง action กับคำขอใบนี้",
         "tags": [
           "external"
+        ],
+        "x-permission": [
+          "integration.request.create"
         ]
       }
     },
@@ -1267,6 +1296,9 @@
         "tags": [
           "external"
         ],
+        "x-permission": [
+          "integration.request.create"
+        ],
         "x-acting-permission": [
           "request.read"
         ]
@@ -1318,6 +1350,9 @@
         "summary": "ระบบภายนอกยื่นคำขอในนามตัวเอง — ไม่มีคนเป็นผู้ยื่น (REQ-10)",
         "tags": [
           "request"
+        ],
+        "x-permission": [
+          "integration.request.create"
         ]
       }
     }
@@ -1353,15 +1388,18 @@
         "properties": {
           "type_code": {
             "type": "string",
-            "example": "DSC"
+            "example": "DSC",
+            "minLength": 1
           },
           "requester_user_id": {
             "type": "string",
-            "description": "The person this request belongs to."
+            "description": "The person this request belongs to.",
+            "minLength": 1
           },
           "company_id": {
             "type": "string",
-            "description": "Company the request is raised in."
+            "description": "Company the request is raised in.",
+            "minLength": 1
           },
           "form_data": {
             "type": "object"
@@ -1376,9 +1414,9 @@
           }
         },
         "required": [
-          "type_code",
+          "company_id",
           "requester_user_id",
-          "company_id"
+          "type_code"
         ]
       },
       "ExternalActionDescriptorDto": {
@@ -1568,7 +1606,8 @@
         "properties": {
           "type_code": {
             "type": "string",
-            "example": "PS01"
+            "example": "PS01",
+            "minLength": 1
           },
           "form_data": {
             "type": "object",
@@ -1585,7 +1624,8 @@
           "receiver_user_id": {
             "type": "string",
             "description": "ผู้รับเรื่อง — ใช้ `id` จาก `receiver_candidates` ของ endpoint form ส่งอีเมลหรือชื่อมาจะได้ `NOT_FOUND` ตอนยื่น เพราะระบบค้นด้วย id เท่านั้น",
-            "example": "e0e90f78-98d3-4b74-b2bd-94e05700f989"
+            "example": "e0e90f78-98d3-4b74-b2bd-94e05700f989",
+            "minLength": 1
           },
           "receiver_org_unit_id": {
             "type": "string",
@@ -1608,9 +1648,9 @@
           }
         },
         "required": [
-          "type_code",
           "form_data",
-          "receiver_user_id"
+          "receiver_user_id",
+          "type_code"
         ]
       },
       "ExternalErrorDetailDto": {
@@ -1668,7 +1708,7 @@
             "example": "ความเร่งด่วน"
           },
           "type": {
-            "description": "`select` มี `options` · `table` มี `columns` · `date` รับ `ปปปป-ดด-วว` · `multiline` คือข้อความหลายบรรทัด",
+            "description": "`select` มี `options` · `table` มี `columns` · `date` รับ `ปปปป-ดด-วว` · `datetime` รับ ISO 8601 พร้อมเขตเวลา เช่น `2026-09-23T14:30:00+07:00` · `boolean` รับ true/false และมี `trueLabel`/`falseLabel` ไว้ถาม · `multiline` คือข้อความหลายบรรทัด",
             "example": "select",
             "allOf": [
               {
@@ -1707,6 +1747,16 @@
             "type": "number",
             "description": "เฉพาะ `table`",
             "example": 20
+          },
+          "trueLabel": {
+            "type": "string",
+            "description": "เฉพาะ `boolean` — คำที่ใช้แทน true",
+            "example": "อนุมัติ"
+          },
+          "falseLabel": {
+            "type": "string",
+            "description": "เฉพาะ `boolean` — คำที่ใช้แทน false",
+            "example": "ไม่อนุมัติ"
           },
           "columns": {
             "description": "เฉพาะ `table` — คอลัมน์ เป็นฟิลด์เต็มรูปแบบเช่นกัน",
@@ -1757,9 +1807,10 @@
           "boolean",
           "select",
           "date",
+          "datetime",
           "table"
         ],
-        "description": "`select` มี `options` · `table` มี `columns` · `date` รับ `ปปปป-ดด-วว` · `multiline` คือข้อความหลายบรรทัด"
+        "description": "`select` มี `options` · `table` มี `columns` · `date` รับ `ปปปป-ดด-วว` · `datetime` รับ ISO 8601 พร้อมเขตเวลา เช่น `2026-09-23T14:30:00+07:00` · `boolean` รับ true/false และมี `trueLabel`/`falseLabel` ไว้ถาม · `multiline` คือข้อความหลายบรรทัด"
       },
       "ExternalNamedPersonDto": {
         "type": "object",
@@ -2392,7 +2443,7 @@
             }
           },
           "receiver_candidates": {
-            "description": "ผู้รับที่เลือกได้ — ว่างได้ ถ้าว่างต้องหา receiver_user_id เอง ผู้ใช้พิมพ์ชื่อหรืออีเมลมา ให้จับคู่กับรายการนี้แล้วส่ง `id`",
+            "description": "ผู้รับที่เลือกได้ — ว่างได้ ถ้าว่างต้องหา receiver_user_id เอง ผู้ใช้พิมพ์ชื่อหรืออีเมลมา ให้จับคู่กับรายการนี้แล้วส่ง `id` ถ้า type กำหนดผู้รับเรื่องประจำไว้ รายการจะมีคนเดียว และส่งคนอื่นจะได้ `VALIDATION_FAILED`",
             "example": [],
             "type": "array",
             "items": {

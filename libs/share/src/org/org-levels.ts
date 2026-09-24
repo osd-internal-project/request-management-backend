@@ -42,12 +42,12 @@ const MEMBER_LEVEL_FROM: OrgUnitKind = 'DEPARTMENT';
 
 /** The levels a user may be assigned to, widest first. */
 export const MEMBER_LEVELS: readonly OrgUnitKind[] = ORG_UNIT_LEVELS.slice(
-  ORG_UNIT_LEVELS.indexOf(MEMBER_LEVEL_FROM as (typeof ORG_UNIT_LEVELS)[number]),
+  ORG_UNIT_LEVELS.indexOf(MEMBER_LEVEL_FROM),
 );
 
 /** How deep a level sits, `COMPANY` being 0. */
 export function orgLevelIndex(kind: OrgUnitKind): number {
-  return ORG_UNIT_LEVELS.indexOf(kind as (typeof ORG_UNIT_LEVELS)[number]);
+  return ORG_UNIT_LEVELS.indexOf(kind);
 }
 
 /** The level a unit of this kind must hang under, `null` for the root level. */

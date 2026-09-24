@@ -32,6 +32,7 @@ import {
   assertReceiverFormComplete,
   assertSubmittable,
   assertUsableFormSchema,
+  receiverFor,
 } from './submit-rules';
 import { AFTER_WORK, BEFORE_WORK, type ApprovalStage } from './approval-stage';
 import { RunNumberClient } from '../run-number/run-number.client';
@@ -105,19 +106,9 @@ export class RequestsService {
    * the submit screen would produce requests nobody can route.
    */
   async listTypes(actor: Principal) {
-    /*
-      A type may name the groups allowed to raise it, and naming a group covers
-      everything under it. Resolved by asking which groups the requester sits
-      beneath — one closure read — rather than expanding each named group's
-      subtree, which would be a query per group on every submit screen.
-
-      A type with no rows is open to everybody, which is the default and what
-      all forty imported types carry.
-    */
     const ancestors = actor.orgUnitId
       ? await this.orgUnits.ancestorIdsOf(actor.orgUnitId)
       : [];
-
     return this.types.findMany({
       where: {
         active: true,
@@ -133,9 +124,10 @@ export class RequestsService {
       // a page that fetches what its viewer cannot read is a guaranteed 403.
       include: {
         receiverOrgUnit: { select: { id: true, name: true } },
+        receiverUser: { select: { id: true, displayName: true } },
         eligibleUnits: { select: { orgUnitId: true } },
       },
-      orderBy: { code: 'asc' },
+      orderBy: { active: 'asc', code: 'asc' },
     });
   }
 
@@ -160,6 +152,7 @@ export class RequestsService {
       // fetched again per selection.
       include: {
         receiverOrgUnit: { select: { id: true, name: true } },
+        receiverUser: { select: { id: true, displayName: true } },
         eligibleUnits: { select: { orgUnitId: true } },
       },
       orderBy: { code: 'asc' },
@@ -200,12 +193,17 @@ export class RequestsService {
       (companyId) => resolveTargetCompany(actor, companyId),
     );
 
+    if (dto.receiver_user_id) {
+      await this.assertTypeReceiver(dto.receiver_user_id, actor);
+    }
+
     const created = await this.transactions.execute(async (prisma) => {
       const type = await prisma.requestType.create({
         data: {
           code: dto.code,
           name: dto.name,
           receiverOrgUnitId: dto.receiver_org_unit_id ?? null,
+          receiverUserId: dto.receiver_user_id ?? null,
           formSchema: dto.form_schema as Prisma.InputJsonValue,
           receiverFormSchema:
             (dto.receiver_form_schema as Prisma.InputJsonValue) ?? undefined,
@@ -259,7 +257,10 @@ export class RequestsService {
       // shows a brand-new type as open to everybody.
       return prisma.requestType.findUniqueOrThrow({
         where: { id: type.id },
-        include: { eligibleUnits: true },
+        include: {
+          eligibleUnits: true,
+          receiverUser: { select: { id: true, displayName: true } },
+        },
       });
     });
 
@@ -295,6 +296,10 @@ export class RequestsService {
       assertUsableFormSchema(dto.receiver_form_schema);
     }
 
+    if (dto.receiver_user_id) {
+      await this.assertTypeReceiver(dto.receiver_user_id, actor);
+    }
+
     return this.transactions.execute(async (prisma) => {
       const updated = await prisma.requestType.update({
         where: { code },
@@ -302,6 +307,9 @@ export class RequestsService {
           ...(dto.name !== undefined ? { name: dto.name } : {}),
           ...(dto.receiver_org_unit_id !== undefined
             ? { receiverOrgUnitId: dto.receiver_org_unit_id }
+            : {}),
+          ...(dto.receiver_user_id !== undefined
+            ? { receiverUserId: dto.receiver_user_id }
             : {}),
           ...(dto.form_schema !== undefined
             ? { formSchema: dto.form_schema as Prisma.InputJsonValue }
@@ -417,7 +425,10 @@ export class RequestsService {
       */
       return prisma.requestType.findUniqueOrThrow({
         where: { id: updated.id },
-        include: { eligibleUnits: true },
+        include: {
+          eligibleUnits: true,
+          receiverUser: { select: { id: true, displayName: true } },
+        },
       });
     });
   }
@@ -510,7 +521,7 @@ export class RequestsService {
         formData: (dto.form_data ?? {}) as Prisma.InputJsonValue,
         refType: dto.ref_type ?? null,
         refId: dto.ref_id ?? null,
-        receiverUserId: dto.receiver_user_id ?? null,
+        receiverUserId: receiverFor(type, dto.receiver_user_id),
         // The type's `ทีมผู้รับ` is the starting point; the requester may send
         // it somewhere else. Copied onto the row rather than read back off the
         // type, so a later edit to the type cannot re-route this (REQ-01).
@@ -633,7 +644,12 @@ export class RequestsService {
         ...(dto.ref_type !== undefined ? { refType: dto.ref_type } : {}),
         ...(dto.ref_id !== undefined ? { refId: dto.ref_id } : {}),
         ...(dto.receiver_user_id !== undefined
-          ? { receiverUserId: dto.receiver_user_id }
+          ? {
+              receiverUserId: receiverFor(
+                found.requestType,
+                dto.receiver_user_id,
+              ),
+            }
           : {}),
         ...(dto.receiver_org_unit_id !== undefined
           ? {
@@ -764,6 +780,7 @@ export class RequestsService {
         formData: (dto.form_data ?? {}) as Prisma.InputJsonValue,
         refType: dto.ref_type ?? null,
         refId: dto.ref_id ?? null,
+        receiverUserId: type.receiverUserId,
         status: 'draft',
         source: 'SYSTEM',
         createdBy: null,
@@ -814,6 +831,26 @@ export class RequestsService {
     if (!receiver) {
       throw new AppError('NOT_FOUND', 'ไม่พบผู้รับเรื่องที่ระบุ', [
         { field: 'receiver_user_id', reason: request.receiverUserId },
+      ]);
+    }
+
+    // A draft saved before the admin fixed the receiver must not slip past it.
+    receiverFor(request.requestType, request.receiverUserId);
+  }
+
+  /** A2 — the fixed receiver must be a member of the company being administered. */
+  private async assertTypeReceiver(
+    userId: string,
+    actor: Principal,
+  ): Promise<void> {
+    const receiver = await this.requests.findReceiver(
+      userId,
+      actor.activeCompanyId,
+    );
+
+    if (!receiver) {
+      throw new AppError('VALIDATION_FAILED', 'ไม่พบผู้รับเรื่องที่ระบุ', [
+        { field: 'receiver_user_id', reason: userId },
       ]);
     }
   }

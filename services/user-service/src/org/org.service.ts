@@ -1037,10 +1037,7 @@ export class OrgService {
    * company whose existing units are refused is a company locked out of screen
    * A3 and therefore unable to correct itself.
    */
-  private assertLevelFits(
-    kind: OrgUnit['kind'],
-    parent: OrgUnit | null,
-  ): void {
+  private assertLevelFits(kind: OrgUnit['kind'], parent: OrgUnit | null): void {
     if (isValidChildOf(kind, parent?.kind ?? null)) return;
 
     const required = parentKindOf(kind);
@@ -1077,7 +1074,7 @@ export class OrgService {
       'ORG_UNIT_LEVEL_INVALID',
       allowed
         ? `หน่วยงานนี้มีลูกเป็น${stranded.map((child) => LEVEL_LABELS[child]).join(' และ ')} ` +
-          `เปลี่ยนเป็น${LEVEL_LABELS[kind]}ไม่ได้ เพราะใต้${LEVEL_LABELS[kind]}ต้องเป็น${LEVEL_LABELS[allowed]}`
+            `เปลี่ยนเป็น${LEVEL_LABELS[kind]}ไม่ได้ เพราะใต้${LEVEL_LABELS[kind]}ต้องเป็น${LEVEL_LABELS[allowed]}`
         : `${LEVEL_LABELS[kind]}เป็นชั้นล่างสุดของผัง หน่วยงานที่มีลูกเปลี่ยนเป็นชั้นนี้ไม่ได้`,
       [{ field: 'kind', reason: stranded.join(', ') }],
     );
@@ -1105,7 +1102,12 @@ export class OrgService {
     throw new AppError(
       'ORG_UNIT_CANNOT_HOLD_MEMBERS',
       `สังกัดคนไว้ที่${LEVEL_LABELS[unit.kind]}ไม่ได้ — ต้องเป็นแผนก ทีม หรือตำแหน่ง`,
-      [{ field: 'org_unit_id', reason: `${unit.code} เป็น${LEVEL_LABELS[unit.kind]}` }],
+      [
+        {
+          field: 'org_unit_id',
+          reason: `${unit.code} เป็น${LEVEL_LABELS[unit.kind]}`,
+        },
+      ],
     );
   }
 

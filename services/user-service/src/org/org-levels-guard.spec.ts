@@ -59,13 +59,20 @@ function serviceWith(options: {
       updateUnit,
       findAllForClosure: jest.fn(() => Promise.resolve([])),
     } as never,
-    { rebuildForCompany: jest.fn(() => Promise.resolve()), descendantIdsOf: jest.fn(() => Promise.resolve([])) } as never,
+    {
+      rebuildForCompany: jest.fn(() => Promise.resolve()),
+      descendantIdsOf: jest.fn(() => Promise.resolve([])),
+    } as never,
     {} as never,
     {} as never,
     {
       findById: jest.fn(() =>
         Promise.resolve(
-          options.user ?? { id: 'user-1', orgUnitId: null, primaryCompanyId: OSD },
+          options.user ?? {
+            id: 'user-1',
+            orgUnitId: null,
+            primaryCompanyId: OSD,
+          },
         ),
       ),
       assignOrg,
@@ -97,7 +104,13 @@ describe('the chart is five adjacent levels', () => {
     const { service, createUnit } = serviceWith({ units: UNITS });
 
     await service.createUnit(
-      { company_id: OSD, code: 'DEV1', name: 'ทีมพัฒนา', kind: 'TEAM', parent_id: 'department' },
+      {
+        company_id: OSD,
+        code: 'DEV1',
+        name: 'ทีมพัฒนา',
+        kind: 'TEAM',
+        parent_id: 'department',
+      },
       actor(),
     );
 
@@ -126,7 +139,13 @@ describe('the chart is five adjacent levels', () => {
 
     await service
       .createUnit(
-        { company_id: OSD, code: 'RND', name: 'แผนก', kind: 'DEPARTMENT', parent_id: 'company' },
+        {
+          company_id: OSD,
+          code: 'RND',
+          name: 'แผนก',
+          kind: 'DEPARTMENT',
+          parent_id: 'company',
+        },
         actor(),
       )
       .catch((error: AppError) => {
@@ -158,7 +177,11 @@ describe('the chart is five adjacent levels', () => {
     const { service, updateUnit } = serviceWith({
       units: {
         ...UNITS,
-        department: unit({ id: 'department', kind: 'DEPARTMENT', parentId: 'division' }),
+        department: unit({
+          id: 'department',
+          kind: 'DEPARTMENT',
+          parentId: 'division',
+        }),
       },
     });
 
@@ -182,7 +205,11 @@ describe('the chart is five adjacent levels', () => {
     const { service, updateUnit } = serviceWith({
       units: {
         ...UNITS,
-        department: unit({ id: 'department', kind: 'DEPARTMENT', parentId: 'division' }),
+        department: unit({
+          id: 'department',
+          kind: 'DEPARTMENT',
+          parentId: 'division',
+        }),
       },
       childKinds: ['TEAM'],
     });
@@ -209,7 +236,14 @@ describe('the chart is five adjacent levels', () => {
   */
   it('leaves an existing unit alone while nothing about its level changes', async () => {
     const { service, updateUnit } = serviceWith({
-      units: { ...UNITS, department: unit({ id: 'department', kind: 'DEPARTMENT', parentId: 'company' }) },
+      units: {
+        ...UNITS,
+        department: unit({
+          id: 'department',
+          kind: 'DEPARTMENT',
+          parentId: 'company',
+        }),
+      },
     });
 
     await service.updateUnit('department', { name: 'ชื่อใหม่' }, actor());
@@ -236,11 +270,14 @@ describe('people sit at แผนก or below', () => {
     expect.assertions(3);
   });
 
-  it.each(['department', 'position'])('assigns somebody to a %s unit', async (id) => {
-    const { service, assignOrg } = serviceWith({ units: UNITS });
+  it.each(['department', 'position'])(
+    'assigns somebody to a %s unit',
+    async (id) => {
+      const { service, assignOrg } = serviceWith({ units: UNITS });
 
-    await service.assignUser('user-1', { org_unit_id: id }, actor());
+      await service.assignUser('user-1', { org_unit_id: id }, actor());
 
-    expect(assignOrg).toHaveBeenCalledTimes(1);
-  });
+      expect(assignOrg).toHaveBeenCalledTimes(1);
+    },
+  );
 });

@@ -30,6 +30,9 @@ export interface FormField {
   readonly maxItems?: number;
   /** Present only for `table` — the columns, as fields in their own right. */
   readonly columns?: readonly FormField[];
+  /** Present only for `boolean` — what to call each answer. */
+  readonly trueLabel?: string;
+  readonly falseLabel?: string;
   /**
    * SCOPE-04: masked for anyone without `request.sensitive.read`.
    *
@@ -41,7 +44,14 @@ export interface FormField {
 }
 
 export type FormFieldType =
-  'text' | 'multiline' | 'number' | 'boolean' | 'select' | 'date' | 'table';
+  | 'text'
+  | 'multiline'
+  | 'number'
+  | 'boolean'
+  | 'select'
+  | 'date'
+  | 'datetime'
+  | 'table';
 
 export interface FormFieldOption {
   readonly value: string;
@@ -116,6 +126,12 @@ function toField(
           columns: toFormFields(property.items),
         }
       : {}),
+    ...(type === 'boolean'
+      ? {
+          trueLabel: property['x-true-label']?.trim() || 'ใช่',
+          falseLabel: property['x-false-label']?.trim() || 'ไม่ใช่',
+        }
+      : {}),
     ...(property['x-sensitive'] ? { sensitive: true } : {}),
   };
 }
@@ -134,6 +150,7 @@ function typeOf(property: RichProperty): FormFieldType {
     return 'number';
   if (property.type === 'boolean') return 'boolean';
   if (property.format === 'date') return 'date';
+  if (property.format === 'date-time') return 'datetime';
   if (property['x-multiline']) return 'multiline';
 
   return 'text';
