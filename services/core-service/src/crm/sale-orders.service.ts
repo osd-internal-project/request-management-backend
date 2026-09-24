@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import {
   AppError,
   AuditWriter,
@@ -69,9 +69,24 @@ export class SaleOrdersService {
     const filters: Prisma.SaleOrderWhereInput = {};
 
     if (query.status) filters.status = query.status;
+    if (query.erp_status) filters.erpStatus = query.erp_status;
     if (query.opportunity_id) filters.opportunityId = query.opportunity_id;
     if (query.customer_id) filters.customerId = query.customer_id;
     if (query.view === 'mine') filters.ownerUserId = actor.userId;
+    if (query.search?.trim()) {
+      const q = query.search.trim();
+      filters.OR = [
+        { saleOrderCode: { contains: q, mode: 'insensitive' } },
+        { erpOrderNo: { contains: q, mode: 'insensitive' } },
+        { customer: { customerCode: { contains: q, mode: 'insensitive' } } },
+        { customer: { nameTh: { contains: q, mode: 'insensitive' } } },
+        {
+          opportunity: {
+            opportunityCode: { contains: q, mode: 'insensitive' },
+          },
+        },
+      ];
+    }
 
     const where = {
       AND: [visibleSalesWhere(salesAccessSubject(actor)), filters],
@@ -127,6 +142,9 @@ export class SaleOrdersService {
       : null;
     // Same reason: manual lines are checked before anything is written.
     const manual = await this.manualLines(dto, actor);
+    // PO 24 ก.ย. 2569: เปิดตามใบเสนอราคา = มูลค่าเท่ายอดสุทธิของใบนั้นเสมอ —
+    // ราคาเปลี่ยนต้องออกใบเสนอราคาเวอร์ชันใหม่ (ผ่านตรวจ margin + ลูกค้ายอมรับ).
+    if (quotation) assertAmountMatches(dto.amount, quotation.netTotal);
     const customer = await this.resolveCustomer(opportunity, dto, actor);
 
     // ออกเลขนอก transaction และหลังตรวจทุกอย่างผ่าน — docs/run-number.md
@@ -137,9 +155,9 @@ export class SaleOrdersService {
 
     const created = await this.transactions.execute(async (prisma) => {
       const amount =
+        quotation?.netTotal ??
         manual?.netTotal ??
         dto.amount ??
-        quotation?.netTotal ??
         opportunity.amount ??
         null;
       const lines: SaleOrderLineRow[] = quotation
@@ -414,16 +432,7 @@ export class SaleOrdersService {
       0,
     );
 
-    if (
-      dto.amount !== undefined &&
-      totals.netTotal.minus(dto.amount).abs().gt(0.005)
-    ) {
-      throw new AppError(
-        'VALIDATION_FAILED',
-        `มูลค่าต้องเท่ากับยอดรวมรายการ (${totals.netTotal.toFixed(2)}) — เว้นว่างให้ระบบคำนวณเอง`,
-        [{ field: 'amount', reason: totals.netTotal.toFixed(2) }],
-      );
-    }
+    assertAmountMatches(dto.amount, totals.netTotal);
 
     return {
       netTotal: totals.netTotal,
@@ -738,6 +747,25 @@ interface ResolvedCustomer {
   nameTh: string;
   /** true = ทะเบียนลูกค้าเพิ่งเกิดจากใบสั่งขายนี้. */
   created: boolean;
+}
+
+/**
+ * ใบสั่งขายที่มีรายการ (จากใบเสนอราคาหรือกรอกเอง) มีมูลค่าเดียว = ยอดรวม
+ * รายการ — SAP ได้ยอดจากบรรทัด. มูลค่าที่ส่งมาไม่ตรง = ปฏิเสธ แทนที่จะให้
+ * CTD กับ SAP ถือคนละตัวเลข; ไม่ส่งมา = ใช้ยอดรวมเอง.
+ */
+function assertAmountMatches(
+  amount: number | undefined,
+  total: Prisma.Decimal,
+): void {
+  if (amount === undefined) return;
+  if (new Prisma.Decimal(total).minus(amount).abs().gt(0.005)) {
+    throw new AppError(
+      'VALIDATION_FAILED',
+      `มูลค่าต้องเท่ากับยอดรวมรายการ (${new Prisma.Decimal(total).toFixed(2)}) — เว้นว่างให้ระบบใช้ยอดรวมเอง`,
+      [{ field: 'amount', reason: new Prisma.Decimal(total).toFixed(2) }],
+    );
+  }
 }
 
 function digits(value: string | null | undefined): string | null {

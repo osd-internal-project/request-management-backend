@@ -237,14 +237,31 @@ export class ProductCatalogService implements OnModuleInit, OnModuleDestroy {
    * รหัสบนบรรทัดต้องอยู่ในรายการสินค้าจาก SAP และยังขายอยู่. บรรทัดไม่มีรหัส
    * (บริการ/ค่าแรง) ผ่าน; บริษัทที่ยังไม่เคย sync ผ่านทั้งหมด.
    */
-  async assertKnownCodes(
+  assertKnownCodes(
     companyId: string,
     lines: readonly { product_code?: string | null }[],
   ): Promise<void> {
+    return this.assertCodes(
+      companyId,
+      lines.map((line, index) => ({
+        code: line.product_code,
+        field: `lines[${index}].product_code`,
+      })),
+    );
+  }
+
+  /**
+   * The same rule for any list of codes — opportunity products, KYC rules.
+   * Each entry names the request field its error points at.
+   */
+  async assertCodes(
+    companyId: string,
+    entries: readonly { code?: string | null; field: string }[],
+  ): Promise<void> {
     const codes = [
       ...new Set(
-        lines
-          .map((line) => line.product_code?.trim())
+        entries
+          .map((entry) => entry.code?.trim())
           .filter((code): code is string => Boolean(code)),
       ),
     ];
@@ -259,10 +276,10 @@ export class ProductCatalogService implements OnModuleInit, OnModuleDestroy {
     })) as { code: string }[];
     const ok = new Set(known.map((row) => row.code));
 
-    const details = lines.flatMap((line, index) => {
-      const code = line.product_code?.trim();
+    const details = entries.flatMap((entry) => {
+      const code = entry.code?.trim();
       return code && !ok.has(code)
-        ? [{ field: `lines[${index}].product_code`, reason: code }]
+        ? [{ field: entry.field, reason: code }]
         : [];
     });
     if (details.length) {

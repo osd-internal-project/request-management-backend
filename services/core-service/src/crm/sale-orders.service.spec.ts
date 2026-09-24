@@ -80,6 +80,7 @@ describe('CRM โอกาสการขาย — เปิดได้โด�
         Promise.resolve({ id: 'cust-1', nameTh: 'บริษัท กขค จำกัด' }),
       ),
     };
+    const catalog = { assertCodes: jest.fn(() => Promise.resolve()) };
     const service = new OpportunitiesService(
       opportunities as never,
       { createMany: jest.fn() } as never,
@@ -98,8 +99,9 @@ describe('CRM โอกาสการขาย — เปิดได้โด�
           work({}),
         ),
       } as never,
+      catalog as never,
     );
-    return { service, opportunities, customers, audit, timeline };
+    return { service, opportunities, customers, audit, timeline, catalog };
   }
 
   it('ไม่มีทั้ง customer_id และ prospect_name = VALIDATION_FAILED', async () => {
@@ -172,6 +174,36 @@ describe('CRM โอกาสการขาย — เปิดได้โด�
   it('ไม่มี win() แล้ว — ปิดชนะเกิดจากการเปิดใบสั่งขายเท่านั้น', () => {
     const { service } = harness();
     expect((service as unknown as { win?: unknown }).win).toBeUndefined();
+  });
+
+  it('CD-27 product ที่เกี่ยวข้องต้องเป็นรหัสจากรายการสินค้า SAP — ไม่ผ่าน = ไม่สร้างโอกาสการขาย', async () => {
+    const ok = harness();
+    await ok.service.create(
+      {
+        title: 'SIP',
+        customer_id: 'cust-1',
+        product_codes: ['SIP-TRUNK', 'HEADSET'],
+      },
+      principal(),
+    );
+    expect(ok.catalog.assertCodes).toHaveBeenCalledWith('osd', [
+      { code: 'SIP-TRUNK', field: 'product_codes[0]' },
+      { code: 'HEADSET', field: 'product_codes[1]' },
+    ]);
+
+    const rejected = harness();
+    rejected.catalog.assertCodes.mockRejectedValueOnce(
+      Object.assign(new Error('unknown'), {
+        code: 'VALIDATION_FAILED',
+      }),
+    );
+    await expect(
+      rejected.service.create(
+        { title: 'x', customer_id: 'cust-1', product_codes: ['TYPO'] },
+        principal(),
+      ),
+    ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+    expect(rejected.opportunities.create).not.toHaveBeenCalled();
   });
 });
 
@@ -829,5 +861,77 @@ describe('CRM ใบสั่งขาย — จุดเดียวที่�
       details: [{ field: 'amount', reason: '200.00' }],
     });
     expect(h.customersService.create).not.toHaveBeenCalled();
+  });
+
+  it('CD-88 รายการใบสั่งขาย: กรองสถานะส่ง SAP + ค้นเลขใบ/ลูกค้า/โอกาสการขาย ภายในขอบเขตที่เห็นเท่านั้น', async () => {
+    const h = harness();
+
+    await h.service.list(principal(), {
+      erp_status: 'failed',
+      search: ' CUS-OSD ',
+    } as never);
+
+    const where = firstArg<{ where: { AND: Args[] } }>(
+      h.saleOrders.findMany,
+    ).where;
+    expect(where.AND).toHaveLength(2); // visibleSalesWhere + filters
+    expect(where.AND[1]).toMatchObject({
+      erpStatus: 'failed',
+      OR: expect.arrayContaining([
+        { saleOrderCode: { contains: 'CUS-OSD', mode: 'insensitive' } },
+        {
+          customer: {
+            customerCode: { contains: 'CUS-OSD', mode: 'insensitive' },
+          },
+        },
+      ]) as unknown,
+    });
+  });
+
+  it('PO 24 ก.ย. เปิดตามใบเสนอราคา: มูลค่าล็อกเท่ายอดสุทธิของใบ — ส่งมูลค่าอื่น = VALIDATION_FAILED ก่อนสร้างลูกค้า', async () => {
+    const h = harness();
+    h.quotations.findFirst.mockResolvedValueOnce({
+      id: 'q-1',
+      quotationNo: 'QT-OSD-000001',
+      version: 1,
+      status: 'accepted',
+      netTotal: 1900000,
+      lines: [],
+    } as never);
+
+    await expect(
+      h.service.open(
+        'opportunity-1',
+        { quotation_id: 'q-1', amount: 1800000 },
+        principal(),
+      ),
+    ).rejects.toMatchObject({
+      code: 'VALIDATION_FAILED',
+      details: [{ field: 'amount', reason: '1900000.00' }],
+    });
+    expect(h.customersService.create).not.toHaveBeenCalled();
+    expect(h.saleOrders.create).not.toHaveBeenCalled();
+  });
+
+  it('PO 24 ก.ย. เปิดตามใบเสนอราคาโดยส่งมูลค่าตรงยอด (หรือไม่ส่ง) → ใช้ยอดสุทธิของใบ', async () => {
+    const h = harness();
+    h.quotations.findFirst.mockResolvedValueOnce({
+      id: 'q-1',
+      quotationNo: 'QT-OSD-000001',
+      version: 1,
+      status: 'accepted',
+      netTotal: 1900000,
+      lines: [],
+    } as never);
+
+    await h.service.open(
+      'opportunity-1',
+      { quotation_id: 'q-1', amount: 1900000 },
+      principal(),
+    );
+
+    expect(firstArg<DataArgs>(h.saleOrders.create).data).toEqual(
+      expect.objectContaining({ quotationId: 'q-1', amount: 1900000 }),
+    );
   });
 });

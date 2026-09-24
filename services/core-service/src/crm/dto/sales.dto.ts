@@ -669,6 +669,14 @@ export class ListOpportunitiesQueryDto extends PageQueryDto {
 // --- ใบสั่งขาย (Sale Order, CD-77 โครงระยะ 1) ---------------------------------
 
 export const SALE_ORDER_STATUSES = ['open', 'cancelled'] as const;
+/** CD-88 — สถานะส่ง SAP ของใบสั่งขาย (enum `ErpSyncStatus`). */
+export const ERP_SYNC_STATUSES = [
+  'not_ready',
+  'pending',
+  'synced',
+  'failed',
+  'skipped',
+] as const;
 
 /**
  * ค่าที่ผู้ใช้ปรับก่อนระบบสร้างลูกค้าใหม่จากผู้มุ่งหวัง ตอนเปิดใบสั่งขาย — ทุก
@@ -822,6 +830,17 @@ export class ListSaleOrdersQueryDto extends PageQueryDto {
   @IsOptional()
   @IsIn(SALE_ORDER_STATUSES)
   status?: (typeof SALE_ORDER_STATUSES)[number];
+
+  /** CD-88 — กรองตามสถานะส่ง SAP (เช่น `failed` = ใบที่ต้องมีคนดู). */
+  @IsOptional()
+  @IsIn(ERP_SYNC_STATUSES)
+  erp_status?: (typeof ERP_SYNC_STATUSES)[number];
+
+  /** เลขใบสั่งขาย / เลขใบของ SAP / รหัสหรือชื่อลูกค้า / รหัสโอกาสการขาย. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  search?: string;
 
   @IsOptional()
   @IsIn(['mine', 'all'])
