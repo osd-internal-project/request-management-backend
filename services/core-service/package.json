@@ -53,5 +53,8 @@
       "^@request-management/share$": "<rootDir>/../../../libs/share/src/index.ts",
       "^@request-management/share/(.*)$": "<rootDir>/../../../libs/share/src/$1"
     }
+  },
+  "devDependencies": {
+    "@types/multer": "^2.2.0"
   }
 }

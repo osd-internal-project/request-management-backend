@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { RequestsModule } from './requests.module';
+import { AttachmentsModule } from './attachments.module';
 import {
   RequestsController,
   RequestTypeAdminController,
@@ -10,7 +11,7 @@ import {
  * why routes and providers are separate modules.
  */
 @Module({
-  imports: [RequestsModule],
+  imports: [RequestsModule, AttachmentsModule],
   controllers: [RequestsController, RequestTypeAdminController],
 })
 export class RequestsHttpModule {}

@@ -10,8 +10,17 @@ import {
   Patch,
   Post,
   Query,
+  StreamableFile,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiTags,
+} from '@nestjs/swagger';
 import {
   CurrentPrincipal,
   Permissions,
@@ -19,6 +28,7 @@ import {
 } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import { RequestsService } from './requests.service';
+import { AttachmentsService } from './attachments.service';
 import { BottleneckService } from '../reports/bottleneck.service';
 import { BottleneckQueryDto } from '../reports/dto/report.dto';
 import {
@@ -30,13 +40,16 @@ import {
   ResumeRequestDto,
   ReturnRequestDto,
   UpdateRequestDto,
-  AddAttachmentDto,
+  UploadAttachmentDto,
   AddCommentDto,
   CloseRequestDto,
   CompleteRequestDto,
   CreateRequestTypeDto,
   UpdateRequestTypeDto,
 } from './dto/request.dto';
+
+/** REQ-03 — per-file cap, enforced by multer before the bytes reach memory. */
+const MAX_ATTACHMENT_BYTES = 104_857_600;
 
 /**
  * §11.4 group C — Platform Request (S3).
@@ -52,6 +65,7 @@ export class RequestsController {
   constructor(
     private readonly requests: RequestsService,
     private readonly bottleneck: BottleneckService,
+    private readonly attachments: AttachmentsService,
   ) {}
 
   /** REQ-01: types are configuration — the form comes from `formSchema`. */
@@ -80,22 +94,55 @@ export class RequestsController {
     return this.requests.update(id, dto, principal);
   }
 
-  /**
-   * REQ-03 — records a document against the request.
-   *
-   * Metadata only: open question G has not named an object store, so no bytes
-   * are accepted and there is deliberately **no download route**. The row is
-   * still what lets `assertSubmittable` count required documents, without
-   * which a type that demands one could never be submitted.
-   */
+  /** REQ-03 — uploads one document (multipart `file` + optional `doc_code`). */
   @Post('requests/:id/attachments')
   @Permissions('request.create')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['file'],
+      properties: {
+        file: { type: 'string', format: 'binary' },
+        doc_code: { type: 'string' },
+      },
+    },
+  })
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: MAX_ATTACHMENT_BYTES },
+      // Browsers send the filename as raw UTF-8; multer's latin1 default garbles Thai.
+      defParamCharset: 'utf8',
+    }),
+  )
   addAttachment(
     @Param('id') id: string,
-    @Body() dto: AddAttachmentDto,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @Body() dto: UploadAttachmentDto,
     @CurrentPrincipal() principal: Principal,
   ) {
-    return this.requests.addAttachment(id, dto, principal);
+    return this.attachments.upload(id, file, dto.doc_code, principal);
+  }
+
+  /** REQ-03 — the stored file; visible to whoever may open the request. */
+  @Get('requests/:id/attachments/:attachmentId/file')
+  @Permissions('request.read')
+  async downloadAttachment(
+    @Param('id') id: string,
+    @Param('attachmentId') attachmentId: string,
+    @CurrentPrincipal() principal: Principal,
+  ): Promise<StreamableFile> {
+    const { attachment, stream } = await this.attachments.download(
+      id,
+      attachmentId,
+      principal,
+    );
+
+    return new StreamableFile(stream, {
+      type: attachment.mimeType,
+      length: attachment.sizeBytes,
+      disposition: `attachment; filename*=UTF-8''${encodeURIComponent(attachment.fileName)}`,
+    });
   }
 
   /** REQ-03 — withdraws a document. Soft delete; the row stays for the trail. */

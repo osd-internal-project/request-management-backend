@@ -143,4 +143,20 @@ export default () => ({
       sla: Number(process.env.METABASE_DASHBOARD_SLA ?? 0),
     },
   },
+
+  /**
+   * ที่เก็บไฟล์แนบ (REQ-03) — `minio` ต่อ MinIO จริง · `memory` เก็บใน process
+   * ใช้ตอน dev/test ที่ไม่มี MinIO. S3 เจ้าอื่นในอนาคต = เพิ่ม mode ใหม่ใน libs/share.
+   */
+  storage: {
+    mode: process.env.STORAGE_MODE ?? 'minio',
+    minio: {
+      endPoint: process.env.MINIO_ENDPOINT ?? '',
+      port: Number(process.env.MINIO_PORT ?? 9000),
+      useSSL: process.env.MINIO_USE_SSL === 'true',
+      accessKey: process.env.MINIO_ACCESSKEY ?? '',
+      secretKey: process.env.MINIO_SECRETKEY ?? '',
+      bucket: process.env.MINIO_BUCKET ?? '',
+    },
+  },
 });

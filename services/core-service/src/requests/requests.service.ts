@@ -16,7 +16,6 @@ import {
 import type { Principal } from '@request-management/share';
 import { Prisma } from '@prisma/client';
 import type { RequestStatus } from '@prisma/client';
-import { randomUUID } from 'node:crypto';
 import { assertTransition, OPEN_STATUSES } from './request-state-machine';
 import {
   availableActions,
@@ -58,7 +57,6 @@ import {
   ResumeRequestDto,
   ReturnRequestDto,
   UpdateRequestDto,
-  AddAttachmentDto,
   CreateIntegrationRequestDto,
   CreateRequestTypeDto,
   UpdateRequestTypeDto,
@@ -127,7 +125,7 @@ export class RequestsService {
         receiverUser: { select: { id: true, displayName: true } },
         eligibleUnits: { select: { orgUnitId: true } },
       },
-      orderBy: { active: 'asc', code: 'asc' },
+      orderBy: { code: 'asc' },
     });
   }
 
@@ -666,51 +664,6 @@ export class RequestsService {
   }
 
   // --- REQ-03: documents -----------------------------------------------
-
-  /**
-   * Records an attached document. **No bytes are stored** — see
-   * `AddAttachmentDto` and open question G.
-   *
-   * Editable states only, and only the requester: an approver who could add a
-   * document to a case already in the ladder would change what the earlier
-   * approvers agreed to, which is the same reason `update` is fenced.
-   */
-  async addAttachment(id: string, dto: AddAttachmentDto, actor: Principal) {
-    const found = await this.requireEditableOwn(id, actor, 'แนบเอกสาร');
-
-    assertKnownDocCode(found.requestType.requiredDocs, dto.doc_code);
-
-    const created = await this.attachments.create({
-      data: {
-        requestId: found.id,
-        docCode: dto.doc_code ?? null,
-        fileName: dto.file_name,
-        mimeType: dto.mime_type,
-        sizeBytes: dto.size_bytes,
-        // Deliberately not a path: nothing was written anywhere, and a value
-        // that looks like a location would invite a download route that could
-        // only ever 404.
-        storageKey: `pending://${randomUUID()}`,
-        uploadedById: actor.userId,
-      },
-    });
-
-    await this.audit.record({
-      eventType: 'request.attachment.added',
-      companyId: found.companyId,
-      ...auditActor(actor),
-      resourceType: 'request_attachment',
-      resourceId: created.id,
-      after: {
-        requestId: found.id,
-        docCode: dto.doc_code ?? null,
-        fileName: dto.file_name,
-        sizeBytes: dto.size_bytes,
-      },
-    });
-
-    return created;
-  }
 
   /**
    * Soft-deletes one attachment (rule 4: no hard deletes). The row survives so
@@ -1308,10 +1261,10 @@ export class RequestsService {
   }
 
   /**
-   * The gate both attachment routes share: the request exists, is visible to
+   * The gate every attachment write shares: the request exists, is visible to
    * this caller, is still editable, and is theirs.
    */
-  private async requireEditableOwn(
+  async requireEditableOwn(
     id: string,
     actor: Principal,
     action: string,
