@@ -855,4 +855,51 @@ describe('CRM ใบสั่งขาย — จุดเดียวที่�
       ]) as unknown,
     });
   });
+
+  it('PO 24 ก.ย. เปิดตามใบเสนอราคา: มูลค่าล็อกเท่ายอดสุทธิของใบ — ส่งมูลค่าอื่น = VALIDATION_FAILED ก่อนสร้างลูกค้า', async () => {
+    const h = harness();
+    h.quotations.findFirst.mockResolvedValueOnce({
+      id: 'q-1',
+      quotationNo: 'QT-OSD-000001',
+      version: 1,
+      status: 'accepted',
+      netTotal: 1900000,
+      lines: [],
+    } as never);
+
+    await expect(
+      h.service.open(
+        'opportunity-1',
+        { quotation_id: 'q-1', amount: 1800000 },
+        principal(),
+      ),
+    ).rejects.toMatchObject({
+      code: 'VALIDATION_FAILED',
+      details: [{ field: 'amount', reason: '1900000.00' }],
+    });
+    expect(h.customersService.create).not.toHaveBeenCalled();
+    expect(h.saleOrders.create).not.toHaveBeenCalled();
+  });
+
+  it('PO 24 ก.ย. เปิดตามใบเสนอราคาโดยส่งมูลค่าตรงยอด (หรือไม่ส่ง) → ใช้ยอดสุทธิของใบ', async () => {
+    const h = harness();
+    h.quotations.findFirst.mockResolvedValueOnce({
+      id: 'q-1',
+      quotationNo: 'QT-OSD-000001',
+      version: 1,
+      status: 'accepted',
+      netTotal: 1900000,
+      lines: [],
+    } as never);
+
+    await h.service.open(
+      'opportunity-1',
+      { quotation_id: 'q-1', amount: 1900000 },
+      principal(),
+    );
+
+    expect(firstArg<DataArgs>(h.saleOrders.create).data).toEqual(
+      expect.objectContaining({ quotationId: 'q-1', amount: 1900000 }),
+    );
+  });
 });
