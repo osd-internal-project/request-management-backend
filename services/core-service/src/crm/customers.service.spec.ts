@@ -260,9 +260,15 @@ describe('CM-03 duplicate prevention on create', () => {
       },
     });
 
-    await expect(service.create(createDto(), principal())).rejects.toThrow(
-      expect.objectContaining({ code: 'CRM_CUSTOMER_DUPLICATE' }),
-    );
+    await expect(
+      service.create(createDto(), principal()),
+    ).rejects.toMatchObject({
+      code: 'CRM_CUSTOMER_DUPLICATE',
+      // the form links straight to the row that already exists
+      details: expect.arrayContaining([
+        { field: 'existing_customer_id', reason: 'cust-dup' },
+      ]) as unknown,
+    });
   });
 
   it('CM-03 warns on a similar name until the caller confirms', async () => {
