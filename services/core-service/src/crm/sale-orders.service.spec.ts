@@ -364,6 +364,7 @@ describe('CRM ใบสั่งขาย — จุดเดียวที่�
       ),
     };
     const erpSync = { kickCreate: jest.fn(), kickCancel: jest.fn() };
+    const catalog = { assertKnownCodes: jest.fn(() => Promise.resolve()) };
 
     const service = new SaleOrdersService(
       saleOrders as never,
@@ -381,11 +382,13 @@ describe('CRM ใบสั่งขาย — จุดเดียวที่�
       } as never,
       quotations as never,
       erpSync as never,
+      catalog as never,
     );
 
     return {
       service,
       erpSync,
+      catalog,
       saleOrders,
       opportunities,
       leads,
@@ -736,5 +739,95 @@ describe('CRM ใบสั่งขาย — จุดเดียวที่�
       expect.objectContaining({ erpStatus: 'skipped' }),
     );
     expect(neverSent.erpSync.kickCancel).not.toHaveBeenCalled();
+  });
+
+  it('CD-88 (PO 24 ก.ย.) เปิดตรงจากโอกาสการขายพร้อมกรอกรายการเอง → ยอดคำนวณที่ server, มูลค่า = ยอดรวม, ส่ง SAP', async () => {
+    const h = harness();
+
+    await h.service.open(
+      'opportunity-1',
+      {
+        lines: [
+          {
+            product_code: 'SIP-TRUNK',
+            description: 'SIP Trunk',
+            quantity: 3,
+            unit: 'ช่อง',
+            unit_price: 1000,
+            discount_pct: 10,
+          },
+          { description: 'ค่าติดตั้ง', quantity: 1, unit_price: 5000.5 },
+        ],
+      },
+      principal(),
+    );
+
+    expect(h.catalog.assertKnownCodes).toHaveBeenCalledWith('osd', [
+      expect.objectContaining({ product_code: 'SIP-TRUNK' }),
+      expect.objectContaining({ description: 'ค่าติดตั้ง' }),
+    ]);
+    const data = firstArg<DataArgs>(h.saleOrders.create).data as Args & {
+      amount: { toString(): string };
+      lines: { create: (Args & { lineTotal: { toString(): string } })[] };
+    };
+    // 3 × 1000 − 10% = 2700 ; + 5000.50
+    expect(data.amount.toString()).toBe('7700.5');
+    expect(data.erpStatus).toBe('pending');
+    expect(data.lines.create.map((l) => l.lineTotal.toString())).toEqual([
+      '2700',
+      '5000.5',
+    ]);
+    expect(data.lines.create[1]).toMatchObject({
+      lineNo: 2,
+      productCode: null,
+      unit: null,
+      discountPct: 0,
+      quotationLineId: null,
+    });
+    expect(h.erpSync.kickCreate).toHaveBeenCalledWith('so-1');
+  });
+
+  it('CD-88 กรอกรายการเองพร้อมเลือกใบเสนอราคา = VALIDATION_FAILED ก่อนสร้างลูกค้า', async () => {
+    const h = harness();
+    h.quotations.findFirst.mockResolvedValueOnce({
+      id: 'q-1',
+      quotationNo: 'QT-OSD-000001',
+      version: 1,
+      status: 'accepted',
+      netTotal: 100,
+      lines: [],
+    } as never);
+
+    await expect(
+      h.service.open(
+        'opportunity-1',
+        {
+          quotation_id: 'q-1',
+          lines: [{ description: 'x', quantity: 1, unit_price: 1 }],
+        },
+        principal(),
+      ),
+    ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+    expect(h.customersService.create).not.toHaveBeenCalled();
+    expect(h.saleOrders.create).not.toHaveBeenCalled();
+  });
+
+  it('CD-88 มูลค่าที่พิมพ์ไม่ตรงยอดรวมรายการ = VALIDATION_FAILED (ใบเดียวต้องมีตัวเลขเดียว)', async () => {
+    const h = harness();
+
+    await expect(
+      h.service.open(
+        'opportunity-1',
+        {
+          amount: 9999,
+          lines: [{ description: 'x', quantity: 2, unit_price: 100 }],
+        },
+        principal(),
+      ),
+    ).rejects.toMatchObject({
+      code: 'VALIDATION_FAILED',
+      details: [{ field: 'amount', reason: '200.00' }],
+    });
+    expect(h.customersService.create).not.toHaveBeenCalled();
   });
 });

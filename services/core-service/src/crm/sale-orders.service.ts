@@ -24,6 +24,8 @@ import { CustomersService } from './customers.service';
 import { CustomerTimelineService } from './customer-timeline.service';
 import type { CreateCustomerDto } from './dto/customer.dto';
 import { SaleOrderErpSyncService } from './sale-order-erp-sync.service';
+import { ProductCatalogService } from './product-catalog.service';
+import { computeQuotationTotals } from './quotation-math';
 import {
   CancelSaleOrderDto,
   ListSaleOrdersQueryDto,
@@ -42,7 +44,8 @@ import {
  *
  * CD-88: เปิดตามใบเสนอราคา = copy รายการสินค้าของใบนั้นมาเป็น `SaleOrderLine`
  * (snapshot) แล้วส่งเข้า SAP หลัง commit ผ่าน `SaleOrderErpSyncService` —
- * SAP ล่มไม่ทำให้เปิดใบไม่ได้. เปิดตรงจากโอกาสการขายไม่มีรายการ → `not_ready`.
+ * SAP ล่มไม่ทำให้เปิดใบไม่ได้. เปิดตรงจากโอกาสการขาย: กรอกรายการเองได้ (PO 24
+ * ก.ย. 2569) — มีรายการ = ส่ง SAP เหมือนกัน, ไม่มี = `not_ready`.
  */
 @Injectable()
 export class SaleOrdersService {
@@ -58,6 +61,7 @@ export class SaleOrdersService {
     private readonly transactions: PrismaTransactionService,
     private readonly quotations: QuotationRepository,
     private readonly erpSync: SaleOrderErpSyncService,
+    private readonly catalog: ProductCatalogService,
   ) {}
 
   async list(actor: Principal, query: ListSaleOrdersQueryDto) {
@@ -121,6 +125,8 @@ export class SaleOrdersService {
           actor,
         )
       : null;
+    // Same reason: manual lines are checked before anything is written.
+    const manual = await this.manualLines(dto, actor);
     const customer = await this.resolveCustomer(opportunity, dto, actor);
 
     // ออกเลขนอก transaction และหลังตรวจทุกอย่างผ่าน — docs/run-number.md
@@ -131,8 +137,24 @@ export class SaleOrdersService {
 
     const created = await this.transactions.execute(async (prisma) => {
       const amount =
-        dto.amount ?? quotation?.netTotal ?? opportunity.amount ?? null;
-      const lines = quotation?.lines ?? [];
+        manual?.netTotal ??
+        dto.amount ??
+        quotation?.netTotal ??
+        opportunity.amount ??
+        null;
+      const lines: SaleOrderLineRow[] = quotation
+        ? quotation.lines.map((line) => ({
+            lineNo: line.lineNo,
+            productCode: line.productCode,
+            description: line.description,
+            quantity: line.quantity,
+            unit: line.unit,
+            unitPrice: line.unitPrice,
+            discountPct: line.discountPct,
+            lineTotal: line.lineTotal,
+            quotationLineId: line.id,
+          }))
+        : (manual?.lines ?? []);
 
       const row = (await this.saleOrders.create(
         {
@@ -149,19 +171,7 @@ export class SaleOrdersService {
             ownerOrgUnitId: opportunity.ownerOrgUnitId,
             createdBy: actor.userId,
             erpStatus: lines.length ? 'pending' : 'not_ready',
-            lines: {
-              create: lines.map((line) => ({
-                lineNo: line.lineNo,
-                productCode: line.productCode,
-                description: line.description,
-                quantity: line.quantity,
-                unit: line.unit,
-                unitPrice: line.unitPrice,
-                discountPct: line.discountPct,
-                lineTotal: line.lineTotal,
-                quotationLineId: line.id,
-              })),
-            },
+            lines: { create: lines },
           },
         },
         { prisma },
@@ -372,6 +382,64 @@ export class SaleOrdersService {
   }
 
   // --- helpers ---------------------------------------------------------------
+
+  /**
+   * บรรทัดที่กรอกเอง (ไม่มีใบเสนอราคา): รหัสต้องอยู่ในรายการสินค้าจาก SAP,
+   * ยอดคำนวณด้วยสูตรเดียวกับใบเสนอราคา, และถ้าผู้ใช้ระบุมูลค่ามาต้องเท่ากับยอด
+   * รวมบรรทัด — ใบเดียวต้องไม่มีสองตัวเลข (CTD กับ SAP).
+   */
+  private async manualLines(
+    dto: OpenSaleOrderDto,
+    actor: Principal,
+  ): Promise<{ lines: SaleOrderLineRow[]; netTotal: Prisma.Decimal } | null> {
+    const input = dto.lines ?? [];
+    if (!input.length) return null;
+
+    if (dto.quotation_id) {
+      throw new AppError(
+        'VALIDATION_FAILED',
+        'เปิดตามใบเสนอราคาแล้วกรอกรายการเองไม่ได้ — รายการมาจากใบเสนอราคา',
+        [{ field: 'lines', reason: 'quotation_has_lines' }],
+      );
+    }
+
+    await this.catalog.assertKnownCodes(actor.activeCompanyId, input);
+
+    const totals = computeQuotationTotals(
+      input.map((line) => ({
+        quantity: line.quantity,
+        unit_price: line.unit_price,
+        discount_pct: line.discount_pct,
+      })),
+      0,
+    );
+
+    if (
+      dto.amount !== undefined &&
+      totals.netTotal.minus(dto.amount).abs().gt(0.005)
+    ) {
+      throw new AppError(
+        'VALIDATION_FAILED',
+        `มูลค่าต้องเท่ากับยอดรวมรายการ (${totals.netTotal.toFixed(2)}) — เว้นว่างให้ระบบคำนวณเอง`,
+        [{ field: 'amount', reason: totals.netTotal.toFixed(2) }],
+      );
+    }
+
+    return {
+      netTotal: totals.netTotal,
+      lines: input.map((line, index) => ({
+        lineNo: index + 1,
+        productCode: line.product_code?.trim() || null,
+        description: line.description.trim(),
+        quantity: line.quantity,
+        unit: line.unit?.trim() || null,
+        unitPrice: line.unit_price,
+        discountPct: line.discount_pct ?? 0,
+        lineTotal: totals.lines[index].lineTotal,
+        quotationLineId: null,
+      })),
+    };
+  }
 
   /**
    * CD-77: "สร้างจากใบเสนอราคาที่ลูกค้ายอมรับ" — only an `accepted` version of a
@@ -637,6 +705,19 @@ interface OpenOpportunityForSale {
     postalCode: string | null;
     country: string | null;
   } | null;
+}
+
+/** What becomes a `sale_order_lines` row — from a quotation or typed in. */
+interface SaleOrderLineRow {
+  lineNo: number;
+  productCode: string | null;
+  description: string;
+  quantity: Prisma.Decimal | number;
+  unit: string | null;
+  unitPrice: Prisma.Decimal | number;
+  discountPct: Prisma.Decimal | number;
+  lineTotal: Prisma.Decimal;
+  quotationLineId: string | null;
 }
 
 interface QuotationLineForSale {
