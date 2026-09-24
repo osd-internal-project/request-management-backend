@@ -1,4 +1,5 @@
-import { Principal } from '@request-management/share';
+import { Prisma } from '@prisma/client';
+import { AppError, Principal } from '@request-management/share';
 import { CustomerImportService } from './customer-import.service';
 import { ImportCustomersDto } from './dto/customer.dto';
 
@@ -15,15 +16,31 @@ function principal(): Principal {
   } as unknown as Principal;
 }
 
-function harness(options: { existing?: { customerCode: string } | null } = {}) {
+function harness(
+  options: {
+    existing?: { customerCode: string } | null;
+    /** normalized name → code of a customer already registered without a tax id */
+    names?: Record<string, string>;
+    createFails?: Error;
+  } = {},
+) {
   const customers = {
-    findFirst: jest.fn(() => Promise.resolve(options.existing ?? null)),
+    findFirst: jest.fn((args: { where: { normalizedName?: string } }) => {
+      const name = args.where.normalizedName;
+      if (name !== undefined) {
+        const code = options.names?.[name];
+        return Promise.resolve(code ? { customerCode: code } : null);
+      }
+      return Promise.resolve(options.existing ?? null);
+    }),
     create: jest.fn((args: { data: Record<string, unknown> }) =>
-      Promise.resolve({
-        id: 'cust-new',
-        nameTh: args.data.nameTh,
-        taxId: args.data.taxId,
-      }),
+      options.createFails
+        ? Promise.reject(options.createFails)
+        : Promise.resolve({
+            id: `cust-${String(args.data.nameTh)}`,
+            nameTh: args.data.nameTh,
+            taxId: args.data.taxId,
+          }),
     ),
   };
   const codes = {
@@ -35,6 +52,7 @@ function harness(options: { existing?: { customerCode: string } | null } = {}) {
   const transactions = {
     execute: jest.fn((fn: (prisma: unknown) => unknown) => fn({})),
   };
+  const erpSync = { queueCustomer: jest.fn(() => Promise.resolve()) };
 
   const service = new CustomerImportService(
     customers as never,
@@ -43,9 +61,10 @@ function harness(options: { existing?: { customerCode: string } | null } = {}) {
     timeline as never,
     audit as never,
     transactions as never,
+    erpSync as never,
   );
 
-  return { service, customers, codes, dedup, timeline, audit };
+  return { service, customers, codes, dedup, timeline, audit, erpSync };
 }
 
 function dto(overrides: Partial<ImportCustomersDto> = {}): ImportCustomersDto {
@@ -161,5 +180,140 @@ describe('CM-10 import ลูกค้าเดิมจาก Excel', () => {
     );
 
     expect(result.results[0].headOfficeCode).toBe('CUS-OSD-000001');
+  });
+
+  it('CM-10 every created customer is queued for SAP, like one made on the form', async () => {
+    const h = harness();
+
+    await h.service.run(
+      dto({
+        rows: [
+          { row_no: 2, name_th: 'บริษัท ก จำกัด', tax_id: VALID_TAX_ID },
+          { row_no: 3, name_th: 'นาย ข' },
+        ],
+      }),
+      principal(),
+    );
+
+    expect(h.erpSync.queueCustomer.mock.calls).toEqual([
+      ['cust-บริษัท ก จำกัด', 'imported'],
+      ['cust-นาย ข', 'imported'],
+    ]);
+  });
+
+  it('CM-10 dry run: the same ภาษี+สาขา twice in one file — the second is a skip naming the first row', async () => {
+    const h = harness();
+
+    const result = await h.service.run(
+      dto({
+        mode: 'dry_run',
+        rows: [
+          { row_no: 2, name_th: 'บริษัท ก จำกัด', tax_id: VALID_TAX_ID },
+          { row_no: 3, name_th: 'บริษัท ก จำกัด', tax_id: VALID_TAX_ID },
+        ],
+      }),
+      principal(),
+    );
+
+    expect(result.results[1]).toMatchObject({
+      action: 'skip_duplicate',
+      duplicateOfRow: 2,
+    });
+    expect(result.summary).toEqual({ create: 1, skip: 1, error: 0 });
+  });
+
+  it('CM-10 dry run: a branch whose head office is an earlier row of the file names that row', async () => {
+    const h = harness();
+
+    const result = await h.service.run(
+      dto({
+        mode: 'dry_run',
+        rows: [
+          { row_no: 2, name_th: 'บริษัท ก จำกัด', tax_id: VALID_TAX_ID },
+          {
+            row_no: 3,
+            name_th: 'บริษัท ก จำกัด สาขาเชียงใหม่',
+            tax_id: VALID_TAX_ID,
+            branch_code: '00001',
+          },
+        ],
+      }),
+      principal(),
+    );
+
+    expect(result.results[0]).not.toHaveProperty('headOfficeRow');
+    expect(result.results[1]).toMatchObject({ headOfficeRow: 2 });
+  });
+
+  it('CM-10 a row without a tax id whose name exists is flagged — still created (warning only)', async () => {
+    const h = harness({ names: { นายข: 'CUS-OSD-000003' } });
+
+    const result = await h.service.run(
+      dto({
+        mode: 'dry_run',
+        rows: [
+          { row_no: 2, name_th: 'นาย ข' },
+          { row_no: 3, name_th: 'นาย ข' },
+        ],
+      }),
+      principal(),
+    );
+
+    expect(result.results[0]).toMatchObject({
+      action: 'create',
+      possibleDuplicateOf: 'CUS-OSD-000003',
+    });
+    expect(result.results[1]).toMatchObject({
+      action: 'create',
+      possibleDuplicateOfRow: 2,
+    });
+  });
+
+  it('CM-10 a database race reports a readable code, not Prisma text', async () => {
+    const h = harness({
+      createFails: new Prisma.PrismaClientKnownRequestError(
+        'Unique constraint failed on the fields: (`companyId`,`taxId`,`branchCode`)',
+        { code: 'P2002', clientVersion: 'test' },
+      ),
+    });
+
+    const result = await h.service.run(
+      dto({
+        rows: [{ row_no: 2, name_th: 'บริษัท ก จำกัด', tax_id: VALID_TAX_ID }],
+      }),
+      principal(),
+    );
+
+    expect(result.results[0]).toEqual({
+      rowNo: 2,
+      action: 'error',
+      reasons: ['duplicate_race'],
+    });
+    expect(h.erpSync.queueCustomer).not.toHaveBeenCalled();
+  });
+
+  it('CM-10 an unexpected failure (e.g. run-number down) reports `internal` and the file keeps going', async () => {
+    const h = harness();
+    h.codes.issueUnused
+      // what RunNumberClient throws when run-number-service is unreachable
+      .mockRejectedValueOnce(
+        new AppError('UNKNOWN', 'Cannot reach run-number-service'),
+      )
+      .mockResolvedValueOnce('CUS-OSD-000011');
+
+    const result = await h.service.run(
+      dto({
+        rows: [
+          { row_no: 2, name_th: 'บริษัท ก จำกัด', tax_id: VALID_TAX_ID },
+          { row_no: 3, name_th: 'นาย ข' },
+        ],
+      }),
+      principal(),
+    );
+
+    expect(result.results.map((r) => [r.action, r.reasons])).toEqual([
+      ['error', ['internal']],
+      ['create', []],
+    ]);
   });
 });
