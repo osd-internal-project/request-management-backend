@@ -305,6 +305,7 @@ model Company {
   opportunityLostReasons  OpportunityLostReason[]
   opportunityCodeCounter  OpportunityCodeCounter?
   saleOrders              SaleOrder[]
+  products                Product[]
   saleOrderCodeCounter    SaleOrderCodeCounter?
   quotations              Quotation[]
   quotationCodeCounter    QuotationCodeCounter?
@@ -2601,4 +2602,31 @@ model QuotationCodeCounter {
   company Company @relation(fields: [companyId], references: [id])
 
   @@map("quotation_code_counters")
+}
+
+/// CD-27 — สินค้า/บริการที่ดึงสำเนามาจาก SAP (B1 `Items`, เฉพาะที่ขายได้) ต่อบริษัท.
+/// SAP เป็นเจ้าของ — ที่นี่อ่านอย่างเดียว เติมด้วยรอบ sync (รายชั่วโมง + ปุ่มในหน้า
+/// ผู้ดูแล). เก็บไว้ที่ CTD เพื่อให้ออกใบเสนอราคา/ใบสั่งขายได้แม้ SAP ล่ม และให้รหัส
+/// บนบรรทัดเป็นรหัสที่ SAP รู้จักจริง. หายไปจาก SAP = `active = false` ไม่ลบ.
+model Product {
+  id        String @id @default(uuid())
+  companyId String
+
+  /// B1 `ItemCode` — ค่าที่ใส่ใน `productCode` ของบรรทัดใบเสนอราคา/ใบสั่งขาย.
+  code   String
+  name   String
+  /// หน่วยขาย (B1 `SalesUnit`) — เติมลงบรรทัดตอนเลือกสินค้า.
+  unit   String?
+  active Boolean @default(true)
+
+  /// รอบ sync ล่าสุดที่เห็นรายการนี้ใน SAP.
+  syncedAt  DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, code])
+  @@index([companyId, active])
+  @@map("products")
 }

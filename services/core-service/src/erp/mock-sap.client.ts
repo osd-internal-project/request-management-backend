@@ -3,6 +3,7 @@ import {
   ErpClient,
   ErpContext,
   ErpCustomerPayload,
+  ErpItem,
   ErpReceivables,
   ErpSalesOrderPayload,
 } from './erp-client';
@@ -93,6 +94,10 @@ export class MockSapClient implements ErpClient {
     return Promise.resolve({ externalCode });
   }
 
+  listItems(_ctx: ErpContext): Promise<ErpItem[]> {
+    return Promise.resolve([...MOCK_ITEMS]);
+  }
+
   cancelSalesOrder(
     _ctx: ErpContext,
     target: { externalCode: string; saleOrderCode: string },
@@ -104,6 +109,36 @@ export class MockSapClient implements ErpClient {
     return Promise.resolve();
   }
 }
+
+/**
+ * A small, fixed catalog — enough to pick from on a quotation in any
+ * environment. Real codes come from B1 once ERP_MODE=sapb1.
+ */
+const MOCK_ITEMS: readonly ErpItem[] = [
+  {
+    code: 'SIP-TRUNK',
+    name: 'SIP Trunk (ต่อช่องสัญญาณ)',
+    unit: 'ช่อง',
+    active: true,
+  },
+  {
+    code: 'D-CALLCENTER',
+    name: 'D-Callcenter License',
+    unit: 'License',
+    active: true,
+  },
+  { code: 'IP-PHONE', name: 'IP Phone', unit: 'เครื่อง', active: true },
+  { code: 'HEADSET', name: 'Headset', unit: 'อัน', active: true },
+  { code: 'SERVER', name: 'Server', unit: 'เครื่อง', active: true },
+  { code: 'INSTALL', name: 'ค่าติดตั้ง', unit: 'งาน', active: true },
+  { code: 'MA-YEARLY', name: 'MA รายปี', unit: 'ปี', active: true },
+  {
+    code: 'OLD-PBX',
+    name: 'PBX รุ่นเก่า (เลิกขาย)',
+    unit: 'เครื่อง',
+    active: false,
+  },
+];
 
 function bpOf(customerCode: string): string {
   return `MOCK-${String(seedOf(customerCode)).padStart(10, '0')}`;

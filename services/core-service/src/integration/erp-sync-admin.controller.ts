@@ -12,6 +12,7 @@ import { IsIn, IsOptional } from 'class-validator';
 import { CurrentPrincipal, Permissions } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import { ErpSyncAdminService } from '../crm/erp-sync-admin.service';
+import { ProductCatalogService } from '../crm/product-catalog.service';
 import type { ErpJobFilter } from '../crm/erp-sync-admin.service';
 
 export class ListErpJobsQueryDto {
@@ -30,7 +31,10 @@ export class ListErpJobsQueryDto {
 @ApiBearerAuth()
 @Controller('admin/erp-sync')
 export class ErpSyncAdminController {
-  constructor(private readonly admin: ErpSyncAdminService) {}
+  constructor(
+    private readonly admin: ErpSyncAdminService,
+    private readonly catalog: ProductCatalogService,
+  ) {}
 
   @Get('jobs')
   @Permissions('admin.integration.manage')
@@ -54,5 +58,27 @@ export class ErpSyncAdminController {
   })
   retry(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
     return this.admin.retry(id, principal);
+  }
+
+  // --- CD-27 รายการสินค้าจาก SAP ----------------------------------------------
+
+  @Get('products/status')
+  @Permissions('admin.integration.manage')
+  @ApiOperation({
+    summary: 'รายการสินค้าจาก SAP ของบริษัทนี้ — จำนวน และ sync ล่าสุดเมื่อไร',
+  })
+  catalogStatus(@CurrentPrincipal() principal: Principal) {
+    return this.catalog.status(principal);
+  }
+
+  @Post('products/sync')
+  @HttpCode(HttpStatus.OK)
+  @Permissions('admin.integration.manage')
+  @ApiOperation({
+    summary:
+      'ดึงรายการสินค้าจาก SAP ตอนนี้ (บริษัทที่ทำงานอยู่) แทนการรอรอบรายชั่วโมง',
+  })
+  syncCatalog(@CurrentPrincipal() principal: Principal) {
+    return this.catalog.syncNow(principal);
   }
 }

@@ -90,6 +90,8 @@ function harness(
     ),
   };
 
+  // CD-27 — the SAP catalog check; individual tests make it reject.
+  const catalog = { assertKnownCodes: jest.fn(() => Promise.resolve()) };
   const service = new QuotationsService(
     quotations as never,
     { findFirst: jest.fn() } as never,
@@ -118,9 +120,10 @@ function harness(
         work(tx),
       ),
     } as never,
+    catalog as never,
   );
 
-  return { service, quotations, tx, requestsService, audits };
+  return { service, quotations, tx, requestsService, audits, catalog };
 }
 
 describe('CD-76 ใบเสนอราคา — ตรวจ margin ตอนยื่น', () => {
@@ -334,5 +337,35 @@ describe('CD-76 ผลคำขออนุมัติกลับมาที�
 
     expect(tx.quotation.updateMany).not.toHaveBeenCalled();
     expect(audits).toHaveLength(0);
+  });
+
+  it('CD-27 แก้รายการด้วยรหัสสินค้าที่ SAP ไม่รู้จัก = VALIDATION_FAILED และไม่บันทึกอะไร', async () => {
+    const { service, quotations, catalog } = harness();
+    catalog.assertKnownCodes.mockRejectedValueOnce(
+      Object.assign(new Error('unknown'), {
+        code: 'VALIDATION_FAILED',
+      }),
+    );
+
+    await expect(
+      service.update(
+        'qt-1',
+        {
+          lines: [
+            {
+              product_code: 'TYPO-123',
+              description: 'x',
+              quantity: 1,
+              unit_price: 100,
+            },
+          ],
+        },
+        principal(),
+      ),
+    ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+    expect(catalog.assertKnownCodes).toHaveBeenCalledWith('osd', [
+      expect.objectContaining({ product_code: 'TYPO-123' }),
+    ]);
+    expect(quotations.update).not.toHaveBeenCalled();
   });
 });

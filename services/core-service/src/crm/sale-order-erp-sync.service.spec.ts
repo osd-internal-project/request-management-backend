@@ -114,6 +114,7 @@ function harness(
         : Promise.resolve({ externalCode: 'MOCK-SO-1' }),
     ),
     cancelSalesOrder: jest.fn(() => Promise.resolve()),
+    listItems: jest.fn(() => Promise.resolve([])),
   };
   const calls = erp as unknown as Record<keyof ErpClient, jest.Mock>;
   const customerSync = { queueCustomer: jest.fn(() => Promise.resolve()) };

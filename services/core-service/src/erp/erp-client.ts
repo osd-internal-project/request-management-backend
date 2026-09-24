@@ -89,6 +89,16 @@ export interface ErpSalesOrderPayload {
   readonly lines: readonly ErpSalesOrderLine[];
 }
 
+/** CD-27 — one sellable item as SAP holds it (B1 `Items`). */
+export interface ErpItem {
+  /** B1 `ItemCode` — what quotation/sale-order lines carry as productCode. */
+  readonly code: string;
+  readonly name: string;
+  readonly unit: string | null;
+  /** Valid and not frozen — an inactive item cannot go on a new document. */
+  readonly active: boolean;
+}
+
 export interface ErpClient {
   readonly mode: 'mock' | 'sapb1';
   /** The BP already carrying this customerCode, or null — idempotency guard. */
@@ -128,4 +138,6 @@ export interface ErpClient {
     order: { externalCode: string; saleOrderCode: string },
     reason: string,
   ): Promise<void>;
+  /** CD-27 — every sellable item, the whole catalog (the driver pages). */
+  listItems(ctx: ErpContext): Promise<ErpItem[]>;
 }

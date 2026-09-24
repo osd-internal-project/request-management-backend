@@ -30,6 +30,8 @@ import { CustomerErpSyncService } from './customer-erp-sync.service';
 import { SaleOrderErpSyncService } from './sale-order-erp-sync.service';
 import { ErpMockRetirementService } from './erp-mock-retirement.service';
 import { ErpSyncAdminService } from './erp-sync-admin.service';
+import { ProductCatalogService } from './product-catalog.service';
+import { CompanyRepository, ProductRepository } from './product.repositories';
 import { IntegrationSyncJobRepository } from './integration-job.repository';
 import { KycProductRuleRepository } from './kyc-product.repository';
 import { KycCallbackService } from './kyc-callback.service';
@@ -97,6 +99,9 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     SaleOrderErpSyncService,
     ErpMockRetirementService,
     ErpSyncAdminService,
+    ProductRepository,
+    CompanyRepository,
+    ProductCatalogService,
     IntegrationSyncJobRepository,
     KycProductRuleRepository,
     KycCallbackService,
@@ -152,6 +157,7 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     QuotationsService,
     QuotationPrintService,
     ErpSyncAdminService,
+    ProductCatalogService,
   ],
 })
 export class CrmModule {}

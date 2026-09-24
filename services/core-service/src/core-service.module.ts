@@ -22,6 +22,7 @@ import { RemotePrincipalGuard } from './principal/remote-principal.guard';
 import { EventsModule } from './events/events.module';
 import { CrmHttpModule } from './crm/crm-http.module';
 import { IntegrationHttpModule } from './integration/integration-http.module';
+import { ProductsHttpModule } from './products/products-http.module';
 import { RequestsHttpModule } from './requests/requests-http.module';
 import { SlaHttpModule } from './sla/sla-http.module';
 import { SensitiveReadAuditRecorder } from './policy/sensitive-read.recorder';
@@ -56,6 +57,7 @@ import configs from './configs';
     RequestsHttpModule,
     CrmHttpModule,
     IntegrationHttpModule,
+    ProductsHttpModule,
     ApprovalsHttpModule,
     SlaHttpModule,
     NotificationsHttpModule,

@@ -76,6 +76,10 @@ export default () => ({
     mode: process.env.ERP_MODE ?? 'mock',
     retryIntervalMs: Number(process.env.ERP_RETRY_INTERVAL_MS ?? 300000),
     refreshIntervalMs: Number(process.env.ERP_REFRESH_INTERVAL_MS ?? 3600000),
+    /** CD-27 — ดึงรายการสินค้าจาก SAP (และครั้งแรก ~15 วินาทีหลัง start). */
+    itemsRefreshIntervalMs: Number(
+      process.env.ERP_ITEMS_REFRESH_INTERVAL_MS ?? 3600000,
+    ),
     /**
      * ERP_MODE=sapb1 — SAP Business One Service Layer (on-premise).
      * ERP_B1_COMPANY_DBS maps `companies.code` to a CompanyDB:

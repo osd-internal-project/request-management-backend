@@ -5,6 +5,7 @@ import {
   ErpClient,
   ErpContext,
   ErpCustomerPayload,
+  ErpItem,
   ErpReceivables,
   ErpSalesOrderPayload,
 } from './erp-client';
@@ -13,6 +14,10 @@ import type { B1Request, B1Response, B1Transport } from './sap-b1.transport';
 
 /** B1 `OCRD.CardCode` is nvarchar(15) — our customerCode must fit as-is. */
 const CARD_CODE_MAX = 15;
+
+/** Rows per `/Items` page, and a ceiling so a looping nextLink cannot spin. */
+const ITEMS_PAGE_SIZE = 500;
+const ITEMS_MAX_PAGES = 200;
 
 export interface SapB1Settings {
   /** Service Layer root, e.g. `https://b1.osd.local:50000/b1s/v1`. */
@@ -232,6 +237,48 @@ export class SapB1Client implements ErpClient {
     this.ok(res, `ยกเลิกใบสั่งขาย (${reason})`);
   }
 
+  // --- สินค้า (CD-27) ---------------------------------------------------------
+
+  /**
+   * Sellable items, all pages: Service Layer answers 20 rows by default, so
+   * ask for ITEMS_PAGE_SIZE and follow `odata.nextLink` to the end.
+   */
+  async listItems(ctx: ErpContext): Promise<ErpItem[]> {
+    const items: ErpItem[] = [];
+    let path: string | null =
+      `/Items?$select=ItemCode,ItemName,SalesUnit,Valid,Frozen&$filter=${q(
+        "SalesItem eq 'tYES'",
+      )}&$orderby=ItemCode`;
+
+    for (let page = 0; path && page < ITEMS_MAX_PAGES; page += 1) {
+      const res = await this.call(ctx, 'GET', path, undefined, {
+        Prefer: `odata.maxpagesize=${ITEMS_PAGE_SIZE}`,
+      });
+      const body = this.json<{
+        value: {
+          ItemCode: string;
+          ItemName: string | null;
+          SalesUnit: string | null;
+          Valid: string;
+          Frozen: string;
+        }[];
+        'odata.nextLink'?: string;
+        '@odata.nextLink'?: string;
+      }>(res, 'อ่านรายการสินค้า');
+
+      for (const row of body.value) {
+        items.push({
+          code: row.ItemCode,
+          name: row.ItemName?.trim() || row.ItemCode,
+          unit: row.SalesUnit?.trim() || null,
+          active: row.Valid !== 'tNO' && row.Frozen !== 'tYES',
+        });
+      }
+      path = nextPath(body['odata.nextLink'] ?? body['@odata.nextLink']);
+    }
+    return items;
+  }
+
   private async orderByCode(
     ctx: ErpContext,
     saleOrderCode: string,
@@ -256,6 +303,7 @@ export class SapB1Client implements ErpClient {
     method: B1Request['method'],
     path: string,
     body?: unknown,
+    headers: Record<string, string> = {},
     retried = false,
   ): Promise<B1Response> {
     const companyDb = this.companyDb(ctx);
@@ -265,6 +313,7 @@ export class SapB1Client implements ErpClient {
       method,
       url: `${this.settings.baseUrl.replace(/\/$/, '')}${path}`,
       headers: {
+        ...headers,
         Cookie: session.cookie,
         'Content-Type': 'application/json',
       },
@@ -274,7 +323,7 @@ export class SapB1Client implements ErpClient {
     // B1 dropped the session (timeout, restart) — log in again, once.
     if (res.status === 401 && !retried) {
       this.sessions.delete(companyDb);
-      return this.call(ctx, method, path, body, true);
+      return this.call(ctx, method, path, body, headers, true);
     }
 
     session.expiresAt = Date.now() + session.timeoutMs;
@@ -403,6 +452,17 @@ function bangkokDate(iso: string): string {
   return new Date(new Date(iso).getTime() + 7 * 3_600_000)
     .toISOString()
     .slice(0, 10);
+}
+
+/**
+ * `odata.nextLink` → a path under the Service Layer root. v1 answers it
+ * relative (`Items?…&$skip=500`), some builds absolute (`/b1s/v1/Items?…`).
+ */
+function nextPath(link: string | undefined): string | null {
+  if (!link) return null;
+  const at = link.indexOf('/b1s/');
+  const rest = at >= 0 ? link.slice(link.indexOf('/', at + 5)) : link;
+  return rest.startsWith('/') ? rest : `/${rest}`;
 }
 
 function cookiesOf(res: B1Response): string[] {

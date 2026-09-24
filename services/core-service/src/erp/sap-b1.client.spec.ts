@@ -402,4 +402,53 @@ describe('SAP B1 Service Layer driver', () => {
       SapB1Client.missingSettings({ baseUrl: BASE, companyDbs: {} }),
     ).toEqual(['ERP_B1_USERNAME', 'ERP_B1_PASSWORD', 'ERP_B1_COMPANY_DBS']);
   });
+
+  it('listItems: เฉพาะที่ขายได้, ขอหน้าละ 500 แล้วตาม nextLink จนจบ, เลิกขาย/frozen = inactive', async () => {
+    const h = harness({
+      'GET /Items': (req) =>
+        req.url.includes('$skip=500')
+          ? reply(200, {
+              value: [
+                {
+                  ItemCode: 'OLD',
+                  ItemName: 'เลิกขาย',
+                  SalesUnit: null,
+                  Valid: 'tNO',
+                  Frozen: 'tNO',
+                },
+              ],
+            })
+          : reply(200, {
+              value: [
+                {
+                  ItemCode: 'SIP',
+                  ItemName: 'SIP Trunk',
+                  SalesUnit: 'ช่อง',
+                  Valid: 'tYES',
+                  Frozen: 'tNO',
+                },
+                {
+                  ItemCode: 'FRZ',
+                  ItemName: 'Frozen',
+                  SalesUnit: '',
+                  Valid: 'tYES',
+                  Frozen: 'tYES',
+                },
+              ],
+              'odata.nextLink': 'Items?$select=ItemCode&$skip=500',
+            }),
+    });
+
+    const items = await h.client.listItems(OSD);
+
+    expect(items).toEqual([
+      { code: 'SIP', name: 'SIP Trunk', unit: 'ช่อง', active: true },
+      { code: 'FRZ', name: 'Frozen', unit: null, active: false },
+      { code: 'OLD', name: 'เลิกขาย', unit: null, active: false },
+    ]);
+    const pages = h.calls('GET', '/Items');
+    expect(pages).toHaveLength(2);
+    expect(pages[0].headers.Prefer).toBe('odata.maxpagesize=500');
+    expect(pages[0].url).toContain("SalesItem%20eq%20'tYES'");
+  });
 });
