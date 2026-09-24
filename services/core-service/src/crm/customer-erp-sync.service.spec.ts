@@ -1,7 +1,7 @@
-import { CustomerOdooSyncService } from './customer-odoo-sync.service';
-import type { OdooClient } from '../odoo/odoo-client';
+import { CustomerErpSyncService } from './customer-erp-sync.service';
+import type { ErpClient } from '../erp/erp-client';
 
-function harness(options: { odooDown?: boolean } = {}) {
+function harness(options: { erpDown?: boolean; bpInSap?: string } = {}) {
   const externalRows: Record<string, unknown>[] = [];
   const jobs: Record<string, unknown>[] = [];
 
@@ -70,14 +70,21 @@ function harness(options: { odooDown?: boolean } = {}) {
     ),
   };
 
-  const odoo: OdooClient = {
+  const erp: ErpClient = {
     mode: 'mock',
-    createPartner: jest.fn(() =>
-      options.odooDown
-        ? Promise.reject(new Error('odoo down'))
-        : Promise.resolve({ partnerId: 'MOCK-77' }),
+    findCustomer: jest.fn(() =>
+      options.erpDown
+        ? Promise.reject(new Error('sap down'))
+        : Promise.resolve(
+            options.bpInSap ? { externalCode: options.bpInSap } : null,
+          ),
     ),
-    updatePartner: jest.fn(() => Promise.resolve()),
+    createCustomer: jest.fn(() =>
+      options.erpDown
+        ? Promise.reject(new Error('sap down'))
+        : Promise.resolve({ externalCode: 'MOCK-77' }),
+    ),
+    updateCustomer: jest.fn(() => Promise.resolve()),
     getReceivables: jest.fn(() =>
       Promise.resolve({ outstanding: 25000, invoiceCount: 2, asOf: 'now' }),
     ),
@@ -86,16 +93,16 @@ function harness(options: { odooDown?: boolean } = {}) {
   const audit = { record: jest.fn(() => Promise.resolve()) };
   const config = { get: jest.fn(() => 0) };
 
-  const service = new CustomerOdooSyncService(
+  const service = new CustomerErpSyncService(
     customers as never,
     externalCodes as never,
     jobsRepo as never,
-    odoo,
+    erp,
     audit as never,
     config as never,
   );
 
-  return { service, externalRows, jobs, externalCodes, odoo, audit };
+  return { service, externalRows, jobs, externalCodes, erp, audit };
 }
 
 async function settle() {
@@ -103,26 +110,45 @@ async function settle() {
   await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-describe('CM-06 Odoo sync — สร้างแล้วได้เลขทันที ล่มแล้วเข้าคิว', () => {
-  it('CM-06 a create pushes to Odoo and stores the partner id it answers', async () => {
+describe('CM-06 SAP sync — สร้างแล้วได้เลขทันที ล่มแล้วเข้าคิว', () => {
+  it('CM-06 a create pushes to SAP and stores the BP number it answers', async () => {
     const { service, externalRows, audit } = harness();
 
-    const partnerId = await service.syncCustomer('cust-1');
+    const externalCode = await service.syncCustomer('cust-1');
 
-    expect(partnerId).toBe('MOCK-77');
+    expect(externalCode).toBe('MOCK-77');
     expect(externalRows[0]).toMatchObject({
-      system: 'odoo',
+      system: 'sap',
       externalCode: 'MOCK-77',
     });
     expect(audit.record).toHaveBeenCalledWith(
       expect.objectContaining({
-        eventType: 'integration.odoo.customer_synced',
+        eventType: 'integration.sap.customer_synced',
       }),
     );
   });
 
-  it('CM-06 Odoo down → the work becomes ONE queue row, never a user-facing error', async () => {
-    const { service, jobs } = harness({ odooDown: true });
+  it('CM-06 a BP already carrying our customerCode is adopted, not created twice', async () => {
+    const { service, externalRows, erp } = harness({ bpInSap: 'BP-0001' });
+    const calls = erp as unknown as Record<keyof ErpClient, jest.Mock>;
+
+    const externalCode = await service.syncCustomer('cust-1');
+
+    expect(externalCode).toBe('BP-0001');
+    expect(calls.findCustomer).toHaveBeenCalledWith('CUS-OSD-000001');
+    expect(calls.createCustomer).not.toHaveBeenCalled();
+    expect(calls.updateCustomer).toHaveBeenCalledWith(
+      'BP-0001',
+      expect.objectContaining({ customerCode: 'CUS-OSD-000001' }),
+    );
+    expect(externalRows[0]).toMatchObject({
+      system: 'sap',
+      externalCode: 'BP-0001',
+    });
+  });
+
+  it('CM-06 SAP down → the work becomes ONE queue row, never a user-facing error', async () => {
+    const { service, jobs } = harness({ erpDown: true });
 
     service.kickCustomer('cust-1');
     await settle();
@@ -138,18 +164,15 @@ describe('CM-06 Odoo sync — สร้างแล้วได้เลขท�
   });
 
   it('CM-06 the sweeper retries a queued row and marks it succeeded', async () => {
-    const { service, jobs, externalRows } = harness({ odooDown: true });
+    const { service, jobs, externalRows } = harness({ erpDown: true });
     service.kickCustomer('cust-1');
     await settle();
 
-    // Odoo comes back up.
-    const { service: recovered } = harness();
-    // reuse first harness's queue through a fresh service is unwieldy —
-    // instead flip the mock back to healthy on the same harness:
-    void recovered;
-    const odoo = (service as never as { odoo: OdooClient }).odoo;
-    (odoo.createPartner as jest.Mock).mockResolvedValue({
-      partnerId: 'MOCK-88',
+    // SAP comes back up.
+    const erp = (service as never as { erp: ErpClient }).erp;
+    (erp.findCustomer as jest.Mock).mockResolvedValue(null);
+    (erp.createCustomer as jest.Mock).mockResolvedValue({
+      externalCode: 'MOCK-88',
     });
 
     await service.processQueue();

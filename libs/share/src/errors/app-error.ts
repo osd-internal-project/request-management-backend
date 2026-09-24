@@ -73,7 +73,7 @@ export const ErrorCatalog = {
   /** NFR-03: same Idempotency-Key replayed with a different body. */
   IDEMPOTENCY_KEY_REUSED: HttpStatus.CONFLICT,
 
-  /** CM-06/D-30 — the integration layer's answer when Odoo (or a later
+  /** CM-06/D-30 — the integration layer's answer when SAP (or a later
    * external system) refuses or is unreachable; the sync queue retries. */
   UPSTREAM_ERROR: HttpStatus.BAD_GATEWAY,
   /**

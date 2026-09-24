@@ -65,19 +65,16 @@ export default () => ({
    * Dashboard ids come from the Metabase URL after each dashboard is created.
    */
   /**
-   * CM-06/D-30 — the Odoo integration layer. `mode=mock` (default) runs the
-   * in-memory stand-in so every environment works before the sandbox exists;
-   * point `mode=http` + the four credentials at the sandbox when it arrives.
+   * CM-06/D-30 — the ERP (SAP) integration layer. `mode=mock` (default, the
+   * only driver until the SAP connection method is settled) runs the
+   * in-memory stand-in so every environment works end-to-end; any other mode
+   * fails at boot. The SAP driver's credentials join this block when it lands.
    * Intervals in ms; 0 disables the background timers (tests).
    */
-  odoo: {
-    mode: process.env.ODOO_MODE ?? 'mock',
-    baseUrl: process.env.ODOO_BASE_URL ?? '',
-    db: process.env.ODOO_DB ?? '',
-    uid: Number(process.env.ODOO_UID ?? 0),
-    apiKey: process.env.ODOO_API_KEY ?? '',
-    retryIntervalMs: Number(process.env.ODOO_RETRY_INTERVAL_MS ?? 300000),
-    refreshIntervalMs: Number(process.env.ODOO_REFRESH_INTERVAL_MS ?? 3600000),
+  erp: {
+    mode: process.env.ERP_MODE ?? 'mock',
+    retryIntervalMs: Number(process.env.ERP_RETRY_INTERVAL_MS ?? 300000),
+    refreshIntervalMs: Number(process.env.ERP_REFRESH_INTERVAL_MS ?? 3600000),
   },
 
   /**

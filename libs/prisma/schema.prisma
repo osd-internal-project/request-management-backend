@@ -165,7 +165,7 @@ enum CustomerStatus {
   inactive
 }
 
-/// CM-06 — สถานะงานในคิว sync ของชั้น integration (Odoo วันนี้ ระบบอื่นภายหลัง).
+/// CM-06 — สถานะงานในคิว sync ของชั้น integration (SAP + workflow วันนี้ ระบบอื่นภายหลัง).
 enum IntegrationJobStatus {
   pending
   succeeded
@@ -1613,13 +1613,13 @@ model ApiKey {
 // ---------------------------------------------------------------------------
 // CRM — Customer Master (CM-xx) + มุมมอง 360° (C360-xx)
 // Spec: artifact 856c08fd (8 ก.ย. 2569). One customer registry for every
-// module and for Odoo — no module may keep its own (D-30).
+// module and for SAP — no module may keep its own (D-30).
 // ---------------------------------------------------------------------------
 
 /// CM-01/02/04 — the single customer registry.
 ///
 /// `customerCode` is issued by THIS system (PO decision #1, 8 ก.ย. 2569):
-/// Odoo receives it and answers with its partner id, stored in
+/// SAP receives it and answers with its Business Partner number, stored in
 /// `CustomerExternalCode` — never the other way round.
 ///
 /// No hard delete: `inactive` + `deactivateReason` is the only way out, and a
@@ -1629,7 +1629,7 @@ model Customer {
   id String @id @default(uuid())
 
   /// Issued atomically at create (CM-02) — unique across the whole database,
-  /// like `Request.requestNo`, because Odoo and 7 accounting systems key on it.
+  /// like `Request.requestNo`, because SAP and 7 accounting systems key on it.
   customerCode String @unique
 
   companyId String
@@ -1804,7 +1804,7 @@ model CustomerContact {
   @@map("customer_contacts")
 }
 
-/// CM-02 — รหัสภายนอก: `system` = `odoo` for the partner id, plus the 7
+/// CM-02 — รหัสภายนอก: `system` = `sap` for the BP number, plus the 7
 /// accounting-line systems (D-30). `payload` keeps whatever else the external
 /// system answered at create (PO decision #1) so nothing is lost to a
 /// narrower column later.
@@ -2011,20 +2011,21 @@ model CustomerTimelineEvent {
   @@map("customer_timeline_events")
 }
 
-/// CM-06 — the retry queue behind the Odoo integration layer (PO 8 ก.ย. 2569:
-/// a customer create calls Odoo synchronously and gets the partner id back;
-/// when Odoo is down the work lands here instead of blocking the create, and
-/// a sweeper retries with backoff). Rows are kept after they finish — the
+/// CM-06 — the retry queue behind the ERP integration layer (PO 8 ก.ย. 2569;
+/// ERP = SAP since 24 ก.ย. 2569: data is saved here first, then a customer
+/// create calls SAP and gets the BP number back; when SAP is down the work
+/// lands here instead of blocking the create, and a sweeper retries with
+/// backoff). Rows are kept after they finish — the
 /// "ทุกรอบ sync มี log" AC is answered by this table plus the audit trail.
 model IntegrationSyncJob {
   id String @id @default(uuid())
 
-  /// 'odoo' | 'workflow' — one queue for every external system the layer fronts.
+  /// 'sap' | 'workflow' — one queue for every external system the layer fronts.
   system     String
-  /// odoo: 'customer_upsert' | 'receivables_refresh'
+  /// sap: 'customer_upsert' | 'receivables_refresh'
   /// workflow: 'lead_start'
   kind       String
-  /// The row being synced — customerId for the odoo kinds, leadId for 'lead_start'.
+  /// The row being synced — customerId for the sap kinds, leadId for 'lead_start'.
   resourceId String
 
   status    IntegrationJobStatus @default(pending)
@@ -2050,7 +2051,7 @@ model KycProductRule {
   id        String @id @default(uuid())
   companyId String
 
-  /// รหัสสินค้า/บริการ — ต้องตรงกับรหัสใน Odoo (D-30, งาน mapping ระยะ 0).
+  /// รหัสสินค้า/บริการ — ต้องตรงกับรหัส material ใน SAP (D-30, งาน mapping ระยะ 0).
   productCode String
   name        String
 
@@ -2331,7 +2332,7 @@ model OpportunityActivity {
   @@map("opportunity_activities")
 }
 
-/// สินค้า/บริการที่เกี่ยวกับโอกาสการขาย — รหัสต้องตรง Odoo (D-30). ชุดงาน B ใช้คู่กับ
+/// สินค้า/บริการที่เกี่ยวกับโอกาสการขาย — รหัสต้องตรง material ใน SAP (D-30). ชุดงาน B ใช้คู่กับ
 /// `kyc_product_rules`: โอกาสการขายที่มี product เข้าเงื่อนไข + ลูกค้ายังไม่
 /// kycVerified = banner แจ้งเตือน (ไม่ block).
 model OpportunityProduct {
@@ -2378,7 +2379,7 @@ model OpportunityCodeCounter {
 /// 2569): ถ้าโอกาสการขายยังไม่มีลูกค้า ระบบสร้างจากข้อมูลผู้มุ่งหวังแล้วผูกกลับ
 /// ทั้งโอกาสการขายและ Lead ต้นทาง; เปิดใบสั่งขายถือว่าปิดโอกาสการขายแบบชนะ.
 /// รายการสินค้า/ราคาต่อบรรทัดยังไม่อยู่ที่นี่ — มาจากใบเสนอราคา/BOQ ของโมดูล Sales
-/// (ระยะถัดไป) และการส่งเข้า Odoo ใช้คิว integration_sync_jobs เดิม.
+/// (ระยะถัดไป) และการส่งเข้า SAP ใช้คิว integration_sync_jobs เดิม.
 model SaleOrder {
   id            String @id @default(uuid())
   saleOrderCode String @unique
@@ -2520,7 +2521,7 @@ model QuotationLine {
   id          String  @id @default(uuid())
   quotationId String
   lineNo      Int
-  /// รหัสสินค้า/บริการ (ตรง Odoo ถ้ามี) — ว่างได้สำหรับบรรทัดบริการ/ค่าแรง.
+  /// รหัสสินค้า/บริการ (ตรง material ใน SAP ถ้ามี) — ว่างได้สำหรับบรรทัดบริการ/ค่าแรง.
   productCode String?
   description String
   quantity    Decimal @db.Decimal(14, 3)

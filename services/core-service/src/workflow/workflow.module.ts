@@ -6,7 +6,7 @@ import { WORKFLOW_CLIENT } from './workflow-client';
 
 /**
  * ประตูของ core ไปหา OSD Workflow — client ล้วน ไม่แตะฐานข้อมูล เพื่อให้
- * feature module import ได้โดยไม่เกิดวงจร (แพตเทิร์นเดียวกับ `OdooModule`);
+ * feature module import ได้โดยไม่เกิดวงจร (แพตเทิร์นเดียวกับ `ErpModule`);
  * ส่วนที่รู้จัก Lead อยู่ใน `crm/lead-workflow-sync.service.ts`.
  */
 @Module({

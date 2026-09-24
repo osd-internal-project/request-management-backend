@@ -8,38 +8,42 @@ import {
 import { ConfigService } from '@nestjs/config';
 import type { Prisma } from '@prisma/client';
 import { AuditWriter } from '@request-management/share';
-import { ODOO_CLIENT } from '../odoo/odoo-client';
-import type { OdooClient, OdooPartnerPayload } from '../odoo/odoo-client';
+import { ERP_CLIENT, ERP_SYSTEM } from '../erp/erp-client';
+import type { ErpClient, ErpCustomerPayload } from '../erp/erp-client';
 import { CustomerRepository } from './customer.repository';
 import { CustomerExternalCodeRepository } from './customer-child.repositories';
 import { IntegrationSyncJobRepository } from './integration-job.repository';
 
-const SYSTEM = 'odoo';
+const SYSTEM = ERP_SYSTEM;
 const MAX_ATTEMPTS = 10;
 
-/** Backoff: 1m, 2m, 4m … capped at 30m — a down Odoo is retried, not hammered. */
+/** Backoff: 1m, 2m, 4m … capped at 30m — a down SAP is retried, not hammered. */
 function backoffMs(attempts: number): number {
   return Math.min(60_000 * 2 ** attempts, 30 * 60_000);
 }
 
 /**
- * CM-06 — customer sync through the integration layer (PO 8 ก.ย. 2569):
+ * CM-06 — customer sync through the integration layer, store-and-forward
+ * (PO 8 ก.ย. 2569; ERP = SAP since 24 ก.ย. 2569):
  *
- *   - a create/update **calls Odoo now** and stores the partner id it answers
- *     (`kickCustomer`, fired after the transaction commits — never inside it,
- *     so a slow Odoo cannot hold a database transaction open);
- *   - when Odoo is down the work lands in `integration_sync_jobs` and the
+ *   - the customer is saved in Connect the Dot first; a create/update then
+ *     **calls SAP** and stores the BP number it answers (`kickCustomer`,
+ *     fired after the transaction commits — never inside it, so a slow SAP
+ *     cannot hold a database transaction open);
+ *   - when SAP is down the work lands in `integration_sync_jobs` and the
  *     sweeper retries with backoff — the customer screen never blocks;
+ *   - a first push looks the customerCode up in SAP before creating, so a
+ *     retry after a timeout adopts the BP the lost attempt made;
  *   - "ข้อมูลอื่น ๆ" run on the hourly pass: receivables for every synced
  *     customer, cached into the external-code row's `payload.receivables`,
  *     which is what the 360° page's การเงิน figures read (C360-02).
  *
- * Every sync outcome is audited (`integration.odoo.*`) — the "ทุกรอบ sync มี
+ * Every sync outcome is audited (`integration.sap.*`) — the "ทุกรอบ sync มี
  * log" AC — and the queue rows themselves are kept after they finish.
  */
 @Injectable()
-export class CustomerOdooSyncService implements OnModuleInit, OnModuleDestroy {
-  private readonly logger = new Logger(CustomerOdooSyncService.name);
+export class CustomerErpSyncService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(CustomerErpSyncService.name);
   private retryTimer: NodeJS.Timeout | null = null;
   private refreshTimer: NodeJS.Timeout | null = null;
 
@@ -47,23 +51,23 @@ export class CustomerOdooSyncService implements OnModuleInit, OnModuleDestroy {
     private readonly customers: CustomerRepository,
     private readonly externalCodes: CustomerExternalCodeRepository,
     private readonly jobs: IntegrationSyncJobRepository,
-    @Inject(ODOO_CLIENT) private readonly odoo: OdooClient,
+    @Inject(ERP_CLIENT) private readonly erp: ErpClient,
     private readonly audit: AuditWriter,
     private readonly config: ConfigService,
   ) {}
 
   /**
-   * C360-02 — ยอดค้างชำระมาจาก Odoo จริงหรือไม่. driver mock สร้างตัวเลขปลอม
+   * C360-02 — ยอดค้างชำระมาจาก SAP จริงหรือไม่. driver mock สร้างตัวเลขปลอม
    * (ใช้ทดสอบ sync ได้) แต่ห้ามโชว์บนการ์ดลูกค้าเหมือนเป็นยอดจริง.
    */
   get receivablesLive(): boolean {
-    return this.odoo.mode === 'http';
+    return this.erp.mode !== 'mock';
   }
 
   onModuleInit(): void {
-    const retryMs = this.config.get<number>('odoo.retryIntervalMs') ?? 300_000;
+    const retryMs = this.config.get<number>('erp.retryIntervalMs') ?? 300_000;
     const refreshMs =
-      this.config.get<number>('odoo.refreshIntervalMs') ?? 3_600_000;
+      this.config.get<number>('erp.refreshIntervalMs') ?? 3_600_000;
 
     // `0` disables — tests and one-off scripts boot without timers underneath.
     if (retryMs > 0) {
@@ -92,13 +96,13 @@ export class CustomerOdooSyncService implements OnModuleInit, OnModuleDestroy {
   kickCustomer(customerId: string): void {
     void this.syncCustomer(customerId).catch(async (error) => {
       this.logger.warn(
-        `odoo sync deferred for customer ${customerId}: ${message(error)}`,
+        `sap sync deferred for customer ${customerId}: ${message(error)}`,
       );
       await this.enqueue('customer_upsert', customerId, message(error));
     });
   }
 
-  /** One customer → Odoo. Returns the partner id it now has. */
+  /** One customer → SAP. Returns the BP number it now has. */
   async syncCustomer(customerId: string): Promise<string> {
     const customer = (await this.customers.findFirst({
       where: { id: customerId, mergedIntoCustomerId: null },
@@ -120,28 +124,36 @@ export class CustomerOdooSyncService implements OnModuleInit, OnModuleDestroy {
       throw new Error(`customer ${customerId} not found or merged`);
     }
 
-    const payload = toPartnerPayload(customer);
+    const payload = toErpPayload(customer);
 
     const existing = (await this.externalCodes.findFirst({
       where: { customerId, system: SYSTEM },
     })) as ExternalCodeRow | null;
 
-    let partnerId: string;
+    let externalCode: string;
     if (existing) {
-      partnerId = existing.externalCode;
-      await this.odoo.updatePartner(partnerId, payload);
+      externalCode = existing.externalCode;
+      await this.erp.updateCustomer(externalCode, payload);
       await this.externalCodes.update({
         where: { id: existing.id },
-        data: { payload: withPartner(existing.payload, payload) },
+        data: { payload: withPushed(existing.payload, payload) },
       });
     } else {
-      ({ partnerId } = await this.odoo.createPartner(payload));
+      // SAP does not dedupe for us: an earlier attempt may have created the
+      // BP and then timed out before we stored its number.
+      const found = await this.erp.findCustomer(payload.customerCode);
+      if (found) {
+        externalCode = found.externalCode;
+        await this.erp.updateCustomer(externalCode, payload);
+      } else {
+        ({ externalCode } = await this.erp.createCustomer(payload));
+      }
       await this.externalCodes.create({
         data: {
           customerId,
           system: SYSTEM,
-          externalCode: partnerId,
-          payload: withPartner(null, payload),
+          externalCode,
+          payload: withPushed(null, payload),
         },
       });
     }
@@ -151,16 +163,16 @@ export class CustomerOdooSyncService implements OnModuleInit, OnModuleDestroy {
     await this.refreshReceivables(customerId).catch(() => undefined);
 
     await this.audit.record({
-      eventType: 'integration.odoo.customer_synced',
+      eventType: 'integration.sap.customer_synced',
       companyId: customer.companyId,
       actorId: null,
-      actorUsername: `odoo-sync:${this.odoo.mode}`,
+      actorUsername: `sap-sync:${this.erp.mode}`,
       resourceType: 'customer',
       resourceId: customerId,
-      after: { partnerId, customerCode: customer.customerCode },
+      after: { externalCode, customerCode: customer.customerCode },
     });
 
-    return partnerId;
+    return externalCode;
   }
 
   /** C360-02 — cache ยอดค้างชำระ onto the external-code row. */
@@ -170,7 +182,7 @@ export class CustomerOdooSyncService implements OnModuleInit, OnModuleDestroy {
     })) as ExternalCodeRow | null;
     if (!existing) return;
 
-    const receivables = await this.odoo.getReceivables(existing.externalCode);
+    const receivables = await this.erp.getReceivables(existing.externalCode);
     await this.externalCodes.update({
       where: { id: existing.id },
       data: {
@@ -237,7 +249,7 @@ export class CustomerOdooSyncService implements OnModuleInit, OnModuleDestroy {
         });
         if (exhausted) {
           this.logger.error(
-            `odoo job ${job.id} (${job.kind} ${job.resourceId}) gave up after ${attempts}: ${message(error)}`,
+            `sap job ${job.id} (${job.kind} ${job.resourceId}) gave up after ${attempts}: ${message(error)}`,
           );
         }
       }
@@ -296,7 +308,7 @@ interface JobRow {
   attempts: number;
 }
 
-function toPartnerPayload(customer: CustomerForSync): OdooPartnerPayload {
+function toErpPayload(customer: CustomerForSync): ErpCustomerPayload {
   const location = customer.locations[0];
   const contact = customer.contacts[0];
   return {
@@ -315,9 +327,9 @@ function toPartnerPayload(customer: CustomerForSync): OdooPartnerPayload {
   };
 }
 
-function withPartner(
+function withPushed(
   previous: unknown,
-  payload: OdooPartnerPayload,
+  payload: ErpCustomerPayload,
 ): Prisma.InputJsonValue {
   return {
     ...(asObject(previous) ?? {}),

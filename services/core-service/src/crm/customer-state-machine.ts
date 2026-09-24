@@ -39,7 +39,7 @@ export const CUSTOMER_TRANSITIONS: Readonly<
 /** Statuses in which the customer participates in new business. */
 export const USABLE_STATUSES: readonly CustomerStatus[] = ['active'];
 
-/** Statuses the CM-06 Odoo sync pushes — never drafts. */
+/** Statuses the CM-06 SAP sync pushes — never drafts. */
 export const SYNCED_STATUSES: readonly CustomerStatus[] = [
   'active',
   'suspended',

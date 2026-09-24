@@ -432,10 +432,10 @@ export class ExternalCustomersController {
     return this.customers.timelineOf(id, principal, query);
   }
 
-  /** CM-02 — Odoo partner id + ระบบสายบัญชีทั้ง 7 (admin surface). */
+  /** CM-02 — SAP BP number + ระบบสายบัญชีทั้ง 7 (admin surface). */
   @ApiOperation({
     summary: 'รหัสลูกค้าในระบบภายนอก',
-    description: 'Odoo และระบบสายบัญชี — งานของผู้ดูแล',
+    description: 'SAP และระบบสายบัญชี — งานของผู้ดูแล',
   })
   @Get(':id/external-codes')
   @Permissions('integration.crm.admin.manage')

@@ -47,7 +47,7 @@ export default () => ({
    * This service runs core-service's providers in its own process against the
    * same database (see `services/core-service/src/index.ts`). The domain
    * modules it needs pull in the ones that sweep on an interval —
-   * `RequestsModule` imports `SlaModule`, `CrmModule` imports the Odoo and
+   * `RequestsModule` imports `SlaModule`, `CrmModule` imports the ERP (SAP) and
    * workflow retry loops — and a second sweeper on the same tables is one
    * duplicate notification per late request, and one duplicate sync attempt
    * per pending job.
@@ -58,12 +58,8 @@ export default () => ({
    * gets added.
    */
   slaSweepIntervalMs: 0,
-  odoo: {
-    mode: process.env.ODOO_MODE ?? 'mock',
-    baseUrl: process.env.ODOO_BASE_URL ?? '',
-    db: process.env.ODOO_DB ?? '',
-    uid: Number(process.env.ODOO_UID ?? 0),
-    apiKey: process.env.ODOO_API_KEY ?? '',
+  erp: {
+    mode: process.env.ERP_MODE ?? 'mock',
     retryIntervalMs: 0,
     refreshIntervalMs: 0,
   },
