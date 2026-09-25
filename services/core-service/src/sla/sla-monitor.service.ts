@@ -9,6 +9,7 @@ import { PrismaService } from '@request-management/share';
 import { DomainEventsService } from '../events/domain-events.service';
 import { DOMAIN_EVENTS } from '../events/event-catalog';
 import { NotificationsService } from '../notifications/notifications.service';
+import { backgroundTick } from '../common/background-tick';
 
 /** How often the clock is swept. Short enough to be useful, cheap to run. */
 const DEFAULT_INTERVAL_MS = 60_000;
@@ -45,7 +46,10 @@ export class SlaMonitorService implements OnModuleInit, OnModuleDestroy {
     // without wanting a background timer firing under them.
     if (interval <= 0) return;
 
-    this.timer = setInterval(() => void this.sweep(), interval);
+    this.timer = setInterval(
+      backgroundTick(this.logger, 'SUP-02 SLA sweep', () => this.sweep()),
+      interval,
+    );
     // Does not hold the process open on its own.
     this.timer.unref?.();
   }

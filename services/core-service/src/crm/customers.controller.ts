@@ -135,6 +135,7 @@ export class CustomersController {
       'เลขภาษีเดียวกันคนละสาขาถูกผูกเป็นสาขาให้เอง',
   })
   @Post()
+  @SensitiveResource('customer')
   @Permissions('crm.customer.manage')
   create(
     @Body() dto: CreateCustomerDto,
@@ -185,6 +186,7 @@ export class CustomersController {
     description: 'ทุกฟิลด์ที่เปลี่ยนถูกบันทึกลงประวัติใน transaction เดียวกัน',
   })
   @Patch(':id')
+  @SensitiveResource('customer')
   @Permissions('crm.customer.manage')
   update(
     @Param('id') id: string,
@@ -203,6 +205,7 @@ export class CustomersController {
       'CRM_CUSTOMER_STATE_INVALID',
   })
   @Post(':id/activate')
+  @SensitiveResource('customer')
   @Permissions('crm.customer.manage')
   activate(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
     return this.customers.activate(id, principal);
@@ -213,6 +216,7 @@ export class CustomersController {
     description: 'ทำได้จาก active เท่านั้น',
   })
   @Post(':id/suspend')
+  @SensitiveResource('customer')
   @Permissions('crm.customer.manage')
   suspend(
     @Param('id') id: string,
@@ -227,6 +231,7 @@ export class CustomersController {
     description: 'ปิดแล้วกลับไป draft ไม่ได้ กลับได้แค่ active',
   })
   @Post(':id/deactivate')
+  @SensitiveResource('customer')
   @Permissions('crm.customer.manage')
   deactivate(
     @Param('id') id: string,
@@ -334,6 +339,7 @@ export class CustomersController {
     description: 'แทนที่ทั้งชุด ไม่ใช่เพิ่มทีละค่า',
   })
   @Put(':id/segments')
+  @SensitiveResource('customer')
   @Permissions('crm.customer.manage')
   setSegments(
     @Param('id') id: string,

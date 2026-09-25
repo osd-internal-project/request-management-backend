@@ -22,6 +22,7 @@ import {
   ActingPolicyGuard,
   Permissions,
   ServiceAccountOnly,
+  SensitiveResource,
 } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import { CurrentPrincipal } from '@request-management/share';
@@ -231,6 +232,7 @@ export class RequestController {
   })
   @ApiExternalReadErrors()
   @Get('requests')
+  @SensitiveResource('request:{typeCode}')
   @ActingPermissions('request.read')
   list(
     @Query() query: ExternalListRequestsDto,
@@ -301,6 +303,7 @@ export class RequestController {
   @ApiExternalReadErrors()
   @ApiParam(REF_PARAM)
   @Get('requests/:ref')
+  @SensitiveResource('request:{typeCode}')
   @ActingPermissions('request.read')
   findOne(@Param('ref') ref: string, @CurrentPrincipal() principal: Principal) {
     return this.requests.findByRef(ref, principal);

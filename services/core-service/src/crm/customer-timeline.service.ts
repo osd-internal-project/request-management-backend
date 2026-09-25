@@ -1,11 +1,80 @@
 import { Injectable } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import {
+  accessSubject,
+  hasPermission,
   Permission,
   Principal,
   PrismaService,
+  salesAccessSubject,
   TQueryClient,
+  visibleRequestsWhere,
+  visibleSalesWhere,
 } from '@request-management/share';
+
+/**
+ * C360-03 AC — an event whose source the viewer cannot read stays out of the
+ * feed. Seeing the customer is not enough: the event describes a row in
+ * another module, and that module's permission *and* its row scope decide.
+ *
+ * Decided here at read time from `refType`, so events written before this
+ * rule existed are covered too and no publisher can forget to ask for it.
+ * `requiredPermission` stays as an extra, per-event gate.
+ */
+type SourceRule = {
+  permission: Permission;
+  /** The ids among `ids` this viewer may read in the source module. */
+  visibleIds: (
+    prisma: PrismaService,
+    viewer: Principal,
+    ids: string[],
+  ) => Promise<{ id: string }[]>;
+};
+
+const salesRows =
+  (
+    model: 'opportunity' | 'quotation' | 'saleOrder',
+  ): SourceRule['visibleIds'] =>
+  (prisma, viewer, ids) =>
+    (
+      prisma[model] as unknown as {
+        findMany(args: unknown): Promise<{ id: string }[]>;
+      }
+    ).findMany({
+      where: {
+        id: { in: ids },
+        AND: [visibleSalesWhere(salesAccessSubject(viewer))],
+      },
+      select: { id: true },
+    });
+
+const SOURCE_RULES: Readonly<Record<string, SourceRule>> = {
+  opportunity: {
+    permission: 'crm.sales.read',
+    visibleIds: salesRows('opportunity'),
+  },
+  quotation: {
+    permission: 'crm.sales.read',
+    visibleIds: salesRows('quotation'),
+  },
+  sale_order: {
+    permission: 'crm.sales.read',
+    visibleIds: salesRows('saleOrder'),
+  },
+  request: {
+    permission: 'request.read',
+    visibleIds: (prisma, viewer, ids) =>
+      prisma.request.findMany({
+        where: {
+          id: { in: ids },
+          AND: [visibleRequestsWhere(accessSubject(viewer))],
+        },
+        select: { id: true },
+      }),
+  },
+};
+
+const GUARDED_REF_TYPES = Object.keys(SOURCE_RULES);
 
 /** What a module hands the timeline — everything else is derived. */
 export interface TimelineEventInput {
@@ -66,13 +135,16 @@ export class CustomerTimelineService {
 
   /**
    * The feed for one customer, newest first, filtered to what this viewer may
-   * see: events carrying a `requiredPermission` the viewer lacks are excluded
-   * in the query, not after it — a page of the feed must not shrink oddly.
+   * see — in the query, not after it, so a page of the feed never shrinks
+   * oddly:
+   *   - events from another module (`SOURCE_RULES`) only when the viewer holds
+   *     that module's permission and the source row is inside their scope;
+   *   - events carrying a `requiredPermission` the viewer lacks, never.
    *
    * The caller has already resolved the customer through
    * `visibleCustomersWhere`; this method never re-checks it.
    */
-  list(
+  async list(
     customerId: string,
     viewer: Principal,
     filter: { from?: Date; to?: Date; eventType?: string } = {},
@@ -87,13 +159,56 @@ export class CustomerTimelineService {
         customerId,
         eventType: filter.eventType,
         occurredAt,
-        OR: [
-          { requiredPermission: null },
-          { requiredPermission: { in: [...viewer.permissions] } },
+        AND: [
+          {
+            OR: [
+              { requiredPermission: null },
+              { requiredPermission: { in: [...viewer.permissions] } },
+            ],
+          },
+          { OR: await this.visibleSources(customerId, viewer) },
         ],
       },
       orderBy: { occurredAt: 'desc' },
       take: 200,
     });
+  }
+
+  /** One branch per source type the viewer may see, restricted to its rows. */
+  private async visibleSources(
+    customerId: string,
+    viewer: Principal,
+  ): Promise<Prisma.CustomerTimelineEventWhereInput[]> {
+    const branches: Prisma.CustomerTimelineEventWhereInput[] = [
+      { refType: { notIn: GUARDED_REF_TYPES } },
+    ];
+
+    const readable = GUARDED_REF_TYPES.filter((refType) =>
+      hasPermission(viewer, SOURCE_RULES[refType].permission),
+    );
+    if (!readable.length) return branches;
+
+    const refs = await this.prisma.customerTimelineEvent.findMany({
+      where: { customerId, refType: { in: readable }, refId: { not: null } },
+      distinct: ['refType', 'refId'],
+      select: { refType: true, refId: true },
+    });
+
+    for (const refType of readable) {
+      const ids = refs
+        .filter((ref) => ref.refType === refType)
+        .map((ref) => ref.refId as string);
+      if (!ids.length) continue;
+
+      const visible = await SOURCE_RULES[refType].visibleIds(
+        this.prisma,
+        viewer,
+        ids,
+      );
+      if (visible.length) {
+        branches.push({ refType, refId: { in: visible.map((row) => row.id) } });
+      }
+    }
+    return branches;
   }
 }

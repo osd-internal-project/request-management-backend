@@ -179,6 +179,9 @@ describe('CD-76 ใบเสนอราคา — ตรวจ margin ตอน
       discount_pct: 8,
       est_margin_pct: 34.78,
     });
+    // CD-127 — the margin travels only in the masked field, never in free text
+    expect(String(dto.form_data.reason)).not.toContain('34.78');
+    expect(String(dto.form_data.reason)).toContain('ลูกค้ารายใหญ่');
 
     const call = tx.quotation.updateMany.mock.calls[0] as unknown as [
       { data: Record<string, unknown> },

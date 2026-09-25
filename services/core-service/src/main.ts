@@ -1,5 +1,6 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppErrorExceptionFilter } from '@request-management/share';
@@ -8,7 +9,16 @@ import { CoreServiceModule } from './core-service.module';
 import { logger } from './logger.middleware';
 
 async function bootstrap() {
-  const app = await NestFactory.create(CoreServiceModule);
+  const app =
+    await NestFactory.create<NestExpressApplication>(CoreServiceModule);
+
+  /*
+    Express's JSON default is 100 KB. A CM-10 import chunk of 100 rows with
+    Thai addresses (3 bytes a character) comes close to that, and a 413 there
+    stops an import half-way. 2 MB leaves room without inviting abuse: the
+    import DTO still caps a request at 500 rows.
+  */
+  app.useBodyParser('json', { limit: '2mb' });
 
   /*
     Everything lives under `api/v1`, with nothing excluded. The two OAuth

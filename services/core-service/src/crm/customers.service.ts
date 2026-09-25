@@ -57,6 +57,9 @@ import {
   UpsertExternalCodeDto,
 } from './dto/customer.dto';
 
+/** The sensitive-field rule key for a customer's tax ID (seeded, SCOPE-04). */
+const CUSTOMER_TAX_ID = 'customer.taxId';
+
 /** The scalar fields CM-01's per-field history tracks. */
 const TRACKED_FIELDS = [
   'type',
@@ -168,7 +171,10 @@ export class CustomersService {
         { nameTh: { contains: q, mode: 'insensitive' } },
         { nameEn: { contains: q, mode: 'insensitive' } },
         { customerCode: { contains: q, mode: 'insensitive' } },
-        { taxId: { contains: q } },
+        // CM-08 — a partial match on a masked field is a way to read it one
+        // digit at a time. Without the permission only the whole number
+        // matches, which is no more than check-duplicate already answers.
+        taxIdHidden(actor) ? { taxId: q } : { taxId: { contains: q } },
       ];
     }
 
@@ -721,8 +727,16 @@ export class CustomersService {
 
   // --- dedup (CM-03) -------------------------------------------------------
 
+  /**
+   * Matches are searched across the whole company on purpose — a duplicate
+   * the caller cannot see is still a duplicate, and hiding it is how the same
+   * company gets registered twice. What the caller gets back about those rows
+   * is therefore limited: no tax ID without `crm.customer.sensitive.read`
+   * (CM-08). The nested shape is why this is done here and not by the
+   * interceptor, which only reaches one level of arrays.
+   */
   async checkDuplicate(dto: CheckDuplicateDto, actor: Principal) {
-    return this.dedup.check(
+    const result = await this.dedup.check(
       {
         nameTh: dto.name_th,
         nameEn: dto.name_en,
@@ -732,6 +746,14 @@ export class CustomersService {
       },
       actor.activeCompanyId,
     );
+    if (!taxIdHidden(actor)) return result;
+
+    return {
+      ...result,
+      duplicate: result.duplicate && withoutTaxId(result.duplicate),
+      headOffice: result.headOffice && withoutTaxId(result.headOffice),
+      similar: result.similar.map(withoutTaxId),
+    };
   }
 
   /**
@@ -1027,7 +1049,7 @@ export class CustomersService {
       where: { customerId },
       orderBy: { changedAt: 'desc' },
       take: 200,
-    })) as { changedBy: string | null }[];
+    })) as { changedBy: string | null; field: string }[];
 
     const actorIds = [
       ...new Set(rows.map((row) => row.changedBy).filter(Boolean)),
@@ -1041,13 +1063,23 @@ export class CustomersService {
       : [];
 
     const nameOf = new Map(users.map((user) => [user.id, user.displayName]));
+    const hideTaxId = taxIdHidden(actor);
 
-    return rows.map((row) => ({
-      ...row,
-      changedByName: row.changedBy
-        ? (nameOf.get(row.changedBy) ?? row.changedBy)
-        : null,
-    }));
+    return rows.map((row) => {
+      const entry: Record<string, unknown> = {
+        ...row,
+        changedByName: row.changedBy
+          ? (nameOf.get(row.changedBy) ?? row.changedBy)
+          : null,
+      };
+      // CM-08 — that the tax ID changed, and when, stays visible; the values
+      // do not. Deleted, not nulled, like the interceptor does.
+      if (hideTaxId && entry.field === 'taxId') {
+        delete entry.before;
+        delete entry.after;
+      }
+      return entry;
+    });
   }
 
   /** CM-02 — SAP BP number + 7 accounting systems. Admin surface. */
@@ -1332,4 +1364,21 @@ function pick(
     out[field] = (source as Record<string, unknown>)[field] ?? null;
   }
   return out as Prisma.InputJsonValue;
+}
+
+/**
+ * CM-08 — the rule `SensitiveFieldInterceptor` applies to `customer.taxId`,
+ * for the responses whose shape it cannot reach. A field no rule declares is
+ * not sensitive, so an environment without the rule masks nothing.
+ */
+function taxIdHidden(actor: Principal): boolean {
+  return (
+    actor.sensitiveFieldsAll.includes(CUSTOMER_TAX_ID) &&
+    !actor.sensitiveFieldsVisible.includes(CUSTOMER_TAX_ID)
+  );
+}
+
+function withoutTaxId<T extends { taxId?: unknown }>(row: T): Omit<T, 'taxId'> {
+  const { taxId: _taxId, ...rest } = row;
+  return rest;
 }

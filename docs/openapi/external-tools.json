@@ -912,7 +912,7 @@
     "x-acting-permission": [
       "request.read"
     ],
-    "x-sensitive-resource": ""
+    "x-sensitive-resource": "request:{typeCode}"
   },
   {
     "name": "request_get_requests_ref",
@@ -937,7 +937,7 @@
     "x-acting-permission": [
       "request.read"
     ],
-    "x-sensitive-resource": ""
+    "x-sensitive-resource": "request:{typeCode}"
   },
   {
     "name": "request_get_requests_ref_actions",
