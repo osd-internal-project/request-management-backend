@@ -40,6 +40,26 @@ export class OrgUnitRepository extends BaseRepository<
    * one `IN`, whereas expanding each named group's descendants would be a
    * query per group on every submit screen.
    */
+  /**
+   * CD-82 — แต่ละกลุ่มพร้อมกลุ่มทั้งหมดใต้มัน (รวมตัวเอง) ในคำถามเดียว.
+   * เป้าของฝ่ายนับยอดของทุกทีมใต้ฝ่าย.
+   */
+  async subtreesOf(
+    orgUnitIds: readonly string[],
+  ): Promise<Map<string, string[]>> {
+    const result = new Map<string, string[]>(
+      orgUnitIds.map((id) => [id, [id]]),
+    );
+    if (!orgUnitIds.length) return result;
+
+    const rows = await this.prisma.orgClosure.findMany({
+      where: { ancestorId: { in: [...orgUnitIds] }, depth: { gt: 0 } },
+      select: { ancestorId: true, descendantId: true },
+    });
+    for (const row of rows) result.get(row.ancestorId)?.push(row.descendantId);
+    return result;
+  }
+
   async ancestorIdsOf(orgUnitId: string): Promise<string[]> {
     const rows = await this.prisma.orgClosure.findMany({
       where: { descendantId: orgUnitId },

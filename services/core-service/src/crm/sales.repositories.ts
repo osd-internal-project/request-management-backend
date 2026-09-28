@@ -257,6 +257,23 @@ export class SaleOrderRepository extends BaseRepository<
     return client.saleOrder;
   }
 
+  /** CD-82 — จำนวนและมูลค่ารวมต่อกลุ่มเจ้าของ (snapshot) ตาม where. */
+  async totalsByOrgUnit(
+    where: Prisma.SaleOrderWhereInput,
+  ): Promise<AmountGroup[]> {
+    const rows = await this.prisma.saleOrder.groupBy({
+      by: ['ownerOrgUnitId'],
+      where,
+      _count: { _all: true },
+      _sum: { amount: true },
+    });
+    return rows.map((row) => ({
+      key: row.ownerOrgUnitId,
+      count: row._count._all,
+      amount: Number(row._sum.amount ?? 0),
+    }));
+  }
+
   /** CD-83 — จำนวนและมูลค่ารวมต่อเจ้าของ ตาม where. */
   async totalsByOwner(
     where: Prisma.SaleOrderWhereInput,
@@ -360,5 +377,33 @@ export class QuotationLineRepository extends BaseRepository<
 
   protected delegate(client: TQueryClient) {
     return client.quotationLine;
+  }
+}
+
+/** CD-82 เป้ายอดขายรายเดือน — ค่าที่มีผลอยู่ตอนนี้เท่านั้น. */
+@Injectable()
+export class SalesTargetRepository extends BaseRepository<
+  PrismaService['salesTarget']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.salesTarget;
+  }
+}
+
+/** CD-82 ประวัติการเปลี่ยนเป้า รวมค่าที่รออนุมัติ — append-only นอกจากสถานะ. */
+@Injectable()
+export class SalesTargetRevisionRepository extends BaseRepository<
+  PrismaService['salesTargetRevision']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.salesTargetRevision;
   }
 }

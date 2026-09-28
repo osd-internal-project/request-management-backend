@@ -36,6 +36,7 @@ const ROBOT: Readonly<Record<string, string>> = {
   'crm.customer.manage': 'integration.crm.customer.manage',
   'crm.sales.read': 'integration.crm.sales.read',
   'crm.sales.manage': 'integration.crm.sales.manage',
+  'crm.target.manage': 'integration.crm.sales.manage',
   'admin.crm.manage': 'integration.crm.admin.manage',
 };
 

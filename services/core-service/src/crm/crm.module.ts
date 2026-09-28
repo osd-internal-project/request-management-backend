@@ -46,6 +46,8 @@ import {
   QuotationLineRepository,
   QuotationRepository,
   SaleOrderRepository,
+  SalesTargetRepository,
+  SalesTargetRevisionRepository,
 } from './sales.repositories';
 import { QuotationsService } from './quotations.service';
 import { QuotationPrintService } from './quotation-print.service';
@@ -56,6 +58,8 @@ import { OpportunitiesService } from './opportunities.service';
 import { OpportunityActivitiesService } from './opportunity-activities.service';
 import { SalesReportService } from './sales-report.service';
 import { CrmDashboardService } from './crm-dashboard.service';
+import { SalesTargetsService } from './sales-targets.service';
+import { SalesTargetApprovalSyncService } from './sales-target-approval-sync.service';
 import { OpportunityStaleMonitorService } from './opportunity-stale-monitor.service';
 import { SaleOrdersService } from './sale-orders.service';
 import { LeadImportService } from './lead-import.service';
@@ -130,6 +134,10 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     OpportunityActivitiesService,
     SalesReportService,
     CrmDashboardService,
+    SalesTargetsService,
+    SalesTargetApprovalSyncService,
+    SalesTargetRepository,
+    SalesTargetRevisionRepository,
     OpportunityStaleMonitorService,
     SaleOrdersService,
     PrismaTransactionService,
@@ -159,6 +167,7 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     OpportunityActivitiesService,
     SalesReportService,
     CrmDashboardService,
+    SalesTargetsService,
     SaleOrdersService,
     QuotationsService,
     QuotationPrintService,

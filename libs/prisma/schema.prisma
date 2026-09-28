@@ -215,6 +215,24 @@ enum SaleOrderStatus {
 ///   synced    — SAP ตอบเลขใบสั่งขายแล้ว (ถ้าใบถูกยกเลิก = SAP ยกเลิกแล้วด้วย)
 ///   failed    — ลองครบรอบแล้วไม่สำเร็จ ต้องให้ผู้ดูแลดู `erpLastError`
 ///   skipped   — ใบถูกยกเลิกก่อนถึง SAP ไม่มีอะไรต้องส่ง
+/// CD-82 — เป้าขายเป็นของใคร: พนักงานคนเดียว หรือกลุ่มในผังองค์กร (ทีม/ฝ่าย —
+/// นับยอดของกลุ่มนั้นและทุกกลุ่มใต้มัน).
+enum SalesTargetScope {
+  user
+  org_unit
+}
+
+/// CD-82 — สถานะของการเปลี่ยนเป้าหนึ่งครั้ง.
+///   applied          — มีผลแล้ว (ตั้งครั้งแรก, งวดยังไม่เริ่ม, หรืออนุมัติแล้ว)
+///   pending_approval — งวดเริ่มแล้ว รอคำขออนุมัติ `approvalRequestId`
+///   rejected / cancelled — คำขอไม่ผ่าน/ถูกยกเลิก เป้าคงค่าเดิม
+enum SalesTargetRevisionStatus {
+  applied
+  pending_approval
+  rejected
+  cancelled
+}
+
 enum ErpSyncStatus {
   not_ready
   pending
@@ -309,6 +327,7 @@ model Company {
   saleOrderCodeCounter    SaleOrderCodeCounter?
   quotations              Quotation[]
   quotationCodeCounter    QuotationCodeCounter?
+  salesTargets            SalesTarget[]
 
   @@map("companies")
 }
@@ -1971,6 +1990,11 @@ model CrmCompanyConfig {
   /// → แจ้งหัวหน้าของเจ้าของดีล. 0 = ปิดการแจ้งเตือน.
   staleOpportunityDays Int @default(14)
 
+  /// CD-82: ประเภทคำขอที่ใช้ขออนุมัติการปรับเป้าขายระหว่างงวด (ผู้อนุมัติมาจากตาราง
+  /// อำนาจอนุมัติของประเภทนั้น — ผู้อำนวยการ). NULL = ยังไม่ตั้ง → ปรับเป้าของงวดที่
+  /// เริ่มแล้วไม่ได้ (ตั้งเป้างวดหน้ายังทำได้ตามปกติ).
+  targetApprovalTypeCode String?
+
   /// หัวกระดาษเอกสารขาย (ใบเสนอราคา) — ข้อมูลตามทะเบียนของบริษัทผู้ขาย ตั้งค่าได้
   /// ในหน้า admin CRM; ว่าง = ใช้ `Company.name` และไม่แสดงบรรทัดนั้น.
   letterheadNameTh  String?
@@ -2635,4 +2659,62 @@ model Product {
   @@unique([companyId, code])
   @@index([companyId, active])
   @@map("products")
+}
+
+// ---------------------------------------------------------------------------
+// CD-82 เป้าและพยากรณ์
+// ---------------------------------------------------------------------------
+
+/// เป้ายอดขายรายเดือน (มูลค่าใบสั่งขายที่ไม่ยกเลิก — นิยามเดียวกับรายงานยอดขาย CD-83)
+/// ของพนักงานหนึ่งคนหรือกลุ่มหนึ่งในผังองค์กร. หนึ่งแถวต่อ (บริษัท, ขอบเขต, เจ้าของ, เดือน).
+///
+/// `amount` คือค่าที่มีผลอยู่ตอนนี้เสมอ ค่าที่รออนุมัติอยู่ใน `SalesTargetRevision`
+/// เท่านั้น — ตัวเลขบนหน้าจอจึงไม่เคยเป็นค่าที่ยังไม่มีใครอนุมัติ.
+model SalesTarget {
+  id        String           @id @default(uuid())
+  companyId String
+  scope     SalesTargetScope
+  /// `users.id` เมื่อ scope = user, `org_units.id` เมื่อ scope = org_unit.
+  subjectId String
+  /// `YYYY-MM` ตามปฏิทินไทย.
+  period    String
+  amount    Decimal          @db.Decimal(14, 2)
+
+  createdAt DateTime @default(now())
+  createdBy String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  company   Company               @relation(fields: [companyId], references: [id])
+  revisions SalesTargetRevision[]
+
+  @@unique([companyId, scope, subjectId, period])
+  @@index([companyId, period])
+  @@map("sales_targets")
+}
+
+/// ประวัติทุกการเปลี่ยนเป้า รวมค่าเดิม — "ปรับเป้าระหว่างงวดต้องผ่านผู้อำนวยการและเก็บ
+/// ค่าเดิมไว้". append-only: แถวเปลี่ยนได้แค่สถานะของตัวเองตอนคำขอได้ผล.
+model SalesTargetRevision {
+  id        String @id @default(uuid())
+  companyId String
+  targetId  String
+
+  /// NULL = ตั้งครั้งแรก.
+  previousAmount Decimal?                  @db.Decimal(14, 2)
+  newAmount      Decimal                   @db.Decimal(14, 2)
+  reason         String?
+  status         SalesTargetRevisionStatus
+
+  /// คำขออนุมัติบน Platform Request — มีเฉพาะการปรับงวดที่เริ่มแล้ว.
+  approvalRequestId String?   @unique
+  decidedAt         DateTime?
+
+  createdAt DateTime @default(now())
+  createdBy String?
+
+  target SalesTarget @relation(fields: [targetId], references: [id])
+
+  @@index([targetId, createdAt])
+  @@map("sales_target_revisions")
 }

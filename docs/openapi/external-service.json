@@ -5670,6 +5670,170 @@
         ]
       }
     },
+    "/api/v1/crm/sales-targets": {
+      "get": {
+        "description": "ยอดขายจริง (ใบสั่งขายที่ไม่ยกเลิก) + พยากรณ์ (ยอดจริง + pipeline ถ่วงที่คาดว่าจะปิดในเดือน) เทียบเป้า — เห็นตามขอบเขต: ของตัวเอง/ทีมที่ดูแล หรือทั้งบริษัท",
+        "operationId": "ExternalSalesTargetsController_list",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "period",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "2026-09",
+              "type": "string",
+              "pattern": "^20\\d{2}-(0[1-9]|1[0-2])$"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เป้าและพยากรณ์ของเดือน",
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.read"
+        ],
+        "x-acting-permission": [
+          "crm.sales.read"
+        ]
+      },
+      "post": {
+        "description": "ตั้งครั้งแรก หรืองวดที่ยังไม่เริ่ม = มีผลทันที · ปรับเป้าที่มีอยู่ของงวดที่เริ่มแล้ว = สร้างร่างคำขออนุมัติ (ประเภทตั้งที่ ตั้งค่า CRM) ค่าใหม่มีผลเมื่ออนุมัติ",
+        "operationId": "ExternalSalesTargetsController_set",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetSalesTargetDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ตั้งหรือปรับเป้า",
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.manage"
+        ],
+        "x-acting-permission": [
+          "crm.target.manage"
+        ]
+      }
+    },
+    "/api/v1/crm/sales-targets/{id}/revisions": {
+      "get": {
+        "description": "รวมค่าเดิม ผู้เปลี่ยน เหตุผล และสถานะการอนุมัติ",
+        "operationId": "ExternalSalesTargetsController_revisions",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ประวัติการเปลี่ยนเป้า",
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.read"
+        ],
+        "x-acting-permission": [
+          "crm.sales.read"
+        ]
+      }
+    },
     "/api/v1/crm/quotations": {
       "get": {
         "description": "current=true คัดเฉพาะเวอร์ชันล่าสุดของแต่ละเลขที่",
@@ -8441,6 +8605,10 @@
           "quotation_approval_type_code": {
             "pattern": "^[A-Z0-9_-]{1,20}$",
             "type": "string"
+          },
+          "target_approval_type_code": {
+            "pattern": "^([A-Z0-9_-]{1,20})?$",
+            "type": "string"
           }
         }
       },
@@ -9027,6 +9195,47 @@
         },
         "required": [
           "reason"
+        ]
+      },
+      "SetSalesTargetDto": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": "string",
+            "enum": [
+              "user",
+              "org_unit"
+            ],
+            "example": "user"
+          },
+          "subject_id": {
+            "type": "string",
+            "description": "id พนักงาน หรือ id กลุ่มในผังองค์กร",
+            "minLength": 1
+          },
+          "period": {
+            "type": "string",
+            "example": "2026-10",
+            "pattern": "^20\\d{2}-(0[1-9]|1[0-2])$"
+          },
+          "amount": {
+            "type": "number",
+            "example": 1500000,
+            "description": "บาท",
+            "maximum": 999999999999,
+            "minimum": 0
+          },
+          "reason": {
+            "type": "string",
+            "description": "บังคับเมื่อปรับเป้าของงวดที่เริ่มแล้ว — ไปอยู่ในคำขออนุมัติ",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "amount",
+          "period",
+          "scope",
+          "subject_id"
         ]
       },
       "UpdateQuotationDto": {

@@ -21,6 +21,7 @@ import { OpportunitiesService } from './opportunities.service';
 import { OpportunityActivitiesService } from './opportunity-activities.service';
 import { SalesReportService } from './sales-report.service';
 import { CrmDashboardService } from './crm-dashboard.service';
+import { SalesTargetsService } from './sales-targets.service';
 import { SaleOrdersService } from './sale-orders.service';
 import { QuotationsService } from './quotations.service';
 import { CreateQuotationDto } from './dto/quotation.dto';
@@ -37,9 +38,11 @@ import {
   ListOpportunitiesQueryDto,
   ListLeadsQueryDto,
   ListSaleOrdersQueryDto,
+  ListSalesTargetsQueryDto,
   LoseOpportunityDto,
   OpenSaleOrderDto,
   SalesReportQueryDto,
+  SetSalesTargetDto,
   UpdateLeadActivityDto,
   UpdateOpportunityDto,
   UpdateLeadDto,
@@ -499,5 +502,53 @@ export class SaleOrdersController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.saleOrders.cancel(id, dto, principal);
+  }
+}
+
+/** CD-82 เป้าและพยากรณ์ — เป้ายอดขายรายเดือนของพนักงาน/กลุ่ม. */
+@ApiTags('sales-targets')
+@ApiBearerAuth()
+@Controller('sales-targets')
+export class SalesTargetsController {
+  constructor(private readonly targets: SalesTargetsService) {}
+
+  @ApiOperation({
+    summary: 'เป้าและพยากรณ์ของเดือน',
+    description:
+      'ยอดขายจริง (ใบสั่งขายที่ไม่ยกเลิก) + พยากรณ์ (ยอดจริง + pipeline ถ่วงที่คาดว่าจะ' +
+      'ปิดในเดือน) เทียบเป้า — เห็นตามขอบเขต: ของตัวเอง/ทีมที่ดูแล หรือทั้งบริษัท',
+  })
+  @Get()
+  @Permissions('crm.sales.read')
+  list(
+    @CurrentPrincipal() principal: Principal,
+    @Query() query: ListSalesTargetsQueryDto,
+  ) {
+    return this.targets.list(query, principal);
+  }
+
+  @ApiOperation({
+    summary: 'ตั้งหรือปรับเป้า',
+    description:
+      'ตั้งครั้งแรก หรืองวดที่ยังไม่เริ่ม = มีผลทันที · ปรับเป้าที่มีอยู่ของงวดที่เริ่มแล้ว ' +
+      '= สร้างร่างคำขออนุมัติ (ประเภทตั้งที่ ตั้งค่า CRM) ค่าใหม่มีผลเมื่ออนุมัติ',
+  })
+  @Post()
+  @Permissions('crm.target.manage')
+  set(
+    @Body() dto: SetSalesTargetDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.targets.set(dto, principal);
+  }
+
+  @ApiOperation({
+    summary: 'ประวัติการเปลี่ยนเป้า',
+    description: 'รวมค่าเดิม ผู้เปลี่ยน เหตุผล และสถานะการอนุมัติ',
+  })
+  @Get(':id/revisions')
+  @Permissions('crm.sales.read')
+  revisions(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.targets.history(id, principal);
   }
 }

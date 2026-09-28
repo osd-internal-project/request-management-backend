@@ -165,6 +165,7 @@ const SEED_ROLES: {
       'crm.sales.read',
       'crm.sales.read.all',
       'crm.sales.manage',
+      'crm.target.manage',
     ],
     visibilityLevel: 'DEPARTMENT',
   },
@@ -189,6 +190,7 @@ const SEED_ROLES: {
       'crm.sales.read',
       'crm.sales.read.all',
       'crm.sales.manage',
+      'crm.target.manage',
     ],
     visibilityLevel: 'COMPANY',
   },
@@ -300,7 +302,12 @@ async function seedPermissions() {
  */
 async function seedCompanies() {
   const companies = [
-    { code: 'OSD_DEMO', name: 'OSD (Demo)', docPrefix: 'OSDD', baseCurrency: 'THB' },
+    {
+      code: 'OSD_DEMO',
+      name: 'OSD (Demo)',
+      docPrefix: 'OSDD',
+      baseCurrency: 'THB',
+    },
     { code: 'OSD', name: 'OSD', docPrefix: 'OSD', baseCurrency: 'THB' },
     // A separate business, not a division of OSD: its 26 people carry `L-*`
     // employee codes and its own department names. Created empty here for the
@@ -374,12 +381,42 @@ async function seedRoles(companyId: string) {
 /** The tree from mockup A3. */
 async function seedOrgTree(companyId: string) {
   const units = [
-    { code: 'ROOT', name: 'บริษัท OSD (Demo)', kind: 'COMPANY' as const, parent: null },
-    { code: 'SALES', name: 'ฝ่ายขาย', kind: 'DEPARTMENT' as const, parent: 'ROOT' },
-    { code: 'FIN', name: 'ฝ่ายการเงิน', kind: 'DEPARTMENT' as const, parent: 'ROOT' },
-    { code: 'GETTER1', name: 'ทีมขาย Getter 1', kind: 'TEAM' as const, parent: 'SALES' },
-    { code: 'KEEPER1', name: 'ทีมขาย Keeper 1', kind: 'TEAM' as const, parent: 'SALES' },
-    { code: 'PRICING', name: 'ทีม Pricing', kind: 'TEAM' as const, parent: 'ROOT' },
+    {
+      code: 'ROOT',
+      name: 'บริษัท OSD (Demo)',
+      kind: 'COMPANY' as const,
+      parent: null,
+    },
+    {
+      code: 'SALES',
+      name: 'ฝ่ายขาย',
+      kind: 'DEPARTMENT' as const,
+      parent: 'ROOT',
+    },
+    {
+      code: 'FIN',
+      name: 'ฝ่ายการเงิน',
+      kind: 'DEPARTMENT' as const,
+      parent: 'ROOT',
+    },
+    {
+      code: 'GETTER1',
+      name: 'ทีมขาย Getter 1',
+      kind: 'TEAM' as const,
+      parent: 'SALES',
+    },
+    {
+      code: 'KEEPER1',
+      name: 'ทีมขาย Keeper 1',
+      kind: 'TEAM' as const,
+      parent: 'SALES',
+    },
+    {
+      code: 'PRICING',
+      name: 'ทีม Pricing',
+      kind: 'TEAM' as const,
+      parent: 'ROOT',
+    },
   ];
 
   const byCode = new Map<string, string>();
@@ -413,7 +450,8 @@ async function seedOrgTree(companyId: string) {
   await prisma.orgClosure.deleteMany({ where: { ancestor: { companyId } } });
 
   const parentOf = new Map(nodes.map((n) => [n.id, n.parentId]));
-  const rows: { ancestorId: string; descendantId: string; depth: number }[] = [];
+  const rows: { ancestorId: string; descendantId: string; depth: number }[] =
+    [];
 
   for (const node of nodes) {
     let depth = 0;
@@ -585,9 +623,7 @@ async function seedRequestTypes(
           },
         },
       },
-      requiredDocs: [
-        { code: 'QUOTE_DRAFT', name: 'ใบเสนอราคาฉบับร่าง' },
-      ],
+      requiredDocs: [{ code: 'QUOTE_DRAFT', name: 'ใบเสนอราคาฉบับร่าง' }],
       /*
         §16 A2 and หน้าที่ 5 both print this list; the screen offers exactly
         these and the server validates against them (REQ-04).
@@ -782,7 +818,9 @@ async function seedCrmDefaults(companyId: string) {
 
     for (const value of dim.values) {
       await prisma.customerSegmentValue.upsert({
-        where: { dimensionId_code: { dimensionId: saved.id, code: value.code } },
+        where: {
+          dimensionId_code: { dimensionId: saved.id, code: value.code },
+        },
         update: { nameTh: value.nameTh, sortOrder: value.sortOrder },
         create: { dimensionId: saved.id, ...value },
       });

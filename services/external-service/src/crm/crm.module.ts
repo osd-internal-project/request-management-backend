@@ -8,6 +8,7 @@ import {
   ExternalLeadsController,
   ExternalOpportunitiesController,
   ExternalSaleOrdersController,
+  ExternalSalesTargetsController,
 } from './sales.controller';
 import { ExternalLeadIntakeController } from './lead-intake.controller';
 import { ExternalLeadWorkflowController } from './lead-workflow.controller';
@@ -45,6 +46,7 @@ import { ExternalLeadWorkflowController } from './lead-workflow.controller';
     ExternalLeadsController,
     ExternalOpportunitiesController,
     ExternalSaleOrdersController,
+    ExternalSalesTargetsController,
     ExternalQuotationsController,
     ExternalLeadIntakeController,
     ExternalLeadWorkflowController,

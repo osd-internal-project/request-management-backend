@@ -887,3 +887,47 @@ export class CrmDashboardQueryDto {
   @IsIn(['mine', 'team'])
   view?: 'mine' | 'team';
 }
+
+export const SALES_TARGET_SCOPES = ['user', 'org_unit'] as const;
+const PERIOD = /^20\d{2}-(0[1-9]|1[0-2])$/;
+
+/** CD-82 — เดือนที่จะดูเป้า (`YYYY-MM` ตามเวลาไทย) ไม่ส่ง = เดือนนี้. */
+export class ListSalesTargetsQueryDto {
+  @ApiPropertyOptional({ example: '2026-09' })
+  @IsOptional()
+  @Matches(PERIOD)
+  period?: string;
+}
+
+/**
+ * CD-82 — ตั้งหรือปรับเป้าหนึ่งตัว. งวดที่ยังไม่เริ่ม = มีผลทันที; งวดที่เริ่มแล้วและ
+ * มีเป้าอยู่ = สร้างร่างคำขออนุมัติ ค่าใหม่มีผลเมื่ออนุมัติ.
+ */
+export class SetSalesTargetDto {
+  @ApiProperty({ enum: SALES_TARGET_SCOPES, example: 'user' })
+  @IsIn(SALES_TARGET_SCOPES)
+  scope!: (typeof SALES_TARGET_SCOPES)[number];
+
+  @ApiProperty({ description: 'id พนักงาน หรือ id กลุ่มในผังองค์กร' })
+  @IsString()
+  @IsNotEmpty()
+  subject_id!: string;
+
+  @ApiProperty({ example: '2026-10' })
+  @Matches(PERIOD)
+  period!: string;
+
+  @ApiProperty({ example: 1500000, description: 'บาท' })
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(999_999_999_999)
+  amount!: number;
+
+  @ApiPropertyOptional({
+    description: 'บังคับเมื่อปรับเป้าของงวดที่เริ่มแล้ว — ไปอยู่ในคำขออนุมัติ',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  reason?: string;
+}

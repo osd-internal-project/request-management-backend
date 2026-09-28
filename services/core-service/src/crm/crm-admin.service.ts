@@ -201,6 +201,7 @@ export class CrmAdminService {
         quotationValidityDays: 30,
         vatPct: 7,
         quotationApprovalTypeCode: 'DSC',
+        targetApprovalTypeCode: null,
         staleOpportunityDays: 14,
         ...EMPTY_LETTERHEAD,
       }
@@ -224,6 +225,7 @@ export class CrmAdminService {
               quotationApprovalTypeCode:
                 dto.quotation_approval_type_code ?? 'DSC',
               staleOpportunityDays: dto.stale_opportunity_days ?? 14,
+              targetApprovalTypeCode: dto.target_approval_type_code || null,
               ...letterheadColumns(dto),
               updatedBy: actor.userId,
             },
@@ -234,6 +236,10 @@ export class CrmAdminService {
               vatPct: dto.vat_pct,
               quotationApprovalTypeCode: dto.quotation_approval_type_code,
               staleOpportunityDays: dto.stale_opportunity_days,
+              targetApprovalTypeCode:
+                dto.target_approval_type_code === undefined
+                  ? undefined
+                  : dto.target_approval_type_code || null,
               ...letterheadColumns(dto),
               updatedBy: actor.userId,
             },

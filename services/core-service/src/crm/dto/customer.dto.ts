@@ -654,4 +654,13 @@ export class UpdateCrmConfigDto {
   @IsString()
   @Matches(/^[A-Z0-9_-]{1,20}$/)
   quotation_approval_type_code?: string;
+
+  /**
+   * CD-82: รหัสประเภทคำขอที่ใช้ขออนุมัติการปรับเป้าขายของงวดที่เริ่มแล้ว.
+   * ส่ง `""` = ล้าง (ปรับเป้าระหว่างงวดไม่ได้จนกว่าจะตั้ง).
+   */
+  @IsOptional()
+  @IsString()
+  @Matches(/^([A-Z0-9_-]{1,20})?$/)
+  target_approval_type_code?: string;
 }
