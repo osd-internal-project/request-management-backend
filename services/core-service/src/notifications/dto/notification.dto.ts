@@ -1,4 +1,4 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsBoolean,
   IsDateString,
@@ -108,4 +108,22 @@ export class NotificationLogQueryDto extends PageQueryDto {
   @IsOptional()
   @IsDateString()
   to?: string;
+}
+
+/** CD-54 — a company's wording for one event; `{{name}}` from its variables. */
+export class SaveNotificationTemplateDto {
+  @ApiPropertyOptional({ description: 'Defaults to the active company.' })
+  @IsOptional()
+  @IsString()
+  company_id?: string;
+
+  @ApiProperty({ example: 'มีรายการรออนุมัติ' })
+  @IsString()
+  @MaxLength(200)
+  title!: string;
+
+  @ApiProperty({ example: '{{subject}} รอการอนุมัติจากคุณ' })
+  @IsString()
+  @MaxLength(2000)
+  body!: string;
 }

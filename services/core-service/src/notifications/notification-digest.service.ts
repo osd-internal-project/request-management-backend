@@ -133,13 +133,19 @@ export class NotificationDigestService
     });
     if (!held.length) return false;
 
+    // CD-54 — the company may word the digest too.
+    const parts = digestParts(held);
+    const wording = await this.notifications.render(
+      companyId,
+      'notification.digest',
+      { count: String(held.length), ...parts },
+    );
     const digest = await this.prisma.notification.create({
       data: {
         userId,
         companyId,
         eventType: 'notification.digest',
-        title: `สรุปการแจ้งเตือนประจำวัน · ${held.length} รายการ`,
-        body: digestBody(held),
+        ...wording,
         resourceType: 'notification_digest',
       },
     });
@@ -178,6 +184,7 @@ export class NotificationDigestService
     if (wantsEmail) {
       await this.notifications.deliverEmail(digest.id, {
         userId,
+        companyId,
         title: digest.title,
         body: digest.body,
       });
@@ -202,10 +209,10 @@ export class NotificationDigestService
   }
 }
 
-/** Counts per category, then the first items by title. */
-export function digestBody(
+/** Counts per category, and the first items one per line. */
+export function digestParts(
   held: { eventType: string; title: string; body: string }[],
-): string {
+): { summary: string; items: string } {
   const counts = new Map<string, number>();
   for (const row of held) {
     const category = categoryOf(row.eventType);
@@ -221,5 +228,5 @@ export function digestBody(
     .slice(0, LISTED)
     .map((row) => `• ${row.title} — ${row.body}`);
   if (held.length > LISTED) lines.push(`และอีก ${held.length - LISTED} รายการ`);
-  return [summary, ...lines].join('\n');
+  return { summary, items: lines.join('\n') };
 }

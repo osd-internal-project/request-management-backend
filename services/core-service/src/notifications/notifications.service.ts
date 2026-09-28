@@ -9,6 +9,11 @@ import type { PageQueryDto, Principal } from '@request-management/share';
 import type { ApprovalCase, ApprovalStep, Prisma } from '@prisma/client';
 import { LoggingEmailTransport } from './notification-transport';
 import {
+  emailSignature,
+  renderTemplate,
+  templateOf,
+} from './notification-templates';
+import {
   DEFAULT_DIGEST_HOUR,
   DIGESTIBLE,
   NOTIFICATION_CATEGORIES,
@@ -19,6 +24,14 @@ import {
 } from './notification-categories';
 
 type CaseWithSteps = ApprovalCase & { steps: ApprovalStep[] };
+
+/** CD-67 levels as the message reads them. */
+const SEVERITY_LABELS: Record<string, string> = {
+  critical: 'วิกฤต',
+  high: 'สูง',
+  medium: 'ปานกลาง',
+  low: 'ต่ำ',
+};
 
 export interface NotificationPreferencesView {
   in_app: true;
@@ -71,8 +84,7 @@ export class NotificationsService {
       userId: step.approverUserId,
       companyId,
       eventType: 'approval.awaiting',
-      title: 'มีรายการรออนุมัติ',
-      body: `${approvalCase.subjectType} รอการอนุมัติจากคุณ`,
+      values: { subject: approvalCase.subjectType },
       resourceType: 'approval_case',
       resourceId: approvalCase.id,
     });
@@ -91,12 +103,6 @@ export class NotificationsService {
 
     if (!approvalCase.createdBy) return;
 
-    const titles: Record<string, string> = {
-      approve: 'คำขอของคุณได้รับอนุมัติ',
-      reject: 'คำขอของคุณไม่ได้รับอนุมัติ',
-      return: 'คำขอของคุณถูกส่งกลับให้แก้ไข',
-    };
-
     // `approval.${decision}d` produced `approval.rejectd` / `approval.returnd`.
     const past: Record<string, string> = {
       approve: 'approved',
@@ -108,8 +114,10 @@ export class NotificationsService {
       userId: approvalCase.createdBy,
       companyId: approvalCase.companyId,
       eventType: `approval.${past[decision] ?? decision}`,
-      title: titles[decision] ?? 'มีการอัปเดตคำขอของคุณ',
-      body: `${approvalCase.subjectType} — ${approvalCase.status}`,
+      values: {
+        subject: approvalCase.subjectType,
+        status: approvalCase.status,
+      },
       resourceType: 'approval_case',
       resourceId: approvalCase.id,
     });
@@ -199,8 +207,7 @@ export class NotificationsService {
       userId,
       companyId,
       eventType: 'sla.breached',
-      title: 'คำขอเกินกำหนด SLA',
-      body: `คำขอ ${requestNo ?? requestId} เกินกำหนดเวลาที่ตั้งไว้แล้ว`,
+      values: { request_no: requestNo ?? requestId },
       resourceType: 'request',
       resourceId: requestId,
     });
@@ -221,8 +228,12 @@ export class NotificationsService {
       userId,
       companyId,
       eventType: 'sla.response_overdue',
-      title: 'เคสยังไม่มีผู้ตอบกลับเกินเวลา',
-      body: `คำขอ ${requestNo ?? requestId}${severity ? ` (ความรุนแรง ${severity})` : ''} เลยเวลาตอบกลับที่กำหนดแล้ว`,
+      values: {
+        request_no: requestNo ?? requestId,
+        severity_note: severity
+          ? ` (ความรุนแรง ${SEVERITY_LABELS[severity] ?? severity})`
+          : '',
+      },
       resourceType: 'request',
       resourceId: requestId,
     });
@@ -243,23 +254,55 @@ export class NotificationsService {
       userId,
       companyId,
       eventType: 'crm.opportunity.stale',
-      title: 'โอกาสการขายไม่มีความเคลื่อนไหว',
-      body: `${opportunity.opportunityCode} ${opportunity.title} ไม่มีกิจกรรมมาแล้วเกิน ${days} วัน`,
+      values: {
+        opportunity_code: opportunity.opportunityCode,
+        opportunity_title: opportunity.title,
+        days: String(days),
+      },
       resourceType: 'opportunity',
       resourceId: opportunity.id,
     });
   }
 
-  private async emit(entry: {
+  /**
+   * CD-54 — the wording for one event in one company: the company's own if
+   * it saved one, else the standard. An event the catalog does not declare
+   * throws — wording must not live only inside a caller again.
+   */
+  async render(
+    companyId: string,
+    eventType: string,
+    values: Record<string, string>,
+  ): Promise<{ title: string; body: string }> {
+    const definition = templateOf(eventType);
+    if (!definition) {
+      throw new Error(`no notification template for ${eventType}`);
+    }
+    const own = await this.prisma.notificationTemplate.findUnique({
+      where: { companyId_eventType: { companyId, eventType } },
+      select: { title: true, body: true },
+    });
+    return {
+      title: renderTemplate(own?.title ?? definition.title, values),
+      body: renderTemplate(own?.body ?? definition.body, values),
+    };
+  }
+
+  private async emit(event: {
     userId: string;
     companyId: string;
     eventType: string;
-    title: string;
-    body: string;
+    values: Record<string, string>;
     resourceType: string;
     resourceId: string;
   }): Promise<void> {
+    const { values, ...rest } = event;
     try {
+      const entry = {
+        ...rest,
+        ...(await this.render(event.companyId, event.eventType, values)),
+      };
+
       // CD-52 — the recipient's choice for this kind of event.
       const preference = await this.prisma.notificationPreference.findUnique({
         where: {
@@ -299,16 +342,19 @@ export class NotificationsService {
       }
     } catch (error) {
       this.logger.error(
-        `Failed to emit ${entry.eventType} for ${entry.userId}`,
+        `Failed to emit ${event.eventType} for ${event.userId}`,
         error instanceof Error ? error.stack : undefined,
       );
     }
   }
 
-  /** Also used for the digest — one email carrying the day's held items. */
+  /**
+   * Also used for the digest — one email carrying the day's held items.
+   * CD-54: signed with the company's letterhead (the one on its quotations).
+   */
   async deliverEmail(
     notificationId: string,
-    entry: { userId: string; title: string; body: string },
+    entry: { userId: string; companyId: string; title: string; body: string },
   ): Promise<void> {
     const user = await this.prisma.user.findUnique({
       where: { id: entry.userId },
@@ -317,6 +363,25 @@ export class NotificationsService {
 
     if (!user?.email) return;
 
+    const company = await this.prisma.company.findUnique({
+      where: { id: entry.companyId },
+      select: {
+        name: true,
+        crmConfig: {
+          select: {
+            letterheadNameTh: true,
+            letterheadAddress: true,
+            letterheadPhone: true,
+            letterheadEmail: true,
+            letterheadWebsite: true,
+          },
+        },
+      },
+    });
+    const body = company
+      ? `${entry.body}\n\n${emailSignature(company.name, company.crmConfig)}`
+      : entry.body;
+
     // Recorded as `failed` when there is no mail server, because that is what
     // happened — reporting it as sent would make the gap invisible.
     const configured = this.email.isConfigured;
@@ -324,7 +389,7 @@ export class NotificationsService {
     await this.email.send({
       to: user.email,
       subject: entry.title,
-      body: entry.body,
+      body,
     });
 
     await this.prisma.notificationDeliveryLog.create({

@@ -7765,6 +7765,142 @@
         ]
       }
     },
+    "/api/v1/admin/notification-templates": {
+      "get": {
+        "operationId": "NotificationTemplateController_list",
+        "parameters": [
+          {
+            "name": "company_id",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin/notification-templates"
+        ],
+        "x-permission": [
+          "admin.notification.manage"
+        ]
+      }
+    },
+    "/api/v1/admin/notification-templates/{eventType}": {
+      "put": {
+        "operationId": "NotificationTemplateController_save",
+        "parameters": [
+          {
+            "name": "eventType",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveNotificationTemplateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin/notification-templates"
+        ],
+        "x-permission": [
+          "admin.notification.manage"
+        ]
+      },
+      "delete": {
+        "operationId": "NotificationTemplateController_reset",
+        "parameters": [
+          {
+            "name": "eventType",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "company_id",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin/notification-templates"
+        ],
+        "x-permission": [
+          "admin.notification.manage"
+        ]
+      }
+    },
     "/api/v1/bi/menu": {
       "get": {
         "operationId": "BiController_menu",
@@ -10342,6 +10478,29 @@
             }
           }
         }
+      },
+      "SaveNotificationTemplateDto": {
+        "type": "object",
+        "properties": {
+          "company_id": {
+            "type": "string",
+            "description": "Defaults to the active company."
+          },
+          "title": {
+            "type": "string",
+            "example": "มีรายการรออนุมัติ",
+            "maxLength": 200
+          },
+          "body": {
+            "type": "string",
+            "example": "{{subject}} รอการอนุมัติจากคุณ",
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "body",
+          "title"
+        ]
       },
       "CreateBiDashboardDto": {
         "type": "object",

@@ -3,7 +3,7 @@ import { DEFAULT_CALENDAR } from '../sla/business-hours';
 import { categoryOf, digestDue, settingOf } from './notification-categories';
 import {
   NotificationDigestService,
-  digestBody,
+  digestParts,
 } from './notification-digest.service';
 import { NotificationsService } from './notifications.service';
 
@@ -62,16 +62,17 @@ describe('CD-52 categories and the digest clock', () => {
     ).toBe(false);
   });
 
-  it('the digest body counts per category and lists the first items', () => {
+  it('the digest parts count per category and list the first items', () => {
     const held = Array.from({ length: 17 }, (_, i) => ({
       eventType: i < 16 ? 'approval.awaiting' : 'crm.opportunity.stale',
       title: `t${i}`,
       body: `b${i}`,
     }));
-    const body = digestBody(held).split('\n');
-    expect(body[0]).toBe('รออนุมัติจากคุณ 16 · เตือนงานขาย 1');
-    expect(body).toHaveLength(1 + 15 + 1);
-    expect(body.at(-1)).toBe('และอีก 2 รายการ');
+    const parts = digestParts(held);
+    expect(parts.summary).toBe('รออนุมัติจากคุณ 16 · เตือนงานขาย 1');
+    const items = parts.items.split('\n');
+    expect(items).toHaveLength(15 + 1);
+    expect(items.at(-1)).toBe('และอีก 2 รายการ');
   });
 });
 
@@ -98,6 +99,13 @@ function emitHarness(preference: Record<string, unknown> | null) {
     },
     user: {
       findUnique: jest.fn(() => Promise.resolve({ email: 'a@example.com' })),
+    },
+    // CD-54: no company wording → the standard; letterhead for the signature
+    notificationTemplate: { findUnique: jest.fn(() => Promise.resolve(null)) },
+    company: {
+      findUnique: jest.fn(() =>
+        Promise.resolve({ name: 'OSD', crmConfig: null }),
+      ),
     },
   };
   const email = { isConfigured: false, send: jest.fn(() => Promise.resolve()) };
@@ -246,7 +254,16 @@ describe('CD-52 NotificationDigestService.sweep', () => {
       },
       holidayCalendar: { findUnique: jest.fn(() => Promise.resolve(null)) },
     };
-    const notifications = { deliverEmail: jest.fn(() => Promise.resolve()) };
+    const notifications = {
+      deliverEmail: jest.fn(() => Promise.resolve()),
+      render: jest.fn(
+        (_company: string, _event: string, values: Record<string, string>) =>
+          Promise.resolve({
+            title: `สรุปการแจ้งเตือนประจำวัน · ${values.count} รายการ`,
+            body: `${values.summary}\n${values.items}`,
+          }),
+      ),
+    };
     const service = new NotificationDigestService(
       prisma as never,
       notifications as never,

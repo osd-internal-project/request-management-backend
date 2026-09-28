@@ -329,6 +329,7 @@ model Company {
   biDashboards            BiDashboard[]
   orgUnitScopes           OrgUnitScope[]
   notificationPreferences NotificationPreference[]
+  notificationTemplates   NotificationTemplate[]
   customers               Customer[]
   customerSegmentDims     CustomerSegmentDimension[]
   customerCodeCounter     CustomerCodeCounter?
@@ -1523,6 +1524,26 @@ model NotificationPreference {
 
   @@unique([userId, companyId])
   @@map("notification_preferences")
+}
+
+/// CD-54 — a company's own wording for one event. No row = the standard
+/// wording declared in code (`notification-templates.ts`); deleting the row
+/// is "reset to standard". `{{name}}` placeholders are checked on save.
+model NotificationTemplate {
+  id        String @id @default(uuid())
+  companyId String
+  eventType String
+  title     String
+  body      String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, eventType])
+  @@map("notification_templates")
 }
 
 /// SUP-03: every send is logged, which is what settles "I never got notified".
