@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { PrismaTransactionService } from '@request-management/share';
 import { RequestsService } from './requests.service';
 import { BottleneckService } from '../reports/bottleneck.service';
+import { SlaComplianceService } from '../reports/sla-compliance.service';
 import { RequestRepository } from './request.repository';
 import { AttachmentRepository } from './attachment.repository';
 import { RequestTypeRepository } from './request-type.repository';
@@ -24,6 +25,7 @@ import { AccessModule } from '../access/access.module';
   providers: [
     RequestsService,
     BottleneckService,
+    SlaComplianceService,
     RequestRepository,
     AttachmentRepository,
     RequestTypeRepository,
@@ -35,6 +37,11 @@ import { AccessModule } from '../access/access.module';
     API's one need the service cannot meet: turning a document number into an
     id. A chatbot is handed `REQ-OSD-PS01-26090001` by a person, never a uuid.
   */
-  exports: [RequestsService, RequestRepository, BottleneckService],
+  exports: [
+    RequestsService,
+    RequestRepository,
+    BottleneckService,
+    SlaComplianceService,
+  ],
 })
 export class RequestsModule {}

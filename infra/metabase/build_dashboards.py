@@ -115,9 +115,9 @@ dash_apv = dashboard("Approval", [
 
 print("== SLA ==")
 s_comp = card("SLA compliance % (30 วัน)", f"""
-SELECT round(100.0 * count(*) FILTER (WHERE met) / nullif(count(*), 0), 1)
-FROM {C} WHERE state IN ('met','breached') AND due_at > now() - interval '30 days'""", "scalar")
-s_over = card("เกินกำหนดอยู่ตอนนี้", f"SELECT count(*) FROM {C} WHERE overdue_now", "scalar")
+SELECT round(100.0 * count(*) FILTER (WHERE sla_status = 'on_time') / nullif(count(*), 0), 1)
+FROM {C} WHERE sla_status IN ('on_time','late') AND completed_at > now() - interval '30 days'""", "scalar")
+s_over = card("เกินกำหนดอยู่ตอนนี้", f"SELECT count(*) FROM {C} WHERE sla_status = 'overdue'", "scalar")
 s_pause = card("นาฬิกาที่หยุดพัก", f"SELECT count(*) FROM {C} WHERE state = 'paused'", "scalar")
 s_breach = card("Breach ต่อสัปดาห์", f"""
 SELECT date_trunc('week', breached_at)::date AS week, count(*) AS breaches

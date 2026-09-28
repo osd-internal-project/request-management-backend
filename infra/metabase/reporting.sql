@@ -112,10 +112,62 @@ SELECT
   sc."accumulatedMs" / 3600000.0        AS running_hours,
   (sc.state = 'met')                    AS met,
   (sc."breachedAt" IS NOT NULL)         AS breached,
-  (sc.state = 'running' AND sc."dueAt" < now()) AS overdue_now
+  -- Now equal to sla_status = 'overdue' (it used to miss a paused request
+  -- that had already breached).
+  (sc.state IN ('running','paused')
+    AND (sc."breachedAt" IS NOT NULL
+         OR (sc.state = 'running' AND sc."dueAt" < now()))) AS overdue_now,
+  -- Columns below were added by CD-50/CD-67. New columns go at the END:
+  -- CREATE OR REPLACE VIEW refuses to insert or reorder, and this file is
+  -- re-run on installs that already have the view.
+  rt.name                               AS type_name,
+  ro.id                                 AS receiver_unit_id,
+  ro.name                               AS receiver_unit,
+  r."completedAt"                       AS completed_at,
+  -- CD-50 — the one definition of คำขอค้างเกินกำหนด; the same CASE is
+  -- SLA_STATUS_SQL in services/core-service/src/sla/sla-status.ts, and
+  -- sla-status.spec.ts fails if the two differ.
+  -- sla_status BEGIN
+CASE
+  WHEN sc.state = 'met'       THEN 'on_time'
+  WHEN sc.state = 'breached'  THEN 'late'
+  WHEN sc.state = 'cancelled' THEN 'cancelled'
+  WHEN sc."breachedAt" IS NOT NULL
+    OR (sc.state = 'running' AND sc."dueAt" < now()) THEN 'overdue'
+  ELSE 'on_track'
+END
+  -- sla_status END
+                                        AS sla_status,
+  -- CD-67 response clock (cases only)
+  r.severity::text                      AS severity,
+  sc."responseDueAt"                    AS response_due_at,
+  sc."respondedAt"                      AS responded_at,
+  sc."responseBreachedAt"               AS response_breached_at
 FROM sla_clocks sc
-JOIN requests  r ON r.id = sc."requestId"
-JOIN companies c ON c.id = r."companyId";
+JOIN requests      r  ON r.id  = sc."requestId"
+JOIN request_types rt ON rt.id = r."requestTypeId"
+JOIN companies     c  ON c.id  = r."companyId"
+LEFT JOIN org_units ro ON ro.id = r."receiverOrgUnitId";
+
+-- --- SLA compliance per month (CD-50) ---------------------------------------
+-- Finished work only, by the Bangkok month it was completed in — the same
+-- population as GET /reports/sla-compliance?group_by=month.
+
+CREATE OR REPLACE VIEW reporting.sla_compliance_monthly AS
+SELECT
+  company_code,
+  to_char(completed_at AT TIME ZONE 'Asia/Bangkok', 'YYYY-MM') AS month,
+  receiver_unit,
+  type_code,
+  type_name,
+  count(*)                                          AS finished,
+  count(*) FILTER (WHERE sla_status = 'on_time')    AS on_time,
+  count(*) FILTER (WHERE sla_status = 'late')       AS late,
+  round(100.0 * count(*) FILTER (WHERE sla_status = 'on_time')
+        / nullif(count(*), 0), 1)                   AS compliance_pct
+FROM reporting.sla_clocks
+WHERE sla_status IN ('on_time','late') AND completed_at IS NOT NULL
+GROUP BY 1, 2, 3, 4, 5;
 
 -- --- request events (per-step timing → bottleneck, REQ-09) ------------------
 

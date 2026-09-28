@@ -38,7 +38,8 @@ docker compose -f infra/metabase/docker-compose.yml up -d
 |---|---|---|
 | `reporting.requests` | คำขอทุกใบ + ประเภท บริษัท แผนก ผู้ขอ สถานะ เวลา cycle_hours | Dashboard Request |
 | `reporting.approval_steps` | ทุกชั้นอนุมัติ + ผู้อนุมัติ/ผู้ตัดสินแทน ผลตัดสิน decision_hours | Dashboard Approval |
-| `reporting.sla_clocks` | นาฬิกาต่อคำขอ: state, due, breached, overdue_now, running_hours | Dashboard SLA |
+| `reporting.sla_clocks` | นาฬิกาต่อคำขอ: state, due, breached, running_hours, ทีมผู้รับ, `sla_status` (on_time / late / overdue / on_track / cancelled), นาฬิกาตอบกลับของเคส | Dashboard SLA |
+| `reporting.sla_compliance_monthly` | งานที่ปิดแล้ว รายเดือน (เวลาไทย) × ทีมผู้รับ × ประเภท: finished, on_time, late, compliance_pct | Dashboard SLA (CD-50) |
 | `reporting.request_events` | timeline ราย event + hours_since_previous (ฐานของรายงานคอขวด REQ-09) | ทั้งสาม |
 
 ## Dashboard 1 — Request Overview
@@ -66,12 +67,22 @@ docker compose -f infra/metabase/docker-compose.yml up -d
 
 | การ์ด | ชนิด | SQL / วิธีตั้ง |
 |---|---|---|
-| SLA compliance % (30 วันล่าสุด) | ตัวเลข | `SELECT round(100.0 * count(*) FILTER (WHERE met) / nullif(count(*),0), 1) FROM reporting.sla_clocks WHERE state IN ('met','breached') AND due_at > now() - interval '30 days'` |
-| เกินกำหนดอยู่ตอนนี้ | ตัวเลข (แดง) | filter `overdue_now = true` |
+| SLA compliance % (30 วันล่าสุด) | ตัวเลข | `SELECT round(100.0 * count(*) FILTER (WHERE sla_status = 'on_time') / nullif(count(*),0), 1) FROM reporting.sla_clocks WHERE sla_status IN ('on_time','late') AND completed_at > now() - interval '30 days'` |
+| เกินกำหนดอยู่ตอนนี้ (คำขอค้างเกินกำหนด) | ตัวเลข (แดง) | filter `sla_status = 'overdue'` |
+| Compliance รายเดือน × ทีม | ตาราง/แท่ง | `SELECT month, receiver_unit, sum(on_time), sum(finished), round(100.0*sum(on_time)/nullif(sum(finished),0),1) FROM reporting.sla_compliance_monthly GROUP BY 1,2 ORDER BY 1 DESC, 5` |
 | Breach ต่อสัปดาห์ | เส้น | count, group by week(`breached_at`) |
 | นาฬิกาที่หยุดพัก (returned / on_hold) | ตัวเลข | filter `state = 'paused'` |
 | ใกล้ครบกำหนดใน 24 ชม. | ตาราง | `SELECT request_no, type_code, due_at FROM reporting.sla_clocks WHERE state = 'running' AND due_at BETWEEN now() AND now() + interval '24 hours' ORDER BY due_at` |
 | คอขวด: เวลาเฉลี่ยระหว่างขั้น ต่อประเภท | ตาราง/heatmap | `SELECT type_code, event_type, round(avg(hours_since_previous)::numeric,1) AS avg_hours FROM reporting.request_events WHERE hours_since_previous IS NOT NULL GROUP BY 1,2 ORDER BY 3 DESC` |
+
+### คำขอค้างเกินกำหนด — นิยามเดียว (CD-50)
+
+`sla_status = 'overdue'` = ยังไม่ปิด (running/paused) **และ** เลยกำหนดแล้ว — ตัวตรวจ
+SLA บันทึก breach ไว้แล้ว หรือกำลังนับอยู่และเลย `due_at` ไปแล้ว. คำขอที่พักนาฬิกาอยู่
+ไม่นับว่าเกินกำหนดเพียงเพราะพัก (กำหนดส่งเลื่อนเมื่อกลับมานับ).
+นิยามเดียวกันใช้ในหน้า **รายงาน SLA** (`GET /reports/sla-compliance`) — CASE ใน
+`reporting.sql` ต้องตรงกับ `SLA_STATUS_SQL` ใน `services/core-service/src/sla/sla-status.ts`
+ไม่งั้น `sla-status.spec.ts` ไม่ผ่าน. แก้ view แล้วรัน `reporting.sql` ซ้ำได้ (คอลัมน์ใหม่ต่อท้ายเสมอ).
 
 ## Dashboard 4–5 — Adoption (workshop, จากชีต 01_REQUEST_LOG + 02_ACTION_LOG)
 

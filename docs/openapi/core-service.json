@@ -1452,6 +1452,101 @@
         ]
       }
     },
+    "/api/v1/reports/sla-compliance": {
+      "get": {
+        "operationId": "RequestsController_slaComplianceReport",
+        "parameters": [
+          {
+            "name": "company_id",
+            "required": false,
+            "in": "query",
+            "description": "Defaults to the active company.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "group_by",
+            "required": false,
+            "in": "query",
+            "description": "team = ทีมผู้รับ · type = ประเภทคำขอ · month = เดือนที่ปิดงาน",
+            "schema": {
+              "default": "team",
+              "type": "string",
+              "enum": [
+                "team",
+                "type",
+                "month"
+              ]
+            }
+          },
+          {
+            "name": "type_code",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "DSC",
+              "type": "string"
+            }
+          },
+          {
+            "name": "org_unit_id",
+            "required": false,
+            "in": "query",
+            "description": "The receiving team.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "Completion window start; defaults to 30 days before `to`.",
+            "schema": {
+              "example": "2026-09-01T00:00:00+07:00",
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "Defaults to now.",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "requests"
+        ],
+        "x-permission": [
+          "report.request.read"
+        ]
+      }
+    },
     "/api/v1/admin/request-types": {
       "get": {
         "operationId": "RequestTypeAdminController_list",
