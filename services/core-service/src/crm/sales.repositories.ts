@@ -9,6 +9,13 @@ import {
 
 /** CRM sales objects — thin repositories, rules live in the services. */
 
+/** CD-83 — one row of a grouped total: how many, and their summed `amount`. */
+export interface AmountGroup {
+  key: string | null;
+  count: number;
+  amount: number;
+}
+
 @Injectable()
 export class LeadRepository extends BaseRepository<PrismaService['lead']> {
   constructor(prisma: PrismaService) {
@@ -122,6 +129,40 @@ export class OpportunityRepository extends BaseRepository<
     });
     return Number(result._sum.amount ?? 0);
   }
+
+  /** CD-83 — จำนวนและมูลค่ารวมต่อเจ้าของ ตาม where. */
+  async totalsByOwner(
+    where: Prisma.OpportunityWhereInput,
+  ): Promise<AmountGroup[]> {
+    const rows = await this.prisma.opportunity.groupBy({
+      by: ['ownerUserId'],
+      where,
+      _count: { _all: true },
+      _sum: { amount: true },
+    });
+    return rows.map((row) => ({
+      key: row.ownerUserId,
+      count: row._count._all,
+      amount: Number(row._sum.amount ?? 0),
+    }));
+  }
+
+  /** CD-83 — จำนวนและมูลค่ารวมต่อเหตุผลปิดแพ้ ตาม where (`null` = ไม่ระบุ). */
+  async totalsByLostReason(
+    where: Prisma.OpportunityWhereInput,
+  ): Promise<AmountGroup[]> {
+    const rows = await this.prisma.opportunity.groupBy({
+      by: ['lostReasonCode'],
+      where,
+      _count: { _all: true },
+      _sum: { amount: true },
+    });
+    return rows.map((row) => ({
+      key: row.lostReasonCode,
+      count: row._count._all,
+      amount: Number(row._sum.amount ?? 0),
+    }));
+  }
 }
 
 @Injectable()
@@ -202,6 +243,23 @@ export class SaleOrderRepository extends BaseRepository<
 
   protected delegate(client: TQueryClient) {
     return client.saleOrder;
+  }
+
+  /** CD-83 — จำนวนและมูลค่ารวมต่อเจ้าของ ตาม where. */
+  async totalsByOwner(
+    where: Prisma.SaleOrderWhereInput,
+  ): Promise<AmountGroup[]> {
+    const rows = await this.prisma.saleOrder.groupBy({
+      by: ['ownerUserId'],
+      where,
+      _count: { _all: true },
+      _sum: { amount: true },
+    });
+    return rows.map((row) => ({
+      key: row.ownerUserId,
+      count: row._count._all,
+      amount: Number(row._sum.amount ?? 0),
+    }));
   }
 
   /**

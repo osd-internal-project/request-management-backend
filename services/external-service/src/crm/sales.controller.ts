@@ -64,6 +64,8 @@ import {
   OpportunityActivitiesService,
   QuotationsService,
   SaleOrdersService,
+  SalesReportQueryDto,
+  SalesReportService,
   UpdateLeadActivityDto,
   UpdateLeadDto,
   UpdateLeadStatusDto,
@@ -308,6 +310,7 @@ export class ExternalOpportunitiesController {
     private readonly saleOrders: SaleOrdersService,
     private readonly quotations: QuotationsService,
     private readonly activities: OpportunityActivitiesService,
+    private readonly report: SalesReportService,
   ) {}
 
   @ApiOperation({
@@ -322,6 +325,23 @@ export class ExternalOpportunitiesController {
     @Query() query: ListOpportunitiesQueryDto,
   ) {
     return this.opportunities.list(principal, query);
+  }
+
+  /** CD-83 รายงานยอดขาย — declared before `:id`. */
+  @ApiOperation({
+    summary: 'รายงานยอดขาย',
+    description:
+      'ยอดขาย (ใบสั่งขายที่ไม่ยกเลิก) · ชนะ/แพ้และอัตราการปิดในช่วง · ' +
+      'เหตุผลที่แพ้ · ผลงานรายบุคคล — จำกัดตามขอบเขตที่ผู้เรียกเห็นได้',
+  })
+  @Get('report')
+  @Permissions('integration.crm.sales.read')
+  @ActingPermissions('crm.sales.read')
+  salesReport(
+    @CurrentPrincipal() principal: Principal,
+    @Query() query: SalesReportQueryDto,
+  ) {
+    return this.report.report(query, principal);
   }
 
   /** เหตุผลปิดแพ้มาตรฐาน — declared before `:id`. */

@@ -846,3 +846,32 @@ export class ListSaleOrdersQueryDto extends PageQueryDto {
   @IsIn(['mine', 'all'])
   view?: 'mine' | 'all';
 }
+
+/**
+ * CD-83 รายงานยอดขาย — ช่วงเวลาเป็น "วันที่" ตามเวลาไทย ทั้งสองปลายนับรวม.
+ * ไม่ส่ง = ต้นเดือนนี้ถึงวันนี้.
+ */
+export class SalesReportQueryDto {
+  @ApiPropertyOptional({
+    example: '2026-09-01',
+    description: 'วันแรกของช่วง (เวลาไทย) — ไม่ส่ง = วันที่ 1 ของเดือนนี้',
+  })
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  from?: string;
+
+  @ApiPropertyOptional({
+    example: '2026-09-30',
+    description: 'วันสุดท้ายของช่วง นับรวม (เวลาไทย) — ไม่ส่ง = วันนี้',
+  })
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  to?: string;
+
+  @ApiPropertyOptional({
+    description: 'เฉพาะพนักงานคนนี้ — ยังถูกจำกัดด้วยขอบเขตที่ผู้เรียกเห็นได้',
+  })
+  @IsOptional()
+  @IsString()
+  owner_user_id?: string;
+}

@@ -54,6 +54,7 @@ import { LeadsService } from './leads.service';
 import { LeadStatusService } from './lead-status.service';
 import { OpportunitiesService } from './opportunities.service';
 import { OpportunityActivitiesService } from './opportunity-activities.service';
+import { SalesReportService } from './sales-report.service';
 import { OpportunityStaleMonitorService } from './opportunity-stale-monitor.service';
 import { SaleOrdersService } from './sale-orders.service';
 import { LeadImportService } from './lead-import.service';
@@ -126,6 +127,7 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     OpportunitiesService,
     OpportunityActivityRepository,
     OpportunityActivitiesService,
+    SalesReportService,
     OpportunityStaleMonitorService,
     SaleOrdersService,
     PrismaTransactionService,
@@ -153,6 +155,7 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     LeadWorkflowService,
     OpportunitiesService,
     OpportunityActivitiesService,
+    SalesReportService,
     SaleOrdersService,
     QuotationsService,
     QuotationPrintService,
