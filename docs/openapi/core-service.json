@@ -2023,6 +2023,48 @@
         "x-sensitive-resource": "customer"
       }
     },
+    "/api/v1/customers/{id}/invoices": {
+      "get": {
+        "description": "อ่านสด ไม่เกิน 50 ใบล่าสุด · SAP ไม่ตอบ = source `unavailable` (หน้าไม่พัง) · ERP_MODE=mock = ไม่แสดงตัวเลข",
+        "operationId": "CustomersController_invoices",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ใบแจ้งหนี้และการรับชำระของลูกค้าจาก SAP",
+        "tags": [
+          "customers"
+        ],
+        "x-permission": [
+          "crm.customer.financial.read"
+        ]
+      }
+    },
     "/api/v1/customers/{id}/contacts/consents": {
       "get": {
         "description": "อ่านสดจากระบบ PDPA กลาง ไม่ได้เก็บซ้ำไว้ที่นี่",

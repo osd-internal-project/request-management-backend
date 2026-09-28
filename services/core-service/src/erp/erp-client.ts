@@ -60,6 +60,27 @@ export interface ErpReceivables {
   readonly asOf: string;
 }
 
+/**
+ * CD-89 / C360-02 — one A/R invoice as SAP holds it, read-only. SAP is where
+ * every accounting source lands (the 7 accounting-line systems included), so
+ * this is the customer's invoice list, not just the ones CTD sent.
+ */
+export interface ErpInvoice {
+  /** B1 `DocNum` — the number accounting quotes. */
+  readonly docNo: string;
+  /** B1 `NumAtCard` — our SO code when the invoice came from one of ours. */
+  readonly reference: string | null;
+  /** `YYYY-MM-DD`. */
+  readonly issuedOn: string;
+  readonly dueOn: string | null;
+  readonly currency: string;
+  readonly total: number;
+  readonly paid: number;
+  /** total − paid, never below 0. */
+  readonly outstanding: number;
+  readonly status: 'open' | 'paid' | 'cancelled';
+}
+
 /** One line of a sales order as SAP receives it (CD-88). */
 export interface ErpSalesOrderLine {
   readonly lineNo: number;
@@ -140,4 +161,10 @@ export interface ErpClient {
   ): Promise<void>;
   /** CD-27 — every sellable item, the whole catalog (the driver pages). */
   listItems(ctx: ErpContext): Promise<ErpItem[]>;
+  /** CD-89 — the customer's most recent invoices, newest first (≤ `limit`). */
+  listInvoices(
+    ctx: ErpContext,
+    externalCode: string,
+    limit: number,
+  ): Promise<ErpInvoice[]>;
 }

@@ -397,6 +397,84 @@ describe('SAP B1 Service Layer driver', () => {
     ).resolves.toMatchObject({ outstanding: 125000.5, invoiceCount: 3 });
   });
 
+  it('CD-89 listInvoices: ใบของ BP นี้ ใหม่สุดก่อน · ยกเลิก / เปิด / ชำระแล้ว · คงค้างไม่ติดลบ', async () => {
+    const h = harness({
+      'GET /Invoices': () =>
+        reply(200, {
+          value: [
+            {
+              DocNum: 305,
+              NumAtCard: 'SO-OSD-000007',
+              DocDate: '2026-09-20T00:00:00Z',
+              DocDueDate: '2026-10-20T00:00:00Z',
+              DocCurrency: 'THB',
+              DocTotal: 107000,
+              PaidToDate: 50000,
+              DocumentStatus: 'bost_Open',
+              Cancelled: 'tNO',
+            },
+            {
+              DocNum: 290,
+              NumAtCard: null,
+              DocDate: '2026-08-01',
+              DocDueDate: '2026-08-31',
+              DocCurrency: null,
+              DocTotal: 20000,
+              PaidToDate: 20000.4,
+              DocumentStatus: 'bost_Close',
+              Cancelled: 'tNO',
+            },
+            {
+              DocNum: 280,
+              NumAtCard: '',
+              DocDate: '2026-07-01',
+              DocDueDate: null,
+              DocCurrency: 'THB',
+              DocTotal: 9000,
+              PaidToDate: 0,
+              DocumentStatus: 'bost_Close',
+              Cancelled: 'tYES',
+            },
+          ],
+        }),
+    });
+
+    const invoices = await h.client.listInvoices(OSD, "CUS-OSD-0'1", 50);
+
+    expect(invoices).toEqual([
+      {
+        docNo: '305',
+        reference: 'SO-OSD-000007',
+        issuedOn: '2026-09-20',
+        dueOn: '2026-10-20',
+        currency: 'THB',
+        total: 107000,
+        paid: 50000,
+        outstanding: 57000,
+        status: 'open',
+      },
+      expect.objectContaining({
+        docNo: '290',
+        reference: null,
+        currency: 'THB',
+        outstanding: 0,
+        status: 'paid',
+      }),
+      expect.objectContaining({
+        docNo: '280',
+        dueOn: null,
+        outstanding: 0,
+        status: 'cancelled',
+      }),
+    ]);
+
+    const url = decodeURIComponent(h.calls('GET', '/Invoices')[0].url);
+    // quote doubled inside the OData literal, newest first, capped
+    expect(url).toContain("CardCode eq 'CUS-OSD-0''1'");
+    expect(url).toContain('$orderby=DocDate desc,DocNum desc');
+    expect(url).toContain('$top=50');
+  });
+
   it('missingSettings: บอกตัวแปรที่ขาดเมื่อเปิด ERP_MODE=sapb1', () => {
     expect(
       SapB1Client.missingSettings({ baseUrl: BASE, companyDbs: {} }),
