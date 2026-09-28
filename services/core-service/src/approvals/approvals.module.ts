@@ -3,6 +3,7 @@ import { PrismaTransactionService } from '@request-management/share';
 import { ApprovalsService } from './approvals.service';
 import { ApprovalMatrixService } from './approval-matrix.service';
 import { DelegationsService } from './delegations.service';
+import { DecisionLogService } from './decision-log.service';
 import { ApprovalCaseRepository } from './approval-case.repository';
 import { ApprovalMatrixRepository } from './approval-matrix.repository';
 import { DelegationRepository } from './delegation.repository';
@@ -17,15 +18,21 @@ import { AccessModule } from '../access/access.module';
     ApprovalsService,
     ApprovalMatrixService,
     DelegationsService,
+    DecisionLogService,
     ApprovalCaseRepository,
     ApprovalMatrixRepository,
     DelegationRepository,
     PrismaTransactionService,
   ],
   /*
-    `ApprovalMatrixService` and `DelegationsService` are exported for
+    `ApprovalMatrixService`, `DelegationsService` and `DecisionLogService` are exported for
     `ApprovalsHttpModule`, which owns the controllers that inject them.
   */
-  exports: [ApprovalsService, ApprovalMatrixService, DelegationsService],
+  exports: [
+    ApprovalsService,
+    ApprovalMatrixService,
+    DelegationsService,
+    DecisionLogService,
+  ],
 })
 export class ApprovalsModule {}
