@@ -7192,6 +7192,10 @@
           "target_approval_type_code": {
             "pattern": "^([A-Z0-9_-]{1,20})?$",
             "type": "string"
+          },
+          "contract_request_type_code": {
+            "pattern": "^([A-Z0-9_-]{1,20})?$",
+            "type": "string"
           }
         }
       },

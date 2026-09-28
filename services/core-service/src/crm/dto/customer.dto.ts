@@ -663,4 +663,13 @@ export class UpdateCrmConfigDto {
   @IsString()
   @Matches(/^([A-Z0-9_-]{1,20})?$/)
   target_approval_type_code?: string;
+
+  /**
+   * CD-81: รหัสประเภทคำขอที่ฝ่ายกฎหมายรับทำ/แก้สัญญา. ส่ง `""` = ล้าง
+   * (หน้าดีลไม่แสดงการ์ดสัญญา).
+   */
+  @IsOptional()
+  @IsString()
+  @Matches(/^([A-Z0-9_-]{1,20})?$/)
+  contract_request_type_code?: string;
 }

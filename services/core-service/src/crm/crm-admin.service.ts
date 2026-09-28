@@ -202,6 +202,7 @@ export class CrmAdminService {
         vatPct: 7,
         quotationApprovalTypeCode: 'DSC',
         targetApprovalTypeCode: null,
+        contractRequestTypeCode: null,
         staleOpportunityDays: 14,
         ...EMPTY_LETTERHEAD,
       }
@@ -226,6 +227,7 @@ export class CrmAdminService {
                 dto.quotation_approval_type_code ?? 'DSC',
               staleOpportunityDays: dto.stale_opportunity_days ?? 14,
               targetApprovalTypeCode: dto.target_approval_type_code || null,
+              contractRequestTypeCode: dto.contract_request_type_code || null,
               ...letterheadColumns(dto),
               updatedBy: actor.userId,
             },
@@ -240,6 +242,10 @@ export class CrmAdminService {
                 dto.target_approval_type_code === undefined
                   ? undefined
                   : dto.target_approval_type_code || null,
+              contractRequestTypeCode:
+                dto.contract_request_type_code === undefined
+                  ? undefined
+                  : dto.contract_request_type_code || null,
               ...letterheadColumns(dto),
               updatedBy: actor.userId,
             },

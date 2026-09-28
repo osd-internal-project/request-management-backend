@@ -36,6 +36,7 @@ function harness(rows: unknown[]) {
       never,
       never,
     ]),
+    { findFirst: jest.fn(() => Promise.resolve(null)) } as never,
   );
   return { service, calls };
 }

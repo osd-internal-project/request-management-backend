@@ -100,6 +100,7 @@ describe('CRM โอกาสการขาย — เปิดได้โด�
         ),
       } as never,
       catalog as never,
+      { findFirst: jest.fn(() => Promise.resolve(null)) } as never,
     );
     return { service, opportunities, customers, audit, timeline, catalog };
   }

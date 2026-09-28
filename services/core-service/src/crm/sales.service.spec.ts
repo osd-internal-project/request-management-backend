@@ -25,6 +25,7 @@ function opportunityHarness(
     found?: Record<string, unknown> | null;
     reason?: { code: string; name: string } | null;
     kycRules?: { productCode: string }[];
+    contractType?: string | null;
   } = {},
 ) {
   const audits: { eventType: string }[] = [];
@@ -110,6 +111,16 @@ function opportunityHarness(
     audit as never,
     transactions as never,
     catalog as never,
+    // CD-81 — the CRM config the deal detail reads its contract type from.
+    {
+      findFirst: jest.fn(() =>
+        Promise.resolve(
+          options.contractType === undefined
+            ? null
+            : { contractRequestTypeCode: options.contractType },
+        ),
+      ),
+    } as never,
   );
 
   return { service, opportunities, audits, timelineEvents, lostReasons };
@@ -175,6 +186,18 @@ describe('CRM โอกาสการขาย — ปิดชนะ/แพ้
       required: true,
       products: ['SIP-TRUNK'],
     });
+  });
+
+  it('CD-81: the deal carries the contract request type Legal takes, or null when unset', async () => {
+    const configured = opportunityHarness({ contractType: 'CTR' });
+    await expect(
+      configured.service.findOne('opportunity-1', principal()),
+    ).resolves.toMatchObject({ contractRequestTypeCode: 'CTR' });
+
+    const unset = opportunityHarness({});
+    await expect(
+      unset.service.findOne('opportunity-1', principal()),
+    ).resolves.toMatchObject({ contractRequestTypeCode: null });
   });
 
   it('SCOPE-03 โอกาสการขายนอกขอบเขต = 404', async () => {

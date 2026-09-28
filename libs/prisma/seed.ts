@@ -586,6 +586,28 @@ async function seedApprovalMatrix(companyId: string) {
 }
 
 /**
+ * CD-81 — points the demo company's contract card at `CTR`. Only when unset,
+ * so an admin's own choice survives a re-seed.
+ */
+async function seedContractRequestType(companyId: string) {
+  const config = await prisma.crmCompanyConfig.findUnique({
+    where: { companyId },
+    select: { contractRequestTypeCode: true },
+  });
+  if (!config) {
+    await prisma.crmCompanyConfig.create({
+      data: { companyId, contractRequestTypeCode: 'CTR', updatedBy: 'seed' },
+    });
+  } else if (!config.contractRequestTypeCode) {
+    await prisma.crmCompanyConfig.update({
+      where: { companyId },
+      data: { contractRequestTypeCode: 'CTR', updatedBy: 'seed' },
+    });
+  }
+  console.log('  contract request type: CTR');
+}
+
+/**
  * The two pilot request types (§1). Configuration, not code — REQ-01 requires
  * that the 3rd..30th type needs no migration and no deploy, so everything
  * about a type lives in these columns.
@@ -778,6 +800,70 @@ async function seedRequestTypes(
       approvalPolicy: {},
       slaHours: 8,
     },
+    {
+      /**
+       * CD-81 — ขอให้ฝ่ายกฎหมายจัดทำ/แก้สัญญา ยื่นจากหน้าดีล และติดตามสถานะ
+       * ร่างจากหน้าดีลได้ (การ์ดสัญญา). Demo only: a real company points its
+       * CRM setting `contractRequestTypeCode` at the type its Legal team
+       * already receives. No ladder — Legal drafting is work, not a permission.
+       */
+      code: 'CTR',
+      name: 'ขอจัดทำ/แก้ไขสัญญา',
+      receiverOrgUnitId: null,
+      formSchema: {
+        type: 'object',
+        required: ['contract_kind', 'counterparty', 'scope'],
+        properties: {
+          contract_kind: {
+            type: 'string',
+            title: 'ประเภทงานสัญญา',
+            enum: ['ทำสัญญาใหม่', 'แก้ไขสัญญา', 'ต่ออายุสัญญา'],
+            'x-order': 10,
+          },
+          counterparty: { type: 'string', title: 'คู่สัญญา', 'x-order': 20 },
+          contract_value: {
+            type: 'number',
+            title: 'มูลค่าสัญญา (THB)',
+            minimum: 0,
+            'x-order': 30,
+          },
+          start_date: {
+            type: 'string',
+            format: 'date',
+            title: 'วันเริ่มสัญญา',
+            'x-order': 40,
+          },
+          end_date: {
+            type: 'string',
+            format: 'date',
+            title: 'วันสิ้นสุดสัญญา',
+            'x-order': 50,
+          },
+          scope: {
+            type: 'string',
+            title: 'ขอบเขตงานและสาระสำคัญ',
+            maxLength: 4000,
+            'x-multiline': true,
+            'x-order': 60,
+          },
+          non_standard_terms: {
+            type: 'string',
+            title: 'เงื่อนไขที่ต่างจากสัญญามาตรฐาน',
+            maxLength: 4000,
+            'x-multiline': true,
+            'x-order': 70,
+          },
+        },
+      },
+      requiredDocs: [],
+      returnReasonCodes: [
+        { code: 'INFO_INCOMPLETE', name: 'ข้อมูลไม่ครบ' },
+        { code: 'TERMS_UNCLEAR', name: 'เงื่อนไขไม่ชัดเจน' },
+        { code: 'OTHER', name: 'อื่น ๆ' },
+      ],
+      approvalPolicy: {},
+      slaHours: 40,
+    },
   ];
 
   for (const type of types) {
@@ -936,6 +1022,7 @@ async function main() {
   await seedOrgTree(demo.id);
   await seedSensitiveFields();
   await seedRequestTypes(demo.id, companies);
+  await seedContractRequestType(demo.id);
   await seedApprovalMatrix(demo.id);
 
   console.log('Done.');

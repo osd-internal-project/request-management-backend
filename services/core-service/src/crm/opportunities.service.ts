@@ -20,6 +20,7 @@ import {
 } from './sales.repositories';
 import { RunNumberClient } from '../run-number/run-number.client';
 import { CustomerRepository } from './customer.repository';
+import { CrmConfigRepository } from './segment.repositories';
 import { KycProductRuleRepository } from './kyc-product.repository';
 import { ProductCatalogService } from './product-catalog.service';
 import { CustomerTimelineService } from './customer-timeline.service';
@@ -61,6 +62,7 @@ export class OpportunitiesService {
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
     private readonly catalog: ProductCatalogService,
+    private readonly configs: CrmConfigRepository,
   ) {}
 
   async list(actor: Principal, query: ListOpportunitiesQueryDto) {
@@ -218,7 +220,19 @@ export class OpportunitiesService {
       };
     }
 
-    return { ...found, kycWarning };
+    // CD-81 — the type Legal takes contract work on, so the deal page can
+    // offer "ขอจัดทำสัญญา" and track those requests. The CRM settings are
+    // admin-only; the one code the page needs travels with the deal.
+    const config = (await this.configs.findFirst({
+      where: { companyId: found.companyId },
+      select: { contractRequestTypeCode: true },
+    })) as { contractRequestTypeCode: string | null } | null;
+
+    return {
+      ...found,
+      kycWarning,
+      contractRequestTypeCode: config?.contractRequestTypeCode ?? null,
+    };
   }
 
   async lostReasonOptions(actor: Principal) {
