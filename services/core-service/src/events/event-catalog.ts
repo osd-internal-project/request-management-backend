@@ -23,6 +23,13 @@ export const DOMAIN_EVENTS = {
    * only hands the ticket to its receiver.
    */
   requestApproved: 'request.approved',
+  /**
+   * CD-80 — the last approver of a before-work (`:pre`) ladder said yes: the
+   * ticket goes to its receiver. Not `requestApproved` (the work is not done),
+   * but it IS the decision a consumer like a quotation waits on — a discount
+   * approved before pricing picks it up is an approved discount.
+   */
+  requestPreApproved: 'request.pre_approved',
   /** An approver rejected the request outright (terminal). */
   requestRejected: 'request.rejected',
   /** What triggers "you have work waiting". */
@@ -74,6 +81,7 @@ export type DomainEvent =
   | { name: 'request.cancelled'; payload: RequestEventPayload }
   | { name: 'request.completed'; payload: RequestEventPayload }
   | { name: 'request.approved'; payload: RequestEventPayload }
+  | { name: 'request.pre_approved'; payload: RequestEventPayload }
   | { name: 'request.rejected'; payload: RequestEventPayload }
   | { name: 'approval.step.pending'; payload: ApprovalEventPayload }
   | { name: 'approval.completed'; payload: ApprovalEventPayload }

@@ -7204,6 +7204,48 @@
         ]
       }
     },
+    "/api/v1/admin/approval-matrix/retire": {
+      "post": {
+        "operationId": "ApprovalMatrixAdminController_retire",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RetireMatrixDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin/approval-matrix"
+        ],
+        "x-permission": [
+          "admin.approval-matrix.manage"
+        ]
+      }
+    },
     "/api/v1/admin/sla-configs": {
       "get": {
         "operationId": "SlaController_listConfigs",
@@ -10327,6 +10369,24 @@
         "required": [
           "company_id",
           "levels",
+          "subject_type"
+        ]
+      },
+      "RetireMatrixDto": {
+        "type": "object",
+        "properties": {
+          "company_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "subject_type": {
+            "type": "string",
+            "example": "request:DSC",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "company_id",
           "subject_type"
         ]
       },

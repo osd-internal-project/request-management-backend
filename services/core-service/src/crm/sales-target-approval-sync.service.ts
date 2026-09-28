@@ -38,6 +38,8 @@ export class SalesTargetApprovalSyncService implements OnModuleInit {
   onModuleInit(): void {
     const outcomes: [DomainEventName, Outcome][] = [
       [DOMAIN_EVENTS.requestApproved, 'approved'],
+      // CD-80 — the same decision, if the type's ladder runs before the work.
+      [DOMAIN_EVENTS.requestPreApproved, 'approved'],
       [DOMAIN_EVENTS.requestRejected, 'rejected'],
       [DOMAIN_EVENTS.requestCancelled, 'cancelled'],
     ];

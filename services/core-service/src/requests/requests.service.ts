@@ -47,6 +47,7 @@ import { RequestTypeRepository } from './request-type.repository';
 import { RequestCommentRepository } from './request-comment.repository';
 import { OrgUnitRepository } from '../access/org-unit.repository';
 import { SlaService } from '../sla/sla.service';
+import { applyComputedFields } from './computed-fields';
 import {
   assertSeverityGiven,
   readSeverityTargets,
@@ -616,7 +617,11 @@ export class RequestsService {
         companyId: actor.activeCompanyId,
         requesterId: actor.userId,
         requesterOrgUnitId: actor.orgUnitId,
-        formData: (dto.form_data ?? {}) as Prisma.InputJsonValue,
+        // CD-80 — computed fields are the system's, never the caller's.
+        formData: applyComputedFields(
+          type.formSchema,
+          dto.form_data ?? {},
+        ) as Prisma.InputJsonValue,
         refType: dto.ref_type ?? null,
         refId: dto.ref_id ?? null,
         severity: dto.severity ?? null,
@@ -738,7 +743,12 @@ export class RequestsService {
       where: { id },
       data: {
         ...(dto.form_data
-          ? { formData: dto.form_data as Prisma.InputJsonValue }
+          ? {
+              formData: applyComputedFields(
+                found.requestType.formSchema,
+                dto.form_data,
+              ) as Prisma.InputJsonValue,
+            }
           : {}),
         ...(dto.ref_type !== undefined ? { refType: dto.ref_type } : {}),
         ...(dto.ref_id !== undefined ? { refId: dto.ref_id } : {}),
@@ -832,7 +842,10 @@ export class RequestsService {
         companyId,
         requesterId: dto.requester_user_id,
         requesterOrgUnitId: null,
-        formData: (dto.form_data ?? {}) as Prisma.InputJsonValue,
+        formData: applyComputedFields(
+          type.formSchema,
+          dto.form_data ?? {},
+        ) as Prisma.InputJsonValue,
         refType: dto.ref_type ?? null,
         refId: dto.ref_id ?? null,
         severity: dto.severity ?? null,

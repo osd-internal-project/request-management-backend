@@ -1255,6 +1255,13 @@ model ApprovalMatrix {
   /// (§7 — running work keeps the rules it started under).
   levels Json?
 
+  /// CD-80 — a version that ends the ladder: from its `effectiveFrom` the
+  /// subject has **no** approval stage (DSC moving from after-work to
+  /// before-work retires `request:DSC`). A new version, not an edit, so every
+  /// published version stays as it was and cases in flight keep theirs;
+  /// publishing a later ordinary version turns the stage back on.
+  retired Boolean @default(false)
+
   effectiveFrom DateTime
   publishedAt   DateTime?
   createdAt     DateTime  @default(now())

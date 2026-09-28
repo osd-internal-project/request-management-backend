@@ -16,6 +16,7 @@ import {
 const MOMENTS: readonly [DomainEventName, string][] = [
   [DOMAIN_EVENTS.requestSubmitted, 'ยื่นแล้ว'],
   [DOMAIN_EVENTS.requestApproved, 'อนุมัติ'],
+  [DOMAIN_EVENTS.requestPreApproved, 'อนุมัติ (ก่อนเริ่มงาน)'],
   [DOMAIN_EVENTS.requestRejected, 'ไม่อนุมัติ'],
   [DOMAIN_EVENTS.requestCompleted, 'ปิดงาน'],
   [DOMAIN_EVENTS.requestCancelled, 'ยกเลิก'],

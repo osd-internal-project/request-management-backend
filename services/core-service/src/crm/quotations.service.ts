@@ -27,7 +27,6 @@ import {
   computeQuotationTotals,
   defaultValidUntil,
   marginNeedsApproval,
-  overallDiscountPct,
   quotationExpired,
   type QuotationLineInput,
 } from './quotation-math';
@@ -421,11 +420,6 @@ export class QuotationsService {
       );
     }
 
-    const totals = {
-      subtotal: found.subtotal,
-      discountTotal: found.discountTotal,
-    } as Parameters<typeof overallDiscountPct>[0];
-
     let request: { id: string };
     try {
       request = await this.requestsService.create(
@@ -435,8 +429,19 @@ export class QuotationsService {
           ref_id: found.id,
           form_data: {
             customer_name: found.partyName,
-            deal_value: Number(found.netTotal.toFixed(2)),
-            discount_pct: Number(overallDiscountPct(totals).toFixed(2)),
+            // CD-80 — value before discount, the discount, and the cost: the
+            // three inputs the DSC form computes its margin from, so the
+            // request shows the same margin the quotation does. Four decimals
+            // on the discount keep the recomputed margin within rounding.
+            deal_value: Number(found.subtotal.toFixed(2)),
+            discount_pct: found.subtotal.gt(0)
+              ? Number(
+                  found.discountTotal.div(found.subtotal).mul(100).toFixed(4),
+                )
+              : 0,
+            cost: Number(found.costTotal.toFixed(2)),
+            // Kept for an approval type whose form does not compute it yet;
+            // on one that does, the computed value replaces this.
             est_margin_pct:
               marginPct === null ? 0 : Number(marginPct.toFixed(2)),
             // The margin itself travels only in `est_margin_pct`, which the

@@ -31,6 +31,7 @@ import {
   DecideDto,
   PreviewChainDto,
   PublishMatrixDto,
+  RetireMatrixDto,
 } from './dto/approval.dto';
 
 /**
@@ -217,5 +218,19 @@ export class ApprovalMatrixAdminController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.matrix.publish(dto, principal);
+  }
+
+  /**
+   * CD-80 — ends the ladder for a subject by publishing a retired version.
+   * Still no update or delete: history is a list of versions, the last of
+   * which may say "no approval from here on".
+   */
+  @Post('retire')
+  @Permissions('admin.approval-matrix.manage')
+  retire(
+    @Body() dto: RetireMatrixDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.matrix.retire(dto, principal);
   }
 }

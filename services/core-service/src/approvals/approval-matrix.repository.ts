@@ -43,7 +43,7 @@ export class ApprovalMatrixRepository extends BaseRepository<
    * route a case. A case that opens against this keeps `matrixVersion`, so a
    * later publish cannot re-judge work already in flight.
    */
-  findEffective(
+  async findEffective(
     companyId: string,
     subjectType: string,
     at: Date,
@@ -51,7 +51,7 @@ export class ApprovalMatrixRepository extends BaseRepository<
   ): Promise<ApprovalMatrix | null> {
     const client = option?.prisma ?? this.prisma;
 
-    return client.approvalMatrix.findFirst({
+    const latest = await client.approvalMatrix.findFirst({
       where: {
         companyId,
         subjectType,
@@ -60,6 +60,10 @@ export class ApprovalMatrixRepository extends BaseRepository<
       },
       orderBy: [{ effectiveFrom: 'desc' }, { version: 'desc' }],
     });
+    // CD-80 — the latest version retires the ladder: no stage, not the one
+    // before it. Every caller (route, preview, `hasPublishedMatrix`) sees the
+    // same answer because they all come through here.
+    return latest?.retired ? null : latest;
   }
 
   /** Highest version number so far, or 0 — the next publish is this plus one. */

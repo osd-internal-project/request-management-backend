@@ -613,13 +613,19 @@ export class ApprovalsService {
           data: { status: toStatus, updatedBy: actor.userId },
         });
 
+        // CD-80: a before-work ladder's final yes hands the ticket on
+        // (`submitted`) — announced as its own event, since a consumer
+        // waiting on the decision (a quotation's discount) must not wait for
+        // the work too.
+        const preApproved = preWork && nextStatus === 'approved';
         if (
-          (toStatus === 'approved' || toStatus === 'rejected') &&
+          (toStatus === 'approved' || toStatus === 'rejected' || preApproved) &&
           found.request
         ) {
           outcome.event = {
-            name:
-              toStatus === 'approved'
+            name: preApproved
+              ? DOMAIN_EVENTS.requestPreApproved
+              : toStatus === 'approved'
                 ? DOMAIN_EVENTS.requestApproved
                 : DOMAIN_EVENTS.requestRejected,
             payload: {

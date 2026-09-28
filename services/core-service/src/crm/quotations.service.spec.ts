@@ -175,8 +175,10 @@ describe('CD-76 ใบเสนอราคา — ตรวจ margin ตอน
     expect(dto.ref_id).toBe('qt-1');
     expect(dto.form_data).toMatchObject({
       customer_name: 'บริษัท ผู้มุ่งหวัง จำกัด',
-      deal_value: 23000,
+      // CD-80: the value before discount + the cost, the computed form's inputs
+      deal_value: 25000,
       discount_pct: 8,
+      cost: 15000,
       est_margin_pct: 34.78,
     });
     // CD-127 — the margin travels only in the masked field, never in free text

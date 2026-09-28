@@ -1,4 +1,5 @@
 import { AppError, ErrorDetail } from '@request-management/share';
+import { computedFieldProblems } from './computed-fields';
 
 /** The slice of a `RequestType.formSchema` this checks. */
 export interface FormSchema {
@@ -32,6 +33,8 @@ export interface FormSchemaProperty {
   /** Boolean only: what to call `true` / `false` on screen. Defaults ใช่ / ไม่ใช่. */
   'x-true-label'?: string;
   'x-false-label'?: string;
+  /** CD-80 — worked out by the system; see `computed-fields.ts`. */
+  'x-computed'?: unknown;
 }
 
 /** `format` values the renderers know; anything else would save and render as plain text. */
@@ -512,6 +515,8 @@ export function assertUsableFormSchema(
 
   details.push(...unusableTables(parsed));
   details.push(...unusableFields(parsed, 'form_schema.properties'));
+  // CD-80 — a formula that names a missing field would compute nothing.
+  details.push(...computedFieldProblems(parsed));
 
   const codes = (requiredDocs ?? []).map((doc) => doc.code);
   const duplicate = codes.find((code, i) => codes.indexOf(code) !== i);

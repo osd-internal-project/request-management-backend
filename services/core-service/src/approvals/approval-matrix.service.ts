@@ -146,4 +146,63 @@ export class ApprovalMatrixService {
 
     return published;
   }
+
+  /**
+   * CD-80 — ends a ladder: publishes a `retired` version, so from now on the
+   * subject has no approval stage. Earlier versions are untouched and cases
+   * already routed keep the ladder they started under. Publishing an ordinary
+   * version later turns the stage back on.
+   */
+  async retire(
+    dto: { company_id: string; subject_type: string },
+    actor: Principal,
+  ): Promise<ApprovalMatrix> {
+    const companyId = resolveTargetCompany(actor, dto.company_id);
+    const now = new Date();
+    const current = await this.matrices.findEffective(
+      companyId,
+      dto.subject_type,
+      now,
+    );
+    if (!current) {
+      throw new AppError(
+        'APV_MATRIX_NOT_FOUND',
+        'ไม่มีตารางอำนาจอนุมัติที่ใช้อยู่ของงานนี้ให้ยกเลิก',
+        [{ field: 'subject_type', reason: dto.subject_type }],
+      );
+    }
+
+    const version =
+      (await this.matrices.latestVersion(companyId, dto.subject_type)) + 1;
+    const retired = await this.matrices.create({
+      data: {
+        companyId,
+        subjectType: dto.subject_type,
+        currency: current.currency,
+        version,
+        tiers: [] as unknown as Prisma.InputJsonValue,
+        levels: [] as unknown as Prisma.InputJsonValue,
+        retired: true,
+        effectiveFrom: now,
+        publishedAt: now,
+        createdBy: actor.userId,
+      },
+    });
+
+    await this.audit.record({
+      eventType: 'approval.matrix.retired',
+      companyId,
+      ...auditActor(actor),
+      resourceType: 'approval_matrix',
+      resourceId: retired.id,
+      before: {
+        subjectType: dto.subject_type,
+        version: current.version,
+        levels: (current.levels ?? null) as Prisma.InputJsonValue,
+      },
+      after: { subjectType: dto.subject_type, version, retired: true },
+    });
+
+    return retired;
+  }
 }

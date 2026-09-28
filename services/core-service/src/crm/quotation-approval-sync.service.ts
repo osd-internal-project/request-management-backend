@@ -41,6 +41,8 @@ export class QuotationApprovalSyncService implements OnModuleInit {
     const outcomes: [DomainEventName, 'approved' | 'rejected' | 'cancelled'][] =
       [
         [DOMAIN_EVENTS.requestApproved, 'approved'],
+        // CD-80 — DSC is approved before the work; that yes releases the quote.
+        [DOMAIN_EVENTS.requestPreApproved, 'approved'],
         [DOMAIN_EVENTS.requestRejected, 'rejected'],
         [DOMAIN_EVENTS.requestCancelled, 'cancelled'],
       ];
