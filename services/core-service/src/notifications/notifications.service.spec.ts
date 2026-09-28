@@ -36,6 +36,8 @@ describe('SUP-03 กล่องแจ้งเตือน', () => {
     expect(whereOf(prisma.notification.count)).toEqual({
       userId: 'me',
       companyId: 'osd',
+      // CD-52: items held for the digest are not in the bell
+      heldForDigest: false,
       readAt: null,
     });
   });

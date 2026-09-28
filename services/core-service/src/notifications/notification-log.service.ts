@@ -27,6 +27,9 @@ export interface NotificationLogRow {
   read_at: string | null;
   /** null on a read row = read before CD-55 recorded how. */
   read_via: 'opened' | 'mark_all' | null;
+  /** CD-52 — chosen for the daily digest; `digest_id` set once it went out. */
+  held_for_digest: boolean;
+  digest_id: string | null;
   deliveries: {
     channel: string;
     target: string;
@@ -134,6 +137,8 @@ export class NotificationLogService {
         resource_id: row.resourceId,
         read_at: row.readAt?.toISOString() ?? null,
         read_via: row.readVia,
+        held_for_digest: row.heldForDigest,
+        digest_id: row.digestId,
         deliveries: row.deliveries.map((delivery) => ({
           channel: delivery.channel,
           target: delivery.target,

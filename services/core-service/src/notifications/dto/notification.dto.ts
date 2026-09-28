@@ -1,11 +1,15 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsBoolean,
   IsDateString,
   IsIn,
+  IsInt,
+  IsObject,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
+  Min,
 } from 'class-validator';
 import { PageQueryDto } from '@request-management/share';
 
@@ -25,9 +29,31 @@ export class ListNotificationsQueryDto extends PageQueryDto {
  * believe it had turned notifications off.
  */
 export class UpdateNotificationPreferencesDto {
-  @ApiProperty({ example: true })
+  /** The email master switch. */
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
   @IsBoolean()
-  email!: boolean;
+  email?: boolean;
+
+  /** CD-52 — hour (Bangkok, 0–23) the daily digest goes out on working days. */
+  @ApiPropertyOptional({ example: 8, minimum: 0, maximum: 23 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(23)
+  digest_hour?: number;
+
+  /**
+   * CD-52 — per category: `{ approval: { email: true, frequency: "daily" } }`.
+   * Categories: approval · my_requests · crm · sla (sla is immediate only).
+   */
+  @ApiPropertyOptional({
+    type: Object,
+    example: { approval: { email: true, frequency: 'daily' } },
+  })
+  @IsOptional()
+  @IsObject()
+  categories?: Record<string, { email?: boolean; frequency?: string }>;
 }
 
 /** CD-55 — the notification log, for `audit.read`. */

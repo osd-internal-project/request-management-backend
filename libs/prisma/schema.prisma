@@ -1475,6 +1475,13 @@ model Notification {
   /// The FIRST time it was read — never overwritten (CD-55 evidence).
   readAt    DateTime?
   readVia   NotificationReadVia?
+
+  /// CD-52 — the recipient chose a daily digest for this kind of event: the
+  /// row exists (and is logged) but stays out of the bell until the digest.
+  heldForDigest Boolean @default(false)
+  /// The digest notification that carried it; null while still held.
+  digestId      String?
+
   createdAt DateTime  @default(now())
 
   user       User                      @relation(fields: [userId], references: [id])
@@ -1483,6 +1490,7 @@ model Notification {
 
   @@index([userId, readAt])
   @@index([companyId, createdAt])
+  @@index([heldForDigest, digestId])
   @@map("notifications")
 }
 
@@ -1498,6 +1506,14 @@ model NotificationPreference {
   companyId String
 
   emailEnabled Boolean @default(true)
+
+  /// CD-52 — per category `{ approval: { email: true, frequency: "daily" }, … }`;
+  /// a category not listed is email on, immediate.
+  categorySettings Json?
+  /// Hour (Bangkok, 0–23) the daily digest goes out on working days.
+  digestHour       Int     @default(8)
+  /// `YYYY-MM-DD` of the last digest sent — the once-a-day claim.
+  lastDigestDate   String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -22,6 +22,8 @@ const row = {
   resourceId: 'req-1',
   readAt: new Date('2026-09-28T03:00:00Z'),
   readVia: 'opened',
+  heldForDigest: false,
+  digestId: null,
   user: {
     id: 'u-1',
     displayName: 'สมชาย',

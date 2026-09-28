@@ -10325,11 +10325,23 @@
           "email": {
             "type": "boolean",
             "example": true
+          },
+          "digest_hour": {
+            "type": "integer",
+            "example": 8,
+            "minimum": 0,
+            "maximum": 23
+          },
+          "categories": {
+            "type": "object",
+            "example": {
+              "approval": {
+                "email": true,
+                "frequency": "daily"
+              }
+            }
           }
-        },
-        "required": [
-          "email"
-        ]
+        }
       },
       "CreateBiDashboardDto": {
         "type": "object",

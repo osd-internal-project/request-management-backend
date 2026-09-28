@@ -94,6 +94,6 @@ export class NotificationsController {
     @Body() dto: UpdateNotificationPreferencesDto,
     @CurrentPrincipal() principal: Principal,
   ) {
-    return this.notifications.updatePreferences(principal, dto.email);
+    return this.notifications.updatePreferences(principal, dto);
   }
 }
