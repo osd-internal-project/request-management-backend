@@ -156,6 +156,13 @@ enum DeliveryStatus {
   failed
 }
 
+/// CD-55 — how a notification became read. `opened` = the person clicked it;
+/// `mark_all` = "อ่านทั้งหมด", which is not evidence anyone saw the message.
+enum NotificationReadVia {
+  opened
+  mark_all
+}
+
 /// CM-01: นิติบุคคล / บุคคลธรรมดา / หน่วยงานรัฐ.
 enum CustomerType {
   corporate
@@ -1465,7 +1472,9 @@ model Notification {
   resourceType String?
   resourceId   String?
 
+  /// The FIRST time it was read — never overwritten (CD-55 evidence).
   readAt    DateTime?
+  readVia   NotificationReadVia?
   createdAt DateTime  @default(now())
 
   user       User                      @relation(fields: [userId], references: [id])
@@ -1473,6 +1482,7 @@ model Notification {
   deliveries NotificationDeliveryLog[]
 
   @@index([userId, readAt])
+  @@index([companyId, createdAt])
   @@map("notifications")
 }
 

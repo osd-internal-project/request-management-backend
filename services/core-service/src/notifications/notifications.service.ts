@@ -119,14 +119,21 @@ export class NotificationsService {
     return { count };
   }
 
-  /** Scoped to the owner, so one person cannot mark another's as read. */
+  /**
+   * Scoped to the owner, so one person cannot mark another's as read.
+   *
+   * CD-55: only the first read is recorded. Opening it again used to move
+   * `readAt` forward, which erased the one fact the log exists to prove —
+   * when the person first saw it.
+   */
   async markRead(id: string, actor: Principal): Promise<void> {
     await this.prisma.notification.updateMany({
-      where: { id, userId: actor.userId },
-      data: { readAt: new Date() },
+      where: { id, userId: actor.userId, readAt: null },
+      data: { readAt: new Date(), readVia: 'opened' },
     });
   }
 
+  /** CD-55: recorded as `mark_all` — clearing the bell is not having read it. */
   async markAllRead(actor: Principal): Promise<void> {
     await this.prisma.notification.updateMany({
       where: {
@@ -134,7 +141,7 @@ export class NotificationsService {
         companyId: actor.activeCompanyId,
         readAt: null,
       },
-      data: { readAt: new Date() },
+      data: { readAt: new Date(), readVia: 'mark_all' },
     });
   }
 
