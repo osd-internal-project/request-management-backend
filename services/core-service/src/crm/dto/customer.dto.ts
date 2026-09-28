@@ -546,18 +546,12 @@ export class UpdateKycProductDto {
   active?: boolean;
 }
 
+/**
+ * CM-02: รูปแบบรหัสลูกค้า (prefix / จำนวนหลัก) ไม่อยู่ที่นี่แล้ว — ตั้งที่
+ * run-number-service (`run_number_settings`, docType `CUSTOMER`) ดู
+ * docs/run-number.md. คอลัมน์เก่าใน `crm_company_configs` รอ migration ลบ.
+ */
 export class UpdateCrmConfigDto {
-  @IsOptional()
-  @IsString()
-  @Matches(/^[A-Z0-9]{1,10}$/)
-  code_prefix?: string;
-
-  @IsOptional()
-  @IsInt()
-  @Min(3)
-  @Max(10)
-  code_padding?: number;
-
   /** CM-03 similarity threshold, 0.5–1.0 (PO: จูนได้จากหน้าจอ). */
   @IsOptional()
   @IsNumber()

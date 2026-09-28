@@ -184,7 +184,7 @@ export class CrmAdminService {
     );
   }
 
-  // --- CRM config (CM-02 code shape, CM-03 threshold) ----------------------
+  // --- CRM config (CM-03 threshold, quotation defaults) ---------------------
 
   async getConfig(actor: Principal) {
     const found = await this.configs.findFirst({
@@ -196,8 +196,6 @@ export class CrmAdminService {
     return (
       found ?? {
         companyId: actor.activeCompanyId,
-        codePrefix: 'CUS',
-        codePadding: 6,
         dedupThreshold: 0.85,
         minMarginPct: 15,
         quotationValidityDays: 30,
@@ -219,8 +217,6 @@ export class CrmAdminService {
             where: { companyId: actor.activeCompanyId },
             create: {
               companyId: actor.activeCompanyId,
-              codePrefix: dto.code_prefix ?? 'CUS',
-              codePadding: dto.code_padding ?? 6,
               dedupThreshold: dto.dedup_threshold ?? 0.85,
               minMarginPct: dto.min_margin_pct ?? 15,
               quotationValidityDays: dto.quotation_validity_days ?? 30,
@@ -232,8 +228,6 @@ export class CrmAdminService {
               updatedBy: actor.userId,
             },
             update: {
-              codePrefix: dto.code_prefix,
-              codePadding: dto.code_padding,
               dedupThreshold: dto.dedup_threshold,
               minMarginPct: dto.min_margin_pct,
               quotationValidityDays: dto.quotation_validity_days,

@@ -8235,15 +8235,6 @@
       "UpdateCrmConfigDto": {
         "type": "object",
         "properties": {
-          "code_prefix": {
-            "pattern": "^[A-Z0-9]{1,10}$",
-            "type": "string"
-          },
-          "code_padding": {
-            "maximum": 10,
-            "minimum": 3,
-            "type": "integer"
-          },
           "dedup_threshold": {
             "maximum": 1,
             "minimum": 0.5,
