@@ -127,6 +127,16 @@ enum SlaCoverage {
   H8X5
 }
 
+/// CD-67 — ระดับความรุนแรงของเคส/ข้อร้องเรียน. กำหนดเวลาตอบกลับและแก้ไขของแต่ละ
+/// ระดับตั้งต่อประเภทคำขอใน `SlaConfig.severityTargets` — ประเภทที่ตั้งไว้ = ประเภทเคส
+/// (ต้องเลือกระดับตอนยื่น).
+enum RequestSeverity {
+  critical
+  high
+  medium
+  low
+}
+
 enum SlaState {
   running
   paused
@@ -144,6 +154,13 @@ enum DeliveryStatus {
   queued
   sent
   failed
+}
+
+/// CD-55 — how a notification became read. `opened` = the person clicked it;
+/// `mark_all` = "อ่านทั้งหมด", which is not evidence anyone saw the message.
+enum NotificationReadVia {
+  opened
+  mark_all
 }
 
 /// CM-01: นิติบุคคล / บุคคลธรรมดา / หน่วยงานรัฐ.
@@ -215,6 +232,24 @@ enum SaleOrderStatus {
 ///   synced    — SAP ตอบเลขใบสั่งขายแล้ว (ถ้าใบถูกยกเลิก = SAP ยกเลิกแล้วด้วย)
 ///   failed    — ลองครบรอบแล้วไม่สำเร็จ ต้องให้ผู้ดูแลดู `erpLastError`
 ///   skipped   — ใบถูกยกเลิกก่อนถึง SAP ไม่มีอะไรต้องส่ง
+/// CD-82 — เป้าขายเป็นของใคร: พนักงานคนเดียว หรือกลุ่มในผังองค์กร (ทีม/ฝ่าย —
+/// นับยอดของกลุ่มนั้นและทุกกลุ่มใต้มัน).
+enum SalesTargetScope {
+  user
+  org_unit
+}
+
+/// CD-82 — สถานะของการเปลี่ยนเป้าหนึ่งครั้ง.
+///   applied          — มีผลแล้ว (ตั้งครั้งแรก, งวดยังไม่เริ่ม, หรืออนุมัติแล้ว)
+///   pending_approval — งวดเริ่มแล้ว รอคำขออนุมัติ `approvalRequestId`
+///   rejected / cancelled — คำขอไม่ผ่าน/ถูกยกเลิก เป้าคงค่าเดิม
+enum SalesTargetRevisionStatus {
+  applied
+  pending_approval
+  rejected
+  cancelled
+}
+
 enum ErpSyncStatus {
   not_ready
   pending
@@ -295,10 +330,12 @@ model Company {
   biDashboards            BiDashboard[]
   orgUnitScopes           OrgUnitScope[]
   notificationPreferences NotificationPreference[]
+  notificationTemplates   NotificationTemplate[]
   customers               Customer[]
   customerSegmentDims     CustomerSegmentDimension[]
   customerCodeCounter     CustomerCodeCounter?
   crmConfig               CrmCompanyConfig?
+  tradeTermStandards      TradeTermStandard[]
   kycProductRules         KycProductRule[]
   leadStatuses            LeadStatusSetting[]
   leads                   Lead[]
@@ -310,6 +347,8 @@ model Company {
   saleOrderCodeCounter    SaleOrderCodeCounter?
   quotations              Quotation[]
   quotationCodeCounter    QuotationCodeCounter?
+  salesTargets            SalesTarget[]
+  campaigns               Campaign[]
 
   @@map("companies")
 }
@@ -946,6 +985,9 @@ model Request {
   receiverFormData Json @default("{}")
 
   /// REQ-06: link back to the originating entity (opportunity, customer, …).
+  /// CD-67 — ระดับความรุนแรง (เฉพาะประเภทเคส). เลือกได้ตอนร่าง/ตีกลับ ล็อกเมื่อยื่น.
+  severity RequestSeverity?
+
   refType String?
   refId   String?
 
@@ -1321,6 +1363,13 @@ model ApprovalMatrix {
   /// (§7 — running work keeps the rules it started under).
   levels Json?
 
+  /// CD-80 — a version that ends the ladder: from its `effectiveFrom` the
+  /// subject has **no** approval stage (DSC moving from after-work to
+  /// before-work retires `request:DSC`). A new version, not an edit, so every
+  /// published version stays as it was and cases in flight keep theirs;
+  /// publishing a later ordinary version turns the stage back on.
+  retired Boolean @default(false)
+
   effectiveFrom DateTime
   publishedAt   DateTime?
   createdAt     DateTime  @default(now())
@@ -1492,6 +1541,10 @@ model SlaConfig {
   /// Overdue tiers as % of the budget; each notifies one level further up.
   escalatePercents Int[]       @default([100, 150])
 
+  /// CD-67 — เป้าเวลาตามระดับความรุนแรง `{ critical: { responseHours, resolutionHours }, … }`
+  /// (ชั่วโมงตาม coverage เดียวกับ `hours`). NULL = ประเภทนี้ไม่ใช่เคส ใช้ `hours` ตามเดิม.
+  severityTargets Json?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   updatedBy String?
@@ -1520,11 +1573,18 @@ model SlaClock {
   /// Overdue tiers already fired (`SlaConfig.escalatePercents`); 0 = none.
   escalationLevel Int       @default(0)
 
+  /// CD-67 — นาฬิกาเวลาตอบกลับ แยกจากเวลาแก้ไข (`dueAt`). มีเฉพาะคำขอประเภทเคส.
+  /// ตอบกลับ = ทีมผู้รับรับเรื่อง มอบหมาย หรือคอมเมนต์ครั้งแรก (ไม่นับผู้ยื่น).
+  responseDueAt      DateTime?
+  respondedAt        DateTime?
+  responseBreachedAt DateTime?
+
   updatedAt DateTime @updatedAt
 
   request Request @relation(fields: [requestId], references: [id])
 
   @@index([state, dueAt])
+  @@index([respondedAt, responseDueAt])
   @@map("sla_clocks")
 }
 
@@ -1563,14 +1623,25 @@ model Notification {
   resourceType String?
   resourceId   String?
 
-  readAt    DateTime?
-  createdAt DateTime  @default(now())
+  /// The FIRST time it was read — never overwritten (CD-55 evidence).
+  readAt  DateTime?
+  readVia NotificationReadVia?
+
+  /// CD-52 — the recipient chose a daily digest for this kind of event: the
+  /// row exists (and is logged) but stays out of the bell until the digest.
+  heldForDigest Boolean @default(false)
+  /// The digest notification that carried it; null while still held.
+  digestId      String?
+
+  createdAt DateTime @default(now())
 
   user       User                      @relation(fields: [userId], references: [id])
   company    Company                   @relation(fields: [companyId], references: [id])
   deliveries NotificationDeliveryLog[]
 
   @@index([userId, readAt])
+  @@index([companyId, createdAt])
+  @@index([heldForDigest, digestId])
   @@map("notifications")
 }
 
@@ -1587,6 +1658,14 @@ model NotificationPreference {
 
   emailEnabled Boolean @default(true)
 
+  /// CD-52 — per category `{ approval: { email: true, frequency: "daily" }, … }`;
+  /// a category not listed is email on, immediate.
+  categorySettings Json?
+  /// Hour (Bangkok, 0–23) the daily digest goes out on working days.
+  digestHour       Int     @default(8)
+  /// `YYYY-MM-DD` of the last digest sent — the once-a-day claim.
+  lastDigestDate   String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1595,6 +1674,26 @@ model NotificationPreference {
 
   @@unique([userId, companyId])
   @@map("notification_preferences")
+}
+
+/// CD-54 — a company's own wording for one event. No row = the standard
+/// wording declared in code (`notification-templates.ts`); deleting the row
+/// is "reset to standard". `{{name}}` placeholders are checked on save.
+model NotificationTemplate {
+  id        String @id @default(uuid())
+  companyId String
+  eventType String
+  title     String
+  body      String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, eventType])
+  @@map("notification_templates")
 }
 
 /// SUP-03: every send is logged, which is what settles "I never got notified".
@@ -2113,6 +2212,15 @@ model CrmCompanyConfig {
   /// → แจ้งหัวหน้าของเจ้าของดีล. 0 = ปิดการแจ้งเตือน.
   staleOpportunityDays Int @default(14)
 
+  /// CD-82: ประเภทคำขอที่ใช้ขออนุมัติการปรับเป้าขายระหว่างงวด (ผู้อนุมัติมาจากตาราง
+  /// อำนาจอนุมัติของประเภทนั้น — ผู้อำนวยการ). NULL = ยังไม่ตั้ง → ปรับเป้าของงวดที่
+  /// เริ่มแล้วไม่ได้ (ตั้งเป้างวดหน้ายังทำได้ตามปกติ).
+  targetApprovalTypeCode String?
+
+  /// CD-81: ประเภทคำขอที่ฝ่ายกฎหมายรับทำ/แก้สัญญา — ปุ่ม "ขอจัดทำสัญญา" และการ์ด
+  /// สัญญาบนหน้าดีลใช้ประเภทนี้. NULL = ยังไม่ตั้ง → หน้าดีลไม่แสดงการ์ดสัญญา.
+  contractRequestTypeCode String?
+
   /// หัวกระดาษเอกสารขาย (ใบเสนอราคา) — ข้อมูลตามทะเบียนของบริษัทผู้ขาย ตั้งค่าได้
   /// ในหน้า admin CRM; ว่าง = ใช้ `Company.name` และไม่แสดงบรรทัดนั้น.
   letterheadNameTh  String?
@@ -2320,6 +2428,9 @@ model Lead {
   /// จะเข้ามาเป็นค่าหนึ่งในระยะ 2).
   sourceCode String?
 
+  /// CD-71 — แคมเปญการตลาดที่ Lead นี้มาจาก (ถ้ามี) — วัดผลแคมเปญได้ถึงยอดขาย.
+  campaignId String?
+
   /// รหัสสถานะ — อ้าง `lead_statuses.code` ของบริษัทเดียวกัน. เก็บเป็น text
   /// ไม่ใช่ enum เพราะรายการสถานะแก้ได้จากหน้าตั้งค่าโดยไม่ต้อง migrate; ความ
   /// ถูกต้องบังคับที่ `LeadStatusService` (และการลบสถานะที่ยังมี Lead ใช้อยู่
@@ -2360,11 +2471,13 @@ model Lead {
   company              Company        @relation(fields: [companyId], references: [id])
   customer             Customer?      @relation(fields: [customerId], references: [id])
   convertedOpportunity Opportunity?   @relation(fields: [convertedOpportunityId], references: [id])
+  campaign             Campaign?      @relation(fields: [campaignId], references: [id])
   activities           LeadActivity[]
 
   @@index([companyId, status])
   @@index([companyId, ownerUserId])
   @@index([companyId, ownerOrgUnitId])
+  @@index([campaignId])
   @@map("leads")
 }
 
@@ -2454,13 +2567,15 @@ model Opportunity {
   updatedAt DateTime @updatedAt
   updatedBy String?
 
-  company    Company               @relation(fields: [companyId], references: [id])
-  customer   Customer?             @relation(fields: [customerId], references: [id])
-  activities OpportunityActivity[]
-  products   OpportunityProduct[]
-  saleOrders SaleOrder[]
-  quotations Quotation[]
-  fromLead   Lead?
+  company           Company               @relation(fields: [companyId], references: [id])
+  customer          Customer?             @relation(fields: [customerId], references: [id])
+  activities        OpportunityActivity[]
+  /// CD-79 รอบการต่อรองเงื่อนไขการค้า.
+  negotiationRounds NegotiationRound[]
+  products          OpportunityProduct[]
+  saleOrders        SaleOrder[]
+  quotations        Quotation[]
+  fromLead          Lead?
 
   @@index([companyId, stage])
   @@index([companyId, customerId])
@@ -2473,6 +2588,56 @@ model Opportunity {
 /// CD-65 กิจกรรมบนโอกาสการขาย — รูปเดียวกับ `LeadActivity` (ใช้ enum เดียวกัน):
 /// ไม่มี `dueAt` = บันทึกสิ่งที่ทำไปแล้ว (เสร็จทันที), มี `dueAt` = นัดติดตาม.
 /// append-mostly: ติ๊กเสร็จ/เปิดกลับได้ ไม่มีการลบ.
+/// CD-79 — เงื่อนไขการค้ามาตรฐานของบริษัท (ตั้งค่าที่หน้า CRM). การต่อรองที่ตกลง
+/// ค่าต่างจาก `standardValue` ถูกทำเครื่องหมายว่านอกมาตรฐานและส่งฝ่ายกฎหมาย.
+/// ปิดใช้ด้วย `active = false` — รอบการต่อรองเก่าเก็บค่ามาตรฐาน ณ วันนั้นไว้เองแล้ว.
+model TradeTermStandard {
+  id            String  @id @default(uuid())
+  companyId     String
+  code          String
+  name          String
+  standardValue String
+  sortOrder     Int     @default(0)
+  active        Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, code])
+  @@map("trade_term_standards")
+}
+
+/// CD-79 — หนึ่งรอบการต่อรองบนโอกาสการขาย. บันทึกแล้วไม่แก้ (ประวัติการต่อรอง):
+/// `terms` เก็บค่ามาตรฐาน ณ วันบันทึกไว้ในแถว เพื่อให้การเปลี่ยนมาตรฐานภายหลัง
+/// ไม่ตัดสินรอบเก่าใหม่.
+/// `terms`: `[{ code|null, name, agreed, standard|null, nonStandard, note|null }]`
+model NegotiationRound {
+  id               String   @id @default(uuid())
+  companyId        String
+  opportunityId    String
+  roundNo          Int
+  occurredOn       DateTime @db.Date
+  summary          String?
+  terms            Json
+  nonStandardCount Int      @default(0)
+
+  /// คำขอตรวจสัญญาที่ระบบสร้างส่งฝ่ายกฎหมาย (เมื่อมีเงื่อนไขนอกมาตรฐาน).
+  legalRequestId String?
+  /// ทำไมยังไม่ถึงฝ่ายกฎหมาย — ไม่ได้ตั้งประเภทคำขอ / ยื่นไม่ผ่าน (เหลือเป็นร่าง).
+  legalSendError String?
+
+  createdBy String
+  createdAt DateTime @default(now())
+
+  opportunity Opportunity @relation(fields: [opportunityId], references: [id])
+
+  @@unique([opportunityId, roundNo])
+  @@map("negotiation_rounds")
+}
+
 model OpportunityActivity {
   id            String @id @default(uuid())
   companyId     String
@@ -2777,4 +2942,95 @@ model Product {
   @@unique([companyId, code])
   @@index([companyId, active])
   @@map("products")
+}
+
+// ---------------------------------------------------------------------------
+// CD-82 เป้าและพยากรณ์
+// ---------------------------------------------------------------------------
+
+/// เป้ายอดขายรายเดือน (มูลค่าใบสั่งขายที่ไม่ยกเลิก — นิยามเดียวกับรายงานยอดขาย CD-83)
+/// ของพนักงานหนึ่งคนหรือกลุ่มหนึ่งในผังองค์กร. หนึ่งแถวต่อ (บริษัท, ขอบเขต, เจ้าของ, เดือน).
+///
+/// `amount` คือค่าที่มีผลอยู่ตอนนี้เสมอ ค่าที่รออนุมัติอยู่ใน `SalesTargetRevision`
+/// เท่านั้น — ตัวเลขบนหน้าจอจึงไม่เคยเป็นค่าที่ยังไม่มีใครอนุมัติ.
+model SalesTarget {
+  id        String           @id @default(uuid())
+  companyId String
+  scope     SalesTargetScope
+  /// `users.id` เมื่อ scope = user, `org_units.id` เมื่อ scope = org_unit.
+  subjectId String
+  /// `YYYY-MM` ตามปฏิทินไทย.
+  period    String
+  amount    Decimal          @db.Decimal(14, 2)
+
+  createdAt DateTime @default(now())
+  createdBy String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  company   Company               @relation(fields: [companyId], references: [id])
+  revisions SalesTargetRevision[]
+
+  @@unique([companyId, scope, subjectId, period])
+  @@index([companyId, period])
+  @@map("sales_targets")
+}
+
+/// ประวัติทุกการเปลี่ยนเป้า รวมค่าเดิม — "ปรับเป้าระหว่างงวดต้องผ่านผู้อำนวยการและเก็บ
+/// ค่าเดิมไว้". append-only: แถวเปลี่ยนได้แค่สถานะของตัวเองตอนคำขอได้ผล.
+model SalesTargetRevision {
+  id        String @id @default(uuid())
+  companyId String
+  targetId  String
+
+  /// NULL = ตั้งครั้งแรก.
+  previousAmount Decimal?                  @db.Decimal(14, 2)
+  newAmount      Decimal                   @db.Decimal(14, 2)
+  reason         String?
+  status         SalesTargetRevisionStatus
+
+  /// คำขออนุมัติบน Platform Request — มีเฉพาะการปรับงวดที่เริ่มแล้ว.
+  approvalRequestId String?   @unique
+  decidedAt         DateTime?
+
+  createdAt DateTime @default(now())
+  createdBy String?
+
+  target SalesTarget @relation(fields: [targetId], references: [id])
+
+  @@index([targetId, createdAt])
+  @@map("sales_target_revisions")
+}
+
+// ---------------------------------------------------------------------------
+// CD-71 แคมเปญ
+// ---------------------------------------------------------------------------
+
+/// แคมเปญ/กิจกรรมการตลาดต่อบริษัท — Lead ผูกด้วย `campaign_code` จากหน้าจอ,
+/// ไฟล์นำเข้า หรือเว็บฟอร์ม แล้ววัดผลได้ถึงโอกาสการขายและใบสั่งขาย.
+model Campaign {
+  id        String    @id @default(uuid())
+  companyId String
+  /// รหัสที่เว็บฟอร์ม/ไฟล์นำเข้าอ้าง — ตั้งครั้งเดียว แก้ไม่ได้.
+  code      String
+  name      String
+  /// ช่องทาง เช่น งานอีเวนต์, Facebook Ads, อีเมล — ข้อความอิสระ.
+  channel   String?
+  startDate DateTime? @db.Date
+  endDate   DateTime? @db.Date
+  budget    Decimal?  @db.Decimal(14, 2)
+  note      String?
+  /// ปิดแล้ว = ผูก Lead ใหม่ไม่ได้ แต่ผลเดิมยังดูได้.
+  active    Boolean   @default(true)
+
+  createdAt DateTime @default(now())
+  createdBy String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  company Company @relation(fields: [companyId], references: [id])
+  leads   Lead[]
+
+  @@unique([companyId, code])
+  @@map("campaigns")
 }

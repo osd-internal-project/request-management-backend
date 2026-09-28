@@ -52,6 +52,9 @@ function serviceWith(delegates: string[] = []) {
     },
     notificationDeliveryLog: { create: jest.fn(() => Promise.resolve({})) },
     user: { findUnique: jest.fn(() => Promise.resolve(null)) },
+    // CD-54/52: the standard wording, no stored preference.
+    notificationTemplate: { findUnique: jest.fn(() => Promise.resolve(null)) },
+    notificationPreference: { findUnique: jest.fn(() => Promise.resolve(null)) },
   };
   const service = new NotificationsService(
     prisma as never,

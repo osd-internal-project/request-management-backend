@@ -135,9 +135,10 @@ function prismaFor(request: Record<string, unknown>) {
   return { prisma, requestWrites, runs, events };
 }
 
-const flowService = new RequestFlowService({
-  findVersion: jest.fn(() => Promise.resolve(VERSION_ROW)),
-} as never);
+const flowService = new RequestFlowService(
+  { findVersion: jest.fn(() => Promise.resolve(VERSION_ROW)) } as never,
+  { emit: jest.fn(() => Promise.resolve()) } as never,
+);
 
 describe('request flow: moving after a step exit approval', () => {
   const waiting = {

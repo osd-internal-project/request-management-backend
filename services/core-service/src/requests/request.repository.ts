@@ -41,7 +41,15 @@ export type RequestListRow = RequestWithType & {
     filter tests. Without it a client renders its badge from `state`/`dueAt` and
     disagrees with the list it is rendering.
   */
-  slaClock: { state: string; dueAt: Date; breachedAt: Date | null } | null;
+  slaClock: {
+    state: string;
+    dueAt: Date;
+    breachedAt: Date | null;
+    /** CD-67 — the response clock; null for a type that is not a case. */
+    responseDueAt: Date | null;
+    respondedAt: Date | null;
+    responseBreachedAt: Date | null;
+  } | null;
   approvalCases: {
     /** The decision endpoint addresses the case, so the row has to carry it. */
     id: string;
@@ -83,6 +91,19 @@ export type RequestListRow = RequestWithType & {
  * `request:DSC` fields — so adding to this list publishes to that whole
  * audience.
  */
+/**
+ * The SLA clock as the list and the detail screen both read it — one literal
+ * so the two cannot disagree. CD-67 added the response clock.
+ */
+const SLA_CLOCK_SELECT = {
+  state: true,
+  dueAt: true,
+  breachedAt: true,
+  responseDueAt: true,
+  respondedAt: true,
+  responseBreachedAt: true,
+} as const;
+
 const REQUEST_PERSON_SELECT = {
   id: true,
   displayName: true,
@@ -141,7 +162,7 @@ export const REQUEST_DETAIL_INCLUDE = {
     nothing to render from, while the row that linked to it showed the badge.
     Same three columns as `search()` below, so the two screens cannot disagree.
   */
-  slaClock: { select: { state: true, dueAt: true, breachedAt: true } },
+  slaClock: { select: SLA_CLOCK_SELECT },
   approvalCases: {
     orderBy: { createdAt: 'desc' },
     take: 1,
@@ -350,9 +371,7 @@ export class RequestRepository extends BaseRepository<
         assignee: { select: { id: true, displayName: true } },
         // Which verbs a row offers depends on the flow's schema (`availableActions`).
         flowVersion: { select: { schemaVersion: true } },
-        slaClock: {
-          select: { state: true, dueAt: true, breachedAt: true },
-        },
+        slaClock: { select: SLA_CLOCK_SELECT },
         approvalCases: {
           orderBy: { createdAt: 'desc' },
           take: 1,

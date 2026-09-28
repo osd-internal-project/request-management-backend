@@ -51,6 +51,7 @@ import {
   CreateCustomerDto,
   CustomerContactDto,
   CustomerImportService,
+  CustomerInvoicesService,
   CustomerLocationDto,
   CustomersService,
   DeactivateCustomerDto,
@@ -89,6 +90,7 @@ export class ExternalCustomersController {
   constructor(
     private readonly customers: CustomersService,
     private readonly importer: CustomerImportService,
+    private readonly invoiceReader: CustomerInvoicesService,
   ) {}
 
   @ApiOperation({
@@ -200,6 +202,20 @@ export class ExternalCustomersController {
   @SensitiveResource('customer')
   findOne(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
     return this.customers.findOne(id, principal);
+  }
+
+  /** CD-89 / C360-02 — ใบแจ้งหนี้และการรับชำระ อ่านสดจาก SAP (read-only). */
+  @ApiOperation({
+    summary: 'ใบแจ้งหนี้และการรับชำระของลูกค้าจาก SAP',
+    description:
+      'อ่านสด ไม่เกิน 50 ใบล่าสุด · SAP ไม่ตอบ = source `unavailable` (หน้าไม่พัง) · ' +
+      'ERP_MODE=mock = ไม่แสดงตัวเลข',
+  })
+  @Get(':id/invoices')
+  @Permissions('integration.crm.customer.read')
+  @ActingPermissions('crm.customer.financial.read')
+  invoices(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.invoiceReader.list(id, principal);
   }
 
   /** CM-05 — consent badge อ่านสดจากระบบ PDPA กลาง (ห้ามเก็บซ้ำ). */

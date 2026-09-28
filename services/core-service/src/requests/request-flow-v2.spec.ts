@@ -9,6 +9,7 @@ import {
   holderOf,
   isSubmitMove,
   statusOnEntry,
+  v2Milestones,
   type ScopeStatus,
 } from './request-flow-v2';
 import { suggestedFlow } from './request-flow-suggest';
@@ -272,7 +273,7 @@ function onStep(
   };
 }
 
-function serviceWith(request: Record<string, unknown>) {
+function serviceWith(request: Record<string, unknown>, caseType = false) {
   const writes: Record<string, unknown>[] = [];
   const prisma = {
     request: {
@@ -294,12 +295,15 @@ function serviceWith(request: Record<string, unknown>) {
       return Promise.resolve(to === 'HEAD' ? FLOW.steps[1] : null);
     }),
     finishV2: jest.fn(() => Promise.resolve()),
+    announceV2: jest.fn(() => Promise.resolve()),
   };
   const sla = {
     start: jest.fn(() => Promise.resolve()),
     resume: jest.fn(() => Promise.resolve()),
     pause: jest.fn(() => Promise.resolve()),
     stop: jest.fn(() => Promise.resolve()),
+    markResponded: jest.fn(() => Promise.resolve()),
+    isCaseType: jest.fn(() => Promise.resolve(caseType)),
   };
   const approvals = {
     openStepCaseV2: jest.fn(() => Promise.resolve()),
@@ -583,7 +587,7 @@ describe('flow v2 runtime: where a decision lands', () => {
         create: jest.fn(() => Promise.resolve({})),
       },
     };
-    const runtime = new RequestFlowService({} as never);
+    const runtime = new RequestFlowService({} as never, {} as never);
     jest.spyOn(runtime, 'load').mockResolvedValue(FLOW);
     return { runtime, prisma, writes };
   }
@@ -622,5 +626,123 @@ describe('flow v2 runtime: where a decision lands', () => {
       status: 'submitted',
       receiverUserId: WORKER,
     });
+  });
+});
+
+describe('flow v2 after the merge: remote features reach the v2 paths', () => {
+  it('I1: a case type cannot be submitted without a severity', async () => {
+    const { service, runNumbers } = serviceWith(
+      onStep('REQUEST', 'draft', { severity: null }),
+      true,
+    );
+
+    const error = await refused(
+      service.submit('req-1', principal(REQUESTER), 'Bearer t'),
+    );
+
+    expect(error.details).toContainEqual({
+      field: 'severity',
+      reason: 'required',
+    });
+    expect(runNumbers.issueUnused).not.toHaveBeenCalled();
+  });
+
+  it('I2: receiving a v2 step is the receiving side responding', async () => {
+    const { service, sla } = serviceWith(onStep('RECEIVE', 'submitted'));
+
+    await service.receive('req-1', principal(WORKER));
+
+    expect(sla.markResponded).toHaveBeenCalledTimes(1);
+  });
+
+  it('I3: a computed field is worked out, not taken from the caller', async () => {
+    const computed: Flow = {
+      ...FLOW,
+      steps: FLOW.steps.map((s) =>
+        s.code === 'WORK'
+          ? {
+              ...s,
+              formSchema: {
+                properties: {
+                  deal_value: { type: 'number' },
+                  cost: { type: 'number' },
+                  margin: {
+                    type: 'number',
+                    'x-computed': {
+                      kind: 'margin_pct',
+                      value: 'deal_value',
+                      cost: 'cost',
+                    },
+                  },
+                },
+              },
+            }
+          : s,
+      ),
+    };
+    const { service, writes, flows } = serviceWith(
+      onStep('WORK', 'in_progress', { assigneeUserId: WORKER }),
+    );
+    flows.load.mockResolvedValue(computed);
+
+    await service.saveStepForm(
+      'req-1',
+      { data: { deal_value: 100, cost: 60, margin: 999 } },
+      principal(WORKER),
+    );
+
+    const saved = writes[0].stepFormData as Record<string, Record<string, unknown>>;
+    expect(saved.WORK.margin).toBe(40);
+  });
+
+  it('I4: every v2 move is announced after commit', async () => {
+    const { service, flows } = serviceWith(onStep('CONFIRM', 'approved'));
+
+    await service.advance(
+      'req-1',
+      { to_step: 'END' },
+      principal(REQUESTER),
+      'Bearer t',
+    );
+
+    expect(flows.announceV2).toHaveBeenCalledWith(
+      'req-1',
+      expect.objectContaining({ status: 'approved' }),
+    );
+  });
+});
+
+describe('flow v2 milestones: the v1 events a move stands for', () => {
+  it('I4: reaching approved the first time is completed, then approved', () => {
+    expect(
+      v2Milestones(
+        { status: 'pending_approval', completedAt: null },
+        { status: 'approved', completedAt: new Date() },
+      ),
+    ).toEqual(['completed', 'approved']);
+  });
+
+  it('I4: an approval step that hands the ticket to its receiver is a pre-work approval', () => {
+    expect(
+      v2Milestones(
+        { status: 'pending_approval', completedAt: null },
+        { status: 'submitted', completedAt: null },
+      ),
+    ).toEqual(['preApproved']);
+  });
+
+  it('I4: an approval in the middle of the work, or a second approval, announces nothing', () => {
+    expect(
+      v2Milestones(
+        { status: 'pending_approval', completedAt: null },
+        { status: 'in_progress', completedAt: null },
+      ),
+    ).toEqual([]);
+    expect(
+      v2Milestones(
+        { status: 'pending_approval', completedAt: new Date() },
+        { status: 'approved', completedAt: new Date() },
+      ),
+    ).toEqual([]);
   });
 });

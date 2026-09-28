@@ -125,6 +125,10 @@ export default () => ({
       process.env.CRM_STALE_SWEEP_INTERVAL_MS ?? 3600000,
     ),
   },
+  /** CD-52 — how often due daily digests are looked for (ms); 0 = off (tests). */
+  notificationDigestIntervalMs: Number(
+    process.env.NOTIFICATION_DIGEST_INTERVAL_MS ?? 300000,
+  ),
 
   /** CM-05/D-35 — the PDPA integration layer; mock until the central
    * service (DPO-owned) exists. */

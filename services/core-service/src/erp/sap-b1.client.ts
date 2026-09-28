@@ -5,6 +5,7 @@ import {
   ErpClient,
   ErpContext,
   ErpCustomerPayload,
+  ErpInvoice,
   ErpItem,
   ErpReceivables,
   ErpSalesOrderPayload,
@@ -243,6 +244,64 @@ export class SapB1Client implements ErpClient {
    * Sellable items, all pages: Service Layer answers 20 rows by default, so
    * ask for ITEMS_PAGE_SIZE and follow `odata.nextLink` to the end.
    */
+  /**
+   * CD-89 — A/R invoices of one BP, newest first. `DocumentStatus` says open
+   * or closed; `Cancelled` marks a document reversed by a cancellation, which
+   * B1 also closes — so cancelled is checked first.
+   */
+  async listInvoices(
+    ctx: ErpContext,
+    externalCode: string,
+    limit: number,
+  ): Promise<ErpInvoice[]> {
+    const select =
+      'DocNum,NumAtCard,DocDate,DocDueDate,DocCurrency,DocTotal,PaidToDate,DocumentStatus,Cancelled';
+    const res = await this.call(
+      ctx,
+      'GET',
+      `/Invoices?$select=${select}&$filter=${q(
+        `CardCode eq ${literal(externalCode)}`,
+      )}&$orderby=${q('DocDate desc,DocNum desc')}&$top=${limit}`,
+    );
+    const rows = this.json<{
+      value: {
+        DocNum: number;
+        NumAtCard: string | null;
+        DocDate: string;
+        DocDueDate: string | null;
+        DocCurrency: string | null;
+        DocTotal: number;
+        PaidToDate: number;
+        DocumentStatus: string;
+        Cancelled: string;
+      }[];
+    }>(res, 'อ่านใบแจ้งหนี้').value;
+
+    return rows.map((row) => {
+      const total = Number(row.DocTotal ?? 0);
+      const paid = Number(row.PaidToDate ?? 0);
+      const cancelled = row.Cancelled === 'tYES';
+      return {
+        docNo: String(row.DocNum),
+        reference: row.NumAtCard || null,
+        issuedOn: row.DocDate.slice(0, 10),
+        dueOn: row.DocDueDate ? row.DocDueDate.slice(0, 10) : null,
+        currency: row.DocCurrency || 'THB',
+        total,
+        paid,
+        // A cancelled invoice owes nothing, whatever PaidToDate says.
+        outstanding: cancelled
+          ? 0
+          : Math.max(0, Math.round((total - paid) * 100) / 100),
+        status: cancelled
+          ? 'cancelled'
+          : row.DocumentStatus === 'bost_Open'
+            ? 'open'
+            : 'paid',
+      };
+    });
+  }
+
   async listItems(ctx: ErpContext): Promise<ErpItem[]> {
     const items: ErpItem[] = [];
     let path: string | null =

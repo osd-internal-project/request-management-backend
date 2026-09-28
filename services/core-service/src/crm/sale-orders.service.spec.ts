@@ -100,6 +100,7 @@ describe('CRM โอกาสการขาย — เปิดได้โด�
         ),
       } as never,
       catalog as never,
+      { findFirst: jest.fn(() => Promise.resolve(null)) } as never,
     );
     return { service, opportunities, customers, audit, timeline, catalog };
   }
@@ -255,6 +256,7 @@ describe('CRM Lead — convert โดยไม่ต้องมีลูกค�
       {} as never,
       statuses as never,
       { kickLead: jest.fn() } as never,
+      { resolveCode: jest.fn(() => Promise.resolve(undefined)) } as never,
     );
     return { service, leads, customers, opportunities };
   }

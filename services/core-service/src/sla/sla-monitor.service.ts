@@ -5,8 +5,8 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '@request-management/share';
 import type { Prisma } from '@prisma/client';
+import { PrismaService } from '@request-management/share';
 import { DomainEventsService } from '../events/domain-events.service';
 import { DOMAIN_EVENTS } from '../events/event-catalog';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -100,12 +100,109 @@ export class SlaMonitorService implements OnModuleInit, OnModuleDestroy {
    */
   async sweep(
     at = new Date(),
-  ): Promise<{ breached: number; warned: number; approvals: number }> {
+  ): Promise<{
+    breached: number;
+    warned: number;
+    approvals: number;
+    responseOverdue: number;
+  }> {
     return {
       breached: await this.escalateBreached(at),
       warned: await this.warnNearDue(at),
       approvals: await this.escalateOverdueSteps(at),
+      responseOverdue: await this.flagResponseOverdue(at),
     };
+  }
+
+  /**
+   * CD-67 — a case past its response time with nobody on the receiving side
+   * having acted. Flagged once (`responseBreachedAt`), and the people who
+   * should have picked it up are told: the named receiver, whoever holds it,
+   * and the head of the receiving team.
+   */
+  private async flagResponseOverdue(at: Date): Promise<number> {
+    const clocks = await this.prisma.slaClock.findMany({
+      where: {
+        respondedAt: null,
+        responseBreachedAt: null,
+        responseDueAt: { lt: at },
+        state: { in: ['running', 'paused'] },
+      },
+      include: {
+        request: {
+          select: {
+            id: true,
+            companyId: true,
+            requestNo: true,
+            severity: true,
+            receiverUserId: true,
+            assigneeUserId: true,
+            receiverOrgUnitId: true,
+          },
+        },
+      },
+      take: 200,
+    });
+
+    // Heads of the receiving teams, in one query for the whole batch.
+    const unitIds = [
+      ...new Set(
+        clocks
+          .map((clock) => clock.request.receiverOrgUnitId)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    ];
+    const heads = new Map(
+      (unitIds.length
+        ? await this.prisma.orgUnit.findMany({
+            where: { id: { in: unitIds } },
+            select: { id: true, managerUserId: true },
+          })
+        : []
+      ).map((unit) => [unit.id, unit.managerUserId]),
+    );
+
+    for (const clock of clocks) {
+      const request = clock.request;
+      const recipients = [
+        ...new Set(
+          [
+            request.receiverUserId,
+            request.assigneeUserId,
+            request.receiverOrgUnitId
+              ? heads.get(request.receiverOrgUnitId)
+              : null,
+          ].filter((id): id is string => Boolean(id)),
+        ),
+      ];
+
+      const flagged = await this.prisma.slaClock.updateMany({
+        where: { requestId: clock.requestId, responseBreachedAt: null },
+        data: { responseBreachedAt: at },
+      });
+      if (flagged.count !== 1) continue;
+
+      for (const userId of recipients) {
+        await this.notifications.slaResponseOverdue(
+          userId,
+          request.companyId,
+          request.id,
+          request.requestNo,
+          request.severity,
+        );
+      }
+      await this.recordEvent(request.id, 'sla.response_overdue', {
+        recipients,
+        at: at.toISOString(),
+      });
+    }
+
+    if (clocks.length) {
+      this.logger.warn(
+        `CD-67: ${clocks.length} case(s) past their response time`,
+      );
+    }
+    return clocks.length;
   }
 
   /**
@@ -416,16 +513,29 @@ export class SlaMonitorService implements OnModuleInit, OnModuleDestroy {
     at: Date,
     level: number,
   ): Promise<void> {
+    await this.recordEvent(requestId, 'sla.escalated', {
+      recipients,
+      level,
+      at: at.toISOString(),
+    });
+  }
+
+  /** The timeline entry as the system; locks the row so `seq` cannot collide. */
+  private async recordEvent(
+    requestId: string,
+    type: string,
+    data: Record<string, unknown>,
+  ): Promise<void> {
     await this.prisma.$transaction(async (prisma) => {
       await prisma.requestEvent.create({
         data: {
           requestId,
           seq: await nextRequestEventSeq(prisma, requestId),
-          type: 'sla.escalated',
+          type,
           // No `actorId`: this was the system, and attributing it to a person
           // would put a name on the timeline who did nothing.
           actorLabel: 'system',
-          data: { recipients, level, at: at.toISOString() },
+          data: data as Prisma.InputJsonValue,
         },
       });
     });

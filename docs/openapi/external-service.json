@@ -1896,6 +1896,60 @@
         "x-sensitive-resource": "customer"
       }
     },
+    "/api/v1/crm/customers/{id}/invoices": {
+      "get": {
+        "description": "อ่านสด ไม่เกิน 50 ใบล่าสุด · SAP ไม่ตอบ = source `unavailable` (หน้าไม่พัง) · ERP_MODE=mock = ไม่แสดงตัวเลข",
+        "operationId": "ExternalCustomersController_invoices",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ใบแจ้งหนี้และการรับชำระของลูกค้าจาก SAP",
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.crm.customer.read"
+        ],
+        "x-acting-permission": [
+          "crm.customer.financial.read"
+        ]
+      }
+    },
     "/api/v1/crm/customers/{id}/contacts/consents": {
       "get": {
         "description": "อ่านสดจากระบบ PDPA กลาง ไม่ได้เก็บซ้ำไว้ที่นี่",
@@ -3740,6 +3794,102 @@
         ]
       }
     },
+    "/api/v1/crm/admin/trade-terms": {
+      "get": {
+        "operationId": "ExternalCrmAdminController_listTradeTerms",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.crm.admin.manage"
+        ],
+        "x-acting-permission": [
+          "admin.crm.manage"
+        ]
+      },
+      "put": {
+        "operationId": "ExternalCrmAdminController_replaceTradeTerms",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplaceTradeTermsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.crm.admin.manage"
+        ],
+        "x-acting-permission": [
+          "admin.crm.manage"
+        ]
+      }
+    },
     "/api/v1/crm/leads/statuses": {
       "get": {
         "description": "ส่งทั้งชุดรวมที่ปิดใช้งาน เพราะ Lead ที่ค้างบนขั้นที่เพิ่งปิดยังต้องมีชื่อและสีให้แสดง — หน้าจอเป็นคนกรอง active เอง. โค้ดตั้งได้ต่อบริษัท ไม่ใช่ enum",
@@ -3868,6 +4018,15 @@
                 "all",
                 "unassigned"
               ]
+            }
+          },
+          {
+            "name": "campaign_id",
+            "required": false,
+            "in": "query",
+            "description": "id แคมเปญจาก `GET /crm/campaigns`",
+            "schema": {
+              "type": "string"
             }
           },
           {
@@ -4732,6 +4891,303 @@
         ]
       }
     },
+    "/api/v1/crm/opportunities/summary": {
+      "get": {
+        "description": "จำนวน มูลค่า และมูลค่าถ่วงความน่าจะเป็น ของทุกแถวที่ตรงตัวกรองเดียวกับ GET /opportunities (ไม่แบ่งหน้า)",
+        "operationId": "ExternalOpportunitiesController_summary",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "เลขหน้าที่ต้องการ เริ่มที่ 1",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page_size",
+            "required": false,
+            "in": "query",
+            "description": "จำนวนรายการต่อหน้า",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "`sort=field` เรียงขึ้น, `sort=-field` เรียงลง",
+            "schema": {
+              "example": "-createdAt",
+              "type": "string",
+              "pattern": "^-?[a-zA-Z_][a-zA-Z0-9_]*$"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "ค้นจากชื่อโอกาส รหัสโอกาส ชื่อผู้มุ่งหวัง หรือชื่อลูกค้า",
+            "schema": {
+              "example": "ตัวอย่าง",
+              "type": "string"
+            }
+          },
+          {
+            "name": "stage",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "proposing",
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ],
+              "enum": [
+                "qualifying",
+                "proposing",
+                "negotiating",
+                "won",
+                "lost"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "open",
+            "required": false,
+            "in": "query",
+            "description": "`true` = เฉพาะที่ยังไม่ won/lost",
+            "schema": {
+              "example": "true",
+              "type": "string",
+              "enum": [
+                "true"
+              ]
+            }
+          },
+          {
+            "name": "customer_id",
+            "required": false,
+            "in": "query",
+            "description": "id ลูกค้าจาก `GET /crm/customers`",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "view",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "mine",
+              "type": "string",
+              "enum": [
+                "mine",
+                "all"
+              ]
+            }
+          },
+          {
+            "name": "follow_up",
+            "required": false,
+            "in": "query",
+            "description": "`overdue` เลยนัดติดตามแล้ว · `stale` ถูกเตือนว่าเงียบเกินเกณฑ์",
+            "schema": {
+              "example": "overdue",
+              "type": "string",
+              "enum": [
+                "overdue",
+                "stale"
+              ]
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ยอดรวมต่อขั้นของโอกาสการขาย",
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.read"
+        ],
+        "x-acting-permission": [
+          "crm.sales.read"
+        ]
+      }
+    },
+    "/api/v1/crm/opportunities/dashboard": {
+      "get": {
+        "description": "ภาพรวมลูกค้า Lead โอกาสการขาย และกิจกรรม ตามขอบเขตที่ผู้เรียกเห็นได้ · ส่วนลูกค้าเป็น null ถ้าไม่มี crm.customer.read",
+        "operationId": "ExternalOpportunitiesController_crmDashboard",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "view",
+            "required": false,
+            "in": "query",
+            "description": "`team` (ค่าตั้งต้น) = ทุกอย่างในขอบเขตที่เห็นได้ · `mine` = เฉพาะที่ตัวเองเป็นเจ้าของ",
+            "schema": {
+              "example": "team",
+              "type": "string",
+              "enum": [
+                "mine",
+                "team"
+              ]
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แดชบอร์ด CRM",
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.read"
+        ],
+        "x-acting-permission": [
+          "crm.sales.read"
+        ]
+      }
+    },
+    "/api/v1/crm/opportunities/report": {
+      "get": {
+        "description": "ยอดขาย (ใบสั่งขายที่ไม่ยกเลิก) · ชนะ/แพ้และอัตราการปิดในช่วง · เหตุผลที่แพ้ · ผลงานรายบุคคล — จำกัดตามขอบเขตที่ผู้เรียกเห็นได้",
+        "operationId": "ExternalOpportunitiesController_salesReport",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "วันแรกของช่วง (เวลาไทย) — ไม่ส่ง = วันที่ 1 ของเดือนนี้",
+            "schema": {
+              "example": "2026-09-01",
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "วันสุดท้ายของช่วง นับรวม (เวลาไทย) — ไม่ส่ง = วันนี้",
+            "schema": {
+              "example": "2026-09-30",
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          {
+            "name": "owner_user_id",
+            "required": false,
+            "in": "query",
+            "description": "เฉพาะพนักงานคนนี้ — ยังถูกจำกัดด้วยขอบเขตที่ผู้เรียกเห็นได้",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "รายงานยอดขาย",
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.read"
+        ],
+        "x-acting-permission": [
+          "crm.sales.read"
+        ]
+      }
+    },
     "/api/v1/crm/opportunities/lost-reasons": {
       "get": {
         "description": "ใช้เป็นค่าของ reason_code ตอนปิดแพ้",
@@ -4998,6 +5454,129 @@
           }
         ],
         "summary": "ลงกิจกรรมของโอกาสการขาย",
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.manage"
+        ],
+        "x-acting-permission": [
+          "crm.sales.manage"
+        ]
+      }
+    },
+    "/api/v1/crm/opportunities/{id}/negotiations": {
+      "get": {
+        "description": "ใหม่สุดก่อน · `standards` = เงื่อนไขมาตรฐานที่ใช้อยู่ของบริษัท (ตั้งที่หน้าตั้งค่า CRM)",
+        "operationId": "ExternalOpportunitiesController_listNegotiations",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "รอบการต่อรองเงื่อนไขการค้าของโอกาสการขาย",
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.read"
+        ],
+        "x-acting-permission": [
+          "crm.sales.read"
+        ]
+      },
+      "post": {
+        "operationId": "ExternalOpportunitiesController_recordNegotiation",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateNegotiationRoundDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "บันทึกรอบการต่อรอง (นอกมาตรฐาน = ส่งฝ่ายกฎหมายอัตโนมัติ)",
         "tags": [
           "crm"
         ],
@@ -5531,6 +6110,346 @@
         ],
         "x-acting-permission": [
           "crm.sales.manage"
+        ]
+      }
+    },
+    "/api/v1/crm/sales-targets": {
+      "get": {
+        "description": "ยอดขายจริง (ใบสั่งขายที่ไม่ยกเลิก) + พยากรณ์ (ยอดจริง + pipeline ถ่วงที่คาดว่าจะปิดในเดือน) เทียบเป้า — เห็นตามขอบเขต: ของตัวเอง/ทีมที่ดูแล หรือทั้งบริษัท",
+        "operationId": "ExternalSalesTargetsController_list",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "period",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "2026-09",
+              "type": "string",
+              "pattern": "^20\\d{2}-(0[1-9]|1[0-2])$"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เป้าและพยากรณ์ของเดือน",
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.read"
+        ],
+        "x-acting-permission": [
+          "crm.sales.read"
+        ]
+      },
+      "post": {
+        "description": "ตั้งครั้งแรก หรืองวดที่ยังไม่เริ่ม = มีผลทันที · ปรับเป้าที่มีอยู่ของงวดที่เริ่มแล้ว = สร้างร่างคำขออนุมัติ (ประเภทตั้งที่ ตั้งค่า CRM) ค่าใหม่มีผลเมื่ออนุมัติ",
+        "operationId": "ExternalSalesTargetsController_set",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetSalesTargetDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ตั้งหรือปรับเป้า",
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.manage"
+        ],
+        "x-acting-permission": [
+          "crm.target.manage"
+        ]
+      }
+    },
+    "/api/v1/crm/sales-targets/{id}/revisions": {
+      "get": {
+        "description": "รวมค่าเดิม ผู้เปลี่ยน เหตุผล และสถานะการอนุมัติ",
+        "operationId": "ExternalSalesTargetsController_revisions",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ประวัติการเปลี่ยนเป้า",
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.read"
+        ],
+        "x-acting-permission": [
+          "crm.sales.read"
+        ]
+      }
+    },
+    "/api/v1/crm/campaigns": {
+      "get": {
+        "description": "จำนวน Lead · แปลงเป็นโอกาส · ชนะ · ยอดขาย · ต้นทุนต่อ Lead — นับเฉพาะ Lead ที่ผู้เรียกเห็นได้",
+        "operationId": "ExternalCampaignsController_list",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "active",
+            "required": false,
+            "in": "query",
+            "description": "`true` = เฉพาะที่เปิดอยู่",
+            "schema": {
+              "example": "true",
+              "type": "string",
+              "enum": [
+                "true"
+              ]
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แคมเปญพร้อมผล",
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.read"
+        ],
+        "x-acting-permission": [
+          "crm.sales.read"
+        ]
+      },
+      "post": {
+        "operationId": "ExternalCampaignsController_create",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCampaignDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "สร้างแคมเปญ",
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.manage"
+        ],
+        "x-acting-permission": [
+          "crm.campaign.manage"
+        ]
+      }
+    },
+    "/api/v1/crm/campaigns/{id}": {
+      "patch": {
+        "description": "แก้ได้ทุกอย่างยกเว้นรหัส · active=false = ผูก Lead ใหม่ไม่ได้",
+        "operationId": "ExternalCampaignsController_update",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCampaignDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แก้ไข / ปิดแคมเปญ",
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.manage"
+        ],
+        "x-acting-permission": [
+          "crm.campaign.manage"
         ]
       }
     },
@@ -7715,6 +8634,15 @@
           "form_data": {
             "type": "object"
           },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "critical",
+              "high",
+              "medium",
+              "low"
+            ]
+          },
           "ref_type": {
             "type": "string",
             "example": "opportunity"
@@ -8241,15 +9169,6 @@
       "UpdateCrmConfigDto": {
         "type": "object",
         "properties": {
-          "code_prefix": {
-            "pattern": "^[A-Z0-9]{1,10}$",
-            "type": "string"
-          },
-          "code_padding": {
-            "maximum": 10,
-            "minimum": 3,
-            "type": "integer"
-          },
           "dedup_threshold": {
             "maximum": 1,
             "minimum": 0.5,
@@ -8319,8 +9238,62 @@
           "quotation_approval_type_code": {
             "pattern": "^[A-Z0-9_-]{1,20}$",
             "type": "string"
+          },
+          "target_approval_type_code": {
+            "pattern": "^([A-Z0-9_-]{1,20})?$",
+            "type": "string"
+          },
+          "contract_request_type_code": {
+            "pattern": "^([A-Z0-9_-]{1,20})?$",
+            "type": "string"
           }
         }
+      },
+      "TradeTermStandardDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "PAYMENT",
+            "pattern": "^[A-Z0-9_-]{1,40}$"
+          },
+          "name": {
+            "type": "string",
+            "example": "เครดิตการชำระเงิน",
+            "maxLength": 200,
+            "minLength": 1
+          },
+          "standard_value": {
+            "type": "string",
+            "example": "30 วัน",
+            "maxLength": 500,
+            "minLength": 1
+          },
+          "active": {
+            "type": "boolean",
+            "default": true
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "standard_value"
+        ]
+      },
+      "ReplaceTradeTermsDto": {
+        "type": "object",
+        "properties": {
+          "terms": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TradeTermStandardDto"
+            },
+            "maxItems": 100
+          }
+        },
+        "required": [
+          "terms"
+        ]
       },
       "ImportLeadsDto": {
         "type": "object",
@@ -8387,6 +9360,11 @@
             "example": "website",
             "description": "รหัสแหล่งที่มาตามที่บริษัทตั้งค่าไว้",
             "maxLength": 64
+          },
+          "campaign_code": {
+            "type": "string",
+            "example": "EXPO-2026-Q4",
+            "maxLength": 40
           },
           "customer_id": {
             "type": "string",
@@ -8506,6 +9484,11 @@
             "example": "website",
             "description": "รหัสแหล่งที่มาตามที่บริษัทตั้งค่าไว้",
             "maxLength": 64
+          },
+          "campaign_code": {
+            "type": "string",
+            "example": "EXPO-2026-Q4",
+            "maxLength": 40
           },
           "customer_id": {
             "type": "string",
@@ -8815,6 +9798,61 @@
           }
         }
       },
+      "NegotiationTermDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "รหัสเงื่อนไขมาตรฐาน — ไม่ส่ง = เงื่อนไขนอกรายการ (นับว่านอกมาตรฐาน)",
+            "example": "PAYMENT",
+            "maxLength": 40
+          },
+          "name": {
+            "type": "string",
+            "description": "ชื่อเงื่อนไข — ต้องมีเมื่อไม่ส่ง code",
+            "maxLength": 200
+          },
+          "agreed": {
+            "type": "string",
+            "example": "60 วัน",
+            "maxLength": 500
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "agreed"
+        ]
+      },
+      "CreateNegotiationRoundDto": {
+        "type": "object",
+        "properties": {
+          "occurred_on": {
+            "type": "string",
+            "example": "2026-09-28",
+            "description": "วันที่ต่อรอง (YYYY-MM-DD)",
+            "format": "date-time"
+          },
+          "summary": {
+            "type": "string",
+            "description": "สรุปการต่อรองรอบนี้",
+            "maxLength": 4000
+          },
+          "terms": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NegotiationTermDto"
+            },
+            "maxItems": 50
+          }
+        },
+        "required": [
+          "occurred_on",
+          "terms"
+        ]
+      },
       "OpenSaleOrderDto": {
         "type": "object",
         "properties": {
@@ -8907,6 +9945,129 @@
           "reason"
         ]
       },
+      "SetSalesTargetDto": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": "string",
+            "enum": [
+              "user",
+              "org_unit"
+            ],
+            "example": "user"
+          },
+          "subject_id": {
+            "type": "string",
+            "description": "id พนักงาน หรือ id กลุ่มในผังองค์กร",
+            "minLength": 1
+          },
+          "period": {
+            "type": "string",
+            "example": "2026-10",
+            "pattern": "^20\\d{2}-(0[1-9]|1[0-2])$"
+          },
+          "amount": {
+            "type": "number",
+            "example": 1500000,
+            "description": "บาท",
+            "maximum": 999999999999,
+            "minimum": 0
+          },
+          "reason": {
+            "type": "string",
+            "description": "บังคับเมื่อปรับเป้าของงวดที่เริ่มแล้ว — ไปอยู่ในคำขออนุมัติ",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "amount",
+          "period",
+          "scope",
+          "subject_id"
+        ]
+      },
+      "CreateCampaignDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "EXPO-2026-Q4",
+            "description": "รหัสที่เว็บฟอร์ม/ไฟล์นำเข้าอ้าง — ตั้งครั้งเดียว แก้ไม่ได้",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$"
+          },
+          "name": {
+            "type": "string",
+            "example": "งาน Thailand ICT Expo 2026",
+            "maxLength": 255,
+            "minLength": 1
+          },
+          "channel": {
+            "type": "string",
+            "example": "อีเวนต์",
+            "maxLength": 100
+          },
+          "start_date": {
+            "type": "string",
+            "example": "2026-10-01",
+            "format": "date-time"
+          },
+          "end_date": {
+            "type": "string",
+            "example": "2026-10-31",
+            "format": "date-time"
+          },
+          "budget": {
+            "type": "number",
+            "example": 250000,
+            "description": "งบประมาณ (บาท)",
+            "maximum": 999999999999,
+            "minimum": 0
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "code",
+          "name"
+        ]
+      },
+      "UpdateCampaignDto": {
+        "type": "object",
+        "properties": {
+          "active": {
+            "type": "boolean",
+            "description": "false = ปิด (ผูก Lead ใหม่ไม่ได้)"
+          },
+          "name": {
+            "maxLength": 255,
+            "type": "string",
+            "minLength": 1
+          },
+          "channel": {
+            "maxLength": 100,
+            "type": "string"
+          },
+          "start_date": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "end_date": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "budget": {
+            "maximum": 999999999999,
+            "minimum": 0,
+            "type": "number"
+          },
+          "note": {
+            "maxLength": 2000,
+            "type": "string"
+          }
+        }
+      },
       "UpdateQuotationDto": {
         "type": "object",
         "properties": {
@@ -8996,6 +10157,12 @@
             "example": "website",
             "maxLength": 64,
             "minLength": 1
+          },
+          "campaign_code": {
+            "type": "string",
+            "description": "รหัสแคมเปญ (CD-71) เช่นฟอร์มลงทะเบียนงานอีเวนต์ — ต้องเป็นแคมเปญที่เปิดอยู่",
+            "example": "EXPO-2026-Q4",
+            "maxLength": 40
           },
           "contact_name": {
             "type": "string",
@@ -9309,6 +10476,10 @@
           },
           "source_code": {
             "maxLength": 64,
+            "type": "string"
+          },
+          "campaign_code": {
+            "maxLength": 40,
             "type": "string"
           },
           "note": {

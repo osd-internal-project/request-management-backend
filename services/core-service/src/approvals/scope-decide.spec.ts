@@ -176,14 +176,19 @@ describe('the outcome of a finished case is announced', () => {
     expect(emitted).toEqual([]);
   });
 
-  it('emits nothing for a pre-work approval — that only hands the ticket on', async () => {
+  it('CD-80: a pre-work approval is announced as pre_approved — never as request.approved', async () => {
     const { service, emitted } = serviceWith(
       decidingCase({ subjectType: 'request:DSC:pre' }),
     );
 
     await service.decide('case-1', { decision: 'approve', note: 'ok' }, named);
 
-    expect(emitted).toEqual([]);
+    // It only hands the ticket on — the work is not done, so not
+    // `request.approved` — but a quotation waiting on the discount decision
+    // must hear it.
+    expect(emitted.map((event) => event.name)).toEqual([
+      'request.pre_approved',
+    ]);
   });
 });
 

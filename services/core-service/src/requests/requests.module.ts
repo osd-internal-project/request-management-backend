@@ -3,6 +3,7 @@ import { PrismaTransactionService } from '@request-management/share';
 import { RequestsService } from './requests.service';
 import { RequestFlowAdminService } from './request-flow-admin.service';
 import { BottleneckService } from '../reports/bottleneck.service';
+import { SlaComplianceService } from '../reports/sla-compliance.service';
 import { RequestRepository } from './request.repository';
 import { AttachmentRepository } from './attachment.repository';
 import { RequestTypeRepository } from './request-type.repository';
@@ -28,6 +29,7 @@ import { RequestFlowModule } from '../request-flow/request-flow.module';
     RequestsService,
     RequestFlowAdminService,
     BottleneckService,
+    SlaComplianceService,
     RequestRepository,
     AttachmentRepository,
     RequestTypeRepository,
@@ -44,6 +46,7 @@ import { RequestFlowModule } from '../request-flow/request-flow.module';
     RequestFlowAdminService,
     RequestRepository,
     BottleneckService,
+    SlaComplianceService,
   ],
 })
 export class RequestsModule {}

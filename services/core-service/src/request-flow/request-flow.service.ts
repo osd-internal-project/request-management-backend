@@ -15,7 +15,12 @@ import {
   roleOf,
   scopeOf,
   statusOnEntry,
+  v2Milestones,
+  type MilestoneFacts,
+  type V2Milestone,
 } from '../requests/request-flow-v2';
+import { DomainEventsService } from '../events/domain-events.service';
+import { DOMAIN_EVENTS } from '../events/event-catalog';
 import {
   RequestFlowRepository,
   toFlow,
@@ -61,7 +66,10 @@ interface StepHolder {
  */
 @Injectable()
 export class RequestFlowService {
-  constructor(private readonly flows: RequestFlowRepository) {}
+  constructor(
+    private readonly flows: RequestFlowRepository,
+    private readonly domainEvents: DomainEventsService,
+  ) {}
 
   latestFor(
     companyId: string,
@@ -373,6 +381,25 @@ export class RequestFlowService {
     );
   }
 
+  /** After commit: the v1 domain events a v2 move crossed, for CRM and other listeners. */
+  async announceV2(requestId: string, from: MilestoneFacts): Promise<void> {
+    const request = await this.flows.findRequestFacts(requestId);
+    if (!request) return;
+
+    for (const milestone of v2Milestones(from, request)) {
+      await this.domainEvents.emit({
+        name: MILESTONE_EVENTS[milestone],
+        payload: {
+          company_id: request.companyId,
+          request_id: request.id,
+          request_no: request.requestNo,
+          type_code: request.typeCode,
+          requester_id: request.requesterId,
+        },
+      });
+    }
+  }
+
   /** The person a step's receiver rule names, falling back to `current`. */
   private async personFor(
     prisma: Prisma.TransactionClient,
@@ -416,3 +443,9 @@ export class RequestFlowService {
     });
   }
 }
+
+const MILESTONE_EVENTS = {
+  preApproved: DOMAIN_EVENTS.requestPreApproved,
+  completed: DOMAIN_EVENTS.requestCompleted,
+  approved: DOMAIN_EVENTS.requestApproved,
+} as const satisfies Record<V2Milestone, string>;

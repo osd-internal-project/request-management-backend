@@ -32,6 +32,7 @@ function harness(
     audit as never,
     transactions as never,
     statuses as never,
+    { resolveCode: jest.fn(() => Promise.resolve(undefined)) } as never,
   );
 
   return { service, leads, audit };

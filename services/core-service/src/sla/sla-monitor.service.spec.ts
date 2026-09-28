@@ -42,9 +42,12 @@ function monitorWith(options: {
   const warned: string[] = [];
   const overdue: [string, boolean][] = [];
   const clockWrites: Record<string, unknown>[] = [];
-  const findMany = jest.fn((args: { where: { dueAt: { gte?: Date } } }) =>
+  const findMany = jest.fn((args: { where: { dueAt?: { gte?: Date } } }) =>
     Promise.resolve(
-      ('gte' in args.where.dueAt ? near.shift() : clocks.shift()) ?? [],
+      // CD-67's response pass filters on `responseDueAt`, not `dueAt`: none here.
+      !args.where.dueAt
+        ? []
+        : (('gte' in args.where.dueAt ? near.shift() : clocks.shift()) ?? []),
     ),
   );
 

@@ -36,6 +36,8 @@ describe('SUP-03 กล่องแจ้งเตือน', () => {
     expect(whereOf(prisma.notification.count)).toEqual({
       userId: 'me',
       companyId: 'osd',
+      // CD-52: items held for the digest are not in the bell
+      heldForDigest: false,
       readAt: null,
     });
   });
@@ -61,7 +63,38 @@ describe('SUP-03 กล่องแจ้งเตือน', () => {
     expect(whereOf(prisma.notification.updateMany)).toEqual({
       id: 'someone-elses',
       userId: 'me',
+      readAt: null,
     });
+  });
+
+  it('CD-55 opening keeps the FIRST read time and records it as opened', async () => {
+    const { service, prisma } = harness();
+
+    await service.markRead('n-1', principal());
+
+    const call = (
+      prisma.notification.updateMany.mock.calls[0] as unknown as [
+        { where: Where; data: Where },
+      ]
+    )[0];
+    // `readAt: null` in the where: a second open matches nothing, so the
+    // original read time survives.
+    expect(call.where).toMatchObject({ readAt: null });
+    expect(call.data).toMatchObject({ readVia: 'opened' });
+  });
+
+  it('CD-55 "อ่านทั้งหมด" is recorded as mark_all, not as having opened each one', async () => {
+    const { service, prisma } = harness();
+
+    await service.markAllRead(principal());
+
+    const call = (
+      prisma.notification.updateMany.mock.calls[0] as unknown as [
+        { where: Where; data: Where },
+      ]
+    )[0];
+    expect(call.where).toMatchObject({ readAt: null });
+    expect(call.data).toMatchObject({ readVia: 'mark_all' });
   });
 
   it('SUP-03 ROLE-01 every inbox route needs notification.read', () => {
@@ -77,5 +110,17 @@ describe('SUP-03 กล่องแจ้งเตือน', () => {
     for (const handler of ['list', 'unreadCount', 'markRead', 'markAllRead']) {
       expect(permissionsOf(handler)).toEqual(['notification.read']);
     }
+  });
+
+  it('CD-55 the company-wide log needs audit.read, not the inbox permission', () => {
+    expect(
+      Reflect.getMetadata(
+        PERMISSIONS_KEY,
+        Object.getOwnPropertyDescriptor(
+          NotificationsController.prototype,
+          'searchLog',
+        )?.value as object,
+      ),
+    ).toEqual(['audit.read']);
   });
 });

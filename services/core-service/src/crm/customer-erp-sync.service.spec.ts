@@ -97,6 +97,7 @@ function harness(options: { erpDown?: boolean; bpInSap?: string } = {}) {
     createSalesOrder: jest.fn(() => Promise.resolve({ externalCode: 'X' })),
     cancelSalesOrder: jest.fn(() => Promise.resolve()),
     listItems: jest.fn(() => Promise.resolve([])),
+    listInvoices: jest.fn(() => Promise.resolve([])),
   };
 
   const audit = { record: jest.fn(() => Promise.resolve()) };

@@ -27,6 +27,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiHeader, ApiTags } from '@nestjs/swagger';
@@ -45,7 +46,9 @@ import {
   CreateSegmentValueDto,
   CrmAdminService,
   LeadStatusService,
+  NegotiationsService,
   ReorderLeadStatusesDto,
+  ReplaceTradeTermsDto,
   UpdateCrmConfigDto,
   UpdateKycProductDto,
   UpdateLeadStatusSettingDto,
@@ -75,6 +78,7 @@ export class ExternalCrmAdminController {
   constructor(
     private readonly admin: CrmAdminService,
     private readonly leadStatuses: LeadStatusService,
+    private readonly negotiations: NegotiationsService,
   ) {}
 
   // --- สถานะ Lead: หน้า Lead มีสถานะอะไรบ้าง (D-09) -----------------------
@@ -238,5 +242,25 @@ export class ExternalCrmAdminController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.admin.updateConfig(dto, principal);
+  }
+
+  // --- CD-79 เงื่อนไขการค้ามาตรฐาน -----------------------------------------
+
+  @Get('trade-terms')
+  @Permissions('integration.crm.admin.manage')
+  @ActingPermissions('admin.crm.manage')
+  listTradeTerms(@CurrentPrincipal() principal: Principal) {
+    return this.negotiations.listStandards(principal);
+  }
+
+  /** แทนที่ทั้งชุด — รหัสที่ไม่ส่งมาถูกปิดใช้ ไม่ถูกลบ. */
+  @Put('trade-terms')
+  @Permissions('integration.crm.admin.manage')
+  @ActingPermissions('admin.crm.manage')
+  replaceTradeTerms(
+    @Body() dto: ReplaceTradeTermsDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.negotiations.replaceStandards(dto, principal);
   }
 }

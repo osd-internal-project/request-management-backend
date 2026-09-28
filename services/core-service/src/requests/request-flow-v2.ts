@@ -199,3 +199,22 @@ function hasForm(step: FlowStep): boolean {
 function invalidFlow(details: ErrorDetail[]): AppError {
   return new AppError('VALIDATION_FAILED', 'flow นี้ใช้งานไม่ได้', details);
 }
+
+export type V2Milestone = 'preApproved' | 'completed' | 'approved';
+
+/** Where a request stood, for telling which lifecycle moments a move crossed. */
+export interface MilestoneFacts {
+  readonly status: string;
+  readonly completedAt: Date | null;
+}
+
+/**
+ * The v1 domain events a v2 move stands for, so CRM consumers keep working:
+ * reaching `approved` the first time is work done and accepted; an approval
+ * step that hands the ticket to its receiver is a before-work approval.
+ */
+export function v2Milestones(from: MilestoneFacts, to: MilestoneFacts): V2Milestone[] {
+  if (!from.completedAt && to.status === 'approved') return ['completed', 'approved'];
+  if (from.status === 'pending_approval' && to.status === 'submitted') return ['preApproved'];
+  return [];
+}

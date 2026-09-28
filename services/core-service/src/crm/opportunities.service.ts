@@ -20,6 +20,7 @@ import {
 } from './sales.repositories';
 import { RunNumberClient } from '../run-number/run-number.client';
 import { CustomerRepository } from './customer.repository';
+import { CrmConfigRepository } from './segment.repositories';
 import { KycProductRuleRepository } from './kyc-product.repository';
 import { ProductCatalogService } from './product-catalog.service';
 import { CustomerTimelineService } from './customer-timeline.service';
@@ -61,10 +62,79 @@ export class OpportunitiesService {
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
     private readonly catalog: ProductCatalogService,
+    private readonly configs: CrmConfigRepository,
   ) {}
 
   async list(actor: Principal, query: ListOpportunitiesQueryDto) {
     const { skip, take } = toSkipTake(query);
+    const where = this.listWhere(actor, query);
+
+    const [rows, total] = await Promise.all([
+      this.opportunities.findMany({
+        where,
+        select: OPPORTUNITY_LIST_SELECT,
+        skip,
+        take,
+        orderBy: { updatedAt: 'desc' },
+      }),
+      this.opportunities.count({ where }),
+    ]);
+
+    return paginated(rows as unknown[], query, total);
+  }
+
+  /**
+   * CD-74 — ยอดต่อขั้นของ*ทุก*แถวที่ตรงเงื่อนไขเดียวกับ `list` (ไม่ใช่แค่หน้าที่โหลด):
+   * จำนวน, มูลค่า, และมูลค่าถ่วงความน่าจะเป็นสำหรับขั้นที่ยังเปิด. กระดานเคยรวมเลข
+   * จากการ์ดที่ดึงมาไม่เกิน 100 ใบ ซึ่งผิดทันทีที่มีมากกว่านั้น.
+   */
+  async stageSummary(actor: Principal, query: ListOpportunitiesQueryDto) {
+    const rows = (await this.opportunities.findMany({
+      where: this.listWhere(actor, query),
+      select: { stage: true, amount: true, probability: true },
+    })) as {
+      stage: string;
+      amount: Prisma.Decimal | null;
+      probability: number | null;
+    }[];
+
+    const open = new Set<string>(OPEN_STAGES);
+    const byStage = new Map<
+      string,
+      { count: number; amount: number; weighted: number }
+    >();
+    for (const row of rows) {
+      const bucket = byStage.get(row.stage) ?? {
+        count: 0,
+        amount: 0,
+        weighted: 0,
+      };
+      const amount = row.amount === null ? 0 : Number(row.amount);
+      bucket.count += 1;
+      bucket.amount += amount;
+      bucket.weighted += (amount * (row.probability ?? 0)) / 100;
+      byStage.set(row.stage, bucket);
+    }
+
+    return [...OPEN_STAGES, 'won', 'lost'].map((stage) => {
+      const bucket = byStage.get(stage) ?? { count: 0, amount: 0, weighted: 0 };
+      return {
+        stage,
+        count: bucket.count,
+        amount: Math.round(bucket.amount * 100) / 100,
+        // ถ่วงน้ำหนักมีความหมายเฉพาะดีลที่ยังเปิด — ชนะ/แพ้ ปิดไปแล้ว.
+        weighted_amount: open.has(stage)
+          ? Math.round(bucket.weighted * 100) / 100
+          : null,
+      };
+    });
+  }
+
+  /** เงื่อนไขของหน้ารายการ — ใช้ร่วมกันกับ `stageSummary` ให้ตัวเลขตรงกับแถว (SCOPE-02). */
+  private listWhere(
+    actor: Principal,
+    query: ListOpportunitiesQueryDto,
+  ): Prisma.OpportunityWhereInput {
     const filters: Prisma.OpportunityWhereInput = {};
 
     if (query.stage) filters.stage = query.stage;
@@ -89,22 +159,9 @@ export class OpportunitiesService {
       ];
     }
 
-    const where = {
+    return {
       AND: [visibleSalesWhere(salesAccessSubject(actor)), filters],
-    } as Prisma.OpportunityWhereInput;
-
-    const [rows, total] = await Promise.all([
-      this.opportunities.findMany({
-        where,
-        select: OPPORTUNITY_LIST_SELECT,
-        skip,
-        take,
-        orderBy: { updatedAt: 'desc' },
-      }),
-      this.opportunities.count({ where }),
-    ]);
-
-    return paginated(rows as unknown[], query, total);
+    };
   }
 
   /** Detail + the ชุดงาน B answer: does this opportunity demand KYC attention? */
@@ -163,7 +220,19 @@ export class OpportunitiesService {
       };
     }
 
-    return { ...found, kycWarning };
+    // CD-81 — the type Legal takes contract work on, so the deal page can
+    // offer "ขอจัดทำสัญญา" and track those requests. The CRM settings are
+    // admin-only; the one code the page needs travels with the deal.
+    const config = (await this.configs.findFirst({
+      where: { companyId: found.companyId },
+      select: { contractRequestTypeCode: true },
+    })) as { contractRequestTypeCode: string | null } | null;
+
+    return {
+      ...found,
+      kycWarning,
+      contractRequestTypeCode: config?.contractRequestTypeCode ?? null,
+    };
   }
 
   async lostReasonOptions(actor: Principal) {

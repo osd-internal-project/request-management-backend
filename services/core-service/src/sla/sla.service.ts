@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@request-management/share';
+import { Prisma } from '@prisma/client';
 import type {
-  Prisma,
   Request,
+  RequestSeverity,
   RequestType,
   SlaClock,
   SlaCoverage,
@@ -13,6 +14,7 @@ import {
   workingMsBetween,
   type WorkingCalendar,
 } from './business-hours';
+import { readSeverityTargets, type SeverityTargets } from './severity';
 
 const HOUR_MS = 60 * 60 * 1000;
 
@@ -40,39 +42,62 @@ export class SlaService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Creates the clock at submit, **paused**: the SLA counts from the first
-   * assignment (`receive` or `assign`), which is when `resume` starts it.
+   * Creates the clock at submit. Paused for most types — the SLA counts from the
+   * first assignment (D1), when `resume` starts it. A case type (CD-67) runs from
+   * submit, and every type with a response target gets that clock now.
    */
   async start(
     prisma: Prisma.TransactionClient,
     request: Request & { requestType: RequestType },
     at: Date,
   ): Promise<void> {
-    const hours = await this.hoursFor(
+    const { hours, responseHours } = await this.budgetFor(
       prisma,
       request.companyId,
       request.typeCode,
       request.requestType.slaHours,
+      request.severity,
     );
 
     if (hours === null) return;
 
+    const { calendar, coverage } = await this.rulesFor(
+      prisma,
+      request.companyId,
+      request.typeCode,
+      request.requestType.slaCoverage,
+    );
+
+    // CD-67 — the response clock is set once, at the first submit, and is
+    // not paused by a return: "has anyone picked this up?" does not wait on
+    // the requester.
+    const responseDueAt =
+      responseHours === null
+        ? null
+        : addWorkingMs(at, responseHours * HOUR_MS, calendar, coverage);
+    // A case type counts its resolution time from submit; the rest wait for D1.
+    const runsFromSubmit = responseHours !== null;
+    const dueAt = runsFromSubmit
+      ? addWorkingMs(at, hours * HOUR_MS, calendar, coverage)
+      : null;
+
     await prisma.slaClock.upsert({
       where: { requestId: request.id },
       update: {},
-      // `dueAt` is a placeholder until `resume` computes it from the budget.
       create: {
         requestId: request.id,
         startedAt: at,
-        pausedAt: at,
-        dueAt: at,
-        state: 'paused',
+        responseDueAt,
+        ...(dueAt
+          ? { dueAt, state: 'running' }
+          : // `dueAt` is a placeholder until `resume` computes it from the budget.
+            { pausedAt: at, dueAt: at, state: 'paused' }),
       },
     });
 
     await prisma.request.update({
       where: { id: request.id },
-      data: { dueAt: null },
+      data: { dueAt },
     });
   }
 
@@ -128,11 +153,12 @@ export class SlaService {
     });
     if (!clock || clock.state !== 'paused' || !clock.pausedAt) return;
 
-    const hours = await this.hoursFor(
+    const { hours } = await this.budgetFor(
       prisma,
       clock.request.companyId,
       clock.request.typeCode,
       clock.request.requestType.slaHours,
+      clock.request.severity,
     );
 
     if (hours === null) return;
@@ -190,11 +216,12 @@ export class SlaService {
         ? Math.max(workingMsBetween(clock.startedAt, at, calendar, coverage), 0)
         : 0;
     const used = clock.accumulatedMs + ran;
-    const hours = await this.hoursFor(
+    const { hours } = await this.budgetFor(
       prisma,
       clock.request.companyId,
       clock.request.typeCode,
       clock.request.requestType.slaHours,
+      clock.request.severity,
     );
     const breached = hours === null ? at > clock.dueAt : used > hours * HOUR_MS;
 
@@ -215,11 +242,12 @@ export class SlaService {
     clock: SlaClock & { request: Request & { requestType: RequestType } },
     at = new Date(),
   ): Promise<number | null> {
-    const hours = await this.hoursFor(
+    const { hours } = await this.budgetFor(
       prisma,
       clock.request.companyId,
       clock.request.typeCode,
       clock.request.requestType.slaHours,
+      clock.request.severity,
     );
     if (!hours) return null;
 
@@ -255,21 +283,143 @@ export class SlaService {
   }
 
   /**
+   * CD-67 — the first sign of life from the receiving side: accepted,
+   * assigned, or a comment by anyone but the requester. Only the first counts;
+   * late is recorded as a breach even if the sweep has not run yet.
+   */
+  async markResponded(
+    requestId: string,
+    at = new Date(),
+    prisma: Prisma.TransactionClient = this.prisma,
+  ): Promise<void> {
+    const clock = await prisma.slaClock.findUnique({ where: { requestId } });
+    if (!clock?.responseDueAt || clock.respondedAt) return;
+
+    await prisma.slaClock.update({
+      where: { requestId },
+      data: {
+        respondedAt: at,
+        ...(at > clock.responseDueAt && !clock.responseBreachedAt
+          ? { responseBreachedAt: at }
+          : {}),
+      },
+    });
+  }
+
+  /**
    * D-09: hours from `SlaConfig` for this company and type, falling back to
    * the type's own default. `null` means this type has no SLA at all, which is
    * different from "zero hours".
+   *
+   * CD-67: a type whose config carries severity targets is a case type — its
+   * resolution budget and its response budget come from the request's
+   * severity. A case submitted without one (only possible for rows older than
+   * the rule) falls back to `hours` and gets no response clock.
    */
-  private async hoursFor(
+  private async budgetFor(
     prisma: Prisma.TransactionClient,
     companyId: string,
     typeCode: string,
     fallback: number | null,
-  ): Promise<number | null> {
+    severity: RequestSeverity | null,
+  ): Promise<{ hours: number | null; responseHours: number | null }> {
     const config = await prisma.slaConfig.findFirst({
       where: { companyId, requestTypeCode: typeCode },
     });
 
-    return config?.hours ?? fallback;
+    const targets = readSeverityTargets(config?.severityTargets);
+    if (targets && severity) {
+      return {
+        hours: targets[severity].resolutionHours,
+        responseHours: targets[severity].responseHours,
+      };
+    }
+    return { hours: config?.hours ?? fallback, responseHours: null };
+  }
+
+  /** CD-67 — every case type of a company with its targets, for the submit screen. */
+  async caseTargetsOf(
+    companyId: string,
+  ): Promise<Map<string, SeverityTargets>> {
+    const configs = await this.prisma.slaConfig.findMany({
+      where: { companyId, NOT: { severityTargets: { equals: Prisma.DbNull } } },
+      select: { requestTypeCode: true, severityTargets: true },
+    });
+    const result = new Map<string, SeverityTargets>();
+    for (const config of configs) {
+      const targets = readSeverityTargets(config.severityTargets);
+      if (targets) result.set(config.requestTypeCode, targets);
+    }
+    return result;
+  }
+
+  /**
+   * CD-67 — makes a type a case type in one company (targets), or stops it
+   * being one (null). Written from A2 alongside the type, in its transaction.
+   *
+   * A company with no config row gets one: `hours` and `coverage` are copied
+   * from the type so its flat clock — used only by a request with no severity,
+   * i.e. none once this is a case type — reads the same as before. An existing
+   * row takes the type's coverage too: the clock reads coverage from this row,
+   * and the screen editing the targets is the one showing the type's coverage.
+   *
+   * Returns the targets it replaced, for the caller's audit entry.
+   */
+  async setSeverityTargets(
+    prisma: Prisma.TransactionClient,
+    companyId: string,
+    type: { code: string; slaHours: number | null; slaCoverage: SlaCoverage },
+    targets: SeverityTargets | null,
+    actorId: string,
+  ): Promise<SeverityTargets | null> {
+    const before = await prisma.slaConfig.findFirst({
+      where: { companyId, requestTypeCode: type.code },
+      select: { severityTargets: true },
+    });
+    const previous = readSeverityTargets(before?.severityTargets);
+
+    if (!targets) {
+      if (previous) {
+        await prisma.slaConfig.updateMany({
+          where: { companyId, requestTypeCode: type.code },
+          data: { severityTargets: Prisma.DbNull, updatedBy: actorId },
+        });
+      }
+      return previous;
+    }
+    const json = targets as unknown as Prisma.InputJsonValue;
+    await prisma.slaConfig.upsert({
+      where: {
+        companyId_requestTypeCode: { companyId, requestTypeCode: type.code },
+      },
+      create: {
+        companyId,
+        requestTypeCode: type.code,
+        hours: type.slaHours ?? targets.low.resolutionHours,
+        coverage: type.slaCoverage,
+        severityTargets: json,
+        updatedBy: actorId,
+      },
+      update: {
+        coverage: type.slaCoverage,
+        severityTargets: json,
+        updatedBy: actorId,
+      },
+    });
+    return previous;
+  }
+
+  /** CD-67 — whether this company treats the type as a case (severity required). */
+  async isCaseType(
+    companyId: string,
+    typeCode: string,
+    prisma: Prisma.TransactionClient = this.prisma,
+  ): Promise<boolean> {
+    const config = await prisma.slaConfig.findFirst({
+      where: { companyId, requestTypeCode: typeCode },
+      select: { severityTargets: true },
+    });
+    return readSeverityTargets(config?.severityTargets) !== null;
   }
 
   /**

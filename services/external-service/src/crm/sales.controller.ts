@@ -21,6 +21,7 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   Param,
   Patch,
   Post,
@@ -44,26 +45,39 @@ import {
 import type { Principal } from '@request-management/share';
 import {
   AssignLeadDto,
+  CampaignsService,
   CancelSaleOrderDto,
   ConvertLeadDto,
+  CreateCampaignDto,
   CreateLeadActivityDto,
   CreateLeadDto,
+  CreateNegotiationRoundDto,
   CreateOpportunityDto,
   CreateQuotationDto,
+  CrmDashboardQueryDto,
+  CrmDashboardService,
   DisqualifyLeadDto,
   ImportLeadsDto,
   LeadImportService,
   LeadStatusService,
   LeadsService,
+  ListCampaignsQueryDto,
   ListLeadsQueryDto,
   ListOpportunitiesQueryDto,
   ListSaleOrdersQueryDto,
+  ListSalesTargetsQueryDto,
   LoseOpportunityDto,
+  NegotiationsService,
   OpenSaleOrderDto,
   OpportunitiesService,
   OpportunityActivitiesService,
   QuotationsService,
   SaleOrdersService,
+  SalesReportQueryDto,
+  SalesReportService,
+  SalesTargetsService,
+  SetSalesTargetDto,
+  UpdateCampaignDto,
   UpdateLeadActivityDto,
   UpdateLeadDto,
   UpdateLeadStatusDto,
@@ -308,6 +322,9 @@ export class ExternalOpportunitiesController {
     private readonly saleOrders: SaleOrdersService,
     private readonly quotations: QuotationsService,
     private readonly activities: OpportunityActivitiesService,
+    private readonly negotiations: NegotiationsService,
+    private readonly report: SalesReportService,
+    private readonly dashboard: CrmDashboardService,
   ) {}
 
   @ApiOperation({
@@ -322,6 +339,57 @@ export class ExternalOpportunitiesController {
     @Query() query: ListOpportunitiesQueryDto,
   ) {
     return this.opportunities.list(principal, query);
+  }
+
+  /** CD-74 ยอดต่อขั้นของกระดาน — declared before `:id`. */
+  @ApiOperation({
+    summary: 'ยอดรวมต่อขั้นของโอกาสการขาย',
+    description:
+      'จำนวน มูลค่า และมูลค่าถ่วงความน่าจะเป็น ของทุกแถวที่ตรงตัวกรองเดียวกับ ' +
+      'GET /opportunities (ไม่แบ่งหน้า)',
+  })
+  @Get('summary')
+  @Permissions('integration.crm.sales.read')
+  @ActingPermissions('crm.sales.read')
+  summary(
+    @CurrentPrincipal() principal: Principal,
+    @Query() query: ListOpportunitiesQueryDto,
+  ) {
+    return this.opportunities.stageSummary(principal, query);
+  }
+
+  /** CD-73 แดชบอร์ด CRM — declared before `:id`. */
+  @ApiOperation({
+    summary: 'แดชบอร์ด CRM',
+    description:
+      'ภาพรวมลูกค้า Lead โอกาสการขาย และกิจกรรม ตามขอบเขตที่ผู้เรียกเห็นได้ · ' +
+      'ส่วนลูกค้าเป็น null ถ้าไม่มี crm.customer.read',
+  })
+  @Get('dashboard')
+  @Permissions('integration.crm.sales.read')
+  @ActingPermissions('crm.sales.read')
+  crmDashboard(
+    @CurrentPrincipal() principal: Principal,
+    @Query() query: CrmDashboardQueryDto,
+  ) {
+    return this.dashboard.dashboard(query, principal);
+  }
+
+  /** CD-83 รายงานยอดขาย — declared before `:id`. */
+  @ApiOperation({
+    summary: 'รายงานยอดขาย',
+    description:
+      'ยอดขาย (ใบสั่งขายที่ไม่ยกเลิก) · ชนะ/แพ้และอัตราการปิดในช่วง · ' +
+      'เหตุผลที่แพ้ · ผลงานรายบุคคล — จำกัดตามขอบเขตที่ผู้เรียกเห็นได้',
+  })
+  @Get('report')
+  @Permissions('integration.crm.sales.read')
+  @ActingPermissions('crm.sales.read')
+  salesReport(
+    @CurrentPrincipal() principal: Principal,
+    @Query() query: SalesReportQueryDto,
+  ) {
+    return this.report.report(query, principal);
   }
 
   /** เหตุผลปิดแพ้มาตรฐาน — declared before `:id`. */
@@ -392,6 +460,42 @@ export class ExternalOpportunitiesController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.activities.list(id, principal);
+  }
+
+  /** CD-79 รอบการต่อรอง ใหม่สุดก่อน พร้อมเงื่อนไขมาตรฐานที่ฟอร์มใช้. */
+  @ApiOperation({
+    summary: 'รอบการต่อรองเงื่อนไขการค้าของโอกาสการขาย',
+    description:
+      'ใหม่สุดก่อน · `standards` = เงื่อนไขมาตรฐานที่ใช้อยู่ของบริษัท (ตั้งที่หน้าตั้งค่า CRM)',
+  })
+  @Get(':id/negotiations')
+  @Permissions('integration.crm.sales.read')
+  @ActingPermissions('crm.sales.read')
+  listNegotiations(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.negotiations.list(id, principal);
+  }
+
+  /**
+   * CD-79 บันทึกรอบการต่อรอง. เงื่อนไขที่ต่างจากมาตรฐาน (หรือนอกรายการ) ถูกทำ
+   * เครื่องหมาย และรอบที่มีเงื่อนไขนอกมาตรฐานสร้าง+ยื่นคำขอตรวจสัญญาถึง
+   * ฝ่ายกฎหมายทันที — ส่งไม่สำเร็จ รอบยังถูกบันทึก พร้อมเหตุผลใน `legalSendError`.
+   */
+  @ApiOperation({
+    summary: 'บันทึกรอบการต่อรอง (นอกมาตรฐาน = ส่งฝ่ายกฎหมายอัตโนมัติ)',
+  })
+  @Post(':id/negotiations')
+  @Permissions('integration.crm.sales.manage')
+  @ActingPermissions('crm.sales.manage')
+  recordNegotiation(
+    @Param('id') id: string,
+    @Body() dto: CreateNegotiationRoundDto,
+    @CurrentPrincipal() principal: Principal,
+    @Headers('authorization') authorization: string,
+  ) {
+    return this.negotiations.record(id, dto, principal, authorization);
   }
 
   /** ลงกิจกรรม — ไม่มี `due_at` = ทำแล้ว, มี = นัดติดตามครั้งถัดไป. */
@@ -540,5 +644,120 @@ export class ExternalSaleOrdersController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.saleOrders.cancel(id, dto, principal);
+  }
+}
+
+/** CD-82 เป้าและพยากรณ์ — เป้ายอดขายรายเดือนของพนักงาน/กลุ่ม. */
+@ApiTags('crm')
+@ApiBearerAuth()
+@ApiHeader({
+  name: ACTING_USER_HEADER_LABEL,
+  required: true,
+  description: 'อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้',
+})
+@Controller('crm/sales-targets')
+@ServiceAccountOnly()
+@UseGuards(ActingUserGuard, ActingPolicyGuard)
+export class ExternalSalesTargetsController {
+  constructor(private readonly targets: SalesTargetsService) {}
+
+  @ApiOperation({
+    summary: 'เป้าและพยากรณ์ของเดือน',
+    description:
+      'ยอดขายจริง (ใบสั่งขายที่ไม่ยกเลิก) + พยากรณ์ (ยอดจริง + pipeline ถ่วงที่คาดว่าจะ' +
+      'ปิดในเดือน) เทียบเป้า — เห็นตามขอบเขต: ของตัวเอง/ทีมที่ดูแล หรือทั้งบริษัท',
+  })
+  @Get()
+  @Permissions('integration.crm.sales.read')
+  @ActingPermissions('crm.sales.read')
+  list(
+    @CurrentPrincipal() principal: Principal,
+    @Query() query: ListSalesTargetsQueryDto,
+  ) {
+    return this.targets.list(query, principal);
+  }
+
+  @ApiOperation({
+    summary: 'ตั้งหรือปรับเป้า',
+    description:
+      'ตั้งครั้งแรก หรืองวดที่ยังไม่เริ่ม = มีผลทันที · ปรับเป้าที่มีอยู่ของงวดที่เริ่มแล้ว ' +
+      '= สร้างร่างคำขออนุมัติ (ประเภทตั้งที่ ตั้งค่า CRM) ค่าใหม่มีผลเมื่ออนุมัติ',
+  })
+  @Post()
+  @Permissions('integration.crm.sales.manage')
+  @ActingPermissions('crm.target.manage')
+  set(
+    @Body() dto: SetSalesTargetDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.targets.set(dto, principal);
+  }
+
+  @ApiOperation({
+    summary: 'ประวัติการเปลี่ยนเป้า',
+    description: 'รวมค่าเดิม ผู้เปลี่ยน เหตุผล และสถานะการอนุมัติ',
+  })
+  @Get(':id/revisions')
+  @Permissions('integration.crm.sales.read')
+  @ActingPermissions('crm.sales.read')
+  revisions(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.targets.history(id, principal);
+  }
+}
+
+/** CD-71 แคมเปญ — ผูก Lead กับกิจกรรมการตลาด และวัดผลถึงยอดขาย. */
+@ApiTags('crm')
+@ApiBearerAuth()
+@ApiHeader({
+  name: ACTING_USER_HEADER_LABEL,
+  required: true,
+  description: 'อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้',
+})
+@Controller('crm/campaigns')
+@ServiceAccountOnly()
+@UseGuards(ActingUserGuard, ActingPolicyGuard)
+export class ExternalCampaignsController {
+  constructor(private readonly campaigns: CampaignsService) {}
+
+  @ApiOperation({
+    summary: 'แคมเปญพร้อมผล',
+    description:
+      'จำนวน Lead · แปลงเป็นโอกาส · ชนะ · ยอดขาย · ต้นทุนต่อ Lead — นับเฉพาะ Lead ที่ผู้เรียกเห็นได้',
+  })
+  @Get()
+  @Permissions('integration.crm.sales.read')
+  @ActingPermissions('crm.sales.read')
+  list(
+    @CurrentPrincipal() principal: Principal,
+    @Query() query: ListCampaignsQueryDto,
+  ) {
+    return this.campaigns.list(query, principal);
+  }
+
+  @ApiOperation({ summary: 'สร้างแคมเปญ' })
+  @Post()
+  @Permissions('integration.crm.sales.manage')
+  @ActingPermissions('crm.campaign.manage')
+  create(
+    @Body() dto: CreateCampaignDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.campaigns.create(dto, principal);
+  }
+
+  @ApiOperation({
+    summary: 'แก้ไข / ปิดแคมเปญ',
+    description:
+      'แก้ได้ทุกอย่างยกเว้นรหัส · active=false = ผูก Lead ใหม่ไม่ได้',
+  })
+  @Patch(':id')
+  @Permissions('integration.crm.sales.manage')
+  @ActingPermissions('crm.campaign.manage')
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateCampaignDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.campaigns.update(id, dto, principal);
   }
 }

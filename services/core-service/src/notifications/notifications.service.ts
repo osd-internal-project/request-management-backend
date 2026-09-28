@@ -1,14 +1,51 @@
 import { Injectable, Logger } from '@nestjs/common';
 import {
+  AppError,
   PrismaService,
   paginated,
   toSkipTake,
 } from '@request-management/share';
 import type { PageQueryDto, Principal } from '@request-management/share';
-import type { ApprovalCase, ApprovalStep } from '@prisma/client';
+import type { ApprovalCase, ApprovalStep, Prisma } from '@prisma/client';
 import { LoggingEmailTransport } from './notification-transport';
+import {
+  emailSignature,
+  renderTemplate,
+  templateOf,
+} from './notification-templates';
+import {
+  DEFAULT_DIGEST_HOUR,
+  DIGESTIBLE,
+  NOTIFICATION_CATEGORIES,
+  categoryOf,
+  settingOf,
+  type CategorySetting,
+  type NotificationCategory,
+} from './notification-categories';
 
 type CaseWithSteps = ApprovalCase & { steps: ApprovalStep[] };
+
+/** CD-67 levels as the message reads them. */
+const SEVERITY_LABELS: Record<string, string> = {
+  critical: 'วิกฤต',
+  high: 'สูง',
+  medium: 'ปานกลาง',
+  low: 'ต่ำ',
+};
+
+export interface NotificationPreferencesView {
+  in_app: true;
+  in_app_locked: true;
+  email: boolean;
+  email_delivery_available: boolean;
+  /** CD-52 — Bangkok hour, working days. */
+  digest_hour: number;
+  categories: ({
+    key: NotificationCategory;
+    /** false = urgent; only `immediate` is accepted. */
+    digestible: boolean;
+  } & CategorySetting)[];
+}
 
 /**
  * SUP-03 — the minimum notification service.
@@ -50,8 +87,9 @@ export class NotificationsService {
       {
         companyId,
         eventType: 'approval.awaiting',
-        title: 'มีรายการรออนุมัติ',
-        body: `${subject.label} รอคุณอนุมัติ (ขั้น ${step.stepNo}/${approvalCase.steps.length})`,
+        values: {
+          subject: `${subject.label} (ขั้น ${step.stepNo}/${approvalCase.steps.length})`,
+        },
         ...subject.link,
       },
     );
@@ -73,8 +111,10 @@ export class NotificationsService {
       await this.emitTo([subject.requesterId], {
         ...base,
         eventType: 'approval.step_passed',
-        title: 'ผ่านการอนุมัติขั้นหนึ่งแล้ว',
-        body: `${subject.label} ผ่านการอนุมัติขั้น ${approvalCase.currentStep - 1}/${approvalCase.steps.length}`,
+        values: {
+          subject: subject.label,
+          step: `${approvalCase.currentStep - 1}/${approvalCase.steps.length}`,
+        },
       });
       await this.awaitingApproval(approvalCase, approvalCase.companyId);
       return;
@@ -85,7 +125,7 @@ export class NotificationsService {
     const team = [subject.workerId];
 
     if (decision === 'approve') {
-      const [who, title] =
+      const [who, status] =
         stage === 'pre'
           ? [
               [subject.requesterId, subject.receiverId],
@@ -100,8 +140,7 @@ export class NotificationsService {
       await this.emitTo(who, {
         ...base,
         eventType: 'approval.approved',
-        title,
-        body: subject.label,
+        values: { subject: subject.label, status },
       });
       return;
     }
@@ -114,8 +153,7 @@ export class NotificationsService {
         {
           ...base,
           eventType: 'approval.rejected',
-          title: 'คำขอไม่ได้รับอนุมัติ',
-          body: `${subject.label}${reason}`,
+          values: { subject: subject.label, status: `ไม่อนุมัติ${reason}` },
         },
       );
       return;
@@ -124,9 +162,10 @@ export class NotificationsService {
     await this.emitTo(stage === 'pre' ? [subject.requesterId] : team, {
       ...base,
       eventType: 'approval.returned',
-      title:
-        stage === 'pre' ? 'คำขอถูกส่งกลับให้แก้ไข' : 'งานถูกส่งกลับให้ทีมแก้',
-      body: `${subject.label}${reason}`,
+      values: {
+        subject: subject.label,
+        status: `${stage === 'pre' ? 'ส่งกลับให้ผู้ขอแก้ไข' : 'ส่งกลับให้ทีมแก้งาน'}${reason}`,
+      },
     });
   }
 
@@ -148,8 +187,7 @@ export class NotificationsService {
     await this.emitTo(await this.withDelegates(companyId, candidatesOf(step)), {
       companyId,
       eventType: 'approval.withdrawn',
-      title: 'คำขอถูกยกเลิก ไม่ต้องอนุมัติแล้ว',
-      body: subject.label,
+      values: { subject: subject.label },
       ...subject.link,
     });
   }
@@ -226,6 +264,8 @@ export class NotificationsService {
     const where = {
       userId: actor.userId,
       companyId: actor.activeCompanyId,
+      // CD-52: held for the digest — the digest row stands in for them.
+      heldForDigest: false,
       ...(query.unread === 'true' ? { readAt: null } : {}),
     };
 
@@ -248,28 +288,37 @@ export class NotificationsService {
       where: {
         userId: actor.userId,
         companyId: actor.activeCompanyId,
+        heldForDigest: false,
         readAt: null,
       },
     });
     return { count };
   }
 
-  /** Scoped to the owner, so one person cannot mark another's as read. */
+  /**
+   * Scoped to the owner, so one person cannot mark another's as read.
+   *
+   * CD-55: only the first read is recorded. Opening it again used to move
+   * `readAt` forward, which erased the one fact the log exists to prove —
+   * when the person first saw it.
+   */
   async markRead(id: string, actor: Principal): Promise<void> {
     await this.prisma.notification.updateMany({
-      where: { id, userId: actor.userId },
-      data: { readAt: new Date() },
+      where: { id, userId: actor.userId, readAt: null },
+      data: { readAt: new Date(), readVia: 'opened' },
     });
   }
 
+  /** CD-55: recorded as `mark_all` — clearing the bell is not having read it. */
   async markAllRead(actor: Principal): Promise<void> {
     await this.prisma.notification.updateMany({
       where: {
         userId: actor.userId,
         companyId: actor.activeCompanyId,
+        heldForDigest: false,
         readAt: null,
       },
-      data: { readAt: new Date() },
+      data: { readAt: new Date(), readVia: 'mark_all' },
     });
   }
 
@@ -292,8 +341,33 @@ export class NotificationsService {
       userId,
       companyId,
       eventType: 'sla.breached',
-      title: 'คำขอเกินกำหนด SLA',
-      body: `คำขอ ${requestNo ?? requestId} เกินกำหนดเวลาที่ตั้งไว้แล้ว`,
+      values: { request_no: requestNo ?? requestId },
+      resourceType: 'request',
+      resourceId: requestId,
+    });
+  }
+
+  /**
+   * CD-67 — a case nobody on the receiving side has responded to within its
+   * severity's response time. Worded as a fact, like `slaBreached`.
+   */
+  async slaResponseOverdue(
+    userId: string,
+    companyId: string,
+    requestId: string,
+    requestNo: string | null,
+    severity: string | null,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'sla.response_overdue',
+      values: {
+        request_no: requestNo ?? requestId,
+        severity_note: severity
+          ? ` (ความรุนแรง ${SEVERITY_LABELS[severity] ?? severity})`
+          : '',
+      },
       resourceType: 'request',
       resourceId: requestId,
     });
@@ -310,10 +384,7 @@ export class NotificationsService {
       userId,
       companyId,
       eventType: escalated ? 'approval.escalated' : 'approval.overdue',
-      title: escalated
-        ? 'รายการอนุมัติค้างนานเกินกำหนด'
-        : 'รายการรออนุมัติเกินเวลาที่ตั้งไว้',
-      body: `${link.label} ยังรอการอนุมัติ`,
+      values: { subject: link.label },
       resourceType: link.requestId ? 'request' : 'approval_case',
       resourceId: link.requestId ?? link.caseId,
     });
@@ -330,8 +401,7 @@ export class NotificationsService {
       userId,
       companyId,
       eventType: 'sla.warning',
-      title: 'คำขอใกล้ครบกำหนด SLA',
-      body: `คำขอ ${requestNo ?? requestId} จะครบกำหนดภายใน 4 ชั่วโมง`,
+      values: { request_no: requestNo ?? requestId },
       resourceType: 'request',
       resourceId: requestId,
     });
@@ -352,50 +422,107 @@ export class NotificationsService {
       userId,
       companyId,
       eventType: 'crm.opportunity.stale',
-      title: 'โอกาสการขายไม่มีความเคลื่อนไหว',
-      body: `${opportunity.opportunityCode} ${opportunity.title} ไม่มีกิจกรรมมาแล้วเกิน ${days} วัน`,
+      values: {
+        opportunity_code: opportunity.opportunityCode,
+        opportunity_title: opportunity.title,
+        days: String(days),
+      },
       resourceType: 'opportunity',
       resourceId: opportunity.id,
     });
   }
 
-  private async emit(entry: {
+  /**
+   * CD-54 — the wording for one event in one company: the company's own if
+   * it saved one, else the standard. An event the catalog does not declare
+   * throws — wording must not live only inside a caller again.
+   */
+  async render(
+    companyId: string,
+    eventType: string,
+    values: Record<string, string>,
+  ): Promise<{ title: string; body: string }> {
+    const definition = templateOf(eventType);
+    if (!definition) {
+      throw new Error(`no notification template for ${eventType}`);
+    }
+    const own = await this.prisma.notificationTemplate.findUnique({
+      where: { companyId_eventType: { companyId, eventType } },
+      select: { title: true, body: true },
+    });
+    return {
+      title: renderTemplate(own?.title ?? definition.title, values),
+      body: renderTemplate(own?.body ?? definition.body, values),
+    };
+  }
+
+  private async emit(event: {
     userId: string;
     companyId: string;
     eventType: string;
-    title: string;
-    body: string;
+    values: Record<string, string>;
     resourceType: string;
     resourceId: string;
   }): Promise<void> {
+    const { values, ...rest } = event;
     try {
+      const entry = {
+        ...rest,
+        ...(await this.render(event.companyId, event.eventType, values)),
+      };
+
+      // CD-52 — the recipient's choice for this kind of event.
+      const preference = await this.prisma.notificationPreference.findUnique({
+        where: {
+          userId_companyId: {
+            userId: entry.userId,
+            companyId: entry.companyId,
+          },
+        },
+        select: { emailEnabled: true, categorySettings: true },
+      });
+      const setting = settingOf(
+        preference?.categorySettings,
+        categoryOf(entry.eventType),
+      );
+      const held = setting.frequency === 'daily';
+
       const notification = await this.prisma.notification.create({
-        data: entry,
+        data: { ...entry, heldForDigest: held },
       });
 
-      // In-app is delivered the moment the row exists.
+      // In-app is delivered the moment the row exists — or, when held, logged
+      // as queued until the digest carries it (NotificationDigestService).
       await this.prisma.notificationDeliveryLog.create({
         data: {
           notificationId: notification.id,
           channel: 'in_app',
           target: entry.userId,
-          status: 'sent',
-          sentAt: new Date(),
+          status: held ? 'queued' : 'sent',
+          sentAt: held ? null : new Date(),
         },
       });
 
-      await this.deliverEmail(notification.id, entry);
+      // CD-52: the email switch is honoured — before, it was recorded and
+      // ignored. A held item's email goes with the digest.
+      if (!held && preference?.emailEnabled !== false && setting.email) {
+        await this.deliverEmail(notification.id, entry);
+      }
     } catch (error) {
       this.logger.error(
-        `Failed to emit ${entry.eventType} for ${entry.userId}`,
+        `Failed to emit ${event.eventType} for ${event.userId}`,
         error instanceof Error ? error.stack : undefined,
       );
     }
   }
 
-  private async deliverEmail(
+  /**
+   * Also used for the digest — one email carrying the day's held items.
+   * CD-54: signed with the company's letterhead (the one on its quotations).
+   */
+  async deliverEmail(
     notificationId: string,
-    entry: { userId: string; title: string; body: string },
+    entry: { userId: string; companyId: string; title: string; body: string },
   ): Promise<void> {
     const user = await this.prisma.user.findUnique({
       where: { id: entry.userId },
@@ -404,6 +531,25 @@ export class NotificationsService {
 
     if (!user?.email) return;
 
+    const company = await this.prisma.company.findUnique({
+      where: { id: entry.companyId },
+      select: {
+        name: true,
+        crmConfig: {
+          select: {
+            letterheadNameTh: true,
+            letterheadAddress: true,
+            letterheadPhone: true,
+            letterheadEmail: true,
+            letterheadWebsite: true,
+          },
+        },
+      },
+    });
+    const body = company
+      ? `${entry.body}\n\n${emailSignature(company.name, company.crmConfig)}`
+      : entry.body;
+
     // Recorded as `failed` when there is no mail server, because that is what
     // happened — reporting it as sent would make the gap invisible.
     const configured = this.email.isConfigured;
@@ -411,7 +557,7 @@ export class NotificationsService {
     await this.email.send({
       to: user.email,
       subject: entry.title,
-      body: entry.body,
+      body,
     });
 
     await this.prisma.notificationDeliveryLog.create({
@@ -439,7 +585,7 @@ export class NotificationsService {
    * showing it as a switch that cannot move is clearer than hiding the fact
    * that the channel exists.
    */
-  async getPreferences(actor: Principal) {
+  async getPreferences(actor: Principal): Promise<NotificationPreferencesView> {
     const found = await this.prisma.notificationPreference.findUnique({
       where: {
         userId_companyId: {
@@ -458,24 +604,92 @@ export class NotificationsService {
        * so instead of promising delivery that will not happen.
        */
       email_delivery_available: false,
+      // CD-52
+      digest_hour: found?.digestHour ?? DEFAULT_DIGEST_HOUR,
+      categories: NOTIFICATION_CATEGORIES.map((key) => ({
+        key,
+        digestible: DIGESTIBLE.has(key),
+        ...settingOf(found?.categorySettings, key),
+      })),
     };
   }
 
-  /** Records the choice. Upsert, because the row only exists once changed. */
-  async updatePreferences(actor: Principal, emailEnabled: boolean) {
-    await this.prisma.notificationPreference.upsert({
-      where: {
-        userId_companyId: {
-          userId: actor.userId,
-          companyId: actor.activeCompanyId,
-        },
+  /**
+   * Records the choices. Upsert, because the row only exists once changed.
+   * Every field is optional so a screen can send only what it edits.
+   *
+   * CD-52: a category that cannot be batched (SLA) refuses `daily` rather
+   * than quietly storing it — a late request heard about tomorrow is too late.
+   */
+  async updatePreferences(
+    actor: Principal,
+    dto: {
+      email?: boolean;
+      digest_hour?: number;
+      categories?: Record<string, { email?: boolean; frequency?: string }>;
+    },
+  ): Promise<NotificationPreferencesView> {
+    const where = {
+      userId_companyId: {
+        userId: actor.userId,
+        companyId: actor.activeCompanyId,
       },
+    };
+    const existing = await this.prisma.notificationPreference.findUnique({
+      where,
+      select: { categorySettings: true },
+    });
+
+    let categorySettings: Record<string, CategorySetting> | undefined;
+    if (dto.categories) {
+      categorySettings = {};
+      for (const key of NOTIFICATION_CATEGORIES) {
+        const current = settingOf(existing?.categorySettings, key);
+        const change = dto.categories[key] ?? {};
+        const frequency = change.frequency ?? current.frequency;
+        if (frequency !== 'immediate' && frequency !== 'daily') {
+          throw new AppError('VALIDATION_FAILED', 'ความถี่ไม่ถูกต้อง', [
+            { field: `categories.${key}.frequency`, reason: String(frequency) },
+          ]);
+        }
+        if (frequency === 'daily' && !DIGESTIBLE.has(key)) {
+          throw new AppError(
+            'VALIDATION_FAILED',
+            'การแจ้งเตือนเรื่องเกินกำหนดต้องส่งทันที — รวมเป็นสรุปรายวันไม่ได้',
+            [
+              {
+                field: `categories.${key}.frequency`,
+                reason: 'not_digestible',
+              },
+            ],
+          );
+        }
+        categorySettings[key] = {
+          email: change.email ?? current.email,
+          frequency,
+        };
+      }
+    }
+
+    const data = {
+      ...(dto.email !== undefined ? { emailEnabled: dto.email } : {}),
+      ...(dto.digest_hour !== undefined ? { digestHour: dto.digest_hour } : {}),
+      ...(categorySettings
+        ? {
+            categorySettings:
+              categorySettings as unknown as Prisma.InputJsonValue,
+          }
+        : {}),
+    };
+
+    await this.prisma.notificationPreference.upsert({
+      where,
       create: {
         userId: actor.userId,
         companyId: actor.activeCompanyId,
-        emailEnabled,
+        ...data,
       },
-      update: { emailEnabled },
+      update: data,
     });
 
     return this.getPreferences(actor);

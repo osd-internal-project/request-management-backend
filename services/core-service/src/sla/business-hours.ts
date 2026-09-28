@@ -86,6 +86,23 @@ function localParts(at: Date, timeZone: string): LocalParts {
   };
 }
 
+/**
+ * The calendar day an instant falls on, where it falls in it, and whether
+ * the office is open that day — for schedules keyed to the local day, such as
+ * the daily notification digest (CD-52).
+ */
+export function localDay(
+  at: Date,
+  calendar: WorkingCalendar,
+): { date: string; minuteOfDay: number; workingDay: boolean } {
+  const parts = localParts(at, calendar.timeZone);
+  return {
+    date: parts.date,
+    minuteOfDay: parts.minuteOfDay,
+    workingDay: isWorkingDay(parts, calendar),
+  };
+}
+
 function isWorkingDay(parts: LocalParts, calendar: WorkingCalendar): boolean {
   return (
     calendar.workingWeekdays.includes(parts.weekday) &&

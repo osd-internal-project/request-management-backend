@@ -51,6 +51,22 @@ export class RequestFlowRepository extends BaseRepository<
     });
   }
 
+  /** What a lifecycle announcement names, read after the move committed. */
+  findRequestFacts(requestId: string) {
+    return this.prisma.request.findUnique({
+      where: { id: requestId },
+      select: {
+        id: true,
+        companyId: true,
+        requestNo: true,
+        typeCode: true,
+        requesterId: true,
+        status: true,
+        completedAt: true,
+      },
+    });
+  }
+
   findVersion(id: string, option?: TxOption): Promise<FlowVersionRow | null> {
     return (option?.prisma ?? this.prisma).requestFlowVersion.findUnique({
       where: { id },

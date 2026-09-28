@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PageQueryDto } from '@request-management/share';
-import { SlaCoverage } from '@prisma/client';
+import { RequestSeverity, SlaCoverage } from '@prisma/client';
 import { Transform, Type } from 'class-transformer';
 import { MatrixLevelDto } from '../../approvals/dto/approval.dto';
 import { SCOPE_STATUSES, type ScopeStatus } from '../request-flow-v2';
@@ -33,6 +33,12 @@ export class CreateRequestDto {
   @IsOptional()
   @IsObject()
   form_data?: Record<string, unknown>;
+
+  /** CD-67 — ระดับความรุนแรง; บังคับตอนยื่นเมื่อประเภทนี้ตั้งเป้าเวลาตามระดับไว้ (ประเภทเคส). */
+  @ApiPropertyOptional({ enum: RequestSeverity })
+  @IsOptional()
+  @IsEnum(RequestSeverity)
+  severity?: RequestSeverity | null;
 
   /** REQ-06: the entity this request came from, e.g. an opportunity. */
   @ApiPropertyOptional({ example: 'opportunity' })
@@ -88,6 +94,12 @@ export class UpdateRequestDto {
   @IsOptional()
   @IsObject()
   form_data?: Record<string, unknown>;
+
+  /** CD-67 — ระดับความรุนแรง; บังคับตอนยื่นเมื่อประเภทนี้ตั้งเป้าเวลาตามระดับไว้ (ประเภทเคส). */
+  @ApiPropertyOptional({ enum: RequestSeverity })
+  @IsOptional()
+  @IsEnum(RequestSeverity)
+  severity?: RequestSeverity | null;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -258,6 +270,12 @@ export class ListRequestsQueryDto extends PageQueryDto {
   @IsOptional()
   @IsString()
   type_code?: string;
+
+  /** CD-67 — เฉพาะเคสระดับนี้. */
+  @ApiPropertyOptional({ enum: RequestSeverity })
+  @IsOptional()
+  @IsEnum(RequestSeverity)
+  severity?: RequestSeverity;
 
   /** REQ-06 / C360 — คำขอที่อ้างเอนทิตีต้นทาง เช่น ref_type=customer. */
   @IsOptional()
@@ -590,6 +608,17 @@ export class UpdateRequestTypeDto {
   @IsOptional()
   @IsBoolean()
   ref_required?: boolean;
+
+  /**
+   * CD-67 — in the active company: targets make the type a case (severity
+   * required at submit, both clocks from the level); `null` stops it being
+   * one; absent leaves it alone.
+   * `{ critical: { responseHours, resolutionHours }, high, medium, low }`
+   */
+  @ApiPropertyOptional({ type: Object, nullable: true })
+  @IsOptional()
+  @IsObject()
+  severity_targets?: Record<string, unknown> | null;
 }
 
 /**
@@ -622,6 +651,12 @@ export class CreateIntegrationRequestDto {
   @IsOptional()
   @IsObject()
   form_data?: Record<string, unknown>;
+
+  /** CD-67 — ระดับความรุนแรง เมื่อประเภทนี้เป็นเคส (เช่นข้อร้องเรียนจากเว็บฟอร์ม). */
+  @ApiPropertyOptional({ enum: RequestSeverity })
+  @IsOptional()
+  @IsEnum(RequestSeverity)
+  severity?: RequestSeverity;
 
   @ApiPropertyOptional({ example: 'opportunity' })
   @IsOptional()

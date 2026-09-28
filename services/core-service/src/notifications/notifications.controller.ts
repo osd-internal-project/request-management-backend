@@ -18,8 +18,10 @@ import {
 import type { Principal } from '@request-management/share';
 import {
   ListNotificationsQueryDto,
+  NotificationLogQueryDto,
   UpdateNotificationPreferencesDto,
 } from './dto/notification.dto';
+import { NotificationLogService } from './notification-log.service';
 import { NotificationsService } from './notifications.service';
 
 /**
@@ -31,7 +33,10 @@ import { NotificationsService } from './notifications.service';
 @ApiBearerAuth()
 @Controller('notifications')
 export class NotificationsController {
-  constructor(private readonly notifications: NotificationsService) {}
+  constructor(
+    private readonly notifications: NotificationsService,
+    private readonly log: NotificationLogService,
+  ) {}
 
   @Get()
   @Permissions('notification.read')
@@ -40,6 +45,19 @@ export class NotificationsController {
     @Query() query: ListNotificationsQueryDto,
   ) {
     return this.notifications.list(principal, query);
+  }
+
+  /**
+   * CD-55 — บันทึกการแจ้งเตือนของทั้งบริษัท (ใคร เมื่อไร ช่องทาง อ่านแล้วหรือยัง).
+   * Read-only, like `/audit-logs`, and behind the same permission.
+   */
+  @Get('log')
+  @Permissions('audit.read')
+  searchLog(
+    @CurrentPrincipal() principal: Principal,
+    @Query() query: NotificationLogQueryDto,
+  ) {
+    return this.log.search(query, principal);
   }
 
   /** ตัวเลขบนกระดิ่ง — เบากว่าดึงรายการทั้งหน้าทุกครั้งที่ polling. */
@@ -76,6 +94,6 @@ export class NotificationsController {
     @Body() dto: UpdateNotificationPreferencesDto,
     @CurrentPrincipal() principal: Principal,
   ) {
-    return this.notifications.updatePreferences(principal, dto.email);
+    return this.notifications.updatePreferences(principal, dto);
   }
 }

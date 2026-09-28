@@ -1,6 +1,11 @@
 import { Module } from '@nestjs/common';
 import { NotificationsModule } from './notifications.module';
 import { NotificationsController } from './notifications.controller';
+import { NotificationLogService } from './notification-log.service';
+import { NotificationDigestService } from './notification-digest.service';
+import { NotificationTemplateAdminService } from './notification-template-admin.service';
+import { NotificationTemplateController } from './notification-template.controller';
+import { PrismaTransactionService } from '@request-management/share';
 
 /**
  * The screen-facing routes of {@link NotificationsModule}. See `src/index.ts`
@@ -8,6 +13,14 @@ import { NotificationsController } from './notifications.controller';
  */
 @Module({
   imports: [NotificationsModule],
-  controllers: [NotificationsController],
+  controllers: [NotificationsController, NotificationTemplateController],
+  // Only core-service reads the log and runs the digest schedule —
+  // external-service imports the domain module, never this one.
+  providers: [
+    NotificationLogService,
+    NotificationDigestService,
+    NotificationTemplateAdminService,
+    PrismaTransactionService,
+  ],
 })
 export class NotificationsHttpModule {}

@@ -31,7 +31,11 @@ import type { Principal } from '@request-management/share';
 import { RequestsService } from './requests.service';
 import { AttachmentsService } from './attachments.service';
 import { BottleneckService } from '../reports/bottleneck.service';
-import { BottleneckQueryDto } from '../reports/dto/report.dto';
+import {
+  BottleneckQueryDto,
+  SlaComplianceQueryDto,
+} from '../reports/dto/report.dto';
+import { SlaComplianceService } from '../reports/sla-compliance.service';
 import {
   CancelRequestDto,
   CreateRequestDto,
@@ -70,6 +74,7 @@ export class RequestsController {
   constructor(
     private readonly requests: RequestsService,
     private readonly bottleneck: BottleneckService,
+    private readonly slaCompliance: SlaComplianceService,
     private readonly attachments: AttachmentsService,
   ) {}
 
@@ -374,6 +379,16 @@ export class RequestsController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.bottleneck.report(query, principal);
+  }
+
+  /** CD-50 — on-time share by receiving team, type or month; open overdue now. */
+  @Get('reports/sla-compliance')
+  @Permissions('report.request.read')
+  slaComplianceReport(
+    @Query() query: SlaComplianceQueryDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.slaCompliance.report(query, principal);
   }
 }
 

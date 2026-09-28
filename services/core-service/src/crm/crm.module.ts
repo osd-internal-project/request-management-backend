@@ -42,11 +42,19 @@ import {
   LeadActivityRepository,
   LeadRepository,
   OpportunityActivityRepository,
+  NegotiationRoundRepository,
+  TradeTermStandardRepository,
   LeadStatusRepository,
   QuotationLineRepository,
   QuotationRepository,
   SaleOrderRepository,
+  SalesTargetRepository,
+  SalesTargetRevisionRepository,
+  CampaignRepository,
 } from './sales.repositories';
+import { CampaignsService } from './campaigns.service';
+import { CustomerInvoicesService } from './customer-invoices.service';
+import { RequestTimelineSyncService } from './request-timeline-sync.service';
 import { QuotationsService } from './quotations.service';
 import { QuotationPrintService } from './quotation-print.service';
 import { QuotationApprovalSyncService } from './quotation-approval-sync.service';
@@ -54,6 +62,11 @@ import { LeadsService } from './leads.service';
 import { LeadStatusService } from './lead-status.service';
 import { OpportunitiesService } from './opportunities.service';
 import { OpportunityActivitiesService } from './opportunity-activities.service';
+import { NegotiationsService } from './negotiations.service';
+import { SalesReportService } from './sales-report.service';
+import { CrmDashboardService } from './crm-dashboard.service';
+import { SalesTargetsService } from './sales-targets.service';
+import { SalesTargetApprovalSyncService } from './sales-target-approval-sync.service';
 import { OpportunityStaleMonitorService } from './opportunity-stale-monitor.service';
 import { SaleOrdersService } from './sale-orders.service';
 import { LeadImportService } from './lead-import.service';
@@ -126,6 +139,19 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     OpportunitiesService,
     OpportunityActivityRepository,
     OpportunityActivitiesService,
+    NegotiationRoundRepository,
+    TradeTermStandardRepository,
+    NegotiationsService,
+    SalesReportService,
+    CrmDashboardService,
+    SalesTargetsService,
+    SalesTargetApprovalSyncService,
+    SalesTargetRepository,
+    SalesTargetRevisionRepository,
+    CampaignRepository,
+    CampaignsService,
+    CustomerInvoicesService,
+    RequestTimelineSyncService,
     OpportunityStaleMonitorService,
     SaleOrdersService,
     PrismaTransactionService,
@@ -153,6 +179,12 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     LeadWorkflowService,
     OpportunitiesService,
     OpportunityActivitiesService,
+    NegotiationsService,
+    SalesReportService,
+    CrmDashboardService,
+    SalesTargetsService,
+    CampaignsService,
+    CustomerInvoicesService,
     SaleOrdersService,
     QuotationsService,
     QuotationPrintService,

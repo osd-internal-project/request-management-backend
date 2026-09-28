@@ -23,8 +23,11 @@ DST = pathlib.Path('services/external-service/src/crm')
 ROBOT = {
     'crm.customer.read':   'integration.crm.customer.read',
     'crm.customer.manage': 'integration.crm.customer.manage',
+    'crm.customer.financial.read': 'integration.crm.customer.read',
     'crm.sales.read':      'integration.crm.sales.read',
     'crm.sales.manage':    'integration.crm.sales.manage',
+    'crm.target.manage':   'integration.crm.sales.manage',
+    'crm.campaign.manage': 'integration.crm.sales.manage',
     'admin.crm.manage':    'integration.crm.admin.manage',
 }
 
@@ -34,7 +37,9 @@ FILES = {
     'quotations.controller.ts': [('quotations', 'crm/quotations')],
     'sales.controllers.ts':     [('leads', 'crm/leads'),
                                  ('opportunities', 'crm/opportunities'),
-                                 ('sale-orders', 'crm/sale-orders')],
+                                 ('sale-orders', 'crm/sale-orders'),
+                                 ('sales-targets', 'crm/sales-targets'),
+                                 ('campaigns', 'crm/campaigns')],
 }
 
 HEADER = '''/**

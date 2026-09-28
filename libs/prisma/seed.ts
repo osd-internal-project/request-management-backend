@@ -165,6 +165,8 @@ const SEED_ROLES: {
       'crm.sales.read',
       'crm.sales.read.all',
       'crm.sales.manage',
+      'crm.target.manage',
+      'crm.campaign.manage',
     ],
     visibilityLevel: 'DEPARTMENT',
   },
@@ -189,6 +191,8 @@ const SEED_ROLES: {
       'crm.sales.read',
       'crm.sales.read.all',
       'crm.sales.manage',
+      'crm.target.manage',
+      'crm.campaign.manage',
     ],
     visibilityLevel: 'COMPANY',
   },
@@ -300,7 +304,12 @@ async function seedPermissions() {
  */
 async function seedCompanies() {
   const companies = [
-    { code: 'OSD_DEMO', name: 'OSD (Demo)', docPrefix: 'OSDD', baseCurrency: 'THB' },
+    {
+      code: 'OSD_DEMO',
+      name: 'OSD (Demo)',
+      docPrefix: 'OSDD',
+      baseCurrency: 'THB',
+    },
     { code: 'OSD', name: 'OSD', docPrefix: 'OSD', baseCurrency: 'THB' },
     // A separate business, not a division of OSD: its 26 people carry `L-*`
     // employee codes and its own department names. Created empty here for the
@@ -374,12 +383,42 @@ async function seedRoles(companyId: string) {
 /** The tree from mockup A3. */
 async function seedOrgTree(companyId: string) {
   const units = [
-    { code: 'ROOT', name: 'บริษัท OSD (Demo)', kind: 'COMPANY' as const, parent: null },
-    { code: 'SALES', name: 'ฝ่ายขาย', kind: 'DEPARTMENT' as const, parent: 'ROOT' },
-    { code: 'FIN', name: 'ฝ่ายการเงิน', kind: 'DEPARTMENT' as const, parent: 'ROOT' },
-    { code: 'GETTER1', name: 'ทีมขาย Getter 1', kind: 'TEAM' as const, parent: 'SALES' },
-    { code: 'KEEPER1', name: 'ทีมขาย Keeper 1', kind: 'TEAM' as const, parent: 'SALES' },
-    { code: 'PRICING', name: 'ทีม Pricing', kind: 'TEAM' as const, parent: 'ROOT' },
+    {
+      code: 'ROOT',
+      name: 'บริษัท OSD (Demo)',
+      kind: 'COMPANY' as const,
+      parent: null,
+    },
+    {
+      code: 'SALES',
+      name: 'ฝ่ายขาย',
+      kind: 'DEPARTMENT' as const,
+      parent: 'ROOT',
+    },
+    {
+      code: 'FIN',
+      name: 'ฝ่ายการเงิน',
+      kind: 'DEPARTMENT' as const,
+      parent: 'ROOT',
+    },
+    {
+      code: 'GETTER1',
+      name: 'ทีมขาย Getter 1',
+      kind: 'TEAM' as const,
+      parent: 'SALES',
+    },
+    {
+      code: 'KEEPER1',
+      name: 'ทีมขาย Keeper 1',
+      kind: 'TEAM' as const,
+      parent: 'SALES',
+    },
+    {
+      code: 'PRICING',
+      name: 'ทีม Pricing',
+      kind: 'TEAM' as const,
+      parent: 'ROOT',
+    },
   ];
 
   const byCode = new Map<string, string>();
@@ -413,7 +452,8 @@ async function seedOrgTree(companyId: string) {
   await prisma.orgClosure.deleteMany({ where: { ancestor: { companyId } } });
 
   const parentOf = new Map(nodes.map((n) => [n.id, n.parentId]));
-  const rows: { ancestorId: string; descendantId: string; depth: number }[] = [];
+  const rows: { ancestorId: string; descendantId: string; depth: number }[] =
+    [];
 
   for (const node of nodes) {
     let depth = 0;
@@ -444,6 +484,12 @@ async function seedSensitiveFields() {
       field: 'est_margin_pct',
       visibleToPermission: 'request.sensitive.read',
     },
+    // CD-80: the cost the margin is computed from reveals it just as well.
+    {
+      resource: 'request:DSC',
+      field: 'cost',
+      visibleToPermission: 'request.sensitive.read',
+    },
     // CM-08: เลขผู้เสียภาษี is masked for callers without the CRM sensitive
     // read; the interceptor drops it from list and detail responses alike.
     {
@@ -465,26 +511,58 @@ async function seedSensitiveFields() {
 }
 
 /**
- * A two-level ladder for the demo discount type.
+ * A two-level ladder for the demo discount type, approved **before** the work
+ * (CD-80, user decision 28 ก.ย. 2569): the requester's own head (step 1) and
+ * the head of the department above (step 2). Before the work, the ladder
+ * climbs the requester's chart (`BEFORE_WORK`), so choosing a receiver no
+ * longer changes who approves the discount.
  *
  * No ceilings: the amount tiers were withdrawn on 31 Aug 2026 (declared
- * amendment, §8 of `docs/ctd-foundation-spec.md`). Step 1 is the head of the
- * group the requester sits in, step 2 the head of the department above — which
- * is what the demo chart is built to show.
+ * amendment, §8 of `docs/ctd-foundation-spec.md`) and wait on CD-26.
+ *
+ * An environment seeded earlier has the after-work ladder `request:DSC`;
+ * it is retired with a new version (never edited), or DSC would be approved
+ * twice. Idempotent: a second run finds both done.
  */
 async function seedApprovalMatrix(companyId: string) {
+  const post = await prisma.approvalMatrix.findFirst({
+    where: {
+      companyId,
+      subjectType: 'request:DSC',
+      publishedAt: { not: null },
+    },
+    orderBy: { version: 'desc' },
+  });
+  if (post && !post.retired) {
+    await prisma.approvalMatrix.create({
+      data: {
+        companyId,
+        subjectType: 'request:DSC',
+        currency: 'THB',
+        version: post.version + 1,
+        effectiveFrom: new Date(),
+        publishedAt: new Date(),
+        levels: [],
+        tiers: [],
+        retired: true,
+        createdBy: 'seed',
+      },
+    });
+    console.log('  approval matrix: after-work request:DSC retired (CD-80)');
+  }
+
   const existing = await prisma.approvalMatrix.findFirst({
-    where: { companyId, subjectType: 'request:DSC' },
+    where: { companyId, subjectType: 'request:DSC:pre' },
   });
   if (existing) {
-    console.log('  approval matrix: already present, left alone');
+    console.log('  approval matrix: request:DSC:pre already present');
     return;
   }
 
   await prisma.approvalMatrix.create({
     data: {
       companyId,
-      subjectType: 'request:DSC',
+      subjectType: 'request:DSC:pre',
       currency: 'THB',
       version: 1,
       effectiveFrom: new Date('2026-01-01T00:00:00Z'),
@@ -502,7 +580,68 @@ async function seedApprovalMatrix(companyId: string) {
     },
   });
 
-  console.log('  approval matrix: v1 · หัวหน้าหน่วยงาน → หัวหน้าแผนก');
+  console.log(
+    '  approval matrix: request:DSC:pre v1 · หัวหน้าผู้ยื่น → หัวหน้าแผนก',
+  );
+}
+
+/**
+ * CD-79 — a starting list of standard trade terms for the demo company, only
+ * when it has none (an admin's own list is never overwritten).
+ */
+async function seedTradeTerms(companyId: string) {
+  const existing = await prisma.tradeTermStandard.count({
+    where: { companyId },
+  });
+  if (existing) {
+    console.log('  trade terms: already present, left alone');
+    return;
+  }
+  const terms = [
+    { code: 'PAYMENT', name: 'เครดิตการชำระเงิน', standardValue: '30 วัน' },
+    { code: 'WARRANTY', name: 'การรับประกัน', standardValue: '1 ปี' },
+    {
+      code: 'PENALTY',
+      name: 'ค่าปรับส่งมอบล่าช้า',
+      standardValue: '0.1% ต่อวัน',
+    },
+    {
+      code: 'DELIVERY',
+      name: 'กำหนดส่งมอบ',
+      standardValue: '30 วันหลังได้รับใบสั่งซื้อ',
+    },
+  ];
+  await prisma.tradeTermStandard.createMany({
+    data: terms.map((term, index) => ({
+      ...term,
+      companyId,
+      sortOrder: index,
+      updatedBy: 'seed',
+    })),
+  });
+  console.log(`  trade terms: ${terms.length}`);
+}
+
+/**
+ * CD-81 — points the demo company's contract card at `CTR`. Only when unset,
+ * so an admin's own choice survives a re-seed.
+ */
+async function seedContractRequestType(companyId: string) {
+  const config = await prisma.crmCompanyConfig.findUnique({
+    where: { companyId },
+    select: { contractRequestTypeCode: true },
+  });
+  if (!config) {
+    await prisma.crmCompanyConfig.create({
+      data: { companyId, contractRequestTypeCode: 'CTR', updatedBy: 'seed' },
+    });
+  } else if (!config.contractRequestTypeCode) {
+    await prisma.crmCompanyConfig.update({
+      where: { companyId },
+      data: { contractRequestTypeCode: 'CTR', updatedBy: 'seed' },
+    });
+  }
+  console.log('  contract request type: CTR');
 }
 
 /**
@@ -546,6 +685,7 @@ async function seedRequestTypes(
           'customer_name',
           'deal_value',
           'discount_pct',
+          'cost',
           'est_margin_pct',
           'reason',
         ],
@@ -563,13 +703,32 @@ async function seedRequestTypes(
             maximum: 100,
             'x-order': 20,
           },
-          // Sensitive (SCOPE-04) — the seeded request:DSC rules name this and
-          // discount_pct, so only request.sensitive.read sees the values.
+          // CD-80 — what delivering the deal costs; the margin is computed
+          // from it. Sensitive like the margin itself.
+          cost: {
+            type: 'number',
+            title: 'ต้นทุน (THB)',
+            minimum: 0,
+            'x-sensitive': true,
+            'x-order': 25,
+          },
+          // Sensitive (SCOPE-04) — the seeded request:DSC rules name this,
+          // cost and discount_pct, so only request.sensitive.read sees them.
+          // CD-80: computed by the system (screen live, server on save) —
+          // never typed; see `computed-fields.ts`.
           est_margin_pct: {
             type: 'number',
+            // Title as §16 prints it (spec:check reads it); the value is the
+            // margin left after the discount, computed rather than estimated.
             title: 'margin โดยประมาณ (%)',
             'x-sensitive': true,
             'x-order': 30,
+            'x-computed': {
+              kind: 'margin_pct',
+              value: 'deal_value',
+              discount_pct: 'discount_pct',
+              cost: 'cost',
+            },
           },
           // §16 shows this filled from the opportunity and therefore unmarked. There
           // is no opportunity lookup yet (REQ-06), so it stays a required field the
@@ -585,9 +744,7 @@ async function seedRequestTypes(
           },
         },
       },
-      requiredDocs: [
-        { code: 'QUOTE_DRAFT', name: 'ใบเสนอราคาฉบับร่าง' },
-      ],
+      requiredDocs: [{ code: 'QUOTE_DRAFT', name: 'ใบเสนอราคาฉบับร่าง' }],
       /*
         §16 A2 and หน้าที่ 5 both print this list; the screen offers exactly
         these and the server validates against them (REQ-04).
@@ -603,7 +760,8 @@ async function seedRequestTypes(
         { code: 'REASON_INSUFFICIENT', name: 'เหตุผลไม่เพียงพอ' },
         { code: 'OTHER', name: 'อื่น ๆ (ระบุ)' },
       ],
-      // The amount field is what APV-02 measures against the matrix ceilings.
+      // `amount_field` is inert since the amount tiers were withdrawn (31 Aug
+      // 2026); kept so tiers can return once Finance confirms them (CD-26).
       approvalPolicy: { mode: 'standard_chain', amount_field: 'deal_value' },
       slaHours: 24,
     },
@@ -678,6 +836,70 @@ async function seedRequestTypes(
       // amount field it used to name was withdrawn with the ceilings.
       approvalPolicy: {},
       slaHours: 8,
+    },
+    {
+      /**
+       * CD-81 — ขอให้ฝ่ายกฎหมายจัดทำ/แก้สัญญา ยื่นจากหน้าดีล และติดตามสถานะ
+       * ร่างจากหน้าดีลได้ (การ์ดสัญญา). Demo only: a real company points its
+       * CRM setting `contractRequestTypeCode` at the type its Legal team
+       * already receives. No ladder — Legal drafting is work, not a permission.
+       */
+      code: 'CTR',
+      name: 'ขอจัดทำ/แก้ไขสัญญา',
+      receiverOrgUnitId: null,
+      formSchema: {
+        type: 'object',
+        required: ['contract_kind', 'counterparty', 'scope'],
+        properties: {
+          contract_kind: {
+            type: 'string',
+            title: 'ประเภทงานสัญญา',
+            enum: ['ทำสัญญาใหม่', 'แก้ไขสัญญา', 'ต่ออายุสัญญา'],
+            'x-order': 10,
+          },
+          counterparty: { type: 'string', title: 'คู่สัญญา', 'x-order': 20 },
+          contract_value: {
+            type: 'number',
+            title: 'มูลค่าสัญญา (THB)',
+            minimum: 0,
+            'x-order': 30,
+          },
+          start_date: {
+            type: 'string',
+            format: 'date',
+            title: 'วันเริ่มสัญญา',
+            'x-order': 40,
+          },
+          end_date: {
+            type: 'string',
+            format: 'date',
+            title: 'วันสิ้นสุดสัญญา',
+            'x-order': 50,
+          },
+          scope: {
+            type: 'string',
+            title: 'ขอบเขตงานและสาระสำคัญ',
+            maxLength: 4000,
+            'x-multiline': true,
+            'x-order': 60,
+          },
+          non_standard_terms: {
+            type: 'string',
+            title: 'เงื่อนไขที่ต่างจากสัญญามาตรฐาน',
+            maxLength: 4000,
+            'x-multiline': true,
+            'x-order': 70,
+          },
+        },
+      },
+      requiredDocs: [],
+      returnReasonCodes: [
+        { code: 'INFO_INCOMPLETE', name: 'ข้อมูลไม่ครบ' },
+        { code: 'TERMS_UNCLEAR', name: 'เงื่อนไขไม่ชัดเจน' },
+        { code: 'OTHER', name: 'อื่น ๆ' },
+      ],
+      approvalPolicy: {},
+      slaHours: 40,
     },
   ];
 
@@ -782,7 +1004,9 @@ async function seedCrmDefaults(companyId: string) {
 
     for (const value of dim.values) {
       await prisma.customerSegmentValue.upsert({
-        where: { dimensionId_code: { dimensionId: saved.id, code: value.code } },
+        where: {
+          dimensionId_code: { dimensionId: saved.id, code: value.code },
+        },
         update: { nameTh: value.nameTh, sortOrder: value.sortOrder },
         create: { dimensionId: saved.id, ...value },
       });
@@ -835,6 +1059,8 @@ async function main() {
   await seedOrgTree(demo.id);
   await seedSensitiveFields();
   await seedRequestTypes(demo.id, companies);
+  await seedContractRequestType(demo.id);
+  await seedTradeTerms(demo.id);
   await seedApprovalMatrix(demo.id);
 
   console.log('Done.');

@@ -1,6 +1,7 @@
 import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
+  ArrayNotEmpty,
   IsArray,
   IsBoolean,
   IsDateString,
@@ -95,6 +96,13 @@ export class CreateLeadDto {
   @IsString()
   @MaxLength(64)
   source_code?: string;
+
+  /** CD-71 — รหัสแคมเปญที่ Lead นี้มาจาก; ว่าง = ไม่ผูก. */
+  @ApiPropertyOptional({ example: 'EXPO-2026-Q4' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  campaign_code?: string;
 
   /** ลูกค้าเดิม ถ้า Lead นี้เป็นเรื่องของลูกค้าที่มีอยู่แล้ว. */
   @ApiPropertyOptional({
@@ -347,6 +355,12 @@ export class ListLeadsQueryDto extends PageQueryDto {
   @IsOptional()
   @IsIn(['mine', 'all', 'unassigned'])
   view?: 'mine' | 'all' | 'unassigned';
+
+  /** CD-71 — เฉพาะ Lead ของแคมเปญนี้. */
+  @ApiPropertyOptional({ description: 'id แคมเปญจาก `GET /crm/campaigns`' })
+  @IsOptional()
+  @IsString()
+  campaign_id?: string;
 }
 
 /**
@@ -469,6 +483,13 @@ export class ImportLeadRowDto {
   @IsString()
   @MaxLength(64)
   source_code?: string;
+
+  /** CD-71 — รหัสแคมเปญที่ Lead นี้มาจาก; ว่าง = ไม่ผูก. */
+  @ApiPropertyOptional({ example: 'EXPO-2026-Q4' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  campaign_code?: string;
 
   @IsOptional()
   @IsString()
@@ -845,4 +866,274 @@ export class ListSaleOrdersQueryDto extends PageQueryDto {
   @IsOptional()
   @IsIn(['mine', 'all'])
   view?: 'mine' | 'all';
+}
+
+/**
+ * CD-83 รายงานยอดขาย — ช่วงเวลาเป็น "วันที่" ตามเวลาไทย ทั้งสองปลายนับรวม.
+ * ไม่ส่ง = ต้นเดือนนี้ถึงวันนี้.
+ */
+export class SalesReportQueryDto {
+  @ApiPropertyOptional({
+    example: '2026-09-01',
+    description: 'วันแรกของช่วง (เวลาไทย) — ไม่ส่ง = วันที่ 1 ของเดือนนี้',
+  })
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  from?: string;
+
+  @ApiPropertyOptional({
+    example: '2026-09-30',
+    description: 'วันสุดท้ายของช่วง นับรวม (เวลาไทย) — ไม่ส่ง = วันนี้',
+  })
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  to?: string;
+
+  @ApiPropertyOptional({
+    description: 'เฉพาะพนักงานคนนี้ — ยังถูกจำกัดด้วยขอบเขตที่ผู้เรียกเห็นได้',
+  })
+  @IsOptional()
+  @IsString()
+  owner_user_id?: string;
+}
+
+/** CD-73 แดชบอร์ด CRM — `team` = ทุกอย่างที่ผู้เรียกเห็นได้, `mine` = ที่ตัวเองเป็นเจ้าของ. */
+export class CrmDashboardQueryDto {
+  @ApiPropertyOptional({
+    example: 'team',
+    description:
+      '`team` (ค่าตั้งต้น) = ทุกอย่างในขอบเขตที่เห็นได้ · `mine` = เฉพาะที่ตัวเองเป็นเจ้าของ',
+  })
+  @IsOptional()
+  @IsIn(['mine', 'team'])
+  view?: 'mine' | 'team';
+}
+
+export const SALES_TARGET_SCOPES = ['user', 'org_unit'] as const;
+const PERIOD = /^20\d{2}-(0[1-9]|1[0-2])$/;
+
+/** CD-82 — เดือนที่จะดูเป้า (`YYYY-MM` ตามเวลาไทย) ไม่ส่ง = เดือนนี้. */
+export class ListSalesTargetsQueryDto {
+  @ApiPropertyOptional({ example: '2026-09' })
+  @IsOptional()
+  @Matches(PERIOD)
+  period?: string;
+}
+
+/**
+ * CD-82 — ตั้งหรือปรับเป้าหนึ่งตัว. งวดที่ยังไม่เริ่ม = มีผลทันที; งวดที่เริ่มแล้วและ
+ * มีเป้าอยู่ = สร้างร่างคำขออนุมัติ ค่าใหม่มีผลเมื่ออนุมัติ.
+ */
+export class SetSalesTargetDto {
+  @ApiProperty({ enum: SALES_TARGET_SCOPES, example: 'user' })
+  @IsIn(SALES_TARGET_SCOPES)
+  scope!: (typeof SALES_TARGET_SCOPES)[number];
+
+  @ApiProperty({ description: 'id พนักงาน หรือ id กลุ่มในผังองค์กร' })
+  @IsString()
+  @IsNotEmpty()
+  subject_id!: string;
+
+  @ApiProperty({ example: '2026-10' })
+  @Matches(PERIOD)
+  period!: string;
+
+  @ApiProperty({ example: 1500000, description: 'บาท' })
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(999_999_999_999)
+  amount!: number;
+
+  @ApiPropertyOptional({
+    description: 'บังคับเมื่อปรับเป้าของงวดที่เริ่มแล้ว — ไปอยู่ในคำขออนุมัติ',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  reason?: string;
+}
+
+// --- CD-71 แคมเปญ ----------------------------------------------------------
+
+const CAMPAIGN_CODE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$/;
+
+export class CreateCampaignDto {
+  @ApiProperty({
+    example: 'EXPO-2026-Q4',
+    description: 'รหัสที่เว็บฟอร์ม/ไฟล์นำเข้าอ้าง — ตั้งครั้งเดียว แก้ไม่ได้',
+  })
+  @Matches(CAMPAIGN_CODE)
+  code!: string;
+
+  @ApiProperty({ example: 'งาน Thailand ICT Expo 2026' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  name!: string;
+
+  @ApiPropertyOptional({ example: 'อีเวนต์' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  channel?: string;
+
+  @ApiPropertyOptional({ example: '2026-10-01' })
+  @IsOptional()
+  @IsDateString()
+  start_date?: string;
+
+  @ApiPropertyOptional({ example: '2026-10-31' })
+  @IsOptional()
+  @IsDateString()
+  end_date?: string;
+
+  @ApiPropertyOptional({ example: 250000, description: 'งบประมาณ (บาท)' })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(999_999_999_999)
+  budget?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  note?: string;
+}
+
+/** แก้ได้ทุกอย่างยกเว้นรหัส — Lead เก่าและเว็บฟอร์มอ้างรหัสนั้นอยู่. */
+export class UpdateCampaignDto {
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  channel?: string;
+
+  @IsOptional()
+  @IsDateString()
+  start_date?: string;
+
+  @IsOptional()
+  @IsDateString()
+  end_date?: string;
+
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(999_999_999_999)
+  budget?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  note?: string;
+
+  @ApiPropertyOptional({ description: 'false = ปิด (ผูก Lead ใหม่ไม่ได้)' })
+  @IsOptional()
+  @IsBoolean()
+  active?: boolean;
+}
+
+export class ListCampaignsQueryDto {
+  @ApiPropertyOptional({
+    example: 'true',
+    description: '`true` = เฉพาะที่เปิดอยู่',
+  })
+  @IsOptional()
+  @IsIn(['true'])
+  active?: string;
+}
+
+/** CD-79 — one agreed term in a negotiation round. */
+export class NegotiationTermDto {
+  @ApiPropertyOptional({
+    description:
+      'รหัสเงื่อนไขมาตรฐาน — ไม่ส่ง = เงื่อนไขนอกรายการ (นับว่านอกมาตรฐาน)',
+    example: 'PAYMENT',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  code?: string;
+
+  @ApiPropertyOptional({ description: 'ชื่อเงื่อนไข — ต้องมีเมื่อไม่ส่ง code' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  name?: string;
+
+  @ApiProperty({ example: '60 วัน' })
+  @IsString()
+  @MaxLength(500)
+  agreed!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  note?: string;
+}
+
+/** CD-79 — บันทึกหนึ่งรอบการต่อรอง. */
+export class CreateNegotiationRoundDto {
+  @ApiProperty({
+    example: '2026-09-28',
+    description: 'วันที่ต่อรอง (YYYY-MM-DD)',
+  })
+  @IsDateString()
+  occurred_on!: string;
+
+  @ApiPropertyOptional({ description: 'สรุปการต่อรองรอบนี้' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  summary?: string;
+
+  @ApiProperty({ type: [NegotiationTermDto] })
+  @IsArray()
+  @ArrayNotEmpty()
+  @ArrayMaxSize(50)
+  @ValidateNested({ each: true })
+  @Type(() => NegotiationTermDto)
+  terms!: NegotiationTermDto[];
+}
+
+/** CD-79 — หนึ่งเงื่อนไขมาตรฐาน (หน้าตั้งค่า CRM). */
+export class TradeTermStandardDto {
+  @ApiProperty({ example: 'PAYMENT' })
+  @IsString()
+  @Matches(/^[A-Z0-9_-]{1,40}$/)
+  code!: string;
+
+  @ApiProperty({ example: 'เครดิตการชำระเงิน' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(200)
+  name!: string;
+
+  @ApiProperty({ example: '30 วัน' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(500)
+  standard_value!: string;
+
+  @ApiPropertyOptional({ default: true })
+  @IsOptional()
+  @IsBoolean()
+  active?: boolean;
+}
+
+/** CD-79 — แทนที่รายการเงื่อนไขมาตรฐานทั้งชุด (ที่ไม่อยู่ในรายการ = ปิดใช้). */
+export class ReplaceTradeTermsDto {
+  @ApiProperty({ type: [TradeTermStandardDto] })
+  @IsArray()
+  @ArrayMaxSize(100)
+  @ValidateNested({ each: true })
+  @Type(() => TradeTermStandardDto)
+  terms!: TradeTermStandardDto[];
 }

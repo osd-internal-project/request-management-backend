@@ -21,7 +21,7 @@ import { nextRequestEventSeq } from '../requests/request-event-seq';
 import { RequestFlowService } from '../request-flow/request-flow.service';
 import { SlaService } from '../sla/sla.service';
 import { answersOf, stepOf } from '../requests/request-flow';
-import { scopeOf } from '../requests/request-flow-v2';
+import { scopeOf, type MilestoneFacts } from '../requests/request-flow-v2';
 import { ApprovalMatrixService } from './approval-matrix.service';
 import { AccessService, type MatrixLevel } from '../access/access.service';
 import type { Delegation } from '@prisma/client';
@@ -228,6 +228,7 @@ export class ApprovalsService {
             currentStepCode: true,
             formData: true,
             stepFormData: true,
+            completedAt: true,
           },
         }),
       );
@@ -255,6 +256,10 @@ export class ApprovalsService {
       const next = await this.transactions.execute((prisma) =>
         this.flows.afterDecisionV2(prisma, requestId, 'approve', actor),
       );
+      await this.flows.announceV2(requestId, {
+        status: 'pending_approval',
+        completedAt: request.completedAt,
+      });
       if (!next) return;
     }
   }
@@ -713,10 +718,13 @@ export class ApprovalsService {
       partial: boolean;
       /** v2: the request just entered another approval step, whose case opens after commit. */
       nextCaseFor: string | null;
+      /** v2: where the request stood before the decision moved it. */
+      v2From: (MilestoneFacts & { requestId: string }) | null;
     } = {
       event: null,
       partial: false,
       nextCaseFor: null,
+      v2From: null,
     };
 
     const decided = await this.transactions.execute(async (prisma) => {
@@ -909,6 +917,16 @@ export class ApprovalsService {
 
         let toStatus: RequestStatus;
         if (v2) {
+          outcome.v2From = {
+            requestId: found.requestId,
+            status: 'pending_approval',
+            completedAt: (
+              await prisma.request.findUniqueOrThrow({
+                where: { id: found.requestId },
+                select: { completedAt: true },
+              })
+            ).completedAt,
+          };
           // A v2 flow decides where the work goes: the step's own exits.
           if (nextStatus === 'rejected') {
             await prisma.request.update({
@@ -967,13 +985,22 @@ export class ApprovalsService {
           );
         }
 
+        // CD-80: a before-work ladder's final yes hands the ticket on
+        // (`submitted`) — announced as its own event, since a consumer
+        // waiting on the decision (a quotation's discount) must not wait for
+        // the work too.
+        const preApproved = preWork && nextStatus === 'approved';
+        // v2 announces approval milestones itself (`announceV2`), after commit.
         if (
-          (toStatus === 'approved' || toStatus === 'rejected') &&
+          ((toStatus === 'approved' && !v2) ||
+            toStatus === 'rejected' ||
+            preApproved) &&
           found.request
         ) {
           outcome.event = {
-            name:
-              toStatus === 'approved'
+            name: preApproved
+              ? DOMAIN_EVENTS.requestPreApproved
+              : toStatus === 'approved'
                 ? DOMAIN_EVENTS.requestApproved
                 : DOMAIN_EVENTS.requestRejected,
             payload: {
@@ -1075,6 +1102,9 @@ export class ApprovalsService {
     );
 
     if (outcome.event) await this.domainEvents.emit(outcome.event);
+    if (outcome.v2From) {
+      await this.flows.announceV2(outcome.v2From.requestId, outcome.v2From);
+    }
 
     if (outcome.nextCaseFor)
       await this.openStepCaseV2(outcome.nextCaseFor, actor);

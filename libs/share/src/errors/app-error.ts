@@ -142,6 +142,14 @@ export const ErrorCatalog = {
    * no route to get the quotation approved. Configuration, not a code fault.
    */
   CRM_QUOTATION_APPROVAL_UNAVAILABLE: HttpStatus.UNPROCESSABLE_ENTITY,
+  /**
+   * CD-82: changing the target of a month that has already started needs an
+   * approval request, and CRM settings name no request type for it (or the
+   * type is not open to this company). Configuration, not a code fault.
+   */
+  CRM_TARGET_APPROVAL_UNAVAILABLE: HttpStatus.UNPROCESSABLE_ENTITY,
+  /** CD-82: this target already has an adjustment waiting for approval. */
+  CRM_TARGET_ADJUSTMENT_PENDING: HttpStatus.CONFLICT,
 } as const;
 
 export type ErrorCode = keyof typeof ErrorCatalog;

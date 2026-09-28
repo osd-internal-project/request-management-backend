@@ -287,3 +287,16 @@ export class PreviewChainDto {
   @IsUUID()
   chart_owner_user_id?: string;
 }
+
+/** CD-80 — which ladder to end. */
+export class RetireMatrixDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  company_id!: string;
+
+  @ApiProperty({ example: 'request:DSC' })
+  @IsString()
+  @IsNotEmpty()
+  subject_type!: string;
+}

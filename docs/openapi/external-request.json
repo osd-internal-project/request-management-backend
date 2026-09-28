@@ -1407,6 +1407,15 @@
           "form_data": {
             "type": "object"
           },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "critical",
+              "high",
+              "medium",
+              "low"
+            ]
+          },
           "ref_type": {
             "type": "string",
             "example": "opportunity"

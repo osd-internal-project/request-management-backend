@@ -225,7 +225,13 @@ describe('C360-03 the customer timeline shows only what the viewer may see', () 
       CustomerTimelineService.prototype,
     ).filter((name) => name !== 'constructor');
 
-    expect(methods.sort()).toEqual(['list', 'publish', 'visibleSources']);
+    // `has` is a read (CD-69 idempotency check) — still nothing that updates or deletes.
+    expect(methods.sort()).toEqual([
+      'has',
+      'list',
+      'publish',
+      'visibleSources',
+    ]);
   });
 
   it('a malformed from/to is rejected by validation, not turned into Invalid Date', () => {

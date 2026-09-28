@@ -9,6 +9,13 @@ import {
 
 /** CRM sales objects — thin repositories, rules live in the services. */
 
+/** CD-83 — one row of a grouped total: how many, and their summed `amount`. */
+export interface AmountGroup {
+  key: string | null;
+  count: number;
+  amount: number;
+}
+
 @Injectable()
 export class LeadRepository extends BaseRepository<PrismaService['lead']> {
   constructor(prisma: PrismaService) {
@@ -17,6 +24,18 @@ export class LeadRepository extends BaseRepository<PrismaService['lead']> {
 
   protected delegate(client: TQueryClient) {
     return client.lead;
+  }
+
+  /** CD-73 — จำนวน Lead ต่อรหัสสถานะ ตาม where. */
+  async countByStatus(
+    where: Prisma.LeadWhereInput,
+  ): Promise<{ status: string; count: number }[]> {
+    const rows = await this.prisma.lead.groupBy({
+      by: ['status'],
+      where,
+      _count: { _all: true },
+    });
+    return rows.map((row) => ({ status: row.status, count: row._count._all }));
   }
 }
 
@@ -59,6 +78,34 @@ export class OpportunityActivityRepository extends BaseRepository<
 
   protected delegate(client: TQueryClient) {
     return client.opportunityActivity;
+  }
+}
+
+/** CD-79 เงื่อนไขการค้ามาตรฐานของบริษัท. */
+@Injectable()
+export class TradeTermStandardRepository extends BaseRepository<
+  PrismaService['tradeTermStandard']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.tradeTermStandard;
+  }
+}
+
+/** CD-79 รอบการต่อรอง — บันทึกแล้วไม่แก้ นอกจากผลการส่งฝ่ายกฎหมาย. */
+@Injectable()
+export class NegotiationRoundRepository extends BaseRepository<
+  PrismaService['negotiationRound']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.negotiationRound;
   }
 }
 
@@ -121,6 +168,40 @@ export class OpportunityRepository extends BaseRepository<
       _sum: { amount: true },
     });
     return Number(result._sum.amount ?? 0);
+  }
+
+  /** CD-83 — จำนวนและมูลค่ารวมต่อเจ้าของ ตาม where. */
+  async totalsByOwner(
+    where: Prisma.OpportunityWhereInput,
+  ): Promise<AmountGroup[]> {
+    const rows = await this.prisma.opportunity.groupBy({
+      by: ['ownerUserId'],
+      where,
+      _count: { _all: true },
+      _sum: { amount: true },
+    });
+    return rows.map((row) => ({
+      key: row.ownerUserId,
+      count: row._count._all,
+      amount: Number(row._sum.amount ?? 0),
+    }));
+  }
+
+  /** CD-83 — จำนวนและมูลค่ารวมต่อเหตุผลปิดแพ้ ตาม where (`null` = ไม่ระบุ). */
+  async totalsByLostReason(
+    where: Prisma.OpportunityWhereInput,
+  ): Promise<AmountGroup[]> {
+    const rows = await this.prisma.opportunity.groupBy({
+      by: ['lostReasonCode'],
+      where,
+      _count: { _all: true },
+      _sum: { amount: true },
+    });
+    return rows.map((row) => ({
+      key: row.lostReasonCode,
+      count: row._count._all,
+      amount: Number(row._sum.amount ?? 0),
+    }));
   }
 }
 
@@ -202,6 +283,40 @@ export class SaleOrderRepository extends BaseRepository<
 
   protected delegate(client: TQueryClient) {
     return client.saleOrder;
+  }
+
+  /** CD-82 — จำนวนและมูลค่ารวมต่อกลุ่มเจ้าของ (snapshot) ตาม where. */
+  async totalsByOrgUnit(
+    where: Prisma.SaleOrderWhereInput,
+  ): Promise<AmountGroup[]> {
+    const rows = await this.prisma.saleOrder.groupBy({
+      by: ['ownerOrgUnitId'],
+      where,
+      _count: { _all: true },
+      _sum: { amount: true },
+    });
+    return rows.map((row) => ({
+      key: row.ownerOrgUnitId,
+      count: row._count._all,
+      amount: Number(row._sum.amount ?? 0),
+    }));
+  }
+
+  /** CD-83 — จำนวนและมูลค่ารวมต่อเจ้าของ ตาม where. */
+  async totalsByOwner(
+    where: Prisma.SaleOrderWhereInput,
+  ): Promise<AmountGroup[]> {
+    const rows = await this.prisma.saleOrder.groupBy({
+      by: ['ownerUserId'],
+      where,
+      _count: { _all: true },
+      _sum: { amount: true },
+    });
+    return rows.map((row) => ({
+      key: row.ownerUserId,
+      count: row._count._all,
+      amount: Number(row._sum.amount ?? 0),
+    }));
   }
 
   /**
@@ -290,5 +405,47 @@ export class QuotationLineRepository extends BaseRepository<
 
   protected delegate(client: TQueryClient) {
     return client.quotationLine;
+  }
+}
+
+/** CD-82 เป้ายอดขายรายเดือน — ค่าที่มีผลอยู่ตอนนี้เท่านั้น. */
+@Injectable()
+export class SalesTargetRepository extends BaseRepository<
+  PrismaService['salesTarget']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.salesTarget;
+  }
+}
+
+/** CD-82 ประวัติการเปลี่ยนเป้า รวมค่าที่รออนุมัติ — append-only นอกจากสถานะ. */
+@Injectable()
+export class SalesTargetRevisionRepository extends BaseRepository<
+  PrismaService['salesTargetRevision']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.salesTargetRevision;
+  }
+}
+
+/** CD-71 แคมเปญการตลาดต่อบริษัท. */
+@Injectable()
+export class CampaignRepository extends BaseRepository<
+  PrismaService['campaign']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.campaign;
   }
 }

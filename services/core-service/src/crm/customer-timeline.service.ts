@@ -134,6 +134,24 @@ export class CustomerTimelineService {
   }
 
   /**
+   * Whether this exact event is already on the feed — for subscribers of
+   * redeliverable domain events (§11.8), which must stay idempotent without a
+   * second table. Read-only; the feed stays append-only.
+   */
+  async has(event: {
+    customerId: string;
+    refType: string;
+    refId: string;
+    eventType: string;
+  }): Promise<boolean> {
+    const found = await this.prisma.customerTimelineEvent.findFirst({
+      where: event,
+      select: { id: true },
+    });
+    return found !== null;
+  }
+
+  /**
    * The feed for one customer, newest first, filtered to what this viewer may
    * see — in the query, not after it, so a page of the feed never shrinks
    * oddly:

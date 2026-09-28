@@ -3,6 +3,7 @@ import {
   ErpClient,
   ErpContext,
   ErpCustomerPayload,
+  ErpInvoice,
   ErpItem,
   ErpReceivables,
   ErpSalesOrderPayload,
@@ -64,10 +65,10 @@ export class MockSapClient implements ErpClient {
     _ctx: ErpContext,
     externalCode: string,
   ): Promise<ErpReceivables> {
-    const seed = seedOf(externalCode);
+    const { invoiceCount, outstanding } = mockOpenInvoices(externalCode);
     return Promise.resolve({
-      outstanding: (seed % 8) * 12500,
-      invoiceCount: seed % 5,
+      outstanding,
+      invoiceCount,
       asOf: new Date().toISOString(),
     });
   }
@@ -96,6 +97,52 @@ export class MockSapClient implements ErpClient {
 
   listItems(_ctx: ErpContext): Promise<ErpItem[]> {
     return Promise.resolve([...MOCK_ITEMS]);
+  }
+
+  /**
+   * CD-89 — deterministic per customer and consistent with `getReceivables`:
+   * the open invoices add up to its `outstanding`, plus two paid ones.
+   */
+  listInvoices(
+    _ctx: ErpContext,
+    externalCode: string,
+    limit: number,
+  ): Promise<ErpInvoice[]> {
+    const { invoiceCount: openCount, outstanding } =
+      mockOpenInvoices(externalCode);
+    const today = Date.now();
+    const day = (offset: number) =>
+      new Date(today + offset * 86_400_000).toISOString().slice(0, 10);
+
+    const open: ErpInvoice[] = Array.from({ length: openCount }, (_, i) => {
+      const amount =
+        i === openCount - 1
+          ? outstanding - Math.floor(outstanding / openCount) * (openCount - 1)
+          : Math.floor(outstanding / openCount);
+      return {
+        docNo: String(9000 + i),
+        reference: null,
+        issuedOn: day(-15 * (i + 1)),
+        dueOn: day(30 - 15 * (i + 1)),
+        currency: 'THB',
+        total: amount,
+        paid: 0,
+        outstanding: amount,
+        status: 'open',
+      };
+    });
+    const paid: ErpInvoice[] = [1, 2].map((n) => ({
+      docNo: String(8000 + n),
+      reference: null,
+      issuedOn: day(-90 * n),
+      dueOn: day(-60 * n),
+      currency: 'THB',
+      total: 20000 * n,
+      paid: 20000 * n,
+      outstanding: 0,
+      status: 'paid',
+    }));
+    return Promise.resolve([...open, ...paid].slice(0, limit));
   }
 
   cancelSalesOrder(
@@ -146,6 +193,24 @@ function bpOf(customerCode: string): string {
 
 function orderNoOf(saleOrderCode: string): string {
   return `MOCK-SO-${String(seedOf(saleOrderCode)).padStart(10, '0')}`;
+}
+
+/**
+ * The mock's open A/R for one BP — one source for both `getReceivables` and
+ * `listInvoices`, so the 360° card and the invoice tab never disagree. No
+ * open invoice means nothing outstanding (the old formula could say 12,500
+ * across zero invoices).
+ */
+function mockOpenInvoices(externalCode: string): {
+  invoiceCount: number;
+  outstanding: number;
+} {
+  const seed = seedOf(externalCode);
+  const invoiceCount = seed % 5;
+  return {
+    invoiceCount,
+    outstanding: invoiceCount ? ((seed % 8) + 1) * 12500 : 0,
+  };
 }
 
 function seedOf(text: string): number {

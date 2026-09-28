@@ -8,8 +8,9 @@ import {
   resolveTargetCompany,
 } from '@request-management/share';
 import type { Principal } from '@request-management/share';
-import type { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { ReplaceHolidayCalendarDto, ReplaceSlaConfigsDto } from './dto/sla.dto';
+import { readSeverityTargets, severityTargetProblems } from './severity';
 
 /**
  * SUP-01 / D-09 — SLA values and the working calendar, as configuration.
@@ -54,6 +55,24 @@ export class SlaConfigService {
       ]);
     }
 
+    // CD-67 — a case type's targets are checked here, the one place they are
+    // written; the clock reads them without re-validating.
+    const badTargets = dto.configs.flatMap((entry) =>
+      entry.severity_targets
+        ? severityTargetProblems(entry.severity_targets).map((reason) => ({
+            field: `severity_targets.${entry.request_type_code}`,
+            reason,
+          }))
+        : [],
+    );
+    if (badTargets.length) {
+      throw new AppError(
+        'VALIDATION_FAILED',
+        `เป้าเวลาตามความรุนแรงไม่ถูกต้อง: ${badTargets[0].reason}`,
+        badTargets,
+      );
+    }
+
     return this.transactions.execute(async (prisma) => {
       const before = await prisma.slaConfig.findMany({ where: { companyId } });
 
@@ -66,6 +85,11 @@ export class SlaConfigService {
           hours: entry.hours,
           coverage: entry.coverage ?? 'H24X7',
           warnBeforeHours: entry.warn_before_hours ?? 4,
+          severityTargets: entry.severity_targets
+            ? (readSeverityTargets(
+                entry.severity_targets,
+              ) as unknown as Prisma.InputJsonValue)
+            : Prisma.DbNull,
           updatedBy: actor.userId,
         })),
       });

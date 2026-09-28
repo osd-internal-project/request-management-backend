@@ -546,18 +546,12 @@ export class UpdateKycProductDto {
   active?: boolean;
 }
 
+/**
+ * CM-02: รูปแบบรหัสลูกค้า (prefix / จำนวนหลัก) ไม่อยู่ที่นี่แล้ว — ตั้งที่
+ * run-number-service (`run_number_settings`, docType `CUSTOMER`) ดู
+ * docs/run-number.md. คอลัมน์เก่าใน `crm_company_configs` รอ migration ลบ.
+ */
 export class UpdateCrmConfigDto {
-  @IsOptional()
-  @IsString()
-  @Matches(/^[A-Z0-9]{1,10}$/)
-  code_prefix?: string;
-
-  @IsOptional()
-  @IsInt()
-  @Min(3)
-  @Max(10)
-  code_padding?: number;
-
   /** CM-03 similarity threshold, 0.5–1.0 (PO: จูนได้จากหน้าจอ). */
   @IsOptional()
   @IsNumber()
@@ -660,4 +654,22 @@ export class UpdateCrmConfigDto {
   @IsString()
   @Matches(/^[A-Z0-9_-]{1,20}$/)
   quotation_approval_type_code?: string;
+
+  /**
+   * CD-82: รหัสประเภทคำขอที่ใช้ขออนุมัติการปรับเป้าขายของงวดที่เริ่มแล้ว.
+   * ส่ง `""` = ล้าง (ปรับเป้าระหว่างงวดไม่ได้จนกว่าจะตั้ง).
+   */
+  @IsOptional()
+  @IsString()
+  @Matches(/^([A-Z0-9_-]{1,20})?$/)
+  target_approval_type_code?: string;
+
+  /**
+   * CD-81: รหัสประเภทคำขอที่ฝ่ายกฎหมายรับทำ/แก้สัญญา. ส่ง `""` = ล้าง
+   * (หน้าดีลไม่แสดงการ์ดสัญญา).
+   */
+  @IsOptional()
+  @IsString()
+  @Matches(/^([A-Z0-9_-]{1,20})?$/)
+  contract_request_type_code?: string;
 }

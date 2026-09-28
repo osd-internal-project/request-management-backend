@@ -158,6 +158,10 @@
             "unassigned"
           ],
           "description": "`mine` ของฉัน · `all` ทั้งหมดที่เห็นได้ · `unassigned` กองกลางที่ยังไม่มีเจ้าของ"
+        },
+        "campaign_id": {
+          "type": "string",
+          "description": "id แคมเปญจาก `GET /crm/campaigns`"
         }
       }
     },
@@ -522,6 +526,11 @@
           "example": "website",
           "description": "รหัสแหล่งที่มาตามที่บริษัทตั้งค่าไว้",
           "maxLength": 64
+        },
+        "campaign_code": {
+          "type": "string",
+          "example": "EXPO-2026-Q4",
+          "maxLength": 40
         },
         "customer_id": {
           "type": "string",

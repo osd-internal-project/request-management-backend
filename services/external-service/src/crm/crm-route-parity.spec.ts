@@ -34,8 +34,11 @@ const EXTERNAL_CRM = __dirname;
 const ROBOT: Readonly<Record<string, string>> = {
   'crm.customer.read': 'integration.crm.customer.read',
   'crm.customer.manage': 'integration.crm.customer.manage',
+  'crm.customer.financial.read': 'integration.crm.customer.read',
   'crm.sales.read': 'integration.crm.sales.read',
   'crm.sales.manage': 'integration.crm.sales.manage',
+  'crm.target.manage': 'integration.crm.sales.manage',
+  'crm.campaign.manage': 'integration.crm.sales.manage',
   'admin.crm.manage': 'integration.crm.admin.manage',
 };
 

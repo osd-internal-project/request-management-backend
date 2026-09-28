@@ -184,7 +184,7 @@ export class CrmAdminService {
     );
   }
 
-  // --- CRM config (CM-02 code shape, CM-03 threshold) ----------------------
+  // --- CRM config (CM-03 threshold, quotation defaults) ---------------------
 
   async getConfig(actor: Principal) {
     const found = await this.configs.findFirst({
@@ -196,13 +196,13 @@ export class CrmAdminService {
     return (
       found ?? {
         companyId: actor.activeCompanyId,
-        codePrefix: 'CUS',
-        codePadding: 6,
         dedupThreshold: 0.85,
         minMarginPct: 15,
         quotationValidityDays: 30,
         vatPct: 7,
         quotationApprovalTypeCode: 'DSC',
+        targetApprovalTypeCode: null,
+        contractRequestTypeCode: null,
         staleOpportunityDays: 14,
         ...EMPTY_LETTERHEAD,
       }
@@ -219,8 +219,6 @@ export class CrmAdminService {
             where: { companyId: actor.activeCompanyId },
             create: {
               companyId: actor.activeCompanyId,
-              codePrefix: dto.code_prefix ?? 'CUS',
-              codePadding: dto.code_padding ?? 6,
               dedupThreshold: dto.dedup_threshold ?? 0.85,
               minMarginPct: dto.min_margin_pct ?? 15,
               quotationValidityDays: dto.quotation_validity_days ?? 30,
@@ -228,18 +226,26 @@ export class CrmAdminService {
               quotationApprovalTypeCode:
                 dto.quotation_approval_type_code ?? 'DSC',
               staleOpportunityDays: dto.stale_opportunity_days ?? 14,
+              targetApprovalTypeCode: dto.target_approval_type_code || null,
+              contractRequestTypeCode: dto.contract_request_type_code || null,
               ...letterheadColumns(dto),
               updatedBy: actor.userId,
             },
             update: {
-              codePrefix: dto.code_prefix,
-              codePadding: dto.code_padding,
               dedupThreshold: dto.dedup_threshold,
               minMarginPct: dto.min_margin_pct,
               quotationValidityDays: dto.quotation_validity_days,
               vatPct: dto.vat_pct,
               quotationApprovalTypeCode: dto.quotation_approval_type_code,
               staleOpportunityDays: dto.stale_opportunity_days,
+              targetApprovalTypeCode:
+                dto.target_approval_type_code === undefined
+                  ? undefined
+                  : dto.target_approval_type_code || null,
+              contractRequestTypeCode:
+                dto.contract_request_type_code === undefined
+                  ? undefined
+                  : dto.contract_request_type_code || null,
               ...letterheadColumns(dto),
               updatedBy: actor.userId,
             },

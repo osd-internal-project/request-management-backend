@@ -14,6 +14,7 @@ import {
 import { CompanyMemberRepository } from '../access/company-member.repository';
 import { LeadStatusService } from './lead-status.service';
 import { LeadActivityRepository, LeadRepository } from './sales.repositories';
+import { CampaignsService } from './campaigns.service';
 import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
 import { OpportunitiesService } from './opportunities.service';
 import { CustomerRepository } from './customer.repository';
@@ -105,6 +106,7 @@ export class LeadsService {
     private readonly members: CompanyMemberRepository,
     private readonly statuses: LeadStatusService,
     private readonly workflowSync: LeadWorkflowSyncService,
+    private readonly campaigns: CampaignsService,
   ) {}
 
   async list(actor: Principal, query: ListLeadsQueryDto) {
@@ -112,6 +114,7 @@ export class LeadsService {
     const filters: Prisma.LeadWhereInput = {};
 
     if (query.status) filters.status = query.status;
+    if (query.campaign_id) filters.campaignId = query.campaign_id;
     if (query.view === 'mine') filters.ownerUserId = actor.userId;
     // กองกลาง — ใบที่ยังไม่มีใครรับ. ตัวกรอง ไม่ใช่ประตู: `visibleLeadsWhere`
     // ด้านล่างยังผูกทุกแถวไว้กับขอบเขตของคนเรียกเหมือนเดิม.
@@ -136,6 +139,7 @@ export class LeadsService {
         include: {
           customer: { select: { id: true, customerCode: true, nameTh: true } },
           convertedOpportunity: { select: { id: true, opportunityCode: true } },
+          campaign: { select: { id: true, code: true, name: true } },
         },
         skip,
         take,
@@ -171,6 +175,7 @@ export class LeadsService {
         convertedOpportunity: {
           select: { id: true, opportunityCode: true, title: true, stage: true },
         },
+        campaign: { select: { id: true, code: true, name: true } },
         activities: { orderBy: { createdAt: 'desc' } },
       },
     })) as
@@ -231,12 +236,17 @@ export class LeadsService {
     options: { unowned?: boolean } = {},
   ) {
     if (dto.customer_id) await this.assertCustomer(dto.customer_id, actor);
+    const campaignId = await this.campaigns.resolveCode(
+      dto.campaign_code,
+      actor.activeCompanyId,
+    );
 
     const row = (await this.leads.create({
       data: {
         companyId: actor.activeCompanyId,
         name: dto.name.trim(),
         ...leadColumns(dto, false),
+        campaignId: campaignId ?? null,
         // ขั้นตั้งต้นมาจากหน้าตั้งค่า ไม่ใช่ค่า default ของคอลัมน์ — ผู้ดูแลที่ย้ายธง
         // "สถานะตั้งต้น" ไปขั้นอื่นต้องเห็นผลกับ Lead ใบถัดไปทันที.
         status: await this.statuses.defaultCode(actor.activeCompanyId),
@@ -255,6 +265,9 @@ export class LeadsService {
       after: {
         name: dto.name,
         sourceCode: dto.source_code,
+        campaignCode: campaignId
+          ? dto.campaign_code?.trim().toUpperCase()
+          : null,
         // ตอบคำถาม "ใบนี้เข้ามาแล้วไปอยู่กับใคร" ได้จาก audit ใบเดียว — ค่า null
         // คือกองกลาง และเป็นจุดเริ่มของคู่ before/after ที่ `crm.lead.assigned` เขียนต่อ.
         ownerUserId: options.unowned ? null : actor.userId,
@@ -274,12 +287,17 @@ export class LeadsService {
   async update(id: string, dto: UpdateLeadDto, actor: Principal) {
     await this.requireOpen(id, actor);
     if (dto.customer_id) await this.assertCustomer(dto.customer_id, actor);
+    const campaignId = await this.campaigns.resolveCode(
+      dto.campaign_code,
+      actor.activeCompanyId,
+    );
 
     return this.leads.update({
       where: { id },
       data: {
         ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
         ...leadColumns(dto, true),
+        ...(campaignId !== undefined ? { campaignId } : {}),
         updatedBy: actor.userId,
       },
     });

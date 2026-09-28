@@ -419,6 +419,20 @@
             }
           },
           {
+            "name": "severity",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "critical",
+                "high",
+                "medium",
+                "low"
+              ]
+            }
+          },
+          {
             "name": "q",
             "required": false,
             "in": "query",
@@ -1546,6 +1560,101 @@
         ]
       }
     },
+    "/api/v1/reports/sla-compliance": {
+      "get": {
+        "operationId": "RequestsController_slaComplianceReport",
+        "parameters": [
+          {
+            "name": "company_id",
+            "required": false,
+            "in": "query",
+            "description": "Defaults to the active company.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "group_by",
+            "required": false,
+            "in": "query",
+            "description": "team = ทีมผู้รับ · type = ประเภทคำขอ · month = เดือนที่ปิดงาน",
+            "schema": {
+              "default": "team",
+              "type": "string",
+              "enum": [
+                "team",
+                "type",
+                "month"
+              ]
+            }
+          },
+          {
+            "name": "type_code",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "DSC",
+              "type": "string"
+            }
+          },
+          {
+            "name": "org_unit_id",
+            "required": false,
+            "in": "query",
+            "description": "The receiving team.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "Completion window start; defaults to 30 days before `to`.",
+            "schema": {
+              "example": "2026-09-01T00:00:00+07:00",
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "Defaults to now.",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "requests"
+        ],
+        "x-permission": [
+          "report.request.read"
+        ]
+      }
+    },
     "/api/v1/admin/request-types/{code}/flows": {
       "get": {
         "operationId": "RequestTypeAdminController_listFlows",
@@ -1626,6 +1735,54 @@
         },
         "responses": {
           "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin/request-types"
+        ],
+        "x-permission": [
+          "admin.request-type.manage"
+        ]
+      }
+    },
+    "/api/v1/admin/request-types/{code}/flows/suggested": {
+      "get": {
+        "operationId": "RequestTypeAdminController_suggestedFlow",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "company_id",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
             "description": ""
           }
         },
@@ -2225,6 +2382,48 @@
           "crm.customer.manage"
         ],
         "x-sensitive-resource": "customer"
+      }
+    },
+    "/api/v1/customers/{id}/invoices": {
+      "get": {
+        "description": "อ่านสด ไม่เกิน 50 ใบล่าสุด · SAP ไม่ตอบ = source `unavailable` (หน้าไม่พัง) · ERP_MODE=mock = ไม่แสดงตัวเลข",
+        "operationId": "CustomersController_invoices",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ใบแจ้งหนี้และการรับชำระของลูกค้าจาก SAP",
+        "tags": [
+          "customers"
+        ],
+        "x-permission": [
+          "crm.customer.financial.read"
+        ]
       }
     },
     "/api/v1/customers/{id}/contacts/consents": {
@@ -3687,6 +3886,78 @@
         ]
       }
     },
+    "/api/v1/admin/crm/trade-terms": {
+      "get": {
+        "operationId": "CrmAdminController_listTradeTerms",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin/crm"
+        ],
+        "x-permission": [
+          "admin.crm.manage"
+        ]
+      },
+      "put": {
+        "operationId": "CrmAdminController_replaceTradeTerms",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplaceTradeTermsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin/crm"
+        ],
+        "x-permission": [
+          "admin.crm.manage"
+        ]
+      }
+    },
     "/api/v1/leads/statuses": {
       "get": {
         "description": "ส่งทั้งชุดรวมที่ปิดใช้งาน เพราะ Lead ที่ค้างบนขั้นที่เพิ่งปิดยังต้องมีชื่อและสีให้แสดง — หน้าจอเป็นคนกรอง active เอง. โค้ดตั้งได้ต่อบริษัท ไม่ใช่ enum",
@@ -3794,6 +4065,15 @@
                 "all",
                 "unassigned"
               ]
+            }
+          },
+          {
+            "name": "campaign_id",
+            "required": false,
+            "in": "query",
+            "description": "id แคมเปญจาก `GET /crm/campaigns`",
+            "schema": {
+              "type": "string"
             }
           },
           {
@@ -4511,6 +4791,267 @@
         ]
       }
     },
+    "/api/v1/opportunities/summary": {
+      "get": {
+        "description": "จำนวน มูลค่า และมูลค่าถ่วงความน่าจะเป็น ของทุกแถวที่ตรงตัวกรองเดียวกับ GET /opportunities (ไม่แบ่งหน้า)",
+        "operationId": "OpportunitiesController_summary",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "เลขหน้าที่ต้องการ เริ่มที่ 1",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page_size",
+            "required": false,
+            "in": "query",
+            "description": "จำนวนรายการต่อหน้า",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "`sort=field` เรียงขึ้น, `sort=-field` เรียงลง",
+            "schema": {
+              "example": "-createdAt",
+              "type": "string",
+              "pattern": "^-?[a-zA-Z_][a-zA-Z0-9_]*$"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "ค้นจากชื่อโอกาส รหัสโอกาส ชื่อผู้มุ่งหวัง หรือชื่อลูกค้า",
+            "schema": {
+              "example": "ตัวอย่าง",
+              "type": "string"
+            }
+          },
+          {
+            "name": "stage",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "proposing",
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ],
+              "enum": [
+                "qualifying",
+                "proposing",
+                "negotiating",
+                "won",
+                "lost"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "open",
+            "required": false,
+            "in": "query",
+            "description": "`true` = เฉพาะที่ยังไม่ won/lost",
+            "schema": {
+              "example": "true",
+              "type": "string",
+              "enum": [
+                "true"
+              ]
+            }
+          },
+          {
+            "name": "customer_id",
+            "required": false,
+            "in": "query",
+            "description": "id ลูกค้าจาก `GET /crm/customers`",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "view",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "mine",
+              "type": "string",
+              "enum": [
+                "mine",
+                "all"
+              ]
+            }
+          },
+          {
+            "name": "follow_up",
+            "required": false,
+            "in": "query",
+            "description": "`overdue` เลยนัดติดตามแล้ว · `stale` ถูกเตือนว่าเงียบเกินเกณฑ์",
+            "schema": {
+              "example": "overdue",
+              "type": "string",
+              "enum": [
+                "overdue",
+                "stale"
+              ]
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ยอดรวมต่อขั้นของโอกาสการขาย",
+        "tags": [
+          "opportunities"
+        ],
+        "x-permission": [
+          "crm.sales.read"
+        ]
+      }
+    },
+    "/api/v1/opportunities/dashboard": {
+      "get": {
+        "description": "ภาพรวมลูกค้า Lead โอกาสการขาย และกิจกรรม ตามขอบเขตที่ผู้เรียกเห็นได้ · ส่วนลูกค้าเป็น null ถ้าไม่มี crm.customer.read",
+        "operationId": "OpportunitiesController_crmDashboard",
+        "parameters": [
+          {
+            "name": "view",
+            "required": false,
+            "in": "query",
+            "description": "`team` (ค่าตั้งต้น) = ทุกอย่างในขอบเขตที่เห็นได้ · `mine` = เฉพาะที่ตัวเองเป็นเจ้าของ",
+            "schema": {
+              "example": "team",
+              "type": "string",
+              "enum": [
+                "mine",
+                "team"
+              ]
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แดชบอร์ด CRM",
+        "tags": [
+          "opportunities"
+        ],
+        "x-permission": [
+          "crm.sales.read"
+        ]
+      }
+    },
+    "/api/v1/opportunities/report": {
+      "get": {
+        "description": "ยอดขาย (ใบสั่งขายที่ไม่ยกเลิก) · ชนะ/แพ้และอัตราการปิดในช่วง · เหตุผลที่แพ้ · ผลงานรายบุคคล — จำกัดตามขอบเขตที่ผู้เรียกเห็นได้",
+        "operationId": "OpportunitiesController_salesReport",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "วันแรกของช่วง (เวลาไทย) — ไม่ส่ง = วันที่ 1 ของเดือนนี้",
+            "schema": {
+              "example": "2026-09-01",
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "วันสุดท้ายของช่วง นับรวม (เวลาไทย) — ไม่ส่ง = วันนี้",
+            "schema": {
+              "example": "2026-09-30",
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          {
+            "name": "owner_user_id",
+            "required": false,
+            "in": "query",
+            "description": "เฉพาะพนักงานคนนี้ — ยังถูกจำกัดด้วยขอบเขตที่ผู้เรียกเห็นได้",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "รายงานยอดขาย",
+        "tags": [
+          "opportunities"
+        ],
+        "x-permission": [
+          "crm.sales.read"
+        ]
+      }
+    },
     "/api/v1/opportunities/lost-reasons": {
       "get": {
         "description": "ใช้เป็นค่าของ reason_code ตอนปิดแพ้",
@@ -4720,6 +5261,105 @@
           }
         ],
         "summary": "ลงกิจกรรมของโอกาสการขาย",
+        "tags": [
+          "opportunities"
+        ],
+        "x-permission": [
+          "crm.sales.manage"
+        ]
+      }
+    },
+    "/api/v1/opportunities/{id}/negotiations": {
+      "get": {
+        "description": "ใหม่สุดก่อน · `standards` = เงื่อนไขมาตรฐานที่ใช้อยู่ของบริษัท (ตั้งที่หน้าตั้งค่า CRM)",
+        "operationId": "OpportunitiesController_listNegotiations",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "รอบการต่อรองเงื่อนไขการค้าของโอกาสการขาย",
+        "tags": [
+          "opportunities"
+        ],
+        "x-permission": [
+          "crm.sales.read"
+        ]
+      },
+      "post": {
+        "operationId": "OpportunitiesController_recordNegotiation",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateNegotiationRoundDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "บันทึกรอบการต่อรอง (นอกมาตรฐาน = ส่งฝ่ายกฎหมายอัตโนมัติ)",
         "tags": [
           "opportunities"
         ],
@@ -5166,6 +5806,274 @@
         ],
         "x-permission": [
           "crm.sales.manage"
+        ]
+      }
+    },
+    "/api/v1/sales-targets": {
+      "get": {
+        "description": "ยอดขายจริง (ใบสั่งขายที่ไม่ยกเลิก) + พยากรณ์ (ยอดจริง + pipeline ถ่วงที่คาดว่าจะปิดในเดือน) เทียบเป้า — เห็นตามขอบเขต: ของตัวเอง/ทีมที่ดูแล หรือทั้งบริษัท",
+        "operationId": "SalesTargetsController_list",
+        "parameters": [
+          {
+            "name": "period",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "2026-09",
+              "type": "string",
+              "pattern": "^20\\d{2}-(0[1-9]|1[0-2])$"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เป้าและพยากรณ์ของเดือน",
+        "tags": [
+          "sales-targets"
+        ],
+        "x-permission": [
+          "crm.sales.read"
+        ]
+      },
+      "post": {
+        "description": "ตั้งครั้งแรก หรืองวดที่ยังไม่เริ่ม = มีผลทันที · ปรับเป้าที่มีอยู่ของงวดที่เริ่มแล้ว = สร้างร่างคำขออนุมัติ (ประเภทตั้งที่ ตั้งค่า CRM) ค่าใหม่มีผลเมื่ออนุมัติ",
+        "operationId": "SalesTargetsController_set",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetSalesTargetDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ตั้งหรือปรับเป้า",
+        "tags": [
+          "sales-targets"
+        ],
+        "x-permission": [
+          "crm.target.manage"
+        ]
+      }
+    },
+    "/api/v1/sales-targets/{id}/revisions": {
+      "get": {
+        "description": "รวมค่าเดิม ผู้เปลี่ยน เหตุผล และสถานะการอนุมัติ",
+        "operationId": "SalesTargetsController_revisions",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ประวัติการเปลี่ยนเป้า",
+        "tags": [
+          "sales-targets"
+        ],
+        "x-permission": [
+          "crm.sales.read"
+        ]
+      }
+    },
+    "/api/v1/campaigns": {
+      "get": {
+        "description": "จำนวน Lead · แปลงเป็นโอกาส · ชนะ · ยอดขาย · ต้นทุนต่อ Lead — นับเฉพาะ Lead ที่ผู้เรียกเห็นได้",
+        "operationId": "CampaignsController_list",
+        "parameters": [
+          {
+            "name": "active",
+            "required": false,
+            "in": "query",
+            "description": "`true` = เฉพาะที่เปิดอยู่",
+            "schema": {
+              "example": "true",
+              "type": "string",
+              "enum": [
+                "true"
+              ]
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แคมเปญพร้อมผล",
+        "tags": [
+          "campaigns"
+        ],
+        "x-permission": [
+          "crm.sales.read"
+        ]
+      },
+      "post": {
+        "operationId": "CampaignsController_create",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCampaignDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "สร้างแคมเปญ",
+        "tags": [
+          "campaigns"
+        ],
+        "x-permission": [
+          "crm.campaign.manage"
+        ]
+      }
+    },
+    "/api/v1/campaigns/{id}": {
+      "patch": {
+        "description": "แก้ได้ทุกอย่างยกเว้นรหัส · active=false = ผูก Lead ใหม่ไม่ได้",
+        "operationId": "CampaignsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCampaignDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แก้ไข / ปิดแคมเปญ",
+        "tags": [
+          "campaigns"
+        ],
+        "x-permission": [
+          "crm.campaign.manage"
         ]
       }
     },
@@ -6256,6 +7164,248 @@
         ]
       }
     },
+    "/api/v1/approvals/decisions": {
+      "get": {
+        "description": "หนึ่งแถวต่อการตัดสินหนึ่งครั้ง: ใคร อะไร เมื่อไร ในฐานะอะไร (ตามสาย / แทน / สิทธิ์ขอบเขตนอกสาย) และด้วยข้อมูลชุดใด (เวอร์ชันตาราง + snapshot)",
+        "operationId": "ApprovalsController_decisions",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "เลขหน้าที่ต้องการ เริ่มที่ 1",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page_size",
+            "required": false,
+            "in": "query",
+            "description": "จำนวนรายการต่อหน้า",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "`sort=field` เรียงขึ้น, `sort=-field` เรียงลง",
+            "schema": {
+              "example": "-createdAt",
+              "type": "string",
+              "pattern": "^-?[a-zA-Z_][a-zA-Z0-9_]*$"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "วันแรก (เวลาไทย) — ไม่ส่ง = วันที่ 1 ของเดือนนี้",
+            "schema": {
+              "example": "2026-09-01",
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "วันสุดท้าย นับรวม (เวลาไทย) — ไม่ส่ง = วันนี้",
+            "schema": {
+              "example": "2026-09-30",
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          {
+            "name": "subject_type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "request:DSC",
+              "type": "string"
+            }
+          },
+          {
+            "name": "decided_by",
+            "required": false,
+            "in": "query",
+            "description": "เฉพาะการตัดสินของคนนี้",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "basis",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "chain",
+                "delegate",
+                "scope_grant"
+              ]
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ประวัติการใช้อำนาจอนุมัติ",
+        "tags": [
+          "approvals"
+        ],
+        "x-permission": [
+          "approval.history.read"
+        ]
+      }
+    },
+    "/api/v1/approvals/decisions/export": {
+      "get": {
+        "description": "ตัวกรองเดียวกับ GET /approvals/decisions · ไม่เกิน 10,000 แถว · บันทึก audit",
+        "operationId": "ApprovalsController_exportDecisions",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "เลขหน้าที่ต้องการ เริ่มที่ 1",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page_size",
+            "required": false,
+            "in": "query",
+            "description": "จำนวนรายการต่อหน้า",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "`sort=field` เรียงขึ้น, `sort=-field` เรียงลง",
+            "schema": {
+              "example": "-createdAt",
+              "type": "string",
+              "pattern": "^-?[a-zA-Z_][a-zA-Z0-9_]*$"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "วันแรก (เวลาไทย) — ไม่ส่ง = วันที่ 1 ของเดือนนี้",
+            "schema": {
+              "example": "2026-09-01",
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "วันสุดท้าย นับรวม (เวลาไทย) — ไม่ส่ง = วันนี้",
+            "schema": {
+              "example": "2026-09-30",
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          {
+            "name": "subject_type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "request:DSC",
+              "type": "string"
+            }
+          },
+          {
+            "name": "decided_by",
+            "required": false,
+            "in": "query",
+            "description": "เฉพาะการตัดสินของคนนี้",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "basis",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "chain",
+                "delegate",
+                "scope_grant"
+              ]
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "export ประวัติการใช้อำนาจอนุมัติเป็น CSV",
+        "tags": [
+          "approvals"
+        ],
+        "x-permission": [
+          "approval.history.read"
+        ]
+      }
+    },
     "/api/v1/approvals/batch-decide": {
       "post": {
         "operationId": "ApprovalsController_batchDecide",
@@ -6455,6 +7605,48 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/PublishMatrixDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin/approval-matrix"
+        ],
+        "x-permission": [
+          "admin.approval-matrix.manage"
+        ]
+      }
+    },
+    "/api/v1/admin/approval-matrix/retire": {
+      "post": {
+        "operationId": "ApprovalMatrixAdminController_retire",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RetireMatrixDto"
               }
             }
           }
@@ -6716,6 +7908,158 @@
         ]
       }
     },
+    "/api/v1/notifications/log": {
+      "get": {
+        "operationId": "NotificationsController_searchLog",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "เลขหน้าที่ต้องการ เริ่มที่ 1",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page_size",
+            "required": false,
+            "in": "query",
+            "description": "จำนวนรายการต่อหน้า",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "`sort=field` เรียงขึ้น, `sort=-field` เรียงลง",
+            "schema": {
+              "example": "-createdAt",
+              "type": "string",
+              "pattern": "^-?[a-zA-Z_][a-zA-Z0-9_]*$"
+            }
+          },
+          {
+            "name": "company_id",
+            "required": false,
+            "in": "query",
+            "description": "Defaults to the active company.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "ผู้รับ (ชื่อ / username / อีเมล) หรือหัวข้อข้อความ",
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "user_id",
+            "required": false,
+            "in": "query",
+            "description": "The recipient.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "event_type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "approval.requested",
+              "type": "string"
+            }
+          },
+          {
+            "name": "resource_type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "request",
+              "type": "string"
+            }
+          },
+          {
+            "name": "resource_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "read",
+            "required": false,
+            "in": "query",
+            "description": "unread · opened (เปิดอ่าน) · mark_all (กดอ่านทั้งหมด)",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "unread",
+                "opened",
+                "mark_all"
+              ]
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "notifications"
+        ],
+        "x-permission": [
+          "audit.read"
+        ]
+      }
+    },
     "/api/v1/notifications/unread-count": {
       "get": {
         "operationId": "NotificationsController_unreadCount",
@@ -6883,6 +8227,142 @@
         ],
         "tags": [
           "notifications"
+        ]
+      }
+    },
+    "/api/v1/admin/notification-templates": {
+      "get": {
+        "operationId": "NotificationTemplateController_list",
+        "parameters": [
+          {
+            "name": "company_id",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin/notification-templates"
+        ],
+        "x-permission": [
+          "admin.notification.manage"
+        ]
+      }
+    },
+    "/api/v1/admin/notification-templates/{eventType}": {
+      "put": {
+        "operationId": "NotificationTemplateController_save",
+        "parameters": [
+          {
+            "name": "eventType",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveNotificationTemplateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin/notification-templates"
+        ],
+        "x-permission": [
+          "admin.notification.manage"
+        ]
+      },
+      "delete": {
+        "operationId": "NotificationTemplateController_reset",
+        "parameters": [
+          {
+            "name": "eventType",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "company_id",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin/notification-templates"
+        ],
+        "x-permission": [
+          "admin.notification.manage"
         ]
       }
     },
@@ -7359,6 +8839,15 @@
           "form_data": {
             "type": "object"
           },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "critical",
+              "high",
+              "medium",
+              "low"
+            ]
+          },
           "ref_type": {
             "type": "string",
             "example": "opportunity"
@@ -7389,6 +8878,15 @@
         "properties": {
           "form_data": {
             "type": "object"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "critical",
+              "high",
+              "medium",
+              "low"
+            ]
           },
           "ref_type": {
             "type": "string"
@@ -7568,6 +9066,116 @@
           "type"
         ]
       },
+      "FlowReceiverRuleDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "keep",
+              "receiver",
+              "user",
+              "step"
+            ]
+          },
+          "user_id": {
+            "type": "string"
+          },
+          "step_code": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "MatrixLevelDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "supervisor",
+              "org"
+            ]
+          },
+          "up": {
+            "type": "number",
+            "example": 1
+          },
+          "orgUnitIds": {
+            "type": "array",
+            "items": {
+              "type": "array"
+            }
+          },
+          "userIds": {
+            "type": "array",
+            "items": {
+              "type": "array"
+            }
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "any",
+              "all"
+            ],
+            "default": "any"
+          },
+          "noteRequired": {
+            "type": "string",
+            "enum": [
+              "always",
+              "reject_or_return"
+            ]
+          },
+          "condition": {
+            "type": "object",
+            "description": "{ field, op, value } over the request answers."
+          },
+          "slaHours": {
+            "type": "number",
+            "example": 8
+          },
+          "chartOf": {
+            "type": "string",
+            "enum": [
+              "requester",
+              "worker"
+            ]
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "RequiredDocDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "QUOTE_DRAFT",
+            "maxLength": 64,
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "example": "ใบเสนอราคาฉบับร่าง",
+            "maxLength": 255,
+            "minLength": 1
+          },
+          "required": {
+            "type": "boolean",
+            "example": true,
+            "default": true
+          }
+        },
+        "required": [
+          "code",
+          "name"
+        ]
+      },
       "FlowStepDto": {
         "type": "object",
         "properties": {
@@ -7602,6 +9210,35 @@
           "sla_hours": {
             "type": "integer",
             "minimum": 1
+          },
+          "scope_status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "returned",
+              "submitted",
+              "in_progress",
+              "pending_approval",
+              "approved"
+            ]
+          },
+          "receiver_rule": {
+            "$ref": "#/components/schemas/FlowReceiverRuleDto"
+          },
+          "return_to_step": {
+            "type": "string"
+          },
+          "approval_levels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MatrixLevelDto"
+            }
+          },
+          "required_docs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RequiredDocDto"
+            }
           }
         },
         "required": [
@@ -7670,6 +9307,14 @@
             "type": "string",
             "description": "A1 passes it; A2 uses the active company."
           },
+          "schema_version": {
+            "type": "number",
+            "enum": [
+              1,
+              2
+            ],
+            "default": 1
+          },
           "steps": {
             "type": "array",
             "items": {
@@ -7686,32 +9331,6 @@
         "required": [
           "steps",
           "transitions"
-        ]
-      },
-      "RequiredDocDto": {
-        "type": "object",
-        "properties": {
-          "code": {
-            "type": "string",
-            "example": "QUOTE_DRAFT",
-            "maxLength": 64,
-            "minLength": 1
-          },
-          "name": {
-            "type": "string",
-            "example": "ใบเสนอราคาฉบับร่าง",
-            "maxLength": 255,
-            "minLength": 1
-          },
-          "required": {
-            "type": "boolean",
-            "example": true,
-            "default": true
-          }
-        },
-        "required": [
-          "code",
-          "name"
         ]
       },
       "CodedLabelDto": {
@@ -7901,6 +9520,10 @@
           "ref_required": {
             "type": "boolean",
             "default": false
+          },
+          "severity_targets": {
+            "type": "object",
+            "nullable": true
           }
         }
       },
@@ -8415,15 +10038,6 @@
       "UpdateCrmConfigDto": {
         "type": "object",
         "properties": {
-          "code_prefix": {
-            "pattern": "^[A-Z0-9]{1,10}$",
-            "type": "string"
-          },
-          "code_padding": {
-            "maximum": 10,
-            "minimum": 3,
-            "type": "integer"
-          },
           "dedup_threshold": {
             "maximum": 1,
             "minimum": 0.5,
@@ -8493,8 +10107,62 @@
           "quotation_approval_type_code": {
             "pattern": "^[A-Z0-9_-]{1,20}$",
             "type": "string"
+          },
+          "target_approval_type_code": {
+            "pattern": "^([A-Z0-9_-]{1,20})?$",
+            "type": "string"
+          },
+          "contract_request_type_code": {
+            "pattern": "^([A-Z0-9_-]{1,20})?$",
+            "type": "string"
           }
         }
+      },
+      "TradeTermStandardDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "PAYMENT",
+            "pattern": "^[A-Z0-9_-]{1,40}$"
+          },
+          "name": {
+            "type": "string",
+            "example": "เครดิตการชำระเงิน",
+            "maxLength": 200,
+            "minLength": 1
+          },
+          "standard_value": {
+            "type": "string",
+            "example": "30 วัน",
+            "maxLength": 500,
+            "minLength": 1
+          },
+          "active": {
+            "type": "boolean",
+            "default": true
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "standard_value"
+        ]
+      },
+      "ReplaceTradeTermsDto": {
+        "type": "object",
+        "properties": {
+          "terms": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TradeTermStandardDto"
+            },
+            "maxItems": 100
+          }
+        },
+        "required": [
+          "terms"
+        ]
       },
       "ImportLeadsDto": {
         "type": "object",
@@ -8561,6 +10229,11 @@
             "example": "website",
             "description": "รหัสแหล่งที่มาตามที่บริษัทตั้งค่าไว้",
             "maxLength": 64
+          },
+          "campaign_code": {
+            "type": "string",
+            "example": "EXPO-2026-Q4",
+            "maxLength": 40
           },
           "customer_id": {
             "type": "string",
@@ -8680,6 +10353,11 @@
             "example": "website",
             "description": "รหัสแหล่งที่มาตามที่บริษัทตั้งค่าไว้",
             "maxLength": 64
+          },
+          "campaign_code": {
+            "type": "string",
+            "example": "EXPO-2026-Q4",
+            "maxLength": 40
           },
           "customer_id": {
             "type": "string",
@@ -8989,6 +10667,61 @@
           }
         }
       },
+      "NegotiationTermDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "รหัสเงื่อนไขมาตรฐาน — ไม่ส่ง = เงื่อนไขนอกรายการ (นับว่านอกมาตรฐาน)",
+            "example": "PAYMENT",
+            "maxLength": 40
+          },
+          "name": {
+            "type": "string",
+            "description": "ชื่อเงื่อนไข — ต้องมีเมื่อไม่ส่ง code",
+            "maxLength": 200
+          },
+          "agreed": {
+            "type": "string",
+            "example": "60 วัน",
+            "maxLength": 500
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "agreed"
+        ]
+      },
+      "CreateNegotiationRoundDto": {
+        "type": "object",
+        "properties": {
+          "occurred_on": {
+            "type": "string",
+            "example": "2026-09-28",
+            "description": "วันที่ต่อรอง (YYYY-MM-DD)",
+            "format": "date-time"
+          },
+          "summary": {
+            "type": "string",
+            "description": "สรุปการต่อรองรอบนี้",
+            "maxLength": 4000
+          },
+          "terms": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NegotiationTermDto"
+            },
+            "maxItems": 50
+          }
+        },
+        "required": [
+          "occurred_on",
+          "terms"
+        ]
+      },
       "OpenSaleOrderDto": {
         "type": "object",
         "properties": {
@@ -9080,6 +10813,129 @@
         "required": [
           "reason"
         ]
+      },
+      "SetSalesTargetDto": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": "string",
+            "enum": [
+              "user",
+              "org_unit"
+            ],
+            "example": "user"
+          },
+          "subject_id": {
+            "type": "string",
+            "description": "id พนักงาน หรือ id กลุ่มในผังองค์กร",
+            "minLength": 1
+          },
+          "period": {
+            "type": "string",
+            "example": "2026-10",
+            "pattern": "^20\\d{2}-(0[1-9]|1[0-2])$"
+          },
+          "amount": {
+            "type": "number",
+            "example": 1500000,
+            "description": "บาท",
+            "maximum": 999999999999,
+            "minimum": 0
+          },
+          "reason": {
+            "type": "string",
+            "description": "บังคับเมื่อปรับเป้าของงวดที่เริ่มแล้ว — ไปอยู่ในคำขออนุมัติ",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "amount",
+          "period",
+          "scope",
+          "subject_id"
+        ]
+      },
+      "CreateCampaignDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "EXPO-2026-Q4",
+            "description": "รหัสที่เว็บฟอร์ม/ไฟล์นำเข้าอ้าง — ตั้งครั้งเดียว แก้ไม่ได้",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$"
+          },
+          "name": {
+            "type": "string",
+            "example": "งาน Thailand ICT Expo 2026",
+            "maxLength": 255,
+            "minLength": 1
+          },
+          "channel": {
+            "type": "string",
+            "example": "อีเวนต์",
+            "maxLength": 100
+          },
+          "start_date": {
+            "type": "string",
+            "example": "2026-10-01",
+            "format": "date-time"
+          },
+          "end_date": {
+            "type": "string",
+            "example": "2026-10-31",
+            "format": "date-time"
+          },
+          "budget": {
+            "type": "number",
+            "example": 250000,
+            "description": "งบประมาณ (บาท)",
+            "maximum": 999999999999,
+            "minimum": 0
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "code",
+          "name"
+        ]
+      },
+      "UpdateCampaignDto": {
+        "type": "object",
+        "properties": {
+          "active": {
+            "type": "boolean",
+            "description": "false = ปิด (ผูก Lead ใหม่ไม่ได้)"
+          },
+          "name": {
+            "maxLength": 255,
+            "type": "string",
+            "minLength": 1
+          },
+          "channel": {
+            "maxLength": 100,
+            "type": "string"
+          },
+          "start_date": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "end_date": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "budget": {
+            "maximum": 999999999999,
+            "minimum": 0,
+            "type": "number"
+          },
+          "note": {
+            "maxLength": 2000,
+            "type": "string"
+          }
+        }
       },
       "UpdateQuotationDto": {
         "type": "object",
@@ -9252,44 +11108,11 @@
           },
           "note": {
             "type": "string",
-            "maxLength": 2000,
-            "minLength": 1
+            "maxLength": 2000
           }
         },
         "required": [
-          "decision",
-          "note"
-        ]
-      },
-      "MatrixLevelDto": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "enum": [
-              "supervisor",
-              "org"
-            ]
-          },
-          "up": {
-            "type": "number",
-            "example": 1
-          },
-          "orgUnitIds": {
-            "type": "array",
-            "items": {
-              "type": "array"
-            }
-          },
-          "userIds": {
-            "type": "array",
-            "items": {
-              "type": "array"
-            }
-          }
-        },
-        "required": [
-          "type"
+          "decision"
         ]
       },
       "PublishMatrixDto": {
@@ -9330,6 +11153,24 @@
           "subject_type"
         ]
       },
+      "RetireMatrixDto": {
+        "type": "object",
+        "properties": {
+          "company_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "subject_type": {
+            "type": "string",
+            "example": "request:DSC",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "company_id",
+          "subject_type"
+        ]
+      },
       "SlaConfigEntryDto": {
         "type": "object",
         "properties": {
@@ -9359,6 +11200,27 @@
             "example": 4,
             "description": "Warn this long before due.",
             "minimum": 0
+          },
+          "severity_targets": {
+            "type": "object",
+            "example": {
+              "critical": {
+                "responseHours": 1,
+                "resolutionHours": 4
+              },
+              "high": {
+                "responseHours": 4,
+                "resolutionHours": 24
+              },
+              "medium": {
+                "responseHours": 8,
+                "resolutionHours": 72
+              },
+              "low": {
+                "responseHours": 24,
+                "resolutionHours": 120
+              }
+            }
           }
         },
         "required": [
@@ -9440,10 +11302,45 @@
           "email": {
             "type": "boolean",
             "example": true
+          },
+          "digest_hour": {
+            "type": "integer",
+            "example": 8,
+            "minimum": 0,
+            "maximum": 23
+          },
+          "categories": {
+            "type": "object",
+            "example": {
+              "approval": {
+                "email": true,
+                "frequency": "daily"
+              }
+            }
+          }
+        }
+      },
+      "SaveNotificationTemplateDto": {
+        "type": "object",
+        "properties": {
+          "company_id": {
+            "type": "string",
+            "description": "Defaults to the active company."
+          },
+          "title": {
+            "type": "string",
+            "example": "มีรายการรออนุมัติ",
+            "maxLength": 200
+          },
+          "body": {
+            "type": "string",
+            "example": "{{subject}} รอการอนุมัติจากคุณ",
+            "maxLength": 2000
           }
         },
         "required": [
-          "email"
+          "body",
+          "title"
         ]
       },
       "CreateBiDashboardDto": {
@@ -9620,6 +11517,10 @@
           },
           "source_code": {
             "maxLength": 64,
+            "type": "string"
+          },
+          "campaign_code": {
+            "maxLength": 40,
             "type": "string"
           },
           "note": {

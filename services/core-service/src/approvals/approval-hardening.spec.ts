@@ -294,6 +294,7 @@ function requestsWith(request: Record<string, unknown>, routable = true) {
     {
       stop: jest.fn(() => Promise.resolve()),
       pause: jest.fn(() => Promise.resolve()),
+      isCaseType: jest.fn(() => Promise.resolve(false)),
     } as never,
     { approvalWithdrawn: jest.fn(() => Promise.resolve()) } as never,
     { emit: jest.fn(() => Promise.resolve()) } as never,

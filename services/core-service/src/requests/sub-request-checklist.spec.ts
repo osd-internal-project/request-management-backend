@@ -98,6 +98,7 @@ function serviceWith(options: {
     {
       stop: jest.fn(() => Promise.resolve()),
       pause: jest.fn(() => Promise.resolve()),
+      caseTargetsOf: jest.fn(() => Promise.resolve(new Map())),
     } as never,
     {} as never,
     { emit: jest.fn(() => Promise.resolve()) } as never,
