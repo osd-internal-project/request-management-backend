@@ -165,6 +165,28 @@ export class NotificationsService {
   }
 
   /**
+   * CD-67 — a case nobody on the receiving side has responded to within its
+   * severity's response time. Worded as a fact, like `slaBreached`.
+   */
+  async slaResponseOverdue(
+    userId: string,
+    companyId: string,
+    requestId: string,
+    requestNo: string | null,
+    severity: string | null,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'sla.response_overdue',
+      title: 'เคสยังไม่มีผู้ตอบกลับเกินเวลา',
+      body: `คำขอ ${requestNo ?? requestId}${severity ? ` (ความรุนแรง ${severity})` : ''} เลยเวลาตอบกลับที่กำหนดแล้ว`,
+      resourceType: 'request',
+      resourceId: requestId,
+    });
+  }
+
+  /**
    * CD-65 — an open opportunity has had no completed activity for `days`
    * days. Worded as a fact for the same reason as `slaBreached`: the owner and
    * their head get the same message.

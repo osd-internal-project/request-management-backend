@@ -127,6 +127,16 @@ enum SlaCoverage {
   H8X5
 }
 
+/// CD-67 — ระดับความรุนแรงของเคส/ข้อร้องเรียน. กำหนดเวลาตอบกลับและแก้ไขของแต่ละ
+/// ระดับตั้งต่อประเภทคำขอใน `SlaConfig.severityTargets` — ประเภทที่ตั้งไว้ = ประเภทเคส
+/// (ต้องเลือกระดับตอนยื่น).
+enum RequestSeverity {
+  critical
+  high
+  medium
+  low
+}
+
 enum SlaState {
   running
   paused
@@ -952,6 +962,9 @@ model Request {
   receiverFormData Json @default("{}")
 
   /// REQ-06: link back to the originating entity (opportunity, customer, …).
+  /// CD-67 — ระดับความรุนแรง (เฉพาะประเภทเคส). เลือกได้ตอนร่าง/ตีกลับ ล็อกเมื่อยื่น.
+  severity RequestSeverity?
+
   refType String?
   refId   String?
 
@@ -1372,6 +1385,10 @@ model SlaConfig {
   coverage        SlaCoverage @default(H24X7)
   warnBeforeHours Int         @default(4)
 
+  /// CD-67 — เป้าเวลาตามระดับความรุนแรง `{ critical: { responseHours, resolutionHours }, … }`
+  /// (ชั่วโมงตาม coverage เดียวกับ `hours`). NULL = ประเภทนี้ไม่ใช่เคส ใช้ `hours` ตามเดิม.
+  severityTargets Json?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   updatedBy String?
@@ -1398,11 +1415,18 @@ model SlaClock {
   breachedAt    DateTime?
   escalatedAt   DateTime?
 
+  /// CD-67 — นาฬิกาเวลาตอบกลับ แยกจากเวลาแก้ไข (`dueAt`). มีเฉพาะคำขอประเภทเคส.
+  /// ตอบกลับ = ทีมผู้รับรับเรื่อง มอบหมาย หรือคอมเมนต์ครั้งแรก (ไม่นับผู้ยื่น).
+  responseDueAt      DateTime?
+  respondedAt        DateTime?
+  responseBreachedAt DateTime?
+
   updatedAt DateTime @updatedAt
 
   request Request @relation(fields: [requestId], references: [id])
 
   @@index([state, dueAt])
+  @@index([respondedAt, responseDueAt])
   @@map("sla_clocks")
 }
 

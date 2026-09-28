@@ -93,7 +93,10 @@ function serviceWith(options: {
       hasPublishedMatrix: jest.fn(() => Promise.resolve(false)),
       countMatricesFor: jest.fn(() => Promise.resolve(0)),
     } as never,
-    { stop: jest.fn(() => Promise.resolve()) } as never,
+    {
+      stop: jest.fn(() => Promise.resolve()),
+      caseTargetsOf: jest.fn(() => Promise.resolve(new Map())),
+    } as never,
     {} as never,
     { emit: jest.fn(() => Promise.resolve()) } as never,
     { record: jest.fn(() => Promise.resolve()) } as never,

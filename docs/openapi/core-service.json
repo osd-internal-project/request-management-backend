@@ -419,6 +419,20 @@
             }
           },
           {
+            "name": "severity",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "critical",
+                "high",
+                "medium",
+                "low"
+              ]
+            }
+          },
+          {
             "name": "q",
             "required": false,
             "in": "query",
@@ -7977,6 +7991,15 @@
           "form_data": {
             "type": "object"
           },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "critical",
+              "high",
+              "medium",
+              "low"
+            ]
+          },
           "ref_type": {
             "type": "string",
             "example": "opportunity"
@@ -8007,6 +8030,15 @@
         "properties": {
           "form_data": {
             "type": "object"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "critical",
+              "high",
+              "medium",
+              "low"
+            ]
           },
           "ref_type": {
             "type": "string"
@@ -8355,6 +8387,10 @@
           "ref_required": {
             "type": "boolean",
             "default": false
+          },
+          "severity_targets": {
+            "type": "object",
+            "nullable": true
           }
         }
       },
@@ -9940,6 +9976,27 @@
             "example": 4,
             "description": "Warn this long before due.",
             "minimum": 0
+          },
+          "severity_targets": {
+            "type": "object",
+            "example": {
+              "critical": {
+                "responseHours": 1,
+                "resolutionHours": 4
+              },
+              "high": {
+                "responseHours": 4,
+                "resolutionHours": 24
+              },
+              "medium": {
+                "responseHours": 8,
+                "resolutionHours": 72
+              },
+              "low": {
+                "responseHours": 24,
+                "resolutionHours": 120
+              }
+            }
           }
         },
         "required": [

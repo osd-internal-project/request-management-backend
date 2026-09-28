@@ -13,6 +13,7 @@ import {
   Max,
   Min,
   ValidateNested,
+  IsObject,
 } from 'class-validator';
 
 /** One request type's clock for one company (D-09). */
@@ -46,6 +47,23 @@ export class SlaConfigEntryDto {
   @IsInt()
   @Min(0)
   warn_before_hours?: number;
+
+  /**
+   * CD-67 — ตั้งแล้ว = ประเภทนี้เป็นเคส: ต้องเลือกความรุนแรงตอนยื่น และนาฬิกา
+   * เวลาแก้ไข/ตอบกลับมาจากระดับนั้น. null/ไม่ส่ง = ไม่ใช่เคส.
+   * `{ critical: { responseHours, resolutionHours }, high, medium, low }`
+   */
+  @ApiPropertyOptional({
+    example: {
+      critical: { responseHours: 1, resolutionHours: 4 },
+      high: { responseHours: 4, resolutionHours: 24 },
+      medium: { responseHours: 8, resolutionHours: 72 },
+      low: { responseHours: 24, resolutionHours: 120 },
+    },
+  })
+  @IsOptional()
+  @IsObject()
+  severity_targets?: Record<string, unknown> | null;
 }
 
 /**

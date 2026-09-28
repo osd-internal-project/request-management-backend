@@ -47,6 +47,11 @@ import { RequestTypeRepository } from './request-type.repository';
 import { RequestCommentRepository } from './request-comment.repository';
 import { OrgUnitRepository } from '../access/org-unit.repository';
 import { SlaService } from '../sla/sla.service';
+import {
+  assertSeverityGiven,
+  readSeverityTargets,
+  severityTargetProblems,
+} from '../sla/severity';
 import { ApprovalsService } from '../approvals/approvals.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { DomainEventsService } from '../events/domain-events.service';
@@ -116,27 +121,39 @@ export class RequestsService {
           (item) => item.code,
         )
       : [];
-    return this.types.findMany({
-      where: {
-        active: true,
-        companies: { some: { companyId: actor.activeCompanyId, active: true } },
-        OR: [
-          { eligibleUnits: { none: {} } },
-          { eligibleUnits: { some: { orgUnitId: { in: ancestors } } } },
-          { code: { in: checklistCodes } },
-        ],
-      },
-      // The receiving team travels with the type so the submit screen can
-      // both preselect it and name it. Reading the chart directly is not open
-      // to a requester — `GET /admin/org-units` needs `admin.org.manage` — and
-      // a page that fetches what its viewer cannot read is a guaranteed 403.
-      include: {
-        receiverOrgUnit: { select: { id: true, name: true } },
-        receiverUser: { select: { id: true, displayName: true } },
-        eligibleUnits: { select: { orgUnitId: true } },
-      },
-      orderBy: { active: 'asc', code: 'asc' },
-    });
+    const [types, caseTargets] = await Promise.all([
+      this.types.findMany({
+        where: {
+          active: true,
+          companies: {
+            some: { companyId: actor.activeCompanyId, active: true },
+          },
+          OR: [
+            { eligibleUnits: { none: {} } },
+            { eligibleUnits: { some: { orgUnitId: { in: ancestors } } } },
+            { code: { in: checklistCodes } },
+          ],
+        },
+        // The receiving team travels with the type so the submit screen can
+        // both preselect it and name it. Reading the chart directly is not open
+        // to a requester — `GET /admin/org-units` needs `admin.org.manage` — and
+        // a page that fetches what its viewer cannot read is a guaranteed 403.
+        include: {
+          receiverOrgUnit: { select: { id: true, name: true } },
+          receiverUser: { select: { id: true, displayName: true } },
+          eligibleUnits: { select: { orgUnitId: true } },
+        },
+        orderBy: { active: 'asc', code: 'asc' },
+      }),
+      this.sla.caseTargetsOf(actor.activeCompanyId),
+    ]);
+
+    // CD-67 — a case type tells the submit screen to ask for severity and
+    // what each level promises.
+    return types.map((type) => ({
+      ...type,
+      severityTargets: caseTargets.get(type.code) ?? null,
+    }));
   }
 
   /**
@@ -151,21 +168,29 @@ export class RequestsService {
    * of the header switcher. It goes through `resolveTargetCompany` so asking
    * for a company you do not belong to is refused, not answered (SCOPE-03).
    */
-  listAdminTypes(actor: Principal, companyId?: string) {
+  async listAdminTypes(actor: Principal, companyId?: string) {
     const target = resolveTargetCompany(actor, companyId);
 
-    return this.types.findMany({
-      where: { companies: { some: { companyId: target } } },
-      // A2 edits both of these, so both travel with the row rather than being
-      // fetched again per selection.
-      include: {
-        receiverOrgUnit: { select: { id: true, name: true } },
-        receiverUser: { select: { id: true, displayName: true } },
-        eligibleUnits: { select: { orgUnitId: true } },
-      },
-      // Active first so the ones in use lead A2's list; then by code.
-      orderBy: [{ active: 'desc' }, { code: 'asc' }],
-    });
+    const [types, caseTargets] = await Promise.all([
+      this.types.findMany({
+        where: { companies: { some: { companyId: target } } },
+        // A2 edits both of these, so both travel with the row rather than being
+        // fetched again per selection.
+        include: {
+          receiverOrgUnit: { select: { id: true, name: true } },
+          receiverUser: { select: { id: true, displayName: true } },
+          eligibleUnits: { select: { orgUnitId: true } },
+        },
+        // Active first so the ones in use lead A2's list; then by code.
+        orderBy: [{ active: 'desc' }, { code: 'asc' }],
+      }),
+      this.sla.caseTargetsOf(target),
+    ]);
+    // CD-67 — A2 edits the case targets beside the type's SLA.
+    return types.map((type) => ({
+      ...type,
+      severityTargets: caseTargets.get(type.code) ?? null,
+    }));
   }
 
   /**
@@ -315,6 +340,18 @@ export class RequestsService {
       await this.assertTypeReceiver(dto.receiver_user_id, actor);
     }
 
+    // CD-67 — checked before the transaction, like the form schema above.
+    if (dto.severity_targets) {
+      const problems = severityTargetProblems(dto.severity_targets);
+      if (problems.length) {
+        throw new AppError(
+          'VALIDATION_FAILED',
+          `เป้าเวลาตามความรุนแรงไม่ถูกต้อง: ${problems[0]}`,
+          problems.map((reason) => ({ field: 'severity_targets', reason })),
+        );
+      }
+    }
+
     return this.transactions.execute(async (prisma) => {
       const updated = await prisma.requestType.update({
         where: { code },
@@ -400,6 +437,17 @@ export class RequestsService {
         make removal impossible, which is the same bug the Keycloak mapping
         table was written to avoid.
       */
+      let severityBefore: unknown;
+      if (dto.severity_targets !== undefined) {
+        severityBefore = await this.sla.setSeverityTargets(
+          prisma,
+          actor.activeCompanyId,
+          updated,
+          readSeverityTargets(dto.severity_targets),
+          actor.userId,
+        );
+      }
+
       if (dto.eligible_org_unit_ids !== undefined) {
         await prisma.requestTypeOrgUnit.deleteMany({
           where: { requestTypeId: updated.id },
@@ -426,6 +474,9 @@ export class RequestsService {
             slaHours: before.slaHours,
             formSchema: before.formSchema as Prisma.InputJsonValue,
             subRequestTypes: before.subRequestTypes as Prisma.InputJsonValue,
+            ...(dto.severity_targets !== undefined
+              ? { severityTargets: severityBefore as Prisma.InputJsonValue }
+              : {}),
           },
           after: {
             name: updated.name,
@@ -433,6 +484,13 @@ export class RequestsService {
             slaHours: updated.slaHours,
             formSchema: updated.formSchema as Prisma.InputJsonValue,
             subRequestTypes: updated.subRequestTypes as Prisma.InputJsonValue,
+            ...(dto.severity_targets !== undefined
+              ? {
+                  severityTargets: readSeverityTargets(
+                    dto.severity_targets,
+                  ) as unknown as Prisma.InputJsonValue,
+                }
+              : {}),
           },
         },
         { prisma },
@@ -446,13 +504,22 @@ export class RequestsService {
         reopening the type to every group. Found on 1 ก.ย. 2569 by saving the
         same type twice.
       */
-      return prisma.requestType.findUniqueOrThrow({
+      const saved = await prisma.requestType.findUniqueOrThrow({
         where: { id: updated.id },
         include: {
           eligibleUnits: true,
           receiverUser: { select: { id: true, displayName: true } },
         },
       });
+      // CD-67 — merged over A2's row like the rest, so it must be current.
+      const config = await prisma.slaConfig.findFirst({
+        where: { companyId: actor.activeCompanyId, requestTypeCode: code },
+        select: { severityTargets: true },
+      });
+      return {
+        ...saved,
+        severityTargets: readSeverityTargets(config?.severityTargets),
+      };
     });
   }
 
@@ -552,6 +619,7 @@ export class RequestsService {
         formData: (dto.form_data ?? {}) as Prisma.InputJsonValue,
         refType: dto.ref_type ?? null,
         refId: dto.ref_id ?? null,
+        severity: dto.severity ?? null,
         receiverUserId: receiverFor(type, dto.receiver_user_id),
         // The type's `ทีมผู้รับ` is the starting point; the requester may send
         // it somewhere else. Copied onto the row rather than read back off the
@@ -674,6 +742,7 @@ export class RequestsService {
           : {}),
         ...(dto.ref_type !== undefined ? { refType: dto.ref_type } : {}),
         ...(dto.ref_id !== undefined ? { refId: dto.ref_id } : {}),
+        ...(dto.severity !== undefined ? { severity: dto.severity } : {}),
         ...(dto.receiver_user_id !== undefined
           ? {
               receiverUserId: receiverFor(
@@ -766,6 +835,7 @@ export class RequestsService {
         formData: (dto.form_data ?? {}) as Prisma.InputJsonValue,
         refType: dto.ref_type ?? null,
         refId: dto.ref_id ?? null,
+        severity: dto.severity ?? null,
         receiverUserId: type.receiverUserId,
         status: 'draft',
         source: 'SYSTEM',
@@ -943,6 +1013,8 @@ export class RequestsService {
 
       // The clock was paused through `submitted`; accepting is what starts it.
       await this.sla.resume(prisma, id, now);
+      // CD-67 — accepting is the receiving side's first response.
+      await this.sla.markResponded(id, now, prisma);
 
       await this.audit.record(
         {
@@ -997,6 +1069,9 @@ export class RequestsService {
         where: { id },
         data: { assigneeUserId: dto.assignee_user_id, updatedBy: actor.userId },
       });
+
+      // CD-67 — handing it to someone counts as the receiving side responding.
+      await this.sla.markResponded(id, new Date(), prisma);
 
       await this.recordEvent(prisma, {
         requestId: id,
@@ -1355,11 +1430,7 @@ export class RequestsService {
    * The gate every attachment write shares: the request exists, is visible to
    * this caller, is still editable, and is theirs.
    */
-  async requireEditableOwn(
-    id: string,
-    actor: Principal,
-    action: string,
-  ) {
+  async requireEditableOwn(id: string, actor: Principal, action: string) {
     const found = await this.require(id, actor);
 
     if (!['draft', 'returned'].includes(found.status)) {
@@ -1414,6 +1485,14 @@ export class RequestsService {
         .filter((attachment) => !attachment.deletedAt)
         .map((attachment) => attachment.docCode ?? ''),
     });
+
+    // CD-67 — a case type must carry a severity before its clocks start.
+    if (!before.severity) {
+      assertSeverityGiven(
+        await this.sla.isCaseType(before.companyId, before.typeCode),
+        before.severity,
+      );
+    }
 
     /**
      * A ticket has to be handed to somebody.
@@ -1897,12 +1976,18 @@ export class RequestsService {
    * used to discover that one exists.
    */
   async addComment(id: string, dto: AddCommentDto, actor: Principal) {
-    await this.findOne(id, actor);
+    const found = await this.findOne(id, actor);
 
-    return this.comments.create({
+    const comment = await this.comments.create({
       data: { requestId: id, authorId: actor.userId, body: dto.body },
       include: { author: { select: { displayName: true } } },
     });
+
+    // CD-67 — a reply from anyone but the requester is a response on a case.
+    if ((found as { requesterId: string }).requesterId !== actor.userId) {
+      await this.sla.markResponded(id);
+    }
+    return comment;
   }
 
   // --- H2.2: the request tree ----------------------------------------------
@@ -2051,6 +2136,7 @@ export class RequestsService {
     }
 
     if (query.type_code) narrowing.push({ typeCode: query.type_code });
+    if (query.severity) narrowing.push({ severity: query.severity });
 
     // REQ-06 / C360 — the 360° page's "คำขอ" tab: everything raised against
     // one entity, still inside the caller's scope.

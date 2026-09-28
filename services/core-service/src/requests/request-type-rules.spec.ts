@@ -60,7 +60,8 @@ function serviceWith(options: {
         Promise.resolve(options.matrixCount ?? 0),
       ),
     } as never,
-    {} as never,
+    // `SlaService` — listTypes asks which types are cases (CD-67).
+    { caseTargetsOf: jest.fn(() => Promise.resolve(new Map())) } as never,
     {} as never,
     {} as never,
     { record: jest.fn(() => Promise.resolve()) } as never,
