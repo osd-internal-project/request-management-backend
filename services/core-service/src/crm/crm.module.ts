@@ -52,6 +52,7 @@ import {
 } from './sales.repositories';
 import { CampaignsService } from './campaigns.service';
 import { CustomerInvoicesService } from './customer-invoices.service';
+import { RequestTimelineSyncService } from './request-timeline-sync.service';
 import { QuotationsService } from './quotations.service';
 import { QuotationPrintService } from './quotation-print.service';
 import { QuotationApprovalSyncService } from './quotation-approval-sync.service';
@@ -144,6 +145,7 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     CampaignRepository,
     CampaignsService,
     CustomerInvoicesService,
+    RequestTimelineSyncService,
     OpportunityStaleMonitorService,
     SaleOrdersService,
     PrismaTransactionService,
