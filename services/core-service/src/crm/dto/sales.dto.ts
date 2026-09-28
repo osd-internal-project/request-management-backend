@@ -1,6 +1,7 @@
 import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
+  ArrayNotEmpty,
   IsArray,
   IsBoolean,
   IsDateString,
@@ -1046,4 +1047,93 @@ export class ListCampaignsQueryDto {
   @IsOptional()
   @IsIn(['true'])
   active?: string;
+}
+
+/** CD-79 — one agreed term in a negotiation round. */
+export class NegotiationTermDto {
+  @ApiPropertyOptional({
+    description:
+      'รหัสเงื่อนไขมาตรฐาน — ไม่ส่ง = เงื่อนไขนอกรายการ (นับว่านอกมาตรฐาน)',
+    example: 'PAYMENT',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  code?: string;
+
+  @ApiPropertyOptional({ description: 'ชื่อเงื่อนไข — ต้องมีเมื่อไม่ส่ง code' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  name?: string;
+
+  @ApiProperty({ example: '60 วัน' })
+  @IsString()
+  @MaxLength(500)
+  agreed!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  note?: string;
+}
+
+/** CD-79 — บันทึกหนึ่งรอบการต่อรอง. */
+export class CreateNegotiationRoundDto {
+  @ApiProperty({
+    example: '2026-09-28',
+    description: 'วันที่ต่อรอง (YYYY-MM-DD)',
+  })
+  @IsDateString()
+  occurred_on!: string;
+
+  @ApiPropertyOptional({ description: 'สรุปการต่อรองรอบนี้' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  summary?: string;
+
+  @ApiProperty({ type: [NegotiationTermDto] })
+  @IsArray()
+  @ArrayNotEmpty()
+  @ArrayMaxSize(50)
+  @ValidateNested({ each: true })
+  @Type(() => NegotiationTermDto)
+  terms!: NegotiationTermDto[];
+}
+
+/** CD-79 — หนึ่งเงื่อนไขมาตรฐาน (หน้าตั้งค่า CRM). */
+export class TradeTermStandardDto {
+  @ApiProperty({ example: 'PAYMENT' })
+  @IsString()
+  @Matches(/^[A-Z0-9_-]{1,40}$/)
+  code!: string;
+
+  @ApiProperty({ example: 'เครดิตการชำระเงิน' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(200)
+  name!: string;
+
+  @ApiProperty({ example: '30 วัน' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(500)
+  standard_value!: string;
+
+  @ApiPropertyOptional({ default: true })
+  @IsOptional()
+  @IsBoolean()
+  active?: boolean;
+}
+
+/** CD-79 — แทนที่รายการเงื่อนไขมาตรฐานทั้งชุด (ที่ไม่อยู่ในรายการ = ปิดใช้). */
+export class ReplaceTradeTermsDto {
+  @ApiProperty({ type: [TradeTermStandardDto] })
+  @IsArray()
+  @ArrayMaxSize(100)
+  @ValidateNested({ each: true })
+  @Type(() => TradeTermStandardDto)
+  terms!: TradeTermStandardDto[];
 }

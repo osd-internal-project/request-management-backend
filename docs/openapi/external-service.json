@@ -3793,6 +3793,102 @@
         ]
       }
     },
+    "/api/v1/crm/admin/trade-terms": {
+      "get": {
+        "operationId": "ExternalCrmAdminController_listTradeTerms",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.crm.admin.manage"
+        ],
+        "x-acting-permission": [
+          "admin.crm.manage"
+        ]
+      },
+      "put": {
+        "operationId": "ExternalCrmAdminController_replaceTradeTerms",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplaceTradeTermsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.crm.admin.manage"
+        ],
+        "x-acting-permission": [
+          "admin.crm.manage"
+        ]
+      }
+    },
     "/api/v1/crm/leads/statuses": {
       "get": {
         "description": "ส่งทั้งชุดรวมที่ปิดใช้งาน เพราะ Lead ที่ค้างบนขั้นที่เพิ่งปิดยังต้องมีชื่อและสีให้แสดง — หน้าจอเป็นคนกรอง active เอง. โค้ดตั้งได้ต่อบริษัท ไม่ใช่ enum",
@@ -5357,6 +5453,129 @@
           }
         ],
         "summary": "ลงกิจกรรมของโอกาสการขาย",
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.manage"
+        ],
+        "x-acting-permission": [
+          "crm.sales.manage"
+        ]
+      }
+    },
+    "/api/v1/crm/opportunities/{id}/negotiations": {
+      "get": {
+        "description": "ใหม่สุดก่อน · `standards` = เงื่อนไขมาตรฐานที่ใช้อยู่ของบริษัท (ตั้งที่หน้าตั้งค่า CRM)",
+        "operationId": "ExternalOpportunitiesController_listNegotiations",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "รอบการต่อรองเงื่อนไขการค้าของโอกาสการขาย",
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.read"
+        ],
+        "x-acting-permission": [
+          "crm.sales.read"
+        ]
+      },
+      "post": {
+        "operationId": "ExternalOpportunitiesController_recordNegotiation",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateNegotiationRoundDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "บันทึกรอบการต่อรอง (นอกมาตรฐาน = ส่งฝ่ายกฎหมายอัตโนมัติ)",
         "tags": [
           "crm"
         ],
@@ -9024,6 +9243,52 @@
           }
         }
       },
+      "TradeTermStandardDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "PAYMENT",
+            "pattern": "^[A-Z0-9_-]{1,40}$"
+          },
+          "name": {
+            "type": "string",
+            "example": "เครดิตการชำระเงิน",
+            "maxLength": 200,
+            "minLength": 1
+          },
+          "standard_value": {
+            "type": "string",
+            "example": "30 วัน",
+            "maxLength": 500,
+            "minLength": 1
+          },
+          "active": {
+            "type": "boolean",
+            "default": true
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "standard_value"
+        ]
+      },
+      "ReplaceTradeTermsDto": {
+        "type": "object",
+        "properties": {
+          "terms": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TradeTermStandardDto"
+            },
+            "maxItems": 100
+          }
+        },
+        "required": [
+          "terms"
+        ]
+      },
       "ImportLeadsDto": {
         "type": "object",
         "properties": {
@@ -9526,6 +9791,61 @@
             }
           }
         }
+      },
+      "NegotiationTermDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "รหัสเงื่อนไขมาตรฐาน — ไม่ส่ง = เงื่อนไขนอกรายการ (นับว่านอกมาตรฐาน)",
+            "example": "PAYMENT",
+            "maxLength": 40
+          },
+          "name": {
+            "type": "string",
+            "description": "ชื่อเงื่อนไข — ต้องมีเมื่อไม่ส่ง code",
+            "maxLength": 200
+          },
+          "agreed": {
+            "type": "string",
+            "example": "60 วัน",
+            "maxLength": 500
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "agreed"
+        ]
+      },
+      "CreateNegotiationRoundDto": {
+        "type": "object",
+        "properties": {
+          "occurred_on": {
+            "type": "string",
+            "example": "2026-09-28",
+            "description": "วันที่ต่อรอง (YYYY-MM-DD)",
+            "format": "date-time"
+          },
+          "summary": {
+            "type": "string",
+            "description": "สรุปการต่อรองรอบนี้",
+            "maxLength": 4000
+          },
+          "terms": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NegotiationTermDto"
+            },
+            "maxItems": 50
+          }
+        },
+        "required": [
+          "occurred_on",
+          "terms"
+        ]
       },
       "OpenSaleOrderDto": {
         "type": "object",

@@ -81,6 +81,34 @@ export class OpportunityActivityRepository extends BaseRepository<
   }
 }
 
+/** CD-79 เงื่อนไขการค้ามาตรฐานของบริษัท. */
+@Injectable()
+export class TradeTermStandardRepository extends BaseRepository<
+  PrismaService['tradeTermStandard']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.tradeTermStandard;
+  }
+}
+
+/** CD-79 รอบการต่อรอง — บันทึกแล้วไม่แก้ นอกจากผลการส่งฝ่ายกฎหมาย. */
+@Injectable()
+export class NegotiationRoundRepository extends BaseRepository<
+  PrismaService['negotiationRound']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.negotiationRound;
+  }
+}
+
 /** What the opportunity list and the 360° tab both select. */
 export const OPPORTUNITY_LIST_SELECT = {
   id: true,

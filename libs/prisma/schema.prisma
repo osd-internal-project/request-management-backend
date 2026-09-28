@@ -334,6 +334,7 @@ model Company {
   customerSegmentDims     CustomerSegmentDimension[]
   customerCodeCounter     CustomerCodeCounter?
   crmConfig               CrmCompanyConfig?
+  tradeTermStandards      TradeTermStandard[]
   kycProductRules         KycProductRule[]
   leadStatuses            LeadStatusSetting[]
   leads                   Lead[]
@@ -1481,8 +1482,8 @@ model Notification {
   resourceId   String?
 
   /// The FIRST time it was read — never overwritten (CD-55 evidence).
-  readAt    DateTime?
-  readVia   NotificationReadVia?
+  readAt  DateTime?
+  readVia NotificationReadVia?
 
   /// CD-52 — the recipient chose a daily digest for this kind of event: the
   /// row exists (and is logged) but stays out of the bell until the digest.
@@ -1490,7 +1491,7 @@ model Notification {
   /// The digest notification that carried it; null while still held.
   digestId      String?
 
-  createdAt DateTime  @default(now())
+  createdAt DateTime @default(now())
 
   user       User                      @relation(fields: [userId], references: [id])
   company    Company                   @relation(fields: [companyId], references: [id])
@@ -2424,13 +2425,15 @@ model Opportunity {
   updatedAt DateTime @updatedAt
   updatedBy String?
 
-  company    Company               @relation(fields: [companyId], references: [id])
-  customer   Customer?             @relation(fields: [customerId], references: [id])
-  activities OpportunityActivity[]
-  products   OpportunityProduct[]
-  saleOrders SaleOrder[]
-  quotations Quotation[]
-  fromLead   Lead?
+  company           Company               @relation(fields: [companyId], references: [id])
+  customer          Customer?             @relation(fields: [customerId], references: [id])
+  activities        OpportunityActivity[]
+  /// CD-79 รอบการต่อรองเงื่อนไขการค้า.
+  negotiationRounds NegotiationRound[]
+  products          OpportunityProduct[]
+  saleOrders        SaleOrder[]
+  quotations        Quotation[]
+  fromLead          Lead?
 
   @@index([companyId, stage])
   @@index([companyId, customerId])
@@ -2443,6 +2446,56 @@ model Opportunity {
 /// CD-65 กิจกรรมบนโอกาสการขาย — รูปเดียวกับ `LeadActivity` (ใช้ enum เดียวกัน):
 /// ไม่มี `dueAt` = บันทึกสิ่งที่ทำไปแล้ว (เสร็จทันที), มี `dueAt` = นัดติดตาม.
 /// append-mostly: ติ๊กเสร็จ/เปิดกลับได้ ไม่มีการลบ.
+/// CD-79 — เงื่อนไขการค้ามาตรฐานของบริษัท (ตั้งค่าที่หน้า CRM). การต่อรองที่ตกลง
+/// ค่าต่างจาก `standardValue` ถูกทำเครื่องหมายว่านอกมาตรฐานและส่งฝ่ายกฎหมาย.
+/// ปิดใช้ด้วย `active = false` — รอบการต่อรองเก่าเก็บค่ามาตรฐาน ณ วันนั้นไว้เองแล้ว.
+model TradeTermStandard {
+  id            String  @id @default(uuid())
+  companyId     String
+  code          String
+  name          String
+  standardValue String
+  sortOrder     Int     @default(0)
+  active        Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, code])
+  @@map("trade_term_standards")
+}
+
+/// CD-79 — หนึ่งรอบการต่อรองบนโอกาสการขาย. บันทึกแล้วไม่แก้ (ประวัติการต่อรอง):
+/// `terms` เก็บค่ามาตรฐาน ณ วันบันทึกไว้ในแถว เพื่อให้การเปลี่ยนมาตรฐานภายหลัง
+/// ไม่ตัดสินรอบเก่าใหม่.
+/// `terms`: `[{ code|null, name, agreed, standard|null, nonStandard, note|null }]`
+model NegotiationRound {
+  id               String   @id @default(uuid())
+  companyId        String
+  opportunityId    String
+  roundNo          Int
+  occurredOn       DateTime @db.Date
+  summary          String?
+  terms            Json
+  nonStandardCount Int      @default(0)
+
+  /// คำขอตรวจสัญญาที่ระบบสร้างส่งฝ่ายกฎหมาย (เมื่อมีเงื่อนไขนอกมาตรฐาน).
+  legalRequestId String?
+  /// ทำไมยังไม่ถึงฝ่ายกฎหมาย — ไม่ได้ตั้งประเภทคำขอ / ยื่นไม่ผ่าน (เหลือเป็นร่าง).
+  legalSendError String?
+
+  createdBy String
+  createdAt DateTime @default(now())
+
+  opportunity Opportunity @relation(fields: [opportunityId], references: [id])
+
+  @@unique([opportunityId, roundNo])
+  @@map("negotiation_rounds")
+}
+
 model OpportunityActivity {
   id            String @id @default(uuid())
   companyId     String

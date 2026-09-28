@@ -21,6 +21,7 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   Param,
   Patch,
   Post,
@@ -50,6 +51,7 @@ import {
   CreateCampaignDto,
   CreateLeadActivityDto,
   CreateLeadDto,
+  CreateNegotiationRoundDto,
   CreateOpportunityDto,
   CreateQuotationDto,
   CrmDashboardQueryDto,
@@ -65,6 +67,7 @@ import {
   ListSaleOrdersQueryDto,
   ListSalesTargetsQueryDto,
   LoseOpportunityDto,
+  NegotiationsService,
   OpenSaleOrderDto,
   OpportunitiesService,
   OpportunityActivitiesService,
@@ -319,6 +322,7 @@ export class ExternalOpportunitiesController {
     private readonly saleOrders: SaleOrdersService,
     private readonly quotations: QuotationsService,
     private readonly activities: OpportunityActivitiesService,
+    private readonly negotiations: NegotiationsService,
     private readonly report: SalesReportService,
     private readonly dashboard: CrmDashboardService,
   ) {}
@@ -456,6 +460,42 @@ export class ExternalOpportunitiesController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.activities.list(id, principal);
+  }
+
+  /** CD-79 รอบการต่อรอง ใหม่สุดก่อน พร้อมเงื่อนไขมาตรฐานที่ฟอร์มใช้. */
+  @ApiOperation({
+    summary: 'รอบการต่อรองเงื่อนไขการค้าของโอกาสการขาย',
+    description:
+      'ใหม่สุดก่อน · `standards` = เงื่อนไขมาตรฐานที่ใช้อยู่ของบริษัท (ตั้งที่หน้าตั้งค่า CRM)',
+  })
+  @Get(':id/negotiations')
+  @Permissions('integration.crm.sales.read')
+  @ActingPermissions('crm.sales.read')
+  listNegotiations(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.negotiations.list(id, principal);
+  }
+
+  /**
+   * CD-79 บันทึกรอบการต่อรอง. เงื่อนไขที่ต่างจากมาตรฐาน (หรือนอกรายการ) ถูกทำ
+   * เครื่องหมาย และรอบที่มีเงื่อนไขนอกมาตรฐานสร้าง+ยื่นคำขอตรวจสัญญาถึง
+   * ฝ่ายกฎหมายทันที — ส่งไม่สำเร็จ รอบยังถูกบันทึก พร้อมเหตุผลใน `legalSendError`.
+   */
+  @ApiOperation({
+    summary: 'บันทึกรอบการต่อรอง (นอกมาตรฐาน = ส่งฝ่ายกฎหมายอัตโนมัติ)',
+  })
+  @Post(':id/negotiations')
+  @Permissions('integration.crm.sales.manage')
+  @ActingPermissions('crm.sales.manage')
+  recordNegotiation(
+    @Param('id') id: string,
+    @Body() dto: CreateNegotiationRoundDto,
+    @CurrentPrincipal() principal: Principal,
+    @Headers('authorization') authorization: string,
+  ) {
+    return this.negotiations.record(id, dto, principal, authorization);
   }
 
   /** ลงกิจกรรม — ไม่มี `due_at` = ทำแล้ว, มี = นัดติดตามครั้งถัดไป. */

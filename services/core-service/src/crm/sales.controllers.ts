@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   Param,
   Patch,
   Post,
@@ -19,6 +20,7 @@ import { LeadStatusService } from './lead-status.service';
 import { LeadImportService } from './lead-import.service';
 import { OpportunitiesService } from './opportunities.service';
 import { OpportunityActivitiesService } from './opportunity-activities.service';
+import { NegotiationsService } from './negotiations.service';
 import { SalesReportService } from './sales-report.service';
 import { CrmDashboardService } from './crm-dashboard.service';
 import { SalesTargetsService } from './sales-targets.service';
@@ -33,6 +35,7 @@ import {
   CreateCampaignDto,
   CrmDashboardQueryDto,
   CreateLeadActivityDto,
+  CreateNegotiationRoundDto,
   CreateOpportunityDto,
   CreateLeadDto,
   DisqualifyLeadDto,
@@ -261,6 +264,7 @@ export class OpportunitiesController {
     private readonly saleOrders: SaleOrdersService,
     private readonly quotations: QuotationsService,
     private readonly activities: OpportunityActivitiesService,
+    private readonly negotiations: NegotiationsService,
     private readonly report: SalesReportService,
     private readonly dashboard: CrmDashboardService,
   ) {}
@@ -389,6 +393,40 @@ export class OpportunitiesController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.activities.list(id, principal);
+  }
+
+  /** CD-79 รอบการต่อรอง ใหม่สุดก่อน พร้อมเงื่อนไขมาตรฐานที่ฟอร์มใช้. */
+  @ApiOperation({
+    summary: 'รอบการต่อรองเงื่อนไขการค้าของโอกาสการขาย',
+    description:
+      'ใหม่สุดก่อน · `standards` = เงื่อนไขมาตรฐานที่ใช้อยู่ของบริษัท (ตั้งที่หน้าตั้งค่า CRM)',
+  })
+  @Get(':id/negotiations')
+  @Permissions('crm.sales.read')
+  listNegotiations(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.negotiations.list(id, principal);
+  }
+
+  /**
+   * CD-79 บันทึกรอบการต่อรอง. เงื่อนไขที่ต่างจากมาตรฐาน (หรือนอกรายการ) ถูกทำ
+   * เครื่องหมาย และรอบที่มีเงื่อนไขนอกมาตรฐานสร้าง+ยื่นคำขอตรวจสัญญาถึง
+   * ฝ่ายกฎหมายทันที — ส่งไม่สำเร็จ รอบยังถูกบันทึก พร้อมเหตุผลใน `legalSendError`.
+   */
+  @ApiOperation({
+    summary: 'บันทึกรอบการต่อรอง (นอกมาตรฐาน = ส่งฝ่ายกฎหมายอัตโนมัติ)',
+  })
+  @Post(':id/negotiations')
+  @Permissions('crm.sales.manage')
+  recordNegotiation(
+    @Param('id') id: string,
+    @Body() dto: CreateNegotiationRoundDto,
+    @CurrentPrincipal() principal: Principal,
+    @Headers('authorization') authorization: string,
+  ) {
+    return this.negotiations.record(id, dto, principal, authorization);
   }
 
   /** ลงกิจกรรม — ไม่มี `due_at` = ทำแล้ว, มี = นัดติดตามครั้งถัดไป. */

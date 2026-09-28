@@ -42,6 +42,8 @@ import {
   LeadActivityRepository,
   LeadRepository,
   OpportunityActivityRepository,
+  NegotiationRoundRepository,
+  TradeTermStandardRepository,
   LeadStatusRepository,
   QuotationLineRepository,
   QuotationRepository,
@@ -60,6 +62,7 @@ import { LeadsService } from './leads.service';
 import { LeadStatusService } from './lead-status.service';
 import { OpportunitiesService } from './opportunities.service';
 import { OpportunityActivitiesService } from './opportunity-activities.service';
+import { NegotiationsService } from './negotiations.service';
 import { SalesReportService } from './sales-report.service';
 import { CrmDashboardService } from './crm-dashboard.service';
 import { SalesTargetsService } from './sales-targets.service';
@@ -136,6 +139,9 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     OpportunitiesService,
     OpportunityActivityRepository,
     OpportunityActivitiesService,
+    NegotiationRoundRepository,
+    TradeTermStandardRepository,
+    NegotiationsService,
     SalesReportService,
     CrmDashboardService,
     SalesTargetsService,
@@ -173,6 +179,7 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     LeadWorkflowService,
     OpportunitiesService,
     OpportunityActivitiesService,
+    NegotiationsService,
     SalesReportService,
     CrmDashboardService,
     SalesTargetsService,

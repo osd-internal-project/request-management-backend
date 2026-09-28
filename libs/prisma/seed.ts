@@ -586,6 +586,43 @@ async function seedApprovalMatrix(companyId: string) {
 }
 
 /**
+ * CD-79 — a starting list of standard trade terms for the demo company, only
+ * when it has none (an admin's own list is never overwritten).
+ */
+async function seedTradeTerms(companyId: string) {
+  const existing = await prisma.tradeTermStandard.count({
+    where: { companyId },
+  });
+  if (existing) {
+    console.log('  trade terms: already present, left alone');
+    return;
+  }
+  const terms = [
+    { code: 'PAYMENT', name: 'เครดิตการชำระเงิน', standardValue: '30 วัน' },
+    { code: 'WARRANTY', name: 'การรับประกัน', standardValue: '1 ปี' },
+    {
+      code: 'PENALTY',
+      name: 'ค่าปรับส่งมอบล่าช้า',
+      standardValue: '0.1% ต่อวัน',
+    },
+    {
+      code: 'DELIVERY',
+      name: 'กำหนดส่งมอบ',
+      standardValue: '30 วันหลังได้รับใบสั่งซื้อ',
+    },
+  ];
+  await prisma.tradeTermStandard.createMany({
+    data: terms.map((term, index) => ({
+      ...term,
+      companyId,
+      sortOrder: index,
+      updatedBy: 'seed',
+    })),
+  });
+  console.log(`  trade terms: ${terms.length}`);
+}
+
+/**
  * CD-81 — points the demo company's contract card at `CTR`. Only when unset,
  * so an admin's own choice survives a re-seed.
  */
@@ -1023,6 +1060,7 @@ async function main() {
   await seedSensitiveFields();
   await seedRequestTypes(demo.id, companies);
   await seedContractRequestType(demo.id);
+  await seedTradeTerms(demo.id);
   await seedApprovalMatrix(demo.id);
 
   console.log('Done.');
