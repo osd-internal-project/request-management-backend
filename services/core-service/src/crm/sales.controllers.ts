@@ -20,6 +20,7 @@ import { LeadImportService } from './lead-import.service';
 import { OpportunitiesService } from './opportunities.service';
 import { OpportunityActivitiesService } from './opportunity-activities.service';
 import { SalesReportService } from './sales-report.service';
+import { CrmDashboardService } from './crm-dashboard.service';
 import { SaleOrdersService } from './sale-orders.service';
 import { QuotationsService } from './quotations.service';
 import { CreateQuotationDto } from './dto/quotation.dto';
@@ -27,6 +28,7 @@ import {
   AssignLeadDto,
   CancelSaleOrderDto,
   ConvertLeadDto,
+  CrmDashboardQueryDto,
   CreateLeadActivityDto,
   CreateOpportunityDto,
   CreateLeadDto,
@@ -253,6 +255,7 @@ export class OpportunitiesController {
     private readonly quotations: QuotationsService,
     private readonly activities: OpportunityActivitiesService,
     private readonly report: SalesReportService,
+    private readonly dashboard: CrmDashboardService,
   ) {}
 
   @ApiOperation({
@@ -266,6 +269,22 @@ export class OpportunitiesController {
     @Query() query: ListOpportunitiesQueryDto,
   ) {
     return this.opportunities.list(principal, query);
+  }
+
+  /** CD-73 แดชบอร์ด CRM — declared before `:id`. */
+  @ApiOperation({
+    summary: 'แดชบอร์ด CRM',
+    description:
+      'ภาพรวมลูกค้า Lead โอกาสการขาย และกิจกรรม ตามขอบเขตที่ผู้เรียกเห็นได้ · ' +
+      'ส่วนลูกค้าเป็น null ถ้าไม่มี crm.customer.read',
+  })
+  @Get('dashboard')
+  @Permissions('crm.sales.read')
+  crmDashboard(
+    @CurrentPrincipal() principal: Principal,
+    @Query() query: CrmDashboardQueryDto,
+  ) {
+    return this.dashboard.dashboard(query, principal);
   }
 
   /** CD-83 รายงานยอดขาย — declared before `:id`. */

@@ -25,6 +25,18 @@ export class LeadRepository extends BaseRepository<PrismaService['lead']> {
   protected delegate(client: TQueryClient) {
     return client.lead;
   }
+
+  /** CD-73 — จำนวน Lead ต่อรหัสสถานะ ตาม where. */
+  async countByStatus(
+    where: Prisma.LeadWhereInput,
+  ): Promise<{ status: string; count: number }[]> {
+    const rows = await this.prisma.lead.groupBy({
+      by: ['status'],
+      where,
+      _count: { _all: true },
+    });
+    return rows.map((row) => ({ status: row.status, count: row._count._all }));
+  }
 }
 
 /** รายการสถานะ Lead ต่อบริษัท — ตั้งค่าได้จากหน้า admin, ไม่ใช่ enum ในโค้ด. */

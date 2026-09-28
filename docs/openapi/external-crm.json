@@ -3350,6 +3350,66 @@
         ]
       }
     },
+    "/api/v1/crm/opportunities/dashboard": {
+      "get": {
+        "description": "ภาพรวมลูกค้า Lead โอกาสการขาย และกิจกรรม ตามขอบเขตที่ผู้เรียกเห็นได้ · ส่วนลูกค้าเป็น null ถ้าไม่มี crm.customer.read",
+        "operationId": "ExternalOpportunitiesController_crmDashboard",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "view",
+            "required": false,
+            "in": "query",
+            "description": "`team` (ค่าตั้งต้น) = ทุกอย่างในขอบเขตที่เห็นได้ · `mine` = เฉพาะที่ตัวเองเป็นเจ้าของ",
+            "schema": {
+              "example": "team",
+              "type": "string",
+              "enum": [
+                "mine",
+                "team"
+              ]
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แดชบอร์ด CRM",
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.read"
+        ],
+        "x-acting-permission": [
+          "crm.sales.read"
+        ]
+      }
+    },
     "/api/v1/crm/opportunities/report": {
       "get": {
         "description": "ยอดขาย (ใบสั่งขายที่ไม่ยกเลิก) · ชนะ/แพ้และอัตราการปิดในช่วง · เหตุผลที่แพ้ · ผลงานรายบุคคล — จำกัดตามขอบเขตที่ผู้เรียกเห็นได้",

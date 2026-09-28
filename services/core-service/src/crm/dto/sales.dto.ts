@@ -875,3 +875,15 @@ export class SalesReportQueryDto {
   @IsString()
   owner_user_id?: string;
 }
+
+/** CD-73 แดชบอร์ด CRM — `team` = ทุกอย่างที่ผู้เรียกเห็นได้, `mine` = ที่ตัวเองเป็นเจ้าของ. */
+export class CrmDashboardQueryDto {
+  @ApiPropertyOptional({
+    example: 'team',
+    description:
+      '`team` (ค่าตั้งต้น) = ทุกอย่างในขอบเขตที่เห็นได้ · `mine` = เฉพาะที่ตัวเองเป็นเจ้าของ',
+  })
+  @IsOptional()
+  @IsIn(['mine', 'team'])
+  view?: 'mine' | 'team';
+}
