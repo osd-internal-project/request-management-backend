@@ -173,7 +173,7 @@ export class RequestsService {
           receiverUser: { select: { id: true, displayName: true } },
           eligibleUnits: { select: { orgUnitId: true } },
         },
-        orderBy: { active: 'asc', code: 'asc' },
+        orderBy: { code: 'asc' },
       }),
       this.sla.caseTargetsOf(actor.activeCompanyId),
     ]);

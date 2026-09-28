@@ -25,6 +25,33 @@ them was broken in this repo in a single sprint:
 - A screen check that only looked for a marker comment passed A1, A2 and A4 while all
   three were half-built. Check content, not the presence of a label.
 
+## Resolving conflicts and verifying a change
+
+These apply when the code is written or merged — not at deploy. Whoever pushes
+later has nothing left to catch.
+
+**Never resolve a conflict by taking one side whole.** For each hunk, state what
+each side meant and show the result keeps both. Before committing the merge,
+read every hunk of `git show --remerge-diff HEAD`. Merge `9529814` took the
+CD-67 side of `listTypes` whole and silently undid `f6fc83d`'s fix; six screens
+answered 500 on labs.
+
+**`tsc` and `yarn test` passing proves little about queries.** Unit tests mock
+Prisma, and Prisma's types accept inputs its engine rejects at runtime — that
+merge passed 954/954. Before calling a change done:
+
+1. List every caller of each function you changed, the endpoints above them,
+   and the frontend pages that call those endpoints.
+2. Run `make smoke` — every core-service GET against a throwaway Docker
+   database (never the one in `.env`). A 5xx on any route fails it, including
+   routes your task never touched.
+3. `prisma-order-by.spec.ts` guards one known runtime-only trap. When you meet
+   another, add a guard like it rather than a note.
+
+**Keep the diff to the task.** `git diff --stat` must list only files the task
+needs. Anything else is named, with the reason, before the commit — not found
+afterwards.
+
 ## Non-negotiables
 
 These come from the spec, not from taste. Breaking one is a spec violation, so
