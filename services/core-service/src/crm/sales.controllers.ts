@@ -274,6 +274,22 @@ export class OpportunitiesController {
     return this.opportunities.list(principal, query);
   }
 
+  /** CD-74 ยอดต่อขั้นของกระดาน — declared before `:id`. */
+  @ApiOperation({
+    summary: 'ยอดรวมต่อขั้นของโอกาสการขาย',
+    description:
+      'จำนวน มูลค่า และมูลค่าถ่วงความน่าจะเป็น ของทุกแถวที่ตรงตัวกรองเดียวกับ ' +
+      'GET /opportunities (ไม่แบ่งหน้า)',
+  })
+  @Get('summary')
+  @Permissions('crm.sales.read')
+  summary(
+    @CurrentPrincipal() principal: Principal,
+    @Query() query: ListOpportunitiesQueryDto,
+  ) {
+    return this.opportunities.stageSummary(principal, query);
+  }
+
   /** CD-73 แดชบอร์ด CRM — declared before `:id`. */
   @ApiOperation({
     summary: 'แดชบอร์ด CRM',
