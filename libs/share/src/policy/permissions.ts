@@ -67,6 +67,8 @@ export const PERMISSIONS = {
      * แต่ไม่ได้ข้ามการอนุมัติ.
      */
     'crm.target.manage',
+    /** CD-71: สร้าง/แก้/ปิดแคมเปญการตลาด — ดูผลแคมเปญใช้ `crm.sales.read`. */
+    'crm.campaign.manage',
   ],
   report: [
     'report.request.read',

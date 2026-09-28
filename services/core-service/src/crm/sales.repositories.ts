@@ -407,3 +407,17 @@ export class SalesTargetRevisionRepository extends BaseRepository<
     return client.salesTargetRevision;
   }
 }
+
+/** CD-71 แคมเปญการตลาดต่อบริษัท. */
+@Injectable()
+export class CampaignRepository extends BaseRepository<
+  PrismaService['campaign']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.campaign;
+  }
+}

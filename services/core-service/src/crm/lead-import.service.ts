@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import {
+  AppError,
   AuditWriter,
   auditActor,
   Principal,
@@ -7,6 +8,7 @@ import {
 } from '@request-management/share';
 import { LeadRepository } from './sales.repositories';
 import { LeadStatusService } from './lead-status.service';
+import { CampaignsService } from './campaigns.service';
 import { ImportLeadRowDto, ImportLeadsDto } from './dto/sales.dto';
 
 export interface LeadImportRowResult {
@@ -41,6 +43,7 @@ export class LeadImportService {
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
     private readonly statuses: LeadStatusService,
+    private readonly campaigns: CampaignsService,
   ) {}
 
   async run(dto: ImportLeadsDto, actor: Principal): Promise<LeadImportResult> {
@@ -49,9 +52,26 @@ export class LeadImportService {
     // ขั้นตั้งต้นอ่านครั้งเดียวต่อรอบนำเข้า ไม่ใช่ต่อแถว — และอ่านจากหน้าตั้งค่า
     // เดียวกับที่ฟอร์ม "เพิ่ม Lead" ใช้ ไม่งั้นสองทางเข้าจะลง Lead คนละสถานะ.
     const status = await this.statuses.defaultCode(actor.activeCompanyId);
+    // CD-71 — รหัสแคมเปญแปลงครั้งเดียวต่อรหัส ไม่ใช่ต่อแถว (ไฟล์งานอีเวนต์ทั้งไฟล์มักใช้รหัสเดียว).
+    const campaignIds = new Map<string, string | null | Error>();
+    for (const code of new Set(
+      dto.rows.map((row) => row.campaign_code?.trim().toUpperCase() ?? ''),
+    )) {
+      if (!code) continue;
+      try {
+        campaignIds.set(
+          code,
+          (await this.campaigns.resolveCode(code, actor.activeCompanyId)) ??
+            null,
+        );
+      } catch (error) {
+        if (!(error instanceof AppError)) throw error;
+        campaignIds.set(code, error);
+      }
+    }
 
     for (const row of dto.rows) {
-      results.push(await this.runRow(row, dto, actor, status));
+      results.push(await this.runRow(row, dto, actor, status, campaignIds));
     }
 
     const summary = {
@@ -79,8 +99,14 @@ export class LeadImportService {
     dto: ImportLeadsDto,
     actor: Principal,
     status: string,
+    campaignIds: Map<string, string | null | Error>,
   ): Promise<LeadImportRowResult> {
     const reasons = this.validate(row);
+    const campaignCode = row.campaign_code?.trim().toUpperCase() || '';
+    const campaign = campaignCode ? campaignIds.get(campaignCode) : null;
+    if (campaign instanceof Error) {
+      reasons.push(`campaign_code: ${campaign.message}`);
+    }
     if (reasons.length) {
       return { rowNo: row.row_no, action: 'error', reasons };
     }
@@ -122,6 +148,7 @@ export class LeadImportService {
               phone,
               email,
               sourceCode: row.source_code?.trim() || null,
+              campaignId: typeof campaign === 'string' ? campaign : null,
               note: row.note?.trim() || null,
               status,
               ownerUserId: actor.userId,
@@ -144,6 +171,7 @@ export class LeadImportService {
               rowNo: row.row_no,
               name: row.name,
               sourceCode: row.source_code ?? null,
+              campaignCode: campaignCode || null,
             },
           },
           { prisma },

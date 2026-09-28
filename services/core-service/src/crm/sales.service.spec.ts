@@ -285,6 +285,7 @@ describe('CRM Lead — แปลงเป็นโอกาสการขาย
       members as never,
       statuses as never,
       workflowSync as never,
+      { resolveCode: jest.fn(() => Promise.resolve(undefined)) } as never,
     );
 
     return { service, leads, opportunities, activities, audits, workflowSync };

@@ -3593,6 +3593,15 @@
             }
           },
           {
+            "name": "campaign_id",
+            "required": false,
+            "in": "query",
+            "description": "id แคมเปญจาก `GET /crm/campaigns`",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "X-Company-Id",
             "in": "header",
             "required": false,
@@ -5351,6 +5360,146 @@
         ],
         "x-permission": [
           "crm.sales.read"
+        ]
+      }
+    },
+    "/api/v1/campaigns": {
+      "get": {
+        "description": "จำนวน Lead · แปลงเป็นโอกาส · ชนะ · ยอดขาย · ต้นทุนต่อ Lead — นับเฉพาะ Lead ที่ผู้เรียกเห็นได้",
+        "operationId": "CampaignsController_list",
+        "parameters": [
+          {
+            "name": "active",
+            "required": false,
+            "in": "query",
+            "description": "`true` = เฉพาะที่เปิดอยู่",
+            "schema": {
+              "example": "true",
+              "type": "string",
+              "enum": [
+                "true"
+              ]
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แคมเปญพร้อมผล",
+        "tags": [
+          "campaigns"
+        ],
+        "x-permission": [
+          "crm.sales.read"
+        ]
+      },
+      "post": {
+        "operationId": "CampaignsController_create",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCampaignDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "สร้างแคมเปญ",
+        "tags": [
+          "campaigns"
+        ],
+        "x-permission": [
+          "crm.campaign.manage"
+        ]
+      }
+    },
+    "/api/v1/campaigns/{id}": {
+      "patch": {
+        "description": "แก้ได้ทุกอย่างยกเว้นรหัส · active=false = ผูก Lead ใหม่ไม่ได้",
+        "operationId": "CampaignsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCampaignDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แก้ไข / ปิดแคมเปญ",
+        "tags": [
+          "campaigns"
+        ],
+        "x-permission": [
+          "crm.campaign.manage"
         ]
       }
     },
@@ -8820,6 +8969,11 @@
             "description": "รหัสแหล่งที่มาตามที่บริษัทตั้งค่าไว้",
             "maxLength": 64
           },
+          "campaign_code": {
+            "type": "string",
+            "example": "EXPO-2026-Q4",
+            "maxLength": 40
+          },
           "customer_id": {
             "type": "string",
             "description": "id ลูกค้าเดิมจาก `GET /crm/customers` — เว้นว่างถ้ายังไม่มีในทะเบียน"
@@ -8938,6 +9092,11 @@
             "example": "website",
             "description": "รหัสแหล่งที่มาตามที่บริษัทตั้งค่าไว้",
             "maxLength": 64
+          },
+          "campaign_code": {
+            "type": "string",
+            "example": "EXPO-2026-Q4",
+            "maxLength": 40
           },
           "customer_id": {
             "type": "string",
@@ -9379,6 +9538,88 @@
           "scope",
           "subject_id"
         ]
+      },
+      "CreateCampaignDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "EXPO-2026-Q4",
+            "description": "รหัสที่เว็บฟอร์ม/ไฟล์นำเข้าอ้าง — ตั้งครั้งเดียว แก้ไม่ได้",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$"
+          },
+          "name": {
+            "type": "string",
+            "example": "งาน Thailand ICT Expo 2026",
+            "maxLength": 255,
+            "minLength": 1
+          },
+          "channel": {
+            "type": "string",
+            "example": "อีเวนต์",
+            "maxLength": 100
+          },
+          "start_date": {
+            "type": "string",
+            "example": "2026-10-01",
+            "format": "date-time"
+          },
+          "end_date": {
+            "type": "string",
+            "example": "2026-10-31",
+            "format": "date-time"
+          },
+          "budget": {
+            "type": "number",
+            "example": 250000,
+            "description": "งบประมาณ (บาท)",
+            "maximum": 999999999999,
+            "minimum": 0
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "code",
+          "name"
+        ]
+      },
+      "UpdateCampaignDto": {
+        "type": "object",
+        "properties": {
+          "active": {
+            "type": "boolean",
+            "description": "false = ปิด (ผูก Lead ใหม่ไม่ได้)"
+          },
+          "name": {
+            "maxLength": 255,
+            "type": "string",
+            "minLength": 1
+          },
+          "channel": {
+            "maxLength": 100,
+            "type": "string"
+          },
+          "start_date": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "end_date": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "budget": {
+            "maximum": 999999999999,
+            "minimum": 0,
+            "type": "number"
+          },
+          "note": {
+            "maxLength": 2000,
+            "type": "string"
+          }
+        }
       },
       "UpdateQuotationDto": {
         "type": "object",
@@ -9918,6 +10159,10 @@
           },
           "source_code": {
             "maxLength": 64,
+            "type": "string"
+          },
+          "campaign_code": {
+            "maxLength": 40,
             "type": "string"
           },
           "note": {

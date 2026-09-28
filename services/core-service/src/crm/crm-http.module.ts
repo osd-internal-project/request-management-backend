@@ -8,6 +8,7 @@ import {
   OpportunitiesController,
   SaleOrdersController,
   SalesTargetsController,
+  CampaignsController,
 } from './sales.controllers';
 
 /**
@@ -28,6 +29,7 @@ import {
     OpportunitiesController,
     SaleOrdersController,
     SalesTargetsController,
+    CampaignsController,
     QuotationsController,
   ],
 })

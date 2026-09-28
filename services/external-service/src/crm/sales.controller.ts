@@ -44,8 +44,10 @@ import {
 import type { Principal } from '@request-management/share';
 import {
   AssignLeadDto,
+  CampaignsService,
   CancelSaleOrderDto,
   ConvertLeadDto,
+  CreateCampaignDto,
   CreateLeadActivityDto,
   CreateLeadDto,
   CreateOpportunityDto,
@@ -57,6 +59,7 @@ import {
   LeadImportService,
   LeadStatusService,
   LeadsService,
+  ListCampaignsQueryDto,
   ListLeadsQueryDto,
   ListOpportunitiesQueryDto,
   ListSaleOrdersQueryDto,
@@ -71,6 +74,7 @@ import {
   SalesReportService,
   SalesTargetsService,
   SetSalesTargetDto,
+  UpdateCampaignDto,
   UpdateLeadActivityDto,
   UpdateLeadDto,
   UpdateLeadStatusDto,
@@ -658,5 +662,62 @@ export class ExternalSalesTargetsController {
   @ActingPermissions('crm.sales.read')
   revisions(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
     return this.targets.history(id, principal);
+  }
+}
+
+/** CD-71 แคมเปญ — ผูก Lead กับกิจกรรมการตลาด และวัดผลถึงยอดขาย. */
+@ApiTags('crm')
+@ApiBearerAuth()
+@ApiHeader({
+  name: ACTING_USER_HEADER_LABEL,
+  required: true,
+  description: 'อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้',
+})
+@Controller('crm/campaigns')
+@ServiceAccountOnly()
+@UseGuards(ActingUserGuard, ActingPolicyGuard)
+export class ExternalCampaignsController {
+  constructor(private readonly campaigns: CampaignsService) {}
+
+  @ApiOperation({
+    summary: 'แคมเปญพร้อมผล',
+    description:
+      'จำนวน Lead · แปลงเป็นโอกาส · ชนะ · ยอดขาย · ต้นทุนต่อ Lead — นับเฉพาะ Lead ที่ผู้เรียกเห็นได้',
+  })
+  @Get()
+  @Permissions('integration.crm.sales.read')
+  @ActingPermissions('crm.sales.read')
+  list(
+    @CurrentPrincipal() principal: Principal,
+    @Query() query: ListCampaignsQueryDto,
+  ) {
+    return this.campaigns.list(query, principal);
+  }
+
+  @ApiOperation({ summary: 'สร้างแคมเปญ' })
+  @Post()
+  @Permissions('integration.crm.sales.manage')
+  @ActingPermissions('crm.campaign.manage')
+  create(
+    @Body() dto: CreateCampaignDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.campaigns.create(dto, principal);
+  }
+
+  @ApiOperation({
+    summary: 'แก้ไข / ปิดแคมเปญ',
+    description:
+      'แก้ได้ทุกอย่างยกเว้นรหัส · active=false = ผูก Lead ใหม่ไม่ได้',
+  })
+  @Patch(':id')
+  @Permissions('integration.crm.sales.manage')
+  @ActingPermissions('crm.campaign.manage')
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateCampaignDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.campaigns.update(id, dto, principal);
   }
 }

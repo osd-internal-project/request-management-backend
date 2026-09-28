@@ -59,6 +59,17 @@ export class IntakeLeadDto {
   @MaxLength(64)
   source_code?: string;
 
+  @ApiPropertyOptional({
+    description:
+      'รหัสแคมเปญ (CD-71) เช่นฟอร์มลงทะเบียนงานอีเวนต์ — ต้องเป็นแคมเปญที่เปิดอยู่',
+    example: 'EXPO-2026-Q4',
+    maxLength: 40,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  campaign_code?: string;
+
   @ApiPropertyOptional({ description: 'ชื่อผู้ติดต่อ', example: 'สมชาย ใจดี' })
   @IsOptional()
   @IsString()

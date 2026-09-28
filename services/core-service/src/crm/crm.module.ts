@@ -48,7 +48,9 @@ import {
   SaleOrderRepository,
   SalesTargetRepository,
   SalesTargetRevisionRepository,
+  CampaignRepository,
 } from './sales.repositories';
+import { CampaignsService } from './campaigns.service';
 import { QuotationsService } from './quotations.service';
 import { QuotationPrintService } from './quotation-print.service';
 import { QuotationApprovalSyncService } from './quotation-approval-sync.service';
@@ -138,6 +140,8 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     SalesTargetApprovalSyncService,
     SalesTargetRepository,
     SalesTargetRevisionRepository,
+    CampaignRepository,
+    CampaignsService,
     OpportunityStaleMonitorService,
     SaleOrdersService,
     PrismaTransactionService,
@@ -168,6 +172,7 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     SalesReportService,
     CrmDashboardService,
     SalesTargetsService,
+    CampaignsService,
     SaleOrdersService,
     QuotationsService,
     QuotationPrintService,

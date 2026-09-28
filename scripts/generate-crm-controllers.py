@@ -26,6 +26,7 @@ ROBOT = {
     'crm.sales.read':      'integration.crm.sales.read',
     'crm.sales.manage':    'integration.crm.sales.manage',
     'crm.target.manage':   'integration.crm.sales.manage',
+    'crm.campaign.manage': 'integration.crm.sales.manage',
     'admin.crm.manage':    'integration.crm.admin.manage',
 }
 
@@ -36,7 +37,8 @@ FILES = {
     'sales.controllers.ts':     [('leads', 'crm/leads'),
                                  ('opportunities', 'crm/opportunities'),
                                  ('sale-orders', 'crm/sale-orders'),
-                                 ('sales-targets', 'crm/sales-targets')],
+                                 ('sales-targets', 'crm/sales-targets'),
+                                 ('campaigns', 'crm/campaigns')],
 }
 
 HEADER = '''/**

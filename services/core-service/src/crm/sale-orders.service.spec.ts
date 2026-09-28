@@ -255,6 +255,7 @@ describe('CRM Lead — convert โดยไม่ต้องมีลูกค�
       {} as never,
       statuses as never,
       { kickLead: jest.fn() } as never,
+      { resolveCode: jest.fn(() => Promise.resolve(undefined)) } as never,
     );
     return { service, leads, customers, opportunities };
   }

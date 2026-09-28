@@ -96,6 +96,13 @@ export class CreateLeadDto {
   @MaxLength(64)
   source_code?: string;
 
+  /** CD-71 — รหัสแคมเปญที่ Lead นี้มาจาก; ว่าง = ไม่ผูก. */
+  @ApiPropertyOptional({ example: 'EXPO-2026-Q4' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  campaign_code?: string;
+
   /** ลูกค้าเดิม ถ้า Lead นี้เป็นเรื่องของลูกค้าที่มีอยู่แล้ว. */
   @ApiPropertyOptional({
     description:
@@ -347,6 +354,12 @@ export class ListLeadsQueryDto extends PageQueryDto {
   @IsOptional()
   @IsIn(['mine', 'all', 'unassigned'])
   view?: 'mine' | 'all' | 'unassigned';
+
+  /** CD-71 — เฉพาะ Lead ของแคมเปญนี้. */
+  @ApiPropertyOptional({ description: 'id แคมเปญจาก `GET /crm/campaigns`' })
+  @IsOptional()
+  @IsString()
+  campaign_id?: string;
 }
 
 /**
@@ -469,6 +482,13 @@ export class ImportLeadRowDto {
   @IsString()
   @MaxLength(64)
   source_code?: string;
+
+  /** CD-71 — รหัสแคมเปญที่ Lead นี้มาจาก; ว่าง = ไม่ผูก. */
+  @ApiPropertyOptional({ example: 'EXPO-2026-Q4' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  campaign_code?: string;
 
   @IsOptional()
   @IsString()
@@ -930,4 +950,100 @@ export class SetSalesTargetDto {
   @IsString()
   @MaxLength(1000)
   reason?: string;
+}
+
+// --- CD-71 แคมเปญ ----------------------------------------------------------
+
+const CAMPAIGN_CODE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$/;
+
+export class CreateCampaignDto {
+  @ApiProperty({
+    example: 'EXPO-2026-Q4',
+    description: 'รหัสที่เว็บฟอร์ม/ไฟล์นำเข้าอ้าง — ตั้งครั้งเดียว แก้ไม่ได้',
+  })
+  @Matches(CAMPAIGN_CODE)
+  code!: string;
+
+  @ApiProperty({ example: 'งาน Thailand ICT Expo 2026' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  name!: string;
+
+  @ApiPropertyOptional({ example: 'อีเวนต์' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  channel?: string;
+
+  @ApiPropertyOptional({ example: '2026-10-01' })
+  @IsOptional()
+  @IsDateString()
+  start_date?: string;
+
+  @ApiPropertyOptional({ example: '2026-10-31' })
+  @IsOptional()
+  @IsDateString()
+  end_date?: string;
+
+  @ApiPropertyOptional({ example: 250000, description: 'งบประมาณ (บาท)' })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(999_999_999_999)
+  budget?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  note?: string;
+}
+
+/** แก้ได้ทุกอย่างยกเว้นรหัส — Lead เก่าและเว็บฟอร์มอ้างรหัสนั้นอยู่. */
+export class UpdateCampaignDto {
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  channel?: string;
+
+  @IsOptional()
+  @IsDateString()
+  start_date?: string;
+
+  @IsOptional()
+  @IsDateString()
+  end_date?: string;
+
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(999_999_999_999)
+  budget?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  note?: string;
+
+  @ApiPropertyOptional({ description: 'false = ปิด (ผูก Lead ใหม่ไม่ได้)' })
+  @IsOptional()
+  @IsBoolean()
+  active?: boolean;
+}
+
+export class ListCampaignsQueryDto {
+  @ApiPropertyOptional({
+    example: 'true',
+    description: '`true` = เฉพาะที่เปิดอยู่',
+  })
+  @IsOptional()
+  @IsIn(['true'])
+  active?: string;
 }

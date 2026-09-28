@@ -328,6 +328,7 @@ model Company {
   quotations              Quotation[]
   quotationCodeCounter    QuotationCodeCounter?
   salesTargets            SalesTarget[]
+  campaigns               Campaign[]
 
   @@map("companies")
 }
@@ -788,7 +789,7 @@ model RequestType {
   id                String  @id @default(uuid())
   code              String  @unique
   name              String
-  receiverOrgUnitId String? 
+  receiverOrgUnitId String?
   receiverUserId    String?
 
   /// JSON Schema for the form the **requester** fills in.
@@ -2202,6 +2203,9 @@ model Lead {
   /// จะเข้ามาเป็นค่าหนึ่งในระยะ 2).
   sourceCode String?
 
+  /// CD-71 — แคมเปญการตลาดที่ Lead นี้มาจาก (ถ้ามี) — วัดผลแคมเปญได้ถึงยอดขาย.
+  campaignId String?
+
   /// รหัสสถานะ — อ้าง `lead_statuses.code` ของบริษัทเดียวกัน. เก็บเป็น text
   /// ไม่ใช่ enum เพราะรายการสถานะแก้ได้จากหน้าตั้งค่าโดยไม่ต้อง migrate; ความ
   /// ถูกต้องบังคับที่ `LeadStatusService` (และการลบสถานะที่ยังมี Lead ใช้อยู่
@@ -2242,11 +2246,13 @@ model Lead {
   company              Company        @relation(fields: [companyId], references: [id])
   customer             Customer?      @relation(fields: [customerId], references: [id])
   convertedOpportunity Opportunity?   @relation(fields: [convertedOpportunityId], references: [id])
+  campaign             Campaign?      @relation(fields: [campaignId], references: [id])
   activities           LeadActivity[]
 
   @@index([companyId, status])
   @@index([companyId, ownerUserId])
   @@index([companyId, ownerOrgUnitId])
+  @@index([campaignId])
   @@map("leads")
 }
 
@@ -2717,4 +2723,37 @@ model SalesTargetRevision {
 
   @@index([targetId, createdAt])
   @@map("sales_target_revisions")
+}
+
+// ---------------------------------------------------------------------------
+// CD-71 แคมเปญ
+// ---------------------------------------------------------------------------
+
+/// แคมเปญ/กิจกรรมการตลาดต่อบริษัท — Lead ผูกด้วย `campaign_code` จากหน้าจอ,
+/// ไฟล์นำเข้า หรือเว็บฟอร์ม แล้ววัดผลได้ถึงโอกาสการขายและใบสั่งขาย.
+model Campaign {
+  id        String    @id @default(uuid())
+  companyId String
+  /// รหัสที่เว็บฟอร์ม/ไฟล์นำเข้าอ้าง — ตั้งครั้งเดียว แก้ไม่ได้.
+  code      String
+  name      String
+  /// ช่องทาง เช่น งานอีเวนต์, Facebook Ads, อีเมล — ข้อความอิสระ.
+  channel   String?
+  startDate DateTime? @db.Date
+  endDate   DateTime? @db.Date
+  budget    Decimal?  @db.Decimal(14, 2)
+  note      String?
+  /// ปิดแล้ว = ผูก Lead ใหม่ไม่ได้ แต่ผลเดิมยังดูได้.
+  active    Boolean   @default(true)
+
+  createdAt DateTime @default(now())
+  createdBy String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  company Company @relation(fields: [companyId], references: [id])
+  leads   Lead[]
+
+  @@unique([companyId, code])
+  @@map("campaigns")
 }
