@@ -28,10 +28,12 @@ async function readAll(stream: NodeJS.ReadableStream): Promise<string> {
   return Buffer.concat(chunks).toString();
 }
 
-function serviceWith(options: {
-  createFails?: boolean;
-  attachments?: Record<string, unknown>[];
-} = {}) {
+function serviceWith(
+  options: {
+    createFails?: boolean;
+    attachments?: Record<string, unknown>[];
+  } = {},
+) {
   const storage = new MemoryStorage();
   const create = jest.fn(({ data }: { data: Record<string, unknown> }) =>
     options.createFails
@@ -49,7 +51,9 @@ function serviceWith(options: {
     } as never,
     { create } as never,
     { record } as never,
-    { execute: jest.fn((work: (prisma: unknown) => unknown) => work({})) } as never,
+    {
+      execute: jest.fn((work: (prisma: unknown) => unknown) => work({})),
+    } as never,
     storage,
   );
 
@@ -81,7 +85,9 @@ describe('AttachmentsService.upload (REQ-03)', () => {
     const { service, storage } = serviceWith({ createFails: true });
     const put = jest.spyOn(storage, 'put');
 
-    await expect(service.upload('req-1', FILE, undefined, actor)).rejects.toThrow('db down');
+    await expect(
+      service.upload('req-1', FILE, undefined, actor),
+    ).rejects.toThrow('db down');
 
     const [key] = put.mock.calls[0];
     expect(storage.has(key)).toBe(false);
@@ -91,14 +97,18 @@ describe('AttachmentsService.upload (REQ-03)', () => {
     const { service, storage } = serviceWith();
     const put = jest.spyOn(storage, 'put');
 
-    await expect(service.upload('req-1', FILE, 'UNKNOWN', actor)).rejects.toBeInstanceOf(AppError);
+    await expect(
+      service.upload('req-1', FILE, 'UNKNOWN', actor),
+    ).rejects.toBeInstanceOf(AppError);
     expect(put).not.toHaveBeenCalled();
   });
 
   it('refuses a request with no file part', async () => {
     const { service } = serviceWith();
 
-    await expect(service.upload('req-1', undefined, undefined, actor)).rejects.toMatchObject({
+    await expect(
+      service.upload('req-1', undefined, undefined, actor),
+    ).rejects.toMatchObject({
       code: 'VALIDATION_FAILED',
     });
   });
@@ -107,7 +117,13 @@ describe('AttachmentsService.upload (REQ-03)', () => {
 describe('AttachmentsService.download (REQ-03)', () => {
   it('streams the stored bytes', async () => {
     const { service, storage } = serviceWith({
-      attachments: [{ id: 'att-1', storageKey: 'requests/req-1/att-1/a.pdf', deletedAt: null }],
+      attachments: [
+        {
+          id: 'att-1',
+          storageKey: 'requests/req-1/att-1/a.pdf',
+          deletedAt: null,
+        },
+      ],
     });
     await storage.put('requests/req-1/att-1/a.pdf', Buffer.from('hello'), {
       contentType: 'application/pdf',
@@ -121,20 +137,28 @@ describe('AttachmentsService.download (REQ-03)', () => {
 
   it('answers ATTACHMENT_NO_FILE for a metadata-only row', async () => {
     const { service } = serviceWith({
-      attachments: [{ id: 'att-1', storageKey: 'pending://x', deletedAt: null }],
+      attachments: [
+        { id: 'att-1', storageKey: 'pending://x', deletedAt: null },
+      ],
     });
 
-    await expect(service.download('req-1', 'att-1', actor)).rejects.toMatchObject({
+    await expect(
+      service.download('req-1', 'att-1', actor),
+    ).rejects.toMatchObject({
       code: 'ATTACHMENT_NO_FILE',
     });
   });
 
   it('answers NOT_FOUND for a withdrawn attachment', async () => {
     const { service } = serviceWith({
-      attachments: [{ id: 'att-1', storageKey: 'requests/k', deletedAt: new Date() }],
+      attachments: [
+        { id: 'att-1', storageKey: 'requests/k', deletedAt: new Date() },
+      ],
     });
 
-    await expect(service.download('req-1', 'att-1', actor)).rejects.toMatchObject({
+    await expect(
+      service.download('req-1', 'att-1', actor),
+    ).rejects.toMatchObject({
       code: 'NOT_FOUND',
     });
   });

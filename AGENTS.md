@@ -161,9 +161,9 @@ text — §16 มีของจริงอยู่แล้ว
 **A request is handed to a named person, accepted, worked on — possibly broken
 into further requests — and only then checked and closed by whoever asked.**
 `request-state-machine.ts` is the authority for the transitions. The reasoning
-and the list of what to remove if the PO declines are the three points below.
+and the list of what to remove if the PO declines are the four points below.
 
-Three things in it are **not** in the source specification, and none of them may
+Four things in it are **not** in the source specification, and none of them may
 be justified by citing §7.1 or §8.1:
 
 1. **Approval runs after the work, not before it.** §7.1 sequences
@@ -176,6 +176,24 @@ be justified by citing §7.1 or §8.1:
    matrix is configuration, not a gap — `selectTier` throwing
    `APV_MATRIX_NOT_FOUND` is the wrong answer for those types, which is why
    `complete` asks `hasPublishedMatrix` first.
+4. **A type may publish a step flow** (PO, 28 Sep 2026). Steps live inside
+   `in_progress`; `advance` moves between them, and a step with an exit ladder
+   (`request:<CODE>:step:<STEP>`) waits in `pending_approval`, which is why
+   `in_progress → pending_approval` exists. A request with no `flowVersionId`
+   runs the fixed lifecycle unchanged. Core owns the flow; a workflow engine
+   reacts to its events and acts through the external API, never the reverse.
+   The engine is `request-flow.ts`; removing the feature is dropping those
+   tables and the `advance` row.
+
+   **Flow v2** (`schemaVersion = 2`, PO 28 Sep 2026) widens this: steps cover
+   the whole path, each under a status scope (`draft`, `returned`, `submitted`,
+   `in_progress`, `pending_approval`, `approved`). The request's status is the
+   current step's scope, the holder follows from it, and a cross-scope exit
+   must pass `canTransition` — so the table above stays the authority. Approval
+   steps carry their own levels (no matrix), submitting is leaving the draft
+   step, leaving the last step closes, and the SLA runs through every step
+   after first receipt (D7), so v2 SLA figures include approval time. Engine:
+   `request-flow-v2.ts`; v1 flows and flowless types are untouched.
 
 `yarn spec:check` still passes over all of this. It compares the on-screen text
 against §16 and **does not read the transition table** — never cite it as

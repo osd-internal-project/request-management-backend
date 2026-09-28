@@ -87,6 +87,15 @@ export class CompanyMemberRepository extends BaseRepository<
    * Returns only the ids that pass, so the caller can name the ones that did
    * not — the whole ladder is checked in one query rather than one per level.
    */
+  /** The group this person sits in, if they belong to the company. */
+  async orgUnitIdOf(userId: string, companyId: string): Promise<string | null> {
+    const row = (await this.findFirst({
+      where: { id: userId, companies: { some: { companyId } } },
+      select: { orgUnitId: true },
+    })) as { orgUnitId: string | null } | null;
+    return row?.orgUnitId ?? null;
+  }
+
   async memberIdsOf(
     ids: readonly string[],
     companyId: string,

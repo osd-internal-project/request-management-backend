@@ -69,6 +69,7 @@ function serviceWith(options: {
         work({ requestType: { delete: deleteType } }),
       ),
     } as never,
+    {} as never, // flows
   );
 
   return { service, findMany, deleteType };

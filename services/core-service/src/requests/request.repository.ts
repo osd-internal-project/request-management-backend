@@ -16,6 +16,7 @@ import type {
 export type RequestWithType = Request & {
   requestType: RequestType;
   attachments: RequestAttachment[];
+  flowVersion?: { schemaVersion: number } | null;
 };
 
 /**
@@ -34,6 +35,7 @@ export type RequestListRow = RequestWithType & {
   */
   receiver: { id: string; displayName: string } | null;
   assignee: { id: string; displayName: string } | null;
+  flowVersion: { schemaVersion: number } | null;
   /*
     `breachedAt` travels with the row because it is the fact the `overdue`
     filter tests. Without it a client renders its badge from `state`/`dueAt` and
@@ -101,6 +103,26 @@ const REQUEST_PERSON_SELECT = {
 export const REQUEST_DETAIL_INCLUDE = {
   requestType: true,
   attachments: true,
+  // The pinned flow and the stays in it — what the stepper draws.
+  flowVersion: {
+    select: {
+      id: true,
+      version: true,
+      schemaVersion: true,
+      steps: {
+        orderBy: { sortOrder: 'asc' },
+        select: {
+          code: true,
+          name: true,
+          sortOrder: true,
+          formSchema: true,
+          subRequestTypes: true,
+          requiresApproval: true,
+        },
+      },
+    },
+  },
+  stepRuns: { orderBy: { enteredAt: 'asc' } },
   /*
     The three people a request is about. Absent until 9 ก.ย. 2569, which left
     the detail endpoint answering with uuids while the timeline beneath it
@@ -126,6 +148,10 @@ export const REQUEST_DETAIL_INCLUDE = {
     select: {
       // The screen decides on this case, so it needs its id.
       id: true,
+      // A cancelled or voided case leaves its current step `pending`.
+      status: true,
+      // Which stage routed it (`:pre`, `:step:<CODE>`), so the screen can say where a send-back goes.
+      subjectType: true,
       currentStep: true,
       matrixVersion: true,
       amount: true,
@@ -145,6 +171,11 @@ export const REQUEST_DETAIL_INCLUDE = {
             column, next to a stepper that showed the decision without it.
           */
           note: true,
+          // The level's rules and why a step was never asked (B4).
+          mode: true,
+          noteRequired: true,
+          skipReason: true,
+          votes: { select: { userId: true, decision: true } },
           approver: { select: { displayName: true } },
           // A level can name several people, any one of whom may decide. The
           // screen prints them so "waiting on" is not one name out of three.
@@ -190,7 +221,11 @@ export class RequestRepository extends BaseRepository<
 
     return client.request.findUnique({
       where: { id },
-      include: { requestType: true, attachments: true },
+      include: {
+        requestType: true,
+        attachments: true,
+        flowVersion: { select: { schemaVersion: true } },
+      },
     });
   }
 
@@ -277,12 +312,24 @@ export class RequestRepository extends BaseRepository<
   findChildTypes(
     parentRequestId: string,
     option?: TxOption,
-  ): Promise<{ typeCode: string; status: RequestStatus }[]> {
+  ): Promise<
+    {
+      typeCode: string;
+      status: RequestStatus;
+      parentStepCode: string | null;
+      requestNo: string | null;
+    }[]
+  > {
     const client = option?.prisma ?? this.prisma;
 
     return client.request.findMany({
       where: { parentRequestId },
-      select: { typeCode: true, status: true },
+      select: {
+        typeCode: true,
+        status: true,
+        parentStepCode: true,
+        requestNo: true,
+      },
     });
   }
 
@@ -301,6 +348,8 @@ export class RequestRepository extends BaseRepository<
         requester: { select: { id: true, displayName: true } },
         receiver: { select: { id: true, displayName: true } },
         assignee: { select: { id: true, displayName: true } },
+        // Which verbs a row offers depends on the flow's schema (`availableActions`).
+        flowVersion: { select: { schemaVersion: true } },
         slaClock: {
           select: { state: true, dueAt: true, breachedAt: true },
         },

@@ -47,7 +47,11 @@ import {
   CompleteRequestDto,
   CreateRequestTypeDto,
   UpdateRequestTypeDto,
+  AdvanceRequestDto,
+  StepFormDto,
+  PublishFlowDto,
 } from './dto/request.dto';
+import { RequestFlowAdminService } from './request-flow-admin.service';
 
 /** REQ-03 — per-file cap, enforced by multer before the bytes reach memory. */
 const MAX_ATTACHMENT_BYTES = 104_857_600;
@@ -204,7 +208,7 @@ export class RequestsController {
   @Permissions('request.read')
   @SensitiveResource('request:{typeCode}')
   findOne(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
-    return this.requests.findOne(id, principal);
+    return this.requests.detailFor(id, principal);
   }
 
   /** REQ-07 — the append-only timeline behind §16 หน้าที่ 4. */
@@ -304,6 +308,29 @@ export class RequestsController {
     return this.requests.complete(id, principal, authorization, dto);
   }
 
+  /** Moves the work to another step of the type's flow (forward or back). */
+  @Post('requests/:id/advance')
+  @Permissions('request.complete')
+  advance(
+    @Param('id') id: string,
+    @Body() dto: AdvanceRequestDto,
+    @CurrentPrincipal() principal: Principal,
+    @Headers('authorization') authorization: string,
+  ) {
+    return this.requests.advance(id, dto, principal, authorization);
+  }
+
+  /** Saves draft answers to the current step's form. */
+  @Patch('requests/:id/step-form')
+  @Permissions('request.complete')
+  saveStepForm(
+    @Param('id') id: string,
+    @Body() dto: StepFormDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.requests.saveStepForm(id, dto, principal);
+  }
+
   /** The requester accepts the result and the ticket ends. */
   @Post('requests/:id/close')
   @Permissions('request.create')
@@ -355,7 +382,43 @@ export class RequestsController {
 @ApiBearerAuth()
 @Controller('admin/request-types')
 export class RequestTypeAdminController {
-  constructor(private readonly requests: RequestsService) {}
+  constructor(
+    private readonly requests: RequestsService,
+    private readonly flows: RequestFlowAdminService,
+  ) {}
+
+  /** Every published version of the type's step flow, newest first. */
+  @Get(':code/flows')
+  @Permissions('admin.request-type.manage')
+  listFlows(
+    @Param('code') code: string,
+    @CurrentPrincipal() principal: Principal,
+    @Query('company_id') companyId?: string,
+  ) {
+    return this.flows.list(code, principal, companyId);
+  }
+
+  /** A v2 flow drafted from the type's current settings; nothing is written. */
+  @Get(':code/flows/suggested')
+  @Permissions('admin.request-type.manage')
+  suggestedFlow(
+    @Param('code') code: string,
+    @CurrentPrincipal() principal: Principal,
+    @Query('company_id') companyId?: string,
+  ) {
+    return this.flows.suggested(code, principal, companyId);
+  }
+
+  /** Publishes the next flow version; requests already submitted keep theirs. */
+  @Post(':code/flows')
+  @Permissions('admin.request-type.manage')
+  publishFlow(
+    @Param('code') code: string,
+    @Body() dto: PublishFlowDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.flows.publish(code, dto, principal);
+  }
 
   /** A1 passes `company_id`; A2 leaves it out and gets the active company. */
   @Get()

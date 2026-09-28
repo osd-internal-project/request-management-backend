@@ -55,6 +55,8 @@ export function assertValidLevels(
       throw invalid(`levels[${index}]`, 'รูปแบบไม่ถูกต้อง');
     }
 
+    assertLevelOptions(level, index);
+
     if (level.type === 'supervisor') {
       assertUp(level.up, index);
       return;
@@ -70,6 +72,69 @@ export function assertValidLevels(
       'ชนิดของชั้นต้องเป็น supervisor หรือ org',
     );
   });
+}
+
+const CONDITION_OPS = ['gt', 'gte', 'lt', 'lte', 'eq', 'neq', 'in'];
+
+/** mode / noteRequired / condition / slaHours — each optional, each checked when present. */
+function assertLevelOptions(
+  level: Record<string, unknown>,
+  index: number,
+): void {
+  const at = (key: string) => `levels[${index}].${key}`;
+
+  if (
+    level.mode !== undefined &&
+    level.mode !== 'any' &&
+    level.mode !== 'all'
+  ) {
+    throw invalid(at('mode'), 'ต้องเป็น any หรือ all');
+  }
+  if (
+    level.noteRequired !== undefined &&
+    level.noteRequired !== 'always' &&
+    level.noteRequired !== 'reject_or_return'
+  ) {
+    throw invalid(at('noteRequired'), 'ต้องเป็น always หรือ reject_or_return');
+  }
+  if (
+    level.slaHours !== undefined &&
+    (typeof level.slaHours !== 'number' ||
+      !Number.isInteger(level.slaHours) ||
+      level.slaHours < 1)
+  ) {
+    throw invalid(at('slaHours'), 'ต้องเป็นจำนวนชั่วโมงเต็มตั้งแต่ 1');
+  }
+  if (
+    level.chartOf !== undefined &&
+    level.chartOf !== 'requester' &&
+    level.chartOf !== 'worker'
+  ) {
+    throw invalid(at('chartOf'), 'ต้องเป็น requester หรือ worker');
+  }
+  if (level.condition !== undefined) {
+    const condition = asRecord(level.condition);
+    if (
+      !condition ||
+      typeof condition.field !== 'string' ||
+      !condition.field ||
+      !CONDITION_OPS.includes(String(condition.op)) ||
+      condition.value === undefined
+    ) {
+      throw invalid(at('condition'), 'เงื่อนไขต้องมี field, op และ value');
+    }
+  }
+}
+
+/** Condition fields a ladder names that the request type's form does not ask for. */
+export function unknownConditionFields(
+  levels: readonly MatrixLevel[],
+  knownFields: readonly string[],
+): string[] {
+  return levels
+    .map((level) => level.condition?.field)
+    .filter((field): field is string => typeof field === 'string')
+    .filter((field) => !knownFields.includes(field));
 }
 
 function assertUp(value: unknown, index: number): void {

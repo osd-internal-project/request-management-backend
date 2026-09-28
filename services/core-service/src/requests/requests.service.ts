@@ -22,6 +22,7 @@ import {
   hasAuthority,
   specFor,
   type RequestAction,
+  type ActionableRequest,
 } from './available-actions';
 import { AttachmentRepository } from './attachment.repository';
 import type { RequestListRow } from './request.repository';
@@ -36,7 +37,31 @@ import {
   receiverFor,
   type SubRequestTypeRule,
 } from './submit-rules';
-import { AFTER_WORK, BEFORE_WORK, type ApprovalStage } from './approval-stage';
+import {
+  AFTER_WORK,
+  BEFORE_WORK,
+  stepExit,
+  type ApprovalStage,
+} from './approval-stage';
+import {
+  answersOf,
+  asRecord,
+  assertStepExitable,
+  backwardOptions,
+  firstStep,
+  isLastStep,
+  nextForward,
+  stepOf,
+  type Flow,
+  type FlowStep,
+} from './request-flow';
+import { holderOf, isSubmitMove, roleOf, scopeOf } from './request-flow-v2';
+import {
+  RequestFlowService,
+  type V2Request,
+} from '../request-flow/request-flow.service';
+import { toFlow } from '../request-flow/request-flow.repository';
+import { nextRequestEventSeq } from './request-event-seq';
 import { RunNumberClient } from '../run-number/run-number.client';
 import {
   RequestDetail,
@@ -66,6 +91,8 @@ import {
   AddCommentDto,
   CloseRequestDto,
   CompleteRequestDto,
+  AdvanceRequestDto,
+  StepFormDto,
 } from './dto/request.dto';
 
 /** What one node of the สายคำขอ panel needs — never the whole request. */
@@ -75,6 +102,7 @@ const REQUEST_TREE_SELECT = {
   typeCode: true,
   status: true,
   parentRequestId: true,
+  parentStepCode: true,
   ancestorIds: true,
   requester: { select: { displayName: true } },
   assignee: { select: { displayName: true } },
@@ -96,6 +124,7 @@ export class RequestsService {
     private readonly domainEvents: DomainEventsService,
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
+    private readonly flows: RequestFlowService,
   ) {}
 
   // --- REQ-01: types are configuration -----------------------------------
@@ -112,9 +141,9 @@ export class RequestsService {
       : [];
     // Raising a checklist sub request from its parent skips the group rule.
     const checklistCodes = parentRequestId
-      ? subRequestTypesOf(await this.require(parentRequestId, actor)).map(
-          (item) => item.code,
-        )
+      ? (
+          await this.checklistOf(await this.require(parentRequestId, actor))
+        ).map((item) => item.code)
       : [];
     return this.types.findMany({
       where: {
@@ -135,7 +164,7 @@ export class RequestsService {
         receiverUser: { select: { id: true, displayName: true } },
         eligibleUnits: { select: { orgUnitId: true } },
       },
-      orderBy: { active: 'asc', code: 'asc' },
+      orderBy: { code: 'asc' },
     });
   }
 
@@ -541,31 +570,61 @@ export class RequestsService {
     const ancestorIds = dto.parent_request_id
       ? await this.lineageOf(dto.parent_request_id)
       : [];
+    // Which step of the parent's flow this child belongs to, for that step's checklist.
+    const parentStepCode = dto.parent_request_id
+      ? ((
+          await this.requests.findUnique({
+            where: { id: dto.parent_request_id },
+            select: { currentStepCode: true },
+          })
+        )?.currentStepCode ?? null)
+      : null;
 
-    return this.requests.create({
-      data: {
-        requestTypeId: type.id,
-        typeCode: type.code,
-        companyId: actor.activeCompanyId,
-        requesterId: actor.userId,
-        requesterOrgUnitId: actor.orgUnitId,
-        formData: (dto.form_data ?? {}) as Prisma.InputJsonValue,
-        refType: dto.ref_type ?? null,
-        refId: dto.ref_id ?? null,
-        receiverUserId: receiverFor(type, dto.receiver_user_id),
-        // The type's `ทีมผู้รับ` is the starting point; the requester may send
-        // it somewhere else. Copied onto the row rather than read back off the
-        // type, so a later edit to the type cannot re-route this (REQ-01).
-        receiverOrgUnitId: await this.resolveReceiverUnit(
-          dto.receiver_org_unit_id,
-          type.receiverOrgUnitId,
-          actor.activeCompanyId,
-        ),
-        parentRequestId: dto.parent_request_id ?? null,
-        ancestorIds,
-        status: 'draft',
-        createdBy: actor.userId,
-      },
+    const receiverOrgUnitId = await this.resolveReceiverUnit(
+      dto.receiver_org_unit_id,
+      type.receiverOrgUnitId,
+      actor.activeCompanyId,
+    );
+    // A v2 flow owns the whole path, so the request is on its first step from birth.
+    const latest = await this.flows.latestFor(actor.activeCompanyId, type.id);
+    const flowV2 = latest?.schemaVersion === 2 ? latest : null;
+
+    return this.transactions.execute(async (prisma) => {
+      const created = await this.requests.create(
+        {
+          data: {
+            requestTypeId: type.id,
+            typeCode: type.code,
+            companyId: actor.activeCompanyId,
+            requesterId: actor.userId,
+            requesterOrgUnitId: actor.orgUnitId,
+            formData: (dto.form_data ?? {}) as Prisma.InputJsonValue,
+            refType: dto.ref_type ?? null,
+            refId: dto.ref_id ?? null,
+            receiverUserId: receiverFor(type, dto.receiver_user_id),
+            // The type's `ทีมผู้รับ` is the starting point; the requester may send
+            // it somewhere else. Copied onto the row rather than read back off the
+            // type, so a later edit to the type cannot re-route this (REQ-01).
+            receiverOrgUnitId,
+            parentRequestId: dto.parent_request_id ?? null,
+            parentStepCode,
+            ancestorIds,
+            flowVersionId: flowV2?.id ?? null,
+            status: 'draft',
+            createdBy: actor.userId,
+          },
+        },
+        { prisma },
+      );
+      if (!flowV2) return created;
+
+      await this.flows.enterV2(
+        prisma,
+        created,
+        firstStep(toFlow(flowV2)),
+        actor,
+      );
+      return prisma.request.findUniqueOrThrow({ where: { id: created.id } });
     });
   }
 
@@ -824,6 +883,20 @@ export class RequestsService {
     receiverFor(request.requestType, request.receiverUserId);
   }
 
+  /** The parent's type checklist plus, on a flow, its current step's. */
+  private async checklistOf(
+    parent: RequestWithType,
+  ): Promise<SubRequestTypeRule[]> {
+    const typeLevel = subRequestTypesOf(parent);
+    if (!parent.flowVersionId || !parent.currentStepCode) return typeLevel;
+
+    const flow = await this.flows.load(parent.flowVersionId);
+    return [
+      ...typeLevel,
+      ...stepOf(flow, parent.currentStepCode).subRequestTypes,
+    ];
+  }
+
   /** A2 — checks a sub-request checklist against the types that exist. */
   private async assertSubRequestTypes(
     ownCode: string,
@@ -845,7 +918,7 @@ export class RequestsService {
 
   /** The type's checklist with each name attached, as the snapshot keeps it. */
   private async namedSubRequestTypes(
-    checklist: Prisma.JsonValue,
+    checklist: unknown,
   ): Promise<{ code: string; name: string; required: boolean }[]> {
     const items = asSubRequestTypes(checklist);
     if (!items.length) return [];
@@ -918,7 +991,16 @@ export class RequestsService {
       );
     }
 
+    const flowV2 = await this.flowV2Of(before);
+    if (flowV2) return this.receiveV2(before, flowV2, actor);
+
     assertTransition(before.status, 'in_progress');
+
+    // A re-receive after a return resumes the step the work was on.
+    const flow =
+      before.flowVersionId && !before.currentStepCode
+        ? await this.flows.load(before.flowVersionId)
+        : null;
 
     return this.transactions.execute(async (prisma) => {
       const now = new Date();
@@ -943,6 +1025,10 @@ export class RequestsService {
 
       // The clock was paused through `submitted`; accepting is what starts it.
       await this.sla.resume(prisma, id, now);
+
+      if (flow) {
+        await this.flows.enter(prisma, before, firstStep(flow), actor);
+      }
 
       await this.audit.record(
         {
@@ -992,11 +1078,20 @@ export class RequestsService {
       ]);
     }
 
+    if (before.flowVersion?.schemaVersion === 2) {
+      return this.handOnV2(before, dto, actor);
+    }
+
     return this.transactions.execute(async (prisma) => {
       const updated = await prisma.request.update({
         where: { id },
         data: { assigneeUserId: dto.assignee_user_id, updatedBy: actor.userId },
       });
+
+      // SLA counts from the first assignment; no-op when already running.
+      if (before.status === 'submitted' || before.status === 'in_progress') {
+        await this.sla.resume(prisma, id);
+      }
 
       await this.recordEvent(prisma, {
         requestId: id,
@@ -1040,6 +1135,7 @@ export class RequestsService {
     if (before.requesterId !== actor.userId) {
       throw new AppError('FORBIDDEN', 'ปิดคำขอได้เฉพาะผู้ยื่นคำขอ');
     }
+    assertNotFlowV2(before);
 
     assertTransition(before.status, 'closed');
 
@@ -1121,11 +1217,17 @@ export class RequestsService {
     // The work is finished by whoever did it. An approver signs it off later;
     // a bystander does neither.
     this.assertMayAct(before, actor, 'complete', 'แจ้งงานเสร็จ');
+    assertNotFlowV2(before);
 
     assertTransition(before.status, 'completed');
 
     await this.assertNoOpenChildren(id);
     await this.assertRequiredSubRequests(before);
+
+    const flow = before.flowVersionId
+      ? await this.flows.load(before.flowVersionId)
+      : null;
+    if (flow) await this.assertCurrentStepFinishes(before, flow);
 
     /*
       H2.2 ข้อ 3 — the receiver's own form, checked here rather than at submit.
@@ -1164,10 +1266,19 @@ export class RequestsService {
         toStatus: 'completed',
       });
 
-      // `met` rather than a bare stop: `stop` decides between `met` and
-      // `breached` by comparing now against the deadline, which is what lets
-      // REQ-09 tell a success from a failure afterwards.
-      await this.sla.stop(prisma, id, 'met');
+      if (flow && before.currentStepCode) {
+        await this.flows.leave(
+          prisma,
+          id,
+          before.currentStepCode,
+          'completed',
+          actor,
+        );
+      }
+
+      // Paused, not stopped: a send-back after the check resumes it, and
+      // acceptance stops it with met/breached judged from the time used.
+      await this.sla.pause(prisma, id);
 
       await this.audit.record(
         {
@@ -1234,46 +1345,7 @@ export class RequestsService {
     );
 
     if (!hasMatrix) {
-      // Nothing to check at this stage. The pre-work stage simply hands the
-      // ticket on, which is what every type without a `:pre` matrix does —
-      // that is, all of them until somebody publishes one.
-      if (!stage.recordsAcceptance) return completed;
-
-      const accepted = await this.transactions.execute(async (prisma) => {
-        const updated = await prisma.request.update({
-          where: { id },
-          data: { status: 'approved', updatedBy: actor.userId },
-        });
-
-        await this.recordEvent(prisma, {
-          requestId: id,
-          // No approver was involved — the type has no matrix, so accepting
-          // the delivered result is the system's own step, not a person's.
-          type: 'request.accepted',
-          actor,
-          fromStatus: 'completed',
-          toStatus: 'approved',
-          data: { reason: 'no_approval_matrix' },
-        });
-
-        return updated;
-      });
-
-      // §11.8 — after the commit. Same event an approver's final sign-off
-      // emits, so a consumer waiting on the outcome need not know that this
-      // type has no matrix.
-      await this.domainEvents.emit({
-        name: DOMAIN_EVENTS.requestApproved,
-        payload: {
-          company_id: before.companyId,
-          request_id: id,
-          request_no: before.requestNo,
-          type_code: before.typeCode,
-          requester_id: before.requesterId,
-        },
-      });
-
-      return accepted;
+      return this.acceptWithoutCheck(before, actor, completed, stage);
     }
 
     const approvalCase = await this.approvals.openCase(
@@ -1291,11 +1363,29 @@ export class RequestsService {
           managers to sign off Marketing's output.
         */
         chart_owner_user_id: stage.chartOwnerOf(before),
-        payload: before.formData as Record<string, unknown>,
+        // Step answers too, so a level condition can read what a step recorded.
+        payload: answersOf(before.formData, before.stepFormData),
       },
       actor,
       authorization,
     );
+
+    // Every level skipped by its condition: the case is on record, the work moves on.
+    if (approvalCase.status !== 'pending') {
+      await this.transactions.execute((prisma) =>
+        prisma.approvalCase.update({
+          where: { id: approvalCase.id },
+          data: { requestId: id },
+        }),
+      );
+      return this.acceptWithoutCheck(
+        before,
+        actor,
+        completed,
+        stage,
+        'all_levels_skipped',
+      );
+    }
 
     return this.transactions.execute(async (prisma) => {
       await prisma.approvalCase.update({
@@ -1307,6 +1397,9 @@ export class RequestsService {
         where: { id },
         data: { status: 'pending_approval', updatedBy: actor.userId },
       });
+
+      // Waiting on a step's exit approval is the approver's time, not the team's.
+      if (stage.name === 'step') await this.sla.pause(prisma, id);
 
       await this.recordEvent(prisma, {
         requestId: id,
@@ -1323,6 +1416,62 @@ export class RequestsService {
 
       return updated;
     });
+  }
+
+  /**
+   * Nothing to check at this stage (no ladder, or every level skipped): the
+   * pre-work and step stages hand on; after the work, the result is accepted.
+   */
+  private async acceptWithoutCheck(
+    before: RequestWithType,
+    actor: Principal,
+    completed: { id: string },
+    stage: ApprovalStage,
+    reason: 'no_approval_matrix' | 'all_levels_skipped' = 'no_approval_matrix',
+  ) {
+    const id = completed.id;
+    // Nothing to check at this stage. The pre-work stage simply hands the
+    // ticket on, which is what every type without a `:pre` matrix does —
+    // that is, all of them until somebody publishes one.
+    if (!stage.recordsAcceptance) return completed;
+
+    const accepted = await this.transactions.execute(async (prisma) => {
+      const updated = await prisma.request.update({
+        where: { id },
+        data: { status: 'approved', updatedBy: actor.userId },
+      });
+
+      await this.recordEvent(prisma, {
+        requestId: id,
+        // No approver was involved — the type has no matrix, so accepting
+        // the delivered result is the system's own step, not a person's.
+        type: 'request.accepted',
+        actor,
+        fromStatus: 'completed',
+        toStatus: 'approved',
+        data: { reason },
+      });
+
+      await this.sla.stop(prisma, id, 'met');
+
+      return updated;
+    });
+
+    // §11.8 — after the commit. Same event an approver's final sign-off
+    // emits, so a consumer waiting on the outcome need not know that this
+    // type has no matrix.
+    await this.domainEvents.emit({
+      name: DOMAIN_EVENTS.requestApproved,
+      payload: {
+        company_id: before.companyId,
+        request_id: id,
+        request_no: before.requestNo,
+        type_code: before.typeCode,
+        requester_id: before.requesterId,
+      },
+    });
+
+    return accepted;
   }
 
   /**
@@ -1355,11 +1504,7 @@ export class RequestsService {
    * The gate every attachment write shares: the request exists, is visible to
    * this caller, is still editable, and is theirs.
    */
-  async requireEditableOwn(
-    id: string,
-    actor: Principal,
-    action: string,
-  ) {
+  async requireEditableOwn(id: string, actor: Principal, action: string) {
     const found = await this.require(id, actor);
 
     if (!['draft', 'returned'].includes(found.status)) {
@@ -1396,6 +1541,10 @@ export class RequestsService {
   async submit(id: string, actor: Principal, authorization: string) {
     const before = await this.require(id, actor);
 
+    // v2: submitting is advancing off the requester's step.
+    const flowV2 = await this.flowV2Of(before);
+    if (flowV2) return this.advanceV2(before, flowV2, null, actor);
+
     if (before.requesterId !== actor.userId) {
       throw new AppError('FORBIDDEN', 'ยื่นได้เฉพาะคำขอของตนเอง');
     }
@@ -1425,26 +1574,24 @@ export class RequestsService {
      */
     await this.assertReceivable(before);
 
-    /*
-      REQ-02: issued once, at the first submit; a resubmit keeps its number.
-      Outside the transaction and after every assert — docs/run-number.md.
-    */
-    const requestNo =
-      before.requestNo ??
-      (await this.runNumbers.issueUnused(
-        {
-          companyId: before.companyId,
-          docType: 'REQUEST',
-          scopeKey: before.typeCode,
-          master: { 'M:REQUEST_TYPE': before.typeCode },
-          idempotencyKey: `run-number:REQUEST:${id}:${before.typeCode}`,
-        },
-        (code) => this.requests.requestNoTaken(code),
-      ));
+    // A :pre ladder that cannot resolve must fail here, before the number and clock.
+    await this.approvals.assertRoutable({
+      subjectType: BEFORE_WORK.subjectOf(before.typeCode),
+      requesterId: before.requesterId,
+      chartOwnerId: BEFORE_WORK.chartOwnerOf(before),
+      companyId: before.companyId,
+      authorization,
+    });
 
-    const subRequestTypes = await this.namedSubRequestTypes(
-      before.requestType.subRequestTypes,
-    );
+    const requestNo = await this.requestNoFor(before);
+    const typeSnapshot = await this.typeSnapshotFor(before);
+
+    // Running work keeps the flow it was submitted under; a resubmit keeps its pin.
+    // A draft raised before a v2 flow was published stays on the fixed lifecycle.
+    const latest = before.flowVersionId
+      ? null
+      : await this.flows.latestFor(before.companyId, before.requestTypeId);
+    const flow = latest?.schemaVersion === 1 ? latest : null;
 
     const submitted = await this.transactions.execute(async (prisma) => {
       const now = new Date();
@@ -1455,26 +1602,9 @@ export class RequestsService {
           requestNo,
           status: 'submitted',
           submittedAt: now,
+          ...(flow ? { flowVersionId: flow.id } : {}),
           // §7: running work keeps the rules it started under.
-          typeSnapshot: {
-            code: before.requestType.code,
-            name: before.requestType.name,
-            formSchema: before.requestType.formSchema,
-            // The receiver's form is snapshotted for the same reason as the
-            // requester's: a type edited mid-flight must not change what
-            // finishing this request requires (REQ-01).
-            receiverFormSchema: before.requestType.receiverFormSchema,
-            requiredDocs: before.requestType.requiredDocs,
-            returnReasonCodes: before.requestType.returnReasonCodes,
-            approvalPolicy: before.requestType.approvalPolicy,
-            slaHours: before.requestType.slaHours,
-            // What the type suggested as ทีมผู้รับ at this moment. The request
-            // carries its own `receiverOrgUnitId`; keeping the default beside
-            // it is what makes "did the requester send this somewhere else?"
-            // answerable later, after the type has been edited.
-            receiverOrgUnitId: before.requestType.receiverOrgUnitId,
-            subRequestTypes,
-          },
+          typeSnapshot,
           updatedBy: actor.userId,
         },
         include: { requestType: true, attachments: true },
@@ -1489,13 +1619,9 @@ export class RequestsService {
         data: { requestNo },
       });
 
-      // SUP-01: a first submit starts the clock; a resubmit resumes the one
-      // paused on return, pushing the deadline out by however long it sat with
-      // the requester. Restarting would hand back the full SLA every bounce,
-      // making a request that was returned three times look punctual.
-      if (before.requestNo) {
-        await this.sla.resume(prisma, id, now);
-      } else {
+      // SUP-01: the clock is created paused and runs from the first assignment;
+      // a resubmit leaves it paused until the work is received again.
+      if (!before.requestNo) {
         await this.sla.start(prisma, updated, now);
       }
 
@@ -1553,6 +1679,50 @@ export class RequestsService {
     return this.requests.findDetail(id) as Promise<RequestDetail>;
   }
 
+  /** REQ-02: issued once, at the first submit; a resubmit keeps its number. */
+  private async requestNoFor(before: RequestWithType): Promise<string> {
+    // Outside the transaction and after every assert — docs/run-number.md.
+    return (
+      before.requestNo ??
+      (await this.runNumbers.issueUnused(
+        {
+          companyId: before.companyId,
+          docType: 'REQUEST',
+          scopeKey: before.typeCode,
+          master: { 'M:REQUEST_TYPE': before.typeCode },
+          idempotencyKey: `run-number:REQUEST:${before.id}:${before.typeCode}`,
+        },
+        (code) => this.requests.requestNoTaken(code),
+      ))
+    );
+  }
+
+  /** §7: the rules a request keeps once submitted, whatever later edits do to its type. */
+  private async typeSnapshotFor(before: RequestWithType) {
+    const subRequestTypes = await this.namedSubRequestTypes(
+      before.requestType.subRequestTypes,
+    );
+    return {
+      code: before.requestType.code,
+      name: before.requestType.name,
+      formSchema: before.requestType.formSchema,
+      // The receiver's form is snapshotted for the same reason as the
+      // requester's: a type edited mid-flight must not change what
+      // finishing this request requires (REQ-01).
+      receiverFormSchema: before.requestType.receiverFormSchema,
+      requiredDocs: before.requestType.requiredDocs,
+      returnReasonCodes: before.requestType.returnReasonCodes,
+      approvalPolicy: before.requestType.approvalPolicy,
+      slaHours: before.requestType.slaHours,
+      // What the type suggested as ทีมผู้รับ at this moment. The request
+      // carries its own `receiverOrgUnitId`; keeping the default beside
+      // it is what makes "did the requester send this somewhere else?"
+      // answerable later, after the type has been edited.
+      receiverOrgUnitId: before.requestType.receiverOrgUnitId,
+      subRequestTypes,
+    };
+  }
+
   // --- REQ-04/05: return and cancel --------------------------------------
 
   /** REQ-04: bounced back to the requester, with a countable reason. */
@@ -1571,6 +1741,7 @@ export class RequestsService {
       permission holder would have spread the hole to the chatbot.
     */
     this.assertMayAct(before, actor, 'return', 'ตีกลับคำขอ');
+    assertNotFlowV2(before);
 
     assertKnownReturnReason(
       snapshotOf(before).returnReasonCodes ??
@@ -1593,6 +1764,10 @@ export class RequestsService {
         toStatus: 'returned',
         data: { reasonCode: dto.reason_code, note: dto.note ?? null },
       });
+
+      if (before.status === 'pending_approval') {
+        await this.approvals.closeOpenCases(prisma, id, 'voided', actor);
+      }
 
       await prisma.requestReturnReason.create({
         data: {
@@ -1661,6 +1836,20 @@ export class RequestsService {
         data: { reason: dto.reason },
       });
 
+      if (before.status === 'pending_approval') {
+        await this.approvals.closeOpenCases(prisma, id, 'cancelled', actor);
+      }
+
+      if (before.currentStepCode) {
+        await this.flows.leave(
+          prisma,
+          id,
+          before.currentStepCode,
+          'cancelled',
+          actor,
+        );
+      }
+
       await this.sla.stop(prisma, id, 'cancelled');
 
       await this.audit.record(
@@ -1679,6 +1868,10 @@ export class RequestsService {
       return updated;
     });
 
+    if (before.status === 'pending_approval') {
+      await this.notifications.approvalWithdrawn(id, before.companyId);
+    }
+
     // §11.8 — after the commit, so a subscriber reads the state it was told of.
     await this.domainEvents.emit({
       name: DOMAIN_EVENTS.requestCancelled,
@@ -1692,6 +1885,528 @@ export class RequestsService {
     });
 
     return updatedRequest;
+  }
+
+  // --- Configurable flow: steps inside in_progress ------------------------
+
+  /**
+   * Moves the work to `to_step`: forward along the exit its answers select
+   * (through the step's exit ladder when it has one), or back along a backward exit.
+   */
+  async advance(
+    id: string,
+    dto: AdvanceRequestDto,
+    actor: Principal,
+    authorization: string,
+  ) {
+    const before = await this.require(id, actor);
+
+    const flowV2 = await this.flowV2Of(before);
+    if (flowV2) return this.advanceV2(before, flowV2, dto.to_step, actor);
+
+    this.assertMayAct(before, actor, 'advance', 'ไปขั้นถัดไป');
+
+    if (before.status !== 'in_progress' || !before.flowVersionId) {
+      throw new AppError(
+        'REQ_STEP_INVALID',
+        'คำขอนี้ไม่ได้อยู่ในขั้นตอนที่เดินต่อได้',
+      );
+    }
+
+    const flow = await this.flows.load(before.flowVersionId);
+    const current = stepOf(flow, before.currentStepCode);
+
+    if (backwardOptions(flow, current.code).includes(dto.to_step)) {
+      await this.transactions.execute((prisma) =>
+        this.flows.move(
+          prisma,
+          before,
+          flow,
+          current.code,
+          dto.to_step,
+          'backward',
+          actor,
+        ),
+      );
+      return this.findOne(id, actor);
+    }
+
+    const next = nextForward(
+      flow,
+      current.code,
+      answersOf(before.formData, before.stepFormData),
+    );
+    if (!next || next !== dto.to_step) {
+      throw new AppError(
+        'REQ_STEP_INVALID',
+        isLastStep(flow, current.code)
+          ? 'ขั้นสุดท้าย — ใช้ "ทำเสร็จแล้ว"'
+          : 'ไปขั้นนี้จากขั้นปัจจุบันไม่ได้',
+        [{ field: 'to_step', reason: next ?? '' }],
+      );
+    }
+
+    await this.assertStepLeavable(before, flow);
+
+    const stage = stepExit(current.code);
+    const needsApproval =
+      current.requiresApproval &&
+      (await this.approvals.hasPublishedMatrix(
+        stage.subjectOf(before.typeCode),
+        before.companyId,
+        authorization,
+      ));
+
+    // A ladder whose every level was skipped leaves the request in progress: move on.
+    const routed = needsApproval
+      ? await this.routeForApproval(before, actor, authorization, before, stage)
+      : null;
+    if (routed && 'status' in routed && routed.status === 'pending_approval') {
+      return this.findOne(id, actor);
+    }
+
+    await this.transactions.execute((prisma) =>
+      this.flows.move(
+        prisma,
+        before,
+        flow,
+        current.code,
+        next,
+        'forward',
+        actor,
+      ),
+    );
+
+    return this.findOne(id, actor);
+  }
+
+  /** Saves draft answers to the current step's form; nothing is checked until the step is left. */
+  async saveStepForm(id: string, dto: StepFormDto, actor: Principal) {
+    const before = await this.require(id, actor);
+    this.assertMayAct(before, actor, 'advance', 'บันทึกฟอร์มขั้นนี้');
+
+    const flowV2 = await this.flowV2Of(before);
+    if (flowV2) return this.saveStepFormV2(before, flowV2, dto, actor);
+
+    if (before.status !== 'in_progress' || !before.currentStepCode) {
+      throw new AppError(
+        'REQ_STEP_INVALID',
+        'คำขอนี้ไม่ได้อยู่ในขั้นตอนที่แก้ฟอร์มได้',
+      );
+    }
+
+    const stepFormData = asRecord(before.stepFormData);
+    const merged = {
+      ...stepFormData,
+      [before.currentStepCode]: {
+        ...asRecord(stepFormData[before.currentStepCode]),
+        ...dto.data,
+      },
+    };
+
+    await this.transactions.execute(async (prisma) => {
+      await prisma.request.update({
+        where: { id },
+        data: {
+          stepFormData: merged as Prisma.InputJsonValue,
+          updatedBy: actor.userId,
+        },
+      });
+      await this.audit.record(
+        {
+          eventType: 'request.step_form.saved',
+          companyId: before.companyId,
+          ...auditActor(actor),
+          resourceType: 'request',
+          resourceId: id,
+          after: { step: before.currentStepCode },
+        },
+        { prisma },
+      );
+    });
+
+    return this.findOne(id, actor);
+  }
+
+  /** The current step's exit rules, against its answers and the children raised in it. */
+  private async assertStepLeavable(request: RequestWithType, flow: Flow) {
+    const step = stepOf(flow, request.currentStepCode);
+    const children = await this.requests.findChildTypes(request.id);
+    assertStepExitable(
+      step,
+      asRecord(asRecord(request.stepFormData)[step.code]),
+      children,
+    );
+  }
+
+  /** `complete` on a flow request finishes only from a last step whose exit rules hold. */
+  private async assertCurrentStepFinishes(
+    request: RequestWithType,
+    flow: Flow,
+  ) {
+    if (
+      !request.currentStepCode ||
+      !isLastStep(flow, request.currentStepCode)
+    ) {
+      throw new AppError(
+        'REQ_STEP_INVALID',
+        'ยังไม่ถึงขั้นสุดท้าย — ไปขั้นถัดไปก่อน',
+        [{ field: 'step', reason: request.currentStepCode ?? '' }],
+      );
+    }
+    await this.assertStepLeavable(request, flow);
+  }
+
+  // --- Flow v2: steps own the whole path ----------------------------------
+
+  /** The pinned flow when it is v2; null for v1 and the fixed lifecycle. */
+  private async flowV2Of(request: RequestWithType): Promise<Flow | null> {
+    if (!request.flowVersionId || request.flowVersion?.schemaVersion !== 2) {
+      return null;
+    }
+    return this.flows.load(request.flowVersionId);
+  }
+
+  /**
+   * v2 `advance`, and `submit` (advancing off a requester step). Forward goes
+   * along the exit the answers select once the step's rules hold; the last step
+   * closes the request. Backward exits skip the checks.
+   */
+  private async advanceV2(
+    before: RequestWithType,
+    flow: Flow,
+    toStep: string | null,
+    actor: Principal,
+  ): Promise<RequestDetail> {
+    if (!ADVANCEABLE_V2.includes(before.status)) {
+      throw new AppError('REQ_STEP_INVALID', stuckReasonV2(before.status), [
+        { field: 'status', reason: before.status },
+      ]);
+    }
+    this.assertMayAct(before, actor, 'advance', 'ไปขั้นถัดไป');
+
+    const current = stepOf(flow, before.currentStepCode);
+    const backward =
+      toStep !== null && backwardOptions(flow, current.code).includes(toStep);
+    const next = backward
+      ? toStep
+      : nextForward(
+          flow,
+          current.code,
+          answersOf(before.formData, before.stepFormData),
+        );
+
+    if (!backward && toStep !== null && toStep !== (next ?? END_STEP)) {
+      throw new AppError('REQ_STEP_INVALID', 'ไปขั้นนี้จากขั้นปัจจุบันไม่ได้', [
+        { field: 'to_step', reason: next ?? END_STEP },
+      ]);
+    }
+    if (!backward) await this.assertStepDoneV2(before, flow, current);
+
+    const target = next ? stepOf(flow, next) : null;
+    const submitting =
+      target !== null && isSubmitMove(before.status, scopeOf(target));
+    if (submitting && scopeOf(target) === 'submitted') {
+      await this.assertReceivable(before);
+    }
+    const requestNo = submitting ? await this.requestNoFor(before) : null;
+    const typeSnapshot =
+      submitting && !before.requestNo
+        ? await this.typeSnapshotFor(before)
+        : null;
+
+    const opened = await this.transactions.execute(async (prisma) => {
+      let request: V2Request = before;
+
+      if (requestNo) {
+        request = await this.recordSubmitV2(
+          prisma,
+          before,
+          requestNo,
+          typeSnapshot,
+          actor,
+        );
+      }
+
+      if (!target) {
+        await this.flows.finishV2(prisma, request, current, actor);
+        await this.sla.stop(prisma, before.id, 'met');
+        return null;
+      }
+
+      const approval = await this.flows.moveV2(
+        prisma,
+        request,
+        flow,
+        current.code,
+        target.code,
+        backward ? 'backward' : 'forward',
+        actor,
+      );
+      // D7: a v2 clock runs through every step once work has reached a worker.
+      if (scopeOf(target) === 'in_progress') {
+        await this.sla.resume(prisma, before.id);
+      }
+      return approval;
+    });
+
+    if (requestNo) await this.emitSubmitted(before, requestNo);
+    if (opened) await this.approvals.openStepCaseV2(before.id, actor);
+
+    return this.findOne(before.id, actor);
+  }
+
+  /** What leaving `step` requires: its form and documents, or a worker step's checklist. */
+  private async assertStepDoneV2(
+    request: RequestWithType,
+    flow: Flow,
+    step: FlowStep,
+  ): Promise<void> {
+    const role = roleOf(scopeOf(step));
+
+    if (role === 'worker') {
+      await this.assertStepLeavable(request, flow);
+      return;
+    }
+    if (role !== 'requester') return;
+
+    const isFirst = firstStep(flow).code === step.code;
+    assertSubmittable({
+      formSchema: step.formSchema,
+      requiredDocs: step.requiredDocs ?? [],
+      // The first step's answers are the request's own `formData`.
+      formData: isFirst
+        ? (request.formData as Record<string, unknown>)
+        : asRecord(asRecord(request.stepFormData)[step.code]),
+      refRequired: isFirst && request.requestType.refRequired,
+      refId: request.refId,
+      attachmentCodes: request.attachments
+        .filter((attachment) => !attachment.deletedAt)
+        .map((attachment) => attachment.docCode ?? ''),
+    });
+  }
+
+  /** The number, snapshot and clock a submit writes, inside the move's transaction. */
+  private async recordSubmitV2(
+    prisma: Prisma.TransactionClient,
+    before: RequestWithType,
+    requestNo: string,
+    typeSnapshot: Prisma.InputJsonValue | null,
+    actor: Principal,
+  ): Promise<V2Request> {
+    const now = new Date();
+    const updated = await prisma.request.update({
+      where: { id: before.id },
+      data: {
+        requestNo,
+        submittedAt: now,
+        ...(typeSnapshot ? { typeSnapshot } : {}),
+        updatedBy: actor.userId,
+      },
+      include: { requestType: true },
+    });
+
+    await this.recordEvent(prisma, {
+      requestId: before.id,
+      type: 'request.submitted',
+      actor,
+      fromStatus: before.status,
+      data: { requestNo },
+    });
+    // SUP-01: created paused; the first worker step starts it.
+    if (!before.requestNo) await this.sla.start(prisma, updated, now);
+
+    await this.audit.record(
+      {
+        eventType: 'request.submitted',
+        companyId: before.companyId,
+        ...auditActor(actor),
+        resourceType: 'request',
+        resourceId: before.id,
+        before: { status: before.status },
+        after: { requestNo },
+      },
+      { prisma },
+    );
+    return updated;
+  }
+
+  private async emitSubmitted(before: RequestWithType, requestNo: string) {
+    await this.domainEvents.emit({
+      name: before.requestNo
+        ? DOMAIN_EVENTS.requestResubmitted
+        : DOMAIN_EVENTS.requestSubmitted,
+      payload: {
+        company_id: before.companyId,
+        request_id: before.id,
+        request_no: requestNo,
+        type_code: before.typeCode,
+        requester_id: before.requesterId,
+      },
+    });
+  }
+
+  /** v2 `receive`: the receiver takes a `submitted` step and the work moves on. */
+  private async receiveV2(
+    before: RequestWithType,
+    flow: Flow,
+    actor: Principal,
+  ) {
+    if (before.status !== 'submitted') {
+      throw new AppError('REQ_STATE_INVALID', 'คำขอนี้ไม่ได้รอรับเรื่อง', [
+        { field: 'status', reason: before.status },
+      ]);
+    }
+    const current = stepOf(flow, before.currentStepCode);
+    const next = nextForward(
+      flow,
+      current.code,
+      answersOf(before.formData, before.stepFormData),
+    );
+    if (!next) {
+      throw new AppError('REQ_STEP_INVALID', 'ขั้นนี้ไม่มีขั้นถัดไป');
+    }
+
+    const opened = await this.transactions.execute(async (prisma) => {
+      // Whoever accepts is doing the work until they hand it on.
+      const request = {
+        ...before,
+        assigneeUserId: before.assigneeUserId ?? actor.userId,
+      };
+      await this.recordEvent(prisma, {
+        requestId: before.id,
+        type: 'RECEIVED',
+        actor,
+        fromStatus: before.status,
+      });
+      const approval = await this.flows.moveV2(
+        prisma,
+        request,
+        flow,
+        current.code,
+        next,
+        'forward',
+        actor,
+      );
+      await this.sla.resume(prisma, before.id);
+      await this.audit.record(
+        {
+          eventType: 'request.received',
+          companyId: before.companyId,
+          ...auditActor(actor),
+          resourceType: 'request',
+          resourceId: before.id,
+          before: { status: before.status, step: current.code },
+          after: { step: next, assigneeUserId: request.assigneeUserId },
+        },
+        { prisma },
+      );
+      return approval;
+    });
+
+    if (opened) await this.approvals.openStepCaseV2(before.id, actor);
+    return this.require(before.id, actor);
+  }
+
+  /** v2 hand-on: the holder of any step but an approval passes it to someone else. */
+  private async handOnV2(
+    before: RequestWithType,
+    dto: AssignRequestDto,
+    actor: Principal,
+  ) {
+    if (before.status === 'pending_approval') {
+      throw new AppError(
+        'REQ_STEP_INVALID',
+        'ขั้นอนุมัติมอบต่อด้วยการมอบอำนาจอนุมัติ',
+      );
+    }
+    const column = HOLDER_COLUMN[before.status] ?? 'assigneeUserId';
+    const from = before[column];
+
+    return this.transactions.execute(async (prisma) => {
+      const updated = await prisma.request.update({
+        where: { id: before.id },
+        data: { [column]: dto.assignee_user_id, updatedBy: actor.userId },
+      });
+      if (before.status === 'in_progress') {
+        await this.sla.resume(prisma, before.id);
+      }
+      await this.recordEvent(prisma, {
+        requestId: before.id,
+        type: from ? 'HANDOVER' : 'ASSIGNED',
+        actor,
+        data: {
+          from,
+          to: dto.assignee_user_id,
+          step: before.currentStepCode,
+          note: dto.note ?? null,
+        },
+      });
+      await this.audit.record(
+        {
+          eventType: 'request.assigned',
+          companyId: before.companyId,
+          ...auditActor(actor),
+          resourceType: 'request',
+          resourceId: before.id,
+          before: { [column]: from },
+          after: { [column]: dto.assignee_user_id },
+        },
+        { prisma },
+      );
+      return updated;
+    });
+  }
+
+  /** v2: the first step's answers are `formData`; later steps keep theirs per step. */
+  private async saveStepFormV2(
+    before: RequestWithType,
+    flow: Flow,
+    dto: StepFormDto,
+    actor: Principal,
+  ) {
+    if (!ADVANCEABLE_V2.includes(before.status) || !before.currentStepCode) {
+      throw new AppError(
+        'REQ_STEP_INVALID',
+        'คำขอนี้ไม่ได้อยู่ในขั้นตอนที่แก้ฟอร์มได้',
+      );
+    }
+    const code = before.currentStepCode;
+    const stepFormData = asRecord(before.stepFormData);
+    const data: Prisma.RequestUpdateInput =
+      firstStep(flow).code === code
+        ? {
+            formData: {
+              ...asRecord(before.formData),
+              ...dto.data,
+            } as Prisma.InputJsonValue,
+          }
+        : {
+            stepFormData: {
+              ...stepFormData,
+              [code]: { ...asRecord(stepFormData[code]), ...dto.data },
+            } as Prisma.InputJsonValue,
+          };
+
+    await this.transactions.execute(async (prisma) => {
+      await prisma.request.update({
+        where: { id: before.id },
+        data: { ...data, updatedBy: actor.userId },
+      });
+      await this.audit.record(
+        {
+          eventType: 'request.step_form.saved',
+          companyId: before.companyId,
+          ...auditActor(actor),
+          resourceType: 'request',
+          resourceId: before.id,
+          after: { step: code },
+        },
+        { prisma },
+      );
+    });
+
+    return this.findOne(before.id, actor);
   }
 
   // --- §7.1 amendment: hold and resume ------------------------------------
@@ -1839,6 +2554,56 @@ export class RequestsService {
     actor: Principal,
     covering: readonly string[],
   ): RequestListRow & { available_actions: string[] } {
+    return {
+      ...row,
+      available_actions: this.actionNamesFor(row, actor, covering),
+    };
+  }
+
+  /** The detail screen's read: `findOne` plus the buttons, from the same table as the list. */
+  async detailFor(id: string, actor: Principal) {
+    const found = await this.findOne(id, actor);
+    const covering = await this.approvals.coveringFor(actor);
+
+    return {
+      ...found,
+      available_actions: this.actionNamesFor(found, actor, covering),
+      flow_moves: await this.flowMovesOf(found),
+    };
+  }
+
+  /** Where `advance` may go from here, so the screen and the external API can label it. */
+  async flowMovesOf(request: RequestWithType) {
+    if (!request.flowVersionId || !request.currentStepCode) return null;
+
+    const flow = await this.flows.load(request.flowVersionId);
+    const step = stepOf(flow, request.currentStepCode);
+    const scope = flow.schemaVersion === 2 ? scopeOf(step) : null;
+    return {
+      schema_version: flow.schemaVersion ?? 1,
+      // v2: the status this step sits under and who acts on it (null while awaiting approval).
+      scope,
+      holder_user_id: scope ? holderOf(scope, request) : null,
+      current: request.currentStepCode,
+      forward: nextForward(
+        flow,
+        request.currentStepCode,
+        answersOf(request.formData, request.stepFormData),
+      ),
+      backward: backwardOptions(flow, request.currentStepCode),
+      is_last: isLastStep(flow, request.currentStepCode),
+      requires_approval: stepOf(flow, request.currentStepCode).requiresApproval,
+      checklist: await this.namedSubRequestTypes(
+        stepOf(flow, request.currentStepCode).subRequestTypes,
+      ),
+    };
+  }
+
+  private actionNamesFor(
+    row: ActionableRequest & CaseCarrier,
+    actor: Principal,
+    covering: readonly string[],
+  ): string[] {
     const step = currentStepOf(row);
 
     /*
@@ -1857,12 +2622,7 @@ export class RequestsService {
         : step.approverUserId !== null &&
           deciders.includes(step.approverUserId));
 
-    return {
-      ...row,
-      available_actions: availableActions(row, actor, isDecider).map(
-        (spec) => spec.action,
-      ),
-    };
+    return availableActions(row, actor, isDecider).map((spec) => spec.action);
   }
 
   async findOne(id: string, actor: Principal): Promise<RequestDetail> {
@@ -2180,10 +2940,8 @@ export class RequestsService {
   }
 
   /**
-   * REQ-07: one append-only entry per status change.
-   *
-   * `seq` is assigned from the current count so the timeline has a stable
-   * order even when two events land in the same millisecond.
+   * REQ-07: one append-only entry per status change, numbered by
+   * {@link nextRequestEventSeq} so the order is stable under concurrency.
    */
   private async recordEvent(
     prisma: Prisma.TransactionClient,
@@ -2196,14 +2954,12 @@ export class RequestsService {
       data?: Prisma.InputJsonValue;
     },
   ) {
-    const seq = await prisma.requestEvent.count({
-      where: { requestId: entry.requestId },
-    });
+    const seq = await nextRequestEventSeq(prisma, entry.requestId);
 
     return prisma.requestEvent.create({
       data: {
         requestId: entry.requestId,
-        seq: seq + 1,
+        seq,
         type: entry.type,
         actorId: entry.actor.isServiceAccount ? null : entry.actor.userId,
         actorLabel: entry.actor.displayName || entry.actor.username,
@@ -2293,7 +3049,20 @@ function isOpenOnlyRequested(value: unknown): boolean {
   return value === true || value === 'true';
 }
 
-function currentStepOf(row: RequestListRow) {
+/** The slice of a loaded request `currentStepOf` reads — list rows and the detail both carry it. */
+interface CaseCarrier {
+  approvalCases: {
+    currentStep: number;
+    steps: {
+      stepNo: number;
+      status: string;
+      candidateUserIds: string[];
+      approverUserId: string | null;
+    }[];
+  }[];
+}
+
+function currentStepOf(row: CaseCarrier) {
   const activeCase = row.approvalCases[0];
 
   if (!activeCase) return null;
@@ -2302,4 +3071,44 @@ function currentStepOf(row: RequestListRow) {
     activeCase.steps.find((step) => step.stepNo === activeCase.currentStep) ??
     null
   );
+}
+
+/** v2: the exit of a last step, as the admin screen and `to_step` name it. */
+const END_STEP = 'END';
+
+/** Statuses a v2 step holder moves on with `advance`; the rest move by receive or decide. */
+const ADVANCEABLE_V2: readonly RequestStatus[] = [
+  'draft',
+  'returned',
+  'in_progress',
+  'approved',
+];
+
+function stuckReasonV2(status: RequestStatus): string {
+  if (status === 'submitted') return 'ขั้นนี้รอผู้รับเรื่องกด "รับเรื่อง"';
+  if (status === 'pending_approval') return 'ขั้นนี้รอผู้อนุมัติตัดสิน';
+  return 'คำขอนี้ไม่ได้อยู่ในขั้นตอนที่เดินต่อได้';
+}
+
+/** The column that names who holds a v2 step under each status. */
+const HOLDER_COLUMN: Partial<
+  Record<
+    RequestStatus,
+    'stepHolderUserId' | 'receiverUserId' | 'assigneeUserId'
+  >
+> = {
+  draft: 'stepHolderUserId',
+  returned: 'stepHolderUserId',
+  approved: 'stepHolderUserId',
+  submitted: 'receiverUserId',
+};
+
+/** The fixed verbs a v2 flow replaces with its own steps. */
+function assertNotFlowV2(request: RequestWithType): void {
+  if (request.flowVersion?.schemaVersion === 2) {
+    throw new AppError(
+      'REQ_STEP_INVALID',
+      'คำขอนี้เดินตามขั้นตอน — ใช้ "ไปขั้นถัดไป"',
+    );
+  }
 }

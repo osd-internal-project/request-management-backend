@@ -68,9 +68,15 @@ describe('request lifecycle (ticket model)', () => {
      * `completed` is the check on the result. Everything in between is work in
      * progress: a ticket somebody is holding cannot jump into a queue.
      */
-    it('is reachable only from a submit or a completion', () => {
-      const mayEnter: RequestStatus[] = ['draft', 'returned', 'completed'];
-      const mayNot: RequestStatus[] = ['submitted', 'in_progress', 'on_hold'];
+    // `in_progress` since the step flow: a step's exit ladder, entered only via `advance`.
+    it('is reachable only from a submit, a completion or a flow step exit', () => {
+      const mayEnter: RequestStatus[] = [
+        'draft',
+        'returned',
+        'completed',
+        'in_progress',
+      ];
+      const mayNot: RequestStatus[] = ['submitted', 'on_hold'];
 
       for (const status of mayEnter) {
         expect(canTransition(status, 'pending_approval')).toBe(true);

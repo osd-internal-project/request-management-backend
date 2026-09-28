@@ -2,9 +2,12 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PageQueryDto } from '@request-management/share';
 import { SlaCoverage } from '@prisma/client';
 import { Transform, Type } from 'class-transformer';
+import { MatrixLevelDto } from '../../approvals/dto/approval.dto';
+import { SCOPE_STATUSES, type ScopeStatus } from '../request-flow-v2';
 import {
   IsArray,
   IsBoolean,
+  IsDefined,
   IsEnum,
   IsIn,
   IsInt,
@@ -120,6 +123,22 @@ export class CompleteRequestDto {
   @IsOptional()
   @IsObject()
   receiver_form_data?: Record<string, unknown>;
+}
+
+/** Moves a request to another step of its flow. */
+export class AdvanceRequestDto {
+  @ApiProperty({ example: 'INSTALL' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(32)
+  to_step!: string;
+}
+
+/** Draft answers to the current step's form; merged, checked only on leaving. */
+export class StepFormDto {
+  @ApiProperty({ type: Object })
+  @IsObject()
+  data!: Record<string, unknown>;
 }
 
 /** H2.2 — a note somebody leaves on a request, without moving it. */
@@ -613,4 +632,178 @@ export class CreateIntegrationRequestDto {
   @IsOptional()
   @IsString()
   ref_id?: string;
+}
+
+export class FlowConditionDto {
+  @ApiProperty({ example: 'amount' })
+  @IsString()
+  @IsNotEmpty()
+  field!: string;
+
+  @ApiProperty({ enum: ['gt', 'gte', 'lt', 'lte', 'eq', 'neq', 'in'] })
+  @IsIn(['gt', 'gte', 'lt', 'lte', 'eq', 'neq', 'in'])
+  op!: 'gt' | 'gte' | 'lt' | 'lte' | 'eq' | 'neq' | 'in';
+
+  @ApiProperty({ example: 1000000 })
+  @IsDefined()
+  value!: unknown;
+}
+
+export class FlowAssigneeRuleDto {
+  @ApiProperty({ enum: ['keep', 'requester', 'user'] })
+  @IsIn(['keep', 'requester', 'user'])
+  type!: 'keep' | 'requester' | 'user';
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  user_id?: string;
+}
+
+/** One step of a flow, in the order the admin arranged them. */
+/** v2: who a `submitted` or `in_progress` step lands with. */
+export class FlowReceiverRuleDto {
+  @ApiProperty({ enum: ['keep', 'receiver', 'user', 'step'] })
+  @IsIn(['keep', 'receiver', 'user', 'step'])
+  type!: 'keep' | 'receiver' | 'user' | 'step';
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  user_id?: string;
+
+  /** `step`: whoever last held that step. */
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  step_code?: string;
+}
+
+export class FlowStepDto {
+  @ApiProperty({ example: 'INSTALL' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(32)
+  code!: string;
+
+  @ApiProperty({ example: 'ติดตั้ง' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  name!: string;
+
+  @ApiPropertyOptional({ type: Object })
+  @IsOptional()
+  @IsObject()
+  form_schema?: Record<string, unknown>;
+
+  @ApiPropertyOptional({ type: [SubRequestTypeDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SubRequestTypeDto)
+  sub_request_types?: SubRequestTypeDto[];
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  requires_approval?: boolean;
+
+  @ApiPropertyOptional({ type: FlowAssigneeRuleDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => FlowAssigneeRuleDto)
+  assignee_rule?: FlowAssigneeRuleDto;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  sla_hours?: number;
+
+  /** v2: the status this step sits under; its holder follows from it. */
+  @ApiPropertyOptional({ enum: SCOPE_STATUSES })
+  @IsOptional()
+  @IsIn(SCOPE_STATUSES)
+  scope_status?: ScopeStatus;
+
+  @ApiPropertyOptional({ type: FlowReceiverRuleDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => FlowReceiverRuleDto)
+  receiver_rule?: FlowReceiverRuleDto;
+
+  /** v2 approval step: where "send back" goes. */
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  return_to_step?: string;
+
+  /** v2 approval step: its approvers, level by level. */
+  @ApiPropertyOptional({ type: [MatrixLevelDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => MatrixLevelDto)
+  approval_levels?: MatrixLevelDto[];
+
+  /** v2 requester step: documents that must be attached before leaving it. */
+  @ApiPropertyOptional({ type: [RequiredDocDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => RequiredDocDto)
+  required_docs?: RequiredDocDto[];
+}
+
+/** A way out of a step; forward exits are tried in array order. */
+export class FlowTransitionDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  from_step!: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  to_step!: string;
+
+  @ApiPropertyOptional({ type: FlowConditionDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => FlowConditionDto)
+  condition?: FlowConditionDto;
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  backward?: boolean;
+}
+
+/** Publishes the next version of a type's flow; the last one is never edited. */
+export class PublishFlowDto {
+  @ApiPropertyOptional({
+    description: 'A1 passes it; A2 uses the active company.',
+  })
+  @IsOptional()
+  @IsString()
+  company_id?: string;
+
+  /** 2 = steps cover the whole path under status scopes; 1 = steps inside in_progress. */
+  @ApiPropertyOptional({ enum: [1, 2], default: 1 })
+  @IsOptional()
+  @IsIn([1, 2])
+  schema_version?: 1 | 2;
+
+  @ApiProperty({ type: [FlowStepDto] })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => FlowStepDto)
+  steps!: FlowStepDto[];
+
+  @ApiProperty({ type: [FlowTransitionDto] })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => FlowTransitionDto)
+  transitions!: FlowTransitionDto[];
 }

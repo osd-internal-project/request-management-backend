@@ -64,15 +64,21 @@ function serviceWith(options: {
         return Promise.resolve({ id: 'req-1', ...data });
       }),
     },
+    // `nextRequestEventSeq` locks the row, then reads the last seq.
+    $queryRaw: jest.fn(() => Promise.resolve([])),
     requestEvent: {
-      count: jest.fn(() => Promise.resolve(0)),
+      findFirst: jest.fn(() => Promise.resolve(null)),
       create: jest.fn(() => Promise.resolve({})),
     },
     approvalCase: { update: jest.fn(() => Promise.resolve({})) },
   };
 
   const openCase = jest.fn(() =>
-    Promise.resolve({ id: 'case-1', steps: [{ stepNo: 1 }] }),
+    Promise.resolve({
+      id: 'case-1',
+      status: 'pending',
+      steps: [{ stepNo: 1 }],
+    }),
   );
 
   const service = new RequestsService(
@@ -95,13 +101,17 @@ function serviceWith(options: {
       hasPublishedMatrix: jest.fn(() => Promise.resolve(options.hasMatrix)),
       openCase,
     } as never,
-    { stop: jest.fn(() => Promise.resolve()) } as never,
+    {
+      stop: jest.fn(() => Promise.resolve()),
+      pause: jest.fn(() => Promise.resolve()),
+    } as never,
     {} as never,
     { emit: jest.fn(() => Promise.resolve()) } as never,
     { record: jest.fn(() => Promise.resolve()) } as never,
     {
       execute: jest.fn((work: (client: unknown) => unknown) => work(prisma)),
     } as never,
+    {} as never, // flows
   );
 
   return { service, updates, openCase };

@@ -1,5 +1,5 @@
 .PHONY: default install generate build build-user build-core build-external build-runnumber \
-        dev-user dev-core dev-external dev-runnumber migrate deploy status reset lint test clean help
+        dev dev-user dev-core dev-external dev-runnumber migrate deploy status reset lint test clean help
 
 default: install generate
 
@@ -30,6 +30,10 @@ build-external: generate
 ## build-runnumber — build libs/share แล้วตามด้วย run-number-service
 build-runnumber: generate
 	yarn build:run-number-service
+
+## dev         — รัน service ทั้งสี่โหมด watch พร้อมกัน (Ctrl+C หยุดทุกตัว)
+dev: generate
+	SKIP_GENERATE=1 bash scripts/dev-all.sh
 
 ## dev-user    — รัน user-service โหมด watch (port 3001)
 dev-user: generate

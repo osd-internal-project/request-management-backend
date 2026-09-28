@@ -60,6 +60,7 @@ function decidingCase(overrides: Record<string, unknown> = {}) {
       receiverOrgUnitId: null,
       typeCode: 'DSC',
       requestNo: 'OSD-DSC-202609-0001',
+      status: 'pending_approval',
     },
     ...overrides,
   };
@@ -73,9 +74,14 @@ function serviceWith(found: Record<string, unknown> | null = decidingCase()) {
   const prisma = {
     approvalCase: {
       findUnique: jest.fn(() => Promise.resolve(found)),
-      update: jest.fn(() =>
-        Promise.resolve({ id: 'case-1', status: 'approved' }),
+      updateMany: jest.fn(() => Promise.resolve({ count: 1 })),
+      findUniqueOrThrow: jest.fn(() =>
+        Promise.resolve({ id: 'case-1', status: 'approved', steps: [] }),
       ),
+    },
+    approvalVote: {
+      create: jest.fn(() => Promise.resolve({})),
+      count: jest.fn(() => Promise.resolve(0)),
     },
     approvalStep: {
       update: jest.fn(({ data }: { data: Record<string, unknown> }) => {
@@ -83,7 +89,14 @@ function serviceWith(found: Record<string, unknown> | null = decidingCase()) {
         return Promise.resolve({ id: 'step-1', ...data });
       }),
     },
-    request: { update: jest.fn(() => Promise.resolve({})) },
+    request: {
+      update: jest.fn(() => Promise.resolve({})),
+      // `settleWorkClock` reads where the decision left the request.
+      findUniqueOrThrow: jest.fn(() =>
+        Promise.resolve({ status: 'in_progress' }),
+      ),
+    },
+    $queryRaw: jest.fn(() => Promise.resolve([])),
     requestEvent: {
       create: jest.fn(() => Promise.resolve({})),
       findFirst: jest.fn(() => Promise.resolve(null)),
@@ -109,6 +122,13 @@ function serviceWith(found: Record<string, unknown> | null = decidingCase()) {
         work(prisma),
       ),
     } as never,
+    {} as never, // flows,
+    {
+      stop: jest.fn(() => Promise.resolve()),
+      resume: jest.fn(() => Promise.resolve()),
+      pause: jest.fn(() => Promise.resolve()),
+      dueAfter: jest.fn(() => Promise.resolve(null)),
+    } as never, // sla
   );
 
   return { service, stepUpdates, emitted };
@@ -205,6 +225,7 @@ describe('a scope grant carrying approval.decide', () => {
           assigneeUserId: null,
           requesterOrgUnitId: SALE,
           receiverOrgUnitId: null,
+          status: 'pending_approval',
         },
       }),
     );

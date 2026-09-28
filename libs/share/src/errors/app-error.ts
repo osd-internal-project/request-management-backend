@@ -30,11 +30,15 @@ export const ErrorCatalog = {
    * once the children close.
    */
   REQ_CHILDREN_OPEN: HttpStatus.CONFLICT,
+  /** The step named is not where the request is, or not reachable from it. */
+  REQ_STEP_INVALID: HttpStatus.CONFLICT,
   /** A required sub request from the type's checklist was never raised. */
   REQ_SUB_REQUEST_MISSING: HttpStatus.CONFLICT,
   REQ_TYPE_INACTIVE: HttpStatus.UNPROCESSABLE_ENTITY,
   ORG_SUPERVISOR_MISSING: HttpStatus.UNPROCESSABLE_ENTITY,
   APV_NOT_YOUR_TURN: HttpStatus.CONFLICT,
+  /** Nobody decides their own case — not as candidate, delegate or grant holder. */
+  APV_SELF_APPROVAL: HttpStatus.FORBIDDEN,
   APV_VERSION_STALE: HttpStatus.CONFLICT,
   APV_MATRIX_NOT_FOUND: HttpStatus.UNPROCESSABLE_ENTITY,
   APV_NO_SUBDELEGATION: HttpStatus.UNPROCESSABLE_ENTITY,

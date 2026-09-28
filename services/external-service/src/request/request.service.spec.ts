@@ -26,6 +26,8 @@ function build() {
       marker: query,
     })),
     findOne: jest.fn(),
+    // Requests without a step flow report no moves.
+    flowMovesOf: jest.fn().mockResolvedValue(null),
   };
   const approvals = { coveringFor: jest.fn().mockResolvedValue([]) };
   const requestRows = {
@@ -317,5 +319,59 @@ describe('the action dispatcher checks the acting user per verb', () => {
     await expect(
       service.perform('ref', 'teleport', {}, principal(), 'Bearer token'),
     ).rejects.toEqual(expect.objectContaining({ code: 'VALIDATION_FAILED' }));
+  });
+});
+
+describe('step flow — advance through the external API', () => {
+  const REF = '11111111-2222-3333-4444-555555555555';
+
+  it('hands to_step to the same service method the screen calls', async () => {
+    const { service, requests } = build();
+    const advance = jest.fn<Promise<{ id: string }>, unknown[]>();
+    advance.mockResolvedValue({ id: 'req-1' });
+    (requests as unknown as { advance: typeof advance }).advance = advance;
+
+    await service.perform(
+      REF,
+      'advance',
+      { to_step: 'INSTALL' },
+      principal({ permissions: ['request.complete'] }),
+      'Bearer token',
+    );
+
+    expect(advance).toHaveBeenCalledWith(
+      REF,
+      { to_step: 'INSTALL' },
+      expect.anything(),
+      'Bearer token',
+    );
+  });
+
+  it('refuses advance without to_step', async () => {
+    const { service } = build();
+
+    await expect(
+      service.perform(
+        REF,
+        'advance',
+        {},
+        principal({ permissions: ['request.complete'] }),
+        'Bearer token',
+      ),
+    ).rejects.toEqual(expect.objectContaining({ code: 'VALIDATION_FAILED' }));
+  });
+
+  it('refuses a person without request.complete', async () => {
+    const { service } = build();
+
+    await expect(
+      service.perform(
+        REF,
+        'advance',
+        { to_step: 'INSTALL' },
+        principal(),
+        'Bearer token',
+      ),
+    ).rejects.toEqual(expect.objectContaining({ code: 'FORBIDDEN' }));
   });
 });

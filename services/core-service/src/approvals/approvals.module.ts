@@ -9,10 +9,18 @@ import { DelegationRepository } from './delegation.repository';
 import { PrincipalModule } from '../principal/principal.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { AccessModule } from '../access/access.module';
+import { RequestFlowModule } from '../request-flow/request-flow.module';
+import { SlaModule } from '../sla/sla.module';
 
 /** S2 — the central Approval Engine (D-31). */
 @Module({
-  imports: [AccessModule, PrincipalModule, NotificationsModule],
+  imports: [
+    AccessModule,
+    PrincipalModule,
+    NotificationsModule,
+    RequestFlowModule,
+    SlaModule,
+  ],
   providers: [
     ApprovalsService,
     ApprovalMatrixService,

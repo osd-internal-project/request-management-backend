@@ -49,12 +49,21 @@ SELECT
   r."completedAt"                       AS completed_at,
   r."cancelledAt"                       AS cancelled_at,
   (r.status = 'completed')              AS is_completed,
-  (r.status IN ('completed','rejected','cancelled')) AS is_terminal,
+  -- Mirrors TERMINAL_STATUSES: `completed` still awaits acceptance and `closed` is final.
+  (r.status IN ('rejected','closed','cancelled')) AS is_terminal,
   CASE
     WHEN r."completedAt" IS NOT NULL AND r."submittedAt" IS NOT NULL
     THEN EXTRACT(EPOCH FROM (r."completedAt" - r."submittedAt")) / 3600.0
-  END                                   AS cycle_hours
+  END                                   AS cycle_hours,
+  -- Working time the team held it (the SLA clock), apart from time spent waiting on approvers.
+  sc."accumulatedMs" / 3600000.0        AS work_hours,
+  (
+    SELECT SUM(EXTRACT(EPOCH FROM (COALESCE(ac."decidedAt", now()) - ac."createdAt"))) / 3600.0
+    FROM approval_cases ac
+    WHERE ac."requestId" = r.id
+  )                                     AS approval_hours
 FROM requests r
+LEFT JOIN sla_clocks sc ON sc."requestId" = r.id
 JOIN request_types rt ON rt.id  = r."requestTypeId"
 JOIN companies     c  ON c.id   = r."companyId"
 LEFT JOIN users    u  ON u.id   = r."requesterId"

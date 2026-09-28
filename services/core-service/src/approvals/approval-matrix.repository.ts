@@ -88,4 +88,42 @@ export class ApprovalMatrixRepository extends BaseRepository<
 
     return latest?.version ?? 0;
   }
+
+  /** The requester form's fields plus every step form of the type's latest flow in this company. */
+  async formFieldsOfType(
+    typeCode: string,
+    companyId: string,
+  ): Promise<string[]> {
+    const type = await this.prisma.requestType.findUnique({
+      where: { code: typeCode },
+      select: {
+        formSchema: true,
+        flowVersions: {
+          where: { companyId },
+          orderBy: { version: 'desc' },
+          take: 1,
+          select: { steps: { select: { formSchema: true } } },
+        },
+      },
+    });
+    if (!type) return [];
+
+    const schemas = [
+      type.formSchema,
+      ...(type.flowVersions[0]?.steps.map((step) => step.formSchema) ?? []),
+    ];
+    return schemas.flatMap((schema) => Object.keys(propertiesOf(schema)));
+  }
+}
+
+function propertiesOf(schema: unknown): Record<string, unknown> {
+  const properties =
+    schema && typeof schema === 'object' && 'properties' in schema
+      ? schema.properties
+      : null;
+  return properties &&
+    typeof properties === 'object' &&
+    !Array.isArray(properties)
+    ? { ...properties }
+    : {};
 }

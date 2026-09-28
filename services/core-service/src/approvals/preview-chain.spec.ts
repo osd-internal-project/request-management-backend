@@ -146,6 +146,13 @@ function serviceWith(
     {} as never, // domainEvents
     {} as never, // audit
     {} as never, // transactions
+    {} as never, // flows,
+    {
+      stop: jest.fn(() => Promise.resolve()),
+      resume: jest.fn(() => Promise.resolve()),
+      pause: jest.fn(() => Promise.resolve()),
+      dueAfter: jest.fn(() => Promise.resolve(null)),
+    } as never, // sla
   );
 
   return { service, climbed, access };

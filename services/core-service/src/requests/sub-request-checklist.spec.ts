@@ -57,8 +57,10 @@ function serviceWith(options: {
         return Promise.resolve({ id: 'req-1', ...data });
       }),
     },
+    // `nextRequestEventSeq` locks the row, then reads the last seq.
+    $queryRaw: jest.fn(() => Promise.resolve([])),
     requestEvent: {
-      count: jest.fn(() => Promise.resolve(0)),
+      findFirst: jest.fn(() => Promise.resolve(null)),
       create: jest.fn(() => Promise.resolve({})),
     },
     requestType: { delete: jest.fn(() => Promise.resolve({})) },
@@ -93,13 +95,17 @@ function serviceWith(options: {
       hasPublishedMatrix: jest.fn(() => Promise.resolve(false)),
       countMatricesFor: jest.fn(() => Promise.resolve(0)),
     } as never,
-    { stop: jest.fn(() => Promise.resolve()) } as never,
+    {
+      stop: jest.fn(() => Promise.resolve()),
+      pause: jest.fn(() => Promise.resolve()),
+    } as never,
     {} as never,
     { emit: jest.fn(() => Promise.resolve()) } as never,
     { record: jest.fn(() => Promise.resolve()) } as never,
     {
       execute: jest.fn((work: (client: unknown) => unknown) => work(prisma)),
     } as never,
+    {} as never, // flows
   );
 
   return { service, updates, typesFindMany };

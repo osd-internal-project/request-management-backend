@@ -285,6 +285,7 @@ model Company {
   runNumberSettings       RunNumberSetting[]
   runNumberCounters       RunNumberCounter[]
   approvalMatrices        ApprovalMatrix[]
+  requestFlowVersions     RequestFlowVersion[]
   approvalCases           ApprovalCase[]
   delegations             Delegation[]
   slaConfigs              SlaConfig[]
@@ -769,7 +770,7 @@ model RequestType {
   id                String  @id @default(uuid())
   code              String  @unique
   name              String
-  receiverOrgUnitId String? 
+  receiverOrgUnitId String?
   receiverUserId    String?
 
   /// JSON Schema for the form the **requester** fills in.
@@ -811,6 +812,7 @@ model RequestType {
   companies       RequestTypeCompany[]
   eligibleUnits   RequestTypeOrgUnit[]
   requests        Request[]
+  flowVersions    RequestFlowVersion[]
 
   @@map("request_types")
 }
@@ -913,6 +915,18 @@ model Request {
   /// underneath it.
   parentRequestId String?
 
+  /// The step of the parent's flow this request was raised in, if any.
+  parentStepCode String?
+
+  /// The flow version pinned at submit; null runs the fixed lifecycle only.
+  flowVersionId    String?
+  /// The step the work is on while `in_progress` (or awaiting its exit approval).
+  currentStepCode  String?
+  /// Answers to each step's form, keyed by step code.
+  stepFormData     Json    @default("{}")
+  /// v2: who holds a requester step when the requester handed it on.
+  stepHolderUserId String?
+
   /// When the requester accepted the result. `completedAt` is when the work
   /// finished; the two are different moments and the gap between them is how
   /// long an answer sat unread.
@@ -965,6 +979,8 @@ model Request {
   returnReasons RequestReturnReason[]
   approvalCases ApprovalCase[]
   slaClock      SlaClock?
+  flowVersion   RequestFlowVersion?   @relation(fields: [flowVersionId], references: [id])
+  stepRuns      RequestStepRun[]
 
   @@index([companyId, status])
   @@index([companyId, requesterId])
@@ -981,6 +997,97 @@ model Request {
   @@index([companyId, dueAt])
   @@index([refType, refId])
   @@map("requests")
+}
+
+/// The steps a request of one type walks inside `in_progress`, per company.
+/// Immutable once published; an edit publishes the next version.
+model RequestFlowVersion {
+  id            String   @id @default(uuid())
+  companyId     String
+  requestTypeId String
+  version       Int
+  publishedAt   DateTime @default(now())
+  publishedBy   String?
+  /// 1: steps inside in_progress only. 2: steps cover the whole lifecycle, each under a status scope.
+  schemaVersion Int      @default(1)
+
+  company     Company                 @relation(fields: [companyId], references: [id])
+  requestType RequestType             @relation(fields: [requestTypeId], references: [id])
+  steps       RequestFlowStep[]
+  transitions RequestFlowTransition[]
+  requests    Request[]
+
+  @@unique([companyId, requestTypeId, version])
+  @@map("request_flow_versions")
+}
+
+model RequestFlowStep {
+  id               String        @id @default(uuid())
+  flowVersionId    String
+  code             String
+  name             String
+  sortOrder        Int
+  /// JSON Schema answered before leaving the step; null asks nothing.
+  formSchema       Json?
+  /// [{ code, required }] — child types raised in this step.
+  subRequestTypes  Json          @default("[]")
+  /// Leaving the step opens a case on `request:<TYPE>:step:<CODE>`.
+  requiresApproval Boolean       @default(false)
+  /// { type: "keep" | "requester" | "user", userId? } applied on entry.
+  assigneeRule     Json?
+  slaHours         Int?
+  /// v2: the status this step sits under; who holds it follows from the scope.
+  scopeStatus      RequestStatus @default(in_progress)
+  /// v2 work steps: who receives on entry { type: "keep" | "receiver" | "user" | "step", userId?, stepCode? }.
+  receiverRule     Json?
+  /// v2 approval steps: where a send-back goes.
+  returnToStepCode String?
+  /// v2 approval steps: the ladder, levels as in `ApprovalMatrix.levels` plus `chartOf`.
+  approvalLevels   Json?
+  /// v2 requester steps: [{ code, name, required }] attachments that block leaving.
+  requiredDocs     Json          @default("[]")
+
+  flowVersion RequestFlowVersion @relation(fields: [flowVersionId], references: [id], onDelete: Cascade)
+
+  @@unique([flowVersionId, code])
+  @@map("request_flow_steps")
+}
+
+/// A way out of a step. Forward exits are tried in `sortOrder`; the first
+/// whose `condition` holds wins, so the last forward exit carries none.
+model RequestFlowTransition {
+  id            String  @id @default(uuid())
+  flowVersionId String
+  fromStepCode  String
+  toStepCode    String
+  sortOrder     Int
+  /// { field, op, value } over the request's answers; null always holds.
+  condition     Json?
+  backward      Boolean @default(false)
+
+  flowVersion RequestFlowVersion @relation(fields: [flowVersionId], references: [id], onDelete: Cascade)
+
+  @@index([flowVersionId, fromStepCode])
+  @@map("request_flow_transitions")
+}
+
+/// One stay of a request in one step — what the stepper and step reports read.
+model RequestStepRun {
+  id        String    @id @default(uuid())
+  requestId String
+  stepCode  String
+  enteredAt DateTime  @default(now())
+  enteredBy String?
+  /// Who held the step when it was left — what a "same person as step X" rule reads.
+  heldBy    String?
+  leftAt    DateTime?
+  /// forward | backward | completed | cancelled
+  outcome   String?
+
+  request Request @relation(fields: [requestId], references: [id])
+
+  @@index([requestId, enteredAt])
+  @@map("request_step_runs")
 }
 
 /// A note somebody left on a request (H2.2).
@@ -1303,6 +1410,19 @@ model ApprovalStep {
   decidedAt DateTime?
   createdAt DateTime  @default(now())
 
+  /// Copied from the matrix level at open, so a republished ladder cannot re-judge it.
+  /// `any`: one candidate decides; `all`: every candidate must approve.
+  mode            String  @default("any")
+  /// `always` | `reject_or_return` — when a decision must carry a note.
+  noteRequired    String  @default("always")
+  slaHours        Int?
+  /// How many escalation tiers have fired for this step's own deadline.
+  escalationLevel Int     @default(0)
+  /// Why a `skipped` step was never asked: `condition` or `same_approver`.
+  skipReason      String?
+
+  votes ApprovalVote[]
+
   case       ApprovalCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
   approver   User?        @relation("StepApprover", fields: [approverUserId], references: [id])
   decidedBy  User?        @relation("StepDecider", fields: [decidedByUserId], references: [id])
@@ -1312,6 +1432,24 @@ model ApprovalStep {
   @@index([candidateUserIds], type: Gin)
   @@index([approverUserId, status])
   @@map("approval_steps")
+}
+
+/// One candidate's decision on a step; an `all` step closes when every candidate approved.
+model ApprovalVote {
+  id           String           @id @default(uuid())
+  stepId       String
+  /// The candidate this vote counts for (the delegator when cast under a delegation).
+  userId       String
+  decidedBy    String
+  delegationId String?
+  decision     ApprovalDecision
+  note         String?
+  decidedAt    DateTime         @default(now())
+
+  step ApprovalStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+
+  @@unique([stepId, userId])
+  @@map("approval_votes")
 }
 
 /// APV-03: temporary hand-over of approval authority. Sub-delegation is
@@ -1345,12 +1483,14 @@ model Delegation {
 
 /// D-09/SUP-01: SLA is configuration, never hardcoded.
 model SlaConfig {
-  id              String      @id @default(uuid())
-  companyId       String
-  requestTypeCode String
-  hours           Int
-  coverage        SlaCoverage @default(H24X7)
-  warnBeforeHours Int         @default(4)
+  id               String      @id @default(uuid())
+  companyId        String
+  requestTypeCode  String
+  hours            Int
+  coverage         SlaCoverage @default(H24X7)
+  warnBeforeHours  Int         @default(4)
+  /// Overdue tiers as % of the budget; each notifies one level further up.
+  escalatePercents Int[]       @default([100, 150])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1369,14 +1509,16 @@ model SlaClock {
   id        String @id @default(uuid())
   requestId String @unique
 
-  startedAt     DateTime
-  pausedAt      DateTime?
-  accumulatedMs Int       @default(0)
-  dueAt         DateTime
-  state         SlaState  @default(running)
-  warnedAt      DateTime?
-  breachedAt    DateTime?
-  escalatedAt   DateTime?
+  startedAt       DateTime
+  pausedAt        DateTime?
+  accumulatedMs   Int       @default(0)
+  dueAt           DateTime
+  state           SlaState  @default(running)
+  warnedAt        DateTime?
+  breachedAt      DateTime?
+  escalatedAt     DateTime?
+  /// Overdue tiers already fired (`SlaConfig.escalatePercents`); 0 = none.
+  escalationLevel Int       @default(0)
 
   updatedAt DateTime @updatedAt
 

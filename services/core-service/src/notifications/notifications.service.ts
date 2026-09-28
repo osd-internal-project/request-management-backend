@@ -32,7 +32,7 @@ export class NotificationsService {
     private readonly email: LoggingEmailTransport,
   ) {}
 
-  /** The next approver has something waiting. */
+  /** The step now waiting: every candidate and whoever covers for them, never the requester. */
   async awaitingApproval(
     approvalCase: CaseWithSteps,
     companyId: string,
@@ -40,48 +40,183 @@ export class NotificationsService {
     const step = approvalCase.steps.find(
       (candidate) => candidate.stepNo === approvalCase.currentStep,
     );
+    if (!step) return;
 
-    if (!step?.approverUserId) return;
+    const subject = await this.subjectOf(approvalCase);
+    const candidates = await this.withDelegates(companyId, candidatesOf(step));
 
-    await this.emit({
-      userId: step.approverUserId,
-      companyId,
-      eventType: 'approval.awaiting',
-      title: 'มีรายการรออนุมัติ',
-      body: `${approvalCase.subjectType} รอการอนุมัติจากคุณ`,
-      resourceType: 'approval_case',
-      resourceId: approvalCase.id,
-    });
+    await this.emitTo(
+      candidates.filter((userId) => userId !== subject.requesterId),
+      {
+        companyId,
+        eventType: 'approval.awaiting',
+        title: 'มีรายการรออนุมัติ',
+        body: `${subject.label} รอคุณอนุมัติ (ขั้น ${step.stepNo}/${approvalCase.steps.length})`,
+        ...subject.link,
+      },
+    );
   }
 
-  /** The requester learns the outcome. */
+  /**
+   * After a decision: progress to the requester, the baton to the next step, or
+   * the outcome to whoever acts next — the requester before the work, the team after it.
+   */
   async decisionMade(
     approvalCase: CaseWithSteps,
     decision: string,
+    note: string | null = null,
   ): Promise<void> {
+    const subject = await this.subjectOf(approvalCase);
+    const base = { companyId: approvalCase.companyId, ...subject.link };
+
     if (approvalCase.status === 'pending') {
-      // Not finished — the baton moved, so tell the next approver instead.
+      await this.emitTo([subject.requesterId], {
+        ...base,
+        eventType: 'approval.step_passed',
+        title: 'ผ่านการอนุมัติขั้นหนึ่งแล้ว',
+        body: `${subject.label} ผ่านการอนุมัติขั้น ${approvalCase.currentStep - 1}/${approvalCase.steps.length}`,
+      });
       await this.awaitingApproval(approvalCase, approvalCase.companyId);
       return;
     }
 
-    if (!approvalCase.createdBy) return;
+    const stage = stageOf(approvalCase.subjectType);
+    const reason = note ? `: ${note}` : '';
+    const team = [subject.workerId];
 
-    const titles: Record<string, string> = {
-      approve: 'คำขอของคุณได้รับอนุมัติ',
-      reject: 'คำขอของคุณไม่ได้รับอนุมัติ',
-      return: 'คำขอของคุณถูกส่งกลับให้แก้ไข',
-    };
+    if (decision === 'approve') {
+      const [who, title] =
+        stage === 'pre'
+          ? [
+              [subject.requesterId, subject.receiverId],
+              'อนุมัติแล้ว — รอทีมรับเรื่อง',
+            ]
+          : stage === 'step'
+            ? [team, 'อนุมัติขั้นนี้แล้ว — งานไปขั้นถัดไป']
+            : [
+                [subject.requesterId, subject.workerId],
+                'ผ่านการตรวจแล้ว — ผู้ขอปิดคำขอได้',
+              ];
+      await this.emitTo(who, {
+        ...base,
+        eventType: 'approval.approved',
+        title,
+        body: subject.label,
+      });
+      return;
+    }
 
-    await this.emit({
-      userId: approvalCase.createdBy,
-      companyId: approvalCase.companyId,
-      eventType: `approval.${decision}d`,
-      title: titles[decision] ?? 'มีการอัปเดตคำขอของคุณ',
-      body: `${approvalCase.subjectType} — ${approvalCase.status}`,
-      resourceType: 'approval_case',
-      resourceId: approvalCase.id,
+    if (decision === 'reject') {
+      await this.emitTo(
+        stage === 'pre'
+          ? [subject.requesterId]
+          : [subject.requesterId, subject.workerId],
+        {
+          ...base,
+          eventType: 'approval.rejected',
+          title: 'คำขอไม่ได้รับอนุมัติ',
+          body: `${subject.label}${reason}`,
+        },
+      );
+      return;
+    }
+
+    await this.emitTo(stage === 'pre' ? [subject.requesterId] : team, {
+      ...base,
+      eventType: 'approval.returned',
+      title:
+        stage === 'pre' ? 'คำขอถูกส่งกลับให้แก้ไข' : 'งานถูกส่งกลับให้ทีมแก้',
+      body: `${subject.label}${reason}`,
     });
+  }
+
+  /** A request cancelled while waiting: its approvers no longer owe a decision. */
+  async approvalWithdrawn(requestId: string, companyId: string): Promise<void> {
+    const closed = await this.prisma.approvalCase.findFirst({
+      where: { requestId, status: 'cancelled' },
+      orderBy: { decidedAt: 'desc' },
+      include: { steps: true },
+    });
+    if (!closed) return;
+
+    const step = closed.steps.find(
+      (candidate) => candidate.stepNo === closed.currentStep,
+    );
+    if (!step) return;
+
+    const subject = await this.subjectOf(closed);
+    await this.emitTo(await this.withDelegates(companyId, candidatesOf(step)), {
+      companyId,
+      eventType: 'approval.withdrawn',
+      title: 'คำขอถูกยกเลิก ไม่ต้องอนุมัติแล้ว',
+      body: subject.label,
+      ...subject.link,
+    });
+  }
+
+  /** What a notification names and links to: the request when there is one. */
+  private async subjectOf(approvalCase: ApprovalCase) {
+    const request = approvalCase.requestId
+      ? await this.prisma.request.findUnique({
+          where: { id: approvalCase.requestId },
+          select: {
+            id: true,
+            requestNo: true,
+            requesterId: true,
+            receiverUserId: true,
+            assigneeUserId: true,
+            requestType: { select: { name: true } },
+          },
+        })
+      : null;
+
+    return {
+      label: request
+        ? [request.requestNo, request.requestType.name]
+            .filter(Boolean)
+            .join(' · ')
+        : approvalCase.subjectType,
+      requesterId: request?.requesterId ?? approvalCase.createdBy ?? null,
+      receiverId: request?.receiverUserId ?? null,
+      workerId: request?.assigneeUserId ?? request?.receiverUserId ?? null,
+      link: request
+        ? { resourceType: 'request', resourceId: request.id }
+        : { resourceType: 'approval_case', resourceId: approvalCase.id },
+    };
+  }
+
+  /** Candidates plus anyone actively covering for one of them (APV-03). */
+  private async withDelegates(
+    companyId: string,
+    candidates: readonly string[],
+  ): Promise<string[]> {
+    if (!candidates.length) return [];
+    const now = new Date();
+    const covering = await this.prisma.delegation.findMany({
+      where: {
+        companyId,
+        delegatorUserId: { in: [...candidates] },
+        active: true,
+        revokedAt: null,
+        fromDate: { lte: now },
+        toDate: { gte: now },
+      },
+      select: { delegateUserId: true },
+    });
+    return [...candidates, ...covering.map((row) => row.delegateUserId)];
+  }
+
+  /** One notification per distinct person; nulls dropped. */
+  private async emitTo(
+    userIds: readonly (string | null)[],
+    entry: Omit<Parameters<NotificationsService['emit']>[0], 'userId'>,
+  ): Promise<void> {
+    const distinct = [
+      ...new Set(userIds.filter((id): id is string => Boolean(id))),
+    ];
+    for (const userId of distinct) {
+      await this.emit({ ...entry, userId });
+    }
   }
 
   // --- reads --------------------------------------------------------------
@@ -159,6 +294,44 @@ export class NotificationsService {
       eventType: 'sla.breached',
       title: 'คำขอเกินกำหนด SLA',
       body: `คำขอ ${requestNo ?? requestId} เกินกำหนดเวลาที่ตั้งไว้แล้ว`,
+      resourceType: 'request',
+      resourceId: requestId,
+    });
+  }
+
+  /** SUP-02 — an approval step is past its own deadline; `escalated` reaches the approver's head. */
+  async approvalOverdue(
+    userId: string,
+    companyId: string,
+    link: { requestId: string | null; caseId: string; label: string },
+    escalated: boolean,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: escalated ? 'approval.escalated' : 'approval.overdue',
+      title: escalated
+        ? 'รายการอนุมัติค้างนานเกินกำหนด'
+        : 'รายการรออนุมัติเกินเวลาที่ตั้งไว้',
+      body: `${link.label} ยังรอการอนุมัติ`,
+      resourceType: link.requestId ? 'request' : 'approval_case',
+      resourceId: link.requestId ?? link.caseId,
+    });
+  }
+
+  /** SUP-02 — the deadline is near; told to whoever holds the work. */
+  async slaWarning(
+    userId: string,
+    companyId: string,
+    requestId: string,
+    requestNo: string | null,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'sla.warning',
+      title: 'คำขอใกล้ครบกำหนด SLA',
+      body: `คำขอ ${requestNo ?? requestId} จะครบกำหนดภายใน 4 ชั่วโมง`,
       resourceType: 'request',
       resourceId: requestId,
     });
@@ -307,4 +480,17 @@ export class NotificationsService {
 
     return this.getPreferences(actor);
   }
+}
+
+/** Everyone the step named; the pre-`candidateUserIds` fallback is the one approver. */
+function candidatesOf(step: ApprovalStep): string[] {
+  if (step.candidateUserIds.length) return step.candidateUserIds;
+  return step.approverUserId ? [step.approverUserId] : [];
+}
+
+/** Which stage routed a case, read off its subject like `decide` does. */
+function stageOf(subjectType: string): 'pre' | 'step' | 'post' {
+  if (subjectType.endsWith(':pre')) return 'pre';
+  if (subjectType.includes(':step:')) return 'step';
+  return 'post';
 }

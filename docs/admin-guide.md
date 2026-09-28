@@ -113,14 +113,42 @@ request of this type. Each entry is either **บังคับ** or optional:
 
 This is an addition to the source specification, not part of §16 A2.
 
+**ขั้นตอน (step flow)** splits the work of one type into steps inside
+`in_progress`, for example ตรวจเอกสาร → ติดตั้ง → ทดสอบ. Each step can have:
+
+- its own form, answered before the step is left
+- its own sub-request checklist (counted only for children raised in that step)
+- an exit approval, whose ladder is published first for `request:<CODE>:step:<STEP>`
+- an assignee rule: keep the current person, hand it to the requester, or name someone
+
+Forward exits are tried in order and the first whose condition holds wins, so
+the last forward exit of a branching step has no condition. Backward exits
+send the work back without checking the form. A step with no forward exit is
+where `ทำเสร็จแล้ว` happens, followed by the usual after-work check.
+
+Flows are versioned like approval ladders: publishing writes version N+1 and a
+request keeps the version it was submitted under. A type with no published
+flow behaves exactly as before.
+
 ### 7. SLA — `sla-configs`
 
-Hours per type per company, with a warning lead time (D-09). The clock starts
-at submit, **pauses while a request sits returned with its requester**, and
-resumes on resubmit — time nobody could act on is not counted against anyone.
+Hours per type per company, with a warning lead time (D-09). The clock measures
+**the team's working time only**:
 
-Overdue requests are escalated automatically, once each
-(`SUP-02: escalated N overdue request(s)` in the log).
+- it starts at the first assignment (receive or assign), not at submit
+- it pauses on hold, on return to the requester, while waiting on a step's exit
+  approval, and after `complete` while the result is being checked
+- a send-back after the check resumes it, so rework is counted
+- it stops when the result is accepted or refused; met/breached is judged from
+  the working time actually used against the budget
+
+Approval time has its own budget: each ladder level can set `slaHours`, which
+becomes the step's deadline.
+
+Escalation climbs in tiers, `escalatePercents` on the SLA config (default 100
+and 150). Each tier notifies the holder, the approver it waits on, and the
+requester, plus one more head above the holder. An approval step past its
+deadline reminds its candidates, and half a budget later tells their heads.
 
 ---
 

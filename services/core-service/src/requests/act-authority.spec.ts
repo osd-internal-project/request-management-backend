@@ -59,8 +59,10 @@ function serviceWith(request: Record<string, unknown> = ticket()) {
         return Promise.resolve({ id: 'req-1', ...data });
       }),
     },
+    // `nextRequestEventSeq` locks the row, then reads the last seq.
+    $queryRaw: jest.fn(() => Promise.resolve([])),
     requestEvent: {
-      count: jest.fn(() => Promise.resolve(0)),
+      findFirst: jest.fn(() => Promise.resolve(null)),
       create: jest.fn(() => Promise.resolve({})),
     },
     slaClock: { update: jest.fn(() => Promise.resolve({})) },
@@ -88,6 +90,7 @@ function serviceWith(request: Record<string, unknown> = ticket()) {
     {
       execute: jest.fn((work: (client: unknown) => unknown) => work(prisma)),
     } as never,
+    {} as never, // flows
   );
 
   return { service, updates };

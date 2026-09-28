@@ -309,7 +309,10 @@ export class RequestApiService {
         (pendingStep.candidateUserIds.length === 0 &&
           pendingStep.approverUserId === actor.userId));
 
-    const allowed = availableActions(request, actor, isDecider);
+    // `advance` exists only on a request that runs a step flow.
+    const allowed = availableActions(request, actor, isDecider).filter(
+      (spec) => spec.action !== 'advance' || request.flowVersionId !== null,
+    );
 
     return {
       request_id: request.id,
@@ -318,6 +321,7 @@ export class RequestApiService {
       actions: allowed
         .filter((spec) => spec.action !== 'create_child')
         .map(describe),
+      flow_moves: await this.requests.flowMovesOf(request),
       /*
         Reported as a fact rather than offered as an action. `create_child` is
         in the flow's table because spawning a child is something the flow
@@ -392,6 +396,13 @@ export class RequestApiService {
         return this.requests.complete(id, actor, authorization, {
           receiver_form_data: dto.receiver_form_data,
         });
+      case 'advance':
+        return this.requests.advance(
+          id,
+          { to_step: required(dto.to_step, 'to_step') },
+          actor,
+          authorization,
+        );
       case 'return':
         return this.requests.returnToRequester(
           id,

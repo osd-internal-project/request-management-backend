@@ -45,6 +45,7 @@ export type RequestAction =
   | 'hold'
   | 'resume'
   | 'complete'
+  | 'advance'
   | 'return'
   | 'resubmit'
   | 'approve'
@@ -73,6 +74,8 @@ export type Authority =
   | 'requester_or_lead'
   /** A candidate on the pending approval step. */
   | 'decider'
+  /** Whoever holds the current flow step: the requester (or their stand-in) under a requester scope, else the carrier. */
+  | 'step_holder'
   /** Anybody the visibility rules already let read it. */
   | 'viewer';
 
@@ -84,6 +87,11 @@ export interface ActionableRequest {
   readonly assigneeUserId: string | null;
   readonly requesterOrgUnitId: string | null;
   readonly receiverOrgUnitId: string | null;
+  /** v2 flows: who holds a requester step after the requester handed it on. */
+  readonly stepHolderUserId?: string | null;
+  readonly flowVersionId?: string | null;
+  /** The pinned flow's schema: 1 moves only inside in_progress, 2 owns the whole path. */
+  readonly flowVersion?: { readonly schemaVersion: number } | null;
 }
 
 /** One input an action needs, for a caller with no form to render. */
@@ -201,7 +209,8 @@ export const ACTIONS: readonly ActionSpec[] = [
     // it. Allowed wherever the request is still open.
     from: LIVE_STATUSES,
     to: [],
-    authority: 'carrier',
+    // A v2 requester step is handed on by its holder; elsewhere this is `carrier`.
+    authority: 'step_holder',
     scopePermission: 'request.complete',
     fields: [{ name: 'assignee_user_id', required: true }],
   },
@@ -234,6 +243,17 @@ export const ACTIONS: readonly ActionSpec[] = [
         source: 'receiver_form_schema',
       },
     ],
+  },
+  {
+    // Moves between the steps of the type's flow; a step with an exit ladder
+    // waits in `pending_approval`. Offered only on requests that have a flow.
+    action: 'advance',
+    // v1 flows move only inside in_progress; v2 steps may also sit under returned/approved.
+    from: ['returned', 'in_progress', 'approved'],
+    to: [],
+    authority: 'step_holder',
+    scopePermission: 'request.complete',
+    fields: [{ name: 'to_step', required: true }],
   },
   {
     // The use case calls this "rollback". Same thing: the ticket goes back to
@@ -367,8 +387,20 @@ export function hasAuthority(
       return isRequester || leads(request, actor) || granted;
     case 'decider':
       return isDecider;
+    case 'step_holder':
+      return request.flowVersion?.schemaVersion === 2 &&
+        REQUESTER_SCOPES.includes(request.status)
+        ? actor.userId === (request.stepHolderUserId ?? request.requesterId)
+        : isCarrier || granted;
   }
 }
+
+/** Statuses whose flow steps the requester holds. */
+const REQUESTER_SCOPES: readonly RequestStatus[] = [
+  'draft',
+  'returned',
+  'approved',
+];
 
 /** Everything about the actor an authority question reads. */
 export type ScopeActor = Pick<
@@ -492,6 +524,7 @@ export function availableActions(
   return ACTIONS.filter(
     (spec) =>
       spec.from.includes(request.status) &&
+      offeredOnFlow(spec.action, request) &&
       hasAuthority(
         spec.authority,
         request,
@@ -500,6 +533,32 @@ export function availableActions(
         spec.scopePermission,
       ),
   );
+}
+
+/** Verbs a v2 flow replaces with `advance` along its own steps. */
+const REPLACED_BY_FLOW_V2: ReadonlySet<RequestAction> = new Set([
+  'complete',
+  'close',
+  'resubmit',
+  'return',
+]);
+
+/** `advance` exists only on a flow (v1: inside in_progress); a v2 flow retires the fixed verbs. */
+function offeredOnFlow(
+  action: RequestAction,
+  request: ActionableRequest,
+): boolean {
+  const schema = request.flowVersionId
+    ? (request.flowVersion?.schemaVersion ?? 1)
+    : null;
+  if (action === 'advance') {
+    return schema === 2 || (schema === 1 && request.status === 'in_progress');
+  }
+  // An approval step is handed on through delegation, not `assign`.
+  if (action === 'assign' && schema === 2) {
+    return request.status !== 'pending_approval';
+  }
+  return !(schema === 2 && REPLACED_BY_FLOW_V2.has(action));
 }
 
 /**
@@ -559,6 +618,7 @@ export const ACTION_PERMISSIONS: Readonly<Record<RequestAction, Permission>> = {
   hold: 'request.hold',
   resume: 'request.hold',
   complete: 'request.complete',
+  advance: 'request.complete',
   return: 'request.return',
   approve: 'approval.decide',
   reject: 'approval.decide',

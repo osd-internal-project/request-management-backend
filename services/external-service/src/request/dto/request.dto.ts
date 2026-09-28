@@ -257,6 +257,17 @@ export class ExternalActionDto {
   @IsObject()
   form_data?: Record<string, unknown>;
 
+  /** `advance` — the step to move to; `GET …/actions` lists the choices. */
+  @ApiPropertyOptional({
+    description:
+      '**`advance`** — รหัสขั้นที่จะไป ต้องเป็นค่าใน `flow_moves.forward` หรือ ' +
+      '`flow_moves.backward` จาก `GET …/actions` เท่านั้น',
+    example: 'INSTALL',
+  })
+  @IsOptional()
+  @IsString()
+  to_step?: string;
+
   /** `assign` — who carries the work now. */
   @ApiPropertyOptional({
     description:

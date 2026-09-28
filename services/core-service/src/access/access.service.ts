@@ -11,21 +11,41 @@ import { CompanyMemberRepository } from './company-member.repository';
  * people move; `org` names groups outright, which is what a standing committee
  * or a named office actually is.
  */
-export type MatrixLevel =
-  | {
-      readonly type: 'supervisor';
-      /**
-       * How many levels of the chart above the requester. `1` is the head of
-       * the group they sit in, `2` the department above it, and so on.
-       */
-      readonly up: number;
-    }
-  | {
-      readonly type: 'org';
-      readonly orgUnitIds: readonly string[];
-      /** Empty means "the heads of those groups". */
-      readonly userIds?: readonly string[];
-    };
+/** Per-level rules copied onto each step at open; absent keys keep today's behaviour. */
+export interface LevelOptions {
+  /** `all`: every candidate must approve; default `any`. */
+  readonly mode?: 'any' | 'all';
+  /** Default `always`; `reject_or_return` lets an approval go without a note. */
+  readonly noteRequired?: 'always' | 'reject_or_return';
+  /** The level applies only when this holds against the request's answers. */
+  readonly condition?: {
+    readonly field: string;
+    readonly op: 'gt' | 'gte' | 'lt' | 'lte' | 'eq' | 'neq' | 'in';
+    readonly value: unknown;
+  };
+  /** Hours this level has to decide before it escalates. */
+  readonly slaHours?: number;
+  /** v2 flow levels: whose chart a supervisor level climbs; default the requester's. */
+  readonly chartOf?: 'requester' | 'worker';
+}
+
+export type MatrixLevel = LevelOptions &
+  (
+    | {
+        readonly type: 'supervisor';
+        /**
+         * How many levels of the chart above the requester. `1` is the head of
+         * the group they sit in, `2` the department above it, and so on.
+         */
+        readonly up: number;
+      }
+    | {
+        readonly type: 'org';
+        readonly orgUnitIds: readonly string[];
+        /** Empty means "the heads of those groups". */
+        readonly userIds?: readonly string[];
+      }
+  );
 
 export interface ApproverSubject {
   readonly requesterId: string;
@@ -133,6 +153,11 @@ export class AccessService {
     }
   }
 
+  /** Where this person sits in the company's chart; null when they sit nowhere. */
+  orgUnitIdOf(userId: string, companyId: string): Promise<string | null> {
+    return this.members.orgUnitIdOf(userId, companyId);
+  }
+
   /**
    * What to call the people a level resolved to.
    *
@@ -161,7 +186,11 @@ export class AccessService {
   ): Promise<string[]> {
     const found =
       level.type === 'supervisor'
-        ? await this.supervisorAt(level.up, subject.orgUnitId)
+        ? await this.supervisorAt(
+            level.up,
+            subject.orgUnitId,
+            subject.requesterId,
+          )
         : await this.namedApprovers(level);
 
     return [...new Set(found)].filter(
@@ -184,6 +213,7 @@ export class AccessService {
   private async supervisorAt(
     up: number,
     orgUnitId: string | null,
+    requesterId: string,
   ): Promise<string[]> {
     if (!orgUnitId) return [];
 
@@ -192,8 +222,10 @@ export class AccessService {
     if (!from.length) return [];
 
     const heads = await this.orgUnits.managersOf(from);
+    // A requester who heads the group climbs to the next head rather than approving themselves.
+    const head = heads.find((userId) => userId !== requesterId);
 
-    return heads.length ? [heads[0]] : [];
+    return head ? [head] : [];
   }
 
   /** The people an `org` level names, or the heads of the groups it names. */

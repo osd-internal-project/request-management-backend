@@ -96,7 +96,14 @@ export const REQUEST_TRANSITIONS: Readonly<
   // Resubmitting after a return goes through the pre-work check again: the
   // request that was approved is not the request being sent now.
   returned: ['submitted', 'pending_approval', 'cancelled'],
-  in_progress: ['completed', 'on_hold', 'returned', 'cancelled'],
+  // `pending_approval`: a flow step's exit approval (`advance`).
+  in_progress: [
+    'completed',
+    'on_hold',
+    'returned',
+    'cancelled',
+    'pending_approval',
+  ],
   on_hold: ['in_progress', 'cancelled'],
   // The branch: a type with an approval matrix is checked, one without is
   // accepted as it stands. `complete` decides which, and nothing else may.

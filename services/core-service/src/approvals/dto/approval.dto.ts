@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  ArrayMaxSize,
   ArrayNotEmpty,
   IsArray,
   IsBoolean,
@@ -7,6 +8,7 @@ import {
   IsIn,
   IsNotEmpty,
   IsNumberString,
+  IsObject,
   IsOptional,
   IsString,
   IsUUID,
@@ -47,6 +49,34 @@ export class MatrixLevelDto {
   @IsArray()
   @IsString({ each: true })
   userIds?: string[];
+
+  // B4 options: declared so the whitelist keeps them; `assertLevelOptions` checks their values.
+  @ApiPropertyOptional({ enum: ['any', 'all'], default: 'any' })
+  @IsOptional()
+  @IsIn(['any', 'all'])
+  mode?: 'any' | 'all';
+
+  @ApiPropertyOptional({ enum: ['always', 'reject_or_return'] })
+  @IsOptional()
+  @IsString()
+  noteRequired?: string;
+
+  @ApiPropertyOptional({
+    description: '{ field, op, value } over the request answers.',
+  })
+  @IsOptional()
+  @IsObject()
+  condition?: Record<string, unknown>;
+
+  @ApiPropertyOptional({ example: 8 })
+  @IsOptional()
+  slaHours?: number;
+
+  /** Flow v2 `supervisor` levels: whose chart to climb. */
+  @ApiPropertyOptional({ enum: ['requester', 'worker'] })
+  @IsOptional()
+  @IsIn(['requester', 'worker'])
+  chartOf?: 'requester' | 'worker';
 }
 
 export class PublishMatrixDto {
@@ -154,22 +184,22 @@ export class DecideDto {
   decision!: 'approve' | 'reject' | 'return';
 
   /**
-   * Required for every decision, not only a rejection (H2.2).
-   *
-   * Enforced in the service rather than here so that one message answers both
-   * the single and the batch path.
+   * Required unless the step's level says `noteRequired: reject_or_return` and
+   * this is an approval — checked in the service, which knows the step.
    */
-  @ApiProperty({ maxLength: 2000 })
+  @ApiPropertyOptional({ maxLength: 2000 })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
   @MaxLength(2000)
-  note!: string;
+  note?: string;
 }
 
 export class BatchDecideDto {
-  @ApiProperty({ isArray: true, type: String })
+  @ApiProperty({ isArray: true, type: String, maxItems: 50 })
   @IsArray()
   @ArrayNotEmpty()
+  // Decided one transaction at a time; a cap keeps one request from running for minutes.
+  @ArrayMaxSize(50)
   @IsString({ each: true })
   case_ids!: string[];
 

@@ -13,7 +13,7 @@ import type { RequestWithType } from './request.repository';
  */
 export interface ApprovalStage {
   /** Recorded on the `request.routed` event, so the timeline says which. */
-  readonly name: 'pre' | 'post';
+  readonly name: 'pre' | 'post' | 'step';
   /** The `ApprovalMatrix.subjectType` this stage routes against. */
   subjectOf(typeCode: string): string;
   /**
@@ -57,3 +57,13 @@ export const AFTER_WORK: ApprovalStage = {
     request.assigneeUserId ?? request.receiverUserId ?? null,
   recordsAcceptance: true,
 };
+
+/** Leaving one step of the type's flow; the ladder is per step and checks the team's work. */
+export function stepExit(stepCode: string): ApprovalStage {
+  return {
+    name: 'step',
+    subjectOf: (typeCode) => `request:${typeCode}:step:${stepCode}`,
+    chartOwnerOf: (request) => AFTER_WORK.chartOwnerOf(request),
+    recordsAcceptance: false,
+  };
+}

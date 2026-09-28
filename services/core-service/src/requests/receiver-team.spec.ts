@@ -62,7 +62,10 @@ function serviceWith(options: {
     {} as never,
     {} as never,
     {} as never,
-    {} as never,
+    {
+      execute: jest.fn((work: (client: unknown) => unknown) => work({})),
+    } as never,
+    { latestFor: jest.fn(() => Promise.resolve(null)) } as never, // flows
   );
 
   return { service, created };

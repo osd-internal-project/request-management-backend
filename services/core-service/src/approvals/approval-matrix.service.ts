@@ -6,10 +6,11 @@ import {
   resolveTargetCompany,
 } from '@request-management/share';
 import type { Principal } from '@request-management/share';
-import type { ApprovalMatrix, Prisma } from '@prisma/client';
-import { assertValidLevels } from './matrix-rules';
+import { Prisma } from '@prisma/client';
+import type { ApprovalMatrix } from '@prisma/client';
+import { assertValidLevels, unknownConditionFields } from './matrix-rules';
 import { ApprovalMatrixRepository } from './approval-matrix.repository';
-import { AccessService } from '../access/access.service';
+import { AccessService, type MatrixLevel } from '../access/access.service';
 import { PublishMatrixDto } from './dto/approval.dto';
 
 /**
@@ -111,25 +112,26 @@ export class ApprovalMatrixService {
     // Shape first, then targets: the second needs the company, and the company
     // is only trustworthy once `resolveTargetCompany` has checked it.
     await this.access.assertLevelTargetsExist(levels, companyId);
+    await this.assertConditionFieldsExist(levels, dto.subject_type, companyId);
 
-    const version =
-      (await this.matrices.latestVersion(companyId, dto.subject_type)) + 1;
+    // Validated by `assertValidLevels` above; `condition.value` is `unknown` only in type.
+    const levelsJson = levels as unknown as Prisma.InputJsonValue;
 
-    const published = await this.matrices.create({
-      data: {
-        companyId,
-        subjectType: dto.subject_type,
-        currency: dto.currency ?? 'THB',
-        version,
-        tiers: tiers as unknown as Prisma.InputJsonValue,
-        levels: levels as Prisma.InputJsonValue,
-        effectiveFrom: dto.effective_from
-          ? new Date(dto.effective_from)
-          : new Date(),
-        publishedAt: dto.publish === false ? null : new Date(),
-        createdBy: actor.userId,
-      },
-    });
+    const data = {
+      companyId,
+      subjectType: dto.subject_type,
+      currency: dto.currency ?? 'THB',
+      tiers: tiers as unknown as Prisma.InputJsonValue,
+      levels: levelsJson,
+      effectiveFrom: dto.effective_from
+        ? new Date(dto.effective_from)
+        : new Date(),
+      publishedAt: dto.publish === false ? null : new Date(),
+      createdBy: actor.userId,
+    };
+
+    const published = await this.createNextVersion(data);
+    const version = published.version;
 
     await this.audit.record({
       eventType: 'approval.matrix.published',
@@ -140,10 +142,54 @@ export class ApprovalMatrixService {
       after: {
         subjectType: dto.subject_type,
         version,
-        levels: levels as Prisma.InputJsonValue,
+        levels: levelsJson,
       },
     });
 
     return published;
+  }
+
+  /** A condition on a field the request form never asks for would silently skip its level. */
+  private async assertConditionFieldsExist(
+    levels: readonly MatrixLevel[],
+    subjectType: string,
+    companyId: string,
+  ): Promise<void> {
+    const typeCode = /^request:([^:]+)/.exec(subjectType)?.[1];
+    if (!typeCode || !levels.some((level) => level.condition)) return;
+
+    const unknown = unknownConditionFields(
+      levels,
+      await this.matrices.formFieldsOfType(typeCode, companyId),
+    );
+    if (unknown.length) {
+      throw new AppError(
+        'VALIDATION_FAILED',
+        'เงื่อนไขอ้างถึงช่องที่ไม่มีในฟอร์มของประเภทนี้',
+        unknown.map((field) => ({
+          field: 'levels.condition.field',
+          reason: field,
+        })),
+      );
+    }
+  }
+
+  /** version N+1; two admins publishing at once collide on the unique key, so recount once. */
+  private async createNextVersion(
+    data: Omit<Prisma.ApprovalMatrixUncheckedCreateInput, 'version'>,
+  ): Promise<ApprovalMatrix> {
+    for (let attempt = 0; ; attempt += 1) {
+      const version =
+        (await this.matrices.latestVersion(data.companyId, data.subjectType)) +
+        1;
+      try {
+        return await this.matrices.create({ data: { ...data, version } });
+      } catch (error) {
+        const collided =
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === 'P2002';
+        if (!collided || attempt >= 1) throw error;
+      }
+    }
   }
 }

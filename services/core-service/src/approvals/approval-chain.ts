@@ -31,6 +31,12 @@ export interface ResolvedApprover {
    * chosen on screen A1 — which the three fixed positions never could.
    */
   readonly candidateUserIds: readonly string[];
+  /** The level's rules, copied onto the step (see `LevelOptions`). */
+  readonly mode?: 'any' | 'all';
+  readonly noteRequired?: 'always' | 'reject_or_return';
+  readonly slaHours?: number | null;
+  /** Set when the level is recorded but never asked. */
+  readonly skipReason?: 'condition' | 'same_approver' | null;
 }
 
 /**
@@ -46,7 +52,10 @@ export interface ResolvedApprover {
 export function assertStepOneResolvable(
   chain: readonly ResolvedApprover[],
 ): void {
-  const first = chain[0];
+  // Every level skipped by its condition means nothing to approve, not a missing head.
+  if (chain.length && chain.every((step) => step.skipReason)) return;
+
+  const first = chain.find((step) => !step.skipReason);
 
   if (!first || !first.candidateUserIds.length) {
     throw new AppError(

@@ -173,10 +173,13 @@ permissions" from "waiting for an admin".
 | `POST /requests/{id}/cancel` | `request.cancel.own` / `.any` | reason required (REQ-05) | ✅ |
 | `POST /requests/{id}/hold` | `request.hold` | §7.1 amendment; in_progress only; reason required; pauses the clock | ✅ |
 | `POST /requests/{id}/resume` | `request.hold` | on_hold only; clock resumes owing the same remaining hours | ✅ |
+| `POST /requests/{id}/advance` | `request.complete` | flow step move `{to_step}`; forward must be the exit the answers select, backward must be configured; `409 REQ_STEP_INVALID` otherwise; a step with an exit ladder → `pending_approval` | ✅ |
+| `PATCH /requests/{id}/step-form` | `request.complete` | draft answers `{data}` for the current step; checked only on leaving | ✅ |
 | `POST /requests/{id}/complete` | `request.complete` | open child → `409 REQ_CHILDREN_OPEN`; required checklist sub request never raised → `409 REQ_SUB_REQUEST_MISSING` | ✅ |
 | `GET /reports/request-bottleneck` | `report.request.read` | REQ-09 | ✅ |
 | `GET /bi/menu` | `report.dashboard.read` | CD-92: BI menu — dashboards as short-lived signed Metabase embed URLs; `settings_url` only for `admin.bi.manage` | ✅ |
 | `POST /integrations/requests` | `integration.request.create` | service accounts; `"source":"system"` (REQ-10) | ✅ |
+| `GET/POST /admin/request-types/{code}/flows` | `admin.request-type.manage` | list / publish step-flow versions (immutable, N+1) | ✅ |
 | `GET/POST /admin/request-types`, `PATCH /admin/request-types/{code}` | `admin.request-type.manage` | edits apply to new requests only; `sub_request_types: [{code, required}]` | ✅ |
 
 ### Group C2 — External API  (`core-service`, 3 ก.ย. 2569)

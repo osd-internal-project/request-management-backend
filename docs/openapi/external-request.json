@@ -1070,6 +1070,7 @@
                 "hold",
                 "resume",
                 "complete",
+                "advance",
                 "return",
                 "approve",
                 "reject",
@@ -1457,6 +1458,11 @@
             "example": {
               "subject": "ออกแบบ solution ระบบ CCTV (แก้ไข)"
             }
+          },
+          "to_step": {
+            "type": "string",
+            "description": "**`advance`** — รหัสขั้นที่จะไป ต้องเป็นค่าใน `flow_moves.forward` หรือ `flow_moves.backward` จาก `GET …/actions` เท่านั้น",
+            "example": "INSTALL"
           },
           "assignee_user_id": {
             "type": "string",

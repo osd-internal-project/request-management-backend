@@ -1220,6 +1220,114 @@
         ]
       }
     },
+    "/api/v1/requests/{id}/advance": {
+      "post": {
+        "operationId": "RequestsController_advance",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdvanceRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "requests"
+        ],
+        "x-permission": [
+          "request.complete"
+        ]
+      }
+    },
+    "/api/v1/requests/{id}/step-form": {
+      "patch": {
+        "operationId": "RequestsController_saveStepForm",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StepFormDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "requests"
+        ],
+        "x-permission": [
+          "request.complete"
+        ]
+      }
+    },
     "/api/v1/requests/{id}/close": {
       "post": {
         "operationId": "RequestsController_close",
@@ -1435,6 +1543,102 @@
         ],
         "x-permission": [
           "report.request.read"
+        ]
+      }
+    },
+    "/api/v1/admin/request-types/{code}/flows": {
+      "get": {
+        "operationId": "RequestTypeAdminController_listFlows",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "company_id",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin/request-types"
+        ],
+        "x-permission": [
+          "admin.request-type.manage"
+        ]
+      },
+      "post": {
+        "operationId": "RequestTypeAdminController_publishFlow",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublishFlowDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin/request-types"
+        ],
+        "x-permission": [
+          "admin.request-type.manage"
         ]
       }
     },
@@ -7278,6 +7482,31 @@
           }
         }
       },
+      "AdvanceRequestDto": {
+        "type": "object",
+        "properties": {
+          "to_step": {
+            "type": "string",
+            "example": "INSTALL",
+            "maxLength": 32,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "to_step"
+        ]
+      },
+      "StepFormDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
       "CloseRequestDto": {
         "type": "object",
         "properties": {
@@ -7299,6 +7528,164 @@
         },
         "required": [
           "body"
+        ]
+      },
+      "SubRequestTypeDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "IT_ACCOUNT",
+            "maxLength": 32,
+            "minLength": 1
+          },
+          "required": {
+            "type": "boolean",
+            "example": true
+          }
+        },
+        "required": [
+          "code",
+          "required"
+        ]
+      },
+      "FlowAssigneeRuleDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "keep",
+              "requester",
+              "user"
+            ]
+          },
+          "user_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "FlowStepDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "INSTALL",
+            "maxLength": 32,
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "example": "ติดตั้ง",
+            "maxLength": 255,
+            "minLength": 1
+          },
+          "form_schema": {
+            "type": "object"
+          },
+          "sub_request_types": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SubRequestTypeDto"
+            }
+          },
+          "requires_approval": {
+            "type": "boolean",
+            "default": false
+          },
+          "assignee_rule": {
+            "$ref": "#/components/schemas/FlowAssigneeRuleDto"
+          },
+          "sla_hours": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "code",
+          "name"
+        ]
+      },
+      "FlowConditionDto": {
+        "type": "object",
+        "properties": {
+          "field": {
+            "type": "string",
+            "example": "amount"
+          },
+          "op": {
+            "type": "string",
+            "enum": [
+              "gt",
+              "gte",
+              "lt",
+              "lte",
+              "eq",
+              "neq",
+              "in"
+            ]
+          },
+          "value": {
+            "type": "object",
+            "example": 1000000
+          }
+        },
+        "required": [
+          "field",
+          "op",
+          "value"
+        ]
+      },
+      "FlowTransitionDto": {
+        "type": "object",
+        "properties": {
+          "from_step": {
+            "type": "string",
+            "minLength": 1
+          },
+          "to_step": {
+            "type": "string",
+            "minLength": 1
+          },
+          "condition": {
+            "$ref": "#/components/schemas/FlowConditionDto"
+          },
+          "backward": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "required": [
+          "from_step",
+          "to_step"
+        ]
+      },
+      "PublishFlowDto": {
+        "type": "object",
+        "properties": {
+          "company_id": {
+            "type": "string",
+            "description": "A1 passes it; A2 uses the active company."
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FlowStepDto"
+            }
+          },
+          "transitions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FlowTransitionDto"
+            }
+          }
+        },
+        "required": [
+          "steps",
+          "transitions"
         ]
       },
       "RequiredDocDto": {
@@ -7346,25 +7733,6 @@
         "required": [
           "code",
           "name"
-        ]
-      },
-      "SubRequestTypeDto": {
-        "type": "object",
-        "properties": {
-          "code": {
-            "type": "string",
-            "example": "IT_ACCOUNT",
-            "maxLength": 32,
-            "minLength": 1
-          },
-          "required": {
-            "type": "boolean",
-            "example": true
-          }
-        },
-        "required": [
-          "code",
-          "required"
         ]
       },
       "CreateRequestTypeDto": {
@@ -8845,6 +9213,7 @@
         "type": "object",
         "properties": {
           "case_ids": {
+            "maxItems": 50,
             "type": "array",
             "items": {
               "type": "string"

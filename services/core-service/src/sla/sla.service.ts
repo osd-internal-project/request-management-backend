@@ -1,6 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@request-management/share';
-import type { Prisma, Request, RequestType, SlaCoverage } from '@prisma/client';
+import type {
+  Prisma,
+  Request,
+  RequestType,
+  SlaClock,
+  SlaCoverage,
+} from '@prisma/client';
 import {
   addWorkingMs,
   DEFAULT_CALENDAR,
@@ -13,8 +19,9 @@ const HOUR_MS = 60 * 60 * 1000;
 /**
  * SUP-01 — the SLA clock.
  *
- * Starts at submit, **pauses when the request is returned**, and resumes when
- * it is submitted again. That pause is the whole reason this is a clock and
+ * Created paused at submit and **starts at the first assignment** (PO,
+ * 25 Sep 2026): queue time before anyone owns the work is not counted. It
+ * pauses on return and hold, and resumes when the work is picked up again. That pause is the whole reason this is a clock and
  * not a deadline stamped once: time the requester spends fixing their own
  * paperwork is not time the approver kept them waiting, and counting it makes
  * every bounced request look like an approver failure.
@@ -32,7 +39,10 @@ const HOUR_MS = 60 * 60 * 1000;
 export class SlaService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Begins the clock at submit. */
+  /**
+   * Creates the clock at submit, **paused**: the SLA counts from the first
+   * assignment (`receive` or `assign`), which is when `resume` starts it.
+   */
   async start(
     prisma: Prisma.TransactionClient,
     request: Request & { requestType: RequestType },
@@ -47,34 +57,22 @@ export class SlaService {
 
     if (hours === null) return;
 
-    const { calendar, coverage } = await this.rulesFor(
-      prisma,
-      request.companyId,
-      request.typeCode,
-      request.requestType.slaCoverage,
-    );
-
-    const dueAt = addWorkingMs(at, hours * HOUR_MS, calendar, coverage);
-
     await prisma.slaClock.upsert({
       where: { requestId: request.id },
-      update: {
-        // A resubmit continues from the time already used rather than
-        // restarting — see `resume`.
-        state: 'running',
-        pausedAt: null,
-      },
+      update: {},
+      // `dueAt` is a placeholder until `resume` computes it from the budget.
       create: {
         requestId: request.id,
         startedAt: at,
-        dueAt,
-        state: 'running',
+        pausedAt: at,
+        dueAt: at,
+        state: 'paused',
       },
     });
 
     await prisma.request.update({
       where: { id: request.id },
-      data: { dueAt },
+      data: { dueAt: null },
     });
   }
 
@@ -158,13 +156,8 @@ export class SlaService {
   }
 
   /**
-   * Ends the clock for good.
-   *
-   * The final state records *why* it stopped: a request that finished inside
-   * its window is `met`, one that had already run out is `breached`, and one
-   * that was cancelled is `cancelled`. Collapsing all three into a single
-   * "stopped" would make the SLA report unable to tell a success from a
-   * failure after the fact.
+   * Ends the clock for good. `met`/`breached` is judged from the working time
+   * actually used against the budget, so paused approval time never counts.
    */
   async stop(
     prisma: Prisma.TransactionClient,
@@ -172,19 +165,93 @@ export class SlaService {
     outcome: 'met' | 'cancelled' = 'met',
     at = new Date(),
   ): Promise<void> {
-    const clock = await prisma.slaClock.findUnique({ where: { requestId } });
+    const clock = await prisma.slaClock.findUnique({
+      where: { requestId },
+      include: { request: { include: { requestType: true } } },
+    });
     if (!clock) return;
 
-    const breached = outcome === 'met' && at > clock.dueAt;
+    if (outcome === 'cancelled') {
+      await prisma.slaClock.update({
+        where: { requestId },
+        data: { state: 'cancelled', pausedAt: null },
+      });
+      return;
+    }
+
+    const { calendar, coverage } = await this.rulesFor(
+      prisma,
+      clock.request.companyId,
+      clock.request.typeCode,
+      clock.request.requestType.slaCoverage,
+    );
+    const ran =
+      clock.state === 'running'
+        ? Math.max(workingMsBetween(clock.startedAt, at, calendar, coverage), 0)
+        : 0;
+    const used = clock.accumulatedMs + ran;
+    const hours = await this.hoursFor(
+      prisma,
+      clock.request.companyId,
+      clock.request.typeCode,
+      clock.request.requestType.slaHours,
+    );
+    const breached = hours === null ? at > clock.dueAt : used > hours * HOUR_MS;
 
     await prisma.slaClock.update({
       where: { requestId },
       data: {
-        state: breached ? 'breached' : outcome,
+        state: breached ? 'breached' : 'met',
         pausedAt: null,
+        accumulatedMs: used,
         ...(breached && !clock.breachedAt ? { breachedAt: at } : {}),
       },
     });
+  }
+
+  /** Working time used as a % of the budget; null for a type with no SLA. */
+  async percentUsed(
+    prisma: Prisma.TransactionClient,
+    clock: SlaClock & { request: Request & { requestType: RequestType } },
+    at = new Date(),
+  ): Promise<number | null> {
+    const hours = await this.hoursFor(
+      prisma,
+      clock.request.companyId,
+      clock.request.typeCode,
+      clock.request.requestType.slaHours,
+    );
+    if (!hours) return null;
+
+    const { calendar, coverage } = await this.rulesFor(
+      prisma,
+      clock.request.companyId,
+      clock.request.typeCode,
+      clock.request.requestType.slaCoverage,
+    );
+    const ran =
+      clock.state === 'running'
+        ? Math.max(workingMsBetween(clock.startedAt, at, calendar, coverage), 0)
+        : 0;
+    return ((clock.accumulatedMs + ran) / (hours * HOUR_MS)) * 100;
+  }
+
+  /** When an approval level with `hours` runs out, on the company's working calendar. */
+  async dueAfter(
+    prisma: Prisma.TransactionClient,
+    companyId: string,
+    typeCode: string | null,
+    hours: number | null,
+    at = new Date(),
+  ): Promise<Date | null> {
+    if (!hours) return null;
+    const { calendar, coverage } = await this.rulesFor(
+      prisma,
+      companyId,
+      typeCode ?? '',
+      'H24X7',
+    );
+    return addWorkingMs(at, hours * HOUR_MS, calendar, coverage);
   }
 
   /**
