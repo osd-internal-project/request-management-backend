@@ -2656,10 +2656,35 @@ model OpportunityActivity {
   updatedAt DateTime @updatedAt
 
   opportunity Opportunity @relation(fields: [opportunityId], references: [id])
+  /// CD-75 รูปที่แนบจากมือถือหลังเข้าพบลูกค้า.
+  photos      OpportunityActivityPhoto[]
 
   @@index([opportunityId, dueAt])
   @@index([companyId, createdAt])
   @@map("opportunity_activities")
+}
+
+/// CD-75 — a photo taken at the customer (whiteboard, site, signed sheet),
+/// kept in object storage like request attachments. Soft delete only: the row
+/// stays for the trail; the object is removed.
+model OpportunityActivityPhoto {
+  id         String @id @default(uuid())
+  companyId  String
+  activityId String
+
+  fileName   String
+  mimeType   String
+  sizeBytes  Int
+  storageKey String
+
+  uploadedBy String
+  uploadedAt DateTime  @default(now())
+  deletedAt  DateTime?
+
+  activity OpportunityActivity @relation(fields: [activityId], references: [id])
+
+  @@index([activityId])
+  @@map("opportunity_activity_photos")
 }
 
 /// สินค้า/บริการที่เกี่ยวกับโอกาสการขาย — รหัสต้องตรง material ใน SAP (D-30). ชุดงาน B ใช้คู่กับ

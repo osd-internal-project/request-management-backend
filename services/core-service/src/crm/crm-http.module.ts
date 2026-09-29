@@ -1,8 +1,21 @@
 import { Module } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import {
+  PrismaTransactionService,
+  StorageModule,
+  type StorageOptions,
+} from '@request-management/share';
 import { CrmModule } from './crm.module';
 import { CustomersController } from './customers.controller';
 import { CrmAdminController } from './crm-admin.controller';
 import { QuotationsController } from './quotations.controller';
+import { ActivityPhotosController } from './activity-photos.controller';
+import { ActivityPhotosService } from './activity-photos.service';
+import {
+  OpportunityActivityPhotoRepository,
+  OpportunityActivityRepository,
+  OpportunityRepository,
+} from './sales.repositories';
 import {
   LeadsController,
   OpportunitiesController,
@@ -21,7 +34,16 @@ import {
  * reaches. Their controllers moved with them.
  */
 @Module({
-  imports: [CrmModule],
+  imports: [
+    CrmModule,
+    // CD-75 visit photos — storage for the HTTP half only, like request
+    // attachments, so external-service needs no storage config to boot.
+    StorageModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) =>
+        config.get<StorageOptions>('storage'),
+    }),
+  ],
   controllers: [
     CustomersController,
     CrmAdminController,
@@ -31,6 +53,15 @@ import {
     SalesTargetsController,
     CampaignsController,
     QuotationsController,
+    // CD-75 — screens only; see the controller for why it is not generated.
+    ActivityPhotosController,
+  ],
+  providers: [
+    ActivityPhotosService,
+    OpportunityRepository,
+    OpportunityActivityRepository,
+    OpportunityActivityPhotoRepository,
+    PrismaTransactionService,
   ],
 })
 export class CrmHttpModule {}

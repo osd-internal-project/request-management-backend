@@ -81,6 +81,20 @@ export class OpportunityActivityRepository extends BaseRepository<
   }
 }
 
+/** CD-75 รูปที่แนบกับกิจกรรมบนโอกาสการขาย. */
+@Injectable()
+export class OpportunityActivityPhotoRepository extends BaseRepository<
+  PrismaService['opportunityActivityPhoto']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.opportunityActivityPhoto;
+  }
+}
+
 /** CD-79 เงื่อนไขการค้ามาตรฐานของบริษัท. */
 @Injectable()
 export class TradeTermStandardRepository extends BaseRepository<

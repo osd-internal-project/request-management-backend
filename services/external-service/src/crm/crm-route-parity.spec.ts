@@ -52,6 +52,16 @@ const ROBOT: Readonly<Record<string, string>> = {
  */
 const ROBOT_ONLY = ['lead-intake.controller.ts', 'lead-workflow.controller.ts'];
 
+/**
+ * The mirror case: screen routes deliberately not on the external port,
+ * excluded by name so each one is a stated decision rather than a gap.
+ *
+ * `activity-photos` (CD-75) — photos a salesperson takes on the phone after a
+ * visit. No partner system has visit photos to send, and the routes are
+ * multipart uploads the generator does not carry.
+ */
+const SCREEN_ONLY = ['activity-photos.controller.ts'];
+
 interface Route {
   readonly method: string;
   readonly path: string;
@@ -90,7 +100,8 @@ function controllersIn(dir: string): string[] {
       (f) => f.endsWith('.controller.ts') || f.endsWith('.controllers.ts'),
     )
     .filter((f) => !f.endsWith('.spec.ts'))
-    .filter((f) => !ROBOT_ONLY.includes(f));
+    .filter((f) => !ROBOT_ONLY.includes(f))
+    .filter((f) => !SCREEN_ONLY.includes(f));
 }
 
 /** `sales.controllers.ts` on one side, `sales.controller.ts` on the other. */

@@ -52,6 +52,21 @@ export class OpportunityActivitiesService {
     const rows = (await this.activities.findMany({
       where: { opportunityId: id },
       orderBy: { createdAt: 'desc' },
+      // CD-75 — the visit photos, newest last; the bytes are fetched per photo.
+      include: {
+        photos: {
+          where: { deletedAt: null },
+          orderBy: { uploadedAt: 'asc' },
+          select: {
+            id: true,
+            fileName: true,
+            mimeType: true,
+            sizeBytes: true,
+            uploadedBy: true,
+            uploadedAt: true,
+          },
+        },
+      },
     })) as ({ createdBy: string; completedBy: string | null } & Record<
       string,
       unknown
