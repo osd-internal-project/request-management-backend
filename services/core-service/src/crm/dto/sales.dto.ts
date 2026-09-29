@@ -21,6 +21,11 @@ import {
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PageQueryDto } from '@request-management/share';
 import { CUSTOMER_TYPES } from './customer.dto';
+import {
+  ACTIVITY_OUTCOMES,
+  TARGET_PRIORITIES,
+  TARGET_STATUSES,
+} from '../prospecting-rules';
 
 /** CRM sales DTOs — snake_case per the §11.1 API contract. */
 
@@ -38,6 +43,10 @@ export const LEAD_ACTIVITY_TYPES = [
   'meeting',
   'task',
   'note',
+  // CD-85 — ช่องทางเข้าหาเพิ่ม
+  'visit',
+  'line',
+  'social',
 ] as const;
 
 export const OPPORTUNITY_STAGES = [
@@ -207,6 +216,46 @@ export class CreateLeadDto {
   @IsString()
   @MaxLength(2)
   country?: string;
+
+  // --- CD-85 Discovery — "" / null = ล้างค่า ---------------------------------
+
+  @ApiPropertyOptional({
+    example: 'ระบบโทรศัพท์สาขาเก่า ต่อสายไม่ได้ช่วงเย็น',
+    description: 'ความต้องการ / Pain Point',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  discovery_need?: string;
+
+  @ApiPropertyOptional({ example: 800000, description: 'งบประมาณ (บาท)' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  discovery_budget?: number | null;
+
+  @ApiPropertyOptional({
+    example: 'ตั้งงบไว้ในปีงบ 2570',
+    description: 'หมายเหตุงบ — ใช้แทนตัวเลขได้เมื่อลูกค้าไม่เปิดเผย',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  discovery_budget_note?: string;
+
+  @ApiPropertyOptional({ example: 'คุณสมชาย · ผู้อำนวยการฝ่ายไอที' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  discovery_decision_maker?: string;
+
+  @ApiPropertyOptional({
+    example: '2026-12-31',
+    description: 'คาดว่าจะตัดสินใจภายใน (วันที่)',
+  })
+  @IsOptional()
+  @IsDateString()
+  discovery_timeframe?: string | null;
 }
 
 export class UpdateLeadDto extends CreateLeadDto {
@@ -261,6 +310,12 @@ export class CreateLeadActivityDto {
   @IsOptional()
   @IsDateString()
   due_at?: string;
+
+  /** CD-85 — ผลการติดต่อ; ใช้กับการติดต่อที่ทำแล้ว. */
+  @ApiPropertyOptional({ enum: ACTIVITY_OUTCOMES })
+  @IsOptional()
+  @IsIn(ACTIVITY_OUTCOMES)
+  outcome?: (typeof ACTIVITY_OUTCOMES)[number];
 }
 
 export class UpdateLeadActivityDto {
@@ -284,6 +339,12 @@ export class UpdateLeadActivityDto {
   @IsOptional()
   @IsBoolean()
   completed?: boolean;
+
+  /** CD-85 — ผลการติดต่อ; `null` = ล้าง. */
+  @ApiPropertyOptional({ enum: ACTIVITY_OUTCOMES, nullable: true })
+  @IsOptional()
+  @IsIn(ACTIVITY_OUTCOMES)
+  outcome?: (typeof ACTIVITY_OUTCOMES)[number] | null;
 }
 
 export class DisqualifyLeadDto {
@@ -361,6 +422,128 @@ export class ListLeadsQueryDto extends PageQueryDto {
   @IsOptional()
   @IsString()
   campaign_id?: string;
+
+  /** CD-85 — งานของแกน Getter: เฉพาะ Lead ที่ยังไม่ผูกลูกค้าเดิม. */
+  @ApiPropertyOptional({
+    enum: ['true'],
+    description: 'true = เฉพาะ Lead ที่ยังไม่ผูกลูกค้าในทะเบียน (ลูกค้าใหม่)',
+  })
+  @IsOptional()
+  @IsIn(['true'])
+  new_customer?: 'true';
+}
+
+// --- CD-85 บริษัทเป้าหมาย (Target Account) ---------------------------------
+
+export class CreateTargetAccountDto {
+  @ApiProperty({ example: 'บริษัท เป้าหมาย จำกัด' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  name!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  name_en?: string;
+
+  @ApiPropertyOptional({ example: '0105551234567' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  tax_id?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  industry?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  company_size?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  province?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  website?: string;
+
+  @ApiPropertyOptional({ description: 'ทำไมเล็งรายนี้ / ใครแนะนำ' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  note?: string;
+
+  @ApiPropertyOptional({ enum: TARGET_PRIORITIES, default: 'medium' })
+  @IsOptional()
+  @IsIn(TARGET_PRIORITIES)
+  priority?: (typeof TARGET_PRIORITIES)[number];
+
+  @ApiPropertyOptional({
+    description: 'ผู้รับผิดชอบ — ว่าง = ผู้สร้าง, "" = ยังไม่มีคนรับ',
+  })
+  @IsOptional()
+  @IsString()
+  owner_user_id?: string;
+}
+
+export class UpdateTargetAccountDto extends CreateTargetAccountDto {
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  declare name: string;
+}
+
+export class DropTargetAccountDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(500)
+  reason!: string;
+}
+
+export class ListTargetAccountsQueryDto extends PageQueryDto {
+  @ApiPropertyOptional({ description: 'ค้นจากชื่อหรือเลขภาษี' })
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  @ApiPropertyOptional({ enum: TARGET_STATUSES })
+  @IsOptional()
+  @IsIn(TARGET_STATUSES)
+  status?: (typeof TARGET_STATUSES)[number];
+
+  @ApiPropertyOptional({ enum: TARGET_PRIORITIES })
+  @IsOptional()
+  @IsIn(TARGET_PRIORITIES)
+  priority?: (typeof TARGET_PRIORITIES)[number];
+
+  @ApiPropertyOptional({ enum: ['mine', 'all', 'unassigned'] })
+  @IsOptional()
+  @IsIn(['mine', 'all', 'unassigned'])
+  view?: 'mine' | 'all' | 'unassigned';
+}
+
+/** เริ่มเข้าหา — สร้าง Lead จากบริษัทเป้าหมาย; ผู้ติดต่อใส่ได้ถ้ารู้แล้ว. */
+export class ApproachTargetAccountDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  contact_name?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  phone?: string;
+
+  @IsOptional()
+  @IsEmail()
+  email?: string;
 }
 
 /**

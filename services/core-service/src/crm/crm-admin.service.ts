@@ -208,6 +208,7 @@ export class CrmAdminService {
         kycReviewMonthsMedium: 24,
         kycReviewMonthsLow: 36,
         staleOpportunityDays: 14,
+        discoveryRequired: false,
         ...EMPTY_LETTERHEAD,
       }
     );
@@ -235,6 +236,7 @@ export class CrmAdminService {
               kycReviewMonthsHigh: dto.kyc_review_months_high ?? 12,
               kycReviewMonthsMedium: dto.kyc_review_months_medium ?? 24,
               kycReviewMonthsLow: dto.kyc_review_months_low ?? 36,
+              discoveryRequired: dto.discovery_required ?? false,
               ...letterheadColumns(dto),
               updatedBy: actor.userId,
             },
@@ -259,6 +261,7 @@ export class CrmAdminService {
               kycReviewMonthsHigh: dto.kyc_review_months_high,
               kycReviewMonthsMedium: dto.kyc_review_months_medium,
               kycReviewMonthsLow: dto.kyc_review_months_low,
+              discoveryRequired: dto.discovery_required,
               ...letterheadColumns(dto),
               updatedBy: actor.userId,
             },

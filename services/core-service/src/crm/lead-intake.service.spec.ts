@@ -146,6 +146,8 @@ function harness(
     statuses as never,
     workflowSync as never,
     { resolveCode: jest.fn(() => Promise.resolve(undefined)) } as never,
+    { findFirst: jest.fn(() => Promise.resolve(null)) } as never,
+    { updateMany: jest.fn(() => Promise.resolve({ count: 0 })) } as never,
   );
 
   return {

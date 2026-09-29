@@ -23,6 +23,7 @@ import {
   SaleOrdersController,
   SalesTargetsController,
   CampaignsController,
+  TargetAccountsController,
 } from './sales.controllers';
 
 /**
@@ -53,6 +54,7 @@ import {
     SaleOrdersController,
     SalesTargetsController,
     CampaignsController,
+    TargetAccountsController,
     QuotationsController,
     // CD-75 — screens only; see the controller for why it is not generated.
     ActivityPhotosController,

@@ -18,6 +18,13 @@ import { CampaignsService } from './campaigns.service';
 import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
 import { OpportunitiesService } from './opportunities.service';
 import { CustomerRepository } from './customer.repository';
+import { CrmConfigRepository } from './segment.repositories';
+import { TargetAccountRepository } from './target-accounts.repository';
+import {
+  CONTACT_TYPES,
+  discoveryMissing,
+  type DiscoveryFields,
+} from './prospecting-rules';
 import {
   AssignLeadDto,
   ConvertLeadDto,
@@ -52,6 +59,10 @@ const TEXT_COLUMNS = [
   ['district', 'district'],
   ['province', 'province'],
   ['postal_code', 'postalCode'],
+  // CD-85 Discovery
+  ['discovery_need', 'discoveryNeed'],
+  ['discovery_budget_note', 'discoveryBudgetNote'],
+  ['discovery_decision_maker', 'discoveryDecisionMaker'],
 ] as const;
 
 /**
@@ -83,8 +94,38 @@ function leadColumns(
   if (!onlyGiven || dto.customer_id !== undefined) {
     data.customerId = dto.customer_id || null;
   }
+  if (!onlyGiven || dto.discovery_budget !== undefined) {
+    data.discoveryBudget = dto.discovery_budget ?? null;
+  }
+  if (!onlyGiven || dto.discovery_timeframe !== undefined) {
+    data.discoveryTimeframe = dto.discovery_timeframe
+      ? new Date(`${dto.discovery_timeframe.slice(0, 10)}T00:00:00Z`)
+      : null;
+  }
 
   return data;
+}
+
+/** CD-85 — completed contacts only: a planned call is not an attempt yet. */
+const CONTACT_WHERE = {
+  type: { in: [...CONTACT_TYPES] },
+  completedAt: { not: null },
+} satisfies Prisma.LeadActivityWhereInput;
+
+/** CD-85 — what the Getter screens show beside a lead. */
+function prospectingOf(
+  lead: DiscoveryFields & {
+    _count?: { activities: number };
+    activities?: { completedAt: Date | null; outcome: string | null }[];
+  },
+) {
+  const last = lead.activities?.[0] ?? null;
+  return {
+    discovery_missing: discoveryMissing(lead),
+    contact_attempts: lead._count?.activities ?? 0,
+    last_contact_at: last?.completedAt ?? null,
+    last_outcome: last?.outcome ?? null,
+  };
 }
 
 /**
@@ -107,6 +148,8 @@ export class LeadsService {
     private readonly statuses: LeadStatusService,
     private readonly workflowSync: LeadWorkflowSyncService,
     private readonly campaigns: CampaignsService,
+    private readonly configs: CrmConfigRepository,
+    private readonly targets: TargetAccountRepository,
   ) {}
 
   async list(actor: Principal, query: ListLeadsQueryDto) {
@@ -115,6 +158,7 @@ export class LeadsService {
 
     if (query.status) filters.status = query.status;
     if (query.campaign_id) filters.campaignId = query.campaign_id;
+    if (query.new_customer === 'true') filters.customerId = null;
     if (query.view === 'mine') filters.ownerUserId = actor.userId;
     // กองกลาง — ใบที่ยังไม่มีใครรับ. ตัวกรอง ไม่ใช่ประตู: `visibleLeadsWhere`
     // ด้านล่างยังผูกทุกแถวไว้กับขอบเขตของคนเรียกเหมือนเดิม.
@@ -140,6 +184,14 @@ export class LeadsService {
           customer: { select: { id: true, customerCode: true, nameTh: true } },
           convertedOpportunity: { select: { id: true, opportunityCode: true } },
           campaign: { select: { id: true, code: true, name: true } },
+          // CD-85 — attempts and the latest contact, per row
+          _count: { select: { activities: { where: CONTACT_WHERE } } },
+          activities: {
+            where: CONTACT_WHERE,
+            orderBy: { completedAt: 'desc' },
+            take: 1,
+            select: { completedAt: true, outcome: true },
+          },
         },
         skip,
         take,
@@ -148,7 +200,23 @@ export class LeadsService {
       this.leads.count({ where }),
     ]);
 
-    return paginated(rows as unknown[], query, total);
+    return paginated(
+      (rows as unknown as (DiscoveryFields & Record<string, unknown>)[]).map(
+        ({ activities: _latest, _count, ...row }) => ({
+          ...row,
+          ...prospectingOf({
+            ...row,
+            _count: _count as { activities: number },
+            activities: _latest as {
+              completedAt: Date | null;
+              outcome: string | null;
+            }[],
+          }),
+        }),
+      ),
+      query,
+      total,
+    );
   }
 
   /**
@@ -177,6 +245,9 @@ export class LeadsService {
         },
         campaign: { select: { id: true, code: true, name: true } },
         activities: { orderBy: { createdAt: 'desc' } },
+        targetAccount: {
+          select: { id: true, name: true, priority: true, status: true },
+        },
       },
     })) as
       | ({
@@ -189,6 +260,25 @@ export class LeadsService {
       | null;
 
     if (!found) throw new AppError('NOT_FOUND', 'ไม่พบ Lead ที่ระบุ');
+
+    // CD-85 — the same summary the list shows, from the activities in hand
+    const contacts = (
+      found.activities as unknown as {
+        type: string;
+        completedAt: Date | null;
+        outcome: string | null;
+      }[]
+    )
+      .filter(
+        (activity) =>
+          activity.completedAt &&
+          (CONTACT_TYPES as readonly string[]).includes(activity.type),
+      )
+      .sort((a, b) => b.completedAt!.getTime() - a.completedAt!.getTime());
+    const config = (await this.configs.findFirst({
+      where: { companyId: actor.activeCompanyId },
+      select: { discoveryRequired: true },
+    })) as { discoveryRequired: boolean } | null;
 
     const nameOf = await this.displayNames([
       found.ownerUserId,
@@ -216,6 +306,13 @@ export class LeadsService {
           ? (nameOf.get(activity.completedBy) ?? activity.completedBy)
           : null,
       })),
+      ...prospectingOf({
+        ...(found as unknown as DiscoveryFields),
+        _count: { activities: contacts.length },
+        activities: contacts,
+      }),
+      /** CD-85 — the company wants Discovery done before a deal; the workflow decides, the screen warns. */
+      discovery_required: config?.discoveryRequired ?? false,
     };
   }
 
@@ -438,6 +535,7 @@ export class LeadsService {
 
     const dueAt = dto.due_at ? new Date(dto.due_at) : null;
     const done = dueAt === null;
+    assertOutcomeFits(dto.type, dto.outcome);
 
     const activity = (await this.activities.create({
       data: {
@@ -446,6 +544,7 @@ export class LeadsService {
         type: dto.type,
         subject: dto.subject.trim(),
         detail: dto.detail?.trim() || null,
+        outcome: dto.outcome ?? null,
         dueAt,
         completedAt: done ? new Date() : null,
         completedBy: done ? actor.userId : null,
@@ -459,7 +558,12 @@ export class LeadsService {
       ...auditActor(actor),
       resourceType: 'lead',
       resourceId: id,
-      after: { activityId: activity.id, type: dto.type, subject: dto.subject },
+      after: {
+        activityId: activity.id,
+        type: dto.type,
+        subject: dto.subject,
+        outcome: dto.outcome ?? null,
+      },
     });
 
     return activity;
@@ -476,7 +580,7 @@ export class LeadsService {
 
     const activity = (await this.activities.findFirst({
       where: { id: activityId, leadId: id },
-    })) as { id: string; completedAt: Date | null } | null;
+    })) as { id: string; type: string; completedAt: Date | null } | null;
     if (!activity) throw new AppError('NOT_FOUND', 'ไม่พบกิจกรรมที่ระบุ');
 
     const data: Prisma.LeadActivityUncheckedUpdateInput = {};
@@ -488,6 +592,10 @@ export class LeadsService {
     if (dto.completed !== undefined) {
       data.completedAt = dto.completed ? new Date() : null;
       data.completedBy = dto.completed ? actor.userId : null;
+    }
+    if (dto.outcome !== undefined) {
+      assertOutcomeFits(activity.type, dto.outcome);
+      data.outcome = dto.outcome;
     }
 
     return this.activities.update({ where: { id: activityId }, data });
@@ -564,6 +672,12 @@ export class LeadsService {
         customerId: customerId ?? null,
         updatedBy: actor.userId,
       },
+    });
+
+    // CD-85 — the target this lead came from has become a deal.
+    await this.targets.updateMany({
+      where: { leadId: id, status: 'approaching' },
+      data: { status: 'converted', updatedBy: actor.userId },
     });
 
     await this.audit.record({
@@ -668,5 +782,19 @@ export class LeadsService {
     })) as { id: string; displayName: string }[];
 
     return new Map(users.map((user) => [user.id, user.displayName]));
+  }
+}
+
+/**
+ * CD-85 — an outcome belongs to a contact (a call answered or not). On a task
+ * or a note it would count as an attempt that never happened.
+ */
+function assertOutcomeFits(type: string, outcome: string | null | undefined) {
+  if (outcome && !(CONTACT_TYPES as readonly string[]).includes(type)) {
+    throw new AppError(
+      'VALIDATION_FAILED',
+      'ผลการติดต่อใช้กับการโทร อีเมล นัดหมาย เข้าพบ LINE หรือโซเชียลเท่านั้น',
+      [{ field: 'outcome', reason: type }],
+    );
   }
 }

@@ -3192,6 +3192,18 @@
             }
           },
           {
+            "name": "new_customer",
+            "required": false,
+            "in": "query",
+            "description": "true = เฉพาะ Lead ที่ยังไม่ผูกลูกค้าในทะเบียน (ลูกค้าใหม่)",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true"
+              ]
+            }
+          },
+          {
             "name": "X-Company-Id",
             "in": "header",
             "required": false,
@@ -3578,7 +3590,7 @@
     },
     "/api/v1/crm/leads/{id}/activities": {
       "post": {
-        "description": "type: call · email · meeting · task · note",
+        "description": "type: call · email · meeting · task · note · visit · line · social — outcome (reached · no_answer · interested · not_interested) ใช้กับการติดต่อเท่านั้น",
         "operationId": "ExternalLeadsController_addActivity",
         "parameters": [
           {
@@ -5615,6 +5627,431 @@
         ]
       }
     },
+    "/api/v1/crm/target-accounts": {
+      "get": {
+        "description": "เรียงตามลำดับความสำคัญ (high ก่อน) แล้วเก่าก่อน · view=mine|all|unassigned",
+        "operationId": "ExternalTargetAccountsController_list",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "เลขหน้าที่ต้องการ เริ่มที่ 1",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page_size",
+            "required": false,
+            "in": "query",
+            "description": "จำนวนรายการต่อหน้า",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "`sort=field` เรียงขึ้น, `sort=-field` เรียงลง",
+            "schema": {
+              "example": "-createdAt",
+              "type": "string",
+              "pattern": "^-?[a-zA-Z_][a-zA-Z0-9_]*$"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "ค้นจากชื่อหรือเลขภาษี",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "targeting",
+                "approaching",
+                "converted",
+                "dropped"
+              ]
+            }
+          },
+          {
+            "name": "priority",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "high",
+                "medium",
+                "low"
+              ]
+            }
+          },
+          {
+            "name": "view",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "mine",
+                "all",
+                "unassigned"
+              ]
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "บริษัทเป้าหมาย",
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.read"
+        ],
+        "x-acting-permission": [
+          "crm.sales.read"
+        ]
+      },
+      "post": {
+        "operationId": "ExternalTargetAccountsController_create",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTargetAccountDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เพิ่มบริษัทเป้าหมาย",
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.manage"
+        ],
+        "x-acting-permission": [
+          "crm.sales.manage"
+        ]
+      }
+    },
+    "/api/v1/crm/target-accounts/{id}": {
+      "patch": {
+        "operationId": "ExternalTargetAccountsController_update",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTargetAccountDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แก้ไขบริษัทเป้าหมาย / ลำดับ / ผู้รับผิดชอบ",
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.manage"
+        ],
+        "x-acting-permission": [
+          "crm.sales.manage"
+        ]
+      }
+    },
+    "/api/v1/crm/target-accounts/{id}/approach": {
+      "post": {
+        "description": "ข้อมูลบริษัทไหลไปที่ Lead แล้วงานเดินบน Lead ต่อ · ตอบ lead_id",
+        "operationId": "ExternalTargetAccountsController_approach",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApproachTargetAccountDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เริ่มเข้าหา — สร้าง Lead จากบริษัทเป้าหมาย",
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.manage"
+        ],
+        "x-acting-permission": [
+          "crm.sales.manage"
+        ]
+      }
+    },
+    "/api/v1/crm/target-accounts/{id}/drop": {
+      "post": {
+        "operationId": "ExternalTargetAccountsController_drop",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DropTargetAccountDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ตัดบริษัทเป้าหมายออกพร้อมเหตุผล",
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.manage"
+        ],
+        "x-acting-permission": [
+          "crm.sales.manage"
+        ]
+      }
+    },
+    "/api/v1/crm/target-accounts/{id}/reopen": {
+      "post": {
+        "operationId": "ExternalTargetAccountsController_reopen",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "นำบริษัทที่ตัดออกกลับมาเล็งใหม่",
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.manage"
+        ],
+        "x-acting-permission": [
+          "crm.sales.manage"
+        ]
+      }
+    },
     "/api/v1/crm/quotations": {
       "get": {
         "description": "current=true คัดเฉพาะเวอร์ชันล่าสุดของแต่ละเลขที่",
@@ -6550,6 +6987,23 @@
           "stage"
         ]
       },
+      "ApproachTargetAccountDto": {
+        "type": "object",
+        "properties": {
+          "contact_name": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "phone": {
+            "maxLength": 50,
+            "type": "string"
+          },
+          "email": {
+            "format": "email",
+            "type": "string"
+          }
+        }
+      },
       "AssignLeadDto": {
         "type": "object",
         "properties": {
@@ -6784,7 +7238,10 @@
               "email",
               "meeting",
               "task",
-              "note"
+              "note",
+              "visit",
+              "line",
+              "social"
             ],
             "example": "call"
           },
@@ -6804,6 +7261,15 @@
             "example": "2026-09-30T10:00:00+07:00",
             "description": "ใส่ = นัดไว้ ยังไม่ทำ · ไม่ใส่ = ทำไปแล้ว ปิดทันที — ลงผิดช่องแล้วระบบนับความเคลื่อนไหวผิด",
             "format": "date-time"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "reached",
+              "no_answer",
+              "interested",
+              "not_interested"
+            ]
           }
         },
         "required": [
@@ -6929,6 +7395,35 @@
             "example": "TH",
             "description": "รหัสประเทศ 2 ตัวอักษร (ISO 3166-1)",
             "maxLength": 2
+          },
+          "discovery_need": {
+            "type": "string",
+            "example": "ระบบโทรศัพท์สาขาเก่า ต่อสายไม่ได้ช่วงเย็น",
+            "description": "ความต้องการ / Pain Point",
+            "maxLength": 4000
+          },
+          "discovery_budget": {
+            "type": "object",
+            "example": 800000,
+            "description": "งบประมาณ (บาท)",
+            "minimum": 0
+          },
+          "discovery_budget_note": {
+            "type": "string",
+            "example": "ตั้งงบไว้ในปีงบ 2570",
+            "description": "หมายเหตุงบ — ใช้แทนตัวเลขได้เมื่อลูกค้าไม่เปิดเผย",
+            "maxLength": 500
+          },
+          "discovery_decision_maker": {
+            "type": "string",
+            "example": "คุณสมชาย · ผู้อำนวยการฝ่ายไอที",
+            "maxLength": 255
+          },
+          "discovery_timeframe": {
+            "type": "object",
+            "example": "2026-12-31",
+            "description": "คาดว่าจะตัดสินใจภายใน (วันที่)",
+            "format": "date-time"
           }
         },
         "required": [
@@ -7138,6 +7633,63 @@
           "name_th"
         ]
       },
+      "CreateTargetAccountDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "บริษัท เป้าหมาย จำกัด",
+            "maxLength": 255,
+            "minLength": 1
+          },
+          "tax_id": {
+            "type": "string",
+            "example": "0105551234567",
+            "maxLength": 20
+          },
+          "note": {
+            "type": "string",
+            "description": "ทำไมเล็งรายนี้ / ใครแนะนำ",
+            "maxLength": 4000
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "high",
+              "medium",
+              "low"
+            ],
+            "default": "medium"
+          },
+          "owner_user_id": {
+            "type": "string",
+            "description": "ผู้รับผิดชอบ — ว่าง = ผู้สร้าง, \"\" = ยังไม่มีคนรับ"
+          },
+          "name_en": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "industry": {
+            "maxLength": 100,
+            "type": "string"
+          },
+          "company_size": {
+            "maxLength": 50,
+            "type": "string"
+          },
+          "province": {
+            "maxLength": 100,
+            "type": "string"
+          },
+          "website": {
+            "maxLength": 255,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
       "CustomerContactDto": {
         "type": "object",
         "properties": {
@@ -7305,6 +7857,19 @@
         ]
       },
       "DisqualifyLeadDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "maxLength": 500,
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "DropTargetAccountDto": {
         "type": "object",
         "properties": {
           "reason": {
@@ -8141,6 +8706,9 @@
             "minimum": 1,
             "type": "integer"
           },
+          "discovery_required": {
+            "type": "boolean"
+          },
           "letterhead_name_th": {
             "maxLength": 255,
             "type": "string"
@@ -8280,6 +8848,16 @@
       "UpdateLeadActivityDto": {
         "type": "object",
         "properties": {
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "reached",
+              "no_answer",
+              "interested",
+              "not_interested"
+            ],
+            "nullable": true
+          },
           "subject": {
             "maxLength": 255,
             "type": "string",
@@ -8416,6 +8994,35 @@
             "example": "TH",
             "description": "รหัสประเทศ 2 ตัวอักษร (ISO 3166-1)",
             "maxLength": 2
+          },
+          "discovery_need": {
+            "type": "string",
+            "example": "ระบบโทรศัพท์สาขาเก่า ต่อสายไม่ได้ช่วงเย็น",
+            "description": "ความต้องการ / Pain Point",
+            "maxLength": 4000
+          },
+          "discovery_budget": {
+            "type": "object",
+            "example": 800000,
+            "description": "งบประมาณ (บาท)",
+            "minimum": 0
+          },
+          "discovery_budget_note": {
+            "type": "string",
+            "example": "ตั้งงบไว้ในปีงบ 2570",
+            "description": "หมายเหตุงบ — ใช้แทนตัวเลขได้เมื่อลูกค้าไม่เปิดเผย",
+            "maxLength": 500
+          },
+          "discovery_decision_maker": {
+            "type": "string",
+            "example": "คุณสมชาย · ผู้อำนวยการฝ่ายไอที",
+            "maxLength": 255
+          },
+          "discovery_timeframe": {
+            "type": "object",
+            "example": "2026-12-31",
+            "description": "คาดว่าจะตัดสินใจภายใน (วันที่)",
+            "format": "date-time"
           }
         }
       },
@@ -8552,6 +9159,60 @@
           },
           "sort_order": {
             "type": "integer"
+          }
+        }
+      },
+      "UpdateTargetAccountDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "บริษัท เป้าหมาย จำกัด",
+            "maxLength": 255,
+            "minLength": 1
+          },
+          "tax_id": {
+            "type": "string",
+            "example": "0105551234567",
+            "maxLength": 20
+          },
+          "note": {
+            "type": "string",
+            "description": "ทำไมเล็งรายนี้ / ใครแนะนำ",
+            "maxLength": 4000
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "high",
+              "medium",
+              "low"
+            ],
+            "default": "medium"
+          },
+          "owner_user_id": {
+            "type": "string",
+            "description": "ผู้รับผิดชอบ — ว่าง = ผู้สร้าง, \"\" = ยังไม่มีคนรับ"
+          },
+          "name_en": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "industry": {
+            "maxLength": 100,
+            "type": "string"
+          },
+          "company_size": {
+            "maxLength": 50,
+            "type": "string"
+          },
+          "province": {
+            "maxLength": 100,
+            "type": "string"
+          },
+          "website": {
+            "maxLength": 255,
+            "type": "string"
           }
         }
       },

@@ -66,6 +66,8 @@ import {
   CampaignRepository,
 } from './sales.repositories';
 import { CampaignsService } from './campaigns.service';
+import { TargetAccountsService } from './target-accounts.service';
+import { TargetAccountRepository } from './target-accounts.repository';
 import { CustomerInvoicesService } from './customer-invoices.service';
 import { RequestTimelineSyncService } from './request-timeline-sync.service';
 import { QuotationsService } from './quotations.service';
@@ -183,6 +185,8 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     SalesTargetRevisionRepository,
     CampaignRepository,
     CampaignsService,
+    TargetAccountsService,
+    TargetAccountRepository,
     CustomerInvoicesService,
     RequestTimelineSyncService,
     OpportunityStaleMonitorService,
@@ -220,6 +224,7 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     CrmDashboardService,
     SalesTargetsService,
     CampaignsService,
+    TargetAccountsService,
     CustomerInvoicesService,
     SaleOrdersService,
     QuotationsService,

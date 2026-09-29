@@ -25,11 +25,17 @@ import { SalesReportService } from './sales-report.service';
 import { CrmDashboardService } from './crm-dashboard.service';
 import { SalesTargetsService } from './sales-targets.service';
 import { CampaignsService } from './campaigns.service';
+import { TargetAccountsService } from './target-accounts.service';
 import { SaleOrdersService } from './sale-orders.service';
 import { QuotationsService } from './quotations.service';
 import { CreateQuotationDto } from './dto/quotation.dto';
 import {
+  ApproachTargetAccountDto,
   AssignLeadDto,
+  CreateTargetAccountDto,
+  DropTargetAccountDto,
+  ListTargetAccountsQueryDto,
+  UpdateTargetAccountDto,
   CancelSaleOrderDto,
   ConvertLeadDto,
   CreateCampaignDto,
@@ -192,7 +198,9 @@ export class LeadsController {
   /** ลงกิจกรรม — โทร / อีเมล / นัดหมาย / งาน / บันทึก. */
   @ApiOperation({
     summary: 'ลงกิจกรรมของ Lead',
-    description: 'type: call · email · meeting · task · note',
+    description:
+      'type: call · email · meeting · task · note · visit · line · social — ' +
+      'outcome (reached · no_answer · interested · not_interested) ใช้กับการติดต่อเท่านั้น',
   })
   @Post(':id/activities')
   @Permissions('crm.sales.manage')
@@ -655,5 +663,84 @@ export class CampaignsController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.campaigns.update(id, dto, principal);
+  }
+}
+
+/**
+ * CD-85 บริษัทเป้าหมายของแกน Getter — เล็งไว้ จัดลำดับ แล้ว "เริ่มเข้าหา" เป็น
+ * Lead. สิทธิ์เดียวกับ Lead: อ่าน `crm.sales.read`, ทำรายการ `crm.sales.manage`.
+ */
+@ApiTags('target-accounts')
+@ApiBearerAuth()
+@Controller('target-accounts')
+export class TargetAccountsController {
+  constructor(private readonly targets: TargetAccountsService) {}
+
+  @ApiOperation({
+    summary: 'บริษัทเป้าหมาย',
+    description:
+      'เรียงตามลำดับความสำคัญ (high ก่อน) แล้วเก่าก่อน · view=mine|all|unassigned',
+  })
+  @Get()
+  @Permissions('crm.sales.read')
+  list(
+    @CurrentPrincipal() principal: Principal,
+    @Query() query: ListTargetAccountsQueryDto,
+  ) {
+    return this.targets.list(query, principal);
+  }
+
+  @ApiOperation({ summary: 'เพิ่มบริษัทเป้าหมาย' })
+  @Post()
+  @Permissions('crm.sales.manage')
+  create(
+    @Body() dto: CreateTargetAccountDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.targets.create(dto, principal);
+  }
+
+  @ApiOperation({ summary: 'แก้ไขบริษัทเป้าหมาย / ลำดับ / ผู้รับผิดชอบ' })
+  @Patch(':id')
+  @Permissions('crm.sales.manage')
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateTargetAccountDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.targets.update(id, dto, principal);
+  }
+
+  @ApiOperation({
+    summary: 'เริ่มเข้าหา — สร้าง Lead จากบริษัทเป้าหมาย',
+    description:
+      'ข้อมูลบริษัทไหลไปที่ Lead แล้วงานเดินบน Lead ต่อ · ตอบ lead_id',
+  })
+  @Post(':id/approach')
+  @Permissions('crm.sales.manage')
+  approach(
+    @Param('id') id: string,
+    @Body() dto: ApproachTargetAccountDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.targets.approach(id, dto, principal);
+  }
+
+  @ApiOperation({ summary: 'ตัดบริษัทเป้าหมายออกพร้อมเหตุผล' })
+  @Post(':id/drop')
+  @Permissions('crm.sales.manage')
+  drop(
+    @Param('id') id: string,
+    @Body() dto: DropTargetAccountDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.targets.drop(id, dto, principal);
+  }
+
+  @ApiOperation({ summary: 'นำบริษัทที่ตัดออกกลับมาเล็งใหม่' })
+  @Post(':id/reopen')
+  @Permissions('crm.sales.manage')
+  reopen(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.targets.reopen(id, principal);
   }
 }

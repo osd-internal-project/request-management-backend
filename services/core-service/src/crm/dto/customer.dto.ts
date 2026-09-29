@@ -577,6 +577,14 @@ export class UpdateCrmConfigDto {
   @Max(365)
   quotation_validity_days?: number;
 
+  /**
+   * CD-85 — ต้องทำ Discovery ครบก่อนเปิดดีลจาก Lead. workflow `lwf-0001`
+   * อ่านค่านี้จาก facts แล้วตัดสินเอง; หน้าจอเตือน.
+   */
+  @IsOptional()
+  @IsBoolean()
+  discovery_required?: boolean;
+
   // --- หัวกระดาษเอกสารขาย (ใบเสนอราคา PDF) — "" = ล้างค่า -----------------
 
   @IsOptional()

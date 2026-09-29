@@ -206,6 +206,35 @@ enum LeadActivityType {
   meeting
   task
   note
+  /// CD-85 — ช่องทางเข้าหาเพิ่ม: เข้าพบ, LINE, โซเชียล.
+  visit
+  line
+  social
+}
+
+/// CD-85 — ผลของการติดต่อหนึ่งครั้ง (Prospecting). ว่าง = ไม่ใช่การติดต่อ
+/// (งาน/บันทึก) หรือยังไม่ได้ติดต่อ.
+enum ActivityOutcome {
+  reached
+  no_answer
+  interested
+  not_interested
+}
+
+/// CD-85 — ลำดับความสำคัญของบริษัทเป้าหมาย.
+enum TargetAccountPriority {
+  high
+  medium
+  low
+}
+
+/// CD-85 — บริษัทเป้าหมาย: เล็งไว้ → เริ่มเข้าหา (เกิด Lead) → เปิดดีลแล้ว
+/// (Lead แปลงเป็นโอกาสการขาย) หรือตัดออกพร้อมเหตุผล.
+enum TargetAccountStatus {
+  targeting
+  approaching
+  converted
+  dropped
 }
 
 /// CRM — ขั้นของโอกาสการขาย. `won`/`lost` เป็นสถานะปิด; ปิดแพ้ต้องมีเหตุผลมาตรฐาน
@@ -332,6 +361,7 @@ model Company {
   notificationPreferences NotificationPreference[]
   notificationTemplates   NotificationTemplate[]
   notificationRules       NotificationRule[]
+  targetAccounts          TargetAccount[]
   customers               Customer[]
   customerSegmentDims     CustomerSegmentDimension[]
   customerCodeCounter     CustomerCodeCounter?
@@ -1970,7 +2000,7 @@ model Customer {
   /// CM-04: set by the KYC request callback (ชุดงาน B), never directly by a
   /// screen. A customer is usable without it until a KYC-flagged product
   /// enters a opportunity.
-  kycVerified   Boolean   @default(false)
+  kycVerified   Boolean       @default(false)
   kycVerifiedAt DateTime?
   /// CD-61 — copied from the latest verified KYC record, so lists and the
   /// expiry sweep read a column rather than joining.
@@ -2296,6 +2326,10 @@ model CrmCompanyConfig {
   /// เงื่อนไขมาตรฐานท้ายใบเสนอราคา (หลายบรรทัด).
   quotationTerms    String?
 
+  /// CD-85 — บริษัทนี้ต้องการ Discovery ครบก่อนเปิดดีลจาก Lead. เป็นค่าที่
+  /// workflow `lwf-0001` อ่านจาก facts แล้วตัดสินเอง; หน้าจอเตือน.
+  discoveryRequired Boolean @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   updatedBy String?
@@ -2498,6 +2532,16 @@ model Lead {
   status           String  @default("new")
   disqualifyReason String?
 
+  /// CD-85 Discovery — สิ่งที่ต้องรู้ก่อนเปิดโอกาสการขาย: ความต้องการ/Pain
+  /// Point, งบประมาณ, ผู้ตัดสินใจ, กรอบเวลา. ครบหรือไม่ = ข้อมูล
+  /// (`discoveryMissing`); จะบังคับก่อนแปลงหรือไม่ = process ของ workflow
+  /// `lwf-0001` อ่านจาก facts (PO 10 ก.ย. 2569).
+  discoveryNeed          String?
+  discoveryBudget        Decimal?  @db.Decimal(14, 2)
+  discoveryBudgetNote    String?
+  discoveryDecisionMaker String?
+  discoveryTimeframe     DateTime? @db.Date
+
   /// ลูกค้าเดิมที่ Lead นี้เป็นเรื่องของเขา (ถ้า match ได้).
   customerId String?
 
@@ -2532,6 +2576,7 @@ model Lead {
   convertedOpportunity Opportunity?   @relation(fields: [convertedOpportunityId], references: [id])
   campaign             Campaign?      @relation(fields: [campaignId], references: [id])
   activities           LeadActivity[]
+  targetAccount        TargetAccount?
 
   @@index([companyId, status])
   @@index([companyId, ownerUserId])
@@ -2552,6 +2597,8 @@ model LeadActivity {
   type    LeadActivityType
   subject String
   detail  String?
+  /// CD-85 — ผลการติดต่อ (โทรติดไหม สนใจไหม).
+  outcome ActivityOutcome?
 
   dueAt       DateTime?
   completedAt DateTime?
@@ -2784,7 +2831,7 @@ model OpportunityActivity {
   createdBy String
   updatedAt DateTime @updatedAt
 
-  opportunity Opportunity @relation(fields: [opportunityId], references: [id])
+  opportunity Opportunity                @relation(fields: [opportunityId], references: [id])
   /// CD-75 รูปที่แนบจากมือถือหลังเข้าพบลูกค้า.
   photos      OpportunityActivityPhoto[]
 
@@ -3324,4 +3371,43 @@ model CustomerContract {
   @@index([customerId])
   @@index([status, endOn])
   @@map("customer_contracts")
+}
+
+/// CD-85 — บริษัทเป้าหมายของแกน Getter: รายชื่อที่จะเปิดตลาด จัดลำดับก่อนหลัง
+/// ก่อนมีใครติดต่อ. "เริ่มเข้าหา" สร้าง Lead ผูกไว้ (`leadId`) — จากนั้นงานเดิน
+/// บน Lead ตามปกติ ไม่มี pipeline ชุดที่สอง. ไม่มีการลบ: ตัดออกพร้อมเหตุผล.
+model TargetAccount {
+  id        String @id @default(uuid())
+  companyId String
+
+  name        String
+  nameEn      String?
+  taxId       String?
+  industry    String?
+  companySize String?
+  province    String?
+  website     String?
+  note        String?
+
+  priority   TargetAccountPriority @default(medium)
+  status     TargetAccountStatus   @default(targeting)
+  dropReason String?
+
+  /// NULL = ยังไม่มีคนรับ (เหมือนกองกลางของ Lead).
+  ownerUserId    String?
+  ownerOrgUnitId String?
+
+  leadId String? @unique
+
+  createdAt DateTime @default(now())
+  createdBy String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  company Company @relation(fields: [companyId], references: [id])
+  lead    Lead?   @relation(fields: [leadId], references: [id])
+
+  @@index([companyId, status, priority])
+  @@index([companyId, ownerUserId])
+  @@map("target_accounts")
 }

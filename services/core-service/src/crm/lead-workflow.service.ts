@@ -10,6 +10,12 @@ import {
 import { ApplyLeadStageDto } from './dto/lead-workflow.dto';
 import { LeadStatusService } from './lead-status.service';
 import { LeadActivityRepository, LeadRepository } from './sales.repositories';
+import { CrmConfigRepository } from './segment.repositories';
+import {
+  CONTACT_TYPES,
+  discoveryMissing,
+  type DiscoveryFields,
+} from './prospecting-rules';
 
 /**
  * สิ่งที่ workflow engine (`lwf-0001` บน OSD Workflow) เรียกเข้ามา — สองอย่าง
@@ -35,6 +41,7 @@ export class LeadWorkflowService {
     private readonly activities: LeadActivityRepository,
     private readonly statuses: LeadStatusService,
     private readonly audit: AuditWriter,
+    private readonly configs: CrmConfigRepository,
   ) {}
 
   /**
@@ -61,6 +68,22 @@ export class LeadWorkflowService {
       where: { leadId: id, completedAt: null },
     });
 
+    // CD-85 — the data a Getter gate needs. Whether an incomplete Discovery
+    // blocks conversion is the workflow's to decide; `discovery_required` is
+    // the company's wish, read here so the workflow does not keep its own copy.
+    const contacts = await this.activities.count({
+      where: {
+        leadId: id,
+        completedAt: { not: null },
+        type: { in: [...CONTACT_TYPES] },
+      },
+    });
+    const config = (await this.configs.findFirst({
+      where: { companyId: lead.companyId },
+      select: { discoveryRequired: true },
+    })) as { discoveryRequired: boolean } | null;
+    const missing = discoveryMissing(lead as unknown as DiscoveryFields);
+
     return {
       lead_id: lead.id,
       company_id: lead.companyId,
@@ -73,6 +96,10 @@ export class LeadWorkflowService {
       pending_activity_count: pending,
       owner_user_id: lead.ownerUserId,
       converted_opportunity_id: lead.convertedOpportunityId,
+      contact_attempt_count: contacts,
+      discovery_complete: missing.length === 0,
+      discovery_missing: missing,
+      discovery_required: config?.discoveryRequired ?? false,
     };
   }
 
