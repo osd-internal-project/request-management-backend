@@ -2403,6 +2403,10 @@ model CrmCompanyConfig {
   /// cap above the contract's value (or unlimited). NULL = not set up; the
   /// contract then shows that approval is needed but could not be asked.
   liabilityApprovalRequestTypeCode String?
+  /// CD-158 — the request type that asks executives for their opinion on a
+  /// contract assessed high (or critical) legal risk, or with issues Legal
+  /// marked for them. NULL = not set up; the card says so.
+  legalRiskOpinionTypeCode         String?
 
   /// CD-130: ประเภทคำขอ "ขอ Solution และประเมินต้นทุน" (Sales → Pre-Sales) — การ์ด Solution
   /// บนหน้าดีลยื่นประเภทนี้. ช่องบังคับของฟอร์มประเภทนี้คือรายการตรวจความครบ (จุดส่งต่อที่ 2).
@@ -3566,6 +3570,8 @@ model CustomerContract {
   obligations  ContractObligation[]
   /// CD-164 — แผนการวางบิลตามงวด.
   installments ContractInstallment[]
+  /// CD-158 — ประเมินความเสี่ยงกฎหมาย (ฉบับปัจจุบัน).
+  riskAssessment ContractRiskAssessment?
 
   @@unique([companyId, contractNo])
   @@index([customerId])
@@ -3747,6 +3753,36 @@ model ContractInstallment {
 
   @@unique([contractId, seq])
   @@map("contract_installments")
+}
+
+/// CD-158 — the legal risk assessment of a contract: its level and the
+/// issues behind it, some marked to go to executives. A high or critical
+/// level, or any issue marked, needs the executives' opinion (a Platform
+/// Request of the type CRM settings name) before the contract is signed.
+/// One current assessment per contract; earlier ones live in the audit log.
+model ContractRiskAssessment {
+  contractId String @id
+  companyId  String
+
+  /// low · medium · high · critical
+  level   String
+  summary String?
+  /// [{ title, detail?, clause?, severity: low|medium|high, escalate }]
+  issues  Json    @default("[]")
+
+  /// The opinion asked for the assessment as it is now; a new level or a
+  /// changed set of escalated issues asks again.
+  opinionRequestId String?
+  opinionError     String?
+
+  assessedBy String
+  assessedAt DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  contract CustomerContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, level])
+  @@map("contract_risk_assessments")
 }
 
 /// CD-161 — who else may open a confidential contract.

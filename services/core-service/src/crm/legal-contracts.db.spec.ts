@@ -20,6 +20,10 @@ import {
   ContractInstallmentRepository,
   ContractInstallmentsService,
 } from './contract-installments.service';
+import {
+  ContractRiskAssessmentRepository,
+  ContractRiskService,
+} from './contract-risk.service';
 
 /**
  * CD-161 — the repository's search runs on relation filters (documents'
@@ -282,6 +286,52 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         obligations.complete(created.id, { note: 'ส่งแล้ว' }, legal),
       ).resolves.toMatchObject({ status: 'done' });
       await prisma.contractObligation.deleteMany({ where: { id: created.id } });
+    });
+
+    it('CD-158: an assessment and its issues round-trip as JSON; the table refuses an unknown level', async () => {
+      const client = prisma as never;
+      const contractId = ids[ids.length - 1];
+      const service = new ContractRiskService(
+        new ContractRiskAssessmentRepository(client),
+        new CustomerContractRepository(client),
+        { findFirst: () => Promise.resolve(null) } as never,
+        { findFirst: () => Promise.resolve(null) } as never,
+        {} as never,
+        { record: () => Promise.resolve() } as never,
+      );
+      const legal = as(legalUser, true);
+      const view = await service.save(
+        contractId,
+        {
+          level: 'medium',
+          summary: 'ภาพรวมยอมรับได้',
+          issues: [
+            { title: 'ภาษาสัญญากำกวม', clause: 'ข้อ 3', severity: 'low' },
+          ],
+        },
+        legal,
+        'Bearer t',
+      );
+      expect(view).toMatchObject({
+        assessed: true,
+        level: 'medium',
+        issues: [
+          {
+            title: 'ภาษาสัญญากำกวม',
+            clause: 'ข้อ 3',
+            severity: 'low',
+            escalate: false,
+          },
+        ],
+        opinion: { state: 'not_needed' },
+        signing: { ready: true },
+      });
+      await expect(
+        prisma.contractRiskAssessment.update({
+          where: { contractId },
+          data: { level: 'extreme' },
+        }),
+      ).rejects.toThrow(/contract_risk_assessments_level_check/);
     });
 
     it('CD-164: a schedule is replaced whole in one transaction; the table refuses a zero installment', async () => {

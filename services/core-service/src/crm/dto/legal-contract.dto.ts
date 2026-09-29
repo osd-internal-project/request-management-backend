@@ -465,3 +465,57 @@ export class SaveInstallmentsDto {
   @Type(() => InstallmentDto)
   installments!: InstallmentDto[];
 }
+
+/** CD-158 — one issue behind the risk level. */
+export class RiskIssueDto {
+  @ApiProperty({ example: 'ค่าปรับไม่มีเพดาน' })
+  @IsString()
+  @MaxLength(255)
+  title!: string;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  detail?: string | null;
+
+  @ApiPropertyOptional({ example: 'ข้อ 12.1', nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  clause?: string | null;
+
+  @ApiProperty({ enum: ['low', 'medium', 'high'] })
+  @IsIn(['low', 'medium', 'high'])
+  severity!: 'low' | 'medium' | 'high';
+
+  @ApiPropertyOptional({ description: 'เสนอผู้บริหาร' })
+  @IsOptional()
+  @IsBoolean()
+  escalate?: boolean;
+}
+
+/** CD-158 — the legal risk assessment of a contract. */
+export class SaveRiskAssessmentDto {
+  @ApiProperty({
+    enum: ['low', 'medium', 'high', 'critical'],
+    description:
+      'สูง/วิกฤต หรือมีประเด็นเสนอผู้บริหาร = ส่งขอความเห็นผู้บริหาร',
+  })
+  @IsIn(['low', 'medium', 'high', 'critical'])
+  level!: 'low' | 'medium' | 'high' | 'critical';
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  summary?: string | null;
+
+  @ApiPropertyOptional({ type: [RiskIssueDto] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50)
+  @ValidateNested({ each: true })
+  @Type(() => RiskIssueDto)
+  issues?: RiskIssueDto[];
+}

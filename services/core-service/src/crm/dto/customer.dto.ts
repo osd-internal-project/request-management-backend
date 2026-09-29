@@ -713,6 +713,15 @@ export class UpdateCrmConfigDto {
   liability_approval_request_type_code?: string;
 
   /**
+   * CD-158: รหัสประเภทคำขอ "ขอความเห็นความเสี่ยงทางกฎหมาย" (ส่งผู้บริหาร) — สัญญาที่ประเมิน
+   * ความเสี่ยงสูง/วิกฤต หรือมีประเด็นที่ต้องเสนอผู้บริหาร. ส่ง `""` = ล้าง.
+   */
+  @IsOptional()
+  @IsString()
+  @Matches(/^([A-Z0-9_-]{1,20})?$/)
+  legal_risk_opinion_type_code?: string;
+
+  /**
    * CD-130: รหัสประเภทคำขอ "ขอ Solution และประเมินต้นทุน" (Sales → Pre-Sales).
    * ส่ง `""` = ล้าง (หน้าดีลไม่แสดงการ์ด Solution).
    */

@@ -8116,6 +8116,155 @@
         ]
       }
     },
+    "/api/v1/contracts/{id}/risk": {
+      "get": {
+        "description": "ระดับ ประเด็น ความเห็นผู้บริหาร และ `signing` — ลงนามได้หรือยังในแง่ความเสี่ยง",
+        "operationId": "LegalContractsController_viewRisk",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ประเมินความเสี่ยงกฎหมาย (CD-158)",
+        "tags": [
+          "contracts"
+        ],
+        "x-permission": [
+          "legal.contract.read"
+        ]
+      },
+      "put": {
+        "description": "สูง/วิกฤต หรือมีประเด็นเสนอผู้บริหาร = สร้าง+ยื่นคำขอความเห็นตามประเภทที่ตั้งในหน้าตั้งค่า CRM · เปลี่ยนระดับหรือประเด็นที่เสนอ = ขอใหม่",
+        "operationId": "LegalContractsController_saveRisk",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveRiskAssessmentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "บันทึกการประเมินความเสี่ยง",
+        "tags": [
+          "contracts"
+        ],
+        "x-permission": [
+          "legal.contract.manage"
+        ]
+      }
+    },
+    "/api/v1/contracts/{id}/risk/opinion": {
+      "post": {
+        "operationId": "LegalContractsController_requestRiskOpinion",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ขอความเห็นผู้บริหารอีกครั้ง",
+        "tags": [
+          "contracts"
+        ],
+        "x-permission": [
+          "legal.contract.manage"
+        ]
+      }
+    },
     "/api/v1/contracts/{id}/installments": {
       "get": {
         "description": "ทุกงวด พร้อมสัดส่วนต่อมูลค่าสัญญา ผลรวม และส่วนต่าง",
@@ -14419,6 +14568,10 @@
             "pattern": "^([A-Z0-9_-]{1,20})?$",
             "type": "string"
           },
+          "legal_risk_opinion_type_code": {
+            "pattern": "^([A-Z0-9_-]{1,20})?$",
+            "type": "string"
+          },
           "solution_request_type_code": {
             "pattern": "^([A-Z0-9_-]{1,20})?$",
             "type": "string"
@@ -15740,6 +15893,73 @@
         "required": [
           "into",
           "reason"
+        ]
+      },
+      "RiskIssueDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "example": "ค่าปรับไม่มีเพดาน",
+            "maxLength": 255
+          },
+          "detail": {
+            "type": "object",
+            "nullable": true,
+            "maxLength": 2000
+          },
+          "clause": {
+            "type": "object",
+            "example": "ข้อ 12.1",
+            "nullable": true,
+            "maxLength": 100
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "escalate": {
+            "type": "boolean",
+            "description": "เสนอผู้บริหาร"
+          }
+        },
+        "required": [
+          "severity",
+          "title"
+        ]
+      },
+      "SaveRiskAssessmentDto": {
+        "type": "object",
+        "properties": {
+          "level": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "critical"
+            ],
+            "description": "สูง/วิกฤต หรือมีประเด็นเสนอผู้บริหาร = ส่งขอความเห็นผู้บริหาร"
+          },
+          "summary": {
+            "type": "object",
+            "nullable": true,
+            "maxLength": 4000
+          },
+          "issues": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RiskIssueDto"
+            },
+            "maxItems": 50
+          }
+        },
+        "required": [
+          "level"
         ]
       },
       "InstallmentDto": {

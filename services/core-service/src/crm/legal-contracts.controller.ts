@@ -28,10 +28,12 @@ import type { Principal } from '@request-management/share';
 import { ContractTermsService } from './contract-terms.service';
 import { ContractObligationsService } from './contract-obligations.service';
 import { ContractInstallmentsService } from './contract-installments.service';
+import { ContractRiskService } from './contract-risk.service';
 import {
   ContractAccessDto,
   SaveContractTermsDto,
   SaveInstallmentsDto,
+  SaveRiskAssessmentDto,
   SaveObligationDto,
   ListContractsQueryDto,
   SaveLegalContractDto,
@@ -55,7 +57,46 @@ export class LegalContractsController {
     private readonly terms: ContractTermsService,
     private readonly obligations: ContractObligationsService,
     private readonly installments: ContractInstallmentsService,
+    private readonly risk: ContractRiskService,
   ) {}
+
+  @ApiOperation({
+    summary: 'ประเมินความเสี่ยงกฎหมาย (CD-158)',
+    description:
+      'ระดับ ประเด็น ความเห็นผู้บริหาร และ `signing` — ลงนามได้หรือยังในแง่ความเสี่ยง',
+  })
+  @Get(':id/risk')
+  @Permissions('legal.contract.read')
+  viewRisk(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.risk.view(id, principal);
+  }
+
+  @ApiOperation({
+    summary: 'บันทึกการประเมินความเสี่ยง',
+    description:
+      'สูง/วิกฤต หรือมีประเด็นเสนอผู้บริหาร = สร้าง+ยื่นคำขอความเห็นตามประเภทที่ตั้งในหน้าตั้งค่า CRM · เปลี่ยนระดับหรือประเด็นที่เสนอ = ขอใหม่',
+  })
+  @Put(':id/risk')
+  @Permissions('legal.contract.manage')
+  saveRisk(
+    @Param('id') id: string,
+    @Body() dto: SaveRiskAssessmentDto,
+    @CurrentPrincipal() principal: Principal,
+    @Headers('authorization') authorization: string,
+  ) {
+    return this.risk.save(id, dto, principal, authorization);
+  }
+
+  @ApiOperation({ summary: 'ขอความเห็นผู้บริหารอีกครั้ง' })
+  @Post(':id/risk/opinion')
+  @Permissions('legal.contract.manage')
+  requestRiskOpinion(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+    @Headers('authorization') authorization: string,
+  ) {
+    return this.risk.requestOpinion(id, principal, authorization);
+  }
 
   @ApiOperation({
     summary: 'แผนการวางบิลตามงวด (CD-164)',
