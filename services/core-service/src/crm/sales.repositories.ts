@@ -95,6 +95,20 @@ export class OpportunityActivityPhotoRepository extends BaseRepository<
   }
 }
 
+/** CD-78 การจองเลขหมายของดีล (Reserve-phone). */
+@Injectable()
+export class OpportunityPhoneReservationRepository extends BaseRepository<
+  PrismaService['opportunityPhoneReservation']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.opportunityPhoneReservation;
+  }
+}
+
 /** CD-79 เงื่อนไขการค้ามาตรฐานของบริษัท. */
 @Injectable()
 export class TradeTermStandardRepository extends BaseRepository<

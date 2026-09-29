@@ -1452,3 +1452,60 @@ export class HandoverListQueryDto {
   @IsIn(['submitted', 'accepted', 'returned'])
   status?: 'submitted' | 'accepted' | 'returned';
 }
+
+/** CD-78 — ค้นเบอร์ว่างจาก Reserve-phone. */
+export class SearchPhoneNumbersQueryDto {
+  @ApiPropertyOptional({
+    example: '888',
+    description: 'ตัวเลขที่ต้องมีในเบอร์',
+  })
+  @IsOptional()
+  @Matches(/^\d{1,10}$/, { message: 'contains ต้องเป็นตัวเลข 1–10 หลัก' })
+  contains?: string;
+
+  @ApiPropertyOptional({ example: '02', description: 'เบอร์ขึ้นต้นด้วย' })
+  @IsOptional()
+  @Matches(/^\d{1,10}$/, { message: 'prefix ต้องเป็นตัวเลข 1–10 หลัก' })
+  prefix?: string;
+
+  @ApiPropertyOptional({
+    example: 'golden',
+    description: 'ประเภทเบอร์ของ Reserve-phone',
+  })
+  @IsOptional()
+  @Matches(/^[a-z_-]{1,30}$/)
+  category?: string;
+}
+
+/** CD-78 — จองเบอร์ให้ดีล (ครั้งละหลายเบอร์ได้). */
+export class ReservePhoneNumbersDto {
+  @ApiProperty({ example: ['021008888'], description: 'เบอร์ตัวเลขล้วน' })
+  @IsArray()
+  @ArrayNotEmpty()
+  @ArrayMaxSize(20)
+  @Matches(/^\d{6,15}$/, {
+    each: true,
+    message: 'เบอร์ต้องเป็นตัวเลข 6–15 หลัก',
+  })
+  numbers!: string[];
+
+  @ApiPropertyOptional({
+    example: 14,
+    description:
+      'จองกี่วัน — ไม่ส่ง = ค่าตั้งต้นของระบบ (RESERVE_PHONE_HOLD_DAYS)',
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(365)
+  hold_days?: number;
+}
+
+/** CD-78 — ต่ออายุการจองหนึ่งเบอร์. */
+export class ExtendPhoneReservationDto {
+  @ApiProperty({ example: 14, description: 'ต่อจากวันนี้อีกกี่วัน' })
+  @IsInt()
+  @Min(1)
+  @Max(365)
+  hold_days!: number;
+}

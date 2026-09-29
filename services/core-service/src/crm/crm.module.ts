@@ -4,6 +4,7 @@ import { PrismaTransactionService } from '@request-management/share';
 import { AccessModule } from '../access/access.module';
 import { RequestsModule } from '../requests/requests.module';
 import { ErpModule } from '../erp/erp.module';
+import { ReservePhoneModule } from '../reserve-phone/reserve-phone.module';
 import { PdpaModule } from '../pdpa/pdpa.module';
 import { EventsModule } from '../events/events.module';
 import { WorkflowModule } from '../workflow/workflow.module';
@@ -56,6 +57,7 @@ import {
   LeadRepository,
   OpportunityActivityRepository,
   NegotiationRoundRepository,
+  OpportunityPhoneReservationRepository,
   TradeTermStandardRepository,
   LeadStatusRepository,
   QuotationLineRepository,
@@ -86,6 +88,7 @@ import { LeadStatusService } from './lead-status.service';
 import { OpportunitiesService } from './opportunities.service';
 import { OpportunityActivitiesService } from './opportunity-activities.service';
 import { NegotiationsService } from './negotiations.service';
+import { PhoneReservationsService } from './phone-reservations.service';
 import { CustomerApprovalService } from './customer-approval.service';
 import { RequestTypeRepository } from '../requests/request-type.repository';
 import { HandoversService } from './handovers.service';
@@ -118,6 +121,7 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     AccessModule,
     RequestsModule,
     ErpModule,
+    ReservePhoneModule,
     PdpaModule,
     EventsModule,
     WorkflowModule,
@@ -186,6 +190,8 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     NegotiationRoundRepository,
     TradeTermStandardRepository,
     NegotiationsService,
+    OpportunityPhoneReservationRepository,
+    PhoneReservationsService,
     // CD-84
     HandoversService,
     HandoverChecklistItemRepository,
@@ -236,6 +242,7 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     OpportunitiesService,
     OpportunityActivitiesService,
     NegotiationsService,
+    PhoneReservationsService,
     HandoversService,
     KycService,
     CustomerApprovalService,

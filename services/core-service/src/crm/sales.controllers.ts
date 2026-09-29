@@ -21,6 +21,7 @@ import { LeadImportService } from './lead-import.service';
 import { OpportunitiesService } from './opportunities.service';
 import { OpportunityActivitiesService } from './opportunity-activities.service';
 import { NegotiationsService } from './negotiations.service';
+import { PhoneReservationsService } from './phone-reservations.service';
 import { SalesReportService } from './sales-report.service';
 import { CrmDashboardService } from './crm-dashboard.service';
 import { SalesTargetsService } from './sales-targets.service';
@@ -42,6 +43,9 @@ import {
   CrmDashboardQueryDto,
   CreateLeadActivityDto,
   CreateNegotiationRoundDto,
+  ExtendPhoneReservationDto,
+  ReservePhoneNumbersDto,
+  SearchPhoneNumbersQueryDto,
   CreateOpportunityDto,
   CreateLeadDto,
   DisqualifyLeadDto,
@@ -273,6 +277,7 @@ export class OpportunitiesController {
     private readonly quotations: QuotationsService,
     private readonly activities: OpportunityActivitiesService,
     private readonly negotiations: NegotiationsService,
+    private readonly phoneNumbers: PhoneReservationsService,
     private readonly report: SalesReportService,
     private readonly dashboard: CrmDashboardService,
   ) {}
@@ -435,6 +440,69 @@ export class OpportunitiesController {
     @Headers('authorization') authorization: string,
   ) {
     return this.negotiations.record(id, dto, principal, authorization);
+  }
+
+  /** CD-78 เบอร์ที่จองให้ดีลนี้ (ที่ยังจองอยู่ก่อน) และระยะจองที่ตั้งไว้. */
+  @ApiOperation({
+    summary: 'เลขหมายที่จองให้โอกาสการขาย (Reserve-phone)',
+  })
+  @Get(':id/phone-numbers')
+  @Permissions('crm.sales.read')
+  listPhoneNumbers(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.phoneNumbers.list(id, principal);
+  }
+
+  /** CD-78 ค้นเบอร์ว่างจาก Reserve-phone (ถามสด ไม่เก็บคลังเบอร์). */
+  @ApiOperation({ summary: 'ค้นเบอร์ว่างจาก Reserve-phone' })
+  @Get(':id/phone-numbers/available')
+  @Permissions('crm.sales.manage')
+  searchPhoneNumbers(
+    @Param('id') id: string,
+    @Query() query: SearchPhoneNumbersQueryDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.phoneNumbers.search(id, query, principal);
+  }
+
+  /**
+   * CD-78 จองเบอร์ให้ดีล — แต่ละเบอร์แยกกัน เบอร์ที่ถูกจองไปก่อนอยู่ใน
+   * `failed` ส่วนที่เหลือยังจองได้.
+   */
+  @ApiOperation({ summary: 'จองเบอร์ให้โอกาสการขาย' })
+  @Post(':id/phone-numbers')
+  @Permissions('crm.sales.manage')
+  reservePhoneNumbers(
+    @Param('id') id: string,
+    @Body() dto: ReservePhoneNumbersDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.phoneNumbers.reserve(id, dto, principal);
+  }
+
+  @ApiOperation({ summary: 'ต่ออายุการจองเบอร์ (นับจากวันนี้)' })
+  @Post(':id/phone-numbers/:reservationId/extend')
+  @Permissions('crm.sales.manage')
+  extendPhoneReservation(
+    @Param('id') id: string,
+    @Param('reservationId') reservationId: string,
+    @Body() dto: ExtendPhoneReservationDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.phoneNumbers.extend(id, reservationId, dto, principal);
+  }
+
+  @ApiOperation({ summary: 'ปล่อยเบอร์ที่จองคืน Reserve-phone' })
+  @Post(':id/phone-numbers/:reservationId/release')
+  @Permissions('crm.sales.manage')
+  releasePhoneReservation(
+    @Param('id') id: string,
+    @Param('reservationId') reservationId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.phoneNumbers.release(id, reservationId, principal);
   }
 
   /** ลงกิจกรรม — ไม่มี `due_at` = ทำแล้ว, มี = นัดติดตามครั้งถัดไป. */

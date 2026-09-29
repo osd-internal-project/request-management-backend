@@ -145,6 +145,29 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
     },
   },
   {
+    eventType: 'crm.phone_reservation.expiring',
+    label: 'เบอร์ที่จองใกล้หมดอายุ (ถึงเจ้าของดีล)',
+    title: 'เบอร์ {{number}} ที่จองไว้จะหมดอายุ {{expires_on}}',
+    body: '{{opportunity_code}} {{opportunity_title}} — ต่ออายุการจองที่หน้าโอกาสการขาย ถ้ายังต้องการเบอร์นี้',
+    variables: {
+      number: { label: 'เลขหมาย', sample: '02-100-8888' },
+      expires_on: { label: 'วันหมดอายุการจอง', sample: '2026-10-13' },
+      opportunity_code: { label: 'รหัสโอกาสการขาย', sample: 'OPP-OSD-0042' },
+      opportunity_title: { label: 'ชื่อดีล', sample: 'ระบบโทรศัพท์ สาขา 3' },
+    },
+  },
+  {
+    eventType: 'crm.phone_reservation.expired',
+    label: 'การจองเบอร์หมดอายุแล้ว (ถึงเจ้าของดีล)',
+    title: 'การจองเบอร์ {{number}} หมดอายุแล้ว',
+    body: '{{opportunity_code}} {{opportunity_title}} — เบอร์นี้กลับไปเป็นเบอร์ว่าง ถ้ายังต้องการให้จองใหม่',
+    variables: {
+      number: { label: 'เลขหมาย', sample: '02-100-8888' },
+      opportunity_code: { label: 'รหัสโอกาสการขาย', sample: 'OPP-OSD-0042' },
+      opportunity_title: { label: 'ชื่อดีล', sample: 'ระบบโทรศัพท์ สาขา 3' },
+    },
+  },
+  {
     eventType: 'crm.kyc.expiring',
     label: 'KYC ลูกค้าใกล้หมดอายุ (ถึงผู้รับผิดชอบลูกค้า)',
     title: 'KYC ของลูกค้า {{customer_name}} ใกล้หมดอายุ',

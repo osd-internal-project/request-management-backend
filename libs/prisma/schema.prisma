@@ -2756,11 +2756,13 @@ model Opportunity {
   updatedAt DateTime @updatedAt
   updatedBy String?
 
-  company           Company               @relation(fields: [companyId], references: [id])
-  customer          Customer?             @relation(fields: [customerId], references: [id])
+  company           Company                       @relation(fields: [companyId], references: [id])
+  customer          Customer?                     @relation(fields: [customerId], references: [id])
   activities        OpportunityActivity[]
   /// CD-79 รอบการต่อรองเงื่อนไขการค้า.
   negotiationRounds NegotiationRound[]
+  /// CD-78 เลขหมายที่จองจาก Reserve-phone ผูกกับดีลนี้.
+  phoneReservations OpportunityPhoneReservation[]
   handover          SalesHandover?
   products          OpportunityProduct[]
   saleOrders        SaleOrder[]
@@ -2895,6 +2897,49 @@ model NegotiationRound {
 
   @@unique([opportunityId, roundNo])
   @@map("negotiation_rounds")
+}
+
+/// CD-78 — สถานะการจองเลขหมายของดีล. คลังเบอร์อยู่ที่ Reserve-phone; ที่นี่เก็บ
+/// เฉพาะว่าการจองไหนเป็นของดีลไหน หมดเมื่อไร.
+enum PhoneReservationStatus {
+  reserved
+  released
+  expired
+}
+
+/// CD-78 — การจองเลขหมายหนึ่งเบอร์ที่ผูกกับโอกาสการขาย. ไม่ใช่ทะเบียนเบอร์: เบอร์
+/// ว่าง/ไม่ว่างถาม Reserve-phone เสมอ แถวนี้เป็นแค่ความผูกพันกับดีล + วันหมดอายุ.
+model OpportunityPhoneReservation {
+  id            String @id @default(uuid())
+  companyId     String
+  opportunityId String
+
+  /// ตัวเลขล้วน เช่น 021234567.
+  number                String
+  category              String
+  fee                   Decimal?               @db.Decimal(14, 2)
+  /// id การจองของ Reserve-phone — ใช้ต่ออายุ/ปล่อย.
+  externalReservationId String
+  status                PhoneReservationStatus @default(reserved)
+  expiresAt             DateTime
+
+  /// ครั้งล่าสุดที่เตือนเจ้าของดีลว่าใกล้หมด (ต่ออายุแล้ว = เตือนใหม่ได้).
+  expiryWarnedFor DateTime?
+
+  releasedAt    DateTime?
+  releasedBy    String?
+  /// manual / deal_lost — ปล่อยเองหรือระบบปล่อยเพราะดีลแพ้.
+  releaseReason String?
+
+  createdAt DateTime @default(now())
+  createdBy String
+  updatedAt DateTime @updatedAt
+
+  opportunity Opportunity @relation(fields: [opportunityId], references: [id])
+
+  @@index([opportunityId])
+  @@index([status, expiresAt])
+  @@map("opportunity_phone_reservations")
 }
 
 model OpportunityActivity {

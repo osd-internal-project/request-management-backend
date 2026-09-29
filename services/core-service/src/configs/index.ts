@@ -72,6 +72,13 @@ export default () => ({
    * `mode=sapb1` talks to the Service Layer below. Intervals in ms; 0
    * disables the background timers (tests).
    */
+  /** CD-78 — Reserve-phone (the phone number inventory); only `mock` exists yet. */
+  reservePhone: {
+    mode: process.env.RESERVE_PHONE_MODE ?? 'mock',
+    /** How long a new hold lasts, and the longest one may be set or extended to. */
+    holdDays: Number(process.env.RESERVE_PHONE_HOLD_DAYS ?? 14),
+    maxHoldDays: Number(process.env.RESERVE_PHONE_MAX_HOLD_DAYS ?? 60),
+  },
   erp: {
     mode: process.env.ERP_MODE ?? 'mock',
     retryIntervalMs: Number(process.env.ERP_RETRY_INTERVAL_MS ?? 300000),
@@ -121,6 +128,10 @@ export default () => ({
 
   /** CD-65 — รอบตรวจโอกาสการขายที่เงียบเกินเกณฑ์ (ms); 0 = ปิด (tests). */
   crm: {
+    /** CD-78 — expire/release number holds, warn owners (ms); 0 = off. */
+    phoneReservationIntervalMs: Number(
+      process.env.CRM_PHONE_RESERVATION_INTERVAL_MS ?? 3600000,
+    ),
     staleSweepIntervalMs: Number(
       process.env.CRM_STALE_SWEEP_INTERVAL_MS ?? 3600000,
     ),

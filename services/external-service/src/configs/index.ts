@@ -71,6 +71,13 @@ export default () => ({
   martRefreshIntervalMs: 0,
   /** CD-90 — likewise: the lake is fed by core-service only. */
   lake: { databaseUrl: '', extractIntervalMs: 0, sapIntervalMs: 0 },
+  /** CD-78 — Reserve-phone (the phone number inventory); only `mock` exists yet. */
+  reservePhone: {
+    mode: process.env.RESERVE_PHONE_MODE ?? 'mock',
+    /** How long a new hold lasts, and the longest one may be set or extended to. */
+    holdDays: Number(process.env.RESERVE_PHONE_HOLD_DAYS ?? 14),
+    maxHoldDays: Number(process.env.RESERVE_PHONE_MAX_HOLD_DAYS ?? 60),
+  },
   erp: {
     mode: process.env.ERP_MODE ?? 'mock',
     /**
@@ -106,6 +113,8 @@ export default () => ({
   },
   /** CD-65 ดีลเงียบ — the sweep is core-service's, like every clock above. */
   crm: {
+    /** CD-78 — expire/release number holds, warn owners (ms); 0 = off. */
+    phoneReservationIntervalMs: 0,
     staleSweepIntervalMs: 0,
     // CD-61 — the KYC expiry sweep is core-service's too.
     kycExpiryIntervalMs: 0,

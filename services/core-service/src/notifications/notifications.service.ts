@@ -432,6 +432,31 @@ export class NotificationsService {
     });
   }
 
+  /** CD-78 — a number held for a deal expires soon, or has expired. */
+  async phoneReservationExpiry(
+    userId: string,
+    companyId: string,
+    opportunity: { id: string; opportunityCode: string; title: string },
+    reservation: { number: string; expiresOn: string },
+    expired: boolean,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: expired
+        ? 'crm.phone_reservation.expired'
+        : 'crm.phone_reservation.expiring',
+      values: {
+        number: formatPhoneNumber(reservation.number),
+        expires_on: reservation.expiresOn,
+        opportunity_code: opportunity.opportunityCode,
+        opportunity_title: opportunity.title,
+      },
+      resourceType: 'opportunity',
+      resourceId: opportunity.id,
+    });
+  }
+
   /** CD-70 — a renewal deal was opened from a contract's end date. */
   async contractRenewalOpened(
     userId: string,
@@ -878,4 +903,15 @@ function stageOf(subjectType: string): 'pre' | 'step' | 'post' {
   if (subjectType.endsWith(':pre')) return 'pre';
   if (subjectType.includes(':step:')) return 'step';
   return 'post';
+}
+
+/** `021008888` → `02-100-8888`, `0861234567` → `086-123-4567`. */
+export function formatPhoneNumber(number: string): string {
+  if (/^02\d{7}$/.test(number)) {
+    return `${number.slice(0, 2)}-${number.slice(2, 5)}-${number.slice(5)}`;
+  }
+  if (/^0\d{9}$/.test(number)) {
+    return `${number.slice(0, 3)}-${number.slice(3, 6)}-${number.slice(6)}`;
+  }
+  return number;
 }

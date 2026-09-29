@@ -135,6 +135,28 @@ export const NOTIFICATION_RULES: readonly RuleDefinition[] = [
     defaults: { warn_days: 7 },
   },
   {
+    code: 'phone.reservation',
+    module: 'crm',
+    label: 'เบอร์ที่จองใกล้หมดอายุ',
+    description:
+      'เตือนเจ้าของดีลก่อนการจองเลขหมาย (Reserve-phone) หมดอายุ และแจ้งเมื่อหมดแล้ว — ต่ออายุที่หน้าโอกาสการขาย',
+    recipients: 'เจ้าของดีล',
+    eventTypes: [
+      'crm.phone_reservation.expiring',
+      'crm.phone_reservation.expired',
+    ],
+    params: [
+      {
+        key: 'warn_days',
+        label: 'เตือนล่วงหน้า (วัน)',
+        kind: 'days',
+        min: 1,
+        max: 30,
+      },
+    ],
+    defaults: { warn_days: 3 },
+  },
+  {
     code: 'opportunity.stale',
     module: 'crm',
     label: 'ดีลเงียบ',
