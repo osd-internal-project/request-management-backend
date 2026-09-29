@@ -7,7 +7,9 @@ import {
 } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import {
+  type ApiKeyContext,
   CreateIntegrationRequestDto,
+  CurrentApiKey,
   RequestsService,
 } from '@request-management/core-service';
 
@@ -54,7 +56,13 @@ export class RequestIntakeController {
     @Body() dto: CreateIntegrationRequestDto,
     @CurrentPrincipal() principal: Principal,
     @Headers('authorization') authorization: string,
+    @CurrentApiKey() key: ApiKeyContext | undefined,
   ) {
-    return this.requests.createFromIntegration(dto, principal, authorization);
+    return this.requests.createFromIntegration(
+      dto,
+      principal,
+      authorization,
+      key?.companyId ?? null,
+    );
   }
 }

@@ -14,6 +14,7 @@ import { ActivityPhotosService } from './activity-photos.service';
 import { CustomerApprovalController } from './customer-approval.controller';
 import { HandoversController } from './handovers.controller';
 import { KeeperController } from './keeper.controller';
+import { CustomerIntakeAdminController } from './customer-intake-admin.controller';
 import {
   OpportunityActivityPhotoRepository,
   OpportunityActivityRepository,
@@ -66,6 +67,8 @@ import {
     HandoversController,
     // CD-86 — screens only; see the controller for why it is not generated.
     KeeperController,
+    // CD-66 — screens only; the channels are served by external-service.
+    CustomerIntakeAdminController,
   ],
   providers: [
     ActivityPhotosService,

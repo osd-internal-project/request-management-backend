@@ -68,12 +68,16 @@ const ROBOT_ONLY = ['lead-intake.controller.ts', 'lead-workflow.controller.ts'];
  *
  * `keeper` (CD-86) — a salesperson's working view of their own book (account
  * plans, reviews, health); no outside system feeds or reads it.
+ *
+ * `customer-intake-admin` (CD-66) — configuring the customer channels; the
+ * channels themselves are external-service's own `request/intake/*` routes.
  */
 const SCREEN_ONLY = [
   'activity-photos.controller.ts',
   'handovers.controller.ts',
   'customer-approval.controller.ts',
   'keeper.controller.ts',
+  'customer-intake-admin.controller.ts',
 ];
 
 interface Route {

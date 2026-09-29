@@ -88,6 +88,14 @@ enum RequestSource {
   SYSTEM
 }
 
+/// CD-66 — the channels customers submit through (user decision 29 ก.ย.
+/// 2569: the public web form first, LINE and AI CARE as connectors).
+enum IntakeChannel {
+  web_form
+  line
+  ai_care
+}
+
 enum ApprovalCaseStatus {
   pending
   approved
@@ -396,6 +404,7 @@ model Company {
   notificationPreferences NotificationPreference[]
   notificationTemplates   NotificationTemplate[]
   notificationRules       NotificationRule[]
+  intakeChannels          RequestIntakeChannel[]
   targetAccounts          TargetAccount[]
   customers               Customer[]
   customerSegmentDims     CustomerSegmentDimension[]
@@ -515,6 +524,7 @@ model User {
   grantedRoles            UserRole[]               @relation("RoleGranter")
   managedUnits            OrgUnit[]                @relation("OrgUnitManager")
   requests                Request[]                @relation("Requester")
+  intakeChannels          RequestIntakeChannel[]
   receivedRequests        Request[]                @relation("Receiver")
   receiverOfTypes         RequestType[]            @relation("TypeReceiver")
   assignedRequests        Request[]                @relation("Assignee")
@@ -1064,6 +1074,21 @@ model Request {
   typeSnapshot Json?
 
   source RequestSource @default(USER)
+
+  /// CD-66 — raised by a customer through a channel. The requester is then the
+  /// channel's designated staff user; the customer is the contact below, and
+  /// `refType/refId` point at the customer when their tax id or email matched.
+  channel           IntakeChannel?
+  contactName       String?
+  contactEmail      String?
+  contactPhone      String?
+  contactCompany    String?
+  contactTaxId      String?
+  /// LINE connector: who to reply to (LINE has no email or phone).
+  contactLineUserId String?
+  /// sha256 of the private status link's token — the token itself is shown
+  /// to the customer once and never stored.
+  statusTokenHash   String?        @unique
 
   submittedAt  DateTime?
   dueAt        DateTime?
@@ -3520,4 +3545,32 @@ model CustomerTouchpoint {
   @@index([customerId, occurredAt])
   @@index([companyId, occurredAt])
   @@map("customer_touchpoints")
+}
+
+/// CD-66 — one company's setting for one intake channel: whether it is open,
+/// which staff user stands as the requester, which request types a customer
+/// may raise through it, and (web form) the public link and wording.
+/// Connector secrets (LINE) are not stored here — see docs/customer-intake.md.
+model RequestIntakeChannel {
+  id              String        @id @default(uuid())
+  companyId       String
+  channel         IntakeChannel
+  enabled         Boolean       @default(false)
+  requesterUserId String
+  typeCodes       String[]      @default([])
+  /// web form: the unguessable part of /f/<slug>.
+  slug            String?       @unique
+  title           String?
+  intro           String?
+
+  createdAt DateTime @default(now())
+  createdBy String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  company   Company @relation(fields: [companyId], references: [id])
+  requester User    @relation(fields: [requesterUserId], references: [id])
+
+  @@unique([companyId, channel])
+  @@map("request_intake_channels")
 }

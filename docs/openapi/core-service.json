@@ -8291,6 +8291,91 @@
         ]
       }
     },
+    "/api/v1/admin/intake-channels": {
+      "get": {
+        "operationId": "CustomerIntakeAdminController_list",
+        "parameters": [
+          {
+            "name": "company_id",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ช่องทางรับคำขอจากลูกค้าของบริษัท",
+        "tags": [
+          "admin/intake-channels"
+        ],
+        "x-permission": [
+          "admin.request-type.manage"
+        ]
+      }
+    },
+    "/api/v1/admin/intake-channels/{channel}": {
+      "put": {
+        "description": "new_link=true ออกลิงก์ฟอร์มใหม่ ลิงก์เดิมใช้ไม่ได้อีก",
+        "operationId": "CustomerIntakeAdminController_save",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveIntakeChannelDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ตั้งค่าช่องทาง — เปิด/ปิด ผู้ยื่นแทน ประเภทคำขอ ข้อความฟอร์ม",
+        "tags": [
+          "admin/intake-channels"
+        ],
+        "x-permission": [
+          "admin.request-type.manage"
+        ]
+      }
+    },
     "/api/v1/admin/erp-sync/jobs": {
       "get": {
         "operationId": "ErpSyncAdminController_list",
@@ -13472,6 +13557,53 @@
         "required": [
           "summary",
           "type"
+        ]
+      },
+      "SaveIntakeChannelDto": {
+        "type": "object",
+        "properties": {
+          "company_id": {
+            "type": "string",
+            "description": "Defaults to the active company."
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "requester_user_id": {
+            "type": "string",
+            "description": "ผู้ใช้ในบริษัทที่เป็นผู้ยื่นแทนลูกค้า (เช่น service desk)",
+            "minLength": 1
+          },
+          "type_codes": {
+            "example": [
+              "IT-SUPPORT"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]+$"
+            },
+            "maxItems": 30
+          },
+          "title": {
+            "type": "string",
+            "description": "web form: หัวฟอร์ม",
+            "maxLength": 200
+          },
+          "intro": {
+            "type": "string",
+            "description": "web form: ข้อความนำ",
+            "maxLength": 2000
+          },
+          "new_link": {
+            "type": "boolean",
+            "description": "web form: ออกลิงก์ใหม่ (ลิงก์เดิมใช้ไม่ได้อีก)"
+          }
+        },
+        "required": [
+          "enabled",
+          "requester_user_id",
+          "type_codes"
         ]
       },
       "PreviewChainDto": {

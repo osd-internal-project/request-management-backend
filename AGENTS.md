@@ -340,10 +340,16 @@ exposing it without the second gate would let an integration act as somebody
 who lacks the permission. `@ActingPermissions` must name exactly what the
 equivalent screen route names — `crm-route-parity.spec.ts` fails if it does not.
 
-Three routes carry no acting user: `request/intake`, `crm/leads/intake` (plus
-`crm/leads/:id/facts|stage`), and `approval/cases`. There is nobody at the other
+Four routes carry no acting user: `request/intake`, `crm/leads/intake` (plus
+`crm/leads/:id/facts|stage`), `approval/cases`, and — since CD-66 —
+`request/intake/web-forms|channels|status` (customers raising requests through
+a company's intake channel, under their own scope `integration.request.intake`,
+which cannot reach an `X-Acting-User` route). The LINE webhook
+`request/intake/line/:companyCode` is the one `@Public()` business route on
+this service: LINE cannot carry our key, so LINE's signature over the raw body
+is checked instead (docs/customer-intake.md). There is nobody at the other
 end of those — a customer's web form, a workflow engine, another module. Adding
-a fourth is a decision to state out loud here, not a default and not a paragraph
+a fifth is a decision to state out loud here, not a default and not a paragraph
 in the controller.
 
 `crm/leads/intake` earned its suffix on 21 Sep 2026: it used to be `POST

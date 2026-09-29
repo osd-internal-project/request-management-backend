@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { createHash, randomBytes } from 'crypto';
 import {
   AppError,
   AuditWriter,
@@ -15,7 +16,8 @@ import {
 } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import { Prisma } from '@prisma/client';
-import type { RequestStatus } from '@prisma/client';
+import type { RequestSeverity, RequestStatus } from '@prisma/client';
+import { toFormFields } from './form-schema';
 import { assertTransition, OPEN_STATUSES } from './request-state-machine';
 import {
   availableActions,
@@ -890,7 +892,18 @@ export class RequestsService {
     dto: CreateIntegrationRequestDto,
     actor: Principal,
     authorization: string,
+    /** The API key's own company; null = an unbound key. */
+    keyCompanyId: string | null = null,
   ) {
+    // CD-66 fix: a key bound to one company must not raise work in another by
+    // naming it in the body — the header was pinned, the body was not.
+    if (keyCompanyId && dto.company_id !== keyCompanyId) {
+      throw new AppError(
+        'COMPANY_FORBIDDEN',
+        'API key นี้ผูกกับบริษัทอื่น — company_id ต้องเป็นบริษัทของ key',
+        [{ field: 'company_id', reason: dto.company_id }],
+      );
+    }
     const companyId = resolveTargetCompany(actor, dto.company_id);
     const type = await this.requireType(dto.type_code, companyId);
 
@@ -928,7 +941,169 @@ export class RequestsService {
       created.id,
       { ...actor, activeCompanyId: companyId },
       authorization,
+      { forRequester: true },
     );
+  }
+
+  /**
+   * CD-66 — a customer's request through a company's intake channel. The
+   * requester is the channel's designated staff user (user decision 29 ก.ย.
+   * 2569); the customer is the contact on the row, and `ref` points at their
+   * customer record when one matched. Submitted at once, like the
+   * integration path, and the private status token is returned exactly once
+   * — only its hash is kept.
+   */
+  async createFromChannel(
+    input: {
+      companyId: string;
+      channel: 'web_form' | 'line' | 'ai_care';
+      typeCode: string;
+      requesterUserId: string;
+      formData: Record<string, unknown>;
+      severity?: RequestSeverity | null;
+      contact: {
+        name: string;
+        email?: string | null;
+        phone?: string | null;
+        company?: string | null;
+        taxId?: string | null;
+        lineUserId?: string | null;
+      };
+      ref?: { type: string; id: string } | null;
+    },
+    actor: Principal,
+    authorization: string,
+  ): Promise<{ detail: RequestDetail; statusToken: string }> {
+    const type = await this.requireType(input.typeCode, input.companyId);
+    const statusToken = randomBytes(24).toString('base64url');
+
+    const created = await this.requests.create({
+      data: {
+        requestTypeId: type.id,
+        typeCode: type.code,
+        companyId: input.companyId,
+        requesterId: input.requesterUserId,
+        requesterOrgUnitId: null,
+        formData: applyComputedFields(
+          type.formSchema,
+          input.formData,
+        ) as Prisma.InputJsonValue,
+        refType: input.ref?.type ?? null,
+        refId: input.ref?.id ?? null,
+        severity: input.severity ?? null,
+        receiverUserId: type.receiverUserId,
+        status: 'draft',
+        source: 'SYSTEM',
+        createdBy: null,
+        channel: input.channel,
+        contactName: input.contact.name,
+        contactEmail: input.contact.email ?? null,
+        contactPhone: input.contact.phone ?? null,
+        contactCompany: input.contact.company ?? null,
+        contactTaxId: input.contact.taxId ?? null,
+        contactLineUserId: input.contact.lineUserId ?? null,
+        statusTokenHash: hashStatusToken(statusToken),
+      },
+    });
+
+    const detail = await this.submit(
+      created.id,
+      { ...actor, activeCompanyId: input.companyId },
+      authorization,
+      { forRequester: true },
+    );
+    return { detail, statusToken };
+  }
+
+  /**
+   * CD-66 — the request types a channel offers, with their form fields, for
+   * the public form to draw. Inactive or unassigned types drop out silently:
+   * the admin's list may name one that was switched off since.
+   */
+  async channelTypes(companyId: string, codes: readonly string[]) {
+    if (!codes.length) return [];
+    const rows = (await this.types.findMany({
+      where: {
+        code: { in: [...codes] },
+        active: true,
+        companies: { some: { companyId, active: true } },
+      },
+      select: {
+        code: true,
+        name: true,
+        formSchema: true,
+        requiredDocs: true,
+        refRequired: true,
+      },
+    })) as unknown as {
+      code: string;
+      name: string;
+      formSchema: unknown;
+      requiredDocs: unknown;
+      refRequired: boolean;
+    }[];
+    return rows
+      .sort((a, b) => codes.indexOf(a.code) - codes.indexOf(b.code))
+      .map((row) => ({
+        code: row.code,
+        name: row.name,
+        fields: toFormFields(row.formSchema),
+        // a type that needs attachments or a ref cannot be completed by an
+        // outsider on this form — the screen says so rather than failing at submit
+        needs_staff: Boolean(
+          row.refRequired ||
+          (Array.isArray(row.requiredDocs) && row.requiredDocs.length),
+        ),
+      }));
+  }
+
+  /**
+   * CD-66 — what a customer may see of their request by its private token:
+   * the number, the type, where it stands and when it is due. No notes, no
+   * names of staff, nothing else.
+   */
+  async statusByToken(token: string) {
+    const found = (await this.requests.findFirst({
+      where: { statusTokenHash: hashStatusToken(token) },
+      select: {
+        requestNo: true,
+        status: true,
+        submittedAt: true,
+        dueAt: true,
+        completedAt: true,
+        closedAt: true,
+        updatedAt: true,
+        typeSnapshot: true,
+        typeCode: true,
+        company: { select: { name: true } },
+      },
+    })) as {
+      requestNo: string | null;
+      status: string;
+      submittedAt: Date | null;
+      dueAt: Date | null;
+      completedAt: Date | null;
+      closedAt: Date | null;
+      updatedAt: Date;
+      typeSnapshot: { name?: unknown } | null;
+      typeCode: string;
+      company: { name: string };
+    } | null;
+    if (!found) throw new AppError('NOT_FOUND', 'ไม่พบคำขอ');
+    return {
+      request_no: found.requestNo,
+      type_name:
+        typeof found.typeSnapshot?.name === 'string'
+          ? found.typeSnapshot.name
+          : found.typeCode,
+      company_name: found.company.name,
+      status: found.status,
+      submitted_at: found.submittedAt,
+      due_at: found.dueAt,
+      completed_at: found.completedAt,
+      closed_at: found.closedAt,
+      updated_at: found.updatedAt,
+    };
   }
 
   // --- the ticket: receive, assign, complete, close -----------------------
@@ -1665,14 +1840,34 @@ export class RequestsService {
   // another service: `createForIntegration` submits on someone's behalf and
   // passes its own token through, and dropping the parameter would move that
   // decision into every caller.
-  async submit(id: string, actor: Principal, authorization: string) {
+  async submit(
+    id: string,
+    actor: Principal,
+    authorization: string,
+    /**
+     * `forRequester` — a machine submitting on the named requester's behalf
+     * (the integration and customer-channel paths, which create the draft
+     * themselves just before). Only the owner check is skipped; every rule of
+     * the submit still applies. Before this existed the integration path
+     * failed here every time: a service account is never the requester.
+     */
+    options: { forRequester?: boolean } = {},
+  ) {
     const before = await this.require(id, actor);
 
     // v2: submitting is advancing off the requester's step.
     const flowV2 = await this.flowV2Of(before);
-    if (flowV2) return this.advanceV2(before, flowV2, null, actor);
+    if (flowV2) {
+      return this.advanceV2(
+        before,
+        flowV2,
+        null,
+        actor,
+        options.forRequester === true,
+      );
+    }
 
-    if (before.requesterId !== actor.userId) {
+    if (!options.forRequester && before.requesterId !== actor.userId) {
       throw new AppError('FORBIDDEN', 'ยื่นได้เฉพาะคำขอของตนเอง');
     }
 
@@ -2212,13 +2407,17 @@ export class RequestsService {
     flow: Flow,
     toStep: string | null,
     actor: Principal,
+    /** Submitting a machine-created draft for its requester (see `submit`). */
+    forRequester = false,
   ): Promise<RequestDetail> {
     if (!ADVANCEABLE_V2.includes(before.status)) {
       throw new AppError('REQ_STEP_INVALID', stuckReasonV2(before.status), [
         { field: 'status', reason: before.status },
       ]);
     }
-    this.assertMayAct(before, actor, 'advance', 'ไปขั้นถัดไป');
+    if (!(forRequester && before.status === 'draft')) {
+      this.assertMayAct(before, actor, 'advance', 'ไปขั้นถัดไป');
+    }
 
     const current = stepOf(flow, before.currentStepCode);
     const backward =
@@ -3285,4 +3484,9 @@ function assertNotFlowV2(request: RequestWithType): void {
       'คำขอนี้เดินตามขั้นตอน — ใช้ "ไปขั้นถัดไป"',
     );
   }
+}
+
+/** CD-66 — the status token is stored only as this hash. */
+export function hashStatusToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
 }
