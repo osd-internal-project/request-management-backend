@@ -555,6 +555,34 @@ export class NotificationsService {
   }
 
   /**
+   * CD-84 — a won deal's handover: sent (to the receiving team's head),
+   * accepted or returned (to the deal's owner and whoever sent it).
+   */
+  async handoverChanged(
+    userIds: readonly (string | null)[],
+    companyId: string,
+    event: 'submitted' | 'accepted' | 'returned',
+    handover: { id: string },
+    values: {
+      opportunity_code: string;
+      opportunity_title: string;
+      customer_name: string;
+      team_name: string;
+      sender_name: string;
+      actor_name: string;
+      reason?: string;
+    },
+  ): Promise<void> {
+    await this.emitTo(userIds, {
+      companyId,
+      eventType: `crm.handover.${event}`,
+      values: { ...values, reason: values.reason ?? '' },
+      resourceType: 'sales_handover',
+      resourceId: handover.id,
+    });
+  }
+
+  /**
    * CD-54 — the wording for one event in one company: the company's own if
    * it saved one, else the standard. An event the catalog does not declare
    * throws — wording must not live only inside a caller again.

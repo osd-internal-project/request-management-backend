@@ -11,6 +11,7 @@ import { CrmAdminController } from './crm-admin.controller';
 import { QuotationsController } from './quotations.controller';
 import { ActivityPhotosController } from './activity-photos.controller';
 import { ActivityPhotosService } from './activity-photos.service';
+import { HandoversController } from './handovers.controller';
 import {
   OpportunityActivityPhotoRepository,
   OpportunityActivityRepository,
@@ -55,6 +56,8 @@ import {
     QuotationsController,
     // CD-75 — screens only; see the controller for why it is not generated.
     ActivityPhotosController,
+    // CD-84 — screens only; see the controller for why it is not generated.
+    HandoversController,
   ],
   providers: [
     ActivityPhotosService,

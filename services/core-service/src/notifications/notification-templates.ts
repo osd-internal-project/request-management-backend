@@ -24,6 +24,19 @@ const SUBJECT = {
   sample: 'REQ-OSD-2609-0012 · ขออนุมัติส่วนลด',
 };
 
+/** CD-84 — what every handover notice may say. */
+const HANDOVER_VARIABLES = {
+  opportunity_code: { label: 'รหัสโอกาสการขาย', sample: 'OPP-OSD-0042' },
+  opportunity_title: {
+    label: 'ชื่อโอกาสการขาย',
+    sample: 'ระบบกล้อง อาคาร B',
+  },
+  customer_name: { label: 'ชื่อลูกค้า', sample: 'บริษัท ลูกค้า จำกัด' },
+  team_name: { label: 'ทีมที่รับงาน', sample: 'ฝ่ายติดตั้ง' },
+  sender_name: { label: 'ผู้ส่งมอบ', sample: 'สมชาย ขายดี' },
+  actor_name: { label: 'ผู้รับ/ผู้ตีกลับ', sample: 'สมหญิง ติดตั้งไว' },
+};
+
 export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
   {
     eventType: 'approval.awaiting',
@@ -213,6 +226,30 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
         label: 'รายการ (บรรทัดละรายการ)',
         sample: '• มีรายการรออนุมัติ — request:DSC รอการอนุมัติจากคุณ',
       },
+    },
+  },
+  {
+    eventType: 'crm.handover.submitted',
+    label: 'ฝ่ายขายส่งมอบงานต่อ (ถึงหัวหน้าทีมที่รับ)',
+    title: 'มีงานส่งมอบจากฝ่ายขาย: {{opportunity_code}}',
+    body: '{{opportunity_title}} ({{customer_name}}) — {{sender_name}} ส่งมอบให้ทีม {{team_name}} รอรับงาน',
+    variables: HANDOVER_VARIABLES,
+  },
+  {
+    eventType: 'crm.handover.accepted',
+    label: 'ทีมรับงานส่งมอบแล้ว (ถึงผู้ขาย)',
+    title: 'ทีม {{team_name}} รับงาน {{opportunity_code}} แล้ว',
+    body: '{{opportunity_title}} ({{customer_name}}) — รับโดย {{actor_name}}',
+    variables: HANDOVER_VARIABLES,
+  },
+  {
+    eventType: 'crm.handover.returned',
+    label: 'งานส่งมอบถูกตีกลับ (ถึงผู้ขาย)',
+    title: 'งานส่งมอบ {{opportunity_code}} ถูกตีกลับ',
+    body: '{{opportunity_title}} — {{actor_name}} ทีม {{team_name}}: {{reason}}',
+    variables: {
+      ...HANDOVER_VARIABLES,
+      reason: { label: 'เหตุผลที่ตีกลับ', sample: 'ยังไม่ระบุวันเริ่มติดตั้ง' },
     },
   },
 ];

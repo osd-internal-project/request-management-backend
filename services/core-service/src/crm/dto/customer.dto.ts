@@ -685,6 +685,15 @@ export class UpdateCrmConfigDto {
   @Min(1)
   @Max(120)
   kyc_review_months_low?: number;
+
+  /**
+   * CD-84: ทีมที่รับงานต่อจากฝ่ายขายโดยปริยาย (org unit id). ส่ง `""` = ล้าง
+   * (ผู้ขายต้องเลือกทีมเองตอนส่งมอบ).
+   */
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  handover_org_unit_id?: string;
 }
 
 /** CD-70 — a contract entered by hand, or edited. */

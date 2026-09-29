@@ -17,6 +17,7 @@ import type { Principal } from '@request-management/share';
 import { CrmAdminService } from './crm-admin.service';
 import { LeadStatusService } from './lead-status.service';
 import { NegotiationsService } from './negotiations.service';
+import { HandoversService } from './handovers.service';
 import { KycService } from './kyc.service';
 import {
   CreateKycProductDto,
@@ -31,6 +32,7 @@ import {
 import {
   CreateLeadStatusDto,
   ReorderLeadStatusesDto,
+  ReplaceHandoverItemsDto,
   ReplaceTradeTermsDto,
   UpdateLeadStatusSettingDto,
 } from './dto/sales.dto';
@@ -48,6 +50,7 @@ export class CrmAdminController {
     private readonly leadStatuses: LeadStatusService,
     private readonly negotiations: NegotiationsService,
     private readonly kyc: KycService,
+    private readonly handovers: HandoversService,
   ) {}
 
   // --- สถานะ Lead: หน้า Lead มีสถานะอะไรบ้าง (D-09) -----------------------
@@ -244,5 +247,23 @@ export class CrmAdminController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.negotiations.replaceStandards(dto, principal);
+  }
+
+  // --- CD-84 รายการตรวจก่อนส่งมอบงาน ---------------------------------------
+
+  @Get('handover-items')
+  @Permissions('admin.crm.manage')
+  listHandoverItems(@CurrentPrincipal() principal: Principal) {
+    return this.handovers.listItems(principal);
+  }
+
+  /** แทนที่ทั้งชุด — รหัสที่ไม่ส่งมาถูกปิดใช้ ไม่ถูกลบ. */
+  @Put('handover-items')
+  @Permissions('admin.crm.manage')
+  replaceHandoverItems(
+    @Body() dto: ReplaceHandoverItemsDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.handovers.replaceItems(dto, principal);
   }
 }

@@ -1137,3 +1137,116 @@ export class ReplaceTradeTermsDto {
   @Type(() => TradeTermStandardDto)
   terms!: TradeTermStandardDto[];
 }
+
+export const HANDOVER_ITEM_CATEGORIES = [
+  'commercial',
+  'requirement',
+  'commitment',
+] as const;
+
+/** CD-84 — หนึ่งรายการตรวจก่อนส่งมอบงาน (หน้าตั้งค่า CRM). */
+export class HandoverChecklistItemDto {
+  @ApiProperty({ example: 'PAYMENT_TERMS' })
+  @IsString()
+  @Matches(/^[A-Z0-9_-]{1,40}$/)
+  code!: string;
+
+  @ApiProperty({ enum: HANDOVER_ITEM_CATEGORIES })
+  @IsIn(HANDOVER_ITEM_CATEGORIES)
+  category!: (typeof HANDOVER_ITEM_CATEGORIES)[number];
+
+  @ApiProperty({ example: 'เงื่อนไขการชำระเงินตรงกับใบสั่งขาย' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(300)
+  label!: string;
+
+  @ApiPropertyOptional({
+    default: false,
+    description: 'ต้องกรอกรายละเอียดด้วย ไม่ใช่แค่ติ๊ก',
+  })
+  @IsOptional()
+  @IsBoolean()
+  requires_detail?: boolean;
+
+  @ApiPropertyOptional({ default: true })
+  @IsOptional()
+  @IsBoolean()
+  active?: boolean;
+}
+
+/** CD-84 — แทนที่รายการตรวจทั้งชุด (ที่ไม่อยู่ในรายการ = ปิดใช้). */
+export class ReplaceHandoverItemsDto {
+  @ApiProperty({ type: [HandoverChecklistItemDto] })
+  @IsArray()
+  @ArrayMaxSize(100)
+  @ValidateNested({ each: true })
+  @Type(() => HandoverChecklistItemDto)
+  items!: HandoverChecklistItemDto[];
+}
+
+/** CD-84 — คำตอบของหนึ่งรายการตรวจ. */
+export class HandoverAnswerDto {
+  @ApiProperty({ example: 'PAYMENT_TERMS' })
+  @IsString()
+  @MaxLength(40)
+  code!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  checked?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  detail?: string;
+}
+
+/** CD-84 — บันทึกร่าง/ส่งมอบงาน. */
+export class SaveHandoverDto {
+  @ApiPropertyOptional({ description: 'ทีมที่รับงานต่อ (org unit id)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  to_org_unit_id?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  note?: string;
+
+  @ApiProperty({ type: [HandoverAnswerDto] })
+  @IsArray()
+  @ArrayMaxSize(100)
+  @ValidateNested({ each: true })
+  @Type(() => HandoverAnswerDto)
+  items!: HandoverAnswerDto[];
+}
+
+/** CD-84 — ตีกลับให้ฝ่ายขายแก้ ต้องมีเหตุผล. */
+export class ReturnHandoverDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(2000)
+  reason!: string;
+}
+
+/** CD-84 — กล่องงานส่งมอบ. */
+export class HandoverListQueryDto {
+  @ApiPropertyOptional({
+    enum: ['incoming', 'sent'],
+    description: 'incoming = ส่งถึงทีมของฉัน · sent = ที่ฉันส่ง/ดีลของฉัน',
+  })
+  @IsOptional()
+  @IsIn(['incoming', 'sent'])
+  box?: 'incoming' | 'sent';
+
+  @ApiPropertyOptional({ enum: ['submitted', 'accepted', 'returned'] })
+  @IsOptional()
+  @IsIn(['submitted', 'accepted', 'returned'])
+  status?: 'submitted' | 'accepted' | 'returned';
+}

@@ -337,6 +337,7 @@ model Company {
   customerCodeCounter     CustomerCodeCounter?
   crmConfig               CrmCompanyConfig?
   tradeTermStandards      TradeTermStandard[]
+  handoverChecklistItems  HandoverChecklistItem[]
   kycWatchlist            KycWatchlistEntry[]
   kycProductRules         KycProductRule[]
   leadStatuses            LeadStatusSetting[]
@@ -2276,6 +2277,9 @@ model CrmCompanyConfig {
   /// สัญญาบนหน้าดีลใช้ประเภทนี้. NULL = ยังไม่ตั้ง → หน้าดีลไม่แสดงการ์ดสัญญา.
   contractRequestTypeCode String?
 
+  /// CD-84: ทีมที่รับงานต่อจากฝ่ายขายโดยปริยาย (ผู้ขายเปลี่ยนได้ตอนส่ง). NULL = ผู้ขายต้องเลือกเอง.
+  handoverOrgUnitId String?
+
   /// หัวกระดาษเอกสารขาย (ใบเสนอราคา) — ข้อมูลตามทะเบียนของบริษัทผู้ขาย ตั้งค่าได้
   /// ในหน้า admin CRM; ว่าง = ใช้ `Company.name` และไม่แสดงบรรทัดนั้น.
   letterheadNameTh  String?
@@ -2627,6 +2631,7 @@ model Opportunity {
   activities        OpportunityActivity[]
   /// CD-79 รอบการต่อรองเงื่อนไขการค้า.
   negotiationRounds NegotiationRound[]
+  handover          SalesHandover?
   products          OpportunityProduct[]
   saleOrders        SaleOrder[]
   quotations        Quotation[]
@@ -2669,6 +2674,75 @@ model TradeTermStandard {
 /// `terms` เก็บค่ามาตรฐาน ณ วันบันทึกไว้ในแถว เพื่อให้การเปลี่ยนมาตรฐานภายหลัง
 /// ไม่ตัดสินรอบเก่าใหม่.
 /// `terms`: `[{ code|null, name, agreed, standard|null, nonStandard, note|null }]`
+/// CD-84 — หมวดของรายการตรวจก่อนส่งมอบงาน.
+enum HandoverItemCategory {
+  commercial
+  requirement
+  commitment
+}
+
+/// CD-84 — draft → submitted → accepted, or → returned → (แก้แล้ว) submitted.
+enum SalesHandoverStatus {
+  draft
+  submitted
+  accepted
+  returned
+}
+
+/// CD-84 — รายการตรวจก่อนส่งงานต่อ ที่ผู้ดูแลตั้งเอง (หน้าตั้งค่า CRM). ใบส่งมอบ
+/// เก็บสำเนารายการ ณ วันส่ง แก้รายการภายหลังไม่กระทบใบที่ส่งไปแล้ว.
+model HandoverChecklistItem {
+  id             String               @id @default(uuid())
+  companyId      String
+  code           String
+  category       HandoverItemCategory
+  label          String
+  /// ต้องกรอกรายละเอียดด้วย ไม่ใช่แค่ติ๊ก.
+  requiresDetail Boolean              @default(false)
+  sortOrder      Int                  @default(0)
+  active         Boolean              @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, code])
+  @@map("handover_checklist_items")
+}
+
+/// CD-84 — การส่งมอบงานของดีลที่ชนะแล้วให้ทีมถัดไป — หนึ่งใบต่อดีล.
+model SalesHandover {
+  id            String              @id @default(uuid())
+  companyId     String
+  opportunityId String              @unique
+  status        SalesHandoverStatus @default(draft)
+  toOrgUnitId   String?
+  /// [{code, category, label, requiresDetail, checked, detail}] — สำเนารายการ ณ วันบันทึก.
+  items         Json                @default("[]")
+  note          String?
+  /// ครั้งที่ส่ง (ส่งใหม่หลังถูกตีกลับ = +1).
+  round         Int                 @default(0)
+  submittedBy   String?
+  submittedAt   DateTime?
+  decidedBy     String?
+  decidedAt     DateTime?
+  returnReason  String?
+  /// [{action, at, by, byName, reason}] — ประวัติส่ง/รับ/ตีกลับ ให้ทั้งสองฝั่งเห็น.
+  history       Json                @default("[]")
+
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  opportunity Opportunity @relation(fields: [opportunityId], references: [id])
+
+  @@index([companyId, toOrgUnitId, status])
+  @@map("sales_handovers")
+}
+
 model NegotiationRound {
   id               String   @id @default(uuid())
   companyId        String

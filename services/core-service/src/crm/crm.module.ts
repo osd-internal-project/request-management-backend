@@ -76,6 +76,11 @@ import { LeadStatusService } from './lead-status.service';
 import { OpportunitiesService } from './opportunities.service';
 import { OpportunityActivitiesService } from './opportunity-activities.service';
 import { NegotiationsService } from './negotiations.service';
+import { HandoversService } from './handovers.service';
+import {
+  HandoverChecklistItemRepository,
+  SalesHandoverRepository,
+} from './handover.repositories';
 import { SalesReportService } from './sales-report.service';
 import { CrmDashboardService } from './crm-dashboard.service';
 import { SalesTargetsService } from './sales-targets.service';
@@ -166,6 +171,10 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     NegotiationRoundRepository,
     TradeTermStandardRepository,
     NegotiationsService,
+    // CD-84
+    HandoversService,
+    HandoverChecklistItemRepository,
+    SalesHandoverRepository,
     SalesReportService,
     CrmDashboardService,
     SalesTargetsService,
@@ -204,6 +213,7 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     OpportunitiesService,
     OpportunityActivitiesService,
     NegotiationsService,
+    HandoversService,
     KycService,
     ContractsService,
     SalesReportService,

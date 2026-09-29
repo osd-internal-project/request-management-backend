@@ -4338,6 +4338,102 @@
         ]
       }
     },
+    "/api/v1/crm/admin/handover-items": {
+      "get": {
+        "operationId": "ExternalCrmAdminController_listHandoverItems",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.crm.admin.manage"
+        ],
+        "x-acting-permission": [
+          "admin.crm.manage"
+        ]
+      },
+      "put": {
+        "operationId": "ExternalCrmAdminController_replaceHandoverItems",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplaceHandoverItemsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.crm.admin.manage"
+        ],
+        "x-acting-permission": [
+          "admin.crm.manage"
+        ]
+      }
+    },
     "/api/v1/crm/leads/statuses": {
       "get": {
         "description": "ส่งทั้งชุดรวมที่ปิดใช้งาน เพราะ Lead ที่ค้างบนขั้นที่เพิ่งปิดยังต้องมีชื่อและสีให้แสดง — หน้าจอเป็นคนกรอง active เอง. โค้ดตั้งได้ต่อบริษัท ไม่ใช่ enum",
@@ -9748,6 +9844,10 @@
             "maximum": 120,
             "minimum": 1,
             "type": "integer"
+          },
+          "handover_org_unit_id": {
+            "maxLength": 64,
+            "type": "string"
           }
         }
       },
@@ -9841,6 +9941,59 @@
         },
         "required": [
           "terms"
+        ]
+      },
+      "HandoverChecklistItemDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "PAYMENT_TERMS",
+            "pattern": "^[A-Z0-9_-]{1,40}$"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "commercial",
+              "requirement",
+              "commitment"
+            ]
+          },
+          "label": {
+            "type": "string",
+            "example": "เงื่อนไขการชำระเงินตรงกับใบสั่งขาย",
+            "maxLength": 300,
+            "minLength": 1
+          },
+          "requires_detail": {
+            "type": "boolean",
+            "default": false,
+            "description": "ต้องกรอกรายละเอียดด้วย ไม่ใช่แค่ติ๊ก"
+          },
+          "active": {
+            "type": "boolean",
+            "default": true
+          }
+        },
+        "required": [
+          "category",
+          "code",
+          "label"
+        ]
+      },
+      "ReplaceHandoverItemsDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HandoverChecklistItemDto"
+            },
+            "maxItems": 100
+          }
+        },
+        "required": [
+          "items"
         ]
       },
       "ImportLeadsDto": {

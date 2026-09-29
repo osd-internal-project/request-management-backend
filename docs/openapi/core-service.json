@@ -4310,6 +4310,78 @@
         ]
       }
     },
+    "/api/v1/admin/crm/handover-items": {
+      "get": {
+        "operationId": "CrmAdminController_listHandoverItems",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin/crm"
+        ],
+        "x-permission": [
+          "admin.crm.manage"
+        ]
+      },
+      "put": {
+        "operationId": "CrmAdminController_replaceHandoverItems",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplaceHandoverItemsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin/crm"
+        ],
+        "x-permission": [
+          "admin.crm.manage"
+        ]
+      }
+    },
     "/api/v1/leads/statuses": {
       "get": {
         "description": "ส่งทั้งชุดรวมที่ปิดใช้งาน เพราะ Lead ที่ค้างบนขั้นที่เพิ่งปิดยังต้องมีชื่อและสีให้แสดง — หน้าจอเป็นคนกรอง active เอง. โค้ดตั้งได้ต่อบริษัท ไม่ใช่ enum",
@@ -7188,6 +7260,328 @@
         ],
         "x-permission": [
           "crm.sales.manage"
+        ]
+      }
+    },
+    "/api/v1/opportunities/{id}/handover": {
+      "get": {
+        "description": "`editable` = ดีลชนะแล้วและยังไม่ได้ส่ง (หรือถูกตีกลับ) · `items` = รายการตรวจปัจจุบันรวมคำตอบที่บันทึกไว้",
+        "operationId": "HandoversController_forDeal",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "งานส่งมอบของโอกาสการขาย + รายการตรวจที่ต้องกรอก",
+        "tags": [
+          "handovers"
+        ],
+        "x-permission": [
+          "crm.sales.read"
+        ]
+      },
+      "put": {
+        "operationId": "HandoversController_save",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveHandoverDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "บันทึกร่างงานส่งมอบ",
+        "tags": [
+          "handovers"
+        ],
+        "x-permission": [
+          "crm.sales.manage"
+        ]
+      }
+    },
+    "/api/v1/opportunities/{id}/handover/submit": {
+      "post": {
+        "operationId": "HandoversController_submit",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveHandoverDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ส่งมอบงานให้ทีมถัดไป (รายการตรวจไม่ครบ = ส่งไม่ได้)",
+        "tags": [
+          "handovers"
+        ],
+        "x-permission": [
+          "crm.sales.manage"
+        ]
+      }
+    },
+    "/api/v1/handovers": {
+      "get": {
+        "description": "box=incoming (ค่าเริ่มต้น) ส่งถึงทีมที่ฉันอยู่หรือเป็นหัวหน้า · box=sent ที่ฉันส่ง/ดีลของฉัน",
+        "operationId": "HandoversController_list",
+        "parameters": [
+          {
+            "name": "box",
+            "required": false,
+            "in": "query",
+            "description": "incoming = ส่งถึงทีมของฉัน · sent = ที่ฉันส่ง/ดีลของฉัน",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "incoming",
+                "sent"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "submitted",
+                "accepted",
+                "returned"
+              ]
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "กล่องงานส่งมอบ",
+        "tags": [
+          "handovers"
+        ]
+      }
+    },
+    "/api/v1/handovers/{id}": {
+      "get": {
+        "operationId": "HandoversController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "handovers"
+        ]
+      }
+    },
+    "/api/v1/handovers/{id}/accept": {
+      "post": {
+        "operationId": "HandoversController_accept",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "รับงานส่งมอบ (คนในทีมที่ได้รับ)",
+        "tags": [
+          "handovers"
+        ]
+      }
+    },
+    "/api/v1/handovers/{id}/return": {
+      "post": {
+        "operationId": "HandoversController_returnToSales",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReturnHandoverDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ตีกลับงานส่งมอบให้ฝ่ายขายแก้ (ต้องมีเหตุผล)",
+        "tags": [
+          "handovers"
         ]
       }
     },
@@ -10837,6 +11231,10 @@
             "maximum": 120,
             "minimum": 1,
             "type": "integer"
+          },
+          "handover_org_unit_id": {
+            "maxLength": 64,
+            "type": "string"
           }
         }
       },
@@ -10930,6 +11328,59 @@
         },
         "required": [
           "terms"
+        ]
+      },
+      "HandoverChecklistItemDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "PAYMENT_TERMS",
+            "pattern": "^[A-Z0-9_-]{1,40}$"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "commercial",
+              "requirement",
+              "commitment"
+            ]
+          },
+          "label": {
+            "type": "string",
+            "example": "เงื่อนไขการชำระเงินตรงกับใบสั่งขาย",
+            "maxLength": 300,
+            "minLength": 1
+          },
+          "requires_detail": {
+            "type": "boolean",
+            "default": false,
+            "description": "ต้องกรอกรายละเอียดด้วย ไม่ใช่แค่ติ๊ก"
+          },
+          "active": {
+            "type": "boolean",
+            "default": true
+          }
+        },
+        "required": [
+          "category",
+          "code",
+          "label"
+        ]
+      },
+      "ReplaceHandoverItemsDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HandoverChecklistItemDto"
+            },
+            "maxItems": 100
+          }
+        },
+        "required": [
+          "items"
         ]
       },
       "ImportLeadsDto": {
@@ -11771,6 +12222,63 @@
           "reason": {
             "maxLength": 500,
             "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "HandoverAnswerDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "PAYMENT_TERMS",
+            "maxLength": 40
+          },
+          "checked": {
+            "type": "boolean"
+          },
+          "detail": {
+            "type": "string",
+            "maxLength": 4000
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "SaveHandoverDto": {
+        "type": "object",
+        "properties": {
+          "to_org_unit_id": {
+            "type": "string",
+            "description": "ทีมที่รับงานต่อ (org unit id)",
+            "maxLength": 64
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HandoverAnswerDto"
+            },
+            "maxItems": 100
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "ReturnHandoverDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 2000,
             "minLength": 1
           }
         },

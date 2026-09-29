@@ -47,10 +47,12 @@ import {
   CreateSegmentDimensionDto,
   CreateSegmentValueDto,
   CrmAdminService,
+  HandoversService,
   KycService,
   LeadStatusService,
   NegotiationsService,
   ReorderLeadStatusesDto,
+  ReplaceHandoverItemsDto,
   ReplaceTradeTermsDto,
   UpdateCrmConfigDto,
   UpdateKycProductDto,
@@ -83,6 +85,7 @@ export class ExternalCrmAdminController {
     private readonly leadStatuses: LeadStatusService,
     private readonly negotiations: NegotiationsService,
     private readonly kyc: KycService,
+    private readonly handovers: HandoversService,
   ) {}
 
   // --- สถานะ Lead: หน้า Lead มีสถานะอะไรบ้าง (D-09) -----------------------
@@ -300,5 +303,25 @@ export class ExternalCrmAdminController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.negotiations.replaceStandards(dto, principal);
+  }
+
+  // --- CD-84 รายการตรวจก่อนส่งมอบงาน ---------------------------------------
+
+  @Get('handover-items')
+  @Permissions('integration.crm.admin.manage')
+  @ActingPermissions('admin.crm.manage')
+  listHandoverItems(@CurrentPrincipal() principal: Principal) {
+    return this.handovers.listItems(principal);
+  }
+
+  /** แทนที่ทั้งชุด — รหัสที่ไม่ส่งมาถูกปิดใช้ ไม่ถูกลบ. */
+  @Put('handover-items')
+  @Permissions('integration.crm.admin.manage')
+  @ActingPermissions('admin.crm.manage')
+  replaceHandoverItems(
+    @Body() dto: ReplaceHandoverItemsDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.handovers.replaceItems(dto, principal);
   }
 }

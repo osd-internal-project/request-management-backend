@@ -623,6 +623,68 @@ async function seedTradeTerms(companyId: string) {
 }
 
 /**
+ * CD-84 — a starting handover checklist for the demo company, only when it
+ * has none (an admin's own list is never overwritten).
+ */
+async function seedHandoverItems(companyId: string) {
+  const existing = await prisma.handoverChecklistItem.count({
+    where: { companyId },
+  });
+  if (existing) {
+    console.log('  handover checklist: already present, left alone');
+    return;
+  }
+  const items = [
+    {
+      code: 'PRICE_MATCH',
+      category: 'commercial' as const,
+      label: 'ราคาและรายการในใบสั่งขายตรงกับใบเสนอราคาที่ลูกค้าตอบรับ',
+      requiresDetail: false,
+    },
+    {
+      code: 'PAYMENT_TERMS',
+      category: 'commercial' as const,
+      label: 'เงื่อนไขการชำระเงินและงวดเงิน',
+      requiresDetail: true,
+    },
+    {
+      code: 'SCOPE',
+      category: 'requirement' as const,
+      label: 'ขอบเขตงานและความต้องการของลูกค้า',
+      requiresDetail: true,
+    },
+    {
+      code: 'SITE_CONTACT',
+      category: 'requirement' as const,
+      label: 'ผู้ติดต่อหน้างานและสถานที่ส่งมอบ',
+      requiresDetail: true,
+    },
+    {
+      code: 'PROMISED_DATES',
+      category: 'commitment' as const,
+      label: 'กำหนดส่งมอบ/ติดตั้งที่แจ้งลูกค้าไว้',
+      requiresDetail: true,
+    },
+    {
+      code: 'EXTRAS',
+      category: 'commitment' as const,
+      label:
+        'ของแถม ส่วนลด หรือสิ่งที่รับปากนอกใบเสนอราคา (ไม่มีให้ระบุว่า "ไม่มี")',
+      requiresDetail: true,
+    },
+  ];
+  await prisma.handoverChecklistItem.createMany({
+    data: items.map((item, index) => ({
+      ...item,
+      companyId,
+      sortOrder: index,
+      updatedBy: 'seed',
+    })),
+  });
+  console.log(`  handover checklist: ${items.length}`);
+}
+
+/**
  * CD-81 — points the demo company's contract card at `CTR`. Only when unset,
  * so an admin's own choice survives a re-seed.
  */
@@ -1108,6 +1170,7 @@ async function main() {
   await seedRequestTypes(demo.id, companies);
   await seedContractRequestType(demo.id);
   await seedTradeTerms(demo.id);
+  await seedHandoverItems(demo.id);
   await seedApprovalMatrix(demo.id);
 
   console.log('Done.');
