@@ -19,6 +19,7 @@ import {
 } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import { KycService } from './kyc.service';
+import { ContractsService } from './contracts.service';
 import { CustomersService } from './customers.service';
 import { CustomerImportService } from './customer-import.service';
 import { CustomerInvoicesService } from './customer-invoices.service';
@@ -35,6 +36,7 @@ import {
   TimelineQueryDto,
   UpdateCustomerDto,
   UpsertExternalCodeDto,
+  CustomerContractDto,
 } from './dto/customer.dto';
 
 /**
@@ -54,6 +56,7 @@ export class CustomersController {
     private readonly importer: CustomerImportService,
     private readonly invoiceReader: CustomerInvoicesService,
     private readonly kycService: KycService,
+    private readonly contractsService: ContractsService,
   ) {}
 
   @ApiOperation({
@@ -195,6 +198,39 @@ export class CustomersController {
   @Permissions('crm.customer.read')
   summary(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
     return this.customers.summaryOf(id, principal);
+  }
+
+  /** CD-70 — the customer's contracts (renewals come from their end dates). */
+  @ApiOperation({ summary: 'สัญญาของลูกค้า (ทะเบียนสัญญา)' })
+  @Get(':id/contracts')
+  @Permissions('crm.customer.read')
+  contracts(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.contractsService.list(id, principal);
+  }
+
+  /** CD-70 — a contract made before the system, entered by hand. */
+  @ApiOperation({ summary: 'บันทึกสัญญาด้วยมือ' })
+  @Post(':id/contracts')
+  @Permissions('crm.customer.manage')
+  addContract(
+    @Param('id') id: string,
+    @Body() dto: CustomerContractDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.contractsService.create(id, dto, principal);
+  }
+
+  /** CD-70 — edit dates/value/title/note, or cancel. */
+  @ApiOperation({ summary: 'แก้หรือยกเลิกสัญญา' })
+  @Patch(':id/contracts/:contractId')
+  @Permissions('crm.customer.manage')
+  updateContract(
+    @Param('id') id: string,
+    @Param('contractId') contractId: string,
+    @Body() dto: CustomerContractDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.contractsService.update(id, contractId, dto, principal);
   }
 
   /** CD-61 — the customer's KYC: state, live screening, every verification. */

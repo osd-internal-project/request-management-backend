@@ -154,6 +154,36 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
     },
   },
   {
+    eventType: 'crm.contract.renewal_opened',
+    label: 'เปิดโอกาสต่ออายุสัญญาอัตโนมัติ (ถึงเจ้าของสัญญา)',
+    title: 'สัญญา {{contract_no}} ใกล้หมดอายุ — เปิดโอกาสต่ออายุให้แล้ว',
+    body: '{{contract_title}} สิ้นสุดในอีก {{days_left}} วัน — ระบบเปิดโอกาสการขาย {{opportunity_code}} สำหรับการต่ออายุให้แล้ว',
+    variables: {
+      contract_no: { label: 'เลขที่สัญญา', sample: 'CTR-OSD-2609-0003' },
+      contract_title: {
+        label: 'ชื่อสัญญา',
+        sample: 'บริการดูแลระบบกล้อง อาคาร B',
+      },
+      days_left: { label: 'จำนวนวันก่อนสิ้นสุด', sample: '90' },
+      opportunity_code: { label: 'รหัสโอกาสการขาย', sample: 'OPP-OSD-0099' },
+    },
+  },
+  {
+    eventType: 'crm.contract.renewal_due',
+    label: 'เตือนต่ออายุสัญญา 60/30 วัน (ถึงเจ้าของสัญญา)',
+    title: 'อีก {{days_left}} วัน สัญญา {{contract_no}} จะสิ้นสุด',
+    body: '{{contract_title}} — โอกาสต่ออายุ {{opportunity_code}} ยังไม่ปิด',
+    variables: {
+      contract_no: { label: 'เลขที่สัญญา', sample: 'CTR-OSD-2609-0003' },
+      contract_title: {
+        label: 'ชื่อสัญญา',
+        sample: 'บริการดูแลระบบกล้อง อาคาร B',
+      },
+      days_left: { label: 'จำนวนวันก่อนสิ้นสุด', sample: '30' },
+      opportunity_code: { label: 'รหัสโอกาสการขาย', sample: 'OPP-OSD-0099' },
+    },
+  },
+  {
     eventType: 'notification.digest',
     label: 'สรุปการแจ้งเตือนประจำวัน',
     title: 'สรุปการแจ้งเตือนประจำวัน · {{count}} รายการ',

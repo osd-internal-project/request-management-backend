@@ -694,6 +694,48 @@ export class UpdateCrmConfigDto {
   kyc_review_months_low?: number;
 }
 
+/** CD-70 — a contract entered by hand, or edited. */
+export class CustomerContractDto {
+  @ApiPropertyOptional({ example: 'CTR-2566-0012' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  contract_no?: string;
+
+  @ApiPropertyOptional({ example: 'บริการดูแลระบบกล้อง อาคาร B' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  title?: string;
+
+  @ApiPropertyOptional({ example: '2025-01-01', nullable: true })
+  @IsOptional()
+  @IsDateString()
+  start_on?: string | null;
+
+  @ApiPropertyOptional({ example: '2026-12-31' })
+  @IsOptional()
+  @IsDateString()
+  end_on?: string;
+
+  @ApiPropertyOptional({ example: 480000, nullable: true })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  value?: number | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  note?: string | null;
+
+  @ApiPropertyOptional({ enum: ['active', 'cancelled'] })
+  @IsOptional()
+  @IsIn(['active', 'cancelled'])
+  status?: 'active' | 'cancelled';
+}
+
 /** CD-61 — one prohibited-list entry. */
 export class KycWatchlistEntryDto {
   @ApiProperty({ example: 'บริษัท ต้องห้าม จำกัด' })

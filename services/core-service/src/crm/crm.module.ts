@@ -37,6 +37,9 @@ import { KycProductRuleRepository } from './kyc-product.repository';
 import { KycCallbackService } from './kyc-callback.service';
 import { KycExpiryService } from './kyc-expiry.service';
 import { KycService } from './kyc.service';
+import { ContractsService } from './contracts.service';
+import { ContractRenewalService } from './contract-renewal.service';
+import { CustomerContractRepository } from './contract.repositories';
 import {
   CustomerKycRecordRepository,
   KycWatchlistRepository,
@@ -129,6 +132,10 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     KycExpiryService,
     KycWatchlistRepository,
     CustomerKycRecordRepository,
+    // CD-70
+    ContractsService,
+    ContractRenewalService,
+    CustomerContractRepository,
     LeadRepository,
     LeadActivityRepository,
     LeadStatusRepository,
@@ -192,6 +199,7 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     OpportunityActivitiesService,
     NegotiationsService,
     KycService,
+    ContractsService,
     SalesReportService,
     CrmDashboardService,
     SalesTargetsService,

@@ -1990,6 +1990,8 @@ model Customer {
   /// customers without one never collide here.
   /// CD-61 every KYC verification of this customer, newest last.
   kycRecords CustomerKycRecord[]
+  /// CD-70 the customer's contracts (renewals are raised from their end date).
+  contracts  CustomerContract[]
 
   @@unique([companyId, taxId, branchCode])
   @@index([companyId, headOfficeId])
@@ -3152,4 +3154,59 @@ model CustomerKycRecord {
   @@index([customerId, recordedAt])
   @@index([status, expiresOn])
   @@map("customer_kyc_records")
+}
+
+/// CD-70 — where a contract stands.
+enum CustomerContractStatus {
+  active
+  /// The renewal deal was won.
+  renewed
+  /// Its end date passed without a won renewal.
+  ended
+  /// Withdrawn by hand.
+  cancelled
+}
+
+/// CD-70 — a light register of customer contracts until the Legal module
+/// (CD-13) owns them: written when a contract request (CD-81) completes, or
+/// by hand for contracts made before the system. Renewals are raised from
+/// `endOn` — a renewal deal at 90 days, reminders at 60 and 30.
+model CustomerContract {
+  id         String @id @default(uuid())
+  companyId  String
+  customerId String
+
+  contractNo String
+  title      String
+  startOn    DateTime?              @db.Date
+  endOn      DateTime               @db.Date
+  value      Decimal?               @db.Decimal(14, 2)
+  currency   String                 @default("THB")
+  status     CustomerContractStatus @default(active)
+
+  /// The deal it was made for, and the contract request that produced it.
+  opportunityId String?
+  requestId     String? @unique
+
+  /// Who the renewal belongs to — its deal is created under them.
+  ownerUserId    String
+  ownerOrgUnitId String?
+
+  renewalOpportunityId String?
+  renewalCreatedAt     DateTime?
+  reminded60At         DateTime?
+  reminded30At         DateTime?
+
+  note      String?
+  createdAt DateTime @default(now())
+  createdBy String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@unique([companyId, contractNo])
+  @@index([customerId])
+  @@index([status, endOn])
+  @@map("customer_contracts")
 }

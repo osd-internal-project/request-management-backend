@@ -358,6 +358,79 @@ export class OpportunitiesService {
     return created;
   }
 
+  /**
+   * CD-70 — a renewal deal the system opens from a contract's end date. No
+   * person is acting: it is created under the contract's owner, numbered and
+   * audited like any deal, and put on the customer's timeline.
+   */
+  async createRenewal(input: {
+    companyId: string;
+    customerId: string;
+    title: string;
+    amount: number | null;
+    expectedCloseAt: Date;
+    ownerUserId: string;
+    ownerOrgUnitId: string | null;
+    contractNo: string;
+  }): Promise<{ id: string; opportunityCode: string }> {
+    const opportunityCode = await this.runNumbers.issueUnused(
+      { companyId: input.companyId, docType: 'OPPORTUNITY' },
+      (code) => this.opportunities.codeTaken(code),
+    );
+
+    return this.transactions.execute(async (prisma) => {
+      const row = (await this.opportunities.create(
+        {
+          data: {
+            opportunityCode,
+            companyId: input.companyId,
+            customerId: input.customerId,
+            title: input.title,
+            amount: input.amount,
+            expectedCloseAt: input.expectedCloseAt,
+            ownerUserId: input.ownerUserId,
+            ownerOrgUnitId: input.ownerOrgUnitId,
+            createdBy: input.ownerUserId,
+          },
+        },
+        { prisma },
+      )) as { id: string; opportunityCode: string };
+
+      await this.audit.record(
+        {
+          eventType: 'crm.opportunity.created',
+          companyId: input.companyId,
+          actorId: null,
+          actorUsername: 'contract-renewal',
+          resourceType: 'opportunity',
+          resourceId: row.id,
+          after: {
+            opportunityCode,
+            title: input.title,
+            customerId: input.customerId,
+            amount: input.amount,
+            renewalOfContract: input.contractNo,
+          },
+        },
+        { prisma },
+      );
+      await this.timeline.publish(
+        {
+          companyId: input.companyId,
+          customerId: input.customerId,
+          refType: 'opportunity',
+          refId: row.id,
+          eventType: 'opportunity.created',
+          summary: `เปิดโอกาสต่ออายุ ${opportunityCode} จากสัญญา ${input.contractNo} (อัตโนมัติ)`,
+          actorId: null,
+          actorName: 'ระบบ (ต่ออายุสัญญา)',
+        },
+        { prisma },
+      );
+      return row;
+    });
+  }
+
   async update(id: string, dto: UpdateOpportunityDto, actor: Principal) {
     const found = await this.requireOpen(id, actor);
     if (dto.product_codes !== undefined) {

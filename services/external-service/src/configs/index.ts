@@ -105,6 +105,8 @@ export default () => ({
     staleSweepIntervalMs: 0,
     // CD-61 — the KYC expiry sweep is core-service's too.
     kycExpiryIntervalMs: 0,
+    // CD-70 — renewals are core-service's too.
+    contractRenewalIntervalMs: 0,
   },
   pdpa: {
     mode: process.env.PDPA_MODE ?? 'mock',
