@@ -36,7 +36,7 @@
 
 ออก key: หน้า API key หรือ `yarn apikey:issue` — scope `integration.request.intake`
 - web form: key **ไม่ผูกบริษัท** (บริษัทมาจาก slug) หรือผูกบริษัทเดียวถ้ามีบริษัทเดียว — ใส่ที่ frontend env
-  `CUSTOMER_INTAKE_API_KEY` + `EXTERNAL_API_URL` (ฝั่ง server เท่านั้น หน้าเว็บไม่เห็น key)
+  `CUSTOMER_INTAKE_API_KEY` + `EXTERNAL_SERVICE_URL` (ฝั่ง server เท่านั้น หน้าเว็บไม่เห็น key)
 - AI CARE: key **ผูกบริษัท** ต่อบริษัท แล้วเรียก `POST …/channels/ai_care`
 
 ## แบบฟอร์มสาธารณะ (frontend)
@@ -44,7 +44,12 @@
 - `/f/<slug>` และ `/f/status/<token>` เปิดได้โดยไม่ login (ยกเว้นใน `src/proxy.ts`)
 - ส่งผ่าน route ของ frontend `POST /api/public/forms/<slug>` ซึ่ง: จำกัดอัตราต่อ IP (ค่าเริ่มต้น 5 ครั้ง/10 นาที
   ต่อ instance), ช่อง honeypot ที่คนมองไม่เห็น, แล้วค่อยเรียก external-service ด้วย key ของ server
+- IP อ่านจาก `X-Forwarded-For` ตัวแรก — reverse proxy หน้า frontend ต้อง **เขียนทับ** header นี้
+  (ไม่ใช่ต่อท้าย) ไม่อย่างนั้นผู้ส่งปลอม header หลบการจำกัดอัตราได้
+- error 5xx จาก backend ไม่ส่งข้อความเดิมถึงลูกค้า (อาจมีชื่อค่าตั้งระบบ) — ลูกค้าเห็นแค่ "ระบบขัดข้อง"
 - ไม่มี captcha — ถ้าเจอสแปมจริง เพิ่ม Turnstile/reCAPTCHA ที่ route นี้จุดเดียว
+- ผู้ดูแลตั้งค่าที่ ผู้ดูแลระบบ → ช่องทางรับคำขอจากลูกค้า (`admin.request-type.manage`): เปิด/ปิด, ผู้ยื่นแทน,
+  ประเภทที่รับ, หัวข้อ/คำอธิบาย, คัดลอกลิงก์, ออกลิงก์ใหม่ (ลิงก์เดิมใช้ไม่ได้ทันที)
 
 ## LINE connector
 
