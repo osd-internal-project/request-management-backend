@@ -270,7 +270,9 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       await expect(
         obligations.sweep(new Date('1990-01-01T03:00:00Z')),
       ).resolves.toEqual({ due: 0, overdue: 0 });
-      const mine = (await obligations.mine(legal)) as { id: string }[];
+      const mine = (await obligations.mine(legal)) as unknown as {
+        id: string;
+      }[];
       expect(mine.some((row) => row.id === created.id)).toBe(true);
       await expect(
         obligations.complete(created.id, { note: 'ส่งแล้ว' }, legal),
