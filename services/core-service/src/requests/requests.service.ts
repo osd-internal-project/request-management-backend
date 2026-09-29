@@ -1594,6 +1594,10 @@ export class RequestsService {
   async requireEditableOwn(id: string, actor: Principal, action: string) {
     const found = await this.require(id, actor);
 
+    const flowV2 = await this.flowV2Of(found);
+    if (flowV2)
+      return this.requireRequesterStepHolder(found, flowV2, actor, action);
+
     if (!['draft', 'returned'].includes(found.status)) {
       throw new AppError(
         'REQ_STATE_INVALID',
@@ -1607,6 +1611,42 @@ export class RequestsService {
     }
 
     return found;
+  }
+
+  /** v2: files belong to whichever requester step is current, held by its holder. */
+  private requireRequesterStepHolder(
+    found: RequestWithType,
+    flow: Flow,
+    actor: Principal,
+    action: string,
+  ): RequestWithType {
+    const step = found.currentStepCode
+      ? stepOf(flow, found.currentStepCode)
+      : null;
+    if (!step || roleOf(scopeOf(step)) !== 'requester') {
+      throw new AppError(
+        'REQ_STATE_INVALID',
+        `${action}ได้เฉพาะขั้นที่ผู้ขอเป็นผู้ดำเนินการ`,
+        [{ field: 'status', reason: found.status }],
+      );
+    }
+    if ((found.stepHolderUserId ?? found.requesterId) !== actor.userId) {
+      throw new AppError('FORBIDDEN', `${action}ได้เฉพาะผู้ถือขั้นนี้`);
+    }
+    return found;
+  }
+
+  /** Document codes a file may be filed under: the type's, plus a v2 step's own. */
+  async attachableDocs(found: RequestWithType): Promise<unknown[]> {
+    const typeDocs = Array.isArray(found.requestType.requiredDocs)
+      ? found.requestType.requiredDocs
+      : [];
+    const flowV2 = await this.flowV2Of(found);
+    if (!flowV2 || !found.currentStepCode) return typeDocs;
+    return [
+      ...typeDocs,
+      ...(stepOf(flowV2, found.currentStepCode).requiredDocs ?? []),
+    ];
   }
 
   /**
@@ -2191,6 +2231,12 @@ export class RequestsService {
           answersOf(before.formData, before.stepFormData),
         );
 
+    // A `submitted` step goes forward only by `receive`; `advance` may only send it back.
+    if (!backward && before.status === 'submitted') {
+      throw new AppError('REQ_STEP_INVALID', stuckReasonV2(before.status), [
+        { field: 'to_step', reason: toStep ?? '' },
+      ]);
+    }
     if (!backward && toStep !== null && toStep !== (next ?? END_STEP)) {
       throw new AppError('REQ_STEP_INVALID', 'ไปขั้นนี้จากขั้นปัจจุบันไม่ได้', [
         { field: 'to_step', reason: next ?? END_STEP },
@@ -2475,7 +2521,12 @@ export class RequestsService {
     dto: StepFormDto,
     actor: Principal,
   ) {
-    if (!ADVANCEABLE_V2.includes(before.status) || !before.currentStepCode) {
+    // A `submitted` step has no form; it is advanceable only to be sent back.
+    if (
+      !ADVANCEABLE_V2.includes(before.status) ||
+      before.status === 'submitted' ||
+      !before.currentStepCode
+    ) {
       throw new AppError(
         'REQ_STEP_INVALID',
         'คำขอนี้ไม่ได้อยู่ในขั้นตอนที่แก้ฟอร์มได้',
@@ -3201,6 +3252,7 @@ const END_STEP = 'END';
 /** Statuses a v2 step holder moves on with `advance`; the rest move by receive or decide. */
 const ADVANCEABLE_V2: readonly RequestStatus[] = [
   'draft',
+  'submitted',
   'returned',
   'in_progress',
   'approved',

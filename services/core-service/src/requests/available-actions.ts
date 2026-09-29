@@ -248,8 +248,9 @@ export const ACTIONS: readonly ActionSpec[] = [
     // Moves between the steps of the type's flow; a step with an exit ladder
     // waits in `pending_approval`. Offered only on requests that have a flow.
     action: 'advance',
-    // v1 flows move only inside in_progress; v2 steps may also sit under returned/approved.
-    from: ['returned', 'in_progress', 'approved'],
+    // v1 flows move only inside in_progress; v2 steps may also sit under
+    // returned/approved, and a receiver may send a `submitted` step back.
+    from: ['submitted', 'returned', 'in_progress', 'approved'],
     to: [],
     authority: 'step_holder',
     scopePermission: 'request.complete',

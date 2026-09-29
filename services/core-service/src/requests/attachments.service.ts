@@ -58,8 +58,12 @@ export class AttachmentsService {
       ]);
     }
 
-    const found = await this.requests.requireEditableOwn(id, actor, 'แนบเอกสาร');
-    assertKnownDocCode(found.requestType.requiredDocs, docCode);
+    const found = await this.requests.requireEditableOwn(
+      id,
+      actor,
+      'แนบเอกสาร',
+    );
+    assertKnownDocCode(await this.requests.attachableDocs(found), docCode);
 
     const attachmentId = randomUUID();
     const fileName = safeFileName(file.originalname);
@@ -136,7 +140,10 @@ export class AttachmentsService {
       );
     }
 
-    return { attachment, stream: await this.storage.get(attachment.storageKey) };
+    return {
+      attachment,
+      stream: await this.storage.get(attachment.storageKey),
+    };
   }
 
   private async discard(storageKey: string): Promise<void> {

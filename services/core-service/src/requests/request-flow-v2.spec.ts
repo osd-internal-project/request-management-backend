@@ -691,7 +691,10 @@ describe('flow v2 after the merge: remote features reach the v2 paths', () => {
       principal(WORKER),
     );
 
-    const saved = writes[0].stepFormData as Record<string, Record<string, unknown>>;
+    const saved = writes[0].stepFormData as Record<
+      string,
+      Record<string, unknown>
+    >;
     expect(saved.WORK.margin).toBe(40);
   });
 
@@ -744,5 +747,115 @@ describe('flow v2 milestones: the v1 events a move stands for', () => {
         { status: 'approved', completedAt: new Date() },
       ),
     ).toEqual([]);
+  });
+});
+
+describe('flow v2 service: a receiver sends a submitted step back', () => {
+  const withBackward: Flow = {
+    ...FLOW,
+    transitions: [
+      ...FLOW.transitions,
+      { ...forward('RECEIVE', 'REQUEST'), backward: true },
+    ],
+  };
+
+  it('moves backward to the requester step', async () => {
+    const { service, flows } = serviceWith(onStep('RECEIVE', 'submitted'));
+    flows.load.mockResolvedValue(withBackward);
+
+    await service.advance(
+      'req-1',
+      { to_step: 'REQUEST' },
+      principal(WORKER),
+      'Bearer t',
+    );
+
+    expect(flows.moveV2.mock.calls[0].slice(3, 6)).toEqual([
+      'RECEIVE',
+      'REQUEST',
+      'backward',
+    ]);
+  });
+
+  it('refuses the requester sending back a step the receiver holds', async () => {
+    const { service, flows } = serviceWith(onStep('RECEIVE', 'submitted'));
+    flows.load.mockResolvedValue(withBackward);
+
+    const error = await refused(
+      service.advance(
+        'req-1',
+        { to_step: 'REQUEST' },
+        principal(REQUESTER),
+        'Bearer t',
+      ),
+    );
+
+    expect(error.code).toBe('FORBIDDEN');
+  });
+
+  it('refuses saving a step form on a submitted step', async () => {
+    const { service } = serviceWith(onStep('RECEIVE', 'submitted'));
+
+    const error = await refused(
+      service.saveStepForm('req-1', { data: {} }, principal(WORKER)),
+    );
+
+    expect(error.code).toBe('REQ_STEP_INVALID');
+  });
+});
+
+describe('flow v2 service: files on a requester step', () => {
+  const SIGNED = { code: 'SIGNED', name: 'เอกสารที่ลงนาม', required: true };
+  const withDocs: Flow = {
+    ...FLOW,
+    steps: FLOW.steps.map((s) =>
+      s.code === 'CONFIRM' ? { ...s, requiredDocs: [SIGNED] } : s,
+    ),
+  };
+
+  it('lets the requester attach on the closing step, and knows its documents', async () => {
+    const request = onStep('CONFIRM', 'approved');
+    const { service, flows } = serviceWith(request);
+    flows.load.mockResolvedValue(withDocs);
+
+    const found = await service.requireEditableOwn(
+      'req-1',
+      principal(REQUESTER),
+      'แนบเอกสาร',
+    );
+
+    expect(await service.attachableDocs(found)).toEqual([SIGNED]);
+  });
+
+  it('refuses someone who does not hold the requester step', async () => {
+    const { service } = serviceWith(onStep('CONFIRM', 'approved'));
+
+    const error = await refused(
+      service.requireEditableOwn('req-1', principal(WORKER), 'แนบเอกสาร'),
+    );
+
+    expect(error.code).toBe('FORBIDDEN');
+  });
+
+  it('refuses the requester attaching while the team holds the work', async () => {
+    const { service } = serviceWith(onStep('WORK', 'in_progress'));
+
+    const error = await refused(
+      service.requireEditableOwn('req-1', principal(REQUESTER), 'แนบเอกสาร'),
+    );
+
+    expect(error.code).toBe('REQ_STATE_INVALID');
+  });
+
+  it('leaves a request with no flow on the draft/returned rule', async () => {
+    const { service } = serviceWith(
+      onStep('CONFIRM', 'approved', { flowVersionId: null, flowVersion: null }),
+    );
+
+    const error = await refused(
+      service.requireEditableOwn('req-1', principal(REQUESTER), 'แนบเอกสาร'),
+    );
+
+    expect(error.code).toBe('REQ_STATE_INVALID');
   });
 });

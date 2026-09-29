@@ -139,6 +139,9 @@ export const REQUEST_DETAIL_INCLUDE = {
           formSchema: true,
           subRequestTypes: true,
           requiresApproval: true,
+          // v2: the request page shows a requester step's form and documents.
+          scopeStatus: true,
+          requiredDocs: true,
         },
       },
     },

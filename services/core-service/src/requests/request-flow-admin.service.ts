@@ -267,7 +267,7 @@ export class RequestFlowAdminService {
   }
 }
 
-function flowFromDto(dto: PublishFlowDto): Flow {
+export function flowFromDto(dto: PublishFlowDto): Flow {
   const forwardOrder = new Map<string, number>();
 
   const v2 = dto.schema_version === 2;
@@ -386,7 +386,10 @@ function assigneeRuleOf(
 }
 
 /** Fields a condition may name: the requester's form and every step's form. */
-function knownFields(typeFormSchema: unknown, dto: PublishFlowDto): string[] {
+export function knownFields(
+  typeFormSchema: unknown,
+  dto: PublishFlowDto,
+): string[] {
   const fieldsOf = (schema: unknown) =>
     Object.keys(asRecord(asRecord(schema).properties));
   return [

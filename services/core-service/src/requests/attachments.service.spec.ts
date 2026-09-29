@@ -45,6 +45,9 @@ function serviceWith(
   const service = new AttachmentsService(
     {
       requireEditableOwn: jest.fn(() => Promise.resolve(REQUEST)),
+      attachableDocs: jest.fn(() =>
+        Promise.resolve(REQUEST.requestType.requiredDocs),
+      ),
       findOne: jest.fn(() =>
         Promise.resolve({ ...REQUEST, attachments: options.attachments ?? [] }),
       ),

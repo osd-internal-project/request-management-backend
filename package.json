@@ -56,6 +56,7 @@
     "apikey:list": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/api-key.ts list",
     "mcp:token": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config scripts/mcp-keycloak-token.ts",
     "petty:seed": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/seed-petty-cash-type.ts",
+    "sop:seed": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/seed-sop-docreq-type.ts",
     "uat:users": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/seed-uat-users.ts",
     "keycloak:provision": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/keycloak-provision.ts",
     "openapi": "ts-node --project scripts/tsconfig.openapi.json -r tsconfig-paths/register -r dotenv/config scripts/generate-openapi.ts",

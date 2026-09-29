@@ -130,6 +130,13 @@ Flows are versioned like approval ladders: publishing writes version N+1 and a
 request keeps the version it was submitted under. A type with no published
 flow behaves exactly as before.
 
+**`SOP_DOCREQ`** (ขอใช้เอกสารสำคัญของบริษัท, SOP-BSD-DOCREQ) ships as a v2 flow:
+ยื่นคำขอ → หัวหน้างานอนุมัติ → ผู้ดูแลเอกสารรับเรื่อง → ค้นไฟล์ → [ตรวจวันที่หนังสือรับรอง
+→ คัดใหม่] → คาดข้อความและส่ง → ผู้ขอแนบเอกสารที่ลงนามแล้ว. Only FAC, LEG and PCD may
+raise it. `yarn sop:seed` writes the type and publishes the flow from
+`libs/prisma/sop-docreq-flow.ts`; re-running publishes a new version only when that
+file changed.
+
 ### 7. SLA — `sla-configs`
 
 Hours per type per company, with a warning lead time (D-09). The clock measures
