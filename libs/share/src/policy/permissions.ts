@@ -70,6 +70,14 @@ export const PERMISSIONS = {
     /** CD-71: สร้าง/แก้/ปิดแคมเปญการตลาด — ดูผลแคมเปญใช้ `crm.sales.read`. */
     'crm.campaign.manage',
   ],
+  /**
+   * CD-11 Pre-Sales. `presales.solution.read` sees every Solution in the
+   * company; a salesperson sees their own deal's Solution through the deal
+   * (`crm.sales.read`) without it. `presales.solution.manage` starts a
+   * Solution from an accepted solution request, edits its drafts and locks
+   * versions.
+   */
+  presales: ['presales.solution.read', 'presales.solution.manage'],
   report: [
     'report.request.read',
     /** CD-92: see the embedded Metabase dashboards (menu + signed URLs). */

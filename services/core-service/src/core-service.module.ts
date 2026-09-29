@@ -26,6 +26,7 @@ import { IntegrationHttpModule } from './integration/integration-http.module';
 import { ProductsHttpModule } from './products/products-http.module';
 import { RequestsHttpModule } from './requests/requests-http.module';
 import { SlaHttpModule } from './sla/sla-http.module';
+import { PresalesHttpModule } from './presales/presales-http.module';
 import { SensitiveReadAuditRecorder } from './policy/sensitive-read.recorder';
 import configs from './configs';
 
@@ -57,6 +58,7 @@ import configs from './configs';
     HealthModule,
     RequestsHttpModule,
     CrmHttpModule,
+    PresalesHttpModule,
     IntegrationHttpModule,
     ProductsHttpModule,
     ApprovalsHttpModule,

@@ -2790,6 +2790,8 @@ model Opportunity {
   /// CD-78 เลขหมายที่จองจาก Reserve-phone ผูกกับดีลนี้.
   phoneReservations OpportunityPhoneReservation[]
   handover          SalesHandover?
+  /// CD-132 Solution ที่ Pre-Sales ออกแบบให้ดีลนี้.
+  solutions         Solution[]
   products          OpportunityProduct[]
   saleOrders        SaleOrder[]
   quotations        Quotation[]
@@ -3644,4 +3646,82 @@ model RequestIntakeChannel {
 
   @@unique([companyId, channel])
   @@map("request_intake_channels")
+}
+
+/// CD-132 — draft → locked (ยืนยันเวอร์ชัน แก้ไม่ได้อีก) → superseded เมื่อมีเวอร์ชันใหม่
+/// ยืนยันแทน. การอนุมัติ (CD-143) ต่อยอดจากเวอร์ชันที่ locked.
+enum SolutionVersionStatus {
+  draft
+  locked
+  superseded
+}
+
+/// CD-132 — ทางออกทางเทคนิคที่ Pre-Sales ออกแบบให้ดีล เริ่มจากคำขอ "ขอ Solution"
+/// ที่รับเรื่องแล้วเท่านั้น (หนึ่งคำขอ หนึ่ง Solution) · เนื้อหาอยู่ในเวอร์ชัน.
+model Solution {
+  id               String @id @default(uuid())
+  companyId        String
+  opportunityId    String
+  /// คำขอ "ขอ Solution และประเมินต้นทุน" (CD-130) ที่เป็นโจทย์ของ Solution นี้.
+  requestId        String @unique
+  title            String
+  currentVersionNo Int    @default(1)
+
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  opportunity Opportunity       @relation(fields: [opportunityId], references: [id])
+  versions    SolutionVersion[]
+
+  @@index([companyId, opportunityId])
+  @@map("solutions")
+}
+
+/// CD-132 — หนึ่งเวอร์ชันของ Solution: สรุป · รายละเอียดการออกแบบ · สมมติฐานรายข้อ
+/// (`[{category, text}]` — ส่งต่อเป็นสมมติฐานในสัญญาได้) · ไฟล์แบบ.
+model SolutionVersion {
+  id          String                @id @default(uuid())
+  solutionId  String
+  versionNo   Int
+  status      SolutionVersionStatus @default(draft)
+  summary     String                @default("")
+  design      String                @default("")
+  assumptions Json                  @default("[]")
+  /// ทำไมถึงมีเวอร์ชันนี้ (เวอร์ชัน 2 ขึ้นไป).
+  changeNote  String?
+  lockedAt    DateTime?
+  lockedBy    String?
+
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  solution Solution       @relation(fields: [solutionId], references: [id])
+  files    SolutionFile[]
+
+  @@unique([solutionId, versionNo])
+  @@map("solution_versions")
+}
+
+/// CD-132 — ไฟล์แบบ/ไดอะแกรมของเวอร์ชัน. เวอร์ชันใหม่คัดลอกแถว (อ้างไฟล์เดิม) —
+/// ลบจากร่างเป็น soft delete และไม่ลบตัวไฟล์ เพราะเวอร์ชันเก่ายังอ้างอยู่.
+model SolutionFile {
+  id         String    @id @default(uuid())
+  companyId  String
+  versionId  String
+  fileName   String
+  mimeType   String
+  sizeBytes  Int
+  storageKey String
+  uploadedBy String
+  uploadedAt DateTime  @default(now())
+  deletedAt  DateTime?
+
+  version SolutionVersion @relation(fields: [versionId], references: [id])
+
+  @@index([versionId])
+  @@map("solution_files")
 }

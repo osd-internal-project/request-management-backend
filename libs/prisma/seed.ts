@@ -264,6 +264,24 @@ const SEED_ROLES: {
     permissions: adminPermissions(),
   },
   {
+    // CD-132 — the team that receives "ขอ Solution" requests and designs the
+    // Solution. Holds the request receiver's actions plus Pre-Sales work.
+    code: 'presales',
+    name: 'ทีม Pre-Sales',
+    description: 'รับโจทย์จากทีมขาย ออกแบบ Solution ขอบเขตงาน และ BOQ',
+    permissions: [
+      'request.create',
+      'request.read',
+      'request.cancel.own',
+      'request.return',
+      'request.complete',
+      'notification.read',
+      'user.read',
+      'presales.solution.read',
+      'presales.solution.manage',
+    ],
+  },
+  {
     code: 'auditor',
     name: 'ผู้ตรวจสอบ',
     description: 'ตรวจสอบภายใน — อ่านอย่างเดียว ข้ามบริษัทได้',
