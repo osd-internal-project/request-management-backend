@@ -35,6 +35,8 @@ export interface BiDashboardAdminItem {
   metabase_dashboard_id: number;
   sort_order: number;
   active: boolean;
+  /** CD-92 — signed with the viewer's company as the locked `company` parameter. */
+  lock_company: boolean;
   /** Empty = the whole company sees it. */
   org_units: { id: string; name: string; kind: string }[];
   updated_at: string;
@@ -72,7 +74,12 @@ export class BiService {
     const configured = Boolean(siteUrl && secret);
     const companyId = principal.activeCompanyId;
 
-    let items: { key: string; title: string; dashboardId: number }[] = [];
+    let items: {
+      key: string;
+      title: string;
+      dashboardId: number;
+      lockCompany?: boolean;
+    }[] = [];
 
     if (configured) {
       // Inactive rows count too: a company whose admin retired every
@@ -89,22 +96,44 @@ export class BiService {
               key: row.id,
               title: row.title,
               dashboardId: row.metabaseDashboardId,
+              lockCompany: row.lockCompany,
             }))
           : this.envFallback();
     }
+
+    // CD-92 — a locked dashboard shows the active company's rows only: the
+    // value is signed into the token, so the viewer cannot pick another.
+    const companyCode = items.some((item) => item.lockCompany)
+      ? await this.companyCode(companyId)
+      : null;
 
     return {
       configured,
       dashboards: items.map((item) => ({
         key: item.key,
         title: item.title,
-        embed_url: embedDashboardUrl(siteUrl, secret, item.dashboardId),
+        embed_url: embedDashboardUrl(
+          siteUrl,
+          secret,
+          item.dashboardId,
+          item.lockCompany && companyCode ? { company: companyCode } : {},
+        ),
       })),
       // หน้า setting ของ Metabase — โผล่ในเมนูเฉพาะแอดมิน BI
       settings_url: principal.permissions.includes('admin.bi.manage')
         ? siteUrl || null
         : null,
     };
+  }
+
+  private async companyCode(companyId: string): Promise<string | null> {
+    const company = await this.tx.execute((prisma) =>
+      prisma.company.findUnique({
+        where: { id: companyId },
+        select: { code: true },
+      }),
+    );
+    return company?.code ?? null;
   }
 
   /** The original CD-92 trio, kept until the company has rows of its own. */
@@ -161,6 +190,7 @@ export class BiService {
             title: dto.title.trim(),
             metabaseDashboardId: dto.metabase_dashboard_id,
             sortOrder: dto.sort_order ?? 0,
+            lockCompany: dto.lock_company ?? false,
             createdBy: actor.userId,
             audiences: {
               create: orgUnitIds.map((orgUnitId) => ({ orgUnitId })),
@@ -229,6 +259,9 @@ export class BiService {
               ? { sortOrder: dto.sort_order }
               : {}),
             ...(dto.active !== undefined ? { active: dto.active } : {}),
+            ...(dto.lock_company !== undefined
+              ? { lockCompany: dto.lock_company }
+              : {}),
             updatedBy: actor.userId,
           },
         },
@@ -360,6 +393,7 @@ export class BiService {
       metabase_dashboard_id: row.metabaseDashboardId,
       sort_order: row.sortOrder,
       active: row.active,
+      lock_company: row.lockCompany,
       org_units: row.audiences.map((audience) => ({
         id: audience.orgUnit.id,
         name: audience.orgUnit.name,

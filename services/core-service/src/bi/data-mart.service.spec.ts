@@ -1,6 +1,6 @@
 import type { Principal } from '@request-management/share';
 import { SLA_STATUS_SQL } from '../sla/sla-status';
-import { MART_TABLES } from './data-mart.repository';
+import { COMPUTED_TABLES, MART_TABLES } from './data-mart.repository';
 import { DataMartService } from './data-mart.service';
 
 const admin = {
@@ -23,8 +23,11 @@ function harness(options: { locked?: boolean; interval?: number } = {}) {
     ),
     status: jest.fn(() => Promise.resolve([])),
   };
+  const accounts = [{ customer_id: 'cus-1', health: 'red' }];
+  const keeper = { martAccounts: jest.fn(() => Promise.resolve(accounts)) };
   const service = new DataMartService(
     mart as never,
+    keeper as never,
     { get: jest.fn(() => options.interval ?? 0) } as never,
     {
       record: jest.fn((event: { eventType: string }) => {
@@ -33,7 +36,7 @@ function harness(options: { locked?: boolean; interval?: number } = {}) {
       }),
     } as never,
   );
-  return { service, mart, audits };
+  return { service, mart, audits, keeper, accounts };
 }
 
 describe('CD-91 Data Mart', () => {
@@ -43,9 +46,16 @@ describe('CD-91 Data Mart', () => {
     expect(MART_TABLES.map((step) => step.table)).toEqual([
       'fact_sales',
       'fact_pipeline',
+      'fact_leads',
+      'fact_deals',
       'sales_target_actual',
       'open_requests',
       'request_backlog_daily',
+    ]);
+    // CD-92 — then the tables the application computes, trend after source
+    expect([...COMPUTED_TABLES]).toEqual([
+      'customer_accounts',
+      'customer_health_daily',
     ]);
     // the backlog snapshot is built from the open requests just rebuilt
     const order = MART_TABLES.map((step) => step.table);
@@ -77,6 +87,20 @@ describe('CD-91 Data Mart', () => {
     );
     expect(backlog?.sql[0]).toMatch(
       /DELETE FROM mart\.request_backlog_daily WHERE snapshot_date =/,
+    );
+  });
+
+  it('CD-92: the Keeper health written to the mart is KeeperService’s own, computed before the rebuild', async () => {
+    const h = harness();
+    await h.service.refresh();
+    expect(h.keeper.martAccounts).toHaveBeenCalledTimes(1);
+    expect(h.mart.rebuild).toHaveBeenCalledWith(h.accounts);
+  });
+
+  it('CD-92: a contact attempt in the mart is CD-85’s definition, not a second list', () => {
+    const leads = MART_TABLES.find((step) => step.table === 'fact_leads');
+    expect(leads?.sql.join('\n')).toContain(
+      "a.type IN ('call','email','meeting','visit','line','social')",
     );
   });
 

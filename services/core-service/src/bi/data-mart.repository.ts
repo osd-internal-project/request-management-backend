@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService, type TQueryClient } from '@request-management/share';
+import { CONTACT_TYPES } from '../crm/prospecting-rules';
 import { SLA_STATUS_SQL } from '../sla/sla-status';
 
 /** A `timestamp` column (stored as UTC, no zone) as Bangkok wall-clock time. */
@@ -10,6 +11,8 @@ const utc = (column: string) => `(${column}) AT TIME ZONE 'UTC'`;
 const BKK_TODAY = `(now() AT TIME ZONE 'Asia/Bangkok')::date`;
 const BKK_MONTH = `to_char(now() AT TIME ZONE 'Asia/Bangkok', 'YYYY-MM')`;
 
+/** CD-85's definition of a contact attempt, as an SQL list (constants only). */
+const CONTACT_TYPES_SQL = `(${CONTACT_TYPES.map((type) => `'${type}'`).join(',')})`;
 /** Kept in step with `OPEN_OPPORTUNITY_STAGES` (sales.dto.ts). */
 const OPEN_STAGES = `('qualifying','proposing','negotiating')`;
 /**
@@ -66,6 +69,61 @@ export const MART_TABLES: readonly { table: string; sql: string[] }[] = [
        LEFT JOIN users u ON u.id = o."ownerUserId"
        LEFT JOIN org_units ou ON ou.id = o."ownerOrgUnitId"
        WHERE o.stage IN ${OPEN_STAGES}`,
+    ],
+  },
+  {
+    // CD-92 — Getter: every lead, where it came from, whether it became a deal.
+    table: 'fact_leads',
+    sql: [
+      `DELETE FROM mart.fact_leads`,
+      `INSERT INTO mart.fact_leads
+       SELECT l.id, c.code,
+              (${bkk('l."createdAt"')})::date,
+              to_char(${bkk('l."createdAt"')}, 'YYYY-MM'),
+              l."sourceCode", cp.code, ta.id IS NOT NULL,
+              l.status, COALESCE(ls.kind::text, 'open'),
+              l."convertedOpportunityId" IS NOT NULL,
+              (${bkk('o."createdAt"')})::date,
+              (${bkk('o."createdAt"')})::date - (${bkk('l."createdAt"')})::date,
+              (SELECT count(*)::int FROM lead_activities a
+                WHERE a."leadId" = l.id AND a."completedAt" IS NOT NULL
+                  AND a.type IN ${CONTACT_TYPES_SQL}),
+              u."displayName", ou.name
+       FROM leads l
+       JOIN companies c ON c.id = l."companyId"
+       LEFT JOIN lead_statuses ls
+         ON ls."companyId" = l."companyId" AND ls.code = l.status
+       LEFT JOIN campaigns cp ON cp.id = l."campaignId"
+       LEFT JOIN target_accounts ta ON ta."leadId" = l.id
+       LEFT JOIN opportunities o ON o.id = l."convertedOpportunityId"
+       LEFT JOIN users u ON u.id = l."ownerUserId"
+       LEFT JOIN org_units ou ON ou.id = l."ownerOrgUnitId"`,
+    ],
+  },
+  {
+    // CD-92 — every deal, open or closed: win rate and deal types (CD-86).
+    table: 'fact_deals',
+    sql: [
+      `DELETE FROM mart.fact_deals`,
+      `INSERT INTO mart.fact_deals
+       SELECT o.id, o."opportunityCode", c.code, o."dealType"::text,
+              o.stage::text, o.stage IN ${OPEN_STAGES},
+              o.stage = 'won', o.stage = 'lost', o.amount,
+              (${bkk('o."createdAt"')})::date,
+              to_char(${bkk('o."createdAt"')}, 'YYYY-MM'),
+              (${bkk('COALESCE(o."wonAt", o."lostAt")')})::date,
+              to_char(${bkk('COALESCE(o."wonAt", o."lostAt")')}, 'YYYY-MM'),
+              COALESCE(lr.name, o."lostReasonCode"),
+              cu."customerCode",
+              EXISTS (SELECT 1 FROM leads l WHERE l."convertedOpportunityId" = o.id),
+              u."displayName", ou.name
+       FROM opportunities o
+       JOIN companies c ON c.id = o."companyId"
+       LEFT JOIN customers cu ON cu.id = o."customerId"
+       LEFT JOIN opportunity_lost_reasons lr
+         ON lr."companyId" = o."companyId" AND lr.code = o."lostReasonCode"
+       LEFT JOIN users u ON u.id = o."ownerUserId"
+       LEFT JOIN org_units ou ON ou.id = o."ownerOrgUnitId"`,
     ],
   },
   {
@@ -174,6 +232,19 @@ export const MART_TABLES: readonly { table: string; sql: string[] }[] = [
   },
 ];
 
+/**
+ * CD-92 — tables filled from rows the application computes (the Keeper's
+ * health, KeeperService) rather than from SQL alone. Rebuilt in the same
+ * transaction, after {@link MART_TABLES}.
+ */
+export const COMPUTED_TABLES = [
+  'customer_accounts',
+  'customer_health_daily',
+] as const;
+
+/** Rows per INSERT when writing computed rows (one JSON parameter each). */
+const COMPUTED_BATCH = 500;
+
 export interface MartTableStatus {
   table_name: string;
   refreshed_at: Date | null;
@@ -195,9 +266,9 @@ export class DataMartRepository {
    * the new one, never half of each. Returns false when another instance holds
    * the rebuild lock — it is already doing the same work.
    */
-  async rebuild(): Promise<
-    { table: string; rows: number; ms: number }[] | false
-  > {
+  async rebuild(
+    accounts: readonly object[] = [],
+  ): Promise<{ table: string; rows: number; ms: number }[] | false> {
     return this.prisma.$transaction(
       async (tx) => {
         const [lock] = await tx.$queryRawUnsafe<{ locked: boolean }[]>(
@@ -206,11 +277,50 @@ export class DataMartRepository {
         if (!lock?.locked) return false;
 
         const done: { table: string; rows: number; ms: number }[] = [];
-        for (const step of MART_TABLES) {
+        const steps: { table: string; run: () => Promise<void> }[] = [
+          ...MART_TABLES.map((step) => ({
+            table: step.table,
+            run: async () => {
+              for (const statement of step.sql) {
+                await tx.$executeRawUnsafe(statement);
+              }
+            },
+          })),
+          {
+            table: 'customer_accounts',
+            run: async () => {
+              await tx.$executeRawUnsafe(`DELETE FROM mart.customer_accounts`);
+              for (let at = 0; at < accounts.length; at += COMPUTED_BATCH) {
+                // The rows are the application's own objects, passed as one
+                // JSON parameter — never spliced into the statement.
+                await tx.$executeRawUnsafe(
+                  `INSERT INTO mart.customer_accounts
+                   SELECT * FROM jsonb_populate_recordset(
+                     NULL::mart.customer_accounts, $1::jsonb)`,
+                  JSON.stringify(accounts.slice(at, at + COMPUTED_BATCH)),
+                );
+              }
+            },
+          },
+          {
+            table: 'customer_health_daily',
+            run: async () => {
+              await tx.$executeRawUnsafe(
+                `DELETE FROM mart.customer_health_daily
+                 WHERE snapshot_date = ${BKK_TODAY}`,
+              );
+              await tx.$executeRawUnsafe(
+                `INSERT INTO mart.customer_health_daily
+                 SELECT ${BKK_TODAY}, company_code, health, count(*)::int
+                 FROM mart.customer_accounts
+                 GROUP BY company_code, health`,
+              );
+            },
+          },
+        ];
+        for (const step of steps) {
           const started = Date.now();
-          for (const statement of step.sql) {
-            await tx.$executeRawUnsafe(statement);
-          }
+          await step.run();
           const rows = await this.count(tx, step.table);
           const ms = Date.now() - started;
           await tx.$executeRawUnsafe(
@@ -238,8 +348,8 @@ export class DataMartRepository {
        FROM mart.refresh_log`,
     );
     const byName = new Map(rows.map((row) => [row.table_name, row]));
-    return MART_TABLES.map(
-      ({ table }) =>
+    return [...MART_TABLES.map(({ table }) => table), ...COMPUTED_TABLES].map(
+      (table) =>
         byName.get(table) ?? {
           table_name: table,
           refreshed_at: null,
@@ -251,8 +361,8 @@ export class DataMartRepository {
 
   private async count(client: TQueryClient, table: string) {
     const [row] = await client.$queryRawUnsafe<{ n: number }[]>(
-      table === 'request_backlog_daily'
-        ? `SELECT count(*)::int AS n FROM mart.request_backlog_daily
+      table === 'request_backlog_daily' || table === 'customer_health_daily'
+        ? `SELECT count(*)::int AS n FROM mart.${table}
            WHERE snapshot_date = ${BKK_TODAY}`
         : `SELECT count(*)::int AS n FROM mart.${table}`,
     );

@@ -13689,6 +13689,9 @@
             "items": {
               "type": "string"
             }
+          },
+          "lock_company": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -13720,6 +13723,9 @@
             "items": {
               "type": "string"
             }
+          },
+          "lock_company": {
+            "type": "boolean"
           }
         }
       },

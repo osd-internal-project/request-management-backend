@@ -12,6 +12,7 @@ import {
   type Principal,
 } from '@request-management/share';
 import { backgroundTick } from '../common/background-tick';
+import { KeeperService } from '../crm/keeper.service';
 import { DataMartRepository } from './data-mart.repository';
 
 const DEFAULT_INTERVAL_MS = 3_600_000;
@@ -20,7 +21,8 @@ const FIRST_RUN_DELAY_MS = 60_000;
 
 /**
  * CD-91 — the Data Mart (`mart` schema): sales, pipeline, target vs actual and
- * open requests, rebuilt every hour (user decision 29 ก.ย. 2569) from the
+ * open requests — and, since CD-92, leads, every deal (win rate) and each
+ * account's Keeper health with a daily trend — rebuilt every hour (user decision 29 ก.ย. 2569) from the
  * application tables, plus a daily snapshot of the backlog so it can be read
  * as a trend. Executive dashboards (Metabase) read the mart instead of anyone
  * gathering the figures by hand.
@@ -37,6 +39,7 @@ export class DataMartService implements OnModuleInit, OnModuleDestroy {
 
   constructor(
     private readonly mart: DataMartRepository,
+    private readonly keeper: KeeperService,
     private readonly config: ConfigService,
     private readonly audit: AuditWriter,
   ) {}
@@ -64,7 +67,10 @@ export class DataMartService implements OnModuleInit, OnModuleDestroy {
   /** One rebuild. `null` when another instance was already at it. */
   async refresh() {
     const started = Date.now();
-    const done = await this.mart.rebuild();
+    // CD-92 — the Keeper's health comes from the application, computed before
+    // the transaction opens so the lock is held for writing only.
+    const accounts = await this.keeper.martAccounts();
+    const done = await this.mart.rebuild(accounts);
     if (done === false) {
       this.logger.log(
         'CD-91: another instance is rebuilding the mart — skipped',

@@ -80,7 +80,12 @@ const build = (): Mocks => {
 
   const audit = { record: jest.fn() };
   const tx = {
-    execute: (work: (prisma: unknown) => Promise<unknown>) => work({}),
+    execute: (work: (prisma: unknown) => Promise<unknown>) =>
+      work({
+        company: {
+          findUnique: jest.fn(() => Promise.resolve({ code: 'OSD' })),
+        },
+      }),
   };
 
   const service = new BiService(
@@ -100,6 +105,7 @@ const dbRow = (overrides: Record<string, unknown> = {}) => ({
   metabaseDashboardId: 42,
   sortOrder: 0,
   active: true,
+  lockCompany: false,
   createdAt: new Date('2026-08-27T00:00:00Z'),
   createdBy: 'user-9',
   updatedAt: new Date('2026-08-27T00:00:00Z'),
@@ -123,6 +129,28 @@ describe('CD-92 v2: BI menu from configuration', () => {
     expect(menu.dashboards[0].embed_url).toContain(
       'http://bi.local:3300/embed/dashboard/',
     );
+  });
+
+  it('CD-92: a company-locked dashboard is signed with the viewer’s company code; others with nothing', async () => {
+    const { repo, service } = build();
+    repo.count.mockResolvedValue(2);
+    repo.findVisible.mockResolvedValue([
+      dbRow({ id: 'exec', lockCompany: true }),
+      dbRow({ id: 'plain' }),
+    ] as never);
+
+    const menu = await service.menu(principal());
+    const paramsOf = (url: string) =>
+      (
+        JSON.parse(
+          Buffer.from(
+            url.split('/embed/dashboard/')[1].split('#')[0].split('.')[1],
+            'base64url',
+          ).toString(),
+        ) as { params: unknown }
+      ).params;
+    expect(paramsOf(menu.dashboards[0].embed_url)).toEqual({ company: 'OSD' });
+    expect(paramsOf(menu.dashboards[1].embed_url)).toEqual({});
   });
 
   it('falls back to the env trio only while the company has no rows at all', async () => {

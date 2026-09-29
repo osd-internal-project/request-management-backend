@@ -488,6 +488,92 @@ export class KeeperService {
   }
 
   /**
+   * CD-92 — every active account of every company, for the Data Mart
+   * (`mart.customer_accounts`). The health is this service's, computed as the
+   * system with every read, so an executive dashboard shows the same colour
+   * an owner sees on the portfolio — nothing is re-derived in SQL.
+   */
+  async martAccounts(now: Date = new Date()): Promise<MartAccountRow[]> {
+    const rows: MartAccountRow[] = [];
+    const today = dayStart(now);
+    let cursor: string | undefined;
+    for (;;) {
+      const page = (await this.customers.findMany({
+        where: {
+          status: { in: ['active', 'suspended'] },
+          mergedIntoCustomerId: null,
+          ...(cursor ? { id: { gt: cursor } } : {}),
+        },
+        select: {
+          ...CUSTOMER_SELECT,
+          companyId: true,
+          company: { select: { code: true } },
+        },
+        orderBy: { id: 'asc' },
+        take: PORTFOLIO_LIMIT,
+      })) as unknown as (CustomerRow & {
+        companyId: string;
+        company: { code: string };
+      })[];
+      if (!page.length) break;
+      cursor = page[page.length - 1].id;
+
+      const byCompany = new Map<string, typeof page>();
+      for (const customer of page) {
+        byCompany.set(customer.companyId, [
+          ...(byCompany.get(customer.companyId) ?? []),
+          customer,
+        ]);
+      }
+      for (const [companyId, customers] of byCompany) {
+        const signals = await this.signalsFor(
+          customers,
+          systemReader(companyId),
+          now,
+        );
+        for (const customer of customers) {
+          const s = signals.get(customer.id)!;
+          const plan = customer.accountPlan;
+          rows.push({
+            customer_id: customer.id,
+            company_code: customer.company.code,
+            customer_code: customer.customerCode,
+            customer_name: customer.nameTh,
+            owner_name: customer.accountOwner?.displayName ?? null,
+            tier: plan?.tier ?? null,
+            next_review_on: plan?.nextReviewOn
+              ? plan.nextReviewOn.toISOString().slice(0, 10)
+              : null,
+            review_overdue: Boolean(
+              plan?.nextReviewOn && plan.nextReviewOn < today,
+            ),
+            last_contact_on: s.last_contact_at
+              ? bangkokDay(s.last_contact_at)
+              : null,
+            days_since_contact: s.last_contact_at
+              ? Math.floor(
+                  (now.getTime() - s.last_contact_at.getTime()) / DAY_MS,
+                )
+              : null,
+            last_satisfaction: s.last_satisfaction,
+            health: s.health.level,
+            signals: s.health.signals.map((signal) => signal.code).join(','),
+            open_deals: s.open_deals?.count ?? null,
+            open_expansion: s.open_deals?.expansion ?? null,
+            revenue_12m: s.revenue_12m,
+            target_revenue:
+              plan?.targetRevenue === null || plan?.targetRevenue === undefined
+                ? null
+                : Number(plan.targetRevenue),
+          });
+        }
+      }
+      if (page.length < PORTFOLIO_LIMIT) break;
+    }
+    return rows;
+  }
+
+  /**
    * Health and the figures beside it, for many customers in a handful of
    * queries — the portfolio reads up to {@link PORTFOLIO_LIMIT} at once.
    */
@@ -834,6 +920,51 @@ export class KeeperService {
     })) as { id: string; displayName: string }[];
     return new Map(users.map((user) => [user.id, user.displayName]));
   }
+}
+
+/** One row of `mart.customer_accounts` (CD-92), column for column. */
+export interface MartAccountRow {
+  customer_id: string;
+  company_code: string;
+  customer_code: string;
+  customer_name: string;
+  owner_name: string | null;
+  tier: string | null;
+  next_review_on: string | null;
+  review_overdue: boolean;
+  last_contact_on: string | null;
+  days_since_contact: number | null;
+  last_satisfaction: number | null;
+  health: HealthLevel;
+  signals: string;
+  open_deals: number | null;
+  open_expansion: number | null;
+  revenue_12m: number | null;
+  target_revenue: number | null;
+}
+
+/**
+ * The system reading one company for the mart: every customer, deal, case
+ * and invoice notice in it — the executive view is the company's whole book.
+ */
+function systemReader(companyId: string): Principal {
+  return {
+    userId: 'system:data-mart',
+    activeCompanyId: companyId,
+    orgUnitId: null,
+    ledUnitIds: [],
+    scopedUnitIds: [],
+    companies: [{ id: companyId }],
+    permissions: [
+      'crm.customer.read',
+      'crm.customer.read.all',
+      'crm.customer.financial.read',
+      'crm.sales.read',
+      'crm.sales.read.all',
+      'request.read',
+      'request.read.all',
+    ],
+  } as unknown as Principal;
 }
 
 function rowOf(customer: CustomerRow) {

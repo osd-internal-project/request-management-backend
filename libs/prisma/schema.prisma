@@ -1854,6 +1854,11 @@ model BiDashboard {
   metabaseDashboardId Int
   sortOrder           Int     @default(0)
   active              Boolean @default(true)
+  /// CD-92 — sign the embed with the viewer's company as a locked `company`
+  /// parameter, so a dashboard over the Data Mart shows only that company's
+  /// rows. The dashboard must declare the parameter (see docs/metabase.md);
+  /// one that does not would reject the token, hence off by default.
+  lockCompany         Boolean @default(false)
 
   createdAt DateTime @default(now())
   createdBy String?
