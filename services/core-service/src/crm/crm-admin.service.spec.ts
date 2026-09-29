@@ -87,3 +87,21 @@ describe('CD-76 หัวกระดาษใบเสนอราคาใน�
     expect(JSON.stringify(audits[0].after)).not.toContain('base64');
   });
 });
+
+describe('CD-130 ประเภทคำขอ Solution ในตั้งค่า CRM', () => {
+  it('CD-130 set, omitted = untouched, "" clears it', async () => {
+    const { service, upserts } = harness();
+
+    await service.updateConfig(
+      { solution_request_type_code: 'SOL' },
+      principal(),
+    );
+    await service.updateConfig({ dedup_threshold: 0.9 }, principal());
+    await service.updateConfig({ solution_request_type_code: '' }, principal());
+
+    expect(upserts[0].create.solutionRequestTypeCode).toBe('SOL');
+    expect(upserts[0].update.solutionRequestTypeCode).toBe('SOL');
+    expect(upserts[1].update.solutionRequestTypeCode).toBeUndefined();
+    expect(upserts[2].update.solutionRequestTypeCode).toBeNull();
+  });
+});

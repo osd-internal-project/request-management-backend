@@ -205,6 +205,7 @@ export class CrmAdminService {
         quotationApprovalTypeCode: 'DSC',
         targetApprovalTypeCode: null,
         contractRequestTypeCode: null,
+        solutionRequestTypeCode: null,
         handoverOrgUnitId: null,
         customerApprovalTypes: {},
         kycReviewMonthsHigh: 12,
@@ -244,6 +245,7 @@ export class CrmAdminService {
                 dto.quotation_approval_type_code ?? 'DSC',
               targetApprovalTypeCode: dto.target_approval_type_code || null,
               contractRequestTypeCode: dto.contract_request_type_code || null,
+              solutionRequestTypeCode: dto.solution_request_type_code || null,
               handoverOrgUnitId: dto.handover_org_unit_id || null,
               customerApprovalTypes: approvalTypes ?? {},
               kycReviewMonthsHigh: dto.kyc_review_months_high ?? 12,
@@ -268,6 +270,10 @@ export class CrmAdminService {
                 dto.contract_request_type_code === undefined
                   ? undefined
                   : dto.contract_request_type_code || null,
+              solutionRequestTypeCode:
+                dto.solution_request_type_code === undefined
+                  ? undefined
+                  : dto.solution_request_type_code || null,
               handoverOrgUnitId:
                 dto.handover_org_unit_id === undefined
                   ? undefined

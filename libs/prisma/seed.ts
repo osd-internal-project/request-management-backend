@@ -707,6 +707,28 @@ async function seedContractRequestType(companyId: string) {
 }
 
 /**
+ * CD-130 — points the demo company's Solution card at `SOL`. Only when unset,
+ * so an admin's own choice survives a re-seed.
+ */
+async function seedSolutionRequestType(companyId: string) {
+  const config = await prisma.crmCompanyConfig.findUnique({
+    where: { companyId },
+    select: { solutionRequestTypeCode: true },
+  });
+  if (!config) {
+    await prisma.crmCompanyConfig.create({
+      data: { companyId, solutionRequestTypeCode: 'SOL', updatedBy: 'seed' },
+    });
+  } else if (!config.solutionRequestTypeCode) {
+    await prisma.crmCompanyConfig.update({
+      where: { companyId },
+      data: { solutionRequestTypeCode: 'SOL', updatedBy: 'seed' },
+    });
+  }
+  console.log('  solution request type: SOL');
+}
+
+/**
  * The two pilot request types (§1). Configuration, not code — REQ-01 requires
  * that the 3rd..30th type needs no migration and no deploy, so everything
  * about a type lives in these columns.
@@ -1088,6 +1110,104 @@ async function seedRequestTypes(
       approvalPolicy: {},
       slaHours: 40,
     },
+    {
+      /**
+       * CD-130 — ขอ Solution และประเมินต้นทุน (Sales → Pre-Sales · หัวหน้า Pre-Sales
+       * · 2 วัน). Raised from the deal's Solution card, so it must name the deal.
+       * Its required fields are handoff gate 2: the requirement checklist and the
+       * customer's rough budget — missing any, it cannot be submitted.
+       */
+      code: 'SOL',
+      name: 'ขอ Solution และประเมินต้นทุน',
+      receiverOrgUnitId: osdRoot?.id ?? null,
+      refRequired: true,
+      formSchema: {
+        type: 'object',
+        required: [
+          'requirement',
+          'scope',
+          'site',
+          'timeline',
+          'decision_maker',
+          'budget_range',
+        ],
+        properties: {
+          requirement: {
+            type: 'string',
+            title: 'ปัญหา / ความต้องการของลูกค้า',
+            maxLength: 4000,
+            'x-multiline': true,
+            'x-order': 10,
+          },
+          scope: {
+            type: 'string',
+            title: 'ขอบเขตงานคร่าว ๆ (ระบบ จำนวน พื้นที่)',
+            maxLength: 4000,
+            'x-multiline': true,
+            'x-order': 20,
+          },
+          site: {
+            type: 'string',
+            title: 'สถานที่ / ไซต์งาน',
+            maxLength: 500,
+            'x-order': 30,
+          },
+          timeline: {
+            type: 'string',
+            title: 'กำหนดเวลาที่ลูกค้าต้องการ',
+            maxLength: 200,
+            'x-order': 40,
+          },
+          decision_maker: {
+            type: 'string',
+            title: 'ผู้ตัดสินใจฝั่งลูกค้า (ชื่อ · ตำแหน่ง)',
+            maxLength: 300,
+            'x-order': 50,
+          },
+          budget_range: {
+            type: 'string',
+            title: 'กรอบงบประมาณคร่าวของลูกค้า',
+            enum: [
+              'ต่ำกว่า 500,000',
+              '500,000 – 2 ล้าน',
+              '2 – 10 ล้าน',
+              'มากกว่า 10 ล้าน',
+              'ลูกค้ายังไม่ระบุ แต่ยืนยันว่ามีงบ',
+            ],
+            'x-order': 60,
+          },
+          constraints: {
+            type: 'string',
+            title: 'ข้อจำกัด / ระบบเดิมที่ต้องเชื่อม (ถ้ามี)',
+            maxLength: 2000,
+            'x-multiline': true,
+            'x-order': 70,
+          },
+          competitors: {
+            type: 'string',
+            title: 'คู่แข่งในดีลนี้ (ถ้ารู้)',
+            maxLength: 500,
+            'x-order': 80,
+          },
+          needs_demo: {
+            type: 'boolean',
+            title: 'ลูกค้าต้องการ Demo / POC',
+            'x-order': 90,
+          },
+        },
+      },
+      requiredDocs: [],
+      returnReasonCodes: [
+        { code: 'REQUIREMENT_UNCLEAR', name: 'ความต้องการไม่ชัดเจน' },
+        { code: 'BUDGET_UNKNOWN', name: 'ยังไม่รู้กรอบงบประมาณจริง' },
+        { code: 'SCOPE_TOO_BROAD', name: 'ขอบเขตกว้างเกินกว่าจะออกแบบได้' },
+        { code: 'CUSTOMER_INFO_NEEDED', name: 'ต้องขอข้อมูลเพิ่มจากลูกค้า' },
+        { code: 'OTHER', name: 'อื่น ๆ' },
+      ],
+      approvalPolicy: {},
+      // 2 days, as the scope's request-type table sets; coverage is 24×7.
+      slaHours: 48,
+    },
   ];
 
   for (const type of types) {
@@ -1102,6 +1222,8 @@ async function seedRequestTypes(
           ? { receiverFormSchema: type.receiverFormSchema }
           : {}),
         requiredDocs: type.requiredDocs,
+        // CD-130 — only a type that declares it; the others keep theirs.
+        ...('refRequired' in type ? { refRequired: type.refRequired } : {}),
         returnReasonCodes: type.returnReasonCodes,
         approvalPolicy: type.approvalPolicy,
         slaHours: type.slaHours,
@@ -1117,6 +1239,8 @@ async function seedRequestTypes(
           ? { receiverFormSchema: type.receiverFormSchema }
           : {}),
         requiredDocs: type.requiredDocs,
+        // CD-130 — only a type that declares it; the others keep theirs.
+        ...('refRequired' in type ? { refRequired: type.refRequired } : {}),
         returnReasonCodes: type.returnReasonCodes,
         approvalPolicy: type.approvalPolicy,
         slaHours: type.slaHours,
@@ -1254,6 +1378,7 @@ async function main() {
   await seedSensitiveFields();
   await seedRequestTypes(demo.id, companies);
   await seedContractRequestType(demo.id);
+  await seedSolutionRequestType(demo.id);
   await seedTradeTerms(demo.id);
   await seedHandoverItems(demo.id);
   await seedApprovalMatrix(demo.id);

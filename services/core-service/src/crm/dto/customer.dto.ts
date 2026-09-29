@@ -703,6 +703,15 @@ export class UpdateCrmConfigDto {
   @Matches(/^([A-Z0-9_-]{1,20})?$/)
   contract_request_type_code?: string;
 
+  /**
+   * CD-130: รหัสประเภทคำขอ "ขอ Solution และประเมินต้นทุน" (Sales → Pre-Sales).
+   * ส่ง `""` = ล้าง (หน้าดีลไม่แสดงการ์ด Solution).
+   */
+  @IsOptional()
+  @IsString()
+  @Matches(/^([A-Z0-9_-]{1,20})?$/)
+  solution_request_type_code?: string;
+
   /** CD-61: KYC ใช้ได้กี่เดือนก่อนต้องทบทวน ตามระดับความเสี่ยง. */
   @IsOptional()
   @IsInt()

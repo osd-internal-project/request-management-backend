@@ -26,6 +26,7 @@ function opportunityHarness(
     reason?: { code: string; name: string } | null;
     kycRules?: { productCode: string }[];
     contractType?: string | null;
+    solutionType?: string | null;
   } = {},
 ) {
   const audits: { eventType: string }[] = [];
@@ -115,9 +116,13 @@ function opportunityHarness(
     {
       findFirst: jest.fn(() =>
         Promise.resolve(
-          options.contractType === undefined
+          options.contractType === undefined &&
+            options.solutionType === undefined
             ? null
-            : { contractRequestTypeCode: options.contractType },
+            : {
+                contractRequestTypeCode: options.contractType ?? null,
+                solutionRequestTypeCode: options.solutionType ?? null,
+              },
         ),
       ),
     } as never,
@@ -198,6 +203,18 @@ describe('CRM โอกาสการขาย — ปิดชนะ/แพ้
     await expect(
       unset.service.findOne('opportunity-1', principal()),
     ).resolves.toMatchObject({ contractRequestTypeCode: null });
+  });
+
+  it('CD-130: the deal carries the type Pre-Sales takes solution requests on, or null when unset', async () => {
+    const configured = opportunityHarness({ solutionType: 'SOL' });
+    await expect(
+      configured.service.findOne('opportunity-1', principal()),
+    ).resolves.toMatchObject({ solutionRequestTypeCode: 'SOL' });
+
+    const unset = opportunityHarness({});
+    await expect(
+      unset.service.findOne('opportunity-1', principal()),
+    ).resolves.toMatchObject({ solutionRequestTypeCode: null });
   });
 
   it('CD-86 deal type: upsell/cross-sell need an existing customer; default is new business', async () => {
