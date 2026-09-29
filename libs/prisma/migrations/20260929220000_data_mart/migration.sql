@@ -11,10 +11,13 @@
 -- in the `reporting` schema. Metabase reads it through `metabase_ro`; the
 -- grants are in infra/metabase/reporting.sql, which creates that role.
 
+-- Idempotent (IF NOT EXISTS throughout): Prisma resets only `public` in the
+-- shadow database, so a `mart` left there by an earlier `migrate diff` must
+-- not make this migration fail on the next one.
 CREATE SCHEMA IF NOT EXISTS mart;
 
 -- When each table was last rebuilt, and how big it came out.
-CREATE TABLE mart.refresh_log (
+CREATE TABLE IF NOT EXISTS mart.refresh_log (
   table_name   TEXT PRIMARY KEY,
   refreshed_at TIMESTAMPTZ NOT NULL,
   row_count    INTEGER NOT NULL,
@@ -22,7 +25,7 @@ CREATE TABLE mart.refresh_log (
 );
 
 -- One row per sale order (cancelled ones kept, flagged) — ยอดขาย.
-CREATE TABLE mart.fact_sales (
+CREATE TABLE IF NOT EXISTS mart.fact_sales (
   sale_order_id     TEXT PRIMARY KEY,
   sale_order_code   TEXT NOT NULL,
   company_code      TEXT NOT NULL,
@@ -44,10 +47,10 @@ CREATE TABLE mart.fact_sales (
   owner_unit        TEXT,
   erp_status        TEXT
 );
-CREATE INDEX fact_sales_month_idx ON mart.fact_sales (company_code, order_month);
+CREATE INDEX IF NOT EXISTS fact_sales_month_idx ON mart.fact_sales (company_code, order_month);
 
 -- One row per open deal — pipeline.
-CREATE TABLE mart.fact_pipeline (
+CREATE TABLE IF NOT EXISTS mart.fact_pipeline (
   opportunity_id     TEXT PRIMARY KEY,
   opportunity_code   TEXT NOT NULL,
   title              TEXT NOT NULL,
@@ -70,10 +73,10 @@ CREATE TABLE mart.fact_pipeline (
   age_days           INTEGER NOT NULL,
   last_activity_at   TIMESTAMPTZ
 );
-CREATE INDEX fact_pipeline_close_idx ON mart.fact_pipeline (company_code, expected_close_month);
+CREATE INDEX IF NOT EXISTS fact_pipeline_close_idx ON mart.fact_pipeline (company_code, expected_close_month);
 
 -- One row per sales target (CD-82) with what was sold against it.
-CREATE TABLE mart.sales_target_actual (
+CREATE TABLE IF NOT EXISTS mart.sales_target_actual (
   target_id          TEXT PRIMARY KEY,
   company_code       TEXT NOT NULL,
   period             TEXT NOT NULL,          -- YYYY-MM, Bangkok
@@ -88,10 +91,10 @@ CREATE TABLE mart.sales_target_actual (
   forecast_pct       NUMERIC(6, 1),
   is_closed          BOOLEAN NOT NULL
 );
-CREATE INDEX sales_target_actual_period_idx ON mart.sales_target_actual (company_code, period);
+CREATE INDEX IF NOT EXISTS sales_target_actual_period_idx ON mart.sales_target_actual (company_code, period);
 
 -- One row per request not yet finished — คำขอค้าง, as of the last rebuild.
-CREATE TABLE mart.open_requests (
+CREATE TABLE IF NOT EXISTS mart.open_requests (
   request_id         TEXT PRIMARY KEY,
   request_no         TEXT,
   company_code       TEXT NOT NULL,
@@ -110,12 +113,12 @@ CREATE TABLE mart.open_requests (
   age_bucket         TEXT NOT NULL,
   sla_status         TEXT
 );
-CREATE INDEX open_requests_unit_idx ON mart.open_requests (company_code, receiver_unit_id);
+CREATE INDEX IF NOT EXISTS open_requests_unit_idx ON mart.open_requests (company_code, receiver_unit_id);
 
 -- One row per Bangkok day × company × team × type × status. Today's rows are
 -- rewritten on every rebuild; earlier days are never touched again, which is
 -- what lets the backlog be read as a trend.
-CREATE TABLE mart.request_backlog_daily (
+CREATE TABLE IF NOT EXISTS mart.request_backlog_daily (
   snapshot_date      DATE NOT NULL,
   company_code       TEXT NOT NULL,
   receiver_unit      TEXT NOT NULL,          -- '-' when the type names no team
