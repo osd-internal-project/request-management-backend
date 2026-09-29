@@ -8116,6 +8116,98 @@
         ]
       }
     },
+    "/api/v1/contracts/{id}/installments": {
+      "get": {
+        "description": "ทุกงวด พร้อมสัดส่วนต่อมูลค่าสัญญา ผลรวม และส่วนต่าง",
+        "operationId": "LegalContractsController_viewInstallments",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แผนการวางบิลตามงวด (CD-164)",
+        "tags": [
+          "contracts"
+        ],
+        "x-permission": [
+          "legal.contract.read"
+        ]
+      },
+      "put": {
+        "description": "ผลรวมทุกงวดต้องเท่ามูลค่าสัญญาพอดี · เงินมัดจำต้องมีหลักประกันไม่น้อยกว่ายอดมัดจำ · ทุกงวดต้องมีกำหนดชำระหรือหมุดหมาย",
+        "operationId": "LegalContractsController_saveInstallments",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveInstallmentsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "บันทึกแผนการวางบิลทั้งชุด",
+        "tags": [
+          "contracts"
+        ],
+        "x-permission": [
+          "legal.contract.manage"
+        ]
+      }
+    },
     "/api/v1/contracts/{id}/obligations": {
       "get": {
         "operationId": "LegalContractsController_listObligations",
@@ -15607,6 +15699,98 @@
         "required": [
           "into",
           "reason"
+        ]
+      },
+      "InstallmentDto": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "deposit",
+              "progress",
+              "final",
+              "retention"
+            ]
+          },
+          "label": {
+            "type": "object",
+            "example": "งวดที่ 2 — ติดตั้งแล้วเสร็จ",
+            "description": "ว่าง = ชื่อประเภทงวด",
+            "maxLength": 255
+          },
+          "amount": {
+            "type": "number",
+            "example": 300000,
+            "description": "บาท ทศนิยมไม่เกิน 2 ตำแหน่ง",
+            "minimum": 0.01
+          },
+          "due_on": {
+            "type": "object",
+            "example": "2026-11-30",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "due_note": {
+            "type": "object",
+            "example": "30 วันหลังตรวจรับ",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "milestone": {
+            "type": "object",
+            "example": "ส่งมอบระบบและตรวจรับงวดที่ 2",
+            "description": "หมุดหมายที่ปลดล็อกงวดนี้ (ผูกกับ Milestone ของ PM ภายหลัง)",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "guarantee_type": {
+            "type": "string",
+            "enum": [
+              "bank_guarantee",
+              "cheque",
+              "cash"
+            ],
+            "nullable": true,
+            "description": "หลักประกันที่ออกคู่กับเงินรับล่วงหน้า — บังคับสำหรับเงินมัดจำ"
+          },
+          "guarantee_amount": {
+            "type": "object",
+            "nullable": true,
+            "minimum": 0
+          },
+          "guarantee_ref": {
+            "type": "object",
+            "example": "LG-2569/0012",
+            "nullable": true,
+            "maxLength": 100
+          },
+          "guarantee_expires_on": {
+            "type": "object",
+            "example": "2027-06-30",
+            "nullable": true,
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "amount",
+          "kind"
+        ]
+      },
+      "SaveInstallmentsDto": {
+        "type": "object",
+        "properties": {
+          "installments": {
+            "description": "ทุกงวดตามลำดับ · ผลรวมต้องเท่ามูลค่าสัญญา · [] = ล้างแผน",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InstallmentDto"
+            },
+            "maxItems": 60
+          }
+        },
+        "required": [
+          "installments"
         ]
       },
       "SaveObligationDto": {

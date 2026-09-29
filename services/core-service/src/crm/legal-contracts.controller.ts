@@ -27,9 +27,11 @@ import { CurrentPrincipal, Permissions } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import { ContractTermsService } from './contract-terms.service';
 import { ContractObligationsService } from './contract-obligations.service';
+import { ContractInstallmentsService } from './contract-installments.service';
 import {
   ContractAccessDto,
   SaveContractTermsDto,
+  SaveInstallmentsDto,
   SaveObligationDto,
   ListContractsQueryDto,
   SaveLegalContractDto,
@@ -52,7 +54,36 @@ export class LegalContractsController {
     private readonly contracts: LegalContractsService,
     private readonly terms: ContractTermsService,
     private readonly obligations: ContractObligationsService,
+    private readonly installments: ContractInstallmentsService,
   ) {}
+
+  @ApiOperation({
+    summary: 'แผนการวางบิลตามงวด (CD-164)',
+    description: 'ทุกงวด พร้อมสัดส่วนต่อมูลค่าสัญญา ผลรวม และส่วนต่าง',
+  })
+  @Get(':id/installments')
+  @Permissions('legal.contract.read')
+  viewInstallments(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.installments.view(id, principal);
+  }
+
+  @ApiOperation({
+    summary: 'บันทึกแผนการวางบิลทั้งชุด',
+    description:
+      'ผลรวมทุกงวดต้องเท่ามูลค่าสัญญาพอดี · เงินมัดจำต้องมีหลักประกันไม่น้อยกว่ายอดมัดจำ · ทุกงวดต้องมีกำหนดชำระหรือหมุดหมาย',
+  })
+  @Put(':id/installments')
+  @Permissions('legal.contract.manage')
+  saveInstallments(
+    @Param('id') id: string,
+    @Body() dto: SaveInstallmentsDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.installments.save(id, dto, principal);
+  }
 
   @ApiOperation({ summary: 'ข้อผูกพันของสัญญา (CD-163)' })
   @Get(':id/obligations')

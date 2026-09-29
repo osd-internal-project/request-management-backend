@@ -3564,6 +3564,8 @@ model CustomerContract {
   subContracts CustomerContract[]   @relation("ContractMaster")
   /// CD-163 — ข้อผูกพันที่แตกจากสัญญา.
   obligations  ContractObligation[]
+  /// CD-164 — แผนการวางบิลตามงวด.
+  installments ContractInstallment[]
 
   @@unique([companyId, contractNo])
   @@index([customerId])
@@ -3708,6 +3710,43 @@ model ContractObligation {
   @@index([ownerUserId, status])
   @@index([status, dueOn])
   @@map("contract_obligations")
+}
+
+/// CD-164 — one billing installment of a contract: เงินมัดจำ / งวดตามความ
+/// คืบหน้า / งวดสุดท้าย / เงินประกันผลงาน. The schedule is saved whole and
+/// must add up to the contract value to the satang; an advance (deposit) is
+/// saved with the guarantee issued against it.
+model ContractInstallment {
+  id         String @id @default(uuid())
+  companyId  String
+  contractId String
+  /// Order in the schedule, from 1.
+  seq        Int
+
+  /// deposit · progress · final · retention
+  kind   String
+  label  String
+  amount Decimal @db.Decimal(14, 2)
+
+  /// When it is billed: a date, a condition ("30 วันหลังตรวจรับ"), and/or
+  /// the milestone that unlocks it (free text until PM milestones exist).
+  dueOn     DateTime? @db.Date
+  dueNote   String?
+  milestone String?
+
+  /// The guarantee issued with an advance: bank_guarantee · cheque · cash.
+  guaranteeType      String?
+  guaranteeAmount    Decimal?  @db.Decimal(14, 2)
+  guaranteeRef       String?
+  guaranteeExpiresOn DateTime? @db.Date
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  contract CustomerContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@unique([contractId, seq])
+  @@map("contract_installments")
 }
 
 /// CD-161 — who else may open a confidential contract.

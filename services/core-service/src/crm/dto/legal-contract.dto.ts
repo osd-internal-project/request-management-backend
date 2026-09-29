@@ -14,6 +14,7 @@ import {
   Max,
   MaxLength,
   Min,
+  ValidateNested,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PageQueryDto } from '@request-management/share';
@@ -381,4 +382,86 @@ export class CompleteObligationDto {
   @IsString()
   @MaxLength(1000)
   note?: string;
+}
+
+/** CD-164 — one installment of the billing schedule. */
+export class InstallmentDto {
+  @ApiProperty({ enum: ['deposit', 'progress', 'final', 'retention'] })
+  @IsIn(['deposit', 'progress', 'final', 'retention'])
+  kind!: 'deposit' | 'progress' | 'final' | 'retention';
+
+  @ApiPropertyOptional({
+    example: 'งวดที่ 2 — ติดตั้งแล้วเสร็จ',
+    description: 'ว่าง = ชื่อประเภทงวด',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  label?: string | null;
+
+  @ApiProperty({ example: 300000, description: 'บาท ทศนิยมไม่เกิน 2 ตำแหน่ง' })
+  @IsNumber()
+  @Min(0.01)
+  amount!: number;
+
+  @ApiPropertyOptional({ example: '2026-11-30', nullable: true })
+  @IsOptional()
+  @IsDateString()
+  due_on?: string | null;
+
+  @ApiPropertyOptional({ example: '30 วันหลังตรวจรับ', nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  due_note?: string | null;
+
+  @ApiPropertyOptional({
+    example: 'ส่งมอบระบบและตรวจรับงวดที่ 2',
+    description: 'หมุดหมายที่ปลดล็อกงวดนี้ (ผูกกับ Milestone ของ PM ภายหลัง)',
+    nullable: true,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  milestone?: string | null;
+
+  @ApiPropertyOptional({
+    enum: ['bank_guarantee', 'cheque', 'cash'],
+    nullable: true,
+    description:
+      'หลักประกันที่ออกคู่กับเงินรับล่วงหน้า — บังคับสำหรับเงินมัดจำ',
+  })
+  @IsOptional()
+  @IsIn(['bank_guarantee', 'cheque', 'cash', null])
+  guarantee_type?: 'bank_guarantee' | 'cheque' | 'cash' | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  guarantee_amount?: number | null;
+
+  @ApiPropertyOptional({ example: 'LG-2569/0012', nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  guarantee_ref?: string | null;
+
+  @ApiPropertyOptional({ example: '2027-06-30', nullable: true })
+  @IsOptional()
+  @IsDateString()
+  guarantee_expires_on?: string | null;
+}
+
+/** CD-164 — the whole schedule, saved at once. */
+export class SaveInstallmentsDto {
+  @ApiProperty({
+    type: [InstallmentDto],
+    description: 'ทุกงวดตามลำดับ · ผลรวมต้องเท่ามูลค่าสัญญา · [] = ล้างแผน',
+  })
+  @IsArray()
+  @ArrayMaxSize(60)
+  @ValidateNested({ each: true })
+  @Type(() => InstallmentDto)
+  installments!: InstallmentDto[];
 }

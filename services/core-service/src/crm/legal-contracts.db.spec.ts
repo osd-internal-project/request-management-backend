@@ -16,6 +16,10 @@ import {
   ContractObligationsService,
 } from './contract-obligations.service';
 import { CompanyMemberRepository } from '../access/company-member.repository';
+import {
+  ContractInstallmentRepository,
+  ContractInstallmentsService,
+} from './contract-installments.service';
 
 /**
  * CD-161 — the repository's search runs on relation filters (documents'
@@ -278,6 +282,69 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         obligations.complete(created.id, { note: 'ส่งแล้ว' }, legal),
       ).resolves.toMatchObject({ status: 'done' });
       await prisma.contractObligation.deleteMany({ where: { id: created.id } });
+    });
+
+    it('CD-164: a schedule is replaced whole in one transaction; the table refuses a zero installment', async () => {
+      const client = prisma as never;
+      const contractId = ids[ids.length - 1];
+      await prisma.customerContract.update({
+        where: { id: contractId },
+        data: { value: 100 },
+      });
+      const service = new ContractInstallmentsService(
+        new ContractInstallmentRepository(client),
+        new CustomerContractRepository(client),
+        {
+          execute: (work: (tx: unknown) => Promise<unknown>) =>
+            prisma.$transaction((tx) => work(tx)),
+        } as never,
+        { record: () => Promise.resolve() } as never,
+      );
+      const legal = as(legalUser, true);
+      const thirds = [33.33, 33.33, 33.34].map((amount) => ({
+        kind: 'progress' as const,
+        amount,
+        milestone: 'ส่งมอบ',
+      }));
+      await expect(
+        service.save(contractId, { installments: thirds }, legal),
+      ).resolves.toMatchObject({ total: 100, balanced: true });
+      const again = await service.save(
+        contractId,
+        {
+          installments: [
+            {
+              kind: 'deposit',
+              amount: 40,
+              due_note: 'เมื่อลงนาม',
+              guarantee_type: 'bank_guarantee',
+              guarantee_amount: 40,
+              guarantee_expires_on: '2027-06-30',
+            },
+            { kind: 'final', amount: 60, due_on: '2027-01-31' },
+          ],
+        },
+        legal,
+      );
+      expect(
+        again.installments.map((row) => [row.seq, row.kind, row.amount]),
+      ).toEqual([
+        [1, 'deposit', 40],
+        [2, 'final', 60],
+      ]);
+      expect(again.installments[0].guaranteeExpiresOn).toBe('2027-06-30');
+      await expect(
+        prisma.contractInstallment.create({
+          data: {
+            companyId,
+            contractId,
+            seq: 9,
+            kind: 'progress',
+            label: 'x',
+            amount: 0,
+          },
+        }),
+      ).rejects.toThrow(/contract_installments_amount_positive/);
     });
   },
 );
