@@ -142,6 +142,11 @@ export default () => ({
     process.env.NOTIFICATION_DIGEST_INTERVAL_MS ?? 300000,
   ),
 
+  /** CD-91 — how often the Data Mart is rebuilt (ms); 0 = off (tests). */
+  martRefreshIntervalMs: Number(
+    process.env.MART_REFRESH_INTERVAL_MS ?? 3600000,
+  ),
+
   /** CM-05/D-35 — the PDPA integration layer; mock until the central
    * service (DPO-owned) exists. */
   pdpa: {

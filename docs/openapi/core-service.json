@@ -9820,6 +9820,70 @@
         ]
       }
     },
+    "/api/v1/admin/bi/mart": {
+      "get": {
+        "operationId": "BiAdminController_martStatus",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin/bi"
+        ],
+        "x-permission": [
+          "admin.bi.manage"
+        ]
+      }
+    },
+    "/api/v1/admin/bi/mart/refresh": {
+      "post": {
+        "operationId": "BiAdminController_refreshMart",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin/bi"
+        ],
+        "x-permission": [
+          "admin.bi.manage"
+        ]
+      }
+    },
     "/api/v1/admin/bi/dashboards": {
       "get": {
         "operationId": "BiAdminController_list",

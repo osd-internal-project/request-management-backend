@@ -50,6 +50,7 @@ function pinEnvironment(url: string): void {
     'WORKFLOW_RETRY_INTERVAL_MS',
     'CRM_STALE_SWEEP_INTERVAL_MS',
     'NOTIFICATION_DIGEST_INTERVAL_MS',
+    'MART_REFRESH_INTERVAL_MS',
   ]) {
     process.env[key] = '0';
   }
@@ -159,4 +160,19 @@ function adminOf(company: {
 
     expect(failures).toEqual([]);
   }, 120_000);
+
+  // CD-91 — the mart's rebuild is raw SQL over the application tables; only
+  // the real engine can say whether every column it reads still exists.
+  it('rebuilds the Data Mart on the real engine', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/api/v1/admin/bi/mart/refresh')
+      .set('Authorization', 'Bearer smoke');
+
+    expect(response.status).toBe(200);
+    const tables = (
+      response.body as { tables: { refreshed_at: string | null }[] }
+    ).tables;
+    expect(tables.length).toBeGreaterThan(0);
+    expect(tables.every((table) => table.refreshed_at !== null)).toBe(true);
+  }, 60_000);
 });

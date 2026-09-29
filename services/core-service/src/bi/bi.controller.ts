@@ -13,6 +13,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Permissions, CurrentPrincipal } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import { BiService } from './bi.service';
+import { DataMartService } from './data-mart.service';
 import { CreateBiDashboardDto, UpdateBiDashboardDto } from './dto/bi.dto';
 
 /**
@@ -47,7 +48,25 @@ export class BiController {
 @ApiBearerAuth()
 @Controller('admin/bi')
 export class BiAdminController {
-  constructor(private readonly bi: BiService) {}
+  constructor(
+    private readonly bi: BiService,
+    private readonly mart: DataMartService,
+  ) {}
+
+  /** CD-91 — when each Data Mart table was last rebuilt. */
+  @Get('mart')
+  @Permissions('admin.bi.manage')
+  martStatus() {
+    return this.mart.status();
+  }
+
+  /** CD-91 — rebuild the Data Mart now instead of waiting for the hour. */
+  @Post('mart/refresh')
+  @Permissions('admin.bi.manage')
+  @HttpCode(200)
+  refreshMart(@CurrentPrincipal() principal: Principal) {
+    return this.mart.refreshNow(principal);
+  }
 
   @Get('dashboards')
   @Permissions('admin.bi.manage')

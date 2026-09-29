@@ -67,6 +67,8 @@ export default () => ({
    * gets added.
    */
   slaSweepIntervalMs: 0,
+  /** CD-91 — BiModule is not imported here today; zero keeps it so if it ever is. */
+  martRefreshIntervalMs: 0,
   erp: {
     mode: process.env.ERP_MODE ?? 'mock',
     /**

@@ -120,6 +120,46 @@ MB_URL=http://localhost:3300 MB_SESSION=<session id> \
 เสมอ; วันที่อ้างอิง (ครบกำหนด/เลยกำหนด) เทียบกับ `reporting.adoption_asof` = 24 ส.ค.
 2569 แก้ที่ view เดียวเมื่อเลื่อน snapshot
 
+## Data Mart — ยอดขายและคำขอค้าง (CD-91)
+
+ข้อมูลที่ผู้บริหารดูเป็นประจำถูก **เตรียมไว้ใน schema `mart`** แทนการรวบรวมด้วยมือ —
+core-service สร้างใหม่ทุกชั่วโมง (`DataMartService`, ครั้งแรก 1 นาทีหลังเปิดระบบ) ใน
+transaction เดียว ผู้อ่านจึงเห็นชุดเก่าหรือชุดใหม่ทั้งชุด ไม่เห็นครึ่ง ๆ กลาง ๆ
+
+| ตาราง | หนึ่งแถวคือ | ใช้ตอบ |
+|---|---|---|
+| `mart.fact_sales` | ใบสั่งขาย 1 ใบ (ใบยกเลิกเก็บไว้ `is_cancelled`) · เดือนตามเวลาไทย | ยอดขายรายเดือน/ทีม/ผู้ขาย/ประเภทลูกค้า |
+| `mart.fact_pipeline` | ดีลที่เปิดอยู่ 1 ดีล · `weighted_amount` = มูลค่า × โอกาสชนะ (ไม่ระบุ = 0) | pipeline ตามขั้น / เดือนที่คาดปิด |
+| `mart.sales_target_actual` | เป้า 1 รายการ (CD-82) กับยอดจริง พยากรณ์ และ % | ตัวเลขเดียวกับหน้า **เป้าและพยากรณ์** (เป้าของฝ่ายนับทุกทีมใต้ฝ่าย, งวดที่ผ่านแล้วไม่นับ pipeline) |
+| `mart.open_requests` | คำขอที่ยังไม่จบ 1 ใบ · อายุ (วัน) กลุ่มอายุ และ `sla_status` นิยามเดียวกับ CD-50 | คำขอค้างตอนนี้ ตามทีม/ผู้รับผิดชอบ |
+| `mart.request_backlog_daily` | วัน × บริษัท × ทีม × ประเภท × สถานะ | แนวโน้มคำขอค้าง — แถวของวันนี้เขียนทับทุกรอบ วันก่อน ๆ ไม่ถูกแตะอีก |
+| `mart.refresh_log` | ตาราง 1 ตาราง: สร้างล่าสุดเมื่อไร กี่แถว ใช้เวลากี่ ms | การ์ด "ข้อมูล ณ" |
+
+"ยังไม่จบ" = ไม่ใช่ draft / rejected / closed / cancelled — `completed` ยังนับ เพราะรอผู้ขอตรวจรับ
+
+**ติดตั้ง:** migration `20260929220000_data_mart` สร้าง schema และตาราง → รัน `reporting.sql`
+ซ้ำเพื่อ grant ให้ `metabase_ro` → ตาราง mart ถูกเติมเองภายใน 1 นาทีหลัง core-service เริ่ม
+(หรือกด **ปรับปรุงตอนนี้** ที่หน้า ตั้งค่า BI / `POST /admin/bi/mart/refresh`) →
+สร้างแดชบอร์ดด้วย `python3 infra/metabase/build_mart_dashboard.py` (ดู docstring)
+แล้วเพิ่มเลข dashboard ที่หน้า ตั้งค่า BI
+
+ตั้งรอบได้ด้วย `MART_REFRESH_INTERVAL_MS` (ค่าเริ่มต้น 3600000; 0 = ปิด). SQL ที่สร้าง mart อยู่ใน
+`services/core-service/src/bi/data-mart.repository.ts` และ `make smoke` รันมันบน DB จริงทุกครั้ง
+— ตาราง mart เป็นตารางธรรมดาไม่ใช่ view เพื่อไม่ให้ migration ที่แก้คอลัมน์ต้นทางในอนาคตล้ม
+
+### Dashboard 6 — ยอดขายและคำขอค้าง
+
+| การ์ด | ชนิด | อ่านจาก |
+|---|---|---|
+| ข้อมูล ณ | ตัวเลข | `refresh_log` |
+| ยอดขายเดือนนี้ | ตัวเลข | `fact_sales` ไม่รวมใบยกเลิก |
+| คำขอค้างตอนนี้ / เกินกำหนดอยู่ตอนนี้ | ตัวเลข | `open_requests` |
+| ยอดขายรายเดือน (12 เดือน) · ยอดขายเดือนนี้ตามทีม | แท่ง | `fact_sales` |
+| เป้า vs ยอดจริง งวดนี้ | ตาราง | `sales_target_actual` |
+| Pipeline ตามขั้น · ถ่วงน้ำหนักตามเดือนที่คาดปิด | แท่ง | `fact_pipeline` |
+| แนวโน้มคำขอค้างรายวัน (60 วัน) | เส้น | `request_backlog_daily` |
+| คำขอค้างตามทีม × อายุ · คำขอค้างนานสุด | ตาราง | `open_requests` |
+
 ## ฝังเข้าเมนูของระบบ (ใช้ login ของระบบ ไม่ต้อง login Metabase ซ้ำ)
 
 ระบบเสิร์ฟเมนู BI ที่ `GET /bi/menu` (core-service) ตามหลัก ROLE-06 — เมนูประกอบจาก permission:
@@ -144,6 +184,6 @@ MB_URL=http://localhost:3300 MB_SESSION=<session id> \
 
 ## กติกา
 
-- **ห้ามต่อ Metabase ด้วย role อื่นนอกจาก `metabase_ro`** และห้าม grant อะไรเพิ่มให้ role นี้นอก schema `reporting`
+- **ห้ามต่อ Metabase ด้วย role อื่นนอกจาก `metabase_ro`** และห้าม grant อะไรเพิ่มให้ role นี้นอก schema `reporting` และ `mart`
 - อยากได้ field ใหม่ในแดชบอร์ด → แก้ view ใน `reporting.sql` แล้วรัน psql ซ้ำ (idempotent) — ไม่เปิดตารางจริงเด็ดขาด
 - สิทธิ์การเห็นแดชบอร์ดจัดที่ Metabase groups (path นี้คือ BI ระดับบริหารตาม CD-92 ไม่มี row-level scope) — ระบบหลักยังบังคับ scope ที่ backend ตามเดิม ห้ามเอา view เหล่านี้ไปเสิร์ฟกลับเข้าแอป
