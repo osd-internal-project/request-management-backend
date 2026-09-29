@@ -111,6 +111,8 @@ export default () => ({
     contractRenewalIntervalMs: 0,
     // CD-53 — overdue-invoice reminders too.
     invoiceOverdueIntervalMs: 0,
+    // CD-86 — account review reminders too.
+    accountReviewIntervalMs: 0,
   },
   pdpa: {
     mode: process.env.PDPA_MODE ?? 'mock',

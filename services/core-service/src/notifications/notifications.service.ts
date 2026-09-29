@@ -478,6 +478,27 @@ export class NotificationsService {
     });
   }
 
+  /** CD-86 — a customer's account review is due (the `customer.review` rule). */
+  async accountReviewDue(
+    userId: string,
+    companyId: string,
+    customer: { id: string; customerCode: string; nameTh: string },
+    reviewOn: string,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'crm.account.review_due',
+      values: {
+        customer_code: customer.customerCode,
+        customer_name: customer.nameTh,
+        review_on: reviewOn,
+      },
+      resourceType: 'customer',
+      resourceId: customer.id,
+    });
+  }
+
   /** CD-53 — an open SAP invoice has passed one of the rule's overdue steps. */
   async invoiceOverdue(
     userId: string,

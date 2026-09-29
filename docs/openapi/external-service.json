@@ -5335,6 +5335,20 @@
             }
           },
           {
+            "name": "deal_type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "new_business",
+                "upsell",
+                "cross_sell",
+                "renewal"
+              ]
+            }
+          },
+          {
             "name": "view",
             "required": false,
             "in": "query",
@@ -5546,6 +5560,20 @@
             "description": "id ลูกค้าจาก `GET /crm/customers`",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "deal_type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "new_business",
+                "upsell",
+                "cross_sell",
+                "renewal"
+              ]
             }
           },
           {
@@ -10212,6 +10240,11 @@
           "discovery_required": {
             "type": "boolean"
           },
+          "health_no_contact_days": {
+            "maximum": 365,
+            "minimum": 0,
+            "type": "integer"
+          },
           "letterhead_name_th": {
             "maxLength": 255,
             "type": "string"
@@ -10976,6 +11009,16 @@
               "type": "string",
               "pattern": "^[A-Za-z0-9_.-]+$"
             }
+          },
+          "deal_type": {
+            "type": "string",
+            "enum": [
+              "new_business",
+              "upsell",
+              "cross_sell",
+              "renewal"
+            ],
+            "default": "new_business"
           }
         },
         "required": [
@@ -10985,6 +11028,16 @@
       "UpdateOpportunityDto": {
         "type": "object",
         "properties": {
+          "deal_type": {
+            "type": "string",
+            "enum": [
+              "new_business",
+              "upsell",
+              "cross_sell",
+              "renewal"
+            ],
+            "default": "new_business"
+          },
           "title": {
             "maxLength": 255,
             "type": "string",

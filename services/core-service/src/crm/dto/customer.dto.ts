@@ -585,6 +585,13 @@ export class UpdateCrmConfigDto {
   @IsBoolean()
   discovery_required?: boolean;
 
+  /** CD-86 — ไม่ได้ติดต่อลูกค้าเดิมเกินกี่วันจึงนับเป็นความเสี่ยง; 0 = ไม่ใช้. */
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(365)
+  health_no_contact_days?: number;
+
   // --- หัวกระดาษเอกสารขาย (ใบเสนอราคา PDF) — "" = ล้างค่า -----------------
 
   @IsOptional()

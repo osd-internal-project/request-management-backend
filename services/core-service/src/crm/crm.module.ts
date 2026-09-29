@@ -67,6 +67,12 @@ import {
 } from './sales.repositories';
 import { CampaignsService } from './campaigns.service';
 import { TargetAccountsService } from './target-accounts.service';
+import { KeeperService } from './keeper.service';
+import { AccountReviewReminderService } from './account-review-reminder.service';
+import {
+  CustomerAccountPlanRepository,
+  CustomerTouchpointRepository,
+} from './keeper.repositories';
 import { TargetAccountRepository } from './target-accounts.repository';
 import { CustomerInvoicesService } from './customer-invoices.service';
 import { RequestTimelineSyncService } from './request-timeline-sync.service';
@@ -187,6 +193,10 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     CampaignsService,
     TargetAccountsService,
     TargetAccountRepository,
+    KeeperService,
+    AccountReviewReminderService,
+    CustomerAccountPlanRepository,
+    CustomerTouchpointRepository,
     CustomerInvoicesService,
     RequestTimelineSyncService,
     OpportunityStaleMonitorService,
@@ -225,6 +235,7 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     SalesTargetsService,
     CampaignsService,
     TargetAccountsService,
+    KeeperService,
     CustomerInvoicesService,
     SaleOrdersService,
     QuotationsService,

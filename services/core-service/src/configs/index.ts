@@ -133,6 +133,10 @@ export default () => ({
       process.env.CRM_CONTRACT_RENEWAL_INTERVAL_MS ?? 3600000,
     ),
     /** CD-53 — overdue SAP invoices; a pass runs once a Bangkok day (ms); 0 = off. */
+    /** CD-86 — account review reminders (ms); 0 = off. */
+    accountReviewIntervalMs: Number(
+      process.env.CRM_ACCOUNT_REVIEW_INTERVAL_MS ?? 3600000,
+    ),
     invoiceOverdueIntervalMs: Number(
       process.env.CRM_INVOICE_OVERDUE_INTERVAL_MS ?? 3600000,
     ),

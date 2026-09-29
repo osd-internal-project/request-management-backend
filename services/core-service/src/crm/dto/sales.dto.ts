@@ -21,6 +21,7 @@ import {
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PageQueryDto } from '@request-management/share';
 import { CUSTOMER_TYPES } from './customer.dto';
+import { DEAL_TYPES } from '../keeper-rules';
 import {
   ACTIVITY_OUTCOMES,
   TARGET_PRIORITIES,
@@ -776,6 +777,12 @@ export class CreateOpportunityDto {
   @IsArray()
   @Matches(/^[A-Za-z0-9_.-]+$/, { each: true })
   product_codes?: string[];
+
+  /** CD-86 — ลูกค้าใหม่ / ขายเพิ่ม / ขายข้าม / ต่ออายุ; upsell/cross_sell ต้องมีลูกค้าเดิม. */
+  @ApiPropertyOptional({ enum: DEAL_TYPES, default: 'new_business' })
+  @IsOptional()
+  @IsIn(DEAL_TYPES)
+  deal_type?: (typeof DEAL_TYPES)[number];
 }
 
 export class UpdateOpportunityDto {
@@ -809,6 +816,12 @@ export class UpdateOpportunityDto {
   @IsArray()
   @Matches(/^[A-Za-z0-9_.-]+$/, { each: true })
   product_codes?: string[];
+
+  /** CD-86 — ลูกค้าใหม่ / ขายเพิ่ม / ขายข้าม / ต่ออายุ; upsell/cross_sell ต้องมีลูกค้าเดิม. */
+  @ApiPropertyOptional({ enum: DEAL_TYPES, default: 'new_business' })
+  @IsOptional()
+  @IsIn(DEAL_TYPES)
+  deal_type?: (typeof DEAL_TYPES)[number];
 }
 
 export class LoseOpportunityDto {
@@ -850,6 +863,12 @@ export class ListOpportunitiesQueryDto extends PageQueryDto {
   @IsOptional()
   @IsString()
   customer_id?: string;
+
+  /** CD-86 — เฉพาะชนิดนี้. */
+  @ApiPropertyOptional({ enum: DEAL_TYPES })
+  @IsOptional()
+  @IsIn(DEAL_TYPES)
+  deal_type?: (typeof DEAL_TYPES)[number];
 
   @ApiPropertyOptional({ example: 'mine' })
   @IsOptional()

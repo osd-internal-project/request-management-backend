@@ -5130,6 +5130,20 @@
             }
           },
           {
+            "name": "deal_type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "new_business",
+                "upsell",
+                "cross_sell",
+                "renewal"
+              ]
+            }
+          },
+          {
             "name": "view",
             "required": false,
             "in": "query",
@@ -5317,6 +5331,20 @@
             "description": "id ลูกค้าจาก `GET /crm/customers`",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "deal_type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "new_business",
+                "upsell",
+                "cross_sell",
+                "renewal"
+              ]
             }
           },
           {
@@ -7947,6 +7975,235 @@
         "summary": "ตีกลับงานส่งมอบให้ฝ่ายขายแก้ (ต้องมีเหตุผล)",
         "tags": [
           "handovers"
+        ]
+      }
+    },
+    "/api/v1/keeper/portfolio": {
+      "get": {
+        "description": "สุขภาพ = สัญญาณที่แย่ที่สุด (เคสเกิน SLA, ใบแจ้งหนี้เลยกำหนด, สัญญาใกล้หมดไม่มีดีลต่ออายุ, ความพึงพอใจต่ำ, ไม่ได้ติดต่อนาน) · เรียงแดงก่อน · สูงสุด 300 บัญชี",
+        "operationId": "KeeperController_portfolio",
+        "parameters": [
+          {
+            "name": "view",
+            "required": false,
+            "in": "query",
+            "description": "`mine` = ลูกค้าที่ฉันเป็นผู้ดูแล · `team` = ทุกบัญชีที่เห็นได้",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "mine",
+                "team"
+              ]
+            }
+          },
+          {
+            "name": "tier",
+            "required": false,
+            "in": "query",
+            "description": "`none` = ยังไม่มีแผนบัญชี",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "a",
+                "b",
+                "c",
+                "none"
+              ]
+            }
+          },
+          {
+            "name": "health",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "green",
+                "amber",
+                "red"
+              ]
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "ค้นจากรหัสหรือชื่อลูกค้า",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Portfolio ลูกค้าเดิม — แผนบัญชี สุขภาพ และรอบทบทวน",
+        "tags": [
+          "keeper"
+        ],
+        "x-permission": [
+          "crm.customer.read"
+        ]
+      }
+    },
+    "/api/v1/customers/{id}/account": {
+      "get": {
+        "description": "นอกขอบเขตที่มองเห็นตอบ 404 (SCOPE-03)",
+        "operationId": "KeeperController_account",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "บัญชีลูกค้าเดิม — แผน สุขภาพ การติดต่อ สิ่งที่ซื้ออยู่ ดีลที่เปิด",
+        "tags": [
+          "keeper"
+        ],
+        "x-permission": [
+          "crm.customer.read"
+        ]
+      }
+    },
+    "/api/v1/customers/{id}/account-plan": {
+      "put": {
+        "operationId": "KeeperController_savePlan",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveAccountPlanDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "บันทึกแผนบัญชีของลูกค้า",
+        "tags": [
+          "keeper"
+        ],
+        "x-permission": [
+          "crm.customer.manage"
+        ]
+      }
+    },
+    "/api/v1/customers/{id}/touchpoints": {
+      "post": {
+        "description": "review = ทบทวนตามรอบ (ใส่ความพึงพอใจ 1–5 ได้) และเลื่อนรอบถัดไปให้อัตโนมัติ",
+        "operationId": "KeeperController_addTouchpoint",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTouchpointDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ลงการทบทวน / การติดต่อลูกค้าเดิม",
+        "tags": [
+          "keeper"
+        ],
+        "x-permission": [
+          "crm.customer.manage"
         ]
       }
     },
@@ -11591,6 +11848,11 @@
           "discovery_required": {
             "type": "boolean"
           },
+          "health_no_contact_days": {
+            "maximum": 365,
+            "minimum": 0,
+            "type": "integer"
+          },
           "letterhead_name_th": {
             "maxLength": 255,
             "type": "string"
@@ -12355,6 +12617,16 @@
               "type": "string",
               "pattern": "^[A-Za-z0-9_.-]+$"
             }
+          },
+          "deal_type": {
+            "type": "string",
+            "enum": [
+              "new_business",
+              "upsell",
+              "cross_sell",
+              "renewal"
+            ],
+            "default": "new_business"
           }
         },
         "required": [
@@ -12364,6 +12636,16 @@
       "UpdateOpportunityDto": {
         "type": "object",
         "properties": {
+          "deal_type": {
+            "type": "string",
+            "enum": [
+              "new_business",
+              "upsell",
+              "cross_sell",
+              "renewal"
+            ],
+            "default": "new_business"
+          },
           "title": {
             "maxLength": 255,
             "type": "string",
@@ -12937,6 +13219,88 @@
         },
         "required": [
           "reason"
+        ]
+      },
+      "SaveAccountPlanDto": {
+        "type": "object",
+        "properties": {
+          "tier": {
+            "type": "string",
+            "enum": [
+              "a",
+              "b",
+              "c"
+            ],
+            "default": "b"
+          },
+          "goals": {
+            "type": "string",
+            "example": "ขยายระบบกล้องไปอีก 3 สาขา · ย้ายตู้สาขาเป็นคลาวด์",
+            "description": "แผนเติบโตของลูกค้ารายนี้",
+            "maxLength": 4000
+          },
+          "target_revenue": {
+            "type": "object",
+            "example": 2500000,
+            "description": "เป้ายอดขายต่อปี (บาท)",
+            "minimum": 0
+          },
+          "review_every_months": {
+            "type": "integer",
+            "example": 3,
+            "description": "ทบทวนทุกกี่เดือน",
+            "maximum": 24,
+            "minimum": 1
+          },
+          "next_review_on": {
+            "type": "object",
+            "example": "2026-12-15",
+            "description": "รอบทบทวนถัดไป — ว่าง = คำนวณจากการทบทวนครั้งถัดไปเอง",
+            "format": "date-time"
+          }
+        }
+      },
+      "CreateTouchpointDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "review",
+              "call",
+              "email",
+              "meeting",
+              "visit",
+              "line",
+              "social"
+            ],
+            "example": "review"
+          },
+          "summary": {
+            "type": "string",
+            "example": "ทบทวนไตรมาส — ลูกค้าพอใจงานบริการ อยากขยายสาขา",
+            "maxLength": 4000,
+            "minLength": 1
+          },
+          "occurred_at": {
+            "type": "string",
+            "description": "เมื่อไร — ว่าง = ตอนนี้",
+            "format": "date-time"
+          },
+          "satisfaction": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5,
+            "description": "ความพึงพอใจ 1–5 — ใช้กับ review เท่านั้น"
+          },
+          "next_steps": {
+            "maxLength": 2000,
+            "type": "string"
+          }
+        },
+        "required": [
+          "summary",
+          "type"
         ]
       },
       "PreviewChainDto": {

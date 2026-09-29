@@ -237,6 +237,33 @@ enum TargetAccountStatus {
   dropped
 }
 
+/// CD-86 — ลำดับความสำคัญของบัญชีลูกค้าเดิม (Keeper): A ดูแลใกล้ชิดที่สุด.
+enum AccountTier {
+  a
+  b
+  c
+}
+
+/// CD-86 — ชนิดของโอกาสการขาย: ลูกค้าใหม่, ขายเพิ่ม (Upgrade/Upsell),
+/// ขายข้าม (Cross-sell), ต่ออายุ (CD-70 ตั้งให้อัตโนมัติ).
+enum OpportunityDealType {
+  new_business
+  upsell
+  cross_sell
+  renewal
+}
+
+/// CD-86 — การติดต่อลูกค้าเดิม: ทบทวนตามรอบ (review) หรือเข้าหาเชิงรุก.
+enum CustomerTouchType {
+  review
+  call
+  email
+  meeting
+  visit
+  line
+  social
+}
+
 /// CRM — ขั้นของโอกาสการขาย. `won`/`lost` เป็นสถานะปิด; ปิดแพ้ต้องมีเหตุผลมาตรฐาน
 /// (spec: "ปิดแพ้ต้องระบุเหตุผลจากรายการมาตรฐานเพื่อนำมาวิเคราะห์ได้").
 enum OpportunityStage {
@@ -2059,9 +2086,12 @@ model Customer {
   /// office by `headOfficeId`). Postgres treats NULL tax ids as distinct, so
   /// customers without one never collide here.
   /// CD-61 every KYC verification of this customer, newest last.
-  kycRecords CustomerKycRecord[]
+  kycRecords  CustomerKycRecord[]
   /// CD-70 the customer's contracts (renewals are raised from their end date).
-  contracts  CustomerContract[]
+  contracts   CustomerContract[]
+  /// CD-86 Keeper — แผนบัญชี และการติดต่อ/ทบทวน.
+  accountPlan CustomerAccountPlan?
+  touchpoints CustomerTouchpoint[]
 
   @@unique([companyId, taxId, branchCode])
   @@index([companyId, headOfficeId])
@@ -2329,6 +2359,10 @@ model CrmCompanyConfig {
   /// CD-85 — บริษัทนี้ต้องการ Discovery ครบก่อนเปิดดีลจาก Lead. เป็นค่าที่
   /// workflow `lwf-0001` อ่านจาก facts แล้วตัดสินเอง; หน้าจอเตือน.
   discoveryRequired Boolean @default(false)
+
+  /// CD-86 — ไม่มีใครติดต่อลูกค้าเดิมเกินกี่วันจึงนับเป็นความเสี่ยง (เหลือง;
+  /// เกินสองเท่า = แดง). 0 = ไม่ใช้สัญญาณนี้.
+  healthNoContactDays Int @default(60)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2642,9 +2676,11 @@ model Opportunity {
 
   title String
 
-  stage           OpportunityStage @default(qualifying)
-  amount          Decimal?         @db.Decimal(14, 2)
-  currency        String           @default("THB")
+  stage           OpportunityStage    @default(qualifying)
+  /// CD-86 — ลูกค้าใหม่ / ขายเพิ่ม / ขายข้าม / ต่ออายุ.
+  dealType        OpportunityDealType @default(new_business)
+  amount          Decimal?            @db.Decimal(14, 2)
+  currency        String              @default("THB")
   /// 0–100.
   probability     Int?
   expectedCloseAt DateTime?
@@ -3410,4 +3446,56 @@ model TargetAccount {
   @@index([companyId, status, priority])
   @@index([companyId, ownerUserId])
   @@map("target_accounts")
+}
+
+/// CD-86 — แผนบัญชีของลูกค้าเดิม (Customer Portfolio & Account Plan): ลำดับ
+/// ความสำคัญ เป้าการเติบโต และรอบทบทวน. หนึ่งลูกค้าหนึ่งแผน; ไม่มีแผน = ยังไม่
+/// ได้วางแผน (ลูกค้ายังอยู่ใน portfolio ของเจ้าของตามปกติ).
+model CustomerAccountPlan {
+  id         String @id @default(uuid())
+  companyId  String
+  customerId String @unique
+
+  tier          AccountTier @default(b)
+  goals         String?
+  targetRevenue Decimal?    @db.Decimal(14, 2)
+
+  /// ทบทวนทุกกี่เดือน; การบันทึก review เลื่อน `nextReviewOn` ต่อให้เอง.
+  reviewEveryMonths Int       @default(3)
+  nextReviewOn      DateTime? @db.Date
+  /// `nextReviewOn` ที่เตือนเจ้าของไปแล้ว — เตือนครั้งเดียวต่อรอบ.
+  reviewRemindedOn  DateTime? @db.Date
+
+  createdAt DateTime @default(now())
+  createdBy String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@index([companyId, nextReviewOn])
+  @@map("customer_account_plans")
+}
+
+/// CD-86 — การติดต่อ/ทบทวนลูกค้าเดิม (Review & Reconnect). Append-only:
+/// review มีคะแนนความพึงพอใจ 1–5 ที่ health ใช้.
+model CustomerTouchpoint {
+  id           String            @id @default(uuid())
+  companyId    String
+  customerId   String
+  type         CustomerTouchType
+  occurredAt   DateTime
+  summary      String
+  /// 1–5, review เท่านั้น.
+  satisfaction Int?
+  nextSteps    String?
+
+  createdAt DateTime @default(now())
+  createdBy String
+
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@index([customerId, occurredAt])
+  @@index([companyId, occurredAt])
+  @@map("customer_touchpoints")
 }

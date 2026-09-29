@@ -12,6 +12,7 @@ import { QuotationsController } from './quotations.controller';
 import { ActivityPhotosController } from './activity-photos.controller';
 import { ActivityPhotosService } from './activity-photos.service';
 import { HandoversController } from './handovers.controller';
+import { KeeperController } from './keeper.controller';
 import {
   OpportunityActivityPhotoRepository,
   OpportunityActivityRepository,
@@ -60,6 +61,8 @@ import {
     ActivityPhotosController,
     // CD-84 — screens only; see the controller for why it is not generated.
     HandoversController,
+    // CD-86 — screens only; see the controller for why it is not generated.
+    KeeperController,
   ],
   providers: [
     ActivityPhotosService,

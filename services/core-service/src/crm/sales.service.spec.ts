@@ -200,6 +200,28 @@ describe('CRM โอกาสการขาย — ปิดชนะ/แพ้
     ).resolves.toMatchObject({ contractRequestTypeCode: null });
   });
 
+  it('CD-86 deal type: upsell/cross-sell need an existing customer; default is new business', async () => {
+    const { service, opportunities } = opportunityHarness();
+    await expect(
+      service.create(
+        { prospect_name: 'ผู้มุ่งหวัง', title: 'x', deal_type: 'upsell' },
+        principal(),
+      ),
+    ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+
+    await service.create(
+      { customer_id: 'cust-1', title: 'ขยายสาขา', deal_type: 'cross_sell' },
+      principal(),
+    );
+    await service.create({ customer_id: 'cust-1', title: 'y' }, principal());
+    const types = (
+      opportunities.create.mock.calls as unknown as [
+        { data: { dealType: string } },
+      ][]
+    ).map(([args]) => args.data.dealType);
+    expect(types).toEqual(['cross_sell', 'new_business']);
+  });
+
   it('SCOPE-03 โอกาสการขายนอกขอบเขต = 404', async () => {
     const { service } = opportunityHarness({ found: null });
 

@@ -212,6 +212,17 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
     },
   },
   {
+    eventType: 'crm.account.review_due',
+    label: 'ถึงรอบทบทวนลูกค้าเดิม (ถึงผู้ดูแลลูกค้า)',
+    title: 'ถึงรอบทบทวน {{customer_name}} วันที่ {{review_on}}',
+    body: '{{customer_code}} — ทบทวนความต้องการและความพึงพอใจตามแผนบัญชี แล้วลงผลการทบทวน',
+    variables: {
+      customer_code: { label: 'รหัสลูกค้า', sample: 'CUS-OSD-000042' },
+      customer_name: { label: 'ชื่อลูกค้า', sample: 'บริษัท ตัวอย่าง จำกัด' },
+      review_on: { label: 'วันที่ครบรอบทบทวน', sample: '2026-10-06' },
+    },
+  },
+  {
     eventType: 'notification.digest',
     label: 'สรุปการแจ้งเตือนประจำวัน',
     title: 'สรุปการแจ้งเตือนประจำวัน · {{count}} รายการ',
