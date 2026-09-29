@@ -3734,8 +3734,9 @@ model Solution {
   updatedAt DateTime @updatedAt
   updatedBy String?
 
-  opportunity Opportunity       @relation(fields: [opportunityId], references: [id])
-  versions    SolutionVersion[]
+  opportunity  Opportunity           @relation(fields: [opportunityId], references: [id])
+  versions     SolutionVersion[]
+  requirements SolutionRequirement[]
 
   @@index([companyId, opportunityId])
   @@map("solutions")
@@ -3786,4 +3787,49 @@ model SolutionFile {
 
   @@index([versionId])
   @@map("solution_files")
+}
+
+/// CD-131 — ความต้องการเชิงธุรกิจหรือเชิงเทคนิค.
+enum RequirementKind {
+  business
+  technical
+}
+
+/// CD-131 — ผลการประเมินของ Pre-Sales ต่อความต้องการหนึ่งข้อ.
+enum RequirementAssessment {
+  unassessed
+  feasible
+  not_feasible
+  needs_info
+}
+
+/// CD-131 — วิเคราะห์ความต้องการ: หนึ่งข้อของ Solution แยกจากเวอร์ชัน (แก้ได้
+/// ตลอดโดยไม่ต้องเปิดเวอร์ชันใหม่). ข้อที่ต้องขอข้อมูลเพิ่ม (`needs_info`) เก็บ
+/// คำตอบของลูกค้าไว้ที่ข้อนั้น; ยืนยันเวอร์ชันไม่ได้ถ้ายังมีข้อที่ยังไม่ประเมิน
+/// หรือยังรอลูกค้าตอบ. ลบคือ soft delete.
+model SolutionRequirement {
+  id         String                @id @default(uuid())
+  companyId  String
+  solutionId String
+  seq        Int
+  kind       RequirementKind
+  text       String
+  assessment RequirementAssessment @default(unassessed)
+  /// เหตุผลของผลประเมิน หรือคำถามที่ต้องถามลูกค้าเมื่อเป็น `needs_info`.
+  note       String                @default("")
+
+  customerAnswer String?
+  answeredAt     DateTime?
+  answeredBy     String?
+
+  createdBy String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  updatedBy String?
+  deletedAt DateTime?
+
+  solution Solution @relation(fields: [solutionId], references: [id])
+
+  @@index([solutionId])
+  @@map("solution_requirements")
 }

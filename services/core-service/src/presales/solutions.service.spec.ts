@@ -49,6 +49,7 @@ function harness(options: {
   dealVisible?: boolean;
   configType?: string | null;
   moved?: number;
+  requirements?: Record<string, unknown>[];
 }) {
   const versions = options.versions ?? [version()];
   const solutions = {
@@ -82,6 +83,9 @@ function harness(options: {
     create: jest.fn(() => Promise.resolve({})),
     createMany: jest.fn(() => Promise.resolve({ count: 0 })),
     update: jest.fn(() => Promise.resolve({})),
+  };
+  const requirementRepo = {
+    findMany: jest.fn(() => Promise.resolve(options.requirements ?? [])),
   };
   const requests = {
     findFirst: jest.fn((args: { select: Record<string, unknown> }) =>
@@ -142,6 +146,7 @@ function harness(options: {
     solutions as never,
     versionRepo as never,
     files as never,
+    requirementRepo as never,
     requests as never,
     opportunities as never,
     configs as never,
@@ -292,6 +297,24 @@ describe('CD-132 solutions', () => {
       }),
       { prisma: {} },
     );
+  });
+
+  it('CD-131: a version does not lock while the analysis is open', async () => {
+    const { service } = harness({
+      requirements: [
+        { assessment: 'unassessed', customerAnswer: null },
+        { assessment: 'needs_info', customerAnswer: null },
+        { assessment: 'needs_info', customerAnswer: 'มี rack แล้ว' },
+        { assessment: 'feasible', customerAnswer: null },
+      ],
+    });
+    await expect(service.lock('sol-1', 1, presales)).rejects.toMatchObject({
+      code: 'VALIDATION_FAILED',
+      details: [
+        { field: 'version', reason: 'ยังไม่ได้ประเมินความต้องการ 1 ข้อ' },
+        { field: 'version', reason: 'ยังรอลูกค้าตอบ 1 ข้อ' },
+      ],
+    });
   });
 
   it('a new version copies the locked one and needs the latest locked', async () => {

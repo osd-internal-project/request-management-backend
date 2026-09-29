@@ -1,10 +1,14 @@
 import {
+  assessmentProblem,
   briefOf,
   cleanAssumptions,
   lockGaps,
   MAX_ASSUMPTION_LENGTH,
   MAX_ASSUMPTIONS,
   readAssumptions,
+  requirementCounts,
+  requirementGaps,
+  type RequirementState,
 } from './solution-rules';
 
 describe('CD-132 solution rules', () => {
@@ -70,5 +74,48 @@ describe('CD-132 solution rules', () => {
       }),
     ).toEqual({ requirement: 'เชื่อม 12 สาขา', needs_demo: 'ใช่' });
     expect(briefOf(null)).toEqual({});
+  });
+});
+
+describe('CD-131 requirement rules', () => {
+  const row = (assessment: string, customerAnswer: string | null = null) =>
+    ({ assessment, customerAnswer }) as RequirementState;
+
+  it('counts what is waiting on the customer: asked and unanswered only', () => {
+    expect(
+      requirementCounts([
+        row('needs_info'),
+        row('needs_info', '  '),
+        row('needs_info', 'ใช้ Fortinet'),
+        row('feasible'),
+        row('unassessed'),
+      ]),
+    ).toMatchObject({
+      total: 5,
+      needs_info: 3,
+      waiting_customer: 2,
+      unassessed: 1,
+      feasible: 1,
+    });
+  });
+
+  it('an empty or fully assessed analysis leaves nothing blocking', () => {
+    expect(requirementGaps([])).toEqual([]);
+    expect(
+      requirementGaps([
+        row('feasible'),
+        row('not_feasible'),
+        row('needs_info', 'ok'),
+      ]),
+    ).toEqual([]);
+  });
+
+  it('a question and a refusal must each say why', () => {
+    expect(assessmentProblem('needs_info', ' ')).not.toBeNull();
+    expect(assessmentProblem('not_feasible', '')).not.toBeNull();
+    expect(assessmentProblem('feasible', '')).toBeNull();
+    expect(
+      assessmentProblem('needs_info', 'ใช้ firewall ยี่ห้อไหน'),
+    ).toBeNull();
   });
 });

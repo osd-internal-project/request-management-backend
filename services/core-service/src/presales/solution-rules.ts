@@ -117,3 +117,69 @@ export function briefOf(formData: unknown): Record<string, string> {
   }
   return brief;
 }
+
+// --- CD-131 requirement analysis -------------------------------------------------
+
+export const REQUIREMENT_KINDS = ['business', 'technical'] as const;
+export type RequirementKind = (typeof REQUIREMENT_KINDS)[number];
+
+export const REQUIREMENT_ASSESSMENTS = [
+  'unassessed',
+  'feasible',
+  'not_feasible',
+  'needs_info',
+] as const;
+export type RequirementAssessment = (typeof REQUIREMENT_ASSESSMENTS)[number];
+
+export interface RequirementState {
+  assessment: RequirementAssessment;
+  customerAnswer: string | null;
+}
+
+/** An item still waiting on the customer: asked, not yet answered. */
+export function waitingOnCustomer(row: RequirementState): boolean {
+  return row.assessment === 'needs_info' && !row.customerAnswer?.trim();
+}
+
+export function requirementCounts(rows: readonly RequirementState[]) {
+  return {
+    total: rows.length,
+    unassessed: rows.filter((row) => row.assessment === 'unassessed').length,
+    feasible: rows.filter((row) => row.assessment === 'feasible').length,
+    not_feasible: rows.filter((row) => row.assessment === 'not_feasible')
+      .length,
+    needs_info: rows.filter((row) => row.assessment === 'needs_info').length,
+    waiting_customer: rows.filter(waitingOnCustomer).length,
+  };
+}
+
+/**
+ * Why the analysis stops a version from locking (user decision 29 ก.ย. 2569):
+ * a design is not fixed while an item is unassessed or the customer has not
+ * answered what was asked.
+ */
+export function requirementGaps(rows: readonly RequirementState[]): string[] {
+  const counts = requirementCounts(rows);
+  const gaps: string[] = [];
+  if (counts.unassessed) {
+    gaps.push(`ยังไม่ได้ประเมินความต้องการ ${counts.unassessed} ข้อ`);
+  }
+  if (counts.waiting_customer) {
+    gaps.push(`ยังรอลูกค้าตอบ ${counts.waiting_customer} ข้อ`);
+  }
+  return gaps;
+}
+
+/** A question to the customer must say what is being asked. */
+export function assessmentProblem(
+  assessment: RequirementAssessment,
+  note: string,
+): string | null {
+  if (assessment === 'needs_info' && !note.trim()) {
+    return 'ระบุสิ่งที่ต้องถามลูกค้าในหมายเหตุ';
+  }
+  if (assessment === 'not_feasible' && !note.trim()) {
+    return 'ระบุเหตุผลที่ทำไม่ได้ในหมายเหตุ';
+  }
+  return null;
+}

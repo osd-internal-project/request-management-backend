@@ -7,6 +7,7 @@ import { RequestsModule } from '../requests/requests.module';
 import {
   SolutionFileRepository,
   SolutionRepository,
+  SolutionRequirementRepository,
   SolutionVersionRepository,
 } from './solution.repositories';
 
@@ -20,6 +21,7 @@ import {
     SolutionRepository,
     SolutionVersionRepository,
     SolutionFileRepository,
+    SolutionRequirementRepository,
     OpportunityRepository,
     CrmConfigRepository,
     PrismaTransactionService,
@@ -30,6 +32,7 @@ import {
     SolutionRepository,
     SolutionVersionRepository,
     SolutionFileRepository,
+    SolutionRequirementRepository,
     OpportunityRepository,
     CrmConfigRepository,
     PrismaTransactionService,

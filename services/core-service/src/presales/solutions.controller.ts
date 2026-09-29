@@ -26,10 +26,14 @@ import {
 } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import {
+  AnswerRequirementDto,
+  CreateRequirementDto,
   NewSolutionVersionDto,
   StartSolutionDto,
+  UpdateRequirementDto,
   UpdateSolutionDraftDto,
 } from './dto/solution.dto';
+import { RequirementsService } from './requirements.service';
 import { MAX_FILE_BYTES, SolutionsService } from './solutions.service';
 
 /**
@@ -43,7 +47,10 @@ import { MAX_FILE_BYTES, SolutionsService } from './solutions.service';
 @ApiBearerAuth()
 @Controller()
 export class SolutionsController {
-  constructor(private readonly solutions: SolutionsService) {}
+  constructor(
+    private readonly solutions: SolutionsService,
+    private readonly requirements: RequirementsService,
+  ) {}
 
   @ApiOperation({ summary: 'เริ่ม Solution จากคำขอ "ขอ Solution" ที่รับแล้ว' })
   @Post('presales/solutions')
@@ -172,5 +179,57 @@ export class SolutionsController {
     @CurrentPrincipal() actor: Principal,
   ) {
     return this.solutions.removeFile(id, no, fileId, actor);
+  }
+
+  // --- CD-131 วิเคราะห์ความต้องการ ------------------------------------------------
+
+  @ApiOperation({ summary: 'เพิ่มความต้องการ (ธุรกิจ/เทคนิค)' })
+  @Post('presales/solutions/:id/requirements')
+  @Permissions('presales.solution.manage')
+  addRequirement(
+    @Param('id') id: string,
+    @Body() dto: CreateRequirementDto,
+    @CurrentPrincipal() actor: Principal,
+  ) {
+    return this.requirements.add(id, dto, actor);
+  }
+
+  @ApiOperation({
+    summary: 'แก้ข้อความ หรือประเมินว่าทำได้/ไม่ได้/ต้องถามลูกค้า',
+  })
+  @Patch('presales/solutions/:id/requirements/:requirementId')
+  @Permissions('presales.solution.manage')
+  updateRequirement(
+    @Param('id') id: string,
+    @Param('requirementId') requirementId: string,
+    @Body() dto: UpdateRequirementDto,
+    @CurrentPrincipal() actor: Principal,
+  ) {
+    return this.requirements.update(id, requirementId, dto, actor);
+  }
+
+  @ApiOperation({
+    summary: 'บันทึกคำตอบของลูกค้า (Pre-Sales หรือฝ่ายขายของดีล)',
+  })
+  @Post('presales/solutions/:id/requirements/:requirementId/answer')
+  @Authenticated()
+  answerRequirement(
+    @Param('id') id: string,
+    @Param('requirementId') requirementId: string,
+    @Body() dto: AnswerRequirementDto,
+    @CurrentPrincipal() actor: Principal,
+  ) {
+    return this.requirements.answer(id, requirementId, dto, actor);
+  }
+
+  @ApiOperation({ summary: 'เอาความต้องการออก' })
+  @Delete('presales/solutions/:id/requirements/:requirementId')
+  @Permissions('presales.solution.manage')
+  removeRequirement(
+    @Param('id') id: string,
+    @Param('requirementId') requirementId: string,
+    @CurrentPrincipal() actor: Principal,
+  ) {
+    return this.requirements.remove(id, requirementId, actor);
   }
 }

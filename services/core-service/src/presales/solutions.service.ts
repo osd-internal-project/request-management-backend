@@ -21,6 +21,7 @@ import { RequestRepository } from '../requests/request.repository';
 import {
   SolutionFileRepository,
   SolutionRepository,
+  SolutionRequirementRepository,
   SolutionVersionRepository,
 } from './solution.repositories';
 import {
@@ -28,6 +29,9 @@ import {
   cleanAssumptions,
   lockGaps,
   readAssumptions,
+  requirementCounts,
+  requirementGaps,
+  type RequirementState,
 } from './solution-rules';
 import type {
   NewSolutionVersionDto,
@@ -125,6 +129,7 @@ export class SolutionsService {
     private readonly solutions: SolutionRepository,
     private readonly versions: SolutionVersionRepository,
     private readonly files: SolutionFileRepository,
+    private readonly requirements: SolutionRequirementRepository,
     private readonly requests: RequestRepository,
     private readonly opportunities: OpportunityRepository,
     private readonly configs: CrmConfigRepository,
@@ -269,6 +274,10 @@ export class SolutionsService {
           take: 1,
           select: { versionNo: true, status: true },
         },
+        requirements: {
+          where: { deletedAt: null },
+          select: { assessment: true, customerAnswer: true },
+        },
       },
     })) as unknown as {
       id: string;
@@ -277,10 +286,13 @@ export class SolutionsService {
       currentVersionNo: number;
       updatedAt: Date;
       versions: { versionNo: number; status: string }[];
+      requirements: RequirementState[];
     }[];
-    return rows.map(({ versions, ...row }) => ({
+    return rows.map(({ versions, requirements, ...row }) => ({
       ...row,
       latest: versions[0] ?? null,
+      // CD-131 — what the salesperson has to chase with the customer.
+      waiting_customer: requirementCounts(requirements).waiting_customer,
     }));
   }
 
@@ -317,14 +329,21 @@ export class SolutionsService {
       id,
       versionNo ?? solution.currentVersionNo,
     );
-    const files = await this.files.findMany({
-      where: { versionId: version.id, deletedAt: null },
-      orderBy: { uploadedAt: 'asc' },
-      select: FILE_SELECT,
-    });
+    const [files, requirements] = await Promise.all([
+      this.files.findMany({
+        where: { versionId: version.id, deletedAt: null },
+        orderBy: { uploadedAt: 'asc' },
+        select: FILE_SELECT,
+      }),
+      this.activeRequirements(id),
+    ]);
     return {
       ...solution,
       can_manage: this.canManage(actor),
+      // CD-131 — a salesperson on the deal records the customer's answers.
+      can_answer: this.canManage(actor) || this.canAnswerAsSales(actor),
+      requirements,
+      requirement_counts: requirementCounts(requirements),
       deal: deal
         ? {
             id: deal.id,
@@ -423,7 +442,10 @@ export class SolutionsService {
   async lock(id: string, versionNo: number, actor: Principal) {
     const solution = await this.requireManageable(id, actor);
     const version = await this.requireDraft(id, versionNo);
-    const gaps = lockGaps(version);
+    const gaps = [
+      ...lockGaps(version),
+      ...requirementGaps(await this.activeRequirements(id)),
+    ];
     if (gaps.length) {
       throw new AppError(
         'VALIDATION_FAILED',
@@ -713,7 +735,29 @@ export class SolutionsService {
 
   // --- helpers ------------------------------------------------------------------
 
-  private canManage(actor: Principal): boolean {
+  /** CD-131 — the analysis, oldest first, without the removed items. */
+  activeRequirements(solutionId: string) {
+    return this.requirements.findMany({
+      where: { solutionId, deletedAt: null },
+      orderBy: { seq: 'asc' },
+    }) as Promise<
+      (RequirementState & {
+        id: string;
+        seq: number;
+        kind: string;
+        text: string;
+        note: string;
+        answeredAt: Date | null;
+        answeredBy: string | null;
+      })[]
+    >;
+  }
+
+  canAnswerAsSales(actor: Principal): boolean {
+    return actor.permissions.includes('crm.sales.manage');
+  }
+
+  canManage(actor: Principal): boolean {
     return actor.permissions.includes('presales.solution.manage');
   }
 
@@ -721,10 +765,7 @@ export class SolutionsService {
    * Pre-Sales (read or manage) sees every Solution in the company; anyone
    * else only a Solution on a deal they can see.
    */
-  private async requireReadable(
-    id: string,
-    actor: Principal,
-  ): Promise<SolutionRow> {
+  async requireReadable(id: string, actor: Principal): Promise<SolutionRow> {
     const solution = (await this.solutions.findFirst({
       where: { id, companyId: actor.activeCompanyId },
       select: {
@@ -758,7 +799,7 @@ export class SolutionsService {
     throw new AppError('NOT_FOUND', 'ไม่พบ Solution ที่ระบุ');
   }
 
-  private async requireManageable(id: string, actor: Principal) {
+  async requireManageable(id: string, actor: Principal) {
     if (!this.canManage(actor)) {
       throw new AppError('FORBIDDEN', 'ต้องมีสิทธิ์ออกแบบ Solution');
     }

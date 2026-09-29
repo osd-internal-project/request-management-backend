@@ -46,3 +46,17 @@ export class SolutionFileRepository extends BaseRepository<
     return client.solutionFile;
   }
 }
+
+/** CD-131 ความต้องการที่วิเคราะห์แล้วของ Solution. */
+@Injectable()
+export class SolutionRequirementRepository extends BaseRepository<
+  PrismaService['solutionRequirement']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.solutionRequirement;
+  }
+}

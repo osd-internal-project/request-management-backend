@@ -4,6 +4,7 @@ import { StorageModule, type StorageOptions } from '@request-management/share';
 import { PresalesModule } from './presales.module';
 import { SolutionsController } from './solutions.controller';
 import { SolutionsService } from './solutions.service';
+import { RequirementsService } from './requirements.service';
 
 /** The screen-facing routes of {@link PresalesModule} (see `src/index.ts`). */
 @Module({
@@ -17,6 +18,6 @@ import { SolutionsService } from './solutions.service';
     }),
   ],
   controllers: [SolutionsController],
-  providers: [SolutionsService],
+  providers: [SolutionsService, RequirementsService],
 })
 export class PresalesHttpModule {}
