@@ -36,6 +36,26 @@ export class AssumptionDto {
   text!: string;
 }
 
+/** CD-134 — รายการส่งมอบพร้อมเกณฑ์ตรวจรับของรายการนั้น. */
+export class DeliverableDto {
+  @ApiProperty()
+  @IsString()
+  @MaxLength(2000)
+  title!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  description?: string;
+
+  @ApiProperty({ type: [String], description: 'เกณฑ์ตรวจรับ' })
+  @IsArray()
+  @ArrayMaxSize(60)
+  @IsString({ each: true })
+  criteria!: string[];
+}
+
 /** CD-132 — แก้ร่างของเวอร์ชัน (ส่งเฉพาะที่แก้). */
 export class UpdateSolutionDraftDto {
   @ApiPropertyOptional()
@@ -63,6 +83,28 @@ export class UpdateSolutionDraftDto {
   @ValidateNested({ each: true })
   @Type(() => AssumptionDto)
   assumptions?: AssumptionDto[];
+
+  @ApiPropertyOptional({ type: [String], description: 'CD-134 งานในขอบเขต' })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(200)
+  @IsString({ each: true })
+  in_scope?: string[];
+
+  @ApiPropertyOptional({ type: [String], description: 'CD-134 งานนอกขอบเขต' })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(200)
+  @IsString({ each: true })
+  out_of_scope?: string[];
+
+  @ApiPropertyOptional({ type: () => [DeliverableDto] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(100)
+  @ValidateNested({ each: true })
+  @Type(() => DeliverableDto)
+  deliverables?: DeliverableDto[];
 }
 
 /** CD-132 — เปิดเวอร์ชันใหม่จากเวอร์ชันที่ยืนยันแล้ว. */

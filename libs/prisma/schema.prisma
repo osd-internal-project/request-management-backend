@@ -3804,17 +3804,23 @@ model Solution {
 /// CD-132 — หนึ่งเวอร์ชันของ Solution: สรุป · รายละเอียดการออกแบบ · สมมติฐานรายข้อ
 /// (`[{category, text}]` — ส่งต่อเป็นสมมติฐานในสัญญาได้) · ไฟล์แบบ.
 model SolutionVersion {
-  id          String                @id @default(uuid())
-  solutionId  String
-  versionNo   Int
-  status      SolutionVersionStatus @default(draft)
-  summary     String                @default("")
-  design      String                @default("")
-  assumptions Json                  @default("[]")
+  id           String                @id @default(uuid())
+  solutionId   String
+  versionNo    Int
+  status       SolutionVersionStatus @default(draft)
+  summary      String                @default("")
+  design       String                @default("")
+  assumptions  Json                  @default("[]")
+  /// CD-134 ขอบเขตงาน (SOW) — ล็อกไปพร้อมเวอร์ชัน: งานในขอบเขต `[text]`,
+  /// งานนอกขอบเขต `[text]`, รายการส่งมอบ `[{title, description, criteria: [text]}]`
+  /// (เกณฑ์ตรวจรับอยู่กับรายการส่งมอบแต่ละชิ้น — ฐานของ Delivery CD-20).
+  inScope      Json                  @default("[]")
+  outOfScope   Json                  @default("[]")
+  deliverables Json                  @default("[]")
   /// ทำไมถึงมีเวอร์ชันนี้ (เวอร์ชัน 2 ขึ้นไป).
-  changeNote  String?
-  lockedAt    DateTime?
-  lockedBy    String?
+  changeNote   String?
+  lockedAt     DateTime?
+  lockedBy     String?
 
   createdBy String
   createdAt DateTime @default(now())

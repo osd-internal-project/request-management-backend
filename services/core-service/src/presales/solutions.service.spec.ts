@@ -37,6 +37,9 @@ const version = (overrides: Record<string, unknown> = {}) => ({
   summary: 'SD-WAN 12 สาขา',
   design: 'hub-spoke',
   assumptions: [],
+  inScope: ['ติดตั้ง SD-WAN 12 สาขา'],
+  outOfScope: [],
+  deliverables: [{ title: 'ติดตั้ง', criteria: ['ลิงก์ขึ้นครบ'] }],
   changeNote: null,
   ...overrides,
 });
@@ -317,6 +320,68 @@ describe('CD-132 solutions', () => {
     });
   });
 
+  it('CD-134: a version without a SOW does not lock', async () => {
+    const { service } = harness({
+      versions: [
+        version({
+          inScope: [],
+          deliverables: [{ title: 'อบรม', criteria: [] }],
+        }),
+      ],
+    });
+    await expect(service.lock('sol-1', 1, presales)).rejects.toMatchObject({
+      code: 'VALIDATION_FAILED',
+      details: [
+        { field: 'version', reason: 'ยังไม่มีงานในขอบเขต' },
+        { field: 'version', reason: 'รายการส่งมอบยังไม่มีเกณฑ์ตรวจรับ: อบรม' },
+      ],
+    });
+  });
+
+  it('CD-134: the SOW is saved cleaned with the draft', async () => {
+    const { service, versionRepo } = harness({});
+    await service.updateDraft(
+      'sol-1',
+      1,
+      {
+        in_scope: [' SD-WAN ', ''],
+        out_of_scope: ['งานเดินสายภายในอาคาร'],
+        deliverables: [{ title: 'ติดตั้ง', criteria: [' ลิงก์ขึ้น '] }],
+      },
+      presales,
+    );
+    expect(versionRepo.updateMany).toHaveBeenCalledWith(
+      {
+        where: { id: 'v-1', status: 'draft' },
+        data: {
+          inScope: ['SD-WAN'],
+          outOfScope: ['งานเดินสายภายในอาคาร'],
+          deliverables: [
+            { title: 'ติดตั้ง', description: '', criteria: ['ลิงก์ขึ้น'] },
+          ],
+          updatedBy: 'ps-1',
+        },
+      },
+      { prisma: {} },
+    );
+    await expect(
+      service.updateDraft(
+        'sol-1',
+        1,
+        { deliverables: [{ title: '', criteria: ['x'] }] },
+        presales,
+      ),
+    ).rejects.toMatchObject({
+      code: 'VALIDATION_FAILED',
+      details: [
+        {
+          field: 'deliverables',
+          reason: 'รายการส่งมอบข้อ 1: ยังไม่มีชื่อรายการ',
+        },
+      ],
+    });
+  });
+
   it('a new version copies the locked one and needs the latest locked', async () => {
     await expect(
       harness({}).service.newVersion('sol-1', { change_note: 'x' }, presales),
@@ -350,6 +415,10 @@ describe('CD-132 solutions', () => {
           versionNo: 2,
           summary: 'SD-WAN 12 สาขา',
           assumptions: [{ category: 'technical', text: 'a' }],
+          inScope: ['ติดตั้ง SD-WAN 12 สาขา'],
+          deliverables: [
+            { title: 'ติดตั้ง', description: '', criteria: ['ลิงก์ขึ้นครบ'] },
+          ],
           changeNote: 'ลูกค้าเพิ่มสาขา',
         }) as unknown,
       },

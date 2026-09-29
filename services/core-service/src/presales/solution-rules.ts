@@ -183,3 +183,131 @@ export function assessmentProblem(
   }
   return null;
 }
+
+// --- CD-134 scope of work --------------------------------------------------------
+
+export interface Deliverable {
+  title: string;
+  description: string;
+  /** How the customer accepts it — each one ticked off at delivery (CD-20). */
+  criteria: string[];
+}
+
+export const MAX_SCOPE_ITEMS = 100;
+export const MAX_DELIVERABLES = 50;
+export const MAX_CRITERIA = 30;
+export const MAX_SCOPE_TEXT = 1000;
+
+/** A stored list of lines, read defensively. */
+export function readLines(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((line) =>
+    typeof line === 'string' && line.trim() ? [line.trim()] : [],
+  );
+}
+
+export function readDeliverables(value: unknown): Deliverable[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((entry) => {
+    if (!entry || typeof entry !== 'object') return [];
+    const { title, description, criteria } = entry as Record<string, unknown>;
+    if (typeof title !== 'string' || !title.trim()) return [];
+    return [
+      {
+        title: title.trim(),
+        description: typeof description === 'string' ? description.trim() : '',
+        criteria: readLines(criteria),
+      },
+    ];
+  });
+}
+
+/** Lines as a draft saves them: blank ones dropped, the rest trimmed. */
+export function cleanLines(
+  input: readonly (string | undefined)[],
+  label: string,
+): { lines: string[]; problems: string[] } {
+  const problems: string[] = [];
+  const lines: string[] = [];
+  input.forEach((raw, index) => {
+    const line = raw?.trim() ?? '';
+    if (!line) return;
+    if (line.length > MAX_SCOPE_TEXT) {
+      problems.push(
+        `${label} ข้อ ${index + 1}: ยาวเกิน ${MAX_SCOPE_TEXT} ตัวอักษร`,
+      );
+      return;
+    }
+    lines.push(line);
+  });
+  if (lines.length > MAX_SCOPE_ITEMS) {
+    problems.push(`${label}ได้ไม่เกิน ${MAX_SCOPE_ITEMS} ข้อ`);
+  }
+  return { lines, problems };
+}
+
+/**
+ * Deliverables as a draft saves them. A deliverable with nothing in it is
+ * dropped; one with criteria but no title is a problem, not silently lost.
+ */
+export function cleanDeliverables(
+  input: readonly {
+    title?: string;
+    description?: string;
+    criteria?: readonly (string | undefined)[];
+  }[],
+): { deliverables: Deliverable[]; problems: string[] } {
+  const problems: string[] = [];
+  const deliverables: Deliverable[] = [];
+  input.forEach((entry, index) => {
+    const title = entry.title?.trim() ?? '';
+    const description = entry.description?.trim() ?? '';
+    const where = `รายการส่งมอบข้อ ${index + 1}`;
+    const criteria = cleanLines(entry.criteria ?? [], `${where} เกณฑ์ตรวจรับ`);
+    if (!title && !description && !criteria.lines.length) return;
+    if (!title) {
+      problems.push(`${where}: ยังไม่มีชื่อรายการ`);
+      return;
+    }
+    if (title.length > MAX_SCOPE_TEXT) {
+      problems.push(`${where}: ชื่อยาวเกิน ${MAX_SCOPE_TEXT} ตัวอักษร`);
+      return;
+    }
+    if (criteria.lines.length > MAX_CRITERIA) {
+      problems.push(`${where}: เกณฑ์ตรวจรับได้ไม่เกิน ${MAX_CRITERIA} ข้อ`);
+      return;
+    }
+    problems.push(...criteria.problems);
+    deliverables.push({ title, description, criteria: criteria.lines });
+  });
+  if (deliverables.length > MAX_DELIVERABLES) {
+    problems.push(`รายการส่งมอบได้ไม่เกิน ${MAX_DELIVERABLES} รายการ`);
+  }
+  return { deliverables, problems };
+}
+
+/**
+ * Why the SOW stops a version from locking (user decision 29 ก.ย. 2569): the
+ * locked version is what the contract (handoff 5) and the delivery checks
+ * (handoff 8) are measured against, so it must say what is in scope and how
+ * each deliverable is accepted. Out of scope is optional.
+ */
+export function sowGaps(version: {
+  inScope: unknown;
+  deliverables: unknown;
+}): string[] {
+  const gaps: string[] = [];
+  if (!readLines(version.inScope).length) gaps.push('ยังไม่มีงานในขอบเขต');
+  const deliverables = readDeliverables(version.deliverables);
+  if (!deliverables.length) {
+    gaps.push('ยังไม่มีรายการส่งมอบ');
+  } else {
+    const bare = deliverables.filter((item) => !item.criteria.length);
+    if (bare.length) {
+      gaps.push(
+        `รายการส่งมอบยังไม่มีเกณฑ์ตรวจรับ: ${bare.map((item) => item.title).join(', ')}`,
+      );
+    }
+  }
+  return gaps;
+}

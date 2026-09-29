@@ -29,6 +29,11 @@ import {
   cleanAssumptions,
   lockGaps,
   readAssumptions,
+  readDeliverables,
+  readLines,
+  cleanDeliverables,
+  cleanLines,
+  sowGaps,
   requirementCounts,
   requirementGaps,
   type RequirementState,
@@ -69,6 +74,9 @@ interface VersionRow {
   summary: string;
   design: string;
   assumptions: unknown;
+  inScope: unknown;
+  outOfScope: unknown;
+  deliverables: unknown;
   changeNote: string | null;
   lockedAt: Date | null;
   lockedBy: string | null;
@@ -113,8 +121,9 @@ const FILE_SELECT = {
  *   accepted — one request, one Solution; there is no Solution without a
  *   brief, and the brief stays visible beside the design;
  * - each version holds a summary, the design, the design assumptions as a
- *   list (category + text — they travel on into the contract) and design
- *   files. A draft is edited freely; locking it fixes it for good, and a
+ *   list (category + text — they travel on into the contract), design
+ *   files and — CD-134 — the scope of work: in scope, out of scope, and
+ *   deliverables each with their acceptance criteria. A draft is edited freely; locking it fixes it for good, and a
  *   change means a new version from the locked one, with a note of why. The
  *   older locked version becomes `superseded` when the new one locks;
  * - `presales.solution.manage` does the work; `presales.solution.read` sees
@@ -364,6 +373,9 @@ export class SolutionsService {
       version: {
         ...version,
         assumptions: readAssumptions(version.assumptions),
+        inScope: readLines(version.inScope),
+        outOfScope: readLines(version.outOfScope),
+        deliverables: readDeliverables(version.deliverables),
         files,
       },
     };
@@ -391,6 +403,32 @@ export class SolutionsService {
       }
       assumptions = cleaned.assumptions as unknown as Prisma.InputJsonValue;
     }
+    // CD-134 — the SOW, every problem named at once.
+    const problems: { field: string; reason: string }[] = [];
+    const inScope =
+      dto.in_scope !== undefined
+        ? cleanLines(dto.in_scope, 'งานในขอบเขต')
+        : undefined;
+    const outOfScope =
+      dto.out_of_scope !== undefined
+        ? cleanLines(dto.out_of_scope, 'งานนอกขอบเขต')
+        : undefined;
+    const deliverables =
+      dto.deliverables !== undefined
+        ? cleanDeliverables(dto.deliverables)
+        : undefined;
+    for (const [field, result] of [
+      ['in_scope', inScope],
+      ['out_of_scope', outOfScope],
+      ['deliverables', deliverables],
+    ] as const) {
+      for (const reason of result?.problems ?? []) {
+        problems.push({ field, reason });
+      }
+    }
+    if (problems.length) {
+      throw new AppError('VALIDATION_FAILED', problems[0].reason, problems);
+    }
 
     await this.transactions.execute(async (prisma) => {
       if (dto.title?.trim()) {
@@ -410,6 +448,14 @@ export class SolutionsService {
             ...(dto.summary !== undefined ? { summary: dto.summary } : {}),
             ...(dto.design !== undefined ? { design: dto.design } : {}),
             ...(assumptions !== undefined ? { assumptions } : {}),
+            ...(inScope ? { inScope: inScope.lines } : {}),
+            ...(outOfScope ? { outOfScope: outOfScope.lines } : {}),
+            ...(deliverables
+              ? {
+                  deliverables:
+                    deliverables.deliverables as unknown as Prisma.InputJsonValue,
+                }
+              : {}),
             updatedBy: actor.userId,
           },
         },
@@ -444,6 +490,7 @@ export class SolutionsService {
     const version = await this.requireDraft(id, versionNo);
     const gaps = [
       ...lockGaps(version),
+      ...sowGaps(version),
       ...requirementGaps(await this.activeRequirements(id)),
     ];
     if (gaps.length) {
@@ -544,6 +591,11 @@ export class SolutionsService {
             design: latest.design,
             assumptions: readAssumptions(
               latest.assumptions,
+            ) as unknown as Prisma.InputJsonValue,
+            inScope: readLines(latest.inScope),
+            outOfScope: readLines(latest.outOfScope),
+            deliverables: readDeliverables(
+              latest.deliverables,
             ) as unknown as Prisma.InputJsonValue,
             changeNote: dto.change_note.trim(),
             createdBy: actor.userId,

@@ -15690,6 +15690,31 @@
           "text"
         ]
       },
+      "DeliverableDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "criteria": {
+            "description": "เกณฑ์ตรวจรับ",
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 60
+          }
+        },
+        "required": [
+          "criteria",
+          "title"
+        ]
+      },
       "UpdateSolutionDraftDto": {
         "type": "object",
         "properties": {
@@ -15713,6 +15738,29 @@
               "$ref": "#/components/schemas/AssumptionDto"
             },
             "maxItems": 200
+          },
+          "in_scope": {
+            "description": "CD-134 งานในขอบเขต",
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 200
+          },
+          "out_of_scope": {
+            "description": "CD-134 งานนอกขอบเขต",
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 200
+          },
+          "deliverables": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeliverableDto"
+            },
+            "maxItems": 100
           }
         }
       },

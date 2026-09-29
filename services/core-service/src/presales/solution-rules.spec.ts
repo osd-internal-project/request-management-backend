@@ -1,6 +1,10 @@
 import {
   assessmentProblem,
   briefOf,
+  cleanDeliverables,
+  cleanLines,
+  readDeliverables,
+  sowGaps,
   cleanAssumptions,
   lockGaps,
   MAX_ASSUMPTION_LENGTH,
@@ -117,5 +121,58 @@ describe('CD-131 requirement rules', () => {
     expect(
       assessmentProblem('needs_info', 'ใช้ firewall ยี่ห้อไหน'),
     ).toBeNull();
+  });
+});
+
+describe('CD-134 scope of work rules', () => {
+  it('blank lines are dropped and an over-long one is named', () => {
+    expect(cleanLines([' ติดตั้ง 12 สาขา ', '', '  '], 'งานในขอบเขต')).toEqual({
+      lines: ['ติดตั้ง 12 สาขา'],
+      problems: [],
+    });
+    expect(cleanLines(['x'.repeat(1001)], 'งานในขอบเขต').problems[0]).toContain(
+      'งานในขอบเขต ข้อ 1',
+    );
+  });
+
+  it('an empty deliverable is dropped; criteria without a title is a problem', () => {
+    const { deliverables, problems } = cleanDeliverables([
+      { title: ' ติดตั้งอุปกรณ์ ', criteria: [' ลิงก์ขึ้นครบ ', ''] },
+      { title: '', description: '', criteria: [''] },
+      { title: ' ', criteria: ['failover < 30 วินาที'] },
+    ]);
+    expect(deliverables).toEqual([
+      { title: 'ติดตั้งอุปกรณ์', description: '', criteria: ['ลิงก์ขึ้นครบ'] },
+    ]);
+    expect(problems).toEqual(['รายการส่งมอบข้อ 3: ยังไม่มีชื่อรายการ']);
+  });
+
+  it('a version locks only with scope, deliverables and criteria for each', () => {
+    expect(sowGaps({ inScope: [], deliverables: [] })).toEqual([
+      'ยังไม่มีงานในขอบเขต',
+      'ยังไม่มีรายการส่งมอบ',
+    ]);
+    expect(
+      sowGaps({
+        inScope: ['SD-WAN'],
+        deliverables: [
+          { title: 'ติดตั้ง', criteria: ['ลิงก์ขึ้น'] },
+          { title: 'อบรม', criteria: [] },
+        ],
+      }),
+    ).toEqual(['รายการส่งมอบยังไม่มีเกณฑ์ตรวจรับ: อบรม']);
+    expect(
+      sowGaps({
+        inScope: ['SD-WAN'],
+        deliverables: [{ title: 'ติดตั้ง', criteria: ['ลิงก์ขึ้น'] }],
+      }),
+    ).toEqual([]);
+  });
+
+  it('a stored column is read defensively', () => {
+    expect(readDeliverables('junk')).toEqual([]);
+    expect(readDeliverables([{ title: 'a', criteria: ['x', 3, ' '] }])).toEqual(
+      [{ title: 'a', description: '', criteria: ['x'] }],
+    );
   });
 });
