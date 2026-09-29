@@ -10432,6 +10432,73 @@
           "admin.bi.manage"
         ]
       }
+    },
+    "/api/v1/admin/bi/lake": {
+      "get": {
+        "description": "`configured` = ตั้ง LAKE_DATABASE_URL แล้ว · ต่อตาราง: ส่งถึงเวลาใด (watermark), รอบล่าสุด, จำนวนแถวสะสม, คอลัมน์ที่ไม่ส่ง",
+        "operationId": "LakeController_status",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "สถานะท่อข้อมูลลง Data Lake ต่อตาราง",
+        "tags": [
+          "admin/bi"
+        ],
+        "x-permission": [
+          "admin.bi.manage"
+        ]
+      }
+    },
+    "/api/v1/admin/bi/lake/run": {
+      "post": {
+        "operationId": "LakeController_run",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ส่งข้อมูลที่เปลี่ยนลง Data Lake ตอนนี้",
+        "tags": [
+          "admin/bi"
+        ],
+        "x-permission": [
+          "admin.bi.manage"
+        ]
+      }
     }
   },
   "info": {

@@ -51,9 +51,14 @@ function pinEnvironment(url: string): void {
     'CRM_STALE_SWEEP_INTERVAL_MS',
     'NOTIFICATION_DIGEST_INTERVAL_MS',
     'MART_REFRESH_INTERVAL_MS',
+    'LAKE_EXTRACT_INTERVAL_MS',
+    'LAKE_SAP_INTERVAL_MS',
   ]) {
     process.env[key] = '0';
   }
+  // CD-90 — a throwaway lake next to the throwaway database, when `make smoke`
+  // made one; without it the lake routes answer "not configured".
+  process.env.LAKE_DATABASE_URL = process.env.CORE_SMOKE_LAKE_URL ?? '';
 }
 
 function getPaths(): string[] {
@@ -160,6 +165,30 @@ function adminOf(company: {
 
     expect(failures).toEqual([]);
   }, 120_000);
+
+  // CD-90 — the lake extract reads every source table by name and column;
+  // only the real engine can say they all still exist.
+  (process.env.CORE_SMOKE_LAKE_URL ? it : it.skip)(
+    'extracts every source into the Data Lake on the real engine',
+    async () => {
+      const response = await request(app.getHttpServer())
+        .post('/api/v1/admin/bi/lake/run')
+        .set('Authorization', 'Bearer smoke');
+
+      expect(response.status).toBe(200);
+      const tables = (
+        response.body as {
+          tables: { table_name: string; last_error: string | null }[];
+        }
+      ).tables;
+      // sap_invoices is not part of the hourly run; every other source ran clean
+      const failed = tables.filter(
+        (table) => table.table_name !== 'sap_invoices' && table.last_error,
+      );
+      expect(failed).toEqual([]);
+    },
+    60_000,
+  );
 
   // CD-91 — the mart's rebuild is raw SQL over the application tables; only
   // the real engine can say whether every column it reads still exists.

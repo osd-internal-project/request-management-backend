@@ -146,6 +146,16 @@ export default () => ({
     process.env.NOTIFICATION_DIGEST_INTERVAL_MS ?? 300000,
   ),
 
+  /**
+   * CD-90 — the Data Lake: a separate PostgreSQL warehouse database. Unset =
+   * no lake, nothing runs. Changed rows every hour, SAP invoices daily.
+   */
+  lake: {
+    databaseUrl: process.env.LAKE_DATABASE_URL ?? '',
+    extractIntervalMs: Number(process.env.LAKE_EXTRACT_INTERVAL_MS ?? 3600000),
+    sapIntervalMs: Number(process.env.LAKE_SAP_INTERVAL_MS ?? 86400000),
+  },
+
   /** CD-91 — how often the Data Mart is rebuilt (ms); 0 = off (tests). */
   martRefreshIntervalMs: Number(
     process.env.MART_REFRESH_INTERVAL_MS ?? 3600000,

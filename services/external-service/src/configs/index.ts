@@ -69,6 +69,8 @@ export default () => ({
   slaSweepIntervalMs: 0,
   /** CD-91 — BiModule is not imported here today; zero keeps it so if it ever is. */
   martRefreshIntervalMs: 0,
+  /** CD-90 — likewise: the lake is fed by core-service only. */
+  lake: { databaseUrl: '', extractIntervalMs: 0, sapIntervalMs: 0 },
   erp: {
     mode: process.env.ERP_MODE ?? 'mock',
     /**
