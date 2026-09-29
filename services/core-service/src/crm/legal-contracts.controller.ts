@@ -26,9 +26,11 @@ import {
 import { CurrentPrincipal, Permissions } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import { ContractTermsService } from './contract-terms.service';
+import { ContractObligationsService } from './contract-obligations.service';
 import {
   ContractAccessDto,
   SaveContractTermsDto,
+  SaveObligationDto,
   ListContractsQueryDto,
   SaveLegalContractDto,
 } from './dto/legal-contract.dto';
@@ -49,7 +51,43 @@ export class LegalContractsController {
   constructor(
     private readonly contracts: LegalContractsService,
     private readonly terms: ContractTermsService,
+    private readonly obligations: ContractObligationsService,
   ) {}
+
+  @ApiOperation({ summary: 'ข้อผูกพันของสัญญา (CD-163)' })
+  @Get(':id/obligations')
+  @Permissions('legal.contract.read')
+  listObligations(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.obligations.listForContract(id, principal);
+  }
+
+  @ApiOperation({
+    summary: 'แตกข้อผูกพันจากสัญญา — มอบให้ผู้รับผิดชอบ (แจ้งเขา)',
+  })
+  @Post(':id/obligations')
+  @Permissions('legal.contract.manage')
+  createObligation(
+    @Param('id') id: string,
+    @Body() dto: SaveObligationDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.obligations.create(id, dto, principal);
+  }
+
+  @ApiOperation({ summary: 'แก้ข้อผูกพัน / เปลี่ยนผู้รับผิดชอบ / ยกเว้น' })
+  @Patch(':id/obligations/:obligationId')
+  @Permissions('legal.contract.manage')
+  updateObligation(
+    @Param('id') id: string,
+    @Param('obligationId') obligationId: string,
+    @Body() dto: SaveObligationDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.obligations.update(id, obligationId, dto, principal);
+  }
 
   @ApiOperation({
     summary: 'ข้อกำหนดของสัญญา — ความรับผิด ค่าปรับ การรับประกัน การยกเลิก',

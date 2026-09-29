@@ -147,6 +147,14 @@ export default () => ({
 
   /** CD-65 — รอบตรวจโอกาสการขายที่เงียบเกินเกณฑ์ (ms); 0 = ปิด (tests). */
   crm: {
+    /** CD-162 — expiry reminders for contracts without a renewal deal (ms); 0 = off. */
+    contractExpiryIntervalMs: Number(
+      process.env.CRM_CONTRACT_EXPIRY_INTERVAL_MS ?? 3600000,
+    ),
+    /** CD-163 — obligation due/overdue reminders (ms); 0 = off. */
+    obligationIntervalMs: Number(
+      process.env.CRM_OBLIGATION_INTERVAL_MS ?? 3600000,
+    ),
     /** CD-78 — expire/release number holds, warn owners (ms); 0 = off. */
     phoneReservationIntervalMs: Number(
       process.env.CRM_PHONE_RESERVATION_INTERVAL_MS ?? 3600000,

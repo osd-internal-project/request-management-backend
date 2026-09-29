@@ -10,6 +10,12 @@ import {
 } from './contract.repositories';
 import { CustomerRepository } from './customer.repository';
 import { LegalContractsService } from './legal-contracts.service';
+import { ContractExpiryService } from './contract-expiry.service';
+import {
+  ContractObligationRepository,
+  ContractObligationsService,
+} from './contract-obligations.service';
+import { CompanyMemberRepository } from '../access/company-member.repository';
 
 /**
  * CD-161 — the repository's search runs on relation filters (documents'
@@ -204,6 +210,72 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
           data: { counterpartyName: null },
         }),
       ).rejects.toThrow(/customer_contracts_party_check/);
+    });
+
+    it('CD-162/163: the sweeps and "mine" run on the engine; an obligation is done by its owner', async () => {
+      const client = prisma as never;
+      const ruleOf = (params: Record<string, unknown>) =>
+        ({
+          across: () =>
+            Promise.resolve({
+              standard: { enabled: true, params },
+              byCompany: new Map(),
+              of: () => ({ enabled: true, params }),
+            }),
+        }) as never;
+      const expiryRule = ruleOf({ warn_days: [60, 30, 7] });
+      const obligationRule = ruleOf({ warn_days: 3 });
+      const told: unknown[] = [];
+      const notifications = {
+        contractExpiry: (...args: unknown[]) => {
+          told.push(args);
+          return Promise.resolve();
+        },
+        contractObligation: (...args: unknown[]) => {
+          told.push(args);
+          return Promise.resolve();
+        },
+      } as never;
+      // 1990: nothing is due, so nothing is written
+      const expiry = new ContractExpiryService(
+        new CustomerContractRepository(client),
+        expiryRule,
+        notifications,
+        { get: () => 0 } as never,
+      );
+      await expect(
+        expiry.sweep(new Date('1990-01-01T03:00:00Z')),
+      ).resolves.toEqual({ warned: 0 });
+
+      const contractId = ids[ids.length - 1];
+      const obligations = new ContractObligationsService(
+        new ContractObligationRepository(client),
+        new CustomerContractRepository(client),
+        new CompanyMemberRepository(client),
+        obligationRule,
+        notifications,
+        { record: () => Promise.resolve() } as never,
+        { get: () => 0 } as never,
+      );
+      const legal = as(legalUser, true);
+      const created = (await obligations.create(
+        contractId,
+        {
+          title: `ส่งรายงาน T163-${tag}`,
+          owner_user_id: legalUser,
+          due_on: '1990-01-10',
+        },
+        legal,
+      )) as { id: string };
+      await expect(
+        obligations.sweep(new Date('1990-01-01T03:00:00Z')),
+      ).resolves.toEqual({ due: 0, overdue: 0 });
+      const mine = (await obligations.mine(legal)) as { id: string }[];
+      expect(mine.some((row) => row.id === created.id)).toBe(true);
+      await expect(
+        obligations.complete(created.id, { note: 'ส่งแล้ว' }, legal),
+      ).resolves.toMatchObject({ status: 'done' });
+      await prisma.contractObligation.deleteMany({ where: { id: created.id } });
     });
   },
 );

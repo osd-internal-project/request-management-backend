@@ -8116,6 +8116,155 @@
         ]
       }
     },
+    "/api/v1/contracts/{id}/obligations": {
+      "get": {
+        "operationId": "LegalContractsController_listObligations",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ข้อผูกพันของสัญญา (CD-163)",
+        "tags": [
+          "contracts"
+        ],
+        "x-permission": [
+          "legal.contract.read"
+        ]
+      },
+      "post": {
+        "operationId": "LegalContractsController_createObligation",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveObligationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แตกข้อผูกพันจากสัญญา — มอบให้ผู้รับผิดชอบ (แจ้งเขา)",
+        "tags": [
+          "contracts"
+        ],
+        "x-permission": [
+          "legal.contract.manage"
+        ]
+      }
+    },
+    "/api/v1/contracts/{id}/obligations/{obligationId}": {
+      "patch": {
+        "operationId": "LegalContractsController_updateObligation",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "obligationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveObligationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แก้ข้อผูกพัน / เปลี่ยนผู้รับผิดชอบ / ยกเว้น",
+        "tags": [
+          "contracts"
+        ],
+        "x-permission": [
+          "legal.contract.manage"
+        ]
+      }
+    },
     "/api/v1/contracts/{id}/terms": {
       "get": {
         "description": "พร้อมค่าที่คำนวณ: ผลอนุมัติเพดานความรับผิด เพดานค่าปรับเป็นเงิน ช่วงประกันนับจากวันตรวจรับ",
@@ -8774,6 +8923,90 @@
         ],
         "x-permission": [
           "legal.contract.manage"
+        ]
+      }
+    },
+    "/api/v1/contract-obligations/mine": {
+      "get": {
+        "operationId": "ContractObligationsController_mine",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ข้อผูกพันตามสัญญาที่ฉันรับผิดชอบ",
+        "tags": [
+          "contracts"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/contract-obligations/{id}/done": {
+      "post": {
+        "operationId": "ContractObligationsController_done",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompleteObligationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "บันทึกว่าทำข้อผูกพันแล้ว (เจ้าของ หรือฝ่ายกฎหมาย)",
+        "tags": [
+          "contracts"
+        ],
+        "x-permission": [
+          "notification.read"
         ]
       }
     },
@@ -15277,6 +15510,45 @@
           "reason"
         ]
       },
+      "SaveObligationDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "example": "ส่งรายงานผลบริการรายไตรมาส",
+            "maxLength": 255
+          },
+          "detail": {
+            "type": "object",
+            "nullable": true,
+            "maxLength": 2000
+          },
+          "clause": {
+            "type": "object",
+            "example": "ข้อ 7.2",
+            "nullable": true,
+            "maxLength": 100
+          },
+          "owner_user_id": {
+            "type": "string",
+            "description": "ผู้รับผิดชอบ"
+          },
+          "due_on": {
+            "type": "object",
+            "example": "2026-10-15",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "waived"
+            ],
+            "description": "waived = ยกเว้น (ฝ่ายกฎหมาย) · open = เปิดใหม่"
+          }
+        }
+      },
       "SaveContractTermsDto": {
         "type": "object",
         "properties": {
@@ -15488,6 +15760,16 @@
           "confidential",
           "user_ids"
         ]
+      },
+      "CompleteObligationDto": {
+        "type": "object",
+        "properties": {
+          "note": {
+            "type": "string",
+            "example": "ส่งรายงานทางอีเมลแล้ว",
+            "maxLength": 1000
+          }
+        }
       },
       "HandoverAnswerDto": {
         "type": "object",

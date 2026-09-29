@@ -132,6 +132,9 @@ export default () => ({
   },
   /** CD-65 ดีลเงียบ — the sweep is core-service's, like every clock above. */
   crm: {
+    /** CD-162 — expiry reminders for contracts without a renewal deal (ms); 0 = off. */
+    contractExpiryIntervalMs: 0,
+    obligationIntervalMs: 0,
     /** CD-78 — expire/release number holds, warn owners (ms); 0 = off. */
     phoneReservationIntervalMs: 0,
     staleSweepIntervalMs: 0,

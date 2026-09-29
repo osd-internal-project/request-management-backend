@@ -300,3 +300,51 @@ export class SaveContractTermsDto {
   @MaxLength(500, { each: true })
   termination_steps?: string[];
 }
+
+/** CD-163 — one obligation drawn from a contract. */
+export class SaveObligationDto {
+  @ApiPropertyOptional({ example: 'ส่งรายงานผลบริการรายไตรมาส' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  title?: string;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  detail?: string | null;
+
+  @ApiPropertyOptional({ example: 'ข้อ 7.2', nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  clause?: string | null;
+
+  @ApiPropertyOptional({ description: 'ผู้รับผิดชอบ' })
+  @IsOptional()
+  @IsString()
+  owner_user_id?: string;
+
+  @ApiPropertyOptional({ example: '2026-10-15', nullable: true })
+  @IsOptional()
+  @IsDateString()
+  due_on?: string | null;
+
+  @ApiPropertyOptional({
+    enum: ['open', 'waived'],
+    description: 'waived = ยกเว้น (ฝ่ายกฎหมาย) · open = เปิดใหม่',
+  })
+  @IsOptional()
+  @IsIn(['open', 'waived'])
+  status?: 'open' | 'waived';
+}
+
+/** CD-163 — marking an obligation done. */
+export class CompleteObligationDto {
+  @ApiPropertyOptional({ example: 'ส่งรายงานทางอีเมลแล้ว' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  note?: string;
+}

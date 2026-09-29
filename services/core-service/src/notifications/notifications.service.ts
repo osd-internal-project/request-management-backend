@@ -439,6 +439,59 @@ export class NotificationsService {
     });
   }
 
+  /** CD-162 — a contract with no renewal deal is about to end, or has. */
+  async contractExpiry(
+    userId: string,
+    companyId: string,
+    contract: {
+      id: string;
+      contractNo: string;
+      title: string;
+      party: string;
+      endOn: string;
+    },
+    daysLeft: number,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType:
+        daysLeft <= 0 ? 'legal.contract.expired' : 'legal.contract.expiring',
+      values: {
+        contract_no: contract.contractNo,
+        contract_title: contract.title,
+        party: contract.party,
+        end_on: contract.endOn,
+        days_left: String(daysLeft),
+      },
+      resourceType: 'customer_contract',
+      resourceId: contract.id,
+    });
+  }
+
+  /** CD-163 — an obligation handed to someone, coming due, or overdue. */
+  async contractObligation(
+    kind: 'assigned' | 'due' | 'overdue',
+    userId: string,
+    companyId: string,
+    obligation: { title: string; dueOn: string | null },
+    contract: { contractNo: string },
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: `legal.obligation.${kind}`,
+      values: {
+        title: obligation.title,
+        contract_no: contract.contractNo,
+        due_on: obligation.dueOn ?? '—',
+      },
+      // The owner may not read the contract — their list is where it leads.
+      resourceType: 'contract_obligation',
+      resourceId: 'mine',
+    });
+  }
+
   /** CD-149 — the MSA a contract is made under was changed. */
   async masterAgreementChanged(
     userId: string,

@@ -95,6 +95,11 @@ import {
   ContractTermsService,
 } from './contract-terms.service';
 import { ContractMasterNotifier } from './contract-master-notifier';
+import { ContractExpiryService } from './contract-expiry.service';
+import {
+  ContractObligationRepository,
+  ContractObligationsService,
+} from './contract-obligations.service';
 import { CustomerApprovalService } from './customer-approval.service';
 import { RequestTypeRepository } from '../requests/request-type.repository';
 import { HandoversService } from './handovers.service';
@@ -202,6 +207,9 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     ContractTermsRepository,
     ContractTermsService,
     ContractMasterNotifier,
+    ContractExpiryService,
+    ContractObligationRepository,
+    ContractObligationsService,
     // CD-84
     HandoversService,
     HandoverChecklistItemRepository,
@@ -256,6 +264,7 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     CustomerMergeService,
     ContractTermsService,
     ContractMasterNotifier,
+    ContractObligationsService,
     HandoversService,
     KycService,
     CustomerApprovalService,

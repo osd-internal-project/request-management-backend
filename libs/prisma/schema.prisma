@@ -3547,13 +3547,15 @@ model CustomerContract {
   updatedAt DateTime @updatedAt
   updatedBy String?
 
-  customer     Customer?          @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  customer     Customer?            @relation(fields: [customerId], references: [id], onDelete: Restrict)
   documents    ContractDocument[]
   access       ContractAccess[]
   /// CD-153..156 — ข้อกำหนดที่วัดได้ของสัญญา.
   terms        ContractTerms?
-  master       CustomerContract?  @relation("ContractMaster", fields: [masterContractId], references: [id], onDelete: Restrict)
-  subContracts CustomerContract[] @relation("ContractMaster")
+  master       CustomerContract?    @relation("ContractMaster", fields: [masterContractId], references: [id], onDelete: Restrict)
+  subContracts CustomerContract[]   @relation("ContractMaster")
+  /// CD-163 — ข้อผูกพันที่แตกจากสัญญา.
+  obligations  ContractObligation[]
 
   @@unique([companyId, contractNo])
   @@index([customerId])
@@ -3647,6 +3649,45 @@ model ContractTerms {
 
   @@index([companyId])
   @@map("contract_terms")
+}
+
+/// CD-163 — ติดตามข้อผูกพัน: one thing the contract commits us to, with an
+/// owner and a date — handed to whoever does it (project, service team), who
+/// sees it under "ข้อผูกพันของฉัน" and marks it done. Reminders follow the
+/// `contract.obligation` rule.
+model ContractObligation {
+  id         String @id @default(uuid())
+  companyId  String
+  contractId String
+
+  title  String
+  detail String?
+  /// Clause or annex it comes from, e.g. "ข้อ 7.2".
+  clause String?
+
+  ownerUserId String
+  dueOn       DateTime? @db.Date
+  /// open · done · waived
+  status      String    @default("open")
+  doneAt      DateTime?
+  doneBy      String?
+  doneNote    String?
+
+  /// The due date last warned about (a new date warns again) and whether
+  /// the overdue notice went out for it.
+  warnedFor  DateTime? @db.Date
+  overdueFor DateTime? @db.Date
+
+  createdAt DateTime @default(now())
+  createdBy String
+  updatedAt DateTime @updatedAt
+
+  contract CustomerContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@index([contractId])
+  @@index([ownerUserId, status])
+  @@index([status, dueOn])
+  @@map("contract_obligations")
 }
 
 /// CD-161 — who else may open a confidential contract.

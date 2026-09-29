@@ -135,6 +135,45 @@ export const NOTIFICATION_RULES: readonly RuleDefinition[] = [
     defaults: { warn_days: 7 },
   },
   {
+    code: 'contract.expiry',
+    module: 'crm',
+    label: 'สัญญาที่ไม่ต่ออายุผ่านฝ่ายขายใกล้หมดอายุ',
+    description:
+      'NDA สัญญาอื่น ๆ และสัญญากับคู่สัญญาที่ไม่ใช่ลูกค้า — เตือนผู้รับผิดชอบสัญญาก่อนหมดอายุตามจำนวนวันที่กำหนด และแจ้งอีกครั้งในวันที่หมด (สัญญาลูกค้าใช้ "สัญญาใกล้หมดอายุ" ที่เปิดดีลต่ออายุ)',
+    recipients: 'ผู้รับผิดชอบสัญญา',
+    eventTypes: ['legal.contract.expiring', 'legal.contract.expired'],
+    params: [
+      {
+        key: 'warn_days',
+        label: 'เตือนเมื่อเหลือ (วัน)',
+        kind: 'days_list',
+        min: 1,
+        max: 365,
+        maxItems: 6,
+      },
+    ],
+    defaults: { warn_days: [60, 30, 7] },
+  },
+  {
+    code: 'contract.obligation',
+    module: 'crm',
+    label: 'ข้อผูกพันตามสัญญาใกล้ถึงกำหนด',
+    description:
+      'เตือนผู้รับผิดชอบข้อผูกพันก่อนถึงกำหนด และแจ้งอีกครั้งเมื่อเลยกำหนดแล้วยังไม่ทำ',
+    recipients: 'ผู้รับผิดชอบข้อผูกพัน',
+    eventTypes: ['legal.obligation.due', 'legal.obligation.overdue'],
+    params: [
+      {
+        key: 'warn_days',
+        label: 'เตือนล่วงหน้า (วัน)',
+        kind: 'days',
+        min: 0,
+        max: 60,
+      },
+    ],
+    defaults: { warn_days: 3 },
+  },
+  {
     code: 'phone.reservation',
     module: 'crm',
     label: 'เบอร์ที่จองใกล้หมดอายุ',
