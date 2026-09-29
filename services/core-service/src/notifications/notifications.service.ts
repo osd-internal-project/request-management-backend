@@ -439,6 +439,29 @@ export class NotificationsService {
     });
   }
 
+  /** CD-149 — the MSA a contract is made under was changed. */
+  async masterAgreementChanged(
+    userId: string,
+    companyId: string,
+    master: { contractNo: string; title: string },
+    contract: { id: string; contractNo: string },
+    change: string,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'legal.msa.changed',
+      values: {
+        master_no: master.contractNo,
+        master_title: master.title,
+        contract_no: contract.contractNo,
+        change,
+      },
+      resourceType: 'customer_contract',
+      resourceId: contract.id,
+    });
+  }
+
   /** CD-78 — a number held for a deal expires soon, or has expired. */
   async phoneReservationExpiry(
     userId: string,

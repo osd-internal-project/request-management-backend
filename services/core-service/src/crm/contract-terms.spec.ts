@@ -153,6 +153,7 @@ function harness(options: { typeCode?: string | null; submitFails?: boolean }) {
     } as never,
     requests as never,
     { record: jest.fn(() => Promise.resolve()) } as never,
+    { changed: jest.fn(() => Promise.resolve(0)) } as never,
   );
   return { service, requests, current: () => row };
 }

@@ -18,6 +18,8 @@ import { CompanyMemberRepository } from '../access/company-member.repository';
 import { safeFileName } from '../requests/attachments.service';
 import { extractContractText, normalizeText } from './contract-text';
 import { contractVisibleWhere } from './contract-visibility';
+import { masterProblem, type PartySide } from './contract-links';
+import { ContractMasterNotifier } from './contract-master-notifier';
 import {
   ContractAccessRepository,
   ContractDocumentRepository,
@@ -46,6 +48,16 @@ interface UploadedContractFile {
   readonly buffer: Buffer;
 }
 
+/** CD-148 — NDA fields belong to an NDA; any other kind clears them. */
+function ndaFields(kind: string, dto: SaveLegalContractDto) {
+  return kind === 'nda'
+    ? {
+        ndaScope: dto.nda_scope?.trim() || null,
+        ndaDirection: dto.nda_direction || null,
+      }
+    : { ndaScope: null, ndaDirection: null };
+}
+
 const isoDay = (value: unknown): string | null =>
   typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)
     ? value.slice(0, 10)
@@ -66,7 +78,11 @@ const LIST_SELECT = {
   counterpartyName: true,
   counterpartyTaxId: true,
   ownerUserId: true,
+  ndaScope: true,
+  ndaDirection: true,
+  masterContractId: true,
   customer: { select: { id: true, customerCode: true, nameTh: true } },
+  master: { select: { id: true, contractNo: true, title: true } },
   _count: { select: { documents: { where: { deletedAt: null } } } },
 } as const;
 
@@ -84,6 +100,9 @@ interface ContractRow {
   id: string;
   companyId: string;
   customerId: string | null;
+  counterpartyName: string | null;
+  kind: string;
+  masterContractId: string | null;
   contractNo: string;
   endOn: Date;
   confidential: boolean;
@@ -119,6 +138,7 @@ export class LegalContractsService {
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
+    private readonly master: ContractMasterNotifier,
   ) {}
 
   async list(actor: Principal, query: ListContractsQueryDto) {
@@ -155,6 +175,18 @@ export class LegalContractsService {
           select: DOCUMENT_SELECT,
         },
         access: { select: { userId: true, grantedAt: true } },
+        // CD-149 — what is made under this MSA (visible ones only)
+        subContracts: {
+          where: contractVisibleWhere(actor),
+          orderBy: { endOn: 'asc' },
+          select: {
+            id: true,
+            contractNo: true,
+            title: true,
+            status: true,
+            endOn: true,
+          },
+        },
       },
     })) as
       | ({
@@ -202,6 +234,11 @@ export class LegalContractsService {
     const startOn = isoDay(dto.start_on);
     this.assertDates(startOn, endOn);
     const party = await this.party(companyId, dto);
+    const kind = dto.kind ?? 'standard';
+    const masterId = dto.master_contract_id || null;
+    if (masterId) {
+      await this.assertMaster(companyId, { kind, ...party }, masterId);
+    }
     await this.assertNumberFree(companyId, contractNo);
 
     return this.transactions.execute(async (prisma) => {
@@ -212,7 +249,9 @@ export class LegalContractsService {
             customerId: party.customerId,
             counterpartyName: party.counterpartyName,
             counterpartyTaxId: party.counterpartyTaxId,
-            kind: dto.kind ?? 'standard',
+            kind,
+            ...ndaFields(kind, dto),
+            masterContractId: masterId,
             contractNo,
             title,
             startOn: startOn ? asDate(startOn) : null,
@@ -266,6 +305,40 @@ export class LegalContractsService {
     const partyChanged =
       dto.customer_id !== undefined || dto.counterparty_name !== undefined;
     const party = partyChanged ? await this.party(before.companyId, dto) : null;
+    // CD-148/149 — the kind, NDA fields and master as they will be
+    const kind = dto.kind ?? before.kind;
+    if (before.kind === 'msa' && kind !== 'msa') {
+      const subs = await this.contracts.count({
+        where: { masterContractId: id },
+      });
+      if (subs) {
+        throw new AppError(
+          'CONFLICT',
+          `มีสัญญาย่อย ${subs} ฉบับอ้างอิงข้อตกลงหลักนี้ — เปลี่ยนชนิดไม่ได้`,
+        );
+      }
+    }
+    const masterId =
+      dto.master_contract_id === undefined
+        ? before.masterContractId
+        : dto.master_contract_id || null;
+    if (
+      masterId &&
+      (masterId !== before.masterContractId || party || dto.kind)
+    ) {
+      await this.assertMaster(
+        before.companyId,
+        {
+          id,
+          kind,
+          customerId: party ? party.customerId : before.customerId,
+          counterpartyName: party
+            ? party.counterpartyName
+            : before.counterpartyName,
+        },
+        masterId,
+      );
+    }
     const contractNo = dto.contract_no?.trim();
     if (contractNo && contractNo !== before.contractNo) {
       await this.assertNumberFree(before.companyId, contractNo);
@@ -278,6 +351,14 @@ export class LegalContractsService {
 
     const data: Prisma.CustomerContractUncheckedUpdateInput = {
       ...(dto.kind ? { kind: dto.kind } : {}),
+      ...(dto.kind ||
+      dto.nda_scope !== undefined ||
+      dto.nda_direction !== undefined
+        ? ndaFields(kind, dto)
+        : {}),
+      ...(dto.master_contract_id !== undefined
+        ? { masterContractId: masterId }
+        : {}),
       ...(contractNo ? { contractNo } : {}),
       ...(dto.title?.trim() ? { title: dto.title.trim() } : {}),
       ...(party
@@ -297,7 +378,7 @@ export class LegalContractsService {
       ...(endChanged ? { remindedDays: [], status: 'active' } : {}),
       updatedBy: actor.userId,
     };
-    return this.transactions.execute(async (prisma) => {
+    const updated = await this.transactions.execute(async (prisma) => {
       const row = await this.contracts.update(
         { where: { id }, data },
         { prisma },
@@ -319,6 +400,10 @@ export class LegalContractsService {
       );
       return row;
     });
+    if (kind === 'msa') {
+      await this.master.changed(id, 'แก้ไขรายละเอียดข้อตกลงหลัก', actor);
+    }
+    return updated;
   }
 
   /** ลับพิเศษ on/off and the people who may still open it. */
@@ -418,8 +503,9 @@ export class LegalContractsService {
       contentType: file.mimetype,
       size: file.size,
     });
+    let saved: Record<string, unknown>;
     try {
-      return await this.transactions.execute(async (prisma) => {
+      saved = await this.transactions.execute(async (prisma) => {
         const row = await this.documents.create(
           {
             data: {
@@ -456,6 +542,14 @@ export class LegalContractsService {
       await this.storage.remove(storageKey).catch(() => undefined);
       throw error;
     }
+    if (contract.kind === 'msa') {
+      await this.master.changed(
+        contract.id,
+        `แนบไฟล์ ${fileName} ในข้อตกลงหลัก`,
+        actor,
+      );
+    }
+    return saved;
   }
 
   async download(
@@ -473,6 +567,7 @@ export class LegalContractsService {
 
   async removeDocument(id: string, documentId: string, actor: Principal) {
     const document = await this.requireDocument(id, documentId, actor);
+    const contract = await this.requireContract(id, actor);
     await this.documents.update({
       where: { id: documentId },
       data: { deletedAt: new Date(), deletedBy: actor.userId },
@@ -492,10 +587,41 @@ export class LegalContractsService {
           `CD-161 remove ${document.storageKey}: ${error.message}`,
         ),
       );
+    if (contract.kind === 'msa') {
+      await this.master.changed(
+        id,
+        `ลบไฟล์ ${document.fileName} ออกจากข้อตกลงหลัก`,
+        actor,
+      );
+    }
     return { removed: true };
   }
 
   // --- helpers -------------------------------------------------------------
+
+  /** CD-149 — the master agreement must fit (see `masterProblem`). */
+  private async assertMaster(
+    companyId: string,
+    contract: PartySide,
+    masterId: string,
+  ) {
+    const master = (await this.contracts.findFirst({
+      where: { id: masterId, companyId },
+      select: {
+        id: true,
+        kind: true,
+        status: true,
+        customerId: true,
+        counterpartyName: true,
+      },
+    })) as (PartySide & { id: string; status: string }) | null;
+    const problem = masterProblem(contract, master);
+    if (problem) {
+      throw new AppError('VALIDATION_FAILED', problem, [
+        { field: 'master_contract_id', reason: masterId },
+      ]);
+    }
+  }
 
   private base(actor: Principal): Prisma.CustomerContractWhereInput {
     return {
@@ -638,6 +764,9 @@ export class LegalContractsService {
         id: true,
         companyId: true,
         customerId: true,
+        counterpartyName: true,
+        kind: true,
+        masterContractId: true,
         contractNo: true,
         endOn: true,
         confidential: true,

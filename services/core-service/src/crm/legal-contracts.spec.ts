@@ -80,6 +80,7 @@ describe('CD-161 LegalContractsService', () => {
         execute: (work: (tx: unknown) => Promise<unknown>) => work({}),
       } as never,
       {} as never,
+      { changed: jest.fn(() => Promise.resolve(0)) } as never,
     );
     return { service, contracts };
   }

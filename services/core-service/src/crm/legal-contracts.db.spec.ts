@@ -69,12 +69,17 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
             return Promise.resolve();
           },
         } as never,
+        { changed: () => Promise.resolve(0) } as never,
       );
     });
 
     afterAll(async () => {
       await prisma.contractDocument.deleteMany({
         where: { contractId: { in: ids } },
+      });
+      await prisma.customerContract.updateMany({
+        where: { id: { in: ids } },
+        data: { masterContractId: null },
       });
       await prisma.customerContract.deleteMany({ where: { id: { in: ids } } });
       await prisma.$disconnect();
@@ -164,6 +169,33 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       await expect(
         service.detail(secret.id, as(otherUser, false)),
       ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+
+      // CD-149 — an MSA with the same party, a sub-contract under it; the
+      // master's detail lists it, and another party cannot hang under it
+      const msa = await service.create(
+        {
+          kind: 'msa',
+          contract_no: `MSA-T161-${tag}`,
+          title: 'ข้อตกลงหลักทดสอบ',
+          counterparty_name: 'บริษัท คู่ค้าทดสอบ จำกัด',
+          end_on: '2029-12-31',
+        },
+        legal,
+      );
+      ids.unshift(msa.id);
+      await service.update(nda.id, { master_contract_id: msa.id }, legal);
+      const master = await service.detail(msa.id, legal);
+      expect(
+        (
+          master as unknown as { subContracts: { id: string }[] }
+        ).subContracts.map((row) => row.id),
+      ).toEqual([nda.id]);
+      await expect(
+        service.update(secret.id, { master_contract_id: msa.id }, legal),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+      await expect(
+        service.update(msa.id, { kind: 'standard' }, legal),
+      ).rejects.toMatchObject({ code: 'CONFLICT' });
 
       // no party at all is refused by the database too
       await expect(

@@ -15444,6 +15444,27 @@
               "active",
               "cancelled"
             ]
+          },
+          "nda_scope": {
+            "type": "object",
+            "description": "CD-148 NDA — ข้อมูลที่คุ้มครอง",
+            "nullable": true,
+            "maxLength": 2000
+          },
+          "nda_direction": {
+            "type": "string",
+            "enum": [
+              "mutual",
+              "disclosing",
+              "receiving"
+            ],
+            "nullable": true,
+            "description": "สองฝ่าย · เราเปิดเผย · เรารับข้อมูล"
+          },
+          "master_contract_id": {
+            "type": "object",
+            "description": "CD-149 — ข้อตกลงหลัก (MSA) ที่สัญญานี้อ้างอิง · \"\" = ไม่อ้างอิง",
+            "nullable": true
           }
         }
       },

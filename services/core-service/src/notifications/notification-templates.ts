@@ -145,6 +145,21 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
     },
   },
   {
+    eventType: 'legal.msa.changed',
+    label: 'ข้อตกลงหลัก (MSA) ถูกแก้ไข (ถึงผู้รับผิดชอบสัญญาย่อย)',
+    title: 'ข้อตกลงหลัก {{master_no}} ถูกแก้ไข',
+    body: '{{change}} — สัญญา {{contract_no}} อ้างอิงข้อตกลงนี้ ตรวจว่ากระทบสัญญาของคุณหรือไม่',
+    variables: {
+      master_no: { label: 'เลขที่ข้อตกลงหลัก', sample: 'MSA-2569-001' },
+      master_title: {
+        label: 'ชื่อข้อตกลงหลัก',
+        sample: 'ข้อตกลงหลักบริการระบบ',
+      },
+      contract_no: { label: 'เลขที่สัญญาย่อย', sample: 'CTR-2569-0042' },
+      change: { label: 'สิ่งที่แก้', sample: 'แก้ไขวันสิ้นสุด' },
+    },
+  },
+  {
     eventType: 'crm.phone_reservation.expiring',
     label: 'เบอร์ที่จองใกล้หมดอายุ (ถึงเจ้าของดีล)',
     title: 'เบอร์ {{number}} ที่จองไว้จะหมดอายุ {{expires_on}}',

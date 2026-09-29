@@ -3508,6 +3508,16 @@ model CustomerContract {
   /// contracts or the customer.
   confidential      Boolean      @default(false)
 
+  /// CD-148 NDA — what information is protected, and which way it flows:
+  /// mutual · disclosing (we disclose) · receiving (we receive).
+  ndaScope     String?
+  ndaDirection String?
+
+  /// CD-149 — the master agreement (MSA) this contract is made under; same
+  /// party, kind `msa`. Changing the MSA tells every active sub-contract's
+  /// owner.
+  masterContractId String?
+
   contractNo String
   title      String
   startOn    DateTime?              @db.Date
@@ -3537,14 +3547,17 @@ model CustomerContract {
   updatedAt DateTime @updatedAt
   updatedBy String?
 
-  customer  Customer?          @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  documents ContractDocument[]
-  access    ContractAccess[]
+  customer     Customer?          @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  documents    ContractDocument[]
+  access       ContractAccess[]
   /// CD-153..156 — ข้อกำหนดที่วัดได้ของสัญญา.
-  terms     ContractTerms?
+  terms        ContractTerms?
+  master       CustomerContract?  @relation("ContractMaster", fields: [masterContractId], references: [id], onDelete: Restrict)
+  subContracts CustomerContract[] @relation("ContractMaster")
 
   @@unique([companyId, contractNo])
   @@index([customerId])
+  @@index([masterContractId])
   @@index([status, endOn])
   @@map("customer_contracts")
 }

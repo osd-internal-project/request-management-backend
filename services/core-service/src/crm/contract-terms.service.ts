@@ -11,6 +11,7 @@ import {
 import { RequestRepository } from '../requests/request.repository';
 import { RequestsService } from '../requests/requests.service';
 import { contractVisibleWhere } from './contract-visibility';
+import { ContractMasterNotifier } from './contract-master-notifier';
 import { CustomerContractRepository } from './contract.repositories';
 import {
   approvalStateOf,
@@ -40,6 +41,7 @@ export class ContractTermsRepository extends BaseRepository<
 interface ContractRef {
   id: string;
   companyId: string;
+  kind: string;
   contractNo: string;
   title: string;
   value: { toString(): string } | null;
@@ -104,6 +106,7 @@ export class ContractTermsService {
     private readonly requestRows: RequestRepository,
     private readonly requests: RequestsService,
     private readonly audit: AuditWriter,
+    private readonly master: ContractMasterNotifier,
   ) {}
 
   async view(contractId: string, actor: Principal) {
@@ -219,6 +222,13 @@ export class ContractTermsService {
       liabilityNeedsApproval(liability, num(contract.value))
     ) {
       await this.askApproval(contract, liability, actor, authorization);
+    }
+    if (contract.kind === 'msa') {
+      await this.master.changed(
+        contractId,
+        'แก้ไขข้อกำหนดของข้อตกลงหลัก',
+        actor,
+      );
     }
     return this.view(contractId, actor);
   }
@@ -424,6 +434,7 @@ export class ContractTermsService {
       select: {
         id: true,
         companyId: true,
+        kind: true,
         contractNo: true,
         title: true,
         value: true,

@@ -150,6 +150,33 @@ export class SaveLegalContractDto {
   @IsOptional()
   @IsIn(['active', 'cancelled'])
   status?: 'active' | 'cancelled';
+
+  @ApiPropertyOptional({
+    description: 'CD-148 NDA — ข้อมูลที่คุ้มครอง',
+    nullable: true,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  nda_scope?: string | null;
+
+  @ApiPropertyOptional({
+    enum: ['mutual', 'disclosing', 'receiving'],
+    nullable: true,
+    description: 'สองฝ่าย · เราเปิดเผย · เรารับข้อมูล',
+  })
+  @IsOptional()
+  @IsIn(['mutual', 'disclosing', 'receiving', null])
+  nda_direction?: 'mutual' | 'disclosing' | 'receiving' | null;
+
+  @ApiPropertyOptional({
+    description:
+      'CD-149 — ข้อตกลงหลัก (MSA) ที่สัญญานี้อ้างอิง · "" = ไม่อ้างอิง',
+    nullable: true,
+  })
+  @IsOptional()
+  @IsString()
+  master_contract_id?: string | null;
 }
 
 /** CD-161 — ลับพิเศษ and who else may open it. */
