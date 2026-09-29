@@ -20,6 +20,7 @@ import {
 } from '@request-management/share';
 import { CompanyMemberRepository } from '../access/company-member.repository';
 import { RequestRepository } from '../requests/request.repository';
+import { CustomerContractRepository } from './contract.repositories';
 import { CustomerRepository } from './customer.repository';
 import {
   CustomerLocationRepository,
@@ -119,6 +120,7 @@ export class CustomersService {
     private readonly quotations: QuotationRepository,
     private readonly configs: CrmConfigRepository,
     private readonly approval: CustomerApprovalService,
+    private readonly contracts: CustomerContractRepository,
   ) {}
 
   private readonly logger = new Logger(CustomersService.name);
@@ -264,13 +266,15 @@ export class CustomersService {
 
   /**
    * What "about this customer" means for a request: its ref names the
-   * customer, one of its deals (by code or id — screens send the code), or
-   * one of its quotations. Request visibility is applied by the caller.
+   * customer, one of its deals (by code or id — screens send the code), one
+   * of its quotations, or one of its contracts (CD-67 — a case raised
+   * against a contract, by number or id). Request visibility is applied by
+   * the caller.
    */
   private async customerRequestsWhere(
     id: string,
   ): Promise<Prisma.RequestWhereInput> {
-    const [deals, quotes] = await Promise.all([
+    const [deals, quotes, contracts] = await Promise.all([
       this.opportunities.findMany({
         where: { customerId: id },
         select: { id: true, opportunityCode: true },
@@ -281,10 +285,24 @@ export class CustomersService {
         },
         select: { id: true },
       }) as Promise<{ id: string }[]>,
+      this.contracts.findMany({
+        where: { customerId: id },
+        select: { id: true, contractNo: true },
+      }) as Promise<{ id: string; contractNo: string }[]>,
     ]);
     return {
       OR: [
         { refType: 'customer', refId: id },
+        ...(contracts.length
+          ? [
+              {
+                refType: 'contract',
+                refId: {
+                  in: contracts.flatMap((row) => [row.contractNo, row.id]),
+                },
+              },
+            ]
+          : []),
         ...(deals.length
           ? [
               {

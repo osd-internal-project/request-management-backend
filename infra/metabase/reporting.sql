@@ -165,7 +165,11 @@ LEFT JOIN org_units ro ON ro.id = r."receiverOrgUnitId";
 CREATE OR REPLACE VIEW reporting.sla_compliance_monthly AS
 SELECT
   company_code,
-  to_char(completed_at AT TIME ZONE 'Asia/Bangkok', 'YYYY-MM') AS month,
+  -- completed_at is a UTC wall-clock `timestamp` (no zone): read it as UTC
+  -- first, then as Bangkok time. `AT TIME ZONE 'Asia/Bangkok'` alone treats it
+  -- as Bangkok time and shifts 7 hours the wrong way — work finished after
+  -- 17:00 UTC on a month's last day landed in the wrong month.
+  to_char((completed_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Bangkok', 'YYYY-MM') AS month,
   receiver_unit,
   type_code,
   type_name,

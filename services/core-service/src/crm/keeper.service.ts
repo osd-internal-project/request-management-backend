@@ -824,7 +824,8 @@ export class KeeperService {
   /**
    * Open cases (typed with a severity, CD-67) per customer, by the same
    * "about this customer" as the 360° requests tab: the customer itself, one
-   * of its deals (code or id), or one of its quotations.
+   * of its deals (code or id), one of its quotations, or one of its contracts
+   * (number or id).
    */
   private async casesByCustomer(
     ids: string[],
@@ -846,6 +847,15 @@ export class KeeperService {
       if (customerId) owner.set(`quotation:${quote.id}`, customerId);
     }
     for (const id of ids) owner.set(`customer:${id}`, id);
+    // CD-67 — a case raised against one of the customer's contracts
+    const contracts = (await this.contracts.findMany({
+      where: { customerId: { in: ids } },
+      select: { id: true, contractNo: true, customerId: true },
+    })) as { id: string; contractNo: string; customerId: string }[];
+    for (const contract of contracts) {
+      owner.set(`contract:${contract.contractNo}`, contract.customerId);
+      owner.set(`contract:${contract.id}`, contract.customerId);
+    }
 
     const refs = (type: string) =>
       [...owner.keys()]
@@ -857,7 +867,7 @@ export class KeeperService {
           visibleRequestsWhere(accessSubject(actor)),
           { severity: { not: null }, status: { notIn: CLOSED_REQUEST } },
           {
-            OR: ['customer', 'opportunity', 'quotation']
+            OR: ['customer', 'opportunity', 'quotation', 'contract']
               .map((type) => ({ type, ids: refs(type) }))
               .filter((ref) => ref.ids.length)
               .map((ref) => ({ refType: ref.type, refId: { in: ref.ids } })),

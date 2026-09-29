@@ -248,6 +248,12 @@ function harness(options: {
         return Promise.resolve({ id: 'req-nca' });
       }),
     } as never,
+    // CD-67 — contracts a case may be raised against
+    {
+      findMany: jest.fn(() =>
+        Promise.resolve([{ id: 'ctr-1', contractNo: 'CTR-2569-0001' }]),
+      ),
+    } as never,
   );
 
   return {
@@ -563,6 +569,11 @@ describe('C360-01 summary — ตัวเลขการ์ดหน้า 360�
         {
           OR: [
             { refType: 'customer', refId: 'cust-1' },
+            // CD-67 — a case raised against one of its contracts
+            {
+              refType: 'contract',
+              refId: { in: ['CTR-2569-0001', 'ctr-1'] },
+            },
             {
               refType: 'opportunity',
               refId: { in: ['OPP-OSD-0001', 'opp-1'] },
