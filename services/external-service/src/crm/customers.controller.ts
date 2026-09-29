@@ -244,6 +244,19 @@ export class ExternalCustomersController {
     return this.customers.summaryOf(id, principal);
   }
 
+  /** CD-68 — every request about the customer: direct, via its deals or quotations. */
+  @ApiOperation({
+    summary: 'คำขอทั้งหมดที่เกี่ยวกับลูกค้า (หน้า 360°)',
+    description:
+      'อ้างลูกค้าตรง ๆ หรืออ้างโอกาสการขาย/ใบเสนอราคาของลูกค้า — เฉพาะที่ผู้ดูเปิดได้ · ต้องมี request.read · `contractRequestTypeCode` ใช้แยกแท็บสัญญา',
+  })
+  @Get(':id/requests')
+  @Permissions('integration.crm.customer.read')
+  @ActingPermissions('crm.customer.read')
+  requests(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.customers.requestsOf(id, principal);
+  }
+
   /** CM-01 — every changed field lands in the history, in the same tx. */
   @ApiOperation({
     summary: 'แก้ข้อมูลลูกค้า',

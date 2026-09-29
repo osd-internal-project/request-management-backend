@@ -2509,6 +2509,48 @@
         ]
       }
     },
+    "/api/v1/customers/{id}/requests": {
+      "get": {
+        "description": "อ้างลูกค้าตรง ๆ หรืออ้างโอกาสการขาย/ใบเสนอราคาของลูกค้า — เฉพาะที่ผู้ดูเปิดได้ · ต้องมี request.read · `contractRequestTypeCode` ใช้แยกแท็บสัญญา",
+        "operationId": "CustomersController_requests",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "คำขอทั้งหมดที่เกี่ยวกับลูกค้า (หน้า 360°)",
+        "tags": [
+          "customers"
+        ],
+        "x-permission": [
+          "crm.customer.read"
+        ]
+      }
+    },
     "/api/v1/customers/{id}/activate": {
       "post": {
         "description": "มาจาก draft · suspended · inactive ได้ — ผิดทางได้ CRM_CUSTOMER_STATE_INVALID",
