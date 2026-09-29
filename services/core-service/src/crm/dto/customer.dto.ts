@@ -2,6 +2,7 @@ import { Type } from 'class-transformer';
 import {
   IsDateString,
   ArrayMaxSize,
+  ArrayNotEmpty,
   IsArray,
   IsBoolean,
   IsEmail,
@@ -18,7 +19,7 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PageQueryDto } from '@request-management/share';
 
 /**
@@ -672,4 +673,103 @@ export class UpdateCrmConfigDto {
   @IsString()
   @Matches(/^([A-Z0-9_-]{1,20})?$/)
   contract_request_type_code?: string;
+
+  /** CD-61: KYC ใช้ได้กี่เดือนก่อนต้องทบทวน ตามระดับความเสี่ยง. */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(120)
+  kyc_review_months_high?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(120)
+  kyc_review_months_medium?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(120)
+  kyc_review_months_low?: number;
+}
+
+/** CD-70 — a contract entered by hand, or edited. */
+export class CustomerContractDto {
+  @ApiPropertyOptional({ example: 'CTR-2566-0012' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  contract_no?: string;
+
+  @ApiPropertyOptional({ example: 'บริการดูแลระบบกล้อง อาคาร B' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  title?: string;
+
+  @ApiPropertyOptional({ example: '2025-01-01', nullable: true })
+  @IsOptional()
+  @IsDateString()
+  start_on?: string | null;
+
+  @ApiPropertyOptional({ example: '2026-12-31' })
+  @IsOptional()
+  @IsDateString()
+  end_on?: string;
+
+  @ApiPropertyOptional({ example: 480000, nullable: true })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  value?: number | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  note?: string | null;
+
+  @ApiPropertyOptional({ enum: ['active', 'cancelled'] })
+  @IsOptional()
+  @IsIn(['active', 'cancelled'])
+  status?: 'active' | 'cancelled';
+}
+
+/** CD-61 — one prohibited-list entry. */
+export class KycWatchlistEntryDto {
+  @ApiProperty({ example: 'บริษัท ต้องห้าม จำกัด' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  name!: string;
+
+  @ApiPropertyOptional({ example: '0105551234567' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  tax_id?: string;
+
+  @ApiProperty({ example: 'อยู่ในรายชื่อคว่ำบาตร' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(500)
+  reason!: string;
+
+  @ApiPropertyOptional({ example: 'ประกาศ ปปง. 2569/12' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  source?: string;
+}
+
+/** CD-61 — adds one or many entries (a pasted list). */
+export class AddKycWatchlistDto {
+  @ApiProperty({ type: [KycWatchlistEntryDto] })
+  @IsArray()
+  @ArrayNotEmpty()
+  @ArrayMaxSize(1000)
+  @ValidateNested({ each: true })
+  @Type(() => KycWatchlistEntryDto)
+  entries!: KycWatchlistEntryDto[];
 }

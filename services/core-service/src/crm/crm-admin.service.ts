@@ -203,6 +203,9 @@ export class CrmAdminService {
         quotationApprovalTypeCode: 'DSC',
         targetApprovalTypeCode: null,
         contractRequestTypeCode: null,
+        kycReviewMonthsHigh: 12,
+        kycReviewMonthsMedium: 24,
+        kycReviewMonthsLow: 36,
         staleOpportunityDays: 14,
         ...EMPTY_LETTERHEAD,
       }
@@ -228,6 +231,9 @@ export class CrmAdminService {
               staleOpportunityDays: dto.stale_opportunity_days ?? 14,
               targetApprovalTypeCode: dto.target_approval_type_code || null,
               contractRequestTypeCode: dto.contract_request_type_code || null,
+              kycReviewMonthsHigh: dto.kyc_review_months_high ?? 12,
+              kycReviewMonthsMedium: dto.kyc_review_months_medium ?? 24,
+              kycReviewMonthsLow: dto.kyc_review_months_low ?? 36,
               ...letterheadColumns(dto),
               updatedBy: actor.userId,
             },
@@ -246,6 +252,9 @@ export class CrmAdminService {
                 dto.contract_request_type_code === undefined
                   ? undefined
                   : dto.contract_request_type_code || null,
+              kycReviewMonthsHigh: dto.kyc_review_months_high,
+              kycReviewMonthsMedium: dto.kyc_review_months_medium,
+              kycReviewMonthsLow: dto.kyc_review_months_low,
               ...letterheadColumns(dto),
               updatedBy: actor.userId,
             },

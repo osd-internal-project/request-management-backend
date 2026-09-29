@@ -2509,6 +2509,238 @@
         ]
       }
     },
+    "/api/v1/customers/{id}/contracts": {
+      "get": {
+        "operationId": "CustomersController_contracts",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "สัญญาของลูกค้า (ทะเบียนสัญญา)",
+        "tags": [
+          "customers"
+        ],
+        "x-permission": [
+          "crm.customer.read"
+        ]
+      },
+      "post": {
+        "operationId": "CustomersController_addContract",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerContractDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "บันทึกสัญญาด้วยมือ",
+        "tags": [
+          "customers"
+        ],
+        "x-permission": [
+          "crm.customer.manage"
+        ]
+      }
+    },
+    "/api/v1/customers/{id}/contracts/{contractId}": {
+      "patch": {
+        "operationId": "CustomersController_updateContract",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "contractId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerContractDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แก้หรือยกเลิกสัญญา",
+        "tags": [
+          "customers"
+        ],
+        "x-permission": [
+          "crm.customer.manage"
+        ]
+      }
+    },
+    "/api/v1/customers/{id}/kyc": {
+      "get": {
+        "operationId": "CustomersController_kyc",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "KYC ของลูกค้า (สถานะ ผลตรวจรายชื่อต้องห้าม ประวัติการยืนยัน)",
+        "tags": [
+          "customers"
+        ],
+        "x-permission": [
+          "crm.customer.read"
+        ]
+      }
+    },
+    "/api/v1/customers/{id}/requests": {
+      "get": {
+        "description": "อ้างลูกค้าตรง ๆ หรืออ้างโอกาสการขาย/ใบเสนอราคาของลูกค้า — เฉพาะที่ผู้ดูเปิดได้ · ต้องมี request.read · `contractRequestTypeCode` ใช้แยกแท็บสัญญา",
+        "operationId": "CustomersController_requests",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "คำขอทั้งหมดที่เกี่ยวกับลูกค้า (หน้า 360°)",
+        "tags": [
+          "customers"
+        ],
+        "x-permission": [
+          "crm.customer.read"
+        ]
+      }
+    },
     "/api/v1/customers/{id}/activate": {
       "post": {
         "description": "มาจาก draft · suspended · inactive ได้ — ผิดทางได้ CRM_CUSTOMER_STATE_INVALID",
@@ -3868,6 +4100,126 @@
             }
           }
         },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin/crm"
+        ],
+        "x-permission": [
+          "admin.crm.manage"
+        ]
+      }
+    },
+    "/api/v1/admin/crm/kyc-watchlist": {
+      "get": {
+        "operationId": "CrmAdminController_listKycWatchlist",
+        "parameters": [
+          {
+            "name": "include_inactive",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin/crm"
+        ],
+        "x-permission": [
+          "admin.crm.manage"
+        ]
+      },
+      "post": {
+        "operationId": "CrmAdminController_addKycWatchlist",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddKycWatchlistDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin/crm"
+        ],
+        "x-permission": [
+          "admin.crm.manage"
+        ]
+      }
+    },
+    "/api/v1/admin/crm/kyc-watchlist/{id}/deactivate": {
+      "patch": {
+        "operationId": "CrmAdminController_deactivateKycWatchlist",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -9837,6 +10189,50 @@
           "type"
         ]
       },
+      "CustomerContractDto": {
+        "type": "object",
+        "properties": {
+          "contract_no": {
+            "type": "string",
+            "example": "CTR-2566-0012",
+            "maxLength": 60
+          },
+          "title": {
+            "type": "string",
+            "example": "บริการดูแลระบบกล้อง อาคาร B",
+            "maxLength": 255
+          },
+          "start_on": {
+            "type": "object",
+            "example": "2025-01-01",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "end_on": {
+            "type": "string",
+            "example": "2026-12-31",
+            "format": "date-time"
+          },
+          "value": {
+            "type": "object",
+            "example": 480000,
+            "nullable": true,
+            "minimum": 0
+          },
+          "note": {
+            "type": "object",
+            "nullable": true,
+            "maxLength": 2000
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "cancelled"
+            ]
+          }
+        }
+      },
       "UpdateCustomerDto": {
         "type": "object",
         "properties": {
@@ -10295,8 +10691,69 @@
           "contract_request_type_code": {
             "pattern": "^([A-Z0-9_-]{1,20})?$",
             "type": "string"
+          },
+          "kyc_review_months_high": {
+            "maximum": 120,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "kyc_review_months_medium": {
+            "maximum": 120,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "kyc_review_months_low": {
+            "maximum": 120,
+            "minimum": 1,
+            "type": "integer"
           }
         }
+      },
+      "KycWatchlistEntryDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "บริษัท ต้องห้าม จำกัด",
+            "maxLength": 255,
+            "minLength": 1
+          },
+          "tax_id": {
+            "type": "string",
+            "example": "0105551234567",
+            "maxLength": 20
+          },
+          "reason": {
+            "type": "string",
+            "example": "อยู่ในรายชื่อคว่ำบาตร",
+            "maxLength": 500,
+            "minLength": 1
+          },
+          "source": {
+            "type": "string",
+            "example": "ประกาศ ปปง. 2569/12",
+            "maxLength": 255
+          }
+        },
+        "required": [
+          "name",
+          "reason"
+        ]
+      },
+      "AddKycWatchlistDto": {
+        "type": "object",
+        "properties": {
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KycWatchlistEntryDto"
+            },
+            "maxItems": 1000
+          }
+        },
+        "required": [
+          "entries"
+        ]
       },
       "TradeTermStandardDto": {
         "type": "object",

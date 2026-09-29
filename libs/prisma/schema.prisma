@@ -336,6 +336,7 @@ model Company {
   customerCodeCounter     CustomerCodeCounter?
   crmConfig               CrmCompanyConfig?
   tradeTermStandards      TradeTermStandard[]
+  kycWatchlist            KycWatchlistEntry[]
   kycProductRules         KycProductRule[]
   leadStatuses            LeadStatusSetting[]
   leads                   Lead[]
@@ -1931,6 +1932,11 @@ model Customer {
   /// enters a opportunity.
   kycVerified   Boolean   @default(false)
   kycVerifiedAt DateTime?
+  /// CD-61 — copied from the latest verified KYC record, so lists and the
+  /// expiry sweep read a column rather than joining.
+  kycRiskLevel  KycRiskLevel?
+  /// CD-61 — the earlier of the review date and the first document expiry.
+  kycExpiresOn  DateTime?     @db.Date
 
   /// CM-01/08 — ผู้รับผิดชอบบัญชี. Scope pivots on this and on
   /// `ownerOrgUnitId` below.
@@ -1982,6 +1988,11 @@ model Customer {
   /// (redesign #2: a branch is its own customer row, linked to the head
   /// office by `headOfficeId`). Postgres treats NULL tax ids as distinct, so
   /// customers without one never collide here.
+  /// CD-61 every KYC verification of this customer, newest last.
+  kycRecords CustomerKycRecord[]
+  /// CD-70 the customer's contracts (renewals are raised from their end date).
+  contracts  CustomerContract[]
+
   @@unique([companyId, taxId, branchCode])
   @@index([companyId, headOfficeId])
   @@index([companyId, status])
@@ -2216,6 +2227,11 @@ model CrmCompanyConfig {
   /// อำนาจอนุมัติของประเภทนั้น — ผู้อำนวยการ). NULL = ยังไม่ตั้ง → ปรับเป้าของงวดที่
   /// เริ่มแล้วไม่ได้ (ตั้งเป้างวดหน้ายังทำได้ตามปกติ).
   targetApprovalTypeCode String?
+
+  /// CD-61 — how long a KYC stays valid before a review, by risk level.
+  kycReviewMonthsHigh   Int @default(12)
+  kycReviewMonthsMedium Int @default(24)
+  kycReviewMonthsLow    Int @default(36)
 
   /// CD-81: ประเภทคำขอที่ฝ่ายกฎหมายรับทำ/แก้สัญญา — ปุ่ม "ขอจัดทำสัญญา" และการ์ด
   /// สัญญาบนหน้าดีลใช้ประเภทนี้. NULL = ยังไม่ตั้ง → หน้าดีลไม่แสดงการ์ดสัญญา.
@@ -3058,4 +3074,139 @@ model Campaign {
 
   @@unique([companyId, code])
   @@map("campaigns")
+}
+
+/// CD-61 — ระดับความเสี่ยงลูกค้า.
+enum KycRiskLevel {
+  low
+  medium
+  high
+}
+
+/// CD-61 — what became of one KYC verification.
+enum KycRecordStatus {
+  /// Verified; in force until `expiresOn`.
+  verified
+  /// The prohibited list matched and nobody cleared it — not verified.
+  screening_hit
+  /// A later verification replaced it.
+  superseded
+  /// Its review date or a document passed — the customer is unverified again.
+  expired
+}
+
+/// CD-61 — the company's own prohibited list (รายชื่อต้องห้าม), kept by
+/// compliance in CRM settings. Deactivated, never deleted: a KYC record keeps
+/// the entry it matched.
+model KycWatchlistEntry {
+  id             String  @id @default(uuid())
+  companyId      String
+  name           String
+  /// `normalizeCustomerName(name)` — screening compares this.
+  normalizedName String
+  taxId          String?
+  reason         String
+  source         String?
+  active         Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  createdBy String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@index([companyId, active])
+  @@map("kyc_watchlist_entries")
+}
+
+/// CD-61 — one KYC verification of a customer, written when its KYC request
+/// completes. Append-only apart from `status` (superseded / expired) and the
+/// warning stamp: what was checked, and what was decided, stays as it was.
+model CustomerKycRecord {
+  id         String          @id @default(uuid())
+  companyId  String
+  customerId String
+  requestId  String?
+  status     KycRecordStatus
+
+  riskLevel     KycRiskLevel
+  /// What the system suggested — kept beside the reviewer's choice.
+  suggestedRisk KycRiskLevel
+  /// `{ checkedAt, matches: [{ entryId, name, taxId, reason, score, byTaxId }] }`
+  screening     Json
+  /// Why a match was accepted anyway — required to verify despite a match.
+  clearanceNote String?
+
+  documentsExpireOn DateTime? @db.Date
+  signatories       String?
+  reviewDueOn       DateTime  @db.Date
+  /// The earlier of `reviewDueOn` and `documentsExpireOn`.
+  expiresOn         DateTime  @db.Date
+  /// When the 30-day warning went out; null = not yet.
+  warnedAt          DateTime?
+
+  recordedAt DateTime @default(now())
+  recordedBy String?
+
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@index([customerId, recordedAt])
+  @@index([status, expiresOn])
+  @@map("customer_kyc_records")
+}
+
+/// CD-70 — where a contract stands.
+enum CustomerContractStatus {
+  active
+  /// The renewal deal was won.
+  renewed
+  /// Its end date passed without a won renewal.
+  ended
+  /// Withdrawn by hand.
+  cancelled
+}
+
+/// CD-70 — a light register of customer contracts until the Legal module
+/// (CD-13) owns them: written when a contract request (CD-81) completes, or
+/// by hand for contracts made before the system. Renewals are raised from
+/// `endOn` — a renewal deal at 90 days, reminders at 60 and 30.
+model CustomerContract {
+  id         String @id @default(uuid())
+  companyId  String
+  customerId String
+
+  contractNo String
+  title      String
+  startOn    DateTime?              @db.Date
+  endOn      DateTime               @db.Date
+  value      Decimal?               @db.Decimal(14, 2)
+  currency   String                 @default("THB")
+  status     CustomerContractStatus @default(active)
+
+  /// The deal it was made for, and the contract request that produced it.
+  opportunityId String?
+  requestId     String? @unique
+
+  /// Who the renewal belongs to — its deal is created under them.
+  ownerUserId    String
+  ownerOrgUnitId String?
+
+  renewalOpportunityId String?
+  renewalCreatedAt     DateTime?
+  reminded60At         DateTime?
+  reminded30At         DateTime?
+
+  note      String?
+  createdAt DateTime @default(now())
+  createdBy String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@unique([companyId, contractNo])
+  @@index([customerId])
+  @@index([status, endOn])
+  @@map("customer_contracts")
 }

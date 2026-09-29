@@ -432,6 +432,94 @@ export class NotificationsService {
     });
   }
 
+  /** CD-70 — a renewal deal was opened from a contract's end date. */
+  async contractRenewalOpened(
+    userId: string,
+    companyId: string,
+    contract: { contractNo: string; title: string },
+    deal: { id: string; opportunityCode: string },
+    daysLeft: number,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'crm.contract.renewal_opened',
+      values: {
+        contract_no: contract.contractNo,
+        contract_title: contract.title,
+        days_left: String(daysLeft),
+        opportunity_code: deal.opportunityCode,
+      },
+      resourceType: 'opportunity',
+      resourceId: deal.id,
+    });
+  }
+
+  /** CD-70 — 60 / 30 days before the end, while the renewal deal is open. */
+  async contractRenewalDue(
+    userId: string,
+    companyId: string,
+    contract: { contractNo: string; title: string },
+    deal: { id: string; opportunityCode: string },
+    daysLeft: number,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'crm.contract.renewal_due',
+      values: {
+        contract_no: contract.contractNo,
+        contract_title: contract.title,
+        days_left: String(daysLeft),
+        opportunity_code: deal.opportunityCode,
+      },
+      resourceType: 'opportunity',
+      resourceId: deal.id,
+    });
+  }
+
+  /** CD-61 — a customer's KYC runs out within the warning window. */
+  async kycExpiring(
+    userId: string,
+    companyId: string,
+    customer: { id: string; customerCode: string; nameTh: string },
+    expiresOn: string,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'crm.kyc.expiring',
+      values: {
+        customer_code: customer.customerCode,
+        customer_name: customer.nameTh,
+        expires_on: expiresOn,
+      },
+      resourceType: 'customer',
+      resourceId: customer.id,
+    });
+  }
+
+  /** CD-61 — a customer's KYC has run out; it is unverified again. */
+  async kycExpired(
+    userId: string,
+    companyId: string,
+    customer: { id: string; customerCode: string; nameTh: string },
+    expiresOn: string,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'crm.kyc.expired',
+      values: {
+        customer_code: customer.customerCode,
+        customer_name: customer.nameTh,
+        expires_on: expiresOn,
+      },
+      resourceType: 'customer',
+      resourceId: customer.id,
+    });
+  }
+
   /**
    * CD-54 — the wording for one event in one company: the company's own if
    * it saved one, else the standard. An event the catalog does not declare

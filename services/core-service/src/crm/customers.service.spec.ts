@@ -87,6 +87,7 @@ interface Harness {
     search: jest.Mock;
   };
   requestCount: jest.Mock;
+  requestFindMany: jest.Mock;
   /** C360-04 — the ยอดค้างชำระ cache read, asserted *not* to run without permission. */
   erpLookup: jest.Mock;
   /** C360-04 — the โอกาสการขาย count, same. */
@@ -122,6 +123,7 @@ function harness(options: {
   };
 
   const requestCount = jest.fn(() => Promise.resolve(0));
+  const requestFindMany = jest.fn(() => Promise.resolve([]));
   const erpLookup = jest.fn(() =>
     Promise.resolve(
       options.erpPayload ? { payload: options.erpPayload } : null,
@@ -162,7 +164,7 @@ function harness(options: {
       createMany: jest.fn(),
     } as never,
     { findFirst: jest.fn(() => Promise.resolve(null)) } as never,
-    { count: requestCount } as never,
+    { count: requestCount, findMany: requestFindMany } as never,
     { issueUnused: jest.fn(() => Promise.resolve('CUS-OSD-000001')) } as never,
     {
       headOfficeOf: jest.fn(() => Promise.resolve(null)),
@@ -224,6 +226,16 @@ function harness(options: {
     {
       count: opportunityCount,
       sumAmount: jest.fn(() => Promise.resolve(0)),
+      // CD-68 — the customer's deals, for requests raised on them
+      findMany: jest.fn(() =>
+        Promise.resolve([{ id: 'opp-1', opportunityCode: 'OPP-OSD-0001' }]),
+      ),
+    } as never,
+    { findMany: jest.fn(() => Promise.resolve([{ id: 'qt-1' }])) } as never,
+    {
+      findFirst: jest.fn(() =>
+        Promise.resolve({ contractRequestTypeCode: 'CTR' }),
+      ),
     } as never,
   );
 
@@ -234,6 +246,7 @@ function harness(options: {
     fieldChangeRows,
     customers,
     requestCount,
+    requestFindMany,
     erpLookup,
     opportunityCount,
     erpKicks,
@@ -484,7 +497,8 @@ describe('C360-01 summary — ตัวเลขการ์ดหน้า 360�
   });
 
   it('CM-08/SCOPE-02 the card counts use the very filter the tabs use — compared, not assumed', async () => {
-    const { service, requestCount, opportunityCount } = harness({});
+    const { service, requestCount, requestFindMany, opportunityCount } =
+      harness({});
     const viewer = principal([
       'crm.customer.read',
       'request.read',
@@ -492,18 +506,31 @@ describe('C360-01 summary — ตัวเลขการ์ดหน้า 360�
     ]);
 
     await service.summaryOf('cust-1', viewer);
+    await service.requestsOf('cust-1', viewer);
 
     type Counted = { where: { AND: unknown[] } };
     const requestWheres = (requestCount.mock.calls as [Counted][]).map(
       ([args]) => args.where,
     );
-    // total, and open = total's where AND a status filter
+    // CD-68 — the card counts exactly what the requests tab lists
+    const [[listed]] = requestFindMany.mock.calls as [Counted][];
+    expect(requestWheres[0]).toEqual(listed.where);
     expect(requestWheres[0]).toEqual({
       AND: [
         visibleRequestsWhere(accessSubject(viewer)),
-        { refType: 'customer', refId: 'cust-1' },
+        {
+          OR: [
+            { refType: 'customer', refId: 'cust-1' },
+            {
+              refType: 'opportunity',
+              refId: { in: ['OPP-OSD-0001', 'opp-1'] },
+            },
+            { refType: 'quotation', refId: { in: ['qt-1'] } },
+          ],
+        },
       ],
     });
+    // open = total's where AND a status filter
     expect(requestWheres[1].AND[0]).toEqual(requestWheres[0]);
 
     const [[opportunityArgs]] = opportunityCount.mock.calls as [Counted][];
@@ -513,6 +540,19 @@ describe('C360-01 summary — ตัวเลขการ์ดหน้า 360�
         { customerId: 'cust-1' },
       ],
     });
+  });
+
+  it('CD-68: the requests list returns the contract type for the tabs, and refuses a viewer without request.read', async () => {
+    const { service } = harness({});
+    await expect(
+      service.requestsOf(
+        'cust-1',
+        principal(['crm.customer.read', 'request.read']),
+      ),
+    ).resolves.toMatchObject({ contractRequestTypeCode: 'CTR', rows: [] });
+    await expect(
+      service.requestsOf('cust-1', principal(['crm.customer.read'])),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
   });
 
   it('C360-04 a viewer without request.read gets null, not a number that 403s on click', async () => {

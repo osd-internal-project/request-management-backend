@@ -28,6 +28,7 @@ import {
   CustomerFieldChangeRepository,
 } from './customer-child.repositories';
 import {
+  CrmConfigRepository,
   CustomerSegmentAssignmentRepository,
   CustomerSegmentValueRepository,
 } from './segment.repositories';
@@ -40,7 +41,10 @@ import { CustomerTimelineService } from './customer-timeline.service';
 import { CustomerErpSyncService } from './customer-erp-sync.service';
 import { ERP_SYSTEM } from '../erp/erp-client';
 import { KycProductRuleRepository } from './kyc-product.repository';
-import { OpportunityRepository } from './sales.repositories';
+import {
+  OpportunityRepository,
+  QuotationRepository,
+} from './sales.repositories';
 import { PDPA_CLIENT } from '../pdpa/pdpa-client';
 import type { ContactConsentStatus, PdpaClient } from '../pdpa/pdpa-client';
 import { assertCustomerTransition } from './customer-state-machine';
@@ -111,6 +115,8 @@ export class CustomersService {
     @Inject(PDPA_CLIENT) private readonly pdpa: PdpaClient,
     private readonly kycProducts: KycProductRuleRepository,
     private readonly opportunities: OpportunityRepository,
+    private readonly quotations: QuotationRepository,
+    private readonly configs: CrmConfigRepository,
   ) {}
 
   private readonly logger = new Logger(CustomersService.name);
@@ -194,15 +200,124 @@ export class CustomersService {
    * holds per section: โอกาสการขาย needs `crm.sales.read` and ยอดค้างชำระ needs
    * `crm.customer.financial.read`, each gated before its query runs.
    */
+  /**
+   * CD-68 — every request about this customer the viewer may open: raised on
+   * the customer itself, or on one of its deals or quotations (a contract
+   * request from CD-81/CD-79, a discount from a quotation). Newest first,
+   * with what the 360° tabs need to split them into contracts and cases.
+   *
+   * 404 for a customer out of reach (SCOPE-03); 403 without `request.read` —
+   * the page does not ask then (C360-04).
+   */
+  async requestsOf(id: string, actor: Principal) {
+    await this.findOne(id, actor);
+    if (!hasPermission(actor, 'request.read')) {
+      throw new AppError('FORBIDDEN', 'ไม่มีสิทธิ์ดูคำขอ');
+    }
+    const [rows, config] = await Promise.all([
+      this.requests.findMany({
+        where: {
+          AND: [
+            visibleRequestsWhere(accessSubject(actor)),
+            await this.customerRequestsWhere(id),
+          ],
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 200,
+        select: {
+          id: true,
+          requestNo: true,
+          typeCode: true,
+          status: true,
+          severity: true,
+          refType: true,
+          refId: true,
+          dueAt: true,
+          createdAt: true,
+          requestType: { select: { name: true } },
+          receiver: { select: { id: true, displayName: true } },
+          assignee: { select: { id: true, displayName: true } },
+          slaClock: {
+            select: {
+              state: true,
+              dueAt: true,
+              breachedAt: true,
+              responseDueAt: true,
+              respondedAt: true,
+              responseBreachedAt: true,
+            },
+          },
+        },
+      }),
+      this.configs.findFirst({
+        where: { companyId: actor.activeCompanyId },
+        select: { contractRequestTypeCode: true },
+      }) as Promise<{ contractRequestTypeCode: string | null } | null>,
+    ]);
+    return {
+      contractRequestTypeCode: config?.contractRequestTypeCode ?? null,
+      rows,
+    };
+  }
+
+  /**
+   * What "about this customer" means for a request: its ref names the
+   * customer, one of its deals (by code or id — screens send the code), or
+   * one of its quotations. Request visibility is applied by the caller.
+   */
+  private async customerRequestsWhere(
+    id: string,
+  ): Promise<Prisma.RequestWhereInput> {
+    const [deals, quotes] = await Promise.all([
+      this.opportunities.findMany({
+        where: { customerId: id },
+        select: { id: true, opportunityCode: true },
+      }) as Promise<{ id: string; opportunityCode: string }[]>,
+      this.quotations.findMany({
+        where: {
+          OR: [{ customerId: id }, { opportunity: { customerId: id } }],
+        },
+        select: { id: true },
+      }) as Promise<{ id: string }[]>,
+    ]);
+    return {
+      OR: [
+        { refType: 'customer', refId: id },
+        ...(deals.length
+          ? [
+              {
+                refType: 'opportunity',
+                refId: {
+                  in: deals.flatMap((deal) => [deal.opportunityCode, deal.id]),
+                },
+              },
+            ]
+          : []),
+        ...(quotes.length
+          ? [
+              {
+                refType: 'quotation',
+                refId: { in: quotes.map((quote) => quote.id) },
+              },
+            ]
+          : []),
+      ],
+    };
+  }
+
   async summaryOf(id: string, actor: Principal) {
     await this.findOne(id, actor);
 
-    const requestWhere = {
-      AND: [
-        visibleRequestsWhere(accessSubject(actor)),
-        { refType: 'customer', refId: id },
-      ],
-    };
+    // CD-68 — the same "about this customer" as the requests tab, so the
+    // card and the rows under it cannot disagree.
+    const requestWhere = hasPermission(actor, 'request.read')
+      ? {
+          AND: [
+            visibleRequestsWhere(accessSubject(actor)),
+            await this.customerRequestsWhere(id),
+          ],
+        }
+      : {};
 
     const seesFinancials = hasPermission(actor, 'crm.customer.financial.read');
 

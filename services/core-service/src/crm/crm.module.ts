@@ -35,6 +35,15 @@ import { CompanyRepository, ProductRepository } from './product.repositories';
 import { IntegrationSyncJobRepository } from './integration-job.repository';
 import { KycProductRuleRepository } from './kyc-product.repository';
 import { KycCallbackService } from './kyc-callback.service';
+import { KycExpiryService } from './kyc-expiry.service';
+import { KycService } from './kyc.service';
+import { ContractsService } from './contracts.service';
+import { ContractRenewalService } from './contract-renewal.service';
+import { CustomerContractRepository } from './contract.repositories';
+import {
+  CustomerKycRecordRepository,
+  KycWatchlistRepository,
+} from './kyc.repositories';
 import {
   OpportunityLostReasonRepository,
   OpportunityProductRepository,
@@ -118,6 +127,15 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     IntegrationSyncJobRepository,
     KycProductRuleRepository,
     KycCallbackService,
+    // CD-61
+    KycService,
+    KycExpiryService,
+    KycWatchlistRepository,
+    CustomerKycRecordRepository,
+    // CD-70
+    ContractsService,
+    ContractRenewalService,
+    CustomerContractRepository,
     LeadRepository,
     LeadActivityRepository,
     LeadStatusRepository,
@@ -180,6 +198,8 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     OpportunitiesService,
     OpportunityActivitiesService,
     NegotiationsService,
+    KycService,
+    ContractsService,
     SalesReportService,
     CrmDashboardService,
     SalesTargetsService,

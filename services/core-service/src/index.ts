@@ -55,6 +55,8 @@ export { LeadWorkflowService } from './crm/lead-workflow.service';
 export { OpportunitiesService } from './crm/opportunities.service';
 export { OpportunityActivitiesService } from './crm/opportunity-activities.service';
 export { NegotiationsService } from './crm/negotiations.service';
+export { KycService } from './crm/kyc.service';
+export { ContractsService } from './crm/contracts.service';
 export { SalesReportService } from './crm/sales-report.service';
 export { CrmDashboardService } from './crm/crm-dashboard.service';
 export { SalesTargetsService } from './crm/sales-targets.service';
