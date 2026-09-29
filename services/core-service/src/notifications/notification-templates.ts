@@ -132,6 +132,28 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
     },
   },
   {
+    eventType: 'crm.kyc.expiring',
+    label: 'KYC ลูกค้าใกล้หมดอายุ (ถึงผู้รับผิดชอบลูกค้า)',
+    title: 'KYC ของลูกค้า {{customer_name}} ใกล้หมดอายุ',
+    body: '{{customer_code}} {{customer_name}} — KYC ใช้ได้ถึง {{expires_on}} ยื่นคำขอ KYC ใหม่เพื่อทบทวนก่อนหมดอายุ',
+    variables: {
+      customer_code: { label: 'รหัสลูกค้า', sample: 'CUS-OSD-000042' },
+      customer_name: { label: 'ชื่อลูกค้า', sample: 'บริษัท ตัวอย่าง จำกัด' },
+      expires_on: { label: 'วันหมดอายุ', sample: '2026-10-29' },
+    },
+  },
+  {
+    eventType: 'crm.kyc.expired',
+    label: 'KYC ลูกค้าหมดอายุแล้ว (ถึงผู้รับผิดชอบลูกค้า)',
+    title: 'KYC ของลูกค้า {{customer_name}} หมดอายุแล้ว',
+    body: '{{customer_code}} {{customer_name}} — KYC หมดอายุเมื่อ {{expires_on}} สถานะกลับเป็นยังไม่ยืนยันตัวตน ยื่นคำขอ KYC ใหม่',
+    variables: {
+      customer_code: { label: 'รหัสลูกค้า', sample: 'CUS-OSD-000042' },
+      customer_name: { label: 'ชื่อลูกค้า', sample: 'บริษัท ตัวอย่าง จำกัด' },
+      expires_on: { label: 'วันหมดอายุ', sample: '2026-09-29' },
+    },
+  },
+  {
     eventType: 'notification.digest',
     label: 'สรุปการแจ้งเตือนประจำวัน',
     title: 'สรุปการแจ้งเตือนประจำวัน · {{count}} รายการ',

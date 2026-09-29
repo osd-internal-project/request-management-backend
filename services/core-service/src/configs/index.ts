@@ -124,6 +124,10 @@ export default () => ({
     staleSweepIntervalMs: Number(
       process.env.CRM_STALE_SWEEP_INTERVAL_MS ?? 3600000,
     ),
+    /** CD-61 — KYC expiry warnings and expiry (ms); 0 = off (tests). */
+    kycExpiryIntervalMs: Number(
+      process.env.CRM_KYC_EXPIRY_INTERVAL_MS ?? 3600000,
+    ),
   },
   /** CD-52 — how often due daily digests are looked for (ms); 0 = off (tests). */
   notificationDigestIntervalMs: Number(

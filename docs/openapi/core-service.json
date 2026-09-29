@@ -2509,6 +2509,47 @@
         ]
       }
     },
+    "/api/v1/customers/{id}/kyc": {
+      "get": {
+        "operationId": "CustomersController_kyc",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "KYC ของลูกค้า (สถานะ ผลตรวจรายชื่อต้องห้าม ประวัติการยืนยัน)",
+        "tags": [
+          "customers"
+        ],
+        "x-permission": [
+          "crm.customer.read"
+        ]
+      }
+    },
     "/api/v1/customers/{id}/requests": {
       "get": {
         "description": "อ้างลูกค้าตรง ๆ หรืออ้างโอกาสการขาย/ใบเสนอราคาของลูกค้า — เฉพาะที่ผู้ดูเปิดได้ · ต้องมี request.read · `contractRequestTypeCode` ใช้แยกแท็บสัญญา",
@@ -3910,6 +3951,126 @@
             }
           }
         },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin/crm"
+        ],
+        "x-permission": [
+          "admin.crm.manage"
+        ]
+      }
+    },
+    "/api/v1/admin/crm/kyc-watchlist": {
+      "get": {
+        "operationId": "CrmAdminController_listKycWatchlist",
+        "parameters": [
+          {
+            "name": "include_inactive",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin/crm"
+        ],
+        "x-permission": [
+          "admin.crm.manage"
+        ]
+      },
+      "post": {
+        "operationId": "CrmAdminController_addKycWatchlist",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddKycWatchlistDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "admin/crm"
+        ],
+        "x-permission": [
+          "admin.crm.manage"
+        ]
+      }
+    },
+    "/api/v1/admin/crm/kyc-watchlist/{id}/deactivate": {
+      "patch": {
+        "operationId": "CrmAdminController_deactivateKycWatchlist",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -10337,8 +10498,69 @@
           "contract_request_type_code": {
             "pattern": "^([A-Z0-9_-]{1,20})?$",
             "type": "string"
+          },
+          "kyc_review_months_high": {
+            "maximum": 120,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "kyc_review_months_medium": {
+            "maximum": 120,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "kyc_review_months_low": {
+            "maximum": 120,
+            "minimum": 1,
+            "type": "integer"
           }
         }
+      },
+      "KycWatchlistEntryDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "บริษัท ต้องห้าม จำกัด",
+            "maxLength": 255,
+            "minLength": 1
+          },
+          "tax_id": {
+            "type": "string",
+            "example": "0105551234567",
+            "maxLength": 20
+          },
+          "reason": {
+            "type": "string",
+            "example": "อยู่ในรายชื่อคว่ำบาตร",
+            "maxLength": 500,
+            "minLength": 1
+          },
+          "source": {
+            "type": "string",
+            "example": "ประกาศ ปปง. 2569/12",
+            "maxLength": 255
+          }
+        },
+        "required": [
+          "name",
+          "reason"
+        ]
+      },
+      "AddKycWatchlistDto": {
+        "type": "object",
+        "properties": {
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KycWatchlistEntryDto"
+            },
+            "maxItems": 1000
+          }
+        },
+        "required": [
+          "entries"
+        ]
       },
       "TradeTermStandardDto": {
         "type": "object",

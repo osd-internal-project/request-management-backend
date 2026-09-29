@@ -56,6 +56,7 @@ import {
   CustomersService,
   DeactivateCustomerDto,
   ImportCustomersDto,
+  KycService,
   ListCustomersQueryDto,
   SetSegmentsDto,
   SuspendCustomerDto,
@@ -91,6 +92,7 @@ export class ExternalCustomersController {
     private readonly customers: CustomersService,
     private readonly importer: CustomerImportService,
     private readonly invoiceReader: CustomerInvoicesService,
+    private readonly kycService: KycService,
   ) {}
 
   @ApiOperation({
@@ -242,6 +244,17 @@ export class ExternalCustomersController {
   @ActingPermissions('crm.customer.read')
   summary(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
     return this.customers.summaryOf(id, principal);
+  }
+
+  /** CD-61 — the customer's KYC: state, live screening, every verification. */
+  @ApiOperation({
+    summary: 'KYC ของลูกค้า (สถานะ ผลตรวจรายชื่อต้องห้าม ประวัติการยืนยัน)',
+  })
+  @Get(':id/kyc')
+  @Permissions('integration.crm.customer.read')
+  @ActingPermissions('crm.customer.read')
+  kyc(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.kycService.customerKyc(id, principal);
   }
 
   /** CD-68 — every request about the customer: direct, via its deals or quotations. */

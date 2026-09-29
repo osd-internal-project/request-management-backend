@@ -793,6 +793,46 @@ async function seedRequestTypes(
           },
         },
       },
+      /**
+       * CD-61 — what the KYC reviewer records while closing the request. Read
+       * by `KycCallbackService` when it completes: the risk (empty = the
+       * system's suggestion), the earliest document expiry (it caps the
+       * review date), the signatories, and — only when the customer matched
+       * the prohibited list — why it is accepted anyway. The 360° KYC card
+       * shows the live screening before the reviewer decides.
+       */
+      receiverFormSchema: {
+        type: 'object',
+        required: [],
+        properties: {
+          risk_level: {
+            type: 'string',
+            title: 'ระดับความเสี่ยง (เว้นว่าง = ใช้ที่ระบบแนะนำ)',
+            enum: ['ต่ำ', 'กลาง', 'สูง'],
+            'x-order': 10,
+          },
+          documents_expire_on: {
+            type: 'string',
+            format: 'date',
+            title: 'เอกสารฉบับแรกที่หมดอายุ',
+            'x-order': 20,
+          },
+          signatories: {
+            type: 'string',
+            title: 'ผู้มีอำนาจลงนาม (ชื่อ · ตำแหน่ง · เงื่อนไขการลงนาม)',
+            maxLength: 2000,
+            'x-multiline': true,
+            'x-order': 30,
+          },
+          screening_clearance: {
+            type: 'string',
+            title: 'เหตุผลที่ยกเว้น (กรอกเฉพาะเมื่อชื่อตรงกับรายชื่อต้องห้าม)',
+            maxLength: 2000,
+            'x-multiline': true,
+            'x-order': 40,
+          },
+        },
+      },
       requiredDocs: [
         { code: 'COMPANY_CERT', name: 'หนังสือรับรองบริษัท' },
         { code: 'VAT20', name: 'ภ.พ.20 / เอกสารภาษี' },
@@ -910,6 +950,10 @@ async function seedRequestTypes(
         name: type.name,
         receiverOrgUnitId: type.receiverOrgUnitId,
         formSchema: type.formSchema,
+        // CD-61 — only a type that declares one; the others keep theirs.
+        ...('receiverFormSchema' in type
+          ? { receiverFormSchema: type.receiverFormSchema }
+          : {}),
         requiredDocs: type.requiredDocs,
         returnReasonCodes: type.returnReasonCodes,
         approvalPolicy: type.approvalPolicy,
@@ -922,6 +966,9 @@ async function seedRequestTypes(
         name: type.name,
         receiverOrgUnitId: type.receiverOrgUnitId,
         formSchema: type.formSchema,
+        ...('receiverFormSchema' in type
+          ? { receiverFormSchema: type.receiverFormSchema }
+          : {}),
         requiredDocs: type.requiredDocs,
         returnReasonCodes: type.returnReasonCodes,
         approvalPolicy: type.approvalPolicy,

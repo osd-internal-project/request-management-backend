@@ -9,6 +9,7 @@ import {
   Patch,
   Put,
   Post,
+  Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentPrincipal, Permissions } from '@request-management/share';
@@ -16,11 +17,13 @@ import type { Principal } from '@request-management/share';
 import { CrmAdminService } from './crm-admin.service';
 import { LeadStatusService } from './lead-status.service';
 import { NegotiationsService } from './negotiations.service';
+import { KycService } from './kyc.service';
 import {
   CreateKycProductDto,
   CreateSegmentDimensionDto,
   CreateSegmentValueDto,
   UpdateCrmConfigDto,
+  AddKycWatchlistDto,
   UpdateKycProductDto,
   UpdateSegmentDimensionDto,
   UpdateSegmentValueDto,
@@ -44,6 +47,7 @@ export class CrmAdminController {
     private readonly admin: CrmAdminService,
     private readonly leadStatuses: LeadStatusService,
     private readonly negotiations: NegotiationsService,
+    private readonly kyc: KycService,
   ) {}
 
   // --- สถานะ Lead: หน้า Lead มีสถานะอะไรบ้าง (D-09) -----------------------
@@ -191,6 +195,37 @@ export class CrmAdminController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.admin.updateConfig(dto, principal);
+  }
+
+  // --- CD-61 รายชื่อต้องห้าม ------------------------------------------------
+
+  @Get('kyc-watchlist')
+  @Permissions('admin.crm.manage')
+  listKycWatchlist(
+    @CurrentPrincipal() principal: Principal,
+    @Query('include_inactive') includeInactive?: string,
+  ) {
+    return this.kyc.listWatchlist(principal, includeInactive === 'true');
+  }
+
+  /** เพิ่มทีละรายการหรือทั้งชุด (วางจาก Excel). */
+  @Post('kyc-watchlist')
+  @Permissions('admin.crm.manage')
+  addKycWatchlist(
+    @Body() dto: AddKycWatchlistDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.kyc.addToWatchlist(dto.entries, principal);
+  }
+
+  /** ปิดใช้ — ไม่ลบ ผล KYC เก่ายังอ้างรายการนี้ได้. */
+  @Patch('kyc-watchlist/:id/deactivate')
+  @Permissions('admin.crm.manage')
+  deactivateKycWatchlist(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.kyc.deactivateWatchlistEntry(id, principal);
   }
 
   // --- CD-79 เงื่อนไขการค้ามาตรฐาน -----------------------------------------

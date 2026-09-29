@@ -103,6 +103,8 @@ export default () => ({
   /** CD-65 ดีลเงียบ — the sweep is core-service's, like every clock above. */
   crm: {
     staleSweepIntervalMs: 0,
+    // CD-61 — the KYC expiry sweep is core-service's too.
+    kycExpiryIntervalMs: 0,
   },
   pdpa: {
     mode: process.env.PDPA_MODE ?? 'mock',
