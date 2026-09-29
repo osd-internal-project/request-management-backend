@@ -33,6 +33,8 @@ export interface KeycloakEnv {
 export interface KeycloakAdminContext {
   readonly base: string;
   readonly headers: Record<string, string>;
+  /** The app's client; its client roles are this system's roles. */
+  readonly clientId: string;
 }
 
 export interface KeycloakContext extends KeycloakAdminContext {
@@ -112,6 +114,7 @@ export async function connectAdmin(
 
   return {
     base: `${env.baseUrl}/admin/realms/${env.realm}`,
+    clientId: env.clientId,
     headers: {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
@@ -149,6 +152,7 @@ export async function connect(env: KeycloakEnv): Promise<KeycloakContext> {
 
   return {
     base: `${env.baseUrl}/admin/realms/${env.realm}`,
+    clientId: env.clientId,
     headers: {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
@@ -288,26 +292,46 @@ export async function ensureKeycloakUser(
   return { id, created: response.ok };
 }
 
-export async function grantRealmRole(
-  keycloak: KeycloakContext,
+/** The admin API addresses a client by its internal id, not by `clientId`. */
+export async function clientUuid(
+  keycloak: KeycloakAdminContext,
+): Promise<string> {
+  const response = await fetch(
+    `${keycloak.base}/clients?clientId=${encodeURIComponent(keycloak.clientId)}`,
+    { headers: keycloak.headers },
+  );
+  if (!response.ok) {
+    throw new Error(
+      `Could not look up client "${keycloak.clientId}" (HTTP ${response.status}).`,
+    );
+  }
+  const clients = (await response.json()) as { id: string; clientId: string }[];
+  const client = clients.find((c) => c.clientId === keycloak.clientId);
+  if (!client) throw new Error(`Client "${keycloak.clientId}" not found.`);
+  return client.id;
+}
+
+export async function grantClientRole(
+  keycloak: KeycloakAdminContext,
   userId: string,
   roleName: string,
 ): Promise<void> {
+  const client = await clientUuid(keycloak);
   const response = await fetch(
-    `${keycloak.base}/roles/${encodeURIComponent(roleName)}`,
+    `${keycloak.base}/clients/${client}/roles/${encodeURIComponent(roleName)}`,
     { headers: keycloak.headers },
   );
 
   if (!response.ok) {
     throw new Error(
-      `Realm role "${roleName}" does not exist. Run \`yarn keycloak:provision\` first.`,
+      `Client role "${roleName}" does not exist. Run \`yarn keycloak:provision\` first.`,
     );
   }
 
   const role = (await response.json()) as { id: string; name: string };
 
   const granted = await fetch(
-    `${keycloak.base}/users/${userId}/role-mappings/realm`,
+    `${keycloak.base}/users/${userId}/role-mappings/clients/${client}`,
     {
       method: 'POST',
       headers: keycloak.headers,

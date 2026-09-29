@@ -25,7 +25,7 @@ import { PrismaClient, Prisma } from '@prisma/client';
 import {
   connect,
   ensureKeycloakUser,
-  grantRealmRole,
+  grantClientRole,
   grantSystemRole,
   readKeycloakEnv,
   upsertProfile,
@@ -813,7 +813,7 @@ async function importStaff(
       lastName,
     });
 
-    await grantRealmRole(keycloak, account.id, DEFAULT_ROLE);
+    await grantClientRole(keycloak, account.id, DEFAULT_ROLE);
 
     const profileId = await upsertProfile(
       prisma,

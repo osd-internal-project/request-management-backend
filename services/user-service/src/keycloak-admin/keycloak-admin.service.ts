@@ -77,6 +77,7 @@ const TOKEN_SKEW_MS = 30_000;
 export class KeycloakAdminService {
   private readonly logger = new Logger(KeycloakAdminService.name);
   private cached: CachedToken | null = null;
+  private cachedClientUuid: string | null = null;
 
   constructor(
     private readonly http: HttpService,
@@ -187,30 +188,47 @@ export class KeycloakAdminService {
     return this.call<number>('get', `/users/count${search}`);
   }
 
-  // --- realm roles -------------------------------------------------------
+  // --- client roles ------------------------------------------------------
 
-  listRealmRoles(): Promise<KeycloakRole[]> {
-    return this.call<KeycloakRole[]>('get', '/roles');
+  /** This system's roles: client roles of `request-form`, not realm roles, since the realm is shared. */
+  async listClientRoles(): Promise<KeycloakRole[]> {
+    const clientUuid = await this.clientUuid();
+    return this.call<KeycloakRole[]>('get', `/clients/${clientUuid}/roles`);
   }
 
-  /** Realm roles currently granted to a user. */
-  listUserRoles(userId: string): Promise<KeycloakRole[]> {
-    return this.call<KeycloakRole[]>(
-      'get',
-      `/users/${userId}/role-mappings/realm`,
+  /** Realm and client roles granted to a user — the same union `keycloakRolesOf` reads off a token. */
+  async listUserRoles(userId: string): Promise<KeycloakRole[]> {
+    const clientUuid = await this.clientUuid();
+    const [realmRoles, clientRoles] = await Promise.all([
+      this.call<KeycloakRole[]>('get', `/users/${userId}/role-mappings/realm`),
+      this.call<KeycloakRole[]>(
+        'get',
+        `/users/${userId}/role-mappings/clients/${clientUuid}`,
+      ),
+    ]);
+    return [...realmRoles, ...clientRoles];
+  }
+
+  async grantClientRole(userId: string, roleName: string): Promise<void> {
+    this.assertGrantable(roleName);
+
+    const role = await this.findClientRole(roleName);
+    const clientUuid = await this.clientUuid();
+    await this.call(
+      'post',
+      `/users/${userId}/role-mappings/clients/${clientUuid}`,
+      [role],
     );
   }
 
-  async grantRealmRole(userId: string, roleName: string): Promise<void> {
-    this.assertGrantable(roleName);
-
-    const role = await this.findRealmRole(roleName);
-    await this.call('post', `/users/${userId}/role-mappings/realm`, [role]);
-  }
-
-  async revokeRealmRole(userId: string, roleName: string): Promise<void> {
-    const role = await this.findRealmRole(roleName);
-    await this.call('delete', `/users/${userId}/role-mappings/realm`, [role]);
+  async revokeClientRole(userId: string, roleName: string): Promise<void> {
+    const role = await this.findClientRole(roleName);
+    const clientUuid = await this.clientUuid();
+    await this.call(
+      'delete',
+      `/users/${userId}/role-mappings/clients/${clientUuid}`,
+      [role],
+    );
   }
 
   // --- groups ------------------------------------------------------------
@@ -243,8 +261,31 @@ export class KeycloakAdminService {
     }
   }
 
-  private async findRealmRole(name: string): Promise<KeycloakRole> {
-    const roles = await this.listRealmRoles();
+  /** The client's internal id; the admin API addresses clients by it, not by `clientId`. */
+  private async clientUuid(): Promise<string> {
+    if (this.cachedClientUuid) return this.cachedClientUuid;
+
+    const clientId = this.setting('clientId');
+    const clients = await this.call<{ id: string; clientId: string }[]>(
+      'get',
+      `/clients?clientId=${encodeURIComponent(clientId)}`,
+    );
+    const client = clients.find((candidate) => candidate.clientId === clientId);
+
+    if (!client) {
+      throw new AppError(
+        'KEYCLOAK_ADMIN_UNAVAILABLE',
+        'ไม่พบ client ของระบบใน Keycloak',
+        [{ field: 'KEYCLOAK_CLIENT_ID', reason: clientId }],
+      );
+    }
+
+    this.cachedClientUuid = client.id;
+    return client.id;
+  }
+
+  private async findClientRole(name: string): Promise<KeycloakRole> {
+    const roles = await this.listClientRoles();
     const role = roles.find((candidate) => candidate.name === name);
 
     if (!role) {
@@ -282,7 +323,7 @@ export class KeycloakAdminService {
           {
             field: 'service-account',
             reason:
-              'needs realm-management roles: view-users, query-users, query-groups, manage-users, view-realm',
+              'needs realm-management roles: view-users, query-users, query-groups, manage-users, view-realm, view-clients, query-clients',
           },
         ],
       );

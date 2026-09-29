@@ -35,7 +35,7 @@ export class RolesController {
   constructor(
     private readonly rolesService: RolesService,
     /*
-      Read-only use: `listRealmRoles`. The transport stays in the one class
+      Read-only use: `listClientRoles`. The transport stays in the one class
       that owns a Keycloak admin token, and nothing here calls a write.
     */
     private readonly keycloakAdmin: KeycloakAdminService,
@@ -151,9 +151,9 @@ export class RolesController {
   }
 
   /**
-   * Re-reads the realm and corrects any mapping whose role has been renamed.
+   * Re-reads the client roles and corrects any mapping whose role has been renamed.
    *
-   * One way. This reads `GET /roles` from the realm and writes only here —
+   * One way. This reads the `request-form` client roles and writes only here —
    * `admin.role.manage` administers this system's roles and must never become
    * a way to administer Keycloak (`AGENTS.md`).
    *
@@ -167,11 +167,11 @@ export class RolesController {
     @CurrentPrincipal() principal: Principal,
     @Query('company_id') companyId?: string,
   ) {
-    const realmRoles = await this.keycloakAdmin.listRealmRoles();
+    const clientRoles = await this.keycloakAdmin.listClientRoles();
 
     return this.rolesService.syncNamesFromKeycloak(
       resolveTargetCompany(principal, companyId),
-      realmRoles,
+      clientRoles,
       principal.userId,
     );
   }

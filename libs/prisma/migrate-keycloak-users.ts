@@ -1,11 +1,16 @@
 /**
  * Copies the old realm's people into the new one, adding only — never changing what is there.
- * `yarn kc:migrate [--dry-run|--apply|--check [username…]]`; old realm OLD_KEYCLOAK_*, new KEYCLOAK_*.
+ * `yarn kc:migrate [--dry-run|--apply|--check [username…]] [--ldap-as-local] [--no-old-rename] [--no-roles]`; old OLD_KEYCLOAK_*, new KEYCLOAK_*.
+ * Roles land as client roles of KEYCLOAK_CLIENT_ID; `--no-roles` moves accounts only (permissions set in the app).
  */
 import { mkdirSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { connectAdmin, type KeycloakAdminContext } from './keycloak-admin';
+import {
+  clientUuid,
+  connectAdmin,
+  type KeycloakAdminContext,
+} from './keycloak-admin';
 
 /** Realm-level accounts left behind: UAT characters. */
 const SKIP_PREFIX = 'uat.';
@@ -15,6 +20,8 @@ const RENAMES: Readonly<Record<string, string>> = { uatadmin: 'request-admin' };
 const BUILT_IN_ROLES = ['offline_access', 'uma_authorization'];
 const LDAP_PROVIDER = 'org.keycloak.storage.UserStorageProvider';
 const LDAP_MAPPER = 'org.keycloak.storage.ldap.mappers.LDAPStorageMapper';
+/** Marks an LDAP account created as local, so linking it to LDAP later can find it. */
+const MIGRATED_FROM_LDAP = 'migratedFromLdap';
 
 interface KcUser {
   id: string;
@@ -26,6 +33,7 @@ interface KcUser {
   emailVerified?: boolean;
   federationLink?: string;
   attributes?: Record<string, string[]>;
+  requiredActions?: string[];
 }
 interface KcRole {
   id: string;
@@ -56,6 +64,12 @@ interface Person {
 }
 
 type Mode = 'dry-run' | 'apply' | 'check';
+
+/** How an old account reaches the new realm: created, or an account already there with the same username or email. */
+interface Target {
+  readonly how: 'create' | 'username' | 'email';
+  readonly username: string;
+}
 
 async function api<T>(
   kc: KeycloakAdminContext,
@@ -113,11 +127,18 @@ async function readOldPeople(old: KeycloakAdminContext): Promise<Person[]> {
   const people: Person[] = [];
   for (const user of users) {
     if (user.username.startsWith(SKIP_PREFIX)) continue;
-    const roles = await api<KcRole[]>(
-      old,
-      `/users/${user.id}/role-mappings/realm`,
-    );
-    const groups = await api<KcGroup[]>(old, `/users/${user.id}/groups`);
+    let roles: KcRole[];
+    let groups: KcGroup[];
+    try {
+      roles = await api<KcRole[]>(old, `/users/${user.id}/role-mappings/realm`);
+      groups = await api<KcGroup[]>(old, `/users/${user.id}/groups`);
+    } catch (error) {
+      // An LDAP account gone from the directory is listed, then removed on first lookup.
+      if (!(error instanceof Error && error.message.includes('HTTP 404')))
+        throw error;
+      console.log(`  - ${user.username}: gone from the old realm — skipped`);
+      continue;
+    }
     people.push({
       oldUsername: user.username,
       username: RENAMES[user.username] ?? user.username,
@@ -131,7 +152,17 @@ async function readOldPeople(old: KeycloakAdminContext): Promise<Person[]> {
 }
 
 function isMigratableRole(name: string): boolean {
-  return !BUILT_IN_ROLES.includes(name) && !name.startsWith('default-roles-');
+  // `integration.*` is obsolete: machine permissions come from ApiKey.scopes.
+  return (
+    !BUILT_IN_ROLES.includes(name) &&
+    !name.startsWith('default-roles-') &&
+    !name.startsWith('integration.')
+  );
+}
+
+/** The app client's role endpoints in the new realm. */
+async function clientRolesBase(kc: KeycloakAdminContext): Promise<string> {
+  return `/clients/${await clientUuid(kc)}`;
 }
 
 interface Snapshot {
@@ -143,13 +174,14 @@ interface Snapshot {
 }
 
 async function snapshot(kc: KeycloakAdminContext): Promise<Snapshot> {
+  const client = await clientRolesBase(kc);
   return {
     takenAt: new Date().toISOString(),
     users: await api<KcUser[]>(
       kc,
       '/users?max=100000&briefRepresentation=false',
     ),
-    roles: (await api<KcRole[]>(kc, '/roles?max=1000')).map(
+    roles: (await api<KcRole[]>(kc, `${client}/roles?max=1000`)).map(
       (role) => role.name,
     ),
     groups: (await api<KcGroup[]>(kc, '/groups?max=1000')).map(
@@ -181,10 +213,38 @@ function sameDirectory(
   return providers.find((provider) => key(provider) === key(oldLdap)) ?? null;
 }
 
+/** Same username first, then same email (the new realm forbids duplicate emails). */
+function resolveTargets(
+  people: readonly Person[],
+  users: readonly KcUser[],
+): Map<string, Target> {
+  const byUsername = new Set(users.map((user) => user.username));
+  const byEmail = new Map(
+    users
+      .filter((user) => user.email)
+      .map((user) => [user.email!.toLowerCase(), user.username] as const),
+  );
+  const targets = new Map<string, Target>();
+  for (const person of people) {
+    const email = person.user.email?.toLowerCase();
+    const sameEmail = email ? byEmail.get(email) : undefined;
+    targets.set(
+      person.username,
+      byUsername.has(person.username)
+        ? { how: 'username', username: person.username }
+        : sameEmail
+          ? { how: 'email', username: sameEmail }
+          : { how: 'create', username: person.username },
+    );
+  }
+  return targets;
+}
+
 async function plan(old: KeycloakAdminContext, fresh: KeycloakAdminContext) {
   const people = await readOldPeople(old);
   const before = await snapshot(fresh);
   const existing = new Set(before.users.map((user) => user.username));
+  const targets = resolveTargets(people, before.users);
   const oldProviders = await api<KcComponent[]>(
     old,
     `/components?type=${LDAP_PROVIDER}`,
@@ -202,15 +262,13 @@ async function plan(old: KeycloakAdminContext, fresh: KeycloakAdminContext) {
       : null,
     missingRoles: neededRoles.filter((name) => !before.roles.includes(name)),
     missingGroups: neededGroups.filter((name) => !before.groups.includes(name)),
-    collisions: people
-      .filter((p) => existing.has(p.username))
-      .map((p) => p.username),
+    targets,
   };
 }
 
 type Plan = Awaited<ReturnType<typeof plan>>;
 
-function printPlan(p: Plan): void {
+function printPlan(p: Plan, ldapAsLocal: boolean): void {
   const local = p.people.filter((person) => !person.fromLdap);
   console.log(
     `Old accounts in scope: ${p.people.length} (LDAP ${p.people.length - local.length}, local ${local.length}; uat.* skipped)`,
@@ -222,14 +280,25 @@ function printPlan(p: Plan): void {
   console.log(`Roles to create: ${p.missingRoles.join(', ') || '(none)'}`);
   console.log(`Groups to create: ${p.missingGroups.join(', ') || '(none)'}`);
   console.log(
-    p.reusedLdap
-      ? `LDAP: new realm already federates this directory ("${p.reusedLdap.name}") — reused, not changed, not synced`
-      : `LDAP: will create "${p.oldLdap?.name}" → ${p.oldLdap?.config.connectionUrl?.[0]} after a connection test`,
+    ldapAsLocal
+      ? `LDAP: skipped (--ldap-as-local) — LDAP accounts are created as local, marked ${MIGRATED_FROM_LDAP}=true`
+      : p.reusedLdap
+        ? `LDAP: new realm already federates this directory ("${p.reusedLdap.name}") — reused, not changed, not synced`
+        : `LDAP: will create "${p.oldLdap?.name}" → ${p.oldLdap?.config.connectionUrl?.[0]} after a connection test`,
   );
+  const linked = p.people
+    .map((person) => ({ person, target: p.targets.get(person.username)! }))
+    .filter(({ target }) => target.how !== 'create');
   console.log(
-    `Already in the new realm — will be left untouched: ${p.collisions.length}`,
+    `Already in the new realm — roles/groups added, password and profile untouched: ${linked.length}`,
   );
-  for (const username of p.collisions) console.log(`  = ${username}`);
+  for (const { person, target } of linked)
+    console.log(
+      `  = ${person.username}${target.how === 'email' ? ` → ${target.username} (same email)` : ''}`,
+    );
+  console.log(
+    `To create (temporary password, UPDATE_PASSWORD at first login): ${p.people.length - linked.length}`,
+  );
 }
 
 async function createRoles(
@@ -237,13 +306,14 @@ async function createRoles(
   old: KeycloakAdminContext,
   names: readonly string[],
 ) {
+  const client = await clientRolesBase(fresh);
   for (const name of names) {
     const source = await api<KcRole>(old, `/roles/${encodeURIComponent(name)}`);
-    await api(fresh, '/roles', {
+    await api(fresh, `${client}/roles`, {
       method: 'POST',
       body: JSON.stringify({ name, description: source.description ?? '' }),
     });
-    console.log(`  + role ${name}`);
+    console.log(`  + client role ${name}`);
   }
 }
 
@@ -335,11 +405,12 @@ async function copyMissingMappers(
 }
 
 async function createLocalUser(fresh: KeycloakAdminContext, person: Person) {
-  const attributes = Object.fromEntries(
+  const attributes: Record<string, string[]> = Object.fromEntries(
     Object.entries(person.user.attributes ?? {}).filter(
       ([key]) => !key.startsWith('LDAP_'),
     ),
   );
+  if (person.fromLdap) attributes[MIGRATED_FROM_LDAP] = ['true'];
   await api(fresh, '/users', {
     method: 'POST',
     body: JSON.stringify({
@@ -350,6 +421,7 @@ async function createLocalUser(fresh: KeycloakAdminContext, person: Person) {
       enabled: person.user.enabled,
       emailVerified: person.user.emailVerified ?? false,
       attributes,
+      requiredActions: ['UPDATE_PASSWORD'],
       credentials: [
         {
           type: 'password',
@@ -359,22 +431,25 @@ async function createLocalUser(fresh: KeycloakAdminContext, person: Person) {
       ],
     }),
   });
-  console.log(`  + user ${person.username} (local, temporary password)`);
+  console.log(
+    `  + user ${person.username} (local${person.fromLdap ? ', was LDAP' : ''}, temporary password)`,
+  );
 }
 
-/** Roles and groups for an account this run created or imported — never for one that was there. */
+/** Adds the old roles (as client roles) and groups; never removes anything the account already has. */
 async function grantAccess(
   fresh: KeycloakAdminContext,
   person: Person,
   userId: string,
 ) {
+  const client = await clientRolesBase(fresh);
   const roles = await Promise.all(
     person.roles.map((name) =>
-      api<KcRole>(fresh, `/roles/${encodeURIComponent(name)}`),
+      api<KcRole>(fresh, `${client}/roles/${encodeURIComponent(name)}`),
     ),
   );
   if (roles.length) {
-    await api(fresh, `/users/${userId}/role-mappings/realm`, {
+    await api(fresh, `/users/${userId}/role-mappings${client}`, {
       method: 'POST',
       body: JSON.stringify(roles.map(({ id, name }) => ({ id, name }))),
     });
@@ -415,11 +490,13 @@ async function apply(
   old: KeycloakAdminContext,
   fresh: KeycloakAdminContext,
   realmId: string,
+  ldapAsLocal: boolean,
+  renameOld: boolean,
 ) {
   console.log(
     `Snapshot of the new realm before any change: ${saveSnapshot('before', p.before)}`,
   );
-  if (p.oldLdap && !p.reusedLdap) {
+  if (p.oldLdap && !p.reusedLdap && !ldapAsLocal) {
     // First: an unreachable directory must stop the run before anything is added.
     const providerId = await createLdap(fresh, old, p.oldLdap, realmId);
     const result = await api<Record<string, number>>(
@@ -432,19 +509,37 @@ async function apply(
   await createRoles(fresh, old, p.missingRoles);
   await createGroups(fresh, p.missingGroups);
 
+  const failed: string[] = [];
   for (const person of p.people) {
-    if (p.existing.has(person.username)) continue;
-    if (!person.fromLdap) await createLocalUser(fresh, person);
-    const created = await findUser(fresh, person.username);
-    if (!created) {
-      console.log(
-        `  ! ${person.username}: not in the new realm after sync/create`,
-      );
-      continue;
+    const target = p.targets.get(person.username)!;
+    try {
+      if (target.how === 'create' && (ldapAsLocal || !person.fromLdap))
+        await createLocalUser(fresh, person);
+      const account = await findUser(fresh, target.username);
+      if (!account) {
+        failed.push(person.username);
+        console.log(
+          `  ! ${person.username}: not in the new realm after sync/create`,
+        );
+        continue;
+      }
+      await grantAccess(fresh, person, account.id);
+      if (target.how !== 'create')
+        console.log(
+          `  ~ ${person.username}: linked to existing ${target.username} (roles/groups added)`,
+        );
+    } catch (error) {
+      // One refused account must not strand everyone after it.
+      failed.push(person.username);
+      const reason = error instanceof Error ? error.message : String(error);
+      console.log(`  ! ${person.username}: ${reason}`);
     }
-    await grantAccess(fresh, person, created.id);
   }
-  await renameInOldRealm(old);
+  console.log(
+    `Accounts: ${p.people.length - failed.length} done, ${failed.length} failed${failed.length ? ` (${failed.join(', ')})` : ''}`,
+  );
+  if (renameOld) await renameInOldRealm(old);
+  else console.log('  old realm: rename skipped (--no-old-rename)');
 }
 
 /** Read-only: per username, is it there, enabled, with the old roles and groups? */
@@ -458,16 +553,19 @@ async function check(
         (x) => only.includes(x.username) || only.includes(x.oldUsername),
       )
     : p.people;
+  const client = await clientRolesBase(fresh);
   let missing = 0;
+  let pendingPassword = 0;
   for (const person of people) {
-    const user = await findUser(fresh, person.username);
+    const target = p.targets.get(person.username)!;
+    const user = await findUser(fresh, target.username);
     if (!user) {
       missing += 1;
       console.log(`✗ ${person.username.padEnd(24)} MISSING`);
       continue;
     }
     const roles = (
-      await api<KcRole[]>(fresh, `/users/${user.id}/role-mappings/realm`)
+      await api<KcRole[]>(fresh, `/users/${user.id}/role-mappings${client}`)
     ).map((r) => r.name);
     const groups = (
       await api<KcGroup[]>(fresh, `/users/${user.id}/groups`)
@@ -478,15 +576,22 @@ async function check(
       user.enabled === person.user.enabled &&
       !lackRoles.length &&
       !lackGroups.length;
-    const note = p.existing.has(person.username)
-      ? ' (was already there — untouched)'
-      : '';
+    const pending = user.requiredActions?.includes('UPDATE_PASSWORD');
+    if (pending) pendingPassword += 1;
+    const note =
+      (target.how === 'email'
+        ? ` (existing ${target.username}, same email)`
+        : '') +
+      (target.how === 'username' ? ' (was already there)' : '') +
+      (pending ? ' [pending UPDATE_PASSWORD]' : '');
     console.log(
-      `${ok ? '✓' : '!'} ${person.username.padEnd(24)} ${user.federationLink ? 'ldap ' : 'local'} enabled=${user.enabled}` +
+      `${ok ? '✓' : '!'} ${person.username.padEnd(24)} ${user.federationLink ? 'ldap ' : user.attributes?.[MIGRATED_FROM_LDAP] ? 'local (pending ldap)' : 'local'} enabled=${user.enabled}` +
         `${lackRoles.length ? ` missing roles: ${lackRoles.join(',')}` : ''}${lackGroups.length ? ` missing groups: ${lackGroups.join(',')}` : ''}${note}`,
     );
   }
-  console.log(`\nChecked ${people.length}, missing ${missing}.`);
+  console.log(
+    `\nChecked ${people.length}, missing ${missing}, pending UPDATE_PASSWORD ${pendingPassword}.`,
+  );
 }
 
 function modeOf(argv: readonly string[]): Mode {
@@ -500,6 +605,7 @@ async function main(): Promise<void> {
     throw new Error('Refusing to run in production.');
   const argv = process.argv.slice(2);
   const mode = modeOf(argv);
+  const ldapAsLocal = argv.includes('--ldap-as-local');
   if (mode === 'apply' && process.env.KC_MIGRATE_ALLOW !== '1') {
     throw new Error('Refusing --apply without KC_MIGRATE_ALLOW=1.');
   }
@@ -512,18 +618,32 @@ async function main(): Promise<void> {
   const old = await connectAdmin(oldEnv);
   const fresh = await connectAdmin(newEnv);
 
-  const p = await plan(old, fresh);
+  const planned = await plan(old, fresh);
+  const p = argv.includes('--no-roles')
+    ? {
+        ...planned,
+        people: planned.people.map((person) => ({ ...person, roles: [] })),
+        missingRoles: [],
+      }
+    : planned;
   if (mode === 'check')
     return check(
       p,
       fresh,
-      argv.filter((arg) => !arg.startsWith('--')),
+      argv.filter((arg) => !arg.startsWith('--') && !arg.includes('=')),
     );
-  printPlan(p);
+  printPlan(p, ldapAsLocal);
   if (mode === 'dry-run') return;
 
   const realm = await api<{ id: string }>(fresh, '');
-  await apply(p, old, fresh, realm.id);
+  await apply(
+    p,
+    old,
+    fresh,
+    realm.id,
+    ldapAsLocal,
+    !argv.includes('--no-old-rename'),
+  );
   console.log(
     `Snapshot of the new realm after: ${saveSnapshot('after', await snapshot(fresh))}`,
   );

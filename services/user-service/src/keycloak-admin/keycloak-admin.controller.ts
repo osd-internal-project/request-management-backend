@@ -22,7 +22,7 @@ import { KeycloakAdminService } from './keycloak-admin.service';
 
 /**
  * Keycloak identity data, surfaced so screen A3 can show and edit a member's
- * realm roles and groups without sending admins to the Keycloak console.
+ * client roles and groups without sending admins to the Keycloak console.
  *
  * Everything here sits behind `admin.identity.manage` — deliberately not
  * `admin.role.manage`, because these calls reach outside our database into the
@@ -40,7 +40,7 @@ export class KeycloakAdminController {
   @Get('roles')
   @Permissions('admin.identity.manage')
   listRoles() {
-    return this.keycloak.listRealmRoles();
+    return this.keycloak.listClientRoles();
   }
 
   @Get('groups')
@@ -85,7 +85,7 @@ export class KeycloakAdminController {
     @CurrentPrincipal() principal: Principal,
   ) {
     const user = await this.require(username);
-    await this.keycloak.grantRealmRole(user.id, role);
+    await this.keycloak.grantClientRole(user.id, role);
 
     await this.audit.record({
       eventType: AuditEvent.IDENTITY_ROLE_GRANTED,
@@ -107,7 +107,7 @@ export class KeycloakAdminController {
     @CurrentPrincipal() principal: Principal,
   ) {
     const user = await this.require(username);
-    await this.keycloak.revokeRealmRole(user.id, role);
+    await this.keycloak.revokeClientRole(user.id, role);
 
     await this.audit.record({
       eventType: AuditEvent.IDENTITY_ROLE_REVOKED,

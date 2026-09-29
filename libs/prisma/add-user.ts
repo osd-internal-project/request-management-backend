@@ -24,7 +24,7 @@ import { PrismaClient } from '@prisma/client';
 import {
   connect,
   ensureKeycloakUser,
-  grantRealmRole,
+  grantClientRole,
   grantSystemRole,
   readKeycloakEnv,
   upsertProfile,
@@ -35,8 +35,8 @@ const prisma = new PrismaClient();
 
 /** What every OSD employee carries; see the peers already in the chart. */
 const DEFAULT_ROLES = ['employee', 'receiver'];
-/** The realm role. One, because that is what maps to a system role (ROLE-03). */
-const REALM_ROLE = 'employee';
+/** The `request-form` client role. One, because that is what maps to a system role (ROLE-03). */
+const KEYCLOAK_ROLE = 'employee';
 
 interface Options {
   readonly email: string;
@@ -148,7 +148,7 @@ async function addUser(options: Options): Promise<void> {
   */
   const known = account.created ? null : await readNames(keycloak, account.id);
 
-  await grantRealmRole(keycloak, account.id, REALM_ROLE);
+  await grantClientRole(keycloak, account.id, KEYCLOAK_ROLE);
 
   const firstName = options.firstName ?? known?.firstName ?? display;
   const lastName = options.lastName ?? known?.lastName ?? '';
@@ -166,7 +166,7 @@ async function addUser(options: Options): Promise<void> {
       email: options.email,
       orgUnitId: unit.id,
       position: options.position ?? unit.name,
-      keycloakRoles: [REALM_ROLE],
+      keycloakRoles: [KEYCLOAK_ROLE],
     },
     account.id,
     company.id,
@@ -182,7 +182,7 @@ async function addUser(options: Options): Promise<void> {
   console.log(`  org unit:  ${unit.name} (${unit.code ?? unit.id})`);
   console.log(`  position:  ${options.position ?? unit.name}`);
   console.log(
-    `  roles:     realm=${REALM_ROLE} · system=${options.roles.join(', ')}`,
+    `  roles:     client=${KEYCLOAK_ROLE} · system=${options.roles.join(', ')}`,
   );
   console.log(
     `  keycloak:  ${account.created ? 'สร้างใหม่ — รหัสผ่านคือค่าใน UAT_DEFAULT_PASSWORD' : 'มีอยู่แล้ว รหัสผ่านเดิมไม่ถูกแตะ'}`,

@@ -1,6 +1,6 @@
 /**
- * Provision the Keycloak realm roles this system expects, and map them to its
- * own roles.
+ * Provision the `request-form` client roles this system expects, and map them
+ * to its own roles. Client roles, not realm roles: the realm is shared.
  *
  *   yarn keycloak:provision
  *
@@ -11,7 +11,7 @@
  *
  * Idempotent — safe to run per environment and re-run after a realm change.
  *
- * Scope note: this touches realm **roles** only. The org tree lives in this
+ * Scope note: this touches client **roles** only. The org tree lives in this
  * database (D-08), so Keycloak groups are deliberately neither read nor
  * written — including the existing `บริษัท OSD` group, whose fate is an open
  * question.
@@ -21,7 +21,7 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 /** Matches the §5.2 seed roles in seed.ts, by code. */
-const REALM_ROLES: { name: string; description: string }[] = [
+const CLIENT_ROLES: { name: string; description: string }[] = [
   { name: 'employee', description: 'พนักงาน — ยื่นคำขอและดูของตัวเอง' },
   { name: 'team_lead', description: 'หัวหน้าทีม — อนุมัติชั้นแรก' },
   { name: 'department_manager', description: 'ผู้จัดการฝ่าย' },
@@ -83,16 +83,16 @@ async function adminToken(env: Env): Promise<string> {
   return body.access_token;
 }
 
-async function createRealmRoles(env: Env, token: string): Promise<void> {
+async function clientRolesUrl(
+  env: Env,
+  headers: Record<string, string>,
+): Promise<string> {
   const base = `${env.baseUrl}/admin/realms/${env.realm}`;
-  const headers = {
-    Authorization: `Bearer ${token}`,
-    'Content-Type': 'application/json',
-  };
-
-  const existingResponse = await fetch(`${base}/roles`, { headers });
-
-  if (existingResponse.status === 403) {
+  const response = await fetch(
+    `${base}/clients?clientId=${encodeURIComponent(env.clientId)}`,
+    { headers },
+  );
+  if (response.status === 403) {
     throw new Error(
       'The service account authenticated but the Admin API refused it (403).\n' +
         'Grant it these realm-management roles: view-users, query-users,\n' +
@@ -100,8 +100,26 @@ async function createRealmRoles(env: Env, token: string): Promise<void> {
         'query-clients, view-clients.',
     );
   }
+  if (!response.ok) {
+    throw new Error(`Could not look up client "${env.clientId}" (HTTP ${response.status}).`);
+  }
+  const clients = (await response.json()) as { id: string; clientId: string }[];
+  const client = clients.find((c) => c.clientId === env.clientId);
+  if (!client) throw new Error(`Client "${env.clientId}" not found in realm "${env.realm}".`);
+  return `${base}/clients/${client.id}/roles`;
+}
+
+async function createClientRoles(env: Env, token: string): Promise<void> {
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    'Content-Type': 'application/json',
+  };
+  const rolesUrl = await clientRolesUrl(env, headers);
+
+  const existingResponse = await fetch(rolesUrl, { headers });
+
   if (!existingResponse.ok) {
-    throw new Error(`Could not list realm roles (HTTP ${existingResponse.status}).`);
+    throw new Error(`Could not list client roles (HTTP ${existingResponse.status}).`);
   }
 
   const existing = (await existingResponse.json()) as { name: string }[];
@@ -115,13 +133,13 @@ async function createRealmRoles(env: Env, token: string): Promise<void> {
     การเก็บ permission เป็น role คือสิ่งที่ทำให้กุญแจที่ถือสิทธิ์อยู่แท้ ๆ โดนปฏิเสธ
     เพราะไม่มีใครไปสร้าง role ชื่อนั้นใน realm ให้.
   */
-  const wanted = REALM_ROLES;
+  const wanted = CLIENT_ROLES;
 
   let created = 0;
   for (const role of wanted) {
     if (have.has(role.name)) continue;
 
-    const response = await fetch(`${base}/roles`, {
+    const response = await fetch(rolesUrl, {
       method: 'POST',
       headers,
       body: JSON.stringify(role),
@@ -130,19 +148,19 @@ async function createRealmRoles(env: Env, token: string): Promise<void> {
     // 409 means someone created it between the list and now — still fine.
     if (!response.ok && response.status !== 409) {
       throw new Error(
-        `Could not create realm role "${role.name}" (HTTP ${response.status}).`,
+        `Could not create client role "${role.name}" (HTTP ${response.status}).`,
       );
     }
     created += 1;
   }
 
   console.log(
-    `  realm roles: ${created} created, ${wanted.length - created} already present`,
+    `  client roles: ${created} created, ${wanted.length - created} already present`,
   );
 }
 
 /**
- * Map each realm role to the system role of the same code, per company.
+ * Map each client role to the system role of the same code, per company.
  *
  * Per company because ROLE-04 makes role bindings company-scoped: the same
  * Keycloak role has to resolve separately in each company, or a manager in one
@@ -159,27 +177,27 @@ async function mapRolesToSystemRoles(): Promise<void> {
   let missing: string[] = [];
 
   for (const company of companies) {
-    for (const realmRole of REALM_ROLES) {
+    for (const clientRole of CLIENT_ROLES) {
       const role = await prisma.role.findUnique({
-        where: { companyId_code: { companyId: company.id, code: realmRole.name } },
+        where: { companyId_code: { companyId: company.id, code: clientRole.name } },
       });
 
       if (!role) {
-        missing.push(`${realmRole.name}@${company.code}`);
+        missing.push(`${clientRole.name}@${company.code}`);
         continue;
       }
 
       await prisma.keycloakRoleMapping.upsert({
         where: {
           keycloakRole_roleId_companyId: {
-            keycloakRole: realmRole.name,
+            keycloakRole: clientRole.name,
             roleId: role.id,
             companyId: company.id,
           },
         },
         update: {},
         create: {
-          keycloakRole: realmRole.name,
+          keycloakRole: clientRole.name,
           roleId: role.id,
           companyId: company.id,
           createdBy: 'keycloak:provision',
@@ -205,10 +223,10 @@ async function main(): Promise<void> {
   console.log(`Provisioning realm "${env.realm}"…`);
 
   const token = await adminToken(env);
-  await createRealmRoles(env, token);
+  await createClientRoles(env, token);
   await mapRolesToSystemRoles();
 
-  console.log('Done. A user holding a realm role now resolves to it on login.');
+  console.log('Done. A user holding a client role now resolves to it on login.');
 }
 
 main()
