@@ -8752,6 +8752,543 @@
         ]
       }
     },
+    "/api/v1/presales/solutions": {
+      "post": {
+        "operationId": "SolutionsController_start",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartSolutionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เริ่ม Solution จากคำขอ \"ขอ Solution\" ที่รับแล้ว",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "presales.solution.manage"
+        ]
+      }
+    },
+    "/api/v1/presales/solutions/by-request/{requestId}": {
+      "get": {
+        "operationId": "SolutionsController_forRequest",
+        "parameters": [
+          {
+            "name": "requestId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "คำขอนี้เริ่ม Solution ได้ไหม / มีแล้วหรือยัง",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "presales.solution.manage"
+        ]
+      }
+    },
+    "/api/v1/opportunities/{id}/solutions": {
+      "get": {
+        "operationId": "SolutionsController_forDeal",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Solution ของดีล",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "crm.sales.read"
+        ]
+      }
+    },
+    "/api/v1/presales/solutions/{id}": {
+      "get": {
+        "operationId": "SolutionsController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Solution พร้อมเวอร์ชันล่าสุด",
+        "tags": [
+          "presales"
+        ]
+      }
+    },
+    "/api/v1/presales/solutions/{id}/versions/{no}": {
+      "get": {
+        "operationId": "SolutionsController_version",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "no",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Solution ที่เวอร์ชันที่ระบุ",
+        "tags": [
+          "presales"
+        ]
+      },
+      "patch": {
+        "operationId": "SolutionsController_updateDraft",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "no",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSolutionDraftDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แก้ร่าง (เฉพาะเวอร์ชันที่ยังไม่ยืนยัน)",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "presales.solution.manage"
+        ]
+      }
+    },
+    "/api/v1/presales/solutions/{id}/versions/{no}/lock": {
+      "post": {
+        "operationId": "SolutionsController_lock",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "no",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ยืนยันเวอร์ชัน — แก้ไม่ได้อีก",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "presales.solution.manage"
+        ]
+      }
+    },
+    "/api/v1/presales/solutions/{id}/versions": {
+      "post": {
+        "operationId": "SolutionsController_newVersion",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewSolutionVersionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เปิดเวอร์ชันใหม่จากเวอร์ชันที่ยืนยันแล้ว",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "presales.solution.manage"
+        ]
+      }
+    },
+    "/api/v1/presales/solutions/{id}/versions/{no}/files": {
+      "post": {
+        "operationId": "SolutionsController_upload",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "no",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แนบไฟล์แบบกับร่าง (≤ 25 MB, ≤ 30 ไฟล์)",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "presales.solution.manage"
+        ]
+      }
+    },
+    "/api/v1/presales/solutions/{id}/files/{fileId}": {
+      "get": {
+        "operationId": "SolutionsController_download",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fileId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ไฟล์แบบ",
+        "tags": [
+          "presales"
+        ]
+      }
+    },
+    "/api/v1/presales/solutions/{id}/versions/{no}/files/{fileId}": {
+      "delete": {
+        "operationId": "SolutionsController_removeFile",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "no",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "fileId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เอาไฟล์ออกจากร่าง",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "presales.solution.manage"
+        ]
+      }
+    },
     "/api/v1/admin/erp-sync/jobs": {
       "get": {
         "operationId": "ErpSyncAdminController_list",
@@ -14046,6 +14583,82 @@
           "enabled",
           "requester_user_id",
           "type_codes"
+        ]
+      },
+      "StartSolutionDto": {
+        "type": "object",
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "description": "id ของคำขอ \"ขอ Solution และประเมินต้นทุน\"",
+            "maxLength": 64,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "request_id"
+        ]
+      },
+      "AssumptionDto": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "type": "string",
+            "enum": [
+              "technical",
+              "customer",
+              "third_party",
+              "commercial"
+            ]
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "category",
+          "text"
+        ]
+      },
+      "UpdateSolutionDraftDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 300
+          },
+          "summary": {
+            "type": "string",
+            "description": "สรุปทางออก",
+            "maxLength": 4000
+          },
+          "design": {
+            "type": "string",
+            "description": "รายละเอียดการออกแบบ",
+            "maxLength": 50000
+          },
+          "assumptions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AssumptionDto"
+            },
+            "maxItems": 200
+          }
+        }
+      },
+      "NewSolutionVersionDto": {
+        "type": "object",
+        "properties": {
+          "change_note": {
+            "type": "string",
+            "description": "ทำไมต้องแก้ — เห็นในประวัติเวอร์ชัน",
+            "maxLength": 1000,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "change_note"
         ]
       },
       "PreviewChainDto": {
