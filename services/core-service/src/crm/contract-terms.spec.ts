@@ -240,4 +240,45 @@ describe('CD-153 ContractTermsService — the executives’ approval', () => {
     });
     expect(view.liability.approval.error).toContain('ยื่นไม่ผ่าน');
   });
+
+  it('CD-151: service levels are checked like a case type’s targets, and saved with their cover', async () => {
+    const bad = harness({});
+    await expect(
+      bad.service.save(
+        'c-1',
+        {
+          service_levels: {
+            critical: { responseHours: 10, resolutionHours: 8 },
+          },
+        },
+        legal,
+        'Bearer t',
+      ),
+    ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+
+    const good = harness({});
+    const levels = {
+      critical: { responseHours: 0.5, resolutionHours: 2 },
+      high: { responseHours: 1, resolutionHours: 8 },
+      medium: { responseHours: 4, resolutionHours: 24 },
+      low: { responseHours: 8, resolutionHours: 48 },
+    };
+    await good.service.save(
+      'c-1',
+      {
+        service_levels: levels,
+        service_coverage: 'H8X5',
+        availability_pct: 99.5,
+        service_report_every: 'monthly',
+      },
+      legal,
+      'Bearer t',
+    );
+    expect(good.current()).toMatchObject({
+      serviceLevels: levels,
+      serviceCoverage: 'H8X5',
+      availabilityPct: 99.5,
+      serviceReportEvery: 'monthly',
+    });
+  });
 });

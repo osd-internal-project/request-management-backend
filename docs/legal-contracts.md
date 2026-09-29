@@ -79,3 +79,13 @@ API: `GET/PUT /contracts/:id/terms` · `POST /contracts/:id/terms/liability-appr
   - ฝ่ายกฎหมายแก้/เปลี่ยนผู้รับผิดชอบ (แจ้งคนใหม่)/ยกเว้น/เปิดใหม่ได้ · ทุกการเปลี่ยนลง audit
   - API: `GET/POST /contracts/:id/obligations` · `PATCH /contracts/:id/obligations/:oid` · `GET /contract-obligations/mine` · `POST /contract-obligations/:id/done`
 - migration `20260929480000_contract_obligations`
+
+# CD-151 ระดับบริการ
+
+การ์ดข้อกำหนดของสัญญามีส่วน **ระดับบริการ** (`contract_terms.serviceLevels` ฯลฯ) — ค่าที่วัดได้:
+ชั่วโมงตอบกลับ/แก้ไขต่อระดับความรุนแรง (รูปแบบและกฎตรวจเดียวกับเป้าของประเภทเคส CD-67), การนับเวลา
+(24x7 / 8x7 / 8x5, ว่าง = ตามประเภทเคส), ความพร้อมใช้งาน (%), รอบรายงานผลบริการ
+
+**ส่งต่อเป็นเกณฑ์ของทีมบริการ:** เคส (คำขอที่มีระดับความรุนแรง) ที่อ้างอิงสัญญา (`ref_type=contract`, เลขที่หรือ id)
+ซึ่งมีระดับบริการ — นาฬิกา SLA ใช้ชั่วโมงและการนับเวลาของสัญญา แทนค่าของประเภทเคส (`SlaService.contractLevels`)
+· migration `20260929500000_contract_service_levels`

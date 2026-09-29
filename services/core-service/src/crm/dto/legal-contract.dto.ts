@@ -7,9 +7,11 @@ import {
   IsIn,
   IsNotEmpty,
   IsNumber,
+  IsObject,
   IsOptional,
   IsString,
   Matches,
+  Max,
   MaxLength,
   Min,
 } from 'class-validator';
@@ -299,6 +301,38 @@ export class SaveContractTermsDto {
   @IsString({ each: true })
   @MaxLength(500, { each: true })
   termination_steps?: string[];
+
+  @ApiPropertyOptional({
+    description:
+      'CD-151 — ชั่วโมงตอบกลับ/แก้ไขต่อระดับความรุนแรง {critical|high|medium|low: {responseHours, resolutionHours}} · null = ไม่ผูกพันระดับบริการ',
+    example: {
+      critical: { responseHours: 1, resolutionHours: 4 },
+      high: { responseHours: 4, resolutionHours: 24 },
+      medium: { responseHours: 8, resolutionHours: 72 },
+      low: { responseHours: 24, resolutionHours: 120 },
+    },
+    nullable: true,
+  })
+  @IsOptional()
+  @IsObject()
+  service_levels?: Record<string, unknown> | null;
+
+  @ApiPropertyOptional({ enum: ['H24X7', 'H8X7', 'H8X5'], nullable: true })
+  @IsOptional()
+  @IsIn(['H24X7', 'H8X7', 'H8X5', null])
+  service_coverage?: 'H24X7' | 'H8X7' | 'H8X5' | null;
+
+  @ApiPropertyOptional({ example: 99.5, description: 'ความพร้อมใช้งาน (%)' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  availability_pct?: number | null;
+
+  @ApiPropertyOptional({ enum: ['monthly', 'quarterly'], nullable: true })
+  @IsOptional()
+  @IsIn(['monthly', 'quarterly', null])
+  service_report_every?: 'monthly' | 'quarterly' | null;
 }
 
 /** CD-163 — one obligation drawn from a contract. */

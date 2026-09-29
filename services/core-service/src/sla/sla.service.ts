@@ -18,6 +18,16 @@ import { readSeverityTargets, type SeverityTargets } from './severity';
 
 const HOUR_MS = 60 * 60 * 1000;
 
+/** What the clock needs to know about a request to pick its budget. */
+interface ClockSubject {
+  companyId: string;
+  typeCode: string;
+  severity: RequestSeverity | null;
+  refType: string | null;
+  refId: string | null;
+  requestType: { slaHours: number | null; slaCoverage: SlaCoverage };
+}
+
 /**
  * SUP-01 — the SLA clock.
  *
@@ -51,22 +61,11 @@ export class SlaService {
     request: Request & { requestType: RequestType },
     at: Date,
   ): Promise<void> {
-    const { hours, responseHours } = await this.budgetFor(
-      prisma,
-      request.companyId,
-      request.typeCode,
-      request.requestType.slaHours,
-      request.severity,
-    );
+    const { hours, responseHours } = await this.budgetFor(prisma, request);
 
     if (hours === null) return;
 
-    const { calendar, coverage } = await this.rulesFor(
-      prisma,
-      request.companyId,
-      request.typeCode,
-      request.requestType.slaCoverage,
-    );
+    const { calendar, coverage } = await this.rulesFor(prisma, request);
 
     // CD-67 — the response clock is set once, at the first submit, and is
     // not paused by a return: "has anyone picked this up?" does not wait on
@@ -113,12 +112,7 @@ export class SlaService {
     });
     if (!clock || clock.state !== 'running') return;
 
-    const { calendar, coverage } = await this.rulesFor(
-      prisma,
-      clock.request.companyId,
-      clock.request.typeCode,
-      clock.request.requestType.slaCoverage,
-    );
+    const { calendar, coverage } = await this.rulesFor(prisma, clock.request);
 
     // Working time, not wall time: a request that ran over a weekend under
     // `H8X5` has spent none of its budget, and charging it would make every
@@ -153,22 +147,11 @@ export class SlaService {
     });
     if (!clock || clock.state !== 'paused' || !clock.pausedAt) return;
 
-    const { hours } = await this.budgetFor(
-      prisma,
-      clock.request.companyId,
-      clock.request.typeCode,
-      clock.request.requestType.slaHours,
-      clock.request.severity,
-    );
+    const { hours } = await this.budgetFor(prisma, clock.request);
 
     if (hours === null) return;
 
-    const { calendar, coverage } = await this.rulesFor(
-      prisma,
-      clock.request.companyId,
-      clock.request.typeCode,
-      clock.request.requestType.slaCoverage,
-    );
+    const { calendar, coverage } = await this.rulesFor(prisma, clock.request);
 
     const remaining = Math.max(hours * HOUR_MS - clock.accumulatedMs, 0);
     const dueAt = addWorkingMs(at, remaining, calendar, coverage);
@@ -205,24 +188,13 @@ export class SlaService {
       return;
     }
 
-    const { calendar, coverage } = await this.rulesFor(
-      prisma,
-      clock.request.companyId,
-      clock.request.typeCode,
-      clock.request.requestType.slaCoverage,
-    );
+    const { calendar, coverage } = await this.rulesFor(prisma, clock.request);
     const ran =
       clock.state === 'running'
         ? Math.max(workingMsBetween(clock.startedAt, at, calendar, coverage), 0)
         : 0;
     const used = clock.accumulatedMs + ran;
-    const { hours } = await this.budgetFor(
-      prisma,
-      clock.request.companyId,
-      clock.request.typeCode,
-      clock.request.requestType.slaHours,
-      clock.request.severity,
-    );
+    const { hours } = await this.budgetFor(prisma, clock.request);
     const breached = hours === null ? at > clock.dueAt : used > hours * HOUR_MS;
 
     await prisma.slaClock.update({
@@ -242,21 +214,10 @@ export class SlaService {
     clock: SlaClock & { request: Request & { requestType: RequestType } },
     at = new Date(),
   ): Promise<number | null> {
-    const { hours } = await this.budgetFor(
-      prisma,
-      clock.request.companyId,
-      clock.request.typeCode,
-      clock.request.requestType.slaHours,
-      clock.request.severity,
-    );
+    const { hours } = await this.budgetFor(prisma, clock.request);
     if (!hours) return null;
 
-    const { calendar, coverage } = await this.rulesFor(
-      prisma,
-      clock.request.companyId,
-      clock.request.typeCode,
-      clock.request.requestType.slaCoverage,
-    );
+    const { calendar, coverage } = await this.rulesFor(prisma, clock.request);
     const ran =
       clock.state === 'running'
         ? Math.max(workingMsBetween(clock.startedAt, at, calendar, coverage), 0)
@@ -273,12 +234,14 @@ export class SlaService {
     at = new Date(),
   ): Promise<Date | null> {
     if (!hours) return null;
-    const { calendar, coverage } = await this.rulesFor(
-      prisma,
+    const { calendar, coverage } = await this.rulesFor(prisma, {
       companyId,
-      typeCode ?? '',
-      'H24X7',
-    );
+      typeCode: typeCode ?? '',
+      severity: null,
+      refType: null,
+      refId: null,
+      requestType: { slaHours: null, slaCoverage: 'H24X7' },
+    });
     return addWorkingMs(at, hours * HOUR_MS, calendar, coverage);
   }
 
@@ -318,23 +281,65 @@ export class SlaService {
    */
   private async budgetFor(
     prisma: Prisma.TransactionClient,
-    companyId: string,
-    typeCode: string,
-    fallback: number | null,
-    severity: RequestSeverity | null,
+    subject: ClockSubject,
   ): Promise<{ hours: number | null; responseHours: number | null }> {
+    // CD-151 — a case raised against a contract with service levels is held
+    // to the contract's targets, not the type's.
+    const contracted = await this.contractLevels(prisma, subject);
+    if (contracted && subject.severity) {
+      return {
+        hours: contracted.targets[subject.severity].resolutionHours,
+        responseHours: contracted.targets[subject.severity].responseHours,
+      };
+    }
     const config = await prisma.slaConfig.findFirst({
-      where: { companyId, requestTypeCode: typeCode },
+      where: {
+        companyId: subject.companyId,
+        requestTypeCode: subject.typeCode,
+      },
     });
 
     const targets = readSeverityTargets(config?.severityTargets);
-    if (targets && severity) {
+    if (targets && subject.severity) {
       return {
-        hours: targets[severity].resolutionHours,
-        responseHours: targets[severity].responseHours,
+        hours: targets[subject.severity].resolutionHours,
+        responseHours: targets[subject.severity].responseHours,
       };
     }
-    return { hours: config?.hours ?? fallback, responseHours: null };
+    return {
+      hours: config?.hours ?? subject.requestType.slaHours,
+      responseHours: null,
+    };
+  }
+
+  /**
+   * CD-151 — the service levels a contract commits us to, when this request
+   * is a case with a severity raised against that contract (by its number or
+   * id, as CD-67 cases are). Null otherwise, or when the contract records no
+   * levels.
+   */
+  private async contractLevels(
+    prisma: Prisma.TransactionClient,
+    subject: ClockSubject,
+  ): Promise<{
+    targets: SeverityTargets;
+    coverage: SlaCoverage | null;
+  } | null> {
+    if (!subject.severity || subject.refType !== 'contract' || !subject.refId) {
+      return null;
+    }
+    const contract = await prisma.customerContract.findFirst({
+      where: {
+        companyId: subject.companyId,
+        OR: [{ contractNo: subject.refId }, { id: subject.refId }],
+      },
+      select: {
+        terms: { select: { serviceLevels: true, serviceCoverage: true } },
+      },
+    });
+    const targets = readSeverityTargets(contract?.terms?.serviceLevels);
+    if (!targets) return null;
+    return { targets, coverage: contract?.terms?.serviceCoverage ?? null };
   }
 
   /** CD-67 — every case type of a company with its targets, for the submit screen. */
@@ -432,15 +437,15 @@ export class SlaService {
    */
   private async rulesFor(
     prisma: Prisma.TransactionClient,
-    companyId: string,
-    typeCode: string,
-    fallback: SlaCoverage,
+    subject: ClockSubject,
   ): Promise<{ calendar: WorkingCalendar; coverage: SlaCoverage }> {
-    const [config, stored] = await Promise.all([
+    const { companyId, typeCode } = subject;
+    const [config, stored, contracted] = await Promise.all([
       prisma.slaConfig.findFirst({
         where: { companyId, requestTypeCode: typeCode },
       }),
       prisma.holidayCalendar.findUnique({ where: { companyId } }),
+      this.contractLevels(prisma, subject),
     ]);
 
     const calendar: WorkingCalendar = stored
@@ -457,6 +462,13 @@ export class SlaService {
         }
       : DEFAULT_CALENDAR;
 
-    return { calendar, coverage: config?.coverage ?? fallback };
+    return {
+      calendar,
+      // CD-151 — the contract's coverage (24×7 support, office hours) first
+      coverage:
+        contracted?.coverage ??
+        config?.coverage ??
+        subject.requestType.slaCoverage,
+    };
   }
 }

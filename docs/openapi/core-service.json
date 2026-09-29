@@ -15703,6 +15703,53 @@
               "maxLength": 500
             },
             "maxItems": 30
+          },
+          "service_levels": {
+            "type": "object",
+            "description": "CD-151 — ชั่วโมงตอบกลับ/แก้ไขต่อระดับความรุนแรง {critical|high|medium|low: {responseHours, resolutionHours}} · null = ไม่ผูกพันระดับบริการ",
+            "example": {
+              "critical": {
+                "responseHours": 1,
+                "resolutionHours": 4
+              },
+              "high": {
+                "responseHours": 4,
+                "resolutionHours": 24
+              },
+              "medium": {
+                "responseHours": 8,
+                "resolutionHours": 72
+              },
+              "low": {
+                "responseHours": 24,
+                "resolutionHours": 120
+              }
+            },
+            "nullable": true
+          },
+          "service_coverage": {
+            "type": "string",
+            "enum": [
+              "H24X7",
+              "H8X7",
+              "H8X5"
+            ],
+            "nullable": true
+          },
+          "availability_pct": {
+            "type": "object",
+            "example": 99.5,
+            "description": "ความพร้อมใช้งาน (%)",
+            "maximum": 100,
+            "minimum": 0
+          },
+          "service_report_every": {
+            "type": "string",
+            "enum": [
+              "monthly",
+              "quarterly"
+            ],
+            "nullable": true
           }
         }
       },

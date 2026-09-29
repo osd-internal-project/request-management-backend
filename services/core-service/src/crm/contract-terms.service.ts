@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { Injectable } from '@nestjs/common';
 import {
   AppError,
@@ -23,6 +24,7 @@ import {
 } from './contract-terms';
 import { SaveContractTermsDto } from './dto/legal-contract.dto';
 import { CrmConfigRepository } from './segment.repositories';
+import { readSeverityTargets, severityTargetProblems } from '../sla/severity';
 
 /** CD-153..156 ข้อกำหนดของสัญญา (หนึ่งแถวต่อสัญญา). */
 @Injectable()
@@ -69,6 +71,10 @@ interface TermsRow {
   terminationConditions: string | null;
   terminationConsequences: string | null;
   terminationSteps: string[];
+  serviceLevels: unknown;
+  serviceCoverage: string | null;
+  availabilityPct: { toString(): string } | null;
+  serviceReportEvery: string | null;
   updatedAt: Date;
   updatedBy: string | null;
 }
@@ -138,6 +144,14 @@ export class ContractTermsService {
       terminationNoticeDays: dto.termination_notice_days,
       terminationSteps: dto.termination_steps,
     });
+    // CD-151 — the same checks a case type's targets get (CD-67)
+    if (dto.service_levels) {
+      problems.push(
+        ...severityTargetProblems(dto.service_levels).map(
+          (problem) => `ระดับบริการ: ${problem}`,
+        ),
+      );
+    }
     if (problems.length) {
       throw new AppError(
         'VALIDATION_FAILED',
@@ -183,6 +197,16 @@ export class ContractTermsService {
       terminationSteps: (dto.termination_steps ?? []).map((step) =>
         step.trim(),
       ),
+      serviceLevels: dto.service_levels
+        ? (readSeverityTargets(
+            dto.service_levels,
+          ) as unknown as Prisma.InputJsonValue)
+        : Prisma.DbNull,
+      serviceCoverage: dto.service_levels
+        ? (dto.service_coverage ?? null)
+        : null,
+      availabilityPct: dto.availability_pct ?? null,
+      serviceReportEvery: dto.service_report_every ?? null,
       // A new cap voids the approval asked for the old one.
       ...(liabilityChanged
         ? { liabilityApprovalRequestId: null, liabilityApprovalError: null }
@@ -408,6 +432,12 @@ export class ContractTermsService {
         conditions: row?.terminationConditions ?? null,
         consequences: row?.terminationConsequences ?? null,
         steps: row?.terminationSteps ?? [],
+      },
+      service: {
+        levels: readSeverityTargets(row?.serviceLevels),
+        coverage: row?.serviceCoverage ?? null,
+        availabilityPct: num(row?.availabilityPct),
+        reportEvery: row?.serviceReportEvery ?? null,
       },
       updatedAt: row?.updatedAt ?? null,
     };

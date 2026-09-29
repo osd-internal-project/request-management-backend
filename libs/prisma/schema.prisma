@@ -3639,6 +3639,18 @@ model ContractTerms {
   /// Entered by hand until Delivery (CD-20) records acceptance.
   acceptedOn         DateTime? @db.Date
 
+  // CD-151 ระดับบริการ
+  /// Response/resolution hours per severity — the same shape as a case
+  /// type's targets (CD-67). A case raised against this contract is clocked
+  /// on these instead of its type's.
+  serviceLevels      Json?
+  /// Hours the clock counts (24×7 support, office hours); null = the type's.
+  serviceCoverage    SlaCoverage?
+  /// Committed availability, e.g. 99.5 (%).
+  availabilityPct    Decimal?     @db.Decimal(6, 3)
+  /// How often a service report is owed: monthly · quarterly · null.
+  serviceReportEvery String?
+
   // CD-156 การยกเลิก
   terminationNoticeDays   Int?
   terminationConditions   String?
