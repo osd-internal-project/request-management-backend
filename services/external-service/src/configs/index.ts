@@ -78,6 +78,25 @@ export default () => ({
     holdDays: Number(process.env.RESERVE_PHONE_HOLD_DAYS ?? 14),
     maxHoldDays: Number(process.env.RESERVE_PHONE_MAX_HOLD_DAYS ?? 60),
   },
+  /**
+   * CD-51 — Microsoft Teams notifications (a bot's 1:1 chat per person).
+   * off (default) = no Teams channel · mock = log only · botframework = real.
+   */
+  teams: {
+    mode: process.env.TEAMS_MODE ?? 'off',
+    bot: {
+      tenantId: process.env.TEAMS_TENANT_ID,
+      appId: process.env.TEAMS_BOT_APP_ID,
+      appPassword: process.env.TEAMS_BOT_APP_PASSWORD,
+      serviceUrl:
+        process.env.TEAMS_SERVICE_URL ??
+        'https://smba.trafficmanager.net/apac/',
+    },
+    /** The card's "open" button: `<PUBLIC_WEB_URL>/pages/notifications`. */
+    publicWebUrl: process.env.PUBLIC_WEB_URL,
+    /** How often queued messages are sent (ms); 0 = off. */
+    deliveryIntervalMs: 0,
+  },
   erp: {
     mode: process.env.ERP_MODE ?? 'mock',
     /**

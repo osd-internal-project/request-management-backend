@@ -35,6 +35,12 @@ export class UpdateNotificationPreferencesDto {
   @IsBoolean()
   email?: boolean;
 
+  /** CD-51 — the Microsoft Teams switch (ignored while the channel is off). */
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  @IsBoolean()
+  teams?: boolean;
+
   /** CD-52 — hour (Bangkok, 0–23) the daily digest goes out on working days. */
   @ApiPropertyOptional({ example: 8, minimum: 0, maximum: 23 })
   @IsOptional()

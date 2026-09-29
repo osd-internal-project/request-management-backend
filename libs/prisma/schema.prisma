@@ -156,6 +156,8 @@ enum SlaState {
 enum NotificationChannel {
   in_app
   email
+  /// CD-51 — Microsoft Teams, a bot's 1:1 chat with the recipient.
+  teams
 }
 
 enum DeliveryStatus {
@@ -1750,6 +1752,8 @@ model NotificationPreference {
   companyId String
 
   emailEnabled Boolean @default(true)
+  /// CD-51 — Teams master switch (the channel exists only when TEAMS_MODE is set).
+  teamsEnabled Boolean @default(true)
 
   /// CD-52 — per category `{ approval: { email: true, frequency: "daily" }, … }`;
   /// a category not listed is email on, immediate.
@@ -1837,11 +1841,28 @@ model NotificationDeliveryLog {
   error          String?
   sentAt         DateTime?
   createdAt      DateTime            @default(now())
+  /// CD-51 — channels sent by the background worker (Teams): tries so far,
+  /// and not before when the next one may run (backoff, and the claim lease).
+  attempts       Int                 @default(0)
+  nextAttemptAt  DateTime?
 
   notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
 
   @@index([notificationId])
+  @@index([channel, status, nextAttemptAt])
   @@map("notification_delivery_logs")
+}
+
+/// CD-51 — a person's 1:1 chat with the Teams bot, found once and reused:
+/// their Microsoft 365 object id and the Bot Framework conversation id.
+model TeamsChatLink {
+  userId         String   @id
+  aadObjectId    String
+  conversationId String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("teams_chat_links")
 }
 
 /// SUP-04: one append-only log for permission changes, status transitions,

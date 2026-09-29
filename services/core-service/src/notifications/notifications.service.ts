@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import {
   AppError,
   PrismaService,
@@ -8,6 +8,7 @@ import {
 import type { PageQueryDto, Principal } from '@request-management/share';
 import type { ApprovalCase, ApprovalStep, Prisma } from '@prisma/client';
 import { LoggingEmailTransport } from './notification-transport';
+import { TEAMS_CLIENT, type TeamsClient } from './teams/teams-client';
 import {
   emailSignature,
   renderTemplate,
@@ -38,6 +39,9 @@ export interface NotificationPreferencesView {
   in_app_locked: true;
   email: boolean;
   email_delivery_available: boolean;
+  /** CD-51 — the Teams switch; `teams_available` false = TEAMS_MODE off. */
+  teams: boolean;
+  teams_available: boolean;
   /** CD-52 — Bangkok hour, working days. */
   digest_hour: number;
   categories: ({
@@ -67,6 +71,9 @@ export class NotificationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly email: LoggingEmailTransport,
+    @Optional()
+    @Inject(TEAMS_CLIENT)
+    private readonly teams: TeamsClient | null = null,
   ) {}
 
   /** The step now waiting: every candidate and whoever covers for them, never the requester. */
@@ -675,7 +682,11 @@ export class NotificationsService {
             companyId: entry.companyId,
           },
         },
-        select: { emailEnabled: true, categorySettings: true },
+        select: {
+          emailEnabled: true,
+          teamsEnabled: true,
+          categorySettings: true,
+        },
       });
       const setting = settingOf(
         preference?.categorySettings,
@@ -703,6 +714,10 @@ export class NotificationsService {
       // ignored. A held item's email goes with the digest.
       if (!held && preference?.emailEnabled !== false && setting.email) {
         await this.deliverEmail(notification.id, entry);
+      }
+      // CD-51: queued, not sent here — TeamsDeliveryService sends it.
+      if (!held && preference?.teamsEnabled !== false) {
+        await this.queueTeams(notification.id, entry.userId);
       }
     } catch (error) {
       this.logger.error(
@@ -768,6 +783,22 @@ export class NotificationsService {
     });
   }
 
+  /**
+   * CD-51 — a Teams message waiting for the worker. Nothing when the channel
+   * is off (TEAMS_MODE unset): no row that could only ever fail.
+   */
+  async queueTeams(notificationId: string, userId: string): Promise<void> {
+    if (!this.teams) return;
+    await this.prisma.notificationDeliveryLog.create({
+      data: {
+        notificationId,
+        channel: 'teams',
+        target: userId,
+        status: 'queued',
+      },
+    });
+  }
+
   // --- SUP-03: channel preferences ---------------------------------------
 
   /**
@@ -800,6 +831,8 @@ export class NotificationsService {
        * so instead of promising delivery that will not happen.
        */
       email_delivery_available: false,
+      teams: found?.teamsEnabled ?? true,
+      teams_available: Boolean(this.teams),
       // CD-52
       digest_hour: found?.digestHour ?? DEFAULT_DIGEST_HOUR,
       categories: NOTIFICATION_CATEGORIES.map((key) => ({
@@ -821,6 +854,7 @@ export class NotificationsService {
     actor: Principal,
     dto: {
       email?: boolean;
+      teams?: boolean;
       digest_hour?: number;
       categories?: Record<string, { email?: boolean; frequency?: string }>;
     },
@@ -869,6 +903,7 @@ export class NotificationsService {
 
     const data = {
       ...(dto.email !== undefined ? { emailEnabled: dto.email } : {}),
+      ...(dto.teams !== undefined ? { teamsEnabled: dto.teams } : {}),
       ...(dto.digest_hour !== undefined ? { digestHour: dto.digest_hour } : {}),
       ...(categorySettings
         ? {

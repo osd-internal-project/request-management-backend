@@ -5832,6 +5832,278 @@
         ]
       }
     },
+    "/api/v1/opportunities/{id}/phone-numbers": {
+      "get": {
+        "operationId": "OpportunitiesController_listPhoneNumbers",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เลขหมายที่จองให้โอกาสการขาย (Reserve-phone)",
+        "tags": [
+          "opportunities"
+        ],
+        "x-permission": [
+          "crm.sales.read"
+        ]
+      },
+      "post": {
+        "operationId": "OpportunitiesController_reservePhoneNumbers",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReservePhoneNumbersDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "จองเบอร์ให้โอกาสการขาย",
+        "tags": [
+          "opportunities"
+        ],
+        "x-permission": [
+          "crm.sales.manage"
+        ]
+      }
+    },
+    "/api/v1/opportunities/{id}/phone-numbers/available": {
+      "get": {
+        "operationId": "OpportunitiesController_searchPhoneNumbers",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "contains",
+            "required": false,
+            "in": "query",
+            "description": "ตัวเลขที่ต้องมีในเบอร์",
+            "schema": {
+              "example": "888",
+              "type": "string",
+              "pattern": "^\\d{1,10}$"
+            }
+          },
+          {
+            "name": "prefix",
+            "required": false,
+            "in": "query",
+            "description": "เบอร์ขึ้นต้นด้วย",
+            "schema": {
+              "example": "02",
+              "type": "string",
+              "pattern": "^\\d{1,10}$"
+            }
+          },
+          {
+            "name": "category",
+            "required": false,
+            "in": "query",
+            "description": "ประเภทเบอร์ของ Reserve-phone",
+            "schema": {
+              "example": "golden",
+              "type": "string",
+              "pattern": "^[a-z_-]{1,30}$"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ค้นเบอร์ว่างจาก Reserve-phone",
+        "tags": [
+          "opportunities"
+        ],
+        "x-permission": [
+          "crm.sales.manage"
+        ]
+      }
+    },
+    "/api/v1/opportunities/{id}/phone-numbers/{reservationId}/extend": {
+      "post": {
+        "operationId": "OpportunitiesController_extendPhoneReservation",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "reservationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExtendPhoneReservationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ต่ออายุการจองเบอร์ (นับจากวันนี้)",
+        "tags": [
+          "opportunities"
+        ],
+        "x-permission": [
+          "crm.sales.manage"
+        ]
+      }
+    },
+    "/api/v1/opportunities/{id}/phone-numbers/{reservationId}/release": {
+      "post": {
+        "operationId": "OpportunitiesController_releasePhoneReservation",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "reservationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ปล่อยเบอร์ที่จองคืน Reserve-phone",
+        "tags": [
+          "opportunities"
+        ],
+        "x-permission": [
+          "crm.sales.manage"
+        ]
+      }
+    },
     "/api/v1/opportunities/{id}/activities/{activityId}": {
       "patch": {
         "operationId": "OpportunitiesController_updateActivity",
@@ -12995,6 +13267,48 @@
           "terms"
         ]
       },
+      "ReservePhoneNumbersDto": {
+        "type": "object",
+        "properties": {
+          "numbers": {
+            "example": [
+              "021008888"
+            ],
+            "description": "เบอร์ตัวเลขล้วน",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^\\d{6,15}$"
+            },
+            "maxItems": 20
+          },
+          "hold_days": {
+            "type": "integer",
+            "example": 14,
+            "description": "จองกี่วัน — ไม่ส่ง = ค่าตั้งต้นของระบบ (RESERVE_PHONE_HOLD_DAYS)",
+            "maximum": 365,
+            "minimum": 1
+          }
+        },
+        "required": [
+          "numbers"
+        ]
+      },
+      "ExtendPhoneReservationDto": {
+        "type": "object",
+        "properties": {
+          "hold_days": {
+            "type": "integer",
+            "example": 14,
+            "description": "ต่อจากวันนี้อีกกี่วัน",
+            "maximum": 365,
+            "minimum": 1
+          }
+        },
+        "required": [
+          "hold_days"
+        ]
+      },
       "OpenSaleOrderDto": {
         "type": "object",
         "properties": {
@@ -13900,6 +14214,10 @@
         "type": "object",
         "properties": {
           "email": {
+            "type": "boolean",
+            "example": true
+          },
+          "teams": {
             "type": "boolean",
             "example": true
           },

@@ -282,6 +282,7 @@ describe('CD-52 NotificationDigestService.sweep', () => {
     };
     const notifications = {
       deliverEmail: jest.fn(() => Promise.resolve()),
+      queueTeams: jest.fn(() => Promise.resolve()),
       render: jest.fn(
         (_company: string, _event: string, values: Record<string, string>) =>
           Promise.resolve({
@@ -347,6 +348,11 @@ describe('CD-52 NotificationDigestService.sweep', () => {
       data: { status: 'sent', sentAt: MON_0800 },
     });
     expect(notifications.deliverEmail).toHaveBeenCalledTimes(1);
+    // CD-51 — the digest goes to Teams too (a no-op while the channel is off)
+    expect(notifications.queueTeams).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.any(String),
+    );
   });
 
   it('before the hour, or already claimed today by another tick, nothing is sent', async () => {

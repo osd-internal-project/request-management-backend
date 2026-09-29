@@ -189,6 +189,10 @@ export class NotificationDigestService
         body: digest.body,
       });
     }
+    // CD-51 — and one Teams message, if the person has Teams on.
+    if (preference?.teamsEnabled !== false) {
+      await this.notifications.queueTeams(digest.id, userId);
+    }
     return true;
   }
 
