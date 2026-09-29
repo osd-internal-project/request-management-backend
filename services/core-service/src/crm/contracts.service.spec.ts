@@ -1,6 +1,7 @@
 import type { Principal } from '@request-management/share';
 import { ContractRenewalService } from './contract-renewal.service';
 import { ContractsService } from './contracts.service';
+import { NotificationRulesService } from '../notifications/notification-rules.service';
 
 const NOW = new Date('2026-09-29T03:00:00Z'); // 29 Sep 2026, Bangkok
 const day = (iso: string) => new Date(`${iso}T00:00:00Z`);
@@ -119,14 +120,16 @@ describe('CD-70 renewal sweep', () => {
     ownerUserId: 'sales-1',
     ownerOrgUnitId: 'ou-sales',
     renewalOpportunityId: null,
+    remindedDays: [] as number[],
     ...overrides,
   });
 
   function harness(options: {
     past?: unknown[];
     toOpen?: unknown[];
-    due60?: unknown[];
-    due30?: unknown[];
+    due?: unknown[];
+    /** CD-53 — the company's saved `contract.renewal` rule, if any. */
+    rule?: { enabled: boolean; params: Record<string, unknown> };
     renewalStage?: 'open' | 'won' | 'lost';
     claim?: number;
     createFails?: boolean;
@@ -140,9 +143,7 @@ describe('CD-70 renewal sweep', () => {
           return Promise.resolve(options.past ?? []);
         if ('renewalCreatedAt' in where)
           return Promise.resolve(options.toOpen ?? []);
-        if ('reminded60At' in where)
-          return Promise.resolve(options.due60 ?? []);
-        return Promise.resolve(options.due30 ?? []);
+        return Promise.resolve(options.due ?? []);
       }),
       updateMany: jest.fn((args: { data: Record<string, unknown> }) => {
         updates.push(args.data);
@@ -185,9 +186,18 @@ describe('CD-70 renewal sweep', () => {
       opportunities as never,
       deals as never,
       notifications as never,
+      new NotificationRulesService({
+        notificationRule: {
+          findMany: jest.fn(() =>
+            Promise.resolve(
+              options.rule ? [{ companyId: 'osd', ...options.rule }] : [],
+            ),
+          ),
+        },
+      } as never),
       { get: jest.fn(() => 0) } as never,
     );
-    return { service, updates, notices, deals };
+    return { service, updates, notices, deals, contracts };
   }
 
   it('CD-70: within 90 days a renewal deal opens under the contract owner, and the owner is told', async () => {
@@ -204,7 +214,7 @@ describe('CD-70 renewal sweep', () => {
     );
     expect(h.updates).toEqual([
       { renewalCreatedAt: NOW },
-      { renewalOpportunityId: 'opp-r' },
+      { renewalOpportunityId: 'opp-r', remindedDays: [] },
     ]);
     expect(h.notices).toEqual(['opened']);
   });
@@ -220,7 +230,7 @@ describe('CD-70 renewal sweep', () => {
       renewalOpportunityId: 'opp-r',
       endOn: day('2026-11-28'),
     });
-    const h60 = harness({ due60: [at60] });
+    const h60 = harness({ due: [at60] });
     await expect(h60.service.sweep(NOW)).resolves.toMatchObject({
       reminded: 1,
     });
@@ -231,27 +241,87 @@ describe('CD-70 renewal sweep', () => {
       renewalOpportunityId: 'opp-r',
       endOn: day('2026-10-29'),
     });
-    const h30 = harness({ due60: [at30], due30: [at30] });
+    const h30 = harness({ due: [at30] });
     await expect(h30.service.sweep(NOW)).resolves.toMatchObject({
       reminded: 1,
     });
     expect(h30.notices).toEqual(['due:30']);
+    expect(h30.updates).toEqual([{ remindedDays: [60, 30] }]);
+
+    // a step already sent is not sent again
+    const again = harness({
+      due: [contract({ ...at30, remindedDays: [60, 30] })],
+    });
+    await expect(again.service.sweep(NOW)).resolves.toMatchObject({
+      reminded: 0,
+    });
+  });
+
+  it('CD-53: the days are the company rule — opened at its own window, reminded at its own steps', async () => {
+    const rule = {
+      enabled: true,
+      params: { open_days: 120, remind_days: [45] },
+    };
+    // 100 days out: outside the standard 90, inside this company's 120
+    const far = contract({ endOn: day('2027-01-07') });
+    const h = harness({ toOpen: [far], rule });
+    await expect(h.service.sweep(NOW)).resolves.toMatchObject({ opened: 1 });
+    const openQuery = (
+      h.contracts.findMany.mock.calls as unknown as [
+        { where: Record<string, unknown> },
+      ][]
+    ).find(([args]) => 'renewalCreatedAt' in args.where)![0];
+    expect(openQuery.where.endOn).toEqual({
+      gte: day('2026-09-29'),
+      lte: day('2027-01-27'),
+    });
+
+    // 60 days out: the standard would remind, this company waits for 45
+    const at60 = contract({
+      renewalOpportunityId: 'opp-r',
+      endOn: day('2026-11-28'),
+    });
+    const quiet = harness({ due: [at60], rule });
+    await expect(quiet.service.sweep(NOW)).resolves.toMatchObject({
+      reminded: 0,
+    });
+  });
+
+  it('CD-53: a company that switched the rule off gets no renewal deals and no reminders', async () => {
+    const rule = {
+      enabled: false,
+      params: { open_days: 90, remind_days: [60, 30] },
+    };
+    const h = harness({
+      toOpen: [contract()],
+      due: [
+        contract({ renewalOpportunityId: 'opp-r', endOn: day('2026-10-29') }),
+      ],
+      rule,
+    });
+    await expect(h.service.sweep(NOW)).resolves.toMatchObject({
+      opened: 0,
+      reminded: 0,
+    });
+    expect(h.deals.createRenewal).not.toHaveBeenCalled();
   });
 
   it('a renewal opened late marks the reminders already covered by its notice', async () => {
     const late = contract({ endOn: day('2026-10-20') }); // 21 days out
     const h = harness({ toOpen: [late] });
     await h.service.sweep(NOW);
-    expect(h.updates[1]).toMatchObject({
+    expect(h.updates[1]).toEqual({
       renewalOpportunityId: 'opp-r',
-      reminded60At: NOW,
-      reminded30At: NOW,
+      remindedDays: [60, 30],
     });
   });
 
   it('a won or lost renewal deal gets no reminder', async () => {
     const renewing = contract({ renewalOpportunityId: 'opp-r' });
-    const h = harness({ due60: [renewing], renewalStage: 'won' });
+    const h = harness({
+      due: [contract({ ...renewing, endOn: day('2026-11-28') })],
+      renewalStage: 'won',
+    });
     await expect(h.service.sweep(NOW)).resolves.toMatchObject({ reminded: 0 });
     expect(h.notices).toEqual([]);
   });

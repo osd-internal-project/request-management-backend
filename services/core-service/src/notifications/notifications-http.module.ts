@@ -5,6 +5,8 @@ import { NotificationLogService } from './notification-log.service';
 import { NotificationDigestService } from './notification-digest.service';
 import { NotificationTemplateAdminService } from './notification-template-admin.service';
 import { NotificationTemplateController } from './notification-template.controller';
+import { NotificationRuleAdminService } from './notification-rule-admin.service';
+import { NotificationRuleController } from './notification-rule.controller';
 import { PrismaTransactionService } from '@request-management/share';
 
 /**
@@ -13,13 +15,18 @@ import { PrismaTransactionService } from '@request-management/share';
  */
 @Module({
   imports: [NotificationsModule],
-  controllers: [NotificationsController, NotificationTemplateController],
+  controllers: [
+    NotificationsController,
+    NotificationTemplateController,
+    NotificationRuleController,
+  ],
   // Only core-service reads the log and runs the digest schedule —
   // external-service imports the domain module, never this one.
   providers: [
     NotificationLogService,
     NotificationDigestService,
     NotificationTemplateAdminService,
+    NotificationRuleAdminService,
     PrismaTransactionService,
   ],
 })

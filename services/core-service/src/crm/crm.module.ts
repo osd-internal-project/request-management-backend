@@ -39,7 +39,11 @@ import { KycExpiryService } from './kyc-expiry.service';
 import { KycService } from './kyc.service';
 import { ContractsService } from './contracts.service';
 import { ContractRenewalService } from './contract-renewal.service';
-import { CustomerContractRepository } from './contract.repositories';
+import {
+  CustomerContractRepository,
+  InvoiceOverdueAlertRepository,
+} from './contract.repositories';
+import { InvoiceOverdueService } from './invoice-overdue.service';
 import {
   CustomerKycRecordRepository,
   KycWatchlistRepository,
@@ -136,6 +140,8 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     ContractsService,
     ContractRenewalService,
     CustomerContractRepository,
+    InvoiceOverdueService,
+    InvoiceOverdueAlertRepository,
     LeadRepository,
     LeadActivityRepository,
     LeadStatusRepository,

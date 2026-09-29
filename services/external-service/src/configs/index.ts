@@ -107,6 +107,8 @@ export default () => ({
     kycExpiryIntervalMs: 0,
     // CD-70 — renewals are core-service's too.
     contractRenewalIntervalMs: 0,
+    // CD-53 — overdue-invoice reminders too.
+    invoiceOverdueIntervalMs: 0,
   },
   pdpa: {
     mode: process.env.PDPA_MODE ?? 'mock',

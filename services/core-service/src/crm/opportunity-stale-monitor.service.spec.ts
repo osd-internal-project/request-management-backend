@@ -1,11 +1,13 @@
 import { OpportunityStaleMonitorService } from './opportunity-stale-monitor.service';
+import { NotificationRulesService } from '../notifications/notification-rules.service';
 
 const NOW = new Date('2026-09-18T00:00:00Z');
 
 function harness(
   options: {
     candidates?: Record<string, unknown>[];
-    configs?: { companyId: string; staleOpportunityDays: number }[];
+    /** CD-53 — companies' saved `opportunity.stale` rules. */
+    rules?: { companyId: string; enabled: boolean; params: { days: number } }[];
     ancestors?: string[];
     heads?: string[];
   } = {},
@@ -39,9 +41,11 @@ function harness(
       },
     ),
   };
-  const configs = {
-    findMany: jest.fn(() => Promise.resolve(options.configs ?? [])),
-  };
+  const rules = new NotificationRulesService({
+    notificationRule: {
+      findMany: jest.fn(() => Promise.resolve(options.rules ?? [])),
+    },
+  } as never);
   const orgUnits = {
     ancestorIdsOf: jest.fn(() =>
       Promise.resolve(options.ancestors ?? ['team-a', 'dept-sales']),
@@ -66,9 +70,9 @@ function harness(
 
   const service = new OpportunityStaleMonitorService(
     opportunities as never,
-    configs as never,
     orgUnits as never,
     notifications as never,
+    rules,
     audit as never,
     config as never,
   );
@@ -127,12 +131,12 @@ describe('CD-65 ดีลเงียบเกินกำหนดถูกแ�
     });
   });
 
-  it('CD-65 a company threshold overrides the default and 0 switches alerts off', async () => {
+  it('CD-53 a company rule overrides the standard and switching it off stops alerts', async () => {
     const { service, opportunities } = harness({
       candidates: [],
-      configs: [
-        { companyId: 'osd', staleOpportunityDays: 7 },
-        { companyId: 'bco', staleOpportunityDays: 0 },
+      rules: [
+        { companyId: 'osd', enabled: true, params: { days: 7 } },
+        { companyId: 'bco', enabled: false, params: { days: 14 } },
       ],
     });
 

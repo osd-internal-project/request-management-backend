@@ -7992,11 +7992,6 @@
             "minimum": 1,
             "type": "integer"
           },
-          "stale_opportunity_days": {
-            "maximum": 365,
-            "minimum": 0,
-            "type": "integer"
-          },
           "letterhead_name_th": {
             "maxLength": 255,
             "type": "string"

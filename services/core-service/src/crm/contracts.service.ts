@@ -206,7 +206,7 @@ export class ContractsService implements OnModuleInit {
               : {}),
             ...(dto.status ? { status: dto.status } : {}),
             ...(endChanged
-              ? { reminded60At: null, reminded30At: null, status: 'active' }
+              ? { remindedDays: [], status: 'active' }
               : {}),
             updatedBy: actor.userId,
           },

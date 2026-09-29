@@ -170,7 +170,7 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
   },
   {
     eventType: 'crm.contract.renewal_due',
-    label: 'เตือนต่ออายุสัญญา 60/30 วัน (ถึงเจ้าของสัญญา)',
+    label: 'เตือนต่ออายุสัญญาซ้ำ (ถึงเจ้าของสัญญา)',
     title: 'อีก {{days_left}} วัน สัญญา {{contract_no}} จะสิ้นสุด',
     body: '{{contract_title}} — โอกาสต่ออายุ {{opportunity_code}} ยังไม่ปิด',
     variables: {
@@ -181,6 +181,21 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
       },
       days_left: { label: 'จำนวนวันก่อนสิ้นสุด', sample: '30' },
       opportunity_code: { label: 'รหัสโอกาสการขาย', sample: 'OPP-OSD-0099' },
+    },
+  },
+  {
+    eventType: 'crm.invoice.overdue',
+    label: 'ใบแจ้งหนี้เลยกำหนดชำระ (ถึงผู้ดูแลลูกค้า)',
+    title: 'ใบแจ้งหนี้ {{doc_no}} เลยกำหนดชำระ {{days_overdue}} วัน',
+    body: '{{customer_name}} ({{customer_code}}) — ครบกำหนด {{due_on}} ยอดค้าง {{outstanding}} {{currency}}',
+    variables: {
+      doc_no: { label: 'เลขที่ใบแจ้งหนี้ (SAP)', sample: '10234' },
+      customer_code: { label: 'รหัสลูกค้า', sample: 'CUS-OSD-000042' },
+      customer_name: { label: 'ชื่อลูกค้า', sample: 'บริษัท ตัวอย่าง จำกัด' },
+      due_on: { label: 'วันครบกำหนด', sample: '2026-09-01' },
+      days_overdue: { label: 'จำนวนวันที่เลยกำหนด', sample: '30' },
+      outstanding: { label: 'ยอดค้าง', sample: '12,500.00' },
+      currency: { label: 'สกุลเงิน', sample: 'THB' },
     },
   },
   {

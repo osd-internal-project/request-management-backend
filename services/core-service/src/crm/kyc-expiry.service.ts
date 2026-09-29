@@ -8,11 +8,13 @@ import { ConfigService } from '@nestjs/config';
 import { AuditWriter } from '@request-management/share';
 import { backgroundTick } from '../common/background-tick';
 import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationRulesService } from '../notifications/notification-rules.service';
+import type { RuleAcrossCompanies } from '../notifications/notification-rules.service';
 import { CustomerRepository } from './customer.repository';
 import { CustomerFieldChangeRepository } from './customer-child.repositories';
 import { CustomerTimelineService } from './customer-timeline.service';
 import { CustomerKycRecordRepository } from './kyc.repositories';
-import { bangkokDay, KYC_WARN_DAYS } from './kyc-rules';
+import { bangkokDay } from './kyc-rules';
 
 const DEFAULT_INTERVAL_MS = 3_600_000;
 const DAY_MS = 86_400_000;
@@ -32,11 +34,14 @@ interface DueRecord {
 
 /**
  * CD-61 — KYC that runs out (user decision 29 ก.ย. 2569): the customer's
- * owner is told 30 days ahead, and on the day the verification expires — the
- * customer is unverified again, so product rules warn as before. Nothing is
- * blocked (PO 8 ก.ย. 2569: KYC warns, never blocks).
+ * owner is told `warn_days` ahead (the company's `kyc.expiry` rule, CD-53;
+ * standard 30), and on the day the verification expires — the customer is
+ * unverified again, so product rules warn as before. Nothing is blocked (PO
+ * 8 ก.ย. 2569: KYC warns, never blocks). A company that switched the rule off
+ * still has its records expire; only the notices stop.
  *
- * Runs in core-service only (the HTTP module registers it). Each record is
+ * Runs in core-service only (`crm.kycExpiryIntervalMs` is 0 in
+ * external-service, which loads the same domain module). Each record is
  * warned once (`warnedAt`) and expired once (a guarded status update), so an
  * overlapping tick or a second instance does nothing twice.
  */
@@ -51,6 +56,7 @@ export class KycExpiryService implements OnModuleInit, OnModuleDestroy {
     private readonly fieldChanges: CustomerFieldChangeRepository,
     private readonly timeline: CustomerTimelineService,
     private readonly notifications: NotificationsService,
+    private readonly rules: NotificationRulesService,
     private readonly audit: AuditWriter,
     private readonly config: ConfigService,
   ) {}
@@ -75,7 +81,17 @@ export class KycExpiryService implements OnModuleInit, OnModuleDestroy {
     now: Date = new Date(),
   ): Promise<{ warned: number; expired: number }> {
     const today = new Date(`${bangkokDay(now)}T00:00:00Z`);
-    const warnFrom = new Date(today.getTime() + KYC_WARN_DAYS * DAY_MS);
+    const rule = await this.rules.across('kyc.expiry');
+    const warnDaysOf = (companyId: string) => {
+      const one = rule.of(companyId);
+      return one.enabled ? (one.params.warn_days as number) : -1;
+    };
+    const widest = Math.max(
+      -1,
+      ...[rule.standard, ...rule.byCompany.values()]
+        .filter((one) => one.enabled)
+        .map((one) => one.params.warn_days as number),
+    );
     const select = {
       id: true,
       companyId: true,
@@ -98,19 +114,29 @@ export class KycExpiryService implements OnModuleInit, OnModuleDestroy {
     })) as unknown as DueRecord[];
     let expired = 0;
     for (const record of expiring) {
-      if (await this.expire(record, now)) expired += 1;
+      if (await this.expire(record, now, rule)) expired += 1;
     }
 
-    const warning = (await this.records.findMany({
-      where: {
-        status: 'verified',
-        warnedAt: null,
-        expiresOn: { gte: today, lte: warnFrom },
-      },
-      select,
-    })) as unknown as DueRecord[];
+    const warning =
+      widest < 0
+        ? []
+        : ((await this.records.findMany({
+            where: {
+              status: 'verified',
+              warnedAt: null,
+              expiresOn: {
+                gte: today,
+                lte: new Date(today.getTime() + widest * DAY_MS),
+              },
+            },
+            select,
+          })) as unknown as DueRecord[]);
     let warned = 0;
     for (const record of warning) {
+      const daysLeft = Math.round(
+        (record.expiresOn.getTime() - today.getTime()) / DAY_MS,
+      );
+      if (daysLeft > warnDaysOf(record.companyId)) continue;
       const claimed = await this.records.updateMany({
         where: { id: record.id, warnedAt: null },
         data: { warnedAt: now },
@@ -133,7 +159,11 @@ export class KycExpiryService implements OnModuleInit, OnModuleDestroy {
     return { warned, expired };
   }
 
-  private async expire(record: DueRecord, now: Date): Promise<boolean> {
+  private async expire(
+    record: DueRecord,
+    now: Date,
+    rule: RuleAcrossCompanies,
+  ): Promise<boolean> {
     const claimed = await this.records.updateMany({
       where: { id: record.id, status: 'verified' },
       data: { status: 'expired' },
@@ -173,7 +203,10 @@ export class KycExpiryService implements OnModuleInit, OnModuleDestroy {
       actorId: null,
       actorName: 'ระบบ (KYC)',
     });
-    if (record.customer.accountOwnerUserId) {
+    if (
+      record.customer.accountOwnerUserId &&
+      rule.of(record.companyId).enabled
+    ) {
       await this.notifications.kycExpired(
         record.customer.accountOwnerUserId,
         record.companyId,

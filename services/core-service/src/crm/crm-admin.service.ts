@@ -228,7 +228,6 @@ export class CrmAdminService {
               vatPct: dto.vat_pct ?? 7,
               quotationApprovalTypeCode:
                 dto.quotation_approval_type_code ?? 'DSC',
-              staleOpportunityDays: dto.stale_opportunity_days ?? 14,
               targetApprovalTypeCode: dto.target_approval_type_code || null,
               contractRequestTypeCode: dto.contract_request_type_code || null,
               kycReviewMonthsHigh: dto.kyc_review_months_high ?? 12,
@@ -243,7 +242,6 @@ export class CrmAdminService {
               quotationValidityDays: dto.quotation_validity_days,
               vatPct: dto.vat_pct,
               quotationApprovalTypeCode: dto.quotation_approval_type_code,
-              staleOpportunityDays: dto.stale_opportunity_days,
               targetApprovalTypeCode:
                 dto.target_approval_type_code === undefined
                   ? undefined

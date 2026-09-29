@@ -331,6 +331,7 @@ model Company {
   orgUnitScopes           OrgUnitScope[]
   notificationPreferences NotificationPreference[]
   notificationTemplates   NotificationTemplate[]
+  notificationRules       NotificationRule[]
   customers               Customer[]
   customerSegmentDims     CustomerSegmentDimension[]
   customerCodeCounter     CustomerCodeCounter?
@@ -1695,6 +1696,44 @@ model NotificationTemplate {
 
   @@unique([companyId, eventType])
   @@map("notification_templates")
+}
+
+/// CD-53 — a company's setting for one reminder rule (contract renewal, overdue
+/// invoice, KYC expiry, quiet deal). The rules and their standard values are
+/// declared in code (`notification-rules.ts`); no row = the standard. Params
+/// are checked against that catalog on save.
+model NotificationRule {
+  id        String  @id @default(uuid())
+  companyId String
+  code      String
+  enabled   Boolean @default(true)
+  params    Json
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, code])
+  @@map("notification_rules")
+}
+
+/// CD-53 — one row per (invoice, step) already told to the customer's owner,
+/// so each overdue step is sent once. Invoices live in SAP; `docNo` is B1's.
+model InvoiceOverdueAlert {
+  id         String   @id @default(uuid())
+  companyId  String
+  customerId String
+  docNo      String
+  /// The rule step reached — days past the due date.
+  step       Int
+  dueOn      DateTime @db.Date
+  alertedAt  DateTime @default(now())
+
+  @@unique([customerId, docNo, step])
+  @@index([companyId])
+  @@map("invoice_overdue_alerts")
 }
 
 /// SUP-03: every send is logged, which is what settles "I never got notified".
@@ -3194,8 +3233,10 @@ model CustomerContract {
 
   renewalOpportunityId String?
   renewalCreatedAt     DateTime?
-  reminded60At         DateTime?
-  reminded30At         DateTime?
+  /// CD-53 — the reminder steps (days before `endOn`) already sent. The steps
+  /// are the company's `contract.renewal` rule, so they are a list, not a
+  /// column per step. Emptied when the end date moves.
+  remindedDays         Int[]     @default([])
 
   note      String?
   createdAt DateTime @default(now())

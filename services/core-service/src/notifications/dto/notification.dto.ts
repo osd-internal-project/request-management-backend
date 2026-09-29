@@ -127,3 +127,23 @@ export class SaveNotificationTemplateDto {
   @MaxLength(2000)
   body!: string;
 }
+
+/** CD-53 — a company's setting for one reminder rule; params per the catalog. */
+export class SaveNotificationRuleDto {
+  @ApiPropertyOptional({ description: 'Defaults to the active company.' })
+  @IsOptional()
+  @IsString()
+  company_id?: string;
+
+  @ApiProperty()
+  @IsBoolean()
+  enabled!: boolean;
+
+  @ApiPropertyOptional({
+    example: { open_days: 90, remind_days: [60, 30] },
+    description: 'Checked against the rule catalog (notification-rules.ts).',
+  })
+  @IsOptional()
+  @IsObject()
+  params?: Record<string, unknown>;
+}

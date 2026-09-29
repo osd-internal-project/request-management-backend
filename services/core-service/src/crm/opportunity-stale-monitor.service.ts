@@ -9,12 +9,12 @@ import type { OpportunityStage, Prisma } from '@prisma/client';
 import { AuditWriter } from '@request-management/share';
 import { OrgUnitRepository } from '../access/org-unit.repository';
 import { OpportunityRepository } from './sales.repositories';
-import { CrmConfigRepository } from './segment.repositories';
 import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationRulesService } from '../notifications/notification-rules.service';
+import type { RuleAcrossCompanies } from '../notifications/notification-rules.service';
 import { backgroundTick } from '../common/background-tick';
 
 const DEFAULT_INTERVAL_MS = 3_600_000;
-const DEFAULT_STALE_DAYS = 14;
 const DAY_MS = 86_400_000;
 const OPEN_STAGES: OpportunityStage[] = [
   'qualifying',
@@ -34,8 +34,9 @@ interface StaleCandidate {
 /**
  * CD-65 — "ดีลที่เงียบเกินกำหนดถูกแจ้งเตือนไปยังหัวหน้า".
  *
- * เงียบ = โอกาสการขายที่ยังเปิดอยู่และไม่มีกิจกรรมที่ *ทำเสร็จ* ภายใน
- * `crm_company_configs.staleOpportunityDays` วัน (ยังไม่เคยมีเลย = นับจากวันเปิด).
+ * เงียบ = โอกาสการขายที่ยังเปิดอยู่และไม่มีกิจกรรมที่ *ทำเสร็จ* ภายในจำนวนวันของ
+ * กติกา `opportunity.stale` ของบริษัท (CD-53; มาตรฐาน 14 วัน, ปิดกติกา = ไม่เตือน)
+ * (ยังไม่เคยมีเลย = นับจากวันเปิด).
  * นัดที่ลงไว้แต่ยังไม่ได้ทำไม่นับ — นัดไม่ใช่ความเคลื่อนไหว.
  *
  * Same shape as `SlaMonitorService` (ผู้ใช้เลือก 18 ก.ย. 2569 ให้ทำใน core-service
@@ -55,9 +56,9 @@ export class OpportunityStaleMonitorService
 
   constructor(
     private readonly opportunities: OpportunityRepository,
-    private readonly configs: CrmConfigRepository,
     private readonly orgUnits: OrgUnitRepository,
     private readonly notifications: NotificationsService,
+    private readonly rules: NotificationRulesService,
     private readonly audit: AuditWriter,
     private readonly config: ConfigService,
   ) {}
@@ -86,8 +87,8 @@ export class OpportunityStaleMonitorService
 
   /** One pass. Public so a test — or an operator — can run it on demand. */
   async sweep(at = new Date()): Promise<{ alerted: number }> {
-    const daysOf = await this.thresholds();
-    const where = this.candidateWhere(at, daysOf);
+    const rule = await this.rules.across('opportunity.stale');
+    const where = this.candidateWhere(at, rule);
 
     const found = (await this.opportunities.findMany({
       where,
@@ -104,7 +105,7 @@ export class OpportunityStaleMonitorService
     })) as StaleCandidate[];
 
     for (const opportunity of found) {
-      const days = daysOf.get(opportunity.companyId) ?? DEFAULT_STALE_DAYS;
+      const days = rule.of(opportunity.companyId).params.days as number;
       const head = await this.headOf(opportunity);
       const recipients = [
         ...new Set([opportunity.ownerUserId, head ?? '']),
@@ -145,12 +146,12 @@ export class OpportunityStaleMonitorService
   }
 
   /**
-   * One OR-branch per company that set its own threshold, plus one for
-   * everybody still on the default. `0` = alerts off for that company.
+   * One OR-branch per company that set its own rule, plus one for everybody
+   * still on the standard. A rule switched off adds no branch.
    */
   private candidateWhere(
     at: Date,
-    configured: Map<string, number>,
+    rule: RuleAcrossCompanies,
   ): Prisma.OpportunityWhereInput {
     const branches: Prisma.OpportunityWhereInput[] = [];
 
@@ -164,28 +165,23 @@ export class OpportunityStaleMonitorService
       };
     };
 
-    for (const [companyId, days] of configured) {
-      if (days > 0) branches.push({ companyId, ...quietSince(days) });
+    for (const [companyId, own] of rule.byCompany) {
+      if (own.enabled) {
+        branches.push({ companyId, ...quietSince(own.params.days as number) });
+      }
     }
-    branches.push({
-      companyId: { notIn: [...configured.keys()] },
-      ...quietSince(DEFAULT_STALE_DAYS),
-    });
+    if (rule.standard.enabled) {
+      branches.push({
+        companyId: { notIn: [...rule.byCompany.keys()] },
+        ...quietSince(rule.standard.params.days as number),
+      });
+    }
 
     return {
       stage: { in: OPEN_STAGES },
       staleAlertedAt: null,
       AND: [{ OR: branches }],
     };
-  }
-
-  private async thresholds(): Promise<Map<string, number>> {
-    const rows = (await this.configs.findMany({
-      select: { companyId: true, staleOpportunityDays: true },
-    })) as { companyId: string; staleOpportunityDays: number }[];
-    return new Map(
-      rows.map((row) => [row.companyId, row.staleOpportunityDays]),
-    );
   }
 
   /** Nearest head above the owner who is not the owner. */

@@ -1,6 +1,7 @@
 import type { Principal } from '@request-management/share';
 import { KycExpiryService } from './kyc-expiry.service';
 import { KycService } from './kyc.service';
+import { NotificationRulesService } from '../notifications/notification-rules.service';
 
 const NOW = new Date('2026-09-29T03:00:00Z'); // 29 Sep 2026, Bangkok
 
@@ -25,6 +26,8 @@ function harness(options: {
   expired?: unknown[];
   expiring?: unknown[];
   claim?: number;
+  /** CD-53 — the company's saved `kyc.expiry` rule, if any. */
+  rule?: { enabled: boolean; params: Record<string, unknown> };
 }) {
   const customerUpdates: unknown[] = [];
   const notified: string[] = [];
@@ -60,6 +63,15 @@ function harness(options: {
     { createMany: jest.fn(() => Promise.resolve({ count: 1 })) } as never,
     { publish: jest.fn(() => Promise.resolve()) } as never,
     notifications as never,
+    new NotificationRulesService({
+      notificationRule: {
+        findMany: jest.fn(() =>
+          Promise.resolve(
+            options.rule ? [{ companyId: 'osd', ...options.rule }] : [],
+          ),
+        ),
+      },
+    } as never),
     { record: jest.fn(() => Promise.resolve()) } as never,
     { get: jest.fn(() => 0) } as never,
   );
@@ -121,6 +133,44 @@ describe('CD-61 KYC expiry sweep', () => {
       gte: new Date('2026-09-29T00:00:00Z'),
       lte: new Date('2026-10-29T00:00:00Z'),
     });
+  });
+
+  it('CD-53: the warning window is the company rule — 60 days reads further, a later record waits', async () => {
+    const rule = { enabled: true, params: { warn_days: 10 } };
+    const h = harness({ expiring: [record('b', '2026-10-20')], rule });
+    // 21 days out: the standard 30 would warn, this company's 10 does not
+    await expect(h.service.sweep(NOW)).resolves.toEqual({
+      warned: 0,
+      expired: 0,
+    });
+    expect(h.records.updateMany).not.toHaveBeenCalled();
+
+    const wide = harness({
+      rule: { enabled: true, params: { warn_days: 60 } },
+    });
+    await wide.service.sweep(NOW);
+    const [, warnQuery] = wide.records.findMany.mock.calls as unknown as [
+      { where: { expiresOn: Record<string, Date> } },
+    ][];
+    expect(warnQuery[0].where.expiresOn.lte).toEqual(
+      new Date('2026-11-28T00:00:00Z'),
+    );
+  });
+
+  it('CD-53: rule switched off — records still expire, nobody is told', async () => {
+    const rule = { enabled: false, params: { warn_days: 30 } };
+    const h = harness({
+      expired: [record('a', '2026-09-28')],
+      expiring: [record('b', '2026-10-20')],
+      rule,
+    });
+    await expect(h.service.sweep(NOW)).resolves.toEqual({
+      warned: 0,
+      expired: 1,
+    });
+    expect(h.notified).toEqual([]);
+    // nothing claimed for the warning either — switching back on still warns
+    expect(h.records.updateMany).toHaveBeenCalledTimes(1);
   });
 });
 

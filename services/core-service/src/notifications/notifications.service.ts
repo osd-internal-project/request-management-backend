@@ -455,7 +455,7 @@ export class NotificationsService {
     });
   }
 
-  /** CD-70 — 60 / 30 days before the end, while the renewal deal is open. */
+  /** CD-70 — each reminder step of the company's rule (CD-53), while the deal is open. */
   async contractRenewalDue(
     userId: string,
     companyId: string,
@@ -475,6 +475,40 @@ export class NotificationsService {
       },
       resourceType: 'opportunity',
       resourceId: deal.id,
+    });
+  }
+
+  /** CD-53 — an open SAP invoice has passed one of the rule's overdue steps. */
+  async invoiceOverdue(
+    userId: string,
+    companyId: string,
+    customer: { id: string; customerCode: string; nameTh: string },
+    invoice: {
+      docNo: string;
+      dueOn: string;
+      outstanding: number;
+      currency: string;
+    },
+    daysOverdue: number,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'crm.invoice.overdue',
+      values: {
+        doc_no: invoice.docNo,
+        customer_code: customer.customerCode,
+        customer_name: customer.nameTh,
+        due_on: invoice.dueOn,
+        days_overdue: String(daysOverdue),
+        outstanding: invoice.outstanding.toLocaleString('en-US', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }),
+        currency: invoice.currency,
+      },
+      resourceType: 'customer',
+      resourceId: customer.id,
     });
   }
 

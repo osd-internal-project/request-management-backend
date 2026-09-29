@@ -8,6 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import type { OpportunityStage } from '@prisma/client';
 import { backgroundTick } from '../common/background-tick';
 import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationRulesService } from '../notifications/notification-rules.service';
 import { CustomerContractRepository } from './contract.repositories';
 import { bangkokDay } from './kyc-rules';
 import { OpportunitiesService } from './opportunities.service';
@@ -16,10 +17,8 @@ import { OpportunityRepository } from './sales.repositories';
 const DEFAULT_INTERVAL_MS = 3_600_000;
 const DAY_MS = 86_400_000;
 
-/** CD-70 — the renewal deal opens this many days before the end date … */
-export const RENEWAL_OPEN_DAYS = 90;
-/** … and its owner is reminded at these, while the deal is still open. */
-export const RENEWAL_REMINDER_DAYS = [60, 30] as const;
+/** CD-53 — how far ahead to open the deal and when to remind: a rule per company. */
+const RULE = 'contract.renewal';
 
 interface DueContract {
   id: string;
@@ -32,6 +31,7 @@ interface DueContract {
   ownerUserId: string;
   ownerOrgUnitId: string | null;
   renewalOpportunityId: string | null;
+  remindedDays: number[];
 }
 
 const SELECT = {
@@ -45,6 +45,7 @@ const SELECT = {
   ownerUserId: true,
   ownerOrgUnitId: true,
   renewalOpportunityId: true,
+  remindedDays: true,
 } as const;
 
 const OPEN_STAGES: OpportunityStage[] = [
@@ -54,12 +55,14 @@ const OPEN_STAGES: OpportunityStage[] = [
 ];
 
 /**
- * CD-70 — renewals from contract end dates (user decision 29 ก.ย. 2569):
+ * CD-70 — renewals from contract end dates (user decision 29 ก.ย. 2569). The
+ * days are the company's `contract.renewal` rule (CD-53; standard 90 / 60, 30);
+ * a company that switched the rule off gets neither deals nor reminders:
  *
- * - 90 days out: a renewal deal is opened under the contract's owner (same
+ * - `open_days` out: a renewal deal is opened under the contract's owner (same
  *   customer, the contract's value, expected to close on the end date), and
  *   the owner is told;
- * - 60 and 30 days out: the owner is reminded — only while that deal is
+ * - each of `remind_days`: the owner is reminded — only while that deal is
  *   still open; won or lost, the reminders stop;
  * - after the end date: the contract is `renewed` if its renewal deal was
  *   won, otherwise `ended`.
@@ -78,6 +81,7 @@ export class ContractRenewalService implements OnModuleInit, OnModuleDestroy {
     private readonly opportunities: OpportunityRepository,
     private readonly deals: OpportunitiesService,
     private readonly notifications: NotificationsService,
+    private readonly rules: NotificationRulesService,
     private readonly config: ConfigService,
   ) {}
 
@@ -124,17 +128,40 @@ export class ContractRenewalService implements OnModuleInit, OnModuleDestroy {
       closed += moved.count;
     }
 
-    // 2. within 90 days and no renewal deal yet → open one
+    const rule = await this.rules.across(RULE);
+    const enabled = [rule.standard, ...rule.byCompany.values()].filter(
+      (one) => one.enabled,
+    );
+    const openDaysOf = (companyId: string) => {
+      const one = rule.of(companyId);
+      return one.enabled ? (one.params.open_days as number) : -1;
+    };
+    const remindDaysOf = (companyId: string) => {
+      const one = rule.of(companyId);
+      return one.enabled ? (one.params.remind_days as number[]) : [];
+    };
+    // One read covering the widest window; each company's own is applied below.
+    const widest = (key: 'open_days' | 'remind_days') =>
+      Math.max(-1, ...enabled.flatMap((one) => one.params[key]));
+
+    // 2. within the company's window and no renewal deal yet → open one
     let opened = 0;
-    const toOpen = (await this.contracts.findMany({
-      where: {
-        status: 'active',
-        renewalOpportunityId: null,
-        renewalCreatedAt: null,
-        endOn: { gte: today, lte: within(RENEWAL_OPEN_DAYS) },
-      },
-      select: SELECT,
-    })) as unknown as DueContract[];
+    const toOpen = (
+      widest('open_days') < 0
+        ? []
+        : ((await this.contracts.findMany({
+            where: {
+              status: 'active',
+              renewalOpportunityId: null,
+              renewalCreatedAt: null,
+              endOn: { gte: today, lte: within(widest('open_days')) },
+            },
+            select: SELECT,
+          })) as unknown as DueContract[])
+    ).filter(
+      (contract) =>
+        daysBetween(today, contract.endOn) <= openDaysOf(contract.companyId),
+    );
     for (const contract of toOpen) {
       const claimed = await this.contracts.updateMany({
         where: { id: contract.id, renewalCreatedAt: null },
@@ -160,8 +187,9 @@ export class ContractRenewalService implements OnModuleInit, OnModuleDestroy {
           where: { id: contract.id },
           data: {
             renewalOpportunityId: deal.id,
-            ...(daysLeft <= 60 ? { reminded60At: now } : {}),
-            ...(daysLeft <= 30 ? { reminded30At: now } : {}),
+            remindedDays: remindDaysOf(contract.companyId).filter(
+              (days) => daysLeft <= days,
+            ),
           },
         });
         await this.notifications.contractRenewalOpened(
@@ -169,7 +197,7 @@ export class ContractRenewalService implements OnModuleInit, OnModuleDestroy {
           contract.companyId,
           contract,
           deal,
-          daysBetween(today, contract.endOn),
+          daysLeft,
         );
         opened += 1;
       } catch (error) {
@@ -185,45 +213,52 @@ export class ContractRenewalService implements OnModuleInit, OnModuleDestroy {
       }
     }
 
-    // 3. reminders at 60 and 30 days while the renewal deal is open
+    // 3. a reminder step reached while the renewal deal is open — one notice
+    // per pass, however many steps it crossed (only the latest matters)
     let reminded = 0;
-    for (const days of RENEWAL_REMINDER_DAYS) {
-      const field = days === 60 ? 'reminded60At' : 'reminded30At';
-      const due = (await this.contracts.findMany({
+    const toRemind =
+      widest('remind_days') < 0
+        ? []
+        : ((await this.contracts.findMany({
+            where: {
+              status: 'active',
+              renewalOpportunityId: { not: null },
+              endOn: { gte: today, lte: within(widest('remind_days')) },
+            },
+            select: SELECT,
+          })) as unknown as DueContract[]);
+    for (const contract of toRemind) {
+      const daysLeft = daysBetween(today, contract.endOn);
+      const reached = remindDaysOf(contract.companyId).filter(
+        (days) => daysLeft <= days && !contract.remindedDays.includes(days),
+      );
+      if (!reached.length) continue;
+      // Guarded on the list as read: an overlapping tick claims nothing twice.
+      const claimed = await this.contracts.updateMany({
         where: {
-          status: 'active',
-          renewalOpportunityId: { not: null },
-          [field]: null,
-          endOn: { gte: today, lte: within(days) },
+          id: contract.id,
+          remindedDays: { equals: contract.remindedDays },
         },
-        select: SELECT,
-      })) as unknown as DueContract[];
-      for (const contract of due) {
-        const deal = (await this.opportunities.findFirst({
-          where: {
-            id: contract.renewalOpportunityId as string,
-            stage: { in: OPEN_STAGES },
-          },
-          select: { id: true, opportunityCode: true },
-        })) as { id: string; opportunityCode: string } | null;
-        const claimed = await this.contracts.updateMany({
-          where: { id: contract.id, [field]: null },
-          data: { [field]: now },
-        });
-        // A decided deal needs no reminder; the stamp still stops re-checks.
-        // Nor does the 60-day one once the 30-day one is due — only the later.
-        const daysLeft = daysBetween(today, contract.endOn);
-        if (claimed.count !== 1 || !deal) continue;
-        if (days === 60 && daysLeft <= 30) continue;
-        await this.notifications.contractRenewalDue(
-          contract.ownerUserId,
-          contract.companyId,
-          contract,
-          deal,
-          daysBetween(today, contract.endOn),
-        );
-        reminded += 1;
-      }
+        data: { remindedDays: [...contract.remindedDays, ...reached] },
+      });
+      if (claimed.count !== 1) continue;
+      // A decided deal needs no reminder; the stamp still stops re-checks.
+      const deal = (await this.opportunities.findFirst({
+        where: {
+          id: contract.renewalOpportunityId as string,
+          stage: { in: OPEN_STAGES },
+        },
+        select: { id: true, opportunityCode: true },
+      })) as { id: string; opportunityCode: string } | null;
+      if (!deal) continue;
+      await this.notifications.contractRenewalDue(
+        contract.ownerUserId,
+        contract.companyId,
+        contract,
+        deal,
+        daysLeft,
+      );
+      reminded += 1;
     }
 
     if (opened || reminded || closed) {

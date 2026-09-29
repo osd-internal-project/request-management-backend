@@ -10,9 +10,6 @@ import { nameSimilarity, normalizeCustomerName } from './customer-name';
 /** Names at least this alike are reported as a possible match. */
 export const WATCHLIST_NAME_THRESHOLD = 0.85;
 
-/** Warn the owner this many days before a KYC runs out. */
-export const KYC_WARN_DAYS = 30;
-
 export interface WatchlistEntry {
   id: string;
   name: string;
