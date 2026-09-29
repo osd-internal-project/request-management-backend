@@ -86,6 +86,13 @@ export const PERMISSIONS = {
   user: ['user.read'],
   notification: ['notification.read'],
   audit: ['audit.read'],
+  /**
+   * CD-13 Legal (CD-161 คลังสัญญา, user decision 29 ก.ย. 2569) — the contract
+   * repository across the company: customers' contracts, NDAs, MSAs and
+   * contracts with other counterparties. Confidential ones are seen by
+   * `manage`, their owner/creator and their access list only.
+   */
+  legal: ['legal.contract.read', 'legal.contract.manage'],
   admin: [
     'admin.role.manage',
     'admin.org.manage',

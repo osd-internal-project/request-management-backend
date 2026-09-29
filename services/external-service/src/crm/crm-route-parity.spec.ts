@@ -79,6 +79,7 @@ const SCREEN_ONLY = [
   'keeper.controller.ts',
   'customer-intake-admin.controller.ts',
   'customer-merge.controller.ts',
+  'legal-contracts.controller.ts',
 ];
 
 interface Route {

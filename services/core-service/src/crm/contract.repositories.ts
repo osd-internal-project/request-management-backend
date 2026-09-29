@@ -32,3 +32,31 @@ export class InvoiceOverdueAlertRepository extends BaseRepository<
     return client.invoiceOverdueAlert;
   }
 }
+
+/** CD-161 ไฟล์ของสัญญา (PDF ที่ลงนาม ภาคผนวก) พร้อมข้อความที่ดึงไว้ค้น. */
+@Injectable()
+export class ContractDocumentRepository extends BaseRepository<
+  PrismaService['contractDocument']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.contractDocument;
+  }
+}
+
+/** CD-161 ผู้ที่เปิดสัญญาลับพิเศษได้เพิ่มเติม. */
+@Injectable()
+export class ContractAccessRepository extends BaseRepository<
+  PrismaService['contractAccess']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.contractAccess;
+  }
+}

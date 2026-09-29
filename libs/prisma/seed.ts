@@ -255,6 +255,27 @@ const SEED_ROLES: {
     ],
   },
   {
+    // CD-161 — ฝ่ายกฎหมาย keeps the contract repository: records contracts
+    // (customers' and anyone else's), attaches the signed files, and decides
+    // which are confidential. Reads customers company-wide to attach one.
+    code: 'legal',
+    name: 'ฝ่ายกฎหมาย',
+    description: 'ดูแลคลังสัญญา — บันทึกสัญญา แนบไฟล์ และกำหนดสัญญาลับพิเศษ',
+    permissions: [
+      'request.create',
+      'request.read',
+      'request.cancel.own',
+      'request.return',
+      'request.complete',
+      'notification.read',
+      'user.read',
+      'crm.customer.read',
+      'crm.customer.read.all',
+      'legal.contract.read',
+      'legal.contract.manage',
+    ],
+  },
+  {
     // §5.2 is explicit that admins configure the system but hold no approval
     // authority — they cannot approve on anyone's behalf. §5.4 turns that into
     // an enforced guardrail: see `assertSeparationOfDuties`.

@@ -23,7 +23,7 @@ const RULE = 'contract.renewal';
 interface DueContract {
   id: string;
   companyId: string;
-  customerId: string;
+  customerId: string | null;
   contractNo: string;
   title: string;
   endOn: Date;
@@ -154,6 +154,11 @@ export class ContractRenewalService implements OnModuleInit, OnModuleDestroy {
               status: 'active',
               renewalOpportunityId: null,
               renewalCreatedAt: null,
+              // CD-161 — a renewal deal needs a customer, and only a sale or
+              // service agreement is renewed through Sales (not an NDA, not
+              // a vendor's contract).
+              customerId: { not: null },
+              kind: { in: ['standard', 'msa'] },
               endOn: { gte: today, lte: within(widest('open_days')) },
             },
             select: SELECT,
@@ -171,7 +176,8 @@ export class ContractRenewalService implements OnModuleInit, OnModuleDestroy {
       try {
         const deal = await this.deals.createRenewal({
           companyId: contract.companyId,
-          customerId: contract.customerId,
+          // filtered to customer contracts above
+          customerId: contract.customerId as string,
           title: `ต่ออายุ: ${contract.title}`,
           amount:
             contract.value === null ? null : Number(contract.value.toString()),

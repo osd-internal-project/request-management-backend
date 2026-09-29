@@ -3488,9 +3488,21 @@ enum CustomerContractStatus {
 /// by hand for contracts made before the system. Renewals are raised from
 /// `endOn` — a renewal deal at 90 days, reminders at 60 and 30.
 model CustomerContract {
-  id         String @id @default(uuid())
+  id         String  @id @default(uuid())
   companyId  String
-  customerId String
+  /// CD-161 — NULL for a contract with someone not in the customer register
+  /// (a partner, a vendor, a prospect's NDA): `counterpartyName` then names
+  /// them. A DB CHECK requires one or the other.
+  customerId String?
+
+  counterpartyName  String?
+  counterpartyTaxId String?
+  /// CD-161 — สัญญาซื้อขาย/บริการ (standard) · NDA · ข้อตกลงหลัก (MSA) · อื่น ๆ.
+  kind              ContractKind @default(standard)
+  /// CD-161 — ลับพิเศษ: seen only by legal.contract.manage, its owner, its
+  /// creator and the people on `access` — not by everyone who can read
+  /// contracts or the customer.
+  confidential      Boolean      @default(false)
 
   contractNo String
   title      String
@@ -3521,12 +3533,62 @@ model CustomerContract {
   updatedAt DateTime @updatedAt
   updatedBy String?
 
-  customer Customer @relation(fields: [customerId], references: [id])
+  customer  Customer?          @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  documents ContractDocument[]
+  access    ContractAccess[]
 
   @@unique([companyId, contractNo])
   @@index([customerId])
   @@index([status, endOn])
   @@map("customer_contracts")
+}
+
+/// CD-161 — ชนิดของสัญญาในคลังสัญญา.
+enum ContractKind {
+  standard
+  nda
+  msa
+  other
+}
+
+/// CD-161 — a file of a contract (the signed PDF, an annex). The text of a
+/// PDF is extracted once on upload into `textContent`, so the repository can
+/// search inside contracts; a scanned PDF has no text layer (no OCR).
+model ContractDocument {
+  id          String  @id @default(uuid())
+  companyId   String
+  contractId  String
+  fileName    String
+  mimeType    String
+  sizeBytes   Int
+  storageKey  String
+  /// extracted · empty (no text layer — likely a scan) · failed · not_pdf
+  textStatus  String
+  textContent String?
+
+  uploadedBy String
+  uploadedAt DateTime  @default(now())
+  deletedAt  DateTime?
+  deletedBy  String?
+
+  contract CustomerContract @relation(fields: [contractId], references: [id])
+
+  @@index([contractId])
+  @@map("contract_documents")
+}
+
+/// CD-161 — who else may open a confidential contract.
+model ContractAccess {
+  contractId String
+  userId     String
+  grantedBy  String
+  grantedAt  DateTime @default(now())
+
+  contract CustomerContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@id([contractId, userId])
+  @@index([userId])
+  @@map("contract_access")
 }
 
 /// CD-85 — บริษัทเป้าหมายของแกน Getter: รายชื่อที่จะเปิดตลาด จัดลำดับก่อนหลัง

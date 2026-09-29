@@ -8116,6 +8116,518 @@
         ]
       }
     },
+    "/api/v1/contracts": {
+      "get": {
+        "description": "`search` = เลขที่/ชื่อ/คู่สัญญา/ลูกค้า/หมายเหตุ · `text` = ข้อความใน PDF ที่แนบ · สัญญาลับพิเศษเห็นเฉพาะผู้มีสิทธิ์",
+        "operationId": "LegalContractsController_list",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "เลขหน้าที่ต้องการ เริ่มที่ 1",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page_size",
+            "required": false,
+            "in": "query",
+            "description": "จำนวนรายการต่อหน้า",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "`sort=field` เรียงขึ้น, `sort=-field` เรียงลง",
+            "schema": {
+              "example": "-createdAt",
+              "type": "string",
+              "pattern": "^-?[a-zA-Z_][a-zA-Z0-9_]*$"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "เลขที่/ชื่อสัญญา/คู่สัญญา/ลูกค้า/หมายเหตุ",
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "text",
+            "required": false,
+            "in": "query",
+            "description": "ข้อความในเนื้อสัญญา (ไฟล์ PDF ที่แนบ)",
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "kind",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "standard",
+                "nda",
+                "msa",
+                "other"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "active",
+                "renewed",
+                "ended",
+                "cancelled"
+              ]
+            }
+          },
+          {
+            "name": "customer_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ends_from",
+            "required": false,
+            "in": "query",
+            "description": "หมดอายุตั้งแต่ (YYYY-MM-DD)",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "ends_to",
+            "required": false,
+            "in": "query",
+            "description": "หมดอายุถึง (YYYY-MM-DD)",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "min_value",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "max_value",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "confidential",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ค้นคลังสัญญา",
+        "tags": [
+          "contracts"
+        ],
+        "x-permission": [
+          "legal.contract.read"
+        ]
+      },
+      "post": {
+        "operationId": "LegalContractsController_create",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveLegalContractDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "บันทึกสัญญา (ลูกค้าในทะเบียน หรือคู่สัญญาอื่น)",
+        "tags": [
+          "contracts"
+        ],
+        "x-permission": [
+          "legal.contract.manage"
+        ]
+      }
+    },
+    "/api/v1/contracts/{id}": {
+      "get": {
+        "operationId": "LegalContractsController_detail",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "รายละเอียดสัญญา พร้อมไฟล์และผู้เข้าถึง",
+        "tags": [
+          "contracts"
+        ],
+        "x-permission": [
+          "legal.contract.read"
+        ]
+      },
+      "patch": {
+        "operationId": "LegalContractsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveLegalContractDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แก้ไขสัญญา",
+        "tags": [
+          "contracts"
+        ],
+        "x-permission": [
+          "legal.contract.manage"
+        ]
+      }
+    },
+    "/api/v1/contracts/{id}/access": {
+      "put": {
+        "operationId": "LegalContractsController_setAccess",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContractAccessDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ตั้งลับพิเศษ และผู้ที่เปิดได้เพิ่มเติม",
+        "tags": [
+          "contracts"
+        ],
+        "x-permission": [
+          "legal.contract.manage"
+        ]
+      }
+    },
+    "/api/v1/contracts/{id}/documents": {
+      "post": {
+        "operationId": "LegalContractsController_upload",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แนบไฟล์สัญญา (PDF/Word/รูป ≤ 25 MB) — PDF ดึงข้อความไว้ค้น",
+        "tags": [
+          "contracts"
+        ],
+        "x-permission": [
+          "legal.contract.manage"
+        ]
+      }
+    },
+    "/api/v1/contracts/{id}/documents/{documentId}": {
+      "get": {
+        "operationId": "LegalContractsController_download",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "documentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ไฟล์ของสัญญา",
+        "tags": [
+          "contracts"
+        ],
+        "x-permission": [
+          "legal.contract.read"
+        ]
+      },
+      "delete": {
+        "operationId": "LegalContractsController_removeDocument",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "documentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ลบไฟล์ของสัญญา",
+        "tags": [
+          "contracts"
+        ],
+        "x-permission": [
+          "legal.contract.manage"
+        ]
+      }
+    },
     "/api/v1/opportunities/{id}/handover": {
       "get": {
         "description": "`editable` = ดีลชนะแล้วและยังไม่ได้ส่ง (หรือถูกตีกลับ) · `items` = รายการตรวจปัจจุบันรวมคำตอบที่บันทึกไว้",
@@ -14397,6 +14909,93 @@
         "required": [
           "into",
           "reason"
+        ]
+      },
+      "SaveLegalContractDto": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "standard",
+              "nda",
+              "msa",
+              "other"
+            ]
+          },
+          "contract_no": {
+            "type": "string",
+            "example": "CTR-2569-0042",
+            "maxLength": 60
+          },
+          "title": {
+            "type": "string",
+            "example": "NDA โครงการระบบกล้อง",
+            "maxLength": 255
+          },
+          "customer_id": {
+            "type": "object",
+            "description": "ลูกค้าในทะเบียน — หรือใช้ counterparty_name"
+          },
+          "counterparty_name": {
+            "type": "object",
+            "example": "บริษัท คู่ค้า จำกัด",
+            "maxLength": 255
+          },
+          "counterparty_tax_id": {
+            "type": "object",
+            "example": "0105561000001",
+            "pattern": "^\\d{13}$"
+          },
+          "start_on": {
+            "type": "object",
+            "example": "2026-01-01",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "end_on": {
+            "type": "string",
+            "example": "2027-12-31",
+            "format": "date-time"
+          },
+          "value": {
+            "type": "object",
+            "nullable": true,
+            "minimum": 0
+          },
+          "note": {
+            "type": "object",
+            "nullable": true,
+            "maxLength": 2000
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "cancelled"
+            ]
+          }
+        }
+      },
+      "ContractAccessDto": {
+        "type": "object",
+        "properties": {
+          "confidential": {
+            "type": "boolean"
+          },
+          "user_ids": {
+            "description": "ผู้ใช้ที่เปิดได้เพิ่มเติม",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "maxItems": 100
+          }
+        },
+        "required": [
+          "confidential",
+          "user_ids"
         ]
       },
       "HandoverAnswerDto": {

@@ -13,6 +13,14 @@ import { ActivityPhotosController } from './activity-photos.controller';
 import { ActivityPhotosService } from './activity-photos.service';
 import { CustomerApprovalController } from './customer-approval.controller';
 import { CustomerMergeController } from './customer-merge.controller';
+import { LegalContractsController } from './legal-contracts.controller';
+import { LegalContractsService } from './legal-contracts.service';
+import {
+  ContractAccessRepository,
+  ContractDocumentRepository,
+  CustomerContractRepository,
+} from './contract.repositories';
+import { CompanyMemberRepository } from '../access/company-member.repository';
 import { HandoversController } from './handovers.controller';
 import { KeeperController } from './keeper.controller';
 import { CustomerIntakeAdminController } from './customer-intake-admin.controller';
@@ -65,6 +73,7 @@ import {
     // CD-62 — screens only; see the controller.
     CustomerApprovalController,
     CustomerMergeController,
+    LegalContractsController,
     // CD-84 — screens only; see the controller for why it is not generated.
     HandoversController,
     // CD-86 — screens only; see the controller for why it is not generated.
@@ -74,6 +83,13 @@ import {
   ],
   providers: [
     ActivityPhotosService,
+    // CD-161 — the contract repository keeps files, so it lives beside the
+    // storage it needs, like the visit photos.
+    LegalContractsService,
+    CustomerContractRepository,
+    ContractDocumentRepository,
+    ContractAccessRepository,
+    CompanyMemberRepository,
     OpportunityRepository,
     OpportunityActivityRepository,
     OpportunityActivityPhotoRepository,

@@ -14,6 +14,7 @@ import { DOMAIN_EVENTS } from '../events/event-catalog';
 import { RequestRepository } from '../requests/request.repository';
 import { CustomerRepository } from './customer.repository';
 import { CustomerContractRepository } from './contract.repositories';
+import { contractVisibleWhere } from './contract-visibility';
 import { CustomerTimelineService } from './customer-timeline.service';
 import { OpportunityRepository } from './sales.repositories';
 import { CrmConfigRepository } from './segment.repositories';
@@ -82,7 +83,9 @@ export class ContractsService implements OnModuleInit {
   async list(customerId: string, actor: Principal) {
     await this.requireCustomer(customerId, actor);
     return this.contracts.findMany({
-      where: { customerId },
+      // CD-161 — a confidential contract is not listed to everyone who can
+      // read the customer.
+      where: { customerId, ...contractVisibleWhere(actor) },
       orderBy: [{ status: 'asc' }, { endOn: 'asc' }],
     });
   }
@@ -173,7 +176,7 @@ export class ContractsService implements OnModuleInit {
   ) {
     const customer = await this.requireCustomer(customerId, actor);
     const before = (await this.contracts.findFirst({
-      where: { id: contractId, customerId },
+      where: { id: contractId, customerId, ...contractVisibleWhere(actor) },
     })) as ({ endOn: Date; status: string } & Record<string, unknown>) | null;
     if (!before) throw new AppError('NOT_FOUND', 'ไม่พบสัญญาที่ระบุ');
 
@@ -205,9 +208,7 @@ export class ContractsService implements OnModuleInit {
               ? { note: dto.note?.trim() || null }
               : {}),
             ...(dto.status ? { status: dto.status } : {}),
-            ...(endChanged
-              ? { remindedDays: [], status: 'active' }
-              : {}),
+            ...(endChanged ? { remindedDays: [], status: 'active' } : {}),
             updatedBy: actor.userId,
           },
         },

@@ -48,6 +48,12 @@ const SHARE_SRC = path.resolve(REPO_ROOT, 'libs/share/src');
 const CORE_SRC = path.resolve(REPO_ROOT, 'services/core-service/src');
 
 const PRISMA_MODULES = /^(@prisma\/client|\.prisma\/client)(\/|$)/;
+/**
+ * CD-161 — `pdf-parse` loads its bundled pdf.js by a computed path, which
+ * webpack cannot follow; left to Node, it resolves from `node_modules` (the
+ * runner image installs production dependencies).
+ */
+const RUNTIME_MODULES = /^pdf-parse(\/|$)/;
 
 module.exports = (config) => {
   const existingExternals = Array.isArray(config.externals)
@@ -61,7 +67,10 @@ module.exports = (config) => {
     externals: [
       ...existingExternals,
       ({ request }, callback) => {
-        if (request && PRISMA_MODULES.test(request)) {
+        if (
+          request &&
+          (PRISMA_MODULES.test(request) || RUNTIME_MODULES.test(request))
+        ) {
           return callback(null, `commonjs ${request}`);
         }
         return callback();
