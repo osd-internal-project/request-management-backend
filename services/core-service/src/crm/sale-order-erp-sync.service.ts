@@ -104,6 +104,15 @@ export class SaleOrderErpSyncService implements OnModuleInit, OnModuleDestroy {
       await this.mark(saleOrderId, { erpStatus: 'not_ready' });
       return null;
     }
+    if (order.customer.approvalStatus !== 'approved') {
+      // CD-62 — held until the new customer is approved; the approval kicks
+      // this order again, so there is nothing to retry meanwhile.
+      await this.mark(saleOrderId, {
+        erpStatus: 'not_ready',
+        erpLastError: `รออนุมัติเปิดลูกค้า ${order.customer.customerCode} ก่อนส่งเข้า SAP`,
+      });
+      return null;
+    }
 
     const bp = (await this.externalCodes.findFirst({
       where: { customerId: order.customerId, system: ERP_SYSTEM },
@@ -276,7 +285,7 @@ export class SaleOrderErpSyncService implements OnModuleInit, OnModuleDestroy {
         cancelReason: true,
         customerId: true,
         erpOrderNo: true,
-        customer: { select: { customerCode: true } },
+        customer: { select: { customerCode: true, approvalStatus: true } },
         company: { select: { code: true } },
         lines: { orderBy: { lineNo: 'asc' } },
       },
@@ -315,7 +324,7 @@ interface SaleOrderForSync {
   cancelReason: string | null;
   customerId: string;
   erpOrderNo: string | null;
-  customer: { customerCode: string };
+  customer: { customerCode: string; approvalStatus: string };
   company: { code: string };
   lines: SaleOrderLineRow[];
 }

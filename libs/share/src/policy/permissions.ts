@@ -131,6 +131,15 @@ export const PERMISSIONS = {
    */
   integration: [
     'integration.request.create',
+    /**
+     * CD-66: a customer channel (the public web form's server side, AI CARE,
+     * the LINE connector) raising a request through a company's intake
+     * channel, and reading its status by the private token. Deliberately not
+     * `integration.request.create`: that scope also opens the routes that act
+     * as any user through `X-Acting-User`, which a key sitting behind a public
+     * form must never be able to do.
+     */
+    'integration.request.intake',
     'integration.approval.create',
     /**
      * The workflow engine reading the facts its Decision nodes test

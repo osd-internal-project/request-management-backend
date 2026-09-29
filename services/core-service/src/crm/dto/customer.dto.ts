@@ -547,6 +547,27 @@ export class UpdateKycProductDto {
   active?: boolean;
 }
 
+/** CD-62 — request type code per customer type; `""` = no approval. */
+export class CustomerApprovalTypesDto {
+  @ApiPropertyOptional({ example: 'NCA-CORP' })
+  @IsOptional()
+  @IsString()
+  @Matches(/^([A-Z0-9_-]{1,20})?$/)
+  corporate?: string;
+
+  @ApiPropertyOptional({ example: 'NCA-IND' })
+  @IsOptional()
+  @IsString()
+  @Matches(/^([A-Z0-9_-]{1,20})?$/)
+  individual?: string;
+
+  @ApiPropertyOptional({ example: 'NCA-GOV' })
+  @IsOptional()
+  @IsString()
+  @Matches(/^([A-Z0-9_-]{1,20})?$/)
+  government?: string;
+}
+
 /**
  * CM-02: รูปแบบรหัสลูกค้า (prefix / จำนวนหลัก) ไม่อยู่ที่นี่แล้ว — ตั้งที่
  * run-number-service (`run_number_settings`, docType `CUSTOMER`) ดู
@@ -576,6 +597,21 @@ export class UpdateCrmConfigDto {
   @Min(1)
   @Max(365)
   quotation_validity_days?: number;
+
+  /**
+   * CD-85 — ต้องทำ Discovery ครบก่อนเปิดดีลจาก Lead. workflow `lwf-0001`
+   * อ่านค่านี้จาก facts แล้วตัดสินเอง; หน้าจอเตือน.
+   */
+  @IsOptional()
+  @IsBoolean()
+  discovery_required?: boolean;
+
+  /** CD-86 — ไม่ได้ติดต่อลูกค้าเดิมเกินกี่วันจึงนับเป็นความเสี่ยง; 0 = ไม่ใช้. */
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(365)
+  health_no_contact_days?: number;
 
   // --- หัวกระดาษเอกสารขาย (ใบเสนอราคา PDF) — "" = ล้างค่า -----------------
 
@@ -685,6 +721,25 @@ export class UpdateCrmConfigDto {
   @Min(1)
   @Max(120)
   kyc_review_months_low?: number;
+
+  /**
+   * CD-84: ทีมที่รับงานต่อจากฝ่ายขายโดยปริยาย (org unit id). ส่ง `""` = ล้าง
+   * (ผู้ขายต้องเลือกทีมเองตอนส่งมอบ).
+   */
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  handover_org_unit_id?: string;
+
+  /**
+   * CD-62: ประเภทคำขออนุมัติเปิดลูกค้าใหม่ ต่อประเภทลูกค้า. ค่าว่าง/ไม่ส่ง = ลูกค้า
+   * ประเภทนั้นไม่ต้องขออนุมัติ. ส่งทั้งก้อนแทนของเดิม.
+   */
+  @ApiPropertyOptional({ type: () => CustomerApprovalTypesDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => CustomerApprovalTypesDto)
+  customer_approval_types?: CustomerApprovalTypesDto;
 }
 
 /** CD-70 — a contract entered by hand, or edited. */

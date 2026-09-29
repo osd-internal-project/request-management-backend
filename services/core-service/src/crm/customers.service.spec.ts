@@ -93,6 +93,7 @@ interface Harness {
   /** C360-04 — the โอกาสการขาย count, same. */
   opportunityCount: jest.Mock;
   erpKicks: string[];
+  approvalsRaised: string[];
 }
 
 function harness(options: {
@@ -105,6 +106,8 @@ function harness(options: {
   erpPayload?: Record<string, unknown>;
   /** CM-01 field-history rows the history read returns. */
   history?: Record<string, unknown>[];
+  /** CD-62 — the approval type configured for the customer's type. */
+  approvalType?: string | null;
 }): Harness {
   const audits: Harness['audits'] = [];
   const timelineEvents: Harness['timelineEvents'] = [];
@@ -131,6 +134,7 @@ function harness(options: {
   );
   const opportunityCount = jest.fn(() => Promise.resolve(0));
   const erpKicks: string[] = [];
+  const approvalsRaised: string[] = [];
 
   const service = new CustomersService(
     customers as never,
@@ -237,6 +241,19 @@ function harness(options: {
         Promise.resolve({ contractRequestTypeCode: 'CTR' }),
       ),
     } as never,
+    {
+      typeFor: jest.fn(() => Promise.resolve(options.approvalType ?? null)),
+      raiseFor: jest.fn((customer: { id: string }, typeCode: string) => {
+        approvalsRaised.push(`${customer.id}:${typeCode}`);
+        return Promise.resolve({ id: 'req-nca' });
+      }),
+    } as never,
+    // CD-67 — contracts a case may be raised against
+    {
+      findMany: jest.fn(() =>
+        Promise.resolve([{ id: 'ctr-1', contractNo: 'CTR-2569-0001' }]),
+      ),
+    } as never,
   );
 
   return {
@@ -250,6 +267,7 @@ function harness(options: {
     erpLookup,
     opportunityCount,
     erpKicks,
+    approvalsRaised,
   };
 }
 
@@ -466,6 +484,36 @@ describe('CM-04 lifecycle through the service', () => {
   });
 });
 
+describe('CD-62 new customers wait for approval before SAP', () => {
+  it('CD-62: a type the company approves first → created pending, a draft request raised, nothing sent to SAP', async () => {
+    const h = harness({ approvalType: 'NCA-CORP' });
+    await h.service.create(createDto(), principal());
+
+    const data = (
+      h.customers.create.mock.calls[0] as unknown as [
+        { data: Record<string, unknown> },
+      ]
+    )[0].data;
+    expect(data.approvalStatus).toBe('pending');
+    expect(h.approvalsRaised).toEqual(['cust-1:NCA-CORP']);
+    expect(h.erpKicks).toEqual([]);
+  });
+
+  it('no approval type for the customer type → approved and sent to SAP as before', async () => {
+    const h = harness({ approvalType: null });
+    await h.service.create(createDto(), principal());
+
+    const data = (
+      h.customers.create.mock.calls[0] as unknown as [
+        { data: Record<string, unknown> },
+      ]
+    )[0].data;
+    expect(data.approvalStatus).toBe('approved');
+    expect(h.approvalsRaised).toEqual([]);
+    expect(h.erpKicks).toEqual(['cust-1']);
+  });
+});
+
 describe('C360-03 timeline publishing', () => {
   it('create publishes customer.created through the central interface', async () => {
     const { service, timelineEvents } = harness({});
@@ -521,6 +569,11 @@ describe('C360-01 summary — ตัวเลขการ์ดหน้า 360�
         {
           OR: [
             { refType: 'customer', refId: 'cust-1' },
+            // CD-67 — a case raised against one of its contracts
+            {
+              refType: 'contract',
+              refId: { in: ['CTR-2569-0001', 'ctr-1'] },
+            },
             {
               refType: 'opportunity',
               refId: { in: ['OPP-OSD-0001', 'opp-1'] },

@@ -1,3 +1,4 @@
+import { CustomerContractRepository } from './contract.repositories';
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { RequestRepository } from '../requests/request.repository';
 import { DomainEventsService } from '../events/domain-events.service';
@@ -53,6 +54,7 @@ export class RequestTimelineSyncService implements OnModuleInit {
     private readonly opportunities: OpportunityRepository,
     private readonly quotations: QuotationRepository,
     private readonly timeline: CustomerTimelineService,
+    private readonly contracts: CustomerContractRepository,
   ) {}
 
   onModuleInit(): void {
@@ -112,7 +114,8 @@ export class RequestTimelineSyncService implements OnModuleInit {
 
   /**
    * The customer a request is about. Refs are what each screen sends:
-   * `customer` by id, `opportunity` by its OPP code, `quotation` by id — a
+   * `customer` by id, `opportunity` by its OPP code, `quotation` by id,
+   * `contract` by its number (CD-67) — a
    * prospect with no customer yet has no timeline to write to.
    */
   private async customerOf(request: RequestRow): Promise<string | null> {
@@ -142,6 +145,17 @@ export class RequestTimelineSyncService implements OnModuleInit {
           opportunity: { customerId: string | null };
         } | null;
         return found?.customerId ?? found?.opportunity.customerId ?? null;
+      }
+      case 'contract': {
+        // CD-67 — a case raised against a contract, by its number or id
+        const found = (await this.contracts.findFirst({
+          where: {
+            companyId: request.companyId,
+            OR: [{ contractNo: ref }, { id: ref }],
+          },
+          select: { customerId: true },
+        })) as { customerId: string } | null;
+        return found?.customerId ?? null;
       }
       default:
         return null;

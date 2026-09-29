@@ -66,6 +66,16 @@ import {
   CampaignRepository,
 } from './sales.repositories';
 import { CampaignsService } from './campaigns.service';
+import { TargetAccountsService } from './target-accounts.service';
+import { KeeperService } from './keeper.service';
+import { CustomerIntakeService } from './customer-intake.service';
+import { RequestIntakeChannelRepository } from './customer-intake.repository';
+import { AccountReviewReminderService } from './account-review-reminder.service';
+import {
+  CustomerAccountPlanRepository,
+  CustomerTouchpointRepository,
+} from './keeper.repositories';
+import { TargetAccountRepository } from './target-accounts.repository';
 import { CustomerInvoicesService } from './customer-invoices.service';
 import { RequestTimelineSyncService } from './request-timeline-sync.service';
 import { QuotationsService } from './quotations.service';
@@ -76,6 +86,13 @@ import { LeadStatusService } from './lead-status.service';
 import { OpportunitiesService } from './opportunities.service';
 import { OpportunityActivitiesService } from './opportunity-activities.service';
 import { NegotiationsService } from './negotiations.service';
+import { CustomerApprovalService } from './customer-approval.service';
+import { RequestTypeRepository } from '../requests/request-type.repository';
+import { HandoversService } from './handovers.service';
+import {
+  HandoverChecklistItemRepository,
+  SalesHandoverRepository,
+} from './handover.repositories';
 import { SalesReportService } from './sales-report.service';
 import { CrmDashboardService } from './crm-dashboard.service';
 import { SalesTargetsService } from './sales-targets.service';
@@ -136,6 +153,9 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     KycExpiryService,
     KycWatchlistRepository,
     CustomerKycRecordRepository,
+    // CD-62
+    CustomerApprovalService,
+    RequestTypeRepository,
     // CD-70
     ContractsService,
     ContractRenewalService,
@@ -166,6 +186,10 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     NegotiationRoundRepository,
     TradeTermStandardRepository,
     NegotiationsService,
+    // CD-84
+    HandoversService,
+    HandoverChecklistItemRepository,
+    SalesHandoverRepository,
     SalesReportService,
     CrmDashboardService,
     SalesTargetsService,
@@ -174,6 +198,14 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     SalesTargetRevisionRepository,
     CampaignRepository,
     CampaignsService,
+    TargetAccountsService,
+    TargetAccountRepository,
+    KeeperService,
+    CustomerIntakeService,
+    RequestIntakeChannelRepository,
+    AccountReviewReminderService,
+    CustomerAccountPlanRepository,
+    CustomerTouchpointRepository,
     CustomerInvoicesService,
     RequestTimelineSyncService,
     OpportunityStaleMonitorService,
@@ -204,12 +236,17 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     OpportunitiesService,
     OpportunityActivitiesService,
     NegotiationsService,
+    HandoversService,
     KycService,
+    CustomerApprovalService,
     ContractsService,
     SalesReportService,
     CrmDashboardService,
     SalesTargetsService,
     CampaignsService,
+    TargetAccountsService,
+    KeeperService,
+    CustomerIntakeService,
     CustomerInvoicesService,
     SaleOrdersService,
     QuotationsService,

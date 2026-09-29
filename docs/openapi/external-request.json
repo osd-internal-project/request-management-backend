@@ -1358,6 +1358,208 @@
           "integration.request.create"
         ]
       }
+    },
+    "/api/v1/request/intake/web-forms/{slug}": {
+      "get": {
+        "description": "key ที่ผูกบริษัทไว้เปิดได้เฉพาะฟอร์มของบริษัทนั้น · ฟอร์มที่ปิดอยู่ตอบ 404",
+        "operationId": "CustomerIntakeController_webForm",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แบบฟอร์มสาธารณะ: ข้อความและประเภทคำขอที่เปิดรับ (CD-66)",
+        "tags": [
+          "request"
+        ],
+        "x-permission": [
+          "integration.request.intake"
+        ]
+      },
+      "post": {
+        "description": "ยื่นทันที — ตอบเลขคำขอกับ status_token (แสดงครั้งเดียว ใช้เปิดลิงก์ติดตามสถานะ)",
+        "operationId": "CustomerIntakeController_submitWebForm",
+        "parameters": [
+          {
+            "name": "slug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IntakeSubmissionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ลูกค้ายื่นคำขอผ่านแบบฟอร์มสาธารณะ (CD-66)",
+        "tags": [
+          "request"
+        ],
+        "x-permission": [
+          "integration.request.intake"
+        ]
+      }
+    },
+    "/api/v1/request/intake/channels/{channel}": {
+      "post": {
+        "description": "บริษัท = บริษัทของ key (หรือ X-Company-Id สำหรับ key ที่ไม่ผูกบริษัท) · ช่องทางต้องเปิดอยู่",
+        "operationId": "CustomerIntakeController_submitChannel",
+        "parameters": [
+          {
+            "name": "channel",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IntakeSubmissionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ช่องทางอื่น (เช่น AI CARE) ยื่นคำขอแทนลูกค้า (CD-66)",
+        "tags": [
+          "request"
+        ],
+        "x-permission": [
+          "integration.request.intake"
+        ]
+      }
+    },
+    "/api/v1/request/intake/status/{token}": {
+      "get": {
+        "description": "เลข ประเภท สถานะ และกำหนดเสร็จ — ไม่มีบันทึกภายในหรือชื่อพนักงาน",
+        "operationId": "CustomerIntakeController_status",
+        "parameters": [
+          {
+            "name": "token",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "สถานะคำขอตามลิงก์ติดตามของลูกค้า (CD-66)",
+        "tags": [
+          "request"
+        ],
+        "x-permission": [
+          "integration.request.intake"
+        ]
+      }
     }
   },
   "info": {
@@ -2633,6 +2835,61 @@
           "total",
           "page",
           "page_size"
+        ]
+      },
+      "IntakeContactDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "คุณสมชาย ใจดี"
+          },
+          "email": {
+            "type": "string",
+            "example": "somchai@example.com"
+          },
+          "phone": {
+            "type": "string",
+            "example": "0812345678"
+          },
+          "company": {
+            "type": "string",
+            "example": "บริษัท ตัวอย่าง จำกัด"
+          },
+          "tax_id": {
+            "type": "string",
+            "example": "0105551234567",
+            "description": "เลขผู้เสียภาษี — ใช้จับคู่กับลูกค้าในทะเบียน"
+          },
+          "line_user_id": {
+            "type": "string",
+            "example": "U4af4980629..."
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "IntakeSubmissionDto": {
+        "type": "object",
+        "properties": {
+          "type_code": {
+            "type": "string",
+            "example": "IT-SUPPORT",
+            "description": "ประเภทที่ช่องทางนี้เปิดให้",
+            "minLength": 1
+          },
+          "form_data": {
+            "type": "object",
+            "description": "ค่าตามฟอร์มของประเภทคำขอ"
+          },
+          "contact": {
+            "$ref": "#/components/schemas/IntakeContactDto"
+          }
+        },
+        "required": [
+          "contact",
+          "type_code"
         ]
       }
     }

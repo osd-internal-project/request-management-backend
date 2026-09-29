@@ -623,6 +623,68 @@ async function seedTradeTerms(companyId: string) {
 }
 
 /**
+ * CD-84 — a starting handover checklist for the demo company, only when it
+ * has none (an admin's own list is never overwritten).
+ */
+async function seedHandoverItems(companyId: string) {
+  const existing = await prisma.handoverChecklistItem.count({
+    where: { companyId },
+  });
+  if (existing) {
+    console.log('  handover checklist: already present, left alone');
+    return;
+  }
+  const items = [
+    {
+      code: 'PRICE_MATCH',
+      category: 'commercial' as const,
+      label: 'ราคาและรายการในใบสั่งขายตรงกับใบเสนอราคาที่ลูกค้าตอบรับ',
+      requiresDetail: false,
+    },
+    {
+      code: 'PAYMENT_TERMS',
+      category: 'commercial' as const,
+      label: 'เงื่อนไขการชำระเงินและงวดเงิน',
+      requiresDetail: true,
+    },
+    {
+      code: 'SCOPE',
+      category: 'requirement' as const,
+      label: 'ขอบเขตงานและความต้องการของลูกค้า',
+      requiresDetail: true,
+    },
+    {
+      code: 'SITE_CONTACT',
+      category: 'requirement' as const,
+      label: 'ผู้ติดต่อหน้างานและสถานที่ส่งมอบ',
+      requiresDetail: true,
+    },
+    {
+      code: 'PROMISED_DATES',
+      category: 'commitment' as const,
+      label: 'กำหนดส่งมอบ/ติดตั้งที่แจ้งลูกค้าไว้',
+      requiresDetail: true,
+    },
+    {
+      code: 'EXTRAS',
+      category: 'commitment' as const,
+      label:
+        'ของแถม ส่วนลด หรือสิ่งที่รับปากนอกใบเสนอราคา (ไม่มีให้ระบุว่า "ไม่มี")',
+      requiresDetail: true,
+    },
+  ];
+  await prisma.handoverChecklistItem.createMany({
+    data: items.map((item, index) => ({
+      ...item,
+      companyId,
+      sortOrder: index,
+      updatedBy: 'seed',
+    })),
+  });
+  console.log(`  handover checklist: ${items.length}`);
+}
+
+/**
  * CD-81 — points the demo company's contract card at `CTR`. Only when unset,
  * so an admin's own choice survives a re-seed.
  */
@@ -846,6 +908,91 @@ async function seedRequestTypes(
       approvalPolicy: {},
       slaHours: 48,
     },
+    // CD-62 — อนุมัติเปิดลูกค้าใหม่ ต่อประเภทลูกค้า (เอกสารบังคับต่างกัน). ยังไม่เปิดใช้
+    // จนกว่าผู้ดูแลเลือกประเภทเหล่านี้ในหน้าตั้งค่า CRM; ลูกค้าใหม่ส่ง SAP ได้เมื่อคำขอ
+    // ได้รับอนุมัติ (CustomerApprovalService).
+    ...(
+      [
+        {
+          code: 'NCA-CORP',
+          name: 'อนุมัติเปิดลูกค้าใหม่ (นิติบุคคล)',
+          docs: [
+            {
+              code: 'COMPANY_CERT',
+              name: 'หนังสือรับรองบริษัท (ไม่เกิน 3 เดือน)',
+            },
+            { code: 'VAT20', name: 'ภ.พ.20' },
+            { code: 'AUTH_ID', name: 'สำเนาบัตรประชาชนผู้มีอำนาจลงนาม' },
+          ],
+        },
+        {
+          code: 'NCA-IND',
+          name: 'อนุมัติเปิดลูกค้าใหม่ (บุคคลธรรมดา)',
+          docs: [
+            { code: 'ID_CARD', name: 'สำเนาบัตรประชาชน' },
+            { code: 'HOUSE_REG', name: 'สำเนาทะเบียนบ้าน' },
+          ],
+        },
+        {
+          code: 'NCA-GOV',
+          name: 'อนุมัติเปิดลูกค้าใหม่ (หน่วยงานรัฐ)',
+          docs: [
+            {
+              code: 'GOV_LETTER',
+              name: 'หนังสือแจ้งจัดซื้อ/จัดจ้าง หรือหนังสือแต่งตั้ง',
+            },
+            {
+              code: 'TAX_ID_DOC',
+              name: 'เอกสารเลขประจำตัวผู้เสียภาษีของหน่วยงาน',
+            },
+          ],
+        },
+      ] as const
+    ).map((nca) => ({
+      code: nca.code,
+      name: nca.name,
+      receiverOrgUnitId: osdRoot?.id ?? null,
+      formSchema: {
+        type: 'object',
+        required: ['customer_code', 'customer_name'],
+        properties: {
+          customer_code: { type: 'string', title: 'รหัสลูกค้า', 'x-order': 10 },
+          customer_name: { type: 'string', title: 'ชื่อลูกค้า', 'x-order': 20 },
+          customer_type: {
+            type: 'string',
+            title: 'ประเภทลูกค้า',
+            'x-order': 30,
+          },
+          tax_id: {
+            type: 'string',
+            title: 'เลขประจำตัวผู้เสียภาษี',
+            'x-order': 40,
+          },
+          credit_request: {
+            type: 'string',
+            title: 'วงเงิน/เครดิตที่ขอ (ถ้ามี)',
+            maxLength: 500,
+            'x-order': 50,
+          },
+          note: {
+            type: 'string',
+            title: 'หมายเหตุ',
+            maxLength: 2000,
+            'x-multiline': true,
+            'x-order': 60,
+          },
+        },
+      },
+      requiredDocs: nca.docs.map((doc) => ({ ...doc })),
+      returnReasonCodes: [
+        { code: 'DOC_INCOMPLETE', name: 'เอกสารไม่ครบ' },
+        { code: 'DOC_EXPIRED', name: 'เอกสารหมดอายุ' },
+        { code: 'INFO_MISMATCH', name: 'ข้อมูลลูกค้าไม่ตรงเอกสาร' },
+        { code: 'OTHER', name: 'อื่น ๆ' },
+      ],
+      approvalPolicy: {},
+      slaHours: 24,
+    })),
     {
       code: 'LEAD',
       name: 'ส่งต่อโอกาสการขาย',
@@ -1108,6 +1255,7 @@ async function main() {
   await seedRequestTypes(demo.id, companies);
   await seedContractRequestType(demo.id);
   await seedTradeTerms(demo.id);
+  await seedHandoverItems(demo.id);
   await seedApprovalMatrix(demo.id);
 
   console.log('Done.');

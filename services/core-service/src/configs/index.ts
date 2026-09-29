@@ -133,6 +133,10 @@ export default () => ({
       process.env.CRM_CONTRACT_RENEWAL_INTERVAL_MS ?? 3600000,
     ),
     /** CD-53 — overdue SAP invoices; a pass runs once a Bangkok day (ms); 0 = off. */
+    /** CD-86 — account review reminders (ms); 0 = off. */
+    accountReviewIntervalMs: Number(
+      process.env.CRM_ACCOUNT_REVIEW_INTERVAL_MS ?? 3600000,
+    ),
     invoiceOverdueIntervalMs: Number(
       process.env.CRM_INVOICE_OVERDUE_INTERVAL_MS ?? 3600000,
     ),
@@ -140,6 +144,21 @@ export default () => ({
   /** CD-52 — how often due daily digests are looked for (ms); 0 = off (tests). */
   notificationDigestIntervalMs: Number(
     process.env.NOTIFICATION_DIGEST_INTERVAL_MS ?? 300000,
+  ),
+
+  /**
+   * CD-90 — the Data Lake: a separate PostgreSQL warehouse database. Unset =
+   * no lake, nothing runs. Changed rows every hour, SAP invoices daily.
+   */
+  lake: {
+    databaseUrl: process.env.LAKE_DATABASE_URL ?? '',
+    extractIntervalMs: Number(process.env.LAKE_EXTRACT_INTERVAL_MS ?? 3600000),
+    sapIntervalMs: Number(process.env.LAKE_SAP_INTERVAL_MS ?? 86400000),
+  },
+
+  /** CD-91 — how often the Data Mart is rebuilt (ms); 0 = off (tests). */
+  martRefreshIntervalMs: Number(
+    process.env.MART_REFRESH_INTERVAL_MS ?? 3600000,
   ),
 
   /** CM-05/D-35 — the PDPA integration layer; mock until the central

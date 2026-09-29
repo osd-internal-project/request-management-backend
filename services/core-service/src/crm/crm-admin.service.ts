@@ -25,6 +25,7 @@ import {
 } from './dto/customer.dto';
 import { KycProductRuleRepository } from './kyc-product.repository';
 import { ProductCatalogService } from './product-catalog.service';
+import { CustomerApprovalService } from './customer-approval.service';
 
 /**
  * CM-07 + CM-02/03 configuration — the admin surface behind
@@ -43,6 +44,7 @@ export class CrmAdminService {
     private readonly transactions: PrismaTransactionService,
     private readonly kycProducts: KycProductRuleRepository,
     private readonly catalog: ProductCatalogService,
+    private readonly approval: CustomerApprovalService,
   ) {}
 
   // --- segmentation (CM-07) ------------------------------------------------
@@ -203,16 +205,28 @@ export class CrmAdminService {
         quotationApprovalTypeCode: 'DSC',
         targetApprovalTypeCode: null,
         contractRequestTypeCode: null,
+        handoverOrgUnitId: null,
+        customerApprovalTypes: {},
         kycReviewMonthsHigh: 12,
         kycReviewMonthsMedium: 24,
         kycReviewMonthsLow: 36,
         staleOpportunityDays: 14,
+        discoveryRequired: false,
+        healthNoContactDays: 60,
         ...EMPTY_LETTERHEAD,
       }
     );
   }
 
   async updateConfig(dto: UpdateCrmConfigDto, actor: Principal) {
+    // CD-62 — checked before anything is written; `undefined` = untouched.
+    const approvalTypes =
+      dto.customer_approval_types === undefined
+        ? undefined
+        : await this.approval.assertUsableTypes(
+            actor.activeCompanyId,
+            dto.customer_approval_types,
+          );
     return this.audited(
       actor,
       'crm.config.updated',
@@ -230,9 +244,13 @@ export class CrmAdminService {
                 dto.quotation_approval_type_code ?? 'DSC',
               targetApprovalTypeCode: dto.target_approval_type_code || null,
               contractRequestTypeCode: dto.contract_request_type_code || null,
+              handoverOrgUnitId: dto.handover_org_unit_id || null,
+              customerApprovalTypes: approvalTypes ?? {},
               kycReviewMonthsHigh: dto.kyc_review_months_high ?? 12,
               kycReviewMonthsMedium: dto.kyc_review_months_medium ?? 24,
               kycReviewMonthsLow: dto.kyc_review_months_low ?? 36,
+              discoveryRequired: dto.discovery_required ?? false,
+              healthNoContactDays: dto.health_no_contact_days ?? 60,
               ...letterheadColumns(dto),
               updatedBy: actor.userId,
             },
@@ -250,9 +268,16 @@ export class CrmAdminService {
                 dto.contract_request_type_code === undefined
                   ? undefined
                   : dto.contract_request_type_code || null,
+              handoverOrgUnitId:
+                dto.handover_org_unit_id === undefined
+                  ? undefined
+                  : dto.handover_org_unit_id || null,
+              customerApprovalTypes: approvalTypes,
               kycReviewMonthsHigh: dto.kyc_review_months_high,
               kycReviewMonthsMedium: dto.kyc_review_months_medium,
               kycReviewMonthsLow: dto.kyc_review_months_low,
+              discoveryRequired: dto.discovery_required,
+              healthNoContactDays: dto.health_no_contact_days,
               ...letterheadColumns(dto),
               updatedBy: actor.userId,
             },

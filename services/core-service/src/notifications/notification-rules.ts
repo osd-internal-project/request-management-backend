@@ -116,6 +116,25 @@ export const NOTIFICATION_RULES: readonly RuleDefinition[] = [
     defaults: { warn_days: 30 },
   },
   {
+    code: 'customer.review',
+    module: 'crm',
+    label: 'ถึงรอบทบทวนลูกค้าเดิม',
+    description:
+      'เตือนผู้ดูแลลูกค้าก่อนถึงรอบทบทวนตามแผนบัญชี (Keeper) — ทบทวนแล้วรอบถัดไปเลื่อนให้เอง',
+    recipients: 'ผู้ดูแลลูกค้า (account owner)',
+    eventTypes: ['crm.account.review_due'],
+    params: [
+      {
+        key: 'warn_days',
+        label: 'เตือนล่วงหน้า (วัน)',
+        kind: 'days',
+        min: 0,
+        max: 60,
+      },
+    ],
+    defaults: { warn_days: 7 },
+  },
+  {
     code: 'opportunity.stale',
     module: 'crm',
     label: 'ดีลเงียบ',

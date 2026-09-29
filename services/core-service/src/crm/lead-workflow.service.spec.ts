@@ -42,6 +42,9 @@ function harness(
     lead?: Record<string, unknown> | null;
     completed?: number;
     pending?: number;
+    /** CD-85 — completed contacts (call/email/meeting/visit/line/social). */
+    contacts?: number;
+    discoveryRequired?: boolean;
     rows?: LeadStatusRow[];
   } = {},
 ) {
@@ -97,12 +100,15 @@ function harness(
     }),
   };
   const activities = {
-    count: jest.fn((args: { where: { completedAt: unknown } }) =>
-      Promise.resolve(
-        args.where.completedAt === null
-          ? (options.pending ?? 2)
-          : (options.completed ?? 1),
-      ),
+    count: jest.fn(
+      (args: { where: { completedAt: unknown; type?: unknown } }) =>
+        Promise.resolve(
+          args.where.type
+            ? (options.contacts ?? 0)
+            : args.where.completedAt === null
+              ? (options.pending ?? 2)
+              : (options.completed ?? 1),
+        ),
     ),
   };
   const statuses = {
@@ -130,6 +136,15 @@ function harness(
     activities as never,
     statuses as never,
     audit as never,
+    {
+      findFirst: jest.fn(() =>
+        Promise.resolve(
+          options.discoveryRequired === undefined
+            ? null
+            : { discoveryRequired: options.discoveryRequired },
+        ),
+      ),
+    } as never,
   );
 
   return {
@@ -158,6 +173,40 @@ describe('LeadWorkflowService — หน้าต่างที่ workflow eng
     });
     expect(activities.count).toHaveBeenCalledWith({
       where: { leadId: 'lead-1', completedAt: { not: null } },
+    });
+  });
+
+  it('CD-85 facts: Discovery ครบไหม ขาดอะไร บริษัทต้องการไหม และจำนวนครั้งที่ติดต่อ — workflow ตัดสินเอง', async () => {
+    const empty = harness({ contacts: 2, discoveryRequired: true });
+    await expect(empty.service.facts('lead-1', robot())).resolves.toMatchObject(
+      {
+        contact_attempt_count: 2,
+        discovery_complete: false,
+        discovery_missing: ['need', 'budget', 'decision_maker', 'timeframe'],
+        discovery_required: true,
+      },
+    );
+
+    const done = harness({
+      lead: {
+        id: 'lead-1',
+        companyId: 'osd',
+        name: 'x',
+        status: 'contacted',
+        ownerUserId: 'sales-1',
+        convertedOpportunityId: null,
+        discoveryNeed: 'ระบบโทรศัพท์เก่า',
+        discoveryBudget: null,
+        discoveryBudgetNote: 'ไม่เปิดเผย อยู่ในงบปีหน้า',
+        discoveryDecisionMaker: 'ผอ. ไอที',
+        discoveryTimeframe: new Date('2026-12-31T00:00:00Z'),
+      },
+    });
+    await expect(done.service.facts('lead-1', robot())).resolves.toMatchObject({
+      discovery_complete: true,
+      discovery_missing: [],
+      // no CRM config row = the standard: not required
+      discovery_required: false,
     });
   });
 

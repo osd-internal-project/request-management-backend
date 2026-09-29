@@ -41,6 +41,15 @@ export class CreateBiDashboardDto {
   @IsArray()
   @IsString({ each: true })
   org_unit_ids?: string[];
+
+  /**
+   * CD-92 — show only the viewer's company: the embed is signed with a
+   * locked `company` parameter, which the Metabase dashboard must declare.
+   */
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  lock_company?: boolean;
 }
 
 export class UpdateBiDashboardDto {
@@ -75,4 +84,13 @@ export class UpdateBiDashboardDto {
   @IsArray()
   @IsString({ each: true })
   org_unit_ids?: string[];
+
+  /**
+   * CD-92 — show only the viewer's company: the embed is signed with a
+   * locked `company` parameter, which the Metabase dashboard must declare.
+   */
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  lock_company?: boolean;
 }

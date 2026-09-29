@@ -478,6 +478,27 @@ export class NotificationsService {
     });
   }
 
+  /** CD-86 — a customer's account review is due (the `customer.review` rule). */
+  async accountReviewDue(
+    userId: string,
+    companyId: string,
+    customer: { id: string; customerCode: string; nameTh: string },
+    reviewOn: string,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'crm.account.review_due',
+      values: {
+        customer_code: customer.customerCode,
+        customer_name: customer.nameTh,
+        review_on: reviewOn,
+      },
+      resourceType: 'customer',
+      resourceId: customer.id,
+    });
+  }
+
   /** CD-53 — an open SAP invoice has passed one of the rule's overdue steps. */
   async invoiceOverdue(
     userId: string,
@@ -551,6 +572,34 @@ export class NotificationsService {
       },
       resourceType: 'customer',
       resourceId: customer.id,
+    });
+  }
+
+  /**
+   * CD-84 — a won deal's handover: sent (to the receiving team's head),
+   * accepted or returned (to the deal's owner and whoever sent it).
+   */
+  async handoverChanged(
+    userIds: readonly (string | null)[],
+    companyId: string,
+    event: 'submitted' | 'accepted' | 'returned',
+    handover: { id: string },
+    values: {
+      opportunity_code: string;
+      opportunity_title: string;
+      customer_name: string;
+      team_name: string;
+      sender_name: string;
+      actor_name: string;
+      reason?: string;
+    },
+  ): Promise<void> {
+    await this.emitTo(userIds, {
+      companyId,
+      eventType: `crm.handover.${event}`,
+      values: { ...values, reason: values.reason ?? '' },
+      resourceType: 'sales_handover',
+      resourceId: handover.id,
     });
   }
 

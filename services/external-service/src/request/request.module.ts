@@ -2,12 +2,15 @@ import { Module } from '@nestjs/common';
 import {
   AccessModule,
   ApprovalsModule,
+  CrmModule,
   PrincipalModule,
   RequestsModule,
 } from '@request-management/core-service';
 import { AuthModule } from '../auth/auth.module';
 import { RequestController } from './request.controller';
 import { RequestIntakeController } from './request-intake.controller';
+import { CustomerIntakeController } from './customer-intake.controller';
+import { LineConnectorController } from './line-connector.controller';
 import { RequestApiService } from './request.service';
 
 /**
@@ -34,8 +37,15 @@ import { RequestApiService } from './request.service';
     AccessModule,
     PrincipalModule,
     AuthModule,
+    // CD-66 — CustomerIntakeService (customer channels)
+    CrmModule,
   ],
-  controllers: [RequestController, RequestIntakeController],
+  controllers: [
+    RequestController,
+    RequestIntakeController,
+    CustomerIntakeController,
+    LineConnectorController,
+  ],
   providers: [RequestApiService],
   /*
     Exported for `McpModule`, which serves the same calls over JSON-RPC. The

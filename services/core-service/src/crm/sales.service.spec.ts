@@ -123,7 +123,7 @@ function opportunityHarness(
     } as never,
   );
 
-  return { service, opportunities, audits, timelineEvents, lostReasons };
+  return { service, opportunities, audits, timelineEvents, lostReasons, codes };
 }
 
 describe('CRM โอกาสการขาย — ปิดชนะ/แพ้ และคำเตือน KYC ระดับ product', () => {
@@ -198,6 +198,30 @@ describe('CRM โอกาสการขาย — ปิดชนะ/แพ้
     await expect(
       unset.service.findOne('opportunity-1', principal()),
     ).resolves.toMatchObject({ contractRequestTypeCode: null });
+  });
+
+  it('CD-86 deal type: upsell/cross-sell need an existing customer; default is new business', async () => {
+    const { service, opportunities, codes } = opportunityHarness();
+    await expect(
+      service.create(
+        { prospect_name: 'ผู้มุ่งหวัง', title: 'x', deal_type: 'upsell' },
+        principal(),
+      ),
+    ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+    // refused before a document number is spent
+    expect(codes.issueUnused).not.toHaveBeenCalled();
+
+    await service.create(
+      { customer_id: 'cust-1', title: 'ขยายสาขา', deal_type: 'cross_sell' },
+      principal(),
+    );
+    await service.create({ customer_id: 'cust-1', title: 'y' }, principal());
+    const types = (
+      opportunities.create.mock.calls as unknown as [
+        { data: { dealType: string } },
+      ][]
+    ).map(([args]) => args.data.dealType);
+    expect(types).toEqual(['cross_sell', 'new_business']);
   });
 
   it('SCOPE-03 โอกาสการขายนอกขอบเขต = 404', async () => {
@@ -309,6 +333,8 @@ describe('CRM Lead — แปลงเป็นโอกาสการขาย
       statuses as never,
       workflowSync as never,
       { resolveCode: jest.fn(() => Promise.resolve(undefined)) } as never,
+      { findFirst: jest.fn(() => Promise.resolve(null)) } as never,
+      { updateMany: jest.fn(() => Promise.resolve({ count: 0 })) } as never,
     );
 
     return { service, leads, opportunities, activities, audits, workflowSync };

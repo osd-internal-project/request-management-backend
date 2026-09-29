@@ -32,6 +32,16 @@ describe('CD-92: Metabase signed embedding', () => {
     expect(signature).toBe(expected);
   });
 
+  it('CD-92: locked parameters travel inside the signed payload', () => {
+    const [, payload] = signMetabaseToken(SECRET, 9, 600, {
+      company: 'OSD',
+    }).split('.');
+    const body = JSON.parse(Buffer.from(payload, 'base64url').toString()) as {
+      params: unknown;
+    };
+    expect(body.params).toEqual({ company: 'OSD' });
+  });
+
   it('a different secret yields a different signature — no unsigned access', () => {
     const [h1, p1, s1] = signMetabaseToken(SECRET, 7).split('.');
     const s2 = createHmac('sha256', 'other-secret')

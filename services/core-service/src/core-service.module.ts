@@ -15,6 +15,7 @@ import { CoreServiceController } from './core-service.controller';
 import { CoreServiceService } from './core-service.service';
 import { ApprovalsHttpModule } from './approvals/approvals-http.module';
 import { BiModule } from './bi/bi.module';
+import { LakeModule } from './lake/lake.module';
 import { HealthModule } from './health/health.module';
 import { NotificationsHttpModule } from './notifications/notifications-http.module';
 import { PrincipalHttpModule } from './principal/principal-http.module';
@@ -62,6 +63,7 @@ import configs from './configs';
     SlaHttpModule,
     NotificationsHttpModule,
     BiModule,
+    LakeModule,
   ],
   controllers: [CoreServiceController],
   providers: [

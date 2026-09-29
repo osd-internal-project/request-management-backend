@@ -11,6 +11,8 @@ import { logger } from './logger.middleware';
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(
     ExternalServiceModule,
+    // CD-66 — the LINE connector verifies LINE's signature over the raw body.
+    { rawBody: true },
   );
 
   /*

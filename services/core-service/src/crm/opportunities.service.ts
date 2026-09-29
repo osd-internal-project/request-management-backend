@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import type { OpportunityStage, Prisma } from '@prisma/client';
+import type {
+  OpportunityDealType,
+  OpportunityStage,
+  Prisma,
+} from '@prisma/client';
 import {
   AppError,
   AuditWriter,
@@ -140,6 +144,7 @@ export class OpportunitiesService {
     if (query.stage) filters.stage = query.stage;
     if (query.open === 'true') filters.stage = { in: OPEN_STAGES };
     if (query.customer_id) filters.customerId = query.customer_id;
+    if (query.deal_type) filters.dealType = query.deal_type;
     if (query.view === 'mine') filters.ownerUserId = actor.userId;
     if (query.follow_up === 'overdue') {
       filters.nextFollowUpAt = { lt: new Date() };
@@ -272,6 +277,8 @@ export class OpportunitiesService {
     }
 
     const partyName = customer?.nameTh ?? prospect?.prospectName ?? '';
+    // CD-86 — before the number is issued, like every other check
+    const dealType = dealTypeFor(dto.deal_type, Boolean(customer));
 
     // CD-27: product ที่เกี่ยวข้องต้องเป็นรหัสที่ SAP รู้จัก — กฎเดียวกับบรรทัด
     // ใบเสนอราคา ไม่งั้นการเตือน KYC เทียบรหัสกันไม่ตรง
@@ -297,6 +304,7 @@ export class OpportunitiesService {
             companyId: actor.activeCompanyId,
             customerId: customer?.id ?? null,
             ...(prospect ?? {}),
+            dealType,
             title: dto.title.trim(),
             amount: dto.amount ?? null,
             probability: dto.probability ?? null,
@@ -385,6 +393,8 @@ export class OpportunitiesService {
             opportunityCode,
             companyId: input.companyId,
             customerId: input.customerId,
+            // CD-86 — a renewal is its own deal type, not a title prefix.
+            dealType: 'renewal',
             title: input.title,
             amount: input.amount,
             expectedCloseAt: input.expectedCloseAt,
@@ -450,6 +460,14 @@ export class OpportunitiesService {
           data: {
             ...(dto.title !== undefined ? { title: dto.title.trim() } : {}),
             ...(dto.stage !== undefined ? { stage: dto.stage } : {}),
+            ...(dto.deal_type !== undefined
+              ? {
+                  dealType: dealTypeFor(
+                    dto.deal_type,
+                    Boolean(found.customerId),
+                  ),
+                }
+              : {}),
             ...(dto.amount !== undefined ? { amount: dto.amount } : {}),
             ...(dto.probability !== undefined
               ? { probability: dto.probability }
@@ -658,4 +676,23 @@ interface OpenOpportunity {
 
 function dedupe(codes: string[] | undefined): string[] {
   return [...new Set((codes ?? []).map((code) => code.trim()).filter(Boolean))];
+}
+
+/**
+ * CD-86 — growing an account (upsell / cross-sell) needs an account: a deal
+ * for a prospect has no customer yet to sell *more* to.
+ */
+function dealTypeFor(
+  type: OpportunityDealType | undefined,
+  hasCustomer: boolean,
+): OpportunityDealType {
+  const chosen = type ?? 'new_business';
+  if ((chosen === 'upsell' || chosen === 'cross_sell') && !hasCustomer) {
+    throw new AppError(
+      'VALIDATION_FAILED',
+      'ขายเพิ่ม/ขายข้ามต้องเป็นดีลของลูกค้าในทะเบียน — เลือกลูกค้าก่อน',
+      [{ field: 'deal_type', reason: chosen }],
+    );
+  }
+  return chosen;
 }

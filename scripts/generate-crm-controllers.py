@@ -39,7 +39,8 @@ FILES = {
                                  ('opportunities', 'crm/opportunities'),
                                  ('sale-orders', 'crm/sale-orders'),
                                  ('sales-targets', 'crm/sales-targets'),
-                                 ('campaigns', 'crm/campaigns')],
+                                 ('campaigns', 'crm/campaigns'),
+                                 ('target-accounts', 'crm/target-accounts')],
 }
 
 HEADER = '''/**

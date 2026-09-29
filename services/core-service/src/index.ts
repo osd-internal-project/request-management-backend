@@ -55,12 +55,20 @@ export { LeadWorkflowService } from './crm/lead-workflow.service';
 export { OpportunitiesService } from './crm/opportunities.service';
 export { OpportunityActivitiesService } from './crm/opportunity-activities.service';
 export { NegotiationsService } from './crm/negotiations.service';
+export { HandoversService } from './crm/handovers.service';
 export { KycService } from './crm/kyc.service';
 export { ContractsService } from './crm/contracts.service';
 export { SalesReportService } from './crm/sales-report.service';
 export { CrmDashboardService } from './crm/crm-dashboard.service';
 export { SalesTargetsService } from './crm/sales-targets.service';
 export { CampaignsService } from './crm/campaigns.service';
+export { TargetAccountsService } from './crm/target-accounts.service';
+export { CustomerIntakeService } from './crm/customer-intake.service';
+export {
+  IntakeSubmissionDto,
+  INTAKE_CHANNELS,
+  type IntakeChannelCode,
+} from './crm/dto/customer-intake.dto';
 export { CustomerInvoicesService } from './crm/customer-invoices.service';
 export { SaleOrdersService } from './crm/sale-orders.service';
 export { QuotationsService } from './crm/quotations.service';

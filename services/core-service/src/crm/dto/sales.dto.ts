@@ -21,6 +21,12 @@ import {
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PageQueryDto } from '@request-management/share';
 import { CUSTOMER_TYPES } from './customer.dto';
+import { DEAL_TYPES } from '../keeper-rules';
+import {
+  ACTIVITY_OUTCOMES,
+  TARGET_PRIORITIES,
+  TARGET_STATUSES,
+} from '../prospecting-rules';
 
 /** CRM sales DTOs — snake_case per the §11.1 API contract. */
 
@@ -38,6 +44,10 @@ export const LEAD_ACTIVITY_TYPES = [
   'meeting',
   'task',
   'note',
+  // CD-85 — ช่องทางเข้าหาเพิ่ม
+  'visit',
+  'line',
+  'social',
 ] as const;
 
 export const OPPORTUNITY_STAGES = [
@@ -207,6 +217,46 @@ export class CreateLeadDto {
   @IsString()
   @MaxLength(2)
   country?: string;
+
+  // --- CD-85 Discovery — "" / null = ล้างค่า ---------------------------------
+
+  @ApiPropertyOptional({
+    example: 'ระบบโทรศัพท์สาขาเก่า ต่อสายไม่ได้ช่วงเย็น',
+    description: 'ความต้องการ / Pain Point',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  discovery_need?: string;
+
+  @ApiPropertyOptional({ example: 800000, description: 'งบประมาณ (บาท)' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  discovery_budget?: number | null;
+
+  @ApiPropertyOptional({
+    example: 'ตั้งงบไว้ในปีงบ 2570',
+    description: 'หมายเหตุงบ — ใช้แทนตัวเลขได้เมื่อลูกค้าไม่เปิดเผย',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  discovery_budget_note?: string;
+
+  @ApiPropertyOptional({ example: 'คุณสมชาย · ผู้อำนวยการฝ่ายไอที' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  discovery_decision_maker?: string;
+
+  @ApiPropertyOptional({
+    example: '2026-12-31',
+    description: 'คาดว่าจะตัดสินใจภายใน (วันที่)',
+  })
+  @IsOptional()
+  @IsDateString()
+  discovery_timeframe?: string | null;
 }
 
 export class UpdateLeadDto extends CreateLeadDto {
@@ -261,6 +311,12 @@ export class CreateLeadActivityDto {
   @IsOptional()
   @IsDateString()
   due_at?: string;
+
+  /** CD-85 — ผลการติดต่อ; ใช้กับการติดต่อที่ทำแล้ว. */
+  @ApiPropertyOptional({ enum: ACTIVITY_OUTCOMES })
+  @IsOptional()
+  @IsIn(ACTIVITY_OUTCOMES)
+  outcome?: (typeof ACTIVITY_OUTCOMES)[number];
 }
 
 export class UpdateLeadActivityDto {
@@ -284,6 +340,12 @@ export class UpdateLeadActivityDto {
   @IsOptional()
   @IsBoolean()
   completed?: boolean;
+
+  /** CD-85 — ผลการติดต่อ; `null` = ล้าง. */
+  @ApiPropertyOptional({ enum: ACTIVITY_OUTCOMES, nullable: true })
+  @IsOptional()
+  @IsIn(ACTIVITY_OUTCOMES)
+  outcome?: (typeof ACTIVITY_OUTCOMES)[number] | null;
 }
 
 export class DisqualifyLeadDto {
@@ -361,6 +423,128 @@ export class ListLeadsQueryDto extends PageQueryDto {
   @IsOptional()
   @IsString()
   campaign_id?: string;
+
+  /** CD-85 — งานของแกน Getter: เฉพาะ Lead ที่ยังไม่ผูกลูกค้าเดิม. */
+  @ApiPropertyOptional({
+    enum: ['true'],
+    description: 'true = เฉพาะ Lead ที่ยังไม่ผูกลูกค้าในทะเบียน (ลูกค้าใหม่)',
+  })
+  @IsOptional()
+  @IsIn(['true'])
+  new_customer?: 'true';
+}
+
+// --- CD-85 บริษัทเป้าหมาย (Target Account) ---------------------------------
+
+export class CreateTargetAccountDto {
+  @ApiProperty({ example: 'บริษัท เป้าหมาย จำกัด' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  name!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  name_en?: string;
+
+  @ApiPropertyOptional({ example: '0105551234567' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  tax_id?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  industry?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  company_size?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  province?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  website?: string;
+
+  @ApiPropertyOptional({ description: 'ทำไมเล็งรายนี้ / ใครแนะนำ' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  note?: string;
+
+  @ApiPropertyOptional({ enum: TARGET_PRIORITIES, default: 'medium' })
+  @IsOptional()
+  @IsIn(TARGET_PRIORITIES)
+  priority?: (typeof TARGET_PRIORITIES)[number];
+
+  @ApiPropertyOptional({
+    description: 'ผู้รับผิดชอบ — ว่าง = ผู้สร้าง, "" = ยังไม่มีคนรับ',
+  })
+  @IsOptional()
+  @IsString()
+  owner_user_id?: string;
+}
+
+export class UpdateTargetAccountDto extends CreateTargetAccountDto {
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  declare name: string;
+}
+
+export class DropTargetAccountDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(500)
+  reason!: string;
+}
+
+export class ListTargetAccountsQueryDto extends PageQueryDto {
+  @ApiPropertyOptional({ description: 'ค้นจากชื่อหรือเลขภาษี' })
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  @ApiPropertyOptional({ enum: TARGET_STATUSES })
+  @IsOptional()
+  @IsIn(TARGET_STATUSES)
+  status?: (typeof TARGET_STATUSES)[number];
+
+  @ApiPropertyOptional({ enum: TARGET_PRIORITIES })
+  @IsOptional()
+  @IsIn(TARGET_PRIORITIES)
+  priority?: (typeof TARGET_PRIORITIES)[number];
+
+  @ApiPropertyOptional({ enum: ['mine', 'all', 'unassigned'] })
+  @IsOptional()
+  @IsIn(['mine', 'all', 'unassigned'])
+  view?: 'mine' | 'all' | 'unassigned';
+}
+
+/** เริ่มเข้าหา — สร้าง Lead จากบริษัทเป้าหมาย; ผู้ติดต่อใส่ได้ถ้ารู้แล้ว. */
+export class ApproachTargetAccountDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  contact_name?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  phone?: string;
+
+  @IsOptional()
+  @IsEmail()
+  email?: string;
 }
 
 /**
@@ -593,6 +777,12 @@ export class CreateOpportunityDto {
   @IsArray()
   @Matches(/^[A-Za-z0-9_.-]+$/, { each: true })
   product_codes?: string[];
+
+  /** CD-86 — ลูกค้าใหม่ / ขายเพิ่ม / ขายข้าม / ต่ออายุ; upsell/cross_sell ต้องมีลูกค้าเดิม. */
+  @ApiPropertyOptional({ enum: DEAL_TYPES, default: 'new_business' })
+  @IsOptional()
+  @IsIn(DEAL_TYPES)
+  deal_type?: (typeof DEAL_TYPES)[number];
 }
 
 export class UpdateOpportunityDto {
@@ -626,6 +816,12 @@ export class UpdateOpportunityDto {
   @IsArray()
   @Matches(/^[A-Za-z0-9_.-]+$/, { each: true })
   product_codes?: string[];
+
+  /** CD-86 — ลูกค้าใหม่ / ขายเพิ่ม / ขายข้าม / ต่ออายุ; upsell/cross_sell ต้องมีลูกค้าเดิม. */
+  @ApiPropertyOptional({ enum: DEAL_TYPES, default: 'new_business' })
+  @IsOptional()
+  @IsIn(DEAL_TYPES)
+  deal_type?: (typeof DEAL_TYPES)[number];
 }
 
 export class LoseOpportunityDto {
@@ -667,6 +863,12 @@ export class ListOpportunitiesQueryDto extends PageQueryDto {
   @IsOptional()
   @IsString()
   customer_id?: string;
+
+  /** CD-86 — เฉพาะชนิดนี้. */
+  @ApiPropertyOptional({ enum: DEAL_TYPES })
+  @IsOptional()
+  @IsIn(DEAL_TYPES)
+  deal_type?: (typeof DEAL_TYPES)[number];
 
   @ApiPropertyOptional({ example: 'mine' })
   @IsOptional()
@@ -1136,4 +1338,117 @@ export class ReplaceTradeTermsDto {
   @ValidateNested({ each: true })
   @Type(() => TradeTermStandardDto)
   terms!: TradeTermStandardDto[];
+}
+
+export const HANDOVER_ITEM_CATEGORIES = [
+  'commercial',
+  'requirement',
+  'commitment',
+] as const;
+
+/** CD-84 — หนึ่งรายการตรวจก่อนส่งมอบงาน (หน้าตั้งค่า CRM). */
+export class HandoverChecklistItemDto {
+  @ApiProperty({ example: 'PAYMENT_TERMS' })
+  @IsString()
+  @Matches(/^[A-Z0-9_-]{1,40}$/)
+  code!: string;
+
+  @ApiProperty({ enum: HANDOVER_ITEM_CATEGORIES })
+  @IsIn(HANDOVER_ITEM_CATEGORIES)
+  category!: (typeof HANDOVER_ITEM_CATEGORIES)[number];
+
+  @ApiProperty({ example: 'เงื่อนไขการชำระเงินตรงกับใบสั่งขาย' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(300)
+  label!: string;
+
+  @ApiPropertyOptional({
+    default: false,
+    description: 'ต้องกรอกรายละเอียดด้วย ไม่ใช่แค่ติ๊ก',
+  })
+  @IsOptional()
+  @IsBoolean()
+  requires_detail?: boolean;
+
+  @ApiPropertyOptional({ default: true })
+  @IsOptional()
+  @IsBoolean()
+  active?: boolean;
+}
+
+/** CD-84 — แทนที่รายการตรวจทั้งชุด (ที่ไม่อยู่ในรายการ = ปิดใช้). */
+export class ReplaceHandoverItemsDto {
+  @ApiProperty({ type: [HandoverChecklistItemDto] })
+  @IsArray()
+  @ArrayMaxSize(100)
+  @ValidateNested({ each: true })
+  @Type(() => HandoverChecklistItemDto)
+  items!: HandoverChecklistItemDto[];
+}
+
+/** CD-84 — คำตอบของหนึ่งรายการตรวจ. */
+export class HandoverAnswerDto {
+  @ApiProperty({ example: 'PAYMENT_TERMS' })
+  @IsString()
+  @MaxLength(40)
+  code!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  checked?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  detail?: string;
+}
+
+/** CD-84 — บันทึกร่าง/ส่งมอบงาน. */
+export class SaveHandoverDto {
+  @ApiPropertyOptional({ description: 'ทีมที่รับงานต่อ (org unit id)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  to_org_unit_id?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  note?: string;
+
+  @ApiProperty({ type: [HandoverAnswerDto] })
+  @IsArray()
+  @ArrayMaxSize(100)
+  @ValidateNested({ each: true })
+  @Type(() => HandoverAnswerDto)
+  items!: HandoverAnswerDto[];
+}
+
+/** CD-84 — ตีกลับให้ฝ่ายขายแก้ ต้องมีเหตุผล. */
+export class ReturnHandoverDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(2000)
+  reason!: string;
+}
+
+/** CD-84 — กล่องงานส่งมอบ. */
+export class HandoverListQueryDto {
+  @ApiPropertyOptional({
+    enum: ['incoming', 'sent'],
+    description: 'incoming = ส่งถึงทีมของฉัน · sent = ที่ฉันส่ง/ดีลของฉัน',
+  })
+  @IsOptional()
+  @IsIn(['incoming', 'sent'])
+  box?: 'incoming' | 'sent';
+
+  @ApiPropertyOptional({ enum: ['submitted', 'accepted', 'returned'] })
+  @IsOptional()
+  @IsIn(['submitted', 'accepted', 'returned'])
+  status?: 'submitted' | 'accepted' | 'returned';
 }

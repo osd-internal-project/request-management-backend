@@ -165,7 +165,11 @@ LEFT JOIN org_units ro ON ro.id = r."receiverOrgUnitId";
 CREATE OR REPLACE VIEW reporting.sla_compliance_monthly AS
 SELECT
   company_code,
-  to_char(completed_at AT TIME ZONE 'Asia/Bangkok', 'YYYY-MM') AS month,
+  -- completed_at is a UTC wall-clock `timestamp` (no zone): read it as UTC
+  -- first, then as Bangkok time. `AT TIME ZONE 'Asia/Bangkok'` alone treats it
+  -- as Bangkok time and shifts 7 hours the wrong way — work finished after
+  -- 17:00 UTC on a month's last day landed in the wrong month.
+  to_char((completed_at AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Bangkok', 'YYYY-MM') AS month,
   receiver_unit,
   type_code,
   type_name,
@@ -212,3 +216,15 @@ END $$;
 GRANT USAGE ON SCHEMA reporting TO metabase_ro;
 GRANT SELECT ON ALL TABLES IN SCHEMA reporting TO metabase_ro;
 ALTER DEFAULT PRIVILEGES IN SCHEMA reporting GRANT SELECT ON TABLES TO metabase_ro;
+
+-- CD-91 — the Data Mart (`mart` schema, created by the Prisma migration
+-- 20260929220000_data_mart and rebuilt hourly by core-service). Skipped on a
+-- database that has not had that migration yet — re-run this file after it.
+DO $$
+BEGIN
+  IF EXISTS (SELECT FROM pg_namespace WHERE nspname = 'mart') THEN
+    GRANT USAGE ON SCHEMA mart TO metabase_ro;
+    GRANT SELECT ON ALL TABLES IN SCHEMA mart TO metabase_ro;
+    ALTER DEFAULT PRIVILEGES IN SCHEMA mart GRANT SELECT ON TABLES TO metabase_ro;
+  END IF;
+END $$;

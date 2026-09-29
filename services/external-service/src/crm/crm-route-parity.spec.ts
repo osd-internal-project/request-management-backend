@@ -59,8 +59,26 @@ const ROBOT_ONLY = ['lead-intake.controller.ts', 'lead-workflow.controller.ts'];
  * `activity-photos` (CD-75) — photos a salesperson takes on the phone after a
  * visit. No partner system has visit photos to send, and the routes are
  * multipart uploads the generator does not carry.
+ *
+ * `handovers` (CD-84) — one team handing work to another inside the company;
+ * the receiving side is gated on team membership, which no integration has.
+ *
+ * `customer-approval` (CD-62) — raising it makes a Platform Request as the
+ * person on the screen, who attaches the documents; no integration has them.
+ *
+ * `keeper` (CD-86) — a salesperson's working view of their own book (account
+ * plans, reviews, health); no outside system feeds or reads it.
+ *
+ * `customer-intake-admin` (CD-66) — configuring the customer channels; the
+ * channels themselves are external-service's own `request/intake/*` routes.
  */
-const SCREEN_ONLY = ['activity-photos.controller.ts'];
+const SCREEN_ONLY = [
+  'activity-photos.controller.ts',
+  'handovers.controller.ts',
+  'customer-approval.controller.ts',
+  'keeper.controller.ts',
+  'customer-intake-admin.controller.ts',
+];
 
 interface Route {
   readonly method: string;

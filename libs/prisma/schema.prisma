@@ -88,6 +88,14 @@ enum RequestSource {
   SYSTEM
 }
 
+/// CD-66 — the channels customers submit through (user decision 29 ก.ย.
+/// 2569: the public web form first, LINE and AI CARE as connectors).
+enum IntakeChannel {
+  web_form
+  line
+  ai_care
+}
+
 enum ApprovalCaseStatus {
   pending
   approved
@@ -182,6 +190,14 @@ enum CustomerStatus {
   inactive
 }
 
+/// CD-62 — อนุมัติเปิดลูกค้าใหม่ก่อนส่งเข้า SAP. ลูกค้าที่มีอยู่ก่อนเปิดใช้ และที่ import
+/// มา ถือว่า approved; pending/rejected = ยังไม่ส่งลูกค้าและใบสั่งขายของเขาเข้า SAP.
+enum CustomerApprovalStatus {
+  approved
+  pending
+  rejected
+}
+
 /// CM-06 — สถานะงานในคิว sync ของชั้น integration (SAP + workflow วันนี้ ระบบอื่นภายหลัง).
 enum IntegrationJobStatus {
   pending
@@ -206,6 +222,62 @@ enum LeadActivityType {
   meeting
   task
   note
+  /// CD-85 — ช่องทางเข้าหาเพิ่ม: เข้าพบ, LINE, โซเชียล.
+  visit
+  line
+  social
+}
+
+/// CD-85 — ผลของการติดต่อหนึ่งครั้ง (Prospecting). ว่าง = ไม่ใช่การติดต่อ
+/// (งาน/บันทึก) หรือยังไม่ได้ติดต่อ.
+enum ActivityOutcome {
+  reached
+  no_answer
+  interested
+  not_interested
+}
+
+/// CD-85 — ลำดับความสำคัญของบริษัทเป้าหมาย.
+enum TargetAccountPriority {
+  high
+  medium
+  low
+}
+
+/// CD-85 — บริษัทเป้าหมาย: เล็งไว้ → เริ่มเข้าหา (เกิด Lead) → เปิดดีลแล้ว
+/// (Lead แปลงเป็นโอกาสการขาย) หรือตัดออกพร้อมเหตุผล.
+enum TargetAccountStatus {
+  targeting
+  approaching
+  converted
+  dropped
+}
+
+/// CD-86 — ลำดับความสำคัญของบัญชีลูกค้าเดิม (Keeper): A ดูแลใกล้ชิดที่สุด.
+enum AccountTier {
+  a
+  b
+  c
+}
+
+/// CD-86 — ชนิดของโอกาสการขาย: ลูกค้าใหม่, ขายเพิ่ม (Upgrade/Upsell),
+/// ขายข้าม (Cross-sell), ต่ออายุ (CD-70 ตั้งให้อัตโนมัติ).
+enum OpportunityDealType {
+  new_business
+  upsell
+  cross_sell
+  renewal
+}
+
+/// CD-86 — การติดต่อลูกค้าเดิม: ทบทวนตามรอบ (review) หรือเข้าหาเชิงรุก.
+enum CustomerTouchType {
+  review
+  call
+  email
+  meeting
+  visit
+  line
+  social
 }
 
 /// CRM — ขั้นของโอกาสการขาย. `won`/`lost` เป็นสถานะปิด; ปิดแพ้ต้องมีเหตุผลมาตรฐาน
@@ -332,11 +404,14 @@ model Company {
   notificationPreferences NotificationPreference[]
   notificationTemplates   NotificationTemplate[]
   notificationRules       NotificationRule[]
+  intakeChannels          RequestIntakeChannel[]
+  targetAccounts          TargetAccount[]
   customers               Customer[]
   customerSegmentDims     CustomerSegmentDimension[]
   customerCodeCounter     CustomerCodeCounter?
   crmConfig               CrmCompanyConfig?
   tradeTermStandards      TradeTermStandard[]
+  handoverChecklistItems  HandoverChecklistItem[]
   kycWatchlist            KycWatchlistEntry[]
   kycProductRules         KycProductRule[]
   leadStatuses            LeadStatusSetting[]
@@ -449,6 +524,7 @@ model User {
   grantedRoles            UserRole[]               @relation("RoleGranter")
   managedUnits            OrgUnit[]                @relation("OrgUnitManager")
   requests                Request[]                @relation("Requester")
+  intakeChannels          RequestIntakeChannel[]
   receivedRequests        Request[]                @relation("Receiver")
   receiverOfTypes         RequestType[]            @relation("TypeReceiver")
   assignedRequests        Request[]                @relation("Assignee")
@@ -998,6 +1074,21 @@ model Request {
   typeSnapshot Json?
 
   source RequestSource @default(USER)
+
+  /// CD-66 — raised by a customer through a channel. The requester is then the
+  /// channel's designated staff user; the customer is the contact below, and
+  /// `refType/refId` point at the customer when their tax id or email matched.
+  channel           IntakeChannel?
+  contactName       String?
+  contactEmail      String?
+  contactPhone      String?
+  contactCompany    String?
+  contactTaxId      String?
+  /// LINE connector: who to reply to (LINE has no email or phone).
+  contactLineUserId String?
+  /// sha256 of the private status link's token — the token itself is shown
+  /// to the customer once and never stored.
+  statusTokenHash   String?        @unique
 
   submittedAt  DateTime?
   dueAt        DateTime?
@@ -1796,6 +1887,11 @@ model BiDashboard {
   metabaseDashboardId Int
   sortOrder           Int     @default(0)
   active              Boolean @default(true)
+  /// CD-92 — sign the embed with the viewer's company as a locked `company`
+  /// parameter, so a dashboard over the Data Mart shows only that company's
+  /// rows. The dashboard must declare the parameter (see docs/metabase.md);
+  /// one that does not would reject the token, hence off by default.
+  lockCompany         Boolean @default(false)
 
   createdAt DateTime @default(now())
   createdBy String?
@@ -1966,10 +2062,14 @@ model Customer {
 
   status CustomerStatus @default(draft)
 
+  /// CD-62 — ผลการขออนุมัติเปิดลูกค้าใหม่ และคำขอล่าสุดที่ใช้ขอ.
+  approvalStatus    CustomerApprovalStatus @default(approved)
+  approvalRequestId String?
+
   /// CM-04: set by the KYC request callback (ชุดงาน B), never directly by a
   /// screen. A customer is usable without it until a KYC-flagged product
   /// enters a opportunity.
-  kycVerified   Boolean   @default(false)
+  kycVerified   Boolean       @default(false)
   kycVerifiedAt DateTime?
   /// CD-61 — copied from the latest verified KYC record, so lists and the
   /// expiry sweep read a column rather than joining.
@@ -2028,9 +2128,12 @@ model Customer {
   /// office by `headOfficeId`). Postgres treats NULL tax ids as distinct, so
   /// customers without one never collide here.
   /// CD-61 every KYC verification of this customer, newest last.
-  kycRecords CustomerKycRecord[]
+  kycRecords  CustomerKycRecord[]
   /// CD-70 the customer's contracts (renewals are raised from their end date).
-  contracts  CustomerContract[]
+  contracts   CustomerContract[]
+  /// CD-86 Keeper — แผนบัญชี และการติดต่อ/ทบทวน.
+  accountPlan CustomerAccountPlan?
+  touchpoints CustomerTouchpoint[]
 
   @@unique([companyId, taxId, branchCode])
   @@index([companyId, headOfficeId])
@@ -2276,6 +2379,14 @@ model CrmCompanyConfig {
   /// สัญญาบนหน้าดีลใช้ประเภทนี้. NULL = ยังไม่ตั้ง → หน้าดีลไม่แสดงการ์ดสัญญา.
   contractRequestTypeCode String?
 
+  /// CD-62: ประเภทคำขออนุมัติเปิดลูกค้าใหม่ ต่อประเภทลูกค้า — `{ corporate?, individual?,
+  /// government? }` → รหัสประเภทคำขอ (เอกสารบังคับต่างกันตามประเภทลูกค้า). ไม่มีรหัส =
+  /// ลูกค้าประเภทนั้นไม่ต้องขออนุมัติ.
+  customerApprovalTypes Json @default("{}")
+
+  /// CD-84: ทีมที่รับงานต่อจากฝ่ายขายโดยปริยาย (ผู้ขายเปลี่ยนได้ตอนส่ง). NULL = ผู้ขายต้องเลือกเอง.
+  handoverOrgUnitId String?
+
   /// หัวกระดาษเอกสารขาย (ใบเสนอราคา) — ข้อมูลตามทะเบียนของบริษัทผู้ขาย ตั้งค่าได้
   /// ในหน้า admin CRM; ว่าง = ใช้ `Company.name` และไม่แสดงบรรทัดนั้น.
   letterheadNameTh  String?
@@ -2291,6 +2402,14 @@ model CrmCompanyConfig {
   letterheadLogo    String?
   /// เงื่อนไขมาตรฐานท้ายใบเสนอราคา (หลายบรรทัด).
   quotationTerms    String?
+
+  /// CD-85 — บริษัทนี้ต้องการ Discovery ครบก่อนเปิดดีลจาก Lead. เป็นค่าที่
+  /// workflow `lwf-0001` อ่านจาก facts แล้วตัดสินเอง; หน้าจอเตือน.
+  discoveryRequired Boolean @default(false)
+
+  /// CD-86 — ไม่มีใครติดต่อลูกค้าเดิมเกินกี่วันจึงนับเป็นความเสี่ยง (เหลือง;
+  /// เกินสองเท่า = แดง). 0 = ไม่ใช้สัญญาณนี้.
+  healthNoContactDays Int @default(60)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2494,6 +2613,16 @@ model Lead {
   status           String  @default("new")
   disqualifyReason String?
 
+  /// CD-85 Discovery — สิ่งที่ต้องรู้ก่อนเปิดโอกาสการขาย: ความต้องการ/Pain
+  /// Point, งบประมาณ, ผู้ตัดสินใจ, กรอบเวลา. ครบหรือไม่ = ข้อมูล
+  /// (`discoveryMissing`); จะบังคับก่อนแปลงหรือไม่ = process ของ workflow
+  /// `lwf-0001` อ่านจาก facts (PO 10 ก.ย. 2569).
+  discoveryNeed          String?
+  discoveryBudget        Decimal?  @db.Decimal(14, 2)
+  discoveryBudgetNote    String?
+  discoveryDecisionMaker String?
+  discoveryTimeframe     DateTime? @db.Date
+
   /// ลูกค้าเดิมที่ Lead นี้เป็นเรื่องของเขา (ถ้า match ได้).
   customerId String?
 
@@ -2528,6 +2657,7 @@ model Lead {
   convertedOpportunity Opportunity?   @relation(fields: [convertedOpportunityId], references: [id])
   campaign             Campaign?      @relation(fields: [campaignId], references: [id])
   activities           LeadActivity[]
+  targetAccount        TargetAccount?
 
   @@index([companyId, status])
   @@index([companyId, ownerUserId])
@@ -2548,6 +2678,8 @@ model LeadActivity {
   type    LeadActivityType
   subject String
   detail  String?
+  /// CD-85 — ผลการติดต่อ (โทรติดไหม สนใจไหม).
+  outcome ActivityOutcome?
 
   dueAt       DateTime?
   completedAt DateTime?
@@ -2591,9 +2723,11 @@ model Opportunity {
 
   title String
 
-  stage           OpportunityStage @default(qualifying)
-  amount          Decimal?         @db.Decimal(14, 2)
-  currency        String           @default("THB")
+  stage           OpportunityStage    @default(qualifying)
+  /// CD-86 — ลูกค้าใหม่ / ขายเพิ่ม / ขายข้าม / ต่ออายุ.
+  dealType        OpportunityDealType @default(new_business)
+  amount          Decimal?            @db.Decimal(14, 2)
+  currency        String              @default("THB")
   /// 0–100.
   probability     Int?
   expectedCloseAt DateTime?
@@ -2627,6 +2761,7 @@ model Opportunity {
   activities        OpportunityActivity[]
   /// CD-79 รอบการต่อรองเงื่อนไขการค้า.
   negotiationRounds NegotiationRound[]
+  handover          SalesHandover?
   products          OpportunityProduct[]
   saleOrders        SaleOrder[]
   quotations        Quotation[]
@@ -2669,6 +2804,75 @@ model TradeTermStandard {
 /// `terms` เก็บค่ามาตรฐาน ณ วันบันทึกไว้ในแถว เพื่อให้การเปลี่ยนมาตรฐานภายหลัง
 /// ไม่ตัดสินรอบเก่าใหม่.
 /// `terms`: `[{ code|null, name, agreed, standard|null, nonStandard, note|null }]`
+/// CD-84 — หมวดของรายการตรวจก่อนส่งมอบงาน.
+enum HandoverItemCategory {
+  commercial
+  requirement
+  commitment
+}
+
+/// CD-84 — draft → submitted → accepted, or → returned → (แก้แล้ว) submitted.
+enum SalesHandoverStatus {
+  draft
+  submitted
+  accepted
+  returned
+}
+
+/// CD-84 — รายการตรวจก่อนส่งงานต่อ ที่ผู้ดูแลตั้งเอง (หน้าตั้งค่า CRM). ใบส่งมอบ
+/// เก็บสำเนารายการ ณ วันส่ง แก้รายการภายหลังไม่กระทบใบที่ส่งไปแล้ว.
+model HandoverChecklistItem {
+  id             String               @id @default(uuid())
+  companyId      String
+  code           String
+  category       HandoverItemCategory
+  label          String
+  /// ต้องกรอกรายละเอียดด้วย ไม่ใช่แค่ติ๊ก.
+  requiresDetail Boolean              @default(false)
+  sortOrder      Int                  @default(0)
+  active         Boolean              @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, code])
+  @@map("handover_checklist_items")
+}
+
+/// CD-84 — การส่งมอบงานของดีลที่ชนะแล้วให้ทีมถัดไป — หนึ่งใบต่อดีล.
+model SalesHandover {
+  id            String              @id @default(uuid())
+  companyId     String
+  opportunityId String              @unique
+  status        SalesHandoverStatus @default(draft)
+  toOrgUnitId   String?
+  /// [{code, category, label, requiresDetail, checked, detail}] — สำเนารายการ ณ วันบันทึก.
+  items         Json                @default("[]")
+  note          String?
+  /// ครั้งที่ส่ง (ส่งใหม่หลังถูกตีกลับ = +1).
+  round         Int                 @default(0)
+  submittedBy   String?
+  submittedAt   DateTime?
+  decidedBy     String?
+  decidedAt     DateTime?
+  returnReason  String?
+  /// [{action, at, by, byName, reason}] — ประวัติส่ง/รับ/ตีกลับ ให้ทั้งสองฝั่งเห็น.
+  history       Json                @default("[]")
+
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  opportunity Opportunity @relation(fields: [opportunityId], references: [id])
+
+  @@index([companyId, toOrgUnitId, status])
+  @@map("sales_handovers")
+}
+
 model NegotiationRound {
   id               String   @id @default(uuid())
   companyId        String
@@ -2710,7 +2914,7 @@ model OpportunityActivity {
   createdBy String
   updatedAt DateTime @updatedAt
 
-  opportunity Opportunity @relation(fields: [opportunityId], references: [id])
+  opportunity Opportunity                @relation(fields: [opportunityId], references: [id])
   /// CD-75 รูปที่แนบจากมือถือหลังเข้าพบลูกค้า.
   photos      OpportunityActivityPhoto[]
 
@@ -3250,4 +3454,123 @@ model CustomerContract {
   @@index([customerId])
   @@index([status, endOn])
   @@map("customer_contracts")
+}
+
+/// CD-85 — บริษัทเป้าหมายของแกน Getter: รายชื่อที่จะเปิดตลาด จัดลำดับก่อนหลัง
+/// ก่อนมีใครติดต่อ. "เริ่มเข้าหา" สร้าง Lead ผูกไว้ (`leadId`) — จากนั้นงานเดิน
+/// บน Lead ตามปกติ ไม่มี pipeline ชุดที่สอง. ไม่มีการลบ: ตัดออกพร้อมเหตุผล.
+model TargetAccount {
+  id        String @id @default(uuid())
+  companyId String
+
+  name        String
+  nameEn      String?
+  taxId       String?
+  industry    String?
+  companySize String?
+  province    String?
+  website     String?
+  note        String?
+
+  priority   TargetAccountPriority @default(medium)
+  status     TargetAccountStatus   @default(targeting)
+  dropReason String?
+
+  /// NULL = ยังไม่มีคนรับ (เหมือนกองกลางของ Lead).
+  ownerUserId    String?
+  ownerOrgUnitId String?
+
+  leadId String? @unique
+
+  createdAt DateTime @default(now())
+  createdBy String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  company Company @relation(fields: [companyId], references: [id])
+  lead    Lead?   @relation(fields: [leadId], references: [id])
+
+  @@index([companyId, status, priority])
+  @@index([companyId, ownerUserId])
+  @@map("target_accounts")
+}
+
+/// CD-86 — แผนบัญชีของลูกค้าเดิม (Customer Portfolio & Account Plan): ลำดับ
+/// ความสำคัญ เป้าการเติบโต และรอบทบทวน. หนึ่งลูกค้าหนึ่งแผน; ไม่มีแผน = ยังไม่
+/// ได้วางแผน (ลูกค้ายังอยู่ใน portfolio ของเจ้าของตามปกติ).
+model CustomerAccountPlan {
+  id         String @id @default(uuid())
+  companyId  String
+  customerId String @unique
+
+  tier          AccountTier @default(b)
+  goals         String?
+  targetRevenue Decimal?    @db.Decimal(14, 2)
+
+  /// ทบทวนทุกกี่เดือน; การบันทึก review เลื่อน `nextReviewOn` ต่อให้เอง.
+  reviewEveryMonths Int       @default(3)
+  nextReviewOn      DateTime? @db.Date
+  /// `nextReviewOn` ที่เตือนเจ้าของไปแล้ว — เตือนครั้งเดียวต่อรอบ.
+  reviewRemindedOn  DateTime? @db.Date
+
+  createdAt DateTime @default(now())
+  createdBy String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@index([companyId, nextReviewOn])
+  @@map("customer_account_plans")
+}
+
+/// CD-86 — การติดต่อ/ทบทวนลูกค้าเดิม (Review & Reconnect). Append-only:
+/// review มีคะแนนความพึงพอใจ 1–5 ที่ health ใช้.
+model CustomerTouchpoint {
+  id           String            @id @default(uuid())
+  companyId    String
+  customerId   String
+  type         CustomerTouchType
+  occurredAt   DateTime
+  summary      String
+  /// 1–5, review เท่านั้น.
+  satisfaction Int?
+  nextSteps    String?
+
+  createdAt DateTime @default(now())
+  createdBy String
+
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@index([customerId, occurredAt])
+  @@index([companyId, occurredAt])
+  @@map("customer_touchpoints")
+}
+
+/// CD-66 — one company's setting for one intake channel: whether it is open,
+/// which staff user stands as the requester, which request types a customer
+/// may raise through it, and (web form) the public link and wording.
+/// Connector secrets (LINE) are not stored here — see docs/customer-intake.md.
+model RequestIntakeChannel {
+  id              String        @id @default(uuid())
+  companyId       String
+  channel         IntakeChannel
+  enabled         Boolean       @default(false)
+  requesterUserId String
+  typeCodes       String[]      @default([])
+  /// web form: the unguessable part of /f/<slug>.
+  slug            String?       @unique
+  title           String?
+  intro           String?
+
+  createdAt DateTime @default(now())
+  createdBy String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  company   Company @relation(fields: [companyId], references: [id])
+  requester User    @relation(fields: [requesterUserId], references: [id])
+
+  @@unique([companyId, channel])
+  @@map("request_intake_channels")
 }

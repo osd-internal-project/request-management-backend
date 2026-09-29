@@ -13,6 +13,7 @@ function harness(
   options: {
     opportunity?: unknown;
     quotation?: unknown;
+    contract?: unknown;
     exists?: boolean;
   } = {},
 ) {
@@ -37,6 +38,9 @@ function harness(
     opportunities as never,
     quotations as never,
     timeline as never,
+    {
+      findFirst: jest.fn(() => Promise.resolve(options.contract ?? null)),
+    } as never,
   );
   return { service, published, opportunities, timeline };
 }
@@ -66,6 +70,19 @@ describe('CD-69 RequestTimelineSyncService', () => {
         eventType: 'request.submitted',
         summary: 'คำขอ REQ-OSD-GEN-69090001 · คำขอทั่วไป — ยื่นแล้ว',
       }),
+    ]);
+  });
+
+  it('CD-67: a case raised against a contract (by number) reaches the contract’s customer', async () => {
+    const { service, published } = harness(
+      request('contract', 'CTR-2566-TEST'),
+      { contract: { customerId: 'cus-7' } },
+    );
+
+    await service.onRequestEvent('request.submitted', 'ยื่นแล้ว', payload);
+
+    expect(published).toEqual([
+      expect.objectContaining({ customerId: 'cus-7', refId: 'req-1' }),
     ]);
   });
 
