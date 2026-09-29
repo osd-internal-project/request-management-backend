@@ -182,6 +182,14 @@ enum CustomerStatus {
   inactive
 }
 
+/// CD-62 — อนุมัติเปิดลูกค้าใหม่ก่อนส่งเข้า SAP. ลูกค้าที่มีอยู่ก่อนเปิดใช้ และที่ import
+/// มา ถือว่า approved; pending/rejected = ยังไม่ส่งลูกค้าและใบสั่งขายของเขาเข้า SAP.
+enum CustomerApprovalStatus {
+  approved
+  pending
+  rejected
+}
+
 /// CM-06 — สถานะงานในคิว sync ของชั้น integration (SAP + workflow วันนี้ ระบบอื่นภายหลัง).
 enum IntegrationJobStatus {
   pending
@@ -2029,6 +2037,10 @@ model Customer {
 
   status CustomerStatus @default(draft)
 
+  /// CD-62 — ผลการขออนุมัติเปิดลูกค้าใหม่ และคำขอล่าสุดที่ใช้ขอ.
+  approvalStatus    CustomerApprovalStatus @default(approved)
+  approvalRequestId String?
+
   /// CM-04: set by the KYC request callback (ชุดงาน B), never directly by a
   /// screen. A customer is usable without it until a KYC-flagged product
   /// enters a opportunity.
@@ -2341,6 +2353,11 @@ model CrmCompanyConfig {
   /// CD-81: ประเภทคำขอที่ฝ่ายกฎหมายรับทำ/แก้สัญญา — ปุ่ม "ขอจัดทำสัญญา" และการ์ด
   /// สัญญาบนหน้าดีลใช้ประเภทนี้. NULL = ยังไม่ตั้ง → หน้าดีลไม่แสดงการ์ดสัญญา.
   contractRequestTypeCode String?
+
+  /// CD-62: ประเภทคำขออนุมัติเปิดลูกค้าใหม่ ต่อประเภทลูกค้า — `{ corporate?, individual?,
+  /// government? }` → รหัสประเภทคำขอ (เอกสารบังคับต่างกันตามประเภทลูกค้า). ไม่มีรหัส =
+  /// ลูกค้าประเภทนั้นไม่ต้องขออนุมัติ.
+  customerApprovalTypes Json @default("{}")
 
   /// CD-84: ทีมที่รับงานต่อจากฝ่ายขายโดยปริยาย (ผู้ขายเปลี่ยนได้ตอนส่ง). NULL = ผู้ขายต้องเลือกเอง.
   handoverOrgUnitId String?

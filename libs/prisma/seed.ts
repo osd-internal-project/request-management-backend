@@ -908,6 +908,91 @@ async function seedRequestTypes(
       approvalPolicy: {},
       slaHours: 48,
     },
+    // CD-62 — อนุมัติเปิดลูกค้าใหม่ ต่อประเภทลูกค้า (เอกสารบังคับต่างกัน). ยังไม่เปิดใช้
+    // จนกว่าผู้ดูแลเลือกประเภทเหล่านี้ในหน้าตั้งค่า CRM; ลูกค้าใหม่ส่ง SAP ได้เมื่อคำขอ
+    // ได้รับอนุมัติ (CustomerApprovalService).
+    ...(
+      [
+        {
+          code: 'NCA-CORP',
+          name: 'อนุมัติเปิดลูกค้าใหม่ (นิติบุคคล)',
+          docs: [
+            {
+              code: 'COMPANY_CERT',
+              name: 'หนังสือรับรองบริษัท (ไม่เกิน 3 เดือน)',
+            },
+            { code: 'VAT20', name: 'ภ.พ.20' },
+            { code: 'AUTH_ID', name: 'สำเนาบัตรประชาชนผู้มีอำนาจลงนาม' },
+          ],
+        },
+        {
+          code: 'NCA-IND',
+          name: 'อนุมัติเปิดลูกค้าใหม่ (บุคคลธรรมดา)',
+          docs: [
+            { code: 'ID_CARD', name: 'สำเนาบัตรประชาชน' },
+            { code: 'HOUSE_REG', name: 'สำเนาทะเบียนบ้าน' },
+          ],
+        },
+        {
+          code: 'NCA-GOV',
+          name: 'อนุมัติเปิดลูกค้าใหม่ (หน่วยงานรัฐ)',
+          docs: [
+            {
+              code: 'GOV_LETTER',
+              name: 'หนังสือแจ้งจัดซื้อ/จัดจ้าง หรือหนังสือแต่งตั้ง',
+            },
+            {
+              code: 'TAX_ID_DOC',
+              name: 'เอกสารเลขประจำตัวผู้เสียภาษีของหน่วยงาน',
+            },
+          ],
+        },
+      ] as const
+    ).map((nca) => ({
+      code: nca.code,
+      name: nca.name,
+      receiverOrgUnitId: osdRoot?.id ?? null,
+      formSchema: {
+        type: 'object',
+        required: ['customer_code', 'customer_name'],
+        properties: {
+          customer_code: { type: 'string', title: 'รหัสลูกค้า', 'x-order': 10 },
+          customer_name: { type: 'string', title: 'ชื่อลูกค้า', 'x-order': 20 },
+          customer_type: {
+            type: 'string',
+            title: 'ประเภทลูกค้า',
+            'x-order': 30,
+          },
+          tax_id: {
+            type: 'string',
+            title: 'เลขประจำตัวผู้เสียภาษี',
+            'x-order': 40,
+          },
+          credit_request: {
+            type: 'string',
+            title: 'วงเงิน/เครดิตที่ขอ (ถ้ามี)',
+            maxLength: 500,
+            'x-order': 50,
+          },
+          note: {
+            type: 'string',
+            title: 'หมายเหตุ',
+            maxLength: 2000,
+            'x-multiline': true,
+            'x-order': 60,
+          },
+        },
+      },
+      requiredDocs: nca.docs.map((doc) => ({ ...doc })),
+      returnReasonCodes: [
+        { code: 'DOC_INCOMPLETE', name: 'เอกสารไม่ครบ' },
+        { code: 'DOC_EXPIRED', name: 'เอกสารหมดอายุ' },
+        { code: 'INFO_MISMATCH', name: 'ข้อมูลลูกค้าไม่ตรงเอกสาร' },
+        { code: 'OTHER', name: 'อื่น ๆ' },
+      ],
+      approvalPolicy: {},
+      slaHours: 24,
+    })),
     {
       code: 'LEAD',
       name: 'ส่งต่อโอกาสการขาย',

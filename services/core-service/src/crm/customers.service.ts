@@ -39,6 +39,7 @@ import {
 } from './customer-dedup.service';
 import { CustomerTimelineService } from './customer-timeline.service';
 import { CustomerErpSyncService } from './customer-erp-sync.service';
+import { CustomerApprovalService } from './customer-approval.service';
 import { ERP_SYSTEM } from '../erp/erp-client';
 import { KycProductRuleRepository } from './kyc-product.repository';
 import {
@@ -117,6 +118,7 @@ export class CustomersService {
     private readonly opportunities: OpportunityRepository,
     private readonly quotations: QuotationRepository,
     private readonly configs: CrmConfigRepository,
+    private readonly approval: CustomerApprovalService,
   ) {}
 
   private readonly logger = new Logger(CustomersService.name);
@@ -498,6 +500,13 @@ export class CustomersService {
       (code) => this.customers.codeTaken(code),
     );
 
+    // CD-62 — a new customer of a type the company approves first starts
+    // pending: no SAP until its approval request is approved.
+    const approvalType = await this.approval.typeFor(
+      actor.activeCompanyId,
+      dto.type,
+    );
+
     const created = await this.transactions.execute(async (prisma) => {
       const overridden = await this.guardDuplicates(
         {
@@ -537,6 +546,7 @@ export class CustomersService {
             branchName: dto.branch_name ?? null,
             headOfficeId: headOffice?.id ?? null,
             status,
+            approvalStatus: approvalType ? 'pending' : 'approved',
             accountOwnerUserId: owner.id,
             ownerOrgUnitId: owner.orgUnitId,
             dedupOverrideReason: overridden.length
@@ -623,7 +633,22 @@ export class CustomersService {
 
     // CM-06: SAP is called AFTER the commit — a slow upstream cannot hold a
     // database transaction open, and a down one becomes a queue row.
-    if (created.status === 'active') this.erpSync.kickCustomer(created.id);
+    if (approvalType) {
+      await this.approval.raiseFor(
+        {
+          id: created.id,
+          companyId: created.companyId,
+          customerCode: created.customerCode,
+          nameTh: created.nameTh,
+          taxId: created.taxId,
+          type: created.type,
+        },
+        approvalType,
+        actor,
+      );
+    } else if (created.status === 'active') {
+      this.erpSync.kickCustomer(created.id);
+    }
 
     return this.findOne(created.id, actor);
   }

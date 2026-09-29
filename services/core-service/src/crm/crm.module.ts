@@ -84,6 +84,8 @@ import { LeadStatusService } from './lead-status.service';
 import { OpportunitiesService } from './opportunities.service';
 import { OpportunityActivitiesService } from './opportunity-activities.service';
 import { NegotiationsService } from './negotiations.service';
+import { CustomerApprovalService } from './customer-approval.service';
+import { RequestTypeRepository } from '../requests/request-type.repository';
 import { HandoversService } from './handovers.service';
 import {
   HandoverChecklistItemRepository,
@@ -149,6 +151,9 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     KycExpiryService,
     KycWatchlistRepository,
     CustomerKycRecordRepository,
+    // CD-62
+    CustomerApprovalService,
+    RequestTypeRepository,
     // CD-70
     ContractsService,
     ContractRenewalService,
@@ -229,6 +234,7 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     NegotiationsService,
     HandoversService,
     KycService,
+    CustomerApprovalService,
     ContractsService,
     SalesReportService,
     CrmDashboardService,

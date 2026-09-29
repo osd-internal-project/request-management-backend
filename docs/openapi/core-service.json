@@ -7656,6 +7656,90 @@
         ]
       }
     },
+    "/api/v1/customers/{id}/approval": {
+      "get": {
+        "description": "`status` approved | pending | rejected · pending/rejected = ลูกค้าและใบสั่งขายของเขายังไม่ส่งเข้า SAP",
+        "operationId": "CustomerApprovalController_view",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "สถานะอนุมัติเปิดลูกค้าใหม่ + คำขอที่ใช้ขอ",
+        "tags": [
+          "customers"
+        ],
+        "x-permission": [
+          "crm.customer.read"
+        ]
+      }
+    },
+    "/api/v1/customers/{id}/approval-request": {
+      "post": {
+        "description": "เมื่อยังไม่อนุมัติและไม่มีคำขอที่ค้างอยู่ — สร้างร่างคำขอตามประเภทที่ตั้งไว้สำหรับประเภทลูกค้านี้ ให้แนบเอกสารแล้วยื่น",
+        "operationId": "CustomerApprovalController_raise",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ยื่นขออนุมัติเปิดลูกค้าใหม่ (สร้างร่างคำขอ)",
+        "tags": [
+          "customers"
+        ],
+        "x-permission": [
+          "request.create"
+        ]
+      }
+    },
     "/api/v1/opportunities/{id}/handover": {
       "get": {
         "description": "`editable` = ดีลชนะแล้วและยังไม่ได้ส่ง (หรือถูกตีกลับ) · `items` = รายการตรวจปัจจุบันรวมคำตอบที่บันทึกไว้",
@@ -11827,9 +11911,29 @@
           }
         }
       },
+      "CustomerApprovalTypesDto": {
+        "type": "object",
+        "properties": {
+          "corporate": {
+            "type": "string",
+            "example": "NCA-CORP"
+          },
+          "individual": {
+            "type": "string",
+            "example": "NCA-IND"
+          },
+          "government": {
+            "type": "string",
+            "example": "NCA-GOV"
+          }
+        }
+      },
       "UpdateCrmConfigDto": {
         "type": "object",
         "properties": {
+          "customer_approval_types": {
+            "$ref": "#/components/schemas/CustomerApprovalTypesDto"
+          },
           "dedup_threshold": {
             "maximum": 1,
             "minimum": 0.5,

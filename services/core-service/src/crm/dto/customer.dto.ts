@@ -547,6 +547,27 @@ export class UpdateKycProductDto {
   active?: boolean;
 }
 
+/** CD-62 — request type code per customer type; `""` = no approval. */
+export class CustomerApprovalTypesDto {
+  @ApiPropertyOptional({ example: 'NCA-CORP' })
+  @IsOptional()
+  @IsString()
+  @Matches(/^([A-Z0-9_-]{1,20})?$/)
+  corporate?: string;
+
+  @ApiPropertyOptional({ example: 'NCA-IND' })
+  @IsOptional()
+  @IsString()
+  @Matches(/^([A-Z0-9_-]{1,20})?$/)
+  individual?: string;
+
+  @ApiPropertyOptional({ example: 'NCA-GOV' })
+  @IsOptional()
+  @IsString()
+  @Matches(/^([A-Z0-9_-]{1,20})?$/)
+  government?: string;
+}
+
 /**
  * CM-02: รูปแบบรหัสลูกค้า (prefix / จำนวนหลัก) ไม่อยู่ที่นี่แล้ว — ตั้งที่
  * run-number-service (`run_number_settings`, docType `CUSTOMER`) ดู
@@ -709,6 +730,16 @@ export class UpdateCrmConfigDto {
   @IsString()
   @MaxLength(64)
   handover_org_unit_id?: string;
+
+  /**
+   * CD-62: ประเภทคำขออนุมัติเปิดลูกค้าใหม่ ต่อประเภทลูกค้า. ค่าว่าง/ไม่ส่ง = ลูกค้า
+   * ประเภทนั้นไม่ต้องขออนุมัติ. ส่งทั้งก้อนแทนของเดิม.
+   */
+  @ApiPropertyOptional({ type: () => CustomerApprovalTypesDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => CustomerApprovalTypesDto)
+  customer_approval_types?: CustomerApprovalTypesDto;
 }
 
 /** CD-70 — a contract entered by hand, or edited. */

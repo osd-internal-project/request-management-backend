@@ -93,6 +93,7 @@ interface Harness {
   /** C360-04 — the โอกาสการขาย count, same. */
   opportunityCount: jest.Mock;
   erpKicks: string[];
+  approvalsRaised: string[];
 }
 
 function harness(options: {
@@ -105,6 +106,8 @@ function harness(options: {
   erpPayload?: Record<string, unknown>;
   /** CM-01 field-history rows the history read returns. */
   history?: Record<string, unknown>[];
+  /** CD-62 — the approval type configured for the customer's type. */
+  approvalType?: string | null;
 }): Harness {
   const audits: Harness['audits'] = [];
   const timelineEvents: Harness['timelineEvents'] = [];
@@ -131,6 +134,7 @@ function harness(options: {
   );
   const opportunityCount = jest.fn(() => Promise.resolve(0));
   const erpKicks: string[] = [];
+  const approvalsRaised: string[] = [];
 
   const service = new CustomersService(
     customers as never,
@@ -237,6 +241,13 @@ function harness(options: {
         Promise.resolve({ contractRequestTypeCode: 'CTR' }),
       ),
     } as never,
+    {
+      typeFor: jest.fn(() => Promise.resolve(options.approvalType ?? null)),
+      raiseFor: jest.fn((customer: { id: string }, typeCode: string) => {
+        approvalsRaised.push(`${customer.id}:${typeCode}`);
+        return Promise.resolve({ id: 'req-nca' });
+      }),
+    } as never,
   );
 
   return {
@@ -250,6 +261,7 @@ function harness(options: {
     erpLookup,
     opportunityCount,
     erpKicks,
+    approvalsRaised,
   };
 }
 
@@ -463,6 +475,36 @@ describe('CM-04 lifecycle through the service', () => {
         m.toLowerCase().includes('delete'),
       ),
     ).toEqual([]);
+  });
+});
+
+describe('CD-62 new customers wait for approval before SAP', () => {
+  it('CD-62: a type the company approves first → created pending, a draft request raised, nothing sent to SAP', async () => {
+    const h = harness({ approvalType: 'NCA-CORP' });
+    await h.service.create(createDto(), principal());
+
+    const data = (
+      h.customers.create.mock.calls[0] as unknown as [
+        { data: Record<string, unknown> },
+      ]
+    )[0].data;
+    expect(data.approvalStatus).toBe('pending');
+    expect(h.approvalsRaised).toEqual(['cust-1:NCA-CORP']);
+    expect(h.erpKicks).toEqual([]);
+  });
+
+  it('no approval type for the customer type → approved and sent to SAP as before', async () => {
+    const h = harness({ approvalType: null });
+    await h.service.create(createDto(), principal());
+
+    const data = (
+      h.customers.create.mock.calls[0] as unknown as [
+        { data: Record<string, unknown> },
+      ]
+    )[0].data;
+    expect(data.approvalStatus).toBe('approved');
+    expect(h.approvalsRaised).toEqual([]);
+    expect(h.erpKicks).toEqual(['cust-1']);
   });
 });
 

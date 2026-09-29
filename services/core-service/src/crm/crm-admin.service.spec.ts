@@ -52,6 +52,11 @@ function harness() {
     transactions as never,
     {} as never,
     { assertCodes: jest.fn(() => Promise.resolve()) } as never,
+    {
+      assertUsableTypes: jest.fn((_company: string, value: unknown) =>
+        Promise.resolve(value),
+      ),
+    } as never,
   );
   return { service, upserts, audits };
 }

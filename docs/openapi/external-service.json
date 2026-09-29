@@ -10219,9 +10219,29 @@
           }
         }
       },
+      "CustomerApprovalTypesDto": {
+        "type": "object",
+        "properties": {
+          "corporate": {
+            "type": "string",
+            "example": "NCA-CORP"
+          },
+          "individual": {
+            "type": "string",
+            "example": "NCA-IND"
+          },
+          "government": {
+            "type": "string",
+            "example": "NCA-GOV"
+          }
+        }
+      },
       "UpdateCrmConfigDto": {
         "type": "object",
         "properties": {
+          "customer_approval_types": {
+            "$ref": "#/components/schemas/CustomerApprovalTypesDto"
+          },
           "dedup_threshold": {
             "maximum": 1,
             "minimum": 0.5,

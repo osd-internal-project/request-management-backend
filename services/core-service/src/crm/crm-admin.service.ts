@@ -25,6 +25,7 @@ import {
 } from './dto/customer.dto';
 import { KycProductRuleRepository } from './kyc-product.repository';
 import { ProductCatalogService } from './product-catalog.service';
+import { CustomerApprovalService } from './customer-approval.service';
 
 /**
  * CM-07 + CM-02/03 configuration — the admin surface behind
@@ -43,6 +44,7 @@ export class CrmAdminService {
     private readonly transactions: PrismaTransactionService,
     private readonly kycProducts: KycProductRuleRepository,
     private readonly catalog: ProductCatalogService,
+    private readonly approval: CustomerApprovalService,
   ) {}
 
   // --- segmentation (CM-07) ------------------------------------------------
@@ -204,6 +206,7 @@ export class CrmAdminService {
         targetApprovalTypeCode: null,
         contractRequestTypeCode: null,
         handoverOrgUnitId: null,
+        customerApprovalTypes: {},
         kycReviewMonthsHigh: 12,
         kycReviewMonthsMedium: 24,
         kycReviewMonthsLow: 36,
@@ -216,6 +219,14 @@ export class CrmAdminService {
   }
 
   async updateConfig(dto: UpdateCrmConfigDto, actor: Principal) {
+    // CD-62 — checked before anything is written; `undefined` = untouched.
+    const approvalTypes =
+      dto.customer_approval_types === undefined
+        ? undefined
+        : await this.approval.assertUsableTypes(
+            actor.activeCompanyId,
+            dto.customer_approval_types,
+          );
     return this.audited(
       actor,
       'crm.config.updated',
@@ -234,6 +245,7 @@ export class CrmAdminService {
               targetApprovalTypeCode: dto.target_approval_type_code || null,
               contractRequestTypeCode: dto.contract_request_type_code || null,
               handoverOrgUnitId: dto.handover_org_unit_id || null,
+              customerApprovalTypes: approvalTypes ?? {},
               kycReviewMonthsHigh: dto.kyc_review_months_high ?? 12,
               kycReviewMonthsMedium: dto.kyc_review_months_medium ?? 24,
               kycReviewMonthsLow: dto.kyc_review_months_low ?? 36,
@@ -260,6 +272,7 @@ export class CrmAdminService {
                 dto.handover_org_unit_id === undefined
                   ? undefined
                   : dto.handover_org_unit_id || null,
+              customerApprovalTypes: approvalTypes,
               kycReviewMonthsHigh: dto.kyc_review_months_high,
               kycReviewMonthsMedium: dto.kyc_review_months_medium,
               kycReviewMonthsLow: dto.kyc_review_months_low,

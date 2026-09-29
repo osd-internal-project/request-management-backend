@@ -63,12 +63,16 @@ const ROBOT_ONLY = ['lead-intake.controller.ts', 'lead-workflow.controller.ts'];
  * `handovers` (CD-84) — one team handing work to another inside the company;
  * the receiving side is gated on team membership, which no integration has.
  *
+ * `customer-approval` (CD-62) — raising it makes a Platform Request as the
+ * person on the screen, who attaches the documents; no integration has them.
+ *
  * `keeper` (CD-86) — a salesperson's working view of their own book (account
  * plans, reviews, health); no outside system feeds or reads it.
  */
 const SCREEN_ONLY = [
   'activity-photos.controller.ts',
   'handovers.controller.ts',
+  'customer-approval.controller.ts',
   'keeper.controller.ts',
 ];
 

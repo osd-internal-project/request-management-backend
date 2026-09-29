@@ -111,8 +111,12 @@ export class CustomerErpSyncService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  /** One customer → SAP. Returns the BP number it now has. */
-  async syncCustomer(customerId: string): Promise<string> {
+  /**
+   * One customer → SAP. Returns the BP number it now has, or null while the
+   * customer waits for approval (CD-62) — not an error, nothing to retry:
+   * the approval itself kicks the push.
+   */
+  async syncCustomer(customerId: string): Promise<string | null> {
     const customer = (await this.customers.findFirst({
       where: { id: customerId, mergedIntoCustomerId: null },
       include: {
@@ -132,6 +136,12 @@ export class CustomerErpSyncService implements OnModuleInit, OnModuleDestroy {
 
     if (!customer) {
       throw new Error(`customer ${customerId} not found or merged`);
+    }
+    if (customer.approvalStatus !== 'approved') {
+      this.logger.log(
+        `customer ${customer.customerCode} awaits approval (CD-62) — not sent to SAP`,
+      );
+      return null;
     }
 
     const payload = toErpPayload(customer);
@@ -275,6 +285,8 @@ interface CustomerForSync {
   branchCode: string;
   branchName: string | null;
   status: string;
+  /** CD-62 — only an approved customer goes to SAP. */
+  approvalStatus: string;
   locations: {
     line1: string;
     line2: string | null;

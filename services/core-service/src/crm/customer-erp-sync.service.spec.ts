@@ -1,7 +1,9 @@
 import { CustomerErpSyncService } from './customer-erp-sync.service';
 import type { ErpClient } from '../erp/erp-client';
 
-function harness(options: { erpDown?: boolean; bpInSap?: string } = {}) {
+function harness(
+  options: { erpDown?: boolean; bpInSap?: string; approval?: string } = {},
+) {
   const externalRows: Record<string, unknown>[] = [];
   const jobs: Record<string, unknown>[] = [];
 
@@ -17,6 +19,7 @@ function harness(options: { erpDown?: boolean; bpInSap?: string } = {}) {
         branchCode: '00000',
         branchName: null,
         status: 'active',
+        approvalStatus: options.approval ?? 'approved',
         locations: [
           {
             line1: 'เลขที่ 1',
@@ -136,6 +139,19 @@ describe('CM-06 SAP sync — สร้างแล้วได้เลขทั
         eventType: 'integration.sap.customer_synced',
       }),
     );
+  });
+
+  it('CD-62 a customer awaiting approval is not sent — no SAP call, nothing queued', async () => {
+    const { service, externalRows, jobs, erp } = harness({
+      approval: 'pending',
+    });
+
+    await expect(service.syncCustomer('cust-1')).resolves.toBeNull();
+
+    const calls = erp as unknown as Record<keyof ErpClient, jest.Mock>;
+    expect(calls.createCustomer).not.toHaveBeenCalled();
+    expect(externalRows).toHaveLength(0);
+    expect(jobs).toHaveLength(0);
   });
 
   it('CM-06 a BP already carrying our customerCode is adopted, not created twice', async () => {

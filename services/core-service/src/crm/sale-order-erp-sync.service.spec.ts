@@ -23,7 +23,7 @@ function harness(
     customerId: 'cust-1',
     erpOrderNo: null,
     erpStatus: 'pending',
-    customer: { customerCode: 'CUS-OSD-000001' },
+    customer: { customerCode: 'CUS-OSD-000001', approvalStatus: 'approved' },
     company: { code: 'OSD' },
     lines: [
       {
@@ -255,6 +255,22 @@ describe('CD-88 ใบสั่งขายเข้า SAP — เก็บท�
 
     expect(calls.createSalesOrder).not.toHaveBeenCalled();
     expect(order).toMatchObject({ erpStatus: 'not_ready' });
+  });
+
+  it('CD-62: ลูกค้าใหม่ยังไม่อนุมัติ → not_ready พร้อมเหตุผล ไม่เรียก SAP ไม่เข้าคิว', async () => {
+    const { service, order, calls } = harness({
+      order: {
+        customer: { customerCode: 'CUS-OSD-000001', approvalStatus: 'pending' },
+      },
+    });
+
+    await expect(service.pushOrder('so-1')).resolves.toBeNull();
+
+    expect(calls.createSalesOrder).not.toHaveBeenCalled();
+    expect(order).toMatchObject({
+      erpStatus: 'not_ready',
+      erpLastError: 'รออนุมัติเปิดลูกค้า CUS-OSD-000001 ก่อนส่งเข้า SAP',
+    });
   });
 
   it('ถูกยกเลิกก่อนถึง SAP → งานสร้างในคิวข้ามไป (skipped)', async () => {

@@ -11,6 +11,7 @@ import { CrmAdminController } from './crm-admin.controller';
 import { QuotationsController } from './quotations.controller';
 import { ActivityPhotosController } from './activity-photos.controller';
 import { ActivityPhotosService } from './activity-photos.service';
+import { CustomerApprovalController } from './customer-approval.controller';
 import { HandoversController } from './handovers.controller';
 import { KeeperController } from './keeper.controller';
 import {
@@ -59,6 +60,8 @@ import {
     QuotationsController,
     // CD-75 — screens only; see the controller for why it is not generated.
     ActivityPhotosController,
+    // CD-62 — screens only; see the controller.
+    CustomerApprovalController,
     // CD-84 — screens only; see the controller for why it is not generated.
     HandoversController,
     // CD-86 — screens only; see the controller for why it is not generated.
