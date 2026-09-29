@@ -108,6 +108,15 @@ import {
   ContractRiskAssessmentRepository,
   ContractRiskService,
 } from './contract-risk.service';
+import {
+  ContractTemplateRepository,
+  ContractTemplatesService,
+} from './contract-templates.service';
+import {
+  ContractDraftRepository,
+  ContractDraftVersionRepository,
+  ContractDraftsService,
+} from './contract-drafts.service';
 import { CustomerApprovalService } from './customer-approval.service';
 import { RequestTypeRepository } from '../requests/request-type.repository';
 import { HandoversService } from './handovers.service';
@@ -229,6 +238,11 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     ContractInstallmentsService,
     ContractRiskAssessmentRepository,
     ContractRiskService,
+    ContractTemplateRepository,
+    ContractTemplatesService,
+    ContractDraftRepository,
+    ContractDraftVersionRepository,
+    ContractDraftsService,
     // CD-84
     HandoversService,
     HandoverChecklistItemRepository,
@@ -292,6 +306,8 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     ContractObligationsService,
     ContractInstallmentsService,
     ContractRiskService,
+    ContractTemplatesService,
+    ContractDraftsService,
     HandoversService,
     KycService,
     CustomerApprovalService,

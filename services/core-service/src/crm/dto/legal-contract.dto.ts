@@ -519,3 +519,103 @@ export class SaveRiskAssessmentDto {
   @Type(() => RiskIssueDto)
   issues?: RiskIssueDto[];
 }
+
+/** CD-146 — one clause as written in a template or a draft. */
+export class ClauseDto {
+  @ApiPropertyOptional({
+    description: 'ร่าง: รหัสข้อเดิม (ว่าง = ข้อที่เพิ่มใหม่) · แม่แบบ: ไม่ใช้',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  key?: string;
+
+  @ApiProperty({ example: 'ข้อ 1 คำนิยาม' })
+  @IsString()
+  @MaxLength(255)
+  heading!: string;
+
+  @ApiProperty({
+    example: 'สัญญาฉบับนี้ทำขึ้นระหว่าง {{our_name}} กับ {{party_name}}',
+  })
+  @IsString()
+  @MaxLength(20000)
+  body!: string;
+}
+
+/** CD-146 — a contract template. */
+export class SaveContractTemplateDto {
+  @ApiPropertyOptional({ example: 'SVC-STD', description: 'สร้างเท่านั้น' })
+  @IsOptional()
+  @IsString()
+  @Matches(/^[A-Za-z0-9_-]{1,20}$/)
+  code?: string;
+
+  @ApiPropertyOptional({ example: 'สัญญาบริการมาตรฐาน' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  name?: string;
+
+  @ApiPropertyOptional({ enum: ['standard', 'nda', 'msa', 'other'] })
+  @IsOptional()
+  @IsIn(['standard', 'nda', 'msa', 'other'])
+  kind?: 'standard' | 'nda' | 'msa' | 'other';
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  active?: boolean;
+
+  @ApiPropertyOptional({ type: [ClauseDto] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(200)
+  @ValidateNested({ each: true })
+  @Type(() => ClauseDto)
+  clauses?: ClauseDto[];
+}
+
+/** CD-146 — start the draft of a contract request from a template. */
+export class StartContractDraftDto {
+  @ApiProperty()
+  @IsString()
+  request_id!: string;
+
+  @ApiProperty()
+  @IsString()
+  template_id!: string;
+}
+
+/** CD-146 — the whole text, saved as the next version. */
+export class SaveDraftVersionDto {
+  @ApiProperty({
+    description: 'ฉบับที่เปิดแก้ — มีผู้บันทึกฉบับใหม่กว่าแล้วตอบ 409',
+  })
+  @IsNumber()
+  @Min(1)
+  base_version!: number;
+
+  @ApiProperty({ type: [ClauseDto] })
+  @IsArray()
+  @ArrayMaxSize(200)
+  @ValidateNested({ each: true })
+  @Type(() => ClauseDto)
+  clauses!: ClauseDto[];
+
+  @ApiPropertyOptional({ example: 'แก้ข้อ 7 ตามที่ลูกค้าขอ' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  note?: string;
+}
+
+/** CD-146 — which version to open. */
+export class DraftVersionQueryDto {
+  @ApiPropertyOptional({ description: 'ว่าง = ฉบับล่าสุด' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  version?: number;
+}

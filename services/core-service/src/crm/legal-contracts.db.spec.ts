@@ -21,6 +21,16 @@ import {
   ContractInstallmentsService,
 } from './contract-installments.service';
 import {
+  ContractDraftRepository,
+  ContractDraftVersionRepository,
+  ContractDraftsService,
+} from './contract-drafts.service';
+import {
+  ContractTemplateRepository,
+  ContractTemplatesService,
+} from './contract-templates.service';
+import { RequestRepository } from '../requests/request.repository';
+import {
   ContractRiskAssessmentRepository,
   ContractRiskService,
 } from './contract-risk.service';
@@ -286,6 +296,105 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         obligations.complete(created.id, { note: 'ส่งแล้ว' }, legal),
       ).resolves.toMatchObject({ status: 'done' });
       await prisma.contractObligation.deleteMany({ where: { id: created.id } });
+    });
+
+    it('CD-146: a template, a draft on a contract request, and a second version — one draft per request', async () => {
+      const client = prisma as never;
+      const type = await prisma.requestType.findFirst({
+        select: { id: true, code: true },
+      });
+      if (!type) return;
+      const request = await prisma.request.create({
+        data: {
+          requestTypeId: type.id,
+          typeCode: type.code,
+          companyId,
+          requesterId: legalUser,
+          status: 'in_progress',
+          formData: { contract_value: 500000, end_date: '2027-12-31' },
+        },
+      });
+      const transactions = {
+        execute: (work: (tx: unknown) => Promise<unknown>) =>
+          prisma.$transaction((tx) => work(tx)),
+      } as never;
+      const audit = { record: () => Promise.resolve() } as never;
+      const templates = new ContractTemplatesService(
+        new ContractTemplateRepository(client),
+        audit,
+      );
+      const drafts = new ContractDraftsService(
+        new ContractDraftRepository(client),
+        new ContractDraftVersionRepository(client),
+        templates,
+        new RequestRepository(client),
+        {
+          findFirst: () =>
+            Promise.resolve({
+              contractRequestTypeCode: type.code,
+              letterheadNameTh: 'บริษัท ทดสอบ จำกัด',
+              letterheadTaxId: null,
+              letterheadAddress: null,
+            }),
+        } as never,
+        { findFirst: () => Promise.resolve(null) } as never,
+        { findFirst: () => Promise.resolve(null) } as never,
+        { findFirst: () => Promise.resolve(null) } as never,
+        { findFirst: () => Promise.resolve(null) } as never,
+        new CompanyMemberRepository(client),
+        transactions,
+        audit,
+      );
+      const legal = as(legalUser, true);
+      const template = await templates.create(
+        {
+          code: `T146-${tag}`,
+          name: 'แม่แบบทดสอบ',
+          clauses: [
+            { heading: 'คู่สัญญา', body: '{{our_name}} กับ {{party_name}}' },
+            { heading: 'มูลค่า', body: '{{contract_value}} บาท' },
+          ],
+        },
+        legal,
+      );
+      try {
+        const started = await drafts.start(
+          { request_id: request.id, template_id: template.id },
+          legal,
+        );
+        expect(started.clauses.map((clause) => clause.body)).toEqual([
+          'บริษัท ทดสอบ จำกัด กับ {{party_name}}',
+          '500,000.00 บาท',
+        ]);
+        expect(started.missing).toEqual(['party_name']);
+        await expect(
+          drafts.start(
+            { request_id: request.id, template_id: template.id },
+            legal,
+          ),
+        ).rejects.toMatchObject({ code: 'CONFLICT' });
+        const second = await drafts.saveVersion(
+          started.id,
+          {
+            base_version: 1,
+            clauses: [
+              { ...started.clauses[0], body: 'บริษัท ทดสอบ จำกัด กับ ลูกค้า' },
+            ],
+          },
+          legal,
+        );
+        expect(second.version.versionNo).toBe(2);
+        expect(second.counts).toEqual({ edited: 1, added: 0, removed: 1 });
+        // version 1 is untouched
+        const first = await drafts.view(started.id, legal, 1);
+        expect(first.clauses).toHaveLength(2);
+      } finally {
+        await prisma.contractDraft.deleteMany({
+          where: { requestId: request.id },
+        });
+        await prisma.contractTemplate.delete({ where: { id: template.id } });
+        await prisma.request.delete({ where: { id: request.id } });
+      }
     });
 
     it('CD-158: an assessment and its issues round-trip as JSON; the table refuses an unknown level', async () => {

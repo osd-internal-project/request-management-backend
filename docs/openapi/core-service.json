@@ -9251,6 +9251,352 @@
         ]
       }
     },
+    "/api/v1/contract-templates/variables": {
+      "get": {
+        "operationId": "ContractDraftsController_variables",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ตัวแปรที่แม่แบบใช้ได้",
+        "tags": [
+          "contracts"
+        ],
+        "x-permission": [
+          "legal.contract.read"
+        ]
+      }
+    },
+    "/api/v1/contract-templates": {
+      "get": {
+        "operationId": "ContractDraftsController_listTemplates",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แม่แบบสัญญา",
+        "tags": [
+          "contracts"
+        ],
+        "x-permission": [
+          "legal.contract.read"
+        ]
+      },
+      "post": {
+        "operationId": "ContractDraftsController_createTemplate",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveContractTemplateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "สร้างแม่แบบสัญญา",
+        "tags": [
+          "contracts"
+        ],
+        "x-permission": [
+          "legal.contract.manage"
+        ]
+      }
+    },
+    "/api/v1/contract-templates/{id}": {
+      "patch": {
+        "operationId": "ContractDraftsController_updateTemplate",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveContractTemplateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แก้แม่แบบสัญญา — ไม่กระทบร่างที่เริ่มไปแล้ว",
+        "tags": [
+          "contracts"
+        ],
+        "x-permission": [
+          "legal.contract.manage"
+        ]
+      }
+    },
+    "/api/v1/contract-drafts/by-request/{requestId}": {
+      "get": {
+        "description": "`eligible` = คำขอเป็นประเภทคำขอจัดทำสัญญาที่ตั้งในหน้าตั้งค่า CRM · ยังไม่มีร่างจะส่งรายการแม่แบบมาให้เลือก",
+        "operationId": "ContractDraftsController_forRequest",
+        "parameters": [
+          {
+            "name": "requestId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ร่างสัญญาของคำขอ",
+        "tags": [
+          "contracts"
+        ],
+        "x-permission": [
+          "legal.contract.read"
+        ]
+      }
+    },
+    "/api/v1/contract-drafts": {
+      "post": {
+        "operationId": "ContractDraftsController_start",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartContractDraftDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เริ่มร่างจากแม่แบบ — เติมค่าจากคำขอ ดีล ลูกค้า เงื่อนไขที่ต่อรอง และหัวกระดาษ",
+        "tags": [
+          "contracts"
+        ],
+        "x-permission": [
+          "legal.contract.manage"
+        ]
+      }
+    },
+    "/api/v1/contract-drafts/{id}": {
+      "get": {
+        "operationId": "ContractDraftsController_view",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "required": false,
+            "in": "query",
+            "description": "ว่าง = ฉบับล่าสุด",
+            "schema": {
+              "type": "number",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ร่างฉบับหนึ่ง — ทำเครื่องหมายข้อที่แก้/เพิ่ม/ตัดจากแม่แบบ",
+        "tags": [
+          "contracts"
+        ],
+        "x-permission": [
+          "legal.contract.read"
+        ]
+      }
+    },
+    "/api/v1/contract-drafts/{id}/versions": {
+      "post": {
+        "description": "ฉบับเดิมไม่ถูกแก้ · มีผู้บันทึกฉบับใหม่กว่าหรือข้อความไม่เปลี่ยนตอบ 409",
+        "operationId": "ContractDraftsController_saveVersion",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveDraftVersionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "บันทึกเป็นฉบับใหม่",
+        "tags": [
+          "contracts"
+        ],
+        "x-permission": [
+          "legal.contract.manage"
+        ]
+      }
+    },
     "/api/v1/opportunities/{id}/handover": {
       "get": {
         "description": "`editable` = ดีลชนะแล้วและยังไม่ได้ส่ง (หรือถูกตีกลับ) · `items` = รายการตรวจปัจจุบันรวมคำตอบที่บันทึกไว้",
@@ -16627,6 +16973,106 @@
             "maxLength": 1000
           }
         }
+      },
+      "ClauseDto": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "ร่าง: รหัสข้อเดิม (ว่าง = ข้อที่เพิ่มใหม่) · แม่แบบ: ไม่ใช้",
+            "maxLength": 40
+          },
+          "heading": {
+            "type": "string",
+            "example": "ข้อ 1 คำนิยาม",
+            "maxLength": 255
+          },
+          "body": {
+            "type": "string",
+            "example": "สัญญาฉบับนี้ทำขึ้นระหว่าง {{our_name}} กับ {{party_name}}",
+            "maxLength": 20000
+          }
+        },
+        "required": [
+          "body",
+          "heading"
+        ]
+      },
+      "SaveContractTemplateDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "SVC-STD",
+            "description": "สร้างเท่านั้น",
+            "pattern": "^[A-Za-z0-9_-]{1,20}$"
+          },
+          "name": {
+            "type": "string",
+            "example": "สัญญาบริการมาตรฐาน",
+            "maxLength": 255
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "standard",
+              "nda",
+              "msa",
+              "other"
+            ]
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "clauses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ClauseDto"
+            },
+            "maxItems": 200
+          }
+        }
+      },
+      "StartContractDraftDto": {
+        "type": "object",
+        "properties": {
+          "request_id": {
+            "type": "string"
+          },
+          "template_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "request_id",
+          "template_id"
+        ]
+      },
+      "SaveDraftVersionDto": {
+        "type": "object",
+        "properties": {
+          "base_version": {
+            "type": "number",
+            "description": "ฉบับที่เปิดแก้ — มีผู้บันทึกฉบับใหม่กว่าแล้วตอบ 409",
+            "minimum": 1
+          },
+          "clauses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ClauseDto"
+            },
+            "maxItems": 200
+          },
+          "note": {
+            "type": "string",
+            "example": "แก้ข้อ 7 ตามที่ลูกค้าขอ",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "base_version",
+          "clauses"
+        ]
       },
       "HandoverAnswerDto": {
         "type": "object",

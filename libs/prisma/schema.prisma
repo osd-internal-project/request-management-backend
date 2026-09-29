@@ -3785,6 +3785,78 @@ model ContractRiskAssessment {
   @@map("contract_risk_assessments")
 }
 
+/// CD-146 — a contract template: numbered clauses whose text carries
+/// `{{variables}}` filled from the deal, the customer, the negotiated terms
+/// and the company's letterhead when a draft is started. Editing a template
+/// never changes a draft already started from it.
+model ContractTemplate {
+  id        String       @id @default(uuid())
+  companyId String
+  code      String
+  name      String
+  kind      ContractKind @default(standard)
+  /// [{ key, heading, body }] in order
+  clauses   Json         @default("[]")
+  active    Boolean      @default(true)
+
+  createdAt DateTime @default(now())
+  createdBy String
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  drafts ContractDraft[]
+
+  @@unique([companyId, code])
+  @@map("contract_templates")
+}
+
+/// CD-146 — the draft of the contract a contract request (CD-81) asks for.
+/// One per request; its text lives in versions.
+model ContractDraft {
+  id         String @id @default(uuid())
+  companyId  String
+  requestId  String @unique
+  templateId String
+
+  /// The template's clauses as rendered when the draft started — what each
+  /// version is compared with to mark the clauses changed from the template.
+  templateClauses Json @default("[]")
+  /// The values the variables were filled with, and the ones not found.
+  variables       Json @default("{}")
+  missing         String[] @default([])
+
+  latestVersionNo Int @default(1)
+
+  createdAt DateTime @default(now())
+  createdBy String
+  updatedAt DateTime @updatedAt
+
+  template ContractTemplate      @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  versions ContractDraftVersion[]
+
+  @@index([companyId])
+  @@map("contract_drafts")
+}
+
+/// CD-146 — one saved version of a draft. Never changed once written: CD-147
+/// compares versions and CD-159 approves one.
+model ContractDraftVersion {
+  id        String @id @default(uuid())
+  draftId   String
+  versionNo Int
+  /// [{ key, heading, body }] — a key from the template, or `new-…`
+  clauses   Json
+  note      String?
+
+  createdAt DateTime @default(now())
+  createdBy String
+
+  draft ContractDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+
+  @@unique([draftId, versionNo])
+  @@map("contract_draft_versions")
+}
+
 /// CD-161 — who else may open a confidential contract.
 model ContractAccess {
   contractId String

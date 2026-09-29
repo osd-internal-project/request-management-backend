@@ -81,6 +81,7 @@ const SCREEN_ONLY = [
   'customer-merge.controller.ts',
   'legal-contracts.controller.ts',
   'contract-obligations.controller.ts',
+  'contract-drafts.controller.ts',
 ];
 
 interface Route {

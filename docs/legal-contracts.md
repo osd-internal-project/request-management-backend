@@ -121,3 +121,23 @@ API: `GET/PUT /contracts/:id/terms` · `POST /contracts/:id/terms/liability-appr
   ยังไม่ได้ประเมิน = ไม่ระบุ · ระบบยังไม่มีขั้นลงนาม (CD-160) — CD-159/160 อ่านค่านี้
 - API: `GET/PUT /contracts/:id/risk` · `POST /contracts/:id/risk/opinion`
 - migration `20260929540000_contract_risk_assessment`
+
+# CD-146 แม่แบบและร่างสัญญา
+
+**แม่แบบ** (`contract_templates`, เมนู ฝ่ายกฎหมาย → แม่แบบสัญญา): ข้อสัญญาเรียงลำดับ (หัวข้อ + เนื้อความ)
+ใส่ตัวแปร `{{ชื่อ}}` ได้ — รายการตัวแปรอยู่ที่ `DRAFT_VARIABLES` (`contract-drafts.ts`, `GET /contract-templates/variables`)
+บวก `{{term_<รหัส>}}` ของเงื่อนไขการค้าที่ต่อรอง (CD-79) · ตัวแปรที่ไม่รู้จักบันทึกไม่ได้ · ข้อได้รหัส `c1..cN` ตามลำดับ
+
+**ร่าง** (`contract_drafts` + `contract_draft_versions`) ผูกกับ **คำขอจัดทำสัญญา** (ประเภทที่ตั้งใน CRM, CD-81) หนึ่งร่างต่อคำขอ:
+- หน้าคำขอมีการ์ด "ร่างสัญญา" (สิทธิ์ `legal.contract.read`) — ฝ่ายกฎหมายเลือกแม่แบบแล้วเริ่มร่าง = ฉบับที่ 1
+- ค่าตัวแปรมาจาก form ของคำขอ (มูลค่า วันเริ่ม/สิ้นสุด คู่สัญญา) → ดีล (`ref_type=opportunity`) → ลูกค้าและที่อยู่
+  (ที่อยู่ออกบิลก่อน) → รอบต่อรองล่าสุด → หัวกระดาษบริษัท · หาไม่เจอ = คง `{{ชื่อ}}` ไว้และแสดงว่า "ยังไม่มีค่า"
+- บันทึกแต่ละครั้ง = ฉบับใหม่ (ฉบับเก่าไม่ถูกแก้ — CD-147 เทียบ, CD-159 อนุมัติ) · ส่ง `base_version`
+  ถ้ามีคนบันทึกฉบับใหม่กว่าแล้วตอบ 409 · ข้อความไม่เปลี่ยนตอบ 409
+- ทุกข้อทำเครื่องหมายเทียบแม่แบบที่เติมค่าแล้วตอนเริ่มร่าง: ตามแม่แบบ / **แก้จากแม่แบบ** (ดูข้อความเดิมได้) / **เพิ่มใหม่**
+  และรายการข้อที่ตัดออก · แก้แม่แบบภายหลังไม่กระทบร่างที่เริ่มแล้ว
+- คำขอปิดแล้ว (completed/closed/rejected/cancelled หรือยังเป็น draft) = ดูได้อย่างเดียว
+- สัญญาในคลังที่มาจากคำขอ (`requestId`) มีลิงก์ไปร่างที่ใช้ทำ
+- API: `GET/POST /contract-templates`, `PATCH /contract-templates/:id`, `GET /contract-drafts/by-request/:requestId`,
+  `POST /contract-drafts`, `GET /contract-drafts/:id?version=`, `POST /contract-drafts/:id/versions`
+- migration `20260929560000_contract_drafts`

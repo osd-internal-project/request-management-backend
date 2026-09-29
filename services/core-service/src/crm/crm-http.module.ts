@@ -14,6 +14,7 @@ import { ActivityPhotosService } from './activity-photos.service';
 import { CustomerApprovalController } from './customer-approval.controller';
 import { CustomerMergeController } from './customer-merge.controller';
 import { LegalContractsController } from './legal-contracts.controller';
+import { ContractDraftsController } from './contract-drafts.controller';
 import { ContractObligationsController } from './contract-obligations.controller';
 import { LegalContractsService } from './legal-contracts.service';
 import {
@@ -76,6 +77,7 @@ import {
     CustomerMergeController,
     LegalContractsController,
     ContractObligationsController,
+    ContractDraftsController,
     // CD-84 — screens only; see the controller for why it is not generated.
     HandoversController,
     // CD-86 — screens only; see the controller for why it is not generated.
