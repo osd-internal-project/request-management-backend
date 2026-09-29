@@ -60,3 +60,17 @@ export class SolutionRequirementRepository extends BaseRepository<
     return client.solutionRequirement;
   }
 }
+
+/** CD-140 คำถาม-คำตอบทางเทคนิคกับลูกค้า. */
+@Injectable()
+export class SolutionClarificationRepository extends BaseRepository<
+  PrismaService['solutionClarification']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.solutionClarification;
+  }
+}

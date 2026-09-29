@@ -21,6 +21,8 @@ import { SolutionsService } from './solutions.service';
 import {
   approvalBlocker,
   approvalFormData,
+  clarificationCounts,
+  clarificationsText,
   type FeasibilityVerdict,
   type SolutionApprovalStatus,
 } from './solution-rules';
@@ -101,9 +103,11 @@ export class SolutionApprovalService implements OnModuleInit {
       where: { solutionId: id, versionNo },
     })) as VersionRow | null;
     if (!version) throw new AppError('NOT_FOUND', 'ไม่พบเวอร์ชันที่ระบุ');
+    const clarifications = await this.solutions.activeClarifications(id);
     const blocker = approvalBlocker(
       version,
       versionNo === solution.currentVersionNo,
+      clarificationCounts(clarifications).scope_open,
     );
     if (blocker) throw new AppError('CONFLICT', blocker);
 
@@ -133,18 +137,24 @@ export class SolutionApprovalService implements OnModuleInit {
         ...(deal
           ? { ref_type: 'opportunity', ref_id: deal.opportunityCode }
           : {}),
-        form_data: approvalFormData({
-          title: solution.title,
-          versionNo,
-          summary: version.summary,
-          inScope: version.inScope,
-          outOfScope: version.outOfScope,
-          deliverables: version.deliverables,
-          assumptions: version.assumptions,
-          feasibility: version.feasibility,
-          feasibilityNote: version.feasibilityNote,
-          requirements,
-        }),
+        form_data: {
+          ...approvalFormData({
+            title: solution.title,
+            versionNo,
+            summary: version.summary,
+            inScope: version.inScope,
+            outOfScope: version.outOfScope,
+            deliverables: version.deliverables,
+            assumptions: version.assumptions,
+            feasibility: version.feasibility,
+            feasibilityNote: version.feasibilityNote,
+            requirements,
+          }),
+          // CD-140 — the technical Q&A the approver should see.
+          ...(clarifications.length
+            ? { clarifications: clarificationsText(clarifications) }
+            : {}),
+        },
       },
       actor,
     )) as { id: string; requestNo: string | null };

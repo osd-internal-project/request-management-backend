@@ -19,6 +19,7 @@ import { CrmConfigRepository } from '../crm/segment.repositories';
 import { safeFileName } from '../requests/attachments.service';
 import { RequestRepository } from '../requests/request.repository';
 import {
+  SolutionClarificationRepository,
   SolutionFileRepository,
   SolutionRepository,
   SolutionRequirementRepository,
@@ -40,6 +41,8 @@ import {
   type SolutionApprovalStatus,
   requirementCounts,
   requirementGaps,
+  clarificationCounts,
+  type ClarificationState,
   type RequirementState,
 } from './solution-rules';
 import type {
@@ -147,6 +150,7 @@ export class SolutionsService {
     private readonly versions: SolutionVersionRepository,
     private readonly files: SolutionFileRepository,
     private readonly requirements: SolutionRequirementRepository,
+    private readonly clarifications: SolutionClarificationRepository,
     private readonly requests: RequestRepository,
     private readonly opportunities: OpportunityRepository,
     private readonly configs: CrmConfigRepository,
@@ -295,6 +299,14 @@ export class SolutionsService {
           where: { deletedAt: null },
           select: { assessment: true, customerAnswer: true },
         },
+        clarifications: {
+          where: { deletedAt: null },
+          select: {
+            answer: true,
+            affectsScope: true,
+            scopeResolvedVersionNo: true,
+          },
+        },
       },
     })) as unknown as {
       id: string;
@@ -308,12 +320,15 @@ export class SolutionsService {
         approvalStatus: string;
       }[];
       requirements: RequirementState[];
+      clarifications: ClarificationState[];
     }[];
-    return rows.map(({ versions, requirements, ...row }) => ({
+    return rows.map(({ versions, requirements, clarifications, ...row }) => ({
       ...row,
       latest: versions[0] ?? null,
       // CD-131 — what the salesperson has to chase with the customer.
       waiting_customer: requirementCounts(requirements).waiting_customer,
+      // CD-140 — questions still open, and answers the SOW must follow.
+      clarification_counts: clarificationCounts(clarifications),
     }));
   }
 
@@ -351,7 +366,7 @@ export class SolutionsService {
       id,
       versionNo ?? solution.currentVersionNo,
     );
-    const [files, requirements, approvalType, approvalRequest] =
+    const [files, requirements, approvalType, approvalRequest, clarifications] =
       await Promise.all([
         this.files.findMany({
           where: { versionId: version.id, deletedAt: null },
@@ -373,7 +388,9 @@ export class SolutionsService {
               status: string;
             } | null>)
           : Promise.resolve(null),
+        this.activeClarifications(id),
       ]);
+    const clarificationTotals = clarificationCounts(clarifications);
     return {
       ...solution,
       can_manage: this.canManage(actor),
@@ -381,6 +398,8 @@ export class SolutionsService {
       can_answer: this.canManage(actor) || this.canAnswerAsSales(actor),
       requirements,
       requirement_counts: requirementCounts(requirements),
+      clarifications,
+      clarification_counts: clarificationTotals,
       deal: deal
         ? {
             id: deal.id,
@@ -412,6 +431,7 @@ export class SolutionsService {
         blocker: approvalBlocker(
           version,
           version.versionNo === solution.currentVersionNo,
+          clarificationTotals.scope_open,
         ),
         request: approvalRequest,
       },
@@ -894,6 +914,28 @@ export class SolutionsService {
         note: string;
         answeredAt: Date | null;
         answeredBy: string | null;
+      })[]
+    >;
+  }
+
+  /** CD-140 — the Q&A, oldest first, without the removed entries. */
+  activeClarifications(solutionId: string) {
+    return this.clarifications.findMany({
+      where: { solutionId, deletedAt: null },
+      orderBy: { seq: 'asc' },
+    }) as Promise<
+      (ClarificationState & {
+        id: string;
+        seq: number;
+        question: string;
+        askedOn: Date;
+        askedBy: string;
+        respondent: string | null;
+        answeredOn: Date | null;
+        answerRecordedBy: string | null;
+        answerRecordedAt: Date | null;
+        answeredOnVersionNo: number | null;
+        scopeResolvedAt: Date | null;
       })[]
     >;
   }

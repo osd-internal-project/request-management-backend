@@ -10773,6 +10773,272 @@
         ]
       }
     },
+    "/api/v1/presales/solutions/{id}/clarifications": {
+      "post": {
+        "operationId": "SolutionsController_ask",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateClarificationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เพิ่มคำถามทางเทคนิคถึงลูกค้า (Pre-Sales หรือฝ่ายขายของดีล)",
+        "tags": [
+          "presales"
+        ]
+      }
+    },
+    "/api/v1/presales/solutions/{id}/clarifications/{clarificationId}": {
+      "patch": {
+        "operationId": "SolutionsController_editClarification",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "clarificationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateClarificationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แก้ถ้อยคำคำถาม (ก่อนได้คำตอบ)",
+        "tags": [
+          "presales"
+        ]
+      },
+      "delete": {
+        "operationId": "SolutionsController_removeClarification",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "clarificationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เอาคำถามออก",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "presales.solution.manage"
+        ]
+      }
+    },
+    "/api/v1/presales/solutions/{id}/clarifications/{clarificationId}/answer": {
+      "post": {
+        "operationId": "SolutionsController_answerClarification",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "clarificationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnswerClarificationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "บันทึกคำตอบของลูกค้า พร้อมผู้ตอบและวันที่",
+        "tags": [
+          "presales"
+        ]
+      }
+    },
+    "/api/v1/presales/solutions/{id}/clarifications/{clarificationId}/resolve": {
+      "post": {
+        "operationId": "SolutionsController_resolveClarification",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "clarificationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveClarificationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ปิดคำตอบที่กระทบขอบเขต ด้วยเวอร์ชันที่แก้ SOW แล้ว",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "presales.solution.manage"
+        ]
+      }
+    },
     "/api/v1/admin/erp-sync/jobs": {
       "get": {
         "operationId": "ErpSyncAdminController_list",
@@ -16761,6 +17027,77 @@
         },
         "required": [
           "answer"
+        ]
+      },
+      "CreateClarificationDto": {
+        "type": "object",
+        "properties": {
+          "question": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1
+          },
+          "asked_on": {
+            "type": "string",
+            "description": "วันที่ถาม (YYYY-MM-DD) — ไม่ส่ง = วันนี้"
+          }
+        },
+        "required": [
+          "question"
+        ]
+      },
+      "UpdateClarificationDto": {
+        "type": "object",
+        "properties": {
+          "question": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "question"
+        ]
+      },
+      "AnswerClarificationDto": {
+        "type": "object",
+        "properties": {
+          "answer": {
+            "type": "string",
+            "maxLength": 8000,
+            "minLength": 1
+          },
+          "respondent": {
+            "type": "string",
+            "description": "ผู้ตอบฝั่งลูกค้า (ชื่อ · ตำแหน่ง)",
+            "maxLength": 300,
+            "minLength": 1
+          },
+          "answered_on": {
+            "type": "string",
+            "description": "วันที่ลูกค้าตอบ (YYYY-MM-DD)"
+          },
+          "affects_scope": {
+            "type": "boolean",
+            "description": "คำตอบนี้กระทบขอบเขตงาน (ต้องแก้ SOW)"
+          }
+        },
+        "required": [
+          "answer",
+          "answered_on",
+          "respondent"
+        ]
+      },
+      "ResolveClarificationDto": {
+        "type": "object",
+        "properties": {
+          "version_no": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "version_no"
         ]
       },
       "PreviewChainDto": {

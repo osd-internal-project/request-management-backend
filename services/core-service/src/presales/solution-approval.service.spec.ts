@@ -26,6 +26,7 @@ function harness(
     typeCode?: string | null;
     pending?: Record<string, unknown> | null;
     moved?: number;
+    clarifications?: Record<string, unknown>[];
   } = {},
 ) {
   const solutions = {
@@ -39,6 +40,9 @@ function harness(
       }),
     ),
     activeRequirements: jest.fn(() => Promise.resolve([])),
+    activeClarifications: jest.fn(() =>
+      Promise.resolve(options.clarifications ?? []),
+    ),
   };
   const versions = {
     findFirst: jest.fn((args: { where: Record<string, unknown> }) =>
@@ -137,6 +141,22 @@ describe('CD-143 solution approval', () => {
     await expect(
       older.service.requestApproval('sol-1', 1, presales),
     ).rejects.toMatchObject({ code: 'CONFLICT' });
+  });
+
+  it('CD-140: an answer that changed the scope blocks approval until the SOW has it', async () => {
+    const { service, requests } = harness({
+      clarifications: [
+        {
+          answer: 'เพิ่มสาขาที่ 13',
+          affectsScope: true,
+          scopeResolvedVersionNo: null,
+        },
+      ],
+    });
+    await expect(
+      service.requestApproval('sol-1', 2, presales),
+    ).rejects.toMatchObject({ code: 'CONFLICT' });
+    expect(requests.create).not.toHaveBeenCalled();
   });
 
   it('a rejected version may be asked again', async () => {

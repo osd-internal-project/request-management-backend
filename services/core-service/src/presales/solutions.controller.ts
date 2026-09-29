@@ -26,6 +26,10 @@ import {
 } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import {
+  AnswerClarificationDto,
+  CreateClarificationDto,
+  ResolveClarificationDto,
+  UpdateClarificationDto,
   AnswerRequirementDto,
   CreateRequirementDto,
   NewSolutionVersionDto,
@@ -35,6 +39,7 @@ import {
 } from './dto/solution.dto';
 import { RequirementsService } from './requirements.service';
 import { SolutionApprovalService } from './solution-approval.service';
+import { ClarificationsService } from './clarifications.service';
 import { MAX_FILE_BYTES, SolutionsService } from './solutions.service';
 
 /**
@@ -52,6 +57,7 @@ export class SolutionsController {
     private readonly solutions: SolutionsService,
     private readonly requirements: RequirementsService,
     private readonly approvals: SolutionApprovalService,
+    private readonly clarifications: ClarificationsService,
   ) {}
 
   @ApiOperation({ summary: 'เริ่ม Solution จากคำขอ "ขอ Solution" ที่รับแล้ว' })
@@ -259,5 +265,69 @@ export class SolutionsController {
     @CurrentPrincipal() actor: Principal,
   ) {
     return this.requirements.remove(id, requirementId, actor);
+  }
+
+  // --- CD-140 ชี้แจงประเด็นเทคนิค --------------------------------------------------
+
+  @ApiOperation({
+    summary: 'เพิ่มคำถามทางเทคนิคถึงลูกค้า (Pre-Sales หรือฝ่ายขายของดีล)',
+  })
+  @Post('presales/solutions/:id/clarifications')
+  @Authenticated()
+  ask(
+    @Param('id') id: string,
+    @Body() dto: CreateClarificationDto,
+    @CurrentPrincipal() actor: Principal,
+  ) {
+    return this.clarifications.ask(id, dto, actor);
+  }
+
+  @ApiOperation({ summary: 'แก้ถ้อยคำคำถาม (ก่อนได้คำตอบ)' })
+  @Patch('presales/solutions/:id/clarifications/:clarificationId')
+  @Authenticated()
+  editClarification(
+    @Param('id') id: string,
+    @Param('clarificationId') clarificationId: string,
+    @Body() dto: UpdateClarificationDto,
+    @CurrentPrincipal() actor: Principal,
+  ) {
+    return this.clarifications.edit(id, clarificationId, dto, actor);
+  }
+
+  @ApiOperation({ summary: 'บันทึกคำตอบของลูกค้า พร้อมผู้ตอบและวันที่' })
+  @Post('presales/solutions/:id/clarifications/:clarificationId/answer')
+  @Authenticated()
+  answerClarification(
+    @Param('id') id: string,
+    @Param('clarificationId') clarificationId: string,
+    @Body() dto: AnswerClarificationDto,
+    @CurrentPrincipal() actor: Principal,
+  ) {
+    return this.clarifications.answer(id, clarificationId, dto, actor);
+  }
+
+  @ApiOperation({
+    summary: 'ปิดคำตอบที่กระทบขอบเขต ด้วยเวอร์ชันที่แก้ SOW แล้ว',
+  })
+  @Post('presales/solutions/:id/clarifications/:clarificationId/resolve')
+  @Permissions('presales.solution.manage')
+  resolveClarification(
+    @Param('id') id: string,
+    @Param('clarificationId') clarificationId: string,
+    @Body() dto: ResolveClarificationDto,
+    @CurrentPrincipal() actor: Principal,
+  ) {
+    return this.clarifications.resolveScope(id, clarificationId, dto, actor);
+  }
+
+  @ApiOperation({ summary: 'เอาคำถามออก' })
+  @Delete('presales/solutions/:id/clarifications/:clarificationId')
+  @Permissions('presales.solution.manage')
+  removeClarification(
+    @Param('id') id: string,
+    @Param('clarificationId') clarificationId: string,
+    @CurrentPrincipal() actor: Principal,
+  ) {
+    return this.clarifications.remove(id, clarificationId, actor);
   }
 }

@@ -1,4 +1,7 @@
 import {
+  clarificationCounts,
+  clarificationsText,
+  scopeResolutionProblem,
   approvalBlocker,
   contractAssumptionsText,
   feasibilityProblem,
@@ -319,6 +322,96 @@ describe('CD-133 feasibility rules', () => {
         '2. [ข้อจำกัด] ติดตั้งนอกเวลาทำการ',
         '3. [ทางเทคนิค] ใช้ SD-WAN',
         'เงื่อนไขความเป็นไปได้: ลูกค้าอนุมัติ downtime 2 ชม.',
+      ].join('\n'),
+    );
+  });
+});
+
+describe('CD-140 clarification rules', () => {
+  const row = (
+    answer: string | null,
+    affectsScope = false,
+    scopeResolvedVersionNo: number | null = null,
+  ) => ({ answer, affectsScope, scopeResolvedVersionNo });
+
+  it('counts open questions and answers the SOW has not followed yet', () => {
+    expect(
+      clarificationCounts([
+        row(null),
+        row('ใช้ Fortinet'),
+        row('เพิ่มสาขาที่ 13', true),
+        row('ย้าย DC', true, 3),
+      ]),
+    ).toEqual({ total: 4, awaiting_answer: 1, scope_open: 1 });
+  });
+
+  it('an open scope change blocks approval', () => {
+    expect(
+      approvalBlocker({ status: 'locked', approvalStatus: 'none' }, true, 2),
+    ).toBe('มีคำตอบที่กระทบขอบเขตยังไม่ได้แก้ SOW 2 ข้อ');
+  });
+
+  it('only a draft, or a version locked after the answer, can close a scope change', () => {
+    const answered = {
+      answerRecordedAt: new Date('2026-09-29T10:00:00Z'),
+      answeredOnVersionNo: 2,
+    };
+    expect(
+      scopeResolutionProblem(answered, {
+        versionNo: 3,
+        status: 'draft',
+        lockedAt: null,
+      }),
+    ).toBeNull();
+    expect(
+      scopeResolutionProblem(answered, {
+        versionNo: 2,
+        status: 'locked',
+        lockedAt: new Date('2026-09-29T11:00:00Z'),
+      }),
+    ).toBeNull();
+    expect(
+      scopeResolutionProblem(answered, {
+        versionNo: 2,
+        status: 'locked',
+        lockedAt: new Date('2026-09-29T09:00:00Z'),
+      }),
+    ).toContain('ยืนยันก่อนได้คำตอบ');
+    expect(
+      scopeResolutionProblem(answered, {
+        versionNo: 1,
+        status: 'draft',
+        lockedAt: null,
+      }),
+    ).toContain('เก่ากว่า');
+  });
+
+  it('the Q&A reads as text with respondent, date and scope impact', () => {
+    expect(
+      clarificationsText([
+        {
+          seq: 1,
+          question: 'ใช้ firewall ยี่ห้อไหน',
+          answer: 'Fortinet 100F',
+          respondent: 'คุณเอ · IT Manager',
+          answeredOn: new Date('2026-09-28T00:00:00Z'),
+          affectsScope: true,
+        },
+        {
+          seq: 2,
+          question: 'มี UPS ไหม',
+          answer: null,
+          respondent: null,
+          answeredOn: null,
+          affectsScope: false,
+        },
+      ]),
+    ).toBe(
+      [
+        '1. ถาม: ใช้ firewall ยี่ห้อไหน',
+        '   ตอบ: Fortinet 100F (คุณเอ · IT Manager · 2026-09-28) — กระทบขอบเขต',
+        '2. ถาม: มี UPS ไหม',
+        '   (ยังไม่ได้คำตอบ)',
       ].join('\n'),
     );
   });

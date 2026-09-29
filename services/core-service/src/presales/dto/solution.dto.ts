@@ -2,7 +2,11 @@ import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   IsArray,
+  IsBoolean,
   IsIn,
+  IsInt,
+  IsISO8601,
+  Min,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -198,4 +202,61 @@ export class AnswerRequirementDto {
   @IsNotEmpty()
   @MaxLength(4000)
   answer!: string;
+}
+
+/** CD-140 — คำถามทางเทคนิคถึงลูกค้า. */
+export class CreateClarificationDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(4000)
+  question!: string;
+
+  @ApiPropertyOptional({
+    description: 'วันที่ถาม (YYYY-MM-DD) — ไม่ส่ง = วันนี้',
+  })
+  @IsOptional()
+  @IsISO8601({ strict: true })
+  asked_on?: string;
+}
+
+/** CD-140 — แก้ถ้อยคำคำถาม. */
+export class UpdateClarificationDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(4000)
+  question!: string;
+}
+
+/** CD-140 — คำตอบของลูกค้า. */
+export class AnswerClarificationDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(8000)
+  answer!: string;
+
+  @ApiProperty({ description: 'ผู้ตอบฝั่งลูกค้า (ชื่อ · ตำแหน่ง)' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(300)
+  respondent!: string;
+
+  @ApiProperty({ description: 'วันที่ลูกค้าตอบ (YYYY-MM-DD)' })
+  @IsISO8601({ strict: true })
+  answered_on!: string;
+
+  @ApiPropertyOptional({ description: 'คำตอบนี้กระทบขอบเขตงาน (ต้องแก้ SOW)' })
+  @IsOptional()
+  @IsBoolean()
+  affects_scope?: boolean;
+}
+
+/** CD-140 — ปิดข้อที่กระทบขอบเขต ด้วยเวอร์ชันที่แก้ SOW แล้ว. */
+export class ResolveClarificationDto {
+  @ApiProperty()
+  @IsInt()
+  @Min(1)
+  version_no!: number;
 }

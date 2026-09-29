@@ -1384,6 +1384,14 @@ async function seedRequestTypes(
             'x-multiline': true,
             'x-order': 80,
           },
+          // CD-140 — the technical Q&A with the customer.
+          clarifications: {
+            type: 'string',
+            title: 'คำถาม-คำตอบทางเทคนิคกับลูกค้า',
+            maxLength: 20000,
+            'x-multiline': true,
+            'x-order': 90,
+          },
           // CD-133 — the overall verdict and its conditions.
           feasibility: {
             type: 'string',

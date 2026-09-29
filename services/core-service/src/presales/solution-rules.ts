@@ -473,6 +473,8 @@ export function approvalBlocker(
     feasibility?: FeasibilityVerdict;
   },
   isCurrent: boolean,
+  /** CD-140 — scope-affecting answers not yet worked into the SOW. */
+  openScopeUpdates = 0,
 ): string | null {
   if (version.status === 'draft') {
     return 'ยืนยันเวอร์ชันก่อน จึงขออนุมัติได้';
@@ -485,6 +487,10 @@ export function approvalBlocker(
   }
   if (version.approvalStatus === 'approved') {
     return 'เวอร์ชันนี้อนุมัติแล้ว — ถ้าต้องแก้ให้เปิดเวอร์ชันใหม่';
+  }
+  // CD-140 — an answer that changed the scope must be in the SOW first.
+  if (openScopeUpdates > 0) {
+    return `มีคำตอบที่กระทบขอบเขตยังไม่ได้แก้ SOW ${openScopeUpdates} ข้อ`;
   }
   // CD-133 — a design judged not feasible is recorded, not offered.
   if (version.feasibility === 'not_feasible') {
@@ -570,4 +576,88 @@ export function approvalFormData(input: {
         }
       : {}),
   };
+}
+
+// --- CD-140 technical clarifications --------------------------------------------
+
+export interface ClarificationState {
+  answer: string | null;
+  affectsScope: boolean;
+  scopeResolvedVersionNo: number | null;
+}
+
+/** Asked, not answered yet. */
+export const awaitingAnswer = (row: ClarificationState) => !row.answer?.trim();
+
+/** Answered in a way that changes scope, and the SOW not yet updated for it. */
+export const scopeUpdateOpen = (row: ClarificationState) =>
+  Boolean(row.answer?.trim()) &&
+  row.affectsScope &&
+  row.scopeResolvedVersionNo === null;
+
+export function clarificationCounts(rows: readonly ClarificationState[]) {
+  return {
+    total: rows.length,
+    awaiting_answer: rows.filter(awaitingAnswer).length,
+    scope_open: rows.filter(scopeUpdateOpen).length,
+  };
+}
+
+/**
+ * Why this version cannot close a scope-affecting answer, or null. The SOW
+ * that reflects an answer is one edited after it: a draft still being
+ * written, or a version locked after the answer was recorded — never one
+ * older than the version current when it was answered.
+ */
+export function scopeResolutionProblem(
+  clarification: {
+    answerRecordedAt: Date | null;
+    answeredOnVersionNo: number | null;
+  },
+  version: { versionNo: number; status: string; lockedAt: Date | null },
+): string | null {
+  if (!clarification.answerRecordedAt) return 'ข้อนี้ยังไม่มีคำตอบ';
+  if (version.versionNo < (clarification.answeredOnVersionNo ?? 0)) {
+    return 'เวอร์ชันนี้เก่ากว่าตอนที่ได้คำตอบ — เลือกเวอร์ชันที่แก้ SOW หลังคำตอบ';
+  }
+  if (version.status === 'draft') return null;
+  if (
+    version.lockedAt &&
+    version.lockedAt.getTime() > clarification.answerRecordedAt.getTime()
+  ) {
+    return null;
+  }
+  return 'เวอร์ชันนี้ยืนยันก่อนได้คำตอบ — แก้ SOW ในเวอร์ชันใหม่ก่อน';
+}
+
+/** The Q&A as text, for the approval request and the handover. */
+export function clarificationsText(
+  rows: readonly {
+    seq: number;
+    question: string;
+    answer: string | null;
+    respondent: string | null;
+    answeredOn: Date | null;
+    affectsScope: boolean;
+  }[],
+): string {
+  return rows
+    .map((row) =>
+      [
+        `${row.seq}. ถาม: ${row.question}`,
+        row.answer
+          ? `   ตอบ: ${row.answer}${
+              row.respondent || row.answeredOn
+                ? ` (${[
+                    row.respondent,
+                    row.answeredOn?.toISOString().slice(0, 10),
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')})`
+                : ''
+            }${row.affectsScope ? ' — กระทบขอบเขต' : ''}`
+          : '   (ยังไม่ได้คำตอบ)',
+      ].join('\n'),
+    )
+    .join('\n');
 }

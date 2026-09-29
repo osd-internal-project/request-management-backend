@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import {
+  SolutionClarificationRepository,
   SolutionFileRepository,
   SolutionRequirementRepository,
   SolutionVersionRepository,
@@ -37,6 +38,7 @@ export class HandoverTechnicalService {
     private readonly versions: SolutionVersionRepository,
     private readonly requirements: SolutionRequirementRepository,
     private readonly files: SolutionFileRepository,
+    private readonly clarifications: SolutionClarificationRepository,
   ) {}
 
   async candidate(opportunityId: string): Promise<TechnicalCandidate> {
@@ -93,7 +95,7 @@ export class HandoverTechnicalService {
       solution: { id: string; title: string };
     } | null;
     if (!version) return null;
-    const [requirements, files] = await Promise.all([
+    const [requirements, files, clarifications] = await Promise.all([
       this.requirements.findMany({
         where: { solutionId: version.solutionId, deletedAt: null },
         orderBy: { seq: 'asc' },
@@ -110,6 +112,19 @@ export class HandoverTechnicalService {
         where: { versionId: version.id, deletedAt: null },
         orderBy: { uploadedAt: 'asc' },
         select: { id: true, fileName: true, mimeType: true, sizeBytes: true },
+      }),
+      // CD-140 — the technical Q&A with the customer.
+      this.clarifications.findMany({
+        where: { solutionId: version.solutionId, deletedAt: null },
+        orderBy: { seq: 'asc' },
+        select: {
+          seq: true,
+          question: true,
+          answer: true,
+          respondent: true,
+          answeredOn: true,
+          affectsScope: true,
+        },
       }),
     ]);
     return {
@@ -128,6 +143,7 @@ export class HandoverTechnicalService {
       deliverables: readDeliverables(version.deliverables),
       assumptions: readAssumptions(version.assumptions),
       requirements,
+      clarifications,
       files,
     };
   }

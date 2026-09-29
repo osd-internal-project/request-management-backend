@@ -3942,9 +3942,11 @@ model Solution {
   updatedAt DateTime @updatedAt
   updatedBy String?
 
-  opportunity  Opportunity           @relation(fields: [opportunityId], references: [id])
-  versions     SolutionVersion[]
-  requirements SolutionRequirement[]
+  opportunity    Opportunity             @relation(fields: [opportunityId], references: [id])
+  versions       SolutionVersion[]
+  requirements   SolutionRequirement[]
+  /// CD-140 — คำถาม-คำตอบทางเทคนิคกับลูกค้า.
+  clarifications SolutionClarification[]
 
   @@index([companyId, opportunityId])
   @@map("solutions")
@@ -4074,4 +4076,45 @@ enum FeasibilityVerdict {
   feasible
   conditional
   not_feasible
+}
+
+/// CD-140 — ชี้แจงประเด็นเทคนิค: คำถาม-คำตอบกับลูกค้าเป็นรายข้อ (ไม่ผูกเวอร์ชัน).
+/// คำตอบที่กระทบขอบเขต (`affectsScope`) ต้องแก้ SOW ในเวอร์ชันที่แก้หลังคำตอบ
+/// แล้วปิดด้วยเลขเวอร์ชันนั้น (`scopeResolvedVersionNo`) — ค้างอยู่ขออนุมัติไม่ได้.
+/// ลบคือ soft delete.
+model SolutionClarification {
+  id         String @id @default(uuid())
+  companyId  String
+  solutionId String
+  seq        Int
+
+  question String
+  askedOn  DateTime @db.Date
+  askedBy  String
+
+  answer              String?
+  /// ผู้ตอบฝั่งลูกค้า (ชื่อ · ตำแหน่ง).
+  respondent          String?
+  answeredOn          DateTime? @db.Date
+  /// ใครบันทึกคำตอบ และเมื่อไร (เวลาจริง ใช้ตัดสินว่าเวอร์ชันแก้หลังคำตอบหรือไม่).
+  answerRecordedBy    String?
+  answerRecordedAt    DateTime?
+  /// เวอร์ชันปัจจุบันของ Solution ขณะบันทึกคำตอบ.
+  answeredOnVersionNo Int?
+  affectsScope        Boolean   @default(false)
+
+  scopeResolvedVersionNo Int?
+  scopeResolvedAt        DateTime?
+  scopeResolvedBy        String?
+
+  createdBy String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  updatedBy String?
+  deletedAt DateTime?
+
+  solution Solution @relation(fields: [solutionId], references: [id])
+
+  @@index([solutionId])
+  @@map("solution_clarifications")
 }

@@ -8,6 +8,7 @@ import {
   SolutionFileRepository,
   SolutionRepository,
   SolutionRequirementRepository,
+  SolutionClarificationRepository,
   SolutionVersionRepository,
 } from './solution.repositories';
 
@@ -22,6 +23,7 @@ import {
     SolutionVersionRepository,
     SolutionFileRepository,
     SolutionRequirementRepository,
+    SolutionClarificationRepository,
     OpportunityRepository,
     CrmConfigRepository,
     PrismaTransactionService,
@@ -33,6 +35,7 @@ import {
     SolutionVersionRepository,
     SolutionFileRepository,
     SolutionRequirementRepository,
+    SolutionClarificationRepository,
     OpportunityRepository,
     CrmConfigRepository,
     PrismaTransactionService,

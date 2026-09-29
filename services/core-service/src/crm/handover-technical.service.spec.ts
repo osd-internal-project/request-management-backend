@@ -27,6 +27,7 @@ function harness(options: {
     versions as never,
     requirements as never,
     files as never,
+    { findMany: jest.fn(() => Promise.resolve([])) } as never,
   );
   return { service, versions, files };
 }
