@@ -1190,6 +1190,16 @@ async function seedRequestTypes(
             'x-multiline': true,
             'x-order': 70,
           },
+          // CD-133 — filled from the deal's approved Solution when raised
+          // from the deal page; what the customer and third parties must
+          // provide goes into the contract as its assumptions.
+          dependencies: {
+            type: 'string',
+            title: 'สมมติฐานและสิ่งที่ต้องพึ่งพา (จาก Solution)',
+            maxLength: 20000,
+            'x-multiline': true,
+            'x-order': 80,
+          },
         },
       },
       requiredDocs: [],
@@ -1373,6 +1383,14 @@ async function seedRequestTypes(
             maxLength: 20000,
             'x-multiline': true,
             'x-order': 80,
+          },
+          // CD-133 — the overall verdict and its conditions.
+          feasibility: {
+            type: 'string',
+            title: 'ผลประเมินความเป็นไปได้',
+            maxLength: 4000,
+            'x-multiline': true,
+            'x-order': 25,
           },
         },
       },

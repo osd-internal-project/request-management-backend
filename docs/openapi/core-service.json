@@ -9868,6 +9868,47 @@
         ]
       }
     },
+    "/api/v1/opportunities/{ref}/contract-assumptions": {
+      "get": {
+        "operationId": "SolutionsController_contractAssumptions",
+        "parameters": [
+          {
+            "name": "ref",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-133 สมมติฐานสำหรับคำขอสัญญา — จาก Solution เวอร์ชันที่อนุมัติล่าสุดของดีล (id หรือเลขดีล)",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "crm.sales.read"
+        ]
+      }
+    },
     "/api/v1/opportunities/{id}/solutions": {
       "get": {
         "operationId": "SolutionsController_forDeal",
@@ -16310,12 +16351,23 @@
               "technical",
               "customer",
               "third_party",
-              "commercial"
+              "commercial",
+              "constraint"
             ]
           },
           "text": {
             "type": "string",
             "maxLength": 2000
+          },
+          "owner": {
+            "type": "string",
+            "description": "CD-133 สิ่งที่ต้องพึ่งพาเท่านั้น: ผู้รับผิดชอบ",
+            "maxLength": 300
+          },
+          "needed_by": {
+            "type": "string",
+            "description": "CD-133 สิ่งที่ต้องพึ่งพาเท่านั้น: ต้องพร้อมภายใน (YYYY-MM-DD)",
+            "maxLength": 10
           }
         },
         "required": [
@@ -16371,6 +16423,21 @@
               "$ref": "#/components/schemas/AssumptionDto"
             },
             "maxItems": 200
+          },
+          "feasibility": {
+            "type": "string",
+            "enum": [
+              "unassessed",
+              "feasible",
+              "conditional",
+              "not_feasible"
+            ],
+            "description": "CD-133 ผลประเมินความเป็นไปได้รวม"
+          },
+          "feasibility_note": {
+            "type": "string",
+            "description": "CD-133 เงื่อนไข หรือเหตุผลที่ไม่เป็นไปได้",
+            "maxLength": 4000
           },
           "in_scope": {
             "description": "CD-134 งานในขอบเขต",

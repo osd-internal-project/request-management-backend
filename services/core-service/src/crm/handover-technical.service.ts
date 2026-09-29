@@ -87,6 +87,8 @@ export class HandoverTechnicalService {
       inScope: unknown;
       outOfScope: unknown;
       deliverables: unknown;
+      feasibility: string;
+      feasibilityNote: string;
       approvedAt: Date | null;
       solution: { id: string; title: string };
     } | null;
@@ -118,6 +120,9 @@ export class HandoverTechnicalService {
       approvedAt: version.approvedAt,
       summary: version.summary,
       design: version.design,
+      // CD-133 — the verdict the project inherits, with its conditions.
+      feasibility: version.feasibility,
+      feasibilityNote: version.feasibilityNote,
       inScope: readLines(version.inScope),
       outOfScope: readLines(version.outOfScope),
       deliverables: readDeliverables(version.deliverables),

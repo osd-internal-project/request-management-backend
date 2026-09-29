@@ -34,6 +34,8 @@ import {
   cleanDeliverables,
   cleanLines,
   sowGaps,
+  contractAssumptionsText,
+  type FeasibilityVerdict,
   approvalBlocker,
   type SolutionApprovalStatus,
   requirementCounts,
@@ -81,6 +83,8 @@ interface VersionRow {
   inScope: unknown;
   outOfScope: unknown;
   deliverables: unknown;
+  feasibility: FeasibilityVerdict;
+  feasibilityNote: string;
   changeNote: string | null;
   lockedAt: Date | null;
   lockedBy: string | null;
@@ -414,6 +418,54 @@ export class SolutionsService {
     };
   }
 
+  /**
+   * CD-133 — the assumptions a contract request on this deal starts from:
+   * the deal's latest approved Solution version, as text. Same
+   * `crm.sales.read` as the deal page that links to it; null text when the
+   * deal has no approved Solution.
+   */
+  async contractAssumptions(dealRef: string, actor: Principal) {
+    const deal = (await this.opportunities.findFirst({
+      where: {
+        companyId: actor.activeCompanyId,
+        OR: [{ id: dealRef }, { opportunityCode: dealRef }],
+        AND: [visibleSalesWhere(salesAccessSubject(actor))],
+      },
+      select: { id: true },
+    })) as { id: string } | null;
+    // SCOPE-03: out of reach answers 404.
+    if (!deal) throw new AppError('NOT_FOUND', 'ไม่พบโอกาสการขายที่ระบุ');
+    const version = (await this.versions.findFirst({
+      where: {
+        solution: { opportunityId: deal.id },
+        approvalStatus: 'approved',
+      },
+      orderBy: { approvedAt: 'desc' },
+      select: {
+        versionNo: true,
+        assumptions: true,
+        feasibility: true,
+        feasibilityNote: true,
+        solution: { select: { id: true, title: true } },
+      },
+    })) as {
+      versionNo: number;
+      assumptions: unknown;
+      feasibility: FeasibilityVerdict;
+      feasibilityNote: string;
+      solution: { id: string; title: string };
+    } | null;
+    if (!version) return { solution: null, text: null };
+    return {
+      solution: {
+        id: version.solution.id,
+        title: version.solution.title,
+        versionNo: version.versionNo,
+      },
+      text: contractAssumptionsText(version) || null,
+    };
+  }
+
   // --- editing ------------------------------------------------------------------
 
   async updateDraft(
@@ -481,6 +533,12 @@ export class SolutionsService {
             ...(dto.summary !== undefined ? { summary: dto.summary } : {}),
             ...(dto.design !== undefined ? { design: dto.design } : {}),
             ...(assumptions !== undefined ? { assumptions } : {}),
+            ...(dto.feasibility !== undefined
+              ? { feasibility: dto.feasibility }
+              : {}),
+            ...(dto.feasibility_note !== undefined
+              ? { feasibilityNote: dto.feasibility_note.trim() }
+              : {}),
             ...(inScope ? { inScope: inScope.lines } : {}),
             ...(outOfScope ? { outOfScope: outOfScope.lines } : {}),
             ...(deliverables
@@ -625,6 +683,8 @@ export class SolutionsService {
             assumptions: readAssumptions(
               latest.assumptions,
             ) as unknown as Prisma.InputJsonValue,
+            feasibility: latest.feasibility,
+            feasibilityNote: latest.feasibilityNote,
             inScope: readLines(latest.inScope),
             outOfScope: readLines(latest.outOfScope),
             deliverables: readDeliverables(

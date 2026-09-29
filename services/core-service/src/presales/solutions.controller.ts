@@ -71,6 +71,19 @@ export class SolutionsController {
     return this.solutions.forRequest(requestId, actor);
   }
 
+  @ApiOperation({
+    summary:
+      'CD-133 สมมติฐานสำหรับคำขอสัญญา — จาก Solution เวอร์ชันที่อนุมัติล่าสุดของดีล (id หรือเลขดีล)',
+  })
+  @Get('opportunities/:ref/contract-assumptions')
+  @Permissions('crm.sales.read')
+  contractAssumptions(
+    @Param('ref') ref: string,
+    @CurrentPrincipal() actor: Principal,
+  ) {
+    return this.solutions.contractAssumptions(ref, actor);
+  }
+
   @ApiOperation({ summary: 'Solution ของดีล' })
   @Get('opportunities/:id/solutions')
   @Permissions('crm.sales.read')

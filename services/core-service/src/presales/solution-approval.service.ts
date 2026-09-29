@@ -21,6 +21,7 @@ import { SolutionsService } from './solutions.service';
 import {
   approvalBlocker,
   approvalFormData,
+  type FeasibilityVerdict,
   type SolutionApprovalStatus,
 } from './solution-rules';
 
@@ -37,6 +38,8 @@ interface VersionRow {
   assumptions: unknown;
   approvalStatus: SolutionApprovalStatus;
   approvalRequestId: string | null;
+  feasibility: FeasibilityVerdict;
+  feasibilityNote: string;
 }
 
 /**
@@ -138,6 +141,8 @@ export class SolutionApprovalService implements OnModuleInit {
           outOfScope: version.outOfScope,
           deliverables: version.deliverables,
           assumptions: version.assumptions,
+          feasibility: version.feasibility,
+          feasibilityNote: version.feasibilityNote,
           requirements,
         }),
       },

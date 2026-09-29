@@ -40,6 +40,8 @@ const version = (overrides: Record<string, unknown> = {}) => ({
   inScope: ['ติดตั้ง SD-WAN 12 สาขา'],
   outOfScope: [],
   deliverables: [{ title: 'ติดตั้ง', criteria: ['ลิงก์ขึ้นครบ'] }],
+  feasibility: 'feasible',
+  feasibilityNote: '',
   changeNote: null,
   ...overrides,
 });
@@ -380,6 +382,48 @@ describe('CD-132 solutions', () => {
         },
       ],
     });
+  });
+
+  it('CD-133: a version without a feasibility verdict does not lock', async () => {
+    const { service } = harness({
+      versions: [version({ feasibility: 'unassessed' })],
+    });
+    await expect(service.lock('sol-1', 1, presales)).rejects.toMatchObject({
+      code: 'VALIDATION_FAILED',
+      details: [{ field: 'version', reason: 'ยังไม่ได้ประเมินความเป็นไปได้' }],
+    });
+  });
+
+  it("CD-133: contract assumptions come from the deal's approved version; none, none", async () => {
+    const approved = harness({});
+    approved.versionRepo.findFirst.mockResolvedValueOnce({
+      versionNo: 2,
+      assumptions: [
+        { category: 'third_party', text: 'ISP ส่งวงจร', owner: 'ISP' },
+      ],
+      feasibility: 'feasible',
+      feasibilityNote: '',
+      solution: { id: 'sol-1', title: 'SD-WAN' },
+    });
+    await expect(
+      approved.service.contractAssumptions('OPP-001', sales),
+    ).resolves.toEqual({
+      solution: { id: 'sol-1', title: 'SD-WAN', versionNo: 2 },
+      text: '1. [สิ่งที่ต้องพึ่งพาบุคคลที่สาม] ISP ส่งวงจร (ผู้รับผิดชอบ: ISP)',
+    });
+
+    const none = harness({});
+    none.versionRepo.findFirst.mockResolvedValueOnce(null);
+    await expect(
+      none.service.contractAssumptions('OPP-001', sales),
+    ).resolves.toEqual({ solution: null, text: null });
+
+    await expect(
+      harness({ dealVisible: false }).service.contractAssumptions(
+        'OPP-001',
+        sales,
+      ),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
 
   it('a new version copies the locked one and needs the latest locked', async () => {

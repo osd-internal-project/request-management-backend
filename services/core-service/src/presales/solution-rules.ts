@@ -7,6 +7,8 @@ export const ASSUMPTION_CATEGORIES = [
   'customer',
   'third_party',
   'commercial',
+  // CD-133 — a limit the design works within (site, regulation, legacy).
+  'constraint',
 ] as const;
 export type AssumptionCategory = (typeof ASSUMPTION_CATEGORIES)[number];
 
@@ -15,11 +17,47 @@ export const ASSUMPTION_CATEGORY_LABELS: Record<AssumptionCategory, string> = {
   customer: 'สิ่งที่ต้องพึ่งพาลูกค้า',
   third_party: 'สิ่งที่ต้องพึ่งพาบุคคลที่สาม',
   commercial: 'เชิงพาณิชย์',
+  constraint: 'ข้อจำกัด',
 };
+
+/**
+ * CD-133 — what the work depends on someone else for. These carry who is
+ * responsible and by when, and go into the contract as assumptions.
+ */
+export const DEPENDENCY_CATEGORIES: readonly AssumptionCategory[] = [
+  'customer',
+  'third_party',
+];
 
 export interface Assumption {
   category: AssumptionCategory;
   text: string;
+  /** CD-133 — dependencies only: who must deliver it. */
+  owner?: string;
+  /** CD-133 — dependencies only: needed by (YYYY-MM-DD). */
+  neededBy?: string;
+}
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const isIsoDate = (value: string) =>
+  ISO_DATE.test(value) &&
+  !Number.isNaN(new Date(`${value}T00:00:00Z`).getTime());
+
+/** The dependency fields of one assumption, kept only on a dependency. */
+function dependencyOf(
+  category: AssumptionCategory,
+  owner: unknown,
+  neededBy: unknown,
+): Pick<Assumption, 'owner' | 'neededBy'> {
+  if (!DEPENDENCY_CATEGORIES.includes(category)) return {};
+  return {
+    ...(typeof owner === 'string' && owner.trim()
+      ? { owner: owner.trim() }
+      : {}),
+    ...(typeof neededBy === 'string' && isIsoDate(neededBy)
+      ? { neededBy }
+      : {}),
+  };
 }
 
 export const MAX_ASSUMPTIONS = 100;
@@ -30,7 +68,10 @@ export function readAssumptions(value: unknown): Assumption[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((entry) => {
     if (!entry || typeof entry !== 'object') return [];
-    const { category, text } = entry as Record<string, unknown>;
+    const { category, text, owner, neededBy } = entry as Record<
+      string,
+      unknown
+    >;
     if (
       typeof text !== 'string' ||
       !text.trim() ||
@@ -38,7 +79,13 @@ export function readAssumptions(value: unknown): Assumption[] {
     ) {
       return [];
     }
-    return [{ category: category as AssumptionCategory, text: text.trim() }];
+    return [
+      {
+        category: category as AssumptionCategory,
+        text: text.trim(),
+        ...dependencyOf(category as AssumptionCategory, owner, neededBy),
+      },
+    ];
   });
 }
 
@@ -47,7 +94,12 @@ export function readAssumptions(value: unknown): Assumption[] {
  * Returns the problems instead of throwing so every one is named at once.
  */
 export function cleanAssumptions(
-  input: readonly { category?: string; text?: string }[],
+  input: readonly {
+    category?: string;
+    text?: string;
+    owner?: string;
+    needed_by?: string;
+  }[],
 ): { assumptions: Assumption[]; problems: string[] } {
   const problems: string[] = [];
   const assumptions: Assumption[] = [];
@@ -65,7 +117,21 @@ export function cleanAssumptions(
       problems.push(`${where}: ยาวเกิน ${MAX_ASSUMPTION_LENGTH} ตัวอักษร`);
       return;
     }
-    assumptions.push({ category: entry.category as AssumptionCategory, text });
+    const neededBy = entry.needed_by?.trim() ?? '';
+    if (neededBy && !isIsoDate(neededBy)) {
+      problems.push(`${where}: วันที่ต้องพร้อมไม่ถูกต้อง`);
+      return;
+    }
+    if ((entry.owner?.trim().length ?? 0) > 200) {
+      problems.push(`${where}: ผู้รับผิดชอบยาวเกิน 200 ตัวอักษร`);
+      return;
+    }
+    const category = entry.category as AssumptionCategory;
+    assumptions.push({
+      category,
+      text,
+      ...dependencyOf(category, entry.owner, neededBy),
+    });
   });
   if (assumptions.length > MAX_ASSUMPTIONS) {
     problems.push(`สมมติฐานได้ไม่เกิน ${MAX_ASSUMPTIONS} ข้อ`);
@@ -81,11 +147,88 @@ export function cleanAssumptions(
 export function lockGaps(version: {
   summary: string;
   design: string;
+  feasibility?: FeasibilityVerdict;
+  feasibilityNote?: string;
 }): string[] {
   const gaps: string[] = [];
   if (!version.summary.trim()) gaps.push('ยังไม่มีสรุปทางออก');
   if (!version.design.trim()) gaps.push('ยังไม่มีรายละเอียดการออกแบบ');
+  // CD-133 — every locked version says whether it can be done.
+  const problem = feasibilityProblem(
+    version.feasibility ?? 'unassessed',
+    version.feasibilityNote ?? '',
+  );
+  if (problem) gaps.push(problem);
   return gaps;
+}
+
+// --- CD-133 feasibility ---------------------------------------------------------
+
+export const FEASIBILITY_VERDICTS = [
+  'unassessed',
+  'feasible',
+  'conditional',
+  'not_feasible',
+] as const;
+export type FeasibilityVerdict = (typeof FEASIBILITY_VERDICTS)[number];
+
+export const FEASIBILITY_LABELS: Record<FeasibilityVerdict, string> = {
+  unassessed: 'ยังไม่ประเมิน',
+  feasible: 'เป็นไปได้',
+  conditional: 'เป็นไปได้แบบมีเงื่อนไข',
+  not_feasible: 'ไม่เป็นไปได้',
+};
+
+/** Why the verdict cannot stand as it is, or null. */
+export function feasibilityProblem(
+  verdict: FeasibilityVerdict,
+  note: string,
+): string | null {
+  if (verdict === 'unassessed') return 'ยังไม่ได้ประเมินความเป็นไปได้';
+  if (verdict === 'conditional' && !note.trim()) {
+    return 'ระบุเงื่อนไขที่ทำให้เป็นไปได้';
+  }
+  if (verdict === 'not_feasible' && !note.trim()) {
+    return 'ระบุเหตุผลที่ไม่เป็นไปได้';
+  }
+  return null;
+}
+
+/** One assumption as a line of text — with who and by when on a dependency. */
+export function assumptionLine(item: Assumption): string {
+  const extra = [
+    ...(item.owner ? [`ผู้รับผิดชอบ: ${item.owner}`] : []),
+    ...(item.neededBy ? [`ต้องพร้อมภายใน ${item.neededBy}`] : []),
+  ];
+  return `[${ASSUMPTION_CATEGORY_LABELS[item.category]}] ${item.text}${
+    extra.length ? ` (${extra.join(' · ')})` : ''
+  }`;
+}
+
+/**
+ * CD-133 — what goes into the contract request (CD-81) as its assumptions:
+ * the dependencies and constraints first — they are what the customer
+ * signs up to — then the rest, and the conditions of a conditional verdict.
+ */
+export function contractAssumptionsText(version: {
+  assumptions: unknown;
+  feasibility: FeasibilityVerdict;
+  feasibilityNote: string;
+}): string {
+  const all = readAssumptions(version.assumptions);
+  const first = all.filter(
+    (item) =>
+      DEPENDENCY_CATEGORIES.includes(item.category) ||
+      item.category === 'constraint',
+  );
+  const rest = all.filter((item) => !first.includes(item));
+  const lines = [...first, ...rest].map(
+    (item, index) => `${index + 1}. ${assumptionLine(item)}`,
+  );
+  if (version.feasibility === 'conditional' && version.feasibilityNote.trim()) {
+    lines.push(`เงื่อนไขความเป็นไปได้: ${version.feasibilityNote.trim()}`);
+  }
+  return lines.join('\n');
 }
 
 /**
@@ -324,7 +467,11 @@ export type SolutionApprovalStatus =
  * was approved (a change is a new version, which starts over).
  */
 export function approvalBlocker(
-  version: { status: string; approvalStatus: SolutionApprovalStatus },
+  version: {
+    status: string;
+    approvalStatus: SolutionApprovalStatus;
+    feasibility?: FeasibilityVerdict;
+  },
   isCurrent: boolean,
 ): string | null {
   if (version.status === 'draft') {
@@ -338,6 +485,10 @@ export function approvalBlocker(
   }
   if (version.approvalStatus === 'approved') {
     return 'เวอร์ชันนี้อนุมัติแล้ว — ถ้าต้องแก้ให้เปิดเวอร์ชันใหม่';
+  }
+  // CD-133 — a design judged not feasible is recorded, not offered.
+  if (version.feasibility === 'not_feasible') {
+    return 'เวอร์ชันนี้ประเมินว่าไม่เป็นไปได้ — ขออนุมัติไม่ได้';
   }
   return null;
 }
@@ -365,6 +516,8 @@ export function approvalFormData(input: {
   outOfScope: unknown;
   deliverables: unknown;
   assumptions: unknown;
+  feasibility?: FeasibilityVerdict;
+  feasibilityNote?: string;
   requirements: readonly {
     kind: string;
     text: string;
@@ -383,10 +536,7 @@ export function approvalFormData(input: {
     )
     .join('\n');
   const assumptions = readAssumptions(input.assumptions)
-    .map(
-      (item, index) =>
-        `${index + 1}. [${ASSUMPTION_CATEGORY_LABELS[item.category]}] ${item.text}`,
-    )
+    .map((item, index) => `${index + 1}. ${assumptionLine(item)}`)
     .join('\n');
   const requirements = input.requirements
     .map((item, index) =>
@@ -409,5 +559,15 @@ export function approvalFormData(input: {
     deliverables,
     ...(assumptions ? { assumptions } : {}),
     ...(requirements ? { requirements } : {}),
+    ...(input.feasibility && input.feasibility !== 'unassessed'
+      ? {
+          feasibility: [
+            FEASIBILITY_LABELS[input.feasibility],
+            input.feasibilityNote?.trim(),
+          ]
+            .filter(Boolean)
+            .join(' — '),
+        }
+      : {}),
   };
 }

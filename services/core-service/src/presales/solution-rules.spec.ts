@@ -1,5 +1,7 @@
 import {
   approvalBlocker,
+  contractAssumptionsText,
+  feasibilityProblem,
   approvalFormData,
   assessmentProblem,
   briefOf,
@@ -64,9 +66,15 @@ describe('CD-132 solution rules', () => {
     expect(lockGaps({ summary: ' ', design: '' })).toEqual([
       'ยังไม่มีสรุปทางออก',
       'ยังไม่มีรายละเอียดการออกแบบ',
+      'ยังไม่ได้ประเมินความเป็นไปได้',
     ]);
     expect(
-      lockGaps({ summary: 'SD-WAN 12 สาขา', design: 'hub-spoke' }),
+      lockGaps({
+        summary: 'SD-WAN 12 สาขา',
+        design: 'hub-spoke',
+        feasibility: 'feasible',
+        feasibilityNote: '',
+      }),
     ).toEqual([]);
   });
 
@@ -235,5 +243,83 @@ describe('CD-143 approval rules', () => {
       requirements:
         '1. [เทคนิค] firewall เดิม — ขอข้อมูลลูกค้า\n   ยี่ห้อ?\n   ลูกค้าตอบ: Fortinet',
     });
+  });
+});
+
+describe('CD-133 feasibility rules', () => {
+  it('a verdict is required; conditions and refusals must say why', () => {
+    expect(feasibilityProblem('unassessed', '')).toBe(
+      'ยังไม่ได้ประเมินความเป็นไปได้',
+    );
+    expect(feasibilityProblem('conditional', ' ')).not.toBeNull();
+    expect(feasibilityProblem('not_feasible', '')).not.toBeNull();
+    expect(feasibilityProblem('conditional', 'ลูกค้าต้องขยาย rack')).toBeNull();
+    expect(feasibilityProblem('feasible', '')).toBeNull();
+  });
+
+  it('a dependency keeps who and by when; other categories do not', () => {
+    const { assumptions, problems } = cleanAssumptions([
+      {
+        category: 'customer',
+        text: 'เตรียมพื้นที่ rack',
+        owner: ' ฝ่ายไอทีลูกค้า ',
+        needed_by: '2026-11-01',
+      },
+      { category: 'constraint', text: 'ห้ามหยุดระบบเวลาทำการ', owner: 'x' },
+    ]);
+    expect(problems).toEqual([]);
+    expect(assumptions).toEqual([
+      {
+        category: 'customer',
+        text: 'เตรียมพื้นที่ rack',
+        owner: 'ฝ่ายไอทีลูกค้า',
+        neededBy: '2026-11-01',
+      },
+      { category: 'constraint', text: 'ห้ามหยุดระบบเวลาทำการ' },
+    ]);
+    expect(
+      cleanAssumptions([
+        { category: 'third_party', text: 'ISP', needed_by: '2026-13-40' },
+      ]).problems,
+    ).toEqual(['สมมติฐานข้อ 1: วันที่ต้องพร้อมไม่ถูกต้อง']);
+  });
+
+  it('a not-feasible version cannot be sent for approval', () => {
+    expect(
+      approvalBlocker(
+        {
+          status: 'locked',
+          approvalStatus: 'none',
+          feasibility: 'not_feasible',
+        },
+        true,
+      ),
+    ).toContain('ไม่เป็นไปได้');
+  });
+
+  it('the contract text puts dependencies and constraints first, then the rest and the conditions', () => {
+    expect(
+      contractAssumptionsText({
+        assumptions: [
+          { category: 'technical', text: 'ใช้ SD-WAN' },
+          {
+            category: 'customer',
+            text: 'เตรียม rack',
+            owner: 'ไอทีลูกค้า',
+            neededBy: '2026-11-01',
+          },
+          { category: 'constraint', text: 'ติดตั้งนอกเวลาทำการ' },
+        ],
+        feasibility: 'conditional',
+        feasibilityNote: 'ลูกค้าอนุมัติ downtime 2 ชม.',
+      }),
+    ).toBe(
+      [
+        '1. [สิ่งที่ต้องพึ่งพาลูกค้า] เตรียม rack (ผู้รับผิดชอบ: ไอทีลูกค้า · ต้องพร้อมภายใน 2026-11-01)',
+        '2. [ข้อจำกัด] ติดตั้งนอกเวลาทำการ',
+        '3. [ทางเทคนิค] ใช้ SD-WAN',
+        'เงื่อนไขความเป็นไปได้: ลูกค้าอนุมัติ downtime 2 ชม.',
+      ].join('\n'),
+    );
   });
 });

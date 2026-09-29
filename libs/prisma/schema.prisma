@@ -3930,6 +3930,10 @@ model SolutionVersion {
   inScope           Json                   @default("[]")
   outOfScope        Json                   @default("[]")
   deliverables      Json                   @default("[]")
+  /// CD-133 ผลประเมินความเป็นไปได้รวมของเวอร์ชัน — ต้องมีก่อนยืนยัน; เป็นไปได้
+  /// แบบมีเงื่อนไข/ไม่เป็นไปได้ต้องมีเหตุผล; ไม่เป็นไปได้ขออนุมัติไม่ได้.
+  feasibility       FeasibilityVerdict     @default(unassessed)
+  feasibilityNote   String                 @default("")
   /// ทำไมถึงมีเวอร์ชันนี้ (เวอร์ชัน 2 ขึ้นไป).
   changeNote        String?
   lockedAt          DateTime?
@@ -4026,4 +4030,12 @@ enum SolutionApprovalStatus {
   approved
   rejected
   cancelled
+}
+
+/// CD-133 — ผลประเมินความเป็นไปได้ของ Solution เวอร์ชันหนึ่ง.
+enum FeasibilityVerdict {
+  unassessed
+  feasible
+  conditional
+  not_feasible
 }

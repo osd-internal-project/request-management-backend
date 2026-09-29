@@ -12,6 +12,7 @@ import {
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   ASSUMPTION_CATEGORIES,
+  FEASIBILITY_VERDICTS,
   REQUIREMENT_ASSESSMENTS,
   REQUIREMENT_KINDS,
 } from '../solution-rules';
@@ -34,6 +35,23 @@ export class AssumptionDto {
   @IsString()
   @MaxLength(2000)
   text!: string;
+
+  @ApiPropertyOptional({
+    description: 'CD-133 สิ่งที่ต้องพึ่งพาเท่านั้น: ผู้รับผิดชอบ',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  owner?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'CD-133 สิ่งที่ต้องพึ่งพาเท่านั้น: ต้องพร้อมภายใน (YYYY-MM-DD)',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  needed_by?: string;
 }
 
 /** CD-134 — รายการส่งมอบพร้อมเกณฑ์ตรวจรับของรายการนั้น. */
@@ -83,6 +101,22 @@ export class UpdateSolutionDraftDto {
   @ValidateNested({ each: true })
   @Type(() => AssumptionDto)
   assumptions?: AssumptionDto[];
+
+  @ApiPropertyOptional({
+    enum: FEASIBILITY_VERDICTS,
+    description: 'CD-133 ผลประเมินความเป็นไปได้รวม',
+  })
+  @IsOptional()
+  @IsIn(FEASIBILITY_VERDICTS)
+  feasibility?: (typeof FEASIBILITY_VERDICTS)[number];
+
+  @ApiPropertyOptional({
+    description: 'CD-133 เงื่อนไข หรือเหตุผลที่ไม่เป็นไปได้',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  feasibility_note?: string;
 
   @ApiPropertyOptional({ type: [String], description: 'CD-134 งานในขอบเขต' })
   @IsOptional()
