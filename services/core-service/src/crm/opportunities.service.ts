@@ -277,6 +277,8 @@ export class OpportunitiesService {
     }
 
     const partyName = customer?.nameTh ?? prospect?.prospectName ?? '';
+    // CD-86 — before the number is issued, like every other check
+    const dealType = dealTypeFor(dto.deal_type, Boolean(customer));
 
     // CD-27: product ที่เกี่ยวข้องต้องเป็นรหัสที่ SAP รู้จัก — กฎเดียวกับบรรทัด
     // ใบเสนอราคา ไม่งั้นการเตือน KYC เทียบรหัสกันไม่ตรง
@@ -302,7 +304,7 @@ export class OpportunitiesService {
             companyId: actor.activeCompanyId,
             customerId: customer?.id ?? null,
             ...(prospect ?? {}),
-            dealType: dealTypeFor(dto.deal_type, Boolean(customer)),
+            dealType,
             title: dto.title.trim(),
             amount: dto.amount ?? null,
             probability: dto.probability ?? null,

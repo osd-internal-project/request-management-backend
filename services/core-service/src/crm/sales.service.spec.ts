@@ -123,7 +123,7 @@ function opportunityHarness(
     } as never,
   );
 
-  return { service, opportunities, audits, timelineEvents, lostReasons };
+  return { service, opportunities, audits, timelineEvents, lostReasons, codes };
 }
 
 describe('CRM โอกาสการขาย — ปิดชนะ/แพ้ และคำเตือน KYC ระดับ product', () => {
@@ -201,13 +201,15 @@ describe('CRM โอกาสการขาย — ปิดชนะ/แพ้
   });
 
   it('CD-86 deal type: upsell/cross-sell need an existing customer; default is new business', async () => {
-    const { service, opportunities } = opportunityHarness();
+    const { service, opportunities, codes } = opportunityHarness();
     await expect(
       service.create(
         { prospect_name: 'ผู้มุ่งหวัง', title: 'x', deal_type: 'upsell' },
         principal(),
       ),
     ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+    // refused before a document number is spent
+    expect(codes.issueUnused).not.toHaveBeenCalled();
 
     await service.create(
       { customer_id: 'cust-1', title: 'ขยายสาขา', deal_type: 'cross_sell' },
