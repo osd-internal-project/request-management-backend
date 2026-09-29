@@ -311,3 +311,103 @@ export function sowGaps(version: {
   }
   return gaps;
 }
+
+// --- CD-143 approval -------------------------------------------------------------
+
+export type SolutionApprovalStatus =
+  'none' | 'pending' | 'approved' | 'rejected' | 'cancelled';
+
+/**
+ * Why this version cannot be sent for approval now, or null. Only the current
+ * locked version goes — a draft is not fixed yet, a superseded one is no
+ * longer what is offered — and not twice while a request is open or after it
+ * was approved (a change is a new version, which starts over).
+ */
+export function approvalBlocker(
+  version: { status: string; approvalStatus: SolutionApprovalStatus },
+  isCurrent: boolean,
+): string | null {
+  if (version.status === 'draft') {
+    return 'ยืนยันเวอร์ชันก่อน จึงขออนุมัติได้';
+  }
+  if (version.status !== 'locked' || !isCurrent) {
+    return 'ขออนุมัติได้เฉพาะเวอร์ชันล่าสุดที่ยืนยันแล้ว';
+  }
+  if (version.approvalStatus === 'pending') {
+    return 'เวอร์ชันนี้อยู่ระหว่างขออนุมัติแล้ว';
+  }
+  if (version.approvalStatus === 'approved') {
+    return 'เวอร์ชันนี้อนุมัติแล้ว — ถ้าต้องแก้ให้เปิดเวอร์ชันใหม่';
+  }
+  return null;
+}
+
+const ASSESSMENT_LABELS: Record<RequirementAssessment, string> = {
+  unassessed: 'ยังไม่ประเมิน',
+  feasible: 'ทำได้',
+  not_feasible: 'ทำไม่ได้',
+  needs_info: 'ขอข้อมูลลูกค้า',
+};
+
+const numbered = (lines: readonly string[]) =>
+  lines.map((line, index) => `${index + 1}. ${line}`).join('\n');
+
+/**
+ * The approval request's form, filled from the locked version so the
+ * approver reads exactly what was fixed. Plain text: the request form is the
+ * record of what was asked, and it must not change if the Solution does.
+ */
+export function approvalFormData(input: {
+  title: string;
+  versionNo: number;
+  summary: string;
+  inScope: unknown;
+  outOfScope: unknown;
+  deliverables: unknown;
+  assumptions: unknown;
+  requirements: readonly {
+    kind: string;
+    text: string;
+    assessment: RequirementAssessment;
+    note: string;
+    customerAnswer: string | null;
+  }[];
+}): Record<string, string> {
+  const deliverables = readDeliverables(input.deliverables)
+    .map((item, index) =>
+      [
+        `${index + 1}. ${item.title}`,
+        ...(item.description ? [`   ${item.description}`] : []),
+        ...item.criteria.map((criterion) => `   - ตรวจรับ: ${criterion}`),
+      ].join('\n'),
+    )
+    .join('\n');
+  const assumptions = readAssumptions(input.assumptions)
+    .map(
+      (item, index) =>
+        `${index + 1}. [${ASSUMPTION_CATEGORY_LABELS[item.category]}] ${item.text}`,
+    )
+    .join('\n');
+  const requirements = input.requirements
+    .map((item, index) =>
+      [
+        `${index + 1}. [${item.kind === 'business' ? 'ธุรกิจ' : 'เทคนิค'}] ${item.text} — ${ASSESSMENT_LABELS[item.assessment]}`,
+        ...(item.note ? [`   ${item.note}`] : []),
+        ...(item.customerAnswer
+          ? [`   ลูกค้าตอบ: ${item.customerAnswer}`]
+          : []),
+      ].join('\n'),
+    )
+    .join('\n');
+  const outOfScope = readLines(input.outOfScope);
+  return {
+    solution_title: input.title,
+    version_no: String(input.versionNo),
+    summary: input.summary,
+    in_scope: numbered(readLines(input.inScope)),
+    ...(outOfScope.length ? { out_of_scope: numbered(outOfScope) } : {}),
+    deliverables,
+    ...(assumptions ? { assumptions } : {}),
+    ...(requirements ? { requirements } : {}),
+  };
+}

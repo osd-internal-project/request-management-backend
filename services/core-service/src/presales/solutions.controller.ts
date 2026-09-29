@@ -34,6 +34,7 @@ import {
   UpdateSolutionDraftDto,
 } from './dto/solution.dto';
 import { RequirementsService } from './requirements.service';
+import { SolutionApprovalService } from './solution-approval.service';
 import { MAX_FILE_BYTES, SolutionsService } from './solutions.service';
 
 /**
@@ -50,6 +51,7 @@ export class SolutionsController {
   constructor(
     private readonly solutions: SolutionsService,
     private readonly requirements: RequirementsService,
+    private readonly approvals: SolutionApprovalService,
   ) {}
 
   @ApiOperation({ summary: 'เริ่ม Solution จากคำขอ "ขอ Solution" ที่รับแล้ว' })
@@ -115,6 +117,19 @@ export class SolutionsController {
     @CurrentPrincipal() actor: Principal,
   ) {
     return this.solutions.lock(id, no, actor);
+  }
+
+  @ApiOperation({
+    summary: 'ขออนุมัติเวอร์ชันนี้ (สร้างร่างคำขอ "ขออนุมัติ Solution")',
+  })
+  @Post('presales/solutions/:id/versions/:no/approval')
+  @Permissions('presales.solution.manage')
+  requestApproval(
+    @Param('id') id: string,
+    @Param('no', ParseIntPipe) no: number,
+    @CurrentPrincipal() actor: Principal,
+  ) {
+    return this.approvals.requestApproval(id, no, actor);
   }
 
   @ApiOperation({ summary: 'เปิดเวอร์ชันใหม่จากเวอร์ชันที่ยืนยันแล้ว' })

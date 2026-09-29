@@ -1,4 +1,6 @@
 import {
+  approvalBlocker,
+  approvalFormData,
   assessmentProblem,
   briefOf,
   cleanDeliverables,
@@ -174,5 +176,64 @@ describe('CD-134 scope of work rules', () => {
     expect(readDeliverables([{ title: 'a', criteria: ['x', 3, ' '] }])).toEqual(
       [{ title: 'a', description: '', criteria: ['x'] }],
     );
+  });
+});
+
+describe('CD-143 approval rules', () => {
+  it('only the current locked version, not yet asked or approved, may go', () => {
+    expect(
+      approvalBlocker({ status: 'locked', approvalStatus: 'none' }, true),
+    ).toBeNull();
+    expect(
+      approvalBlocker({ status: 'locked', approvalStatus: 'cancelled' }, true),
+    ).toBeNull();
+    expect(
+      approvalBlocker({ status: 'draft', approvalStatus: 'none' }, true),
+    ).not.toBeNull();
+    expect(
+      approvalBlocker({ status: 'locked', approvalStatus: 'none' }, false),
+    ).not.toBeNull();
+    expect(
+      approvalBlocker(
+        { status: 'superseded', approvalStatus: 'approved' },
+        false,
+      ),
+    ).not.toBeNull();
+    expect(
+      approvalBlocker({ status: 'locked', approvalStatus: 'approved' }, true),
+    ).toContain('เปิดเวอร์ชันใหม่');
+  });
+
+  it('the form carries the locked version as text, leaving out what is empty', () => {
+    const form = approvalFormData({
+      title: 'SD-WAN',
+      versionNo: 3,
+      summary: 'สรุป',
+      inScope: ['a', 'b'],
+      outOfScope: [],
+      deliverables: [
+        { title: 'ติดตั้ง', description: 'ทุกสาขา', criteria: ['ลิงก์ขึ้น'] },
+      ],
+      assumptions: [{ category: 'customer', text: 'มี rack' }],
+      requirements: [
+        {
+          kind: 'technical',
+          text: 'firewall เดิม',
+          assessment: 'needs_info',
+          note: 'ยี่ห้อ?',
+          customerAnswer: 'Fortinet',
+        },
+      ],
+    });
+    expect(form).toEqual({
+      solution_title: 'SD-WAN',
+      version_no: '3',
+      summary: 'สรุป',
+      in_scope: '1. a\n2. b',
+      deliverables: '1. ติดตั้ง\n   ทุกสาขา\n   - ตรวจรับ: ลิงก์ขึ้น',
+      assumptions: '1. [สิ่งที่ต้องพึ่งพาลูกค้า] มี rack',
+      requirements:
+        '1. [เทคนิค] firewall เดิม — ขอข้อมูลลูกค้า\n   ยี่ห้อ?\n   ลูกค้าตอบ: Fortinet',
+    });
   });
 });

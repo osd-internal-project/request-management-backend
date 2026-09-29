@@ -5,6 +5,7 @@ import { PresalesModule } from './presales.module';
 import { SolutionsController } from './solutions.controller';
 import { SolutionsService } from './solutions.service';
 import { RequirementsService } from './requirements.service';
+import { SolutionApprovalService } from './solution-approval.service';
 
 /** The screen-facing routes of {@link PresalesModule} (see `src/index.ts`). */
 @Module({
@@ -18,6 +19,6 @@ import { RequirementsService } from './requirements.service';
     }),
   ],
   controllers: [SolutionsController],
-  providers: [SolutionsService, RequirementsService],
+  providers: [SolutionsService, RequirementsService, SolutionApprovalService],
 })
 export class PresalesHttpModule {}

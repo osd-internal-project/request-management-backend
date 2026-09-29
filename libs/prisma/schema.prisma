@@ -2409,6 +2409,10 @@ model CrmCompanyConfig {
   /// NULL = ยังไม่ตั้ง → หน้าดีลไม่แสดงการ์ด.
   solutionRequestTypeCode String?
 
+  /// CD-143 — ประเภทคำขอ "ขออนุมัติ Solution" (Pre-Sales → ฝ่ายเทคนิค); null = ยังไม่ตั้ง
+  /// และปุ่มขออนุมัติบนหน้า Solution ไม่แสดง.
+  solutionApprovalTypeCode String?
+
   /// CD-62: ประเภทคำขออนุมัติเปิดลูกค้าใหม่ ต่อประเภทลูกค้า — `{ corporate?, individual?,
   /// government? }` → รหัสประเภทคำขอ (เอกสารบังคับต่างกันตามประเภทลูกค้า). ไม่มีรหัส =
   /// ลูกค้าประเภทนั้นไม่ต้องขออนุมัติ.
@@ -3858,23 +3862,28 @@ model Solution {
 /// CD-132 — หนึ่งเวอร์ชันของ Solution: สรุป · รายละเอียดการออกแบบ · สมมติฐานรายข้อ
 /// (`[{category, text}]` — ส่งต่อเป็นสมมติฐานในสัญญาได้) · ไฟล์แบบ.
 model SolutionVersion {
-  id           String                @id @default(uuid())
-  solutionId   String
-  versionNo    Int
-  status       SolutionVersionStatus @default(draft)
-  summary      String                @default("")
-  design       String                @default("")
-  assumptions  Json                  @default("[]")
+  id                String                 @id @default(uuid())
+  solutionId        String
+  versionNo         Int
+  status            SolutionVersionStatus  @default(draft)
+  summary           String                 @default("")
+  design            String                 @default("")
+  assumptions       Json                   @default("[]")
   /// CD-134 ขอบเขตงาน (SOW) — ล็อกไปพร้อมเวอร์ชัน: งานในขอบเขต `[text]`,
   /// งานนอกขอบเขต `[text]`, รายการส่งมอบ `[{title, description, criteria: [text]}]`
   /// (เกณฑ์ตรวจรับอยู่กับรายการส่งมอบแต่ละชิ้น — ฐานของ Delivery CD-20).
-  inScope      Json                  @default("[]")
-  outOfScope   Json                  @default("[]")
-  deliverables Json                  @default("[]")
+  inScope           Json                   @default("[]")
+  outOfScope        Json                   @default("[]")
+  deliverables      Json                   @default("[]")
   /// ทำไมถึงมีเวอร์ชันนี้ (เวอร์ชัน 2 ขึ้นไป).
-  changeNote   String?
-  lockedAt     DateTime?
-  lockedBy     String?
+  changeNote        String?
+  lockedAt          DateTime?
+  lockedBy          String?
+  /// CD-143 — การอนุมัติของเวอร์ชันนี้ (คำขอ "ขออนุมัติ Solution"). เสนอลูกค้าได้
+  /// เฉพาะเวอร์ชันที่ `approved`; แก้หลังอนุมัติคือเวอร์ชันใหม่ ซึ่งเริ่ม `none`.
+  approvalStatus    SolutionApprovalStatus @default(none)
+  approvalRequestId String?                @unique
+  approvedAt        DateTime?
 
   createdBy String
   createdAt DateTime @default(now())
@@ -3951,4 +3960,13 @@ model SolutionRequirement {
 
   @@index([solutionId])
   @@map("solution_requirements")
+}
+
+/// CD-143 — สถานะการอนุมัติของเวอร์ชัน Solution.
+enum SolutionApprovalStatus {
+  none
+  pending
+  approved
+  rejected
+  cancelled
 }

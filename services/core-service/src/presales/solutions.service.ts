@@ -34,6 +34,8 @@ import {
   cleanDeliverables,
   cleanLines,
   sowGaps,
+  approvalBlocker,
+  type SolutionApprovalStatus,
   requirementCounts,
   requirementGaps,
   type RequirementState,
@@ -71,6 +73,8 @@ interface VersionRow {
   solutionId: string;
   versionNo: number;
   status: 'draft' | 'locked' | 'superseded';
+  approvalStatus: SolutionApprovalStatus;
+  approvalRequestId: string | null;
   summary: string;
   design: string;
   assumptions: unknown;
@@ -281,7 +285,7 @@ export class SolutionsService {
         versions: {
           orderBy: { versionNo: 'desc' },
           take: 1,
-          select: { versionNo: true, status: true },
+          select: { versionNo: true, status: true, approvalStatus: true },
         },
         requirements: {
           where: { deletedAt: null },
@@ -294,7 +298,11 @@ export class SolutionsService {
       requestId: string;
       currentVersionNo: number;
       updatedAt: Date;
-      versions: { versionNo: number; status: string }[];
+      versions: {
+        versionNo: number;
+        status: string;
+        approvalStatus: string;
+      }[];
       requirements: RequirementState[];
     }[];
     return rows.map(({ versions, requirements, ...row }) => ({
@@ -318,6 +326,7 @@ export class SolutionsService {
           changeNote: true,
           lockedAt: true,
           createdAt: true,
+          approvalStatus: true,
         },
       }),
       this.opportunities.findFirst({
@@ -338,14 +347,29 @@ export class SolutionsService {
       id,
       versionNo ?? solution.currentVersionNo,
     );
-    const [files, requirements] = await Promise.all([
-      this.files.findMany({
-        where: { versionId: version.id, deletedAt: null },
-        orderBy: { uploadedAt: 'asc' },
-        select: FILE_SELECT,
-      }),
-      this.activeRequirements(id),
-    ]);
+    const [files, requirements, approvalType, approvalRequest] =
+      await Promise.all([
+        this.files.findMany({
+          where: { versionId: version.id, deletedAt: null },
+          orderBy: { uploadedAt: 'asc' },
+          select: FILE_SELECT,
+        }),
+        this.activeRequirements(id),
+        this.configs.findFirst({
+          where: { companyId: solution.companyId },
+          select: { solutionApprovalTypeCode: true },
+        }) as Promise<{ solutionApprovalTypeCode: string | null } | null>,
+        version.approvalRequestId
+          ? (this.requests.findFirst({
+              where: { id: version.approvalRequestId },
+              select: { id: true, requestNo: true, status: true },
+            }) as Promise<{
+              id: string;
+              requestNo: string | null;
+              status: string;
+            } | null>)
+          : Promise.resolve(null),
+      ]);
     return {
       ...solution,
       can_manage: this.canManage(actor),
@@ -377,6 +401,15 @@ export class SolutionsService {
         outOfScope: readLines(version.outOfScope),
         deliverables: readDeliverables(version.deliverables),
         files,
+      },
+      // CD-143 — whether this version may be sent for approval, and why not.
+      approval: {
+        configured: Boolean(approvalType?.solutionApprovalTypeCode),
+        blocker: approvalBlocker(
+          version,
+          version.versionNo === solution.currentVersionNo,
+        ),
+        request: approvalRequest,
       },
     };
   }

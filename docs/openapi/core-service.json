@@ -9961,6 +9961,55 @@
         ]
       }
     },
+    "/api/v1/presales/solutions/{id}/versions/{no}/approval": {
+      "post": {
+        "operationId": "SolutionsController_requestApproval",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "no",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ขออนุมัติเวอร์ชันนี้ (สร้างร่างคำขอ \"ขออนุมัติ Solution\")",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "presales.solution.manage"
+        ]
+      }
+    },
     "/api/v1/presales/solutions/{id}/versions": {
       "post": {
         "operationId": "SolutionsController_newVersion",
@@ -14192,6 +14241,10 @@
             "type": "string"
           },
           "solution_request_type_code": {
+            "pattern": "^([A-Z0-9_-]{1,20})?$",
+            "type": "string"
+          },
+          "solution_approval_type_code": {
             "pattern": "^([A-Z0-9_-]{1,20})?$",
             "type": "string"
           },

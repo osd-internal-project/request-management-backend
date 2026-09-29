@@ -752,19 +752,71 @@ async function seedContractRequestType(companyId: string) {
 async function seedSolutionRequestType(companyId: string) {
   const config = await prisma.crmCompanyConfig.findUnique({
     where: { companyId },
-    select: { solutionRequestTypeCode: true },
+    select: { solutionRequestTypeCode: true, solutionApprovalTypeCode: true },
   });
   if (!config) {
     await prisma.crmCompanyConfig.create({
-      data: { companyId, solutionRequestTypeCode: 'SOL', updatedBy: 'seed' },
+      data: {
+        companyId,
+        solutionRequestTypeCode: 'SOL',
+        solutionApprovalTypeCode: 'SOLA',
+        updatedBy: 'seed',
+      },
     });
-  } else if (!config.solutionRequestTypeCode) {
-    await prisma.crmCompanyConfig.update({
-      where: { companyId },
-      data: { solutionRequestTypeCode: 'SOL', updatedBy: 'seed' },
-    });
+  } else {
+    // Only what is still unset — a company's own choice is left alone.
+    const data = {
+      ...(config.solutionRequestTypeCode
+        ? {}
+        : { solutionRequestTypeCode: 'SOL' }),
+      ...(config.solutionApprovalTypeCode
+        ? {}
+        : { solutionApprovalTypeCode: 'SOLA' }),
+    };
+    if (Object.keys(data).length) {
+      await prisma.crmCompanyConfig.update({
+        where: { companyId },
+        data: { ...data, updatedBy: 'seed' },
+      });
+    }
   }
-  console.log('  solution request type: SOL');
+  console.log('  solution request types: SOL, SOLA');
+}
+
+/**
+ * CD-143 — the `ขออนุมัติ Solution` ladder, after the work: the technical team
+ * reviews the design, then the head of the reviewer's team and the director
+ * above approve it (the ladder climbs the reviewer's chart). An admin moves it
+ * to named groups on screen A1 when the real technical department exists.
+ */
+async function seedSolutionApprovalMatrix(companyId: string) {
+  const existing = await prisma.approvalMatrix.findFirst({
+    where: { companyId, subjectType: 'request:SOLA' },
+  });
+  if (existing) {
+    console.log('  approval matrix: request:SOLA already present');
+    return;
+  }
+  await prisma.approvalMatrix.create({
+    data: {
+      companyId,
+      subjectType: 'request:SOLA',
+      currency: 'THB',
+      version: 1,
+      effectiveFrom: new Date('2026-01-01T00:00:00Z'),
+      publishedAt: new Date('2026-01-01T00:00:00Z'),
+      levels: [
+        { type: 'supervisor', up: 1 },
+        { type: 'supervisor', up: 2 },
+      ],
+      // NOT NULL and read by nothing — see seedApprovalMatrix.
+      tiers: [{ upto: null, chain: ['team_lead'] }],
+      createdBy: 'seed',
+    },
+  });
+  console.log(
+    '  approval matrix: request:SOLA v1 · หัวหน้าผู้ตรวจ → ผู้อำนวยการถัดขึ้นไป',
+  );
 }
 
 /**
@@ -1247,6 +1299,94 @@ async function seedRequestTypes(
       // 2 days, as the scope's request-type table sets; coverage is 24×7.
       slaHours: 48,
     },
+    {
+      /**
+       * CD-143 — ขออนุมัติ Solution (Pre-Sales → ฝ่ายเทคนิค · ผู้อำนวยการฝ่าย
+       * เทคนิค · 2 วัน). Raised as a draft from a locked Solution version,
+       * prefilled with what is being approved; the technical team reviews it
+       * and the `request:SOLA` ladder approves it after the work.
+       */
+      code: 'SOLA',
+      name: 'ขออนุมัติ Solution',
+      receiverOrgUnitId: osdRoot?.id ?? null,
+      refRequired: true,
+      formSchema: {
+        type: 'object',
+        required: [
+          'solution_title',
+          'version_no',
+          'summary',
+          'in_scope',
+          'deliverables',
+        ],
+        properties: {
+          solution_title: {
+            type: 'string',
+            title: 'Solution',
+            maxLength: 300,
+            'x-order': 10,
+          },
+          version_no: {
+            type: 'string',
+            title: 'เวอร์ชันที่ขออนุมัติ',
+            maxLength: 20,
+            'x-order': 20,
+          },
+          summary: {
+            type: 'string',
+            title: 'สรุปทางออก',
+            maxLength: 4000,
+            'x-multiline': true,
+            'x-order': 30,
+          },
+          in_scope: {
+            type: 'string',
+            title: 'งานในขอบเขต',
+            maxLength: 20000,
+            'x-multiline': true,
+            'x-order': 40,
+          },
+          out_of_scope: {
+            type: 'string',
+            title: 'งานนอกขอบเขต',
+            maxLength: 20000,
+            'x-multiline': true,
+            'x-order': 50,
+          },
+          deliverables: {
+            type: 'string',
+            title: 'รายการส่งมอบและเกณฑ์ตรวจรับ',
+            maxLength: 20000,
+            'x-multiline': true,
+            'x-order': 60,
+          },
+          assumptions: {
+            type: 'string',
+            title: 'สมมติฐานการออกแบบ',
+            maxLength: 20000,
+            'x-multiline': true,
+            'x-order': 70,
+          },
+          requirements: {
+            type: 'string',
+            title: 'ผลวิเคราะห์ความต้องการ',
+            maxLength: 20000,
+            'x-multiline': true,
+            'x-order': 80,
+          },
+        },
+      },
+      requiredDocs: [],
+      returnReasonCodes: [
+        { code: 'DESIGN_INCOMPLETE', name: 'การออกแบบยังไม่ครบ' },
+        { code: 'SCOPE_UNCLEAR', name: 'ขอบเขตงานไม่ชัดเจน' },
+        { code: 'NOT_FEASIBLE', name: 'ทำไม่ได้ทางเทคนิค' },
+        { code: 'DOCS_MISSING', name: 'เอกสารประกอบไม่ครบ' },
+        { code: 'OTHER', name: 'อื่น ๆ' },
+      ],
+      approvalPolicy: {},
+      slaHours: 48,
+    },
   ];
 
   for (const type of types) {
@@ -1421,6 +1561,7 @@ async function main() {
   await seedTradeTerms(demo.id);
   await seedHandoverItems(demo.id);
   await seedApprovalMatrix(demo.id);
+  await seedSolutionApprovalMatrix(demo.id);
 
   console.log('Done.');
 }

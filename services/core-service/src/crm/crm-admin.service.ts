@@ -207,6 +207,7 @@ export class CrmAdminService {
         contractRequestTypeCode: null,
         liabilityApprovalRequestTypeCode: null,
         solutionRequestTypeCode: null,
+        solutionApprovalTypeCode: null,
         handoverOrgUnitId: null,
         customerApprovalTypes: {},
         kycReviewMonthsHigh: 12,
@@ -249,6 +250,7 @@ export class CrmAdminService {
               liabilityApprovalRequestTypeCode:
                 dto.liability_approval_request_type_code || null,
               solutionRequestTypeCode: dto.solution_request_type_code || null,
+              solutionApprovalTypeCode: dto.solution_approval_type_code || null,
               handoverOrgUnitId: dto.handover_org_unit_id || null,
               customerApprovalTypes: approvalTypes ?? {},
               kycReviewMonthsHigh: dto.kyc_review_months_high ?? 12,
@@ -281,6 +283,10 @@ export class CrmAdminService {
                 dto.solution_request_type_code === undefined
                   ? undefined
                   : dto.solution_request_type_code || null,
+              solutionApprovalTypeCode:
+                dto.solution_approval_type_code === undefined
+                  ? undefined
+                  : dto.solution_approval_type_code || null,
               handoverOrgUnitId:
                 dto.handover_org_unit_id === undefined
                   ? undefined
