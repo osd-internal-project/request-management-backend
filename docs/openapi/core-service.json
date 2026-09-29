@@ -8012,6 +8012,110 @@
         ]
       }
     },
+    "/api/v1/customers/{id}/merge-preview": {
+      "get": {
+        "description": "`:id` = รายที่จะถูกรวม (กลายเป็น alias) · `into` = รายหลัก",
+        "operationId": "CustomerMergeController_preview",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "into",
+            "required": true,
+            "in": "query",
+            "description": "id ของลูกค้าที่จะคงไว้ (รายหลัก)",
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ดูก่อนรวมลูกค้าซ้ำ — จะย้ายอะไรบ้าง และข้อควรระวัง",
+        "tags": [
+          "customers"
+        ],
+        "x-permission": [
+          "admin.customer.merge"
+        ]
+      }
+    },
+    "/api/v1/customers/{id}/merge": {
+      "post": {
+        "description": "ย้ายทุกเอกสารไปที่รายหลัก รายนี้กลายเป็น alias (อ่านอย่างเดียว ปิดใช้งาน) · ลง audit",
+        "operationId": "CustomerMergeController_merge",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MergeCustomersDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "รวมลูกค้าซ้ำเข้ากับรายหลัก",
+        "tags": [
+          "customers"
+        ],
+        "x-permission": [
+          "admin.customer.merge"
+        ]
+      }
+    },
     "/api/v1/opportunities/{id}/handover": {
       "get": {
         "description": "`editable` = ดีลชนะแล้วและยังไม่ได้ส่ง (หรือถูกตีกลับ) · `items` = รายการตรวจปัจจุบันรวมคำตอบที่บันทึกไว้",
@@ -13735,6 +13839,26 @@
           }
         },
         "required": [
+          "reason"
+        ]
+      },
+      "MergeCustomersDto": {
+        "type": "object",
+        "properties": {
+          "into": {
+            "type": "string",
+            "description": "id ของลูกค้าที่จะคงไว้ (รายหลัก)",
+            "minLength": 1
+          },
+          "reason": {
+            "type": "string",
+            "example": "ลงทะเบียนซ้ำจากการนำเข้า Excel",
+            "maxLength": 500,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "into",
           "reason"
         ]
       },

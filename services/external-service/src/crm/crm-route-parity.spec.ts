@@ -78,6 +78,7 @@ const SCREEN_ONLY = [
   'customer-approval.controller.ts',
   'keeper.controller.ts',
   'customer-intake-admin.controller.ts',
+  'customer-merge.controller.ts',
 ];
 
 interface Route {

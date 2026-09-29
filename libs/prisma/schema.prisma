@@ -2111,7 +2111,7 @@ model Customer {
   deactivateReason String?
   suspendReason    String?
 
-  /// CM-09 (โครงเท่านั้น — PO เลื่อน merge ออกจาก MVP, 8 ก.ย. 2569): when a
+  /// CM-09 / CD-122 (ทำแล้ว 29 ก.ย. 2569, `CustomerMergeService`): when a
   /// duplicate slips through and is later merged, the losing row stays as an
   /// alias pointing at the survivor. Lookups by the old code follow this.
   mergedIntoCustomerId String?

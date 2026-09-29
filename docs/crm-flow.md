@@ -267,7 +267,7 @@ role ของคนได้** ตั้งแต่ 17 ก.ย. 2569 ไม่
 | เรื่อง | สภาพจริง |
 |---|---|
 | `POST /sale-orders` · `POST /quotations` ที่ระดับ collection | **ไม่มี** ทั้งคู่ต้องเปิดผ่านโอกาสการขาย (`/opportunities/{id}/...`) |
-| รวมทะเบียนลูกค้าซ้ำ (CM-09) | มีแต่คอลัมน์ `mergedIntoCustomerId` / `mergedAt` ไม่มี endpoint — schema comment บอกว่า PO เลื่อนออกจาก MVP |
+| รวมทะเบียนลูกค้าซ้ำ (CM-09 / CD-122) | ทำแล้ว 29 ก.ย. 2569 — `GET /customers/:id/merge-preview?into=` + `POST /customers/:id/merge` (`admin.customer.merge`, เหตุผลบังคับ, audit) ย้ายทุกเอกสารไปรายหลัก รายซ้ำเป็น alias ปิดใช้งาน (`CustomerMergeService`) · ปุ่ม "รวมเข้ากับลูกค้าอื่น" บนหน้าลูกค้า |
 | product master / BOQ | ไม่มี `unitCost` ต่อบรรทัดใบเสนอราคากรอกมือ รอ CD-11/CD-12 |
 | เปิดใบที่ปิดแล้วใหม่ | ไม่มีทางกลับจาก won/lost |
 | **CRM ใน MCP** | **ไม่มี tool CRM สักตัว** — `mcp-tools.ts` พูดถึง CRM แค่ในคอมเมนต์สองบรรทัด (`:140`, `:204`) ที่เผื่อไว้ว่าจะมีวันหนึ่ง chat วันนี้ครอบคลุมแค่ request |

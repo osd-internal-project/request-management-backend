@@ -106,6 +106,12 @@ export const PERMISSIONS = {
      */
     'admin.crm.manage',
     /**
+     * CM-09 / CD-122 — รวมลูกค้าซ้ำ: re-points every document of one customer
+     * to another. Admin only (AC), and apart from `admin.crm.manage` so the
+     * role editor can hand out settings without handing out merges.
+     */
+    'admin.customer.merge',
+    /**
      * ออกและเพิกถอน API key ของช่องทางภายนอก (14 ก.ย. 2569) และดูแลคิวส่ง
      * SAP — ดูงานที่ส่งไม่สำเร็จแล้วกดส่งใหม่ (24 ก.ย. 2569): ทั้งสองอย่างคือ
      * ขอบของระบบที่คุยกับระบบภายนอก ไม่ใช่การตั้งค่าธุรกิจของ CRM.

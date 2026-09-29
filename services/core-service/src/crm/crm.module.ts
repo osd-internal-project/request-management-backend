@@ -89,6 +89,7 @@ import { OpportunitiesService } from './opportunities.service';
 import { OpportunityActivitiesService } from './opportunity-activities.service';
 import { NegotiationsService } from './negotiations.service';
 import { PhoneReservationsService } from './phone-reservations.service';
+import { CustomerMergeService } from './customer-merge.service';
 import { CustomerApprovalService } from './customer-approval.service';
 import { RequestTypeRepository } from '../requests/request-type.repository';
 import { HandoversService } from './handovers.service';
@@ -192,6 +193,7 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     NegotiationsService,
     OpportunityPhoneReservationRepository,
     PhoneReservationsService,
+    CustomerMergeService,
     // CD-84
     HandoversService,
     HandoverChecklistItemRepository,
@@ -243,6 +245,7 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     OpportunityActivitiesService,
     NegotiationsService,
     PhoneReservationsService,
+    CustomerMergeService,
     HandoversService,
     KycService,
     CustomerApprovalService,

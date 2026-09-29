@@ -830,3 +830,24 @@ export class AddKycWatchlistDto {
   @Type(() => KycWatchlistEntryDto)
   entries!: KycWatchlistEntryDto[];
 }
+
+/** CM-09 / CD-122 — fold this customer into `into`, which stays. */
+export class MergeCustomersDto {
+  @ApiProperty({ description: 'id ของลูกค้าที่จะคงไว้ (รายหลัก)' })
+  @IsString()
+  @IsNotEmpty()
+  into!: string;
+
+  @ApiProperty({ example: 'ลงทะเบียนซ้ำจากการนำเข้า Excel' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(500)
+  reason!: string;
+}
+
+export class MergePreviewQueryDto {
+  @ApiProperty({ description: 'id ของลูกค้าที่จะคงไว้ (รายหลัก)' })
+  @IsString()
+  @IsNotEmpty()
+  into!: string;
+}
