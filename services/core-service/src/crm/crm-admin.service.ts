@@ -205,6 +205,7 @@ export class CrmAdminService {
         quotationApprovalTypeCode: 'DSC',
         targetApprovalTypeCode: null,
         contractRequestTypeCode: null,
+        liabilityApprovalRequestTypeCode: null,
         solutionRequestTypeCode: null,
         handoverOrgUnitId: null,
         customerApprovalTypes: {},
@@ -245,6 +246,8 @@ export class CrmAdminService {
                 dto.quotation_approval_type_code ?? 'DSC',
               targetApprovalTypeCode: dto.target_approval_type_code || null,
               contractRequestTypeCode: dto.contract_request_type_code || null,
+              liabilityApprovalRequestTypeCode:
+                dto.liability_approval_request_type_code || null,
               solutionRequestTypeCode: dto.solution_request_type_code || null,
               handoverOrgUnitId: dto.handover_org_unit_id || null,
               customerApprovalTypes: approvalTypes ?? {},
@@ -270,6 +273,10 @@ export class CrmAdminService {
                 dto.contract_request_type_code === undefined
                   ? undefined
                   : dto.contract_request_type_code || null,
+              liabilityApprovalRequestTypeCode:
+                dto.liability_approval_request_type_code === undefined
+                  ? undefined
+                  : dto.liability_approval_request_type_code || null,
               solutionRequestTypeCode:
                 dto.solution_request_type_code === undefined
                   ? undefined

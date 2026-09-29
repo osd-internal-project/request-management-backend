@@ -704,6 +704,15 @@ export class UpdateCrmConfigDto {
   contract_request_type_code?: string;
 
   /**
+   * CD-153: รหัสประเภทคำขออนุมัติเพดานความรับผิดที่เกินมูลค่าสัญญา (ส่งผู้บริหาร).
+   * ส่ง `""` = ล้าง.
+   */
+  @IsOptional()
+  @IsString()
+  @Matches(/^([A-Z0-9_-]{1,20})?$/)
+  liability_approval_request_type_code?: string;
+
+  /**
    * CD-130: รหัสประเภทคำขอ "ขอ Solution และประเมินต้นทุน" (Sales → Pre-Sales).
    * ส่ง `""` = ล้าง (หน้าดีลไม่แสดงการ์ด Solution).
    */

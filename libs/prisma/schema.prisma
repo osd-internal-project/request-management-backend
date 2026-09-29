@@ -2398,7 +2398,11 @@ model CrmCompanyConfig {
 
   /// CD-81: ประเภทคำขอที่ฝ่ายกฎหมายรับทำ/แก้สัญญา — ปุ่ม "ขอจัดทำสัญญา" และการ์ด
   /// สัญญาบนหน้าดีลใช้ประเภทนี้. NULL = ยังไม่ตั้ง → หน้าดีลไม่แสดงการ์ดสัญญา.
-  contractRequestTypeCode String?
+  contractRequestTypeCode          String?
+  /// CD-153 — the request type that asks executives to approve a liability
+  /// cap above the contract's value (or unlimited). NULL = not set up; the
+  /// contract then shows that approval is needed but could not be asked.
+  liabilityApprovalRequestTypeCode String?
 
   /// CD-130: ประเภทคำขอ "ขอ Solution และประเมินต้นทุน" (Sales → Pre-Sales) — การ์ด Solution
   /// บนหน้าดีลยื่นประเภทนี้. ช่องบังคับของฟอร์มประเภทนี้คือรายการตรวจความครบ (จุดส่งต่อที่ 2).
@@ -3536,6 +3540,8 @@ model CustomerContract {
   customer  Customer?          @relation(fields: [customerId], references: [id], onDelete: Restrict)
   documents ContractDocument[]
   access    ContractAccess[]
+  /// CD-153..156 — ข้อกำหนดที่วัดได้ของสัญญา.
+  terms     ContractTerms?
 
   @@unique([companyId, contractNo])
   @@index([customerId])
@@ -3575,6 +3581,59 @@ model ContractDocument {
 
   @@index([contractId])
   @@map("contract_documents")
+}
+
+/// CD-153..156 — a contract's terms as values, not prose: the liability
+/// cap against the contract's value, the penalty rate/basis/cap, the warranty
+/// counted from the real acceptance date, and what termination takes.
+model ContractTerms {
+  contractId String @id
+  companyId  String
+
+  // CD-153 ความรับผิด
+  liabilityUnlimited         Boolean  @default(false)
+  liabilityCapAmount         Decimal? @db.Decimal(14, 2)
+  liabilityNote              String?
+  /// The executives' approval for a cap above the contract value — the
+  /// request raised for the cap as it is now; a new cap raises a new one.
+  liabilityApprovalRequestId String?
+  /// Why it could not be asked (no request type set, submit refused).
+  liabilityApprovalError     String?
+
+  // CD-154 ค่าปรับ
+  /// ร้อยละต่อ `penaltyPeriod` ของ `penaltyBasis`.
+  penaltyRatePct   Decimal? @db.Decimal(7, 4)
+  /// day · week · month · occurrence
+  penaltyPeriod    String?
+  /// contract_value · undelivered_value · monthly_fee · other
+  penaltyBasis     String?
+  penaltyBasisNote String?
+  /// เพดาน: ร้อยละของมูลค่าสัญญา หรือเป็นจำนวนเงิน (อย่างใดอย่างหนึ่ง).
+  penaltyCapPct    Decimal? @db.Decimal(7, 4)
+  penaltyCapAmount Decimal? @db.Decimal(14, 2)
+
+  // CD-155 การรับประกัน
+  warrantyMonths     Int?
+  warrantyScope      String?
+  warrantyExclusions String?
+  /// วันตรวจรับจริง — the warranty starts here, never on the signing date.
+  /// Entered by hand until Delivery (CD-20) records acceptance.
+  acceptedOn         DateTime? @db.Date
+
+  // CD-156 การยกเลิก
+  terminationNoticeDays   Int?
+  terminationConditions   String?
+  terminationConsequences String?
+  /// What to do when it actually happens, in order.
+  terminationSteps        String[] @default([])
+
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  contract CustomerContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@map("contract_terms")
 }
 
 /// CD-161 — who else may open a confidential contract.

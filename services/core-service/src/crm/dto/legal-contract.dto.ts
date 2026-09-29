@@ -165,3 +165,111 @@ export class ContractAccessDto {
   @IsNotEmpty({ each: true })
   user_ids!: string[];
 }
+
+/** CD-153..156 — a contract's terms, sent whole (the card saves them together). */
+export class SaveContractTermsDto {
+  @ApiPropertyOptional({ description: 'ความรับผิดไม่จำกัด' })
+  @IsOptional()
+  @IsBoolean()
+  liability_unlimited?: boolean;
+
+  @ApiPropertyOptional({ example: 500000, nullable: true })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  liability_cap_amount?: number | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  liability_note?: string | null;
+
+  @ApiPropertyOptional({ example: 0.1, description: 'ร้อยละต่อรอบ' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  penalty_rate_pct?: number | null;
+
+  @ApiPropertyOptional({ enum: ['day', 'week', 'month', 'occurrence'] })
+  @IsOptional()
+  @IsString()
+  penalty_period?: string | null;
+
+  @ApiPropertyOptional({
+    enum: ['contract_value', 'undelivered_value', 'monthly_fee', 'other'],
+  })
+  @IsOptional()
+  @IsString()
+  penalty_basis?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  penalty_basis_note?: string | null;
+
+  @ApiPropertyOptional({
+    example: 10,
+    description: 'เพดาน ร้อยละของมูลค่าสัญญา',
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  penalty_cap_pct?: number | null;
+
+  @ApiPropertyOptional({ description: 'เพดาน เป็นจำนวนเงิน' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  penalty_cap_amount?: number | null;
+
+  @ApiPropertyOptional({ example: 12 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  warranty_months?: number | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  warranty_scope?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  warranty_exclusions?: string | null;
+
+  @ApiPropertyOptional({ example: '2026-10-15', description: 'วันตรวจรับจริง' })
+  @IsOptional()
+  @IsDateString()
+  accepted_on?: string | null;
+
+  @ApiPropertyOptional({ example: 30 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  termination_notice_days?: number | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  termination_conditions?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  termination_consequences?: string | null;
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(30)
+  @IsString({ each: true })
+  @MaxLength(500, { each: true })
+  termination_steps?: string[];
+}

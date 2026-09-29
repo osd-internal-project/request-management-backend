@@ -8116,6 +8116,155 @@
         ]
       }
     },
+    "/api/v1/contracts/{id}/terms": {
+      "get": {
+        "description": "พร้อมค่าที่คำนวณ: ผลอนุมัติเพดานความรับผิด เพดานค่าปรับเป็นเงิน ช่วงประกันนับจากวันตรวจรับ",
+        "operationId": "LegalContractsController_viewTerms",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ข้อกำหนดของสัญญา — ความรับผิด ค่าปรับ การรับประกัน การยกเลิก",
+        "tags": [
+          "contracts"
+        ],
+        "x-permission": [
+          "legal.contract.read"
+        ]
+      },
+      "put": {
+        "description": "เพดานความรับผิดเกินมูลค่าสัญญา (หรือไม่จำกัด) = สร้าง+ยื่นคำขออนุมัติผู้บริหารตามประเภทที่ตั้งในหน้าตั้งค่า CRM · เปลี่ยนเพดาน = ขออนุมัติใหม่",
+        "operationId": "LegalContractsController_saveTerms",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveContractTermsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "บันทึกข้อกำหนดของสัญญา",
+        "tags": [
+          "contracts"
+        ],
+        "x-permission": [
+          "legal.contract.manage"
+        ]
+      }
+    },
+    "/api/v1/contracts/{id}/terms/liability-approval": {
+      "post": {
+        "operationId": "LegalContractsController_requestLiabilityApproval",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ขออนุมัติเพดานความรับผิดอีกครั้ง",
+        "tags": [
+          "contracts"
+        ],
+        "x-permission": [
+          "legal.contract.manage"
+        ]
+      }
+    },
     "/api/v1/contracts": {
       "get": {
         "description": "`search` = เลขที่/ชื่อ/คู่สัญญา/ลูกค้า/หมายเหตุ · `text` = ข้อความใน PDF ที่แนบ · สัญญาลับพิเศษเห็นเฉพาะผู้มีสิทธิ์",
@@ -13805,6 +13954,10 @@
             "pattern": "^([A-Z0-9_-]{1,20})?$",
             "type": "string"
           },
+          "liability_approval_request_type_code": {
+            "pattern": "^([A-Z0-9_-]{1,20})?$",
+            "type": "string"
+          },
           "solution_request_type_code": {
             "pattern": "^([A-Z0-9_-]{1,20})?$",
             "type": "string"
@@ -15123,6 +15276,110 @@
           "into",
           "reason"
         ]
+      },
+      "SaveContractTermsDto": {
+        "type": "object",
+        "properties": {
+          "liability_unlimited": {
+            "type": "boolean",
+            "description": "ความรับผิดไม่จำกัด"
+          },
+          "liability_cap_amount": {
+            "type": "object",
+            "example": 500000,
+            "nullable": true,
+            "minimum": 0
+          },
+          "liability_note": {
+            "type": "object",
+            "nullable": true,
+            "maxLength": 2000
+          },
+          "penalty_rate_pct": {
+            "type": "object",
+            "example": 0.1,
+            "description": "ร้อยละต่อรอบ",
+            "minimum": 0
+          },
+          "penalty_period": {
+            "type": "string",
+            "enum": [
+              "day",
+              "week",
+              "month",
+              "occurrence"
+            ]
+          },
+          "penalty_basis": {
+            "type": "string",
+            "enum": [
+              "contract_value",
+              "undelivered_value",
+              "monthly_fee",
+              "other"
+            ]
+          },
+          "penalty_basis_note": {
+            "type": "object",
+            "nullable": true,
+            "maxLength": 500
+          },
+          "penalty_cap_pct": {
+            "type": "object",
+            "example": 10,
+            "description": "เพดาน ร้อยละของมูลค่าสัญญา",
+            "minimum": 0
+          },
+          "penalty_cap_amount": {
+            "type": "object",
+            "description": "เพดาน เป็นจำนวนเงิน",
+            "minimum": 0
+          },
+          "warranty_months": {
+            "type": "object",
+            "example": 12,
+            "minimum": 0
+          },
+          "warranty_scope": {
+            "type": "object",
+            "nullable": true,
+            "maxLength": 2000
+          },
+          "warranty_exclusions": {
+            "type": "object",
+            "nullable": true,
+            "maxLength": 2000
+          },
+          "accepted_on": {
+            "type": "object",
+            "example": "2026-10-15",
+            "description": "วันตรวจรับจริง",
+            "format": "date-time"
+          },
+          "termination_notice_days": {
+            "type": "object",
+            "example": 30,
+            "minimum": 0
+          },
+          "termination_conditions": {
+            "type": "object",
+            "nullable": true,
+            "maxLength": 4000
+          },
+          "termination_consequences": {
+            "type": "object",
+            "nullable": true,
+            "maxLength": 4000
+          },
+          "termination_steps": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 500
+            },
+            "maxItems": 30
+          }
+        }
       },
       "SaveLegalContractDto": {
         "type": "object",

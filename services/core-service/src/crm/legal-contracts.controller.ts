@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Headers,
   Delete,
   Get,
   HttpCode,
@@ -24,8 +25,10 @@ import {
 } from '@nestjs/swagger';
 import { CurrentPrincipal, Permissions } from '@request-management/share';
 import type { Principal } from '@request-management/share';
+import { ContractTermsService } from './contract-terms.service';
 import {
   ContractAccessDto,
+  SaveContractTermsDto,
   ListContractsQueryDto,
   SaveLegalContractDto,
 } from './dto/legal-contract.dto';
@@ -43,7 +46,48 @@ import {
 @ApiBearerAuth()
 @Controller('contracts')
 export class LegalContractsController {
-  constructor(private readonly contracts: LegalContractsService) {}
+  constructor(
+    private readonly contracts: LegalContractsService,
+    private readonly terms: ContractTermsService,
+  ) {}
+
+  @ApiOperation({
+    summary: 'ข้อกำหนดของสัญญา — ความรับผิด ค่าปรับ การรับประกัน การยกเลิก',
+    description:
+      'พร้อมค่าที่คำนวณ: ผลอนุมัติเพดานความรับผิด เพดานค่าปรับเป็นเงิน ช่วงประกันนับจากวันตรวจรับ',
+  })
+  @Get(':id/terms')
+  @Permissions('legal.contract.read')
+  viewTerms(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.terms.view(id, principal);
+  }
+
+  @ApiOperation({
+    summary: 'บันทึกข้อกำหนดของสัญญา',
+    description:
+      'เพดานความรับผิดเกินมูลค่าสัญญา (หรือไม่จำกัด) = สร้าง+ยื่นคำขออนุมัติผู้บริหารตามประเภทที่ตั้งในหน้าตั้งค่า CRM · เปลี่ยนเพดาน = ขออนุมัติใหม่',
+  })
+  @Put(':id/terms')
+  @Permissions('legal.contract.manage')
+  saveTerms(
+    @Param('id') id: string,
+    @Body() dto: SaveContractTermsDto,
+    @CurrentPrincipal() principal: Principal,
+    @Headers('authorization') authorization: string,
+  ) {
+    return this.terms.save(id, dto, principal, authorization);
+  }
+
+  @ApiOperation({ summary: 'ขออนุมัติเพดานความรับผิดอีกครั้ง' })
+  @Post(':id/terms/liability-approval')
+  @Permissions('legal.contract.manage')
+  requestLiabilityApproval(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+    @Headers('authorization') authorization: string,
+  ) {
+    return this.terms.requestLiabilityApproval(id, principal, authorization);
+  }
 
   @ApiOperation({
     summary: 'ค้นคลังสัญญา',
