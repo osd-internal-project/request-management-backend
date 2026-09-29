@@ -2882,30 +2882,34 @@ model HandoverChecklistItem {
 
 /// CD-84 — การส่งมอบงานของดีลที่ชนะแล้วให้ทีมถัดไป — หนึ่งใบต่อดีล.
 model SalesHandover {
-  id            String              @id @default(uuid())
-  companyId     String
-  opportunityId String              @unique
-  status        SalesHandoverStatus @default(draft)
-  toOrgUnitId   String?
+  id                String              @id @default(uuid())
+  companyId         String
+  opportunityId     String              @unique
+  status            SalesHandoverStatus @default(draft)
+  toOrgUnitId       String?
   /// [{code, category, label, requiresDetail, checked, detail}] — สำเนารายการ ณ วันบันทึก.
-  items         Json                @default("[]")
-  note          String?
+  items             Json                @default("[]")
+  note              String?
   /// ครั้งที่ส่ง (ส่งใหม่หลังถูกตีกลับ = +1).
-  round         Int                 @default(0)
-  submittedBy   String?
-  submittedAt   DateTime?
-  decidedBy     String?
-  decidedAt     DateTime?
-  returnReason  String?
+  round             Int                 @default(0)
+  submittedBy       String?
+  submittedAt       DateTime?
+  decidedBy         String?
+  decidedAt         DateTime?
+  returnReason      String?
   /// [{action, at, by, byName, reason}] — ประวัติส่ง/รับ/ตีกลับ ให้ทั้งสองฝั่งเห็น.
-  history       Json                @default("[]")
+  history           Json                @default("[]")
+  /// CD-144 — ชุดเอกสารเทคนิคที่แนบไป: Solution เวอร์ชันที่อนุมัติแล้ว (ล่าสุด)
+  /// ของดีล ผูกตอนส่ง. ดีลที่มี Solution ส่งไม่ได้จนกว่าจะมีเวอร์ชันที่อนุมัติ.
+  solutionVersionId String?
 
   createdBy String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   updatedBy String?
 
-  opportunity Opportunity @relation(fields: [opportunityId], references: [id])
+  opportunity     Opportunity      @relation(fields: [opportunityId], references: [id])
+  solutionVersion SolutionVersion? @relation(fields: [solutionVersionId], references: [id])
 
   @@index([companyId, toOrgUnitId, status])
   @@map("sales_handovers")
@@ -3902,8 +3906,10 @@ model SolutionVersion {
   updatedAt DateTime @updatedAt
   updatedBy String?
 
-  solution Solution       @relation(fields: [solutionId], references: [id])
-  files    SolutionFile[]
+  solution  Solution        @relation(fields: [solutionId], references: [id])
+  files     SolutionFile[]
+  /// CD-144 — งานส่งมอบที่แนบเวอร์ชันนี้เป็นชุดเอกสารเทคนิค.
+  handovers SalesHandover[]
 
   @@unique([solutionId, versionNo])
   @@map("solution_versions")

@@ -9246,6 +9246,52 @@
         ]
       }
     },
+    "/api/v1/handovers/{id}/solution-files/{fileId}": {
+      "get": {
+        "operationId": "HandoversController_technicalFile",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fileId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ไฟล์แบบในชุดเอกสารเทคนิคของงานส่งมอบ (CD-144)",
+        "tags": [
+          "handovers"
+        ]
+      }
+    },
     "/api/v1/handovers/{id}/accept": {
       "post": {
         "operationId": "HandoversController_accept",

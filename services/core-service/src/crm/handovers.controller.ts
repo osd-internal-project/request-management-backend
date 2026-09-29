@@ -1,11 +1,22 @@
-import { Body, Controller, Get, Param, Post, Put, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Inject,
+  Param,
+  Post,
+  Put,
+  Query,
+  StreamableFile,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   Authenticated,
   CurrentPrincipal,
+  OBJECT_STORAGE,
   Permissions,
 } from '@request-management/share';
-import type { Principal } from '@request-management/share';
+import type { ObjectStorage, Principal } from '@request-management/share';
 import { HandoversService } from './handovers.service';
 import {
   HandoverListQueryDto,
@@ -26,7 +37,11 @@ import {
 @ApiBearerAuth()
 @Controller()
 export class HandoversController {
-  constructor(private readonly handovers: HandoversService) {}
+  constructor(
+    private readonly handovers: HandoversService,
+    // CD-144 — the package's design files; storage lives in the HTTP half.
+    @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
+  ) {}
 
   @ApiOperation({
     summary: 'งานส่งมอบของโอกาสการขาย + รายการตรวจที่ต้องกรอก',
@@ -81,6 +96,23 @@ export class HandoversController {
   @Authenticated()
   findOne(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
     return this.handovers.findOne(id, principal);
+  }
+
+  @ApiOperation({
+    summary: 'ไฟล์แบบในชุดเอกสารเทคนิคของงานส่งมอบ (CD-144)',
+  })
+  @Get('handovers/:id/solution-files/:fileId')
+  @Authenticated()
+  async technicalFile(
+    @Param('id') id: string,
+    @Param('fileId') fileId: string,
+    @CurrentPrincipal() principal: Principal,
+  ): Promise<StreamableFile> {
+    const file = await this.handovers.technicalFile(id, fileId, principal);
+    return new StreamableFile(await this.storage.get(file.storageKey), {
+      type: file.mimeType,
+      disposition: `attachment; filename*=UTF-8''${encodeURIComponent(file.fileName)}`,
+    });
   }
 
   @ApiOperation({ summary: 'รับงานส่งมอบ (คนในทีมที่ได้รับ)' })

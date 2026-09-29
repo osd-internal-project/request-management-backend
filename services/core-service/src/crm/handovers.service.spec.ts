@@ -91,7 +91,32 @@ describe('CD-84 sending a won deal to the next team', () => {
     head?: string | null;
     handoverCompany?: string;
     dealVisible?: boolean;
+    candidate?: {
+      hasSolution: boolean;
+      version: { id: string; versionNo: number; title: string } | null;
+    };
   }) {
+    const technical = {
+      candidate: jest.fn(() =>
+        Promise.resolve(
+          options.candidate ?? { hasSolution: false, version: null },
+        ),
+      ),
+      packageOf: jest.fn((id: string | null) =>
+        Promise.resolve(id ? { versionId: id, title: 'SD-WAN' } : null),
+      ),
+      fileOf: jest.fn((versionId: string | null, fileId: string) =>
+        Promise.resolve(
+          versionId && fileId === 'f-1'
+            ? {
+                fileName: 'แบบ.pdf',
+                mimeType: 'application/pdf',
+                storageKey: 'k',
+              }
+            : null,
+        ),
+      ),
+    };
     const written: Record<string, unknown>[] = [];
     const audits: string[] = [];
     const notices: { to: readonly (string | null)[]; event: string }[] = [];
@@ -191,8 +216,9 @@ describe('CD-84 sending a won deal to the next team', () => {
       {
         execute: jest.fn((work: (p: unknown) => unknown) => work({})),
       } as never,
+      technical as never,
     );
-    return { service, written, audits, notices };
+    return { service, written, audits, notices, technical };
   }
 
   const submitted = (overrides: Record<string, unknown> = {}) => ({
@@ -206,6 +232,59 @@ describe('CD-84 sending a won deal to the next team', () => {
     submittedBy: 'sales-1',
     history: [],
     ...overrides,
+  });
+
+  it('CD-144: a deal with a Solution but no approved version cannot be handed over', async () => {
+    const h = harness({ candidate: { hasSolution: true, version: null } });
+    await expect(
+      h.service.submit('opp-1', { items: ALL_DONE }, seller),
+    ).rejects.toMatchObject({
+      code: 'VALIDATION_FAILED',
+      details: [
+        {
+          field: 'items',
+          reason:
+            'ดีลนี้มี Solution แต่ยังไม่มีเวอร์ชันที่อนุมัติ — ขออนุมัติ Solution ก่อนส่งมอบ',
+        },
+      ],
+    });
+    expect(h.written).toEqual([]);
+  });
+
+  it('CD-144: the approved version goes with the handover; a deal without a Solution goes as before', async () => {
+    const withSolution = harness({
+      candidate: {
+        hasSolution: true,
+        version: { id: 'v-2', versionNo: 2, title: 'SD-WAN' },
+      },
+    });
+    await withSolution.service.submit('opp-1', { items: ALL_DONE }, seller);
+    expect(withSolution.written[0]).toMatchObject({
+      status: 'submitted',
+      solutionVersionId: 'v-2',
+    });
+
+    const without = harness({});
+    await without.service.submit('opp-1', { items: ALL_DONE }, seller);
+    expect(without.written[0]).toMatchObject({
+      status: 'submitted',
+      solutionVersionId: null,
+    });
+  });
+
+  it('CD-144: the receiving team reads the package and its files through the handover', async () => {
+    const h = harness({
+      existing: submitted({ solutionVersionId: 'v-2' }),
+    });
+    await expect(h.service.findOne('ho-1', installer)).resolves.toMatchObject({
+      technical: { versionId: 'v-2' },
+    });
+    await expect(
+      h.service.technicalFile('ho-1', 'f-1', installer),
+    ).resolves.toMatchObject({ fileName: 'แบบ.pdf' });
+    await expect(
+      h.service.technicalFile('ho-1', 'other', installer),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
 
   it('CD-84: an incomplete checklist cannot be sent — every gap is named, nothing written', async () => {
@@ -364,6 +443,7 @@ describe('CD-84 the checklist in CRM settings', () => {
       {} as never,
       {} as never,
       { execute: jest.fn() } as never,
+      {} as never,
     );
     await expect(
       service.replaceItems(

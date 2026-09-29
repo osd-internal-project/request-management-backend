@@ -103,6 +103,12 @@ import {
 import { CustomerApprovalService } from './customer-approval.service';
 import { RequestTypeRepository } from '../requests/request-type.repository';
 import { HandoversService } from './handovers.service';
+import { HandoverTechnicalService } from './handover-technical.service';
+import {
+  SolutionFileRepository,
+  SolutionRequirementRepository,
+  SolutionVersionRepository,
+} from '../presales/solution.repositories';
 import {
   HandoverChecklistItemRepository,
   SalesHandoverRepository,
@@ -213,6 +219,11 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     // CD-84
     HandoversService,
     HandoverChecklistItemRepository,
+    // CD-144 — the handover's technical package reads the Solution tables.
+    HandoverTechnicalService,
+    SolutionVersionRepository,
+    SolutionRequirementRepository,
+    SolutionFileRepository,
     SalesHandoverRepository,
     SalesReportService,
     CrmDashboardService,

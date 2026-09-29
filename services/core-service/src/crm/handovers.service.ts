@@ -13,6 +13,7 @@ import { CompanyMemberRepository } from '../access/company-member.repository';
 import { OrgUnitRepository } from '../access/org-unit.repository';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CustomerTimelineService } from './customer-timeline.service';
+import { HandoverTechnicalService } from './handover-technical.service';
 import {
   HandoverChecklistItemRepository,
   SalesHandoverRepository,
@@ -62,6 +63,7 @@ interface HandoverRow {
   decidedAt: Date | null;
   returnReason: string | null;
   history: unknown;
+  solutionVersionId: string | null;
   createdBy: string;
   createdAt: Date;
   updatedAt: Date;
@@ -114,6 +116,7 @@ export class HandoversService {
     private readonly timeline: CustomerTimelineService,
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
+    private readonly technical: HandoverTechnicalService,
   ) {}
 
   // --- the deal's side -----------------------------------------------------
@@ -130,12 +133,20 @@ export class HandoversService {
           itemsOf(row?.items),
         )
       : itemsOf(row?.items);
+    // CD-144 — what goes with it: fixed once sent, the latest approval before.
+    const candidate = await this.technical.candidate(opportunityId);
+    const sent = row && !EDITABLE.includes(row.status);
     return {
       dealWon: deal.stage === 'won',
       editable,
       defaultOrgUnitId: await this.defaultTeam(deal.companyId),
       items,
       handover: row ? (await this.decorate([row]))[0] : null,
+      technical: await this.technical.packageOf(
+        sent ? row.solutionVersionId : (candidate.version?.id ?? null),
+      ),
+      // A deal with Pre-Sales work goes only with an approved version.
+      technicalMissing: !sent && candidate.hasSolution && !candidate.version,
     };
   }
 
@@ -175,6 +186,13 @@ export class HandoversService {
 
     const gaps = checklistGaps(draft.items);
     if (!draft.toOrgUnitId) gaps.unshift('ต้องเลือกทีมที่รับงานต่อ');
+    // CD-144 — the technical package: the deal's latest approved Solution.
+    const candidate = await this.technical.candidate(opportunityId);
+    if (candidate.hasSolution && !candidate.version) {
+      gaps.push(
+        'ดีลนี้มี Solution แต่ยังไม่มีเวอร์ชันที่อนุมัติ — ขออนุมัติ Solution ก่อนส่งมอบ',
+      );
+    }
     if (gaps.length) {
       throw new AppError(
         'VALIDATION_FAILED',
@@ -191,6 +209,7 @@ export class HandoversService {
         round,
         submittedBy: actor.userId,
         submittedAt: now,
+        solutionVersionId: candidate.version?.id ?? null,
         decidedBy: null,
         decidedAt: null,
         history: [
@@ -210,6 +229,7 @@ export class HandoversService {
             round,
             toOrgUnitId: draft.toOrgUnitId,
             items: draft.items as unknown as Prisma.InputJsonValue,
+            solutionVersionId: candidate.version?.id ?? null,
           },
         },
         { prisma },
@@ -272,7 +292,19 @@ export class HandoversService {
   /** One handover — to its team, or to whoever can see the deal. */
   async findOne(id: string, actor: Principal) {
     const row = await this.requireReadable(id, actor);
-    return (await this.decorate([row], actor))[0];
+    return {
+      ...(await this.decorate([row], actor))[0],
+      // CD-144 — the technical package the team receives with it.
+      technical: await this.technical.packageOf(row.solutionVersionId),
+    };
+  }
+
+  /** CD-144 — a design file of the handover's package, to whoever may read it. */
+  async technicalFile(id: string, fileId: string, actor: Principal) {
+    const row = await this.requireReadable(id, actor);
+    const file = await this.technical.fileOf(row.solutionVersionId, fileId);
+    if (!file) throw new AppError('NOT_FOUND', 'ไม่พบไฟล์ที่ระบุ');
+    return file;
   }
 
   async accept(id: string, actor: Principal) {
