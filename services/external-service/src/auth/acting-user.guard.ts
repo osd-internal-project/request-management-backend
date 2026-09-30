@@ -6,7 +6,10 @@ import {
   RequestWithPrincipal,
   setPrincipal,
 } from '@request-management/share';
-import { RemotePrincipalService } from '@request-management/core-service';
+import {
+  getApiKey,
+  RemotePrincipalService,
+} from '@request-management/core-service';
 
 /**
  * The header naming the person the integration is acting for.
@@ -93,6 +96,7 @@ export class ActingUserGuard implements CanActivate {
       request.headers.authorization ?? '',
       email,
       typeof requestedCompany === 'string' ? requestedCompany : undefined,
+      getApiKey(request)?.scopes ?? [],
     );
 
     if (actingUser.pendingOrgAssignment) {

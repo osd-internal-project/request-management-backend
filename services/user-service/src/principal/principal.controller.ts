@@ -1,11 +1,6 @@
 import { Controller, Get, Query } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
-import {
-  AppError,
-  CurrentPrincipal,
-  ServiceAccountOnly,
-} from '@request-management/share';
+import { Permissions, ServiceAccountOnly } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import { PrincipalService } from './principal.service';
 
@@ -21,10 +16,9 @@ import { PrincipalService } from './principal.service';
  *   - `internal/` — not routed to the outside world, exactly like `resolve`.
  *   - `@ServiceAccountOnly` — a person's token is refused here. Nobody can ask
  *     this on their own behalf, so it can never be used to widen a session.
- *   - only the integration client's own service account — the realm is shared,
- *     so another project's machine must not get in. Whether *this* call may act
- *     for someone is the API key's `integration.request.create` scope, already
- *     checked by external-service before it gets here; token roles grant nothing.
+ *   - `@Permissions('integration.request.create')` — read from the calling API
+ *     key's `scopes` (forwarded by core), never from Keycloak roles; another
+ *     project's service account in the shared realm holds no scopes here.
  *
  * Its own controller rather than a route beside `resolve`: `PrincipalModule`
  * already imports `PolicyModule`, so putting it there would close a cycle.
@@ -33,10 +27,7 @@ import { PrincipalService } from './principal.service';
 @ApiBearerAuth()
 @Controller('internal/principal')
 export class InternalPrincipalController {
-  constructor(
-    private readonly principals: PrincipalService,
-    private readonly config: ConfigService,
-  ) {}
+  constructor(private readonly principals: PrincipalService) {}
 
   /**
    * An unknown or suspended address answers `404`, and the two are deliberately
@@ -45,25 +36,13 @@ export class InternalPrincipalController {
    */
   @Get('resolve-by-email')
   @ServiceAccountOnly()
+  @Permissions('integration.request.create')
   @ApiQuery({ name: 'email', required: true })
   @ApiQuery({ name: 'company_id', required: false })
   resolveByEmail(
-    @CurrentPrincipal() caller: Principal,
     @Query('email') email: string,
     @Query('company_id') companyId?: string,
   ): Promise<Principal> {
-    this.assertIntegrationClient(caller);
     return this.principals.resolveByEmail(email, companyId);
-  }
-
-  private assertIntegrationClient(caller: Principal): void {
-    const clientId = this.config.get<string>('keycloak.integrationClientId');
-    if (clientId && caller.username === `service-account-${clientId}`) return;
-
-    throw new AppError(
-      'FORBIDDEN',
-      'บัญชีบริการนี้ไม่ได้รับอนุญาตให้ค้นหาผู้ใช้',
-      [{ field: 'principal', reason: caller.username }],
-    );
   }
 }

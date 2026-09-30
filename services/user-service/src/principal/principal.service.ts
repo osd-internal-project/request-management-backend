@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   AppError,
+  isPermission,
   Permission,
   Principal,
   PrincipalCompany,
@@ -61,6 +62,7 @@ export class PrincipalService {
   async resolve(
     payload: KeycloakJwtPayload,
     requestedCompanyId?: string,
+    keyScopes: readonly string[] = [],
   ): Promise<Principal> {
     // Resolved before provisioning so the roles can be cached on the profile:
     // screen A3 shows "role จาก Keycloak: …" for users who have not been
@@ -74,7 +76,7 @@ export class PrincipalService {
     // the users table and the "รอจัดสังกัด" queue, where an admin would be
     // invited to assign a team to a robot.
     if (this.isServiceAccount(payload)) {
-      return this.serviceAccountPrincipal(payload);
+      return this.serviceAccountPrincipal(payload, keyScopes);
     }
 
     const user = await this.provision(payload, keycloakRoles);
@@ -288,11 +290,14 @@ export class PrincipalService {
   }
 
   /**
-   * A principal for a machine credential — no local profile, no company, no
-   * permissions. What a machine may do is its API key's `scopes`, applied by
-   * core-service's `RemotePrincipalGuard`; token roles grant nothing.
+   * A principal for a machine credential — no local profile, no company.
+   * Permissions are the forwarded API key `scopes`, and only on the integration
+   * client's own token: token roles grant nothing, and the realm is shared.
    */
-  private serviceAccountPrincipal(payload: KeycloakJwtPayload): Principal {
+  private serviceAccountPrincipal(
+    payload: KeycloakJwtPayload,
+    keyScopes: readonly string[],
+  ): Principal {
     const username = payload.preferred_username ?? 'service-account';
 
     return {
@@ -313,12 +318,19 @@ export class PrincipalService {
       scopedActUserIds: [],
       scopedByPermission: {},
       roles: [],
-      permissions: [],
+      permissions: this.isIntegrationClient(username)
+        ? keyScopes.filter(isPermission)
+        : [],
       sensitiveFieldsVisible: [],
       sensitiveFieldsAll: [],
       isServiceAccount: true,
       pendingOrgAssignment: false,
     };
+  }
+
+  private isIntegrationClient(username: string): boolean {
+    const clientId = this.config.get<string>('keycloak.integrationClientId');
+    return !!clientId && username === `service-account-${clientId}`;
   }
 
   /**

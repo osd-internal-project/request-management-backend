@@ -1,7 +1,9 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import {
+  API_KEY_SCOPES_HEADER,
   COMPANY_HEADER,
+  decodeKeyScopes,
   PUBLIC_KEY,
   RequestWithPrincipal,
   setPrincipal,
@@ -41,6 +43,7 @@ export class PrincipalGuard implements CanActivate {
     const principal = await this.principals.resolve(
       payload,
       typeof requestedCompany === 'string' ? requestedCompany : undefined,
+      decodeKeyScopes(request.headers[API_KEY_SCOPES_HEADER]),
     );
 
     setPrincipal(request, principal);

@@ -1,7 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
+  API_KEY_SCOPES_HEADER,
   AppError,
+  encodeKeyScopes,
   ErrorCatalog,
   ErrorCode,
   ErrorResponseBody,
@@ -40,7 +42,9 @@ async function forbiddenFrom(response: Response): Promise<AppError> {
     typeof body.message === 'string'
   ) {
     const details: ErrorResponseBody['details'] =
-      'details' in body && Array.isArray(body.details) ? body.details : undefined;
+      'details' in body && Array.isArray(body.details)
+        ? body.details
+        : undefined;
     return new AppError(body.code, body.message, details);
   }
 
@@ -96,14 +100,20 @@ export class RemotePrincipalService {
    * Cached on the same short TTL as `resolve`, keyed on the email and company
    * rather than the token: a chatbot conversation is a burst of calls for one
    * person, and each would otherwise pay the hop.
+   *
+   * `keyScopes` are the calling API key's; user-service checks
+   * `integration.request.create` against them. Part of the cache key, so a key
+   * with fewer scopes never reuses an answer another key was allowed.
    */
   async resolveActingUser(
     authorization: string,
     email: string,
     companyId?: string,
+    keyScopes: readonly string[] = [],
   ): Promise<Principal> {
+    const scopes = encodeKeyScopes(keyScopes);
     const key = createHash('sha256')
-      .update(`acting|${email}|${companyId ?? ''}`)
+      .update(`acting|${email}|${companyId ?? ''}|${scopes}`)
       .digest('hex');
 
     const cached = this.cache.get(key);
@@ -117,6 +127,8 @@ export class RemotePrincipalService {
     const principal = await this.get(
       `internal/principal/resolve-by-email?${query.toString()}`,
       authorization,
+      undefined,
+      scopes,
     );
 
     this.cache.set(key, { principal, expiresAt: Date.now() + CACHE_TTL_MS });
@@ -144,6 +156,7 @@ export class RemotePrincipalService {
     path: string,
     authorization: string,
     companyId?: string,
+    keyScopes?: string,
   ): Promise<Principal> {
     const baseUrl = this.config.get<string>('userServiceUrl')!;
     const url = `${baseUrl}/${path}`;
@@ -154,6 +167,7 @@ export class RemotePrincipalService {
         headers: {
           authorization,
           ...(companyId ? { 'x-company-id': companyId } : {}),
+          ...(keyScopes ? { [API_KEY_SCOPES_HEADER]: keyScopes } : {}),
         },
         /**
          * Generous on purpose. The first resolve after a restart pays for the

@@ -1,4 +1,6 @@
-import { AppError } from '@request-management/share';
+import { ExecutionContext } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+import { AppError, PolicyGuard, setPrincipal } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import type { KeycloakJwtPayload } from '../auth/strategies/jwt.strategy';
 import { InternalPrincipalController } from './principal.controller';
@@ -34,7 +36,10 @@ describe('Keycloak login only — token roles grant nothing', () => {
     };
     const org = {
       companiesForUser: jest.fn().mockResolvedValue([
-        { company: { id: 'osd', name: 'OSD', docPrefix: 'OSD' }, isPrimary: true },
+        {
+          company: { id: 'osd', name: 'OSD', docPrefix: 'OSD' },
+          isPrimary: true,
+        },
       ]),
       ledUnitIdsOf: jest.fn().mockResolvedValue([]),
       levelUnitIdsOf: jest.fn().mockResolvedValue([]),
@@ -108,45 +113,94 @@ describe('Keycloak login only — token roles grant nothing', () => {
   });
 });
 
-describe('internal/principal/resolve-by-email — only the integration client', () => {
-  function controllerFor() {
-    const principals = {
-      resolveByEmail: jest.fn().mockResolvedValue({ userId: 'u-1' }),
-    };
-    const config = { get: () => 'request-form' };
-    const controller = new InternalPrincipalController(
-      principals as never,
-      config as never,
-    );
-    return { controller, principals };
+describe('internal/principal/resolve-by-email — through the real PolicyGuard', () => {
+  const handler: unknown = Reflect.get(
+    InternalPrincipalController.prototype,
+    'resolveByEmail',
+  );
+
+  function contextFor(principal: Principal): ExecutionContext {
+    const request: Record<string, unknown> = { headers: {} };
+    setPrincipal(request as never, principal);
+    return {
+      getHandler: () => handler,
+      getClass: () => InternalPrincipalController,
+      switchToHttp: () => ({ getRequest: () => request }),
+    } as unknown as ExecutionContext;
   }
 
-  const caller = (username: string) =>
-    ({ username, isServiceAccount: true, permissions: [] }) as unknown as Principal;
-
-  it('lets this app’s service account look a person up without any token role', async () => {
-    const { controller, principals } = controllerFor();
-
-    await controller.resolveByEmail(
-      caller('service-account-request-form'),
-      'somchai@osd.co.th',
-    );
-
-    expect(principals.resolveByEmail).toHaveBeenCalledWith(
-      'somchai@osd.co.th',
+  async function serviceAccount(username: string, keyScopes: string[]) {
+    const { service } = serviceForMachine();
+    return service.resolve(
+      {
+        sub: 'svc-1',
+        preferred_username: username,
+        client_id: username.replace('service-account-', ''),
+      },
       undefined,
+      keyScopes,
     );
+  }
+
+  function serviceForMachine() {
+    const config = { get: () => 'request-form' };
+    const service = new PrincipalService(
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      config as never,
+    );
+    return { service };
+  }
+
+  const guard = new PolicyGuard(new Reflector());
+
+  function errorOf(run: () => unknown): unknown {
+    try {
+      run();
+    } catch (error) {
+      return error;
+    }
+    return undefined;
+  }
+
+  it('lets the integration client in when its API key holds integration.request.create', async () => {
+    const principal = await serviceAccount('service-account-request-form', [
+      'integration.request.create',
+    ]);
+
+    expect(guard.canActivate(contextFor(principal))).toBe(true);
   });
 
-  it('refuses another project’s service account in the shared realm', () => {
-    const { controller, principals } = controllerFor();
+  it('refuses the integration client when its API key lacks the scope', async () => {
+    const principal = await serviceAccount('service-account-request-form', [
+      'integration.crm.lead.create',
+    ]);
 
-    expect(() =>
-      controller.resolveByEmail(
-        caller('service-account-librechat'),
-        'somchai@osd.co.th',
-      ),
-    ).toThrow(AppError);
-    expect(principals.resolveByEmail).not.toHaveBeenCalled();
+    expect(
+      errorOf(() => guard.canActivate(contextFor(principal))),
+    ).toMatchObject({
+      code: 'FORBIDDEN',
+    });
+  });
+
+  it('ignores forwarded scopes on another project’s service account', async () => {
+    const principal = await serviceAccount('service-account-librechat', [
+      'integration.request.create',
+    ]);
+
+    expect(principal.permissions).toEqual([]);
+    expect(() => guard.canActivate(contextFor(principal))).toThrow(AppError);
+  });
+
+  it('refuses a person even if they hold the permission', () => {
+    const person = {
+      userId: 'u-1',
+      isServiceAccount: false,
+      permissions: ['integration.request.create'],
+    } as unknown as Principal;
+
+    expect(() => guard.canActivate(contextFor(person))).toThrow(AppError);
   });
 });

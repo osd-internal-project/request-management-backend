@@ -166,7 +166,10 @@ ROLE-03 (user decision, 29 Sep 2026): the realm moved to the shared `OSD` realm 
 id24, where role names belong to other projects too. People get roles only from
 `MANUAL` grants on screen A3; machines only from their API key's `scopes`.
 `PrincipalService` never reads token roles into permissions, and the
-`keycloak_role_mappings` screen is kept but has no effect.
+`keycloak_role_mappings` screen is kept but has no effect. user-service sees a
+key's scopes through the `x-api-key-scopes` header core forwards on
+`resolve-by-email`, honoured only on the integration client's own token.
+`route-policy.spec.ts` fails for any user-service route with no access policy.
 
 **The org tree lives in this database** (D-08), not in Keycloak groups. It is
 the source of truth for supervisors, which drives data scope, approval step 1,

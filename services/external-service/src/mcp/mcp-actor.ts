@@ -27,7 +27,10 @@ import {
   type Principal,
   type RequestWithPrincipal,
 } from '@request-management/share';
-import { RemotePrincipalService } from '@request-management/core-service';
+import {
+  getApiKey,
+  RemotePrincipalService,
+} from '@request-management/core-service';
 import { ACTING_USER_HEADER } from '../auth/acting-user.guard';
 
 @Injectable()
@@ -88,6 +91,7 @@ export class McpActorService {
       request.headers.authorization ?? '',
       email,
       typeof requestedCompany === 'string' ? requestedCompany : undefined,
+      getApiKey(request)?.scopes ?? [],
     );
 
     if (actingUser.pendingOrgAssignment) {

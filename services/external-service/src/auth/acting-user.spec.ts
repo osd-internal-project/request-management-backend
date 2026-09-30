@@ -1,5 +1,6 @@
 import { AppError } from '@request-management/share';
 import type { Principal } from '@request-management/share';
+import { setApiKey } from '@request-management/core-service';
 import { ACTING_USER_HEADER, ActingUserGuard } from './acting-user.guard';
 
 const BOT: Partial<Principal> = {
@@ -44,6 +45,12 @@ describe('the acting-user swap', () => {
       },
       principal: BOT,
     };
+    setApiKey(
+      request as never,
+      {
+        scopes: ['integration.request.create'],
+      } as never,
+    );
 
     await guard.canActivate(contextFor(request));
 
@@ -54,6 +61,7 @@ describe('the acting-user swap', () => {
       'Bearer bot-token',
       'sales@example.com',
       'company-osd',
+      ['integration.request.create'],
     );
   });
 
@@ -74,6 +82,7 @@ describe('the acting-user swap', () => {
       'Bearer bot-token',
       'sales@example.com',
       undefined,
+      [],
     );
   });
 

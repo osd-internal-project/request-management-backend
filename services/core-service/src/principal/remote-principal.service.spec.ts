@@ -1,4 +1,4 @@
-import { AppError } from '@request-management/share';
+import { API_KEY_SCOPES_HEADER, AppError } from '@request-management/share';
 import { RemotePrincipalService } from './remote-principal.service';
 
 /**
@@ -70,5 +70,55 @@ describe('RemotePrincipalService — 403 keeps user-service’s own error', () =
     );
 
     expect(error.code).toBe('FORBIDDEN');
+  });
+});
+
+describe('RemotePrincipalService — forwards the API key scopes', () => {
+  const originalFetch = global.fetch;
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  function recordingService() {
+    const inits: RequestInit[] = [];
+    const fetchMock = jest.fn((_url: string, init?: RequestInit) => {
+      inits.push(init ?? {});
+      return Promise.resolve(
+        new Response(JSON.stringify({ userId: 'u-1' }), { status: 200 }),
+      );
+    });
+    global.fetch = fetchMock;
+    const service = new RemotePrincipalService({
+      get: () => 'http://user-service',
+    } as never);
+    return { service, fetchMock, inits };
+  }
+
+  const headersOf = (init: RequestInit) => new Headers(init.headers);
+
+  it('sends the key scopes to user-service on resolve-by-email', async () => {
+    const { service, inits } = recordingService();
+
+    await service.resolveActingUser('Bearer t', 'a@osd.co.th', undefined, [
+      'integration.request.create',
+      'integration.crm.lead.create',
+    ]);
+
+    expect(headersOf(inits[0]).get(API_KEY_SCOPES_HEADER)).toBe(
+      'integration.crm.lead.create,integration.request.create',
+    );
+  });
+
+  it('does not reuse a cached answer for a key with different scopes', async () => {
+    const { service, fetchMock, inits } = recordingService();
+
+    await service.resolveActingUser('Bearer t', 'a@osd.co.th', undefined, [
+      'integration.request.create',
+    ]);
+    await service.resolveActingUser('Bearer t', 'a@osd.co.th', undefined, []);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(headersOf(inits[1]).get(API_KEY_SCOPES_HEADER)).toBeNull();
   });
 });
