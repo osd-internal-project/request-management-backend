@@ -27,6 +27,9 @@ import {
 } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import {
+  SaveLaborDto,
+  SavePartnerQuoteDto,
+  VendorQuoteRequestDto,
   BulkTorClausesDto,
   CreateTorClauseDto,
   SaveTorDto,
@@ -56,6 +59,7 @@ import { ClarificationsService } from './clarifications.service';
 import { RisksService } from './risks.service';
 import { DemosService } from './demos.service';
 import { MAX_TOR_FILE_BYTES, TorService } from './tor.service';
+import { CostService, MAX_QUOTE_FILE_BYTES } from './cost.service';
 import { MAX_FILE_BYTES, SolutionsService } from './solutions.service';
 
 /**
@@ -77,6 +81,7 @@ export class SolutionsController {
     private readonly risks: RisksService,
     private readonly demos: DemosService,
     private readonly tor: TorService,
+    private readonly cost: CostService,
   ) {}
 
   @ApiOperation({ summary: 'เริ่ม Solution จากคำขอ "ขอ Solution" ที่รับแล้ว' })
@@ -617,5 +622,114 @@ export class SolutionsController {
     @CurrentPrincipal() actor: Principal,
   ) {
     return this.tor.removeClause(id, clauseId, actor);
+  }
+
+  // --- CD-136 ประมาณต้นทุน --------------------------------------------------------
+
+  @ApiOperation({
+    summary: 'บันทึกต้นทุนแรงงาน (บทบาท × manday, อัตราจากตั้งค่า)',
+  })
+  @Put('presales/solutions/:id/versions/:no/labor')
+  @Permissions('presales.solution.manage')
+  saveLabor(
+    @Param('id') id: string,
+    @Param('no', ParseIntPipe) no: number,
+    @Body() dto: SaveLaborDto,
+    @CurrentPrincipal() actor: Principal,
+  ) {
+    return this.cost.saveLabor(id, no, dto, actor);
+  }
+
+  @ApiOperation({ summary: 'เพิ่มใบเสนอราคาจากคู่ค้า' })
+  @Post('presales/solutions/:id/versions/:no/quotes')
+  @Permissions('presales.solution.manage')
+  addQuote(
+    @Param('id') id: string,
+    @Param('no', ParseIntPipe) no: number,
+    @Body() dto: SavePartnerQuoteDto,
+    @CurrentPrincipal() actor: Principal,
+  ) {
+    return this.cost.saveQuote(id, no, null, dto, actor);
+  }
+
+  @ApiOperation({ summary: 'แก้ใบเสนอราคาจากคู่ค้า' })
+  @Put('presales/solutions/:id/versions/:no/quotes/:quoteId')
+  @Permissions('presales.solution.manage')
+  updateQuote(
+    @Param('id') id: string,
+    @Param('no', ParseIntPipe) no: number,
+    @Param('quoteId') quoteId: string,
+    @Body() dto: SavePartnerQuoteDto,
+    @CurrentPrincipal() actor: Principal,
+  ) {
+    return this.cost.saveQuote(id, no, quoteId, dto, actor);
+  }
+
+  @ApiOperation({ summary: 'เอาใบเสนอราคาจากคู่ค้าออก' })
+  @Delete('presales/solutions/:id/versions/:no/quotes/:quoteId')
+  @Permissions('presales.solution.manage')
+  removeQuote(
+    @Param('id') id: string,
+    @Param('no', ParseIntPipe) no: number,
+    @Param('quoteId') quoteId: string,
+    @CurrentPrincipal() actor: Principal,
+  ) {
+    return this.cost.removeQuote(id, no, quoteId, actor);
+  }
+
+  @ApiOperation({ summary: 'แนบไฟล์ใบเสนอราคาคู่ค้า (≤ 25 MB)' })
+  @Post('presales/solutions/:id/versions/:no/quotes/:quoteId/file')
+  @Permissions('presales.solution.manage')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['file'],
+      properties: { file: { type: 'string', format: 'binary' } },
+    },
+  })
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: MAX_QUOTE_FILE_BYTES },
+      defParamCharset: 'utf8',
+    }),
+  )
+  uploadQuoteFile(
+    @Param('id') id: string,
+    @Param('no', ParseIntPipe) no: number,
+    @Param('quoteId') quoteId: string,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @CurrentPrincipal() actor: Principal,
+  ) {
+    return this.cost.uploadQuoteFile(id, no, quoteId, file, actor);
+  }
+
+  @ApiOperation({ summary: 'ไฟล์ใบเสนอราคาคู่ค้า' })
+  @Get('presales/solutions/:id/quotes/:quoteId/file')
+  @Authenticated()
+  async downloadQuoteFile(
+    @Param('id') id: string,
+    @Param('quoteId') quoteId: string,
+    @CurrentPrincipal() actor: Principal,
+  ): Promise<StreamableFile> {
+    const file = await this.cost.downloadQuoteFile(id, quoteId, actor);
+    return new StreamableFile(file.stream, {
+      type: file.mimeType,
+      disposition: `attachment; filename*=UTF-8''${encodeURIComponent(file.fileName)}`,
+    });
+  }
+
+  @ApiOperation({
+    summary: 'ขอราคาจากคู่ค้าสำหรับบรรทัด BOQ ที่เลือก (สร้างร่างคำขอ)',
+  })
+  @Post('presales/solutions/:id/versions/:no/vendor-quote-request')
+  @Permissions('presales.solution.manage')
+  requestVendorQuote(
+    @Param('id') id: string,
+    @Param('no', ParseIntPipe) no: number,
+    @Body() dto: VendorQuoteRequestDto,
+    @CurrentPrincipal() actor: Principal,
+  ) {
+    return this.cost.requestVendorQuote(id, no, dto, actor);
   }
 }

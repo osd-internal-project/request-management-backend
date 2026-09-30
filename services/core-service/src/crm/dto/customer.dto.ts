@@ -568,6 +568,19 @@ export class CustomerApprovalTypesDto {
   government?: string;
 }
 
+/** CD-136: อัตราต้นทุนแรงงานต่อ manday ของบทบาทหนึ่ง. */
+export class LaborRateDto {
+  @ApiProperty({ example: 'Engineer' })
+  @IsString()
+  @MaxLength(100)
+  role!: string;
+
+  @ApiProperty({ example: 4500 })
+  @IsNumber()
+  @Min(0)
+  rate!: number;
+}
+
 /**
  * CM-02: รูปแบบรหัสลูกค้า (prefix / จำนวนหลัก) ไม่อยู่ที่นี่แล้ว — ตั้งที่
  * run-number-service (`run_number_settings`, docType `CUSTOMER`) ดู
@@ -756,6 +769,23 @@ export class UpdateCrmConfigDto {
   @IsString()
   @Matches(/^([A-Z0-9_-]{1,20})?$/)
   demo_request_type_code?: string;
+
+  /**
+   * CD-136: รหัสประเภทคำขอ "ขอราคาจากคู่ค้า" (Pre-Sales → จัดซื้อ).
+   * ส่ง `""` = ล้าง.
+   */
+  @IsOptional()
+  @IsString()
+  @Matches(/^([A-Z0-9_-]{1,20})?$/)
+  vendor_quote_type_code?: string;
+
+  /** CD-136: อัตราต้นทุนแรงงานต่อ manday ตามบทบาท (แทนที่ทั้งตาราง). */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50)
+  @ValidateNested({ each: true })
+  @Type(() => LaborRateDto)
+  presales_labor_rates?: LaborRateDto[];
 
   /** CD-61: KYC ใช้ได้กี่เดือนก่อนต้องทบทวน ตามระดับความเสี่ยง. */
   @IsOptional()

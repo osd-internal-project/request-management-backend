@@ -24,6 +24,7 @@ import {
   SolutionDemoRepository,
   SolutionRiskRepository,
   SolutionTorClauseRepository,
+  SolutionPartnerQuoteRepository,
   SolutionTorFileRepository,
   SolutionTorRepository,
   SolutionFileRepository,
@@ -42,6 +43,10 @@ import {
   cleanLines,
   sowGaps,
   boqGaps,
+  costEstimate,
+  readLabor,
+  readLaborRates,
+  type QuoteState,
   boqSummary,
   cleanBoq,
   readBoq,
@@ -106,6 +111,7 @@ interface VersionRow {
   outOfScope: unknown;
   deliverables: unknown;
   boq: unknown;
+  labor: unknown;
   feasibility: FeasibilityVerdict;
   feasibilityNote: string;
   changeNote: string | null;
@@ -180,6 +186,7 @@ export class SolutionsService {
     private readonly opportunities: OpportunityRepository,
     private readonly configs: CrmConfigRepository,
     private readonly catalog: ProductCatalogService,
+    private readonly quotes: SolutionPartnerQuoteRepository,
     private readonly timeline: CustomerTimelineService,
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
@@ -382,7 +389,7 @@ export class SolutionsService {
       }[];
       torClauses: TorClauseState[];
     }[];
-    return rows.map(
+    const mapped = rows.map(
       ({
         versions,
         requirements,
@@ -394,8 +401,9 @@ export class SolutionsService {
       }) => ({
         ...row,
         latest: versions[0] ?? null,
-        // CD-135 — handoff 3: an approved version (its BOQ fully coded).
-        pricing_ready_version:
+        // CD-135/136 — handoff 3: filled in below (needs the estimate).
+        pricing_ready_version: null as number | null,
+        approvedVersionNo:
           versions.find((row) => row.approvalStatus === 'approved')
             ?.versionNo ?? null,
         // CD-131 — what the salesperson has to chase with the customer.
@@ -409,6 +417,17 @@ export class SolutionsService {
         // CD-138 — mandatory TOR clauses still open.
         tor_counts: torCounts(torClauses),
       }),
+    );
+    // CD-136 — ready for Pricing: an approved version whose estimate is complete.
+    return Promise.all(
+      mapped.map(async ({ approvedVersionNo, ...row }) => ({
+        ...row,
+        pricing_ready_version:
+          approvedVersionNo !== null &&
+          (await this.estimateOf(row.id, approvedVersionNo))?.complete
+            ? approvedVersionNo
+            : null,
+      })),
     );
   }
 
@@ -473,6 +492,13 @@ export class SolutionsService {
     const clarificationTotals = clarificationCounts(clarifications);
     // CD-135 — the newest approved version (the list runs newest first).
     const approved = all.find((row) => row.approvalStatus === 'approved');
+    const costConfig = (await this.configs.findFirst({
+      where: { companyId: solution.companyId },
+      select: { presalesLaborRates: true, vendorQuoteTypeCode: true },
+    })) as {
+      presalesLaborRates: unknown;
+      vendorQuoteTypeCode: string | null;
+    } | null;
     const risks = await this.activeRisks(id);
     const riskTotals = riskCounts(risks);
     const demos = await this.activeDemos(id);
@@ -535,7 +561,18 @@ export class SolutionsService {
       // CD-135 — lines, those without a code or a reference cost, and the total.
       boq_summary: boqSummary(version.boq),
       // CD-135 — handoff 3: the latest approved version is what Pricing gets.
-      pricing_ready: approved ? { versionNo: approved.versionNo } : null,
+      // CD-136 — the estimate of the version shown, and its partner quotes.
+      cost: await this.estimateOf(id, version.versionNo),
+      partner_quotes: await this.activeQuotes(version.id),
+      // CD-136 — what the estimate's forms offer: roles and whether VQ is set.
+      cost_settings: {
+        labor_rates: readLaborRates(costConfig?.presalesLaborRates),
+        vendor_quote_configured: Boolean(costConfig?.vendorQuoteTypeCode),
+      },
+      pricing_ready:
+        approved && (await this.estimateOf(id, approved.versionNo))?.complete
+          ? { versionNo: approved.versionNo }
+          : null,
       // CD-143 — whether this version may be sent for approval, and why not.
       approval: {
         configured: Boolean(approvalType?.solutionApprovalTypeCode),
@@ -842,6 +879,7 @@ export class SolutionsService {
               latest.deliverables,
             ) as unknown as Prisma.InputJsonValue,
             boq: readBoq(latest.boq) as unknown as Prisma.InputJsonValue,
+            labor: readLabor(latest.labor) as unknown as Prisma.InputJsonValue,
             changeNote: dto.change_note.trim(),
             createdBy: actor.userId,
           },
@@ -872,6 +910,36 @@ export class SolutionsService {
               storageKey: file.storageKey,
               uploadedBy: file.uploadedBy,
               uploadedAt: file.uploadedAt,
+            })),
+          },
+          { prisma },
+        );
+      }
+      // CD-136 — the partner quotes carry over with the BOQ they price.
+      const quotes = (await this.quotes.findMany(
+        { where: { versionId: latest.id, deletedAt: null } },
+        { prisma },
+      )) as Record<string, unknown>[];
+      if (quotes.length) {
+        await this.quotes.createMany(
+          {
+            data: quotes.map((quote) => ({
+              companyId: quote.companyId as string,
+              solutionId: id,
+              versionId: created.id,
+              seq: quote.seq as number,
+              vendorName: quote.vendorName as string,
+              vendorCode: quote.vendorCode as string,
+              quoteNo: quote.quoteNo as string,
+              quoteDate: quote.quoteDate as Date | null,
+              validUntil: quote.validUntil as Date | null,
+              requestId: quote.requestId as string | null,
+              lines: quote.lines as Prisma.InputJsonValue,
+              fileName: quote.fileName as string | null,
+              mimeType: quote.mimeType as string | null,
+              sizeBytes: quote.sizeBytes as number | null,
+              storageKey: quote.storageKey as string | null,
+              createdBy: quote.createdBy as string,
             })),
           },
           { prisma },
@@ -1070,6 +1138,51 @@ export class SolutionsService {
         scopeResolvedAt: Date | null;
       })[]
     >;
+  }
+
+  /** CD-136 — a version's partner quotes, oldest first. */
+  activeQuotes(versionId: string) {
+    return this.quotes.findMany({
+      where: { versionId, deletedAt: null },
+      orderBy: { seq: 'asc' },
+      select: {
+        id: true,
+        seq: true,
+        vendorName: true,
+        vendorCode: true,
+        quoteNo: true,
+        quoteDate: true,
+        validUntil: true,
+        requestId: true,
+        lines: true,
+        fileName: true,
+        sizeBytes: true,
+        createdAt: true,
+      },
+    }) as unknown as Promise<
+      (QuoteState & {
+        seq: number;
+        vendorCode: string;
+        requestId: string | null;
+        fileName: string | null;
+        sizeBytes: number | null;
+      })[]
+    >;
+  }
+
+  /** CD-136 — the cost estimate of one version, or null. */
+  async estimateOf(solutionId: string, versionNo: number) {
+    const version = (await this.versions.findFirst({
+      where: { solutionId, versionNo },
+      select: { id: true, boq: true, labor: true },
+    })) as { id: string; boq: unknown; labor: unknown } | null;
+    if (!version) return null;
+    return costEstimate(
+      version.boq,
+      version.labor,
+      await this.activeQuotes(version.id),
+      new Date(),
+    );
   }
 
   /** CD-138 — the TOR's facts, files and clauses (clauses in order). */

@@ -13314,6 +13314,427 @@
         ]
       }
     },
+    "/api/v1/presales/solutions/{id}/versions/{no}/labor": {
+      "put": {
+        "operationId": "SolutionsController_saveLabor",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "no",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveLaborDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "บันทึกต้นทุนแรงงาน (บทบาท × manday, อัตราจากตั้งค่า)",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "presales.solution.manage"
+        ]
+      }
+    },
+    "/api/v1/presales/solutions/{id}/versions/{no}/quotes": {
+      "post": {
+        "operationId": "SolutionsController_addQuote",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "no",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SavePartnerQuoteDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เพิ่มใบเสนอราคาจากคู่ค้า",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "presales.solution.manage"
+        ]
+      }
+    },
+    "/api/v1/presales/solutions/{id}/versions/{no}/quotes/{quoteId}": {
+      "put": {
+        "operationId": "SolutionsController_updateQuote",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "no",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "quoteId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SavePartnerQuoteDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แก้ใบเสนอราคาจากคู่ค้า",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "presales.solution.manage"
+        ]
+      },
+      "delete": {
+        "operationId": "SolutionsController_removeQuote",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "no",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "quoteId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เอาใบเสนอราคาจากคู่ค้าออก",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "presales.solution.manage"
+        ]
+      }
+    },
+    "/api/v1/presales/solutions/{id}/versions/{no}/quotes/{quoteId}/file": {
+      "post": {
+        "operationId": "SolutionsController_uploadQuoteFile",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "no",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "quoteId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แนบไฟล์ใบเสนอราคาคู่ค้า (≤ 25 MB)",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "presales.solution.manage"
+        ]
+      }
+    },
+    "/api/v1/presales/solutions/{id}/quotes/{quoteId}/file": {
+      "get": {
+        "operationId": "SolutionsController_downloadQuoteFile",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "quoteId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ไฟล์ใบเสนอราคาคู่ค้า",
+        "tags": [
+          "presales"
+        ]
+      }
+    },
+    "/api/v1/presales/solutions/{id}/versions/{no}/vendor-quote-request": {
+      "post": {
+        "operationId": "SolutionsController_requestVendorQuote",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "no",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VendorQuoteRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ขอราคาจากคู่ค้าสำหรับบรรทัด BOQ ที่เลือก (สร้างร่างคำขอ)",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "presales.solution.manage"
+        ]
+      }
+    },
     "/api/v1/esign/layouts": {
       "get": {
         "operationId": "EsignController_listLayouts",
@@ -17945,6 +18366,17 @@
             "pattern": "^([A-Z0-9_-]{1,20})?$",
             "type": "string"
           },
+          "vendor_quote_type_code": {
+            "pattern": "^([A-Z0-9_-]{1,20})?$",
+            "type": "string"
+          },
+          "presales_labor_rates": {
+            "maxItems": 50,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LaborRateDto"
+            }
+          },
           "kyc_review_months_high": {
             "maximum": 120,
             "minimum": 1,
@@ -20879,6 +21311,119 @@
           }
         }
       },
+      "LaborLineDto": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "mandays": {
+            "type": "number"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "mandays",
+          "role"
+        ]
+      },
+      "SaveLaborDto": {
+        "type": "object",
+        "properties": {
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LaborLineDto"
+            },
+            "maxItems": 200
+          }
+        },
+        "required": [
+          "lines"
+        ]
+      },
+      "QuoteLineDto": {
+        "type": "object",
+        "properties": {
+          "line_index": {
+            "type": "integer",
+            "description": "ตำแหน่งบรรทัดใน BOQ (เริ่ม 0)",
+            "minimum": 0
+          },
+          "unit_price": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "line_index",
+          "unit_price"
+        ]
+      },
+      "SavePartnerQuoteDto": {
+        "type": "object",
+        "properties": {
+          "vendor_name": {
+            "type": "string",
+            "maxLength": 300,
+            "minLength": 1
+          },
+          "vendor_code": {
+            "type": "string",
+            "description": "รหัสผู้ขายใน SAP (CardCode)",
+            "maxLength": 60
+          },
+          "quote_no": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "quote_date": {
+            "type": "string",
+            "description": "YYYY-MM-DD",
+            "maxLength": 10
+          },
+          "valid_until": {
+            "type": "string",
+            "description": "ใช้ได้ถึง YYYY-MM-DD",
+            "maxLength": 10
+          },
+          "request_id": {
+            "type": "string",
+            "description": "คำขอ \"ขอราคาจากคู่ค้า\" ที่เป็นต้นเรื่อง",
+            "maxLength": 64
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuoteLineDto"
+            },
+            "maxItems": 500
+          }
+        },
+        "required": [
+          "lines",
+          "vendor_name"
+        ]
+      },
+      "VendorQuoteRequestDto": {
+        "type": "object",
+        "properties": {
+          "line_indexes": {
+            "description": "ตำแหน่งบรรทัดใน BOQ (เริ่ม 0)",
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 500
+          }
+        },
+        "required": [
+          "line_indexes"
+        ]
+      },
       "LayoutFieldDto": {
         "type": "object",
         "properties": {
@@ -21560,6 +22105,23 @@
         "required": [
           "name_th",
           "row_no"
+        ]
+      },
+      "LaborRateDto": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "maxLength": 100,
+            "type": "string"
+          },
+          "rate": {
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "rate",
+          "role"
         ]
       },
       "ImportLeadRowDto": {

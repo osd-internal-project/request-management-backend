@@ -1,4 +1,8 @@
 import {
+  cleanLabor,
+  cleanQuoteLines,
+  costEstimate,
+  vendorQuoteItems,
   boqGaps,
   boqSummary,
   boqText,
@@ -767,6 +771,138 @@ describe('CD-135 BOQ rules', () => {
         '1. [อุปกรณ์] FG-100F FortiGate 100F · v7.2 × 12 เครื่อง · ต้นทุนอ้างอิง 45,000',
         '2. [งานบริการ] (ไม่มีรหัส) ติดตั้ง × 1 · ยังไม่มีต้นทุนอ้างอิง',
       ].join('\n'),
+    );
+  });
+});
+
+describe('CD-136 cost estimate rules', () => {
+  const boq = [
+    {
+      kind: 'equipment',
+      productCode: 'FG-100F',
+      name: 'FortiGate',
+      quantity: 2,
+      refUnitCost: 40000,
+    },
+    {
+      kind: 'software',
+      productCode: 'LIC-1',
+      name: 'License',
+      quantity: 2,
+      refUnitCost: null,
+    },
+    {
+      kind: 'service',
+      productCode: 'SVC-1',
+      name: 'ติดตั้ง',
+      quantity: 1,
+      refUnitCost: null,
+    },
+  ];
+  const quote = (
+    id: string,
+    date: string,
+    lines: { lineIndex: number; productCode: string; unitPrice: number }[],
+    validUntil: string | null = null,
+  ) => ({
+    id,
+    vendorName: `vendor-${id}`,
+    quoteNo: id,
+    quoteDate: new Date(`${date}T00:00:00Z`),
+    validUntil: validUntil ? new Date(`${validUntil}T00:00:00Z`) : null,
+    createdAt: new Date(`${date}T00:00:00Z`),
+    lines,
+  });
+
+  it('labour takes its rate from the table; an unknown role or no table is named', () => {
+    const rates = [{ role: 'Engineer', rate: 4500 }];
+    expect(
+      cleanLabor([{ role: ' Engineer ', mandays: 10, note: 'ติดตั้ง' }], rates),
+    ).toEqual({
+      lines: [{ role: 'Engineer', mandays: 10, rate: 4500, note: 'ติดตั้ง' }],
+      problems: [],
+    });
+    expect(
+      cleanLabor([{ role: 'PM', mandays: 1 }], rates).problems[0],
+    ).toContain('ไม่มีบทบาท "PM"');
+    expect(cleanLabor([{ role: 'PM', mandays: 1 }], []).problems).toEqual([
+      'ยังไม่ได้ตั้งอัตราต้นทุนแรงงานในตั้งค่า CRM',
+    ]);
+    expect(
+      cleanLabor([{ role: 'Engineer', mandays: 0 }], rates).problems[0],
+    ).toContain('manday');
+  });
+
+  it('a quote prices lines by position and pins their product code', () => {
+    expect(
+      cleanQuoteLines(
+        [
+          { line_index: 1, unit_price: 12000 },
+          { line_index: 9, unit_price: 1 },
+          { line_index: 0, unit_price: -1 },
+        ],
+        boq,
+      ),
+    ).toEqual({
+      lines: [{ lineIndex: 1, productCode: 'LIC-1', unitPrice: 12000 }],
+      problems: ['ไม่มี BOQ บรรทัดที่ 10', 'BOQ บรรทัด 1: ราคาต้องไม่ติดลบ'],
+    });
+  });
+
+  it('CD-136: the newest quote wins, then the reference cost; the rest is flagged', () => {
+    const estimate = costEstimate(
+      boq,
+      [{ role: 'Engineer', mandays: 10, rate: 4500, note: '' }],
+      [
+        quote('q1', '2026-09-01', [
+          { lineIndex: 0, productCode: 'FG-100F', unitPrice: 38000 },
+        ]),
+        quote(
+          'q2',
+          '2026-09-20',
+          [{ lineIndex: 1, productCode: 'LIC-1', unitPrice: 12000 }],
+          '2026-09-25',
+        ),
+      ],
+      new Date('2026-09-30T00:00:00Z'),
+    );
+    expect(
+      estimate.lines.map((line) => [line.unitCost, line.source, line.expired]),
+    ).toEqual([
+      [38000, 'quote', false],
+      [12000, 'quote', true],
+      [null, null, false],
+    ]);
+    expect(estimate).toMatchObject({
+      materials_total: 100000,
+      labor_total: 45000,
+      total: 145000,
+      missing_cost: 1,
+      expired_quotes: 1,
+      complete: false,
+    });
+  });
+
+  it('a quote for a line whose product has changed no longer prices it', () => {
+    const estimate = costEstimate(
+      boq,
+      [],
+      [
+        quote('q1', '2026-09-01', [
+          { lineIndex: 0, productCode: 'OLD', unitPrice: 1 },
+        ]),
+      ],
+      new Date(),
+    );
+    expect(estimate.lines[0]).toMatchObject({
+      unitCost: 40000,
+      source: 'reference',
+    });
+  });
+
+  it('the request lists the chosen BOQ lines', () => {
+    expect(vendorQuoteItems(boq, [0, 2, 7])).toBe(
+      ['1. FG-100F FortiGate × 2', '3. SVC-1 ติดตั้ง × 1'].join('\n'),
     );
   });
 });

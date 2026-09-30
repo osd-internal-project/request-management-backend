@@ -2424,6 +2424,13 @@ model CrmCompanyConfig {
   /// และหน้าดีลไม่แสดงการ์ด Demo/POC.
   demoRequestTypeCode String?
 
+  /// CD-136 — ประเภทคำขอ "ขอราคาจากคู่ค้า" (Pre-Sales → จัดซื้อ); null = ไม่แสดงปุ่มขอราคา.
+  vendorQuoteTypeCode String?
+
+  /// CD-136 — อัตราต้นทุนแรงงานต่อ manday ตามบทบาท `[{role, rate}]` — ใช้จนกว่าโมดูล HR
+  /// (CD-17) จะให้อัตราจริง.
+  presalesLaborRates Json @default("[]")
+
   /// CD-62: ประเภทคำขออนุมัติเปิดลูกค้าใหม่ ต่อประเภทลูกค้า — `{ corporate?, individual?,
   /// government? }` → รหัสประเภทคำขอ (เอกสารบังคับต่างกันตามประเภทลูกค้า). ไม่มีรหัส =
   /// ลูกค้าประเภทนั้นไม่ต้องขออนุมัติ.
@@ -4176,6 +4183,8 @@ model Solution {
   risks          SolutionRisk[]
   /// CD-139 — Demo / POC ที่จัดให้ลูกค้า.
   demos          SolutionDemo[]
+  /// CD-136 — ใบเสนอราคาจากคู่ค้าที่ใช้ประมาณต้นทุน.
+  partnerQuotes  SolutionPartnerQuote[]
   /// CD-138 — TOR / RFP ของลูกค้า: ข้อมูลหลัก ไฟล์ต้นฉบับ และข้อกำหนดรายข้อ.
   tor            SolutionTor?
   torFiles       SolutionTorFile[]
@@ -4205,6 +4214,8 @@ model SolutionVersion {
   /// model, quantity, unit, refUnitCost}]`. ยืนยันเวอร์ชันได้เมื่อทุกบรรทัดมีรหัสสินค้า
   /// ที่ยังขายอยู่ในรายการจาก SAP (จุดส่งต่อที่ 3 → Pricing).
   boq               Json                   @default("[]")
+  /// CD-136 ต้นทุนแรงงาน `[{role, mandays, rate, note}]` — อัตราคัดลอกจากตั้งค่า ณ วันบันทึก.
+  labor             Json                   @default("[]")
   /// CD-133 ผลประเมินความเป็นไปได้รวมของเวอร์ชัน — ต้องมีก่อนยืนยัน; เป็นไปได้
   /// แบบมีเงื่อนไข/ไม่เป็นไปได้ต้องมีเหตุผล; ไม่เป็นไปได้ขออนุมัติไม่ได้.
   feasibility       FeasibilityVerdict     @default(unassessed)
@@ -4708,4 +4719,39 @@ model EsignEvent {
 
   @@index([envelopeId, at])
   @@map("esign_events")
+}
+
+/// CD-136 — ใบเสนอราคาจากคู่ค้าของเวอร์ชันหนึ่ง: ราคาต่อหน่วยของบรรทัด BOQ ที่เสนอ
+/// `[{lineIndex, productCode, unitPrice}]` — ใช้แทนต้นทุนอ้างอิงของบรรทัดนั้น. รหัสผู้ขาย
+/// จาก SAP ตรวจเมื่อเชื่อม SAP B1 (CD-28). ลบคือ soft delete.
+model SolutionPartnerQuote {
+  id         String    @id @default(uuid())
+  companyId  String
+  solutionId String
+  versionId  String
+  seq        Int
+  vendorName String
+  /// รหัสผู้ขายใน SAP (BP CardCode).
+  vendorCode String    @default("")
+  quoteNo    String    @default("")
+  quoteDate  DateTime? @db.Date
+  validUntil DateTime? @db.Date
+  /// คำขอ "ขอราคาจากคู่ค้า" ที่เป็นต้นเรื่อง (ถ้ามี).
+  requestId  String?
+  lines      Json      @default("[]")
+  fileName   String?
+  mimeType   String?
+  sizeBytes  Int?
+  storageKey String?
+
+  createdBy String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  updatedBy String?
+  deletedAt DateTime?
+
+  solution Solution @relation(fields: [solutionId], references: [id])
+
+  @@index([versionId])
+  @@map("solution_partner_quotes")
 }

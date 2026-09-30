@@ -198,6 +198,10 @@ function harness(options: {
     opportunities as never,
     configs as never,
     catalog as never,
+    {
+      findMany: jest.fn(() => Promise.resolve([])),
+      createMany: jest.fn(),
+    } as never,
     timeline as never,
     audit as never,
     { execute: jest.fn((work: (p: unknown) => unknown) => work({})) } as never,

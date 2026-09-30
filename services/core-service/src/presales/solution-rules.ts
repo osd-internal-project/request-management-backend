@@ -1230,3 +1230,250 @@ export function boqText(value: unknown): string {
     )
     .join('\n');
 }
+
+// --- CD-136 cost estimate -----------------------------------------------------------
+
+export interface LaborRate {
+  role: string;
+  rate: number;
+}
+
+export interface LaborLine {
+  role: string;
+  mandays: number;
+  /** Cost per manday, copied from the rate table when entered. */
+  rate: number;
+  note: string;
+}
+
+/** The settings' rate table, read defensively. */
+export function readLaborRates(value: unknown): LaborRate[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((entry) => {
+    if (!entry || typeof entry !== 'object') return [];
+    const { role, rate } = entry as Record<string, unknown>;
+    return typeof role === 'string' && role.trim() && finite(rate) && rate >= 0
+      ? [{ role: role.trim(), rate }]
+      : [];
+  });
+}
+
+export function readLabor(value: unknown): LaborLine[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((entry) => {
+    if (!entry || typeof entry !== 'object') return [];
+    const { role, mandays, rate, note } = entry as Record<string, unknown>;
+    return typeof role === 'string' && role.trim() && finite(mandays)
+      ? [
+          {
+            role: role.trim(),
+            mandays,
+            rate: finite(rate) ? rate : 0,
+            note: typeof note === 'string' ? note.trim() : '',
+          },
+        ]
+      : [];
+  });
+}
+
+/**
+ * Labour lines as saved: the role must be in the rate table, whose rate is
+ * copied in — a later change to the table does not reprice an estimate.
+ */
+export function cleanLabor(
+  input: readonly { role?: string; mandays?: number; note?: string }[],
+  rates: readonly LaborRate[],
+): { lines: LaborLine[]; problems: string[] } {
+  const problems: string[] = [];
+  const lines: LaborLine[] = [];
+  const byRole = new Map(rates.map((rate) => [rate.role, rate.rate]));
+  input.forEach((entry, index) => {
+    const role = entry.role?.trim() ?? '';
+    if (!role) return;
+    const where = `แรงงานบรรทัด ${index + 1}`;
+    const rate = byRole.get(role);
+    if (rate === undefined) {
+      problems.push(
+        rates.length
+          ? `${where}: ไม่มีบทบาท "${role}" ในอัตราต้นทุนแรงงาน`
+          : 'ยังไม่ได้ตั้งอัตราต้นทุนแรงงานในตั้งค่า CRM',
+      );
+      return;
+    }
+    if (!finite(entry.mandays) || entry.mandays <= 0) {
+      problems.push(`${where}: จำนวน manday ต้องมากกว่า 0`);
+      return;
+    }
+    lines.push({
+      role,
+      mandays: entry.mandays,
+      rate,
+      note: entry.note?.trim() ?? '',
+    });
+  });
+  return { lines, problems: [...new Set(problems)] };
+}
+
+export interface QuoteLine {
+  lineIndex: number;
+  productCode: string;
+  unitPrice: number;
+}
+
+export function readQuoteLines(value: unknown): QuoteLine[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((entry) => {
+    if (!entry || typeof entry !== 'object') return [];
+    const { lineIndex, productCode, unitPrice } = entry as Record<
+      string,
+      unknown
+    >;
+    return Number.isInteger(lineIndex) && finite(unitPrice)
+      ? [
+          {
+            lineIndex: lineIndex as number,
+            productCode: typeof productCode === 'string' ? productCode : '',
+            unitPrice,
+          },
+        ]
+      : [];
+  });
+}
+
+/**
+ * A quote's prices, pinned to the BOQ lines they price: each names the line
+ * by position and carries its product code, so a line that has since moved
+ * or changed is not priced by a quote for something else.
+ */
+export function cleanQuoteLines(
+  input: readonly { line_index?: number; unit_price?: number }[],
+  boq: unknown,
+): { lines: QuoteLine[]; problems: string[] } {
+  const items = readBoq(boq);
+  const problems: string[] = [];
+  const lines: QuoteLine[] = [];
+  const seen = new Set<number>();
+  for (const entry of input) {
+    const index = entry.line_index;
+    if (!Number.isInteger(index) || !items[index as number]) {
+      problems.push(`ไม่มี BOQ บรรทัดที่ ${(index ?? -1) + 1}`);
+      continue;
+    }
+    if (seen.has(index as number)) continue;
+    if (!finite(entry.unit_price) || entry.unit_price < 0) {
+      problems.push(`BOQ บรรทัด ${(index as number) + 1}: ราคาต้องไม่ติดลบ`);
+      continue;
+    }
+    seen.add(index as number);
+    lines.push({
+      lineIndex: index as number,
+      productCode: items[index as number].productCode,
+      unitPrice: entry.unit_price,
+    });
+  }
+  if (!lines.length && !problems.length) {
+    problems.push('ใบเสนอราคาต้องมีราคาอย่างน้อยหนึ่งบรรทัด');
+  }
+  return { lines, problems };
+}
+
+export interface QuoteState {
+  id: string;
+  vendorName: string;
+  quoteNo: string;
+  quoteDate: Date | null;
+  validUntil: Date | null;
+  createdAt: Date;
+  lines: unknown;
+}
+
+/**
+ * CD-136 — what each BOQ line costs: the newest partner quote for that line
+ * (same position, same product code), else its reference cost, else nothing
+ * — flagged. An expired quote still prices the line but is flagged. The
+ * estimate is complete when the BOQ has lines and every one is costed.
+ */
+export function costEstimate(
+  boq: unknown,
+  labor: unknown,
+  quotes: readonly QuoteState[],
+  today: Date,
+) {
+  const items = readBoq(boq);
+  const newestFirst = [...quotes].sort(
+    (a, b) =>
+      (b.quoteDate ?? b.createdAt).getTime() -
+      (a.quoteDate ?? a.createdAt).getTime(),
+  );
+  const lines = items.map((item, index) => {
+    for (const quote of newestFirst) {
+      const priced = readQuoteLines(quote.lines).find(
+        (line) =>
+          line.lineIndex === index && line.productCode === item.productCode,
+      );
+      if (priced) {
+        return {
+          index,
+          productCode: item.productCode,
+          name: item.name,
+          quantity: item.quantity,
+          unitCost: priced.unitPrice,
+          source: 'quote' as const,
+          quoteId: quote.id,
+          vendorName: quote.vendorName,
+          expired: Boolean(
+            quote.validUntil && quote.validUntil.getTime() < today.getTime(),
+          ),
+        };
+      }
+    }
+    return {
+      index,
+      productCode: item.productCode,
+      name: item.name,
+      quantity: item.quantity,
+      unitCost: item.refUnitCost,
+      source: item.refUnitCost !== null ? ('reference' as const) : null,
+      quoteId: null,
+      vendorName: null,
+      expired: false,
+    };
+  });
+  const materials = lines.reduce(
+    (sum, line) => sum + line.quantity * (line.unitCost ?? 0),
+    0,
+  );
+  const laborLines = readLabor(labor);
+  const laborTotal = laborLines.reduce(
+    (sum, line) => sum + line.mandays * line.rate,
+    0,
+  );
+  const missing = lines.filter((line) => line.unitCost === null).length;
+  return {
+    lines,
+    labor: laborLines,
+    materials_total: materials,
+    labor_total: laborTotal,
+    total: materials + laborTotal,
+    missing_cost: missing,
+    expired_quotes: lines.filter((line) => line.expired).length,
+    complete: lines.length > 0 && missing === 0,
+  };
+}
+
+/** The request form of "ขอราคาจากคู่ค้า": the chosen BOQ lines as text. */
+export function vendorQuoteItems(
+  boq: unknown,
+  indexes: readonly number[],
+): string {
+  const items = readBoq(boq);
+  return indexes
+    .filter((index) => items[index])
+    .map((index) => {
+      const item = items[index];
+      return `${index + 1}. ${item.productCode || '(ไม่มีรหัส)'} ${item.name}${
+        item.model ? ` · ${item.model}` : ''
+      } × ${item.quantity}${item.unit ? ` ${item.unit}` : ''}`;
+    })
+    .join('\n');
+}

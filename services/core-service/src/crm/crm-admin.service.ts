@@ -211,6 +211,8 @@ export class CrmAdminService {
         solutionRequestTypeCode: null,
         solutionApprovalTypeCode: null,
         demoRequestTypeCode: null,
+        vendorQuoteTypeCode: null,
+        presalesLaborRates: [],
         handoverOrgUnitId: null,
         customerApprovalTypes: {},
         kycReviewMonthsHigh: 12,
@@ -226,6 +228,20 @@ export class CrmAdminService {
 
   async updateConfig(dto: UpdateCrmConfigDto, actor: Principal) {
     // CD-62 — checked before anything is written; `undefined` = untouched.
+    // CD-136 — the labour rate table, blank roles dropped, one row a role.
+    const laborRates =
+      dto.presales_labor_rates === undefined
+        ? undefined
+        : [
+            ...new Map(
+              dto.presales_labor_rates
+                .filter((rate) => rate.role.trim())
+                .map((rate) => [
+                  rate.role.trim(),
+                  { role: rate.role.trim(), rate: rate.rate },
+                ]),
+            ).values(),
+          ];
     const approvalTypes =
       dto.customer_approval_types === undefined
         ? undefined
@@ -258,6 +274,8 @@ export class CrmAdminService {
               solutionRequestTypeCode: dto.solution_request_type_code || null,
               solutionApprovalTypeCode: dto.solution_approval_type_code || null,
               demoRequestTypeCode: dto.demo_request_type_code || null,
+              vendorQuoteTypeCode: dto.vendor_quote_type_code || null,
+              presalesLaborRates: laborRates ?? [],
               handoverOrgUnitId: dto.handover_org_unit_id || null,
               customerApprovalTypes: approvalTypes ?? {},
               kycReviewMonthsHigh: dto.kyc_review_months_high ?? 12,
@@ -306,6 +324,11 @@ export class CrmAdminService {
                 dto.demo_request_type_code === undefined
                   ? undefined
                   : dto.demo_request_type_code || null,
+              vendorQuoteTypeCode:
+                dto.vendor_quote_type_code === undefined
+                  ? undefined
+                  : dto.vendor_quote_type_code || null,
+              presalesLaborRates: laborRates,
               handoverOrgUnitId:
                 dto.handover_org_unit_id === undefined
                   ? undefined

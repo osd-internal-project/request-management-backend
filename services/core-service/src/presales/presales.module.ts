@@ -16,6 +16,7 @@ import {
   SolutionTorRepository,
   SolutionTorFileRepository,
   SolutionTorClauseRepository,
+  SolutionPartnerQuoteRepository,
   SolutionVersionRepository,
 } from './solution.repositories';
 
@@ -38,6 +39,7 @@ import {
     SolutionTorRepository,
     SolutionTorFileRepository,
     SolutionTorClauseRepository,
+    SolutionPartnerQuoteRepository,
     OpportunityRepository,
     CrmConfigRepository,
     PrismaTransactionService,
@@ -57,6 +59,7 @@ import {
     SolutionTorRepository,
     SolutionTorFileRepository,
     SolutionTorClauseRepository,
+    SolutionPartnerQuoteRepository,
     OpportunityRepository,
     CrmConfigRepository,
     PrismaTransactionService,

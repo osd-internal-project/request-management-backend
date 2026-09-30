@@ -751,6 +751,17 @@ async function seedContractRequestType(companyId: string) {
  * CD-130 — points the demo company's Solution card at `SOL`. Only when unset,
  * so an admin's own choice survives a re-seed.
  */
+/**
+ * CD-136 — labour cost per manday by role, until HR (CD-17) supplies real
+ * rates. Placeholders an admin replaces in the CRM settings.
+ */
+const DEFAULT_LABOR_RATES = [
+  { role: 'Engineer', rate: 4500 },
+  { role: 'Senior Engineer', rate: 6000 },
+  { role: 'Project Manager', rate: 7000 },
+  { role: 'Technician', rate: 3000 },
+];
+
 async function seedSolutionRequestType(companyId: string) {
   const config = await prisma.crmCompanyConfig.findUnique({
     where: { companyId },
@@ -758,6 +769,8 @@ async function seedSolutionRequestType(companyId: string) {
       solutionRequestTypeCode: true,
       solutionApprovalTypeCode: true,
       demoRequestTypeCode: true,
+      vendorQuoteTypeCode: true,
+      presalesLaborRates: true,
     },
   });
   if (!config) {
@@ -767,6 +780,8 @@ async function seedSolutionRequestType(companyId: string) {
         solutionRequestTypeCode: 'SOL',
         solutionApprovalTypeCode: 'SOLA',
         demoRequestTypeCode: 'DEMO',
+        vendorQuoteTypeCode: 'VQ',
+        presalesLaborRates: DEFAULT_LABOR_RATES,
         updatedBy: 'seed',
       },
     });
@@ -780,6 +795,12 @@ async function seedSolutionRequestType(companyId: string) {
         ? {}
         : { solutionApprovalTypeCode: 'SOLA' }),
       ...(config.demoRequestTypeCode ? {} : { demoRequestTypeCode: 'DEMO' }),
+      ...(config.vendorQuoteTypeCode ? {} : { vendorQuoteTypeCode: 'VQ' }),
+      // CD-136 — a starting rate table only where none is set.
+      ...(Array.isArray(config.presalesLaborRates) &&
+      config.presalesLaborRates.length
+        ? {}
+        : { presalesLaborRates: DEFAULT_LABOR_RATES }),
     };
     if (Object.keys(data).length) {
       await prisma.crmCompanyConfig.update({
@@ -788,7 +809,7 @@ async function seedSolutionRequestType(companyId: string) {
       });
     }
   }
-  console.log('  solution request types: SOL, SOLA, DEMO');
+  console.log('  solution request types: SOL, SOLA, DEMO, VQ');
 }
 
 /**
@@ -1517,6 +1538,93 @@ async function seedRequestTypes(
       ],
       approvalPolicy: {},
       // 3 days, as the scope's request-type table sets; coverage is 24×7.
+      slaHours: 72,
+    },
+    {
+      /**
+       * CD-136 — ขอราคาจากคู่ค้า (Pre-Sales → จัดซื้อ · ผู้จัดการจัดซื้อ · 3 วัน).
+       * Raised from the cost estimate for chosen BOQ lines; Purchasing answers
+       * with the vendor's quote, which Pre-Sales records on the estimate.
+       */
+      code: 'VQ',
+      name: 'ขอราคาจากคู่ค้า',
+      receiverOrgUnitId: osdRoot?.id ?? null,
+      refRequired: true,
+      formSchema: {
+        type: 'object',
+        required: ['items'],
+        properties: {
+          solution_title: {
+            type: 'string',
+            title: 'Solution',
+            maxLength: 300,
+            'x-order': 10,
+          },
+          version_no: {
+            type: 'string',
+            title: 'เวอร์ชัน',
+            maxLength: 20,
+            'x-order': 20,
+          },
+          items: {
+            type: 'string',
+            title: 'รายการที่ขอราคา (จาก BOQ)',
+            maxLength: 20000,
+            'x-multiline': true,
+            'x-order': 30,
+          },
+          needed_by: {
+            type: 'string',
+            format: 'date',
+            title: 'ต้องการราคาภายใน',
+            'x-order': 40,
+          },
+          preferred_vendors: {
+            type: 'string',
+            title: 'คู่ค้าที่แนะนำ (ถ้ามี)',
+            maxLength: 1000,
+            'x-order': 50,
+          },
+        },
+      },
+      receiverFormSchema: {
+        type: 'object',
+        required: ['vendor_name', 'quote_summary'],
+        properties: {
+          vendor_name: {
+            type: 'string',
+            title: 'คู่ค้า',
+            maxLength: 300,
+            'x-order': 10,
+          },
+          vendor_code: {
+            type: 'string',
+            title: 'รหัสผู้ขายใน SAP',
+            maxLength: 60,
+            'x-order': 20,
+          },
+          quote_summary: {
+            type: 'string',
+            title: 'ราคาที่ได้ (ต่อรายการ) และเงื่อนไข',
+            maxLength: 20000,
+            'x-multiline': true,
+            'x-order': 30,
+          },
+          valid_until: {
+            type: 'string',
+            format: 'date',
+            title: 'ราคาใช้ได้ถึง',
+            'x-order': 40,
+          },
+        },
+      },
+      requiredDocs: [],
+      returnReasonCodes: [
+        { code: 'ITEMS_UNCLEAR', name: 'รายการไม่ชัดเจน' },
+        { code: 'NO_VENDOR', name: 'ไม่มีคู่ค้าที่จำหน่าย' },
+        { code: 'OTHER', name: 'อื่น ๆ' },
+      ],
+      approvalPolicy: {},
       slaHours: 72,
     },
   ];

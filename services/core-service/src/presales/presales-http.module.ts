@@ -10,6 +10,7 @@ import { ClarificationsService } from './clarifications.service';
 import { RisksService } from './risks.service';
 import { DemosService } from './demos.service';
 import { TorService } from './tor.service';
+import { CostService } from './cost.service';
 
 /** The screen-facing routes of {@link PresalesModule} (see `src/index.ts`). */
 @Module({
@@ -31,6 +32,7 @@ import { TorService } from './tor.service';
     RisksService,
     DemosService,
     TorService,
+    CostService,
   ],
 })
 export class PresalesHttpModule {}

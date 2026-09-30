@@ -10936,6 +10936,17 @@
             "pattern": "^([A-Z0-9_-]{1,20})?$",
             "type": "string"
           },
+          "vendor_quote_type_code": {
+            "pattern": "^([A-Z0-9_-]{1,20})?$",
+            "type": "string"
+          },
+          "presales_labor_rates": {
+            "maxItems": 50,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LaborRateDto"
+            }
+          },
           "kyc_review_months_high": {
             "maximum": 120,
             "minimum": 1,
@@ -12538,6 +12549,23 @@
         "required": [
           "name_th",
           "row_no"
+        ]
+      },
+      "LaborRateDto": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "maxLength": 100,
+            "type": "string"
+          },
+          "rate": {
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "rate",
+          "role"
         ]
       },
       "ImportLeadRowDto": {

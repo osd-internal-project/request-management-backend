@@ -665,3 +665,99 @@ export class UpdateTorClauseDto {
   @MaxLength(300)
   reference?: string;
 }
+
+/** CD-136 — แรงงานหนึ่งบรรทัด (อัตราดึงจากตั้งค่าตามบทบาท). */
+export class LaborLineDto {
+  @ApiProperty()
+  @IsString()
+  @MaxLength(100)
+  role!: string;
+
+  @ApiProperty()
+  @IsNumber()
+  mandays!: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  note?: string;
+}
+
+export class SaveLaborDto {
+  @ApiProperty({ type: () => [LaborLineDto] })
+  @IsArray()
+  @ArrayMaxSize(200)
+  @ValidateNested({ each: true })
+  @Type(() => LaborLineDto)
+  lines!: LaborLineDto[];
+}
+
+/** CD-136 — ราคาต่อหน่วยของ BOQ หนึ่งบรรทัดในใบเสนอราคาคู่ค้า. */
+export class QuoteLineDto {
+  @ApiProperty({ description: 'ตำแหน่งบรรทัดใน BOQ (เริ่ม 0)' })
+  @IsInt()
+  @Min(0)
+  line_index!: number;
+
+  @ApiProperty()
+  @IsNumber()
+  unit_price!: number;
+}
+
+/** CD-136 — ใบเสนอราคาจากคู่ค้า. */
+export class SavePartnerQuoteDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(300)
+  vendor_name!: string;
+
+  @ApiPropertyOptional({ description: 'รหัสผู้ขายใน SAP (CardCode)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  vendor_code?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  quote_no?: string;
+
+  @ApiPropertyOptional({ description: 'YYYY-MM-DD' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  quote_date?: string;
+
+  @ApiPropertyOptional({ description: 'ใช้ได้ถึง YYYY-MM-DD' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  valid_until?: string;
+
+  @ApiPropertyOptional({
+    description: 'คำขอ "ขอราคาจากคู่ค้า" ที่เป็นต้นเรื่อง',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  request_id?: string;
+
+  @ApiProperty({ type: () => [QuoteLineDto] })
+  @IsArray()
+  @ArrayMaxSize(500)
+  @ValidateNested({ each: true })
+  @Type(() => QuoteLineDto)
+  lines!: QuoteLineDto[];
+}
+
+/** CD-136 — ขอราคาจากคู่ค้าสำหรับบรรทัด BOQ ที่เลือก. */
+export class VendorQuoteRequestDto {
+  @ApiProperty({ type: [Number], description: 'ตำแหน่งบรรทัดใน BOQ (เริ่ม 0)' })
+  @IsArray()
+  @ArrayMaxSize(500)
+  @IsInt({ each: true })
+  line_indexes!: number[];
+}

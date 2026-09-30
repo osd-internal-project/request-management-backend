@@ -172,3 +172,17 @@ export class SolutionTorClauseRepository extends BaseRepository<
     return client.solutionTorClause;
   }
 }
+
+/** CD-136 ใบเสนอราคาจากคู่ค้า. */
+@Injectable()
+export class SolutionPartnerQuoteRepository extends BaseRepository<
+  PrismaService['solutionPartnerQuote']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.solutionPartnerQuote;
+  }
+}
