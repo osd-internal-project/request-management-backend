@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { StorageModule, type StorageOptions } from '@request-management/share';
 import { MilestonesService } from './milestones.service';
+import { PlanService } from './plan.service';
 import { PmModule } from './pm.module';
 import { ProjectsController } from './projects.controller';
 
@@ -17,6 +18,6 @@ import { ProjectsController } from './projects.controller';
     }),
   ],
   controllers: [ProjectsController],
-  providers: [MilestonesService],
+  providers: [MilestonesService, PlanService],
 })
 export class PmHttpModule {}

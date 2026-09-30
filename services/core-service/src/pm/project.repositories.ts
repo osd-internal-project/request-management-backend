@@ -46,3 +46,48 @@ export class ProjectMilestoneRepository extends BaseRepository<
     return client.projectMilestone;
   }
 }
+
+/** CD-177 งานในแผนโครงการ. */
+@Injectable()
+export class ProjectTaskRepository extends BaseRepository<
+  PrismaService['projectTask']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.projectTask;
+  }
+}
+
+/** CD-177 ลำดับงาน (งานใดต้องเสร็จก่อนงานใด). */
+@Injectable()
+export class ProjectTaskLinkRepository extends BaseRepository<
+  PrismaService['projectTaskLink']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.projectTaskLink;
+  }
+}
+
+/**
+ * CD-177 — the company's working calendar (the SLA's holiday calendar),
+ * read here to date the plan.
+ */
+@Injectable()
+export class WorkCalendarRepository extends BaseRepository<
+  PrismaService['holidayCalendar']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.holidayCalendar;
+  }
+}

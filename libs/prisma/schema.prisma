@@ -4895,6 +4895,8 @@ model Project {
   members    ProjectMember[]
   /// CD-182 — หมุดหมายของโครงการ.
   milestones ProjectMilestone[]
+  /// CD-177 — โครงสร้างงาน.
+  tasks      ProjectTask[]
 
   @@unique([companyId, projectNo])
   @@index([companyId, status])
@@ -4954,6 +4956,8 @@ model ProjectMilestone {
 
   project     Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
   installment ContractInstallment? @relation(fields: [installmentId], references: [id], onDelete: SetNull)
+  /// CD-177 — the work that delivers it.
+  tasks       ProjectTask[]
 
   @@index([projectId, seq])
   @@index([companyId, status, dueOn])
@@ -4983,4 +4987,56 @@ model ProductPrice {
 
   @@index([companyId, productCode, currency])
   @@map("product_prices")
+}
+
+/// CD-177 — one item of the project's work breakdown: a summary (it has
+/// children, and spans them) or a piece of work lasting `durationDays`
+/// working days, with an owner. Dates are not stored: they follow from the
+/// project's start, the working calendar and the links (CD-178).
+model ProjectTask {
+  id           String    @id @default(uuid())
+  companyId    String
+  projectId    String
+  parentId     String?
+  /// Order among its siblings, from 1.
+  seq          Int
+  title        String
+  description  String?
+  ownerUserId  String?
+  /// Working days; 0 marks a point in time (a hand-over, a sign-off).
+  durationDays Int       @default(1)
+  /// The milestone this work delivers, if any.
+  milestoneId  String?
+  /// open · cancelled (progress comes with CD-181).
+  status       String    @default("open")
+  createdAt    DateTime  @default(now())
+  createdBy    String
+  updatedAt    DateTime  @updatedAt
+  updatedBy    String?
+
+  project      Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  parent       ProjectTask?      @relation("TaskTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children     ProjectTask[]     @relation("TaskTree")
+  milestone    ProjectMilestone? @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+  predecessors ProjectTaskLink[] @relation("LinkSuccessor")
+  successors   ProjectTaskLink[] @relation("LinkPredecessor")
+
+  @@index([projectId, parentId, seq])
+  @@map("project_tasks")
+}
+
+/// CD-177 — `predecessor` must finish before `successor` starts, `lagDays`
+/// working days later.
+model ProjectTaskLink {
+  predecessorId String
+  successorId   String
+  lagDays       Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  predecessor ProjectTask @relation("LinkPredecessor", fields: [predecessorId], references: [id], onDelete: Cascade)
+  successor   ProjectTask @relation("LinkSuccessor", fields: [successorId], references: [id], onDelete: Cascade)
+
+  @@id([predecessorId, successorId])
+  @@index([successorId])
+  @@map("project_task_links")
 }

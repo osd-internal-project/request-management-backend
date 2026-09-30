@@ -18,9 +18,13 @@ import {
 import {
   ProjectMemberRepository,
   ProjectRepository,
+  ProjectTaskLinkRepository,
+  ProjectTaskRepository,
+  WorkCalendarRepository,
 } from './project.repositories';
 import { ProjectsService } from './projects.service';
 import { MilestonesService } from './milestones.service';
+import { PlanService } from './plan.service';
 import { ProjectMilestoneRepository } from './project.repositories';
 import { ContractInstallmentsService } from '../crm/contract-installments.service';
 import {
@@ -212,6 +216,11 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
     });
 
     afterAll(async () => {
+      await prisma.projectTask.updateMany({
+        where: { projectId },
+        data: { parentId: null },
+      });
+      await prisma.projectTask.deleteMany({ where: { projectId } });
       await prisma.projectMilestone.deleteMany({ where: { projectId } });
       await prisma.project.deleteMany({ where: { contractId } });
       await prisma.contractInstallment.deleteMany({ where: { contractId } });
@@ -576,6 +585,139 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         projectMilestone: { title: 'ตรวจรับงาน', status: 'achieved' },
         check: { billable: true },
       });
+    });
+
+    it('CD-177: the breakdown, links that must not loop or touch a summary, dates from the calendar', async () => {
+      const client = prisma as never;
+      const plan = new PlanService(
+        projects,
+        new ProjectRepository(client),
+        new ProjectTaskRepository(client),
+        new ProjectTaskLinkRepository(client),
+        new ProjectMilestoneRepository(client),
+        new WorkCalendarRepository(client),
+        new CompanyMemberRepository(client),
+        { record: () => Promise.resolve() } as never,
+        {
+          execute: (work: (tx: unknown) => Promise<unknown>) =>
+            prisma.$transaction((tx) => work(tx)),
+        } as never,
+      );
+      const managerNow = as(engineer, ['notification.read']);
+      await expect(
+        plan.create(
+          projectId,
+          { title: 'แอบเพิ่ม' },
+          as(outsider, ['notification.read']),
+        ),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+      // no Solution behind this contract: nothing to draw from
+      await expect(
+        plan.fromDeliverables(projectId, managerNow),
+      ).rejects.toMatchObject({ code: 'CONFLICT' });
+
+      const idOf = (
+        view: { tasks: { id: string; title: string }[] },
+        title: string,
+      ) => view.tasks.find((row) => row.title === title)!.id;
+      let view: Awaited<ReturnType<PlanService['view']>> = await plan.create(
+        projectId,
+        { title: 'สำรวจหน้างาน', duration_days: 3, owner_user_id: engineer },
+        managerNow,
+      );
+      view = await plan.create(
+        projectId,
+        { title: 'ติดตั้ง', duration_days: 2 },
+        managerNow,
+      );
+      view = await plan.create(
+        projectId,
+        { title: 'เอกสาร', duration_days: 0 },
+        managerNow,
+      );
+      const survey = idOf(view, 'สำรวจหน้างาน');
+      const install = idOf(view, 'ติดตั้ง');
+      const docs = idOf(view, 'เอกสาร');
+      view = await plan.create(
+        projectId,
+        { title: 'คู่มือ', duration_days: 1, parent_id: docs },
+        managerNow,
+      );
+      const manual = idOf(view, 'คู่มือ');
+      expect(view.tasks.map((row) => [row.wbs, row.title])).toEqual([
+        ['1', 'สำรวจหน้างาน'],
+        ['2', 'ติดตั้ง'],
+        ['3', 'เอกสาร'],
+        ['3.1', 'คู่มือ'],
+      ]);
+
+      // installing waits for the survey
+      view = await plan.setPredecessors(
+        projectId,
+        install,
+        { predecessors: [{ task_id: survey }] },
+        managerNow,
+      );
+      const byTitle = (title: string) =>
+        view.tasks.find((row) => row.title === title)!;
+      expect(byTitle('ติดตั้ง').start! > byTitle('สำรวจหน้างาน').finish!).toBe(
+        true,
+      );
+      expect(byTitle('สำรวจหน้างาน').critical).toBe(true);
+      expect(byTitle('คู่มือ').floatDays).toBeGreaterThan(0);
+      expect(byTitle('เอกสาร')).toMatchObject({ summary: true });
+      expect(view.finish).toBe(byTitle('ติดตั้ง').finish);
+      expect(view.projectStart).toBe('2026-10-01');
+
+      // a loop, a summary, and splitting a linked task are all refused
+      await expect(
+        plan.setPredecessors(
+          projectId,
+          survey,
+          { predecessors: [{ task_id: install }] },
+          managerNow,
+        ),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+      await expect(
+        plan.setPredecessors(
+          projectId,
+          install,
+          { predecessors: [{ task_id: docs }] },
+          managerNow,
+        ),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+      await expect(
+        plan.create(
+          projectId,
+          { title: 'ย่อย', parent_id: survey },
+          managerNow,
+        ),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+
+      // moved to the top; a task cannot go under its own child
+      view = await plan.update(
+        projectId,
+        manual,
+        { parent_id: null, position: 1 },
+        managerNow,
+      );
+      expect(view.tasks.map((row) => [row.wbs, row.title])).toEqual([
+        ['1', 'คู่มือ'],
+        ['2', 'สำรวจหน้างาน'],
+        ['3', 'ติดตั้ง'],
+        ['4', 'เอกสาร'],
+      ]);
+      await plan.update(projectId, manual, { parent_id: docs }, managerNow);
+      await expect(
+        plan.update(projectId, docs, { parent_id: manual }, managerNow),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+
+      // cancelled with what is under it
+      view = await plan.cancel(projectId, docs, managerNow);
+      expect(view.tasks.map((row) => row.title)).toEqual([
+        'สำรวจหน้างาน',
+        'ติดตั้ง',
+      ]);
     });
   },
 );

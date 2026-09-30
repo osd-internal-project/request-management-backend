@@ -27,11 +27,14 @@ import {
   ListProjectsQueryDto,
   OpenProjectDto,
   SaveMilestoneDto,
+  SavePredecessorsDto,
+  SaveTaskDto,
   SaveProjectMembersDto,
   TickCriterionDto,
   UpdateProjectDto,
 } from './dto/project.dto';
 import { MAX_EVIDENCE_BYTES, MilestonesService } from './milestones.service';
+import { PlanService } from './plan.service';
 import { ProjectsService } from './projects.service';
 
 /**
@@ -46,6 +49,7 @@ export class ProjectsController {
   constructor(
     private readonly projects: ProjectsService,
     private readonly milestones: MilestonesService,
+    private readonly plan: PlanService,
   ) {}
 
   @ApiOperation({ summary: 'รายการโครงการ (ทั้งบริษัท หรือของฉัน)' })
@@ -242,5 +246,72 @@ export class ProjectsController {
       type: file.mimeType,
       disposition: `inline; filename*=UTF-8''${encodeURIComponent(file.fileName)}`,
     });
+  }
+
+  // --- CD-177 plan ------------------------------------------------------------------
+
+  @ApiOperation({
+    summary: 'แผนงาน: โครงสร้างงาน ลำดับ และวันที่ที่คำนวณได้',
+  })
+  @Get(':id/plan')
+  @Permissions('notification.read')
+  viewPlan(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.plan.view(id, principal);
+  }
+
+  @ApiOperation({ summary: 'เพิ่มงานในแผน' })
+  @Post(':id/plan/tasks')
+  @Permissions('notification.read')
+  createTask(
+    @Param('id') id: string,
+    @Body() dto: SaveTaskDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.plan.create(id, dto, principal);
+  }
+
+  @ApiOperation({ summary: 'สร้างงานจากสิ่งส่งมอบในฐานตั้งต้น' })
+  @Post(':id/plan/from-deliverables')
+  @Permissions('notification.read')
+  planFromDeliverables(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.plan.fromDeliverables(id, principal);
+  }
+
+  @ApiOperation({ summary: 'แก้งาน ย้ายกลุ่ม หรือเปลี่ยนลำดับ' })
+  @Patch(':id/plan/tasks/:taskId')
+  @Permissions('notification.read')
+  updateTask(
+    @Param('id') id: string,
+    @Param('taskId') taskId: string,
+    @Body() dto: SaveTaskDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.plan.update(id, taskId, dto, principal);
+  }
+
+  @ApiOperation({ summary: 'ยกเลิกงาน (พร้อมงานย่อย)' })
+  @Post(':id/plan/tasks/:taskId/cancel')
+  @Permissions('notification.read')
+  cancelTask(
+    @Param('id') id: string,
+    @Param('taskId') taskId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.plan.cancel(id, taskId, principal);
+  }
+
+  @ApiOperation({ summary: 'งานที่ต้องเสร็จก่อนงานนี้' })
+  @Put(':id/plan/tasks/:taskId/predecessors')
+  @Permissions('notification.read')
+  setPredecessors(
+    @Param('id') id: string,
+    @Param('taskId') taskId: string,
+    @Body() dto: SavePredecessorsDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.plan.setPredecessors(id, taskId, dto, principal);
   }
 }

@@ -4,6 +4,9 @@ import {
   IsArray,
   IsBoolean,
   IsDateString,
+  IsInt,
+  Max,
+  Min,
   IsIn,
   IsNotEmpty,
   IsOptional,
@@ -15,6 +18,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PageQueryDto } from '@request-management/share';
 import { MAX_MEMBERS, PROJECT_STATUSES } from '../project-rules';
 import { MAX_CRITERIA, MAX_CRITERION_LENGTH } from '../milestone-rules';
+import { MAX_DURATION_DAYS } from '../plan-rules';
 
 /** CD-175 — one person on the project team. */
 export class ProjectMemberDto {
@@ -185,4 +189,75 @@ export class AchieveMilestoneDto {
   @IsNotEmpty()
   @MaxLength(2000)
   evidence_note!: string;
+}
+
+/** CD-177 — one task of the plan. */
+export class SaveTaskDto {
+  @ApiPropertyOptional({ example: 'ติดตั้งกล้องชั้น 1' })
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  title?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  description?: string;
+
+  @ApiPropertyOptional({
+    description: 'งานแม่ — ว่าง = งานระดับบนสุด',
+    nullable: true,
+  })
+  @IsOptional()
+  @IsString()
+  parent_id?: string | null;
+
+  @ApiPropertyOptional({ description: 'ลำดับในกลุ่มเดียวกัน (เริ่ม 1)' })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  position?: number;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @IsString()
+  owner_user_id?: string | null;
+
+  @ApiPropertyOptional({ description: 'จำนวนวันทำงาน (0 = จุดเวลา)' })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(MAX_DURATION_DAYS)
+  duration_days?: number;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @IsString()
+  milestone_id?: string | null;
+}
+
+export class PredecessorDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  task_id!: string;
+
+  @ApiPropertyOptional({ description: 'รอหลังงานก่อนหน้าเสร็จ (วันทำงาน)' })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(365)
+  lag_days?: number;
+}
+
+/** CD-177 — the work that must finish before this task starts. */
+export class SavePredecessorsDto {
+  @ApiProperty({ type: [PredecessorDto] })
+  @IsArray()
+  @ArrayMaxSize(50)
+  @ValidateNested({ each: true })
+  @Type(() => PredecessorDto)
+  predecessors!: PredecessorDto[];
 }
