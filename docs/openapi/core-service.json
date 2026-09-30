@@ -14140,6 +14140,269 @@
         ]
       }
     },
+    "/api/v1/pricing/prices": {
+      "get": {
+        "operationId": "PricesController_list",
+        "parameters": [
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "ค้นรหัสหรือชื่อสินค้า",
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "current",
+                "future",
+                "expired"
+              ]
+            }
+          },
+          {
+            "name": "product_code",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-194 รายการราคามาตรฐาน",
+        "tags": [
+          "pricing"
+        ],
+        "x-permission": [
+          "pricing.price.read",
+          "pricing.price.manage"
+        ]
+      },
+      "post": {
+        "operationId": "PricesController_create",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SavePriceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-194 เพิ่มราคา",
+        "tags": [
+          "pricing"
+        ],
+        "x-permission": [
+          "pricing.price.manage"
+        ]
+      }
+    },
+    "/api/v1/pricing/prices/lookup": {
+      "get": {
+        "operationId": "PricesController_lookup",
+        "parameters": [
+          {
+            "name": "codes",
+            "required": true,
+            "in": "query",
+            "description": "รหัสสินค้าคั่นด้วยจุลภาค",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "currency",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "THB",
+              "type": "string",
+              "maxLength": 3
+            }
+          },
+          {
+            "name": "on",
+            "required": false,
+            "in": "query",
+            "description": "YYYY-MM-DD — ว่าง = วันนี้",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-194 ราคาที่มีผลของรหัสสินค้าที่ระบุ — ใช้เติมราคาในใบเสนอราคา",
+        "tags": [
+          "pricing"
+        ],
+        "x-permission": [
+          "crm.sales.read",
+          "pricing.price.read",
+          "pricing.price.manage"
+        ]
+      }
+    },
+    "/api/v1/pricing/prices/{id}": {
+      "patch": {
+        "operationId": "PricesController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePriceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-194 แก้ราคา",
+        "tags": [
+          "pricing"
+        ],
+        "x-permission": [
+          "pricing.price.manage"
+        ]
+      },
+      "delete": {
+        "operationId": "PricesController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-194 ลบราคา (soft delete)",
+        "tags": [
+          "pricing"
+        ],
+        "x-permission": [
+          "pricing.price.manage"
+        ]
+      }
+    },
     "/api/v1/projects": {
       "get": {
         "operationId": "ProjectsController_list",
@@ -23001,6 +23264,61 @@
               "$ref": "#/components/schemas/PartnerContactDto"
             },
             "maxItems": 100
+          }
+        }
+      },
+      "SavePriceDto": {
+        "type": "object",
+        "properties": {
+          "product_code": {
+            "type": "string",
+            "description": "รหัสสินค้า SAP (ItemCode)",
+            "maxLength": 60
+          },
+          "currency": {
+            "type": "string",
+            "default": "THB",
+            "maxLength": 3
+          },
+          "unit_price": {
+            "type": "number"
+          },
+          "valid_from": {
+            "type": "string",
+            "description": "YYYY-MM-DD — วันแรกที่มีผล"
+          },
+          "valid_to": {
+            "type": "object",
+            "description": "YYYY-MM-DD — วันสุดท้ายที่มีผล (รวมวันนั้น); ว่าง = ไม่มีกำหนด",
+            "nullable": true
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "product_code",
+          "unit_price",
+          "valid_from"
+        ]
+      },
+      "UpdatePriceDto": {
+        "type": "object",
+        "properties": {
+          "unit_price": {
+            "type": "number"
+          },
+          "valid_from": {
+            "type": "string"
+          },
+          "valid_to": {
+            "type": "object",
+            "nullable": true
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500
           }
         }
       },

@@ -4959,3 +4959,28 @@ model ProjectMilestone {
   @@index([companyId, status, dueOn])
   @@map("project_milestones")
 }
+
+/// CD-194 ราคาขายมาตรฐานต่อรหัสสินค้า SAP — Pricing เป็นเจ้าของ (SAP เป็นเจ้าของ
+/// รายการสินค้าเท่านั้น). ช่วงเวลามีผลของรหัส+สกุลเงินเดียวกันห้ามซ้อนทับ.
+model ProductPrice {
+  id          String    @id @default(uuid())
+  companyId   String
+  /// B1 `ItemCode` — ตรงกับ `products.code`.
+  productCode String
+  currency    String    @default("THB")
+  unitPrice   Decimal   @db.Decimal(14, 2)
+  /// วันแรกที่มีผล.
+  validFrom   DateTime  @db.Date
+  /// วันสุดท้ายที่มีผล (รวมวันนั้น) — NULL = ไม่มีกำหนดสิ้นสุด.
+  validTo     DateTime? @db.Date
+  note        String    @default("")
+
+  createdBy String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  updatedBy String?
+  deletedAt DateTime?
+
+  @@index([companyId, productCode, currency])
+  @@map("product_prices")
+}

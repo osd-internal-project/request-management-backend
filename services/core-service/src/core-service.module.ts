@@ -29,6 +29,7 @@ import { RequestsHttpModule } from './requests/requests-http.module';
 import { SlaHttpModule } from './sla/sla-http.module';
 import { PresalesHttpModule } from './presales/presales-http.module';
 import { PmHttpModule } from './pm/pm-http.module';
+import { PricingHttpModule } from './pricing/pricing-http.module';
 import { SensitiveReadAuditRecorder } from './policy/sensitive-read.recorder';
 import configs from './configs';
 
@@ -61,6 +62,8 @@ import configs from './configs';
     RequestsHttpModule,
     CrmHttpModule,
     PresalesHttpModule,
+    // CD-12 Pricing — standard prices, cost and margin
+    PricingHttpModule,
     // CD-18 PM — projects opened from signed contracts
     PmHttpModule,
     // CD-14 — the central signing service (screens + the public signing link)

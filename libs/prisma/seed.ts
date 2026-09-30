@@ -305,6 +305,21 @@ const SEED_ROLES: {
     ],
   },
   {
+    // CD-194 — the team that keeps reference prices and guards margin.
+    code: 'pricing',
+    name: 'ทีม Pricing',
+    description: 'ดูแลราคามาตรฐาน ต้นทุน และ margin ก่อนออกใบเสนอราคา',
+    permissions: [
+      'request.create',
+      'request.read',
+      'notification.read',
+      'user.read',
+      'crm.sales.read',
+      'pricing.price.read',
+      'pricing.price.manage',
+    ],
+  },
+  {
     // CD-175 — ผู้จัดการโครงการ: opens a project from a signed contract,
     // with what was sold copied in, and runs it.
     code: 'pm',

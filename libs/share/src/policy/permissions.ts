@@ -106,6 +106,12 @@ export const PERMISSIONS = {
    * manager and team. A project's manager and members see it without either.
    */
   pm: ['pm.project.read', 'pm.project.manage'],
+  /**
+   * CD-12 Pricing. `pricing.price.manage` keeps the standard price list
+   * (CD-194); `pricing.price.read` sees it. A salesperson gets the price of a
+   * product through the quotation form with `crm.sales.read` alone.
+   */
+  pricing: ['pricing.price.read', 'pricing.price.manage'],
   admin: [
     'admin.role.manage',
     'admin.org.manage',
