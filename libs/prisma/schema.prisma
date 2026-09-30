@@ -2407,6 +2407,9 @@ model CrmCompanyConfig {
   /// contract assessed high (or critical) legal risk, or with issues Legal
   /// marked for them. NULL = not set up; the card says so.
   legalRiskOpinionTypeCode         String?
+  /// CD-159 — the request type that approves a contract draft version; its
+  /// matrix may route on `contract_value` and `risk_level`. NULL = not set.
+  contractApprovalTypeCode         String?
 
   /// CD-130: ประเภทคำขอ "ขอ Solution และประเมินต้นทุน" (Sales → Pre-Sales) — การ์ด Solution
   /// บนหน้าดีลยื่นประเภทนี้. ช่องบังคับของฟอร์มประเภทนี้คือรายการตรวจความครบ (จุดส่งต่อที่ 2).
@@ -2416,6 +2419,10 @@ model CrmCompanyConfig {
   /// CD-143 — ประเภทคำขอ "ขออนุมัติ Solution" (Pre-Sales → ฝ่ายเทคนิค); null = ยังไม่ตั้ง
   /// และปุ่มขออนุมัติบนหน้า Solution ไม่แสดง.
   solutionApprovalTypeCode String?
+
+  /// CD-139 — ประเภทคำขอ "ขอจัด Demo หรือ POC" (Sales → Pre-Sales); null = ยังไม่ตั้ง
+  /// และหน้าดีลไม่แสดงการ์ด Demo/POC.
+  demoRequestTypeCode String?
 
   /// CD-62: ประเภทคำขออนุมัติเปิดลูกค้าใหม่ ต่อประเภทลูกค้า — `{ corporate?, individual?,
   /// government? }` → รหัสประเภทคำขอ (เอกสารบังคับต่างกันตามประเภทลูกค้า). ไม่มีรหัส =
@@ -3761,7 +3768,12 @@ model ContractInstallment {
 /// Request of the type CRM settings name) before the contract is signed.
 /// One current assessment per contract; earlier ones live in the audit log.
 model ContractRiskAssessment {
-  contractId String @id
+  id         String  @id @default(uuid())
+  /// The contract it is about — or, while the contract is still being
+  /// drafted (CD-159), the draft; the draft's assessment moves onto the
+  /// contract its request produces. A DB CHECK requires one of the two.
+  contractId String? @unique
+  draftId    String? @unique
   companyId  String
 
   /// low · medium · high · critical
@@ -3779,7 +3791,8 @@ model ContractRiskAssessment {
   assessedAt DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  contract CustomerContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  contract CustomerContract? @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  draft    ContractDraft?    @relation(fields: [draftId], references: [id], onDelete: SetNull)
 
   @@index([companyId, level])
   @@map("contract_risk_assessments")
@@ -3835,6 +3848,11 @@ model ContractDraft {
   versions ContractDraftVersion[]
   /// CD-147 — รอบตรวจสัญญา.
   reviews  ContractReviewRound[]
+  /// CD-159 — ความเสี่ยงที่ประเมินบนร่าง และการขออนุมัติรายฉบับ.
+  riskAssessment ContractRiskAssessment?
+  approvals      ContractDraftApproval[]
+  /// CD-150 — การตรวจขอบเขตงานรายฉบับ.
+  scopeChecks    ContractScopeCheck[]
 
   @@index([companyId])
   @@map("contract_drafts")
@@ -3910,6 +3928,86 @@ model ContractReviewComment {
 
   @@index([roundId, status])
   @@map("contract_review_comments")
+}
+
+/// CD-159 — the approval asked for one version of a draft. A later
+/// version voids it (`voidedAt`): what was approved is no longer the text.
+model ContractDraftApproval {
+  id        String @id @default(uuid())
+  companyId String
+  draftId   String
+  versionNo Int
+
+  /// The Platform Request carrying it; NULL when it could not be raised.
+  requestId String?
+  error     String?
+  /// The risk level it was asked with.
+  riskLevel String?
+
+  requestedBy String
+  requestedAt DateTime @default(now())
+  voidedAt    DateTime?
+  voidReason  String?
+
+  draft ContractDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+
+  @@index([draftId, voidedAt])
+  @@map("contract_draft_approvals")
+}
+
+/// CD-145 — what a contract request brings Legal, captured when it is
+/// submitted: the terms agreed in the deal's latest negotiation round (CD-79)
+/// and the scope of work of the deal's approved Solution (CD-134/143), so
+/// Legal does not chase documents and later deal edits do not change what
+/// was asked. Legal may capture it again while the request is open.
+model ContractRequestPackage {
+  requestId     String @id
+  companyId     String
+  opportunityId String
+
+  negotiationRoundNo Int?
+  /// RecordedTerm[] of that round
+  tradeTerms         Json  @default("[]")
+
+  solutionId        String?
+  solutionTitle     String?
+  solutionVersionNo Int?
+  inScope           Json    @default("[]")
+  outOfScope        Json    @default("[]")
+  deliverables      Json    @default("[]")
+  assumptionsText   String?
+
+  /// What was not there to capture (no negotiation, no approved Solution).
+  missing String[] @default([])
+
+  capturedAt DateTime @default(now())
+  /// NULL = captured on submit; otherwise who captured it again.
+  capturedBy String?
+
+  @@index([companyId])
+  @@map("contract_request_packages")
+}
+
+/// CD-150 — Legal's check of one draft version against the scope of work the
+/// request brought (CD-145): each item — in scope, out of scope, deliverable,
+/// acceptance criterion — found in the text or not, and Legal's verdict on
+/// those not found. An inconsistent (or unchecked) latest version cannot be
+/// sent for approval (CD-159).
+model ContractScopeCheck {
+  id        String @id @default(uuid())
+  draftId   String
+  versionNo Int
+  /// [{ key, kind, text, found, verdict: match|mismatch, note }]
+  items     Json
+  /// consistent · inconsistent
+  status    String
+  checkedBy String
+  checkedAt DateTime @default(now())
+
+  draft ContractDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+
+  @@unique([draftId, versionNo])
+  @@map("contract_scope_checks")
 }
 
 /// CD-161 — who else may open a confidential contract.
@@ -4076,6 +4174,8 @@ model Solution {
   clarifications SolutionClarification[]
   /// CD-141 — ทะเบียนความเสี่ยงทางเทคนิค.
   risks          SolutionRisk[]
+  /// CD-139 — Demo / POC ที่จัดให้ลูกค้า.
+  demos          SolutionDemo[]
 
   @@index([companyId, opportunityId])
   @@map("solutions")
@@ -4283,4 +4383,103 @@ model SolutionRisk {
 
   @@index([solutionId])
   @@map("solution_risks")
+}
+
+/// CD-139 — Demo หรือ POC.
+enum SolutionDemoKind {
+  demo
+  poc
+}
+
+/// CD-139 — สถานะของ Demo/POC: วางแผน → จัดแล้ว หรือยกเลิก (ปิดได้เมื่อคืนอุปกรณ์ครบ).
+enum SolutionDemoStatus {
+  planned
+  done
+  cancelled
+}
+
+/// CD-139 — Demo / POC ของ Solution: แผน คน อุปกรณ์ที่เบิก-คืน ผลตามเกณฑ์ความสำเร็จ
+/// และข้อค้นพบ. ผูกกับคำขอ "ขอจัด Demo หรือ POC" (ถ้ามี). ลบคือ soft delete.
+model SolutionDemo {
+  id          String             @id @default(uuid())
+  companyId   String
+  solutionId  String
+  seq         Int
+  /// คำขอ "ขอจัด Demo หรือ POC" ที่เป็นต้นเรื่อง.
+  requestId   String?            @unique
+  kind        SolutionDemoKind   @default(demo)
+  title       String
+  scheduledOn DateTime?          @db.Date
+  site        String             @default("")
+  /// คน/ทีมที่จองไว้.
+  people      String             @default("")
+  plan        String             @default("")
+  /// [{text, result: pending|met|not_met, note}] — ผลตามเกณฑ์ความสำเร็จแต่ละข้อ.
+  criteria    Json               @default("[]")
+  outcome     String             @default("")
+  status      SolutionDemoStatus @default(planned)
+  closedAt    DateTime?
+  closedBy    String?
+
+  createdBy String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  updatedBy String?
+  deletedAt DateTime?
+
+  solution  Solution                @relation(fields: [solutionId], references: [id])
+  equipment SolutionDemoEquipment[]
+  findings  SolutionDemoFinding[]
+
+  @@index([solutionId])
+  @@map("solution_demos")
+}
+
+/// CD-139 — อุปกรณ์ที่เบิกไปใช้ใน Demo/POC — ต้องบันทึกการคืน.
+model SolutionDemoEquipment {
+  id         String    @id @default(uuid())
+  demoId     String
+  name       String
+  serial     String    @default("")
+  quantity   Int       @default(1)
+  takenBy    String    @default("")
+  outOn      DateTime  @db.Date
+  returnedOn DateTime? @db.Date
+
+  createdBy String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  updatedBy String?
+  deletedAt DateTime?
+
+  demo SolutionDemo @relation(fields: [demoId], references: [id])
+
+  @@index([demoId])
+  @@map("solution_demo_equipment")
+}
+
+/// CD-139 — ข้อค้นพบจาก Demo/POC. ข้อที่ต้องปรับ Solution (`requiresChange`) เปิดอยู่
+/// จนกว่า Pre-Sales จะปิดด้วยเลขเวอร์ชันที่ปรับแล้ว — ค้างอยู่ขออนุมัติไม่ได้.
+model SolutionDemoFinding {
+  id                  String    @id @default(uuid())
+  demoId              String
+  seq                 Int
+  text                String
+  requiresChange      Boolean   @default(false)
+  /// เวอร์ชันปัจจุบันของ Solution ขณะบันทึก (เวอร์ชันที่ปิดข้อต้องไม่เก่ากว่านี้).
+  recordedOnVersionNo Int
+  resolvedVersionNo   Int?
+  resolvedAt          DateTime?
+  resolvedBy          String?
+
+  createdBy String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  updatedBy String?
+  deletedAt DateTime?
+
+  demo SolutionDemo @relation(fields: [demoId], references: [id])
+
+  @@index([demoId])
+  @@map("solution_demo_findings")
 }

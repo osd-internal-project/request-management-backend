@@ -2,6 +2,8 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
+  Put,
   Param,
   Patch,
   Post,
@@ -13,11 +15,17 @@ import type { Principal } from '@request-management/share';
 import { ContractDraftsService } from './contract-drafts.service';
 import { ContractTemplatesService } from './contract-templates.service';
 import { ContractReviewsService } from './contract-reviews.service';
+import { ContractRiskService } from './contract-risk.service';
+import { ContractDraftApprovalService } from './contract-draft-approval.service';
+import { ContractRequestPackageService } from './contract-request-package.service';
+import { ContractScopeCheckService } from './contract-scope-check.service';
 import {
   AnswerReviewCommentDto,
   CompareVersionsQueryDto,
   OpenReviewRoundDto,
   ReviewCommentDto,
+  SaveRiskAssessmentDto,
+  SaveScopeCheckDto,
   DraftVersionQueryDto,
   SaveContractTemplateDto,
   SaveDraftVersionDto,
@@ -36,7 +44,125 @@ export class ContractDraftsController {
     private readonly templates: ContractTemplatesService,
     private readonly drafts: ContractDraftsService,
     private readonly reviews: ContractReviewsService,
+    private readonly risk: ContractRiskService,
+    private readonly approval: ContractDraftApprovalService,
+    private readonly packages: ContractRequestPackageService,
+    private readonly scope: ContractScopeCheckService,
   ) {}
+
+  @ApiOperation({
+    summary: 'ตรวจขอบเขตงาน — ร่างฉบับล่าสุดเทียบขอบเขตงานที่แนบคำขอ (CD-150)',
+    description:
+      'ทุกรายการ (ในขอบเขต/นอกขอบเขต/ส่งมอบ/เกณฑ์ตรวจรับ) พร้อม `found` = พบในข้อความสัญญา และคำตัดสินที่บันทึกไว้ของฉบับนี้',
+  })
+  @Get('contract-drafts/:id/scope-check')
+  @Permissions('legal.contract.read')
+  viewScope(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.scope.view(id, principal);
+  }
+
+  @ApiOperation({
+    summary: 'บันทึกผลตรวจขอบเขตงานของฉบับล่าสุด',
+    description:
+      'รายการที่ไม่พบต้องตัดสิน · ไม่สอดคล้องต้องระบุจุดที่ไม่ตรง · ไม่สอดคล้อง = ขออนุมัติสัญญาไม่ได้',
+  })
+  @Put('contract-drafts/:id/scope-check')
+  @Permissions('legal.contract.manage')
+  saveScope(
+    @Param('id') id: string,
+    @Body() dto: SaveScopeCheckDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.scope.save(id, dto, principal);
+  }
+
+  @ApiOperation({
+    summary: 'ข้อมูลการค้าและขอบเขตงานที่มากับคำขอจัดทำสัญญา (CD-145)',
+    description:
+      'เก็บตอนยื่นคำขอ: เงื่อนไขรอบต่อรองล่าสุด + ขอบเขตงาน/รายการส่งมอบ/สมมติฐานของ Solution ที่อนุมัติ',
+  })
+  @Get('contract-requests/:requestId/package')
+  @Permissions('legal.contract.read')
+  viewPackage(
+    @Param('requestId') requestId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.packages.view(requestId, principal);
+  }
+
+  @ApiOperation({ summary: 'ดึงข้อมูลการค้าและขอบเขตงานจากดีลอีกครั้ง' })
+  @Post('contract-requests/:requestId/package/refresh')
+  @Permissions('legal.contract.manage')
+  refreshPackage(
+    @Param('requestId') requestId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.packages.refresh(requestId, principal);
+  }
+
+  @ApiOperation({
+    summary: 'ประเมินความเสี่ยงของร่าง (CD-158 บนร่าง, CD-159)',
+    description: 'ปิดคำขอแล้ว การประเมินย้ายไปอยู่กับสัญญาที่เกิดจากคำขอ',
+  })
+  @Get('contract-drafts/:id/risk')
+  @Permissions('legal.contract.read')
+  viewRisk(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.risk.view({ draftId: id }, principal);
+  }
+
+  @ApiOperation({ summary: 'บันทึกการประเมินความเสี่ยงของร่าง' })
+  @Put('contract-drafts/:id/risk')
+  @Permissions('legal.contract.manage')
+  saveRisk(
+    @Param('id') id: string,
+    @Body() dto: SaveRiskAssessmentDto,
+    @CurrentPrincipal() principal: Principal,
+    @Headers('authorization') authorization: string,
+  ) {
+    return this.risk.save({ draftId: id }, dto, principal, authorization);
+  }
+
+  @ApiOperation({
+    summary: 'ขอความเห็นผู้บริหารเรื่องความเสี่ยงของร่างอีกครั้ง',
+  })
+  @Post('contract-drafts/:id/risk/opinion')
+  @Permissions('legal.contract.manage')
+  requestRiskOpinion(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+    @Headers('authorization') authorization: string,
+  ) {
+    return this.risk.requestOpinion({ draftId: id }, principal, authorization);
+  }
+
+  @ApiOperation({
+    summary: 'การอนุมัติร่าง (CD-159)',
+    description:
+      '`blockers` = เหตุที่ยังขออนุมัติไม่ได้ · `approvedVersionNo` = ฉบับที่อนุมัติแล้ว · แก้ร่างหลังขออนุมัติ = การอนุมัติเป็นโมฆะ',
+  })
+  @Get('contract-drafts/:id/approval')
+  @Permissions('legal.contract.read')
+  viewApproval(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.approval.view(id, principal);
+  }
+
+  @ApiOperation({
+    summary: 'ขออนุมัติร่างฉบับล่าสุด',
+    description:
+      'ยื่นคำขอประเภทที่ตั้งในหน้าตั้งค่า CRM — form มี contract_value และ risk_level ให้ตารางอำนาจอนุมัติตั้งเงื่อนไขได้ · ต้องไม่มีรอบตรวจค้าง และความเสี่ยงผ่าน',
+  })
+  @Post('contract-drafts/:id/approval')
+  @Permissions('legal.contract.manage')
+  requestApproval(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+    @Headers('authorization') authorization: string,
+  ) {
+    return this.approval.request(id, principal, authorization);
+  }
 
   @ApiOperation({ summary: 'เปรียบเทียบร่างสองฉบับ รายข้อ (CD-147)' })
   @Get('contract-drafts/:id/compare')

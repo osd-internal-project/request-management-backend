@@ -57,6 +57,7 @@ function harness(options: {
   requirements?: Record<string, unknown>[];
   clarifications?: Record<string, unknown>[];
   risks?: Record<string, unknown>[];
+  demos?: Record<string, unknown>[];
 }) {
   const versions = options.versions ?? [version()];
   const solutions = {
@@ -90,6 +91,9 @@ function harness(options: {
     create: jest.fn(() => Promise.resolve({})),
     createMany: jest.fn(() => Promise.resolve({ count: 0 })),
     update: jest.fn(() => Promise.resolve({})),
+  };
+  const demoRepo = {
+    findMany: jest.fn(() => Promise.resolve(options.demos ?? [])),
   };
   const riskRepo = {
     findMany: jest.fn(() => Promise.resolve(options.risks ?? [])),
@@ -162,6 +166,7 @@ function harness(options: {
     requirementRepo as never,
     clarificationRepo as never,
     riskRepo as never,
+    demoRepo as never,
     requests as never,
     opportunities as never,
     configs as never,

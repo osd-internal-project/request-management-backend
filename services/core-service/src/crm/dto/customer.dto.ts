@@ -722,6 +722,15 @@ export class UpdateCrmConfigDto {
   legal_risk_opinion_type_code?: string;
 
   /**
+   * CD-159: รหัสประเภทคำขอ "อนุมัติสัญญา" — form มี contract_value และ risk_level ให้ตาราง
+   * อำนาจอนุมัติตั้งเงื่อนไขตามมูลค่าและระดับความเสี่ยงได้. ส่ง `""` = ล้าง.
+   */
+  @IsOptional()
+  @IsString()
+  @Matches(/^([A-Z0-9_-]{1,20})?$/)
+  contract_approval_type_code?: string;
+
+  /**
    * CD-130: รหัสประเภทคำขอ "ขอ Solution และประเมินต้นทุน" (Sales → Pre-Sales).
    * ส่ง `""` = ล้าง (หน้าดีลไม่แสดงการ์ด Solution).
    */
@@ -738,6 +747,15 @@ export class UpdateCrmConfigDto {
   @IsString()
   @Matches(/^([A-Z0-9_-]{1,20})?$/)
   solution_approval_type_code?: string;
+
+  /**
+   * CD-139: รหัสประเภทคำขอ "ขอจัด Demo หรือ POC" (Sales → Pre-Sales).
+   * ส่ง `""` = ล้าง (หน้าดีลไม่แสดงการ์ด Demo/POC).
+   */
+  @IsOptional()
+  @IsString()
+  @Matches(/^([A-Z0-9_-]{1,20})?$/)
+  demo_request_type_code?: string;
 
   /** CD-61: KYC ใช้ได้กี่เดือนก่อนต้องทบทวน ตามระดับความเสี่ยง. */
   @IsOptional()

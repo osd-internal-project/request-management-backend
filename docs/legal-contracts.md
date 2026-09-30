@@ -157,3 +157,45 @@ API: `GET/PUT /contracts/:id/terms` · `POST /contracts/:id/terms/liability-appr
 - API: `GET/POST /contract-drafts/:id/reviews`, `POST /contract-reviews/:roundId/comments`,
   `POST /contract-reviews/:roundId/close`, `POST /contract-review-comments/:id/answer`
 - migration `20260929580000_contract_reviews`
+
+# CD-159 อนุมัติสัญญา
+
+- **ความเสี่ยงประเมินบนร่างได้** (ตามที่ผู้ใช้เลือก 30 ก.ย.): `contract_risk_assessments` มี `id` เป็น PK และผูกกับ
+  `contractId` **หรือ** `draftId` (CHECK) · API `GET/PUT /contract-drafts/:id/risk`, `POST .../risk/opinion` ·
+  ปิดคำขอแล้วสัญญาเกิดขึ้น การประเมินของร่างย้ายไปอยู่กับสัญญา (`ContractsService.onRequestCompleted`)
+- **ขออนุมัติ** `POST /contract-drafts/:id/approval` — ฉบับล่าสุด · ยื่นคำขอประเภท `contractApprovalTypeCode`
+  (หน้าตั้งค่า CRM) · `form_data` มี `contract_value` (ตัวเลข) และ `risk_level` (`low|medium|high|critical`)
+  ให้ **ตารางอำนาจอนุมัติ** ตั้งเงื่อนไขระดับ (`gt` มูลค่า, `in` ความเสี่ยง) — เส้นทางตามมูลค่า/ความเสี่ยงเป็น
+  การตั้งค่า ไม่ใช่โค้ด
+- ขอได้เมื่อ: คำขอยังเปิด · **ไม่มีรอบตรวจ (CD-147) ค้าง** · ประเมินความเสี่ยงของร่างแล้ว และ `signing.ready`
+  (ความเสี่ยงสูงต้องได้ความเห็นผู้บริหารก่อน — CD-158) · ไม่มีคำขอของฉบับนี้ที่ยังรอ/อนุมัติแล้ว
+- **แก้ร่างหลังขออนุมัติ = โมฆะ**: `saveVersion` ตั้ง `voidedAt` ให้การอนุมัติทุกอันที่ยังไม่โมฆะ ในทรานแซกชันเดียวกับฉบับใหม่
+  (คำขอบนแพลตฟอร์มไม่ถูกยกเลิกอัตโนมัติ — แต่ไม่นับแล้ว)
+- `GET /contract-drafts/:id/approval` → `blockers`, `canRequest`, `approvedVersionNo`, `current`, `voided`
+- migration `20260929600000_contract_draft_approval`
+
+# CD-145 คำขอจัดทำสัญญา
+
+คำขอจัดทำสัญญา (ประเภทที่ตั้งใน CRM, CD-81) ที่ยื่นจากหน้าดีล — **ตอนยื่น** (`request.submitted`) ระบบแนบ
+`contract_request_packages` ให้อัตโนมัติ:
+- เงื่อนไขที่ตกลงของ **รอบต่อรองล่าสุด** (CD-79) ทุกข้อ พร้อมป้ายไม่ตรงมาตรฐาน
+- **ขอบเขตงานของ Solution ที่อนุมัติล่าสุด** ของดีล (CD-134/143): งานในขอบเขต · นอกขอบเขต · รายการส่งมอบ + เกณฑ์ตรวจรับ ·
+  สมมติฐาน (CD-133)
+- สิ่งที่ดีลยังไม่มี (ไม่มีการต่อรอง / ไม่มี Solution ที่อนุมัติ) บอกไว้ใน `missing`
+
+เป็น **snapshot** — แก้ดีลภายหลังไม่เปลี่ยน · ยื่นซ้ำ (หลังถูกส่งกลับ) เก็บใหม่ · ฝ่ายกฎหมายกด "ดึงจากดีลอีกครั้ง" ได้ขณะคำขอยังเปิด ·
+ร่างสัญญา (CD-146) ใช้ข้อมูลนี้เติมตัวแปร `{{trade_terms}}`, `{{term_*}}`, `{{scope_of_work}}`, `{{out_of_scope}}`,
+`{{deliverables}}`, `{{assumptions}}` (ไม่มี package = เงื่อนไขจากรอบต่อรองล่าสุดตอนเริ่มร่าง)
+- API: `GET /contract-requests/:requestId/package` (`legal.contract.read`), `POST .../package/refresh` (`legal.contract.manage`)
+- migration `20260929620000_contract_request_packages`
+
+# CD-150 ตรวจขอบเขตงาน
+
+บนหน้าร่างสัญญา (`contract_scope_checks`, หนึ่งแถวต่อฉบับ): ขอบเขตงานที่แนบคำขอ (CD-145 — จาก Solution ที่อนุมัติ)
+ทุกรายการ — ในขอบเขต · นอกขอบเขต · รายการส่งมอบ · เกณฑ์ตรวจรับ — เทียบกับ **ร่างฉบับล่าสุด**:
+- ระบบหาข้อความของแต่ละรายการในสัญญา (ไม่สนช่องว่าง ตัวพิมพ์ เครื่องหมาย) — พบ = ตรง (ฝ่ายกฎหมายเปลี่ยนเป็นไม่สอดคล้องได้)
+- **ไม่พบ ต้องตัดสิน:** ตรง (ต้องบอกว่าอยู่ข้อไหน/ใช้ถ้อยคำใด) หรือ **ไม่สอดคล้อง** (ต้องบอกจุดที่ไม่ตรง)
+- ผลตรวจผูกกับฉบับ — ฉบับใหม่ต้องตรวจใหม่
+- **ไม่สอดคล้อง หรือยังไม่ได้ตรวจฉบับล่าสุด = ขออนุมัติสัญญา (CD-159) ไม่ได้** · คำขอที่ไม่มี Solution ที่อนุมัติไม่ต้องตรวจ
+- API: `GET/PUT /contract-drafts/:id/scope-check`
+- migration `20260929640000_contract_scope_checks`

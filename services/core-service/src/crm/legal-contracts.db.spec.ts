@@ -31,6 +31,23 @@ import {
 } from './contract-templates.service';
 import { RequestRepository } from '../requests/request.repository';
 import {
+  ContractRequestPackageRepository,
+  ContractRequestPackageService,
+} from './contract-request-package.service';
+import { SolutionVersionRepository } from '../presales/solution.repositories';
+import {
+  ContractScopeCheckRepository,
+  ContractScopeCheckService,
+} from './contract-scope-check.service';
+import {
+  NegotiationRoundRepository,
+  OpportunityRepository,
+} from './sales.repositories';
+import {
+  ContractDraftApprovalRepository,
+  ContractDraftApprovalService,
+} from './contract-draft-approval.service';
+import {
   ContractReviewCommentRepository,
   ContractReviewRoundRepository,
   ContractReviewsService,
@@ -349,6 +366,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         new CompanyMemberRepository(client),
         transactions,
         audit,
+        new ContractRequestPackageRepository(client),
       );
       const legal = as(legalUser, true);
       const template = await templates.create(
@@ -458,11 +476,220 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         });
         const compared = await reviews.compare(started.id, 1, 3, legal);
         expect(compared.counts).toEqual({ changed: 1, added: 0, removed: 1 });
+
+        // CD-159 — risk on the draft, then approval of version 3
+        const noTypes = {
+          findFirst: () =>
+            Promise.resolve({
+              legalRiskOpinionTypeCode: null,
+              contractApprovalTypeCode: null,
+            }),
+        } as never;
+        const risk = new ContractRiskService(
+          new ContractRiskAssessmentRepository(client),
+          new CustomerContractRepository(client),
+          drafts,
+          noTypes,
+          new RequestRepository(client),
+          {} as never,
+          audit,
+        );
+        const approval = new ContractDraftApprovalService(
+          new ContractDraftApprovalRepository(client),
+          new ContractReviewRoundRepository(client),
+          drafts,
+          risk,
+          // CD-150 — no scope of work on this request
+          { blocker: () => Promise.resolve(null) } as never,
+          noTypes,
+          new RequestRepository(client),
+          {} as never,
+          new CompanyMemberRepository(client),
+          audit,
+        );
+        const blocked = await approval.view(started.id, legal);
+        expect(blocked.blockers).toEqual(['ยังไม่ได้ประเมินความเสี่ยงของร่าง']);
+        expect(blocked.canRequest).toBe(false);
+        await risk.save(
+          { draftId: started.id },
+          { level: 'low' },
+          legal,
+          'Bearer t',
+        );
+        const asked = await approval.request(started.id, legal, 'Bearer t');
+        expect(asked.current).toMatchObject({
+          versionNo: 3,
+          riskLevel: 'low',
+          state: 'missing',
+        });
+        expect(asked.current?.error).toContain(
+          'ยังไม่ได้ตั้งประเภทคำขออนุมัติสัญญา',
+        );
+        // the approver's decision (a request approved on the platform)
+        const decided = await prisma.request.create({
+          data: {
+            requestTypeId: type.id,
+            typeCode: type.code,
+            companyId,
+            requesterId: legalUser,
+            status: 'approved',
+          },
+        });
+        try {
+          await prisma.contractDraftApproval.updateMany({
+            where: { draftId: started.id, voidedAt: null },
+            data: { requestId: decided.id, error: null },
+          });
+          expect(
+            (await approval.view(started.id, legal)).approvedVersionNo,
+          ).toBe(3);
+          // editing after approval voids it
+          await drafts.saveVersion(
+            started.id,
+            {
+              base_version: 3,
+              clauses: [
+                { key: 'c1', heading: 'คู่สัญญา', body: 'แก้หลังอนุมัติ' },
+              ],
+            },
+            legal,
+          );
+          const after = await approval.view(started.id, legal);
+          expect(after.current).toBeNull();
+          expect(after.approvedVersionNo).toBeNull();
+          expect(after.voided[0]).toMatchObject({
+            versionNo: 3,
+            voidReason: 'แก้ร่างเป็นฉบับที่ 4 หลังขออนุมัติ',
+          });
+        } finally {
+          await prisma.contractDraftApproval.deleteMany({
+            where: { draftId: started.id },
+          });
+          await prisma.request.delete({ where: { id: decided.id } });
+        }
+
+        // CD-150 — the scope of work the request brought, checked on version 4
+        await prisma.contractRequestPackage.create({
+          data: {
+            requestId: request.id,
+            companyId,
+            opportunityId: 'opp-test',
+            solutionId: 'sol-test',
+            solutionTitle: 'ทดสอบ',
+            solutionVersionNo: 1,
+            inScope: ['แก้หลังอนุมัติ', 'อบรมผู้ใช้'],
+          },
+        });
+        try {
+          const scope = new ContractScopeCheckService(
+            new ContractScopeCheckRepository(client),
+            drafts,
+            new ContractRequestPackageService(
+              new ContractRequestPackageRepository(client),
+              new RequestRepository(client),
+              {} as never,
+              {} as never,
+              {} as never,
+              {} as never,
+              { on: () => undefined } as never,
+              audit,
+            ),
+            new CompanyMemberRepository(client),
+            audit,
+          );
+          const before = await scope.view(started.id, legal);
+          expect(before.items.map((item) => [item.text, item.found])).toEqual([
+            ['แก้หลังอนุมัติ', true],
+            ['อบรมผู้ใช้', false],
+          ]);
+          await scope.save(
+            started.id,
+            {
+              verdicts: [
+                { key: 'in-1', verdict: 'mismatch', note: 'สัญญาไม่มีการอบรม' },
+              ],
+            },
+            legal,
+          );
+          // saved again on the same version: one row, updated
+          const after = await scope.save(
+            started.id,
+            {
+              verdicts: [
+                { key: 'in-1', verdict: 'match', note: 'อยู่ในภาคผนวก' },
+              ],
+            },
+            legal,
+          );
+          expect(after).toMatchObject({ status: 'consistent', versionNo: 4 });
+          expect(
+            await prisma.contractScopeCheck.count({
+              where: { draftId: started.id },
+            }),
+          ).toBe(1);
+        } finally {
+          await prisma.contractRequestPackage.delete({
+            where: { requestId: request.id },
+          });
+        }
       } finally {
+        await prisma.contractRiskAssessment.deleteMany({
+          where: { draft: { requestId: request.id } },
+        });
         await prisma.contractDraft.deleteMany({
           where: { requestId: request.id },
         });
         await prisma.contractTemplate.delete({ where: { id: template.id } });
+        await prisma.request.delete({ where: { id: request.id } });
+      }
+    });
+
+    it('CD-145: a contract request from a deal carries its terms and scope, captured on submit', async () => {
+      const client = prisma as never;
+      const [type, deal] = await Promise.all([
+        prisma.requestType.findFirst({ select: { id: true, code: true } }),
+        prisma.opportunity.findFirst({
+          where: { companyId },
+          select: { id: true, opportunityCode: true },
+        }),
+      ]);
+      if (!type || !deal) return;
+      const request = await prisma.request.create({
+        data: {
+          requestTypeId: type.id,
+          typeCode: type.code,
+          companyId,
+          requesterId: legalUser,
+          status: 'submitted',
+          refType: 'opportunity',
+          refId: deal.opportunityCode,
+        },
+      });
+      try {
+        const service = new ContractRequestPackageService(
+          new ContractRequestPackageRepository(client),
+          new RequestRepository(client),
+          {
+            findFirst: () =>
+              Promise.resolve({ contractRequestTypeCode: type.code }),
+          } as never,
+          new OpportunityRepository(client),
+          new NegotiationRoundRepository(client),
+          new SolutionVersionRepository(client),
+          { on: () => undefined } as never,
+          { record: () => Promise.resolve() } as never,
+        );
+        await service.captureOnSubmit(request.id);
+        const view = await service.view(request.id, as(legalUser, true));
+        expect(view.eligible).toBe(true);
+        expect(view.package).toMatchObject({ capturedOnSubmit: true });
+        expect(Array.isArray(view.package?.tradeTerms)).toBe(true);
+        const again = await service.refresh(request.id, as(legalUser, true));
+        expect(again.package?.capturedOnSubmit).toBe(false);
+      } finally {
+        await prisma.contractRequestPackage.deleteMany({
+          where: { requestId: request.id },
+        });
         await prisma.request.delete({ where: { id: request.id } });
       }
     });
@@ -473,6 +700,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       const service = new ContractRiskService(
         new ContractRiskAssessmentRepository(client),
         new CustomerContractRepository(client),
+        {} as never,
         { findFirst: () => Promise.resolve(null) } as never,
         { findFirst: () => Promise.resolve(null) } as never,
         {} as never,
@@ -480,7 +708,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       );
       const legal = as(legalUser, true);
       const view = await service.save(
-        contractId,
+        { contractId },
         {
           level: 'medium',
           summary: 'ภาพรวมยอมรับได้',

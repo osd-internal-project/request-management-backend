@@ -23,6 +23,10 @@ import {
   type Clause,
 } from './contract-drafts';
 import { ContractTemplatesService } from './contract-templates.service';
+import {
+  ContractRequestPackageRepository,
+  present as presentPackage,
+} from './contract-request-package.service';
 import { CustomerLocationRepository } from './customer-child.repositories';
 import { CustomerRepository } from './customer.repository';
 import {
@@ -162,6 +166,7 @@ export class ContractDraftsService {
     private readonly members: CompanyMemberRepository,
     private readonly transactions: PrismaTransactionService,
     private readonly audit: AuditWriter,
+    private readonly packages: ContractRequestPackageRepository,
   ) {}
 
   /** The draft card on a request: whether it takes a draft, and the draft. */
@@ -337,6 +342,7 @@ export class ContractDraftsService {
       );
     }
 
+    let voided = 0;
     const versionNo = await this.transactions.execute(async (tx) => {
       const fresh = await tx.contractDraft.findUniqueOrThrow({
         where: { id: draftId },
@@ -366,6 +372,16 @@ export class ContractDraftsService {
       if (claimed.count !== 1) {
         throw new AppError('CONFLICT', 'มีผู้บันทึกร่างพร้อมกัน — ลองอีกครั้ง');
       }
+      // CD-159 — what was approved (or asked about) is no longer the text
+      voided = (
+        await tx.contractDraftApproval.updateMany({
+          where: { draftId, voidedAt: null },
+          data: {
+            voidedAt: new Date(),
+            voidReason: `แก้ร่างเป็นฉบับที่ ${next} หลังขออนุมัติ`,
+          },
+        })
+      ).count;
       await tx.contractDraftVersion.create({
         data: {
           draftId,
@@ -390,6 +406,7 @@ export class ContractDraftsService {
         edited: marked.clauses.filter((c) => c.mark === 'edited').length,
         added: marked.clauses.filter((c) => c.mark === 'added').length,
         removed: marked.removed.length,
+        approvalsVoided: voided,
       },
     });
     return this.view(draftId, actor, versionNo);
@@ -501,21 +518,46 @@ export class ContractDraftsService {
       values.party_name = form.counterparty.trim();
     }
 
-    if (deal) {
+    // CD-145 — what the request brought, as captured on submit; the deal's
+    // latest round only when nothing was captured
+    const captured = await this.packages.findFirst({
+      where: { requestId: request.id },
+    });
+    let terms: RecordedTerm[] = [];
+    if (captured) {
+      terms = (Array.isArray(captured.tradeTerms)
+        ? captured.tradeTerms
+        : []) as unknown as RecordedTerm[];
+      const lines = (items: string[]) =>
+        items.map((item, index) => `${index + 1}. ${item}`).join('\n');
+      const view = presentPackage(captured);
+      values.scope_of_work = lines(view.inScope);
+      values.out_of_scope = lines(view.outOfScope);
+      values.deliverables = view.deliverables
+        .map(
+          (item, index) =>
+            `${index + 1}. ${item.title}` +
+            (item.criteria?.length
+              ? ` — เกณฑ์ตรวจรับ: ${item.criteria.join('; ')}`
+              : ''),
+        )
+        .join('\n');
+      values.assumptions = view.assumptionsText ?? '';
+    } else if (deal) {
       const round = (await this.rounds.findFirst({
         where: { opportunityId: deal.id },
         orderBy: { roundNo: 'desc' },
         select: { terms: true },
       })) as { terms: unknown } | null;
-      const terms = (
+      terms = (
         Array.isArray(round?.terms) ? round.terms : []
       ) as RecordedTerm[];
-      values.trade_terms = terms
-        .map((term) => `${term.name}: ${term.agreed}`)
-        .join('\n');
-      for (const term of terms) {
-        if (term.code) values[termVariable(term.code)] = term.agreed;
-      }
+    }
+    values.trade_terms = terms
+      .map((term) => `${term.name}: ${term.agreed}`)
+      .join('\n');
+    for (const term of terms) {
+      if (term.code) values[termVariable(term.code)] = term.agreed;
     }
     return values;
   }
@@ -565,6 +607,28 @@ export class ContractDraftsService {
     return {
       draft,
       request,
+      editable: OPEN_STATUSES.includes(request.status),
+    };
+  }
+
+  /**
+   * CD-159 — what a draft's risk assessment and approval say about it: its
+   * request, the deal's title, the value (the request's form, else the
+   * deal's amount) and the party.
+   */
+  async subjectOf(draftId: string, actor: Principal) {
+    const { draft, request } = await this.requireDraft(draftId, actor);
+    const values = await this.valuesFor(request);
+    const value = Number(values.contract_value.replace(/,/g, ''));
+    return {
+      companyId: draft.companyId,
+      draftId: draft.id,
+      requestId: request.id,
+      requestNo: request.requestNo,
+      title: values.deal_title,
+      value: values.contract_value && Number.isFinite(value) ? value : null,
+      counterparty: values.party_name ?? '',
+      latestVersionNo: draft.latestVersionNo,
       editable: OPEN_STATUSES.includes(request.status),
     };
   }

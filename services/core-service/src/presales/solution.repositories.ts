@@ -88,3 +88,45 @@ export class SolutionRiskRepository extends BaseRepository<
     return client.solutionRisk;
   }
 }
+
+/** CD-139 Demo / POC ของ Solution. */
+@Injectable()
+export class SolutionDemoRepository extends BaseRepository<
+  PrismaService['solutionDemo']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.solutionDemo;
+  }
+}
+
+/** CD-139 อุปกรณ์ที่เบิกไปใช้ใน Demo/POC. */
+@Injectable()
+export class SolutionDemoEquipmentRepository extends BaseRepository<
+  PrismaService['solutionDemoEquipment']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.solutionDemoEquipment;
+  }
+}
+
+/** CD-139 ข้อค้นพบจาก Demo/POC. */
+@Injectable()
+export class SolutionDemoFindingRepository extends BaseRepository<
+  PrismaService['solutionDemoFinding']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.solutionDemoFinding;
+  }
+}

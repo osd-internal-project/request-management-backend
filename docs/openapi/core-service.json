@@ -9251,6 +9251,419 @@
         ]
       }
     },
+    "/api/v1/contract-drafts/{id}/scope-check": {
+      "get": {
+        "description": "ทุกรายการ (ในขอบเขต/นอกขอบเขต/ส่งมอบ/เกณฑ์ตรวจรับ) พร้อม `found` = พบในข้อความสัญญา และคำตัดสินที่บันทึกไว้ของฉบับนี้",
+        "operationId": "ContractDraftsController_viewScope",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ตรวจขอบเขตงาน — ร่างฉบับล่าสุดเทียบขอบเขตงานที่แนบคำขอ (CD-150)",
+        "tags": [
+          "contracts"
+        ],
+        "x-permission": [
+          "legal.contract.read"
+        ]
+      },
+      "put": {
+        "description": "รายการที่ไม่พบต้องตัดสิน · ไม่สอดคล้องต้องระบุจุดที่ไม่ตรง · ไม่สอดคล้อง = ขออนุมัติสัญญาไม่ได้",
+        "operationId": "ContractDraftsController_saveScope",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveScopeCheckDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "บันทึกผลตรวจขอบเขตงานของฉบับล่าสุด",
+        "tags": [
+          "contracts"
+        ],
+        "x-permission": [
+          "legal.contract.manage"
+        ]
+      }
+    },
+    "/api/v1/contract-requests/{requestId}/package": {
+      "get": {
+        "description": "เก็บตอนยื่นคำขอ: เงื่อนไขรอบต่อรองล่าสุด + ขอบเขตงาน/รายการส่งมอบ/สมมติฐานของ Solution ที่อนุมัติ",
+        "operationId": "ContractDraftsController_viewPackage",
+        "parameters": [
+          {
+            "name": "requestId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ข้อมูลการค้าและขอบเขตงานที่มากับคำขอจัดทำสัญญา (CD-145)",
+        "tags": [
+          "contracts"
+        ],
+        "x-permission": [
+          "legal.contract.read"
+        ]
+      }
+    },
+    "/api/v1/contract-requests/{requestId}/package/refresh": {
+      "post": {
+        "operationId": "ContractDraftsController_refreshPackage",
+        "parameters": [
+          {
+            "name": "requestId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ดึงข้อมูลการค้าและขอบเขตงานจากดีลอีกครั้ง",
+        "tags": [
+          "contracts"
+        ],
+        "x-permission": [
+          "legal.contract.manage"
+        ]
+      }
+    },
+    "/api/v1/contract-drafts/{id}/risk": {
+      "get": {
+        "description": "ปิดคำขอแล้ว การประเมินย้ายไปอยู่กับสัญญาที่เกิดจากคำขอ",
+        "operationId": "ContractDraftsController_viewRisk",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ประเมินความเสี่ยงของร่าง (CD-158 บนร่าง, CD-159)",
+        "tags": [
+          "contracts"
+        ],
+        "x-permission": [
+          "legal.contract.read"
+        ]
+      },
+      "put": {
+        "operationId": "ContractDraftsController_saveRisk",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveRiskAssessmentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "บันทึกการประเมินความเสี่ยงของร่าง",
+        "tags": [
+          "contracts"
+        ],
+        "x-permission": [
+          "legal.contract.manage"
+        ]
+      }
+    },
+    "/api/v1/contract-drafts/{id}/risk/opinion": {
+      "post": {
+        "operationId": "ContractDraftsController_requestRiskOpinion",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ขอความเห็นผู้บริหารเรื่องความเสี่ยงของร่างอีกครั้ง",
+        "tags": [
+          "contracts"
+        ],
+        "x-permission": [
+          "legal.contract.manage"
+        ]
+      }
+    },
+    "/api/v1/contract-drafts/{id}/approval": {
+      "get": {
+        "description": "`blockers` = เหตุที่ยังขออนุมัติไม่ได้ · `approvedVersionNo` = ฉบับที่อนุมัติแล้ว · แก้ร่างหลังขออนุมัติ = การอนุมัติเป็นโมฆะ",
+        "operationId": "ContractDraftsController_viewApproval",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "การอนุมัติร่าง (CD-159)",
+        "tags": [
+          "contracts"
+        ],
+        "x-permission": [
+          "legal.contract.read"
+        ]
+      },
+      "post": {
+        "description": "ยื่นคำขอประเภทที่ตั้งในหน้าตั้งค่า CRM — form มี contract_value และ risk_level ให้ตารางอำนาจอนุมัติตั้งเงื่อนไขได้ · ต้องไม่มีรอบตรวจค้าง และความเสี่ยงผ่าน",
+        "operationId": "ContractDraftsController_requestApproval",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ขออนุมัติร่างฉบับล่าสุด",
+        "tags": [
+          "contracts"
+        ],
+        "x-permission": [
+          "legal.contract.manage"
+        ]
+      }
+    },
     "/api/v1/contract-drafts/{id}/compare": {
       "get": {
         "operationId": "ContractDraftsController_compare",
@@ -11827,6 +12240,569 @@
           }
         ],
         "summary": "เอาความเสี่ยงออก",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "presales.solution.manage"
+        ]
+      }
+    },
+    "/api/v1/presales/solutions/{id}/demo-requests": {
+      "get": {
+        "operationId": "SolutionsController_demoRequests",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "คำขอ \"ขอจัด Demo หรือ POC\" ของดีลนี้",
+        "tags": [
+          "presales"
+        ]
+      }
+    },
+    "/api/v1/presales/solutions/{id}/demos": {
+      "post": {
+        "operationId": "SolutionsController_createDemo",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDemoDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เพิ่ม Demo/POC (จากคำขอ หรือกรอกเอง)",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "presales.solution.manage"
+        ]
+      }
+    },
+    "/api/v1/presales/solutions/{id}/demos/{demoId}": {
+      "patch": {
+        "operationId": "SolutionsController_updateDemo",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "demoId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDemoDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แก้แผน คน เกณฑ์/ผล หรือสรุปผล",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "presales.solution.manage"
+        ]
+      },
+      "delete": {
+        "operationId": "SolutionsController_removeDemo",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "demoId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เอา Demo/POC ออก (ระหว่างวางแผน ไม่มีอุปกรณ์ค้าง)",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "presales.solution.manage"
+        ]
+      }
+    },
+    "/api/v1/presales/solutions/{id}/demos/{demoId}/close": {
+      "post": {
+        "operationId": "SolutionsController_closeDemo",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "demoId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CloseDemoDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ปิด Demo/POC (จัดแล้ว/ยกเลิก) — ต้องคืนอุปกรณ์ครบ",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "presales.solution.manage"
+        ]
+      }
+    },
+    "/api/v1/presales/solutions/{id}/demos/{demoId}/equipment": {
+      "post": {
+        "operationId": "SolutionsController_checkOut",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "demoId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddEquipmentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เบิกอุปกรณ์",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "presales.solution.manage"
+        ]
+      }
+    },
+    "/api/v1/presales/solutions/{id}/demos/{demoId}/equipment/{itemId}/return": {
+      "post": {
+        "operationId": "SolutionsController_checkIn",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "demoId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReturnEquipmentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "คืนอุปกรณ์",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "presales.solution.manage"
+        ]
+      }
+    },
+    "/api/v1/presales/solutions/{id}/demos/{demoId}/findings": {
+      "post": {
+        "operationId": "SolutionsController_addFinding",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "demoId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddFindingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "บันทึกข้อค้นพบ",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "presales.solution.manage"
+        ]
+      }
+    },
+    "/api/v1/presales/solutions/{id}/demos/{demoId}/findings/{findingId}/resolve": {
+      "post": {
+        "operationId": "SolutionsController_resolveFinding",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "demoId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "findingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveClarificationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ปิดข้อค้นพบด้วยเวอร์ชันที่ปรับแล้ว",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "presales.solution.manage"
+        ]
+      }
+    },
+    "/api/v1/presales/solutions/{id}/demos/{demoId}/findings/{findingId}": {
+      "delete": {
+        "operationId": "SolutionsController_removeFinding",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "demoId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "findingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เอาข้อค้นพบออก",
         "tags": [
           "presales"
         ],
@@ -15634,11 +16610,19 @@
             "pattern": "^([A-Z0-9_-]{1,20})?$",
             "type": "string"
           },
+          "contract_approval_type_code": {
+            "pattern": "^([A-Z0-9_-]{1,20})?$",
+            "type": "string"
+          },
           "solution_request_type_code": {
             "pattern": "^([A-Z0-9_-]{1,20})?$",
             "type": "string"
           },
           "solution_approval_type_code": {
+            "pattern": "^([A-Z0-9_-]{1,20})?$",
+            "type": "string"
+          },
+          "demo_request_type_code": {
             "pattern": "^([A-Z0-9_-]{1,20})?$",
             "type": "string"
           },
@@ -17424,6 +18408,48 @@
           }
         }
       },
+      "ScopeVerdictDto": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "example": "in-0",
+            "description": "รหัสรายการ (จาก GET)",
+            "maxLength": 40
+          },
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "match",
+              "mismatch"
+            ]
+          },
+          "note": {
+            "type": "string",
+            "description": "ไม่สอดคล้อง = จุดที่ไม่ตรง · ไม่พบแต่ตรง = ข้อที่ใช้ถ้อยคำอื่น",
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "key",
+          "verdict"
+        ]
+      },
+      "SaveScopeCheckDto": {
+        "type": "object",
+        "properties": {
+          "verdicts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScopeVerdictDto"
+            },
+            "maxItems": 500
+          }
+        },
+        "required": [
+          "verdicts"
+        ]
+      },
       "OpenReviewRoundDto": {
         "type": "object",
         "properties": {
@@ -18126,6 +19152,175 @@
             ]
           }
         }
+      },
+      "CreateDemoDto": {
+        "type": "object",
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "description": "id ของคำขอ \"ขอจัด Demo หรือ POC\" — กรอกข้อมูลตั้งต้นจากคำขอ",
+            "maxLength": 64
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "demo",
+              "poc"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 300
+          }
+        }
+      },
+      "DemoCriterionDto": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "met",
+              "not_met"
+            ]
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "text"
+        ]
+      },
+      "UpdateDemoDto": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "demo",
+              "poc"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 300,
+            "minLength": 1
+          },
+          "scheduled_on": {
+            "type": "string",
+            "description": "YYYY-MM-DD; \"\" = ล้าง",
+            "maxLength": 10
+          },
+          "site": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "people": {
+            "type": "string",
+            "description": "คน/ทีมที่จอง",
+            "maxLength": 2000
+          },
+          "plan": {
+            "type": "string",
+            "maxLength": 8000
+          },
+          "criteria": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DemoCriterionDto"
+            },
+            "maxItems": 100
+          },
+          "outcome": {
+            "type": "string",
+            "description": "สรุปผล",
+            "maxLength": 8000
+          }
+        }
+      },
+      "CloseDemoDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "done",
+              "cancelled"
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "AddEquipmentDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 300,
+            "minLength": 1
+          },
+          "serial": {
+            "type": "string",
+            "description": "Serial / เลขครุภัณฑ์",
+            "maxLength": 200
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000
+          },
+          "taken_by": {
+            "type": "string",
+            "description": "ผู้เบิก",
+            "maxLength": 200
+          },
+          "out_on": {
+            "type": "string",
+            "description": "วันที่เบิก (YYYY-MM-DD)"
+          }
+        },
+        "required": [
+          "name",
+          "out_on"
+        ]
+      },
+      "ReturnEquipmentDto": {
+        "type": "object",
+        "properties": {
+          "returned_on": {
+            "type": "string",
+            "description": "วันที่คืน (YYYY-MM-DD)"
+          }
+        },
+        "required": [
+          "returned_on"
+        ]
+      },
+      "AddFindingDto": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1
+          },
+          "requires_change": {
+            "type": "boolean",
+            "description": "ต้องนำไปปรับ Solution"
+          }
+        },
+        "required": [
+          "text"
+        ]
       },
       "PreviewChainDto": {
         "type": "object",

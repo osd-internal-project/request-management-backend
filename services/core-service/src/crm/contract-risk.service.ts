@@ -13,6 +13,7 @@ import { RequestRepository } from '../requests/request.repository';
 import { RequestsService } from '../requests/requests.service';
 import { contractVisibleWhere } from './contract-visibility';
 import { CustomerContractRepository } from './contract.repositories';
+import { ContractDraftsService } from './contract-drafts.service';
 import { approvalStateOf } from './contract-terms';
 import {
   opinionKey,
@@ -38,14 +39,21 @@ export class ContractRiskAssessmentRepository extends BaseRepository<
   }
 }
 
-interface ContractRef {
-  id: string;
+/** What is assessed: a contract in the repository, or — CD-159 — a draft. */
+export type RiskSubject = { contractId: string } | { draftId: string };
+
+interface SubjectRef {
   companyId: string;
-  contractNo: string;
+  key: RiskSubject;
+  /** How the executives' request points back at it. */
+  refType: string;
+  refId: string;
+  label: string;
   title: string;
-  value: { toString(): string } | null;
-  counterpartyName: string | null;
-  customer: { nameTh: string } | null;
+  value: number | null;
+  counterparty: string;
+  resourceType: string;
+  resourceId: string;
 }
 
 interface AssessmentRow {
@@ -92,27 +100,28 @@ export class ContractRiskService {
   constructor(
     private readonly assessments: ContractRiskAssessmentRepository,
     private readonly contracts: CustomerContractRepository,
+    private readonly drafts: ContractDraftsService,
     private readonly configs: CrmConfigRepository,
     private readonly requestRows: RequestRepository,
     private readonly requests: RequestsService,
     private readonly audit: AuditWriter,
   ) {}
 
-  async view(contractId: string, actor: Principal) {
-    await this.requireContract(contractId, actor);
+  async view(subject: RiskSubject, actor: Principal) {
+    const ref = await this.requireSubject(subject, actor);
     const row = (await this.assessments.findFirst({
-      where: { contractId },
+      where: ref.key,
     })) as AssessmentRow | null;
     return this.present(row);
   }
 
   async save(
-    contractId: string,
+    subject: RiskSubject,
     dto: SaveRiskAssessmentDto,
     actor: Principal,
     authorization: string,
   ) {
-    const contract = await this.requireContract(contractId, actor);
+    const contract = await this.requireSubject(subject, actor);
     const issues: RiskIssue[] = (dto.issues ?? []).map((issue) => ({
       title: issue.title?.trim() ?? '',
       detail: issue.detail?.trim() || null,
@@ -130,7 +139,7 @@ export class ContractRiskService {
     }
 
     const before = (await this.assessments.findFirst({
-      where: { contractId },
+      where: contract.key,
     })) as AssessmentRow | null;
     const changed =
       !before ||
@@ -146,16 +155,16 @@ export class ContractRiskService {
       ...(changed ? { opinionRequestId: null, opinionError: null } : {}),
     };
     await this.assessments.upsert({
-      where: { contractId },
-      create: { contractId, companyId: contract.companyId, ...data },
+      where: contract.key,
+      create: { ...contract.key, companyId: contract.companyId, ...data },
       update: data,
     });
     await this.audit.record({
       eventType: 'legal.contract.risk_assessed',
       companyId: contract.companyId,
       ...auditActor(actor),
-      resourceType: 'customer_contract',
-      resourceId: contractId,
+      resourceType: contract.resourceType,
+      resourceId: contract.resourceId,
       before: before
         ? { level: before.level, issues: readIssues(before.issues).length }
         : { assessed: false },
@@ -169,18 +178,18 @@ export class ContractRiskService {
     if (changed && opinionNeeded(dto.level, issues)) {
       await this.askOpinion(contract, dto.level, issues, actor, authorization);
     }
-    return this.view(contractId, actor);
+    return this.view(subject, actor);
   }
 
   /** Ask again — after the request type was set up, a failed submit, or a "no". */
   async requestOpinion(
-    contractId: string,
+    subject: RiskSubject,
     actor: Principal,
     authorization: string,
   ) {
-    const contract = await this.requireContract(contractId, actor);
+    const contract = await this.requireSubject(subject, actor);
     const row = (await this.assessments.findFirst({
-      where: { contractId },
+      where: contract.key,
     })) as AssessmentRow | null;
     const issues = readIssues(row?.issues);
     if (!row || !opinionNeeded(row.level, issues)) {
@@ -194,7 +203,7 @@ export class ContractRiskService {
       throw new AppError('CONFLICT', 'มีคำขอความเห็นผู้บริหารอยู่แล้ว');
     }
     await this.askOpinion(contract, row.level, issues, actor, authorization);
-    return this.view(contractId, actor);
+    return this.view(subject, actor);
   }
 
   // --- helpers -------------------------------------------------------------
@@ -204,7 +213,7 @@ export class ContractRiskService {
    * as the reason — the assessment is already saved and must stay so.
    */
   private async askOpinion(
-    contract: ContractRef,
+    contract: SubjectRef,
     level: string,
     issues: RiskIssue[],
     actor: Principal,
@@ -212,7 +221,7 @@ export class ContractRiskService {
   ) {
     const record = (requestId: string | null, error: string | null) =>
       this.assessments.update({
-        where: { contractId: contract.id },
+        where: contract.key,
         data: { opinionRequestId: requestId, opinionError: error },
       });
 
@@ -231,21 +240,20 @@ export class ContractRiskService {
 
     const escalated = issues.filter((issue) => issue.escalate);
     const put = escalated.length ? escalated : issues;
-    const value = contract.value === null ? null : Number(contract.value);
+    const value = contract.value;
     let requestId: string;
     try {
       const created = (await this.requests.create(
         {
           type_code: typeCode,
-          ref_type: 'contract',
-          ref_id: contract.contractNo,
+          ref_type: contract.refType,
+          ref_id: contract.refId,
           // Generic keys: a company's own form ignores what it does not have
           // and says at submit what it still needs.
           form_data: {
-            subject: `ขอความเห็นความเสี่ยงทางกฎหมาย ${contract.contractNo}`,
-            contract_no: contract.contractNo,
-            counterparty:
-              contract.customer?.nameTh ?? contract.counterpartyName ?? '',
+            subject: `ขอความเห็นความเสี่ยงทางกฎหมาย ${contract.label}`,
+            contract_no: contract.label,
+            counterparty: contract.counterparty,
             ...(value !== null ? { contract_value: value } : {}),
             risk_level: LEVEL_TH[level] ?? level,
             detail:
@@ -280,8 +288,8 @@ export class ContractRiskService {
       eventType: 'legal.contract.risk_opinion_requested',
       companyId: contract.companyId,
       ...auditActor(actor),
-      resourceType: 'customer_contract',
-      resourceId: contract.id,
+      resourceType: contract.resourceType,
+      resourceId: contract.resourceId,
       after: { requestId, level, escalated: escalated.length },
     });
   }
@@ -323,13 +331,29 @@ export class ContractRiskService {
     })) as { id: string; requestNo: string | null; status: string } | null;
   }
 
-  private async requireContract(
-    id: string,
+  private async requireSubject(
+    subject: RiskSubject,
     actor: Principal,
-  ): Promise<ContractRef> {
+  ): Promise<SubjectRef> {
+    if ('draftId' in subject) {
+      const draft = await this.drafts.subjectOf(subject.draftId, actor);
+      const label = draft.requestNo ?? draft.requestId.slice(0, 8);
+      return {
+        companyId: draft.companyId,
+        key: { draftId: subject.draftId },
+        refType: 'request',
+        refId: draft.requestNo ?? draft.requestId,
+        label,
+        title: draft.title || label,
+        value: draft.value,
+        counterparty: draft.counterparty,
+        resourceType: 'request',
+        resourceId: draft.requestId,
+      };
+    }
     const found = (await this.contracts.findFirst({
       where: {
-        id,
+        id: subject.contractId,
         companyId: actor.activeCompanyId,
         ...contractVisibleWhere(actor),
       },
@@ -342,9 +366,28 @@ export class ContractRiskService {
         counterpartyName: true,
         customer: { select: { nameTh: true } },
       },
-    })) as ContractRef | null;
+    })) as {
+      id: string;
+      companyId: string;
+      contractNo: string;
+      title: string;
+      value: { toString(): string } | null;
+      counterpartyName: string | null;
+      customer: { nameTh: string } | null;
+    } | null;
     if (!found) throw new AppError('NOT_FOUND', 'ไม่พบสัญญาที่ระบุ');
-    return found;
+    return {
+      companyId: found.companyId,
+      key: { contractId: found.id },
+      refType: 'contract',
+      refId: found.contractNo,
+      label: found.contractNo,
+      title: found.title,
+      value: found.value === null ? null : Number(found.value.toString()),
+      counterparty: found.customer?.nameTh ?? found.counterpartyName ?? '',
+      resourceType: 'customer_contract',
+      resourceId: found.id,
+    };
   }
 }
 

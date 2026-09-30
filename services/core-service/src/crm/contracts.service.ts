@@ -12,6 +12,7 @@ import {
 import { DomainEventsService } from '../events/domain-events.service';
 import { DOMAIN_EVENTS } from '../events/event-catalog';
 import { RequestRepository } from '../requests/request.repository';
+import { ContractRiskAssessmentRepository } from './contract-risk.service';
 import { CustomerRepository } from './customer.repository';
 import { CustomerContractRepository } from './contract.repositories';
 import { contractVisibleWhere } from './contract-visibility';
@@ -64,6 +65,7 @@ export class ContractsService implements OnModuleInit {
     private readonly timeline: CustomerTimelineService,
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
+    private readonly riskAssessments: ContractRiskAssessmentRepository,
   ) {}
 
   onModuleInit(): void {
@@ -327,6 +329,11 @@ export class ContractsService implements OnModuleInit {
         createdBy: null,
       },
     })) as { id: string };
+    // CD-159 — the risk assessed on the draft moves onto the contract
+    await this.riskAssessments.updateMany({
+      where: { contractId: null, draft: { requestId: request.id } },
+      data: { contractId: row.id },
+    });
 
     await this.audit.record({
       eventType: 'crm.contract.created',

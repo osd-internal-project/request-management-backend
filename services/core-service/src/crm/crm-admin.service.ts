@@ -207,8 +207,10 @@ export class CrmAdminService {
         contractRequestTypeCode: null,
         liabilityApprovalRequestTypeCode: null,
         legalRiskOpinionTypeCode: null,
+        contractApprovalTypeCode: null,
         solutionRequestTypeCode: null,
         solutionApprovalTypeCode: null,
+        demoRequestTypeCode: null,
         handoverOrgUnitId: null,
         customerApprovalTypes: {},
         kycReviewMonthsHigh: 12,
@@ -252,8 +254,10 @@ export class CrmAdminService {
                 dto.liability_approval_request_type_code || null,
               legalRiskOpinionTypeCode:
                 dto.legal_risk_opinion_type_code || null,
+              contractApprovalTypeCode: dto.contract_approval_type_code || null,
               solutionRequestTypeCode: dto.solution_request_type_code || null,
               solutionApprovalTypeCode: dto.solution_approval_type_code || null,
+              demoRequestTypeCode: dto.demo_request_type_code || null,
               handoverOrgUnitId: dto.handover_org_unit_id || null,
               customerApprovalTypes: approvalTypes ?? {},
               kycReviewMonthsHigh: dto.kyc_review_months_high ?? 12,
@@ -286,6 +290,10 @@ export class CrmAdminService {
                 dto.legal_risk_opinion_type_code === undefined
                   ? undefined
                   : dto.legal_risk_opinion_type_code || null,
+              contractApprovalTypeCode:
+                dto.contract_approval_type_code === undefined
+                  ? undefined
+                  : dto.contract_approval_type_code || null,
               solutionRequestTypeCode:
                 dto.solution_request_type_code === undefined
                   ? undefined
@@ -294,6 +302,10 @@ export class CrmAdminService {
                 dto.solution_approval_type_code === undefined
                   ? undefined
                   : dto.solution_approval_type_code || null,
+              demoRequestTypeCode:
+                dto.demo_request_type_code === undefined
+                  ? undefined
+                  : dto.demo_request_type_code || null,
               handoverOrgUnitId:
                 dto.handover_org_unit_id === undefined
                   ? undefined

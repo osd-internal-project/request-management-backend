@@ -25,6 +25,8 @@ import {
   clarificationsText,
   riskCounts,
   risksText,
+  demoCounts,
+  demosText,
   type FeasibilityVerdict,
   type SolutionApprovalStatus,
 } from './solution-rules';
@@ -107,11 +109,13 @@ export class SolutionApprovalService implements OnModuleInit {
     if (!version) throw new AppError('NOT_FOUND', 'ไม่พบเวอร์ชันที่ระบุ');
     const clarifications = await this.solutions.activeClarifications(id);
     const risks = await this.solutions.activeRisks(id);
+    const demos = await this.solutions.activeDemos(id);
     const blocker = approvalBlocker(
       version,
       versionNo === solution.currentVersionNo,
       clarificationCounts(clarifications).scope_open,
       riskCounts(risks).needs_plan,
+      demoCounts(demos).findings_open,
     );
     if (blocker) throw new AppError('CONFLICT', blocker);
 
@@ -160,6 +164,8 @@ export class SolutionApprovalService implements OnModuleInit {
             : {}),
           // CD-141 — the risk register, highest score first.
           ...(risks.length ? { risks: risksText(risks) } : {}),
+          // CD-139 — what the demos showed.
+          ...(demos.length ? { demos: demosText(demos) } : {}),
         },
       },
       actor,

@@ -673,3 +673,34 @@ export class CompareVersionsQueryDto {
   @Min(1)
   to!: number;
 }
+
+/** CD-150 — Legal's verdict on one scope item. */
+export class ScopeVerdictDto {
+  @ApiProperty({ example: 'in-0', description: 'รหัสรายการ (จาก GET)' })
+  @IsString()
+  @MaxLength(40)
+  key!: string;
+
+  @ApiProperty({ enum: ['match', 'mismatch'] })
+  @IsIn(['match', 'mismatch'])
+  verdict!: 'match' | 'mismatch';
+
+  @ApiPropertyOptional({
+    description:
+      'ไม่สอดคล้อง = จุดที่ไม่ตรง · ไม่พบแต่ตรง = ข้อที่ใช้ถ้อยคำอื่น',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  note?: string;
+}
+
+/** CD-150 — the check of the latest version. */
+export class SaveScopeCheckDto {
+  @ApiProperty({ type: [ScopeVerdictDto] })
+  @IsArray()
+  @ArrayMaxSize(500)
+  @ValidateNested({ each: true })
+  @Type(() => ScopeVerdictDto)
+  verdicts!: ScopeVerdictDto[];
+}

@@ -230,11 +230,17 @@ export class OpportunitiesService {
     // admin-only; the one code the page needs travels with the deal.
     const config = (await this.configs.findFirst({
       where: { companyId: found.companyId },
-      // CD-130 — likewise the type Pre-Sales takes solution requests on.
-      select: { contractRequestTypeCode: true, solutionRequestTypeCode: true },
+      // CD-130 — likewise the type Pre-Sales takes solution requests on,
+      // and (CD-139) the type it takes Demo/POC requests on.
+      select: {
+        contractRequestTypeCode: true,
+        solutionRequestTypeCode: true,
+        demoRequestTypeCode: true,
+      },
     })) as {
       contractRequestTypeCode: string | null;
       solutionRequestTypeCode: string | null;
+      demoRequestTypeCode: string | null;
     } | null;
 
     return {
@@ -242,6 +248,7 @@ export class OpportunitiesService {
       kycWarning,
       contractRequestTypeCode: config?.contractRequestTypeCode ?? null,
       solutionRequestTypeCode: config?.solutionRequestTypeCode ?? null,
+      demoRequestTypeCode: config?.demoRequestTypeCode ?? null,
     };
   }
 

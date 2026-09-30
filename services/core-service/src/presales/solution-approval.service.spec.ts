@@ -28,6 +28,7 @@ function harness(
     moved?: number;
     clarifications?: Record<string, unknown>[];
     risks?: Record<string, unknown>[];
+    demos?: Record<string, unknown>[];
   } = {},
 ) {
   const solutions = {
@@ -45,6 +46,7 @@ function harness(
       Promise.resolve(options.clarifications ?? []),
     ),
     activeRisks: jest.fn(() => Promise.resolve(options.risks ?? [])),
+    activeDemos: jest.fn(() => Promise.resolve(options.demos ?? [])),
   };
   const versions = {
     findFirst: jest.fn((args: { where: Record<string, unknown> }) =>
@@ -172,6 +174,22 @@ describe('CD-143 solution approval', () => {
           owner: 'จัดซื้อ',
           mitigation: '',
           status: 'open',
+        },
+      ],
+    });
+    await expect(
+      service.requestApproval('sol-1', 2, presales),
+    ).rejects.toMatchObject({ code: 'CONFLICT' });
+    expect(requests.create).not.toHaveBeenCalled();
+  });
+
+  it('CD-139: a demo finding the Solution must change for blocks approval until a version has it', async () => {
+    const { service, requests } = harness({
+      demos: [
+        {
+          status: 'done',
+          equipment: [],
+          findings: [{ requiresChange: true, resolvedVersionNo: null }],
         },
       ],
     });

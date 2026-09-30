@@ -752,7 +752,11 @@ async function seedContractRequestType(companyId: string) {
 async function seedSolutionRequestType(companyId: string) {
   const config = await prisma.crmCompanyConfig.findUnique({
     where: { companyId },
-    select: { solutionRequestTypeCode: true, solutionApprovalTypeCode: true },
+    select: {
+      solutionRequestTypeCode: true,
+      solutionApprovalTypeCode: true,
+      demoRequestTypeCode: true,
+    },
   });
   if (!config) {
     await prisma.crmCompanyConfig.create({
@@ -760,6 +764,7 @@ async function seedSolutionRequestType(companyId: string) {
         companyId,
         solutionRequestTypeCode: 'SOL',
         solutionApprovalTypeCode: 'SOLA',
+        demoRequestTypeCode: 'DEMO',
         updatedBy: 'seed',
       },
     });
@@ -772,6 +777,7 @@ async function seedSolutionRequestType(companyId: string) {
       ...(config.solutionApprovalTypeCode
         ? {}
         : { solutionApprovalTypeCode: 'SOLA' }),
+      ...(config.demoRequestTypeCode ? {} : { demoRequestTypeCode: 'DEMO' }),
     };
     if (Object.keys(data).length) {
       await prisma.crmCompanyConfig.update({
@@ -780,7 +786,7 @@ async function seedSolutionRequestType(companyId: string) {
       });
     }
   }
-  console.log('  solution request types: SOL, SOLA');
+  console.log('  solution request types: SOL, SOLA, DEMO');
 }
 
 /**
@@ -1384,6 +1390,14 @@ async function seedRequestTypes(
             'x-multiline': true,
             'x-order': 80,
           },
+          // CD-139 — what the demos showed.
+          demos: {
+            type: 'string',
+            title: 'Demo / POC และข้อค้นพบ',
+            maxLength: 20000,
+            'x-multiline': true,
+            'x-order': 97,
+          },
           // CD-141 — the risk register, highest score first.
           risks: {
             type: 'string',
@@ -1420,6 +1434,72 @@ async function seedRequestTypes(
       ],
       approvalPolicy: {},
       slaHours: 48,
+    },
+    {
+      /**
+       * CD-139 — ขอจัด Demo หรือ POC (Sales → Pre-Sales · Engineer · หัวหน้า
+       * Pre-Sales · 3 วัน). Raised from the deal; the head of the receiving
+       * Pre-Sales team accepting it is the approval (no matrix). Pre-Sales
+       * then keeps the Demo/POC on the Solution, started from this form.
+       */
+      code: 'DEMO',
+      name: 'ขอจัด Demo หรือ POC',
+      receiverOrgUnitId: osdRoot?.id ?? null,
+      refRequired: true,
+      formSchema: {
+        type: 'object',
+        required: ['kind', 'objective', 'success_criteria'],
+        properties: {
+          kind: {
+            type: 'string',
+            title: 'ประเภท',
+            enum: ['Demo', 'POC'],
+            'x-order': 10,
+          },
+          objective: {
+            type: 'string',
+            title: 'วัตถุประสงค์ / สิ่งที่ลูกค้าอยากเห็น',
+            maxLength: 4000,
+            'x-multiline': true,
+            'x-order': 20,
+          },
+          proposed_date: {
+            type: 'string',
+            format: 'date',
+            title: 'วันที่ต้องการจัด',
+            'x-order': 30,
+          },
+          site: {
+            type: 'string',
+            title: 'สถานที่ (ที่ลูกค้า / ออนไลน์ / Lab)',
+            maxLength: 500,
+            'x-order': 40,
+          },
+          success_criteria: {
+            type: 'string',
+            title: 'เกณฑ์ความสำเร็จ (ข้อละบรรทัด)',
+            maxLength: 4000,
+            'x-multiline': true,
+            'x-order': 50,
+          },
+          attendees: {
+            type: 'string',
+            title: 'ผู้เข้าร่วมฝั่งลูกค้า',
+            maxLength: 1000,
+            'x-order': 60,
+          },
+        },
+      },
+      requiredDocs: [],
+      returnReasonCodes: [
+        { code: 'OBJECTIVE_UNCLEAR', name: 'วัตถุประสงค์ไม่ชัดเจน' },
+        { code: 'NO_EQUIPMENT', name: 'ไม่มีอุปกรณ์/คนว่างในช่วงนั้น' },
+        { code: 'NOT_READY', name: 'Solution ยังไม่พร้อมสาธิต' },
+        { code: 'OTHER', name: 'อื่น ๆ' },
+      ],
+      approvalPolicy: {},
+      // 3 days, as the scope's request-type table sets; coverage is 24×7.
+      slaHours: 72,
     },
   ];
 

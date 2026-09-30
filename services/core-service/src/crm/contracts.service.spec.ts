@@ -71,6 +71,7 @@ describe('CD-70 contract register — from a completed contract request', () => 
       { publish: jest.fn(() => Promise.resolve()) } as never,
       { record: jest.fn(() => Promise.resolve()) } as never,
       {} as never,
+      { updateMany: jest.fn(() => Promise.resolve({ count: 0 })) } as never,
     );
     return { service, created };
   }
@@ -388,6 +389,7 @@ describe('CD-70 contracts by hand', () => {
       {
         execute: jest.fn((work: (p: unknown) => unknown) => work({})),
       } as never,
+      { updateMany: jest.fn(() => Promise.resolve({ count: 0 })) } as never,
     );
     return { service, created };
   }

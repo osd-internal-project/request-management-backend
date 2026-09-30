@@ -1,12 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import {
   SolutionClarificationRepository,
+  SolutionDemoRepository,
   SolutionRiskRepository,
   SolutionFileRepository,
   SolutionRequirementRepository,
   SolutionVersionRepository,
 } from '../presales/solution.repositories';
 import {
+  readCriteria,
   riskLevel,
   riskScore,
   type RiskState,
@@ -44,6 +46,7 @@ export class HandoverTechnicalService {
     private readonly files: SolutionFileRepository,
     private readonly clarifications: SolutionClarificationRepository,
     private readonly risks: SolutionRiskRepository,
+    private readonly demos: SolutionDemoRepository,
   ) {}
 
   async candidate(opportunityId: string): Promise<TechnicalCandidate> {
@@ -100,53 +103,92 @@ export class HandoverTechnicalService {
       solution: { id: string; title: string };
     } | null;
     if (!version) return null;
-    const [requirements, files, clarifications, risks] = await Promise.all([
-      this.requirements.findMany({
-        where: { solutionId: version.solutionId, deletedAt: null },
-        orderBy: { seq: 'asc' },
-        select: {
-          seq: true,
-          kind: true,
-          text: true,
-          assessment: true,
-          note: true,
-          customerAnswer: true,
-        },
-      }),
-      this.files.findMany({
-        where: { versionId: version.id, deletedAt: null },
-        orderBy: { uploadedAt: 'asc' },
-        select: { id: true, fileName: true, mimeType: true, sizeBytes: true },
-      }),
-      // CD-140 — the technical Q&A with the customer.
-      this.clarifications.findMany({
-        where: { solutionId: version.solutionId, deletedAt: null },
-        orderBy: { seq: 'asc' },
-        select: {
-          seq: true,
-          question: true,
-          answer: true,
-          respondent: true,
-          answeredOn: true,
-          affectsScope: true,
-        },
-      }),
-      // CD-141 — the project's risks, from the pre-sale.
-      this.risks.findMany({
-        where: { solutionId: version.solutionId, deletedAt: null },
-        orderBy: { seq: 'asc' },
-        select: {
-          seq: true,
-          title: true,
-          description: true,
-          likelihood: true,
-          impact: true,
-          owner: true,
-          mitigation: true,
-          status: true,
-        },
-      }) as Promise<(RiskState & { seq: number; title: string })[]>,
-    ]);
+    const [requirements, files, clarifications, risks, demos] =
+      await Promise.all([
+        this.requirements.findMany({
+          where: { solutionId: version.solutionId, deletedAt: null },
+          orderBy: { seq: 'asc' },
+          select: {
+            seq: true,
+            kind: true,
+            text: true,
+            assessment: true,
+            note: true,
+            customerAnswer: true,
+          },
+        }),
+        this.files.findMany({
+          where: { versionId: version.id, deletedAt: null },
+          orderBy: { uploadedAt: 'asc' },
+          select: { id: true, fileName: true, mimeType: true, sizeBytes: true },
+        }),
+        // CD-140 — the technical Q&A with the customer.
+        this.clarifications.findMany({
+          where: { solutionId: version.solutionId, deletedAt: null },
+          orderBy: { seq: 'asc' },
+          select: {
+            seq: true,
+            question: true,
+            answer: true,
+            respondent: true,
+            answeredOn: true,
+            affectsScope: true,
+          },
+        }),
+        // CD-141 — the project's risks, from the pre-sale.
+        this.risks.findMany({
+          where: { solutionId: version.solutionId, deletedAt: null },
+          orderBy: { seq: 'asc' },
+          select: {
+            seq: true,
+            title: true,
+            description: true,
+            likelihood: true,
+            impact: true,
+            owner: true,
+            mitigation: true,
+            status: true,
+          },
+        }) as Promise<(RiskState & { seq: number; title: string })[]>,
+        // CD-139 — the demos and what they showed.
+        this.demos.findMany({
+          where: { solutionId: version.solutionId, deletedAt: null },
+          orderBy: { seq: 'asc' },
+          select: {
+            seq: true,
+            kind: true,
+            title: true,
+            status: true,
+            scheduledOn: true,
+            criteria: true,
+            outcome: true,
+            findings: {
+              where: { deletedAt: null },
+              orderBy: { seq: 'asc' },
+              select: {
+                text: true,
+                requiresChange: true,
+                resolvedVersionNo: true,
+              },
+            },
+          },
+        }) as unknown as Promise<
+          {
+            seq: number;
+            kind: string;
+            title: string;
+            status: string;
+            scheduledOn: Date | null;
+            criteria: unknown;
+            outcome: string;
+            findings: {
+              text: string;
+              requiresChange: boolean;
+              resolvedVersionNo: number | null;
+            }[];
+          }[]
+        >,
+      ]);
     return {
       solutionId: version.solution.id,
       title: version.solution.title,
@@ -171,6 +213,10 @@ export class HandoverTechnicalService {
           level: riskLevel(riskScore(risk)),
         }))
         .sort((a, b) => b.score - a.score || a.seq - b.seq),
+      demos: demos.map((demo) => ({
+        ...demo,
+        criteria: readCriteria(demo.criteria),
+      })),
       files,
     };
   }

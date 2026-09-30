@@ -477,6 +477,8 @@ export function approvalBlocker(
   openScopeUpdates = 0,
   /** CD-141 — open high/critical risks without an owner or a plan. */
   risksWithoutPlan = 0,
+  /** CD-139 — Demo/POC findings the Solution must change for, still open. */
+  openDemoFindings = 0,
 ): string | null {
   if (version.status === 'draft') {
     return 'ยืนยันเวอร์ชันก่อน จึงขออนุมัติได้';
@@ -497,6 +499,10 @@ export function approvalBlocker(
   // CD-141 — a serious risk goes with someone on it and a plan.
   if (risksWithoutPlan > 0) {
     return `มีความเสี่ยงระดับสูง/วิกฤติที่ยังไม่มีผู้รับผิดชอบหรือแนวทางลด ${risksWithoutPlan} ข้อ`;
+  }
+  // CD-139 — what the demo showed must be in the design first.
+  if (openDemoFindings > 0) {
+    return `มีข้อค้นพบจาก Demo/POC ที่ต้องปรับ Solution ยังไม่ได้ปรับ ${openDemoFindings} ข้อ`;
   }
   // CD-133 — a design judged not feasible is recorded, not offered.
   if (version.feasibility === 'not_feasible') {
@@ -753,5 +759,180 @@ export function risksText(
         ...(row.owner ? [`   ผู้รับผิดชอบ: ${row.owner}`] : []),
       ].join('\n');
     })
+    .join('\n');
+}
+
+// --- CD-139 Demo / POC -----------------------------------------------------------
+
+export const CRITERION_RESULTS = ['pending', 'met', 'not_met'] as const;
+export type CriterionResult = (typeof CRITERION_RESULTS)[number];
+
+export interface DemoCriterion {
+  text: string;
+  result: CriterionResult;
+  note: string;
+}
+
+export const MAX_CRITERIA_PER_DEMO = 50;
+
+/** A stored `criteria` column, read defensively. */
+export function readCriteria(value: unknown): DemoCriterion[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((entry) => {
+    if (!entry || typeof entry !== 'object') return [];
+    const { text, result, note } = entry as Record<string, unknown>;
+    if (typeof text !== 'string' || !text.trim()) return [];
+    return [
+      {
+        text: text.trim(),
+        result: (CRITERION_RESULTS as readonly unknown[]).includes(result)
+          ? (result as CriterionResult)
+          : 'pending',
+        note: typeof note === 'string' ? note.trim() : '',
+      },
+    ];
+  });
+}
+
+/**
+ * Success criteria as saved: blank ones dropped. A result other than
+ * `pending` must come with the criterion's text, like any other.
+ */
+export function cleanCriteria(
+  input: readonly { text?: string; result?: string; note?: string }[],
+): { criteria: DemoCriterion[]; problems: string[] } {
+  const problems: string[] = [];
+  const criteria = readCriteria(input);
+  if (criteria.length > MAX_CRITERIA_PER_DEMO) {
+    problems.push(`เกณฑ์ความสำเร็จได้ไม่เกิน ${MAX_CRITERIA_PER_DEMO} ข้อ`);
+  }
+  if (criteria.some((item) => item.text.length > 1000)) {
+    problems.push('เกณฑ์ความสำเร็จยาวเกิน 1000 ตัวอักษร');
+  }
+  return { criteria, problems };
+}
+
+/** The request's success criteria (one per line) as the demo's starting list. */
+export function criteriaFromText(text: unknown): DemoCriterion[] {
+  if (typeof text !== 'string') return [];
+  return text
+    .split('\n')
+    .map((line) => line.replace(/^\s*(?:[-•*]|\d+[.)])\s*/, '').trim())
+    .filter(Boolean)
+    .map((line) => ({ text: line, result: 'pending' as const, note: '' }));
+}
+
+/**
+ * Why the demo cannot close as `done` or `cancelled` yet, or the gaps. Every
+ * item taken out must be back either way; a demo that happened must say how
+ * it went against each criterion.
+ */
+export function demoCloseGaps(
+  target: 'done' | 'cancelled',
+  demo: { criteria: unknown; outcome: string },
+  equipment: readonly { name: string; returnedOn: Date | null }[],
+): string[] {
+  const gaps: string[] = [];
+  const out = equipment.filter((item) => !item.returnedOn);
+  if (out.length) {
+    gaps.push(
+      `ยังไม่คืนอุปกรณ์ ${out.length} รายการ: ${out.map((item) => item.name).join(', ')}`,
+    );
+  }
+  if (target === 'done') {
+    const pending = readCriteria(demo.criteria).filter(
+      (item) => item.result === 'pending',
+    );
+    if (pending.length) {
+      gaps.push(`ยังไม่ได้บันทึกผลตามเกณฑ์ ${pending.length} ข้อ`);
+    }
+    if (!demo.outcome.trim()) gaps.push('ยังไม่ได้สรุปผล');
+  }
+  return gaps;
+}
+
+export interface FindingState {
+  requiresChange: boolean;
+  resolvedVersionNo: number | null;
+}
+
+/** A finding the Solution must change for, not yet in a version. */
+export const findingOpen = (row: FindingState) =>
+  row.requiresChange && row.resolvedVersionNo === null;
+
+export function demoCounts(
+  demos: readonly {
+    status: string;
+    equipment: readonly { returnedOn: Date | null }[];
+    findings: readonly FindingState[];
+  }[],
+) {
+  return {
+    total: demos.length,
+    planned: demos.filter((demo) => demo.status === 'planned').length,
+    equipment_out: demos.reduce(
+      (sum, demo) =>
+        sum + demo.equipment.filter((item) => !item.returnedOn).length,
+      0,
+    ),
+    findings_open: demos.reduce(
+      (sum, demo) => sum + demo.findings.filter(findingOpen).length,
+      0,
+    ),
+  };
+}
+
+/** The demos as text, for the approval request and the handover. */
+export function demosText(
+  demos: readonly {
+    seq: number;
+    kind: string;
+    title: string;
+    status: string;
+    scheduledOn: Date | null;
+    criteria: unknown;
+    outcome: string;
+    findings: readonly {
+      text: string;
+      requiresChange: boolean;
+      resolvedVersionNo: number | null;
+    }[];
+  }[],
+): string {
+  const results: Record<CriterionResult, string> = {
+    pending: 'ยังไม่ได้ผล',
+    met: 'ผ่าน',
+    not_met: 'ไม่ผ่าน',
+  };
+  const statuses: Record<string, string> = {
+    planned: 'วางแผน',
+    done: 'จัดแล้ว',
+    cancelled: 'ยกเลิก',
+  };
+  return demos
+    .map((demo) =>
+      [
+        `${demo.seq}. [${demo.kind === 'poc' ? 'POC' : 'Demo'} · ${statuses[demo.status] ?? demo.status}${
+          demo.scheduledOn
+            ? ` · ${demo.scheduledOn.toISOString().slice(0, 10)}`
+            : ''
+        }] ${demo.title}`,
+        ...readCriteria(demo.criteria).map(
+          (item) =>
+            `   - ${item.text}: ${results[item.result]}${item.note ? ` (${item.note})` : ''}`,
+        ),
+        ...(demo.outcome ? [`   สรุปผล: ${demo.outcome}`] : []),
+        ...demo.findings.map(
+          (finding) =>
+            `   ข้อค้นพบ: ${finding.text}${
+              finding.requiresChange
+                ? finding.resolvedVersionNo !== null
+                  ? ` (ปรับแล้วใน v${finding.resolvedVersionNo})`
+                  : ' (ต้องปรับ Solution)'
+                : ''
+            }`,
+        ),
+      ].join('\n'),
+    )
     .join('\n');
 }
