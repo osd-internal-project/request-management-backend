@@ -36,6 +36,7 @@ import {
 import { seal, type SealSigner } from './esign-seal';
 import { ESIGN_SENDER, type EsignSender } from './esign-sender';
 import { EsignLayoutsService, readFields } from './esign-layouts.service';
+import { EsignAuthoritiesService } from './esign-authorities.service';
 import {
   EsignEnvelopeRepository,
   EsignEventRepository,
@@ -58,6 +59,8 @@ export interface CreateEnvelopeInput {
   refType: string;
   refId: string;
   layoutId: string;
+  /** CD-172 — what the authority check compares a signer's limit with. */
+  amount?: number | null;
   mode?: 'sequential' | 'parallel';
   expiresInDays?: number;
   message?: string;
@@ -82,6 +85,8 @@ interface EnvelopeRow {
   signedKey: string | null;
   signedHash: string | null;
   verifyCode: string;
+  docType: string;
+  amount: { toString(): string } | null;
   expiresAt: Date;
   createdBy: string;
   createdAt: Date;
@@ -170,6 +175,7 @@ export class EsignService {
     private readonly config: ConfigService,
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
     @Inject(ESIGN_SENDER) private readonly sender: EsignSender,
+    private readonly authorities: EsignAuthoritiesService,
   ) {}
 
   // --- sending ----------------------------------------------------------------
@@ -190,6 +196,7 @@ export class EsignService {
       layout.fields,
       input.signers,
       input.companyId,
+      { docType: layout.docType, amount: input.amount ?? null },
     );
     const id = randomUUID();
     const originalKey = `esign/${id}/original.pdf`;
@@ -206,6 +213,8 @@ export class EsignService {
           title: input.title,
           layoutId: layout.id,
           fields: layout.fields as unknown as Prisma.InputJsonValue,
+          docType: layout.docType,
+          amount: input.amount ?? null,
           mode: input.mode ?? 'sequential',
           message: input.message?.trim() || null,
           sourceType: input.sourceType,
@@ -465,6 +474,7 @@ export class EsignService {
     meta: RequestMeta,
   ) {
     const { signer, envelope } = await this.internal(signerId, actor);
+    await this.assertAuthority(signer, envelope);
     return this.document(signer, envelope, meta);
   }
 
@@ -475,6 +485,7 @@ export class EsignService {
     meta: RequestMeta,
   ) {
     const { signer, envelope } = await this.internal(signerId, actor);
+    await this.assertAuthority(signer, envelope);
     await this.sign(signer, envelope, dto, 'keycloak', meta);
     return this.signerView(
       await this.signerById(signer.id),
@@ -926,6 +937,7 @@ export class EsignService {
     fields: LayoutField[],
     input: EnvelopeSignerDto[],
     companyId: string,
+    document: { docType: string; amount: number | null },
   ) {
     const byKey = new Map(input.map((signer) => [signer.field_key, signer]));
     const problems: string[] = [];
@@ -956,6 +968,13 @@ export class EsignService {
     }[] = [];
     for (const field of fields) {
       const signer = byKey.get(field.key)!;
+      if (field.authority && signer.kind !== 'internal') {
+        throw new AppError(
+          'VALIDATION_FAILED',
+          `${field.label}: ต้องเป็นผู้มีอำนาจลงนามของบริษัท (พนักงานในทะเบียน)`,
+          [{ field: 'signers', reason: 'authority_internal_only' }],
+        );
+      }
       if (signer.kind === 'internal') {
         const member = (await this.members.findFirst({
           where: {
@@ -971,6 +990,21 @@ export class EsignService {
             `${field.label}: ไม่พบผู้ใช้ในบริษัท`,
             [{ field: 'signers', reason: 'unknown_user' }],
           );
+        }
+        if (field.authority) {
+          const verdict = await this.authorities.check(
+            companyId,
+            member.id,
+            document.docType,
+            document.amount,
+          );
+          if (!verdict.ok) {
+            throw new AppError(
+              'VALIDATION_FAILED',
+              `${field.label} (${member.displayName}): ${verdict.reason}`,
+              [{ field: 'signers', reason: 'no_authority' }],
+            );
+          }
         }
         people.push({
           fieldKey: field.key,
@@ -1004,8 +1038,10 @@ export class EsignService {
     return people;
   }
 
-  private signerView(signer: SignerRow, envelope: EnvelopeRow) {
+  private async signerView(signer: SignerRow, envelope: EnvelopeRow) {
+    const authorityProblem = await this.authorityProblem(signer, envelope);
     return this.signersOf(envelope.id).then((all) => ({
+      authorityProblem,
       title: envelope.title,
       message: envelope.message,
       name: signer.name,
@@ -1018,6 +1054,34 @@ export class EsignService {
       originalName: envelope.originalName,
       verifyCode: envelope.status === 'completed' ? envelope.verifyCode : null,
     }));
+  }
+
+  /**
+   * CD-172 — a company signatory field whose signer is no longer covered
+   * (removed from the register, limit lowered, period over) cannot be signed.
+   */
+  private async authorityProblem(
+    signer: SignerRow,
+    envelope: EnvelopeRow,
+  ): Promise<string | null> {
+    const field = readFields(envelope.fields).find(
+      (one) => one.key === signer.fieldKey,
+    );
+    if (!field?.authority || !signer.userId || signer.status !== 'pending') {
+      return null;
+    }
+    const verdict = await this.authorities.check(
+      envelope.companyId,
+      signer.userId,
+      envelope.docType,
+      envelope.amount === null ? null : Number(envelope.amount.toString()),
+    );
+    return verdict.ok ? null : verdict.reason;
+  }
+
+  private async assertAuthority(signer: SignerRow, envelope: EnvelopeRow) {
+    const problem = await this.authorityProblem(signer, envelope);
+    if (problem) throw new AppError('FORBIDDEN', `ลงนามไม่ได้ — ${problem}`);
   }
 
   private async byToken(token: string) {

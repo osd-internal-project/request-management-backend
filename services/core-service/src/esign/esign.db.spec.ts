@@ -5,8 +5,10 @@ import { PrismaClient } from '@prisma/client';
 import type { Principal } from '@request-management/share';
 import { CompanyMemberRepository } from '../access/company-member.repository';
 import { EsignLayoutsService } from './esign-layouts.service';
-import { EsignService } from './esign.service';
+import { EsignAuthoritiesService } from './esign-authorities.service';
+import { EsignService, type CreateEnvelopeInput } from './esign.service';
 import {
+  EsignAuthorityRepository,
   EsignEnvelopeRepository,
   EsignEventRepository,
   EsignLayoutRepository,
@@ -71,6 +73,9 @@ const PNG = `data:image/png;base64,${Buffer.from(
     }
     if (layoutId)
       await prisma.esignLayout.deleteMany({ where: { id: layoutId } });
+    await prisma.esignAuthority.deleteMany({
+      where: { companyId, userId, note: 'T172' },
+    });
     await prisma.$disconnect();
   });
 
@@ -79,6 +84,11 @@ const PNG = `data:image/png;base64,${Buffer.from(
     const audit = { record: () => Promise.resolve() } as never;
     const layouts = new EsignLayoutsService(
       new EsignLayoutRepository(client),
+      audit,
+    );
+    const authorities = new EsignAuthoritiesService(
+      new EsignAuthorityRepository(client),
+      new CompanyMemberRepository(client),
       audit,
     );
     const service = new EsignService(
@@ -123,6 +133,7 @@ const PNG = `data:image/png;base64,${Buffer.from(
           return Promise.resolve();
         },
       } as never,
+      authorities,
     );
     const actor = {
       userId,
@@ -147,6 +158,7 @@ const PNG = `data:image/png;base64,${Buffer.from(
             page: 'appendix',
             position: 'bottom-left',
             order: 2,
+            authority: true,
           },
         ],
       },
@@ -156,29 +168,45 @@ const PNG = `data:image/png;base64,${Buffer.from(
 
     const doc = await PDFDocument.create();
     doc.addPage([595, 842]);
-    const created = await service.create(
+    const input: CreateEnvelopeInput = {
+      companyId,
+      title: 'CTR-TEST · สัญญาทดสอบ',
+      pdf: Buffer.from(await doc.save()),
+      originalName: 'contract.pdf',
+      sourceType: 'test',
+      sourceId: 'doc-1',
+      refType: 'test',
+      refId: 'ref-1',
+      layoutId: layout.id,
+      amount: 500_000,
+      signers: [
+        {
+          field_key: 'f1',
+          kind: 'external',
+          name: 'ลูกค้า ทดสอบ',
+          email: 'Customer@Example.com',
+        },
+        { field_key: 'f2', kind: 'internal', user_id: userId },
+      ],
+    };
+    // CD-172 — the company's signatory must be on the register, in the limit
+    await expect(service.create(input, actor)).rejects.toMatchObject({
+      code: 'VALIDATION_FAILED',
+    });
+    const entry = await authorities.create(
       {
-        companyId,
-        title: 'CTR-TEST · สัญญาทดสอบ',
-        pdf: Buffer.from(await doc.save()),
-        originalName: 'contract.pdf',
-        sourceType: 'test',
-        sourceId: 'doc-1',
-        refType: 'test',
-        refId: 'ref-1',
-        layoutId: layout.id,
-        signers: [
-          {
-            field_key: 'f1',
-            kind: 'external',
-            name: 'ลูกค้า ทดสอบ',
-            email: 'Customer@Example.com',
-          },
-          { field_key: 'f2', kind: 'internal', user_id: userId },
-        ],
+        user_id: userId,
+        title: 'กรรมการ',
+        limit_amount: 100_000,
+        note: 'T172',
       },
       actor,
     );
+    await expect(service.create(input, actor)).rejects.toMatchObject({
+      message: expect.stringContaining('ไม่ถึงมูลค่าเอกสาร') as unknown,
+    });
+    await authorities.update(entry.id, { limit_amount: 1_000_000 }, actor);
+    const created = await service.create(input, actor);
     envelopeId = created.id;
     expect(created.status).toBe('draft');
 
@@ -238,6 +266,24 @@ const PNG = `data:image/png;base64,${Buffer.from(
     ).rejects.toMatchObject({ code: 'CONFLICT' });
     // the internal signer is told now that it is their turn
     expect(told).toHaveLength(1);
+
+    // taken off the register while the document waits: cannot sign
+
+    await authorities.update(entry.id, { active: false }, actor);
+
+    await expect(
+      service.internalSign(
+        internalId,
+
+        { kind: 'type', text: 'x', consent: true },
+
+        actor,
+
+        meta,
+      ),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+
+    await authorities.update(entry.id, { active: true }, actor);
 
     await service.internalSign(
       internalId,

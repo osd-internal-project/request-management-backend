@@ -23,6 +23,11 @@ export interface LayoutField {
   position: Position;
   /** Signing order (sequential envelopes); ties sign together. */
   order: number;
+  /**
+   * CD-172 — signs for the company: only an employee on the signing
+   * authority register, within its limit, may take this field.
+   */
+  authority?: boolean;
 }
 
 export const MAX_FIELDS = 12;
@@ -192,4 +197,63 @@ export function readSignatureImage(
   const bytes = Buffer.from(match[2], 'base64');
   if (!bytes.length || bytes.length > 500_000) return null;
   return { mime: match[1] as 'image/png' | 'image/jpeg', bytes };
+}
+
+// --- CD-172 signing authority ---------------------------------------------------
+
+export interface AuthorityEntry {
+  userId: string;
+  title: string;
+  limitAmount: number | null;
+  docTypes: string[];
+  validFrom: Date | null;
+  validTo: Date | null;
+  active: boolean;
+}
+
+const baht = (value: number) =>
+  value.toLocaleString('th-TH', { maximumFractionDigits: 2 });
+
+/**
+ * May this person sign this document for the company? An active entry of
+ * theirs that covers the document's kind, today, and its amount (no limit,
+ * or a limit at least the amount; an amount not known is covered by any).
+ */
+export function authorityFor(
+  entries: readonly AuthorityEntry[],
+  userId: string,
+  docType: string,
+  amount: number | null,
+  today: Date,
+): { ok: true; title: string } | { ok: false; reason: string } {
+  const day = today.getTime();
+  const current = entries.filter(
+    (entry) =>
+      entry.active &&
+      entry.userId === userId &&
+      (!entry.docTypes.length || entry.docTypes.includes(docType)) &&
+      (!entry.validFrom || entry.validFrom.getTime() <= day) &&
+      (!entry.validTo || entry.validTo.getTime() >= day),
+  );
+  if (!current.length) {
+    return {
+      ok: false,
+      reason:
+        'ไม่อยู่ในทะเบียนผู้มีอำนาจลงนามสำหรับเอกสารประเภทนี้ (หรือพ้นช่วงเวลา)',
+    };
+  }
+  const covering = current.find(
+    (entry) =>
+      amount === null ||
+      entry.limitAmount === null ||
+      entry.limitAmount >= amount,
+  );
+  if (!covering) {
+    const highest = Math.max(...current.map((entry) => entry.limitAmount ?? 0));
+    return {
+      ok: false,
+      reason: `วงเงินอำนาจลงนาม ${baht(highest)} บาท ไม่ถึงมูลค่าเอกสาร ${baht(amount!)} บาท`,
+    };
+  }
+  return { ok: true, title: covering.title };
 }

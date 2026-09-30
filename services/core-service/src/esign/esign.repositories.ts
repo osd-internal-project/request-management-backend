@@ -60,3 +60,17 @@ export class EsignEventRepository extends BaseRepository<
     return client.esignEvent;
   }
 }
+
+/** CD-172 ทะเบียนผู้มีอำนาจลงนาม. */
+@Injectable()
+export class EsignAuthorityRepository extends BaseRepository<
+  PrismaService['esignAuthority']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.esignAuthority;
+  }
+}

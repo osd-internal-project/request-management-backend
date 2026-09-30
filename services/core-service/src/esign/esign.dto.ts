@@ -4,9 +4,11 @@ import {
   ArrayMinSize,
   IsArray,
   IsBoolean,
+  IsDateString,
   IsEmail,
   IsIn,
   IsInt,
+  IsNumber,
   IsOptional,
   IsString,
   Matches,
@@ -45,6 +47,14 @@ export class LayoutFieldDto {
   @Min(1)
   @Max(20)
   order!: number;
+
+  @ApiPropertyOptional({
+    description:
+      'ผู้มีอำนาจลงนามของบริษัท — ต้องเป็นพนักงานในทะเบียนผู้มีอำนาจลงนาม (CD-172)',
+  })
+  @IsOptional()
+  @IsBoolean()
+  authority?: boolean;
 }
 
 /** CD-165 — a layout: where the signatures go on one kind of document. */
@@ -209,4 +219,54 @@ export class VerifyHashDto {
   })
   @Matches(/^[0-9a-f]{64}$/)
   sha256!: string;
+}
+
+/** CD-172 — one entry of the signing authority register. */
+export class SaveEsignAuthorityDto {
+  @ApiPropertyOptional({ description: 'สร้างเท่านั้น' })
+  @IsOptional()
+  @IsString()
+  user_id?: string;
+
+  @ApiPropertyOptional({ example: 'กรรมการผู้จัดการ' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  title?: string;
+
+  @ApiPropertyOptional({ nullable: true, description: 'ว่าง = ไม่จำกัดวงเงิน' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0.01)
+  limit_amount?: number | null;
+
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'contract · acceptance · other — ว่าง = ทุกประเภท',
+  })
+  @IsOptional()
+  @IsArray()
+  @IsIn(['contract', 'acceptance', 'other'], { each: true })
+  doc_types?: string[];
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @IsDateString()
+  valid_from?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @IsDateString()
+  valid_to?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  active?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  note?: string | null;
 }

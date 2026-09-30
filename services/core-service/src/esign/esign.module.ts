@@ -9,9 +9,11 @@ import { CompanyMemberRepository } from '../access/company-member.repository';
 import { EventsModule } from '../events/events.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { EsignLayoutsService } from './esign-layouts.service';
+import { EsignAuthoritiesService } from './esign-authorities.service';
 import { ESIGN_SENDER, MockEsignSender } from './esign-sender';
 import { EsignService } from './esign.service';
 import {
+  EsignAuthorityRepository,
   EsignEnvelopeRepository,
   EsignEventRepository,
   EsignLayoutRepository,
@@ -39,11 +41,13 @@ import {
     EsignSignerRepository,
     EsignEventRepository,
     EsignLayoutsService,
+    EsignAuthorityRepository,
+    EsignAuthoritiesService,
     EsignService,
     CompanyMemberRepository,
     PrismaTransactionService,
     { provide: ESIGN_SENDER, useClass: MockEsignSender },
   ],
-  exports: [EsignService, EsignLayoutsService],
+  exports: [EsignService, EsignLayoutsService, EsignAuthoritiesService],
 })
 export class EsignModule {}

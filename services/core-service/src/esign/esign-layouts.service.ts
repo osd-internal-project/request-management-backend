@@ -131,6 +131,7 @@ export class EsignLayoutsService {
         : (field.page as 'first' | 'last' | 'appendix'),
       position: field.position,
       order: field.order,
+      ...(field.authority ? { authority: true } : {}),
     }));
     const problems = layoutProblems(fields);
     if (problems.length) {

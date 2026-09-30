@@ -14,6 +14,8 @@ import { DomainEventsService } from '../events/domain-events.service';
 import { DOMAIN_EVENTS } from '../events/event-catalog';
 import { contractVisibleWhere } from './contract-visibility';
 import { extractContractText } from './contract-text';
+import { ContractDraftsService } from './contract-drafts.service';
+import { ContractDraftApprovalService } from './contract-draft-approval.service';
 import {
   ContractDocumentRepository,
   CustomerContractRepository,
@@ -46,6 +48,8 @@ export class ContractEsignService implements OnModuleInit {
     private readonly events: DomainEventsService,
     private readonly audit: AuditWriter,
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
+    private readonly drafts: ContractDraftsService,
+    private readonly approvals: ContractDraftApprovalService,
   ) {}
 
   onModuleInit(): void {
@@ -69,6 +73,7 @@ export class ContractEsignService implements OnModuleInit {
     actor: Principal,
   ) {
     const contract = await this.requireContract(contractId, actor);
+    await this.assertApproved(contract, actor);
     const document = (await this.documents.findFirst({
       where: { id: dto.document_id, contractId, deletedAt: null },
       select: { id: true, fileName: true, mimeType: true, storageKey: true },
@@ -95,6 +100,9 @@ export class ContractEsignService implements OnModuleInit {
         refType: 'contract',
         refId: contract.id,
         layoutId: dto.layout_id,
+        // CD-172 — the company's signatories are checked against this
+        amount:
+          contract.value === null ? null : Number(contract.value.toString()),
         mode: dto.mode,
         expiresInDays: dto.expires_in_days,
         message: dto.message,
@@ -158,6 +166,27 @@ export class ContractEsignService implements OnModuleInit {
     });
   }
 
+  /**
+   * CD-160 — a contract drafted in the system (CD-146) is signed only once
+   * its draft is approved (CD-159: routed on value and risk, and voided by
+   * any later edit). One recorded without a draft is Legal's to send.
+   */
+  private async assertApproved(
+    contract: { requestId: string | null },
+    actor: Principal,
+  ) {
+    if (!contract.requestId) return;
+    const found = await this.drafts.forRequest(contract.requestId, actor);
+    if (!found.draft) return;
+    const approval = await this.approvals.view(found.draft.id, actor);
+    if (approval.approvedVersionNo === null) {
+      throw new AppError(
+        'CONFLICT',
+        'ร่างสัญญายังไม่ได้รับอนุมัติ — ขออนุมัติที่หน้าร่างสัญญาก่อนส่งลงนาม',
+      );
+    }
+  }
+
   private async requireContract(id: string, actor: Principal) {
     const found = (await this.contracts.findFirst({
       where: {
@@ -165,12 +194,21 @@ export class ContractEsignService implements OnModuleInit {
         companyId: actor.activeCompanyId,
         ...contractVisibleWhere(actor),
       },
-      select: { id: true, companyId: true, contractNo: true, title: true },
+      select: {
+        id: true,
+        companyId: true,
+        contractNo: true,
+        title: true,
+        value: true,
+        requestId: true,
+      },
     })) as {
       id: string;
       companyId: string;
       contractNo: string;
       title: string;
+      value: { toString(): string } | null;
+      requestId: string | null;
     } | null;
     if (!found) throw new AppError('NOT_FOUND', 'ไม่พบสัญญาที่ระบุ');
     return found;

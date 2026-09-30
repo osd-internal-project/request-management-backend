@@ -1,5 +1,6 @@
 import {
   allSigned,
+  authorityFor,
   hashOtp,
   hashToken,
   layoutProblems,
@@ -117,5 +118,50 @@ describe('CD-168 who signs when', () => {
         `data:image/png;base64,${Buffer.alloc(600_000).toString('base64')}`,
       ),
     ).toBeNull();
+  });
+});
+
+describe('CD-172 signing authority', () => {
+  const today = new Date('2026-09-30T00:00:00Z');
+  const entry = (over: Record<string, unknown> = {}) => ({
+    userId: 'u1',
+    title: 'กรรมการผู้จัดการ',
+    limitAmount: 1_000_000 as number | null,
+    docTypes: [] as string[],
+    validFrom: null as Date | null,
+    validTo: null as Date | null,
+    active: true,
+    ...over,
+  });
+
+  it('within the limit, for the kind of document, in its period', () => {
+    expect(authorityFor([entry()], 'u1', 'contract', 500_000, today)).toEqual({
+      ok: true,
+      title: 'กรรมการผู้จัดการ',
+    });
+    // an amount not known is covered by any entry; no limit covers any amount
+    expect(authorityFor([entry()], 'u1', 'contract', null, today).ok).toBe(
+      true,
+    );
+    expect(
+      authorityFor([entry({ limitAmount: null })], 'u1', 'contract', 9e9, today)
+        .ok,
+    ).toBe(true);
+  });
+
+  it('says why not: not on the register, another kind, out of period, over the limit', () => {
+    const not = (entries: ReturnType<typeof entry>[], amount = 500_000) =>
+      authorityFor(entries, 'u1', 'contract', amount, today);
+    expect(not([])).toMatchObject({ ok: false });
+    expect(not([entry({ userId: 'u2' })]).ok).toBe(false);
+    expect(not([entry({ active: false })]).ok).toBe(false);
+    expect(not([entry({ docTypes: ['acceptance'] })]).ok).toBe(false);
+    expect(not([entry({ validTo: new Date('2026-09-29T00:00:00Z') })]).ok).toBe(
+      false,
+    );
+    expect(not([entry()], 2_000_000)).toEqual({
+      ok: false,
+      reason: 'วงเงินอำนาจลงนาม 1,000,000 บาท ไม่ถึงมูลค่าเอกสาร 2,000,000 บาท',
+    });
   });
 });

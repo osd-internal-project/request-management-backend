@@ -13735,6 +13735,131 @@
         ]
       }
     },
+    "/api/v1/esign/authorities": {
+      "get": {
+        "operationId": "EsignController_listAuthorities",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ทะเบียนผู้มีอำนาจลงนาม (CD-172)",
+        "tags": [
+          "esign"
+        ],
+        "x-permission": [
+          "esign.manage"
+        ]
+      },
+      "post": {
+        "operationId": "EsignController_createAuthority",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveEsignAuthorityDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เพิ่มผู้มีอำนาจลงนาม — วงเงิน ประเภทเอกสาร ช่วงเวลา",
+        "tags": [
+          "esign"
+        ],
+        "x-permission": [
+          "esign.manage"
+        ]
+      }
+    },
+    "/api/v1/esign/authorities/{id}": {
+      "patch": {
+        "operationId": "EsignController_updateAuthority",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveEsignAuthorityDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แก้ / ปิดใช้ผู้มีอำนาจลงนาม — มีผลกับเอกสารที่รอลงนามอยู่ทันที",
+        "tags": [
+          "esign"
+        ],
+        "x-permission": [
+          "esign.manage"
+        ]
+      }
+    },
     "/api/v1/esign/layouts": {
       "get": {
         "operationId": "EsignController_listLayouts",
@@ -21424,6 +21549,55 @@
           "line_indexes"
         ]
       },
+      "SaveEsignAuthorityDto": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "สร้างเท่านั้น"
+          },
+          "title": {
+            "type": "string",
+            "example": "กรรมการผู้จัดการ",
+            "maxLength": 255
+          },
+          "limit_amount": {
+            "type": "object",
+            "nullable": true,
+            "description": "ว่าง = ไม่จำกัดวงเงิน",
+            "minimum": 0.01
+          },
+          "doc_types": {
+            "description": "contract · acceptance · other — ว่าง = ทุกประเภท",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "contract",
+                "acceptance",
+                "other"
+              ]
+            }
+          },
+          "valid_from": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "valid_to": {
+            "type": "object",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "note": {
+            "type": "object",
+            "maxLength": 1000
+          }
+        }
+      },
       "LayoutFieldDto": {
         "type": "object",
         "properties": {
@@ -21454,6 +21628,10 @@
             "description": "ลำดับการลงนาม — เท่ากัน = ลงพร้อมกัน",
             "maximum": 20,
             "minimum": 1
+          },
+          "authority": {
+            "type": "boolean",
+            "description": "ผู้มีอำนาจลงนามของบริษัท — ต้องเป็นพนักงานในทะเบียนผู้มีอำนาจลงนาม (CD-172)"
           }
         },
         "required": [

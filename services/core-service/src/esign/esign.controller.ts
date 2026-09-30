@@ -19,12 +19,14 @@ import {
 } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import { EsignLayoutsService } from './esign-layouts.service';
+import { EsignAuthoritiesService } from './esign-authorities.service';
 import { EsignService, type RequestMeta } from './esign.service';
 import {
   CancelEnvelopeDto,
   DeclineDto,
   OtpRequestDto,
   OtpVerifyDto,
+  SaveEsignAuthorityDto,
   SaveEsignLayoutDto,
   SignDto,
   VerifyHashDto,
@@ -56,7 +58,40 @@ export class EsignController {
   constructor(
     private readonly layouts: EsignLayoutsService,
     private readonly esign: EsignService,
+    private readonly authorities: EsignAuthoritiesService,
   ) {}
+
+  @ApiOperation({ summary: 'ทะเบียนผู้มีอำนาจลงนาม (CD-172)' })
+  @Get('authorities')
+  @Permissions('esign.manage')
+  listAuthorities(@CurrentPrincipal() principal: Principal) {
+    return this.authorities.list(principal);
+  }
+
+  @ApiOperation({
+    summary: 'เพิ่มผู้มีอำนาจลงนาม — วงเงิน ประเภทเอกสาร ช่วงเวลา',
+  })
+  @Post('authorities')
+  @Permissions('esign.manage')
+  createAuthority(
+    @Body() dto: SaveEsignAuthorityDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.authorities.create(dto, principal);
+  }
+
+  @ApiOperation({
+    summary: 'แก้ / ปิดใช้ผู้มีอำนาจลงนาม — มีผลกับเอกสารที่รอลงนามอยู่ทันที',
+  })
+  @Patch('authorities/:id')
+  @Permissions('esign.manage')
+  updateAuthority(
+    @Param('id') id: string,
+    @Body() dto: SaveEsignAuthorityDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.authorities.update(id, dto, principal);
+  }
 
   @ApiOperation({ summary: 'แม่แบบช่องลงนาม (CD-165)' })
   @Get('layouts')
