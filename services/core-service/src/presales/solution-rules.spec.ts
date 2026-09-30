@@ -1,4 +1,8 @@
 import {
+  criteriaFromText,
+  demoCloseGaps,
+  demoCounts,
+  demosText,
   riskCounts,
   riskLevel,
   risksText,
@@ -477,6 +481,108 @@ describe('CD-141 risk rules', () => {
         '   แนวทางลด: สั่งล่วงหน้า',
         '   ผู้รับผิดชอบ: จัดซื้อ',
         '1. [ปานกลาง 6 = โอกาส 2 × ผลกระทบ 3 · เปิด] ISP ช้า',
+      ].join('\n'),
+    );
+  });
+});
+
+describe('CD-139 demo rules', () => {
+  it("the request's success criteria become the demo's list, one per line", () => {
+    expect(
+      criteriaFromText(
+        '1. failover ภายใน 30 วินาที\n- ผ่าน firewall เดิม\n\n  ',
+      ),
+    ).toEqual([
+      { text: 'failover ภายใน 30 วินาที', result: 'pending', note: '' },
+      { text: 'ผ่าน firewall เดิม', result: 'pending', note: '' },
+    ]);
+  });
+
+  it('nothing closes with equipment out; done needs every result and a summary', () => {
+    const out = [{ name: 'FortiGate 100F', returnedOn: null }];
+    expect(
+      demoCloseGaps('cancelled', { criteria: [], outcome: '' }, out),
+    ).toEqual(['ยังไม่คืนอุปกรณ์ 1 รายการ: FortiGate 100F']);
+    expect(
+      demoCloseGaps(
+        'done',
+        {
+          criteria: [
+            { text: 'failover', result: 'met', note: '' },
+            { text: 'throughput', result: 'pending', note: '' },
+          ],
+          outcome: '',
+        },
+        [{ name: 'x', returnedOn: new Date() }],
+      ),
+    ).toEqual(['ยังไม่ได้บันทึกผลตามเกณฑ์ 1 ข้อ', 'ยังไม่ได้สรุปผล']);
+    expect(
+      demoCloseGaps(
+        'done',
+        {
+          criteria: [{ text: 'a', result: 'not_met', note: '' }],
+          outcome: 'ok',
+        },
+        [],
+      ),
+    ).toEqual([]);
+  });
+
+  it('counts equipment still out and findings still to work in', () => {
+    expect(
+      demoCounts([
+        {
+          status: 'planned',
+          equipment: [{ returnedOn: null }, { returnedOn: new Date() }],
+          findings: [
+            { requiresChange: true, resolvedVersionNo: null },
+            { requiresChange: true, resolvedVersionNo: 2 },
+            { requiresChange: false, resolvedVersionNo: null },
+          ],
+        },
+        { status: 'done', equipment: [], findings: [] },
+      ]),
+    ).toEqual({ total: 2, planned: 1, equipment_out: 1, findings_open: 1 });
+  });
+
+  it('an open demo finding blocks approval', () => {
+    expect(
+      approvalBlocker(
+        { status: 'locked', approvalStatus: 'none' },
+        true,
+        0,
+        0,
+        1,
+      ),
+    ).toContain('ข้อค้นพบจาก Demo/POC');
+  });
+
+  it('the demos read as text with results and findings', () => {
+    expect(
+      demosText([
+        {
+          seq: 1,
+          kind: 'poc',
+          title: 'POC SD-WAN 2 สาขา',
+          status: 'done',
+          scheduledOn: new Date('2026-10-05T00:00:00Z'),
+          criteria: [{ text: 'failover < 30s', result: 'met', note: '12s' }],
+          outcome: 'ผ่าน',
+          findings: [
+            {
+              text: 'ต้องเพิ่ม license',
+              requiresChange: true,
+              resolvedVersionNo: null,
+            },
+          ],
+        },
+      ]),
+    ).toBe(
+      [
+        '1. [POC · จัดแล้ว · 2026-10-05] POC SD-WAN 2 สาขา',
+        '   - failover < 30s: ผ่าน (12s)',
+        '   สรุปผล: ผ่าน',
+        '   ข้อค้นพบ: ต้องเพิ่ม license (ต้องปรับ Solution)',
       ].join('\n'),
     );
   });

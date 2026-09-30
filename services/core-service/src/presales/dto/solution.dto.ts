@@ -19,6 +19,7 @@ import {
   ASSUMPTION_CATEGORIES,
   FEASIBILITY_VERDICTS,
   RISK_STATUSES,
+  CRITERION_RESULTS,
   REQUIREMENT_ASSESSMENTS,
   REQUIREMENT_KINDS,
 } from '../solution-rules';
@@ -347,4 +348,158 @@ export class UpdateRiskDto {
   @IsOptional()
   @IsIn(RISK_STATUSES)
   status?: (typeof RISK_STATUSES)[number];
+}
+
+/** CD-139 — ผลตามเกณฑ์ความสำเร็จหนึ่งข้อ. */
+export class DemoCriterionDto {
+  @ApiProperty()
+  @IsString()
+  @MaxLength(2000)
+  text!: string;
+
+  @ApiPropertyOptional({ enum: CRITERION_RESULTS })
+  @IsOptional()
+  @IsIn(CRITERION_RESULTS)
+  result?: (typeof CRITERION_RESULTS)[number];
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  note?: string;
+}
+
+/** CD-139 — Demo/POC ใหม่ (จากคำขอ หรือกรอกเอง). */
+export class CreateDemoDto {
+  @ApiPropertyOptional({
+    description: 'id ของคำขอ "ขอจัด Demo หรือ POC" — กรอกข้อมูลตั้งต้นจากคำขอ',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  request_id?: string;
+
+  @ApiPropertyOptional({ enum: ['demo', 'poc'] })
+  @IsOptional()
+  @IsIn(['demo', 'poc'])
+  kind?: 'demo' | 'poc';
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  title?: string;
+}
+
+/** CD-139 — แก้แผน/ผลของ Demo/POC (ส่งเฉพาะที่แก้). */
+export class UpdateDemoDto {
+  @ApiPropertyOptional({ enum: ['demo', 'poc'] })
+  @IsOptional()
+  @IsIn(['demo', 'poc'])
+  kind?: 'demo' | 'poc';
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(300)
+  title?: string;
+
+  @ApiPropertyOptional({ description: 'YYYY-MM-DD; "" = ล้าง' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  scheduled_on?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  site?: string;
+
+  @ApiPropertyOptional({ description: 'คน/ทีมที่จอง' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  people?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(8000)
+  plan?: string;
+
+  @ApiPropertyOptional({ type: () => [DemoCriterionDto] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(100)
+  @ValidateNested({ each: true })
+  @Type(() => DemoCriterionDto)
+  criteria?: DemoCriterionDto[];
+
+  @ApiPropertyOptional({ description: 'สรุปผล' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(8000)
+  outcome?: string;
+}
+
+/** CD-139 — ปิด Demo/POC. */
+export class CloseDemoDto {
+  @ApiProperty({ enum: ['done', 'cancelled'] })
+  @IsIn(['done', 'cancelled'])
+  status!: 'done' | 'cancelled';
+}
+
+/** CD-139 — เบิกอุปกรณ์. */
+export class AddEquipmentDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(300)
+  name!: string;
+
+  @ApiPropertyOptional({ description: 'Serial / เลขครุภัณฑ์' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  serial?: string;
+
+  @ApiPropertyOptional({ minimum: 1 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(1000)
+  quantity?: number;
+
+  @ApiPropertyOptional({ description: 'ผู้เบิก' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  taken_by?: string;
+
+  @ApiProperty({ description: 'วันที่เบิก (YYYY-MM-DD)' })
+  @IsISO8601({ strict: true })
+  out_on!: string;
+}
+
+/** CD-139 — คืนอุปกรณ์. */
+export class ReturnEquipmentDto {
+  @ApiProperty({ description: 'วันที่คืน (YYYY-MM-DD)' })
+  @IsISO8601({ strict: true })
+  returned_on!: string;
+}
+
+/** CD-139 — ข้อค้นพบ. */
+export class AddFindingDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(4000)
+  text!: string;
+
+  @ApiPropertyOptional({ description: 'ต้องนำไปปรับ Solution' })
+  @IsOptional()
+  @IsBoolean()
+  requires_change?: boolean;
 }

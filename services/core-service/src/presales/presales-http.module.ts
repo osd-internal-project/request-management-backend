@@ -8,6 +8,7 @@ import { RequirementsService } from './requirements.service';
 import { SolutionApprovalService } from './solution-approval.service';
 import { ClarificationsService } from './clarifications.service';
 import { RisksService } from './risks.service';
+import { DemosService } from './demos.service';
 
 /** The screen-facing routes of {@link PresalesModule} (see `src/index.ts`). */
 @Module({
@@ -27,6 +28,7 @@ import { RisksService } from './risks.service';
     SolutionApprovalService,
     ClarificationsService,
     RisksService,
+    DemosService,
   ],
 })
 export class PresalesHttpModule {}

@@ -136,6 +136,7 @@ import { HandoversService } from './handovers.service';
 import { HandoverTechnicalService } from './handover-technical.service';
 import {
   SolutionClarificationRepository,
+  SolutionDemoRepository,
   SolutionRiskRepository,
   SolutionFileRepository,
   SolutionRequirementRepository,
@@ -275,6 +276,7 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     SolutionFileRepository,
     SolutionClarificationRepository,
     SolutionRiskRepository,
+    SolutionDemoRepository,
     SalesHandoverRepository,
     SalesReportService,
     CrmDashboardService,

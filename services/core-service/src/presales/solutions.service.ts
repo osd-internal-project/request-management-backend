@@ -20,6 +20,7 @@ import { safeFileName } from '../requests/attachments.service';
 import { RequestRepository } from '../requests/request.repository';
 import {
   SolutionClarificationRepository,
+  SolutionDemoRepository,
   SolutionRiskRepository,
   SolutionFileRepository,
   SolutionRepository,
@@ -48,6 +49,9 @@ import {
   riskLevel,
   riskScore,
   type RiskState,
+  demoCounts,
+  readCriteria,
+  type FindingState,
   type RequirementState,
 } from './solution-rules';
 import type {
@@ -157,6 +161,7 @@ export class SolutionsService {
     private readonly requirements: SolutionRequirementRepository,
     private readonly clarifications: SolutionClarificationRepository,
     private readonly risks: SolutionRiskRepository,
+    private readonly demos: SolutionDemoRepository,
     private readonly requests: RequestRepository,
     private readonly opportunities: OpportunityRepository,
     private readonly configs: CrmConfigRepository,
@@ -323,6 +328,20 @@ export class SolutionsService {
             status: true,
           },
         },
+        demos: {
+          where: { deletedAt: null },
+          select: {
+            status: true,
+            equipment: {
+              where: { deletedAt: null },
+              select: { returnedOn: true },
+            },
+            findings: {
+              where: { deletedAt: null },
+              select: { requiresChange: true, resolvedVersionNo: true },
+            },
+          },
+        },
       },
     })) as unknown as {
       id: string;
@@ -338,9 +357,14 @@ export class SolutionsService {
       requirements: RequirementState[];
       clarifications: ClarificationState[];
       risks: RiskState[];
+      demos: {
+        status: string;
+        equipment: { returnedOn: Date | null }[];
+        findings: FindingState[];
+      }[];
     }[];
     return rows.map(
-      ({ versions, requirements, clarifications, risks, ...row }) => ({
+      ({ versions, requirements, clarifications, risks, demos, ...row }) => ({
         ...row,
         latest: versions[0] ?? null,
         // CD-131 — what the salesperson has to chase with the customer.
@@ -349,6 +373,8 @@ export class SolutionsService {
         clarification_counts: clarificationCounts(clarifications),
         // CD-141 — open high/critical risks, and those still without a plan.
         risk_counts: riskCounts(risks),
+        // CD-139 — demos planned, equipment still out, findings to work in.
+        demo_counts: demoCounts(demos),
       }),
     );
   }
@@ -414,6 +440,8 @@ export class SolutionsService {
     const clarificationTotals = clarificationCounts(clarifications);
     const risks = await this.activeRisks(id);
     const riskTotals = riskCounts(risks);
+    const demos = await this.activeDemos(id);
+    const demoTotals = demoCounts(demos);
     return {
       ...solution,
       can_manage: this.canManage(actor),
@@ -432,6 +460,12 @@ export class SolutionsService {
         }))
         .sort((a, b) => b.score - a.score || a.seq - b.seq),
       risk_counts: riskTotals,
+      // CD-139 — each demo with its equipment and findings.
+      demos: demos.map((demo) => ({
+        ...demo,
+        criteria: readCriteria(demo.criteria),
+      })),
+      demo_counts: demoTotals,
       deal: deal
         ? {
             id: deal.id,
@@ -465,6 +499,7 @@ export class SolutionsService {
           version.versionNo === solution.currentVersionNo,
           clarificationTotals.scope_open,
           riskTotals.needs_plan,
+          demoTotals.findings_open,
         ),
         request: approvalRequest,
       },
@@ -970,6 +1005,53 @@ export class SolutionsService {
         answeredOnVersionNo: number | null;
         scopeResolvedAt: Date | null;
       })[]
+    >;
+  }
+
+  /** CD-139 — the demos, oldest first, with their equipment and findings. */
+  activeDemos(solutionId: string) {
+    return this.demos.findMany({
+      where: { solutionId, deletedAt: null },
+      orderBy: { seq: 'asc' },
+      include: {
+        equipment: {
+          where: { deletedAt: null },
+          orderBy: { createdAt: 'asc' },
+        },
+        findings: { where: { deletedAt: null }, orderBy: { seq: 'asc' } },
+      },
+    }) as unknown as Promise<
+      {
+        id: string;
+        seq: number;
+        requestId: string | null;
+        kind: string;
+        title: string;
+        scheduledOn: Date | null;
+        site: string;
+        people: string;
+        plan: string;
+        criteria: unknown;
+        outcome: string;
+        status: string;
+        closedAt: Date | null;
+        equipment: {
+          id: string;
+          name: string;
+          serial: string;
+          quantity: number;
+          takenBy: string;
+          outOn: Date;
+          returnedOn: Date | null;
+        }[];
+        findings: (FindingState & {
+          id: string;
+          seq: number;
+          text: string;
+          recordedOnVersionNo: number;
+          createdAt: Date;
+        })[];
+      }[]
     >;
   }
 

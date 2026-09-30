@@ -26,6 +26,12 @@ import {
 } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import {
+  AddEquipmentDto,
+  AddFindingDto,
+  CloseDemoDto,
+  CreateDemoDto,
+  ReturnEquipmentDto,
+  UpdateDemoDto,
   CreateRiskDto,
   UpdateRiskDto,
   AnswerClarificationDto,
@@ -43,6 +49,7 @@ import { RequirementsService } from './requirements.service';
 import { SolutionApprovalService } from './solution-approval.service';
 import { ClarificationsService } from './clarifications.service';
 import { RisksService } from './risks.service';
+import { DemosService } from './demos.service';
 import { MAX_FILE_BYTES, SolutionsService } from './solutions.service';
 
 /**
@@ -62,6 +69,7 @@ export class SolutionsController {
     private readonly approvals: SolutionApprovalService,
     private readonly clarifications: ClarificationsService,
     private readonly risks: RisksService,
+    private readonly demos: DemosService,
   ) {}
 
   @ApiOperation({ summary: 'เริ่ม Solution จากคำขอ "ขอ Solution" ที่รับแล้ว' })
@@ -369,5 +377,126 @@ export class SolutionsController {
     @CurrentPrincipal() actor: Principal,
   ) {
     return this.risks.remove(id, riskId, actor);
+  }
+
+  // --- CD-139 Demo / POC ----------------------------------------------------------
+
+  @ApiOperation({ summary: 'คำขอ "ขอจัด Demo หรือ POC" ของดีลนี้' })
+  @Get('presales/solutions/:id/demo-requests')
+  @Authenticated()
+  demoRequests(@Param('id') id: string, @CurrentPrincipal() actor: Principal) {
+    return this.demos.requestsFor(id, actor);
+  }
+
+  @ApiOperation({ summary: 'เพิ่ม Demo/POC (จากคำขอ หรือกรอกเอง)' })
+  @Post('presales/solutions/:id/demos')
+  @Permissions('presales.solution.manage')
+  createDemo(
+    @Param('id') id: string,
+    @Body() dto: CreateDemoDto,
+    @CurrentPrincipal() actor: Principal,
+  ) {
+    return this.demos.create(id, dto, actor);
+  }
+
+  @ApiOperation({ summary: 'แก้แผน คน เกณฑ์/ผล หรือสรุปผล' })
+  @Patch('presales/solutions/:id/demos/:demoId')
+  @Permissions('presales.solution.manage')
+  updateDemo(
+    @Param('id') id: string,
+    @Param('demoId') demoId: string,
+    @Body() dto: UpdateDemoDto,
+    @CurrentPrincipal() actor: Principal,
+  ) {
+    return this.demos.update(id, demoId, dto, actor);
+  }
+
+  @ApiOperation({
+    summary: 'ปิด Demo/POC (จัดแล้ว/ยกเลิก) — ต้องคืนอุปกรณ์ครบ',
+  })
+  @Post('presales/solutions/:id/demos/:demoId/close')
+  @Permissions('presales.solution.manage')
+  closeDemo(
+    @Param('id') id: string,
+    @Param('demoId') demoId: string,
+    @Body() dto: CloseDemoDto,
+    @CurrentPrincipal() actor: Principal,
+  ) {
+    return this.demos.close(id, demoId, dto, actor);
+  }
+
+  @ApiOperation({
+    summary: 'เอา Demo/POC ออก (ระหว่างวางแผน ไม่มีอุปกรณ์ค้าง)',
+  })
+  @Delete('presales/solutions/:id/demos/:demoId')
+  @Permissions('presales.solution.manage')
+  removeDemo(
+    @Param('id') id: string,
+    @Param('demoId') demoId: string,
+    @CurrentPrincipal() actor: Principal,
+  ) {
+    return this.demos.remove(id, demoId, actor);
+  }
+
+  @ApiOperation({ summary: 'เบิกอุปกรณ์' })
+  @Post('presales/solutions/:id/demos/:demoId/equipment')
+  @Permissions('presales.solution.manage')
+  checkOut(
+    @Param('id') id: string,
+    @Param('demoId') demoId: string,
+    @Body() dto: AddEquipmentDto,
+    @CurrentPrincipal() actor: Principal,
+  ) {
+    return this.demos.checkOut(id, demoId, dto, actor);
+  }
+
+  @ApiOperation({ summary: 'คืนอุปกรณ์' })
+  @Post('presales/solutions/:id/demos/:demoId/equipment/:itemId/return')
+  @Permissions('presales.solution.manage')
+  checkIn(
+    @Param('id') id: string,
+    @Param('demoId') demoId: string,
+    @Param('itemId') itemId: string,
+    @Body() dto: ReturnEquipmentDto,
+    @CurrentPrincipal() actor: Principal,
+  ) {
+    return this.demos.checkIn(id, demoId, itemId, dto, actor);
+  }
+
+  @ApiOperation({ summary: 'บันทึกข้อค้นพบ' })
+  @Post('presales/solutions/:id/demos/:demoId/findings')
+  @Permissions('presales.solution.manage')
+  addFinding(
+    @Param('id') id: string,
+    @Param('demoId') demoId: string,
+    @Body() dto: AddFindingDto,
+    @CurrentPrincipal() actor: Principal,
+  ) {
+    return this.demos.addFinding(id, demoId, dto, actor);
+  }
+
+  @ApiOperation({ summary: 'ปิดข้อค้นพบด้วยเวอร์ชันที่ปรับแล้ว' })
+  @Post('presales/solutions/:id/demos/:demoId/findings/:findingId/resolve')
+  @Permissions('presales.solution.manage')
+  resolveFinding(
+    @Param('id') id: string,
+    @Param('demoId') demoId: string,
+    @Param('findingId') findingId: string,
+    @Body() dto: ResolveClarificationDto,
+    @CurrentPrincipal() actor: Principal,
+  ) {
+    return this.demos.resolveFinding(id, demoId, findingId, dto, actor);
+  }
+
+  @ApiOperation({ summary: 'เอาข้อค้นพบออก' })
+  @Delete('presales/solutions/:id/demos/:demoId/findings/:findingId')
+  @Permissions('presales.solution.manage')
+  removeFinding(
+    @Param('id') id: string,
+    @Param('demoId') demoId: string,
+    @Param('findingId') findingId: string,
+    @CurrentPrincipal() actor: Principal,
+  ) {
+    return this.demos.removeFinding(id, demoId, findingId, actor);
   }
 }
