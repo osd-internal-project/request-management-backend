@@ -1,4 +1,7 @@
 import {
+  riskCounts,
+  riskLevel,
+  risksText,
   clarificationCounts,
   clarificationsText,
   scopeResolutionProblem,
@@ -412,6 +415,68 @@ describe('CD-140 clarification rules', () => {
         '   ตอบ: Fortinet 100F (คุณเอ · IT Manager · 2026-09-28) — กระทบขอบเขต',
         '2. ถาม: มี UPS ไหม',
         '   (ยังไม่ได้คำตอบ)',
+      ].join('\n'),
+    );
+  });
+});
+
+describe('CD-141 risk rules', () => {
+  const risk = (
+    likelihood: number,
+    impact: number,
+    status: 'open' | 'mitigated' | 'accepted' | 'closed' = 'open',
+    owner = '',
+    mitigation = '',
+  ) => ({ likelihood, impact, status, owner, mitigation });
+
+  it('the level follows the score at the agreed bands', () => {
+    expect([1, 4, 5, 9, 10, 16, 20, 25].map(riskLevel)).toEqual([
+      'low',
+      'low',
+      'medium',
+      'medium',
+      'high',
+      'high',
+      'critical',
+      'critical',
+    ]);
+  });
+
+  it('only an open high/critical risk without owner or plan needs one', () => {
+    expect(
+      riskCounts([
+        risk(4, 4),
+        risk(5, 5, 'open', 'ทีมเครือข่าย', 'สำรองอุปกรณ์'),
+        risk(4, 5, 'accepted'),
+        risk(2, 2),
+        risk(3, 4, 'open', 'ทีมเครือข่าย'),
+      ]),
+    ).toEqual({ total: 5, open: 4, open_high: 3, needs_plan: 2 });
+  });
+
+  it('an unplanned serious risk blocks approval', () => {
+    expect(
+      approvalBlocker({ status: 'locked', approvalStatus: 'none' }, true, 0, 1),
+    ).toContain('ความเสี่ยงระดับสูง/วิกฤติ');
+  });
+
+  it('the register reads highest score first', () => {
+    expect(
+      risksText([
+        { seq: 1, title: 'ISP ช้า', description: '', ...risk(2, 3) },
+        {
+          seq: 2,
+          title: 'อุปกรณ์ขาดตลาด',
+          description: '',
+          ...risk(4, 5, 'open', 'จัดซื้อ', 'สั่งล่วงหน้า'),
+        },
+      ]),
+    ).toBe(
+      [
+        '2. [วิกฤติ 20 = โอกาส 4 × ผลกระทบ 5 · เปิด] อุปกรณ์ขาดตลาด',
+        '   แนวทางลด: สั่งล่วงหน้า',
+        '   ผู้รับผิดชอบ: จัดซื้อ',
+        '1. [ปานกลาง 6 = โอกาส 2 × ผลกระทบ 3 · เปิด] ISP ช้า',
       ].join('\n'),
     );
   });

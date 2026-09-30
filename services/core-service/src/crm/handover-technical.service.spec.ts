@@ -28,6 +28,30 @@ function harness(options: {
     requirements as never,
     files as never,
     { findMany: jest.fn(() => Promise.resolve([])) } as never,
+    {
+      findMany: jest.fn(() =>
+        Promise.resolve([
+          {
+            seq: 1,
+            title: 'ISP ส่งวงจรช้า',
+            likelihood: 2,
+            impact: 3,
+            owner: '',
+            mitigation: '',
+            status: 'open',
+          },
+          {
+            seq: 2,
+            title: 'อุปกรณ์ขาดตลาด',
+            likelihood: 4,
+            impact: 5,
+            owner: 'จัดซื้อ',
+            mitigation: 'สั่งล่วงหน้า',
+            status: 'open',
+          },
+        ]),
+      ),
+    } as never,
   );
   return { service, versions, files };
 }
@@ -86,6 +110,11 @@ describe('CD-144 handover technical package', () => {
         { title: 'ติดตั้ง', description: '', criteria: ['ลิงก์ขึ้น'] },
       ],
       requirements: [{ seq: 1 }],
+      // CD-141 — the project's risks, highest score first.
+      risks: [
+        { seq: 2, score: 20, level: 'critical' },
+        { seq: 1, score: 6, level: 'medium' },
+      ],
       files: [{ id: 'f-1' }],
     });
     await expect(service.packageOf(null)).resolves.toBeNull();

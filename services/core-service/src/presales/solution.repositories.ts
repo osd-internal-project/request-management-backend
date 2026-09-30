@@ -74,3 +74,17 @@ export class SolutionClarificationRepository extends BaseRepository<
     return client.solutionClarification;
   }
 }
+
+/** CD-141 ทะเบียนความเสี่ยงทางเทคนิค. */
+@Injectable()
+export class SolutionRiskRepository extends BaseRepository<
+  PrismaService['solutionRisk']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.solutionRisk;
+  }
+}

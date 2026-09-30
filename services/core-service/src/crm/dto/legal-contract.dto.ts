@@ -619,3 +619,57 @@ export class DraftVersionQueryDto {
   @Min(1)
   version?: number;
 }
+
+/** CD-147 — open a review round on the latest version. */
+export class OpenReviewRoundDto {
+  @ApiPropertyOptional({ example: 'ตรวจรอบแรกก่อนส่งลูกค้า' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  note?: string;
+}
+
+/** CD-147 — a comment on one clause. */
+export class ReviewCommentDto {
+  @ApiProperty({ description: 'รหัสข้อในร่างฉบับที่ตรวจ' })
+  @IsString()
+  @MaxLength(40)
+  clause_key!: string;
+
+  @ApiProperty({ example: 'ค่าปรับสูงเกินมาตรฐาน เสนอลดเป็น 0.05%' })
+  @IsString()
+  @MaxLength(4000)
+  body!: string;
+}
+
+/** CD-147 — the drafter's answer to a comment. */
+export class AnswerReviewCommentDto {
+  @ApiProperty({
+    enum: ['resolved', 'declined'],
+    description:
+      'resolved = แก้แล้ว (บันทึกฉบับที่แก้) · declined = ไม่แก้ ต้องให้เหตุผล',
+  })
+  @IsIn(['resolved', 'declined'])
+  status!: 'resolved' | 'declined';
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  response?: string;
+}
+
+/** CD-147 — the two versions to compare. */
+export class CompareVersionsQueryDto {
+  @ApiProperty()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  from!: number;
+
+  @ApiProperty()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  to!: number;
+}

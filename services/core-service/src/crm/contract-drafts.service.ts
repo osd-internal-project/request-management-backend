@@ -556,6 +556,30 @@ export class ContractDraftsService {
     })) as RequestRef | null;
   }
 
+  /**
+   * CD-147 — a draft the actor may see, whether it can still change, and
+   * one version's clauses (the latest when `versionNo` is not given).
+   */
+  async access(id: string, actor: Principal) {
+    const { draft, request } = await this.requireDraft(id, actor);
+    return {
+      draft,
+      request,
+      editable: OPEN_STATUSES.includes(request.status),
+    };
+  }
+
+  async clausesOf(draftId: string, versionNo: number): Promise<Clause[]> {
+    const version = (await this.versions.findFirst({
+      where: { draftId, versionNo },
+      select: { clauses: true },
+    })) as { clauses: unknown } | null;
+    if (!version) {
+      throw new AppError('NOT_FOUND', `ไม่พบร่างฉบับที่ ${versionNo}`);
+    }
+    return readClauses(version.clauses);
+  }
+
   private async requireDraft(id: string, actor: Principal) {
     const draft = (await this.drafts.findFirst({
       where: { id, companyId: actor.activeCompanyId },

@@ -475,6 +475,8 @@ export function approvalBlocker(
   isCurrent: boolean,
   /** CD-140 — scope-affecting answers not yet worked into the SOW. */
   openScopeUpdates = 0,
+  /** CD-141 — open high/critical risks without an owner or a plan. */
+  risksWithoutPlan = 0,
 ): string | null {
   if (version.status === 'draft') {
     return 'ยืนยันเวอร์ชันก่อน จึงขออนุมัติได้';
@@ -491,6 +493,10 @@ export function approvalBlocker(
   // CD-140 — an answer that changed the scope must be in the SOW first.
   if (openScopeUpdates > 0) {
     return `มีคำตอบที่กระทบขอบเขตยังไม่ได้แก้ SOW ${openScopeUpdates} ข้อ`;
+  }
+  // CD-141 — a serious risk goes with someone on it and a plan.
+  if (risksWithoutPlan > 0) {
+    return `มีความเสี่ยงระดับสูง/วิกฤติที่ยังไม่มีผู้รับผิดชอบหรือแนวทางลด ${risksWithoutPlan} ข้อ`;
   }
   // CD-133 — a design judged not feasible is recorded, not offered.
   if (version.feasibility === 'not_feasible') {
@@ -659,5 +665,93 @@ export function clarificationsText(
           : '   (ยังไม่ได้คำตอบ)',
       ].join('\n'),
     )
+    .join('\n');
+}
+
+// --- CD-141 technical risks ------------------------------------------------------
+
+export const RISK_STATUSES = [
+  'open',
+  'mitigated',
+  'accepted',
+  'closed',
+] as const;
+export type RiskStatus = (typeof RISK_STATUSES)[number];
+
+export type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
+
+export const RISK_LEVEL_LABELS: Record<RiskLevel, string> = {
+  low: 'ต่ำ',
+  medium: 'ปานกลาง',
+  high: 'สูง',
+  critical: 'วิกฤติ',
+};
+
+/** Likelihood × impact, each 1–5. */
+export const riskScore = (row: { likelihood: number; impact: number }) =>
+  row.likelihood * row.impact;
+
+/** 1–4 low · 5–9 medium · 10–16 high · 20–25 critical. */
+export function riskLevel(score: number): RiskLevel {
+  if (score >= 20) return 'critical';
+  if (score >= 10) return 'high';
+  if (score >= 5) return 'medium';
+  return 'low';
+}
+
+export interface RiskState {
+  likelihood: number;
+  impact: number;
+  owner: string;
+  mitigation: string;
+  status: RiskStatus;
+}
+
+/**
+ * An open high or critical risk with nobody on it or no plan — the design
+ * cannot go for approval with one (user decision 30 ก.ย. 2569).
+ */
+export const riskNeedsPlan = (row: RiskState) =>
+  row.status === 'open' &&
+  ['high', 'critical'].includes(riskLevel(riskScore(row))) &&
+  (!row.owner.trim() || !row.mitigation.trim());
+
+export function riskCounts(rows: readonly RiskState[]) {
+  const open = rows.filter((row) => row.status === 'open');
+  return {
+    total: rows.length,
+    open: open.length,
+    open_high: open.filter((row) =>
+      ['high', 'critical'].includes(riskLevel(riskScore(row))),
+    ).length,
+    needs_plan: rows.filter(riskNeedsPlan).length,
+  };
+}
+
+/** The register as text, highest score first, for approval and handover. */
+export function risksText(
+  rows: readonly (RiskState & {
+    seq: number;
+    title: string;
+    description: string;
+  })[],
+): string {
+  const statusLabels: Record<RiskStatus, string> = {
+    open: 'เปิด',
+    mitigated: 'ลดแล้ว',
+    accepted: 'ยอมรับ',
+    closed: 'ปิด',
+  };
+  return [...rows]
+    .sort((a, b) => riskScore(b) - riskScore(a) || a.seq - b.seq)
+    .map((row) => {
+      const score = riskScore(row);
+      return [
+        `${row.seq}. [${RISK_LEVEL_LABELS[riskLevel(score)]} ${score} = โอกาส ${row.likelihood} × ผลกระทบ ${row.impact} · ${statusLabels[row.status]}] ${row.title}`,
+        ...(row.description ? [`   ${row.description}`] : []),
+        ...(row.mitigation ? [`   แนวทางลด: ${row.mitigation}`] : []),
+        ...(row.owner ? [`   ผู้รับผิดชอบ: ${row.owner}`] : []),
+      ].join('\n');
+    })
     .join('\n');
 }

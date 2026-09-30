@@ -27,6 +27,7 @@ function harness(
     pending?: Record<string, unknown> | null;
     moved?: number;
     clarifications?: Record<string, unknown>[];
+    risks?: Record<string, unknown>[];
   } = {},
 ) {
   const solutions = {
@@ -43,6 +44,7 @@ function harness(
     activeClarifications: jest.fn(() =>
       Promise.resolve(options.clarifications ?? []),
     ),
+    activeRisks: jest.fn(() => Promise.resolve(options.risks ?? [])),
   };
   const versions = {
     findFirst: jest.fn((args: { where: Record<string, unknown> }) =>
@@ -150,6 +152,26 @@ describe('CD-143 solution approval', () => {
           answer: 'เพิ่มสาขาที่ 13',
           affectsScope: true,
           scopeResolvedVersionNo: null,
+        },
+      ],
+    });
+    await expect(
+      service.requestApproval('sol-1', 2, presales),
+    ).rejects.toMatchObject({ code: 'CONFLICT' });
+    expect(requests.create).not.toHaveBeenCalled();
+  });
+
+  it('CD-141: an open high risk without a plan blocks approval', async () => {
+    const { service, requests } = harness({
+      risks: [
+        {
+          seq: 1,
+          title: 'อุปกรณ์ขาดตลาด',
+          likelihood: 4,
+          impact: 4,
+          owner: 'จัดซื้อ',
+          mitigation: '',
+          status: 'open',
         },
       ],
     });

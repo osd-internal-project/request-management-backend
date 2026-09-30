@@ -31,6 +31,11 @@ import {
 } from './contract-templates.service';
 import { RequestRepository } from '../requests/request.repository';
 import {
+  ContractReviewCommentRepository,
+  ContractReviewRoundRepository,
+  ContractReviewsService,
+} from './contract-reviews.service';
+import {
   ContractRiskAssessmentRepository,
   ContractRiskService,
 } from './contract-risk.service';
@@ -388,6 +393,71 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         // version 1 is untouched
         const first = await drafts.view(started.id, legal, 1);
         expect(first.clauses).toHaveLength(2);
+
+        // CD-147 — a review round on version 2
+        const reviews = new ContractReviewsService(
+          new ContractReviewRoundRepository(client),
+          new ContractReviewCommentRepository(client),
+          drafts,
+          new CompanyMemberRepository(client),
+          transactions,
+          audit,
+        );
+        const opened = await reviews.open(started.id, {}, legal);
+        const round = opened.rounds[0];
+        expect(round).toMatchObject({ roundNo: 1, versionNo: 2 });
+        await expect(reviews.open(started.id, {}, legal)).rejects.toMatchObject(
+          { code: 'CONFLICT' },
+        );
+        const commented = await reviews.comment(
+          round.id,
+          { clause_key: 'c1', body: 'ระบุเลขผู้เสียภาษีคู่สัญญา' },
+          legal,
+        );
+        const comment = commented.rounds[0].comments[0];
+        expect(comment).toMatchObject({
+          clauseHeading: 'คู่สัญญา',
+          status: 'open',
+          changedSince: false,
+        });
+        await expect(reviews.close(round.id, legal)).rejects.toMatchObject({
+          code: 'CONFLICT',
+          message: 'ยังมีความเห็นที่ไม่ได้ตอบ 1 ข้อ — ตอบให้ครบก่อนปิดรอบ',
+        });
+        // the drafter fixes the clause: the comment sees it changed
+        await drafts.saveVersion(
+          started.id,
+          {
+            base_version: 2,
+            clauses: [
+              {
+                key: 'c1',
+                heading: 'คู่สัญญา',
+                body: 'บริษัท ทดสอบ จำกัด กับ ลูกค้า เลขผู้เสียภาษี 0105551234567',
+              },
+            ],
+          },
+          legal,
+        );
+        const listed = await reviews.list(started.id, legal);
+        expect(listed.rounds[0].comments[0].changedSince).toBe(true);
+        const answered = await reviews.answer(
+          comment.id,
+          { status: 'resolved', response: 'เพิ่มแล้ว' },
+          legal,
+        );
+        expect(answered.rounds[0].comments[0]).toMatchObject({
+          status: 'resolved',
+          resolvedInVersion: 3,
+        });
+        const closed = await reviews.close(round.id, legal);
+        expect(closed.rounds[0]).toMatchObject({
+          status: 'closed',
+          closedVersionNo: 3,
+          openCount: 0,
+        });
+        const compared = await reviews.compare(started.id, 1, 3, legal);
+        expect(compared.counts).toEqual({ changed: 1, added: 0, removed: 1 });
       } finally {
         await prisma.contractDraft.deleteMany({
           where: { requestId: request.id },

@@ -20,6 +20,7 @@ import { safeFileName } from '../requests/attachments.service';
 import { RequestRepository } from '../requests/request.repository';
 import {
   SolutionClarificationRepository,
+  SolutionRiskRepository,
   SolutionFileRepository,
   SolutionRepository,
   SolutionRequirementRepository,
@@ -43,6 +44,10 @@ import {
   requirementGaps,
   clarificationCounts,
   type ClarificationState,
+  riskCounts,
+  riskLevel,
+  riskScore,
+  type RiskState,
   type RequirementState,
 } from './solution-rules';
 import type {
@@ -151,6 +156,7 @@ export class SolutionsService {
     private readonly files: SolutionFileRepository,
     private readonly requirements: SolutionRequirementRepository,
     private readonly clarifications: SolutionClarificationRepository,
+    private readonly risks: SolutionRiskRepository,
     private readonly requests: RequestRepository,
     private readonly opportunities: OpportunityRepository,
     private readonly configs: CrmConfigRepository,
@@ -307,6 +313,16 @@ export class SolutionsService {
             scopeResolvedVersionNo: true,
           },
         },
+        risks: {
+          where: { deletedAt: null },
+          select: {
+            likelihood: true,
+            impact: true,
+            owner: true,
+            mitigation: true,
+            status: true,
+          },
+        },
       },
     })) as unknown as {
       id: string;
@@ -321,15 +337,20 @@ export class SolutionsService {
       }[];
       requirements: RequirementState[];
       clarifications: ClarificationState[];
+      risks: RiskState[];
     }[];
-    return rows.map(({ versions, requirements, clarifications, ...row }) => ({
-      ...row,
-      latest: versions[0] ?? null,
-      // CD-131 — what the salesperson has to chase with the customer.
-      waiting_customer: requirementCounts(requirements).waiting_customer,
-      // CD-140 — questions still open, and answers the SOW must follow.
-      clarification_counts: clarificationCounts(clarifications),
-    }));
+    return rows.map(
+      ({ versions, requirements, clarifications, risks, ...row }) => ({
+        ...row,
+        latest: versions[0] ?? null,
+        // CD-131 — what the salesperson has to chase with the customer.
+        waiting_customer: requirementCounts(requirements).waiting_customer,
+        // CD-140 — questions still open, and answers the SOW must follow.
+        clarification_counts: clarificationCounts(clarifications),
+        // CD-141 — open high/critical risks, and those still without a plan.
+        risk_counts: riskCounts(risks),
+      }),
+    );
   }
 
   /** The Solution with its version list and the current version in full. */
@@ -391,6 +412,8 @@ export class SolutionsService {
         this.activeClarifications(id),
       ]);
     const clarificationTotals = clarificationCounts(clarifications);
+    const risks = await this.activeRisks(id);
+    const riskTotals = riskCounts(risks);
     return {
       ...solution,
       can_manage: this.canManage(actor),
@@ -400,6 +423,15 @@ export class SolutionsService {
       requirement_counts: requirementCounts(requirements),
       clarifications,
       clarification_counts: clarificationTotals,
+      // CD-141 — highest score first, with its level.
+      risks: risks
+        .map((risk) => ({
+          ...risk,
+          score: riskScore(risk),
+          level: riskLevel(riskScore(risk)),
+        }))
+        .sort((a, b) => b.score - a.score || a.seq - b.seq),
+      risk_counts: riskTotals,
       deal: deal
         ? {
             id: deal.id,
@@ -432,6 +464,7 @@ export class SolutionsService {
           version,
           version.versionNo === solution.currentVersionNo,
           clarificationTotals.scope_open,
+          riskTotals.needs_plan,
         ),
         request: approvalRequest,
       },
@@ -936,6 +969,22 @@ export class SolutionsService {
         answerRecordedAt: Date | null;
         answeredOnVersionNo: number | null;
         scopeResolvedAt: Date | null;
+      })[]
+    >;
+  }
+
+  /** CD-141 — the register, without the removed entries. */
+  activeRisks(solutionId: string) {
+    return this.risks.findMany({
+      where: { solutionId, deletedAt: null },
+      orderBy: { seq: 'asc' },
+    }) as Promise<
+      (RiskState & {
+        id: string;
+        seq: number;
+        title: string;
+        description: string;
+        updatedAt: Date;
       })[]
     >;
   }
