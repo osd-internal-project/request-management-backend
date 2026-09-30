@@ -2,6 +2,8 @@ import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   IsArray,
+  IsBoolean,
+  IsDateString,
   IsIn,
   IsNotEmpty,
   IsOptional,
@@ -12,6 +14,7 @@ import {
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PageQueryDto } from '@request-management/share';
 import { MAX_MEMBERS, PROJECT_STATUSES } from '../project-rules';
+import { MAX_CRITERIA, MAX_CRITERION_LENGTH } from '../milestone-rules';
 
 /** CD-175 — one person on the project team. */
 export class ProjectMemberDto {
@@ -115,4 +118,64 @@ export class ListProjectsQueryDto extends PageQueryDto {
   @IsOptional()
   @IsIn(['mine'])
   scope?: 'mine';
+}
+
+/** CD-182 — a milestone: name, how it is measured, due, the installment. */
+export class SaveMilestoneDto {
+  @ApiPropertyOptional({ example: 'ติดตั้งและทดสอบระบบกล้องเสร็จ' })
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  title?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  description?: string;
+
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'เกณฑ์การบรรลุที่วัดได้ ทีละข้อ',
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(MAX_CRITERIA)
+  @IsString({ each: true })
+  @MaxLength(MAX_CRITERION_LENGTH, { each: true })
+  criteria?: string[];
+
+  @ApiPropertyOptional({ example: '2027-03-31', nullable: true })
+  @IsOptional()
+  @IsDateString()
+  due_on?: string | null;
+
+  @ApiPropertyOptional({
+    description: 'งวดชำระที่หมุดหมายนี้ปลดล็อก',
+    nullable: true,
+  })
+  @IsOptional()
+  @IsString()
+  installment_id?: string | null;
+}
+
+/** CD-182 — the manager confirms one criterion (or takes it back). */
+export class TickCriterionDto {
+  @ApiProperty()
+  @IsBoolean()
+  met!: boolean;
+}
+
+/** CD-182 — achieved, with evidence (multipart; the file is optional). */
+export class AchieveMilestoneDto {
+  @ApiProperty({ example: '2027-03-20' })
+  @IsDateString()
+  achieved_on!: string;
+
+  @ApiProperty({ example: 'ลูกค้าทดสอบระบบร่วมกันแล้ว ภาพชัดทุกจุด' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(2000)
+  evidence_note!: string;
 }

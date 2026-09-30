@@ -32,3 +32,17 @@ export class ProjectMemberRepository extends BaseRepository<
     return client.projectMember;
   }
 }
+
+/** CD-182 หมุดหมายของโครงการ. */
+@Injectable()
+export class ProjectMilestoneRepository extends BaseRepository<
+  PrismaService['projectMilestone']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.projectMilestone;
+  }
+}

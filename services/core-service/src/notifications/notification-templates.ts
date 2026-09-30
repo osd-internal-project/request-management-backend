@@ -265,6 +265,19 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
     },
   },
   {
+    eventType: 'pm.milestone.achieved',
+    label: 'หมุดหมายโครงการบรรลุ — งวดชำระวางบิลได้ (ถึงเจ้าของสัญญา)',
+    title: 'โครงการ {{project_no}}: บรรลุ "{{milestone}}"',
+    body: 'งวดที่ {{installment_seq}} {{installment_label}} ({{amount}} บาท) วางบิลได้แล้ว',
+    variables: {
+      project_no: { label: 'เลขที่โครงการ', sample: 'PRJ-OSD-000012' },
+      milestone: { label: 'หมุดหมาย', sample: 'ติดตั้งและทดสอบระบบเสร็จ' },
+      installment_seq: { label: 'งวดที่', sample: '2' },
+      installment_label: { label: 'ชื่องวด', sample: 'งวดตามความคืบหน้า' },
+      amount: { label: 'จำนวนเงิน', sample: '105,000' },
+    },
+  },
+  {
     eventType: 'pm.project.assigned',
     label: 'ได้รับมอบหมายในโครงการ (ถึงผู้จัดการและทีมโครงการ)',
     title: 'โครงการ {{project_no}}: คุณเป็น{{role}}',

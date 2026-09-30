@@ -585,6 +585,34 @@ export class NotificationsService {
     });
   }
 
+  /** CD-182 — a milestone that unlocks an installment was achieved. */
+  async milestoneAchieved(
+    userId: string,
+    companyId: string,
+    input: {
+      project: { id: string; projectNo: string };
+      milestone: string;
+      installment: { seq: number; label: string; amount: number };
+    },
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'pm.milestone.achieved',
+      values: {
+        project_no: input.project.projectNo,
+        milestone: input.milestone,
+        installment_seq: String(input.installment.seq),
+        installment_label: input.installment.label,
+        amount: input.installment.amount.toLocaleString('th-TH', {
+          maximumFractionDigits: 2,
+        }),
+      },
+      resourceType: 'project',
+      resourceId: input.project.id,
+    });
+  }
+
   /** CD-149 — the MSA a contract is made under was changed. */
   async masterAgreementChanged(
     userId: string,

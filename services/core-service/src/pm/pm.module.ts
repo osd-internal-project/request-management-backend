@@ -10,6 +10,7 @@ import { RunNumberClientModule } from '../run-number/run-number-client.module';
 import { ProjectsService } from './projects.service';
 import {
   ProjectMemberRepository,
+  ProjectMilestoneRepository,
   ProjectRepository,
 } from './project.repositories';
 
@@ -29,12 +30,22 @@ import {
   providers: [
     ProjectRepository,
     ProjectMemberRepository,
+    ProjectMilestoneRepository,
     CustomerContractRepository,
     ContractInstallmentRepository,
     ContractRequestPackageRepository,
     PrismaTransactionService,
     ProjectsService,
   ],
-  exports: [ProjectsService, ProjectRepository, ProjectMemberRepository],
+  exports: [
+    AccessModule,
+    NotificationsModule,
+    ProjectsService,
+    ProjectRepository,
+    ProjectMemberRepository,
+    ProjectMilestoneRepository,
+    ContractInstallmentRepository,
+    PrismaTransactionService,
+  ],
 })
 export class PmModule {}

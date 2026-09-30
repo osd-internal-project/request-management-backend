@@ -123,6 +123,13 @@ export class ContractInstallmentsService {
         where: { contractId },
         orderBy: { seq: 'asc' },
       })) as InstallmentRow[];
+      // CD-182 — the project milestones tied to an installment, by its
+      // number: the rows are rewritten below, the ties must survive.
+      const ties = (await tx.projectMilestone.findMany({
+        where: { installmentId: { in: old.map((row) => row.id) } },
+        select: { id: true, installmentId: true },
+      })) as { id: string; installmentId: string }[];
+      const seqOf = new Map(old.map((row) => [row.id, row.seq]));
       await tx.contractInstallment.deleteMany({ where: { contractId } });
       if (input.length) {
         await tx.contractInstallment.createMany({
@@ -150,6 +157,16 @@ export class ContractInstallmentsService {
         where: { contractId },
         orderBy: { seq: 'asc' },
       })) as InstallmentRow[];
+      for (const tie of ties) {
+        const seq = seqOf.get(tie.installmentId);
+        const now = fresh.find((row) => row.seq === seq);
+        if (now) {
+          await tx.projectMilestone.update({
+            where: { id: tie.id },
+            data: { installmentId: now.id },
+          });
+        }
+      }
       return { before: old, after: fresh };
     });
 

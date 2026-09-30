@@ -108,6 +108,11 @@ const legal = {
 function harness(contract: Record<string, unknown> | null) {
   let stored: Record<string, unknown>[] = [];
   const tx = {
+    // CD-182 — no milestone tied to these installments
+    projectMilestone: {
+      findMany: jest.fn(() => Promise.resolve([])),
+      update: jest.fn(),
+    },
     contractInstallment: {
       findMany: jest.fn(() => Promise.resolve(stored)),
       deleteMany: jest.fn(() => {

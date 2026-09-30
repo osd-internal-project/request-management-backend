@@ -20,6 +20,10 @@ import {
   ProjectRepository,
 } from './project.repositories';
 import { ProjectsService } from './projects.service';
+import { MilestonesService } from './milestones.service';
+import { ProjectMilestoneRepository } from './project.repositories';
+import { ContractInstallmentsService } from '../crm/contract-installments.service';
+import { Readable } from 'node:stream';
 
 /**
  * CD-175 — opening a project runs on a relation filter (`project: null`),
@@ -45,6 +49,11 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
     let engineer: string;
     let outsider: string;
     let contractId: string;
+    let projectId = '';
+    let milestones: MilestonesService;
+    let schedule: ContractInstallmentsService;
+    const billable: { userId: string; milestone: string }[] = [];
+    const stored = new Map<string, Buffer>();
     const tag = randomUUID().slice(0, 8);
     const told: { userId: string; role: string }[] = [];
 
@@ -101,6 +110,42 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         } as never,
         audit,
         transactions,
+      );
+      milestones = new MilestonesService(
+        projects,
+        new ProjectMilestoneRepository(client),
+        new ContractInstallmentRepository(client),
+        new CompanyMemberRepository(client),
+        {
+          milestoneAchieved: (
+            userId: string,
+            _company: string,
+            input: { milestone: string },
+          ) => {
+            billable.push({ userId, milestone: input.milestone });
+            return Promise.resolve();
+          },
+        } as never,
+        audit,
+        transactions,
+        {
+          put: (key: string, body: Buffer) => {
+            stored.set(key, body);
+            return Promise.resolve();
+          },
+          get: (key: string) =>
+            Promise.resolve(Readable.from([stored.get(key)!])),
+          remove: (key: string) => {
+            stored.delete(key);
+            return Promise.resolve();
+          },
+        },
+      );
+      schedule = new ContractInstallmentsService(
+        new ContractInstallmentRepository(client),
+        new CustomerContractRepository(client),
+        transactions,
+        audit,
       );
       legal = new LegalContractsService(
         new CustomerContractRepository(client),
@@ -162,6 +207,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
     });
 
     afterAll(async () => {
+      await prisma.projectMilestone.deleteMany({ where: { projectId } });
       await prisma.project.deleteMany({ where: { contractId } });
       await prisma.contractInstallment.deleteMany({ where: { contractId } });
       await prisma.contractDocument.deleteMany({ where: { contractId } });
@@ -245,6 +291,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         },
         manager(),
       );
+      projectId = opened.id;
       expect(opened).toMatchObject({
         projectNo: `PRJ-T175-${tag}`,
         name: 'ติดตั้งระบบกล้อง อาคาร A',
@@ -338,6 +385,129 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       expect(handed.members.map((member) => member.userId)).not.toContain(
         engineer,
       );
+    });
+
+    it('CD-182: milestones from the schedule, measurable, ticked, survive a schedule edit, achieved with evidence', async () => {
+      // after CD-175's test the engineer manages the (paused) project
+      const managerNow = as(engineer, ['notification.read']);
+      const member = as(outsider, ['notification.read']);
+      await expect(
+        milestones.create(projectId, { title: 'แอบเพิ่ม' }, member),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+
+      // the deposit waits on no work; the final payment names "ตรวจรับงาน"
+      const drawn = await milestones.fromSchedule(projectId, managerNow);
+      expect(drawn.milestones).toHaveLength(1);
+      const first = drawn.milestones[0];
+      expect(first).toMatchObject({
+        title: 'ตรวจรับงาน',
+        status: 'planned',
+        installment: { seq: 2, amount: 105000 },
+      });
+      expect(drawn.installments.find((row) => row.seq === 2)?.milestoneId).toBe(
+        first.id,
+      );
+      await expect(
+        milestones.fromSchedule(projectId, managerNow),
+      ).rejects.toMatchObject({ code: 'CONFLICT' });
+
+      // tied to a payment, it must say how it is measured
+      await expect(
+        milestones.update(projectId, first.id, { criteria: [] }, managerNow),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+      await milestones.update(
+        projectId,
+        first.id,
+        { criteria: ['ลูกค้าลงนามใบตรวจรับ', 'ส่งคู่มือการใช้งาน'] },
+        managerNow,
+      );
+      // a second milestone cannot take the same installment
+      const installmentId = first.installment!.id;
+      await expect(
+        milestones.create(
+          projectId,
+          { title: 'ซ้ำ', criteria: ['ก'], installment_id: installmentId },
+          managerNow,
+        ),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+
+      // not all ticked: refused
+      await milestones.tick(projectId, first.id, 0, true, managerNow);
+      const evidence = {
+        achieved_on: '2026-09-30',
+        evidence_note: 'ลูกค้าลงนามใบตรวจรับแล้ว',
+      };
+      await expect(
+        milestones.achieve(
+          projectId,
+          first.id,
+          evidence,
+          undefined,
+          managerNow,
+        ),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+      await milestones.tick(projectId, first.id, 1, true, managerNow);
+
+      // Legal rewrites the schedule: the tie follows installment 2
+      await schedule.save(
+        contractId,
+        {
+          installments: [
+            {
+              kind: 'progress',
+              label: 'งวดแรก',
+              amount: 30000,
+              due_on: '2026-12-31',
+            },
+            {
+              kind: 'final',
+              label: 'งวดสุดท้าย',
+              amount: 120000,
+              milestone: 'ตรวจรับงาน',
+            },
+          ],
+        } as never,
+        lawyer(),
+      );
+      const relinked = await milestones.list(projectId, managerNow);
+      expect(relinked.milestones[0].installment).toMatchObject({
+        seq: 2,
+        amount: 120000,
+      });
+      expect(relinked.milestones[0].installment!.id).not.toBe(installmentId);
+      expect(relinked.milestones[0].criteriaMet).toBe(2);
+
+      // achieved, with a file; the contract's owner hears the payment is due
+      const done = await milestones.achieve(
+        projectId,
+        first.id,
+        evidence,
+        {
+          originalname: 'ใบตรวจรับ.pdf',
+          mimetype: 'application/pdf',
+          size: 4,
+          buffer: Buffer.from('%PDF'),
+        },
+        managerNow,
+        new Date('2026-09-30T05:00:00Z'),
+      );
+      expect(done.milestone).toMatchObject({
+        status: 'achieved',
+        achievedOn: '2026-09-30',
+        evidenceFile: { name: 'ใบตรวจรับ.pdf' },
+      });
+      expect(billable).toEqual([{ userId: pm, milestone: 'ตรวจรับงาน' }]);
+      await expect(
+        milestones.achieve(
+          projectId,
+          first.id,
+          evidence,
+          undefined,
+          managerNow,
+        ),
+      ).rejects.toMatchObject({ code: 'CONFLICT' });
+      const file = await milestones.evidence(projectId, first.id, member);
+      expect(file.fileName).toBe('ใบตรวจรับ.pdf');
     });
   },
 );

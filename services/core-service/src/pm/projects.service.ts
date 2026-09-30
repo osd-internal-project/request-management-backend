@@ -132,7 +132,7 @@ interface ProjectRow {
   status: string;
   contractId: string;
   members: { userId: string; role: string | null }[];
-  contract: { contractNo: string };
+  contract: { contractNo: string; ownerUserId: string };
 }
 
 const num = (value: Prisma.Decimal | null) =>
@@ -565,6 +565,23 @@ export class ProjectsService {
     return this.detail(id, actor);
   }
 
+  /**
+   * For the project's own parts (milestones, …): the project if the caller
+   * may see it (404 otherwise), and whether they may change its plan —
+   * `pm.project.manage` or its manager, while it runs.
+   */
+  async access(id: string, actor: Principal) {
+    const project = await this.requireProject(id, actor);
+    const running = project.status === 'active' || project.status === 'on_hold';
+    return {
+      project,
+      canEdit:
+        running &&
+        (hasPermission(actor, 'pm.project.manage') ||
+          project.managerUserId === actor.userId),
+    };
+  }
+
   // --- helpers -------------------------------------------------------------------
 
   /** Everything with `pm.project.read`; otherwise the projects I run or am on. */
@@ -724,7 +741,7 @@ export class ProjectsService {
         status: true,
         contractId: true,
         members: { select: { userId: true, role: true } },
-        contract: { select: { contractNo: true } },
+        contract: { select: { contractNo: true, ownerUserId: true } },
       },
     })) as ProjectRow | null;
     if (!found) throw new AppError('NOT_FOUND', 'ไม่พบโครงการที่ระบุ');

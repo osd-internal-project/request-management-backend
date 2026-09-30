@@ -3773,7 +3773,9 @@ model ContractInstallment {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  contract CustomerContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  contract         CustomerContract  @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  /// CD-182 — the project milestone that unlocks it, once PM set one.
+  projectMilestone ProjectMilestone?
 
   @@unique([contractId, seq])
   @@map("contract_installments")
@@ -4889,8 +4891,10 @@ model Project {
   updatedAt         DateTime      @updatedAt
   updatedBy         String?
 
-  contract CustomerContract @relation(fields: [contractId], references: [id], onDelete: Restrict)
-  members  ProjectMember[]
+  contract   CustomerContract   @relation(fields: [contractId], references: [id], onDelete: Restrict)
+  members    ProjectMember[]
+  /// CD-182 — หมุดหมายของโครงการ.
+  milestones ProjectMilestone[]
 
   @@unique([companyId, projectNo])
   @@index([companyId, status])
@@ -4913,4 +4917,43 @@ model ProjectMember {
   @@id([projectId, userId])
   @@index([userId])
   @@map("project_members")
+}
+
+/// CD-182 — a project milestone: what must be true for it to count
+/// (`criteria`, each ticked by the manager), when it is due, and — if it
+/// unlocks a payment — the contract installment it is tied to. Achieving it
+/// takes every criterion met plus evidence, and tells the contract's owner
+/// that installment may be billed. `cancelled` instead of deleting.
+model ProjectMilestone {
+  id            String    @id @default(uuid())
+  companyId     String
+  projectId     String
+  seq           Int
+  title         String
+  description   String?
+  /// [{ text, met, metAt, metBy }]
+  criteria      Json      @default("[]")
+  dueOn         DateTime? @db.Date
+  installmentId String?   @unique
+  /// planned · achieved · cancelled
+  status        String    @default("planned")
+  achievedOn    DateTime? @db.Date
+  achievedAt    DateTime?
+  achievedBy    String?
+  evidenceNote  String?
+  evidenceKey   String?
+  evidenceName  String?
+  evidenceMime  String?
+  evidenceSize  Int?
+  createdAt     DateTime  @default(now())
+  createdBy     String
+  updatedAt     DateTime  @updatedAt
+  updatedBy     String?
+
+  project     Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  installment ContractInstallment? @relation(fields: [installmentId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, seq])
+  @@index([companyId, status, dueOn])
+  @@map("project_milestones")
 }
