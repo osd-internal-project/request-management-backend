@@ -9251,6 +9251,89 @@
         ]
       }
     },
+    "/api/v1/contract-requests/{requestId}/package": {
+      "get": {
+        "description": "เก็บตอนยื่นคำขอ: เงื่อนไขรอบต่อรองล่าสุด + ขอบเขตงาน/รายการส่งมอบ/สมมติฐานของ Solution ที่อนุมัติ",
+        "operationId": "ContractDraftsController_viewPackage",
+        "parameters": [
+          {
+            "name": "requestId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ข้อมูลการค้าและขอบเขตงานที่มากับคำขอจัดทำสัญญา (CD-145)",
+        "tags": [
+          "contracts"
+        ],
+        "x-permission": [
+          "legal.contract.read"
+        ]
+      }
+    },
+    "/api/v1/contract-requests/{requestId}/package/refresh": {
+      "post": {
+        "operationId": "ContractDraftsController_refreshPackage",
+        "parameters": [
+          {
+            "name": "requestId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ดึงข้อมูลการค้าและขอบเขตงานจากดีลอีกครั้ง",
+        "tags": [
+          "contracts"
+        ],
+        "x-permission": [
+          "legal.contract.manage"
+        ]
+      }
+    },
     "/api/v1/contract-drafts/{id}/risk": {
       "get": {
         "description": "ปิดคำขอแล้ว การประเมินย้ายไปอยู่กับสัญญาที่เกิดจากคำขอ",

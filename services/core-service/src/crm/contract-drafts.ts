@@ -31,6 +31,10 @@ export const DRAFT_VARIABLES: Record<string, string> = {
   start_date: 'วันเริ่มสัญญา',
   end_date: 'วันสิ้นสุดสัญญา',
   trade_terms: 'เงื่อนไขการค้าที่ตกลง (ทุกข้อ)',
+  scope_of_work: 'งานในขอบเขต (จาก Solution ที่อนุมัติ)',
+  out_of_scope: 'งานนอกขอบเขต',
+  deliverables: 'รายการส่งมอบและเกณฑ์ตรวจรับ',
+  assumptions: 'สมมติฐานและสิ่งที่ต้องพึ่งพา',
 };
 
 const VARIABLE = /\{\{\s*([a-z0-9_]+)\s*\}\}/g;

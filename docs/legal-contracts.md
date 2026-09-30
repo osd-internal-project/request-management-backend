@@ -173,3 +173,18 @@ API: `GET/PUT /contracts/:id/terms` · `POST /contracts/:id/terms/liability-appr
   (คำขอบนแพลตฟอร์มไม่ถูกยกเลิกอัตโนมัติ — แต่ไม่นับแล้ว)
 - `GET /contract-drafts/:id/approval` → `blockers`, `canRequest`, `approvedVersionNo`, `current`, `voided`
 - migration `20260929600000_contract_draft_approval`
+
+# CD-145 คำขอจัดทำสัญญา
+
+คำขอจัดทำสัญญา (ประเภทที่ตั้งใน CRM, CD-81) ที่ยื่นจากหน้าดีล — **ตอนยื่น** (`request.submitted`) ระบบแนบ
+`contract_request_packages` ให้อัตโนมัติ:
+- เงื่อนไขที่ตกลงของ **รอบต่อรองล่าสุด** (CD-79) ทุกข้อ พร้อมป้ายไม่ตรงมาตรฐาน
+- **ขอบเขตงานของ Solution ที่อนุมัติล่าสุด** ของดีล (CD-134/143): งานในขอบเขต · นอกขอบเขต · รายการส่งมอบ + เกณฑ์ตรวจรับ ·
+  สมมติฐาน (CD-133)
+- สิ่งที่ดีลยังไม่มี (ไม่มีการต่อรอง / ไม่มี Solution ที่อนุมัติ) บอกไว้ใน `missing`
+
+เป็น **snapshot** — แก้ดีลภายหลังไม่เปลี่ยน · ยื่นซ้ำ (หลังถูกส่งกลับ) เก็บใหม่ · ฝ่ายกฎหมายกด "ดึงจากดีลอีกครั้ง" ได้ขณะคำขอยังเปิด ·
+ร่างสัญญา (CD-146) ใช้ข้อมูลนี้เติมตัวแปร `{{trade_terms}}`, `{{term_*}}`, `{{scope_of_work}}`, `{{out_of_scope}}`,
+`{{deliverables}}`, `{{assumptions}}` (ไม่มี package = เงื่อนไขจากรอบต่อรองล่าสุดตอนเริ่มร่าง)
+- API: `GET /contract-requests/:requestId/package` (`legal.contract.read`), `POST .../package/refresh` (`legal.contract.manage`)
+- migration `20260929620000_contract_request_packages`

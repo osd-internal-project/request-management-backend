@@ -100,7 +100,42 @@ function harness(options: {
   status?: string;
   typeCode?: string;
   latest?: number;
+  /** CD-145 — the request's package, as captured on submit. */
+  captured?: boolean;
+  clauses?: { key: string; heading: string; body: string }[];
 }) {
+  const packageRow = options.captured
+    ? {
+        requestId: 'req-1',
+        opportunityId: 'opp-1',
+        negotiationRoundNo: 2,
+        tradeTerms: [
+          {
+            code: 'PAYMENT',
+            name: 'การชำระเงิน',
+            agreed: 'ภายใน 45 วัน',
+            standard: null,
+            nonStandard: true,
+            note: null,
+          },
+        ],
+        solutionId: 's-1',
+        solutionTitle: 'ระบบ ERP',
+        solutionVersionNo: 3,
+        inScope: ['ติดตั้งระบบ', 'อบรมผู้ใช้'],
+        outOfScope: ['ย้ายข้อมูลเก่า'],
+        deliverables: [
+          {
+            title: 'ระบบพร้อมใช้',
+            criteria: ['ผ่าน UAT', 'ไม่มี defect ร้ายแรง'],
+          },
+        ],
+        assumptionsText: 'ลูกค้าเตรียมเครื่องแม่ข่าย',
+        missing: [],
+        capturedAt: new Date(),
+        capturedBy: null,
+      }
+    : null;
   const request = {
     id: 'req-1',
     requestNo: 'CTR-2569-0001',
@@ -115,7 +150,7 @@ function harness(options: {
     id: 't-1',
     code: 'SVC',
     active: true,
-    clauses: [
+    clauses: options.clauses ?? [
       {
         key: 'c1',
         heading: 'คู่สัญญา',
@@ -239,6 +274,7 @@ function harness(options: {
     { findMany: jest.fn(() => Promise.resolve([])) } as never,
     { execute: (work: (client: typeof tx) => unknown) => work(tx) } as never,
     { record: jest.fn(() => Promise.resolve()) } as never,
+    { findFirst: jest.fn(() => Promise.resolve(packageRow)) } as never,
   );
   return { service, tx, created, draftRow };
 }
@@ -258,6 +294,32 @@ describe('CD-146 ContractDraftsService', () => {
     );
     expect(draftRow.missing).toEqual(['party_address']);
     expect(created[0]).toMatchObject({ versionNo: 1 });
+  });
+
+  it("CD-145: the request's package fills the scope of work, and its terms win over the deal's latest round", async () => {
+    const { service, created } = harness({
+      captured: true,
+      clauses: [
+        {
+          key: 'c1',
+          heading: 'ขอบเขตงาน',
+          body: '{{scope_of_work}}\nนอกขอบเขต: {{out_of_scope}}\n{{deliverables}}',
+        },
+        {
+          key: 'c2',
+          heading: 'การชำระเงิน',
+          body: '{{term_payment}} · {{assumptions}}',
+        },
+      ],
+    });
+    await service.start({ request_id: 'req-1', template_id: 't-1' }, legal);
+    const clauses = created[0].clauses as { body: string }[];
+    expect(clauses[0].body).toBe(
+      '1. ติดตั้งระบบ\n2. อบรมผู้ใช้\nนอกขอบเขต: 1. ย้ายข้อมูลเก่า\n' +
+        '1. ระบบพร้อมใช้ — เกณฑ์ตรวจรับ: ผ่าน UAT; ไม่มี defect ร้ายแรง',
+    );
+    // captured on submit: 45 days, not the deal's round (30 days) today
+    expect(clauses[1].body).toBe('ภายใน 45 วัน · ลูกค้าเตรียมเครื่องแม่ข่าย');
   });
 
   it('only a contract request takes a draft; a finished one is read-only', async () => {

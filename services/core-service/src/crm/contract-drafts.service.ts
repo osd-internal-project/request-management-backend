@@ -23,6 +23,10 @@ import {
   type Clause,
 } from './contract-drafts';
 import { ContractTemplatesService } from './contract-templates.service';
+import {
+  ContractRequestPackageRepository,
+  present as presentPackage,
+} from './contract-request-package.service';
 import { CustomerLocationRepository } from './customer-child.repositories';
 import { CustomerRepository } from './customer.repository';
 import {
@@ -162,6 +166,7 @@ export class ContractDraftsService {
     private readonly members: CompanyMemberRepository,
     private readonly transactions: PrismaTransactionService,
     private readonly audit: AuditWriter,
+    private readonly packages: ContractRequestPackageRepository,
   ) {}
 
   /** The draft card on a request: whether it takes a draft, and the draft. */
@@ -513,21 +518,46 @@ export class ContractDraftsService {
       values.party_name = form.counterparty.trim();
     }
 
-    if (deal) {
+    // CD-145 — what the request brought, as captured on submit; the deal's
+    // latest round only when nothing was captured
+    const captured = await this.packages.findFirst({
+      where: { requestId: request.id },
+    });
+    let terms: RecordedTerm[] = [];
+    if (captured) {
+      terms = (Array.isArray(captured.tradeTerms)
+        ? captured.tradeTerms
+        : []) as unknown as RecordedTerm[];
+      const lines = (items: string[]) =>
+        items.map((item, index) => `${index + 1}. ${item}`).join('\n');
+      const view = presentPackage(captured);
+      values.scope_of_work = lines(view.inScope);
+      values.out_of_scope = lines(view.outOfScope);
+      values.deliverables = view.deliverables
+        .map(
+          (item, index) =>
+            `${index + 1}. ${item.title}` +
+            (item.criteria?.length
+              ? ` — เกณฑ์ตรวจรับ: ${item.criteria.join('; ')}`
+              : ''),
+        )
+        .join('\n');
+      values.assumptions = view.assumptionsText ?? '';
+    } else if (deal) {
       const round = (await this.rounds.findFirst({
         where: { opportunityId: deal.id },
         orderBy: { roundNo: 'desc' },
         select: { terms: true },
       })) as { terms: unknown } | null;
-      const terms = (
+      terms = (
         Array.isArray(round?.terms) ? round.terms : []
       ) as RecordedTerm[];
-      values.trade_terms = terms
-        .map((term) => `${term.name}: ${term.agreed}`)
-        .join('\n');
-      for (const term of terms) {
-        if (term.code) values[termVariable(term.code)] = term.agreed;
-      }
+    }
+    values.trade_terms = terms
+      .map((term) => `${term.name}: ${term.agreed}`)
+      .join('\n');
+    for (const term of terms) {
+      if (term.code) values[termVariable(term.code)] = term.agreed;
     }
     return values;
   }

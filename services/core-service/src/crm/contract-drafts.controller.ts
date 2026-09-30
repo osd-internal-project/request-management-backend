@@ -17,6 +17,7 @@ import { ContractTemplatesService } from './contract-templates.service';
 import { ContractReviewsService } from './contract-reviews.service';
 import { ContractRiskService } from './contract-risk.service';
 import { ContractDraftApprovalService } from './contract-draft-approval.service';
+import { ContractRequestPackageService } from './contract-request-package.service';
 import {
   AnswerReviewCommentDto,
   CompareVersionsQueryDto,
@@ -43,7 +44,32 @@ export class ContractDraftsController {
     private readonly reviews: ContractReviewsService,
     private readonly risk: ContractRiskService,
     private readonly approval: ContractDraftApprovalService,
+    private readonly packages: ContractRequestPackageService,
   ) {}
+
+  @ApiOperation({
+    summary: 'ข้อมูลการค้าและขอบเขตงานที่มากับคำขอจัดทำสัญญา (CD-145)',
+    description:
+      'เก็บตอนยื่นคำขอ: เงื่อนไขรอบต่อรองล่าสุด + ขอบเขตงาน/รายการส่งมอบ/สมมติฐานของ Solution ที่อนุมัติ',
+  })
+  @Get('contract-requests/:requestId/package')
+  @Permissions('legal.contract.read')
+  viewPackage(
+    @Param('requestId') requestId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.packages.view(requestId, principal);
+  }
+
+  @ApiOperation({ summary: 'ดึงข้อมูลการค้าและขอบเขตงานจากดีลอีกครั้ง' })
+  @Post('contract-requests/:requestId/package/refresh')
+  @Permissions('legal.contract.manage')
+  refreshPackage(
+    @Param('requestId') requestId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.packages.refresh(requestId, principal);
+  }
 
   @ApiOperation({
     summary: 'ประเมินความเสี่ยงของร่าง (CD-158 บนร่าง, CD-159)',

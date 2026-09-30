@@ -3949,6 +3949,39 @@ model ContractDraftApproval {
   @@map("contract_draft_approvals")
 }
 
+/// CD-145 — what a contract request brings Legal, captured when it is
+/// submitted: the terms agreed in the deal's latest negotiation round (CD-79)
+/// and the scope of work of the deal's approved Solution (CD-134/143), so
+/// Legal does not chase documents and later deal edits do not change what
+/// was asked. Legal may capture it again while the request is open.
+model ContractRequestPackage {
+  requestId     String @id
+  companyId     String
+  opportunityId String
+
+  negotiationRoundNo Int?
+  /// RecordedTerm[] of that round
+  tradeTerms         Json  @default("[]")
+
+  solutionId        String?
+  solutionTitle     String?
+  solutionVersionNo Int?
+  inScope           Json    @default("[]")
+  outOfScope        Json    @default("[]")
+  deliverables      Json    @default("[]")
+  assumptionsText   String?
+
+  /// What was not there to capture (no negotiation, no approved Solution).
+  missing String[] @default([])
+
+  capturedAt DateTime @default(now())
+  /// NULL = captured on submit; otherwise who captured it again.
+  capturedBy String?
+
+  @@index([companyId])
+  @@map("contract_request_packages")
+}
+
 /// CD-161 — who else may open a confidential contract.
 model ContractAccess {
   contractId String

@@ -126,6 +126,10 @@ import {
   ContractDraftApprovalRepository,
   ContractDraftApprovalService,
 } from './contract-draft-approval.service';
+import {
+  ContractRequestPackageRepository,
+  ContractRequestPackageService,
+} from './contract-request-package.service';
 import { CustomerApprovalService } from './customer-approval.service';
 import { RequestTypeRepository } from '../requests/request-type.repository';
 import { HandoversService } from './handovers.service';
@@ -258,6 +262,9 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     ContractReviewsService,
     ContractDraftApprovalRepository,
     ContractDraftApprovalService,
+    // CD-145 — reads the approved Solution (SolutionVersionRepository below)
+    ContractRequestPackageRepository,
+    ContractRequestPackageService,
     // CD-84
     HandoversService,
     HandoverChecklistItemRepository,
@@ -326,6 +333,7 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     ContractDraftsService,
     ContractReviewsService,
     ContractDraftApprovalService,
+    ContractRequestPackageService,
     HandoversService,
     KycService,
     CustomerApprovalService,

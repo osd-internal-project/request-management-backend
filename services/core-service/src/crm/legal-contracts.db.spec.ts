@@ -31,6 +31,15 @@ import {
 } from './contract-templates.service';
 import { RequestRepository } from '../requests/request.repository';
 import {
+  ContractRequestPackageRepository,
+  ContractRequestPackageService,
+} from './contract-request-package.service';
+import { SolutionVersionRepository } from '../presales/solution.repositories';
+import {
+  NegotiationRoundRepository,
+  OpportunityRepository,
+} from './sales.repositories';
+import {
   ContractDraftApprovalRepository,
   ContractDraftApprovalService,
 } from './contract-draft-approval.service';
@@ -353,6 +362,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         new CompanyMemberRepository(client),
         transactions,
         audit,
+        new ContractRequestPackageRepository(client),
       );
       const legal = as(legalUser, true);
       const template = await templates.create(
@@ -559,6 +569,56 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
           where: { requestId: request.id },
         });
         await prisma.contractTemplate.delete({ where: { id: template.id } });
+        await prisma.request.delete({ where: { id: request.id } });
+      }
+    });
+
+    it('CD-145: a contract request from a deal carries its terms and scope, captured on submit', async () => {
+      const client = prisma as never;
+      const [type, deal] = await Promise.all([
+        prisma.requestType.findFirst({ select: { id: true, code: true } }),
+        prisma.opportunity.findFirst({
+          where: { companyId },
+          select: { id: true, opportunityCode: true },
+        }),
+      ]);
+      if (!type || !deal) return;
+      const request = await prisma.request.create({
+        data: {
+          requestTypeId: type.id,
+          typeCode: type.code,
+          companyId,
+          requesterId: legalUser,
+          status: 'submitted',
+          refType: 'opportunity',
+          refId: deal.opportunityCode,
+        },
+      });
+      try {
+        const service = new ContractRequestPackageService(
+          new ContractRequestPackageRepository(client),
+          new RequestRepository(client),
+          {
+            findFirst: () =>
+              Promise.resolve({ contractRequestTypeCode: type.code }),
+          } as never,
+          new OpportunityRepository(client),
+          new NegotiationRoundRepository(client),
+          new SolutionVersionRepository(client),
+          { on: () => undefined } as never,
+          { record: () => Promise.resolve() } as never,
+        );
+        await service.captureOnSubmit(request.id);
+        const view = await service.view(request.id, as(legalUser, true));
+        expect(view.eligible).toBe(true);
+        expect(view.package).toMatchObject({ capturedOnSubmit: true });
+        expect(Array.isArray(view.package?.tradeTerms)).toBe(true);
+        const again = await service.refresh(request.id, as(legalUser, true));
+        expect(again.package?.capturedOnSubmit).toBe(false);
+      } finally {
+        await prisma.contractRequestPackage.deleteMany({
+          where: { requestId: request.id },
+        });
         await prisma.request.delete({ where: { id: request.id } });
       }
     });
