@@ -508,6 +508,23 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       ).rejects.toMatchObject({ code: 'CONFLICT' });
       const file = await milestones.evidence(projectId, first.id, member);
       expect(file.fileName).toBe('ใบตรวจรับ.pdf');
+
+      // CD-152 — Legal sees each payment against the project's milestones:
+      // the first progress payment is tied to nothing, the last one is due
+      const terms = await schedule.view(contractId, lawyer());
+      expect(terms.paymentCheck).toEqual({
+        problems: 1,
+        pending: 0,
+        billable: 1,
+      });
+      expect(terms.installments.map((row) => row.check.verdict)).toEqual([
+        'problem',
+        'ok',
+      ]);
+      expect(terms.installments[1]).toMatchObject({
+        projectMilestone: { title: 'ตรวจรับงาน', status: 'achieved' },
+        check: { billable: true },
+      });
     });
   },
 );

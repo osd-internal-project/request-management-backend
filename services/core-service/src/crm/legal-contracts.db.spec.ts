@@ -86,7 +86,11 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       const company = await prisma.company.findFirstOrThrow({
         select: { id: true },
       });
+      // real people, oldest first — not the ones projects.db makes and
+      // removes while this runs alongside it
       const users = await prisma.user.findMany({
+        where: { username: { not: { startsWith: 't175-' } } },
+        orderBy: { createdAt: 'asc' },
         take: 2,
         select: { id: true },
       });

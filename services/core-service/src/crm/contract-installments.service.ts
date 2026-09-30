@@ -14,6 +14,7 @@ import { CustomerContractRepository } from './contract.repositories';
 import {
   balanceOf,
   KIND_LABEL,
+  paymentTermsCheck,
   scheduleProblems,
   shareOf,
 } from './contract-installments';
@@ -41,6 +42,8 @@ interface ContractRef {
   contractNo: string;
   value: Money;
   currency: string;
+  signedOn: Date | null;
+  project: { id: string; projectNo: string } | null;
 }
 
 interface InstallmentRow {
@@ -56,7 +59,27 @@ interface InstallmentRow {
   guaranteeAmount: Money;
   guaranteeRef: string | null;
   guaranteeExpiresOn: Date | null;
+  /** CD-182 — the project milestone that unlocks it. */
+  projectMilestone?: {
+    id: string;
+    title: string;
+    status: string;
+    criteria: unknown;
+    dueOn: Date | null;
+    achievedOn: Date | null;
+  } | null;
 }
+
+const MILESTONE_SELECT = {
+  select: {
+    id: true,
+    title: true,
+    status: true,
+    criteria: true,
+    dueOn: true,
+    achievedOn: true,
+  },
+} as const;
 
 const num = (value: Money) =>
   value === null ? null : Number(value.toString());
@@ -73,7 +96,8 @@ const text = (value: string | null | undefined) => value?.trim() || null;
  * schedule is saved whole, and only when it adds up to the contract value to
  * the satang; a deposit carries the guarantee issued against it.
  *
- * Milestones are free text until PM (CD-152) has them; billing goes to SAP
+ * CD-152 — each payment is checked against the project milestone tied to it
+ * (CD-182): measurable, due in time, billable once achieved. Billing goes to SAP
  * later — this is the plan it will bill from.
  */
 @Injectable()
@@ -90,7 +114,8 @@ export class ContractInstallmentsService {
     const rows = (await this.installments.findMany({
       where: { contractId },
       orderBy: { seq: 'asc' },
-    })) as InstallmentRow[];
+      include: { projectMilestone: MILESTONE_SELECT },
+    })) as unknown as InstallmentRow[];
     return this.present(contract, rows);
   }
 
@@ -187,13 +212,43 @@ export class ContractInstallmentsService {
       before: { installments: summary(before) },
       after: { installments: summary(after) },
     });
-    return this.present(contract, after);
+    // CD-182 — shown with the milestones the ties followed to
+    return this.view(contractId, actor);
   }
 
   private present(contract: ContractRef, rows: InstallmentRow[]) {
     const value = num(contract.value);
     const amounts = rows.map((row) => num(row.amount) ?? 0);
+    const terms = paymentTermsCheck(
+      rows.map((row) => ({
+        seq: row.seq,
+        kind: row.kind,
+        dueOn: day(row.dueOn),
+        milestone: row.projectMilestone
+          ? {
+              title: row.projectMilestone.title,
+              status: row.projectMilestone.status,
+              criteria: Array.isArray(row.projectMilestone.criteria)
+                ? row.projectMilestone.criteria.length
+                : 0,
+              dueOn: day(row.projectMilestone.dueOn),
+              achievedOn: day(row.projectMilestone.achievedOn),
+            }
+          : null,
+      })),
+      {
+        signed: Boolean(contract.signedOn),
+        projectOpen: Boolean(contract.project),
+      },
+    );
     return {
+      // CD-152 — each payment against the project's milestones
+      project: contract.project,
+      paymentCheck: {
+        problems: terms.problems,
+        pending: terms.pending,
+        billable: terms.billable,
+      },
       contractValue: value,
       currency: contract.currency,
       ...balanceOf(amounts, value),
@@ -211,6 +266,16 @@ export class ContractInstallmentsService {
         guaranteeAmount: num(row.guaranteeAmount),
         guaranteeRef: row.guaranteeRef,
         guaranteeExpiresOn: day(row.guaranteeExpiresOn),
+        projectMilestone: row.projectMilestone
+          ? {
+              id: row.projectMilestone.id,
+              title: row.projectMilestone.title,
+              status: row.projectMilestone.status,
+              dueOn: day(row.projectMilestone.dueOn),
+              achievedOn: day(row.projectMilestone.achievedOn),
+            }
+          : null,
+        check: terms.rows[index],
       })),
     };
   }
@@ -228,6 +293,8 @@ export class ContractInstallmentsService {
         contractNo: true,
         value: true,
         currency: true,
+        signedOn: true,
+        project: { select: { id: true, projectNo: true } },
       },
     })) as ContractRef | null;
     if (!found) throw new AppError('NOT_FOUND', 'ไม่พบสัญญาที่ระบุ');

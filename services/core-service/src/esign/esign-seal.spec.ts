@@ -14,6 +14,10 @@ async function original(pages: number) {
   return doc.save();
 }
 
+// embedding the Thai font takes seconds; under the full suite the default 5s
+// was not always enough
+jest.setTimeout(30_000);
+
 describe('CD-169/170 sealing', () => {
   it('draws each signature in its field, adds the signature page and the evidence', async () => {
     const signedAt = new Date('2026-09-30T03:15:00Z');

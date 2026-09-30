@@ -1,5 +1,6 @@
 import type { Principal } from '@request-management/share';
 import {
+  paymentTermsCheck,
   balanceOf,
   scheduleProblems,
   shareOf,
@@ -218,5 +219,95 @@ describe('CD-164 ContractInstallmentsService', () => {
     await expect(service.view('c-9', legal)).rejects.toMatchObject({
       code: 'NOT_FOUND',
     });
+  });
+});
+
+describe('CD-152 paymentTermsCheck', () => {
+  const milestone = (over: Record<string, unknown> = {}) => ({
+    title: 'ตรวจรับงาน',
+    status: 'planned',
+    criteria: 2,
+    dueOn: '2027-03-01',
+    achievedOn: null,
+    ...over,
+  });
+  const signedWithProject = { signed: true, projectOpen: true };
+
+  it('a deposit is billable on signing; retention waits on the warranty', () => {
+    const { rows } = paymentTermsCheck(
+      [
+        { seq: 1, kind: 'deposit', dueOn: null, milestone: null },
+        { seq: 2, kind: 'retention', dueOn: null, milestone: null },
+      ],
+      signedWithProject,
+    );
+    expect(rows[0]).toMatchObject({ verdict: 'ok', billable: true });
+    expect(rows[1]).toMatchObject({ verdict: 'pending', billable: false });
+    expect(
+      paymentTermsCheck(
+        [{ seq: 1, kind: 'deposit', dueOn: null, milestone: null }],
+        { signed: false, projectOpen: false },
+      ).rows[0].billable,
+    ).toBe(false);
+  });
+
+  it('a progress payment must be tied to a measurable milestone once the project is open', () => {
+    const untied = {
+      seq: 2,
+      kind: 'progress',
+      dueOn: '2027-03-31',
+      milestone: null,
+    };
+    expect(
+      paymentTermsCheck([untied], { signed: true, projectOpen: false }).rows[0]
+        .verdict,
+    ).toBe('pending');
+    const open = paymentTermsCheck([untied], signedWithProject);
+    expect(open.problems).toBe(1);
+    expect(open.rows[0].notes.join()).toContain('ยังไม่ได้ผูก');
+    expect(
+      paymentTermsCheck(
+        [{ ...untied, milestone: milestone({ criteria: 0 }) }],
+        signedWithProject,
+      ).rows[0].verdict,
+    ).toBe('problem');
+    expect(
+      paymentTermsCheck(
+        [{ ...untied, milestone: milestone({ status: 'cancelled' }) }],
+        signedWithProject,
+      ).rows[0].verdict,
+    ).toBe('problem');
+  });
+
+  it('flags a milestone due after the payment, and bills once it is achieved', () => {
+    const late = paymentTermsCheck(
+      [
+        {
+          seq: 3,
+          kind: 'final',
+          dueOn: '2027-03-31',
+          milestone: milestone({ dueOn: '2027-04-15' }),
+        },
+      ],
+      signedWithProject,
+    );
+    expect(late.rows[0]).toMatchObject({ verdict: 'problem', billable: false });
+    const done = paymentTermsCheck(
+      [
+        {
+          seq: 3,
+          kind: 'final',
+          dueOn: '2027-03-31',
+          milestone: milestone({
+            dueOn: '2027-04-15',
+            status: 'achieved',
+            achievedOn: '2027-03-20',
+          }),
+        },
+      ],
+      signedWithProject,
+    );
+    expect(done.rows[0]).toMatchObject({ verdict: 'ok', billable: true });
+    expect(done.billable).toBe(1);
   });
 });

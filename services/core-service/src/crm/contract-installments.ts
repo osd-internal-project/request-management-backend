@@ -119,3 +119,99 @@ export function scheduleProblems(
   }
   return problems;
 }
+
+// --- CD-152 ตรวจเงื่อนไขชำระเงิน -------------------------------------------------
+
+export interface TermsInstallment {
+  seq: number;
+  kind: string;
+  dueOn: string | null;
+  /** The project milestone tied to it (CD-182), if any. */
+  milestone: {
+    title: string;
+    status: string;
+    criteria: number;
+    dueOn: string | null;
+    achievedOn: string | null;
+  } | null;
+}
+
+export type TermsVerdict = 'ok' | 'problem' | 'pending';
+
+export interface TermsRow {
+  seq: number;
+  verdict: TermsVerdict;
+  /** May be billed now. */
+  billable: boolean;
+  notes: string[];
+}
+
+/**
+ * CD-152 — is each payment tied to something measurable in the project,
+ * not a line in a document? A deposit is due on signing. A progress or
+ * final payment waits on a project milestone with criteria, due no later
+ * than the payment, and may be billed once it is achieved. Retention
+ * follows the warranty (acceptance, from Delivery). Before a project is
+ * opened, a payment still to be tied is pending, not a problem.
+ */
+export function paymentTermsCheck(
+  rows: readonly TermsInstallment[],
+  context: { signed: boolean; projectOpen: boolean },
+): { rows: TermsRow[]; problems: number; pending: number; billable: number } {
+  const out = rows.map((row): TermsRow => {
+    const notes: string[] = [];
+    if (row.kind === 'deposit') {
+      if (!context.signed) notes.push('วางบิลได้เมื่อสัญญาลงนามครบ');
+      return {
+        seq: row.seq,
+        verdict: 'ok',
+        billable: context.signed,
+        notes,
+      };
+    }
+    if (row.kind === 'retention') {
+      notes.push('คืนเมื่อพ้นระยะประกันผลงาน — นับจากวันตรวจรับงาน');
+      return { seq: row.seq, verdict: 'pending', billable: false, notes };
+    }
+    const milestone = row.milestone;
+    if (!milestone || milestone.status === 'cancelled') {
+      if (!context.projectOpen) {
+        notes.push(
+          'ยังไม่ได้เปิดโครงการ — ผูกกับหมุดหมายของโครงการเมื่อเปิดแล้ว',
+        );
+        return { seq: row.seq, verdict: 'pending', billable: false, notes };
+      }
+      notes.push('ยังไม่ได้ผูกกับหมุดหมายที่วัดได้ในโครงการ');
+      return { seq: row.seq, verdict: 'problem', billable: false, notes };
+    }
+    let verdict: TermsVerdict = 'ok';
+    if (!milestone.criteria) {
+      verdict = 'problem';
+      notes.push(`หมุดหมาย "${milestone.title}" ยังไม่มีเกณฑ์การบรรลุ`);
+    }
+    if (
+      milestone.status !== 'achieved' &&
+      milestone.dueOn &&
+      row.dueOn &&
+      milestone.dueOn > row.dueOn
+    ) {
+      verdict = 'problem';
+      notes.push(
+        `หมุดหมายกำหนดเสร็จ ${milestone.dueOn} หลังวันครบกำหนดชำระ ${row.dueOn}`,
+      );
+    }
+    const billable = milestone.status === 'achieved';
+    notes.push(
+      billable
+        ? `บรรลุ "${milestone.title}" แล้ว${milestone.achievedOn ? ` (${milestone.achievedOn})` : ''} — วางบิลได้`
+        : `รอหมุดหมาย "${milestone.title}"`,
+    );
+    return { seq: row.seq, verdict, billable, notes };
+  });
+  return {
+    rows: out,
+    problems: out.filter((row) => row.verdict === 'problem').length,
+    pending: out.filter((row) => row.verdict === 'pending').length,
+    billable: out.filter((row) => row.billable).length,
+  };
+}
