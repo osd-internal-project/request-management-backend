@@ -1,4 +1,7 @@
 import {
+  clausesFromText,
+  torCounts,
+  torText,
   criteriaFromText,
   demoCloseGaps,
   demoCounts,
@@ -354,7 +357,9 @@ describe('CD-140 clarification rules', () => {
 
   it('an open scope change blocks approval', () => {
     expect(
-      approvalBlocker({ status: 'locked', approvalStatus: 'none' }, true, 2),
+      approvalBlocker({ status: 'locked', approvalStatus: 'none' }, true, {
+        scopeUpdates: 2,
+      }),
     ).toBe('มีคำตอบที่กระทบขอบเขตยังไม่ได้แก้ SOW 2 ข้อ');
   });
 
@@ -460,7 +465,9 @@ describe('CD-141 risk rules', () => {
 
   it('an unplanned serious risk blocks approval', () => {
     expect(
-      approvalBlocker({ status: 'locked', approvalStatus: 'none' }, true, 0, 1),
+      approvalBlocker({ status: 'locked', approvalStatus: 'none' }, true, {
+        risksWithoutPlan: 1,
+      }),
     ).toContain('ความเสี่ยงระดับสูง/วิกฤติ');
   });
 
@@ -547,13 +554,9 @@ describe('CD-139 demo rules', () => {
 
   it('an open demo finding blocks approval', () => {
     expect(
-      approvalBlocker(
-        { status: 'locked', approvalStatus: 'none' },
-        true,
-        0,
-        0,
-        1,
-      ),
+      approvalBlocker({ status: 'locked', approvalStatus: 'none' }, true, {
+        demoFindings: 1,
+      }),
     ).toContain('ข้อค้นพบจาก Demo/POC');
   });
 
@@ -583,6 +586,87 @@ describe('CD-139 demo rules', () => {
         '   - failover < 30s: ผ่าน (12s)',
         '   สรุปผล: ผ่าน',
         '   ข้อค้นพบ: ต้องเพิ่ม license (ต้องปรับ Solution)',
+      ].join('\n'),
+    );
+  });
+});
+
+describe('CD-138 TOR rules', () => {
+  const clause = (
+    mandatory: boolean,
+    compliance: 'unanswered' | 'comply' | 'partial' | 'not_comply',
+  ) => ({ mandatory, compliance });
+
+  it('a mandatory clause gaps when unanswered or not complied; partial is answered but flagged', () => {
+    expect(
+      torCounts([
+        clause(true, 'comply'),
+        clause(true, 'partial'),
+        clause(true, 'unanswered'),
+        clause(true, 'not_comply'),
+        clause(false, 'unanswered'),
+      ]),
+    ).toEqual({
+      total: 5,
+      mandatory: 4,
+      mandatory_answered: 2,
+      mandatory_gaps: 2,
+      partial: 1,
+      unanswered: 2,
+    });
+  });
+
+  it('an open mandatory clause blocks approval', () => {
+    expect(
+      approvalBlocker({ status: 'locked', approvalStatus: 'none' }, true, {
+        torMandatoryGaps: 3,
+      }),
+    ).toContain('ข้อบังคับของ TOR ยังไม่ครบ 3 ข้อ');
+  });
+
+  it('pasted clauses split off their numbers', () => {
+    expect(
+      clausesFromText(
+        '3.2.1 รองรับ 13 สาขา\nข้อ 4 รับประกัน 3 ปี\n(ก) มีศูนย์บริการในประเทศ\n\nไม่มีเลขข้อ',
+      ),
+    ).toEqual([
+      { clauseNo: '3.2.1', text: 'รองรับ 13 สาขา' },
+      { clauseNo: '4', text: 'รับประกัน 3 ปี' },
+      { clauseNo: '(ก)', text: 'มีศูนย์บริการในประเทศ' },
+      { clauseNo: '', text: 'ไม่มีเลขข้อ' },
+    ]);
+  });
+
+  it('the TOR reads as text with its facts and answers', () => {
+    expect(
+      torText(
+        {
+          buyer: 'กรมตัวอย่าง',
+          projectNo: 'e-GP 123',
+          submissionDeadline: new Date('2026-10-15T03:00:00Z'),
+          bidBond: '5%',
+        },
+        [
+          {
+            seq: 1,
+            clauseNo: '3.2.1',
+            text: 'รองรับ 13 สาขา',
+            mandatory: true,
+            compliance: 'comply',
+            response: 'รองรับ 20 สาขา',
+            reference: 'SOW ข้อ 1',
+          },
+        ],
+      ),
+    ).toBe(
+      [
+        'ผู้ซื้อ: กรมตัวอย่าง',
+        'เลขโครงการ: e-GP 123',
+        'กำหนดยื่น: 2026-10-15 03:00',
+        'หลักประกันซอง: 5%',
+        '3.2.1. [บังคับ] รองรับ 13 สาขา — เป็นไปตาม',
+        '   ตอบ: รองรับ 20 สาขา',
+        '   อ้างอิง: SOW ข้อ 1',
       ].join('\n'),
     );
   });

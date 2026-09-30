@@ -1390,6 +1390,14 @@ async function seedRequestTypes(
             'x-multiline': true,
             'x-order': 80,
           },
+          // CD-138 — the TOR and how each clause is answered.
+          tor: {
+            type: 'string',
+            title: 'TOR / RFP และการตอบข้อกำหนด',
+            maxLength: 50000,
+            'x-multiline': true,
+            'x-order': 96,
+          },
           // CD-139 — what the demos showed.
           demos: {
             type: 'string',

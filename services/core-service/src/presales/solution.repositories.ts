@@ -130,3 +130,45 @@ export class SolutionDemoFindingRepository extends BaseRepository<
     return client.solutionDemoFinding;
   }
 }
+
+/** CD-138 ข้อมูลหลักของ TOR / RFP. */
+@Injectable()
+export class SolutionTorRepository extends BaseRepository<
+  PrismaService['solutionTor']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.solutionTor;
+  }
+}
+
+/** CD-138 ไฟล์ TOR / RFP ต้นฉบับ. */
+@Injectable()
+export class SolutionTorFileRepository extends BaseRepository<
+  PrismaService['solutionTorFile']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.solutionTorFile;
+  }
+}
+
+/** CD-138 ข้อกำหนดของ TOR รายข้อ. */
+@Injectable()
+export class SolutionTorClauseRepository extends BaseRepository<
+  PrismaService['solutionTorClause']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.solutionTorClause;
+  }
+}

@@ -20,6 +20,7 @@ import {
   FEASIBILITY_VERDICTS,
   RISK_STATUSES,
   CRITERION_RESULTS,
+  TOR_COMPLIANCE,
   REQUIREMENT_ASSESSMENTS,
   REQUIREMENT_KINDS,
 } from '../solution-rules';
@@ -502,4 +503,106 @@ export class AddFindingDto {
   @IsOptional()
   @IsBoolean()
   requires_change?: boolean;
+}
+
+/** CD-138 — ข้อมูลหลักของ TOR (ส่งเฉพาะที่แก้). */
+export class SaveTorDto {
+  @ApiPropertyOptional({ description: 'ผู้ซื้อ / หน่วยงาน' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  buyer?: string;
+
+  @ApiPropertyOptional({ description: 'เลขโครงการ / เลข e-GP' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  project_no?: string;
+
+  @ApiPropertyOptional({
+    description: 'กำหนดยื่นข้อเสนอ (ISO datetime); "" = ล้าง',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  submission_deadline?: string;
+
+  @ApiPropertyOptional({ description: 'หลักประกันซอง' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  bid_bond?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  note?: string;
+}
+
+/** CD-138 — ข้อกำหนดหนึ่งข้อ. */
+export class CreateTorClauseDto {
+  @ApiPropertyOptional({ description: 'เลขข้อตาม TOR' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  clause_no?: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(8000)
+  text!: string;
+
+  @ApiPropertyOptional({ description: 'ข้อบังคับ (ค่าเริ่มต้น true)' })
+  @IsOptional()
+  @IsBoolean()
+  mandatory?: boolean;
+}
+
+/** CD-138 — วางข้อกำหนดทีละหลายข้อ (ข้อละบรรทัด; เลขข้อนำหน้าถูกแยกให้). */
+export class BulkTorClausesDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(100000)
+  text!: string;
+}
+
+/** CD-138 — แก้ข้อกำหนด หรือบันทึกการตอบ (ส่งเฉพาะที่แก้). */
+export class UpdateTorClauseDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  clause_no?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(8000)
+  text?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  mandatory?: boolean;
+
+  @ApiPropertyOptional({ enum: TOR_COMPLIANCE })
+  @IsOptional()
+  @IsIn(TOR_COMPLIANCE)
+  compliance?: (typeof TOR_COMPLIANCE)[number];
+
+  @ApiPropertyOptional({ description: 'คำตอบ / วิธีที่ข้อเสนอเป็นไปตาม' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(8000)
+  response?: string;
+
+  @ApiPropertyOptional({ description: 'ตอบไว้ที่ไหน เช่น SOW ข้อ 2' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  reference?: string;
 }

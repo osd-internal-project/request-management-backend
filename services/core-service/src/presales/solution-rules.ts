@@ -466,6 +466,21 @@ export type SolutionApprovalStatus =
  * longer what is offered — and not twice while a request is open or after it
  * was approved (a change is a new version, which starts over).
  */
+/**
+ * Items elsewhere on the Solution that keep a version from going for
+ * approval — each a count of what is still open.
+ */
+export interface OpenApprovalItems {
+  /** CD-140 — scope-affecting answers not yet worked into the SOW. */
+  scopeUpdates?: number;
+  /** CD-141 — open high/critical risks without an owner or a plan. */
+  risksWithoutPlan?: number;
+  /** CD-139 — Demo/POC findings the Solution must change for, still open. */
+  demoFindings?: number;
+  /** CD-138 — mandatory TOR clauses unanswered or answered "not comply". */
+  torMandatoryGaps?: number;
+}
+
 export function approvalBlocker(
   version: {
     status: string;
@@ -473,13 +488,14 @@ export function approvalBlocker(
     feasibility?: FeasibilityVerdict;
   },
   isCurrent: boolean,
-  /** CD-140 — scope-affecting answers not yet worked into the SOW. */
-  openScopeUpdates = 0,
-  /** CD-141 — open high/critical risks without an owner or a plan. */
-  risksWithoutPlan = 0,
-  /** CD-139 — Demo/POC findings the Solution must change for, still open. */
-  openDemoFindings = 0,
+  open: OpenApprovalItems = {},
 ): string | null {
+  const {
+    scopeUpdates = 0,
+    risksWithoutPlan = 0,
+    demoFindings = 0,
+    torMandatoryGaps = 0,
+  } = open;
   if (version.status === 'draft') {
     return 'ยืนยันเวอร์ชันก่อน จึงขออนุมัติได้';
   }
@@ -493,16 +509,20 @@ export function approvalBlocker(
     return 'เวอร์ชันนี้อนุมัติแล้ว — ถ้าต้องแก้ให้เปิดเวอร์ชันใหม่';
   }
   // CD-140 — an answer that changed the scope must be in the SOW first.
-  if (openScopeUpdates > 0) {
-    return `มีคำตอบที่กระทบขอบเขตยังไม่ได้แก้ SOW ${openScopeUpdates} ข้อ`;
+  if (scopeUpdates > 0) {
+    return `มีคำตอบที่กระทบขอบเขตยังไม่ได้แก้ SOW ${scopeUpdates} ข้อ`;
   }
   // CD-141 — a serious risk goes with someone on it and a plan.
   if (risksWithoutPlan > 0) {
     return `มีความเสี่ยงระดับสูง/วิกฤติที่ยังไม่มีผู้รับผิดชอบหรือแนวทางลด ${risksWithoutPlan} ข้อ`;
   }
   // CD-139 — what the demo showed must be in the design first.
-  if (openDemoFindings > 0) {
-    return `มีข้อค้นพบจาก Demo/POC ที่ต้องปรับ Solution ยังไม่ได้ปรับ ${openDemoFindings} ข้อ`;
+  if (demoFindings > 0) {
+    return `มีข้อค้นพบจาก Demo/POC ที่ต้องปรับ Solution ยังไม่ได้ปรับ ${demoFindings} ข้อ`;
+  }
+  // CD-138 — a mandatory TOR clause must be answered, and not with a no.
+  if (torMandatoryGaps > 0) {
+    return `ข้อบังคับของ TOR ยังไม่ครบ ${torMandatoryGaps} ข้อ (ยังไม่ตอบ หรือไม่เป็นไปตาม)`;
   }
   // CD-133 — a design judged not feasible is recorded, not offered.
   if (version.feasibility === 'not_feasible') {
@@ -935,4 +955,107 @@ export function demosText(
       ].join('\n'),
     )
     .join('\n');
+}
+
+// --- CD-138 TOR / RFP --------------------------------------------------------------
+
+export const TOR_COMPLIANCE = [
+  'unanswered',
+  'comply',
+  'partial',
+  'not_comply',
+] as const;
+export type TorCompliance = (typeof TOR_COMPLIANCE)[number];
+
+export const TOR_COMPLIANCE_LABELS: Record<TorCompliance, string> = {
+  unanswered: 'ยังไม่ตอบ',
+  comply: 'เป็นไปตาม',
+  partial: 'เป็นไปตามบางส่วน',
+  not_comply: 'ไม่เป็นไปตาม',
+};
+
+export interface TorClauseState {
+  mandatory: boolean;
+  compliance: TorCompliance;
+}
+
+/**
+ * A mandatory clause the offer cannot go out with (user decision 30 ก.ย.
+ * 2569): not answered, or answered "not comply". "Partial" counts as
+ * answered but is flagged.
+ */
+export const torMandatoryGap = (row: TorClauseState) =>
+  row.mandatory &&
+  (row.compliance === 'unanswered' || row.compliance === 'not_comply');
+
+export function torCounts(rows: readonly TorClauseState[]) {
+  const mandatory = rows.filter((row) => row.mandatory);
+  return {
+    total: rows.length,
+    mandatory: mandatory.length,
+    mandatory_answered: mandatory.filter(
+      (row) => row.compliance === 'comply' || row.compliance === 'partial',
+    ).length,
+    mandatory_gaps: rows.filter(torMandatoryGap).length,
+    partial: rows.filter((row) => row.compliance === 'partial').length,
+    unanswered: rows.filter((row) => row.compliance === 'unanswered').length,
+  };
+}
+
+/**
+ * Clauses pasted from the TOR, one per line: a leading clause number
+ * ("3.2.1", "ข้อ 4", "(ก)") is split off; "*" or "[บังคับ]" marks nothing
+ * special — every clause starts mandatory and is unmarked by hand.
+ */
+export function clausesFromText(
+  text: string,
+): { clauseNo: string; text: string }[] {
+  return text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const match =
+        /^(?:ข้อ\s*)?((?:\d+\.)*\d+\.?|\([ก-ฮa-z0-9]+\)|[ก-ฮ]\.)\s+(.+)$/i.exec(
+          line,
+        );
+      return match
+        ? { clauseNo: match[1].replace(/\.$/, ''), text: match[2].trim() }
+        : { clauseNo: '', text: line };
+    });
+}
+
+/** The TOR as text, for the approval request and the handover. */
+export function torText(
+  facts: {
+    buyer: string;
+    projectNo: string;
+    submissionDeadline: Date | null;
+    bidBond: string;
+  } | null,
+  clauses: readonly (TorClauseState & {
+    seq: number;
+    clauseNo: string;
+    text: string;
+    response: string;
+    reference: string;
+  })[],
+): string {
+  const head = facts
+    ? [
+        facts.buyer && `ผู้ซื้อ: ${facts.buyer}`,
+        facts.projectNo && `เลขโครงการ: ${facts.projectNo}`,
+        facts.submissionDeadline &&
+          `กำหนดยื่น: ${facts.submissionDeadline.toISOString().slice(0, 16).replace('T', ' ')}`,
+        facts.bidBond && `หลักประกันซอง: ${facts.bidBond}`,
+      ].filter(Boolean)
+    : [];
+  const lines = clauses.map((row) =>
+    [
+      `${row.clauseNo || row.seq}. ${row.mandatory ? '[บังคับ] ' : ''}${row.text} — ${TOR_COMPLIANCE_LABELS[row.compliance]}`,
+      ...(row.response ? [`   ตอบ: ${row.response}`] : []),
+      ...(row.reference ? [`   อ้างอิง: ${row.reference}`] : []),
+    ].join('\n'),
+  );
+  return [...head, ...lines].join('\n');
 }

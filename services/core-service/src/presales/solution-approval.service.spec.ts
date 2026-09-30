@@ -29,6 +29,7 @@ function harness(
     clarifications?: Record<string, unknown>[];
     risks?: Record<string, unknown>[];
     demos?: Record<string, unknown>[];
+    torClauses?: Record<string, unknown>[];
   } = {},
 ) {
   const solutions = {
@@ -47,6 +48,13 @@ function harness(
     ),
     activeRisks: jest.fn(() => Promise.resolve(options.risks ?? [])),
     activeDemos: jest.fn(() => Promise.resolve(options.demos ?? [])),
+    activeTor: jest.fn(() =>
+      Promise.resolve({
+        facts: null,
+        files: [],
+        clauses: options.torClauses ?? [],
+      }),
+    ),
   };
   const versions = {
     findFirst: jest.fn((args: { where: Record<string, unknown> }) =>
@@ -191,6 +199,19 @@ describe('CD-143 solution approval', () => {
           equipment: [],
           findings: [{ requiresChange: true, resolvedVersionNo: null }],
         },
+      ],
+    });
+    await expect(
+      service.requestApproval('sol-1', 2, presales),
+    ).rejects.toMatchObject({ code: 'CONFLICT' });
+    expect(requests.create).not.toHaveBeenCalled();
+  });
+
+  it('CD-138: a mandatory TOR clause unanswered or not complied blocks approval', async () => {
+    const { service, requests } = harness({
+      torClauses: [
+        { mandatory: true, compliance: 'comply' },
+        { mandatory: true, compliance: 'not_comply' },
       ],
     });
     await expect(

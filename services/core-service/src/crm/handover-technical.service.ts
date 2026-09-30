@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import {
   SolutionClarificationRepository,
   SolutionDemoRepository,
+  SolutionTorClauseRepository,
+  SolutionTorRepository,
   SolutionRiskRepository,
   SolutionFileRepository,
   SolutionRequirementRepository,
@@ -47,6 +49,8 @@ export class HandoverTechnicalService {
     private readonly clarifications: SolutionClarificationRepository,
     private readonly risks: SolutionRiskRepository,
     private readonly demos: SolutionDemoRepository,
+    private readonly tors: SolutionTorRepository,
+    private readonly torClauses: SolutionTorClauseRepository,
   ) {}
 
   async candidate(opportunityId: string): Promise<TechnicalCandidate> {
@@ -103,7 +107,7 @@ export class HandoverTechnicalService {
       solution: { id: string; title: string };
     } | null;
     if (!version) return null;
-    const [requirements, files, clarifications, risks, demos] =
+    const [requirements, files, clarifications, risks, demos, tor, torClauses] =
       await Promise.all([
         this.requirements.findMany({
           where: { solutionId: version.solutionId, deletedAt: null },
@@ -188,6 +192,34 @@ export class HandoverTechnicalService {
             }[];
           }[]
         >,
+        // CD-138 — the TOR, and how each clause was answered.
+        this.tors.findFirst({
+          where: { solutionId: version.solutionId },
+          select: {
+            buyer: true,
+            projectNo: true,
+            submissionDeadline: true,
+            bidBond: true,
+          },
+        }) as Promise<{
+          buyer: string;
+          projectNo: string;
+          submissionDeadline: Date | null;
+          bidBond: string;
+        } | null>,
+        this.torClauses.findMany({
+          where: { solutionId: version.solutionId, deletedAt: null },
+          orderBy: { seq: 'asc' },
+          select: {
+            seq: true,
+            clauseNo: true,
+            text: true,
+            mandatory: true,
+            compliance: true,
+            response: true,
+            reference: true,
+          },
+        }),
       ]);
     return {
       solutionId: version.solution.id,
@@ -213,6 +245,8 @@ export class HandoverTechnicalService {
           level: riskLevel(riskScore(risk)),
         }))
         .sort((a, b) => b.score - a.score || a.seq - b.seq),
+      tor:
+        tor || torClauses.length ? { facts: tor, clauses: torClauses } : null,
       demos: demos.map((demo) => ({
         ...demo,
         criteria: readCriteria(demo.criteria),

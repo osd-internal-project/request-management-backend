@@ -4176,6 +4176,10 @@ model Solution {
   risks          SolutionRisk[]
   /// CD-139 — Demo / POC ที่จัดให้ลูกค้า.
   demos          SolutionDemo[]
+  /// CD-138 — TOR / RFP ของลูกค้า: ข้อมูลหลัก ไฟล์ต้นฉบับ และข้อกำหนดรายข้อ.
+  tor            SolutionTor?
+  torFiles       SolutionTorFile[]
+  torClauses     SolutionTorClause[]
 
   @@index([companyId, opportunityId])
   @@map("solutions")
@@ -4482,4 +4486,82 @@ model SolutionDemoFinding {
 
   @@index([demoId])
   @@map("solution_demo_findings")
+}
+
+/// CD-138 — การตอบข้อกำหนดของ TOR หนึ่งข้อ.
+enum TorCompliance {
+  unanswered
+  comply
+  partial
+  not_comply
+}
+
+/// CD-138 — ข้อมูลหลักของ TOR / RFP (หนึ่งต่อ Solution) — ผู้ซื้อ เลขโครงการ กำหนดยื่น
+/// หลักประกันซอง; ใช้ต่อในงาน Bid / No-Bid ภาครัฐภายหลัง.
+model SolutionTor {
+  id                 String    @id @default(uuid())
+  companyId          String
+  solutionId         String    @unique
+  buyer              String    @default("")
+  projectNo          String    @default("")
+  submissionDeadline DateTime?
+  bidBond            String    @default("")
+  note               String    @default("")
+
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  solution Solution @relation(fields: [solutionId], references: [id])
+
+  @@map("solution_tors")
+}
+
+/// CD-138 — ไฟล์ TOR / RFP ต้นฉบับ (และภาคผนวก/เอกสารชี้แจง).
+model SolutionTorFile {
+  id         String    @id @default(uuid())
+  companyId  String
+  solutionId String
+  fileName   String
+  mimeType   String
+  sizeBytes  Int
+  storageKey String
+  uploadedBy String
+  uploadedAt DateTime  @default(now())
+  deletedAt  DateTime?
+
+  solution Solution @relation(fields: [solutionId], references: [id])
+
+  @@index([solutionId])
+  @@map("solution_tor_files")
+}
+
+/// CD-138 — ข้อกำหนดของ TOR รายข้อ พร้อมการตอบ. ข้อบังคับ (`mandatory`) ที่ยังไม่ตอบ
+/// หรือตอบว่าไม่เป็นไปตาม ขออนุมัติ Solution ไม่ได้ (และส่งข้อเสนอไม่ได้ใน CD-137).
+/// ลบคือ soft delete.
+model SolutionTorClause {
+  id         String        @id @default(uuid())
+  companyId  String
+  solutionId String
+  seq        Int
+  /// เลขข้อตาม TOR เช่น "3.2.1".
+  clauseNo   String        @default("")
+  text       String
+  mandatory  Boolean       @default(true)
+  compliance TorCompliance @default(unanswered)
+  response   String        @default("")
+  /// ตอบไว้ที่ไหน เช่น "SOW ข้อ 2" / "ภาคผนวก ข".
+  reference  String        @default("")
+
+  createdBy String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  updatedBy String?
+  deletedAt DateTime?
+
+  solution Solution @relation(fields: [solutionId], references: [id])
+
+  @@index([solutionId])
+  @@map("solution_tor_clauses")
 }
