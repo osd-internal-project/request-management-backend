@@ -29,6 +29,8 @@ import {
   demosText,
   torCounts,
   torText,
+  boqText,
+  readBoq,
   type FeasibilityVerdict,
   type SolutionApprovalStatus,
 } from './solution-rules';
@@ -43,6 +45,7 @@ interface VersionRow {
   inScope: unknown;
   outOfScope: unknown;
   deliverables: unknown;
+  boq: unknown;
   assumptions: unknown;
   approvalStatus: SolutionApprovalStatus;
   approvalRequestId: string | null;
@@ -172,6 +175,8 @@ export class SolutionApprovalService implements OnModuleInit {
           ...(risks.length ? { risks: risksText(risks) } : {}),
           // CD-139 — what the demos showed.
           ...(demos.length ? { demos: demosText(demos) } : {}),
+          // CD-135 — the BOQ this version fixes, handed on to Pricing.
+          ...(readBoq(version.boq).length ? { boq: boqText(version.boq) } : {}),
           // CD-138 — the TOR and how each clause is answered.
           ...(tor.facts || tor.clauses.length
             ? { tor: torText(tor.facts, tor.clauses) }

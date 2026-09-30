@@ -5,6 +5,7 @@ import {
   IsBoolean,
   IsIn,
   IsInt,
+  IsNumber,
   IsISO8601,
   Min,
   Max,
@@ -21,6 +22,7 @@ import {
   RISK_STATUSES,
   CRITERION_RESULTS,
   TOR_COMPLIANCE,
+  BOQ_KINDS,
   REQUIREMENT_ASSESSMENTS,
   REQUIREMENT_KINDS,
 } from '../solution-rules';
@@ -60,6 +62,55 @@ export class AssumptionDto {
   @IsString()
   @MaxLength(10)
   needed_by?: string;
+}
+
+/** CD-135 — หนึ่งบรรทัดของ BOQ. */
+export class BoqLineDto {
+  @ApiProperty({ enum: BOQ_KINDS })
+  @IsString()
+  @MaxLength(20)
+  kind!: string;
+
+  @ApiPropertyOptional({ description: 'รหัสสินค้า SAP (ItemCode)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  product_code?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  name?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  description?: string;
+
+  @ApiPropertyOptional({ description: 'รุ่น / เวอร์ชัน' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  model?: string;
+
+  @ApiProperty()
+  @IsNumber()
+  quantity!: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  unit?: string;
+
+  @ApiPropertyOptional({
+    description: 'ต้นทุนอ้างอิงต่อหน่วย (บาท); null = ยังไม่มี',
+  })
+  @IsOptional()
+  @IsNumber()
+  ref_unit_cost?: number | null;
 }
 
 /** CD-134 — รายการส่งมอบพร้อมเกณฑ์ตรวจรับของรายการนั้น. */
@@ -139,6 +190,14 @@ export class UpdateSolutionDraftDto {
   @ArrayMaxSize(200)
   @IsString({ each: true })
   out_of_scope?: string[];
+
+  @ApiPropertyOptional({ type: () => [BoqLineDto], description: 'CD-135 BOQ' })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(1000)
+  @ValidateNested({ each: true })
+  @Type(() => BoqLineDto)
+  boq?: BoqLineDto[];
 
   @ApiPropertyOptional({ type: () => [DeliverableDto] })
   @IsOptional()

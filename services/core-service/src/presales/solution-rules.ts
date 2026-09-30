@@ -1059,3 +1059,174 @@ export function torText(
   );
   return [...head, ...lines].join('\n');
 }
+
+// --- CD-135 BOQ / BOM --------------------------------------------------------------
+
+export const BOQ_KINDS = [
+  'equipment',
+  'material',
+  'software',
+  'service',
+] as const;
+export type BoqKind = (typeof BOQ_KINDS)[number];
+
+export const BOQ_KIND_LABELS: Record<BoqKind, string> = {
+  equipment: 'อุปกรณ์',
+  material: 'วัสดุ',
+  software: 'ซอฟต์แวร์',
+  service: 'งานบริการ',
+};
+
+export interface BoqLine {
+  kind: BoqKind;
+  /** SAP `ItemCode` from the catalog; "" while drafting. */
+  productCode: string;
+  name: string;
+  description: string;
+  /** Model / version / edition. */
+  model: string;
+  quantity: number;
+  unit: string;
+  /** Reference unit cost (THB); null = none yet — flagged, CD-136 fills it. */
+  refUnitCost: number | null;
+}
+
+export const MAX_BOQ_LINES = 500;
+
+const finite = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isFinite(value);
+
+/** A stored `boq` column, read defensively. */
+export function readBoq(value: unknown): BoqLine[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((entry) => {
+    if (!entry || typeof entry !== 'object') return [];
+    const row = entry as Record<string, unknown>;
+    const text = (key: string) => {
+      const value = row[key];
+      return typeof value === 'string' ? value.trim() : '';
+    };
+    const name = text('name');
+    const productCode = text('productCode');
+    if (!name && !productCode) return [];
+    return [
+      {
+        kind: (BOQ_KINDS as readonly unknown[]).includes(row.kind)
+          ? (row.kind as BoqKind)
+          : 'equipment',
+        productCode,
+        name,
+        description: text('description'),
+        model: text('model'),
+        quantity: finite(row.quantity) ? row.quantity : 0,
+        unit: text('unit'),
+        refUnitCost: finite(row.refUnitCost) ? row.refUnitCost : null,
+      },
+    ];
+  });
+}
+
+/**
+ * BOQ lines as a draft saves them: blank lines dropped; every problem named
+ * at once with its line number. A code is not checked against the catalog
+ * here — the catalog moves with SAP; locking is where it must be sold.
+ */
+export function cleanBoq(
+  input: readonly {
+    kind?: string;
+    product_code?: string;
+    name?: string;
+    description?: string;
+    model?: string;
+    quantity?: number;
+    unit?: string;
+    ref_unit_cost?: number | null;
+  }[],
+): { lines: BoqLine[]; problems: string[] } {
+  const problems: string[] = [];
+  const lines: BoqLine[] = [];
+  input.forEach((entry, index) => {
+    const productCode = entry.product_code?.trim() ?? '';
+    const name = entry.name?.trim() ?? '';
+    if (!productCode && !name && !entry.description?.trim()) return;
+    const where = `BOQ บรรทัด ${index + 1}`;
+    if (!(BOQ_KINDS as readonly unknown[]).includes(entry.kind)) {
+      problems.push(`${where}: ไม่รู้จักประเภท "${entry.kind ?? ''}"`);
+      return;
+    }
+    if (!name) {
+      problems.push(`${where}: ยังไม่มีชื่อรายการ`);
+      return;
+    }
+    if (!finite(entry.quantity) || entry.quantity <= 0) {
+      problems.push(`${where}: จำนวนต้องมากกว่า 0`);
+      return;
+    }
+    const cost = entry.ref_unit_cost;
+    if (cost !== undefined && cost !== null && (!finite(cost) || cost < 0)) {
+      problems.push(`${where}: ต้นทุนอ้างอิงต้องไม่ติดลบ`);
+      return;
+    }
+    lines.push({
+      kind: entry.kind as BoqKind,
+      productCode,
+      name,
+      description: entry.description?.trim() ?? '',
+      model: entry.model?.trim() ?? '',
+      quantity: entry.quantity,
+      unit: entry.unit?.trim() ?? '',
+      refUnitCost: finite(cost) ? cost : null,
+    });
+  });
+  if (lines.length > MAX_BOQ_LINES) {
+    problems.push(`BOQ ได้ไม่เกิน ${MAX_BOQ_LINES} บรรทัด`);
+  }
+  return { lines, problems };
+}
+
+/**
+ * Why the BOQ stops a version from locking (handoff 3, user decision 30 ก.ย.
+ * 2569): Pricing starts from it, so it must have lines and every line a
+ * product code. Whether each code is still sold is the catalog's to say
+ * (`ProductCatalogService.assertCodes`).
+ */
+export function boqGaps(value: unknown): string[] {
+  const lines = readBoq(value);
+  if (!lines.length) return ['ยังไม่มีรายการใน BOQ'];
+  const missing = lines
+    .map((line, index) => (line.productCode ? null : index + 1))
+    .filter((no): no is number => no !== null);
+  return missing.length
+    ? [`BOQ บรรทัดที่ยังไม่มีรหัสสินค้า: ${missing.join(', ')}`]
+    : [];
+}
+
+export function boqSummary(value: unknown) {
+  const lines = readBoq(value);
+  const costed = lines.filter((line) => line.refUnitCost !== null);
+  return {
+    lines: lines.length,
+    missing_code: lines.filter((line) => !line.productCode).length,
+    missing_cost: lines.length - costed.length,
+    ref_total: costed.reduce(
+      (sum, line) => sum + line.quantity * (line.refUnitCost ?? 0),
+      0,
+    ),
+  };
+}
+
+/** The BOQ as text, for the approval request and the handover. */
+export function boqText(value: unknown): string {
+  return readBoq(value)
+    .map(
+      (line, index) =>
+        `${index + 1}. [${BOQ_KIND_LABELS[line.kind]}] ${line.productCode || '(ไม่มีรหัส)'} ${line.name}${
+          line.model ? ` · ${line.model}` : ''
+        } × ${line.quantity}${line.unit ? ` ${line.unit}` : ''}${
+          line.refUnitCost !== null
+            ? ` · ต้นทุนอ้างอิง ${line.refUnitCost.toLocaleString('en-US')}`
+            : ' · ยังไม่มีต้นทุนอ้างอิง'
+        }${line.description ? `\n   ${line.description}` : ''}`,
+    )
+    .join('\n');
+}

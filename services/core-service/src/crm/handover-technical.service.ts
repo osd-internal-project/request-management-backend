@@ -10,6 +10,7 @@ import {
   SolutionVersionRepository,
 } from '../presales/solution.repositories';
 import {
+  readBoq,
   readCriteria,
   riskLevel,
   riskScore,
@@ -101,6 +102,7 @@ export class HandoverTechnicalService {
       inScope: unknown;
       outOfScope: unknown;
       deliverables: unknown;
+      boq: unknown;
       feasibility: string;
       feasibilityNote: string;
       approvedAt: Date | null;
@@ -235,6 +237,8 @@ export class HandoverTechnicalService {
       inScope: readLines(version.inScope),
       outOfScope: readLines(version.outOfScope),
       deliverables: readDeliverables(version.deliverables),
+      // CD-135 — the BOQ the project delivers against.
+      boq: readBoq(version.boq),
       assumptions: readAssumptions(version.assumptions),
       requirements,
       clarifications,

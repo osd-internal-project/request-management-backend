@@ -1390,6 +1390,14 @@ async function seedRequestTypes(
             'x-multiline': true,
             'x-order': 80,
           },
+          // CD-135 — the BOQ this version fixes (handoff 3 → Pricing).
+          boq: {
+            type: 'string',
+            title: 'BOQ / BOM',
+            maxLength: 50000,
+            'x-multiline': true,
+            'x-order': 65,
+          },
           // CD-138 — the TOR and how each clause is answered.
           tor: {
             type: 'string',

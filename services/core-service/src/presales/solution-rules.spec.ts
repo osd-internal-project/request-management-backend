@@ -1,4 +1,8 @@
 import {
+  boqGaps,
+  boqSummary,
+  boqText,
+  cleanBoq,
   clausesFromText,
   torCounts,
   torText,
@@ -667,6 +671,101 @@ describe('CD-138 TOR rules', () => {
         '3.2.1. [บังคับ] รองรับ 13 สาขา — เป็นไปตาม',
         '   ตอบ: รองรับ 20 สาขา',
         '   อ้างอิง: SOW ข้อ 1',
+      ].join('\n'),
+    );
+  });
+});
+
+describe('CD-135 BOQ rules', () => {
+  it('a draft saves cleaned lines; blanks dropped; problems named by line', () => {
+    const { lines, problems } = cleanBoq([
+      {
+        kind: 'equipment',
+        product_code: ' FG-100F ',
+        name: ' FortiGate 100F ',
+        model: 'v7.2',
+        quantity: 12,
+        unit: 'เครื่อง',
+        ref_unit_cost: 45000,
+      },
+      { kind: 'service', name: '', product_code: '', quantity: 1 },
+      { kind: 'service', name: 'ติดตั้ง', quantity: 0 },
+      { kind: 'magic', name: 'x', quantity: 1 },
+      { kind: 'software', name: 'License', quantity: 1, ref_unit_cost: -1 },
+    ]);
+    expect(lines).toEqual([
+      {
+        kind: 'equipment',
+        productCode: 'FG-100F',
+        name: 'FortiGate 100F',
+        description: '',
+        model: 'v7.2',
+        quantity: 12,
+        unit: 'เครื่อง',
+        refUnitCost: 45000,
+      },
+    ]);
+    expect(problems).toEqual([
+      'BOQ บรรทัด 3: จำนวนต้องมากกว่า 0',
+      'BOQ บรรทัด 4: ไม่รู้จักประเภท "magic"',
+      'BOQ บรรทัด 5: ต้นทุนอ้างอิงต้องไม่ติดลบ',
+    ]);
+  });
+
+  it('handoff 3: a BOQ needs lines, and every line a code', () => {
+    expect(boqGaps([])).toEqual(['ยังไม่มีรายการใน BOQ']);
+    expect(
+      boqGaps([
+        { kind: 'equipment', productCode: 'FG', name: 'a', quantity: 1 },
+        { kind: 'service', productCode: '', name: 'b', quantity: 1 },
+      ]),
+    ).toEqual(['BOQ บรรทัดที่ยังไม่มีรหัสสินค้า: 2']);
+    expect(
+      boqGaps([
+        { kind: 'service', productCode: 'SVC-01', name: 'b', quantity: 1 },
+      ]),
+    ).toEqual([]);
+  });
+
+  it('the summary flags lines without a code or a reference cost, and totals the rest', () => {
+    expect(
+      boqSummary([
+        {
+          kind: 'equipment',
+          productCode: 'FG',
+          name: 'a',
+          quantity: 2,
+          refUnitCost: 100,
+        },
+        {
+          kind: 'service',
+          productCode: '',
+          name: 'b',
+          quantity: 3,
+          refUnitCost: null,
+        },
+      ]),
+    ).toEqual({ lines: 2, missing_code: 1, missing_cost: 1, ref_total: 200 });
+  });
+
+  it('the BOQ reads as text', () => {
+    expect(
+      boqText([
+        {
+          kind: 'equipment',
+          productCode: 'FG-100F',
+          name: 'FortiGate 100F',
+          model: 'v7.2',
+          quantity: 12,
+          unit: 'เครื่อง',
+          refUnitCost: 45000,
+        },
+        { kind: 'service', productCode: '', name: 'ติดตั้ง', quantity: 1 },
+      ]),
+    ).toBe(
+      [
+        '1. [อุปกรณ์] FG-100F FortiGate 100F · v7.2 × 12 เครื่อง · ต้นทุนอ้างอิง 45,000',
+        '2. [งานบริการ] (ไม่มีรหัส) ติดตั้ง × 1 · ยังไม่มีต้นทุนอ้างอิง',
       ].join('\n'),
     );
   });

@@ -40,6 +40,16 @@ const version = (overrides: Record<string, unknown> = {}) => ({
   inScope: ['ติดตั้ง SD-WAN 12 สาขา'],
   outOfScope: [],
   deliverables: [{ title: 'ติดตั้ง', criteria: ['ลิงก์ขึ้นครบ'] }],
+  boq: [
+    {
+      kind: 'equipment',
+      productCode: 'FG-100F',
+      name: 'FortiGate 100F',
+      quantity: 12,
+      unit: 'เครื่อง',
+      refUnitCost: 45000,
+    },
+  ],
   feasibility: 'feasible',
   feasibilityNote: '',
   changeNote: null,
@@ -59,6 +69,7 @@ function harness(options: {
   risks?: Record<string, unknown>[];
   demos?: Record<string, unknown>[];
   torClauses?: Record<string, unknown>[];
+  inactiveCode?: boolean;
 }) {
   const versions = options.versions ?? [version()];
   const solutions = {
@@ -156,6 +167,15 @@ function harness(options: {
       }),
     ),
   };
+  const catalog = {
+    assertCodes: jest.fn(() =>
+      options.inactiveCode
+        ? Promise.reject(
+            Object.assign(new Error('x'), { code: 'VALIDATION_FAILED' }),
+          )
+        : Promise.resolve(),
+    ),
+  };
   const timeline = { publish: jest.fn(() => Promise.resolve()) };
   const audit = { record: jest.fn(() => Promise.resolve()) };
   const storage = {
@@ -177,6 +197,7 @@ function harness(options: {
     requests as never,
     opportunities as never,
     configs as never,
+    catalog as never,
     timeline as never,
     audit as never,
     { execute: jest.fn((work: (p: unknown) => unknown) => work({})) } as never,
@@ -446,6 +467,44 @@ describe('CD-132 solutions', () => {
         sales,
       ),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+
+  it('CD-135: a version locks only with a BOQ whose every line has a product code still sold', async () => {
+    await expect(
+      harness({ versions: [version({ boq: [] })] }).service.lock(
+        'sol-1',
+        1,
+        presales,
+      ),
+    ).rejects.toMatchObject({
+      code: 'VALIDATION_FAILED',
+      details: [{ field: 'version', reason: 'ยังไม่มีรายการใน BOQ' }],
+    });
+    await expect(
+      harness({
+        versions: [
+          version({
+            boq: [
+              {
+                kind: 'service',
+                productCode: '',
+                name: 'ติดตั้ง',
+                quantity: 1,
+              },
+            ],
+          }),
+        ],
+      }).service.lock('sol-1', 1, presales),
+    ).rejects.toMatchObject({
+      details: [
+        { field: 'version', reason: 'BOQ บรรทัดที่ยังไม่มีรหัสสินค้า: 1' },
+      ],
+    });
+    const inactive = harness({ inactiveCode: true });
+    await expect(
+      inactive.service.lock('sol-1', 1, presales),
+    ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+    expect(inactive.versionRepo.updateMany).not.toHaveBeenCalled();
   });
 
   it('a new version copies the locked one and needs the latest locked', async () => {

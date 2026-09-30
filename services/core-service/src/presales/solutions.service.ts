@@ -16,6 +16,7 @@ import type { Readable } from 'node:stream';
 import { CustomerTimelineService } from '../crm/customer-timeline.service';
 import { OpportunityRepository } from '../crm/sales.repositories';
 import { CrmConfigRepository } from '../crm/segment.repositories';
+import { ProductCatalogService } from '../crm/product-catalog.service';
 import { safeFileName } from '../requests/attachments.service';
 import { RequestRepository } from '../requests/request.repository';
 import {
@@ -40,6 +41,10 @@ import {
   cleanDeliverables,
   cleanLines,
   sowGaps,
+  boqGaps,
+  boqSummary,
+  cleanBoq,
+  readBoq,
   contractAssumptionsText,
   type FeasibilityVerdict,
   approvalBlocker,
@@ -100,6 +105,7 @@ interface VersionRow {
   inScope: unknown;
   outOfScope: unknown;
   deliverables: unknown;
+  boq: unknown;
   feasibility: FeasibilityVerdict;
   feasibilityNote: string;
   changeNote: string | null;
@@ -173,6 +179,7 @@ export class SolutionsService {
     private readonly requests: RequestRepository,
     private readonly opportunities: OpportunityRepository,
     private readonly configs: CrmConfigRepository,
+    private readonly catalog: ProductCatalogService,
     private readonly timeline: CustomerTimelineService,
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
@@ -311,7 +318,6 @@ export class SolutionsService {
         updatedAt: true,
         versions: {
           orderBy: { versionNo: 'desc' },
-          take: 1,
           select: { versionNo: true, status: true, approvalStatus: true },
         },
         requirements: {
@@ -388,6 +394,10 @@ export class SolutionsService {
       }) => ({
         ...row,
         latest: versions[0] ?? null,
+        // CD-135 — handoff 3: an approved version (its BOQ fully coded).
+        pricing_ready_version:
+          versions.find((row) => row.approvalStatus === 'approved')
+            ?.versionNo ?? null,
         // CD-131 — what the salesperson has to chase with the customer.
         waiting_customer: requirementCounts(requirements).waiting_customer,
         // CD-140 — questions still open, and answers the SOW must follow.
@@ -461,6 +471,8 @@ export class SolutionsService {
         this.activeClarifications(id),
       ]);
     const clarificationTotals = clarificationCounts(clarifications);
+    // CD-135 — the newest approved version (the list runs newest first).
+    const approved = all.find((row) => row.approvalStatus === 'approved');
     const risks = await this.activeRisks(id);
     const riskTotals = riskCounts(risks);
     const demos = await this.activeDemos(id);
@@ -517,8 +529,13 @@ export class SolutionsService {
         inScope: readLines(version.inScope),
         outOfScope: readLines(version.outOfScope),
         deliverables: readDeliverables(version.deliverables),
+        boq: readBoq(version.boq),
         files,
       },
+      // CD-135 — lines, those without a code or a reference cost, and the total.
+      boq_summary: boqSummary(version.boq),
+      // CD-135 — handoff 3: the latest approved version is what Pricing gets.
+      pricing_ready: approved ? { versionNo: approved.versionNo } : null,
       // CD-143 — whether this version may be sent for approval, and why not.
       approval: {
         configured: Boolean(approvalType?.solutionApprovalTypeCode),
@@ -621,10 +638,13 @@ export class SolutionsService {
       dto.deliverables !== undefined
         ? cleanDeliverables(dto.deliverables)
         : undefined;
+    // CD-135 — the BOQ, cleaned like the SOW.
+    const boq = dto.boq !== undefined ? cleanBoq(dto.boq) : undefined;
     for (const [field, result] of [
       ['in_scope', inScope],
       ['out_of_scope', outOfScope],
       ['deliverables', deliverables],
+      ['boq', boq],
     ] as const) {
       for (const reason of result?.problems ?? []) {
         problems.push({ field, reason });
@@ -666,6 +686,9 @@ export class SolutionsService {
                     deliverables.deliverables as unknown as Prisma.InputJsonValue,
                 }
               : {}),
+            ...(boq
+              ? { boq: boq.lines as unknown as Prisma.InputJsonValue }
+              : {}),
             updatedBy: actor.userId,
           },
         },
@@ -701,6 +724,7 @@ export class SolutionsService {
     const gaps = [
       ...lockGaps(version),
       ...sowGaps(version),
+      ...boqGaps(version.boq),
       ...requirementGaps(await this.activeRequirements(id)),
     ];
     if (gaps.length) {
@@ -710,6 +734,14 @@ export class SolutionsService {
         gaps.map((reason) => ({ field: 'version', reason })),
       );
     }
+    // CD-135 — handoff 3: every code still sold in the SAP catalog.
+    await this.catalog.assertCodes(
+      solution.companyId,
+      readBoq(version.boq).map((line, index) => ({
+        code: line.productCode,
+        field: `boq[${index}].product_code`,
+      })),
+    );
     const now = new Date();
     await this.transactions.execute(async (prisma) => {
       const moved = await this.versions.updateMany(
@@ -809,6 +841,7 @@ export class SolutionsService {
             deliverables: readDeliverables(
               latest.deliverables,
             ) as unknown as Prisma.InputJsonValue,
+            boq: readBoq(latest.boq) as unknown as Prisma.InputJsonValue,
             changeNote: dto.change_note.trim(),
             createdBy: actor.userId,
           },

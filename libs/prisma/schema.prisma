@@ -4201,6 +4201,10 @@ model SolutionVersion {
   inScope           Json                   @default("[]")
   outOfScope        Json                   @default("[]")
   deliverables      Json                   @default("[]")
+  /// CD-135 BOQ / BOM — ล็อกไปพร้อมเวอร์ชัน: `[{kind, productCode, name, description,
+  /// model, quantity, unit, refUnitCost}]`. ยืนยันเวอร์ชันได้เมื่อทุกบรรทัดมีรหัสสินค้า
+  /// ที่ยังขายอยู่ในรายการจาก SAP (จุดส่งต่อที่ 3 → Pricing).
+  boq               Json                   @default("[]")
   /// CD-133 ผลประเมินความเป็นไปได้รวมของเวอร์ชัน — ต้องมีก่อนยืนยัน; เป็นไปได้
   /// แบบมีเงื่อนไข/ไม่เป็นไปได้ต้องมีเหตุผล; ไม่เป็นไปได้ขออนุมัติไม่ได้.
   feasibility       FeasibilityVerdict     @default(unassessed)
