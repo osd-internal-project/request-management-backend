@@ -11,6 +11,7 @@ import { RisksService } from './risks.service';
 import { DemosService } from './demos.service';
 import { TorService } from './tor.service';
 import { CostService } from './cost.service';
+import { ProposalService } from './proposal.service';
 
 /** The screen-facing routes of {@link PresalesModule} (see `src/index.ts`). */
 @Module({
@@ -33,6 +34,7 @@ import { CostService } from './cost.service';
     DemosService,
     TorService,
     CostService,
+    ProposalService,
   ],
 })
 export class PresalesHttpModule {}

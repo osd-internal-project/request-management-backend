@@ -13735,6 +13735,52 @@
         ]
       }
     },
+    "/api/v1/presales/solutions/{id}/versions/{no}/proposal": {
+      "get": {
+        "operationId": "SolutionsController_proposal",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "no",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-137 ข้อเสนอทางเทคนิคสำหรับพิมพ์ — เฉพาะเวอร์ชันที่อนุมัติแล้ว ไม่มีต้นทุน",
+        "tags": [
+          "presales"
+        ]
+      }
+    },
     "/api/v1/esign/authorities": {
       "get": {
         "operationId": "EsignController_listAuthorities",

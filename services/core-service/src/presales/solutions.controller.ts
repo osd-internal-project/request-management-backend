@@ -60,6 +60,7 @@ import { RisksService } from './risks.service';
 import { DemosService } from './demos.service';
 import { MAX_TOR_FILE_BYTES, TorService } from './tor.service';
 import { CostService, MAX_QUOTE_FILE_BYTES } from './cost.service';
+import { ProposalService } from './proposal.service';
 import { MAX_FILE_BYTES, SolutionsService } from './solutions.service';
 
 /**
@@ -82,6 +83,7 @@ export class SolutionsController {
     private readonly demos: DemosService,
     private readonly tor: TorService,
     private readonly cost: CostService,
+    private readonly proposals: ProposalService,
   ) {}
 
   @ApiOperation({ summary: 'เริ่ม Solution จากคำขอ "ขอ Solution" ที่รับแล้ว' })
@@ -731,5 +733,21 @@ export class SolutionsController {
     @CurrentPrincipal() actor: Principal,
   ) {
     return this.cost.requestVendorQuote(id, no, dto, actor);
+  }
+
+  // --- CD-137 technical proposal -------------------------------------------------
+
+  @ApiOperation({
+    summary:
+      'CD-137 ข้อเสนอทางเทคนิคสำหรับพิมพ์ — เฉพาะเวอร์ชันที่อนุมัติแล้ว ไม่มีต้นทุน',
+  })
+  @Get('presales/solutions/:id/versions/:no/proposal')
+  @Authenticated()
+  proposal(
+    @Param('id') id: string,
+    @Param('no', ParseIntPipe) no: number,
+    @CurrentPrincipal() actor: Principal,
+  ) {
+    return this.proposals.printView(id, no, actor);
   }
 }
