@@ -492,6 +492,52 @@ export class NotificationsService {
     });
   }
 
+  /** CD-166 — an internal signer's turn to sign. */
+  async esignRequested(
+    userId: string,
+    companyId: string,
+    signer: { id: string; role: string },
+    envelope: { title: string; expiresAt: Date },
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'esign.requested',
+      values: {
+        title: envelope.title,
+        role: signer.role,
+        expires_on: envelope.expiresAt.toLocaleDateString('th-TH', {
+          timeZone: 'Asia/Bangkok',
+        }),
+      },
+      resourceType: 'esign_signer',
+      resourceId: signer.id,
+    });
+  }
+
+  /** CD-169 — everyone signed; to whoever sent it. */
+  async esignFinished(
+    kind: 'completed' | 'declined',
+    userId: string,
+    companyId: string,
+    envelope: { id: string; title: string; verifyCode: string },
+    decline?: { name: string; reason: string },
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: `esign.${kind}`,
+      values: {
+        title: envelope.title,
+        verify_code: envelope.verifyCode,
+        name: decline?.name ?? '',
+        reason: decline?.reason ?? '',
+      },
+      resourceType: 'esign_envelope',
+      resourceId: envelope.id,
+    });
+  }
+
   /** CD-149 — the MSA a contract is made under was changed. */
   async masterAgreementChanged(
     userId: string,

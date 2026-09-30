@@ -29,6 +29,8 @@ import { ContractTermsService } from './contract-terms.service';
 import { ContractObligationsService } from './contract-obligations.service';
 import { ContractInstallmentsService } from './contract-installments.service';
 import { ContractRiskService } from './contract-risk.service';
+import { ContractEsignService } from './contract-esign.service';
+import { CreateContractEnvelopeDto } from '../esign/esign.dto';
 import {
   ContractAccessDto,
   SaveContractTermsDto,
@@ -58,7 +60,30 @@ export class LegalContractsController {
     private readonly obligations: ContractObligationsService,
     private readonly installments: ContractInstallmentsService,
     private readonly risk: ContractRiskService,
+    private readonly signing: ContractEsignService,
   ) {}
+
+  @ApiOperation({
+    summary: 'ส่งไฟล์ PDF ของสัญญาไปลงนามอิเล็กทรอนิกส์ (CD-14 / CD-160)',
+    description:
+      'สร้างเอกสารลงนาม (ร่าง) จากไฟล์ในคลังสัญญา ตามแม่แบบช่องลงนาม · ลงนามครบแล้วฉบับลงนามถูกเก็บในคลังสัญญา',
+  })
+  @Post(':id/esign')
+  @Permissions('esign.manage')
+  sendForSigning(
+    @Param('id') id: string,
+    @Body() dto: CreateContractEnvelopeDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.signing.send(id, dto, principal);
+  }
+
+  @ApiOperation({ summary: 'การลงนามของสัญญา' })
+  @Get(':id/esign')
+  @Permissions('legal.contract.read')
+  signings(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.signing.list(id, principal);
+  }
 
   @ApiOperation({
     summary: 'ประเมินความเสี่ยงกฎหมาย (CD-158)',

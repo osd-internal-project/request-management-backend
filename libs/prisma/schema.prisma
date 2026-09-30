@@ -4569,3 +4569,143 @@ model SolutionTorClause {
   @@index([solutionId])
   @@map("solution_tor_clauses")
 }
+
+/// CD-165 — where signatures go on one kind of document: each field names
+/// the party signing it (label), its page (first, last, a number, or a
+/// signature page appended at the end) and a preset position, in signing
+/// order. Editing a layout never changes an envelope already created.
+model EsignLayout {
+  id        String  @id @default(uuid())
+  companyId String
+  code      String
+  name      String
+  /// contract · acceptance · other
+  docType   String  @default("contract")
+  /// [{ key, label, page: 'first'|'last'|'appendix'|number, position, order }]
+  fields    Json    @default("[]")
+  active    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  createdBy String
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  @@unique([companyId, code])
+  @@map("esign_layouts")
+}
+
+/// CD-166..170 — one document sent for signing. The PDF is fixed when the
+/// envelope is created (`originalHash`); signing it produces a sealed copy
+/// (`signedHash`) with the signatures and the evidence pages, checked later
+/// on the verification page by `verifyCode` (CD-173).
+model EsignEnvelope {
+  id        String @id @default(uuid())
+  companyId String
+  title     String
+  layoutId  String?
+  /// The layout's fields when the envelope was made.
+  fields    Json   @default("[]")
+  /// sequential (in field order) · parallel
+  mode      String @default("sequential")
+  /// draft · sent · completed · declined · cancelled · expired
+  status    String @default("draft")
+  message   String?
+
+  /// What it signs and what it belongs to, for the owning module.
+  sourceType String
+  sourceId   String
+  refType    String
+  refId      String
+
+  originalKey  String
+  originalName String
+  originalHash String
+  signedKey    String?
+  signedHash   String?  @unique
+  verifyCode   String   @unique
+
+  expiresAt   DateTime
+  createdBy   String
+  createdAt   DateTime  @default(now())
+  sentAt      DateTime?
+  completedAt DateTime?
+  cancelledAt DateTime?
+  cancelReason String?
+
+  signers EsignSigner[]
+  events  EsignEvent[]
+
+  @@index([companyId, status])
+  @@index([refType, refId])
+  @@map("esign_envelopes")
+}
+
+/// One party to an envelope. External signers open a single-use link
+/// (only its hash is kept) and confirm a one-time code; internal signers
+/// sign from their login.
+model EsignSigner {
+  id         String @id @default(uuid())
+  envelopeId String
+  fieldKey   String
+  order      Int
+  /// internal · external
+  kind       String
+  userId     String?
+  name       String
+  email      String?
+  phone      String?
+
+  /// pending · signed · declined
+  status String @default("pending")
+
+  tokenHash      String?   @unique
+  tokenExpiresAt DateTime?
+  tokenUsedAt    DateTime?
+
+  otpHash       String?
+  otpChannel    String?
+  otpSentAt     DateTime?
+  otpExpiresAt  DateTime?
+  otpAttempts   Int       @default(0)
+  otpVerifiedAt DateTime?
+
+  viewedAt       DateTime?
+  signedAt       DateTime?
+  /// draw · type · upload
+  signatureKind  String?
+  signatureKey   String?
+  signatureText  String?
+  /// keycloak · otp_email · otp_sms
+  authMethod     String?
+  ip             String?
+  userAgent      String?
+  declinedAt     DateTime?
+  declinedReason String?
+
+  envelope EsignEnvelope @relation(fields: [envelopeId], references: [id], onDelete: Cascade)
+  events   EsignEvent[]
+
+  @@unique([envelopeId, fieldKey])
+  @@index([userId, status])
+  @@map("esign_signers")
+}
+
+/// CD-170 — what happened to an envelope, for the evidence page: sent,
+/// opened, code sent, code confirmed, read, signed, declined, sealed.
+/// Written, never changed.
+model EsignEvent {
+  id         String   @id @default(uuid())
+  envelopeId String
+  signerId   String?
+  type       String
+  at         DateTime @default(now())
+  ip         String?
+  userAgent  String?
+  detail     Json?
+
+  envelope EsignEnvelope @relation(fields: [envelopeId], references: [id], onDelete: Cascade)
+  signer   EsignSigner?  @relation(fields: [signerId], references: [id], onDelete: Cascade)
+
+  @@index([envelopeId, at])
+  @@map("esign_events")
+}

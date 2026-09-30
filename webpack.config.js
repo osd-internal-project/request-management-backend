@@ -54,6 +54,11 @@ const PRISMA_MODULES = /^(@prisma\/client|\.prisma\/client)(\/|$)/;
  * runner image installs production dependencies).
  */
 const RUNTIME_MODULES = /^pdf-parse(\/|$)/;
+/**
+ * CD-14 — pdf-lib / fontkit seal the signed PDFs, and the Sarabun font files
+ * are read from `node_modules` by path; kept out of the bundle alongside.
+ */
+const ESIGN_MODULES = /^(pdf-lib|@pdf-lib\/fontkit|@fontsource\/sarabun)(\/|$)/;
 
 module.exports = (config) => {
   const existingExternals = Array.isArray(config.externals)
@@ -69,7 +74,9 @@ module.exports = (config) => {
       ({ request }, callback) => {
         if (
           request &&
-          (PRISMA_MODULES.test(request) || RUNTIME_MODULES.test(request))
+          (PRISMA_MODULES.test(request) ||
+            RUNTIME_MODULES.test(request) ||
+            ESIGN_MODULES.test(request))
         ) {
           return callback(null, `commonjs ${request}`);
         }

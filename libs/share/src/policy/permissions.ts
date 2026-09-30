@@ -93,6 +93,13 @@ export const PERMISSIONS = {
    * `manage`, their owner/creator and their access list only.
    */
   legal: ['legal.contract.read', 'legal.contract.manage'],
+  /**
+   * CD-14 ระบบลงนามอิเล็กทรอนิกส์ — `esign.manage` sends documents for
+   * signing, follows and cancels them, and keeps the signature layouts.
+   * Signing itself needs no permission: an internal signer is the person the
+   * envelope names (signed in); an external one holds the link and the code.
+   */
+  esign: ['esign.manage'],
   admin: [
     'admin.role.manage',
     'admin.org.manage',

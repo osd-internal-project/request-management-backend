@@ -273,6 +273,8 @@ const SEED_ROLES: {
       'crm.customer.read.all',
       'legal.contract.read',
       'legal.contract.manage',
+      // CD-14 — sends the approved contract for signing
+      'esign.manage',
     ],
   },
   {

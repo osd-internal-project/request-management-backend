@@ -8116,6 +8116,97 @@
         ]
       }
     },
+    "/api/v1/contracts/{id}/esign": {
+      "post": {
+        "description": "สร้างเอกสารลงนาม (ร่าง) จากไฟล์ในคลังสัญญา ตามแม่แบบช่องลงนาม · ลงนามครบแล้วฉบับลงนามถูกเก็บในคลังสัญญา",
+        "operationId": "LegalContractsController_sendForSigning",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateContractEnvelopeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ส่งไฟล์ PDF ของสัญญาไปลงนามอิเล็กทรอนิกส์ (CD-14 / CD-160)",
+        "tags": [
+          "contracts"
+        ],
+        "x-permission": [
+          "esign.manage"
+        ]
+      },
+      "get": {
+        "operationId": "LegalContractsController_signings",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "การลงนามของสัญญา",
+        "tags": [
+          "contracts"
+        ],
+        "x-permission": [
+          "legal.contract.read"
+        ]
+      }
+    },
     "/api/v1/contracts/{id}/risk": {
       "get": {
         "description": "ระดับ ประเด็น ความเห็นผู้บริหาร และ `signing` — ลงนามได้หรือยังในแง่ความเสี่ยง",
@@ -13220,6 +13311,822 @@
         ],
         "x-permission": [
           "presales.solution.manage"
+        ]
+      }
+    },
+    "/api/v1/esign/layouts": {
+      "get": {
+        "operationId": "EsignController_listLayouts",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แม่แบบช่องลงนาม (CD-165)",
+        "tags": [
+          "esign"
+        ],
+        "x-permission": [
+          "esign.manage"
+        ]
+      },
+      "post": {
+        "operationId": "EsignController_createLayout",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveEsignLayoutDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "สร้างแม่แบบช่องลงนาม",
+        "tags": [
+          "esign"
+        ],
+        "x-permission": [
+          "esign.manage"
+        ]
+      }
+    },
+    "/api/v1/esign/layouts/{id}": {
+      "patch": {
+        "operationId": "EsignController_updateLayout",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveEsignLayoutDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แก้แม่แบบช่องลงนาม — ไม่กระทบเอกสารที่สร้างไปแล้ว",
+        "tags": [
+          "esign"
+        ],
+        "x-permission": [
+          "esign.manage"
+        ]
+      }
+    },
+    "/api/v1/esign/mine": {
+      "get": {
+        "operationId": "EsignController_mine",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เอกสารรอลงนามของฉัน",
+        "tags": [
+          "esign"
+        ]
+      }
+    },
+    "/api/v1/esign/envelopes/{id}": {
+      "get": {
+        "operationId": "EsignController_view",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เอกสารที่ส่งลงนาม — ผู้ลงนาม ความคืบหน้า ประวัติ",
+        "tags": [
+          "esign"
+        ],
+        "x-permission": [
+          "esign.manage"
+        ]
+      }
+    },
+    "/api/v1/esign/envelopes/{id}/send": {
+      "post": {
+        "description": "ผู้ลงนามภายนอกได้ลิงก์ใช้ครั้งเดียว — ลิงก์แสดงในคำตอบครั้งเดียว (ยังไม่มีอีเมล) · ผู้ลงนามภายในได้แจ้งเตือนในระบบเมื่อถึงลำดับ",
+        "operationId": "EsignController_send",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ส่งลงนาม (CD-166)",
+        "tags": [
+          "esign"
+        ],
+        "x-permission": [
+          "esign.manage"
+        ]
+      }
+    },
+    "/api/v1/esign/envelopes/{id}/cancel": {
+      "post": {
+        "operationId": "EsignController_cancel",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelEnvelopeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ยกเลิกการส่งลงนาม",
+        "tags": [
+          "esign"
+        ],
+        "x-permission": [
+          "esign.manage"
+        ]
+      }
+    },
+    "/api/v1/esign/envelopes/{id}/signed": {
+      "get": {
+        "operationId": "EsignController_signed",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เอกสารฉบับลงนาม (ผนึกแล้ว)",
+        "tags": [
+          "esign"
+        ],
+        "x-permission": [
+          "esign.manage"
+        ]
+      }
+    },
+    "/api/v1/esign/signers/{id}": {
+      "get": {
+        "operationId": "EsignController_signer",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เอกสารที่ฉันต้องลงนาม",
+        "tags": [
+          "esign"
+        ]
+      }
+    },
+    "/api/v1/esign/signers/{id}/document": {
+      "get": {
+        "operationId": "EsignController_document",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เปิดอ่านเอกสารฉบับเต็ม (บันทึกว่าเปิดอ่านแล้ว)",
+        "tags": [
+          "esign"
+        ]
+      }
+    },
+    "/api/v1/esign/signers/{id}/sign": {
+      "post": {
+        "operationId": "EsignController_sign",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ลงนาม (ยืนยันตัวตนด้วยการล็อกอิน)",
+        "tags": [
+          "esign"
+        ]
+      }
+    },
+    "/api/v1/esign/signers/{id}/decline": {
+      "post": {
+        "operationId": "EsignController_decline",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeclineDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ปฏิเสธการลงนาม",
+        "tags": [
+          "esign"
+        ]
+      }
+    },
+    "/api/v1/esign/public/{token}": {
+      "get": {
+        "operationId": "EsignPublicController_view",
+        "parameters": [
+          {
+            "name": "token",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "หน้าลงนามจากลิงก์ (สาธารณะ)",
+        "tags": [
+          "esign"
+        ]
+      }
+    },
+    "/api/v1/esign/public/{token}/code": {
+      "post": {
+        "operationId": "EsignPublicController_sendCode",
+        "parameters": [
+          {
+            "name": "token",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OtpRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "ส่งรหัสยืนยันตัวตนครั้งเดียว (CD-167)",
+        "tags": [
+          "esign"
+        ]
+      }
+    },
+    "/api/v1/esign/public/{token}/verify": {
+      "post": {
+        "operationId": "EsignPublicController_verify",
+        "parameters": [
+          {
+            "name": "token",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OtpVerifyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "ยืนยันรหัส",
+        "tags": [
+          "esign"
+        ]
+      }
+    },
+    "/api/v1/esign/public/{token}/document": {
+      "get": {
+        "operationId": "EsignPublicController_document",
+        "parameters": [
+          {
+            "name": "token",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "เอกสารฉบับเต็ม (หลังยืนยันรหัส)",
+        "tags": [
+          "esign"
+        ]
+      }
+    },
+    "/api/v1/esign/public/{token}/sign": {
+      "post": {
+        "operationId": "EsignPublicController_sign",
+        "parameters": [
+          {
+            "name": "token",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "ลงนาม (CD-168)",
+        "tags": [
+          "esign"
+        ]
+      }
+    },
+    "/api/v1/esign/public/{token}/decline": {
+      "post": {
+        "operationId": "EsignPublicController_decline",
+        "parameters": [
+          {
+            "name": "token",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeclineDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "ปฏิเสธการลงนาม",
+        "tags": [
+          "esign"
+        ]
+      }
+    },
+    "/api/v1/esign/verify/{code}": {
+      "get": {
+        "operationId": "EsignPublicController_verifyInfo",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "หน้าตรวจสอบเอกสาร (CD-173)",
+        "tags": [
+          "esign"
+        ]
+      }
+    },
+    "/api/v1/esign/verify/{code}/check": {
+      "post": {
+        "operationId": "EsignPublicController_check",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyHashDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "ไฟล์ที่ถืออยู่ตรงกับฉบับที่ลงนามหรือไม่ — ส่งเฉพาะ SHA-256",
+        "tags": [
+          "esign"
         ]
       }
     },
@@ -18353,6 +19260,88 @@
           "reason"
         ]
       },
+      "EnvelopeSignerDto": {
+        "type": "object",
+        "properties": {
+          "field_key": {
+            "type": "string",
+            "description": "รหัสช่องของแม่แบบ (f1, f2, …)",
+            "maxLength": 20
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "internal",
+              "external"
+            ]
+          },
+          "user_id": {
+            "type": "string",
+            "description": "ผู้ลงนามภายใน"
+          },
+          "name": {
+            "type": "string",
+            "description": "ผู้ลงนามภายนอก",
+            "maxLength": 255
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "phone": {
+            "type": "string",
+            "example": "0812345678",
+            "pattern": "^\\+?[0-9]{9,15}$"
+          }
+        },
+        "required": [
+          "field_key",
+          "kind"
+        ]
+      },
+      "CreateContractEnvelopeDto": {
+        "type": "object",
+        "properties": {
+          "document_id": {
+            "type": "string",
+            "description": "ไฟล์ PDF ในคลังสัญญา"
+          },
+          "layout_id": {
+            "type": "string"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "sequential",
+              "parallel"
+            ]
+          },
+          "expires_in_days": {
+            "type": "integer",
+            "example": 14,
+            "description": "อายุคำขอลงนาม (วัน)",
+            "maximum": 90,
+            "minimum": 1
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "signers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EnvelopeSignerDto"
+            },
+            "maxItems": 12,
+            "minItems": 1
+          }
+        },
+        "required": [
+          "document_id",
+          "layout_id",
+          "signers"
+        ]
+      },
       "RiskIssueDto": {
         "type": "object",
         "properties": {
@@ -19889,6 +20878,172 @@
             "maxLength": 300
           }
         }
+      },
+      "LayoutFieldDto": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "example": "ผู้ว่าจ้าง",
+            "maxLength": 100
+          },
+          "page": {
+            "type": "string",
+            "description": "'first' · 'last' · 'appendix' (หน้าลงนามท้ายเอกสาร) · เลขหน้า",
+            "example": "last",
+            "pattern": "^(first|last|appendix|[1-9][0-9]{0,3})$"
+          },
+          "position": {
+            "type": "string",
+            "enum": [
+              "bottom-left",
+              "bottom-center",
+              "bottom-right",
+              "top-left",
+              "top-right"
+            ]
+          },
+          "order": {
+            "type": "integer",
+            "example": 1,
+            "description": "ลำดับการลงนาม — เท่ากัน = ลงพร้อมกัน",
+            "maximum": 20,
+            "minimum": 1
+          }
+        },
+        "required": [
+          "label",
+          "order",
+          "page",
+          "position"
+        ]
+      },
+      "SaveEsignLayoutDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "CONTRACT-2",
+            "description": "สร้างเท่านั้น",
+            "pattern": "^[A-Za-z0-9_-]{1,20}$"
+          },
+          "name": {
+            "type": "string",
+            "example": "สัญญาสองฝ่าย",
+            "maxLength": 255
+          },
+          "doc_type": {
+            "type": "string",
+            "enum": [
+              "contract",
+              "acceptance",
+              "other"
+            ]
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LayoutFieldDto"
+            },
+            "maxItems": 12
+          }
+        }
+      },
+      "CancelEnvelopeDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "SignDto": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "draw",
+              "type",
+              "upload"
+            ]
+          },
+          "image": {
+            "type": "string",
+            "description": "draw / upload: data URL ของภาพ PNG หรือ JPEG ≤ 500 KB",
+            "maxLength": 700000
+          },
+          "text": {
+            "type": "string",
+            "description": "type: ชื่อที่พิมพ์เป็นลายมือชื่อ",
+            "maxLength": 100
+          },
+          "consent": {
+            "type": "boolean",
+            "description": "ยืนยันว่าอ่านเอกสารแล้วและยินยอมลงนามอิเล็กทรอนิกส์"
+          }
+        },
+        "required": [
+          "consent",
+          "kind"
+        ]
+      },
+      "DeclineDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "OtpRequestDto": {
+        "type": "object",
+        "properties": {
+          "channel": {
+            "type": "string",
+            "enum": [
+              "email",
+              "sms"
+            ]
+          }
+        }
+      },
+      "OtpVerifyDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "123456",
+            "pattern": "^[0-9]{6}$"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "VerifyHashDto": {
+        "type": "object",
+        "properties": {
+          "sha256": {
+            "type": "string",
+            "description": "SHA-256 ของไฟล์ที่ถืออยู่ (คำนวณในเบราว์เซอร์)",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "required": [
+          "sha256"
+        ]
       },
       "PreviewChainDto": {
         "type": "object",

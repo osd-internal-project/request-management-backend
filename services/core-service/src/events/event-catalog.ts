@@ -41,6 +41,11 @@ export const DOMAIN_EVENTS = {
   slaWarning: 'sla.warning',
   /** Triggers escalation (SUP-02). */
   slaBreached: 'sla.breached',
+  /**
+   * CD-14 — every signer signed and the document is sealed. The module that
+   * sent it (Legal: the contract repository) keeps the signed copy.
+   */
+  esignCompleted: 'esign.completed',
 } as const;
 
 export type DomainEventName =
@@ -73,6 +78,14 @@ export interface SlaEventPayload extends BasePayload {
   due_at: string;
 }
 
+export interface EsignEventPayload extends BasePayload {
+  envelope_id: string;
+  source_type: string;
+  source_id: string;
+  ref_type: string;
+  ref_id: string;
+}
+
 /** Discriminated by name so a subscriber cannot read the wrong shape. */
 export type DomainEvent =
   | { name: 'request.submitted'; payload: RequestEventPayload }
@@ -88,4 +101,5 @@ export type DomainEvent =
   | { name: 'approval.rejected'; payload: ApprovalEventPayload }
   | { name: 'approval.voided'; payload: ApprovalEventPayload }
   | { name: 'sla.warning'; payload: SlaEventPayload }
-  | { name: 'sla.breached'; payload: SlaEventPayload };
+  | { name: 'sla.breached'; payload: SlaEventPayload }
+  | { name: 'esign.completed'; payload: EsignEventPayload };

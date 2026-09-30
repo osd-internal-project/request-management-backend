@@ -17,6 +17,9 @@ import { LegalContractsController } from './legal-contracts.controller';
 import { ContractDraftsController } from './contract-drafts.controller';
 import { ContractObligationsController } from './contract-obligations.controller';
 import { LegalContractsService } from './legal-contracts.service';
+import { ContractEsignService } from './contract-esign.service';
+import { EsignModule } from '../esign/esign.module';
+import { EventsModule } from '../events/events.module';
 import {
   ContractAccessRepository,
   ContractDocumentRepository,
@@ -52,6 +55,9 @@ import {
 @Module({
   imports: [
     CrmModule,
+    // CD-14 — contracts are sent for signing through the central service
+    EsignModule,
+    EventsModule,
     // CD-75 visit photos — storage for the HTTP half only, like request
     // attachments, so external-service needs no storage config to boot.
     StorageModule.forRootAsync({
@@ -90,6 +96,7 @@ import {
     // CD-161 — the contract repository keeps files, so it lives beside the
     // storage it needs, like the visit photos.
     LegalContractsService,
+    ContractEsignService,
     CustomerContractRepository,
     ContractDocumentRepository,
     ContractAccessRepository,

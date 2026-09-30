@@ -358,6 +358,19 @@ end of those — a customer's web form, a workflow engine, another module. Addin
 a fifth is a decision to state out loud here, not a default and not a paragraph
 in the controller.
 
+**core-service's one public business surface: e-signature (CD-14, 30 Sep
+2026).** `EsignPublicController` — `esign/public/:token/*` (a signer's link:
+view, one-time code, document, sign, decline) and `esign/verify/:code*` (the
+verification page) — is `@Public()` on **core-service**, not on
+external-service. The link's secret (only its SHA-256 is stored) plus the
+one-time code are the credential; the verification page shows only what the
+signed paper already prints. It stays on core-service because the signed PDFs
+live in core's object storage, which external-service does not configure (and
+under `STORAGE_MODE=memory` the two processes could not even share a file).
+The web app reaches these from its own server routes (`/api/public/esign/*`),
+which rate-limit by address, as the CD-66 intake form does. A second public
+core-service route is a decision to state here, like the list above.
+
 `crm/leads/intake` earned its suffix on 21 Sep 2026: it used to be `POST
 crm/leads`, which `ExternalLeadsController.create` also bound. That controller
 registers first, so the intake route was unreachable and every web form calling

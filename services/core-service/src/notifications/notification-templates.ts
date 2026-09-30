@@ -203,6 +203,38 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
     },
   },
   {
+    eventType: 'esign.requested',
+    label: 'มีเอกสารรอลงนาม (ผู้ลงนามภายใน)',
+    title: 'รอลงนาม: {{title}}',
+    body: 'คุณลงนามในฐานะ {{role}} · หมดเขต {{expires_on}}',
+    variables: {
+      title: { label: 'เอกสาร', sample: 'สัญญาบริการ CTR-2569-0042' },
+      role: { label: 'ฐานะผู้ลงนาม', sample: 'ผู้รับจ้าง' },
+      expires_on: { label: 'หมดเขต', sample: '14 ต.ค. 2569' },
+    },
+  },
+  {
+    eventType: 'esign.completed',
+    label: 'ลงนามครบแล้ว (ถึงผู้ส่งลงนาม)',
+    title: 'ลงนามครบแล้ว: {{title}}',
+    body: 'ผนึกเอกสารแล้ว · รหัสตรวจสอบ {{verify_code}}',
+    variables: {
+      title: { label: 'เอกสาร', sample: 'สัญญาบริการ CTR-2569-0042' },
+      verify_code: { label: 'รหัสตรวจสอบ', sample: 'ABCD-EFGH-JKLM' },
+    },
+  },
+  {
+    eventType: 'esign.declined',
+    label: 'ผู้ลงนามปฏิเสธ (ถึงผู้ส่งลงนาม)',
+    title: 'ปฏิเสธการลงนาม: {{title}}',
+    body: '{{name}} ปฏิเสธ — {{reason}}',
+    variables: {
+      title: { label: 'เอกสาร', sample: 'สัญญาบริการ CTR-2569-0042' },
+      name: { label: 'ผู้ลงนาม', sample: 'คุณสมชาย' },
+      reason: { label: 'เหตุผล', sample: 'ขอแก้ข้อ 7' },
+    },
+  },
+  {
     eventType: 'legal.msa.changed',
     label: 'ข้อตกลงหลัก (MSA) ถูกแก้ไข (ถึงผู้รับผิดชอบสัญญาย่อย)',
     title: 'ข้อตกลงหลัก {{master_no}} ถูกแก้ไข',

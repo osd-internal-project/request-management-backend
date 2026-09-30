@@ -73,6 +73,19 @@ export default () => ({
    * disables the background timers (tests).
    */
   /** CD-78 — Reserve-phone (the phone number inventory); only `mock` exists yet. */
+  /**
+   * CD-14 ระบบลงนามอิเล็กทรอนิกส์. `publicUrl` is where the signing links and
+   * the verification page live (the web app); `secret` keys the one-time
+   * codes' hashes — set it in every environment.
+   */
+  esign: {
+    publicUrl: process.env.ESIGN_PUBLIC_URL ?? 'http://localhost:3000',
+    secret:
+      process.env.ESIGN_SECRET ??
+      (process.env.NODE_ENV === 'production' ? undefined : 'dev-esign-secret'),
+    /** mock (log only) until SMTP / SMS exist */
+    senderMode: process.env.ESIGN_SENDER_MODE ?? 'mock',
+  },
   reservePhone: {
     mode: process.env.RESERVE_PHONE_MODE ?? 'mock',
     /** How long a new hold lasts, and the longest one may be set or extended to. */

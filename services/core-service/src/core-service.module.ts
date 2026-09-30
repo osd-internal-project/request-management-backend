@@ -21,6 +21,7 @@ import { NotificationsHttpModule } from './notifications/notifications-http.modu
 import { PrincipalHttpModule } from './principal/principal-http.module';
 import { RemotePrincipalGuard } from './principal/remote-principal.guard';
 import { EventsModule } from './events/events.module';
+import { EsignHttpModule } from './esign/esign-http.module';
 import { CrmHttpModule } from './crm/crm-http.module';
 import { IntegrationHttpModule } from './integration/integration-http.module';
 import { ProductsHttpModule } from './products/products-http.module';
@@ -59,6 +60,8 @@ import configs from './configs';
     RequestsHttpModule,
     CrmHttpModule,
     PresalesHttpModule,
+    // CD-14 — the central signing service (screens + the public signing link)
+    EsignHttpModule,
     IntegrationHttpModule,
     ProductsHttpModule,
     ApprovalsHttpModule,
