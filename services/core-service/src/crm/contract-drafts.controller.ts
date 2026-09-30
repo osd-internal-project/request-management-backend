@@ -12,7 +12,12 @@ import { CurrentPrincipal, Permissions } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import { ContractDraftsService } from './contract-drafts.service';
 import { ContractTemplatesService } from './contract-templates.service';
+import { ContractReviewsService } from './contract-reviews.service';
 import {
+  AnswerReviewCommentDto,
+  CompareVersionsQueryDto,
+  OpenReviewRoundDto,
+  ReviewCommentDto,
   DraftVersionQueryDto,
   SaveContractTemplateDto,
   SaveDraftVersionDto,
@@ -30,7 +35,75 @@ export class ContractDraftsController {
   constructor(
     private readonly templates: ContractTemplatesService,
     private readonly drafts: ContractDraftsService,
+    private readonly reviews: ContractReviewsService,
   ) {}
+
+  @ApiOperation({ summary: 'เปรียบเทียบร่างสองฉบับ รายข้อ (CD-147)' })
+  @Get('contract-drafts/:id/compare')
+  @Permissions('legal.contract.read')
+  compare(
+    @Param('id') id: string,
+    @Query() query: CompareVersionsQueryDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.reviews.compare(id, query.from, query.to, principal);
+  }
+
+  @ApiOperation({
+    summary: 'รอบตรวจของร่าง พร้อมความเห็นรายข้อ',
+    description: '`changedSince` = ข้อนั้นถูกแก้แล้วนับจากฉบับที่ตรวจ',
+  })
+  @Get('contract-drafts/:id/reviews')
+  @Permissions('legal.contract.read')
+  listReviews(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.reviews.list(id, principal);
+  }
+
+  @ApiOperation({ summary: 'เปิดรอบตรวจบนฉบับล่าสุด — เปิดได้ครั้งละรอบ' })
+  @Post('contract-drafts/:id/reviews')
+  @Permissions('legal.contract.manage')
+  openReview(
+    @Param('id') id: string,
+    @Body() dto: OpenReviewRoundDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.reviews.open(id, dto, principal);
+  }
+
+  @ApiOperation({ summary: 'ให้ความเห็นรายข้อ' })
+  @Post('contract-reviews/:roundId/comments')
+  @Permissions('legal.contract.manage')
+  comment(
+    @Param('roundId') roundId: string,
+    @Body() dto: ReviewCommentDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.reviews.comment(roundId, dto, principal);
+  }
+
+  @ApiOperation({ summary: 'ปิดรอบตรวจ — ต้องตอบความเห็นครบทุกข้อ' })
+  @Post('contract-reviews/:roundId/close')
+  @Permissions('legal.contract.manage')
+  closeReview(
+    @Param('roundId') roundId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.reviews.close(roundId, principal);
+  }
+
+  @ApiOperation({ summary: 'ตอบความเห็น — แก้แล้ว หรือ ไม่แก้ (พร้อมเหตุผล)' })
+  @Post('contract-review-comments/:id/answer')
+  @Permissions('legal.contract.manage')
+  answer(
+    @Param('id') id: string,
+    @Body() dto: AnswerReviewCommentDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.reviews.answer(id, dto, principal);
+  }
 
   @ApiOperation({ summary: 'ตัวแปรที่แม่แบบใช้ได้' })
   @Get('contract-templates/variables')

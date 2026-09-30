@@ -141,3 +141,19 @@ API: `GET/PUT /contracts/:id/terms` · `POST /contracts/:id/terms/liability-appr
 - API: `GET/POST /contract-templates`, `PATCH /contract-templates/:id`, `GET /contract-drafts/by-request/:requestId`,
   `POST /contract-drafts`, `GET /contract-drafts/:id?version=`, `POST /contract-drafts/:id/versions`
 - migration `20260929560000_contract_drafts`
+
+# CD-147 ตรวจสัญญา
+
+บนหน้าร่างสัญญา (`contract_review_rounds` + `contract_review_comments`):
+- **รอบตรวจ** เปิดบนฉบับล่าสุด ครั้งละหนึ่งรอบ (`(draftId, roundNo)` unique กันเปิดซ้อน) — ความเห็น**รายข้อ**
+  (อ้างรหัสข้อในฉบับที่ตรวจ เก็บหัวข้อ ณ ตอนนั้นไว้)
+- ผู้ร่างตอบทีละข้อ: **แก้แล้ว** (บันทึกฉบับที่แก้ = ฉบับล่าสุดตอนตอบ) หรือ **ไม่แก้** (ต้องมีเหตุผล) ·
+  แต่ละความเห็นบอก `changedSince` — ข้อนั้นถูกแก้/ตัดออกแล้วหรือยังนับจากฉบับที่ตรวจ
+- **ยังตอบไม่ครบปิดรอบไม่ได้** (นับในทรานแซกชันเดียวกับการปิด) · ปิดแล้วเก็บฉบับที่ปิด (`closedVersionNo`)
+- **เปรียบเทียบฉบับ** `GET /contract-drafts/:id/compare?from=&to=` — จับคู่ข้อด้วยรหัสข้อ: แก้/เพิ่ม/ตัดออก/ย้ายลำดับ/
+  เปลี่ยนหัวข้อ · diff ทีละบรรทัดแล้วทีละตัวอักษรในบรรทัดที่เปลี่ยน (ภาษาไทยไม่มีช่องว่างระหว่างคำ) ·
+  ข้อความยาวเกินจะแสดงเป็นแทนที่ทั้งก้อน (`contract-review.ts`)
+- สิทธิ์: อ่าน `legal.contract.read` · เปิด/ความเห็น/ตอบ/ปิด `legal.contract.manage` และเฉพาะคำขอที่ยังเปิด
+- API: `GET/POST /contract-drafts/:id/reviews`, `POST /contract-reviews/:roundId/comments`,
+  `POST /contract-reviews/:roundId/close`, `POST /contract-review-comments/:id/answer`
+- migration `20260929580000_contract_reviews`
