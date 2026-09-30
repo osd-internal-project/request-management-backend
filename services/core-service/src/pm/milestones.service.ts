@@ -13,6 +13,12 @@ import {
 import type { ObjectStorage } from '@request-management/share';
 import { CompanyMemberRepository } from '../access/company-member.repository';
 import { ContractInstallmentRepository } from '../crm/contract-installments.service';
+import {
+  delayPenalty,
+  penaltyCeiling,
+  penaltyExposure,
+  type PenaltyRate,
+} from '../crm/contract-terms';
 import { bangkokDay } from '../crm/kyc-rules';
 import { NotificationsService } from '../notifications/notifications.service';
 import { readDeliverables } from '../presales/solution-rules';
@@ -27,7 +33,10 @@ import {
   readCriteria,
   type Criterion,
 } from './milestone-rules';
-import { ProjectMilestoneRepository } from './project.repositories';
+import {
+  ProjectMilestoneRepository,
+  ProjectRepository,
+} from './project.repositories';
 import { ProjectsService } from './projects.service';
 
 export const MAX_EVIDENCE_BYTES = 25 * 1024 * 1024;
@@ -58,6 +67,7 @@ interface MilestoneRow {
   criteria: unknown;
   dueOn: Date | null;
   installmentId: string | null;
+  penaltyApplies: boolean;
   status: string;
   achievedOn: Date | null;
   achievedAt: Date | null;
@@ -86,6 +96,7 @@ const MILESTONE_SELECT = {
   criteria: true,
   dueOn: true,
   installmentId: true,
+  penaltyApplies: true,
   status: true,
   achievedOn: true,
   achievedAt: true,
@@ -123,6 +134,7 @@ export class MilestonesService {
   constructor(
     private readonly projects: ProjectsService,
     private readonly milestones: ProjectMilestoneRepository,
+    private readonly projectRows: ProjectRepository,
     private readonly installments: ContractInstallmentRepository,
     private readonly people: CompanyMemberRepository,
     private readonly notifications: NotificationsService,
@@ -172,9 +184,24 @@ export class MilestonesService {
       ),
     ]);
     const today = bangkokDay(now);
+    const penalty = await this.penaltyOf(projectId);
+    const milestones = rows.map((row) =>
+      this.present(row, names, today, penalty),
+    );
     return {
       canEdit,
-      milestones: rows.map((row) => this.present(row, names, today)),
+      // CD-154 — the contract's delay penalty, and what it comes to so far
+      penalty: {
+        rate: penalty.rate,
+        ceiling: penalty.ceiling,
+        exposure: penaltyExposure(
+          milestones
+            .filter((row) => row.penalty)
+            .map((row) => row.penalty!.amount),
+          penalty.ceiling,
+        ),
+      },
+      milestones,
       installments: schedule.map((row) => ({
         id: row.id,
         seq: row.seq,
@@ -225,6 +252,7 @@ export class MilestonesService {
             criteria: criteria as unknown as Prisma.InputJsonValue,
             dueOn: asDay(dto.due_on),
             installmentId,
+            penaltyApplies: dto.penalty_applies ?? false,
             createdBy: actor.userId,
           },
           select: { id: true },
@@ -286,6 +314,9 @@ export class MilestonesService {
             ...(dto.due_on !== undefined ? { dueOn: asDay(dto.due_on) } : {}),
             criteria: criteria as unknown as Prisma.InputJsonValue,
             installmentId,
+            ...(dto.penalty_applies !== undefined
+              ? { penaltyApplies: dto.penalty_applies }
+              : {}),
             updatedBy: actor.userId,
           },
         },
@@ -385,6 +416,8 @@ export class MilestonesService {
       readDeliverables(baseline?.scope?.deliverables),
       new Set(linked.map((row) => row.installmentId)),
     );
+    // CD-154 — a payment milestone carries the contract's delay penalty
+    const { rate } = await this.penaltyOf(projectId);
     if (!drafts.length) {
       throw new AppError(
         'CONFLICT',
@@ -412,6 +445,7 @@ export class MilestonesService {
               criteria: draft.criteria as unknown as Prisma.InputJsonValue,
               dueOn: draft.dueOn,
               installmentId: draft.installmentId,
+              penaltyApplies: rate !== null,
               createdBy: actor.userId,
             },
           },
@@ -638,10 +672,30 @@ export class MilestonesService {
     row: MilestoneRow,
     names: Map<string, string>,
     today: string,
+    terms: { rate: PenaltyRate | null; contractValue: number | null },
   ) {
     const criteria = readCriteria(row.criteria);
     const due = day(row.dueOn);
     return {
+      penaltyApplies: row.penaltyApplies,
+      penalty:
+        row.penaltyApplies && terms.rate && row.status !== 'cancelled'
+          ? delayPenalty(
+              terms.rate,
+              {
+                dueOn: due,
+                status: row.status,
+                achievedOn: day(row.achievedOn),
+              },
+              {
+                contractValue: terms.contractValue,
+                installmentAmount: row.installment
+                  ? Number(row.installment.amount)
+                  : null,
+              },
+              today,
+            )
+          : null,
       id: row.id,
       seq: row.seq,
       title: row.title,
@@ -671,6 +725,65 @@ export class MilestonesService {
       evidenceNote: row.evidenceNote,
       evidenceFile: row.evidenceName
         ? { name: row.evidenceName, size: row.evidenceSize }
+        : null,
+    };
+  }
+
+  /** CD-154 — the delay penalty of the project's contract, if it has one. */
+  private async penaltyOf(projectId: string) {
+    const row = (await this.projectRows.findFirst({
+      where: { id: projectId },
+      select: {
+        contract: {
+          select: {
+            value: true,
+            terms: {
+              select: {
+                penaltyRatePct: true,
+                penaltyPeriod: true,
+                penaltyBasis: true,
+                penaltyCapPct: true,
+                penaltyCapAmount: true,
+              },
+            },
+          },
+        },
+      },
+    })) as {
+      contract: {
+        value: Prisma.Decimal | null;
+        terms: {
+          penaltyRatePct: Prisma.Decimal | null;
+          penaltyPeriod: string | null;
+          penaltyBasis: string | null;
+          penaltyCapPct: Prisma.Decimal | null;
+          penaltyCapAmount: Prisma.Decimal | null;
+        } | null;
+      };
+    } | null;
+    const n = (value: Prisma.Decimal | null | undefined) =>
+      value === null || value === undefined ? null : Number(value);
+    const contractValue = n(row?.contract.value);
+    const terms = row?.contract.terms ?? null;
+    const rate =
+      terms && terms.penaltyRatePct !== null
+        ? {
+            ratePct: n(terms.penaltyRatePct),
+            period: terms.penaltyPeriod,
+            basis: terms.penaltyBasis,
+          }
+        : null;
+    return {
+      rate,
+      contractValue,
+      ceiling: terms
+        ? penaltyCeiling(
+            {
+              penaltyCapPct: n(terms.penaltyCapPct),
+              penaltyCapAmount: n(terms.penaltyCapAmount),
+            },
+            contractValue,
+          )
         : null,
     };
   }

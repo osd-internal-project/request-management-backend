@@ -4935,6 +4935,8 @@ model ProjectMilestone {
   criteria      Json      @default("[]")
   dueOn         DateTime? @db.Date
   installmentId String?   @unique
+  /// CD-154 — the contract's delay penalty runs if it is late.
+  penaltyApplies Boolean  @default(false)
   /// planned · achieved · cancelled
   status        String    @default("planned")
   achievedOn    DateTime? @db.Date

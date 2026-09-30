@@ -158,6 +158,13 @@ export class SaveMilestoneDto {
   @IsOptional()
   @IsString()
   installment_id?: string | null;
+
+  @ApiPropertyOptional({
+    description: 'CD-154 — ล่าช้าแล้วคิดค่าปรับตามสัญญา',
+  })
+  @IsOptional()
+  @IsBoolean()
+  penalty_applies?: boolean;
 }
 
 /** CD-182 — the manager confirms one criterion (or takes it back). */

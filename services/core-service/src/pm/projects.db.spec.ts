@@ -23,6 +23,10 @@ import { ProjectsService } from './projects.service';
 import { MilestonesService } from './milestones.service';
 import { ProjectMilestoneRepository } from './project.repositories';
 import { ContractInstallmentsService } from '../crm/contract-installments.service';
+import {
+  ContractTermsRepository,
+  ContractTermsService,
+} from '../crm/contract-terms.service';
 import { Readable } from 'node:stream';
 
 /**
@@ -114,6 +118,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       milestones = new MilestonesService(
         projects,
         new ProjectMilestoneRepository(client),
+        new ProjectRepository(client),
         new ContractInstallmentRepository(client),
         new CompanyMemberRepository(client),
         {
@@ -210,6 +215,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       await prisma.projectMilestone.deleteMany({ where: { projectId } });
       await prisma.project.deleteMany({ where: { contractId } });
       await prisma.contractInstallment.deleteMany({ where: { contractId } });
+      await prisma.contractTerms.deleteMany({ where: { contractId } });
       await prisma.contractDocument.deleteMany({ where: { contractId } });
       await prisma.customerContract.deleteMany({ where: { id: contractId } });
       const people = [pm, engineer, outsider];
@@ -396,7 +402,20 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       ).rejects.toMatchObject({ code: 'FORBIDDEN' });
 
       // the deposit waits on no work; the final payment names "ตรวจรับงาน"
+      // CD-154 — the contract's delay penalty: 0.1% of its value a day,
+      // at most 10% of it
+      await prisma.contractTerms.create({
+        data: {
+          contractId,
+          companyId,
+          penaltyRatePct: 0.1,
+          penaltyPeriod: 'day',
+          penaltyBasis: 'contract_value',
+          penaltyCapPct: 10,
+        },
+      });
       const drawn = await milestones.fromSchedule(projectId, managerNow);
+      expect(drawn.milestones[0].penaltyApplies).toBe(true);
       expect(drawn.milestones).toHaveLength(1);
       const first = drawn.milestones[0];
       expect(first).toMatchObject({
@@ -418,7 +437,10 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       await milestones.update(
         projectId,
         first.id,
-        { criteria: ['ลูกค้าลงนามใบตรวจรับ', 'ส่งคู่มือการใช้งาน'] },
+        {
+          criteria: ['ลูกค้าลงนามใบตรวจรับ', 'ส่งคู่มือการใช้งาน'],
+          due_on: '2026-09-20',
+        },
         managerNow,
       );
       // a second milestone cannot take the same installment
@@ -511,6 +533,35 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
 
       // CD-152 — Legal sees each payment against the project's milestones:
       // the first progress payment is tied to nothing, the last one is due
+      // CD-154 — achieved ten days after it was due: 10 × 0.1% × 150,000
+      const withPenalty = await milestones.list(
+        projectId,
+        managerNow,
+        new Date('2026-10-05T05:00:00Z'),
+      );
+      expect(withPenalty.milestones[0].penalty).toMatchObject({
+        daysLate: 10,
+        amount: 1_500,
+      });
+      expect(withPenalty.penalty).toMatchObject({
+        ceiling: 15_000,
+        exposure: { total: 1_500, capped: false },
+      });
+      const legalTerms = await new ContractTermsService(
+        new ContractTermsRepository(prisma as never),
+        new CustomerContractRepository(prisma as never),
+        {} as never,
+        {} as never,
+        {} as never,
+        { record: () => Promise.resolve() } as never,
+        {} as never,
+      ).view(contractId, lawyer());
+      expect(legalTerms.penalty).toMatchObject({
+        project: { id: projectId },
+        milestones: [{ title: 'ตรวจรับงาน', daysLate: 10, amount: 1_500 }],
+        exposure: { total: 1_500 },
+      });
+
       const terms = await schedule.view(contractId, lawyer());
       expect(terms.paymentCheck).toEqual({
         problems: 1,

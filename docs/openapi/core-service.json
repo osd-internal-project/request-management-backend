@@ -23127,6 +23127,10 @@
             "type": "object",
             "description": "งวดชำระที่หมุดหมายนี้ปลดล็อก",
             "nullable": true
+          },
+          "penalty_applies": {
+            "type": "boolean",
+            "description": "CD-154 — ล่าช้าแล้วคิดค่าปรับตามสัญญา"
           }
         }
       },

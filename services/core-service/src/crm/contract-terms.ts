@@ -156,3 +156,83 @@ export function approvalStateOf(
   }
   return 'pending';
 }
+
+// --- CD-154 ค่าปรับตามหมุดหมาย ----------------------------------------------------
+
+export interface PenaltyRate {
+  ratePct: number | null;
+  period: string | null;
+  basis: string | null;
+}
+
+const DAY_MS = 86_400_000;
+const daysBetween = (from: string, to: string) =>
+  Math.round(
+    (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / DAY_MS,
+  );
+
+/**
+ * CD-154 — the delay penalty on one milestone: how late it is (still open
+ * past its due day, or achieved after it), how many penalty periods that
+ * makes, and — when the basis can be known — the amount, to the satang.
+ * The basis "value not yet delivered" is the installment the milestone
+ * unlocks; a monthly fee or another basis is not known here, so the amount
+ * is left to Legal.
+ */
+export function delayPenalty(
+  rate: PenaltyRate,
+  milestone: {
+    dueOn: string | null;
+    status: string;
+    achievedOn: string | null;
+  },
+  amounts: { contractValue: number | null; installmentAmount: number | null },
+  today: string,
+): {
+  daysLate: number;
+  units: number;
+  basisAmount: number | null;
+  amount: number | null;
+} {
+  const end = milestone.status === 'achieved' ? milestone.achievedOn : today;
+  const daysLate =
+    milestone.status === 'cancelled' || !milestone.dueOn || !end
+      ? 0
+      : Math.max(0, daysBetween(milestone.dueOn, end));
+  const units = !daysLate
+    ? 0
+    : rate.period === 'week'
+      ? Math.ceil(daysLate / 7)
+      : rate.period === 'month'
+        ? Math.ceil(daysLate / 30)
+        : rate.period === 'occurrence'
+          ? 1
+          : daysLate;
+  const basisAmount =
+    rate.basis === 'contract_value'
+      ? amounts.contractValue
+      : rate.basis === 'undelivered_value'
+        ? amounts.installmentAmount
+        : null;
+  const amount =
+    rate.ratePct === null || basisAmount === null
+      ? null
+      : Math.round(basisAmount * rate.ratePct * units) / 100;
+  return { daysLate, units, basisAmount, amount };
+}
+
+/** The penalties together, held to the ceiling when there is one. */
+export function penaltyExposure(
+  amounts: readonly (number | null)[],
+  ceiling: number | null,
+): { total: number; capped: boolean; unknown: number } {
+  const known = amounts.filter((value): value is number => value !== null);
+  const sum =
+    Math.round(known.reduce((acc, value) => acc + value, 0) * 100) / 100;
+  const capped = ceiling !== null && sum > ceiling;
+  return {
+    total: capped ? ceiling : sum,
+    capped,
+    unknown: amounts.length - known.length,
+  };
+}

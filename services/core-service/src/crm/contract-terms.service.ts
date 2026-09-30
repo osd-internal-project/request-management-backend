@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client';
+import { bangkokDay } from './kyc-rules';
 import { Injectable } from '@nestjs/common';
 import {
   AppError,
@@ -18,7 +19,9 @@ import {
   approvalStateOf,
   liabilityKey,
   liabilityNeedsApproval,
+  delayPenalty,
   penaltyCeiling,
+  penaltyExposure,
   termProblems,
   warrantyPeriod,
 } from './contract-terms';
@@ -389,6 +392,16 @@ export class ContractTermsService {
       penaltyCapPct: num(row?.penaltyCapPct),
       penaltyCapAmount: num(row?.penaltyCapAmount),
     };
+    const ceiling = penaltyCeiling(penaltyCap, value);
+    const late = await this.penaltyMilestones(
+      contract.id,
+      {
+        ratePct: num(row?.penaltyRatePct),
+        period: row?.penaltyPeriod ?? null,
+        basis: row?.penaltyBasis ?? null,
+      },
+      value,
+    );
     return {
       contractValue: value,
       recorded: Boolean(row),
@@ -415,7 +428,14 @@ export class ContractTermsService {
         basisNote: row?.penaltyBasisNote ?? null,
         capPct: penaltyCap.penaltyCapPct,
         capAmount: penaltyCap.penaltyCapAmount,
-        ceiling: penaltyCeiling(penaltyCap, value),
+        ceiling,
+        // CD-154 — the project milestones the penalty runs on
+        project: late.project,
+        milestones: late.milestones,
+        exposure: penaltyExposure(
+          late.milestones.map((item) => item.amount),
+          ceiling,
+        ),
       },
       warranty: {
         months: row?.warrantyMonths ?? null,
@@ -440,6 +460,87 @@ export class ContractTermsService {
         reportEvery: row?.serviceReportEvery ?? null,
       },
       updatedAt: row?.updatedAt ?? null,
+    };
+  }
+
+  /**
+   * CD-154 — the milestones of the contract's project that carry the delay
+   * penalty, each with how late it is and what that comes to so far.
+   */
+  private async penaltyMilestones(
+    contractId: string,
+    rate: {
+      ratePct: number | null;
+      period: string | null;
+      basis: string | null;
+    },
+    contractValue: number | null,
+    now = new Date(),
+  ) {
+    const found = (await this.contracts.findFirst({
+      where: { id: contractId },
+      select: {
+        project: {
+          select: {
+            id: true,
+            projectNo: true,
+            milestones: {
+              where: { penaltyApplies: true, status: { not: 'cancelled' } },
+              orderBy: { seq: 'asc' },
+              select: {
+                id: true,
+                title: true,
+                status: true,
+                dueOn: true,
+                achievedOn: true,
+                installment: { select: { amount: true } },
+              },
+            },
+          },
+        },
+      },
+    })) as {
+      project: {
+        id: string;
+        projectNo: string;
+        milestones: {
+          id: string;
+          title: string;
+          status: string;
+          dueOn: Date | null;
+          achievedOn: Date | null;
+          installment: { amount: { toString(): string } } | null;
+        }[];
+      } | null;
+    } | null;
+    const today = bangkokDay(now);
+    const project = found?.project ?? null;
+    return {
+      project: project
+        ? { id: project.id, projectNo: project.projectNo }
+        : null,
+      milestones: (project?.milestones ?? []).map((item) => ({
+        id: item.id,
+        title: item.title,
+        status: item.status,
+        dueOn: day(item.dueOn),
+        achievedOn: day(item.achievedOn),
+        ...delayPenalty(
+          rate,
+          {
+            dueOn: day(item.dueOn),
+            status: item.status,
+            achievedOn: day(item.achievedOn),
+          },
+          {
+            contractValue,
+            installmentAmount: item.installment
+              ? Number(item.installment.amount.toString())
+              : null,
+          },
+          today,
+        ),
+      })),
     };
   }
 

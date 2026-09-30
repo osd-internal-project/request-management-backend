@@ -2,7 +2,9 @@ import type { Principal } from '@request-management/share';
 import {
   approvalStateOf,
   liabilityNeedsApproval,
+  delayPenalty,
   penaltyCeiling,
+  penaltyExposure,
   termProblems,
   warrantyPeriod,
 } from './contract-terms';
@@ -279,6 +281,86 @@ describe('CD-153 ContractTermsService — the executives’ approval', () => {
       serviceCoverage: 'H8X5',
       availabilityPct: 99.5,
       serviceReportEvery: 'monthly',
+    });
+  });
+});
+
+describe('CD-154 delay penalty on milestones', () => {
+  const perDay = { ratePct: 0.1, period: 'day', basis: 'contract_value' };
+  const amounts = { contractValue: 1_000_000, installmentAmount: 300_000 };
+
+  it('counts the days an open milestone is past due, at the rate of the basis', () => {
+    expect(
+      delayPenalty(
+        perDay,
+        { dueOn: '2027-03-01', status: 'planned', achievedOn: null },
+        amounts,
+        '2027-03-11',
+      ),
+    ).toEqual({
+      daysLate: 10,
+      units: 10,
+      basisAmount: 1_000_000,
+      amount: 10_000,
+    });
+  });
+
+  it('stops counting when it is achieved; nothing when on time or cancelled', () => {
+    expect(
+      delayPenalty(
+        perDay,
+        { dueOn: '2027-03-01', status: 'achieved', achievedOn: '2027-03-04' },
+        amounts,
+        '2027-06-01',
+      ).daysLate,
+    ).toBe(3);
+    expect(
+      delayPenalty(
+        perDay,
+        { dueOn: '2027-03-01', status: 'achieved', achievedOn: '2027-02-20' },
+        amounts,
+        '2027-06-01',
+      ).amount,
+    ).toBe(0);
+    expect(
+      delayPenalty(
+        perDay,
+        { dueOn: '2027-03-01', status: 'cancelled', achievedOn: null },
+        amounts,
+        '2027-06-01',
+      ).daysLate,
+    ).toBe(0);
+  });
+
+  it('weeks round up; the undelivered basis is the installment; a monthly fee is not known', () => {
+    expect(
+      delayPenalty(
+        { ratePct: 1, period: 'week', basis: 'undelivered_value' },
+        { dueOn: '2027-03-01', status: 'planned', achievedOn: null },
+        amounts,
+        '2027-03-09',
+      ),
+    ).toEqual({ daysLate: 8, units: 2, basisAmount: 300_000, amount: 6_000 });
+    expect(
+      delayPenalty(
+        { ratePct: 1, period: 'day', basis: 'monthly_fee' },
+        { dueOn: '2027-03-01', status: 'planned', achievedOn: null },
+        amounts,
+        '2027-03-09',
+      ).amount,
+    ).toBeNull();
+  });
+
+  it('holds the total to the ceiling', () => {
+    expect(penaltyExposure([60_000, 50_000, null], 100_000)).toEqual({
+      total: 100_000,
+      capped: true,
+      unknown: 1,
+    });
+    expect(penaltyExposure([1_000.1, 2_000.2], null)).toEqual({
+      total: 3_000.3,
+      capped: false,
+      unknown: 0,
     });
   });
 });
