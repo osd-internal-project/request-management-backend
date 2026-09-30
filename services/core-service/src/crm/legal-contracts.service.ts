@@ -29,8 +29,10 @@ import { CustomerRepository } from './customer.repository';
 import {
   ContractAccessDto,
   ListContractsQueryDto,
+  RecordContractSignedDto,
   SaveLegalContractDto,
 } from './dto/legal-contract.dto';
+import { bangkokDay } from './kyc-rules';
 
 export const MAX_CONTRACT_FILE_BYTES = 25 * 1024 * 1024;
 export const CONTRACT_FILE_TYPES = [
@@ -169,6 +171,12 @@ export class LegalContractsService {
         createdBy: true,
         createdAt: true,
         updatedAt: true,
+        signedOn: true,
+        signedVia: true,
+        signedDocumentId: true,
+        signedRecordedBy: true,
+        // CD-175 — the project opened from it
+        project: { select: { id: true, projectNo: true, name: true } },
         documents: {
           where: { deletedAt: null },
           orderBy: { uploadedAt: 'desc' },
@@ -404,6 +412,93 @@ export class LegalContractsService {
       await this.master.changed(id, 'แก้ไขรายละเอียดข้อตกลงหลัก', actor);
     }
     return updated;
+  }
+
+  /**
+   * CD-175 — a contract signed on paper: Legal names the day and the signed
+   * copy it attached. One signed through e-sign is already recorded and is
+   * not overwritten; a manual record may be corrected.
+   */
+  async recordSigned(
+    id: string,
+    dto: RecordContractSignedDto,
+    actor: Principal,
+    now = new Date(),
+  ) {
+    const contract = await this.requireContract(id, actor);
+    const current = (await this.contracts.findFirst({
+      where: { id },
+      select: { signedVia: true, signedOn: true, signedDocumentId: true },
+    })) as {
+      signedVia: string | null;
+      signedOn: Date | null;
+      signedDocumentId: string | null;
+    } | null;
+    if (current?.signedVia === 'esign') {
+      throw new AppError(
+        'CONFLICT',
+        'สัญญานี้ลงนามผ่านระบบลงนามอิเล็กทรอนิกส์แล้ว',
+      );
+    }
+    const day = isoDay(dto.signed_on);
+    if (!day) {
+      throw new AppError('VALIDATION_FAILED', 'วันที่ลงนามไม่ถูกต้อง', [
+        { field: 'signed_on', reason: 'format' },
+      ]);
+    }
+    if (day > bangkokDay(now)) {
+      throw new AppError('VALIDATION_FAILED', 'วันที่ลงนามต้องไม่เกินวันนี้', [
+        { field: 'signed_on', reason: 'future' },
+      ]);
+    }
+    const document = (await this.documents.findFirst({
+      where: { id: dto.document_id, contractId: id, deletedAt: null },
+      select: { id: true },
+    })) as { id: string } | null;
+    if (!document) {
+      throw new AppError(
+        'VALIDATION_FAILED',
+        'ต้องเลือกไฟล์ฉบับลงนามที่แนบกับสัญญานี้',
+        [{ field: 'document_id', reason: 'not_found' }],
+      );
+    }
+    return this.transactions.execute(async (prisma) => {
+      const row = await this.contracts.update(
+        {
+          where: { id },
+          data: {
+            signedOn: asDate(day),
+            signedVia: 'manual',
+            signedDocumentId: document.id,
+            signedRecordedBy: actor.userId,
+            updatedBy: actor.userId,
+          },
+          select: {
+            id: true,
+            signedOn: true,
+            signedVia: true,
+            signedDocumentId: true,
+          },
+        },
+        { prisma },
+      );
+      await this.audit.record(
+        {
+          eventType: 'legal.contract.signed_recorded',
+          companyId: contract.companyId,
+          ...auditActor(actor),
+          resourceType: 'customer_contract',
+          resourceId: id,
+          before: {
+            signedOn: current?.signedOn?.toISOString().slice(0, 10) ?? null,
+            signedDocumentId: current?.signedDocumentId ?? null,
+          },
+          after: { signedOn: day, signedDocumentId: document.id },
+        },
+        { prisma },
+      );
+      return row;
+    });
   }
 
   /** ลับพิเศษ on/off and the people who may still open it. */

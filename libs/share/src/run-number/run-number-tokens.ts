@@ -79,6 +79,7 @@ export const MASTER_TOKENS: Readonly<
   OPPORTUNITY: [],
   SALE_ORDER: [],
   QUOTATION: [],
+  PROJECT: [],
 };
 
 /** token ทั้งหมดที่ชนิดเอกสารนี้อ้างได้ — หน้าตั้งค่าแสดงรายการนี้. */

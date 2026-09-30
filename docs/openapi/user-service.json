@@ -1927,6 +1927,9 @@
         ],
         "tags": [
           "internal"
+        ],
+        "x-permission": [
+          "integration.request.create"
         ]
       }
     },
@@ -2303,6 +2306,9 @@
                 "audit.read",
                 "legal.contract.read",
                 "legal.contract.manage",
+                "esign.manage",
+                "pm.project.read",
+                "pm.project.manage",
                 "admin.role.manage",
                 "admin.org.manage",
                 "admin.request-type.manage",
@@ -2393,6 +2399,9 @@
                 "audit.read",
                 "legal.contract.read",
                 "legal.contract.manage",
+                "esign.manage",
+                "pm.project.read",
+                "pm.project.manage",
                 "admin.role.manage",
                 "admin.org.manage",
                 "admin.request-type.manage",
@@ -2667,6 +2676,9 @@
               "audit.read",
               "legal.contract.read",
               "legal.contract.manage",
+              "esign.manage",
+              "pm.project.read",
+              "pm.project.manage",
               "admin.role.manage",
               "admin.org.manage",
               "admin.request-type.manage",

@@ -50,6 +50,12 @@ const FALLBACK: Readonly<Record<RunNumberDocType, RunNumberFormat>> = {
     startNumber: 1,
     resetPeriod: 'none',
   },
+  PROJECT: {
+    pattern: 'PRJ-{COMPANY_PREFIX}-{SEQ}',
+    seqPadding: 6,
+    startNumber: 1,
+    resetPeriod: 'none',
+  },
 };
 
 export interface IssueResult {

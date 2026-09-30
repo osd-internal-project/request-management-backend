@@ -3567,6 +3567,14 @@ model CustomerContract {
   /// column per step. Emptied when the end date moves.
   remindedDays         Int[]     @default([])
 
+  /// CD-175 — when every party had signed: set by e-sign on completion
+  /// (`esign`), or by Legal for a paper contract with its signed copy
+  /// (`manual`). A project opens only on a signed contract.
+  signedOn         DateTime? @db.Date
+  signedVia        String?
+  signedDocumentId String?
+  signedRecordedBy String?
+
   note      String?
   createdAt DateTime @default(now())
   createdBy String?
@@ -3574,6 +3582,8 @@ model CustomerContract {
   updatedBy String?
 
   customer     Customer?            @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  /// CD-175 — the project opened from it (one per contract).
+  project      Project?
   documents    ContractDocument[]
   access       ContractAccess[]
   /// CD-153..156 — ข้อกำหนดที่วัดได้ของสัญญา.
@@ -4839,4 +4849,68 @@ model EsignAuthority {
 
   @@index([companyId, userId])
   @@map("esign_authorities")
+}
+
+/// CD-18 PM — where a project stands.
+enum ProjectStatus {
+  active
+  on_hold
+  closed
+  cancelled
+}
+
+/// CD-175 — a project, opened from a signed contract. `baseline` is what was
+/// sold, copied when it opened: the contract, the approved Solution's scope,
+/// deliverables, BOQ, labour and cost, the billing schedule. It does not
+/// follow later edits to those — a change goes through a change request
+/// (CD-185).
+model Project {
+  id                String        @id @default(uuid())
+  companyId         String
+  projectNo         String
+  name              String
+  contractId        String        @unique
+  customerId        String?
+  opportunityId     String?
+  /// The approved Solution version the baseline came from, if there was one.
+  solutionVersionId String?
+  managerUserId     String
+  status            ProjectStatus @default(active)
+  startOn           DateTime?     @db.Date
+  endOn             DateTime      @db.Date
+  contractValue     Decimal?      @db.Decimal(14, 2)
+  currency          String        @default("THB")
+  baseline          Json
+  /// What the baseline could not find (no approved Solution, no BOQ, …).
+  missing           String[]      @default([])
+  note              String?
+  openedAt          DateTime      @default(now())
+  openedBy          String
+  updatedAt         DateTime      @updatedAt
+  updatedBy         String?
+
+  contract CustomerContract @relation(fields: [contractId], references: [id], onDelete: Restrict)
+  members  ProjectMember[]
+
+  @@unique([companyId, projectNo])
+  @@index([companyId, status])
+  @@index([managerUserId])
+  @@map("projects")
+}
+
+/// CD-175 — the project team. A member sees the project without
+/// `pm.project.read`.
+model ProjectMember {
+  projectId String
+  userId    String
+  /// What they do on it, in words: วิศวกร, นักพัฒนา, ผู้ประสานงาน.
+  role      String?
+  addedAt   DateTime @default(now())
+  addedBy   String
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, userId])
+  @@index([userId])
+  @@map("project_members")
 }

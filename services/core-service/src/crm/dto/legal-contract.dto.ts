@@ -375,6 +375,21 @@ export class SaveObligationDto {
   status?: 'open' | 'waived';
 }
 
+/**
+ * CD-175 — Legal records that a paper contract was signed by every party:
+ * the day, and the signed copy already attached to the contract.
+ */
+export class RecordContractSignedDto {
+  @ApiProperty({ example: '2026-09-30' })
+  @IsDateString()
+  signed_on!: string;
+
+  @ApiProperty({ description: 'ไฟล์ฉบับลงนามที่แนบกับสัญญาแล้ว' })
+  @IsString()
+  @IsNotEmpty()
+  document_id!: string;
+}
+
 /** CD-163 — marking an obligation done. */
 export class CompleteObligationDto {
   @ApiPropertyOptional({ example: 'ส่งรายงานทางอีเมลแล้ว' })

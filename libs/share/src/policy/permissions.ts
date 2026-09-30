@@ -100,6 +100,12 @@ export const PERMISSIONS = {
    * envelope names (signed in); an external one holds the link and the code.
    */
   esign: ['esign.manage'],
+  /**
+   * CD-18 PM — `pm.project.read` sees every project of the company;
+   * `pm.project.manage` opens projects from signed contracts and names their
+   * manager and team. A project's manager and members see it without either.
+   */
+  pm: ['pm.project.read', 'pm.project.manage'],
   admin: [
     'admin.role.manage',
     'admin.org.manage',

@@ -562,6 +562,29 @@ export class NotificationsService {
     });
   }
 
+  /** CD-175 — someone was made a project's manager or put on its team. */
+  async projectAssigned(
+    userId: string,
+    companyId: string,
+    project: { id: string; projectNo: string; name: string },
+    contractNo: string,
+    role: string,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'pm.project.assigned',
+      values: {
+        project_no: project.projectNo,
+        project_name: project.name,
+        contract_no: contractNo,
+        role,
+      },
+      resourceType: 'project',
+      resourceId: project.id,
+    });
+  }
+
   /** CD-149 — the MSA a contract is made under was changed. */
   async masterAgreementChanged(
     userId: string,

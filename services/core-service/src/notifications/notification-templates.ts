@@ -265,6 +265,21 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
     },
   },
   {
+    eventType: 'pm.project.assigned',
+    label: 'ได้รับมอบหมายในโครงการ (ถึงผู้จัดการและทีมโครงการ)',
+    title: 'โครงการ {{project_no}}: คุณเป็น{{role}}',
+    body: '{{project_name}} — เปิดจากสัญญา {{contract_no}}',
+    variables: {
+      project_no: { label: 'เลขที่โครงการ', sample: 'PRJ-OSD-000012' },
+      project_name: {
+        label: 'ชื่อโครงการ',
+        sample: 'ติดตั้งระบบกล้อง อาคาร A',
+      },
+      contract_no: { label: 'เลขที่สัญญา', sample: 'CTR-2569-0042' },
+      role: { label: 'บทบาท', sample: 'ผู้จัดการโครงการ' },
+    },
+  },
+  {
     eventType: 'legal.msa.changed',
     label: 'ข้อตกลงหลัก (MSA) ถูกแก้ไข (ถึงผู้รับผิดชอบสัญญาย่อย)',
     title: 'ข้อตกลงหลัก {{master_no}} ถูกแก้ไข',

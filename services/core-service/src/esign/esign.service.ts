@@ -687,6 +687,15 @@ export class EsignService implements OnModuleInit, OnModuleDestroy {
     return toBuffer(await this.storage.get(envelope.signedKey));
   }
 
+  /** When the last party signed, for whoever files the sealed copy. */
+  async completedAt(id: string): Promise<Date | null> {
+    const envelope = (await this.envelopes.findFirst({
+      where: { id },
+      select: { completedAt: true },
+    })) as { completedAt: Date | null } | null;
+    return envelope?.completedAt ?? null;
+  }
+
   // --- internal signers ---------------------------------------------------------
 
   /** What waits for me to sign. */

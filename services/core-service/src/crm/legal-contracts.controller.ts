@@ -33,6 +33,7 @@ import { ContractEsignService } from './contract-esign.service';
 import { CreateContractEnvelopeDto } from '../esign/esign.dto';
 import {
   ContractAccessDto,
+  RecordContractSignedDto,
   SaveContractTermsDto,
   SaveInstallmentsDto,
   SaveRiskAssessmentDto,
@@ -268,6 +269,19 @@ export class LegalContractsController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.contracts.update(id, dto, principal);
+  }
+
+  @ApiOperation({
+    summary: 'บันทึกว่าสัญญาลงนามครบแล้ว (สัญญากระดาษ) พร้อมไฟล์ฉบับลงนาม',
+  })
+  @Post(':id/signed')
+  @Permissions('legal.contract.manage')
+  recordSigned(
+    @Param('id') id: string,
+    @Body() dto: RecordContractSignedDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.contracts.recordSigned(id, dto, principal);
   }
 
   @ApiOperation({ summary: 'ตั้งลับพิเศษ และผู้ที่เปิดได้เพิ่มเติม' })

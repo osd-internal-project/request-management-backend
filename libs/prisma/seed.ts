@@ -305,6 +305,24 @@ const SEED_ROLES: {
     ],
   },
   {
+    // CD-175 — ผู้จัดการโครงการ: opens a project from a signed contract,
+    // with what was sold copied in, and runs it.
+    code: 'pm',
+    name: 'ผู้จัดการโครงการ',
+    description: 'เปิดโครงการจากสัญญาที่ลงนามแล้ว กำหนดผู้จัดการและทีม',
+    permissions: [
+      'request.create',
+      'request.read',
+      'request.cancel.own',
+      'request.return',
+      'request.complete',
+      'notification.read',
+      'user.read',
+      'pm.project.read',
+      'pm.project.manage',
+    ],
+  },
+  {
     code: 'auditor',
     name: 'ผู้ตรวจสอบ',
     description: 'ตรวจสอบภายใน — อ่านอย่างเดียว ข้ามบริษัทได้',

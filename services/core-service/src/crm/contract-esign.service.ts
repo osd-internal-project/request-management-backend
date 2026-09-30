@@ -13,6 +13,7 @@ import type { CreateContractEnvelopeDto } from '../esign/esign.dto';
 import { DomainEventsService } from '../events/domain-events.service';
 import { DOMAIN_EVENTS } from '../events/event-catalog';
 import { contractVisibleWhere } from './contract-visibility';
+import { bangkokDay } from './kyc-rules';
 import { extractContractText } from './contract-text';
 import { ContractDraftsService } from './contract-drafts.service';
 import { ContractDraftApprovalService } from './contract-draft-approval.service';
@@ -153,6 +154,17 @@ export class ContractEsignService implements OnModuleInit {
         textStatus: status,
         textContent: text,
         uploadedBy: source?.uploadedBy ?? 'esign',
+      },
+    });
+    // CD-175 — every party signed: the contract is in force from today
+    // (a project may now be opened from it). A date already recorded stays.
+    const completed = await this.esign.completedAt(payload.envelope_id);
+    await this.contracts.updateMany({
+      where: { id: payload.ref_id, signedOn: null },
+      data: {
+        signedOn: new Date(`${bangkokDay(completed ?? new Date())}T00:00:00Z`),
+        signedVia: 'esign',
+        signedDocumentId: id,
       },
     });
     await this.audit.record({

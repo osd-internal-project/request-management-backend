@@ -28,6 +28,7 @@ import { ProductsHttpModule } from './products/products-http.module';
 import { RequestsHttpModule } from './requests/requests-http.module';
 import { SlaHttpModule } from './sla/sla-http.module';
 import { PresalesHttpModule } from './presales/presales-http.module';
+import { PmHttpModule } from './pm/pm-http.module';
 import { SensitiveReadAuditRecorder } from './policy/sensitive-read.recorder';
 import configs from './configs';
 
@@ -60,6 +61,8 @@ import configs from './configs';
     RequestsHttpModule,
     CrmHttpModule,
     PresalesHttpModule,
+    // CD-18 PM — projects opened from signed contracts
+    PmHttpModule,
     // CD-14 — the central signing service (screens + the public signing link)
     EsignHttpModule,
     IntegrationHttpModule,

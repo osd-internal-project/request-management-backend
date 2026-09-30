@@ -8,6 +8,7 @@ export const RUN_NUMBER_DOC_TYPES = [
   'OPPORTUNITY',
   'SALE_ORDER',
   'QUOTATION',
+  'PROJECT',
 ] as const;
 
 export type RunNumberDocType = (typeof RUN_NUMBER_DOC_TYPES)[number];
