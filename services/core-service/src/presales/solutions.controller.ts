@@ -26,6 +26,8 @@ import {
 } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import {
+  CreateRiskDto,
+  UpdateRiskDto,
   AnswerClarificationDto,
   CreateClarificationDto,
   ResolveClarificationDto,
@@ -40,6 +42,7 @@ import {
 import { RequirementsService } from './requirements.service';
 import { SolutionApprovalService } from './solution-approval.service';
 import { ClarificationsService } from './clarifications.service';
+import { RisksService } from './risks.service';
 import { MAX_FILE_BYTES, SolutionsService } from './solutions.service';
 
 /**
@@ -58,6 +61,7 @@ export class SolutionsController {
     private readonly requirements: RequirementsService,
     private readonly approvals: SolutionApprovalService,
     private readonly clarifications: ClarificationsService,
+    private readonly risks: RisksService,
   ) {}
 
   @ApiOperation({ summary: 'เริ่ม Solution จากคำขอ "ขอ Solution" ที่รับแล้ว' })
@@ -329,5 +333,41 @@ export class SolutionsController {
     @CurrentPrincipal() actor: Principal,
   ) {
     return this.clarifications.remove(id, clarificationId, actor);
+  }
+
+  // --- CD-141 ความเสี่ยงทางเทคนิค ---------------------------------------------------
+
+  @ApiOperation({ summary: 'เพิ่มความเสี่ยง (โอกาสเกิด × ผลกระทบ 1–5)' })
+  @Post('presales/solutions/:id/risks')
+  @Permissions('presales.solution.manage')
+  addRisk(
+    @Param('id') id: string,
+    @Body() dto: CreateRiskDto,
+    @CurrentPrincipal() actor: Principal,
+  ) {
+    return this.risks.add(id, dto, actor);
+  }
+
+  @ApiOperation({ summary: 'แก้ความเสี่ยง แนวทางลด หรือสถานะ' })
+  @Patch('presales/solutions/:id/risks/:riskId')
+  @Permissions('presales.solution.manage')
+  updateRisk(
+    @Param('id') id: string,
+    @Param('riskId') riskId: string,
+    @Body() dto: UpdateRiskDto,
+    @CurrentPrincipal() actor: Principal,
+  ) {
+    return this.risks.update(id, riskId, dto, actor);
+  }
+
+  @ApiOperation({ summary: 'เอาความเสี่ยงออก' })
+  @Delete('presales/solutions/:id/risks/:riskId')
+  @Permissions('presales.solution.manage')
+  removeRisk(
+    @Param('id') id: string,
+    @Param('riskId') riskId: string,
+    @CurrentPrincipal() actor: Principal,
+  ) {
+    return this.risks.remove(id, riskId, actor);
   }
 }

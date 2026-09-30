@@ -4074,6 +4074,8 @@ model Solution {
   requirements   SolutionRequirement[]
   /// CD-140 — คำถาม-คำตอบทางเทคนิคกับลูกค้า.
   clarifications SolutionClarification[]
+  /// CD-141 — ทะเบียนความเสี่ยงทางเทคนิค.
+  risks          SolutionRisk[]
 
   @@index([companyId, opportunityId])
   @@map("solutions")
@@ -4244,4 +4246,41 @@ model SolutionClarification {
 
   @@index([solutionId])
   @@map("solution_clarifications")
+}
+
+/// CD-141 — สถานะของความเสี่ยงหนึ่งข้อ.
+enum SolutionRiskStatus {
+  open
+  mitigated
+  accepted
+  closed
+}
+
+/// CD-141 — ความเสี่ยงทางเทคนิคของ Solution (ไม่ผูกเวอร์ชัน): โอกาสเกิด × ผลกระทบ
+/// (1–5 แต่ละด้าน) = คะแนน → ระดับ; ความเสี่ยงระดับสูง/วิกฤติที่ยังเปิดต้องมีผู้รับผิดชอบ
+/// และแนวทางลดความเสี่ยงก่อนขออนุมัติ. ส่งต่อไปกับงานส่งมอบเป็นความเสี่ยงของโครงการ.
+/// ลบคือ soft delete.
+model SolutionRisk {
+  id          String             @id @default(uuid())
+  companyId   String
+  solutionId  String
+  seq         Int
+  title       String
+  description String             @default("")
+  likelihood  Int
+  impact      Int
+  owner       String             @default("")
+  mitigation  String             @default("")
+  status      SolutionRiskStatus @default(open)
+
+  createdBy String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  updatedBy String?
+  deletedAt DateTime?
+
+  solution Solution @relation(fields: [solutionId], references: [id])
+
+  @@index([solutionId])
+  @@map("solution_risks")
 }

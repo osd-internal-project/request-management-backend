@@ -7,6 +7,7 @@ import {
   IsInt,
   IsISO8601,
   Min,
+  Max,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -17,6 +18,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   ASSUMPTION_CATEGORIES,
   FEASIBILITY_VERDICTS,
+  RISK_STATUSES,
   REQUIREMENT_ASSESSMENTS,
   REQUIREMENT_KINDS,
 } from '../solution-rules';
@@ -259,4 +261,90 @@ export class ResolveClarificationDto {
   @IsInt()
   @Min(1)
   version_no!: number;
+}
+
+/** CD-141 — ความเสี่ยงทางเทคนิคหนึ่งข้อ. */
+export class CreateRiskDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(500)
+  title!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  description?: string;
+
+  @ApiProperty({ minimum: 1, maximum: 5, description: 'โอกาสเกิด' })
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  likelihood!: number;
+
+  @ApiProperty({ minimum: 1, maximum: 5, description: 'ผลกระทบ' })
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  impact!: number;
+
+  @ApiPropertyOptional({ description: 'ผู้รับผิดชอบ' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  owner?: string;
+
+  @ApiPropertyOptional({ description: 'แนวทางลดความเสี่ยง' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  mitigation?: string;
+}
+
+/** CD-141 — แก้ความเสี่ยง (ส่งเฉพาะที่แก้). */
+export class UpdateRiskDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(500)
+  title?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  description?: string;
+
+  @ApiPropertyOptional({ minimum: 1, maximum: 5 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  likelihood?: number;
+
+  @ApiPropertyOptional({ minimum: 1, maximum: 5 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  impact?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  owner?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  mitigation?: string;
+
+  @ApiPropertyOptional({ enum: RISK_STATUSES })
+  @IsOptional()
+  @IsIn(RISK_STATUSES)
+  status?: (typeof RISK_STATUSES)[number];
 }

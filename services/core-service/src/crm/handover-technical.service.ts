@@ -1,11 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import {
   SolutionClarificationRepository,
+  SolutionRiskRepository,
   SolutionFileRepository,
   SolutionRequirementRepository,
   SolutionVersionRepository,
 } from '../presales/solution.repositories';
 import {
+  riskLevel,
+  riskScore,
+  type RiskState,
   readAssumptions,
   readDeliverables,
   readLines,
@@ -39,6 +43,7 @@ export class HandoverTechnicalService {
     private readonly requirements: SolutionRequirementRepository,
     private readonly files: SolutionFileRepository,
     private readonly clarifications: SolutionClarificationRepository,
+    private readonly risks: SolutionRiskRepository,
   ) {}
 
   async candidate(opportunityId: string): Promise<TechnicalCandidate> {
@@ -95,7 +100,7 @@ export class HandoverTechnicalService {
       solution: { id: string; title: string };
     } | null;
     if (!version) return null;
-    const [requirements, files, clarifications] = await Promise.all([
+    const [requirements, files, clarifications, risks] = await Promise.all([
       this.requirements.findMany({
         where: { solutionId: version.solutionId, deletedAt: null },
         orderBy: { seq: 'asc' },
@@ -126,6 +131,21 @@ export class HandoverTechnicalService {
           affectsScope: true,
         },
       }),
+      // CD-141 — the project's risks, from the pre-sale.
+      this.risks.findMany({
+        where: { solutionId: version.solutionId, deletedAt: null },
+        orderBy: { seq: 'asc' },
+        select: {
+          seq: true,
+          title: true,
+          description: true,
+          likelihood: true,
+          impact: true,
+          owner: true,
+          mitigation: true,
+          status: true,
+        },
+      }) as Promise<(RiskState & { seq: number; title: string })[]>,
     ]);
     return {
       solutionId: version.solution.id,
@@ -144,6 +164,13 @@ export class HandoverTechnicalService {
       assumptions: readAssumptions(version.assumptions),
       requirements,
       clarifications,
+      risks: risks
+        .map((risk) => ({
+          ...risk,
+          score: riskScore(risk),
+          level: riskLevel(riskScore(risk)),
+        }))
+        .sort((a, b) => b.score - a.score || a.seq - b.seq),
       files,
     };
   }

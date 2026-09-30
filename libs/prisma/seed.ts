@@ -1384,6 +1384,14 @@ async function seedRequestTypes(
             'x-multiline': true,
             'x-order': 80,
           },
+          // CD-141 — the risk register, highest score first.
+          risks: {
+            type: 'string',
+            title: 'ความเสี่ยงทางเทคนิค',
+            maxLength: 20000,
+            'x-multiline': true,
+            'x-order': 95,
+          },
           // CD-140 — the technical Q&A with the customer.
           clarifications: {
             type: 'string',

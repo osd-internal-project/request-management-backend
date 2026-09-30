@@ -23,6 +23,8 @@ import {
   approvalFormData,
   clarificationCounts,
   clarificationsText,
+  riskCounts,
+  risksText,
   type FeasibilityVerdict,
   type SolutionApprovalStatus,
 } from './solution-rules';
@@ -104,10 +106,12 @@ export class SolutionApprovalService implements OnModuleInit {
     })) as VersionRow | null;
     if (!version) throw new AppError('NOT_FOUND', 'ไม่พบเวอร์ชันที่ระบุ');
     const clarifications = await this.solutions.activeClarifications(id);
+    const risks = await this.solutions.activeRisks(id);
     const blocker = approvalBlocker(
       version,
       versionNo === solution.currentVersionNo,
       clarificationCounts(clarifications).scope_open,
+      riskCounts(risks).needs_plan,
     );
     if (blocker) throw new AppError('CONFLICT', blocker);
 
@@ -154,6 +158,8 @@ export class SolutionApprovalService implements OnModuleInit {
           ...(clarifications.length
             ? { clarifications: clarificationsText(clarifications) }
             : {}),
+          // CD-141 — the risk register, highest score first.
+          ...(risks.length ? { risks: risksText(risks) } : {}),
         },
       },
       actor,
