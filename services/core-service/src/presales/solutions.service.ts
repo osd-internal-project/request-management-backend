@@ -22,6 +22,9 @@ import {
   SolutionClarificationRepository,
   SolutionDemoRepository,
   SolutionRiskRepository,
+  SolutionTorClauseRepository,
+  SolutionTorFileRepository,
+  SolutionTorRepository,
   SolutionFileRepository,
   SolutionRepository,
   SolutionRequirementRepository,
@@ -51,6 +54,8 @@ import {
   type RiskState,
   demoCounts,
   readCriteria,
+  torCounts,
+  type TorClauseState,
   type FindingState,
   type RequirementState,
 } from './solution-rules';
@@ -162,6 +167,9 @@ export class SolutionsService {
     private readonly clarifications: SolutionClarificationRepository,
     private readonly risks: SolutionRiskRepository,
     private readonly demos: SolutionDemoRepository,
+    private readonly tors: SolutionTorRepository,
+    private readonly torFiles: SolutionTorFileRepository,
+    private readonly torClauses: SolutionTorClauseRepository,
     private readonly requests: RequestRepository,
     private readonly opportunities: OpportunityRepository,
     private readonly configs: CrmConfigRepository,
@@ -342,6 +350,10 @@ export class SolutionsService {
             },
           },
         },
+        torClauses: {
+          where: { deletedAt: null },
+          select: { mandatory: true, compliance: true },
+        },
       },
     })) as unknown as {
       id: string;
@@ -362,9 +374,18 @@ export class SolutionsService {
         equipment: { returnedOn: Date | null }[];
         findings: FindingState[];
       }[];
+      torClauses: TorClauseState[];
     }[];
     return rows.map(
-      ({ versions, requirements, clarifications, risks, demos, ...row }) => ({
+      ({
+        versions,
+        requirements,
+        clarifications,
+        risks,
+        demos,
+        torClauses,
+        ...row
+      }) => ({
         ...row,
         latest: versions[0] ?? null,
         // CD-131 — what the salesperson has to chase with the customer.
@@ -375,6 +396,8 @@ export class SolutionsService {
         risk_counts: riskCounts(risks),
         // CD-139 — demos planned, equipment still out, findings to work in.
         demo_counts: demoCounts(demos),
+        // CD-138 — mandatory TOR clauses still open.
+        tor_counts: torCounts(torClauses),
       }),
     );
   }
@@ -442,6 +465,8 @@ export class SolutionsService {
     const riskTotals = riskCounts(risks);
     const demos = await this.activeDemos(id);
     const demoTotals = demoCounts(demos);
+    const tor = await this.activeTor(id);
+    const torTotals = torCounts(tor.clauses);
     return {
       ...solution,
       can_manage: this.canManage(actor),
@@ -466,6 +491,9 @@ export class SolutionsService {
         criteria: readCriteria(demo.criteria),
       })),
       demo_counts: demoTotals,
+      // CD-138 — the TOR's facts, files and clauses.
+      tor,
+      tor_counts: torTotals,
       deal: deal
         ? {
             id: deal.id,
@@ -497,9 +525,12 @@ export class SolutionsService {
         blocker: approvalBlocker(
           version,
           version.versionNo === solution.currentVersionNo,
-          clarificationTotals.scope_open,
-          riskTotals.needs_plan,
-          demoTotals.findings_open,
+          {
+            scopeUpdates: clarificationTotals.scope_open,
+            risksWithoutPlan: riskTotals.needs_plan,
+            demoFindings: demoTotals.findings_open,
+            torMandatoryGaps: torTotals.mandatory_gaps,
+          },
         ),
         request: approvalRequest,
       },
@@ -1006,6 +1037,40 @@ export class SolutionsService {
         scopeResolvedAt: Date | null;
       })[]
     >;
+  }
+
+  /** CD-138 — the TOR's facts, files and clauses (clauses in order). */
+  async activeTor(solutionId: string) {
+    const [facts, files, clauses] = await Promise.all([
+      this.tors.findFirst({ where: { solutionId } }) as Promise<{
+        buyer: string;
+        projectNo: string;
+        submissionDeadline: Date | null;
+        bidBond: string;
+        note: string;
+        updatedAt: Date;
+      } | null>,
+      this.torFiles.findMany({
+        where: { solutionId, deletedAt: null },
+        orderBy: { uploadedAt: 'asc' },
+        select: FILE_SELECT,
+      }),
+      this.torClauses.findMany({
+        where: { solutionId, deletedAt: null },
+        orderBy: { seq: 'asc' },
+      }) as Promise<
+        (TorClauseState & {
+          id: string;
+          seq: number;
+          clauseNo: string;
+          text: string;
+          response: string;
+          reference: string;
+          updatedAt: Date;
+        })[]
+      >,
+    ]);
+    return { facts, files, clauses };
   }
 
   /** CD-139 — the demos, oldest first, with their equipment and findings. */

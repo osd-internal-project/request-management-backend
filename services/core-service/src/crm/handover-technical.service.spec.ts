@@ -53,6 +53,8 @@ function harness(options: {
       ),
     } as never,
     { findMany: jest.fn(() => Promise.resolve([])) } as never,
+    { findFirst: jest.fn(() => Promise.resolve(null)) } as never,
+    { findMany: jest.fn(() => Promise.resolve([])) } as never,
   );
   return { service, versions, files };
 }
@@ -118,6 +120,7 @@ describe('CD-144 handover technical package', () => {
       ],
       files: [{ id: 'f-1' }],
       demos: [],
+      tor: null,
     });
     await expect(service.packageOf(null)).resolves.toBeNull();
   });

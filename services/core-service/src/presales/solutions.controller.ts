@@ -7,6 +7,7 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Put,
   StreamableFile,
   UploadedFile,
   UseInterceptors,
@@ -26,6 +27,10 @@ import {
 } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import {
+  BulkTorClausesDto,
+  CreateTorClauseDto,
+  SaveTorDto,
+  UpdateTorClauseDto,
   AddEquipmentDto,
   AddFindingDto,
   CloseDemoDto,
@@ -50,6 +55,7 @@ import { SolutionApprovalService } from './solution-approval.service';
 import { ClarificationsService } from './clarifications.service';
 import { RisksService } from './risks.service';
 import { DemosService } from './demos.service';
+import { MAX_TOR_FILE_BYTES, TorService } from './tor.service';
 import { MAX_FILE_BYTES, SolutionsService } from './solutions.service';
 
 /**
@@ -70,6 +76,7 @@ export class SolutionsController {
     private readonly clarifications: ClarificationsService,
     private readonly risks: RisksService,
     private readonly demos: DemosService,
+    private readonly tor: TorService,
   ) {}
 
   @ApiOperation({ summary: 'เริ่ม Solution จากคำขอ "ขอ Solution" ที่รับแล้ว' })
@@ -498,5 +505,117 @@ export class SolutionsController {
     @CurrentPrincipal() actor: Principal,
   ) {
     return this.demos.removeFinding(id, demoId, findingId, actor);
+  }
+
+  // --- CD-138 TOR / RFP -----------------------------------------------------------
+
+  @ApiOperation({
+    summary:
+      'บันทึกข้อมูลหลักของ TOR (ผู้ซื้อ เลขโครงการ กำหนดยื่น หลักประกันซอง)',
+  })
+  @Put('presales/solutions/:id/tor')
+  @Permissions('presales.solution.manage')
+  saveTor(
+    @Param('id') id: string,
+    @Body() dto: SaveTorDto,
+    @CurrentPrincipal() actor: Principal,
+  ) {
+    return this.tor.saveFacts(id, dto, actor);
+  }
+
+  @ApiOperation({ summary: 'แนบไฟล์ TOR / RFP ต้นฉบับ (≤ 50 MB, ≤ 30 ไฟล์)' })
+  @Post('presales/solutions/:id/tor/files')
+  @Permissions('presales.solution.manage')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['file'],
+      properties: { file: { type: 'string', format: 'binary' } },
+    },
+  })
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: MAX_TOR_FILE_BYTES },
+      defParamCharset: 'utf8',
+    }),
+  )
+  uploadTorFile(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @CurrentPrincipal() actor: Principal,
+  ) {
+    return this.tor.uploadFile(id, file, actor);
+  }
+
+  @ApiOperation({ summary: 'ไฟล์ TOR' })
+  @Get('presales/solutions/:id/tor/files/:fileId')
+  @Authenticated()
+  async downloadTorFile(
+    @Param('id') id: string,
+    @Param('fileId') fileId: string,
+    @CurrentPrincipal() actor: Principal,
+  ): Promise<StreamableFile> {
+    const file = await this.tor.downloadFile(id, fileId, actor);
+    return new StreamableFile(file.stream, {
+      type: file.mimeType,
+      disposition: `attachment; filename*=UTF-8''${encodeURIComponent(file.fileName)}`,
+    });
+  }
+
+  @ApiOperation({ summary: 'เอาไฟล์ TOR ออก' })
+  @Delete('presales/solutions/:id/tor/files/:fileId')
+  @Permissions('presales.solution.manage')
+  removeTorFile(
+    @Param('id') id: string,
+    @Param('fileId') fileId: string,
+    @CurrentPrincipal() actor: Principal,
+  ) {
+    return this.tor.removeFile(id, fileId, actor);
+  }
+
+  @ApiOperation({ summary: 'เพิ่มข้อกำหนด' })
+  @Post('presales/solutions/:id/tor/clauses')
+  @Permissions('presales.solution.manage')
+  addTorClause(
+    @Param('id') id: string,
+    @Body() dto: CreateTorClauseDto,
+    @CurrentPrincipal() actor: Principal,
+  ) {
+    return this.tor.addClause(id, dto, actor);
+  }
+
+  @ApiOperation({ summary: 'วางข้อกำหนดจาก TOR ทีละหลายข้อ (ข้อละบรรทัด)' })
+  @Post('presales/solutions/:id/tor/clauses/bulk')
+  @Permissions('presales.solution.manage')
+  addTorClauses(
+    @Param('id') id: string,
+    @Body() dto: BulkTorClausesDto,
+    @CurrentPrincipal() actor: Principal,
+  ) {
+    return this.tor.addBulk(id, dto, actor);
+  }
+
+  @ApiOperation({ summary: 'แก้ข้อกำหนด หรือบันทึกการตอบ' })
+  @Patch('presales/solutions/:id/tor/clauses/:clauseId')
+  @Permissions('presales.solution.manage')
+  updateTorClause(
+    @Param('id') id: string,
+    @Param('clauseId') clauseId: string,
+    @Body() dto: UpdateTorClauseDto,
+    @CurrentPrincipal() actor: Principal,
+  ) {
+    return this.tor.updateClause(id, clauseId, dto, actor);
+  }
+
+  @ApiOperation({ summary: 'เอาข้อกำหนดออก' })
+  @Delete('presales/solutions/:id/tor/clauses/:clauseId')
+  @Permissions('presales.solution.manage')
+  removeTorClause(
+    @Param('id') id: string,
+    @Param('clauseId') clauseId: string,
+    @CurrentPrincipal() actor: Principal,
+  ) {
+    return this.tor.removeClause(id, clauseId, actor);
   }
 }

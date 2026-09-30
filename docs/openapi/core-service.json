@@ -12811,6 +12811,418 @@
         ]
       }
     },
+    "/api/v1/presales/solutions/{id}/tor": {
+      "put": {
+        "operationId": "SolutionsController_saveTor",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveTorDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "บันทึกข้อมูลหลักของ TOR (ผู้ซื้อ เลขโครงการ กำหนดยื่น หลักประกันซอง)",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "presales.solution.manage"
+        ]
+      }
+    },
+    "/api/v1/presales/solutions/{id}/tor/files": {
+      "post": {
+        "operationId": "SolutionsController_uploadTorFile",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แนบไฟล์ TOR / RFP ต้นฉบับ (≤ 50 MB, ≤ 30 ไฟล์)",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "presales.solution.manage"
+        ]
+      }
+    },
+    "/api/v1/presales/solutions/{id}/tor/files/{fileId}": {
+      "get": {
+        "operationId": "SolutionsController_downloadTorFile",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fileId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ไฟล์ TOR",
+        "tags": [
+          "presales"
+        ]
+      },
+      "delete": {
+        "operationId": "SolutionsController_removeTorFile",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fileId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เอาไฟล์ TOR ออก",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "presales.solution.manage"
+        ]
+      }
+    },
+    "/api/v1/presales/solutions/{id}/tor/clauses": {
+      "post": {
+        "operationId": "SolutionsController_addTorClause",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTorClauseDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เพิ่มข้อกำหนด",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "presales.solution.manage"
+        ]
+      }
+    },
+    "/api/v1/presales/solutions/{id}/tor/clauses/bulk": {
+      "post": {
+        "operationId": "SolutionsController_addTorClauses",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkTorClausesDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "วางข้อกำหนดจาก TOR ทีละหลายข้อ (ข้อละบรรทัด)",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "presales.solution.manage"
+        ]
+      }
+    },
+    "/api/v1/presales/solutions/{id}/tor/clauses/{clauseId}": {
+      "patch": {
+        "operationId": "SolutionsController_updateTorClause",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "clauseId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTorClauseDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แก้ข้อกำหนด หรือบันทึกการตอบ",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "presales.solution.manage"
+        ]
+      },
+      "delete": {
+        "operationId": "SolutionsController_removeTorClause",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "clauseId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เอาข้อกำหนดออก",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "presales.solution.manage"
+        ]
+      }
+    },
     "/api/v1/admin/erp-sync/jobs": {
       "get": {
         "operationId": "ErpSyncAdminController_list",
@@ -19321,6 +19733,106 @@
         "required": [
           "text"
         ]
+      },
+      "SaveTorDto": {
+        "type": "object",
+        "properties": {
+          "buyer": {
+            "type": "string",
+            "description": "ผู้ซื้อ / หน่วยงาน",
+            "maxLength": 300
+          },
+          "project_no": {
+            "type": "string",
+            "description": "เลขโครงการ / เลข e-GP",
+            "maxLength": 100
+          },
+          "submission_deadline": {
+            "type": "string",
+            "description": "กำหนดยื่นข้อเสนอ (ISO datetime); \"\" = ล้าง",
+            "maxLength": 40
+          },
+          "bid_bond": {
+            "type": "string",
+            "description": "หลักประกันซอง",
+            "maxLength": 300
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 4000
+          }
+        }
+      },
+      "CreateTorClauseDto": {
+        "type": "object",
+        "properties": {
+          "clause_no": {
+            "type": "string",
+            "description": "เลขข้อตาม TOR",
+            "maxLength": 40
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 8000,
+            "minLength": 1
+          },
+          "mandatory": {
+            "type": "boolean",
+            "description": "ข้อบังคับ (ค่าเริ่มต้น true)"
+          }
+        },
+        "required": [
+          "text"
+        ]
+      },
+      "BulkTorClausesDto": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 100000,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "text"
+        ]
+      },
+      "UpdateTorClauseDto": {
+        "type": "object",
+        "properties": {
+          "clause_no": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 8000,
+            "minLength": 1
+          },
+          "mandatory": {
+            "type": "boolean"
+          },
+          "compliance": {
+            "type": "string",
+            "enum": [
+              "unanswered",
+              "comply",
+              "partial",
+              "not_comply"
+            ]
+          },
+          "response": {
+            "type": "string",
+            "description": "คำตอบ / วิธีที่ข้อเสนอเป็นไปตาม",
+            "maxLength": 8000
+          },
+          "reference": {
+            "type": "string",
+            "description": "ตอบไว้ที่ไหน เช่น SOW ข้อ 2",
+            "maxLength": 300
+          }
+        }
       },
       "PreviewChainDto": {
         "type": "object",
