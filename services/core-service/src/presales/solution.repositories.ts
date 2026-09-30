@@ -186,3 +186,31 @@ export class SolutionPartnerQuoteRepository extends BaseRepository<
     return client.solutionPartnerQuote;
   }
 }
+
+/** CD-142 ข้อมูลคู่ค้าทางเทคนิค. */
+@Injectable()
+export class PresalesPartnerRepository extends BaseRepository<
+  PrismaService['presalesPartner']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.presalesPartner;
+  }
+}
+
+/** CD-142 เอกสารอ้างอิงของคู่ค้า. */
+@Injectable()
+export class PresalesPartnerFileRepository extends BaseRepository<
+  PrismaService['presalesPartnerFile']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.presalesPartnerFile;
+  }
+}

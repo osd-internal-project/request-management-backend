@@ -7,6 +7,7 @@ import {
   ErpCustomerPayload,
   ErpInvoice,
   ErpItem,
+  ErpVendor,
   ErpReceivables,
   ErpSalesOrderPayload,
 } from './erp-client';
@@ -336,6 +337,69 @@ export class SapB1Client implements ErpClient {
       path = nextPath(body['odata.nextLink'] ?? body['@odata.nextLink']);
     }
     return items;
+  }
+
+  async listVendors(ctx: ErpContext): Promise<ErpVendor[]> {
+    // Payment terms come as a group number; their names are a short list.
+    const termsRes = await this.call(
+      ctx,
+      'GET',
+      '/PaymentTermsTypes?$select=GroupNumber,PaymentTermsGroupName',
+    );
+    const terms = new Map(
+      this.json<{
+        value: { GroupNumber: number; PaymentTermsGroupName: string | null }[];
+      }>(termsRes, 'อ่านเงื่อนไขการชำระเงิน').value.map((row) => [
+        row.GroupNumber,
+        row.PaymentTermsGroupName?.trim() || null,
+      ]),
+    );
+
+    const vendors: ErpVendor[] = [];
+    let path: string | null =
+      `/BusinessPartners?$select=CardCode,CardName,FederalTaxID,Phone1,EmailAddress,Currency,PayTermsGrpCode,Valid,Frozen&$filter=${q(
+        "CardType eq 'cSupplier'",
+      )}&$orderby=CardCode`;
+
+    for (let page = 0; path && page < ITEMS_MAX_PAGES; page += 1) {
+      const res = await this.call(ctx, 'GET', path, undefined, {
+        Prefer: `odata.maxpagesize=${ITEMS_PAGE_SIZE}`,
+      });
+      const body = this.json<{
+        value: {
+          CardCode: string;
+          CardName: string | null;
+          FederalTaxID: string | null;
+          Phone1: string | null;
+          EmailAddress: string | null;
+          Currency: string | null;
+          PayTermsGrpCode: number | null;
+          Valid: string;
+          Frozen: string;
+        }[];
+        'odata.nextLink'?: string;
+        '@odata.nextLink'?: string;
+      }>(res, 'อ่านรายชื่อผู้ขาย');
+
+      for (const row of body.value) {
+        vendors.push({
+          code: row.CardCode,
+          name: row.CardName?.trim() || row.CardCode,
+          taxId: row.FederalTaxID?.trim() || null,
+          phone: row.Phone1?.trim() || null,
+          email: row.EmailAddress?.trim() || null,
+          // `##` is B1's "all currencies".
+          currency: row.Currency && row.Currency !== '##' ? row.Currency : null,
+          paymentTerms:
+            row.PayTermsGrpCode !== null && row.PayTermsGrpCode !== undefined
+              ? (terms.get(row.PayTermsGrpCode) ?? null)
+              : null,
+          active: row.Valid !== 'tNO' && row.Frozen !== 'tYES',
+        });
+      }
+      path = nextPath(body['odata.nextLink'] ?? body['@odata.nextLink']);
+    }
+    return vendors;
   }
 
   private async orderByCode(

@@ -4,6 +4,7 @@ import { CrmModule } from '../crm/crm.module';
 import { OpportunityRepository } from '../crm/sales.repositories';
 import { CrmConfigRepository } from '../crm/segment.repositories';
 import { RequestsModule } from '../requests/requests.module';
+import { CompanyRepository } from '../crm/product.repositories';
 import {
   SolutionFileRepository,
   SolutionRepository,
@@ -17,6 +18,8 @@ import {
   SolutionTorFileRepository,
   SolutionTorClauseRepository,
   SolutionPartnerQuoteRepository,
+  PresalesPartnerRepository,
+  PresalesPartnerFileRepository,
   SolutionVersionRepository,
 } from './solution.repositories';
 
@@ -40,6 +43,9 @@ import {
     SolutionTorFileRepository,
     SolutionTorClauseRepository,
     SolutionPartnerQuoteRepository,
+    PresalesPartnerRepository,
+    PresalesPartnerFileRepository,
+    CompanyRepository,
     OpportunityRepository,
     CrmConfigRepository,
     PrismaTransactionService,
@@ -60,6 +66,9 @@ import {
     SolutionTorFileRepository,
     SolutionTorClauseRepository,
     SolutionPartnerQuoteRepository,
+    PresalesPartnerRepository,
+    PresalesPartnerFileRepository,
+    CompanyRepository,
     OpportunityRepository,
     CrmConfigRepository,
     PrismaTransactionService,

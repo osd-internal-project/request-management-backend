@@ -4764,6 +4764,57 @@ model SolutionPartnerQuote {
   @@map("solution_partner_quotes")
 }
 
+/// CD-142 ข้อมูลคู่ค้าทางเทคนิค — ผูกกับผู้ขายใน SAP ด้วย CardCode. ข้อมูลเชิง
+/// พาณิชย์ (ชื่อ เลขภาษี เงื่อนไขชำระ สถานะ) อ่านจาก SAP สดเสมอ ไม่เก็บซ้ำที่นี่.
+model PresalesPartner {
+  id             String @id @default(uuid())
+  companyId      String
+  /// รหัสผู้ขายใน SAP (BP CardCode).
+  vendorCode     String
+  /// ชื่อตอนบันทึกล่าสุด — ใช้แสดงเมื่ออ่าน SAP ไม่ได้เท่านั้น.
+  vendorNameSeen String @default("")
+  /// ความสามารถทางเทคนิคโดยสรุป.
+  summary        String @default("")
+  /// [{ brand, level, expiresOn }] — แบรนด์/สายผลิตภัณฑ์และระดับพาร์ทเนอร์.
+  brands         Json   @default("[]")
+  /// [{ name, holders, expiresOn }] — ใบรับรองของวิศวกร.
+  certifications Json   @default("[]")
+  /// [{ name, role, phone, email }] — ผู้ติดต่อฝ่ายเทคนิค/ซัพพอร์ต.
+  contacts       Json   @default("[]")
+
+  createdBy String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  updatedBy String?
+  deletedAt DateTime?
+
+  files PresalesPartnerFile[]
+
+  @@unique([companyId, vendorCode])
+  @@map("presales_partners")
+}
+
+/// CD-142 เอกสารอ้างอิงของคู่ค้า (ใบรับรอง, datasheet, แคตตาล็อก) บน object storage.
+model PresalesPartnerFile {
+  id         String    @id @default(uuid())
+  partnerId  String
+  companyId  String
+  /// certificate | datasheet | catalog | other
+  category   String    @default("other")
+  fileName   String
+  mimeType   String
+  sizeBytes  Int
+  storageKey String
+  uploadedBy String
+  uploadedAt DateTime  @default(now())
+  deletedAt  DateTime?
+
+  partner PresalesPartner @relation(fields: [partnerId], references: [id])
+
+  @@index([partnerId])
+  @@map("presales_partner_files")
+}
+
 /// CD-172 — ทะเบียนผู้มีอำนาจลงนาม: who may sign for the company, up to
 /// what amount (NULL = no limit), on which kinds of document (empty = all),
 /// and when. A layout field marked `authority` takes only a signer covered

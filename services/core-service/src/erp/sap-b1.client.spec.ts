@@ -529,4 +529,68 @@ describe('SAP B1 Service Layer driver', () => {
     expect(pages[0].headers.Prefer).toBe('odata.maxpagesize=500');
     expect(pages[0].url).toContain("SalesItem%20eq%20'tYES'");
   });
+
+  it('listVendors (CD-142): เฉพาะ cSupplier, แปลงเงื่อนไขชำระเป็นชื่อ, ## = ไม่ระบุสกุลเงิน, frozen = inactive', async () => {
+    const h = harness({
+      'GET /PaymentTermsTypes': () =>
+        reply(200, {
+          value: [{ GroupNumber: 2, PaymentTermsGroupName: '30 วัน' }],
+        }),
+      'GET /BusinessPartners': () =>
+        reply(200, {
+          value: [
+            {
+              CardCode: 'V001',
+              CardName: ' ผู้จัดจำหน่าย ก ',
+              FederalTaxID: '0105500000001',
+              Phone1: '02-000-0001',
+              EmailAddress: '',
+              Currency: '##',
+              PayTermsGrpCode: 2,
+              Valid: 'tYES',
+              Frozen: 'tNO',
+            },
+            {
+              CardCode: 'V002',
+              CardName: null,
+              FederalTaxID: null,
+              Phone1: null,
+              EmailAddress: null,
+              Currency: 'USD',
+              PayTermsGrpCode: 9,
+              Valid: 'tYES',
+              Frozen: 'tYES',
+            },
+          ],
+        }),
+    });
+
+    const vendors = await h.client.listVendors(OSD);
+
+    expect(vendors).toEqual([
+      {
+        code: 'V001',
+        name: 'ผู้จัดจำหน่าย ก',
+        taxId: '0105500000001',
+        phone: '02-000-0001',
+        email: null,
+        currency: null,
+        paymentTerms: '30 วัน',
+        active: true,
+      },
+      {
+        code: 'V002',
+        name: 'V002',
+        taxId: null,
+        phone: null,
+        email: null,
+        currency: 'USD',
+        paymentTerms: null,
+        active: false,
+      },
+    ]);
+    const [page] = h.calls('GET', '/BusinessPartners');
+    expect(page.url).toContain("CardType%20eq%20'cSupplier'");
+    expect(page.headers.Prefer).toBe('odata.maxpagesize=500');
+  });
 });

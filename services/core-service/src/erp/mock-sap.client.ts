@@ -7,6 +7,7 @@ import {
   ErpItem,
   ErpReceivables,
   ErpSalesOrderPayload,
+  ErpVendor,
 } from './erp-client';
 
 /**
@@ -99,6 +100,10 @@ export class MockSapClient implements ErpClient {
     return Promise.resolve([...MOCK_ITEMS]);
   }
 
+  listVendors(_ctx: ErpContext): Promise<ErpVendor[]> {
+    return Promise.resolve([...MOCK_VENDORS]);
+  }
+
   /**
    * CD-89 — deterministic per customer and consistent with `getReceivables`:
    * the open invoices add up to its `outstanding`, plus two paid ones.
@@ -161,6 +166,50 @@ export class MockSapClient implements ErpClient {
  * A small, fixed catalog — enough to pick from on a quotation in any
  * environment. Real codes come from B1 once ERP_MODE=sapb1.
  */
+/** CD-142 — sample suppliers, clearly not real ones, until CD-28 connects B1. */
+const MOCK_VENDORS: readonly ErpVendor[] = [
+  {
+    code: 'MOCK-V0001',
+    name: 'ตัวอย่าง ผู้จัดจำหน่ายอุปกรณ์เครือข่าย จำกัด',
+    taxId: '0105500000001',
+    phone: '02-000-0001',
+    email: 'sales@vendor1.example',
+    currency: 'THB',
+    paymentTerms: '30 วัน',
+    active: true,
+  },
+  {
+    code: 'MOCK-V0002',
+    name: 'ตัวอย่าง ผู้รับเหมางานเดินสาย จำกัด',
+    taxId: '0105500000002',
+    phone: '02-000-0002',
+    email: null,
+    currency: 'THB',
+    paymentTerms: '45 วัน',
+    active: true,
+  },
+  {
+    code: 'MOCK-V0003',
+    name: 'ตัวอย่าง ผู้จัดจำหน่ายซอฟต์แวร์ จำกัด',
+    taxId: '0105500000003',
+    phone: null,
+    email: 'quote@vendor3.example',
+    currency: 'USD',
+    paymentTerms: null,
+    active: true,
+  },
+  {
+    code: 'MOCK-V0009',
+    name: 'ตัวอย่าง ผู้ขายที่ถูกระงับ จำกัด',
+    taxId: null,
+    phone: null,
+    email: null,
+    currency: 'THB',
+    paymentTerms: null,
+    active: false,
+  },
+];
+
 const MOCK_ITEMS: readonly ErpItem[] = [
   {
     code: 'SIP-TRUNK',

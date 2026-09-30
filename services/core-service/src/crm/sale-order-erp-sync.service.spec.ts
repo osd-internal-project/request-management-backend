@@ -115,6 +115,7 @@ function harness(
     ),
     cancelSalesOrder: jest.fn(() => Promise.resolve()),
     listItems: jest.fn(() => Promise.resolve([])),
+    listVendors: jest.fn(() => Promise.resolve([])),
     listInvoices: jest.fn(() => Promise.resolve([])),
   };
   const calls = erp as unknown as Record<keyof ErpClient, jest.Mock>;

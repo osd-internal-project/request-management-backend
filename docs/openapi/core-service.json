@@ -13781,6 +13781,314 @@
         ]
       }
     },
+    "/api/v1/presales/partners": {
+      "get": {
+        "operationId": "PartnersController_list",
+        "parameters": [
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "active",
+            "required": false,
+            "in": "query",
+            "description": "1 = เฉพาะผู้ขายที่ไม่ถูกระงับใน SAP",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-142 รายชื่อผู้ขายจาก SAP พร้อมข้อมูลทางเทคนิคที่บันทึกไว้",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "presales.solution.read",
+          "presales.solution.manage"
+        ]
+      }
+    },
+    "/api/v1/presales/partners/{code}": {
+      "get": {
+        "operationId": "PartnersController_findOne",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-142 คู่ค้า — ข้อมูลจาก SAP + ข้อมูลทางเทคนิค + เอกสาร",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "presales.solution.read",
+          "presales.solution.manage"
+        ]
+      },
+      "put": {
+        "operationId": "PartnersController_save",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SavePartnerDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-142 บันทึกข้อมูลทางเทคนิคของคู่ค้า",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "presales.solution.manage"
+        ]
+      }
+    },
+    "/api/v1/presales/partners/{code}/files": {
+      "post": {
+        "operationId": "PartnersController_upload",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "category": {
+                    "type": "string",
+                    "enum": [
+                      "certificate",
+                      "datasheet",
+                      "catalog",
+                      "other"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-142 แนบเอกสารอ้างอิงของคู่ค้า (≤ 25 MB)",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "presales.solution.manage"
+        ]
+      }
+    },
+    "/api/v1/presales/partners/{code}/files/{fileId}": {
+      "get": {
+        "operationId": "PartnersController_download",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fileId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-142 เอกสารของคู่ค้า",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "presales.solution.read",
+          "presales.solution.manage"
+        ]
+      },
+      "delete": {
+        "operationId": "PartnersController_removeFile",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fileId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-142 เอาเอกสารของคู่ค้าออก",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "presales.solution.manage"
+        ]
+      }
+    },
     "/api/v1/esign/authorities": {
       "get": {
         "operationId": "EsignController_listAuthorities",
@@ -21695,6 +22003,106 @@
           "line_indexes"
         ]
       },
+      "PartnerBrandDto": {
+        "type": "object",
+        "properties": {
+          "brand": {
+            "type": "string",
+            "example": "Fortinet",
+            "maxLength": 300
+          },
+          "level": {
+            "type": "string",
+            "example": "Gold Partner",
+            "maxLength": 300
+          },
+          "expires_on": {
+            "type": "string",
+            "description": "YYYY-MM-DD; ว่าง = ไม่หมดอายุ"
+          }
+        },
+        "required": [
+          "brand"
+        ]
+      },
+      "PartnerCertificationDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "NSE 7",
+            "maxLength": 300
+          },
+          "holders": {
+            "type": "integer",
+            "description": "จำนวนวิศวกรที่ถือ",
+            "default": 1,
+            "minimum": 1
+          },
+          "expires_on": {
+            "type": "string",
+            "description": "YYYY-MM-DD; ว่าง = ไม่หมดอายุ"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "PartnerContactDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 300
+          },
+          "role": {
+            "type": "string",
+            "maxLength": 300
+          },
+          "phone": {
+            "type": "string",
+            "maxLength": 300
+          },
+          "email": {
+            "type": "string",
+            "maxLength": 300
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "SavePartnerDto": {
+        "type": "object",
+        "properties": {
+          "summary": {
+            "type": "string",
+            "description": "ความสามารถทางเทคนิคโดยสรุป",
+            "maxLength": 5000
+          },
+          "brands": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PartnerBrandDto"
+            },
+            "maxItems": 100
+          },
+          "certifications": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PartnerCertificationDto"
+            },
+            "maxItems": 100
+          },
+          "contacts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PartnerContactDto"
+            },
+            "maxItems": 100
+          }
+        }
+      },
       "SaveEsignAuthorityDto": {
         "type": "object",
         "properties": {
@@ -22626,6 +23034,20 @@
           "quantity",
           "unit_price"
         ]
+      },
+      "PartnerFileDto": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "enum": [
+              "certificate",
+              "datasheet",
+              "catalog",
+              "other"
+            ],
+            "type": "string"
+          }
+        }
       }
     }
   }

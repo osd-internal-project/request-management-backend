@@ -120,6 +120,25 @@ export interface ErpItem {
   readonly active: boolean;
 }
 
+/**
+ * CD-142 — a supplier as SAP holds it (B1 `BusinessPartners`, `cSupplier`),
+ * read-only. SAP owns the commercial side of a partner; Connect the Dot keeps
+ * only the technical profile, keyed by `code`, and never a copy of these.
+ */
+export interface ErpVendor {
+  /** B1 `CardCode`. */
+  readonly code: string;
+  readonly name: string;
+  readonly taxId: string | null;
+  readonly phone: string | null;
+  readonly email: string | null;
+  readonly currency: string | null;
+  /** Payment terms by name (B1 `PaymentTermsTypes`), null when none set. */
+  readonly paymentTerms: string | null;
+  /** Valid and not frozen — a blocked supplier gets no new purchase. */
+  readonly active: boolean;
+}
+
 export interface ErpClient {
   readonly mode: 'mock' | 'sapb1';
   /** The BP already carrying this customerCode, or null — idempotency guard. */
@@ -161,6 +180,8 @@ export interface ErpClient {
   ): Promise<void>;
   /** CD-27 — every sellable item, the whole catalog (the driver pages). */
   listItems(ctx: ErpContext): Promise<ErpItem[]>;
+  /** CD-142 — every supplier (BP `cSupplier`), the whole list (the driver pages). */
+  listVendors(ctx: ErpContext): Promise<ErpVendor[]>;
   /** CD-89 — the customer's most recent invoices, newest first (≤ `limit`). */
   listInvoices(
     ctx: ErpContext,
