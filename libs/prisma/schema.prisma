@@ -4675,6 +4675,9 @@ model EsignSigner {
   status String @default("pending")
 
   tokenHash      String?   @unique
+  /// CD-171 — the same secret, encrypted (AES-GCM, key from ESIGN_SECRET),
+  /// so a reminder can send the link again; the hash is what is looked up.
+  tokenCipher    String?
   tokenExpiresAt DateTime?
   tokenUsedAt    DateTime?
 

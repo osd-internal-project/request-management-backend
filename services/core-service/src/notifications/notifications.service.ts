@@ -492,6 +492,30 @@ export class NotificationsService {
     });
   }
 
+  /** CD-171 — still waiting: to the signer again, or to the sender. */
+  async esignReminder(
+    kind: 'reminder' | 'expiring' | 'expired',
+    userId: string,
+    companyId: string,
+    envelope: { id: string; title: string; expiresAt: Date },
+    signer?: { id: string; role: string },
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: `esign.${kind}`,
+      values: {
+        title: envelope.title,
+        role: signer?.role ?? '',
+        expires_on: envelope.expiresAt.toLocaleDateString('th-TH', {
+          timeZone: 'Asia/Bangkok',
+        }),
+      },
+      resourceType: signer ? 'esign_signer' : 'esign_envelope',
+      resourceId: signer?.id ?? envelope.id,
+    });
+  }
+
   /** CD-166 — an internal signer's turn to sign. */
   async esignRequested(
     userId: string,

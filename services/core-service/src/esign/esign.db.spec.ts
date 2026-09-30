@@ -38,8 +38,11 @@ const PNG = `data:image/png;base64,${Buffer.from(
   const codes: string[] = [];
   const emitted: unknown[] = [];
   const told: unknown[] = [];
+  const reminded: unknown[] = [];
+  const sentLinks: string[] = [];
   let layoutId = '';
   let envelopeId = '';
+  const moreEnvelopes: string[] = [];
 
   const storage = {
     put: (key: string, body: Buffer) => {
@@ -68,9 +71,9 @@ const PNG = `data:image/png;base64,${Buffer.from(
   });
 
   afterAll(async () => {
-    if (envelopeId) {
-      await prisma.esignEnvelope.deleteMany({ where: { id: envelopeId } });
-    }
+    await prisma.esignEnvelope.deleteMany({
+      where: { id: { in: [envelopeId, ...moreEnvelopes].filter(Boolean) } },
+    });
     if (layoutId)
       await prisma.esignLayout.deleteMany({ where: { id: layoutId } });
     await prisma.esignAuthority.deleteMany({
@@ -79,7 +82,7 @@ const PNG = `data:image/png;base64,${Buffer.from(
     await prisma.$disconnect();
   });
 
-  it('an external signer by link and code, then an internal one; sealed and verifiable', async () => {
+  function build() {
     const client = prisma as never;
     const audit = { record: () => Promise.resolve() } as never;
     const layouts = new EsignLayoutsService(
@@ -106,6 +109,10 @@ const PNG = `data:image/png;base64,${Buffer.from(
           told.push(args);
           return Promise.resolve();
         },
+        esignReminder: (...args: unknown[]) => {
+          reminded.push(args);
+          return Promise.resolve();
+        },
       } as never,
       {
         emit: (event: unknown) => {
@@ -127,14 +134,31 @@ const PNG = `data:image/png;base64,${Buffer.from(
       storage,
       {
         channels: ['email'],
-        sendLink: () => Promise.resolve(),
+        sendLink: (_: unknown, message: { link: string }) => {
+          sentLinks.push(message.link);
+          return Promise.resolve();
+        },
         sendCode: (_: string, __: string, message: { code: string }) => {
           codes.push(message.code);
           return Promise.resolve();
         },
       } as never,
       authorities,
+      {
+        across: () =>
+          Promise.resolve({
+            of: () => ({
+              enabled: true,
+              params: { every_days: 2, max_reminders: 2, warn_days: 1 },
+            }),
+          }),
+      } as never,
     );
+    return { service, layouts, authorities, client };
+  }
+
+  it('an external signer by link and code, then an internal one; sealed and verifiable', async () => {
+    const { service, layouts, authorities } = build();
     const actor = {
       userId,
       activeCompanyId: companyId,
@@ -329,5 +353,118 @@ const PNG = `data:image/png;base64,${Buffer.from(
     ]) {
       expect(kinds).toContain(kind);
     }
+  });
+
+  it('CD-171: reminds in turn, warns the sender, expires; extend reopens; a reissued link replaces the old', async () => {
+    const { service, layouts } = build();
+    const actor = {
+      userId,
+      activeCompanyId: companyId,
+      permissions: ['esign.manage'],
+    } as unknown as Principal;
+    const layout = await layouts.create(
+      {
+        code: `T171-${Date.now().toString(36)}`,
+        name: 'สองฝ่าย (เตือนซ้ำ)',
+        fields: [
+          {
+            label: 'ผู้ว่าจ้าง',
+            page: 'last',
+            position: 'bottom-left',
+            order: 1,
+          },
+          {
+            label: 'ผู้รับจ้าง',
+            page: 'last',
+            position: 'bottom-right',
+            order: 2,
+          },
+        ],
+      },
+      actor,
+    );
+    const doc = await PDFDocument.create();
+    doc.addPage([595, 842]);
+    const created = await service.create(
+      {
+        companyId,
+        title: 'T171 · เตือนซ้ำ',
+        pdf: Buffer.from(await doc.save()),
+        originalName: 'contract.pdf',
+        sourceType: 'test',
+        sourceId: 'doc-171',
+        refType: 'test',
+        refId: 'ref-171',
+        layoutId: layout.id,
+        expiresInDays: 5,
+        signers: [
+          {
+            field_key: 'f1',
+            kind: 'external',
+            name: 'ลูกค้า',
+            email: 'c@example.com',
+          },
+          { field_key: 'f2', kind: 'internal', user_id: userId },
+        ],
+      },
+      actor,
+    );
+    moreEnvelopes.push(created.id);
+    const sent = await service.send(created.id, actor, {
+      ip: null,
+      userAgent: null,
+    });
+    const link = sent.links[0].link;
+    const day = 86_400_000;
+    const start = Date.now();
+    reminded.length = 0;
+    sentLinks.length = 0;
+
+    // a day later: nothing yet (every 2 days)
+    let counts = await service.sweep(new Date(start + day));
+    expect(counts.reminded).toBe(0);
+    // two days later: the customer (their turn) gets the same link again;
+    // the employee waits for their turn
+    counts = await service.sweep(new Date(start + 2 * day + 60_000));
+    expect(counts.reminded).toBe(1);
+    expect(sentLinks).toEqual([link]);
+    // the same tick again repeats nothing
+    counts = await service.sweep(new Date(start + 2 * day + 120_000));
+    expect(counts.reminded).toBe(0);
+
+    // a day before the end: the sender is told, once — and the customer's
+    // second (and last, max 2) reminder is due
+    counts = await service.sweep(new Date(start + 4 * day + 60_000));
+    expect(counts).toMatchObject({ warned: 1, reminded: 1 });
+    counts = await service.sweep(new Date(start + 4 * day + 120_000));
+    expect(counts).toMatchObject({ warned: 0, reminded: 0 });
+    expect(sentLinks).toEqual([link, link]);
+
+    // past the end: expired, the sender told
+    counts = await service.sweep(new Date(start + 6 * day));
+    expect(counts.expired).toBe(1);
+    expect((await service.view(created.id, actor)).status).toBe('expired');
+    expect(reminded.some((args) => (args as unknown[])[0] === 'expired')).toBe(
+      true,
+    );
+
+    // more time: waiting again
+    const extended = await service.extend(created.id, 7, actor);
+    expect(extended.status).toBe('sent');
+
+    // a new link: the old one no longer opens
+    const customer = extended.signers.find((one) => one.kind === 'external')!;
+    const fresh = await service.reissueLink(created.id, customer.id, actor);
+    expect(fresh.link).not.toBe(link);
+    await expect(
+      service.publicView(link.split('/s/')[1], { ip: null, userAgent: null }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    await expect(
+      service.publicView(fresh.link.split('/s/')[1], {
+        ip: null,
+        userAgent: null,
+      }),
+    ).resolves.toMatchObject({ role: 'ผู้ว่าจ้าง' });
+    await prisma.esignLayout.deleteMany({ where: { id: layout.id } });
   });
 });

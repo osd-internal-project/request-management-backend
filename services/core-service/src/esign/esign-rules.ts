@@ -3,7 +3,14 @@
  * the PDF: layouts and where a field lands, links and one-time codes, and
  * who may sign when.
  */
-import { createHash, createHmac, randomBytes, randomInt } from 'node:crypto';
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHash,
+  createHmac,
+  randomBytes,
+  randomInt,
+} from 'node:crypto';
 
 export const POSITIONS = [
   'bottom-left',
@@ -256,4 +263,51 @@ export function authorityFor(
     };
   }
   return { ok: true, title: covering.title };
+}
+
+// --- CD-171 reminders ---------------------------------------------------------------
+
+function tokenKey(secret: string): Buffer {
+  return createHash('sha256').update(`esign-link:${secret}`).digest();
+}
+
+/** A link's secret, encrypted so a reminder can send the same link again. */
+export function sealToken(token: string, secret: string): string {
+  const iv = randomBytes(12);
+  const cipher = createCipheriv('aes-256-gcm', tokenKey(secret), iv);
+  const body = Buffer.concat([cipher.update(token, 'utf8'), cipher.final()]);
+  return [iv, cipher.getAuthTag(), body]
+    .map((part) => part.toString('base64url'))
+    .join('.');
+}
+
+/** The secret back, or null when it cannot be read (another key, tampered). */
+export function openToken(sealed: string, secret: string): string | null {
+  try {
+    const [iv, tag, body] = sealed
+      .split('.')
+      .map((part) => Buffer.from(part, 'base64url'));
+    const decipher = createDecipheriv('aes-256-gcm', tokenKey(secret), iv);
+    decipher.setAuthTag(tag);
+    return Buffer.concat([decipher.update(body), decipher.final()]).toString(
+      'utf8',
+    );
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Is a reminder due? Every `everyDays` since the signer was last reached
+ * (sent, told, or reminded), at most `maxReminders` times.
+ */
+export function reminderDue(
+  lastReachedAt: Date | null,
+  reminders: number,
+  now: Date,
+  everyDays: number,
+  maxReminders: number,
+): boolean {
+  if (!lastReachedAt || reminders >= maxReminders) return false;
+  return now.getTime() - lastReachedAt.getTime() >= everyDays * 86_400_000;
 }

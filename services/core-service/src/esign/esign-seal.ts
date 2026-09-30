@@ -57,6 +57,10 @@ const EVENT_TH: Record<string, string> = {
   signed: 'ลงนาม',
   declined: 'ปฏิเสธการลงนาม',
   sealed: 'ผนึกเอกสาร',
+  reminded: 'เตือนซ้ำ',
+  expiry_warned: 'แจ้งผู้ส่งว่าใกล้หมดอายุ',
+  extended: 'ขยายเวลา',
+  link_reissued: 'ออกลิงก์ใหม่',
 };
 
 const AUTH_TH: Record<string, string> = {

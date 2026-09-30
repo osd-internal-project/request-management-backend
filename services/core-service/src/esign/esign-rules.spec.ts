@@ -7,8 +7,11 @@ import {
   newOtp,
   newToken,
   newVerifyCode,
+  openToken,
   placement,
   readSignatureImage,
+  reminderDue,
+  sealToken,
   turnOf,
   type LayoutField,
 } from './esign-rules';
@@ -163,5 +166,23 @@ describe('CD-172 signing authority', () => {
       ok: false,
       reason: 'วงเงินอำนาจลงนาม 1,000,000 บาท ไม่ถึงมูลค่าเอกสาร 2,000,000 บาท',
     });
+  });
+});
+
+describe('CD-171 reminders', () => {
+  it('the link survives encrypted and opens only with its key', () => {
+    const sealed = sealToken('secret-link', 'k1');
+    expect(openToken(sealed, 'k1')).toBe('secret-link');
+    expect(openToken(sealed, 'k2')).toBeNull();
+    expect(openToken('garbage', 'k1')).toBeNull();
+  });
+
+  it('every N days since last reached, at most M times', () => {
+    const at = new Date('2026-09-30T00:00:00Z');
+    const later = (days: number) => new Date(at.getTime() + days * 86_400_000);
+    expect(reminderDue(at, 0, later(1), 2, 3)).toBe(false);
+    expect(reminderDue(at, 0, later(2), 2, 3)).toBe(true);
+    expect(reminderDue(at, 3, later(9), 2, 3)).toBe(false);
+    expect(reminderDue(null, 0, later(9), 2, 3)).toBe(false);
   });
 });

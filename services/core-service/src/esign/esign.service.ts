@@ -1,6 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import type { Readable } from 'node:stream';
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import { PDFDocument } from 'pdf-lib';
@@ -17,6 +23,8 @@ import { CompanyMemberRepository } from '../access/company-member.repository';
 import { DomainEventsService } from '../events/domain-events.service';
 import { DOMAIN_EVENTS } from '../events/event-catalog';
 import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationRulesService } from '../notifications/notification-rules.service';
+import { backgroundTick } from '../common/background-tick';
 import {
   allSigned,
   hashOtp,
@@ -28,7 +36,10 @@ import {
   OTP_RESEND_MS,
   OTP_SESSION_MS,
   OTP_TTL_MS,
+  openToken,
   readSignatureImage,
+  reminderDue,
+  sealToken,
   sha256,
   turnOf,
   type LayoutField,
@@ -108,6 +119,7 @@ interface SignerRow {
   phone: string | null;
   status: string;
   tokenExpiresAt: Date | null;
+  tokenCipher: string | null;
   otpHash: string | null;
   otpChannel: string | null;
   otpSentAt: Date | null;
@@ -159,8 +171,9 @@ async function toBuffer(stream: Readable): Promise<Buffer> {
  * the link's secret is the credential, and only its hash is stored.
  */
 @Injectable()
-export class EsignService {
+export class EsignService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(EsignService.name);
+  private timer: NodeJS.Timeout | null = null;
 
   constructor(
     private readonly envelopes: EsignEnvelopeRepository,
@@ -176,7 +189,25 @@ export class EsignService {
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
     @Inject(ESIGN_SENDER) private readonly sender: EsignSender,
     private readonly authorities: EsignAuthoritiesService,
+    private readonly rules: NotificationRulesService,
   ) {}
+
+  /** CD-171 — the hourly sweep: reminders, the sender's warning, expiry. */
+  onModuleInit(): void {
+    const interval =
+      this.config.get<number>('esign.sweepIntervalMs') ?? 3_600_000;
+    if (interval <= 0) return;
+    this.timer = setInterval(
+      backgroundTick(this.logger, 'CD-171 e-sign sweep', () => this.sweep()),
+      interval,
+    );
+    this.timer.unref?.();
+  }
+
+  onModuleDestroy(): void {
+    if (this.timer) clearInterval(this.timer);
+    this.timer = null;
+  }
 
   // --- sending ----------------------------------------------------------------
 
@@ -274,7 +305,11 @@ export class EsignService {
           const { token, hash } = newToken();
           await tx.esignSigner.update({
             where: { id: signer.id },
-            data: { tokenHash: hash, tokenExpiresAt: envelope.expiresAt },
+            data: {
+              tokenHash: hash,
+              tokenCipher: sealToken(token, this.secret()),
+              tokenExpiresAt: envelope.expiresAt,
+            },
           });
           links.push({
             signerId: signer.id,
@@ -317,6 +352,232 @@ export class EsignService {
     });
     const view = await this.view(id, actor);
     return Object.assign(view, { links });
+  }
+
+  /** CD-171 — more time: an expired envelope is opened again. */
+  async extend(id: string, days: number, actor: Principal) {
+    const envelope = await this.require(id, actor);
+    if (envelope.status !== 'sent' && envelope.status !== 'expired') {
+      throw new AppError(
+        'CONFLICT',
+        'ขยายเวลาได้เฉพาะเอกสารที่รอลงนามหรือหมดอายุ',
+      );
+    }
+    const expiresAt = new Date(Date.now() + days * DAY_MS);
+    await this.transactions.execute(async (tx) => {
+      await tx.esignEnvelope.update({
+        where: { id },
+        data: { status: 'sent', expiresAt },
+      });
+      await tx.esignSigner.updateMany({
+        where: { envelopeId: id, status: 'pending', tokenHash: { not: null } },
+        data: { tokenExpiresAt: expiresAt },
+      });
+    });
+    await this.record(
+      id,
+      null,
+      'extended',
+      { ip: null, userAgent: null },
+      {
+        expiresAt: expiresAt.toISOString(),
+      },
+    );
+    await this.audit.record({
+      eventType: 'esign.envelope.extended',
+      companyId: envelope.companyId,
+      ...auditActor(actor),
+      resourceType: envelope.refType,
+      resourceId: envelope.refId,
+      after: { envelopeId: id, expiresAt: expiresAt.toISOString() },
+    });
+    return this.view(id, actor);
+  }
+
+  /**
+   * CD-171 — a new link for an outside signer (the old one stops working),
+   * shown once to the sender — for a link lost before email exists.
+   */
+  async reissueLink(id: string, signerId: string, actor: Principal) {
+    const envelope = await this.require(id, actor);
+    if (this.effectiveStatus(envelope) !== 'sent') {
+      throw new AppError('CONFLICT', 'เอกสารนี้ไม่ได้รอลงนาม');
+    }
+    const signer = (await this.signers.findFirst({
+      where: {
+        id: signerId,
+        envelopeId: id,
+        kind: 'external',
+        status: 'pending',
+      },
+    })) as SignerRow | null;
+    if (!signer)
+      throw new AppError('NOT_FOUND', 'ไม่พบผู้ลงนามภายนอกที่รอลงนาม');
+    const { token, hash } = newToken();
+    await this.signers.update({
+      where: { id: signerId },
+      data: {
+        tokenHash: hash,
+        tokenCipher: sealToken(token, this.secret()),
+        tokenExpiresAt: envelope.expiresAt,
+        otpHash: null,
+        otpVerifiedAt: null,
+      },
+    });
+    await this.record(id, signerId, 'link_reissued', {
+      ip: null,
+      userAgent: null,
+    });
+    await this.audit.record({
+      eventType: 'esign.link.reissued',
+      companyId: envelope.companyId,
+      ...auditActor(actor),
+      resourceType: envelope.refType,
+      resourceId: envelope.refId,
+      after: { envelopeId: id, signerId },
+    });
+    return {
+      signerId,
+      name: signer.name,
+      link: `${this.publicUrl()}/s/${token}`,
+    };
+  }
+
+  /**
+   * CD-171 — for every envelope waiting: remind the signers whose turn it is
+   * (the company's `esign.reminder` rule: every N days, at most M times),
+   * warn the sender before it expires, and mark it expired when the time is
+   * up. What was sent is recorded as events, so a tick that overlaps another
+   * repeats nothing it can see.
+   */
+  async sweep(now: Date = new Date()) {
+    const rule = await this.rules.across('esign.reminder');
+    const waiting = (await this.envelopes.findMany({
+      where: { status: 'sent' },
+      orderBy: { expiresAt: 'asc' },
+      take: 200,
+    })) as EnvelopeRow[];
+    const counts = { reminded: 0, warned: 0, expired: 0 };
+    const quiet = { ip: null, userAgent: null };
+    for (const envelope of waiting) {
+      if (envelope.expiresAt.getTime() <= now.getTime()) {
+        const claimed = await this.envelopes.updateMany({
+          where: { id: envelope.id, status: 'sent' },
+          data: { status: 'expired' },
+        });
+        if (claimed.count !== 1) continue;
+        await this.record(envelope.id, null, 'expired', quiet, undefined, now);
+        await this.notifications.esignReminder(
+          'expired',
+          envelope.createdBy,
+          envelope.companyId,
+          envelope,
+        );
+        counts.expired += 1;
+        continue;
+      }
+      const own = rule.of(envelope.companyId);
+      if (!own.enabled) continue;
+      const everyDays = Number(own.params.every_days ?? 2);
+      const maxReminders = Number(own.params.max_reminders ?? 3);
+      const warnDays = Number(own.params.warn_days ?? 1);
+      const history = (await this.events.findMany({
+        where: {
+          envelopeId: envelope.id,
+          type: {
+            in: ['sent', 'notified', 'reminded', 'expiry_warned', 'extended'],
+          },
+        },
+        select: { signerId: true, type: true, at: true },
+      })) as { signerId: string | null; type: string; at: Date }[];
+
+      // the sender, once per deadline (an extension is a new deadline)
+      const lastExtended = history
+        .filter((event) => event.type === 'extended')
+        .reduce((latest, event) => Math.max(latest, event.at.getTime()), 0);
+      const warned = history.some(
+        (event) =>
+          event.type === 'expiry_warned' && event.at.getTime() >= lastExtended,
+      );
+      if (
+        !warned &&
+        envelope.expiresAt.getTime() - now.getTime() <= warnDays * DAY_MS
+      ) {
+        await this.record(
+          envelope.id,
+          null,
+          'expiry_warned',
+          quiet,
+          undefined,
+          now,
+        );
+        await this.notifications.esignReminder(
+          'expiring',
+          envelope.createdBy,
+          envelope.companyId,
+          envelope,
+        );
+        counts.warned += 1;
+      }
+
+      const all = await this.signersOf(envelope.id);
+      for (const signer of all) {
+        if (signer.status !== 'pending') continue;
+        if (!turnOf(signer, all, envelope.mode).may) continue;
+        const reached = history.filter((event) => event.signerId === signer.id);
+        const lastReached = reached.reduce<Date | null>(
+          (latest, event) => (!latest || event.at > latest ? event.at : latest),
+          null,
+        );
+        const reminders = reached.filter(
+          (event) => event.type === 'reminded',
+        ).length;
+        if (
+          !reminderDue(lastReached, reminders, now, everyDays, maxReminders)
+        ) {
+          continue;
+        }
+        if (signer.kind === 'internal' && signer.userId) {
+          await this.notifications.esignReminder(
+            'reminder',
+            signer.userId,
+            envelope.companyId,
+            envelope,
+            { id: signer.id, role: this.roleOf(envelope, signer) },
+          );
+        } else {
+          const token = signer.tokenCipher
+            ? openToken(signer.tokenCipher, this.secret())
+            : null;
+          if (!token) continue;
+          await this.sender
+            .sendLink(signer, {
+              title: envelope.title,
+              link: `${this.publicUrl()}/s/${token}`,
+              expiresAt: envelope.expiresAt,
+              note: envelope.message,
+            })
+            .catch((error: Error) =>
+              this.logger.warn(`reminder to ${signer.id}: ${error.message}`),
+            );
+        }
+        await this.record(
+          envelope.id,
+          signer.id,
+          'reminded',
+          quiet,
+          undefined,
+          now,
+        );
+        counts.reminded += 1;
+      }
+    }
+    if (counts.reminded || counts.warned || counts.expired) {
+      this.logger.log(
+        `CD-171: ${counts.reminded} reminded, ${counts.warned} warned, ${counts.expired} expired`,
+      );
+    }
+    return counts;
   }
 
   async cancel(id: string, reason: string, actor: Principal) {
@@ -1152,9 +1413,12 @@ export class EsignService {
     type: string,
     meta: RequestMeta,
     detail?: Record<string, unknown>,
+    // the sweep's own clock, so what it wrote is judged on the same time
+    at?: Date,
   ) {
     await this.events.create({
       data: {
+        ...(at ? { at } : {}),
         envelopeId,
         signerId,
         type,

@@ -270,3 +270,12 @@ export class SaveEsignAuthorityDto {
   @MaxLength(1000)
   note?: string | null;
 }
+
+/** CD-171 — more time for an envelope. */
+export class ExtendEnvelopeDto {
+  @ApiProperty({ example: 7, description: 'นับจากวันนี้ (วัน)' })
+  @IsInt()
+  @Min(1)
+  @Max(90)
+  days!: number;
+}

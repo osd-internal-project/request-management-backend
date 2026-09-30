@@ -14144,6 +14144,106 @@
         ]
       }
     },
+    "/api/v1/esign/envelopes/{id}/extend": {
+      "post": {
+        "operationId": "EsignController_extend",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExtendEnvelopeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ขยายเวลาคำขอลงนาม (CD-171) — เอกสารที่หมดอายุกลับมารอลงนาม",
+        "tags": [
+          "esign"
+        ],
+        "x-permission": [
+          "esign.manage"
+        ]
+      }
+    },
+    "/api/v1/esign/envelopes/{id}/signers/{signerId}/link": {
+      "post": {
+        "operationId": "EsignController_reissue",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "signerId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ออกลิงก์ใหม่ให้ผู้ลงนามภายนอก — ลิงก์เดิมใช้ไม่ได้ · แสดงครั้งเดียว",
+        "tags": [
+          "esign"
+        ],
+        "x-permission": [
+          "esign.manage"
+        ]
+      }
+    },
     "/api/v1/esign/envelopes/{id}/cancel": {
       "post": {
         "operationId": "EsignController_cancel",
@@ -21720,6 +21820,21 @@
             "maxItems": 12
           }
         }
+      },
+      "ExtendEnvelopeDto": {
+        "type": "object",
+        "properties": {
+          "days": {
+            "type": "integer",
+            "example": 7,
+            "description": "นับจากวันนี้ (วัน)",
+            "maximum": 90,
+            "minimum": 1
+          }
+        },
+        "required": [
+          "days"
+        ]
       },
       "CancelEnvelopeDto": {
         "type": "object",

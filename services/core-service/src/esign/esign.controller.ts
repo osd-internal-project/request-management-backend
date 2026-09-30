@@ -24,6 +24,7 @@ import { EsignService, type RequestMeta } from './esign.service';
 import {
   CancelEnvelopeDto,
   DeclineDto,
+  ExtendEnvelopeDto,
   OtpRequestDto,
   OtpVerifyDto,
   SaveEsignAuthorityDto,
@@ -153,6 +154,33 @@ export class EsignController {
     @Req() request: Request,
   ) {
     return this.esign.send(id, principal, metaOf(request));
+  }
+
+  @ApiOperation({
+    summary: 'ขยายเวลาคำขอลงนาม (CD-171) — เอกสารที่หมดอายุกลับมารอลงนาม',
+  })
+  @Post('envelopes/:id/extend')
+  @Permissions('esign.manage')
+  extend(
+    @Param('id') id: string,
+    @Body() dto: ExtendEnvelopeDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.esign.extend(id, dto.days, principal);
+  }
+
+  @ApiOperation({
+    summary:
+      'ออกลิงก์ใหม่ให้ผู้ลงนามภายนอก — ลิงก์เดิมใช้ไม่ได้ · แสดงครั้งเดียว',
+  })
+  @Post('envelopes/:id/signers/:signerId/link')
+  @Permissions('esign.manage')
+  reissue(
+    @Param('id') id: string,
+    @Param('signerId') signerId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.esign.reissueLink(id, signerId, principal);
   }
 
   @ApiOperation({ summary: 'ยกเลิกการส่งลงนาม' })

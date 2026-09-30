@@ -155,6 +155,39 @@ export const NOTIFICATION_RULES: readonly RuleDefinition[] = [
     defaults: { warn_days: [60, 30, 7] },
   },
   {
+    code: 'esign.reminder',
+    module: 'crm',
+    label: 'เอกสารรอลงนาม — เตือนซ้ำและใกล้หมดอายุ',
+    description:
+      'เตือนผู้ลงนามที่ถึงลำดับแล้วแต่ยังไม่ลงนามทุก ๆ กี่วัน (ไม่เกินจำนวนครั้งที่กำหนด) และแจ้งผู้ส่งลงนามก่อนคำขอหมดอายุ — หมดอายุแล้วแจ้งผู้ส่งอีกครั้ง',
+    recipients: 'ผู้ลงนามที่ยังไม่ลงนาม · ผู้ส่งลงนาม',
+    eventTypes: ['esign.reminder', 'esign.expiring', 'esign.expired'],
+    params: [
+      {
+        key: 'every_days',
+        label: 'เตือนผู้ลงนามทุก (วัน)',
+        kind: 'days',
+        min: 1,
+        max: 30,
+      },
+      {
+        key: 'max_reminders',
+        label: 'เตือนไม่เกิน (ครั้ง)',
+        kind: 'days',
+        min: 1,
+        max: 10,
+      },
+      {
+        key: 'warn_days',
+        label: 'แจ้งผู้ส่งก่อนหมดอายุ (วัน)',
+        kind: 'days',
+        min: 0,
+        max: 30,
+      },
+    ],
+    defaults: { every_days: 2, max_reminders: 3, warn_days: 1 },
+  },
+  {
     code: 'contract.obligation',
     module: 'crm',
     label: 'ข้อผูกพันตามสัญญาใกล้ถึงกำหนด',

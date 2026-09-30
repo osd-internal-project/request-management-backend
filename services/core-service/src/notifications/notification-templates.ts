@@ -214,6 +214,36 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
     },
   },
   {
+    eventType: 'esign.reminder',
+    label: 'เตือนซ้ำ: เอกสารยังรอคุณลงนาม',
+    title: 'ยังรอคุณลงนาม: {{title}}',
+    body: 'ลงนามในฐานะ {{role}} · หมดเขต {{expires_on}}',
+    variables: {
+      title: { label: 'เอกสาร', sample: 'สัญญาบริการ CTR-2569-0042' },
+      role: { label: 'ฐานะผู้ลงนาม', sample: 'ผู้รับจ้าง' },
+      expires_on: { label: 'หมดเขต', sample: '14 ต.ค. 2569' },
+    },
+  },
+  {
+    eventType: 'esign.expiring',
+    label: 'คำขอลงนามใกล้หมดอายุ (ถึงผู้ส่งลงนาม)',
+    title: 'ใกล้หมดอายุ: {{title}}',
+    body: 'ยังลงนามไม่ครบ — หมดเขต {{expires_on}} · ขยายเวลาได้ที่หน้าสัญญา',
+    variables: {
+      title: { label: 'เอกสาร', sample: 'สัญญาบริการ CTR-2569-0042' },
+      expires_on: { label: 'หมดเขต', sample: '14 ต.ค. 2569' },
+    },
+  },
+  {
+    eventType: 'esign.expired',
+    label: 'คำขอลงนามหมดอายุ (ถึงผู้ส่งลงนาม)',
+    title: 'หมดอายุแล้ว: {{title}}',
+    body: 'ลงนามไม่ครบก่อนหมดเขต — ส่งลงนามใหม่ได้ที่หน้าสัญญา',
+    variables: {
+      title: { label: 'เอกสาร', sample: 'สัญญาบริการ CTR-2569-0042' },
+    },
+  },
+  {
     eventType: 'esign.completed',
     label: 'ลงนามครบแล้ว (ถึงผู้ส่งลงนาม)',
     title: 'ลงนามครบแล้ว: {{title}}',

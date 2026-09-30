@@ -85,6 +85,8 @@ export default () => ({
       (process.env.NODE_ENV === 'production' ? undefined : 'dev-esign-secret'),
     /** mock (log only) until SMTP / SMS exist */
     senderMode: process.env.ESIGN_SENDER_MODE ?? 'mock',
+    /** CD-171 — reminders / expiry sweep (0 = off, e.g. in tests). */
+    sweepIntervalMs: Number(process.env.ESIGN_SWEEP_INTERVAL_MS ?? 3_600_000),
   },
   reservePhone: {
     mode: process.env.RESERVE_PHONE_MODE ?? 'mock',
