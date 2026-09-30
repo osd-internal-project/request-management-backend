@@ -11,6 +11,12 @@ export default registerAs('keycloak', () => {
     clientId: process.env.KEYCLOAK_CLIENT_ID ?? 'request-form',
     clientSecret: process.env.KEYCLOAK_CLIENT_SECRET ?? '',
 
+    /** The one client whose service account may look people up by email (shared realm). */
+    integrationClientId:
+      process.env.INTEGRATION_CLIENT_ID ||
+      process.env.KEYCLOAK_CLIENT_ID ||
+      'request-form',
+
     /**
      * Base of the Keycloak Admin REST API for this realm.
      *

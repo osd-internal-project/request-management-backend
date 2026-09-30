@@ -26,20 +26,6 @@ export class KeycloakRoleMappingRepository extends BaseRepository<
     return this.findMany({ where: { companyId } }, option);
   }
 
-  /** Which system roles a set of Keycloak claim roles maps to, in one company. */
-  findMatching(
-    keycloakRoles: readonly string[],
-    companyId: string,
-    option?: TxOption,
-  ): Promise<KeycloakRoleMapping[]> {
-    if (!keycloakRoles.length) return Promise.resolve([]);
-
-    return this.findMany(
-      { where: { companyId, keycloakRole: { in: [...keycloakRoles] } } },
-      option,
-    );
-  }
-
   /** Replaces the whole mapping table for a company (§11.3 uses PUT). */
   async replaceForCompany(
     companyId: string,

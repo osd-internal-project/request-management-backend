@@ -161,9 +161,12 @@ Keycloak: the assign endpoints reject `realm-management` roles and
 themselves to full Keycloak administrator in a realm shared with other
 projects.
 
-**Keycloak roles grant nothing until they are mapped.** `yarn keycloak:provision`
-creates the realm roles and seeds `keycloak_role_mappings`; a fresh environment
-that skips it has every user resolving to no roles at all.
+**Keycloak is login only — its roles grant nothing.** Declared deviation from
+ROLE-03 (user decision, 29 Sep 2026): the realm moved to the shared `OSD` realm on
+id24, where role names belong to other projects too. People get roles only from
+`MANUAL` grants on screen A3; machines only from their API key's `scopes`.
+`PrincipalService` never reads token roles into permissions, and the
+`keycloak_role_mappings` screen is kept but has no effect.
 
 **The org tree lives in this database** (D-08), not in Keycloak groups. It is
 the source of truth for supervisors, which drives data scope, approval step 1,

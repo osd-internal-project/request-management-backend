@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   AppError,
@@ -10,7 +10,6 @@ import type { User } from '@prisma/client';
 import { OrgService } from '../org/org.service';
 import { PolicyService } from '../policy/policy.service';
 import { RolesService } from '../roles/roles.service';
-import { KeycloakAdminService } from '../keycloak-admin/keycloak-admin.service';
 import { UsersRepository } from '../users/users.repository';
 import { KeycloakJwtPayload } from '../auth/strategies/jwt.strategy';
 import { pickActiveCompany } from './active-company';
@@ -45,22 +44,18 @@ function displayNameOf(payload: KeycloakJwtPayload): string {
  * Turns a verified Keycloak token into the {@link Principal} everything
  * downstream reads.
  *
- * This runs on **every request**, which is deliberate: ROLE-03 requires a role
- * revoked in Keycloak to lose its effect within one access-token lifetime, and
- * SCOPE-01 requires a scope change from the admin screen to apply without a
- * deploy. Caching the answer for longer than the token would break both.
+ * This runs on **every request**, which is deliberate: SCOPE-01 requires a
+ * grant or scope change from the admin screen to apply without a deploy.
+ * Keycloak roles on the token grant nothing — AGENTS.md "Identity and Keycloak".
  */
 @Injectable()
 export class PrincipalService {
-  private readonly logger = new Logger(PrincipalService.name);
-
   constructor(
     private readonly users: UsersRepository,
     private readonly org: OrgService,
     private readonly roles: RolesService,
     private readonly policy: PolicyService,
     private readonly config: ConfigService,
-    private readonly keycloak: KeycloakAdminService,
   ) {}
 
   async resolve(
@@ -84,7 +79,7 @@ export class PrincipalService {
 
     const user = await this.provision(payload, keycloakRoles);
 
-    return this.principalFor(user, keycloakRoles, requestedCompanyId);
+    return this.principalFor(user, requestedCompanyId);
   }
 
   /**
@@ -115,12 +110,7 @@ export class PrincipalService {
    * authority over everyone's work, or re-implement each of those rules for
    * one caller.
    *
-   * Roles come from `user.keycloakRoles`, cached on the profile at their last
-   * login. That column exists precisely because a role has to be readable
-   * without an Admin API call — but it does mean a role granted in the realm
-   * since that login is not seen here until the person signs in again. Stated
-   * rather than papered over: making this call reach Keycloak would put an
-   * external round trip on every chatbot message.
+   * Roles are the person's grants in this app, exactly as on the token path.
    *
    * Nobody is provisioned from here. A profile is created from a token on
    * first login (AUTH-04); inventing one from an email would let anything that
@@ -140,65 +130,7 @@ export class PrincipalService {
       );
     }
 
-    const keycloakRoles = user.keycloakRoles.length
-      ? user.keycloakRoles
-      : await this.backfillKeycloakRoles(user);
-
-    return this.principalFor(user, keycloakRoles, requestedCompanyId);
-  }
-
-  /**
-   * Read this person's realm roles from Keycloak, once, because nothing else
-   * ever will.
-   *
-   * `keycloakRoles` is written when somebody logs in through the web app, and
-   * this path has no login: an integration acts for a person who may never have
-   * opened a browser. Everyone imported by `org:adopt` or `user:add` therefore
-   * resolved to no roles at all, and the chatbot's whole promise — "you do not
-   * have to open the web app" — required opening the web app first.
-   *
-   * Persisted rather than resolved per call, so this costs one round trip in a
-   * person's lifetime rather than one per minute of cache expiry.
-   *
-   * **Failure is silent by design.** Keycloak being unreachable must not take
-   * the External API down with it; the caller then resolves with no roles,
-   * exactly as it did before this method existed, and the next call tries
-   * again.
-   */
-  private async backfillKeycloakRoles(user: {
-    id: string;
-    username: string;
-  }): Promise<string[]> {
-    try {
-      const account = await this.keycloak.findUserByUsername(user.username);
-
-      if (!account) return [];
-
-      const roles = (await this.keycloak.listUserRoles(account.id)).map(
-        (role) => role.name,
-      );
-
-      if (!roles.length) return [];
-
-      await this.users.update({
-        where: { id: user.id },
-        data: { keycloakRoles: roles },
-      });
-
-      this.logger.log(
-        `Backfilled ${roles.length} Keycloak role(s) for ${user.username}`,
-      );
-
-      return roles;
-    } catch (error) {
-      this.logger.warn(
-        `Could not read Keycloak roles for ${user.username}: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      );
-
-      return [];
-    }
+    return this.principalFor(user, requestedCompanyId);
   }
 
   /**
@@ -210,7 +142,6 @@ export class PrincipalService {
    */
   private async principalFor(
     user: User,
-    keycloakRoles: readonly string[],
     requestedCompanyId?: string,
   ): Promise<Principal> {
     const memberships = await this.org.companiesForUser(user.id);
@@ -235,12 +166,7 @@ export class PrincipalService {
       return this.pendingPrincipal(user, companies);
     }
 
-    await this.roles.syncFromKeycloakRoles(
-      user.id,
-      activeCompanyId,
-      keycloakRoles,
-    );
-
+    // Keycloak is login only: roles come from grants made in this app, never from token roles.
     const userRoles = await this.roles.rolesForUser(user.id, activeCompanyId);
     const permissions = RolesService.permissionsOf(userRoles);
 
@@ -362,12 +288,9 @@ export class PrincipalService {
   }
 
   /**
-   * A principal for a machine credential — no local profile, no company.
-   *
-   * Permissions come from the client's own realm roles rather than a company
-   * role binding, because a service account has no org placement to resolve
-   * against. `PolicyGuard` additionally confines it to `@ServiceAccountOnly()`
-   * endpoints.
+   * A principal for a machine credential — no local profile, no company, no
+   * permissions. What a machine may do is its API key's `scopes`, applied by
+   * core-service's `RemotePrincipalGuard`; token roles grant nothing.
    */
   private serviceAccountPrincipal(payload: KeycloakJwtPayload): Principal {
     const username = payload.preferred_username ?? 'service-account';
@@ -390,10 +313,7 @@ export class PrincipalService {
       scopedActUserIds: [],
       scopedByPermission: {},
       roles: [],
-      permissions: keycloakRolesOf(
-        payload,
-        typeof payload['client_id'] === 'string' ? payload['client_id'] : '',
-      ) as Principal['permissions'],
+      permissions: [],
       sensitiveFieldsVisible: [],
       sensitiveFieldsAll: [],
       isServiceAccount: true,

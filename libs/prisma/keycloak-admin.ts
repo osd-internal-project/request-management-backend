@@ -413,9 +413,7 @@ export async function upsertProfile(
 /**
  * Grants the system role matching the realm role.
  *
- * `MANUAL` so the placement works before the first sign-in — and survives it.
- * `replaceMappedRoles` rewrites only `KEYCLOAK_MAPPING` rows on every login, so
- * the mapped copy it adds later sits alongside this one harmlessly.
+ * `MANUAL` — the only kind of grant that has effect; Keycloak roles grant nothing.
  */
 export async function grantSystemRole(
   prisma: PrismaClient,

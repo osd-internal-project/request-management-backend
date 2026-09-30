@@ -397,10 +397,8 @@ export class RolesService implements OnModuleInit {
    *
    * The failure it exists to prevent: `keycloakRole` holds a *name*, and a name
    * is the one thing about a realm role that changes. When somebody renamed one
-   * the next token carried the new name, no mapping matched it, and
-   * `syncFromKeycloakRoles` removed that role from every holder — silently, and
-   * with this table still displaying the old name as though nothing had
-   * happened. `keycloakRoleId` survives a rename, so it is what lets the name be
+   * the next token carried the new name and no mapping matched it, while this
+   * table still displayed the old name as though nothing had happened. `keycloakRoleId` survives a rename, so it is what lets the name be
    * corrected instead.
    *
    * Takes the realm roles as an argument rather than fetching them: the rule is
@@ -488,50 +486,6 @@ export class RolesService implements OnModuleInit {
     }
 
     return { linked, renamed, missing, checked: mappings.length };
-  }
-
-  /**
-   * ROLE-03: re-derives the user's mapped roles from the Keycloak claims on
-   * every login and refresh.
-   *
-   * This is what makes revocation work: take a role away in Keycloak and it
-   * disappears here within one access-token lifetime, without an admin
-   * touching this system.
-   */
-  async syncFromKeycloakRoles(
-    userId: string,
-    companyId: string,
-    keycloakRoles: readonly string[],
-    option?: TxOption,
-  ): Promise<void> {
-    const matches = await this.mappings.findMatching(
-      keycloakRoles,
-      companyId,
-      option,
-    );
-
-    const roleIds = [...new Set(matches.map((match) => match.roleId))];
-    const { added, removed } = await this.userRoles.replaceMappedRoles(
-      userId,
-      companyId,
-      roleIds,
-      option,
-    );
-
-    if (added.length || removed.length) {
-      await this.audit.record(
-        {
-          eventType: AuditEvent.KEYCLOAK_ROLES_SYNCED,
-          companyId,
-          actorId: userId,
-          resourceType: 'user',
-          resourceId: userId,
-          before: { removed },
-          after: { added, keycloakRoles: [...keycloakRoles] },
-        },
-        option,
-      );
-    }
   }
 
   /** Flattens a user's roles in one company into a permission set. */

@@ -172,9 +172,7 @@ async function main(username: string): Promise<void> {
         },
       },
       update: {},
-      // MANUAL, not KEYCLOAK_MAPPING: `replaceMappedRoles` rewrites only mapped
-      // grants on every login, so a mapped grant here would vanish at the next
-      // sign-in.
+      // MANUAL: grants are made in this app; Keycloak roles grant nothing.
       create: {
         userId: user.id,
         roleId,

@@ -96,9 +96,7 @@ async function grantAdmin(username: string): Promise<void> {
           userId: user.id,
           roleId: role.id,
           companyId: company.id,
-          // MANUAL, not KEYCLOAK_MAPPING. `replaceMappedRoles` rewrites only
-          // mapped grants on every login, so a mapped grant here would silently
-          // disappear the next time this user signs in.
+          // MANUAL: grants are made in this app; Keycloak roles grant nothing.
           source: 'MANUAL',
         },
       });

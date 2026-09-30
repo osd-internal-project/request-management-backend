@@ -190,48 +190,4 @@ export class UserRoleRepository extends BaseRepository<
     const client = option?.prisma ?? this.prisma;
     await client.userRole.deleteMany({ where: { userId, roleId, companyId } });
   }
-
-  /**
-   * ROLE-03: replaces the Keycloak-derived grants for one company, leaving
-   * manually bound roles untouched. Revoking a role in Keycloak therefore
-   * revokes it here on the next login, while an admin's manual grant survives.
-   */
-  async replaceMappedRoles(
-    userId: string,
-    companyId: string,
-    roleIds: readonly string[],
-    option?: TxOption,
-  ): Promise<{ added: string[]; removed: string[] }> {
-    const client = option?.prisma ?? this.prisma;
-
-    const existing = await client.userRole.findMany({
-      where: { userId, companyId, source: 'KEYCLOAK_MAPPING' },
-      select: { roleId: true },
-    });
-    const existingIds = existing.map((row) => row.roleId);
-
-    const removed = existingIds.filter((id) => !roleIds.includes(id));
-    const added = roleIds.filter((id) => !existingIds.includes(id));
-
-    if (removed.length) {
-      await client.userRole.deleteMany({
-        where: {
-          userId,
-          companyId,
-          source: 'KEYCLOAK_MAPPING',
-          roleId: { in: removed },
-        },
-      });
-    }
-
-    for (const roleId of added) {
-      await client.userRole.upsert({
-        where: { userId_roleId_companyId: { userId, roleId, companyId } },
-        update: {},
-        create: { userId, roleId, companyId, source: 'KEYCLOAK_MAPPING' },
-      });
-    }
-
-    return { added, removed };
-  }
 }

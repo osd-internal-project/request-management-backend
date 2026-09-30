@@ -1,6 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { AppError, Principal } from '@request-management/share';
+import {
+  AppError,
+  ErrorCatalog,
+  ErrorCode,
+  ErrorResponseBody,
+  Principal,
+} from '@request-management/share';
 import { createHash } from 'node:crypto';
 
 interface CacheEntry {
@@ -17,6 +23,29 @@ interface CacheEntry {
  * per-request hop off the hot path while staying well inside both.
  */
 const CACHE_TTL_MS = 60_000;
+
+function isErrorCode(value: unknown): value is ErrorCode {
+  return typeof value === 'string' && value in ErrorCatalog;
+}
+
+/** user-service's own 403 error, or a plain `FORBIDDEN` when its body is unreadable. */
+async function forbiddenFrom(response: Response): Promise<AppError> {
+  const body: unknown = await response.json().catch(() => null);
+  if (
+    typeof body === 'object' &&
+    body !== null &&
+    'code' in body &&
+    'message' in body &&
+    isErrorCode(body.code) &&
+    typeof body.message === 'string'
+  ) {
+    const details: ErrorResponseBody['details'] =
+      'details' in body && Array.isArray(body.details) ? body.details : undefined;
+    return new AppError(body.code, body.message, details);
+  }
+
+  return new AppError('FORBIDDEN', 'ไม่มีสิทธิ์ใช้งานส่วนนี้');
+}
 
 /**
  * Resolves the caller by asking `user-service`, which owns identity, roles,
@@ -149,11 +178,9 @@ export class RemotePrincipalService {
       throw new AppError('UNAUTHORIZED', 'ต้องเข้าสู่ระบบก่อนใช้งาน');
     }
 
+    // Passed through as user-service said it: a 403 is not always about the company.
     if (response.status === 403) {
-      throw new AppError(
-        'COMPANY_FORBIDDEN',
-        'ไม่มีสิทธิ์เข้าถึงข้อมูลของบริษัทนี้',
-      );
+      throw await forbiddenFrom(response);
     }
 
     /*
