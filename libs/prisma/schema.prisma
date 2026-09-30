@@ -3851,6 +3851,8 @@ model ContractDraft {
   /// CD-159 — ความเสี่ยงที่ประเมินบนร่าง และการขออนุมัติรายฉบับ.
   riskAssessment ContractRiskAssessment?
   approvals      ContractDraftApproval[]
+  /// CD-150 — การตรวจขอบเขตงานรายฉบับ.
+  scopeChecks    ContractScopeCheck[]
 
   @@index([companyId])
   @@map("contract_drafts")
@@ -3984,6 +3986,28 @@ model ContractRequestPackage {
 
   @@index([companyId])
   @@map("contract_request_packages")
+}
+
+/// CD-150 — Legal's check of one draft version against the scope of work the
+/// request brought (CD-145): each item — in scope, out of scope, deliverable,
+/// acceptance criterion — found in the text or not, and Legal's verdict on
+/// those not found. An inconsistent (or unchecked) latest version cannot be
+/// sent for approval (CD-159).
+model ContractScopeCheck {
+  id        String @id @default(uuid())
+  draftId   String
+  versionNo Int
+  /// [{ key, kind, text, found, verdict: match|mismatch, note }]
+  items     Json
+  /// consistent · inconsistent
+  status    String
+  checkedBy String
+  checkedAt DateTime @default(now())
+
+  draft ContractDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+
+  @@unique([draftId, versionNo])
+  @@map("contract_scope_checks")
 }
 
 /// CD-161 — who else may open a confidential contract.

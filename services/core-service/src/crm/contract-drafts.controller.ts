@@ -18,12 +18,14 @@ import { ContractReviewsService } from './contract-reviews.service';
 import { ContractRiskService } from './contract-risk.service';
 import { ContractDraftApprovalService } from './contract-draft-approval.service';
 import { ContractRequestPackageService } from './contract-request-package.service';
+import { ContractScopeCheckService } from './contract-scope-check.service';
 import {
   AnswerReviewCommentDto,
   CompareVersionsQueryDto,
   OpenReviewRoundDto,
   ReviewCommentDto,
   SaveRiskAssessmentDto,
+  SaveScopeCheckDto,
   DraftVersionQueryDto,
   SaveContractTemplateDto,
   SaveDraftVersionDto,
@@ -45,7 +47,34 @@ export class ContractDraftsController {
     private readonly risk: ContractRiskService,
     private readonly approval: ContractDraftApprovalService,
     private readonly packages: ContractRequestPackageService,
+    private readonly scope: ContractScopeCheckService,
   ) {}
+
+  @ApiOperation({
+    summary: 'ตรวจขอบเขตงาน — ร่างฉบับล่าสุดเทียบขอบเขตงานที่แนบคำขอ (CD-150)',
+    description:
+      'ทุกรายการ (ในขอบเขต/นอกขอบเขต/ส่งมอบ/เกณฑ์ตรวจรับ) พร้อม `found` = พบในข้อความสัญญา และคำตัดสินที่บันทึกไว้ของฉบับนี้',
+  })
+  @Get('contract-drafts/:id/scope-check')
+  @Permissions('legal.contract.read')
+  viewScope(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.scope.view(id, principal);
+  }
+
+  @ApiOperation({
+    summary: 'บันทึกผลตรวจขอบเขตงานของฉบับล่าสุด',
+    description:
+      'รายการที่ไม่พบต้องตัดสิน · ไม่สอดคล้องต้องระบุจุดที่ไม่ตรง · ไม่สอดคล้อง = ขออนุมัติสัญญาไม่ได้',
+  })
+  @Put('contract-drafts/:id/scope-check')
+  @Permissions('legal.contract.manage')
+  saveScope(
+    @Param('id') id: string,
+    @Body() dto: SaveScopeCheckDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.scope.save(id, dto, principal);
+  }
 
   @ApiOperation({
     summary: 'ข้อมูลการค้าและขอบเขตงานที่มากับคำขอจัดทำสัญญา (CD-145)',

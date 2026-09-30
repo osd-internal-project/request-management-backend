@@ -188,3 +188,14 @@ API: `GET/PUT /contracts/:id/terms` · `POST /contracts/:id/terms/liability-appr
 `{{deliverables}}`, `{{assumptions}}` (ไม่มี package = เงื่อนไขจากรอบต่อรองล่าสุดตอนเริ่มร่าง)
 - API: `GET /contract-requests/:requestId/package` (`legal.contract.read`), `POST .../package/refresh` (`legal.contract.manage`)
 - migration `20260929620000_contract_request_packages`
+
+# CD-150 ตรวจขอบเขตงาน
+
+บนหน้าร่างสัญญา (`contract_scope_checks`, หนึ่งแถวต่อฉบับ): ขอบเขตงานที่แนบคำขอ (CD-145 — จาก Solution ที่อนุมัติ)
+ทุกรายการ — ในขอบเขต · นอกขอบเขต · รายการส่งมอบ · เกณฑ์ตรวจรับ — เทียบกับ **ร่างฉบับล่าสุด**:
+- ระบบหาข้อความของแต่ละรายการในสัญญา (ไม่สนช่องว่าง ตัวพิมพ์ เครื่องหมาย) — พบ = ตรง (ฝ่ายกฎหมายเปลี่ยนเป็นไม่สอดคล้องได้)
+- **ไม่พบ ต้องตัดสิน:** ตรง (ต้องบอกว่าอยู่ข้อไหน/ใช้ถ้อยคำใด) หรือ **ไม่สอดคล้อง** (ต้องบอกจุดที่ไม่ตรง)
+- ผลตรวจผูกกับฉบับ — ฉบับใหม่ต้องตรวจใหม่
+- **ไม่สอดคล้อง หรือยังไม่ได้ตรวจฉบับล่าสุด = ขออนุมัติสัญญา (CD-159) ไม่ได้** · คำขอที่ไม่มี Solution ที่อนุมัติไม่ต้องตรวจ
+- API: `GET/PUT /contract-drafts/:id/scope-check`
+- migration `20260929640000_contract_scope_checks`

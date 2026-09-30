@@ -9251,6 +9251,98 @@
         ]
       }
     },
+    "/api/v1/contract-drafts/{id}/scope-check": {
+      "get": {
+        "description": "ทุกรายการ (ในขอบเขต/นอกขอบเขต/ส่งมอบ/เกณฑ์ตรวจรับ) พร้อม `found` = พบในข้อความสัญญา และคำตัดสินที่บันทึกไว้ของฉบับนี้",
+        "operationId": "ContractDraftsController_viewScope",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ตรวจขอบเขตงาน — ร่างฉบับล่าสุดเทียบขอบเขตงานที่แนบคำขอ (CD-150)",
+        "tags": [
+          "contracts"
+        ],
+        "x-permission": [
+          "legal.contract.read"
+        ]
+      },
+      "put": {
+        "description": "รายการที่ไม่พบต้องตัดสิน · ไม่สอดคล้องต้องระบุจุดที่ไม่ตรง · ไม่สอดคล้อง = ขออนุมัติสัญญาไม่ได้",
+        "operationId": "ContractDraftsController_saveScope",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveScopeCheckDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "บันทึกผลตรวจขอบเขตงานของฉบับล่าสุด",
+        "tags": [
+          "contracts"
+        ],
+        "x-permission": [
+          "legal.contract.manage"
+        ]
+      }
+    },
     "/api/v1/contract-requests/{requestId}/package": {
       "get": {
         "description": "เก็บตอนยื่นคำขอ: เงื่อนไขรอบต่อรองล่าสุด + ขอบเขตงาน/รายการส่งมอบ/สมมติฐานของ Solution ที่อนุมัติ",
@@ -18315,6 +18407,48 @@
             "maxLength": 1000
           }
         }
+      },
+      "ScopeVerdictDto": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "example": "in-0",
+            "description": "รหัสรายการ (จาก GET)",
+            "maxLength": 40
+          },
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "match",
+              "mismatch"
+            ]
+          },
+          "note": {
+            "type": "string",
+            "description": "ไม่สอดคล้อง = จุดที่ไม่ตรง · ไม่พบแต่ตรง = ข้อที่ใช้ถ้อยคำอื่น",
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "key",
+          "verdict"
+        ]
+      },
+      "SaveScopeCheckDto": {
+        "type": "object",
+        "properties": {
+          "verdicts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScopeVerdictDto"
+            },
+            "maxItems": 500
+          }
+        },
+        "required": [
+          "verdicts"
+        ]
       },
       "OpenReviewRoundDto": {
         "type": "object",

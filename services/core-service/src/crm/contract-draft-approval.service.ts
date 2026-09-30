@@ -14,6 +14,7 @@ import { RequestsService } from '../requests/requests.service';
 import { ContractDraftsService } from './contract-drafts.service';
 import { ContractReviewRoundRepository } from './contract-reviews.service';
 import { ContractRiskService } from './contract-risk.service';
+import { ContractScopeCheckService } from './contract-scope-check.service';
 import { approvalStateOf } from './contract-terms';
 import { CrmConfigRepository } from './segment.repositories';
 
@@ -75,6 +76,7 @@ export class ContractDraftApprovalService {
     private readonly rounds: ContractReviewRoundRepository,
     private readonly drafts: ContractDraftsService,
     private readonly risk: ContractRiskService,
+    private readonly scope: ContractScopeCheckService,
     private readonly configs: CrmConfigRepository,
     private readonly requestRows: RequestRepository,
     private readonly requests: RequestsService,
@@ -294,6 +296,9 @@ export class ContractDraftApprovalService {
     } else if (risk.signing.ready === false && risk.signing.reason) {
       reasons.push(risk.signing.reason);
     }
+    // CD-150 — the scope in the contract must be in line with the SOW
+    const scope = await this.scope.blocker(draftId, actor);
+    if (scope) reasons.push(scope);
     return reasons;
   }
 
