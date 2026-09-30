@@ -157,3 +157,19 @@ API: `GET/PUT /contracts/:id/terms` · `POST /contracts/:id/terms/liability-appr
 - API: `GET/POST /contract-drafts/:id/reviews`, `POST /contract-reviews/:roundId/comments`,
   `POST /contract-reviews/:roundId/close`, `POST /contract-review-comments/:id/answer`
 - migration `20260929580000_contract_reviews`
+
+# CD-159 อนุมัติสัญญา
+
+- **ความเสี่ยงประเมินบนร่างได้** (ตามที่ผู้ใช้เลือก 30 ก.ย.): `contract_risk_assessments` มี `id` เป็น PK และผูกกับ
+  `contractId` **หรือ** `draftId` (CHECK) · API `GET/PUT /contract-drafts/:id/risk`, `POST .../risk/opinion` ·
+  ปิดคำขอแล้วสัญญาเกิดขึ้น การประเมินของร่างย้ายไปอยู่กับสัญญา (`ContractsService.onRequestCompleted`)
+- **ขออนุมัติ** `POST /contract-drafts/:id/approval` — ฉบับล่าสุด · ยื่นคำขอประเภท `contractApprovalTypeCode`
+  (หน้าตั้งค่า CRM) · `form_data` มี `contract_value` (ตัวเลข) และ `risk_level` (`low|medium|high|critical`)
+  ให้ **ตารางอำนาจอนุมัติ** ตั้งเงื่อนไขระดับ (`gt` มูลค่า, `in` ความเสี่ยง) — เส้นทางตามมูลค่า/ความเสี่ยงเป็น
+  การตั้งค่า ไม่ใช่โค้ด
+- ขอได้เมื่อ: คำขอยังเปิด · **ไม่มีรอบตรวจ (CD-147) ค้าง** · ประเมินความเสี่ยงของร่างแล้ว และ `signing.ready`
+  (ความเสี่ยงสูงต้องได้ความเห็นผู้บริหารก่อน — CD-158) · ไม่มีคำขอของฉบับนี้ที่ยังรอ/อนุมัติแล้ว
+- **แก้ร่างหลังขออนุมัติ = โมฆะ**: `saveVersion` ตั้ง `voidedAt` ให้การอนุมัติทุกอันที่ยังไม่โมฆะ ในทรานแซกชันเดียวกับฉบับใหม่
+  (คำขอบนแพลตฟอร์มไม่ถูกยกเลิกอัตโนมัติ — แต่ไม่นับแล้ว)
+- `GET /contract-drafts/:id/approval` → `blockers`, `canRequest`, `approvedVersionNo`, `current`, `voided`
+- migration `20260929600000_contract_draft_approval`

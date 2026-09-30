@@ -123,6 +123,7 @@ function harness(options: {
         }),
       ),
     } as never,
+    {} as never,
     {
       findFirst: jest.fn(() =>
         Promise.resolve({
@@ -150,7 +151,7 @@ describe('CD-158 ContractRiskService', () => {
   it('high risk asks the executives with the issues put to them; not ready to sign until they answer', async () => {
     const { service, requests } = harness({});
     const view = await service.save(
-      'c-1',
+      { contractId: 'c-1' },
       {
         level: 'high',
         issues: [
@@ -186,7 +187,7 @@ describe('CD-158 ContractRiskService', () => {
 
     // saved again unchanged (a summary edit): nothing new is asked
     await service.save(
-      'c-1',
+      { contractId: 'c-1' },
       {
         level: 'high',
         summary: 'ปรับถ้อยคำ',
@@ -207,7 +208,7 @@ describe('CD-158 ContractRiskService', () => {
   it('the opinion given in favour makes it ready; low risk is ready without asking', async () => {
     const given = harness({ requestStatus: 'approved' });
     const view = await given.service.save(
-      'c-1',
+      { contractId: 'c-1' },
       { level: 'critical', issues: [{ title: 'x', severity: 'high' }] },
       legal,
       'Bearer t',
@@ -216,7 +217,7 @@ describe('CD-158 ContractRiskService', () => {
 
     const low = harness({});
     const calm = await low.service.save(
-      'c-1',
+      { contractId: 'c-1' },
       { level: 'low' },
       legal,
       'Bearer t',
@@ -229,7 +230,7 @@ describe('CD-158 ContractRiskService', () => {
   it('no request type set: kept as the reason, the assessment still saved', async () => {
     const { service, requests, current } = harness({ typeCode: null });
     const view = await service.save(
-      'c-1',
+      { contractId: 'c-1' },
       { level: 'high', issues: [{ title: 'x', severity: 'high' }] },
       legal,
       'Bearer t',
@@ -243,20 +244,25 @@ describe('CD-158 ContractRiskService', () => {
   it('asking again while a request is open is refused', async () => {
     const { service } = harness({});
     await service.save(
-      'c-1',
+      { contractId: 'c-1' },
       { level: 'high', issues: [{ title: 'x', severity: 'high' }] },
       legal,
       'Bearer t',
     );
     await expect(
-      service.requestOpinion('c-1', legal, 'Bearer t'),
+      service.requestOpinion({ contractId: 'c-1' }, legal, 'Bearer t'),
     ).rejects.toMatchObject({ code: 'CONFLICT' });
   });
 
   it('a bad assessment is refused before anything is written', async () => {
     const { service, current } = harness({});
     await expect(
-      service.save('c-1', { level: 'high', issues: [] }, legal, 'Bearer t'),
+      service.save(
+        { contractId: 'c-1' },
+        { level: 'high', issues: [] },
+        legal,
+        'Bearer t',
+      ),
     ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
     expect(current()).toBeNull();
   });

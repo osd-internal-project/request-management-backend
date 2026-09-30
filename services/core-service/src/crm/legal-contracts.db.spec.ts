@@ -31,6 +31,10 @@ import {
 } from './contract-templates.service';
 import { RequestRepository } from '../requests/request.repository';
 import {
+  ContractDraftApprovalRepository,
+  ContractDraftApprovalService,
+} from './contract-draft-approval.service';
+import {
   ContractReviewCommentRepository,
   ContractReviewRoundRepository,
   ContractReviewsService,
@@ -458,7 +462,99 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         });
         const compared = await reviews.compare(started.id, 1, 3, legal);
         expect(compared.counts).toEqual({ changed: 1, added: 0, removed: 1 });
+
+        // CD-159 — risk on the draft, then approval of version 3
+        const noTypes = {
+          findFirst: () =>
+            Promise.resolve({
+              legalRiskOpinionTypeCode: null,
+              contractApprovalTypeCode: null,
+            }),
+        } as never;
+        const risk = new ContractRiskService(
+          new ContractRiskAssessmentRepository(client),
+          new CustomerContractRepository(client),
+          drafts,
+          noTypes,
+          new RequestRepository(client),
+          {} as never,
+          audit,
+        );
+        const approval = new ContractDraftApprovalService(
+          new ContractDraftApprovalRepository(client),
+          new ContractReviewRoundRepository(client),
+          drafts,
+          risk,
+          noTypes,
+          new RequestRepository(client),
+          {} as never,
+          new CompanyMemberRepository(client),
+          audit,
+        );
+        const blocked = await approval.view(started.id, legal);
+        expect(blocked.blockers).toEqual(['ยังไม่ได้ประเมินความเสี่ยงของร่าง']);
+        expect(blocked.canRequest).toBe(false);
+        await risk.save(
+          { draftId: started.id },
+          { level: 'low' },
+          legal,
+          'Bearer t',
+        );
+        const asked = await approval.request(started.id, legal, 'Bearer t');
+        expect(asked.current).toMatchObject({
+          versionNo: 3,
+          riskLevel: 'low',
+          state: 'missing',
+        });
+        expect(asked.current?.error).toContain(
+          'ยังไม่ได้ตั้งประเภทคำขออนุมัติสัญญา',
+        );
+        // the approver's decision (a request approved on the platform)
+        const decided = await prisma.request.create({
+          data: {
+            requestTypeId: type.id,
+            typeCode: type.code,
+            companyId,
+            requesterId: legalUser,
+            status: 'approved',
+          },
+        });
+        try {
+          await prisma.contractDraftApproval.updateMany({
+            where: { draftId: started.id, voidedAt: null },
+            data: { requestId: decided.id, error: null },
+          });
+          expect(
+            (await approval.view(started.id, legal)).approvedVersionNo,
+          ).toBe(3);
+          // editing after approval voids it
+          await drafts.saveVersion(
+            started.id,
+            {
+              base_version: 3,
+              clauses: [
+                { key: 'c1', heading: 'คู่สัญญา', body: 'แก้หลังอนุมัติ' },
+              ],
+            },
+            legal,
+          );
+          const after = await approval.view(started.id, legal);
+          expect(after.current).toBeNull();
+          expect(after.approvedVersionNo).toBeNull();
+          expect(after.voided[0]).toMatchObject({
+            versionNo: 3,
+            voidReason: 'แก้ร่างเป็นฉบับที่ 4 หลังขออนุมัติ',
+          });
+        } finally {
+          await prisma.contractDraftApproval.deleteMany({
+            where: { draftId: started.id },
+          });
+          await prisma.request.delete({ where: { id: decided.id } });
+        }
       } finally {
+        await prisma.contractRiskAssessment.deleteMany({
+          where: { draft: { requestId: request.id } },
+        });
         await prisma.contractDraft.deleteMany({
           where: { requestId: request.id },
         });
@@ -473,6 +569,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       const service = new ContractRiskService(
         new ContractRiskAssessmentRepository(client),
         new CustomerContractRepository(client),
+        {} as never,
         { findFirst: () => Promise.resolve(null) } as never,
         { findFirst: () => Promise.resolve(null) } as never,
         {} as never,
@@ -480,7 +577,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       );
       const legal = as(legalUser, true);
       const view = await service.save(
-        contractId,
+        { contractId },
         {
           level: 'medium',
           summary: 'ภาพรวมยอมรับได้',

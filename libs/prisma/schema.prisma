@@ -2407,6 +2407,9 @@ model CrmCompanyConfig {
   /// contract assessed high (or critical) legal risk, or with issues Legal
   /// marked for them. NULL = not set up; the card says so.
   legalRiskOpinionTypeCode         String?
+  /// CD-159 — the request type that approves a contract draft version; its
+  /// matrix may route on `contract_value` and `risk_level`. NULL = not set.
+  contractApprovalTypeCode         String?
 
   /// CD-130: ประเภทคำขอ "ขอ Solution และประเมินต้นทุน" (Sales → Pre-Sales) — การ์ด Solution
   /// บนหน้าดีลยื่นประเภทนี้. ช่องบังคับของฟอร์มประเภทนี้คือรายการตรวจความครบ (จุดส่งต่อที่ 2).
@@ -3761,7 +3764,12 @@ model ContractInstallment {
 /// Request of the type CRM settings name) before the contract is signed.
 /// One current assessment per contract; earlier ones live in the audit log.
 model ContractRiskAssessment {
-  contractId String @id
+  id         String  @id @default(uuid())
+  /// The contract it is about — or, while the contract is still being
+  /// drafted (CD-159), the draft; the draft's assessment moves onto the
+  /// contract its request produces. A DB CHECK requires one of the two.
+  contractId String? @unique
+  draftId    String? @unique
   companyId  String
 
   /// low · medium · high · critical
@@ -3779,7 +3787,8 @@ model ContractRiskAssessment {
   assessedAt DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  contract CustomerContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  contract CustomerContract? @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  draft    ContractDraft?    @relation(fields: [draftId], references: [id], onDelete: SetNull)
 
   @@index([companyId, level])
   @@map("contract_risk_assessments")
@@ -3835,6 +3844,9 @@ model ContractDraft {
   versions ContractDraftVersion[]
   /// CD-147 — รอบตรวจสัญญา.
   reviews  ContractReviewRound[]
+  /// CD-159 — ความเสี่ยงที่ประเมินบนร่าง และการขออนุมัติรายฉบับ.
+  riskAssessment ContractRiskAssessment?
+  approvals      ContractDraftApproval[]
 
   @@index([companyId])
   @@map("contract_drafts")
@@ -3910,6 +3922,31 @@ model ContractReviewComment {
 
   @@index([roundId, status])
   @@map("contract_review_comments")
+}
+
+/// CD-159 — the approval asked for one version of a draft. A later
+/// version voids it (`voidedAt`): what was approved is no longer the text.
+model ContractDraftApproval {
+  id        String @id @default(uuid())
+  companyId String
+  draftId   String
+  versionNo Int
+
+  /// The Platform Request carrying it; NULL when it could not be raised.
+  requestId String?
+  error     String?
+  /// The risk level it was asked with.
+  riskLevel String?
+
+  requestedBy String
+  requestedAt DateTime @default(now())
+  voidedAt    DateTime?
+  voidReason  String?
+
+  draft ContractDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+
+  @@index([draftId, voidedAt])
+  @@map("contract_draft_approvals")
 }
 
 /// CD-161 — who else may open a confidential contract.

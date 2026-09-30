@@ -154,6 +154,9 @@ function harness(options: {
         return Promise.resolve({ count: 1 });
       }),
     },
+    contractDraftApproval: {
+      updateMany: jest.fn(() => Promise.resolve({ count: 0 })),
+    },
     contractDraftVersion: {
       create: jest.fn((args: { data: Record<string, unknown> }) => {
         created.push(args.data);

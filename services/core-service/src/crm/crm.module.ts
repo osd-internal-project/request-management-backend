@@ -122,6 +122,10 @@ import {
   ContractReviewRoundRepository,
   ContractReviewsService,
 } from './contract-reviews.service';
+import {
+  ContractDraftApprovalRepository,
+  ContractDraftApprovalService,
+} from './contract-draft-approval.service';
 import { CustomerApprovalService } from './customer-approval.service';
 import { RequestTypeRepository } from '../requests/request-type.repository';
 import { HandoversService } from './handovers.service';
@@ -252,6 +256,8 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     ContractReviewRoundRepository,
     ContractReviewCommentRepository,
     ContractReviewsService,
+    ContractDraftApprovalRepository,
+    ContractDraftApprovalService,
     // CD-84
     HandoversService,
     HandoverChecklistItemRepository,
@@ -319,6 +325,7 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     ContractTemplatesService,
     ContractDraftsService,
     ContractReviewsService,
+    ContractDraftApprovalService,
     HandoversService,
     KycService,
     CustomerApprovalService,

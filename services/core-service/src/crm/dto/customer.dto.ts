@@ -722,6 +722,15 @@ export class UpdateCrmConfigDto {
   legal_risk_opinion_type_code?: string;
 
   /**
+   * CD-159: รหัสประเภทคำขอ "อนุมัติสัญญา" — form มี contract_value และ risk_level ให้ตาราง
+   * อำนาจอนุมัติตั้งเงื่อนไขตามมูลค่าและระดับความเสี่ยงได้. ส่ง `""` = ล้าง.
+   */
+  @IsOptional()
+  @IsString()
+  @Matches(/^([A-Z0-9_-]{1,20})?$/)
+  contract_approval_type_code?: string;
+
+  /**
    * CD-130: รหัสประเภทคำขอ "ขอ Solution และประเมินต้นทุน" (Sales → Pre-Sales).
    * ส่ง `""` = ล้าง (หน้าดีลไม่แสดงการ์ด Solution).
    */

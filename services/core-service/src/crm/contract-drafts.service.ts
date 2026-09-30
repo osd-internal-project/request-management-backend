@@ -337,6 +337,7 @@ export class ContractDraftsService {
       );
     }
 
+    let voided = 0;
     const versionNo = await this.transactions.execute(async (tx) => {
       const fresh = await tx.contractDraft.findUniqueOrThrow({
         where: { id: draftId },
@@ -366,6 +367,16 @@ export class ContractDraftsService {
       if (claimed.count !== 1) {
         throw new AppError('CONFLICT', 'มีผู้บันทึกร่างพร้อมกัน — ลองอีกครั้ง');
       }
+      // CD-159 — what was approved (or asked about) is no longer the text
+      voided = (
+        await tx.contractDraftApproval.updateMany({
+          where: { draftId, voidedAt: null },
+          data: {
+            voidedAt: new Date(),
+            voidReason: `แก้ร่างเป็นฉบับที่ ${next} หลังขออนุมัติ`,
+          },
+        })
+      ).count;
       await tx.contractDraftVersion.create({
         data: {
           draftId,
@@ -390,6 +401,7 @@ export class ContractDraftsService {
         edited: marked.clauses.filter((c) => c.mark === 'edited').length,
         added: marked.clauses.filter((c) => c.mark === 'added').length,
         removed: marked.removed.length,
+        approvalsVoided: voided,
       },
     });
     return this.view(draftId, actor, versionNo);
@@ -565,6 +577,28 @@ export class ContractDraftsService {
     return {
       draft,
       request,
+      editable: OPEN_STATUSES.includes(request.status),
+    };
+  }
+
+  /**
+   * CD-159 — what a draft's risk assessment and approval say about it: its
+   * request, the deal's title, the value (the request's form, else the
+   * deal's amount) and the party.
+   */
+  async subjectOf(draftId: string, actor: Principal) {
+    const { draft, request } = await this.requireDraft(draftId, actor);
+    const values = await this.valuesFor(request);
+    const value = Number(values.contract_value.replace(/,/g, ''));
+    return {
+      companyId: draft.companyId,
+      draftId: draft.id,
+      requestId: request.id,
+      requestNo: request.requestNo,
+      title: values.deal_title,
+      value: values.contract_value && Number.isFinite(value) ? value : null,
+      counterparty: values.party_name ?? '',
+      latestVersionNo: draft.latestVersionNo,
       editable: OPEN_STATUSES.includes(request.status),
     };
   }

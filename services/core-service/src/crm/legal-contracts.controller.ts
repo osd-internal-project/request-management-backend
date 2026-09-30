@@ -68,7 +68,7 @@ export class LegalContractsController {
   @Get(':id/risk')
   @Permissions('legal.contract.read')
   viewRisk(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
-    return this.risk.view(id, principal);
+    return this.risk.view({ contractId: id }, principal);
   }
 
   @ApiOperation({
@@ -84,7 +84,7 @@ export class LegalContractsController {
     @CurrentPrincipal() principal: Principal,
     @Headers('authorization') authorization: string,
   ) {
-    return this.risk.save(id, dto, principal, authorization);
+    return this.risk.save({ contractId: id }, dto, principal, authorization);
   }
 
   @ApiOperation({ summary: 'ขอความเห็นผู้บริหารอีกครั้ง' })
@@ -95,7 +95,11 @@ export class LegalContractsController {
     @CurrentPrincipal() principal: Principal,
     @Headers('authorization') authorization: string,
   ) {
-    return this.risk.requestOpinion(id, principal, authorization);
+    return this.risk.requestOpinion(
+      { contractId: id },
+      principal,
+      authorization,
+    );
   }
 
   @ApiOperation({

@@ -207,6 +207,7 @@ export class CrmAdminService {
         contractRequestTypeCode: null,
         liabilityApprovalRequestTypeCode: null,
         legalRiskOpinionTypeCode: null,
+        contractApprovalTypeCode: null,
         solutionRequestTypeCode: null,
         solutionApprovalTypeCode: null,
         handoverOrgUnitId: null,
@@ -252,6 +253,7 @@ export class CrmAdminService {
                 dto.liability_approval_request_type_code || null,
               legalRiskOpinionTypeCode:
                 dto.legal_risk_opinion_type_code || null,
+              contractApprovalTypeCode: dto.contract_approval_type_code || null,
               solutionRequestTypeCode: dto.solution_request_type_code || null,
               solutionApprovalTypeCode: dto.solution_approval_type_code || null,
               handoverOrgUnitId: dto.handover_org_unit_id || null,
@@ -286,6 +288,10 @@ export class CrmAdminService {
                 dto.legal_risk_opinion_type_code === undefined
                   ? undefined
                   : dto.legal_risk_opinion_type_code || null,
+              contractApprovalTypeCode:
+                dto.contract_approval_type_code === undefined
+                  ? undefined
+                  : dto.contract_approval_type_code || null,
               solutionRequestTypeCode:
                 dto.solution_request_type_code === undefined
                   ? undefined
