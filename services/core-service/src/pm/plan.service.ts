@@ -864,6 +864,11 @@ export class PlanService {
     return bangkokDay(row?.openedAt ?? new Date());
   }
 
+  /** CD-188 — the company's working calendar, for others that count days. */
+  workCalendar(companyId: string): Promise<WorkCalendar> {
+    return this.calendarOf(companyId);
+  }
+
   private async calendarOf(companyId: string): Promise<WorkCalendar> {
     const row = (await this.calendars.findFirst({
       where: { companyId },

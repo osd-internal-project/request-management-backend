@@ -119,3 +119,17 @@ export class ProjectTaskFileRepository extends BaseRepository<
     return client.projectTaskFile;
   }
 }
+
+/** CD-188 ความคืบหน้าที่รายงาน. */
+@Injectable()
+export class ProjectProgressRepository extends BaseRepository<
+  PrismaService['projectProgressReport']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.projectProgressReport;
+  }
+}

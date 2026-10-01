@@ -18,6 +18,7 @@ import {
 import {
   ProjectMemberRepository,
   ProjectRepository,
+  ProjectProgressRepository,
   ProjectTaskFileRepository,
   ProjectTaskLinkRepository,
   ProjectTaskRepository,
@@ -28,6 +29,7 @@ import { ProjectsService } from './projects.service';
 import { MilestonesService } from './milestones.service';
 import { PlanService } from './plan.service';
 import { TaskWorkService } from './task-work.service';
+import { ProgressService } from './progress.service';
 import { ProjectMilestoneRepository } from './project.repositories';
 import { ContractInstallmentsService } from '../crm/contract-installments.service';
 import {
@@ -953,6 +955,89 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
           (row) => row.id === install.id,
         ),
       ).toMatchObject({ status: 'done' });
+    });
+
+    it('CD-188: progress from closed work and achieved milestones, against the plan; a far figure needs a reason', async () => {
+      const client = prisma as never;
+      const transactions = {
+        execute: (work: (tx: unknown) => Promise<unknown>) =>
+          prisma.$transaction((tx) => work(tx)),
+      } as never;
+      const audit = { record: () => Promise.resolve() } as never;
+      const plan = new PlanService(
+        projects,
+        new ProjectRepository(client),
+        new ProjectTaskRepository(client),
+        new ProjectTaskLinkRepository(client),
+        new ProjectMilestoneRepository(client),
+        new WorkCalendarRepository(client),
+        new CompanyMemberRepository(client),
+        { milestoneSlipped: () => Promise.resolve() } as never,
+        audit,
+        transactions,
+      );
+      const progress = new ProgressService(
+        projects,
+        plan,
+        new ProjectMilestoneRepository(client),
+        new ProjectProgressRepository(client),
+        new CompanyMemberRepository(client),
+        audit,
+        transactions,
+      );
+      const managerNow = as(engineer, ['notification.read']);
+      const later = new Date('2026-12-01T03:00:00Z');
+
+      // the survey (6 days) is open, the install (2 days) done: 2 of 8;
+      // one of the two milestones achieved; by December all was due
+      const view = await progress.view(projectId, managerNow, later);
+      expect(view.work).toEqual({ pct: 25, done: 1, total: 2 });
+      expect(view.milestones).toEqual({ achieved: 1, total: 2, pct: 50 });
+      expect(view.planned).toEqual({ pct: 100, variance: -75 });
+
+      // close to the computed figure: no reason needed
+      await progress.report(projectId, { reported_pct: 30 }, managerNow, later);
+      // far from it: a reason, or it is refused
+      await expect(
+        progress.report(projectId, { reported_pct: 60 }, managerNow, later),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+      const saved = await progress.report(
+        projectId,
+        {
+          reported_pct: 60,
+          reason: 'สำรวจหน้างานเสร็จแล้ว รอปิดงานในระบบ',
+        },
+        managerNow,
+        new Date(later.getTime() + 60_000),
+      );
+      expect(
+        saved.reports.map((row) => [row.reportedPct, row.computedPct]),
+      ).toEqual([
+        [60, 25],
+        [30, 25],
+      ]);
+      expect(saved.reports[0]).toMatchObject({
+        reason: 'สำรวจหน้างานเสร็จแล้ว รอปิดงานในระบบ',
+        plannedPct: 100,
+      });
+
+      // a team member reads it but does not record it
+      await expect(
+        progress.report(
+          projectId,
+          { reported_pct: 25 },
+          as(outsider, ['notification.read']),
+        ),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+      expect(
+        (
+          await progress.view(
+            projectId,
+            as(outsider, ['notification.read']),
+            later,
+          )
+        ).reports,
+      ).toHaveLength(2);
     });
   },
 );

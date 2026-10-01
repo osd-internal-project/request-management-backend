@@ -30,6 +30,7 @@ import {
   SaveMilestoneDto,
   PlanPreviewDto,
   SavePredecessorsDto,
+  ReportProgressDto,
   SaveTaskDto,
   TaskReportDto,
   SaveProjectMembersDto,
@@ -38,6 +39,7 @@ import {
 } from './dto/project.dto';
 import { MAX_EVIDENCE_BYTES, MilestonesService } from './milestones.service';
 import { PlanService } from './plan.service';
+import { ProgressService } from './progress.service';
 import { MAX_TASK_FILE_BYTES, TaskWorkService } from './task-work.service';
 import { MAX_FILES_PER_UPDATE } from './task-rules';
 import { ProjectsService } from './projects.service';
@@ -56,6 +58,7 @@ export class ProjectsController {
     private readonly milestones: MilestonesService,
     private readonly plan: PlanService,
     private readonly work: TaskWorkService,
+    private readonly progress: ProgressService,
   ) {}
 
   @ApiOperation({ summary: 'รายการโครงการ (ทั้งบริษัท หรือของฉัน)' })
@@ -332,6 +335,34 @@ export class ProjectsController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.plan.setPredecessors(id, taskId, dto, principal);
+  }
+
+  // --- CD-188 progress --------------------------------------------------------------
+
+  @ApiOperation({
+    summary:
+      'ความคืบหน้า: งานที่ปิดจริง หมุดหมายที่บรรลุ เทียบแผน และตัวเลขที่รายงาน',
+  })
+  @Get(':id/progress')
+  @Permissions('notification.read')
+  viewProgress(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.progress.view(id, principal);
+  }
+
+  @ApiOperation({
+    summary: 'บันทึกความคืบหน้าที่รายงาน (ต่างจากค่าคำนวณมากต้องระบุเหตุผล)',
+  })
+  @Post(':id/progress')
+  @Permissions('notification.read')
+  reportProgress(
+    @Param('id') id: string,
+    @Body() dto: ReportProgressDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.progress.report(id, dto, principal);
   }
 
   // --- CD-181 the work --------------------------------------------------------------

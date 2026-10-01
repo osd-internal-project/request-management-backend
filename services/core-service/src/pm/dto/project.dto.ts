@@ -5,6 +5,7 @@ import {
   IsBoolean,
   IsDateString,
   IsInt,
+  IsNumber,
   Max,
   Min,
   IsIn,
@@ -298,4 +299,27 @@ export class TaskReportDto {
   @IsOptional()
   @IsIn([...WORK_STATUSES])
   status?: string;
+}
+
+/** CD-188 — a progress figure as reported. */
+export class ReportProgressDto {
+  @ApiProperty({ example: 45 })
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(100)
+  reported_pct!: number;
+
+  @ApiPropertyOptional({
+    description: 'จำเป็นเมื่อต่างจากค่าที่ระบบคำนวณเกิน 10 จุด',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  reason?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  note?: string;
 }

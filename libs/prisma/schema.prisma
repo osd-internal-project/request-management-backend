@@ -4904,6 +4904,8 @@ model Project {
   milestones ProjectMilestone[]
   /// CD-177 — โครงสร้างงาน.
   tasks      ProjectTask[]
+  /// CD-188 — ความคืบหน้าที่รายงาน.
+  progressReports ProjectProgressReport[]
 
   @@unique([companyId, projectNo])
   @@index([companyId, status])
@@ -5125,4 +5127,25 @@ model ProjectTaskFile {
 
   @@index([taskId])
   @@map("project_task_files")
+}
+
+/// CD-188 — a progress figure someone reported (to the customer, to the
+/// executives), kept beside what the system computed at that moment. A
+/// figure far from the computed one carries the reason.
+model ProjectProgressReport {
+  id          String   @id @default(uuid())
+  companyId   String
+  projectId   String
+  reportedPct Decimal  @db.Decimal(5, 2)
+  computedPct Decimal  @db.Decimal(5, 2)
+  plannedPct  Decimal? @db.Decimal(5, 2)
+  reason      String?
+  note        String?
+  reportedAt  DateTime @default(now())
+  reportedBy  String
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, reportedAt])
+  @@map("project_progress_reports")
 }

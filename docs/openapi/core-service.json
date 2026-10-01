@@ -15725,6 +15725,96 @@
         ]
       }
     },
+    "/api/v1/projects/{id}/progress": {
+      "get": {
+        "operationId": "ProjectsController_viewProgress",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ความคืบหน้า: งานที่ปิดจริง หมุดหมายที่บรรลุ เทียบแผน และตัวเลขที่รายงาน",
+        "tags": [
+          "projects"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      },
+      "post": {
+        "operationId": "ProjectsController_reportProgress",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportProgressDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "บันทึกความคืบหน้าที่รายงาน (ต่างจากค่าคำนวณมากต้องระบุเหตุผล)",
+        "tags": [
+          "projects"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      }
+    },
     "/api/v1/projects/{id}/plan/tasks/{taskId}/reports": {
       "post": {
         "operationId": "ProjectsController_reportTask",
@@ -24266,6 +24356,29 @@
         },
         "required": [
           "predecessors"
+        ]
+      },
+      "ReportProgressDto": {
+        "type": "object",
+        "properties": {
+          "reported_pct": {
+            "type": "number",
+            "example": 45,
+            "maximum": 100,
+            "minimum": 0
+          },
+          "reason": {
+            "type": "string",
+            "description": "จำเป็นเมื่อต่างจากค่าที่ระบบคำนวณเกิน 10 จุด",
+            "maxLength": 2000
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "reported_pct"
         ]
       },
       "SaveEsignAuthorityDto": {
