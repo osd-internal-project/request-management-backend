@@ -704,3 +704,43 @@ export class SaveStatusReportDto {
   @MaxLength(4000)
   help_needed?: string;
 }
+
+/** CD-221 — a test item as the manager plans it. */
+export class SaveTestItemDto {
+  @ApiPropertyOptional({ description: 'ข้อที่ทดสอบ (เฉพาะข้อที่เพิ่มเอง)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  text?: string;
+
+  @ApiPropertyOptional({ description: 'วิธีทดสอบ' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  steps?: string;
+
+  @ApiPropertyOptional({ description: 'ผู้ทดสอบ; "" = ไม่ระบุ' })
+  @IsOptional()
+  @IsString()
+  owner_user_id?: string;
+
+  @ApiPropertyOptional({ description: 'เหตุผลที่ยกเว้น; "" = ยกเลิกการยกเว้น' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  waived_reason?: string;
+}
+
+/** CD-221 — a test result (the evidence file is multipart). */
+export class RecordTestDto {
+  @ApiPropertyOptional({ enum: ['pass', 'fail'] })
+  @IsOptional()
+  @IsIn(['pass', 'fail'])
+  result?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  note?: string;
+}

@@ -31,6 +31,8 @@ import {
   SaveCloseoutDto,
   SaveLessonDto,
   SaveStatusReportDto,
+  SaveTestItemDto,
+  RecordTestDto,
   ListProjectsQueryDto,
   OpenProjectDto,
   SaveMilestoneDto,
@@ -62,6 +64,7 @@ import { CustomerLogsService } from './customer-logs.service';
 import { PaymentsService } from './payments.service';
 import { CloseoutService } from './closeout.service';
 import { StatusReportsService } from './status-reports.service';
+import { TestsService } from './tests.service';
 import { MAX_TASK_FILE_BYTES, TaskWorkService } from './task-work.service';
 import { MAX_FILES_PER_UPDATE } from './task-rules';
 import { ProjectsService } from './projects.service';
@@ -89,6 +92,7 @@ export class ProjectsController {
     private readonly payments: PaymentsService,
     private readonly closeout: CloseoutService,
     private readonly statusReports: StatusReportsService,
+    private readonly tests: TestsService,
   ) {}
 
   @ApiOperation({ summary: 'รายการโครงการ (ทั้งบริษัท หรือของฉัน)' })
@@ -468,6 +472,91 @@ export class ProjectsController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.changes.cancel(id, changeId, principal);
+  }
+
+  // --- CD-221 tests against the scope ------------------------------------------------
+
+  @ApiOperation({
+    summary: 'แผนทดสอบตามขอบเขตงานรายข้อ ผลทดสอบ และความครบถ้วน',
+  })
+  @Get(':id/tests')
+  @Permissions('notification.read')
+  viewTests(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.tests.view(id, principal);
+  }
+
+  @ApiOperation({ summary: 'เพิ่มข้อทดสอบเอง (ผู้จัดการโครงการ)' })
+  @Post(':id/tests')
+  @Permissions('notification.read')
+  addTest(
+    @Param('id') id: string,
+    @Body() dto: SaveTestItemDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.tests.add(id, dto, principal);
+  }
+
+  @ApiOperation({
+    summary: 'วิธีทดสอบ ผู้ทดสอบ หรือยกเว้นข้อทดสอบ (ผู้จัดการโครงการ)',
+  })
+  @Patch(':id/tests/:itemId')
+  @Permissions('notification.read')
+  updateTest(
+    @Param('id') id: string,
+    @Param('itemId') itemId: string,
+    @Body() dto: SaveTestItemDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.tests.update(id, itemId, dto, principal);
+  }
+
+  @ApiOperation({
+    summary: 'บันทึกผลทดสอบพร้อมหลักฐาน (ทีมโครงการ) — ไม่ผ่านเปิดปัญหาให้',
+  })
+  @Post(':id/tests/:itemId/results')
+  @Permissions('notification.read')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['result'],
+      properties: {
+        result: { type: 'string', enum: ['pass', 'fail'] },
+        note: { type: 'string' },
+        file: { type: 'string', format: 'binary' },
+      },
+    },
+  })
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: MAX_EVIDENCE_BYTES },
+      defParamCharset: 'utf8',
+    }),
+  )
+  recordTest(
+    @Param('id') id: string,
+    @Param('itemId') itemId: string,
+    @Body() dto: RecordTestDto,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.tests.record(id, itemId, dto, file, principal);
+  }
+
+  @ApiOperation({ summary: 'ไฟล์หลักฐานผลทดสอบ' })
+  @Get(':id/tests/:itemId/results/:runId/file')
+  @Permissions('notification.read')
+  async testEvidence(
+    @Param('id') id: string,
+    @Param('itemId') itemId: string,
+    @Param('runId') runId: string,
+    @CurrentPrincipal() principal: Principal,
+  ): Promise<StreamableFile> {
+    const file = await this.tests.evidence(id, itemId, runId, principal);
+    return new StreamableFile(file.stream, {
+      type: file.mimeType,
+      disposition: `inline; filename*=UTF-8''${encodeURIComponent(file.fileName)}`,
+    });
   }
 
   // --- CD-192 weekly status reports ------------------------------------------------

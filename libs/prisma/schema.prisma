@@ -4950,6 +4950,8 @@ model Project {
   lessons         ProjectLesson[]
   /// CD-192 — รายงานสถานะรายสัปดาห์.
   statusReports   ProjectStatusReport[]
+  /// CD-221 — ข้อทดสอบตามขอบเขตงาน.
+  testItems       ProjectTestItem[]
 
   @@unique([companyId, projectNo])
   @@index([companyId, status])
@@ -5566,5 +5568,68 @@ model ProjectStatusReport {
   @@unique([projectId, weekStart])
   @@index([companyId, weekStart])
   @@map("project_status_reports")
+}
+
+/// CD-221 — one thing the project must prove works: a line of the sold
+/// scope, an acceptance criterion of a deliverable (both from the baseline),
+/// scope an approved change request added, or one the manager adds. Its
+/// state is its latest result (`ProjectTestRun`); none = untested. The
+/// manager may waive one (with the reason) that no longer applies.
+model ProjectTestItem {
+  id            String    @id @default(uuid())
+  companyId     String
+  projectId     String
+  seq           Int
+  /// scope · criterion · change · manual
+  source        String
+  /// Where it came from, unique per project: `scope:3`, `deliverable:1:2`,
+  /// `change:<id>`; null for one added by hand.
+  sourceRef     String?
+  /// The deliverable a criterion belongs to.
+  deliverable   String?
+  text          String
+  /// How to test it.
+  steps         String?
+  ownerUserId   String?
+  waivedReason  String?
+  waivedAt      DateTime?
+  waivedBy      String?
+  createdAt     DateTime  @default(now())
+  createdBy     String
+  updatedAt     DateTime  @updatedAt
+  updatedBy     String?
+  deletedAt     DateTime?
+
+  project Project          @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  runs    ProjectTestRun[]
+
+  @@unique([projectId, seq])
+  @@unique([projectId, sourceRef])
+  @@map("project_test_items")
+}
+
+/// CD-221 — a test run of an item: passed or failed, with its evidence. A
+/// failure opens a project issue (CD-184) for the manager; a later run
+/// supersedes it — every run is kept.
+model ProjectTestRun {
+  id           String   @id @default(uuid())
+  companyId    String
+  itemId       String
+  /// pass · fail
+  result       String
+  note         String?
+  evidenceKey  String?
+  evidenceName String?
+  evidenceMime String?
+  evidenceSize Int?
+  /// The issue a failure opened.
+  issueId      String?
+  testedBy     String
+  testedAt     DateTime @default(now())
+
+  item ProjectTestItem @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@index([itemId, testedAt])
+  @@map("project_test_runs")
 }
 

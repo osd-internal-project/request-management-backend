@@ -35,6 +35,8 @@ import {
   ProjectCloseoutRepository,
   ProjectLessonRepository,
   ProjectStatusReportRepository,
+  ProjectTestItemRepository,
+  ProjectTestRunRepository,
 } from './project.repositories';
 import { ProjectsService } from './projects.service';
 import { MilestonesService } from './milestones.service';
@@ -49,6 +51,7 @@ import { CustomerLogsService } from './customer-logs.service';
 import { PaymentsService } from './payments.service';
 import { CloseoutService } from './closeout.service';
 import { StatusReportsService } from './status-reports.service';
+import { TestsService } from './tests.service';
 import { ContractRiskAssessmentRepository } from '../crm/contract-risk.service';
 import { ContractObligationRepository } from '../crm/contract-obligations.service';
 import {
@@ -252,6 +255,10 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       });
       await prisma.projectTask.deleteMany({ where: { projectId } });
       await prisma.projectMilestone.deleteMany({ where: { projectId } });
+      await prisma.projectTestRun.deleteMany({
+        where: { item: { projectId } },
+      });
+      await prisma.projectTestItem.deleteMany({ where: { projectId } });
       await prisma.projectStatusReport.deleteMany({ where: { projectId } });
       await prisma.projectCloseout.deleteMany({ where: { projectId } });
       await prisma.projectCloseDocument.deleteMany({ where: { projectId } });
@@ -1787,6 +1794,178 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         paid.forecast.months.find((row) => row.month === '2026-09')?.received,
       ).toBe(first.amount);
     });
+    it('CD-221: the test plan follows the sold scope; the team records results with evidence; a failure opens an issue', async () => {
+      const client = prisma as never;
+      const transactions = {
+        execute: (work: (tx: unknown) => Promise<unknown>) =>
+          prisma.$transaction((tx) => work(tx)),
+      } as never;
+      const audit = { record: () => Promise.resolve() } as never;
+      const files = new Map<string, Buffer>();
+      const told: string[] = [];
+      const tests = new TestsService(
+        projects,
+        new ProjectRepository(client),
+        new ProjectChangeRequestRepository(client),
+        new ProjectTestItemRepository(client),
+        new ProjectTestRunRepository(client),
+        new CompanyMemberRepository(client),
+        {
+          issueAssigned: (
+            userId: string,
+            _c: string,
+            _p: unknown,
+            no: string,
+          ) => {
+            told.push(`${userId}:${no}`);
+            return Promise.resolve();
+          },
+        } as never,
+        {
+          put: (key: string, body: Buffer) => {
+            files.set(key, body);
+            return Promise.resolve();
+          },
+          remove: () => Promise.resolve(),
+          get: (key: string) =>
+            Promise.resolve(Readable.from([files.get(key)!])),
+        },
+        audit,
+        transactions,
+      );
+      const managerNow = as(engineer, ['notification.read']);
+      const crew = as(outsider, ['notification.read']);
+      const photo = {
+        originalname: 'ok.png',
+        mimetype: 'image/png',
+        size: 4,
+        buffer: Buffer.from('png!'),
+      };
+      const today = new Date('2026-10-08T03:00:00Z');
+
+      // the plan is what was sold, made once
+      const first = await tests.view(projectId, crew);
+      expect(first.canEdit).toBe(false);
+      expect(first.canWrite).toBe(true);
+      expect(first.items.length).toBeGreaterThan(0);
+      expect(first.items.every((item) => item.state === 'untested')).toBe(true);
+      const again = await tests.view(projectId, crew);
+      expect(again.items).toHaveLength(first.items.length);
+      const one = first.items[0];
+
+      // the manager plans: adds, assigns; the team may not
+      await expect(
+        tests.add(projectId, { text: 'ทดสอบไฟดับ' }, crew),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+      const added = await tests.add(
+        projectId,
+        { text: 'ทดสอบไฟดับ', steps: 'ตัดไฟ 5 นาที', owner_user_id: outsider },
+        managerNow,
+      );
+      const two = added.items.find((item) => item.source === 'manual')!;
+      expect(two).toMatchObject({
+        ownerUserId: outsider,
+        steps: 'ตัดไฟ 5 นาที',
+      });
+
+      // a pass carries evidence; a fail says why and opens an issue
+      await expect(
+        tests.record(
+          projectId,
+          one.id,
+          { result: 'pass' },
+          undefined,
+          crew,
+          today,
+        ),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+      const passed = await tests.record(
+        projectId,
+        one.id,
+        { result: 'pass', note: 'ทดสอบครบทุกจุด' },
+        photo,
+        crew,
+        today,
+      );
+      expect(passed.items.find((item) => item.id === one.id)?.state).toBe(
+        'passed',
+      );
+      const failed = await tests.record(
+        projectId,
+        two.id,
+        { result: 'fail', note: 'ไฟสำรองไม่ทำงาน' },
+        undefined,
+        crew,
+        today,
+      );
+      const failedItem = failed.items.find((item) => item.id === two.id)!;
+      expect(failedItem.state).toBe('failed');
+      const issueId = failedItem.runs[0].issue!.id;
+      const issue = await prisma.projectIssue.findUniqueOrThrow({
+        where: { id: issueId },
+      });
+      expect(issue).toMatchObject({
+        ownerUserId: engineer,
+        status: 'open',
+        title: `ไม่ผ่านทดสอบ ${two.label}: ทดสอบไฟดับ`,
+      });
+      expect(issue.dueOn.toISOString().slice(0, 10)).toBe('2026-10-15');
+      expect(told).toEqual([`${engineer}:${failedItem.runs[0].issue!.label}`]);
+      const evidence = await tests.evidence(
+        projectId,
+        one.id,
+        passed.items.find((item) => item.id === one.id)!.runs[0].id,
+        crew,
+      );
+      expect(evidence.fileName).toBe('ok.png');
+
+      // what was sold keeps its words; an item that no longer applies is waived
+      await expect(
+        tests.update(projectId, one.id, { text: 'อื่น' }, managerNow),
+      ).rejects.toMatchObject({ code: 'CONFLICT' });
+      const waived = await tests.update(
+        projectId,
+        two.id,
+        { waived_reason: 'ลูกค้าตัดออก' },
+        managerNow,
+      );
+      expect(waived.items.find((item) => item.id === two.id)?.state).toBe(
+        'waived',
+      );
+      await expect(
+        tests.record(projectId, two.id, { result: 'pass' }, photo, crew, today),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+
+      // coverage: complete once every item that applies passed
+      const before = await tests.coverage(projectId);
+      const stillOpen = waived.items.filter(
+        (row) => row.state === 'untested' || row.state === 'failed',
+      );
+      expect(before.open.map((row) => row.label)).toEqual(
+        stillOpen.map((row) => row.label),
+      );
+      expect(before.complete).toBe(stillOpen.length === 0);
+      for (const item of waived.items.filter(
+        (row) => row.state === 'untested' || row.state === 'failed',
+      )) {
+        await tests.record(
+          projectId,
+          item.id,
+          { result: 'pass' },
+          photo,
+          crew,
+          today,
+        );
+      }
+      const done = await tests.coverage(projectId);
+      expect(done).toMatchObject({ complete: true, waived: 1, open: [] });
+      // the failed issue is the manager's to resolve; tidy it for later steps
+      await prisma.projectIssue.update({
+        where: { id: issueId },
+        data: { status: 'resolved', resolution: 'ทดสอบ' },
+      });
+    });
+
     it('CD-192: health from the project figures; the weekly draft, refreshed until submitted; the portfolio puts risk first', async () => {
       const client = prisma as never;
       const transactions = {

@@ -287,3 +287,31 @@ export class ProjectStatusReportRepository extends BaseRepository<
     return client.projectStatusReport;
   }
 }
+
+/** CD-221 ข้อทดสอบ. */
+@Injectable()
+export class ProjectTestItemRepository extends BaseRepository<
+  PrismaService['projectTestItem']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.projectTestItem;
+  }
+}
+
+/** CD-221 ผลการทดสอบ. */
+@Injectable()
+export class ProjectTestRunRepository extends BaseRepository<
+  PrismaService['projectTestRun']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.projectTestRun;
+  }
+}
