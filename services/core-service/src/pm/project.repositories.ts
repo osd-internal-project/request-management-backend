@@ -161,3 +161,31 @@ export class ProjectChangeRequestRepository extends BaseRepository<
     return client.projectChangeRequest;
   }
 }
+
+/** CD-183 ความเสี่ยงโครงการ. */
+@Injectable()
+export class ProjectRiskRepository extends BaseRepository<
+  PrismaService['projectRisk']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.projectRisk;
+  }
+}
+
+/** CD-183 การทบทวนความเสี่ยง. */
+@Injectable()
+export class ProjectRiskReviewRepository extends BaseRepository<
+  PrismaService['projectRiskReview']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.projectRiskReview;
+  }
+}

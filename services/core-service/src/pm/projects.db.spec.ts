@@ -21,6 +21,8 @@ import {
   ProjectBudgetRepository,
   ProjectChangeRequestRepository,
   ProjectProgressRepository,
+  ProjectRiskRepository,
+  ProjectRiskReviewRepository,
   ProjectTaskFileRepository,
   ProjectTaskLinkRepository,
   ProjectTaskRepository,
@@ -34,6 +36,12 @@ import { TaskWorkService } from './task-work.service';
 import { ProgressService } from './progress.service';
 import { BudgetService } from './budget.service';
 import { ChangeRequestsService } from './change-requests.service';
+import { ProjectRisksService } from './project-risks.service';
+import { ContractRiskAssessmentRepository } from '../crm/contract-risk.service';
+import {
+  SolutionRiskRepository,
+  SolutionVersionRepository as VersionRepository,
+} from '../presales/solution.repositories';
 import { ProjectMilestoneRepository } from './project.repositories';
 import { ContractInstallmentsService } from '../crm/contract-installments.service';
 import {
@@ -235,6 +243,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       await prisma.project.deleteMany({ where: { contractId } });
       await prisma.contractInstallment.deleteMany({ where: { contractId } });
       await prisma.contractTerms.deleteMany({ where: { contractId } });
+      await prisma.contractRiskAssessment.deleteMany({ where: { contractId } });
       await prisma.contractDocument.deleteMany({ where: { contractId } });
       await prisma.customerContract.deleteMany({ where: { id: contractId } });
       const people = [pm, engineer, outsider];
@@ -1311,6 +1320,125 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       expect(
         withdrawn.changes.find((row) => row.id === empty.changeId)?.status,
       ).toBe('cancelled');
+    });
+
+    it('CD-183: risks taken over from Legal once, owned and planned, reviewed on a cycle; high with no plan goes to the executives', async () => {
+      const client = prisma as never;
+      const risks = new ProjectRisksService(
+        projects,
+        new ProjectRepository(client),
+        new ProjectRiskRepository(client),
+        new ProjectRiskReviewRepository(client),
+        new VersionRepository(client),
+        new SolutionRiskRepository(client),
+        new ContractRiskAssessmentRepository(client),
+        new CompanyMemberRepository(client),
+        { record: () => Promise.resolve() } as never,
+        {
+          execute: (work: (tx: unknown) => Promise<unknown>) =>
+            prisma.$transaction((tx) => work(tx)),
+        } as never,
+      );
+      const managerNow = as(engineer, ['notification.read']);
+      const executive = as(pm, ['pm.project.read', 'notification.read']);
+      const today = new Date('2026-10-01T03:00:00Z');
+
+      await expect(
+        risks.takeOver(projectId, managerNow, today),
+      ).rejects.toMatchObject({ code: 'CONFLICT' });
+      // Legal assessed the contract: one issue put to the executives
+      await prisma.contractRiskAssessment.create({
+        data: {
+          contractId,
+          companyId,
+          level: 'high',
+          assessedBy: pm,
+          issues: [
+            {
+              title: 'ค่าปรับไม่มีเพดาน',
+              clause: '12',
+              severity: 'high',
+              escalate: true,
+            },
+            {
+              title: 'ระยะเวลาแจ้งยกเลิกสั้น',
+              severity: 'low',
+              escalate: false,
+            },
+          ],
+        },
+      });
+      const taken = await risks.takeOver(projectId, managerNow, today);
+      expect(
+        taken.risks.map((row) => [
+          row.label,
+          row.source,
+          row.level,
+          row.needsPlan,
+        ]),
+      ).toEqual([
+        ['R-1', 'legal', 'critical', true],
+        ['R-2', 'legal', 'low', false],
+      ]);
+      await expect(
+        risks.takeOver(projectId, managerNow, today),
+      ).rejects.toMatchObject({ code: 'CONFLICT' });
+
+      // before the executives: the critical one with no plan
+      expect(
+        (await risks.attention(executive, today))
+          .filter((row) => row.project.id === projectId)
+          .map((row) => row.label),
+      ).toEqual(['R-1']);
+
+      // given an owner and a plan: off the list
+      const [critical, low] = taken.risks;
+      await risks.update(
+        projectId,
+        critical.id,
+        {
+          owner_user_id: outsider,
+          response: 'เจรจาเพดานค่าปรับ 10% ของมูลค่างวด',
+          review_every_days: 7,
+        },
+        managerNow,
+        today,
+      );
+      expect(
+        (await risks.attention(executive, today)).some(
+          (row) => row.id === critical.id,
+        ),
+      ).toBe(false);
+
+      // its owner reviews it, though not the manager; another member cannot
+      const crew = as(outsider, ['notification.read']);
+      const reviewed = await risks.review(
+        projectId,
+        critical.id,
+        { note: 'ลูกค้ายอมรับเพดาน', impact: 3 },
+        crew,
+        new Date('2026-10-05T03:00:00Z'),
+      );
+      expect(
+        reviewed.risks.find((row) => row.id === critical.id),
+      ).toMatchObject({
+        level: 'high',
+        nextReviewOn: '2026-10-12',
+        reviews: [expect.objectContaining({ note: 'ลูกค้ายอมรับเพดาน' })],
+      });
+      await expect(
+        risks.review(projectId, low.id, { note: 'x' }, crew),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+
+      // a review past its day comes back to the executives
+      expect(
+        (await risks.attention(executive, new Date('2026-10-20T03:00:00Z')))
+          .filter((row) => row.project.id === projectId)
+          .map((row) => [row.label, row.reviewOverdue]),
+      ).toEqual([
+        ['R-1', true],
+        ['R-2', true],
+      ]);
     });
   },
 );

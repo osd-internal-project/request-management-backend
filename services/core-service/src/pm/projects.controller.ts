@@ -33,7 +33,9 @@ import {
   SavePredecessorsDto,
   ReportProgressDto,
   SaveBudgetDto,
+  ReviewRiskDto,
   SaveChangeRequestDto,
+  SaveProjectRiskDto,
   SaveTaskDto,
   TaskReportDto,
   SaveProjectMembersDto,
@@ -45,6 +47,7 @@ import { PlanService } from './plan.service';
 import { ProgressService } from './progress.service';
 import { BudgetService } from './budget.service';
 import { ChangeRequestsService } from './change-requests.service';
+import { ProjectRisksService } from './project-risks.service';
 import { MAX_TASK_FILE_BYTES, TaskWorkService } from './task-work.service';
 import { MAX_FILES_PER_UPDATE } from './task-rules';
 import { ProjectsService } from './projects.service';
@@ -66,6 +69,7 @@ export class ProjectsController {
     private readonly progress: ProgressService,
     private readonly budget: BudgetService,
     private readonly changes: ChangeRequestsService,
+    private readonly risks: ProjectRisksService,
   ) {}
 
   @ApiOperation({ summary: 'รายการโครงการ (ทั้งบริษัท หรือของฉัน)' })
@@ -447,6 +451,62 @@ export class ProjectsController {
     return this.changes.cancel(id, changeId, principal);
   }
 
+  // --- CD-183 risks -----------------------------------------------------------------
+
+  @ApiOperation({ summary: 'ความเสี่ยงของโครงการ' })
+  @Get(':id/risks')
+  @Permissions('notification.read')
+  listRisks(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.risks.list(id, principal);
+  }
+
+  @ApiOperation({ summary: 'เพิ่มความเสี่ยง' })
+  @Post(':id/risks')
+  @Permissions('notification.read')
+  createRisk(
+    @Param('id') id: string,
+    @Body() dto: SaveProjectRiskDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.risks.create(id, dto, principal);
+  }
+
+  @ApiOperation({ summary: 'รับความเสี่ยงต่อจากทีมเทคนิคและฝ่ายกฎหมาย' })
+  @Post(':id/risks/take-over')
+  @Permissions('notification.read')
+  takeOverRisks(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.risks.takeOver(id, principal);
+  }
+
+  @ApiOperation({
+    summary: 'แก้ความเสี่ยง (เจ้าของ แผนรับมือ คะแนน สถานะ รอบทบทวน)',
+  })
+  @Patch(':id/risks/:riskId')
+  @Permissions('notification.read')
+  updateRisk(
+    @Param('id') id: string,
+    @Param('riskId') riskId: string,
+    @Body() dto: SaveProjectRiskDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.risks.update(id, riskId, dto, principal);
+  }
+
+  @ApiOperation({ summary: 'บันทึกการทบทวนความเสี่ยง' })
+  @Post(':id/risks/:riskId/reviews')
+  @Permissions('notification.read')
+  reviewRisk(
+    @Param('id') id: string,
+    @Param('riskId') riskId: string,
+    @Body() dto: ReviewRiskDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.risks.review(id, riskId, dto, principal);
+  }
+
   // --- CD-188 progress --------------------------------------------------------------
 
   @ApiOperation({
@@ -550,5 +610,22 @@ export class ProjectTasksController {
   @Permissions('notification.read')
   mine(@CurrentPrincipal() principal: Principal) {
     return this.work.mine(principal);
+  }
+}
+
+/** CD-183 — the risks the executives should see, across projects. */
+@ApiTags('projects')
+@ApiBearerAuth()
+@Controller('project-risks')
+export class ProjectRisksController {
+  constructor(private readonly risks: ProjectRisksService) {}
+
+  @ApiOperation({
+    summary: 'ความเสี่ยงสูงที่ยังไม่มีแผนรับมือ และที่เลยรอบทบทวน ในทุกโครงการ',
+  })
+  @Get('attention')
+  @Permissions('pm.project.read')
+  attention(@CurrentPrincipal() principal: Principal) {
+    return this.risks.attention(principal);
   }
 }

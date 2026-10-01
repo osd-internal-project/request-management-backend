@@ -4914,6 +4914,8 @@ model Project {
   budgets         ProjectBudget[]
   /// CD-185 — คำขอเปลี่ยนแปลง.
   changeRequests  ProjectChangeRequest[]
+  /// CD-183 — ความเสี่ยงโครงการ.
+  risks           ProjectRisk[]
 
   @@unique([companyId, projectNo])
   @@index([companyId, status])
@@ -5245,4 +5247,61 @@ model ProjectChangeRequest {
   @@unique([projectId, seq])
   @@index([requestId])
   @@map("project_change_requests")
+}
+
+/// CD-183 — a project risk: taken over from the technical team (CD-141
+/// Solution risks) or Legal (CD-158 contract issues), or raised by the
+/// project. Scored likelihood × impact like CD-141; an owner, a response
+/// plan, and a review every `reviewEveryDays`. An open high or critical
+/// risk without a plan is put before the executives.
+model ProjectRisk {
+  id              String    @id @default(uuid())
+  companyId       String
+  projectId       String
+  seq             Int
+  /// technical · legal · project
+  source          String    @default("project")
+  /// The risk or issue it was taken from, so it is taken once.
+  sourceRef       String?
+  title           String
+  description     String?
+  likelihood      Int
+  impact          Int
+  ownerUserId     String?
+  response        String?
+  /// open · mitigated · accepted · closed
+  status          String    @default("open")
+  reviewEveryDays Int       @default(14)
+  lastReviewedAt  DateTime?
+  nextReviewOn    DateTime? @db.Date
+  createdAt       DateTime  @default(now())
+  createdBy       String
+  updatedAt       DateTime  @updatedAt
+  updatedBy       String?
+
+  project Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  reviews ProjectRiskReview[]
+
+  @@unique([projectId, seq])
+  @@unique([projectId, sourceRef])
+  @@index([companyId, status])
+  @@map("project_risks")
+}
+
+/// CD-183 — one review of a risk: what was found, and the score and status
+/// it left.
+model ProjectRiskReview {
+  id         String   @id @default(uuid())
+  riskId     String
+  note       String
+  likelihood Int
+  impact     Int
+  status     String
+  reviewedBy String
+  reviewedAt DateTime @default(now())
+
+  risk ProjectRisk @relation(fields: [riskId], references: [id], onDelete: Cascade)
+
+  @@index([riskId, reviewedAt])
+  @@map("project_risk_reviews")
 }

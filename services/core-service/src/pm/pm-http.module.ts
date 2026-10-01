@@ -6,12 +6,14 @@ import { PlanService } from './plan.service';
 import { PmModule } from './pm.module';
 import {
   ProjectsController,
+  ProjectRisksController,
   ProjectTasksController,
 } from './projects.controller';
 import { TaskWorkService } from './task-work.service';
 import { ProgressService } from './progress.service';
 import { BudgetService } from './budget.service';
 import { ChangeRequestsService } from './change-requests.service';
+import { ProjectRisksService } from './project-risks.service';
 
 /** The screen-facing routes of {@link PmModule}. */
 @Module({
@@ -24,7 +26,11 @@ import { ChangeRequestsService } from './change-requests.service';
         config.get<StorageOptions>('storage'),
     }),
   ],
-  controllers: [ProjectsController, ProjectTasksController],
+  controllers: [
+    ProjectsController,
+    ProjectTasksController,
+    ProjectRisksController,
+  ],
   providers: [
     MilestonesService,
     PlanService,
@@ -32,6 +38,7 @@ import { ChangeRequestsService } from './change-requests.service';
     ProgressService,
     BudgetService,
     ChangeRequestsService,
+    ProjectRisksService,
   ],
 })
 export class PmHttpModule {}

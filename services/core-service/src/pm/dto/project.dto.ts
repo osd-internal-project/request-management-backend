@@ -23,6 +23,11 @@ import { MAX_DURATION_DAYS } from '../plan-rules';
 import { MAX_NOTE_LENGTH, WORK_STATUSES } from '../task-rules';
 import { BUDGET_CATEGORIES, MAX_BUDGET_LINES } from '../budget-rules';
 import { MAX_CHANGE_LINES } from '../change-rules';
+import {
+  MAX_REVIEW_DAYS,
+  MIN_REVIEW_DAYS,
+  PROJECT_RISK_STATUSES,
+} from '../project-risk-rules';
 
 /** CD-175 — one person on the project team. */
 export class ProjectMemberDto {
@@ -427,4 +432,83 @@ export class SaveChangeRequestDto {
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
   price_change?: number;
+}
+
+/** CD-183 — a project risk; everything optional on edit. */
+export class SaveProjectRiskDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  title?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  description?: string;
+
+  @ApiPropertyOptional({ minimum: 1, maximum: 5 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  likelihood?: number;
+
+  @ApiPropertyOptional({ minimum: 1, maximum: 5 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  impact?: number;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @IsString()
+  owner_user_id?: string | null;
+
+  @ApiPropertyOptional({ description: 'แผนรับมือ' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  response?: string;
+
+  @ApiPropertyOptional({ enum: PROJECT_RISK_STATUSES })
+  @IsOptional()
+  @IsIn([...PROJECT_RISK_STATUSES])
+  status?: string;
+
+  @ApiPropertyOptional({ description: 'รอบทบทวน (วัน)' })
+  @IsOptional()
+  @IsInt()
+  @Min(MIN_REVIEW_DAYS)
+  @Max(MAX_REVIEW_DAYS)
+  review_every_days?: number;
+}
+
+/** CD-183 — a review of a risk. */
+export class ReviewRiskDto {
+  @ApiProperty()
+  @IsString()
+  @MaxLength(4000)
+  note!: string;
+
+  @ApiPropertyOptional({ minimum: 1, maximum: 5 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  likelihood?: number;
+
+  @ApiPropertyOptional({ minimum: 1, maximum: 5 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  impact?: number;
+
+  @ApiPropertyOptional({ enum: PROJECT_RISK_STATUSES })
+  @IsOptional()
+  @IsIn([...PROJECT_RISK_STATUSES])
+  status?: string;
 }

@@ -19,8 +19,11 @@ import {
   ProjectProgressRepository,
   ProjectBudgetRepository,
   ProjectChangeRequestRepository,
+  ProjectRiskRepository,
+  ProjectRiskReviewRepository,
   WorkCalendarRepository,
 } from './project.repositories';
+import { ContractRiskAssessmentRepository } from '../crm/contract-risk.service';
 
 /**
  * CD-18 PM — projects opened from signed contracts. Reads what Legal and
@@ -46,6 +49,9 @@ import {
     ProjectProgressRepository,
     ProjectBudgetRepository,
     ProjectChangeRequestRepository,
+    ProjectRiskRepository,
+    ProjectRiskReviewRepository,
+    ContractRiskAssessmentRepository,
     WorkCalendarRepository,
     CustomerContractRepository,
     ContractInstallmentRepository,
@@ -69,6 +75,9 @@ import {
     ProjectProgressRepository,
     ProjectBudgetRepository,
     ProjectChangeRequestRepository,
+    ProjectRiskRepository,
+    ProjectRiskReviewRepository,
+    ContractRiskAssessmentRepository,
     WorkCalendarRepository,
     ContractInstallmentRepository,
     PrismaTransactionService,
