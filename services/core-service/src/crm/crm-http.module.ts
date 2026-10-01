@@ -1,3 +1,4 @@
+import { QuotationDiscountController } from './quotation-discount.controller';
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -90,6 +91,8 @@ import {
     KeeperController,
     // CD-66 — screens only; the channels are served by external-service.
     CustomerIntakeAdminController,
+    // CD-203 — screens only; see the controller.
+    QuotationDiscountController,
   ],
   providers: [
     ActivityPhotosService,

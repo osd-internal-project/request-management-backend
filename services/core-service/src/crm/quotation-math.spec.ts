@@ -1,10 +1,12 @@
 import {
+  capDiscounts,
   cleanMinMargins,
   computeQuotationTotals,
   dealMargin,
   defaultValidUntil,
   marginByWorkType,
   marginNeedsApproval,
+  maxDiscountWithin,
   monthlyRecurring,
   priceModelProblems,
   overallDiscountPct,
@@ -282,5 +284,33 @@ describe('CD-202 margin ตามประเภทงาน', () => {
       cleanMinMargins({ service: '20', equipment: 150, foo: 5, software: '' }),
     ).toEqual({ service: 20 });
     expect(cleanMinMargins(null)).toEqual({});
+  });
+});
+
+describe('CD-203 ทางเลือกส่วนลด', () => {
+  it('ส่วนลดสูงสุดที่ยังได้ margin ถึงเกณฑ์พอดี', () => {
+    // gross 10,000 cost 7,000 min 20% → net ≥ 8,750 → discount ≤ 12.5%
+    expect(maxDiscountWithin(10000, 7000, 20)).toBe(12.5);
+    // floored, never rounded up past the minimum
+    expect(maxDiscountWithin(3000, 2000, 15)).toBe(21.56);
+  });
+
+  it('ราคาเต็มก็ยังต่ำกว่าเกณฑ์ หรือไม่มีรายได้ = ลดไม่ได้เลย', () => {
+    expect(maxDiscountWithin(10000, 9500, 20)).toBe(0);
+    expect(maxDiscountWithin(0, 100, 20)).toBe(0);
+  });
+
+  it('ตัดส่วนลดตามเพดานของประเภทงาน ไม่เพิ่มส่วนลดที่ต่ำกว่าเพดาน', () => {
+    expect(
+      capDiscounts(
+        [
+          { workType: 'service', discountPct: 20 },
+          { workType: 'service', discountPct: 5 },
+          { workType: 'equipment', discountPct: 30 },
+          { workType: null, discountPct: 10 },
+        ],
+        { service: 12.5, none: 0 },
+      ),
+    ).toEqual([12.5, 5, 30, 0]);
   });
 });

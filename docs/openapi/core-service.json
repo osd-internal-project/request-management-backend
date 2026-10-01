@@ -11177,6 +11177,97 @@
         ]
       }
     },
+    "/api/v1/quotation-approvals/{requestId}": {
+      "get": {
+        "description": "ก่อน/หลังส่วนลด ทั้งใบและต่อประเภทงาน เทียบเกณฑ์ + ทางเลือกส่วนลดสูงสุดที่ยังอยู่ในเกณฑ์. ต้นทุน/margin เห็นเฉพาะผู้อนุมัติของคำขอและผู้มี crm.sales.manage",
+        "operationId": "QuotationDiscountController_impact",
+        "parameters": [
+          {
+            "name": "requestId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-203 ผลกระทบของส่วนลดต่อ margin ของใบเสนอราคาที่รออนุมัติ",
+        "tags": [
+          "quotations"
+        ]
+      }
+    },
+    "/api/v1/quotation-approvals/{requestId}/choose": {
+      "post": {
+        "description": "ผู้อนุมัติขั้นปัจจุบันเลือกเพดานส่วนลดต่อประเภทงาน → อนุมัติขั้นของตน แล้วออกใบเสนอราคาเวอร์ชันใหม่ ตามส่วนลดนั้นบนคำขอเดิม (ขั้นถัดไปยังต้องอนุมัติ)",
+        "operationId": "QuotationDiscountController_choose",
+        "parameters": [
+          {
+            "name": "requestId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChooseDiscountDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-203 อนุมัติด้วยส่วนลดที่เลือก",
+        "tags": [
+          "quotations"
+        ],
+        "x-permission": [
+          "approval.decide"
+        ]
+      }
+    },
     "/api/v1/presales/solutions": {
       "post": {
         "operationId": "SolutionsController_start",
@@ -25836,6 +25927,28 @@
           "enabled",
           "requester_user_id",
           "type_codes"
+        ]
+      },
+      "ChooseDiscountDto": {
+        "type": "object",
+        "properties": {
+          "caps": {
+            "type": "object",
+            "description": "เพดานส่วนลด (%) ต่อประเภทงาน — equipment/material/software/service/none; บรรทัดที่ลดน้อยกว่าเพดานคงเดิม",
+            "example": {
+              "service": 12.5
+            },
+            "additionalProperties": {
+              "type": "number"
+            }
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "caps"
         ]
       },
       "StartSolutionDto": {

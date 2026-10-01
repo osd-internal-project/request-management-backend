@@ -38,6 +38,8 @@ import { SlaModule } from '../sla/sla.module';
   */
   exports: [
     ApprovalsService,
+    // CD-203 — CRM reads who approves a quotation's request.
+    ApprovalCaseRepository,
     ApprovalMatrixService,
     DelegationsService,
     DecisionLogService,

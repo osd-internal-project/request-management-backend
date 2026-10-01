@@ -346,3 +346,50 @@ export function cleanMinMargins(value: unknown): MinMarginByWorkType {
   }
   return out;
 }
+
+/** CD-203 — a line's work type as a key; the untyped lines are `none`. */
+export type WorkTypeKey = WorkType | 'none';
+
+export function workTypeKey(workType: string | null): WorkTypeKey {
+  return (WORK_TYPES as readonly string[]).includes(workType ?? '')
+    ? (workType as WorkType)
+    : 'none';
+}
+
+/**
+ * CD-203 — the largest discount (%) on every line of a work type that still
+ * leaves its margin at the minimum: net = gross × (1 − d), and
+ * (net − cost) / net ≥ min ⇔ d ≤ 1 − cost / (gross × (1 − min)).
+ * Floored to 2 places so rounding never tips it under; 0 when even the full
+ * price is below the minimum.
+ */
+export function maxDiscountWithin(
+  gross: Decimal | number,
+  cost: Decimal | number,
+  minMarginPct: number,
+): number {
+  const g = new Decimal(gross);
+  if (g.lte(0) || minMarginPct >= 100) return 0;
+  const keep = new Decimal(1).minus(new Decimal(minMarginPct).div(100));
+  const pct = new Decimal(1)
+    .minus(new Decimal(cost).div(g.mul(keep)))
+    .mul(100)
+    .toDecimalPlaces(2, Decimal.ROUND_FLOOR);
+  if (pct.lte(0)) return 0;
+  return Math.min(pct.toNumber(), 100);
+}
+
+/**
+ * CD-203 — each line's discount held to at most its work type's cap; a work
+ * type without a cap keeps its discounts. Never raises a discount.
+ */
+export function capDiscounts(
+  lines: readonly { workType: string | null; discountPct: Decimal | number }[],
+  caps: Partial<Record<WorkTypeKey, number>>,
+): number[] {
+  return lines.map((line) => {
+    const current = Number(line.discountPct);
+    const cap = caps[workTypeKey(line.workType)];
+    return cap === undefined ? current : Math.min(current, cap);
+  });
+}

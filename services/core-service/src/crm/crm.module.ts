@@ -87,6 +87,8 @@ import { RequestTimelineSyncService } from './request-timeline-sync.service';
 import { QuotationsService } from './quotations.service';
 import { QuotationPrintService } from './quotation-print.service';
 import { QuotationApprovalSyncService } from './quotation-approval-sync.service';
+import { QuotationDiscountService } from './quotation-discount.service';
+import { ApprovalsModule } from '../approvals/approvals.module';
 import { LeadsService } from './leads.service';
 import { LeadStatusService } from './lead-status.service';
 import { OpportunitiesService } from './opportunities.service';
@@ -180,6 +182,8 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     RunNumberClientModule,
     AccessModule,
     RequestsModule,
+    // CD-203 — the price approval's approvers and their decision.
+    ApprovalsModule,
     ErpModule,
     ReservePhoneModule,
     PdpaModule,
@@ -240,6 +244,7 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     QuotationsService,
     QuotationPrintService,
     QuotationApprovalSyncService,
+    QuotationDiscountService,
     LeadsService,
     LeadStatusService,
     LeadImportService,
@@ -367,6 +372,7 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     CustomerInvoicesService,
     SaleOrdersService,
     QuotationsService,
+    QuotationDiscountService,
     QuotationPrintService,
     ErpSyncAdminService,
     ProductCatalogService,
