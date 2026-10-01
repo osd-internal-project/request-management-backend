@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Headers,
   Param,
@@ -26,6 +27,9 @@ import { CurrentPrincipal, Permissions } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import {
   AchieveMilestoneDto,
+  AttachCloseDocumentDto,
+  SaveCloseoutDto,
+  SaveLessonDto,
   ListProjectsQueryDto,
   OpenProjectDto,
   SaveMilestoneDto,
@@ -55,6 +59,7 @@ import { ProjectRisksService } from './project-risks.service';
 import { ProjectIssuesService } from './project-issues.service';
 import { CustomerLogsService } from './customer-logs.service';
 import { PaymentsService } from './payments.service';
+import { CloseoutService } from './closeout.service';
 import { MAX_TASK_FILE_BYTES, TaskWorkService } from './task-work.service';
 import { MAX_FILES_PER_UPDATE } from './task-rules';
 import { ProjectsService } from './projects.service';
@@ -80,6 +85,7 @@ export class ProjectsController {
     private readonly issues: ProjectIssuesService,
     private readonly customerLogs: CustomerLogsService,
     private readonly payments: PaymentsService,
+    private readonly closeout: CloseoutService,
   ) {}
 
   @ApiOperation({ summary: 'รายการโครงการ (ทั้งบริษัท หรือของฉัน)' })
@@ -459,6 +465,134 @@ export class ProjectsController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.changes.cancel(id, changeId, principal);
+  }
+
+  // --- CD-191 close-out -------------------------------------------------------------
+
+  @ApiOperation({
+    summary: 'ปิดโครงการ: รายการตรวจ เอกสารปิด บทเรียน และคำขอปิด',
+  })
+  @Get(':id/closeout')
+  @Permissions('notification.read')
+  viewCloseout(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.closeout.view(id, principal);
+  }
+
+  @ApiOperation({ summary: 'สรุปการปิดโครงการ (ผู้จัดการโครงการ)' })
+  @Put(':id/closeout')
+  @Permissions('notification.read')
+  saveCloseout(
+    @Param('id') id: string,
+    @Body() dto: SaveCloseoutDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.closeout.save(id, dto, principal);
+  }
+
+  @ApiOperation({ summary: 'แนบเอกสารปิดโครงการ' })
+  @Post(':id/closeout/documents')
+  @Permissions('notification.read')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['title', 'file'],
+      properties: {
+        title: { type: 'string' },
+        note: { type: 'string' },
+        file: { type: 'string', format: 'binary' },
+      },
+    },
+  })
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: MAX_EVIDENCE_BYTES },
+      defParamCharset: 'utf8',
+    }),
+  )
+  attachCloseDocument(
+    @Param('id') id: string,
+    @Body() dto: AttachCloseDocumentDto,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.closeout.attach(id, dto, file, principal);
+  }
+
+  @ApiOperation({ summary: 'นำเอกสารปิดโครงการออกจากรายการ' })
+  @Delete(':id/closeout/documents/:documentId')
+  @Permissions('notification.read')
+  detachCloseDocument(
+    @Param('id') id: string,
+    @Param('documentId') documentId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.closeout.detach(id, documentId, principal);
+  }
+
+  @ApiOperation({ summary: 'ไฟล์เอกสารปิดโครงการ' })
+  @Get(':id/closeout/documents/:documentId/file')
+  @Permissions('notification.read')
+  async closeDocumentFile(
+    @Param('id') id: string,
+    @Param('documentId') documentId: string,
+    @CurrentPrincipal() principal: Principal,
+  ): Promise<StreamableFile> {
+    const file = await this.closeout.download(id, documentId, principal);
+    return new StreamableFile(file.stream, {
+      type: file.mimeType,
+      disposition: `inline; filename*=UTF-8''${encodeURIComponent(file.fileName)}`,
+    });
+  }
+
+  @ApiOperation({ summary: 'บันทึกบทเรียน (ทีมโครงการ)' })
+  @Post(':id/closeout/lessons')
+  @Permissions('notification.read')
+  addLesson(
+    @Param('id') id: string,
+    @Body() dto: SaveLessonDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.closeout.addLesson(id, dto, principal);
+  }
+
+  @ApiOperation({ summary: 'แก้บทเรียน (ผู้บันทึกหรือผู้จัดการโครงการ)' })
+  @Patch(':id/closeout/lessons/:lessonId')
+  @Permissions('notification.read')
+  updateLesson(
+    @Param('id') id: string,
+    @Param('lessonId') lessonId: string,
+    @Body() dto: SaveLessonDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.closeout.updateLesson(id, lessonId, dto, principal);
+  }
+
+  @ApiOperation({ summary: 'ลบบทเรียน (ผู้บันทึกหรือผู้จัดการโครงการ)' })
+  @Delete(':id/closeout/lessons/:lessonId')
+  @Permissions('notification.read')
+  removeLesson(
+    @Param('id') id: string,
+    @Param('lessonId') lessonId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.closeout.removeLesson(id, lessonId, principal);
+  }
+
+  @ApiOperation({
+    summary: 'ส่งคำขอปิดโครงการให้ผู้บริหารโครงการอนุมัติ',
+  })
+  @Post(':id/closeout/submit')
+  @Permissions('notification.read')
+  submitCloseout(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+    @Headers('authorization') authorization: string,
+  ) {
+    return this.closeout.submit(id, principal, authorization);
   }
 
   // --- CD-193 installments -----------------------------------------------------------

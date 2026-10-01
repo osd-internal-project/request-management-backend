@@ -17,6 +17,7 @@ import { ProjectRisksService } from './project-risks.service';
 import { ProjectIssuesService } from './project-issues.service';
 import { CustomerLogsService } from './customer-logs.service';
 import { PaymentsService } from './payments.service';
+import { CloseoutService } from './closeout.service';
 
 /** The screen-facing routes of {@link PmModule}. */
 @Module({
@@ -45,6 +46,7 @@ import { PaymentsService } from './payments.service';
     ProjectIssuesService,
     CustomerLogsService,
     PaymentsService,
+    CloseoutService,
   ],
 })
 export class PmHttpModule {}

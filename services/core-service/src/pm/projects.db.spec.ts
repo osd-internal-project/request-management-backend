@@ -31,6 +31,9 @@ import {
   ProjectTaskUpdateRepository,
   WorkCalendarRepository,
   InstallmentBillingRepository,
+  ProjectCloseDocumentRepository,
+  ProjectCloseoutRepository,
+  ProjectLessonRepository,
 } from './project.repositories';
 import { ProjectsService } from './projects.service';
 import { MilestonesService } from './milestones.service';
@@ -43,7 +46,9 @@ import { ProjectRisksService } from './project-risks.service';
 import { ProjectIssuesService } from './project-issues.service';
 import { CustomerLogsService } from './customer-logs.service';
 import { PaymentsService } from './payments.service';
+import { CloseoutService } from './closeout.service';
 import { ContractRiskAssessmentRepository } from '../crm/contract-risk.service';
+import { ContractObligationRepository } from '../crm/contract-obligations.service';
 import {
   SolutionRiskRepository,
   SolutionVersionRepository as VersionRepository,
@@ -245,6 +250,9 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       });
       await prisma.projectTask.deleteMany({ where: { projectId } });
       await prisma.projectMilestone.deleteMany({ where: { projectId } });
+      await prisma.projectCloseout.deleteMany({ where: { projectId } });
+      await prisma.projectCloseDocument.deleteMany({ where: { projectId } });
+      await prisma.projectLesson.deleteMany({ where: { projectId } });
       await prisma.projectIssue.deleteMany({ where: { projectId } });
       await prisma.projectCustomerLog.deleteMany({ where: { projectId } });
       await prisma.projectChangeRequest.deleteMany({ where: { projectId } });
@@ -1775,6 +1783,219 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       expect(
         paid.forecast.months.find((row) => row.month === '2026-09')?.received,
       ).toBe(first.amount);
+    });
+    it("CD-191: a project closes only with nothing owed, its documents and a lesson — then on the executives' approval", async () => {
+      const client = prisma as never;
+      const transactions = {
+        execute: (work: (tx: unknown) => Promise<unknown>) =>
+          prisma.$transaction((tx) => work(tx)),
+      } as never;
+      const audit = { record: () => Promise.resolve() } as never;
+      const plan = new PlanService(
+        projects,
+        new ProjectRepository(client),
+        new ProjectTaskRepository(client),
+        new ProjectTaskLinkRepository(client),
+        new ProjectMilestoneRepository(client),
+        new WorkCalendarRepository(client),
+        new CompanyMemberRepository(client),
+        { milestoneSlipped: () => Promise.resolve() } as never,
+        audit,
+        transactions,
+      );
+      const payments = new PaymentsService(
+        projects,
+        plan,
+        new ProjectRepository(client),
+        new ContractInstallmentRepository(client),
+        new InstallmentBillingRepository(client),
+        audit,
+        transactions,
+      );
+      const logs = new CustomerLogsService(
+        projects,
+        new ProjectCustomerLogRepository(client),
+        {} as never,
+        new CompanyMemberRepository(client),
+        audit,
+        transactions,
+      );
+      const files = new Map<string, Buffer>();
+      const asked: unknown[] = [];
+      let requestStatus = 'pending_approval';
+      const decided: boolean[] = [];
+      const closeout = new CloseoutService(
+        projects,
+        new ProjectRepository(client),
+        new ProjectCloseoutRepository(client),
+        new ProjectCloseDocumentRepository(client),
+        new ProjectLessonRepository(client),
+        new ProjectMilestoneRepository(client),
+        new ProjectTaskRepository(client),
+        new ProjectIssueRepository(client),
+        new ProjectChangeRequestRepository(client),
+        new ProjectRiskRepository(client),
+        new ContractObligationRepository(client),
+        logs,
+        payments,
+        {
+          findFirst: () =>
+            Promise.resolve({
+              projectCloseTypeCode: 'PCL',
+              projectCloseDocuments: ['ใบตรวจรับงาน', 'เอกสารส่งมอบงาน'],
+            }),
+        } as never,
+        {
+          findFirst: () =>
+            Promise.resolve({ status: requestStatus, requestNo: 'PCL-0001' }),
+        } as never,
+        {
+          create: (input: unknown) => {
+            asked.push(input);
+            return Promise.resolve({ id: `req-${tag}` });
+          },
+          submit: () => Promise.resolve(),
+        } as never,
+        new CompanyMemberRepository(client),
+        {
+          closeDecided: (
+            _user: string,
+            _company: string,
+            _project: unknown,
+            approved: boolean,
+          ) => {
+            decided.push(approved);
+            return Promise.resolve();
+          },
+        } as never,
+        { on: () => undefined } as never,
+        {
+          put: (key: string, body: Buffer) => {
+            files.set(key, body);
+            return Promise.resolve();
+          },
+          remove: () => Promise.resolve(),
+          get: (key: string) =>
+            Promise.resolve(Readable.from([files.get(key)!])),
+        },
+        audit,
+        transactions,
+      );
+      const managerNow = as(engineer, ['notification.read']);
+      const crew = as(outsider, ['notification.read']);
+      const pdf = (name: string) => ({
+        originalname: name,
+        mimetype: 'application/pdf',
+        size: 4,
+        buffer: Buffer.from('%PDF'),
+      });
+
+      // what the earlier steps left open stops it
+      const before = await closeout.view(projectId, crew);
+      expect(before.canEdit).toBe(false);
+      expect(before.canWrite).toBe(true);
+      const failed = before.checks
+        .filter((check) => check.blocking && !check.ok)
+        .map((check) => check.key);
+      expect(failed).toEqual(
+        expect.arrayContaining(['changes', 'documents', 'lessons']),
+      );
+      await expect(
+        closeout.submit(projectId, managerNow, 'Bearer x'),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+
+      // the team writes lessons; only the manager attaches documents
+      const lessoned = await closeout.addLesson(
+        projectId,
+        { kind: 'improve', text: 'นัดเข้าพื้นที่ล่วงหน้าอย่างน้อย 2 สัปดาห์' },
+        crew,
+      );
+      expect(lessoned.lessons).toHaveLength(1);
+      expect(lessoned.lessons[0]).toMatchObject({ kbmsStatus: 'pending' });
+      await expect(
+        closeout.addLesson(projectId, { kind: 'nope', text: 'x' }, crew),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+      await expect(
+        closeout.attach(
+          projectId,
+          { title: 'ใบตรวจรับงาน' },
+          pdf('a.pdf'),
+          crew,
+        ),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+      await closeout.attach(
+        projectId,
+        { title: 'ใบตรวจรับงาน' },
+        pdf('acceptance.pdf'),
+        managerNow,
+      );
+      const attached = await closeout.attach(
+        projectId,
+        { title: 'เอกสารส่งมอบงาน' },
+        pdf('handover.pdf'),
+        managerNow,
+      );
+      expect(attached.required.every((row) => row.documentIds.length)).toBe(
+        true,
+      );
+
+      // everything owed settled the way the other cards would
+      await prisma.projectChangeRequest.updateMany({
+        where: { projectId, status: { in: ['draft', 'submitted'] } },
+        data: { status: 'cancelled' },
+      });
+      await prisma.projectIssue.updateMany({
+        where: { projectId, status: 'open' },
+        data: { status: 'resolved', resolution: 'ทดสอบ' },
+      });
+      await prisma.projectMilestone.updateMany({
+        where: { projectId, status: 'planned' },
+        data: { status: 'cancelled' },
+      });
+      await prisma.contractObligation.updateMany({
+        where: { contractId, status: 'open' },
+        data: { status: 'done' },
+      });
+      const ready = await closeout.view(projectId, managerNow);
+      expect(ready.problems).toEqual([]);
+
+      const sent = await closeout.submit(projectId, managerNow, 'Bearer x');
+      expect(sent.closeout).toMatchObject({
+        status: 'submitted',
+        requestNo: 'PCL-0001',
+      });
+      expect(asked[0]).toMatchObject({
+        type_code: 'PCL',
+        form_data: { lessons: 1 },
+      });
+      // locked while with the executives
+      await expect(
+        closeout.addLesson(projectId, { kind: 'went_well', text: 'x' }, crew),
+      ).rejects.toMatchObject({ code: 'CONFLICT' });
+
+      // turned down: back to be fixed
+      requestStatus = 'rejected';
+      await closeout.syncRequest(`req-${tag}`);
+      expect(
+        (await prisma.project.findUniqueOrThrow({ where: { id: projectId } }))
+          .status,
+      ).not.toBe('closed');
+      // asked again: a new request, waiting
+      requestStatus = 'pending_approval';
+      await closeout.submit(projectId, managerNow, 'Bearer x');
+
+      // approved: the project is closed, once
+      requestStatus = 'approved';
+      await closeout.syncRequest(`req-${tag}`);
+      await closeout.syncRequest(`req-${tag}`);
+      expect(
+        (await prisma.project.findUniqueOrThrow({ where: { id: projectId } }))
+          .status,
+      ).toBe('closed');
+      expect(decided).toEqual([false, true]);
+      const after = await closeout.view(projectId, managerNow);
+      expect(after.closeout?.status).toBe('approved');
+      expect(after.canEdit).toBe(false);
     });
   },
 );

@@ -277,6 +277,17 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
     },
   },
   {
+    eventType: 'pm.project.close_decided',
+    label: 'ผลพิจารณาคำขอปิดโครงการ (ถึงผู้ยื่น)',
+    title: 'โครงการ {{project_no}}: {{result}}',
+    body: '{{project_name}} — ดูรายละเอียดที่การ์ดปิดโครงการ',
+    variables: {
+      project_no: { label: 'เลขที่โครงการ', sample: 'PRJ-OSD-000012' },
+      project_name: { label: 'ชื่อโครงการ', sample: 'ระบบกล้องอาคาร A' },
+      result: { label: 'ผล', sample: 'อนุมัติให้ปิดแล้ว' },
+    },
+  },
+  {
     eventType: 'pm.issue.assigned',
     label: 'ได้รับมอบหมายปัญหาในโครงการ (ถึงเจ้าของปัญหา)',
     title: 'โครงการ {{project_no}}: {{issue_no}} {{title}}',

@@ -2414,6 +2414,12 @@ model CrmCompanyConfig {
   /// board as; its matrix may route on `cost_change`, `price_change` and
   /// `margin_pct`. NULL = not set.
   projectChangeTypeCode            String?
+  /// CD-191 — the request type that asks the project's executives to
+  /// close a project; its matrix may route on `contract_value`. NULL = not set.
+  projectCloseTypeCode             String?
+  /// CD-191 — the documents every project must leave behind before it may
+  /// be closed, by name; each needs a file on the close-out card.
+  projectCloseDocuments            String[] @default(["ใบตรวจรับงาน", "เอกสารส่งมอบงาน"])
 
   /// CD-130: ประเภทคำขอ "ขอ Solution และประเมินต้นทุน" (Sales → Pre-Sales) — การ์ด Solution
   /// บนหน้าดีลยื่นประเภทนี้. ช่องบังคับของฟอร์มประเภทนี้คือรายการตรวจความครบ (จุดส่งต่อที่ 2).
@@ -4933,6 +4939,10 @@ model Project {
   issues          ProjectIssue[]
   /// CD-186 — การประสานงานลูกค้า.
   customerLogs    ProjectCustomerLog[]
+  /// CD-191 — การปิดโครงการ เอกสารปิด และบทเรียน.
+  closeout        ProjectCloseout?
+  closeDocuments  ProjectCloseDocument[]
+  lessons         ProjectLesson[]
 
   @@unique([companyId, projectNo])
   @@index([companyId, status])
@@ -5439,3 +5449,79 @@ model MarkupRule {
   @@index([companyId, active])
   @@map("markup_rules")
 }
+
+/// CD-191 — closing a project: the request that asks the project's
+/// executives to close it (CrmConfig.projectCloseTypeCode). Approved, the
+/// project becomes `closed`; rejected, it can be fixed and asked again.
+/// Asking is refused while anything is owed (contract obligations, open
+/// issues, unconverted customer decisions, pending changes, milestones not
+/// reached, required documents missing, no lessons written).
+model ProjectCloseout {
+  id          String    @id @default(uuid())
+  companyId   String
+  projectId   String    @unique
+  /// draft · submitted · approved · rejected
+  status      String    @default("draft")
+  summary     String?
+  requestId   String?
+  error       String?
+  submittedAt DateTime?
+  submittedBy String?
+  decidedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  createdBy   String
+  updatedAt   DateTime  @updatedAt
+  updatedBy   String?
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
+
+  @@index([requestId])
+  @@map("project_closeouts")
+}
+
+/// CD-191 — a document the project leaves behind: one of the required
+/// close-out documents (by `title`) or any other. Removed = `deletedAt`.
+model ProjectCloseDocument {
+  id         String    @id @default(uuid())
+  companyId  String
+  projectId  String
+  title      String
+  note       String?
+  fileName   String
+  mimeType   String
+  sizeBytes  Int
+  storageKey String
+  uploadedBy String
+  uploadedAt DateTime  @default(now())
+  deletedAt  DateTime?
+  deletedBy  String?
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
+
+  @@index([projectId])
+  @@map("project_close_documents")
+}
+
+/// CD-191 — a lesson learned, kept with the project until KBMS (CD-22)
+/// takes it (`kbmsStatus` pending → sent, `kbmsRef` its id there).
+model ProjectLesson {
+  id         String    @id @default(uuid())
+  companyId  String
+  projectId  String
+  /// went_well · improve · recommend
+  kind       String
+  text       String
+  kbmsStatus String    @default("pending")
+  kbmsRef    String?
+  createdAt  DateTime  @default(now())
+  createdBy  String
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
+
+  @@index([projectId])
+  @@index([kbmsStatus])
+  @@map("project_lessons")
+}
+

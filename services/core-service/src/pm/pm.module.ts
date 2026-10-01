@@ -4,6 +4,7 @@ import { AccessModule } from '../access/access.module';
 import { CustomerContractRepository } from '../crm/contract.repositories';
 import { ContractInstallmentRepository } from '../crm/contract-installments.service';
 import { ContractRequestPackageRepository } from '../crm/contract-request-package.service';
+import { ContractObligationRepository } from '../crm/contract-obligations.service';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { PresalesModule } from '../presales/presales.module';
 import { RunNumberClientModule } from '../run-number/run-number-client.module';
@@ -24,6 +25,9 @@ import {
   ProjectIssueRepository,
   ProjectCustomerLogRepository,
   InstallmentBillingRepository,
+  ProjectCloseoutRepository,
+  ProjectCloseDocumentRepository,
+  ProjectLessonRepository,
   WorkCalendarRepository,
 } from './project.repositories';
 import { ContractRiskAssessmentRepository } from '../crm/contract-risk.service';
@@ -57,6 +61,10 @@ import { ContractRiskAssessmentRepository } from '../crm/contract-risk.service';
     ProjectIssueRepository,
     ProjectCustomerLogRepository,
     InstallmentBillingRepository,
+    ProjectCloseoutRepository,
+    ProjectCloseDocumentRepository,
+    ProjectLessonRepository,
+    ContractObligationRepository,
     ContractRiskAssessmentRepository,
     WorkCalendarRepository,
     CustomerContractRepository,
@@ -86,6 +94,10 @@ import { ContractRiskAssessmentRepository } from '../crm/contract-risk.service';
     ProjectIssueRepository,
     ProjectCustomerLogRepository,
     InstallmentBillingRepository,
+    ProjectCloseoutRepository,
+    ProjectCloseDocumentRepository,
+    ProjectLessonRepository,
+    ContractObligationRepository,
     ContractRiskAssessmentRepository,
     WorkCalendarRepository,
     ContractInstallmentRepository,

@@ -231,3 +231,45 @@ export class InstallmentBillingRepository extends BaseRepository<
     return client.contractInstallmentBilling;
   }
 }
+
+/** CD-191 คำขอปิดโครงการ. */
+@Injectable()
+export class ProjectCloseoutRepository extends BaseRepository<
+  PrismaService['projectCloseout']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.projectCloseout;
+  }
+}
+
+/** CD-191 เอกสารปิดโครงการ. */
+@Injectable()
+export class ProjectCloseDocumentRepository extends BaseRepository<
+  PrismaService['projectCloseDocument']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.projectCloseDocument;
+  }
+}
+
+/** CD-191 บทเรียนของโครงการ. */
+@Injectable()
+export class ProjectLessonRepository extends BaseRepository<
+  PrismaService['projectLesson']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.projectLesson;
+  }
+}

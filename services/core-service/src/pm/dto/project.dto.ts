@@ -643,3 +643,41 @@ export class RecordBillingDto {
   @MaxLength(2000)
   note?: string;
 }
+
+/** CD-191 — the summary the executives read with the close request. */
+export class SaveCloseoutDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  summary?: string;
+}
+
+/** CD-191 — a close-out document's name and note (the file is multipart). */
+export class AttachCloseDocumentDto {
+  @ApiPropertyOptional({ example: 'ใบตรวจรับงาน' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  title?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  note?: string;
+}
+
+/** CD-191 — a lesson learned. */
+export class SaveLessonDto {
+  @ApiPropertyOptional({ enum: ['went_well', 'improve', 'recommend'] })
+  @IsOptional()
+  @IsIn(['went_well', 'improve', 'recommend'])
+  kind?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  text?: string;
+}

@@ -753,6 +753,23 @@ export class UpdateCrmConfigDto {
   project_change_type_code?: string;
 
   /**
+   * CD-191: รหัสประเภทคำขอ "ขอปิดโครงการ" (PM → ผู้บริหารโครงการ) — form มี
+   * contract_value ให้ตารางอำนาจอนุมัติตั้งเงื่อนไขได้. ส่ง `""` = ล้าง.
+   */
+  @IsOptional()
+  @IsString()
+  @Matches(/^([A-Z0-9_-]{1,20})?$/)
+  project_close_type_code?: string;
+
+  /** CD-191: ชื่อเอกสารที่ทุกโครงการต้องแนบก่อนขอปิด. */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsString({ each: true })
+  @MaxLength(255, { each: true })
+  project_close_documents?: string[];
+
+  /**
    * CD-130: รหัสประเภทคำขอ "ขอ Solution และประเมินต้นทุน" (Sales → Pre-Sales).
    * ส่ง `""` = ล้าง (หน้าดีลไม่แสดงการ์ด Solution).
    */

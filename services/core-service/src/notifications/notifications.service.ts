@@ -607,6 +607,27 @@ export class NotificationsService {
     });
   }
 
+  /** CD-191 — the executives decided on closing a project (to who asked). */
+  async closeDecided(
+    userId: string,
+    companyId: string,
+    project: { id: string; projectNo: string; name: string },
+    approved: boolean,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'pm.project.close_decided',
+      values: {
+        project_no: project.projectNo,
+        project_name: project.name,
+        result: approved ? 'อนุมัติให้ปิดแล้ว' : 'ไม่อนุมัติให้ปิด',
+      },
+      resourceType: 'project',
+      resourceId: project.id,
+    });
+  }
+
   /** CD-184 — an issue was handed to someone to fix. */
   async issueAssigned(
     userId: string,

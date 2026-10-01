@@ -209,6 +209,8 @@ export class CrmAdminService {
         legalRiskOpinionTypeCode: null,
         contractApprovalTypeCode: null,
         projectChangeTypeCode: null,
+        projectCloseTypeCode: null,
+        projectCloseDocuments: ['ใบตรวจรับงาน', 'เอกสารส่งมอบงาน'],
         solutionRequestTypeCode: null,
         solutionApprovalTypeCode: null,
         demoRequestTypeCode: null,
@@ -243,6 +245,17 @@ export class CrmAdminService {
                 ]),
             ).values(),
           ];
+    // CD-191 — blank names dropped, each name once
+    const closeDocuments =
+      dto.project_close_documents === undefined
+        ? undefined
+        : [
+            ...new Set(
+              dto.project_close_documents
+                .map((title) => title.trim())
+                .filter(Boolean),
+            ),
+          ];
     const approvalTypes =
       dto.customer_approval_types === undefined
         ? undefined
@@ -273,6 +286,10 @@ export class CrmAdminService {
                 dto.legal_risk_opinion_type_code || null,
               contractApprovalTypeCode: dto.contract_approval_type_code || null,
               projectChangeTypeCode: dto.project_change_type_code || null,
+              projectCloseTypeCode: dto.project_close_type_code || null,
+              ...(closeDocuments
+                ? { projectCloseDocuments: closeDocuments }
+                : {}),
               solutionRequestTypeCode: dto.solution_request_type_code || null,
               solutionApprovalTypeCode: dto.solution_approval_type_code || null,
               demoRequestTypeCode: dto.demo_request_type_code || null,
@@ -318,6 +335,11 @@ export class CrmAdminService {
                 dto.project_change_type_code === undefined
                   ? undefined
                   : dto.project_change_type_code || null,
+              projectCloseTypeCode:
+                dto.project_close_type_code === undefined
+                  ? undefined
+                  : dto.project_close_type_code || null,
+              projectCloseDocuments: closeDocuments,
               solutionRequestTypeCode:
                 dto.solution_request_type_code === undefined
                   ? undefined
