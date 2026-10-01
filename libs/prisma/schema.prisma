@@ -4924,6 +4924,8 @@ model Project {
   risks           ProjectRisk[]
   /// CD-184 — ปัญหาระหว่างทาง.
   issues          ProjectIssue[]
+  /// CD-186 — การประสานงานลูกค้า.
+  customerLogs    ProjectCustomerLog[]
 
   @@unique([companyId, projectNo])
   @@index([companyId, status])
@@ -5350,4 +5352,34 @@ model ProjectIssue {
   @@unique([projectId, seq])
   @@index([companyId, status, dueOn])
   @@map("project_issues")
+}
+
+/// CD-186 — a contact with the customer that bears on the project (a
+/// meeting, call, email, site visit): who, what was said, what the customer
+/// decided. A decision that changes the scope must become a change request
+/// (CD-185); until it has, it is flagged.
+model ProjectCustomerLog {
+  id              String   @id @default(uuid())
+  companyId       String
+  projectId       String
+  seq             Int
+  /// meeting · call · email · site_visit · other
+  kind            String
+  occurredOn      DateTime @db.Date
+  /// Who spoke for the customer.
+  contactName     String?
+  summary         String
+  decision        String?
+  affectsScope    Boolean  @default(false)
+  changeRequestId String?
+  createdAt       DateTime @default(now())
+  createdBy       String
+  updatedAt       DateTime @updatedAt
+  updatedBy       String?
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, seq])
+  @@index([projectId, occurredOn])
+  @@map("project_customer_logs")
 }

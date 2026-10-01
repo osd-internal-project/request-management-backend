@@ -20,6 +20,7 @@ import {
   ProjectRepository,
   ProjectBudgetRepository,
   ProjectChangeRequestRepository,
+  ProjectCustomerLogRepository,
   ProjectIssueRepository,
   ProjectProgressRepository,
   ProjectRiskRepository,
@@ -39,6 +40,7 @@ import { BudgetService } from './budget.service';
 import { ChangeRequestsService } from './change-requests.service';
 import { ProjectRisksService } from './project-risks.service';
 import { ProjectIssuesService } from './project-issues.service';
+import { CustomerLogsService } from './customer-logs.service';
 import { ContractRiskAssessmentRepository } from '../crm/contract-risk.service';
 import {
   SolutionRiskRepository,
@@ -242,6 +244,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       await prisma.projectTask.deleteMany({ where: { projectId } });
       await prisma.projectMilestone.deleteMany({ where: { projectId } });
       await prisma.projectIssue.deleteMany({ where: { projectId } });
+      await prisma.projectCustomerLog.deleteMany({ where: { projectId } });
       await prisma.projectChangeRequest.deleteMany({ where: { projectId } });
       await prisma.project.deleteMany({ where: { contractId } });
       await prisma.contractInstallment.deleteMany({ where: { contractId } });
@@ -1561,6 +1564,110 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       });
       await expect(
         issues.update(projectId, issue.id, { title: 'แก้' }, managerNow),
+      ).rejects.toMatchObject({ code: 'CONFLICT' });
+    });
+
+    it('CD-186: the team logs contacts with the customer; a decision on the scope is flagged until it becomes a change request', async () => {
+      const client = prisma as never;
+      const transactions = {
+        execute: (work: (tx: unknown) => Promise<unknown>) =>
+          prisma.$transaction((tx) => work(tx)),
+      } as never;
+      const audit = { record: () => Promise.resolve() } as never;
+      const changes = new ChangeRequestsService(
+        projects,
+        new ProjectChangeRequestRepository(client),
+        new ProjectBudgetRepository(client),
+        { findFirst: () => Promise.resolve(null) } as never,
+        {
+          findFirst: () => Promise.resolve(null),
+          findMany: () => Promise.resolve([]),
+        } as never,
+        {} as never,
+        new CompanyMemberRepository(client),
+        {} as never,
+        { on: () => undefined } as never,
+        audit,
+        transactions,
+      );
+      const logs = new CustomerLogsService(
+        projects,
+        new ProjectCustomerLogRepository(client),
+        changes,
+        new CompanyMemberRepository(client),
+        audit,
+        transactions,
+      );
+      const managerNow = as(engineer, ['notification.read']);
+      const crew = as(outsider, ['notification.read']);
+      const today = new Date('2026-10-01T05:00:00Z');
+
+      // a team member logs it
+      await logs.create(
+        projectId,
+        {
+          kind: 'call',
+          occurred_on: '2026-09-30',
+          summary: 'นัดเข้าพื้นที่สัปดาห์หน้า',
+        },
+        crew,
+        today,
+      );
+      await expect(
+        logs.create(
+          projectId,
+          { kind: 'meeting', occurred_on: '2026-10-02', summary: 'อนาคต' },
+          crew,
+          today,
+        ),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+      await expect(
+        logs.create(
+          projectId,
+          {
+            kind: 'meeting',
+            occurred_on: '2026-10-01',
+            summary: 'ประชุม',
+            affects_scope: true,
+          },
+          crew,
+          today,
+        ),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+      const logged = await logs.create(
+        projectId,
+        {
+          kind: 'site_visit',
+          occurred_on: '2026-10-01',
+          contact_name: 'คุณสมชาย (ฝ่ายอาคาร)',
+          summary: 'เดินหน้างานลานจอดรถ',
+          decision: 'ขอเพิ่มกล้องที่ลานจอดรถ 3 ตัว',
+          affects_scope: true,
+        },
+        crew,
+        today,
+      );
+      expect(logged.owesChange).toBe(1);
+      const decision = logged.logs.find((row) => row.affectsScope)!;
+      expect(decision).toMatchObject({ label: 'C-2', owesChange: true });
+
+      // only the manager turns it into a change request
+      await expect(
+        logs.toChange(projectId, decision.id, crew),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+      const turned = await logs.toChange(projectId, decision.id, managerNow);
+      expect(turned.owesChange).toBe(0);
+      const cr = await prisma.projectChangeRequest.findUniqueOrThrow({
+        where: { id: turned.changeId },
+      });
+      expect(cr).toMatchObject({
+        title: 'C-2: ขอเพิ่มกล้องที่ลานจอดรถ 3 ตัว',
+        scopeAdded: 'ขอเพิ่มกล้องที่ลานจอดรถ 3 ตัว',
+        status: 'draft',
+      });
+      expect(await logs.owed(projectId)).toBe(0);
+      await expect(
+        logs.update(projectId, decision.id, { summary: 'แก้' }, crew, today),
       ).rejects.toMatchObject({ code: 'CONFLICT' });
     });
   },

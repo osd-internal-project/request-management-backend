@@ -203,3 +203,17 @@ export class ProjectIssueRepository extends BaseRepository<
     return client.projectIssue;
   }
 }
+
+/** CD-186 การประสานงานลูกค้า. */
+@Injectable()
+export class ProjectCustomerLogRepository extends BaseRepository<
+  PrismaService['projectCustomerLog']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.projectCustomerLog;
+  }
+}

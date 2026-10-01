@@ -24,6 +24,7 @@ import { MAX_NOTE_LENGTH, WORK_STATUSES } from '../task-rules';
 import { BUDGET_CATEGORIES, MAX_BUDGET_LINES } from '../budget-rules';
 import { MAX_CHANGE_LINES } from '../change-rules';
 import { ISSUE_SEVERITIES } from '../issue-rules';
+import { CONTACT_KINDS } from '../customer-log-rules';
 import {
   MAX_REVIEW_DAYS,
   MIN_REVIEW_DAYS,
@@ -568,4 +569,40 @@ export class ResolveIssueDto {
   @IsString()
   @MaxLength(4000)
   resolution!: string;
+}
+
+/** CD-186 — a contact with the customer; everything optional on edit. */
+export class SaveCustomerLogDto {
+  @ApiPropertyOptional({ enum: CONTACT_KINDS })
+  @IsOptional()
+  @IsIn([...CONTACT_KINDS])
+  kind?: string;
+
+  @ApiPropertyOptional({ example: '2026-10-01' })
+  @IsOptional()
+  @IsDateString()
+  occurred_on?: string;
+
+  @ApiPropertyOptional({ description: 'ผู้แทนฝั่งลูกค้า' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  contact_name?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  summary?: string;
+
+  @ApiPropertyOptional({ description: 'สิ่งที่ลูกค้าตัดสินใจ' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  decision?: string;
+
+  @ApiPropertyOptional({ description: 'การตัดสินใจนี้กระทบขอบเขตงาน' })
+  @IsOptional()
+  @IsBoolean()
+  affects_scope?: boolean;
 }

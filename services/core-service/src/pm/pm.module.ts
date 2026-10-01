@@ -22,6 +22,7 @@ import {
   ProjectRiskRepository,
   ProjectRiskReviewRepository,
   ProjectIssueRepository,
+  ProjectCustomerLogRepository,
   WorkCalendarRepository,
 } from './project.repositories';
 import { ContractRiskAssessmentRepository } from '../crm/contract-risk.service';
@@ -53,6 +54,7 @@ import { ContractRiskAssessmentRepository } from '../crm/contract-risk.service';
     ProjectRiskRepository,
     ProjectRiskReviewRepository,
     ProjectIssueRepository,
+    ProjectCustomerLogRepository,
     ContractRiskAssessmentRepository,
     WorkCalendarRepository,
     CustomerContractRepository,
@@ -80,6 +82,7 @@ import { ContractRiskAssessmentRepository } from '../crm/contract-risk.service';
     ProjectRiskRepository,
     ProjectRiskReviewRepository,
     ProjectIssueRepository,
+    ProjectCustomerLogRepository,
     ContractRiskAssessmentRepository,
     WorkCalendarRepository,
     ContractInstallmentRepository,

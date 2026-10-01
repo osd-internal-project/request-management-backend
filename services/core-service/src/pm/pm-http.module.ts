@@ -15,6 +15,7 @@ import { BudgetService } from './budget.service';
 import { ChangeRequestsService } from './change-requests.service';
 import { ProjectRisksService } from './project-risks.service';
 import { ProjectIssuesService } from './project-issues.service';
+import { CustomerLogsService } from './customer-logs.service';
 
 /** The screen-facing routes of {@link PmModule}. */
 @Module({
@@ -41,6 +42,7 @@ import { ProjectIssuesService } from './project-issues.service';
     ChangeRequestsService,
     ProjectRisksService,
     ProjectIssuesService,
+    CustomerLogsService,
   ],
 })
 export class PmHttpModule {}

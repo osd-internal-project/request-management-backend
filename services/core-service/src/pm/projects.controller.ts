@@ -36,6 +36,7 @@ import {
   ResolveIssueDto,
   ReviewRiskDto,
   SaveChangeRequestDto,
+  SaveCustomerLogDto,
   SaveIssueDto,
   SaveProjectRiskDto,
   SaveTaskDto,
@@ -51,6 +52,7 @@ import { BudgetService } from './budget.service';
 import { ChangeRequestsService } from './change-requests.service';
 import { ProjectRisksService } from './project-risks.service';
 import { ProjectIssuesService } from './project-issues.service';
+import { CustomerLogsService } from './customer-logs.service';
 import { MAX_TASK_FILE_BYTES, TaskWorkService } from './task-work.service';
 import { MAX_FILES_PER_UPDATE } from './task-rules';
 import { ProjectsService } from './projects.service';
@@ -74,6 +76,7 @@ export class ProjectsController {
     private readonly changes: ChangeRequestsService,
     private readonly risks: ProjectRisksService,
     private readonly issues: ProjectIssuesService,
+    private readonly customerLogs: CustomerLogsService,
   ) {}
 
   @ApiOperation({ summary: 'รายการโครงการ (ทั้งบริษัท หรือของฉัน)' })
@@ -453,6 +456,54 @@ export class ProjectsController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.changes.cancel(id, changeId, principal);
+  }
+
+  // --- CD-186 customer coordination --------------------------------------------------
+
+  @ApiOperation({ summary: 'บันทึกการประสานงานและการตัดสินใจของลูกค้า' })
+  @Get(':id/customer-logs')
+  @Permissions('notification.read')
+  listCustomerLogs(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.customerLogs.list(id, principal);
+  }
+
+  @ApiOperation({ summary: 'บันทึกการประสานงานกับลูกค้า (ทีมโครงการ)' })
+  @Post(':id/customer-logs')
+  @Permissions('notification.read')
+  createCustomerLog(
+    @Param('id') id: string,
+    @Body() dto: SaveCustomerLogDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.customerLogs.create(id, dto, principal);
+  }
+
+  @ApiOperation({ summary: 'แก้บันทึกการประสานงาน' })
+  @Patch(':id/customer-logs/:logId')
+  @Permissions('notification.read')
+  updateCustomerLog(
+    @Param('id') id: string,
+    @Param('logId') logId: string,
+    @Body() dto: SaveCustomerLogDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.customerLogs.update(id, logId, dto, principal);
+  }
+
+  @ApiOperation({
+    summary: 'แปลงการตัดสินใจที่กระทบขอบเขตเป็นคำขอเปลี่ยนแปลง (ร่าง)',
+  })
+  @Post(':id/customer-logs/:logId/change')
+  @Permissions('notification.read')
+  customerLogToChange(
+    @Param('id') id: string,
+    @Param('logId') logId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.customerLogs.toChange(id, logId, principal);
   }
 
   // --- CD-184 issues ----------------------------------------------------------------
