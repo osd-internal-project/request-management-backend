@@ -11,6 +11,7 @@ interface Row {
   id: string;
   companyId: string;
   productCode: string;
+  priceModel: string;
   currency: string;
   unitPrice: number;
   validFrom: Date;
@@ -29,6 +30,7 @@ function harness(seed: Partial<Row>[] = []) {
     id: `p-${index + 1}`,
     companyId: 'osd',
     productCode: 'SIP-TRUNK',
+    priceModel: 'unit',
     currency: 'THB',
     unitPrice: 1000,
     validFrom: d('2026-01-01'),

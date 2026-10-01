@@ -4,6 +4,7 @@ import {
   IsArray,
   IsDateString,
   IsIn,
+  IsInt,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -16,6 +17,11 @@ import {
 } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { PageQueryDto } from '@request-management/share';
+import {
+  MAX_TERM_MONTHS,
+  PRICE_MODELS,
+  type PriceModel,
+} from '../quotation-math';
 
 /** CRM ใบเสนอราคา (CD-76) DTOs — snake_case per the §11.1 API contract. */
 
@@ -81,6 +87,18 @@ export class QuotationLineDto {
   @IsString()
   @MaxLength(64)
   price_id?: string;
+
+  /** CD-196 — unit (default) · lump_sum (quantity is always 1) · monthly. */
+  @IsOptional()
+  @IsIn(PRICE_MODELS)
+  price_model?: PriceModel;
+
+  /** CD-196 — months of a monthly line (1–120). */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(MAX_TERM_MONTHS)
+  term_months?: number;
 }
 
 /** สร้างร่างใบเสนอราคาจากโอกาสการขาย — ทุกช่องว่างได้ (ค่าตั้งต้นมาจากโอกาสการขาย/ตั้งค่า). */

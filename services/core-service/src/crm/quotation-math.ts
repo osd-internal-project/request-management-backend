@@ -12,11 +12,52 @@ import { Prisma } from '@prisma/client';
 const Decimal = Prisma.Decimal;
 type Decimal = Prisma.Decimal;
 
+/** CD-196 — how a line's price is counted. */
+export const PRICE_MODELS = ['unit', 'lump_sum', 'monthly'] as const;
+export type PriceModel = (typeof PRICE_MODELS)[number];
+export const MAX_TERM_MONTHS = 120;
+
 export interface QuotationLineInput {
   quantity: number | string;
   unit_price: number | string;
   unit_cost?: number | string;
   discount_pct?: number | string;
+  /** CD-196 — default `unit`. */
+  price_model?: PriceModel;
+  /** CD-196 — months of a `monthly` line. */
+  term_months?: number | null;
+}
+
+/**
+ * CD-196 — what the unit price is multiplied by: the quantity for a unit
+ * price, 1 for a lump sum (the price is the whole job), the quantity times
+ * the months for a monthly price. Cost follows the same count.
+ */
+export function billedQuantity(line: QuotationLineInput): Prisma.Decimal {
+  if (line.price_model === 'lump_sum') return new Prisma.Decimal(1);
+  const quantity = new Prisma.Decimal(line.quantity);
+  return line.price_model === 'monthly'
+    ? quantity.mul(line.term_months ?? 1)
+    : quantity;
+}
+
+/** CD-196 — a monthly line needs its months; others must not carry any. */
+export function priceModelProblems(
+  lines: readonly QuotationLineInput[],
+): { field: string; reason: string }[] {
+  return lines.flatMap((line, index) => {
+    const months = line.term_months;
+    if (line.price_model === 'monthly') {
+      return months !== null &&
+        months !== undefined &&
+        Number.isInteger(months) &&
+        months >= 1 &&
+        months <= MAX_TERM_MONTHS
+        ? []
+        : [{ field: `lines[${index}].term_months`, reason: 'required_1_120' }];
+    }
+    return [];
+  });
 }
 
 export interface QuotationLineAmounts {
@@ -51,7 +92,7 @@ export function computeQuotationTotals(
   let costTotal = new Decimal(0);
 
   const amounts = lines.map((line) => {
-    const quantity = new Decimal(line.quantity);
+    const quantity = billedQuantity(line);
     const gross = money(quantity.mul(line.unit_price));
     const discount = new Decimal(line.discount_pct ?? 0);
     const lineTotal = money(
@@ -132,4 +173,25 @@ export function defaultValidUntil(days: number, now: Date = new Date()): Date {
 export function overallDiscountPct(totals: QuotationTotals): Decimal {
   if (!totals.subtotal.gt(0)) return new Decimal(0);
   return money(totals.discountTotal.div(totals.subtotal).mul(100));
+}
+
+/**
+ * CD-196 — the monthly charge of a quotation: each monthly line's amount
+ * after discount, for one month. Shown beside the totals, which cover the
+ * whole term.
+ */
+export function monthlyRecurring(
+  lines: readonly {
+    priceModel: string;
+    termMonths: number | null;
+    lineTotal: Prisma.Decimal | number | string;
+  }[],
+): Prisma.Decimal {
+  return lines
+    .filter((line) => line.priceModel === 'monthly' && line.termMonths)
+    .reduce(
+      (sum, line) =>
+        sum.plus(money(new Decimal(line.lineTotal).div(line.termMonths!))),
+      new Decimal(0),
+    );
 }

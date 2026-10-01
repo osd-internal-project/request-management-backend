@@ -404,7 +404,14 @@ describe('CD-195 ราคามาตรฐานบนบรรทัดใบ
 
   it('เก็บ price_id เฉพาะราคาที่ยังมีผล รหัสตรง และราคาเท่ากัน — ที่เหลือถือว่ากรอกเอง', async () => {
     const { service, tx } = harness({
-      prices: [{ id: 'p-1', productCode: 'SIP-TRUNK', unitPrice: D(1250) }],
+      prices: [
+        {
+          id: 'p-1',
+          productCode: 'SIP-TRUNK',
+          unitPrice: D(1250),
+          priceModel: 'unit',
+        },
+      ],
     });
     await service.update(
       'qt-1',
@@ -442,5 +449,117 @@ describe('CD-195 ราคามาตรฐานบนบรรทัดใบ
     await expect(
       service.submit('qt-1', {}, principal()),
     ).resolves.toBeDefined();
+  });
+});
+
+describe('CD-196 รูปแบบราคาบนบรรทัดใบเสนอราคา', () => {
+  it('เหมาเก็บจำนวน 1 เสมอ รายเดือนเก็บจำนวนเดือน ต่อหน่วยไม่มีเดือน', async () => {
+    const { service, tx } = harness();
+    await service.update(
+      'qt-1',
+      {
+        lines: [
+          {
+            description: 'ติดตั้ง',
+            quantity: 5,
+            unit_price: 20000,
+            price_model: 'lump_sum',
+          },
+          {
+            description: 'MA',
+            quantity: 2,
+            unit_price: 500,
+            price_model: 'monthly',
+            term_months: 12,
+          },
+          {
+            description: 'อุปกรณ์',
+            quantity: 3,
+            unit_price: 1000,
+            term_months: 6,
+          },
+        ],
+      },
+      principal(),
+    );
+    const data = (
+      tx.quotationLine.createMany.mock.calls[0] as unknown as [
+        {
+          data: {
+            quantity: number;
+            priceModel: string;
+            termMonths: number | null;
+            lineTotal: Prisma.Decimal;
+          }[];
+        },
+      ]
+    )[0].data;
+    expect(
+      data.map((row) => [
+        row.quantity,
+        row.priceModel,
+        row.termMonths,
+        row.lineTotal.toFixed(2),
+      ]),
+    ).toEqual([
+      [1, 'lump_sum', null, '20000.00'],
+      [2, 'monthly', 12, '12000.00'],
+      [3, 'unit', null, '3000.00'],
+    ]);
+  });
+
+  it('รายเดือนไม่ระบุเดือน = VALIDATION_FAILED และไม่บันทึกอะไร', async () => {
+    const { service, quotations } = harness();
+    await expect(
+      service.update(
+        'qt-1',
+        {
+          lines: [
+            {
+              description: 'MA',
+              quantity: 1,
+              unit_price: 500,
+              price_model: 'monthly',
+            },
+          ],
+        },
+        principal(),
+      ),
+    ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+    expect(quotations.update).not.toHaveBeenCalled();
+  });
+
+  it('ราคามาตรฐานรูปแบบไม่ตรงกับบรรทัด = ไม่นับเป็นราคามาตรฐาน', async () => {
+    const { service, tx } = harness({
+      prices: [
+        {
+          id: 'p-1',
+          productCode: 'MA',
+          unitPrice: D(500),
+          priceModel: 'monthly',
+        },
+      ],
+    });
+    await service.update(
+      'qt-1',
+      {
+        lines: [
+          {
+            product_code: 'MA',
+            description: 'MA',
+            quantity: 1,
+            unit_price: 500,
+            price_id: 'p-1',
+          },
+        ],
+      },
+      principal(),
+    );
+    const data = (
+      tx.quotationLine.createMany.mock.calls[0] as unknown as [
+        { data: { priceId: string | null }[] },
+      ]
+    )[0].data;
+    expect(data[0].priceId).toBeNull();
   });
 });

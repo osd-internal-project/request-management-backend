@@ -60,6 +60,7 @@ export class PricesController {
     return this.prices.create(
       {
         productCode: dto.product_code,
+        priceModel: dto.price_model,
         currency: dto.currency,
         unitPrice: dto.unit_price,
         validFrom: dto.valid_from,
@@ -81,6 +82,9 @@ export class PricesController {
     return this.prices.update(
       id,
       {
+        ...(dto.price_model !== undefined
+          ? { priceModel: dto.price_model }
+          : {}),
         ...(dto.unit_price !== undefined ? { unitPrice: dto.unit_price } : {}),
         ...(dto.valid_from !== undefined ? { validFrom: dto.valid_from } : {}),
         ...(dto.valid_to !== undefined ? { validTo: dto.valid_to } : {}),

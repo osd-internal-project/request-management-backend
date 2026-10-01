@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { monthlyRecurring } from './quotation-math';
 import {
   AppError,
   Principal,
@@ -57,6 +58,9 @@ export interface PrintRow {
     unitPrice: unknown;
     discountPct: unknown;
     lineTotal: unknown;
+    /** CD-196 */
+    priceModel: string;
+    termMonths: number | null;
   }[];
 }
 
@@ -139,6 +143,8 @@ export class QuotationPrintService {
             unitPrice: true,
             discountPct: true,
             lineTotal: true,
+            priceModel: true,
+            termMonths: true,
           },
         },
       },
@@ -207,6 +213,14 @@ export class QuotationPrintService {
         logo: config?.letterheadLogo ?? null,
         terms: config?.quotationTerms ?? null,
       },
+      /** CD-196 — ค่าบริการรายเดือน (ยอดรวมของใบครอบคลุมทั้งระยะสัญญาแล้ว). */
+      monthlyRecurring: monthlyRecurring(
+        found.lines.map((line) => ({
+          priceModel: line.priceModel,
+          termMonths: line.termMonths,
+          lineTotal: String(line.lineTotal),
+        })),
+      ),
       /** ใช้กำหนดลายน้ำ "ร่าง" — ยังไม่ผ่านขั้นที่ส่งลูกค้าได้. */
       isFinal: ['approved', 'sent', 'accepted'].includes(found.status),
     };

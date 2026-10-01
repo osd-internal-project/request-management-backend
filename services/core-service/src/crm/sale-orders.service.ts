@@ -164,8 +164,16 @@ export class SaleOrdersService {
         ? quotation.lines.map((line) => ({
             lineNo: line.lineNo,
             productCode: line.productCode,
-            description: line.description,
-            quantity: line.quantity,
+            // CD-196 — SAP knows quantity × price only: a monthly line goes
+            // as quantity × months, so its total still matches the quotation.
+            description:
+              line.priceModel === 'monthly' && line.termMonths
+                ? `${line.description} (รายเดือน × ${line.termMonths} เดือน)`
+                : line.description,
+            quantity:
+              line.priceModel === 'monthly' && line.termMonths
+                ? line.quantity.mul(line.termMonths)
+                : line.quantity,
             unit: line.unit,
             unitPrice: line.unitPrice,
             discountPct: line.discountPct,
@@ -484,6 +492,8 @@ export class SaleOrdersService {
             unitPrice: true,
             discountPct: true,
             lineTotal: true,
+            priceModel: true,
+            termMonths: true,
           },
         },
       },
@@ -739,6 +749,8 @@ interface QuotationLineForSale {
   unitPrice: Prisma.Decimal;
   discountPct: Prisma.Decimal;
   lineTotal: Prisma.Decimal;
+  priceModel: string;
+  termMonths: number | null;
 }
 
 interface ResolvedCustomer {

@@ -64,6 +64,7 @@ describe('price rules (CD-194)', () => {
       ok: true,
       value: {
         productCode: 'SIP-TRUNK',
+        priceModel: 'unit',
         currency: 'THB',
         unitPrice: 1234.57,
         validFrom: '2026-10-01',
@@ -105,6 +106,7 @@ describe('price rules (CD-194)', () => {
 describe('price versions (CD-195)', () => {
   const base = {
     productCode: 'X',
+    priceModel: 'unit' as const,
     currency: 'THB',
     unitPrice: 100,
     validFrom: '2026-01-01',

@@ -2,6 +2,8 @@ import {
   computeQuotationTotals,
   defaultValidUntil,
   marginNeedsApproval,
+  monthlyRecurring,
+  priceModelProblems,
   overallDiscountPct,
   quotationExpired,
 } from './quotation-math';
@@ -95,5 +97,69 @@ describe('CD-76 ใบเสนอราคา — ยอดรวมและ m
 
     expect(free.marginPct).toBeNull();
     expect(marginNeedsApproval(free.marginPct, 0)).toBe(true);
+  });
+});
+
+describe('CD-196 รูปแบบราคา', () => {
+  it('เหมา = จำนวน 1 เสมอ, รายเดือน = จำนวน × เดือน, ต่อหน่วยเหมือนเดิม', () => {
+    const totals = computeQuotationTotals(
+      [
+        { quantity: 3, unit_price: 1000, unit_cost: 600 },
+        {
+          quantity: 5,
+          unit_price: 20000,
+          unit_cost: 12000,
+          price_model: 'lump_sum',
+        },
+        {
+          quantity: 2,
+          unit_price: 500,
+          unit_cost: 300,
+          discount_pct: 10,
+          price_model: 'monthly',
+          term_months: 12,
+        },
+      ],
+      7,
+    );
+    expect(totals.lines.map((line) => line.lineTotal.toFixed(2))).toEqual([
+      '3000.00',
+      '20000.00',
+      '10800.00',
+    ]);
+    expect(totals.lines.map((line) => line.lineCost.toFixed(2))).toEqual([
+      '1800.00',
+      '12000.00',
+      '7200.00',
+    ]);
+    expect(totals.netTotal.toFixed(2)).toBe('33800.00');
+  });
+
+  it('รายเดือนต้องมีจำนวนเดือน 1–120', () => {
+    expect(
+      priceModelProblems([
+        { quantity: 1, unit_price: 1, price_model: 'monthly' },
+        {
+          quantity: 1,
+          unit_price: 1,
+          price_model: 'monthly',
+          term_months: 121,
+        },
+        { quantity: 1, unit_price: 1, price_model: 'monthly', term_months: 12 },
+        { quantity: 1, unit_price: 1 },
+      ]),
+    ).toEqual([
+      { field: 'lines[0].term_months', reason: 'required_1_120' },
+      { field: 'lines[1].term_months', reason: 'required_1_120' },
+    ]);
+  });
+
+  it('ค่าบริการรายเดือน = ยอดหลังส่วนลดของบรรทัดรายเดือน ÷ จำนวนเดือน', () => {
+    expect(
+      monthlyRecurring([
+        { priceModel: 'monthly', termMonths: 12, lineTotal: '10800.00' },
+        { priceModel: 'unit', termMonths: null, lineTotal: '3000.00' },
+      ]).toFixed(2),
+    ).toBe('900.00');
   });
 });

@@ -7,7 +7,12 @@ import {
   MaxLength,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { MAX_PRICE_NOTE, MAX_REASON } from '../price-rules';
+import {
+  MAX_PRICE_NOTE,
+  MAX_REASON,
+  PRICE_MODELS,
+  type PriceModel,
+} from '../price-rules';
 
 export class SavePriceDto {
   @ApiProperty({ description: 'รหัสสินค้า SAP (ItemCode)' })
@@ -20,6 +25,15 @@ export class SavePriceDto {
   @IsString()
   @MaxLength(3)
   currency?: string;
+
+  @ApiPropertyOptional({
+    enum: PRICE_MODELS,
+    default: 'unit',
+    description: 'CD-196 ต่อหน่วย / เหมา / ต่อเดือน',
+  })
+  @IsOptional()
+  @IsIn(PRICE_MODELS)
+  price_model?: PriceModel;
 
   @ApiProperty()
   @IsNumber()
@@ -46,6 +60,11 @@ export class SavePriceDto {
 }
 
 export class UpdatePriceDto {
+  @ApiPropertyOptional({ enum: PRICE_MODELS })
+  @IsOptional()
+  @IsIn(PRICE_MODELS)
+  price_model?: PriceModel;
+
   @ApiPropertyOptional({
     description:
       'CD-195 — บังคับเมื่อแก้ราคาที่มีผลแล้ว (แก้ได้เฉพาะวันสิ้นสุด)',

@@ -33,6 +33,7 @@ import {
 interface PriceRow {
   id: string;
   productCode: string;
+  priceModel: string;
   currency: string;
   unitPrice: unknown;
   validFrom: Date;
@@ -46,6 +47,7 @@ interface PriceRow {
 const PRICE_SELECT = {
   id: true,
   productCode: true,
+  priceModel: true,
   currency: true,
   unitPrice: true,
   validFrom: true,
@@ -184,6 +186,7 @@ export class PricesService {
       string,
       {
         price_id: string;
+        price_model: string;
         unit_price: number;
         currency: string;
         valid_from: string;
@@ -200,6 +203,7 @@ export class PricesService {
       if (found) {
         result[code] = {
           price_id: found.id,
+          price_model: found.priceModel,
           unit_price: Number(found.unitPrice),
           currency: found.currency,
           valid_from: found.validFrom,
@@ -225,6 +229,7 @@ export class PricesService {
           data: {
             companyId,
             productCode: value.productCode,
+            priceModel: value.priceModel,
             currency: value.currency,
             unitPrice: value.unitPrice,
             validFrom: day(value.validFrom),
@@ -296,6 +301,7 @@ export class PricesService {
           where: { id },
           data: {
             productCode: value.productCode,
+            priceModel: value.priceModel,
             currency: value.currency,
             unitPrice: value.unitPrice,
             validFrom: day(value.validFrom),
@@ -432,6 +438,7 @@ export class PricesService {
           data: {
             companyId,
             productCode: next.productCode,
+            priceModel: next.priceModel,
             currency: next.currency,
             unitPrice: next.unitPrice,
             validFrom: day(next.validFrom),
@@ -479,6 +486,7 @@ export class PricesService {
         versionNo: true,
         action: true,
         unitPrice: true,
+        priceModel: true,
         currency: true,
         validFrom: true,
         validTo: true,
@@ -491,6 +499,7 @@ export class PricesService {
       versionNo: number;
       action: string;
       unitPrice: unknown;
+      priceModel: string;
       currency: string;
       validFrom: Date;
       validTo: Date | null;
@@ -551,6 +560,7 @@ export class PricesService {
           versionNo: (last?.versionNo ?? 0) + 1,
           action,
           unitPrice: value.unitPrice,
+          priceModel: value.priceModel,
           currency: value.currency,
           validFrom: day(value.validFrom),
           validTo: value.validTo ? day(value.validTo) : null,
@@ -616,6 +626,7 @@ export class PricesService {
   private snapshot(row: PriceRow) {
     return {
       productCode: row.productCode,
+      priceModel: row.priceModel as CleanPrice['priceModel'],
       currency: row.currency,
       unitPrice: Number(row.unitPrice),
       ...this.rangeOf(row),
@@ -629,6 +640,7 @@ export class PricesService {
       id: row.id,
       productCode: row.productCode,
       productName: names.get(row.productCode) ?? null,
+      priceModel: row.priceModel,
       currency: row.currency,
       unitPrice: Number(row.unitPrice),
       ...range,

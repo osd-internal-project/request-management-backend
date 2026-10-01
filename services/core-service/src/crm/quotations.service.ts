@@ -28,6 +28,8 @@ import {
   computeQuotationTotals,
   defaultValidUntil,
   marginNeedsApproval,
+  monthlyRecurring,
+  priceModelProblems,
   quotationExpired,
   type QuotationLineInput,
 } from './quotation-math';
@@ -202,7 +204,19 @@ export class QuotationsService {
         : Promise.resolve(null),
     ]);
 
-    return { ...withExpiry(found), versions, approvalRequest };
+    return {
+      ...withExpiry(found),
+      // CD-196 — the monthly charge beside the totals (which cover the term).
+      monthlyRecurring: monthlyRecurring(
+        found.lines as {
+          priceModel: string;
+          termMonths: number | null;
+          lineTotal: Prisma.Decimal;
+        }[],
+      ),
+      versions,
+      approvalRequest,
+    };
   }
 
   /** ร่างใหม่ (เวอร์ชัน 1) จากโอกาสการขายที่ยังเปิดอยู่. */
@@ -216,6 +230,7 @@ export class QuotationsService {
     const lines = dto.lines ?? [];
     // CD-27: รหัสที่ SAP ไม่รู้จักจะทำให้ใบสั่งขายที่ตามมาถูกปฏิเสธ — กันตั้งแต่ร่าง
     await this.catalog.assertKnownCodes(actor.activeCompanyId, lines);
+    assertPriceModels(lines);
     const totals = computeQuotationTotals(lines.map(lineInput), config.vatPct);
 
     // ออกเลขนอก transaction และหลังตรวจทุกอย่างผ่าน — docs/run-number.md
@@ -300,6 +315,7 @@ export class QuotationsService {
 
     if (dto.lines !== undefined) {
       await this.catalog.assertKnownCodes(actor.activeCompanyId, dto.lines);
+      assertPriceModels(dto.lines);
     }
 
     const totals =
@@ -697,6 +713,8 @@ export class QuotationsService {
                 lineTotal: line.lineTotal,
                 lineCost: line.lineCost,
                 priceId: line.priceId,
+                priceModel: line.priceModel,
+                termMonths: line.termMonths,
               })),
             },
           },
@@ -833,13 +851,24 @@ export class QuotationsService {
         validFrom: { lte: today },
         OR: [{ validTo: null }, { validTo: { gte: today } }],
       },
-      select: { id: true, productCode: true, unitPrice: true },
-    })) as { id: string; productCode: string; unitPrice: Prisma.Decimal }[];
+      select: {
+        id: true,
+        productCode: true,
+        unitPrice: true,
+        priceModel: true,
+      },
+    })) as {
+      id: string;
+      productCode: string;
+      unitPrice: Prisma.Decimal;
+      priceModel: string;
+    }[];
     const byId = new Map(rows.map((row) => [row.id, row]));
     return lines.map((line) => {
       const price = line.price_id ? byId.get(line.price_id) : undefined;
       return price &&
         price.productCode === line.product_code?.trim() &&
+        price.priceModel === (line.price_model ?? 'unit') &&
         Number(price.unitPrice) === line.unit_price
         ? price.id
         : null;
@@ -980,6 +1009,8 @@ interface QuotationForAction {
     lineTotal: Prisma.Decimal;
     lineCost: Prisma.Decimal;
     priceId: string | null;
+    priceModel: string;
+    termMonths: number | null;
   }[];
 }
 
@@ -1056,7 +1087,21 @@ function lineInput(line: QuotationLineDto): QuotationLineInput {
     unit_price: line.unit_price,
     unit_cost: line.unit_cost,
     discount_pct: line.discount_pct,
+    price_model: line.price_model,
+    term_months: line.term_months,
   };
+}
+
+/** CD-196 — a monthly line needs its months. */
+function assertPriceModels(lines: readonly QuotationLineDto[]) {
+  const problems = priceModelProblems(lines.map(lineInput));
+  if (problems.length) {
+    throw new AppError(
+      'VALIDATION_FAILED',
+      'บรรทัดราคารายเดือนต้องระบุจำนวนเดือน (1–120)',
+      problems,
+    );
+  }
 }
 
 function linesData(
@@ -1068,7 +1113,8 @@ function linesData(
     lineNo: index + 1,
     productCode: line.product_code?.trim() || null,
     description: line.description.trim(),
-    quantity: line.quantity,
+    // CD-196 — a lump sum is one job, whatever was typed.
+    quantity: line.price_model === 'lump_sum' ? 1 : line.quantity,
     unit: line.unit?.trim() || null,
     unitPrice: line.unit_price,
     unitCost: line.unit_cost ?? 0,
@@ -1076,6 +1122,9 @@ function linesData(
     lineTotal: totals.lines[index].lineTotal,
     lineCost: totals.lines[index].lineCost,
     priceId: priceRefs[index] ?? null,
+    priceModel: line.price_model ?? 'unit',
+    termMonths:
+      line.price_model === 'monthly' ? (line.term_months ?? null) : null,
   }));
 }
 

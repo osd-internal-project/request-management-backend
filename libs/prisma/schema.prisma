@@ -3288,6 +3288,10 @@ model QuotationLine {
   /// CD-195 ราคามาตรฐานที่บรรทัดนี้ใช้ (`product_prices.id`) — ว่าง = ราคาที่กรอกเอง.
   /// ยื่นใบไม่ได้ถ้าราคานั้นไม่มีผลแล้วในวันที่ยื่น.
   priceId     String?
+  /// CD-196 unit | lump_sum | monthly — เหมา = จำนวน 1 เสมอ; รายเดือน = × termMonths.
+  priceModel  String  @default("unit")
+  /// CD-196 จำนวนเดือนของบรรทัดรายเดือน (1–120) — ว่างสำหรับรูปแบบอื่น.
+  termMonths  Int?
 
   quotation Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
 
@@ -4976,6 +4980,8 @@ model ProductPrice {
   productCode String
   currency    String    @default("THB")
   unitPrice   Decimal   @db.Decimal(14, 2)
+  /// CD-196 unit | lump_sum | monthly — ราคาต่อหน่วย / ราคาเหมา / ราคาต่อเดือน.
+  priceModel  String    @default("unit")
   /// วันแรกที่มีผล.
   validFrom   DateTime  @db.Date
   /// วันสุดท้ายที่มีผล (รวมวันนั้น) — NULL = ไม่มีกำหนดสิ้นสุด.
@@ -5055,21 +5061,23 @@ model ProjectTaskLink {
 
 /// CD-195 ประวัติทุกครั้งที่ราคาถูกบันทึก — snapshot หลังการเปลี่ยนแปลง ไม่มีการแก้/ลบ.
 model ProductPriceVersion {
-  id        String    @id @default(uuid())
-  priceId   String
-  companyId String
-  versionNo Int
+  id         String    @id @default(uuid())
+  priceId    String
+  companyId  String
+  versionNo  Int
   /// created | updated | ended | revised | removed
-  action    String
-  unitPrice Decimal   @db.Decimal(14, 2)
-  currency  String
-  validFrom DateTime  @db.Date
-  validTo   DateTime? @db.Date
-  note      String    @default("")
+  action     String
+  unitPrice  Decimal   @db.Decimal(14, 2)
+  /// CD-196
+  priceModel String    @default("unit")
+  currency   String
+  validFrom  DateTime  @db.Date
+  validTo    DateTime? @db.Date
+  note       String    @default("")
   /// เหตุผลที่ผู้แก้ระบุ (บังคับเมื่อปรับหรือปิดราคาที่มีผลแล้ว).
-  reason    String    @default("")
-  changedBy String
-  changedAt DateTime  @default(now())
+  reason     String    @default("")
+  changedBy  String
+  changedAt  DateTime  @default(now())
 
   price ProductPrice @relation(fields: [priceId], references: [id])
 

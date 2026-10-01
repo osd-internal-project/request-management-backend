@@ -8836,6 +8836,19 @@
           "price_id": {
             "maxLength": 64,
             "type": "string"
+          },
+          "price_model": {
+            "enum": [
+              "unit",
+              "lump_sum",
+              "monthly"
+            ],
+            "type": "string"
+          },
+          "term_months": {
+            "maximum": 120,
+            "minimum": 1,
+            "type": "integer"
           }
         },
         "required": [

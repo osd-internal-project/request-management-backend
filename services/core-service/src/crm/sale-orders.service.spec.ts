@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { Principal } from '@request-management/share';
 import { OpportunitiesService } from './opportunities.service';
 import { SaleOrdersService } from './sale-orders.service';
@@ -722,6 +723,47 @@ describe('CRM ใบสั่งขาย — จุดเดียวที่�
       },
     ]);
     expect(h.erpSync.kickCreate).toHaveBeenCalledWith('so-1');
+  });
+
+  it('CD-196 บรรทัดรายเดือน → ใบสั่งขายใช้จำนวน × เดือน และบอกระยะในรายละเอียด ยอดเท่าเดิม', async () => {
+    const h = harness();
+    h.quotations.findFirst.mockResolvedValueOnce({
+      id: 'q-1',
+      quotationNo: 'QT-OSD-000001',
+      version: 1,
+      status: 'accepted',
+      netTotal: 12000,
+      lines: [
+        {
+          id: 'ql-1',
+          lineNo: 1,
+          productCode: 'MA-YEARLY',
+          description: 'MA',
+          quantity: new Prisma.Decimal(2),
+          unit: 'เครื่อง',
+          unitPrice: 500,
+          discountPct: 0,
+          lineTotal: 12000,
+          priceModel: 'monthly',
+          termMonths: 12,
+        },
+      ],
+    } as never);
+
+    await h.service.open('opportunity-1', { quotation_id: 'q-1' }, principal());
+
+    const data = firstArg<DataArgs>(h.saleOrders.create).data as Args & {
+      lines: {
+        create: {
+          quantity: Prisma.Decimal;
+          description: string;
+          lineTotal: number;
+        }[];
+      };
+    };
+    expect(data.lines.create[0].quantity.toString()).toBe('24');
+    expect(data.lines.create[0].description).toBe('MA (รายเดือน × 12 เดือน)');
+    expect(data.lines.create[0].lineTotal).toBe(12000);
   });
 
   it('CD-88 เปิดตรงจากโอกาสการขาย (ไม่มีรายการ) → not_ready ไม่ส่ง SAP', async () => {

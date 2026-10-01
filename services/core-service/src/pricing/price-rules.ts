@@ -4,6 +4,11 @@
  * whole days, `validTo` included, and an open `validTo` runs forever.
  */
 
+import { PRICE_MODELS, type PriceModel } from '../crm/quotation-math';
+
+/** CD-196 — ราคาต่อหน่วย / ราคาเหมา / ราคาต่อเดือน (same list as quotation lines). */
+export { PRICE_MODELS, type PriceModel };
+
 export interface PriceRange {
   validFrom: string;
   validTo: string | null;
@@ -47,6 +52,7 @@ export function priceOn<T extends PriceRange>(
 }
 
 export interface PriceInput {
+  priceModel?: unknown;
   productCode?: unknown;
   currency?: unknown;
   unitPrice?: unknown;
@@ -57,6 +63,7 @@ export interface PriceInput {
 
 export interface CleanPrice {
   productCode: string;
+  priceModel: PriceModel;
   currency: string;
   unitPrice: number;
   validFrom: string;
@@ -75,6 +82,14 @@ export function cleanPrice(
     typeof input.productCode === 'string' ? input.productCode.trim() : '';
   if (!productCode)
     problems.push({ field: 'product_code', reason: 'required' });
+
+  const priceModel =
+    input.priceModel === undefined || input.priceModel === null
+      ? 'unit'
+      : input.priceModel;
+  if (!PRICE_MODELS.includes(priceModel as PriceModel)) {
+    problems.push({ field: 'price_model', reason: 'invalid' });
+  }
 
   const currency =
     typeof input.currency === 'string' && input.currency.trim()
@@ -123,6 +138,7 @@ export function cleanPrice(
     ok: true,
     value: {
       productCode,
+      priceModel: priceModel as PriceModel,
       currency,
       unitPrice: Math.round((unitPrice as number) * 100) / 100,
       validFrom: input.validFrom as string,
@@ -160,6 +176,9 @@ export function startedEditProblems(
   const problems: { field: string; reason: string }[] = [];
   if (after.unitPrice !== before.unitPrice) {
     problems.push({ field: 'unit_price', reason: 'locked_after_start' });
+  }
+  if (after.priceModel !== before.priceModel) {
+    problems.push({ field: 'price_model', reason: 'locked_after_start' });
   }
   if (after.validFrom !== before.validFrom) {
     problems.push({ field: 'valid_from', reason: 'locked_after_start' });
