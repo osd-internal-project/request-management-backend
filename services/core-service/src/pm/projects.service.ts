@@ -565,6 +565,14 @@ export class ProjectsService {
     return this.detail(id, actor);
   }
 
+  /** Number and name, for messages — no access check; callers have one. */
+  async summary(id: string) {
+    return (await this.projects.findFirst({
+      where: { id },
+      select: { id: true, projectNo: true, name: true },
+    })) as { id: string; projectNo: string; name: string } | null;
+  }
+
   /**
    * For the project's own parts (milestones, …): the project if the caller
    * may see it (404 otherwise), and whether they may change its plan —

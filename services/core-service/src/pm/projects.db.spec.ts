@@ -19,6 +19,7 @@ import {
   ProjectMemberRepository,
   ProjectRepository,
   ProjectBudgetRepository,
+  ProjectChangeRequestRepository,
   ProjectProgressRepository,
   ProjectTaskFileRepository,
   ProjectTaskLinkRepository,
@@ -32,6 +33,7 @@ import { PlanService } from './plan.service';
 import { TaskWorkService } from './task-work.service';
 import { ProgressService } from './progress.service';
 import { BudgetService } from './budget.service';
+import { ChangeRequestsService } from './change-requests.service';
 import { ProjectMilestoneRepository } from './project.repositories';
 import { ContractInstallmentsService } from '../crm/contract-installments.service';
 import {
@@ -229,6 +231,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       });
       await prisma.projectTask.deleteMany({ where: { projectId } });
       await prisma.projectMilestone.deleteMany({ where: { projectId } });
+      await prisma.projectChangeRequest.deleteMany({ where: { projectId } });
       await prisma.project.deleteMany({ where: { contractId } });
       await prisma.contractInstallment.deleteMany({ where: { contractId } });
       await prisma.contractTerms.deleteMany({ where: { contractId } });
@@ -859,6 +862,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
             return Promise.resolve();
           },
         },
+        { workMayStart: () => Promise.resolve(null) } as never,
       );
       const managerNow = as(engineer, ['notification.read']);
       const crew = as(outsider, ['notification.read']);
@@ -1119,6 +1123,194 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       await expect(
         budget.saveDraft(projectId, { lines }, managerNow),
       ).rejects.toMatchObject({ code: 'CONFLICT' });
+    });
+
+    it('CD-185: a change judged on scope, time and cost; the new margin; work waits for approval; approval writes the next budget', async () => {
+      const client = prisma as never;
+      const transactions = {
+        execute: (work: (tx: unknown) => Promise<unknown>) =>
+          prisma.$transaction((tx) => work(tx)),
+      } as never;
+      const audit = { record: () => Promise.resolve() } as never;
+      let boardSays = 'pending';
+      const decided: { userId: string; approved: boolean }[] = [];
+      const changes = new ChangeRequestsService(
+        projects,
+        new ProjectChangeRequestRepository(client),
+        new ProjectBudgetRepository(client),
+        {
+          findFirst: () => Promise.resolve({ projectChangeTypeCode: 'CHG' }),
+        } as never,
+        {
+          findFirst: () => Promise.resolve({ status: boardSays }),
+          findMany: () => Promise.resolve([]),
+        } as never,
+        {
+          create: () => Promise.resolve({ id: `req-${tag}` }),
+          submit: () => Promise.resolve(),
+        } as never,
+        new CompanyMemberRepository(client),
+        {
+          changeDecided: (
+            userId: string,
+            _c: string,
+            _p: unknown,
+            change: { approved: boolean },
+          ) => {
+            decided.push({ userId, approved: change.approved });
+            return Promise.resolve();
+          },
+        } as never,
+        { on: () => undefined } as never,
+        audit,
+        transactions,
+      );
+      const plan = new PlanService(
+        projects,
+        new ProjectRepository(client),
+        new ProjectTaskRepository(client),
+        new ProjectTaskLinkRepository(client),
+        new ProjectMilestoneRepository(client),
+        new WorkCalendarRepository(client),
+        new CompanyMemberRepository(client),
+        {
+          milestoneSlipped: () => Promise.resolve(),
+          taskAssigned: () => Promise.resolve(),
+        } as never,
+        audit,
+        transactions,
+      );
+      const work = new TaskWorkService(
+        projects,
+        plan,
+        new ProjectTaskRepository(client),
+        new ProjectTaskUpdateRepository(client),
+        new ProjectTaskFileRepository(client),
+        new CompanyMemberRepository(client),
+        { taskDone: () => Promise.resolve() } as never,
+        audit,
+        transactions,
+        {} as never,
+        changes,
+      );
+      const managerNow = as(engineer, ['notification.read']);
+
+      // five more cameras, two days of training taken off, 20,000 more to pay
+      const drafted = await changes.create(
+        projectId,
+        {
+          title: 'เพิ่มกล้องชั้น 2',
+          reason: 'ลูกค้าขอเพิ่มจุดติดตั้ง',
+          scope_added: 'กล้อง 5 ตัวชั้น 2',
+          scope_removed: 'อบรมวันที่ 2-3',
+          schedule_days: 3,
+          cost_lines: [
+            {
+              category: 'material',
+              description: 'กล้องเพิ่ม',
+              quantity: 5,
+              unit_cost: 3000,
+            },
+            {
+              category: 'labor',
+              description: 'ตัดงานอบรม',
+              quantity: -2,
+              unit_cost: 2000,
+            },
+          ],
+          price_change: 20000,
+        },
+        managerNow,
+      );
+      const cr = drafted.changes.find((row) => row.id === drafted.changeId)!;
+      expect(cr).toMatchObject({
+        label: 'CR-1',
+        status: 'draft',
+        costChange: 11000,
+        impact: {
+          cost: { from: 80000, to: 91000 },
+          value: { from: 150000, to: 170000 },
+          margin: { fromPct: 46.7, toPct: 46.5 },
+        },
+      });
+
+      // its work cannot start before the board approves
+      const added = await plan.create(
+        projectId,
+        {
+          title: 'ติดตั้งกล้องชั้น 2',
+          duration_days: 2,
+          change_request_id: cr.id,
+          owner_user_id: engineer,
+        },
+        managerNow,
+      );
+      await expect(
+        work.report(
+          projectId,
+          added.taskId,
+          { status: 'in_progress' },
+          [],
+          managerNow,
+        ),
+      ).rejects.toMatchObject({ code: 'CONFLICT' });
+
+      // sent; still waiting
+      await changes.submit(projectId, cr.id, managerNow, 'Bearer t');
+      expect(
+        (await changes.list(projectId, managerNow)).changes[0],
+      ).toMatchObject({ status: 'submitted', request: { id: `req-${tag}` } });
+      await expect(
+        changes.update(projectId, cr.id, { title: 'แก้' }, managerNow),
+      ).rejects.toMatchObject({ code: 'CONFLICT' });
+
+      // approved: the next budget is written and locked, the old superseded
+      boardSays = 'approved';
+      const after = await changes.list(projectId, managerNow);
+      expect(after.changes[0]).toMatchObject({ status: 'approved' });
+      expect(after.budget).toEqual({
+        versionNo: 2,
+        total: 91000,
+        contractValue: 170000,
+      });
+      const budgets = await prisma.projectBudget.findMany({
+        where: { projectId },
+        orderBy: { versionNo: 'asc' },
+        select: { versionNo: true, status: true, changeRequestId: true },
+      });
+      expect(budgets).toEqual([
+        { versionNo: 1, status: 'superseded', changeRequestId: null },
+        { versionNo: 2, status: 'locked', changeRequestId: cr.id },
+      ]);
+      expect(decided).toEqual([{ userId: engineer, approved: true }]);
+
+      // now the work may start
+      const started = await work.report(
+        projectId,
+        added.taskId,
+        { status: 'in_progress' },
+        [],
+        managerNow,
+      );
+      expect(started.task.status).toBe('in_progress');
+
+      // a change with no effect is not sent; a draft can be withdrawn
+      const empty = await changes.create(
+        projectId,
+        { title: 'ไม่มีอะไร', reason: 'ทดสอบ' },
+        managerNow,
+      );
+      await expect(
+        changes.submit(projectId, empty.changeId, managerNow, 'Bearer t'),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+      const withdrawn = await changes.cancel(
+        projectId,
+        empty.changeId,
+        managerNow,
+      );
+      expect(
+        withdrawn.changes.find((row) => row.id === empty.changeId)?.status,
+      ).toBe('cancelled');
     });
   },
 );

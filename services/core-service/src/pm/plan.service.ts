@@ -55,6 +55,7 @@ interface TaskRow {
   startedAt: Date | null;
   doneAt: Date | null;
   milestone: { id: string; title: string; status: string } | null;
+  changeRequest: { id: string; seq: number; status: string } | null;
 }
 
 const TASK_SELECT = {
@@ -70,6 +71,7 @@ const TASK_SELECT = {
   startedAt: true,
   doneAt: true,
   milestone: { select: { id: true, title: true, status: true } },
+  changeRequest: { select: { id: true, seq: true, status: true } },
 } as const;
 
 /**
@@ -148,6 +150,8 @@ export class PlanService {
             doneAt: row.doneAt,
             summary: summaries.has(row.id),
             milestone: row.milestone,
+            // CD-185 — work a change adds starts once it is approved
+            changeRequest: row.changeRequest,
             start: dates?.start ?? null,
             finish: dates?.finish ?? null,
             floatDays: dates?.floatDays ?? null,
@@ -203,6 +207,7 @@ export class PlanService {
             ownerUserId: dto.owner_user_id ?? null,
             durationDays: dto.duration_days ?? 1,
             milestoneId: dto.milestone_id ?? null,
+            changeRequestId: dto.change_request_id ?? null,
             createdBy: actor.userId,
           },
           select: { id: true },
@@ -294,6 +299,9 @@ export class PlanService {
               : {}),
             ...(dto.milestone_id !== undefined
               ? { milestoneId: dto.milestone_id }
+              : {}),
+            ...(dto.change_request_id !== undefined
+              ? { changeRequestId: dto.change_request_id }
               : {}),
             ...(repositioning ? { parentId, seq: dto.position } : {}),
             updatedBy: actor.userId,
@@ -850,6 +858,26 @@ export class PlanService {
         throw new AppError('VALIDATION_FAILED', 'ไม่พบหมุดหมายนี้ในโครงการ', [
           { field: 'milestone_id', reason: 'not_found' },
         ]);
+      }
+    }
+    if (dto.change_request_id) {
+      const found = await this.projectRows.count({
+        where: {
+          id: projectId,
+          changeRequests: {
+            some: {
+              id: dto.change_request_id,
+              status: { in: ['draft', 'submitted', 'approved'] },
+            },
+          },
+        },
+      });
+      if (!found) {
+        throw new AppError(
+          'VALIDATION_FAILED',
+          'ไม่พบคำขอเปลี่ยนแปลงนี้ในโครงการ (หรือถูกปฏิเสธ/ยกเลิกแล้ว)',
+          [{ field: 'change_request_id', reason: 'not_found' }],
+        );
       }
     }
   }

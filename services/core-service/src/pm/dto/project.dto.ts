@@ -22,6 +22,7 @@ import { MAX_CRITERIA, MAX_CRITERION_LENGTH } from '../milestone-rules';
 import { MAX_DURATION_DAYS } from '../plan-rules';
 import { MAX_NOTE_LENGTH, WORK_STATUSES } from '../task-rules';
 import { BUDGET_CATEGORIES, MAX_BUDGET_LINES } from '../budget-rules';
+import { MAX_CHANGE_LINES } from '../change-rules';
 
 /** CD-175 — one person on the project team. */
 export class ProjectMemberDto {
@@ -239,6 +240,14 @@ export class SaveTaskDto {
   @IsOptional()
   @IsString()
   milestone_id?: string | null;
+
+  @ApiPropertyOptional({
+    description: 'CD-185 — งานที่มาจากคำขอเปลี่ยนแปลง (เริ่มได้เมื่ออนุมัติ)',
+    nullable: true,
+  })
+  @IsOptional()
+  @IsString()
+  change_request_id?: string | null;
 }
 
 export class PredecessorDto {
@@ -371,4 +380,51 @@ export class SaveBudgetDto {
   @IsString()
   @MaxLength(2000)
   note?: string;
+}
+
+/** CD-185 — a change request; everything optional on edit. */
+export class SaveChangeRequestDto {
+  @ApiPropertyOptional({ example: 'เพิ่มกล้องชั้น 2 อีก 5 ตัว' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  title?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  reason?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  scope_added?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  scope_removed?: string;
+
+  @ApiPropertyOptional({ description: 'วันทำงานที่เพิ่ม (ติดลบ = ลดลง)' })
+  @IsOptional()
+  @IsInt()
+  @Min(-3650)
+  @Max(3650)
+  schedule_days?: number;
+
+  @ApiPropertyOptional({ type: [BudgetLineDto] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(MAX_CHANGE_LINES)
+  @ValidateNested({ each: true })
+  @Type(() => BudgetLineDto)
+  cost_lines?: BudgetLineDto[];
+
+  @ApiPropertyOptional({ description: 'ราคาที่ลูกค้าจ่ายเพิ่ม (ติดลบ = ลด)' })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  price_change?: number;
 }

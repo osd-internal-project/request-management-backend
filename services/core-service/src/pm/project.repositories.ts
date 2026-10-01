@@ -147,3 +147,17 @@ export class ProjectBudgetRepository extends BaseRepository<
     return client.projectBudget;
   }
 }
+
+/** CD-185 คำขอเปลี่ยนแปลง. */
+@Injectable()
+export class ProjectChangeRequestRepository extends BaseRepository<
+  PrismaService['projectChangeRequest']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.projectChangeRequest;
+  }
+}

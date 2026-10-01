@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   Param,
   ParseIntPipe,
   Patch,
@@ -32,6 +33,7 @@ import {
   SavePredecessorsDto,
   ReportProgressDto,
   SaveBudgetDto,
+  SaveChangeRequestDto,
   SaveTaskDto,
   TaskReportDto,
   SaveProjectMembersDto,
@@ -42,6 +44,7 @@ import { MAX_EVIDENCE_BYTES, MilestonesService } from './milestones.service';
 import { PlanService } from './plan.service';
 import { ProgressService } from './progress.service';
 import { BudgetService } from './budget.service';
+import { ChangeRequestsService } from './change-requests.service';
 import { MAX_TASK_FILE_BYTES, TaskWorkService } from './task-work.service';
 import { MAX_FILES_PER_UPDATE } from './task-rules';
 import { ProjectsService } from './projects.service';
@@ -62,6 +65,7 @@ export class ProjectsController {
     private readonly work: TaskWorkService,
     private readonly progress: ProgressService,
     private readonly budget: BudgetService,
+    private readonly changes: ChangeRequestsService,
   ) {}
 
   @ApiOperation({ summary: 'รายการโครงการ (ทั้งบริษัท หรือของฉัน)' })
@@ -383,6 +387,64 @@ export class ProjectsController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.budget.lock(id, principal);
+  }
+
+  // --- CD-185 change requests -------------------------------------------------------
+
+  @ApiOperation({ summary: 'คำขอเปลี่ยนแปลงของโครงการ พร้อมผลกระทบ' })
+  @Get(':id/changes')
+  @Permissions('notification.read')
+  listChanges(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.changes.list(id, principal);
+  }
+
+  @ApiOperation({ summary: 'ร่างคำขอเปลี่ยนแปลง' })
+  @Post(':id/changes')
+  @Permissions('notification.read')
+  createChange(
+    @Param('id') id: string,
+    @Body() dto: SaveChangeRequestDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.changes.create(id, dto, principal);
+  }
+
+  @ApiOperation({ summary: 'แก้ร่างคำขอเปลี่ยนแปลง' })
+  @Patch(':id/changes/:changeId')
+  @Permissions('notification.read')
+  updateChange(
+    @Param('id') id: string,
+    @Param('changeId') changeId: string,
+    @Body() dto: SaveChangeRequestDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.changes.update(id, changeId, dto, principal);
+  }
+
+  @ApiOperation({ summary: 'ส่งคำขอเปลี่ยนแปลงให้คณะกรรมการพิจารณา' })
+  @Post(':id/changes/:changeId/submit')
+  @Permissions('notification.read')
+  submitChange(
+    @Param('id') id: string,
+    @Param('changeId') changeId: string,
+    @CurrentPrincipal() principal: Principal,
+    @Headers('authorization') authorization: string,
+  ) {
+    return this.changes.submit(id, changeId, principal, authorization);
+  }
+
+  @ApiOperation({ summary: 'ยกเลิกร่างคำขอเปลี่ยนแปลง' })
+  @Post(':id/changes/:changeId/cancel')
+  @Permissions('notification.read')
+  cancelChange(
+    @Param('id') id: string,
+    @Param('changeId') changeId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.changes.cancel(id, changeId, principal);
   }
 
   // --- CD-188 progress --------------------------------------------------------------

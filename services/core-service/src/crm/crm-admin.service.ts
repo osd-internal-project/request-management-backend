@@ -208,6 +208,7 @@ export class CrmAdminService {
         liabilityApprovalRequestTypeCode: null,
         legalRiskOpinionTypeCode: null,
         contractApprovalTypeCode: null,
+        projectChangeTypeCode: null,
         solutionRequestTypeCode: null,
         solutionApprovalTypeCode: null,
         demoRequestTypeCode: null,
@@ -271,6 +272,7 @@ export class CrmAdminService {
               legalRiskOpinionTypeCode:
                 dto.legal_risk_opinion_type_code || null,
               contractApprovalTypeCode: dto.contract_approval_type_code || null,
+              projectChangeTypeCode: dto.project_change_type_code || null,
               solutionRequestTypeCode: dto.solution_request_type_code || null,
               solutionApprovalTypeCode: dto.solution_approval_type_code || null,
               demoRequestTypeCode: dto.demo_request_type_code || null,
@@ -312,6 +314,10 @@ export class CrmAdminService {
                 dto.contract_approval_type_code === undefined
                   ? undefined
                   : dto.contract_approval_type_code || null,
+              projectChangeTypeCode:
+                dto.project_change_type_code === undefined
+                  ? undefined
+                  : dto.project_change_type_code || null,
               solutionRequestTypeCode:
                 dto.solution_request_type_code === undefined
                   ? undefined

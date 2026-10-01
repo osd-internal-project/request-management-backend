@@ -265,6 +265,18 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
     },
   },
   {
+    eventType: 'pm.change.decided',
+    label: 'ผลพิจารณาคำขอเปลี่ยนแปลงโครงการ (ถึงผู้ยื่น)',
+    title: 'โครงการ {{project_no}}: {{change_no}} {{result}}',
+    body: '{{title}}',
+    variables: {
+      project_no: { label: 'เลขที่โครงการ', sample: 'PRJ-OSD-000012' },
+      change_no: { label: 'เลขที่คำขอเปลี่ยนแปลง', sample: 'CR-2' },
+      result: { label: 'ผล', sample: 'อนุมัติแล้ว' },
+      title: { label: 'เรื่อง', sample: 'เพิ่มกล้องชั้น 2' },
+    },
+  },
+  {
     eventType: 'pm.task.assigned',
     label: 'ได้รับมอบหมายงานในโครงการ (ถึงผู้รับผิดชอบงาน)',
     title: 'งานใหม่: {{task}}',

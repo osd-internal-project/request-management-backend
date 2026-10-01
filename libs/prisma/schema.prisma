@@ -2410,6 +2410,10 @@ model CrmCompanyConfig {
   /// CD-159 — the request type that approves a contract draft version; its
   /// matrix may route on `contract_value` and `risk_level`. NULL = not set.
   contractApprovalTypeCode         String?
+  /// CD-185 — the request type a project change request goes to the change
+  /// board as; its matrix may route on `cost_change`, `price_change` and
+  /// `margin_pct`. NULL = not set.
+  projectChangeTypeCode            String?
 
   /// CD-130: ประเภทคำขอ "ขอ Solution และประเมินต้นทุน" (Sales → Pre-Sales) — การ์ด Solution
   /// บนหน้าดีลยื่นประเภทนี้. ช่องบังคับของฟอร์มประเภทนี้คือรายการตรวจความครบ (จุดส่งต่อที่ 2).
@@ -4908,6 +4912,8 @@ model Project {
   progressReports ProjectProgressReport[]
   /// CD-179 — งบอ้างอิง (ทุกฉบับ).
   budgets         ProjectBudget[]
+  /// CD-185 — คำขอเปลี่ยนแปลง.
+  changeRequests  ProjectChangeRequest[]
 
   @@unique([companyId, projectNo])
   @@index([companyId, status])
@@ -5024,6 +5030,9 @@ model ProjectTask {
   milestoneId  String?
   /// CD-181 — open · in_progress · done · cancelled.
   status       String    @default("open")
+  /// CD-185 — work that a change request adds: it may not start until the
+  /// change is approved.
+  changeRequestId String?
   /// CD-181 — when the work actually started and finished.
   startedAt    DateTime?
   doneAt       DateTime?
@@ -5039,6 +5048,7 @@ model ProjectTask {
   milestone    ProjectMilestone? @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
   predecessors ProjectTaskLink[] @relation("LinkSuccessor")
   successors   ProjectTaskLink[] @relation("LinkPredecessor")
+  changeRequest ProjectChangeRequest? @relation(fields: [changeRequestId], references: [id], onDelete: SetNull)
   /// CD-181 — what was reported from the field, and the files with it.
   updates      ProjectTaskUpdate[]
   files        ProjectTaskFile[]
@@ -5181,4 +5191,50 @@ model ProjectBudget {
 
   @@unique([projectId, versionNo])
   @@map("project_budgets")
+}
+
+/// CD-185 — a change to what was sold: its effect on scope (added and
+/// removed), time (working days) and cost (budget lines added or taken
+/// away), and the price change to the customer; the system works out the
+/// new budget, value and margin. It goes to the change board as a request
+/// (CrmConfig.projectChangeTypeCode); approved, it writes the next budget
+/// version, and the work it adds may start.
+model ProjectChangeRequest {
+  id              String    @id @default(uuid())
+  companyId       String
+  projectId       String
+  /// CR-1, CR-2 … within the project.
+  seq             Int
+  title           String
+  reason          String
+  scopeAdded      String?
+  scopeRemoved    String?
+  /// Working days the change adds (negative: saves).
+  scheduleDays    Int       @default(0)
+  /// [{ category, code, description, quantity, unit, unitCost, amount }] —
+  /// a negative quantity takes cost away.
+  costLines       Json      @default("[]")
+  costChange      Decimal   @default(0) @db.Decimal(14, 2)
+  /// What the customer pays more (negative: less).
+  priceChange     Decimal   @default(0) @db.Decimal(14, 2)
+  /// draft · submitted · approved · rejected · cancelled
+  status          String    @default("draft")
+  requestId       String?
+  error           String?
+  submittedAt     DateTime?
+  submittedBy     String?
+  decidedAt       DateTime?
+  /// The budget version the approval wrote.
+  budgetId        String?
+  createdAt       DateTime  @default(now())
+  createdBy       String
+  updatedAt       DateTime  @updatedAt
+  updatedBy       String?
+
+  project Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks   ProjectTask[]
+
+  @@unique([projectId, seq])
+  @@index([requestId])
+  @@map("project_change_requests")
 }

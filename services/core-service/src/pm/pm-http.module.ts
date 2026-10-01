@@ -11,6 +11,7 @@ import {
 import { TaskWorkService } from './task-work.service';
 import { ProgressService } from './progress.service';
 import { BudgetService } from './budget.service';
+import { ChangeRequestsService } from './change-requests.service';
 
 /** The screen-facing routes of {@link PmModule}. */
 @Module({
@@ -30,6 +31,7 @@ import { BudgetService } from './budget.service';
     TaskWorkService,
     ProgressService,
     BudgetService,
+    ChangeRequestsService,
   ],
 })
 export class PmHttpModule {}

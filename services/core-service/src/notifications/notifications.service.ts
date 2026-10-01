@@ -585,6 +585,28 @@ export class NotificationsService {
     });
   }
 
+  /** CD-185 — the change board decided a change request. */
+  async changeDecided(
+    userId: string,
+    companyId: string,
+    project: { id: string; projectNo: string },
+    change: { seq: number; title: string; approved: boolean },
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'pm.change.decided',
+      values: {
+        project_no: project.projectNo,
+        change_no: `CR-${change.seq}`,
+        result: change.approved ? 'อนุมัติแล้ว' : 'ไม่อนุมัติ',
+        title: change.title,
+      },
+      resourceType: 'project',
+      resourceId: project.id,
+    });
+  }
+
   /** CD-181 — a task was handed to someone. */
   async taskAssigned(
     userId: string,

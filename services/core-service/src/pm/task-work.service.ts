@@ -14,6 +14,7 @@ import type { ObjectStorage } from '@request-management/share';
 import { CompanyMemberRepository } from '../access/company-member.repository';
 import { NotificationsService } from '../notifications/notifications.service';
 import { safeFileName } from '../requests/attachments.service';
+import { ChangeRequestsService } from './change-requests.service';
 import { PlanService } from './plan.service';
 import {
   ProjectTaskFileRepository,
@@ -57,6 +58,7 @@ interface TaskRow {
   status: string;
   startedAt: Date | null;
   doneAt: Date | null;
+  changeRequestId: string | null;
   _count: { children: number };
 }
 
@@ -84,6 +86,7 @@ export class TaskWorkService {
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
+    private readonly changes: ChangeRequestsService,
   ) {}
 
   /** The tasks handed to me that are still to do, soonest due first. */
@@ -292,6 +295,11 @@ export class TaskWorkService {
       to && (WORK_STATUSES as readonly string[]).includes(to)
         ? statusStamps(task, to as WorkStatus, now, actor.userId)
         : null;
+    // CD-185 — work a change adds may not start before the change is approved
+    if (stamps && stamps.status !== 'open') {
+      const blocked = await this.changes.workMayStart(task.changeRequestId);
+      if (blocked) throw new AppError('CONFLICT', blocked);
+    }
 
     // bytes first, rows second — like request attachments
     const stored: {
@@ -444,6 +452,7 @@ export class TaskWorkService {
         status: true,
         startedAt: true,
         doneAt: true,
+        changeRequestId: true,
         _count: {
           select: { children: { where: { status: { not: 'cancelled' } } } },
         },

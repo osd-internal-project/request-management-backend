@@ -744,6 +744,15 @@ export class UpdateCrmConfigDto {
   contract_approval_type_code?: string;
 
   /**
+   * CD-185: รหัสประเภทคำขอ "ขอเปลี่ยนแปลงขอบเขตงาน" ของโครงการ — form มี cost_change,
+   * price_change และ margin_pct ให้ตารางอำนาจอนุมัติตั้งเงื่อนไขได้. ส่ง `""` = ล้าง.
+   */
+  @IsOptional()
+  @IsString()
+  @Matches(/^([A-Z0-9_-]{1,20})?$/)
+  project_change_type_code?: string;
+
+  /**
    * CD-130: รหัสประเภทคำขอ "ขอ Solution และประเมินต้นทุน" (Sales → Pre-Sales).
    * ส่ง `""` = ล้าง (หน้าดีลไม่แสดงการ์ด Solution).
    */

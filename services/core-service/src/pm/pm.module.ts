@@ -18,6 +18,7 @@ import {
   ProjectTaskUpdateRepository,
   ProjectProgressRepository,
   ProjectBudgetRepository,
+  ProjectChangeRequestRepository,
   WorkCalendarRepository,
 } from './project.repositories';
 
@@ -44,6 +45,7 @@ import {
     ProjectTaskFileRepository,
     ProjectProgressRepository,
     ProjectBudgetRepository,
+    ProjectChangeRequestRepository,
     WorkCalendarRepository,
     CustomerContractRepository,
     ContractInstallmentRepository,
@@ -53,6 +55,8 @@ import {
   ],
   exports: [
     AccessModule,
+    // CD-185 — requests, request rows and the CRM settings, for change requests
+    PresalesModule,
     NotificationsModule,
     ProjectsService,
     ProjectRepository,
@@ -64,6 +68,7 @@ import {
     ProjectTaskFileRepository,
     ProjectProgressRepository,
     ProjectBudgetRepository,
+    ProjectChangeRequestRepository,
     WorkCalendarRepository,
     ContractInstallmentRepository,
     PrismaTransactionService,
