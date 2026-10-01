@@ -577,6 +577,21 @@ export class OpportunitiesController {
     return this.quotations.createForOpportunity(id, dto, principal);
   }
 
+  /** CD-199 — margin ของดีล: ใบเสนอราคาเวอร์ชันล่าสุดที่ยังมีผลทุกใบรวมกัน. */
+  @ApiOperation({
+    summary:
+      'CD-199 margin ของดีล — รวมใบเสนอราคาเวอร์ชันล่าสุดที่ยังมีผล (ต้นทุน/margin ถูกปกปิดตามสิทธิ์)',
+  })
+  @Get(':id/margin')
+  @Permissions('crm.sales.read')
+  @SensitiveResource('quotation')
+  dealMargin(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.quotations.dealMarginOf(id, principal);
+  }
+
   /** ปิดแพ้ — เหตุผลมาตรฐานบังคับ (spec CRM). */
   @ApiOperation({
     summary: 'ปิดแพ้พร้อมเหตุผลมาตรฐาน',

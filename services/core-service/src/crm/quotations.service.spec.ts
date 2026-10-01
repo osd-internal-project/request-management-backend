@@ -707,3 +707,33 @@ describe('CD-198 ที่มาของต้นทุนบนบรรทั
     ]);
   });
 });
+
+describe('CD-199 margin ของดีล', () => {
+  it('รวมเวอร์ชันล่าสุดที่ยังมีผล พร้อมเกณฑ์ margin ของบริษัท', async () => {
+    const { service, quotations } = harness({ dealCustomerId: null });
+    quotations.findMany.mockResolvedValueOnce([
+      {
+        id: 'q1',
+        quotationNo: 'QT-1',
+        version: 2,
+        status: 'sent',
+        validUntil: futureDate(),
+        netTotal: D(10000),
+        costTotal: D(8000),
+      },
+      {
+        id: 'q0',
+        quotationNo: 'QT-1',
+        version: 1,
+        status: 'superseded',
+        validUntil: futureDate(),
+        netTotal: D(1),
+        costTotal: D(1),
+      },
+    ] as never);
+    const result = await service.dealMarginOf('opp-1', principal());
+    expect(result.quotations.map((row) => row.id)).toEqual(['q1']);
+    expect(result.marginPct?.toFixed(2)).toBe('20.00');
+    expect(result.minMarginPct).toBe(15);
+  });
+});

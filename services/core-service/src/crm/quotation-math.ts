@@ -195,3 +195,54 @@ export function monthlyRecurring(
       new Decimal(0),
     );
 }
+
+/** CD-199 — statuses in which a quotation still stands for its deal. */
+const STANDING = ['draft', 'pending_approval', 'approved', 'sent', 'accepted'];
+
+export interface DealQuotation {
+  id: string;
+  quotationNo: string;
+  version: number;
+  status: string;
+  validUntil: Date | null;
+  netTotal: Prisma.Decimal | number | string;
+  costTotal: Prisma.Decimal | number | string;
+}
+
+/**
+ * CD-199 — the deal's margin: for every quotation number its latest version
+ * that still stands — not cancelled, declined or superseded, and not past
+ * its validity unless the customer already accepted it. Revenue and cost
+ * are summed in decimals; the percent is null with no revenue.
+ */
+export function dealMargin<T extends DealQuotation>(
+  quotations: readonly T[],
+  now: Date = new Date(),
+) {
+  const latest = new Map<string, T>();
+  for (const row of quotations) {
+    const seen = latest.get(row.quotationNo);
+    if (!seen || row.version > seen.version) latest.set(row.quotationNo, row);
+  }
+  const counted = [...latest.values()].filter(
+    (row) =>
+      STANDING.includes(row.status) &&
+      (row.status === 'accepted' || !quotationExpired(row.validUntil, now)),
+  );
+  const revenue = counted.reduce(
+    (sum, row) => sum.plus(row.netTotal),
+    new Decimal(0),
+  );
+  const cost = counted.reduce(
+    (sum, row) => sum.plus(row.costTotal),
+    new Decimal(0),
+  );
+  const margin = revenue.minus(cost);
+  return {
+    quotations: counted,
+    netTotal: revenue,
+    costTotal: cost,
+    marginAmount: margin,
+    marginPct: revenue.gt(0) ? money(margin.div(revenue).mul(100)) : null,
+  };
+}

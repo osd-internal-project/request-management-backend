@@ -6268,6 +6268,48 @@
         "x-sensitive-resource": "quotation"
       }
     },
+    "/api/v1/opportunities/{id}/margin": {
+      "get": {
+        "operationId": "OpportunitiesController_dealMargin",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-199 margin ของดีล — รวมใบเสนอราคาเวอร์ชันล่าสุดที่ยังมีผล (ต้นทุน/margin ถูกปกปิดตามสิทธิ์)",
+        "tags": [
+          "opportunities"
+        ],
+        "x-permission": [
+          "crm.sales.read"
+        ],
+        "x-sensitive-resource": "quotation"
+      }
+    },
     "/api/v1/opportunities/{id}/lose": {
       "post": {
         "description": "reason_code ต้องมีอยู่จริงและยัง active. ปิดแล้วเปิดใหม่ไม่ได้",
@@ -13879,7 +13921,8 @@
         "x-permission": [
           "pricing.price.manage",
           "crm.sales.manage"
-        ]
+        ],
+        "x-sensitive-resource": "quotation"
       }
     },
     "/api/v1/presales/solutions/{id}/quotations": {

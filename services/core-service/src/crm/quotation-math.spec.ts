@@ -1,5 +1,6 @@
 import {
   computeQuotationTotals,
+  dealMargin,
   defaultValidUntil,
   marginNeedsApproval,
   monthlyRecurring,
@@ -161,5 +162,75 @@ describe('CD-196 รูปแบบราคา', () => {
         { priceModel: 'unit', termMonths: null, lineTotal: '3000.00' },
       ]).toFixed(2),
     ).toBe('900.00');
+  });
+});
+
+describe('CD-199 margin ของดีล', () => {
+  const now = new Date('2026-10-01T05:00:00Z');
+  const future = new Date('2026-12-31T00:00:00Z');
+  const past = new Date('2026-09-01T00:00:00Z');
+  const row = (over: Record<string, unknown>) => ({
+    id: 'q',
+    quotationNo: 'QT-1',
+    version: 1,
+    status: 'draft',
+    validUntil: future,
+    netTotal: 0,
+    costTotal: 0,
+    ...over,
+  });
+
+  it('นับเวอร์ชันล่าสุดของแต่ละเลขที่ยังมีผล — ไม่นับที่ยกเลิก/ปฏิเสธ/หมดอายุ', () => {
+    const result = dealMargin(
+      [
+        row({
+          id: 'a1',
+          version: 1,
+          status: 'superseded',
+          netTotal: 999,
+          costTotal: 1,
+        }),
+        row({
+          id: 'a2',
+          version: 2,
+          status: 'sent',
+          netTotal: 10000,
+          costTotal: 7000,
+        }),
+        row({
+          id: 'b1',
+          quotationNo: 'QT-2',
+          status: 'accepted',
+          validUntil: past,
+          netTotal: 5000,
+          costTotal: 4000,
+        }),
+        row({
+          id: 'c1',
+          quotationNo: 'QT-3',
+          status: 'cancelled',
+          netTotal: 8000,
+          costTotal: 1,
+        }),
+        row({
+          id: 'd1',
+          quotationNo: 'QT-4',
+          status: 'sent',
+          validUntil: past,
+          netTotal: 3000,
+          costTotal: 1,
+        }),
+      ],
+      now,
+    );
+    expect(result.quotations.map((q) => q.id)).toEqual(['a2', 'b1']);
+    expect(result.netTotal.toFixed(2)).toBe('15000.00');
+    expect(result.costTotal.toFixed(2)).toBe('11000.00');
+    expect(result.marginAmount.toFixed(2)).toBe('4000.00');
+    expect(result.marginPct?.toFixed(2)).toBe('26.67');
+  });
+
+  it('ไม่มีรายได้ = margin % ว่าง', () => {
+    expect(dealMargin([], now).marginPct).toBeNull();
   });
 });

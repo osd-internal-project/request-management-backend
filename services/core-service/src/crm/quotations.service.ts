@@ -27,6 +27,7 @@ import { RunNumberClient } from '../run-number/run-number.client';
 import { CustomerTimelineService } from './customer-timeline.service';
 import {
   computeQuotationTotals,
+  dealMargin,
   defaultValidUntil,
   marginNeedsApproval,
   monthlyRecurring,
@@ -218,6 +219,53 @@ export class QuotationsService {
       ),
       versions,
       approvalRequest,
+    };
+  }
+
+  /**
+   * CD-199 — the deal's margin over the latest standing version of each of
+   * its quotations, with the company minimum to compare against. Cost and
+   * margin are masked by the route like any quotation (SCOPE-04).
+   */
+  async dealMarginOf(opportunityId: string, actor: Principal) {
+    const deal = (await this.opportunities.findFirst({
+      where: {
+        id: opportunityId,
+        AND: [visibleSalesWhere(salesAccessSubject(actor))],
+      },
+      select: { id: true, companyId: true, currency: true },
+    })) as { id: string; companyId: string; currency: string } | null;
+    // SCOPE-03: out of reach answers 404.
+    if (!deal) throw new AppError('NOT_FOUND', 'ไม่พบโอกาสการขายที่ระบุ');
+    const rows = (await this.quotations.findMany({
+      where: { opportunityId: deal.id, companyId: deal.companyId },
+      select: {
+        id: true,
+        quotationNo: true,
+        version: true,
+        status: true,
+        validUntil: true,
+        netTotal: true,
+        costTotal: true,
+        marginAmount: true,
+        marginPct: true,
+      },
+    })) as {
+      id: string;
+      quotationNo: string;
+      version: number;
+      status: string;
+      validUntil: Date | null;
+      netTotal: Prisma.Decimal;
+      costTotal: Prisma.Decimal;
+      marginAmount: Prisma.Decimal;
+      marginPct: Prisma.Decimal | null;
+    }[];
+    const config = await this.configOf(deal.companyId);
+    return {
+      ...dealMargin(rows),
+      currency: deal.currency,
+      minMarginPct: config.minMarginPct,
     };
   }
 

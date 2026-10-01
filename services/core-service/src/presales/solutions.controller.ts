@@ -24,6 +24,7 @@ import {
   Authenticated,
   CurrentPrincipal,
   Permissions,
+  SensitiveResource,
 } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import {
@@ -761,6 +762,8 @@ export class SolutionsController {
   })
   @Post('presales/solutions/:id/versions/:no/quotation')
   @Permissions('pricing.price.manage', 'crm.sales.manage')
+  // The quotation it answers with carries cost and margin — mask as /quotations.
+  @SensitiveResource('quotation')
   createQuotation(
     @Param('id') id: string,
     @Param('no', ParseIntPipe) no: number,
