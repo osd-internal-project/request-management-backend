@@ -4,7 +4,11 @@ import { StorageModule, type StorageOptions } from '@request-management/share';
 import { MilestonesService } from './milestones.service';
 import { PlanService } from './plan.service';
 import { PmModule } from './pm.module';
-import { ProjectsController } from './projects.controller';
+import {
+  ProjectsController,
+  ProjectTasksController,
+} from './projects.controller';
+import { TaskWorkService } from './task-work.service';
 
 /** The screen-facing routes of {@link PmModule}. */
 @Module({
@@ -17,7 +21,7 @@ import { ProjectsController } from './projects.controller';
         config.get<StorageOptions>('storage'),
     }),
   ],
-  controllers: [ProjectsController],
-  providers: [MilestonesService, PlanService],
+  controllers: [ProjectsController, ProjectTasksController],
+  providers: [MilestonesService, PlanService, TaskWorkService],
 })
 export class PmHttpModule {}

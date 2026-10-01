@@ -12,8 +12,10 @@ import {
   ProjectMemberRepository,
   ProjectMilestoneRepository,
   ProjectRepository,
+  ProjectTaskFileRepository,
   ProjectTaskLinkRepository,
   ProjectTaskRepository,
+  ProjectTaskUpdateRepository,
   WorkCalendarRepository,
 } from './project.repositories';
 
@@ -36,6 +38,8 @@ import {
     ProjectMilestoneRepository,
     ProjectTaskRepository,
     ProjectTaskLinkRepository,
+    ProjectTaskUpdateRepository,
+    ProjectTaskFileRepository,
     WorkCalendarRepository,
     CustomerContractRepository,
     ContractInstallmentRepository,
@@ -52,6 +56,8 @@ import {
     ProjectMilestoneRepository,
     ProjectTaskRepository,
     ProjectTaskLinkRepository,
+    ProjectTaskUpdateRepository,
+    ProjectTaskFileRepository,
     WorkCalendarRepository,
     ContractInstallmentRepository,
     PrismaTransactionService,

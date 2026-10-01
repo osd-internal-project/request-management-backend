@@ -18,13 +18,16 @@ import {
 import {
   ProjectMemberRepository,
   ProjectRepository,
+  ProjectTaskFileRepository,
   ProjectTaskLinkRepository,
   ProjectTaskRepository,
+  ProjectTaskUpdateRepository,
   WorkCalendarRepository,
 } from './project.repositories';
 import { ProjectsService } from './projects.service';
 import { MilestonesService } from './milestones.service';
 import { PlanService } from './plan.service';
+import { TaskWorkService } from './task-work.service';
 import { ProjectMilestoneRepository } from './project.repositories';
 import { ContractInstallmentsService } from '../crm/contract-installments.service';
 import {
@@ -792,6 +795,164 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         'สำรวจหน้างาน',
         'ติดตั้ง',
       ]);
+    });
+
+    it('CD-181: the owner sees the task among their own, reports with photos, and the manager hears it is done', async () => {
+      const client = prisma as never;
+      const transactions = {
+        execute: (work: (tx: unknown) => Promise<unknown>) =>
+          prisma.$transaction((tx) => work(tx)),
+      } as never;
+      const heard: { kind: string; userId: string; task: string }[] = [];
+      const notifications = {
+        milestoneSlipped: () => Promise.resolve(),
+        taskAssigned: (
+          userId: string,
+          _c: string,
+          _p: unknown,
+          task: string,
+        ) => {
+          heard.push({ kind: 'assigned', userId, task });
+          return Promise.resolve();
+        },
+        taskDone: (userId: string, _c: string, _p: unknown, task: string) => {
+          heard.push({ kind: 'done', userId, task });
+          return Promise.resolve();
+        },
+      } as never;
+      const audit = { record: () => Promise.resolve() } as never;
+      const plan = new PlanService(
+        projects,
+        new ProjectRepository(client),
+        new ProjectTaskRepository(client),
+        new ProjectTaskLinkRepository(client),
+        new ProjectMilestoneRepository(client),
+        new WorkCalendarRepository(client),
+        new CompanyMemberRepository(client),
+        notifications,
+        audit,
+        transactions,
+      );
+      const work = new TaskWorkService(
+        projects,
+        plan,
+        new ProjectTaskRepository(client),
+        new ProjectTaskUpdateRepository(client),
+        new ProjectTaskFileRepository(client),
+        new CompanyMemberRepository(client),
+        notifications,
+        audit,
+        transactions,
+        {
+          put: (key: string, body: Buffer) => {
+            stored.set(key, body);
+            return Promise.resolve();
+          },
+          get: (key: string) =>
+            Promise.resolve(Readable.from([stored.get(key)!])),
+          remove: (key: string) => {
+            stored.delete(key);
+            return Promise.resolve();
+          },
+        },
+      );
+      const managerNow = as(engineer, ['notification.read']);
+      const crew = as(outsider, ['notification.read']);
+      const install = (await plan.view(projectId, managerNow)).tasks.find(
+        (row) => row.title === 'ติดตั้ง',
+      )!;
+
+      // handed to the crew: they hear of it and find it among their own
+      await plan.update(
+        projectId,
+        install.id,
+        { owner_user_id: outsider },
+        managerNow,
+      );
+      expect(heard).toEqual([
+        { kind: 'assigned', userId: outsider, task: 'ติดตั้ง' },
+      ]);
+      const mine = await work.mine(crew);
+      expect(mine).toEqual([
+        expect.objectContaining({
+          id: install.id,
+          title: 'ติดตั้ง',
+          status: 'open',
+          finish: install.finish,
+          project: expect.objectContaining({
+            id: projectId,
+          }) as unknown,
+        }),
+      ]);
+
+      // nothing to report is refused; someone not on it cannot report
+      await expect(
+        work.report(projectId, install.id, {}, [], crew),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+      await expect(
+        work.report(
+          projectId,
+          install.id,
+          { note: 'แอบ' },
+          [],
+          as(pm, ['notification.read']),
+        ),
+      ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+
+      // started, with a photo from site
+      const started = await work.report(
+        projectId,
+        install.id,
+        { note: 'เริ่มเดินสายชั้น 1', status: 'in_progress' },
+        [
+          {
+            originalname: 'site.jpg',
+            mimetype: 'image/jpeg',
+            size: 3,
+            buffer: Buffer.from('jpg'),
+          },
+        ],
+        crew,
+        new Date('2026-10-06T02:00:00Z'),
+      );
+      expect(started.task).toMatchObject({ status: 'in_progress' });
+      expect(started.task.startedAt).toEqual(new Date('2026-10-06T02:00:00Z'));
+      expect(started.files.map((row) => row.fileName)).toEqual(['site.jpg']);
+      expect(started.updates[0]).toMatchObject({
+        note: 'เริ่มเดินสายชั้น 1',
+        statusFrom: 'open',
+        statusTo: 'in_progress',
+        files: [started.files[0].id],
+      });
+      const photo = await work.download(
+        projectId,
+        install.id,
+        started.files[0].id,
+        managerNow,
+      );
+      expect(photo.fileName).toBe('site.jpg');
+
+      // done: the manager hears; it leaves the crew's list
+      const done = await work.report(
+        projectId,
+        install.id,
+        { note: 'ติดตั้งครบ', status: 'done' },
+        [],
+        crew,
+        new Date('2026-10-08T09:00:00Z'),
+      );
+      expect(done.task).toMatchObject({ status: 'done' });
+      expect(heard).toContainEqual({
+        kind: 'done',
+        userId: engineer,
+        task: 'ติดตั้ง',
+      });
+      expect(await work.mine(crew)).toEqual([]);
+      expect(
+        (await plan.view(projectId, managerNow)).tasks.find(
+          (row) => row.id === install.id,
+        ),
+      ).toMatchObject({ status: 'done' });
     });
   },
 );

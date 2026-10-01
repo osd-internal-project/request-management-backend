@@ -585,6 +585,45 @@ export class NotificationsService {
     });
   }
 
+  /** CD-181 — a task was handed to someone. */
+  async taskAssigned(
+    userId: string,
+    companyId: string,
+    project: { id: string; projectNo: string; name: string },
+    task: string,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'pm.task.assigned',
+      values: {
+        task,
+        project_no: project.projectNo,
+        project_name: project.name,
+      },
+      resourceType: 'project',
+      resourceId: project.id,
+    });
+  }
+
+  /** CD-181 — a task was reported done, to the project's manager. */
+  async taskDone(
+    userId: string,
+    companyId: string,
+    project: { id: string; projectNo: string },
+    task: string,
+    by: string,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'pm.task.done',
+      values: { task, project_no: project.projectNo, by },
+      resourceType: 'project',
+      resourceId: project.id,
+    });
+  }
+
   /** CD-178 — a milestone that unlocks an installment is now forecast later. */
   async milestoneSlipped(
     userId: string,

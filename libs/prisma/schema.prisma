@@ -5012,8 +5012,12 @@ model ProjectTask {
   durationDays Int       @default(1)
   /// The milestone this work delivers, if any.
   milestoneId  String?
-  /// open · cancelled (progress comes with CD-181).
+  /// CD-181 — open · in_progress · done · cancelled.
   status       String    @default("open")
+  /// CD-181 — when the work actually started and finished.
+  startedAt    DateTime?
+  doneAt       DateTime?
+  doneBy       String?
   createdAt    DateTime  @default(now())
   createdBy    String
   updatedAt    DateTime  @updatedAt
@@ -5025,6 +5029,9 @@ model ProjectTask {
   milestone    ProjectMilestone? @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
   predecessors ProjectTaskLink[] @relation("LinkSuccessor")
   successors   ProjectTaskLink[] @relation("LinkPredecessor")
+  /// CD-181 — what was reported from the field, and the files with it.
+  updates      ProjectTaskUpdate[]
+  files        ProjectTaskFile[]
 
   @@index([projectId, parentId, seq])
   @@map("project_tasks")
@@ -5068,4 +5075,46 @@ model ProductPriceVersion {
 
   @@unique([priceId, versionNo])
   @@map("product_price_versions")
+}
+
+/// CD-181 — one report on a task from whoever does it (often on site, on a
+/// phone): what was done, and the status it moved to.
+model ProjectTaskUpdate {
+  id         String   @id @default(uuid())
+  companyId  String
+  taskId     String
+  authorId   String
+  note       String
+  statusFrom String?
+  statusTo   String?
+  createdAt  DateTime @default(now())
+
+  task  ProjectTask       @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  files ProjectTaskFile[]
+
+  @@index([taskId, createdAt])
+  @@map("project_task_updates")
+}
+
+/// CD-181 — a photo or document attached to a task (with the update it came
+/// with, if any). The bytes live in object storage.
+model ProjectTaskFile {
+  id         String    @id @default(uuid())
+  companyId  String
+  taskId     String
+  updateId   String?
+  fileName   String
+  mimeType   String
+  sizeBytes  Int
+  storageKey String
+  uploadedBy String
+  uploadedAt DateTime  @default(now())
+  deletedAt  DateTime?
+  deletedBy  String?
+
+  task   ProjectTask        @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  update ProjectTaskUpdate? @relation(fields: [updateId], references: [id], onDelete: SetNull)
+
+  @@index([taskId])
+  @@map("project_task_files")
 }

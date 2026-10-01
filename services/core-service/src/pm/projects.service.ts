@@ -584,7 +584,7 @@ export class ProjectsService {
 
   // --- helpers -------------------------------------------------------------------
 
-  /** Everything with `pm.project.read`; otherwise the projects I run or am on. */
+  /** Everything with `pm.project.read`; otherwise the projects I run, am on, or hold a task in. */
   private visibleWhere(
     actor: Principal,
     mineOnly: boolean,
@@ -594,6 +594,12 @@ export class ProjectsService {
       OR: [
         { managerUserId: actor.userId },
         { members: { some: { userId: actor.userId } } },
+        // CD-181 — whoever is handed a task sees the project it is in
+        {
+          tasks: {
+            some: { ownerUserId: actor.userId, status: { not: 'cancelled' } },
+          },
+        },
       ],
     };
   }

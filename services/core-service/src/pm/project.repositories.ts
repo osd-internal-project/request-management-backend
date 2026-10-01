@@ -91,3 +91,31 @@ export class WorkCalendarRepository extends BaseRepository<
     return client.holidayCalendar;
   }
 }
+
+/** CD-181 รายงานความคืบหน้าของงาน. */
+@Injectable()
+export class ProjectTaskUpdateRepository extends BaseRepository<
+  PrismaService['projectTaskUpdate']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.projectTaskUpdate;
+  }
+}
+
+/** CD-181 ไฟล์และรูปของงาน. */
+@Injectable()
+export class ProjectTaskFileRepository extends BaseRepository<
+  PrismaService['projectTaskFile']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.projectTaskFile;
+  }
+}

@@ -19,6 +19,7 @@ import { PageQueryDto } from '@request-management/share';
 import { MAX_MEMBERS, PROJECT_STATUSES } from '../project-rules';
 import { MAX_CRITERIA, MAX_CRITERION_LENGTH } from '../milestone-rules';
 import { MAX_DURATION_DAYS } from '../plan-rules';
+import { MAX_NOTE_LENGTH, WORK_STATUSES } from '../task-rules';
 
 /** CD-175 — one person on the project team. */
 export class ProjectMemberDto {
@@ -283,4 +284,18 @@ export class PlanPreviewDto {
   @ValidateNested({ each: true })
   @Type(() => PredecessorDto)
   predecessors?: PredecessorDto[];
+}
+
+/** CD-181 — a report on a task (multipart, with the files). */
+export class TaskReportDto {
+  @ApiPropertyOptional({ example: 'เดินสายชั้น 1 เสร็จ เหลือติดตั้งกล้อง' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(MAX_NOTE_LENGTH)
+  note?: string;
+
+  @ApiPropertyOptional({ enum: WORK_STATUSES })
+  @IsOptional()
+  @IsIn([...WORK_STATUSES])
+  status?: string;
 }

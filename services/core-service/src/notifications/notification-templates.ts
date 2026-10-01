@@ -265,6 +265,31 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
     },
   },
   {
+    eventType: 'pm.task.assigned',
+    label: 'ได้รับมอบหมายงานในโครงการ (ถึงผู้รับผิดชอบงาน)',
+    title: 'งานใหม่: {{task}}',
+    body: 'โครงการ {{project_no}} {{project_name}} — ดูและรายงานได้ที่ "งานของฉัน"',
+    variables: {
+      task: { label: 'งาน', sample: 'ติดตั้งกล้องชั้น 1' },
+      project_no: { label: 'เลขที่โครงการ', sample: 'PRJ-OSD-000012' },
+      project_name: {
+        label: 'ชื่อโครงการ',
+        sample: 'ติดตั้งระบบกล้อง อาคาร A',
+      },
+    },
+  },
+  {
+    eventType: 'pm.task.done',
+    label: 'งานในโครงการเสร็จแล้ว (ถึงผู้จัดการโครงการ)',
+    title: 'เสร็จแล้ว: {{task}}',
+    body: 'โครงการ {{project_no}} — {{by}} รายงานว่าเสร็จ',
+    variables: {
+      task: { label: 'งาน', sample: 'ติดตั้งกล้องชั้น 1' },
+      project_no: { label: 'เลขที่โครงการ', sample: 'PRJ-OSD-000012' },
+      by: { label: 'ผู้รายงาน', sample: 'คุณสมชาย' },
+    },
+  },
+  {
     eventType: 'pm.milestone.slipped',
     label: 'หมุดหมายที่ผูกงวดชำระเลื่อน (ถึงเจ้าของสัญญาและฝ่ายกฎหมาย)',
     title: 'โครงการ {{project_no}}: "{{milestone}}" เลื่อนเป็น {{to}}',

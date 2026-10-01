@@ -52,6 +52,8 @@ interface TaskRow {
   durationDays: number;
   milestoneId: string | null;
   status: string;
+  startedAt: Date | null;
+  doneAt: Date | null;
   milestone: { id: string; title: string; status: string } | null;
 }
 
@@ -65,6 +67,8 @@ const TASK_SELECT = {
   durationDays: true,
   milestoneId: true,
   status: true,
+  startedAt: true,
+  doneAt: true,
   milestone: { select: { id: true, title: true, status: true } },
 } as const;
 
@@ -138,6 +142,10 @@ export class PlanService {
               ? (names.get(row.ownerUserId) ?? null)
               : null,
             durationDays: row.durationDays,
+            // CD-181 — what the work actually did
+            status: row.status,
+            startedAt: row.startedAt,
+            doneAt: row.doneAt,
             summary: summaries.has(row.id),
             milestone: row.milestone,
             start: dates?.start ?? null,
@@ -215,6 +223,7 @@ export class PlanService {
       );
       return created;
     });
+    await this.tellOwner(projectId, task.id, null, dto.owner_user_id, actor);
     return { ...(await this.view(projectId, actor)), taskId: task.id };
   }
 
@@ -310,7 +319,43 @@ export class PlanService {
       );
     });
     await this.tellSlips(projectId, project.companyId, forecast, actor);
+    if (dto.owner_user_id !== undefined) {
+      await this.tellOwner(
+        projectId,
+        taskId,
+        current.ownerUserId,
+        dto.owner_user_id,
+        actor,
+      );
+    }
     return this.view(projectId, actor);
+  }
+
+  /** CD-181 — whoever is newly handed a task hears of it. */
+  private async tellOwner(
+    projectId: string,
+    taskId: string,
+    before: string | null,
+    after: string | null | undefined,
+    actor: Principal,
+  ) {
+    if (!after || after === before || after === actor.userId) return;
+    const row = (await this.tasks.findFirst({
+      where: { id: taskId },
+      select: {
+        title: true,
+        companyId: true,
+        project: { select: { id: true, projectNo: true, name: true } },
+      },
+    })) as {
+      title: string;
+      companyId: string;
+      project: { id: string; projectNo: string; name: string };
+    } | null;
+    if (!row) return;
+    await this.notifications
+      .taskAssigned(after, row.companyId, row.project, row.title)
+      .catch(() => undefined);
   }
 
   /** Cancelled with everything under it; the plan is dated without them. */

@@ -10,9 +10,10 @@ import {
   Query,
   StreamableFile,
   UploadedFile,
+  UploadedFiles,
   UseInterceptors,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import {
   ApiBearerAuth,
   ApiBody,
@@ -30,12 +31,15 @@ import {
   PlanPreviewDto,
   SavePredecessorsDto,
   SaveTaskDto,
+  TaskReportDto,
   SaveProjectMembersDto,
   TickCriterionDto,
   UpdateProjectDto,
 } from './dto/project.dto';
 import { MAX_EVIDENCE_BYTES, MilestonesService } from './milestones.service';
 import { PlanService } from './plan.service';
+import { MAX_TASK_FILE_BYTES, TaskWorkService } from './task-work.service';
+import { MAX_FILES_PER_UPDATE } from './task-rules';
 import { ProjectsService } from './projects.service';
 
 /**
@@ -51,6 +55,7 @@ export class ProjectsController {
     private readonly projects: ProjectsService,
     private readonly milestones: MilestonesService,
     private readonly plan: PlanService,
+    private readonly work: TaskWorkService,
   ) {}
 
   @ApiOperation({ summary: 'รายการโครงการ (ทั้งบริษัท หรือของฉัน)' })
@@ -327,5 +332,82 @@ export class ProjectsController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.plan.setPredecessors(id, taskId, dto, principal);
+  }
+
+  // --- CD-181 the work --------------------------------------------------------------
+
+  @ApiOperation({ summary: 'งาน: รายละเอียด รายงานความคืบหน้า และไฟล์' })
+  @Get(':id/plan/tasks/:taskId')
+  @Permissions('notification.read')
+  taskDetail(
+    @Param('id') id: string,
+    @Param('taskId') taskId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.work.detail(id, taskId, principal);
+  }
+
+  @ApiOperation({
+    summary:
+      'รายงานงาน: บันทึก รูป/ไฟล์ และเปลี่ยนสถานะ (ผู้รับผิดชอบหรือผู้จัดการโครงการ)',
+  })
+  @Post(':id/plan/tasks/:taskId/reports')
+  @Permissions('notification.read')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        note: { type: 'string' },
+        status: { type: 'string', enum: ['open', 'in_progress', 'done'] },
+        files: { type: 'array', items: { type: 'string', format: 'binary' } },
+      },
+    },
+  })
+  @UseInterceptors(
+    FilesInterceptor('files', MAX_FILES_PER_UPDATE, {
+      limits: { fileSize: MAX_TASK_FILE_BYTES },
+      defParamCharset: 'utf8',
+    }),
+  )
+  reportTask(
+    @Param('id') id: string,
+    @Param('taskId') taskId: string,
+    @Body() body: TaskReportDto,
+    @UploadedFiles() files: Express.Multer.File[] | undefined,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.work.report(id, taskId, body, files ?? [], principal);
+  }
+
+  @ApiOperation({ summary: 'ไฟล์ของงาน' })
+  @Get(':id/plan/tasks/:taskId/files/:fileId')
+  @Permissions('notification.read')
+  async taskFile(
+    @Param('id') id: string,
+    @Param('taskId') taskId: string,
+    @Param('fileId') fileId: string,
+    @CurrentPrincipal() principal: Principal,
+  ): Promise<StreamableFile> {
+    const file = await this.work.download(id, taskId, fileId, principal);
+    return new StreamableFile(file.stream, {
+      type: file.mimeType,
+      disposition: `inline; filename*=UTF-8''${encodeURIComponent(file.fileName)}`,
+    });
+  }
+}
+
+/** CD-181 — งานของฉัน: the tasks handed to me, across projects. */
+@ApiTags('projects')
+@ApiBearerAuth()
+@Controller('project-tasks')
+export class ProjectTasksController {
+  constructor(private readonly work: TaskWorkService) {}
+
+  @ApiOperation({ summary: 'งานในโครงการที่ฉันรับผิดชอบ (ยังไม่เสร็จ)' })
+  @Get('mine')
+  @Permissions('notification.read')
+  mine(@CurrentPrincipal() principal: Principal) {
+    return this.work.mine(principal);
   }
 }
