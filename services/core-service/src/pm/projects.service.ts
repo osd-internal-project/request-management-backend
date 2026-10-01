@@ -573,6 +573,55 @@ export class ProjectsService {
     })) as { id: string; projectNo: string; name: string } | null;
   }
 
+  /** CD-192 — every running project the caller may see: the portfolio. */
+  async runningVisible(actor: Principal) {
+    return (await this.projects.findMany({
+      where: {
+        companyId: actor.activeCompanyId,
+        status: { in: ['active', 'on_hold'] },
+        ...this.visibleWhere(actor, false),
+      },
+      select: {
+        id: true,
+        projectNo: true,
+        name: true,
+        status: true,
+        managerUserId: true,
+        endOn: true,
+        contractValue: true,
+        contract: {
+          select: {
+            contractNo: true,
+            counterpartyName: true,
+            customer: { select: { nameTh: true } },
+          },
+        },
+      },
+      orderBy: { projectNo: 'asc' },
+    })) as unknown as {
+      id: string;
+      projectNo: string;
+      name: string;
+      status: string;
+      managerUserId: string;
+      endOn: Date;
+      contractValue: Prisma.Decimal | null;
+      contract: {
+        contractNo: string;
+        counterpartyName: string | null;
+        customer: { nameTh: string } | null;
+      };
+    }[];
+  }
+
+  /** CD-192 — every running project of every company, for the weekly drafts. */
+  async allRunning() {
+    return (await this.projects.findMany({
+      where: { status: { in: ['active', 'on_hold'] } },
+      select: { id: true, companyId: true, managerUserId: true },
+    })) as { id: string; companyId: string; managerUserId: string }[];
+  }
+
   /**
    * For the project's own parts (milestones, …): the project if the caller
    * may see it (404 otherwise), and whether they may change its plan —

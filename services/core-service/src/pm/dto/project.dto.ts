@@ -681,3 +681,26 @@ export class SaveLessonDto {
   @MaxLength(4000)
   text?: string;
 }
+
+/** CD-192 — the manager's part of a weekly status report. */
+export class SaveStatusReportDto {
+  @ApiPropertyOptional({ description: 'งานที่ทำได้ในสัปดาห์นี้' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  accomplished?: string;
+
+  @ApiPropertyOptional({ description: 'งานสัปดาห์ถัดไป' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  next_steps?: string;
+
+  @ApiPropertyOptional({
+    description: 'สิ่งที่ต้องการความช่วยเหลือ/การตัดสินใจ',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  help_needed?: string;
+}

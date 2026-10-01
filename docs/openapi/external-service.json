@@ -11013,6 +11013,16 @@
             },
             "maxItems": 20
           },
+          "project_health_amber": {
+            "maximum": 500,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "project_health_red": {
+            "maximum": 500,
+            "minimum": 1,
+            "type": "integer"
+          },
           "solution_request_type_code": {
             "pattern": "^([A-Z0-9_-]{1,20})?$",
             "type": "string"

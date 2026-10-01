@@ -230,6 +230,44 @@ export const MART_TABLES: readonly { table: string; sql: string[] }[] = [
        GROUP BY company_code, COALESCE(receiver_unit, '-'), type_code, status`,
     ],
   },
+  {
+    // CD-192 — every project, with its health from the latest weekly report
+    table: 'fact_projects',
+    sql: [
+      `DELETE FROM mart.fact_projects`,
+      `INSERT INTO mart.fact_projects
+       SELECT p.id, c.code, p."projectNo", p.name, cc."contractNo",
+              cu."nameTh", u."displayName", p.status::text, p."contractValue",
+              p."startOn", p."endOn",
+              r."healthLevel", r."healthScore",
+              (SELECT string_agg(f->>'label', ', ')
+                 FROM jsonb_array_elements(r.snapshot->'health'->'factors') f),
+              r."workPct", r."plannedPct", r."weekStart", r.status,
+              COALESCE(r.status = 'submitted', false)
+       FROM projects p
+       JOIN companies c ON c.id = p."companyId"
+       JOIN customer_contracts cc ON cc.id = p."contractId"
+       LEFT JOIN customers cu ON cu.id = p."customerId"
+       LEFT JOIN users u ON u.id = p."managerUserId"
+       LEFT JOIN LATERAL (
+         SELECT * FROM project_status_reports s
+         WHERE s."projectId" = p.id
+         ORDER BY s."weekStart" DESC LIMIT 1
+       ) r ON true`,
+    ],
+  },
+  {
+    // CD-192 — projects by health per week, from every report kept
+    table: 'project_health_weekly',
+    sql: [
+      `DELETE FROM mart.project_health_weekly`,
+      `INSERT INTO mart.project_health_weekly
+       SELECT s."weekStart", c.code, s."healthLevel", count(*)::int
+       FROM project_status_reports s
+       JOIN companies c ON c.id = s."companyId"
+       GROUP BY 1, 2, 3`,
+    ],
+  },
 ];
 
 /**

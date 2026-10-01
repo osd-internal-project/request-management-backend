@@ -30,6 +30,7 @@ import {
   AttachCloseDocumentDto,
   SaveCloseoutDto,
   SaveLessonDto,
+  SaveStatusReportDto,
   ListProjectsQueryDto,
   OpenProjectDto,
   SaveMilestoneDto,
@@ -60,6 +61,7 @@ import { ProjectIssuesService } from './project-issues.service';
 import { CustomerLogsService } from './customer-logs.service';
 import { PaymentsService } from './payments.service';
 import { CloseoutService } from './closeout.service';
+import { StatusReportsService } from './status-reports.service';
 import { MAX_TASK_FILE_BYTES, TaskWorkService } from './task-work.service';
 import { MAX_FILES_PER_UPDATE } from './task-rules';
 import { ProjectsService } from './projects.service';
@@ -86,6 +88,7 @@ export class ProjectsController {
     private readonly customerLogs: CustomerLogsService,
     private readonly payments: PaymentsService,
     private readonly closeout: CloseoutService,
+    private readonly statusReports: StatusReportsService,
   ) {}
 
   @ApiOperation({ summary: 'รายการโครงการ (ทั้งบริษัท หรือของฉัน)' })
@@ -465,6 +468,55 @@ export class ProjectsController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.changes.cancel(id, changeId, principal);
+  }
+
+  // --- CD-192 weekly status reports ------------------------------------------------
+
+  @ApiOperation({
+    summary: 'สุขภาพโครงการตอนนี้ และรายงานสถานะรายสัปดาห์',
+  })
+  @Get(':id/status-reports')
+  @Permissions('notification.read')
+  listStatusReports(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.statusReports.list(id, principal);
+  }
+
+  @ApiOperation({
+    summary: 'ร่างรายงานสัปดาห์นี้ หรืออัปเดตตัวเลขของร่าง',
+  })
+  @Post(':id/status-reports')
+  @Permissions('notification.read')
+  draftStatusReport(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.statusReports.draft(id, principal);
+  }
+
+  @ApiOperation({ summary: 'แก้ข้อความในร่างรายงาน' })
+  @Patch(':id/status-reports/:reportId')
+  @Permissions('notification.read')
+  saveStatusReport(
+    @Param('id') id: string,
+    @Param('reportId') reportId: string,
+    @Body() dto: SaveStatusReportDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.statusReports.update(id, reportId, dto, principal);
+  }
+
+  @ApiOperation({ summary: 'ส่งรายงานสถานะ (ตัวเลขถูกตรึงไว้)' })
+  @Post(':id/status-reports/:reportId/submit')
+  @Permissions('notification.read')
+  submitStatusReport(
+    @Param('id') id: string,
+    @Param('reportId') reportId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.statusReports.submit(id, reportId, principal);
   }
 
   // --- CD-191 close-out -------------------------------------------------------------
@@ -905,5 +957,22 @@ export class ProjectRisksController {
   @Permissions('pm.project.read')
   attention(@CurrentPrincipal() principal: Principal) {
     return this.risks.attention(principal);
+  }
+}
+
+@ApiTags('projects')
+@ApiBearerAuth()
+@Controller('project-portfolio')
+export class ProjectPortfolioController {
+  constructor(private readonly statusReports: StatusReportsService) {}
+
+  @ApiOperation({
+    summary:
+      'ภาพรวมโครงการที่ดำเนินอยู่ เรียงโครงการที่เสี่ยงเกินเกณฑ์ขึ้นก่อน (CD-192)',
+  })
+  @Get()
+  @Permissions('notification.read')
+  portfolio(@CurrentPrincipal() principal: Principal) {
+    return this.statusReports.portfolio(principal);
   }
 }

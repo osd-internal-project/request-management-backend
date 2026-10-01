@@ -34,6 +34,7 @@ import {
   ProjectCloseDocumentRepository,
   ProjectCloseoutRepository,
   ProjectLessonRepository,
+  ProjectStatusReportRepository,
 } from './project.repositories';
 import { ProjectsService } from './projects.service';
 import { MilestonesService } from './milestones.service';
@@ -47,6 +48,7 @@ import { ProjectIssuesService } from './project-issues.service';
 import { CustomerLogsService } from './customer-logs.service';
 import { PaymentsService } from './payments.service';
 import { CloseoutService } from './closeout.service';
+import { StatusReportsService } from './status-reports.service';
 import { ContractRiskAssessmentRepository } from '../crm/contract-risk.service';
 import { ContractObligationRepository } from '../crm/contract-obligations.service';
 import {
@@ -250,6 +252,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       });
       await prisma.projectTask.deleteMany({ where: { projectId } });
       await prisma.projectMilestone.deleteMany({ where: { projectId } });
+      await prisma.projectStatusReport.deleteMany({ where: { projectId } });
       await prisma.projectCloseout.deleteMany({ where: { projectId } });
       await prisma.projectCloseDocument.deleteMany({ where: { projectId } });
       await prisma.projectLesson.deleteMany({ where: { projectId } });
@@ -1784,6 +1787,151 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         paid.forecast.months.find((row) => row.month === '2026-09')?.received,
       ).toBe(first.amount);
     });
+    it('CD-192: health from the project figures; the weekly draft, refreshed until submitted; the portfolio puts risk first', async () => {
+      const client = prisma as never;
+      const transactions = {
+        execute: (work: (tx: unknown) => Promise<unknown>) =>
+          prisma.$transaction((tx) => work(tx)),
+      } as never;
+      const audit = { record: () => Promise.resolve() } as never;
+      const plan = new PlanService(
+        projects,
+        new ProjectRepository(client),
+        new ProjectTaskRepository(client),
+        new ProjectTaskLinkRepository(client),
+        new ProjectMilestoneRepository(client),
+        new WorkCalendarRepository(client),
+        new CompanyMemberRepository(client),
+        { milestoneSlipped: () => Promise.resolve() } as never,
+        audit,
+        transactions,
+      );
+      const progress = new ProgressService(
+        projects,
+        plan,
+        new ProjectMilestoneRepository(client),
+        new ProjectProgressRepository(client),
+        new CompanyMemberRepository(client),
+        audit,
+        transactions,
+      );
+      const payments = new PaymentsService(
+        projects,
+        plan,
+        new ProjectRepository(client),
+        new ContractInstallmentRepository(client),
+        new InstallmentBillingRepository(client),
+        audit,
+        transactions,
+      );
+      const due: string[] = [];
+      const reports = new StatusReportsService(
+        projects,
+        plan,
+        progress,
+        payments,
+        new ProjectStatusReportRepository(client),
+        new ProjectRiskRepository(client),
+        new ProjectIssueRepository(client),
+        new ProjectBudgetRepository(client),
+        {
+          findFirst: () =>
+            Promise.resolve({ projectHealthAmber: 20, projectHealthRed: 40 }),
+        } as never,
+        new CompanyMemberRepository(client),
+        {
+          statusReportDue: (userId: string) => {
+            due.push(userId);
+            return Promise.resolve();
+          },
+        } as never,
+        { get: () => 0 } as never,
+        audit,
+        transactions,
+      );
+      const managerNow = as(engineer, ['notification.read']);
+      const crew = as(outsider, ['notification.read']);
+      const executive = as(pm, ['notification.read', 'pm.project.read']);
+      const monday = new Date('2026-10-05T02:00:00Z');
+      const tuesday = new Date('2026-10-06T02:00:00Z');
+
+      // the live health reads what the earlier steps left behind
+      const live = await reports.list(projectId, crew, monday);
+      expect(live.canEdit).toBe(false);
+      expect(live.thisWeek).toBe('2026-10-05');
+      expect(['green', 'amber', 'red']).toContain(live.live.health.level);
+      expect(live.live.health.score).toBe(
+        live.live.health.factors.reduce((sum, f) => sum + f.points, 0),
+      );
+
+      // Monday's sweep drafts the week for the manager, once
+      await reports.sweep(monday);
+      await reports.sweep(monday);
+      expect(due.filter((id) => id === engineer)).toHaveLength(1);
+      const drafted = await prisma.projectStatusReport.findMany({
+        where: { projectId },
+      });
+      expect(drafted).toHaveLength(1);
+      expect(drafted[0]).toMatchObject({ status: 'draft' });
+      // a day later its figures are brought up to date
+      await reports.sweep(tuesday);
+      const refreshed = await prisma.projectStatusReport.findFirstOrThrow({
+        where: { projectId },
+      });
+      expect(refreshed.snapshotAt.toISOString()).toBe(tuesday.toISOString());
+
+      // only the manager writes it; it needs the week's work and the next
+      const reportId = refreshed.id;
+      await expect(
+        reports.update(projectId, reportId, { accomplished: 'x' }, crew),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+      await expect(
+        reports.submit(projectId, reportId, managerNow, tuesday),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+      await reports.update(
+        projectId,
+        reportId,
+        {
+          accomplished: 'ติดตั้งกล้องชั้น 1 เสร็จ',
+          next_steps: 'ทดสอบระบบร่วมกับลูกค้า',
+          help_needed: '',
+        },
+        managerNow,
+        tuesday,
+      );
+      const sent = await reports.submit(
+        projectId,
+        reportId,
+        managerNow,
+        tuesday,
+      );
+      expect(sent.reports[0]).toMatchObject({
+        status: 'submitted',
+        accomplished: 'ติดตั้งกล้องชั้น 1 เสร็จ',
+        helpNeeded: null,
+      });
+      // frozen: no more edits, and the sweep leaves it alone
+      await expect(
+        reports.update(projectId, reportId, { next_steps: 'y' }, managerNow),
+      ).rejects.toMatchObject({ code: 'CONFLICT' });
+      await expect(
+        reports.draft(projectId, managerNow, tuesday),
+      ).rejects.toMatchObject({ code: 'CONFLICT' });
+      await reports.sweep(new Date('2026-10-07T02:00:00Z'));
+      const kept = await prisma.projectStatusReport.findFirstOrThrow({
+        where: { id: reportId },
+      });
+      expect(kept.snapshotAt.toISOString()).toBe(tuesday.toISOString());
+
+      // the portfolio: whoever reads every project sees this one, reported
+      const board = await reports.portfolio(executive, tuesday);
+      const row = board.projects.find((item) => item.id === projectId);
+      expect(row).toMatchObject({ reportStatus: 'submitted' });
+      expect(board.counts.red + board.counts.amber + board.counts.green).toBe(
+        board.projects.length,
+      );
+    });
+
     it("CD-191: a project closes only with nothing owed, its documents and a lesson — then on the executives' approval", async () => {
       const client = prisma as never;
       const transactions = {

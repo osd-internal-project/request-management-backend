@@ -2422,6 +2422,9 @@ model CrmCompanyConfig {
   /// CD-191 — the documents every project must leave behind before it may
   /// be closed, by name; each needs a file on the close-out card.
   projectCloseDocuments            String[] @default(["ใบตรวจรับงาน", "เอกสารส่งมอบงาน"])
+  /// CD-192 — the health score at which a project turns amber, and red.
+  projectHealthAmber               Int      @default(20)
+  projectHealthRed                 Int      @default(40)
 
   /// CD-130: ประเภทคำขอ "ขอ Solution และประเมินต้นทุน" (Sales → Pre-Sales) — การ์ด Solution
   /// บนหน้าดีลยื่นประเภทนี้. ช่องบังคับของฟอร์มประเภทนี้คือรายการตรวจความครบ (จุดส่งต่อที่ 2).
@@ -4945,6 +4948,8 @@ model Project {
   closeout        ProjectCloseout?
   closeDocuments  ProjectCloseDocument[]
   lessons         ProjectLesson[]
+  /// CD-192 — รายงานสถานะรายสัปดาห์.
+  statusReports   ProjectStatusReport[]
 
   @@unique([companyId, projectNo])
   @@index([companyId, status])
@@ -5525,5 +5530,41 @@ model ProjectLesson {
   @@index([projectId])
   @@index([kbmsStatus])
   @@map("project_lessons")
+}
+
+/// CD-192 — a project's weekly status report: drafted by the system each
+/// Monday from the project's own figures (health, progress, milestones,
+/// risks, issues, budget, payments — `snapshot`), refreshed daily while a
+/// draft; the manager adds what was done, what is next and what help is
+/// needed, and submits it, which freezes the figures.
+model ProjectStatusReport {
+  id            String    @id @default(uuid())
+  companyId     String
+  projectId     String
+  /// The Monday of the week it covers (Bangkok).
+  weekStart     DateTime  @db.Date
+  /// draft · submitted
+  status        String    @default("draft")
+  /// green · amber · red
+  healthLevel   String
+  healthScore   Int
+  workPct       Decimal?  @db.Decimal(5, 1)
+  plannedPct    Decimal?  @db.Decimal(5, 1)
+  snapshot      Json
+  snapshotAt    DateTime
+  accomplished  String?
+  nextSteps     String?
+  helpNeeded    String?
+  submittedAt   DateTime?
+  submittedBy   String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  updatedBy     String?
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
+
+  @@unique([projectId, weekStart])
+  @@index([companyId, weekStart])
+  @@map("project_status_reports")
 }
 

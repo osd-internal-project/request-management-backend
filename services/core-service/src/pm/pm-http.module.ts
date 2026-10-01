@@ -6,6 +6,7 @@ import { PlanService } from './plan.service';
 import { PmModule } from './pm.module';
 import {
   ProjectsController,
+  ProjectPortfolioController,
   ProjectRisksController,
   ProjectTasksController,
 } from './projects.controller';
@@ -18,6 +19,7 @@ import { ProjectIssuesService } from './project-issues.service';
 import { CustomerLogsService } from './customer-logs.service';
 import { PaymentsService } from './payments.service';
 import { CloseoutService } from './closeout.service';
+import { StatusReportsService } from './status-reports.service';
 
 /** The screen-facing routes of {@link PmModule}. */
 @Module({
@@ -34,6 +36,7 @@ import { CloseoutService } from './closeout.service';
     ProjectsController,
     ProjectTasksController,
     ProjectRisksController,
+    ProjectPortfolioController,
   ],
   providers: [
     MilestonesService,
@@ -47,6 +50,7 @@ import { CloseoutService } from './closeout.service';
     CustomerLogsService,
     PaymentsService,
     CloseoutService,
+    StatusReportsService,
   ],
 })
 export class PmHttpModule {}

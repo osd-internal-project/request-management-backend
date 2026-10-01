@@ -782,6 +782,20 @@ export class UpdateCrmConfigDto {
   @MaxLength(255, { each: true })
   project_close_documents?: string[];
 
+  /** CD-192: คะแนนสุขภาพโครงการที่ขึ้นสีเหลือง (ค่าเริ่ม 20). */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(500)
+  project_health_amber?: number;
+
+  /** CD-192: คะแนนสุขภาพโครงการที่ขึ้นสีแดง (ค่าเริ่ม 40, ไม่ต่ำกว่าสีเหลือง). */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(500)
+  project_health_red?: number;
+
   /**
    * CD-130: รหัสประเภทคำขอ "ขอ Solution และประเมินต้นทุน" (Sales → Pre-Sales).
    * ส่ง `""` = ล้าง (หน้าดีลไม่แสดงการ์ด Solution).

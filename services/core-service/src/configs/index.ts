@@ -194,6 +194,12 @@ export default () => ({
       process.env.CRM_INVOICE_OVERDUE_INTERVAL_MS ?? 3600000,
     ),
   },
+  pm: {
+    /** CD-192 — weekly status report drafts, refreshed daily (ms); 0 = off. */
+    statusReportIntervalMs: Number(
+      process.env.PM_STATUS_REPORT_INTERVAL_MS ?? 3600000,
+    ),
+  },
   /** CD-52 — how often due daily digests are looked for (ms); 0 = off (tests). */
   notificationDigestIntervalMs: Number(
     process.env.NOTIFICATION_DIGEST_INTERVAL_MS ?? 300000,

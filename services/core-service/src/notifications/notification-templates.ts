@@ -277,6 +277,16 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
     },
   },
   {
+    eventType: 'pm.status_report.due',
+    label: 'ร่างรายงานสถานะโครงการประจำสัปดาห์ (ถึงผู้จัดการโครงการ)',
+    title: 'โครงการ {{project_no}}: ร่างรายงานสถานะสัปดาห์นี้พร้อมแล้ว',
+    body: '{{project_name}} — เติมงานที่ทำได้ งานสัปดาห์ถัดไป แล้วกดส่ง',
+    variables: {
+      project_no: { label: 'เลขที่โครงการ', sample: 'PRJ-OSD-000012' },
+      project_name: { label: 'ชื่อโครงการ', sample: 'ระบบกล้องอาคาร A' },
+    },
+  },
+  {
     eventType: 'pm.project.close_decided',
     label: 'ผลพิจารณาคำขอปิดโครงการ (ถึงผู้ยื่น)',
     title: 'โครงการ {{project_no}}: {{result}}',

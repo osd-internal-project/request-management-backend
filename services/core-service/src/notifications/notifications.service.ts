@@ -607,6 +607,22 @@ export class NotificationsService {
     });
   }
 
+  /** CD-192 — this week's status report is drafted (to the manager). */
+  async statusReportDue(
+    userId: string,
+    companyId: string,
+    project: { id: string; projectNo: string; name: string },
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'pm.status_report.due',
+      values: { project_no: project.projectNo, project_name: project.name },
+      resourceType: 'project',
+      resourceId: project.id,
+    });
+  }
+
   /** CD-191 — the executives decided on closing a project (to who asked). */
   async closeDecided(
     userId: string,

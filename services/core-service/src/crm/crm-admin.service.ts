@@ -212,6 +212,8 @@ export class CrmAdminService {
         contractApprovalTypeCode: null,
         projectChangeTypeCode: null,
         projectCloseTypeCode: null,
+        projectHealthAmber: 20,
+        projectHealthRed: 40,
         projectCloseDocuments: ['ใบตรวจรับงาน', 'เอกสารส่งมอบงาน'],
         solutionRequestTypeCode: null,
         solutionApprovalTypeCode: null,
@@ -296,6 +298,8 @@ export class CrmAdminService {
               contractApprovalTypeCode: dto.contract_approval_type_code || null,
               projectChangeTypeCode: dto.project_change_type_code || null,
               projectCloseTypeCode: dto.project_close_type_code || null,
+              projectHealthAmber: dto.project_health_amber ?? 20,
+              projectHealthRed: dto.project_health_red ?? 40,
               ...(closeDocuments
                 ? { projectCloseDocuments: closeDocuments }
                 : {}),
@@ -350,6 +354,8 @@ export class CrmAdminService {
                   ? undefined
                   : dto.project_close_type_code || null,
               projectCloseDocuments: closeDocuments,
+              projectHealthAmber: dto.project_health_amber,
+              projectHealthRed: dto.project_health_red,
               solutionRequestTypeCode:
                 dto.solution_request_type_code === undefined
                   ? undefined

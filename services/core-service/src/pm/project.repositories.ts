@@ -273,3 +273,17 @@ export class ProjectLessonRepository extends BaseRepository<
     return client.projectLesson;
   }
 }
+
+/** CD-192 รายงานสถานะรายสัปดาห์. */
+@Injectable()
+export class ProjectStatusReportRepository extends BaseRepository<
+  PrismaService['projectStatusReport']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.projectStatusReport;
+  }
+}

@@ -28,6 +28,7 @@ import {
   ProjectCloseoutRepository,
   ProjectCloseDocumentRepository,
   ProjectLessonRepository,
+  ProjectStatusReportRepository,
   WorkCalendarRepository,
 } from './project.repositories';
 import { ContractRiskAssessmentRepository } from '../crm/contract-risk.service';
@@ -64,6 +65,7 @@ import { ContractRiskAssessmentRepository } from '../crm/contract-risk.service';
     ProjectCloseoutRepository,
     ProjectCloseDocumentRepository,
     ProjectLessonRepository,
+    ProjectStatusReportRepository,
     ContractObligationRepository,
     ContractRiskAssessmentRepository,
     WorkCalendarRepository,
@@ -97,6 +99,7 @@ import { ContractRiskAssessmentRepository } from '../crm/contract-risk.service';
     ProjectCloseoutRepository,
     ProjectCloseDocumentRepository,
     ProjectLessonRepository,
+    ProjectStatusReportRepository,
     ContractObligationRepository,
     ContractRiskAssessmentRepository,
     WorkCalendarRepository,

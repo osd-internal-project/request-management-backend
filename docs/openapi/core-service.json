@@ -16612,6 +16612,194 @@
         ]
       }
     },
+    "/api/v1/projects/{id}/status-reports": {
+      "get": {
+        "operationId": "ProjectsController_listStatusReports",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "สุขภาพโครงการตอนนี้ และรายงานสถานะรายสัปดาห์",
+        "tags": [
+          "projects"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      },
+      "post": {
+        "operationId": "ProjectsController_draftStatusReport",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ร่างรายงานสัปดาห์นี้ หรืออัปเดตตัวเลขของร่าง",
+        "tags": [
+          "projects"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/projects/{id}/status-reports/{reportId}": {
+      "patch": {
+        "operationId": "ProjectsController_saveStatusReport",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "reportId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveStatusReportDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แก้ข้อความในร่างรายงาน",
+        "tags": [
+          "projects"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/projects/{id}/status-reports/{reportId}/submit": {
+      "post": {
+        "operationId": "ProjectsController_submitStatusReport",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "reportId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ส่งรายงานสถานะ (ตัวเลขถูกตรึงไว้)",
+        "tags": [
+          "projects"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      }
+    },
     "/api/v1/projects/{id}/closeout": {
       "get": {
         "operationId": "ProjectsController_viewCloseout",
@@ -18166,6 +18354,39 @@
         ],
         "x-permission": [
           "pm.project.read"
+        ]
+      }
+    },
+    "/api/v1/project-portfolio": {
+      "get": {
+        "operationId": "ProjectPortfolioController_portfolio",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ภาพรวมโครงการที่ดำเนินอยู่ เรียงโครงการที่เสี่ยงเกินเกณฑ์ขึ้นก่อน (CD-192)",
+        "tags": [
+          "projects"
+        ],
+        "x-permission": [
+          "notification.read"
         ]
       }
     },
@@ -23040,6 +23261,16 @@
             },
             "maxItems": 20
           },
+          "project_health_amber": {
+            "maximum": 500,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "project_health_red": {
+            "maximum": 500,
+            "minimum": 1,
+            "type": "integer"
+          },
           "solution_request_type_code": {
             "pattern": "^([A-Z0-9_-]{1,20})?$",
             "type": "string"
@@ -26810,6 +27041,26 @@
           "price_change": {
             "type": "number",
             "description": "ราคาที่ลูกค้าจ่ายเพิ่ม (ติดลบ = ลด)"
+          }
+        }
+      },
+      "SaveStatusReportDto": {
+        "type": "object",
+        "properties": {
+          "accomplished": {
+            "type": "string",
+            "description": "งานที่ทำได้ในสัปดาห์นี้",
+            "maxLength": 4000
+          },
+          "next_steps": {
+            "type": "string",
+            "description": "งานสัปดาห์ถัดไป",
+            "maxLength": 4000
+          },
+          "help_needed": {
+            "type": "string",
+            "description": "สิ่งที่ต้องการความช่วยเหลือ/การตัดสินใจ",
+            "maxLength": 4000
           }
         }
       },
