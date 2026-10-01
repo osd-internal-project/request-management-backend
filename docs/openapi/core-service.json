@@ -15368,6 +15368,57 @@
         ]
       }
     },
+    "/api/v1/projects/{id}/plan/preview": {
+      "post": {
+        "operationId": "ProjectsController_previewPlan",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanPreviewDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ดูผลกระทบก่อนบันทึก: งานที่เลื่อน วันจบโครงการ และหมุดหมาย",
+        "tags": [
+          "projects"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      }
+    },
     "/api/v1/projects/{id}/plan/tasks": {
       "post": {
         "operationId": "ProjectsController_createTask",
@@ -23887,6 +23938,48 @@
           "met"
         ]
       },
+      "PredecessorDto": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "lag_days": {
+            "type": "integer",
+            "description": "รอหลังงานก่อนหน้าเสร็จ (วันทำงาน)",
+            "maximum": 365,
+            "minimum": 0
+          }
+        },
+        "required": [
+          "task_id"
+        ]
+      },
+      "PlanPreviewDto": {
+        "type": "object",
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "duration_days": {
+            "type": "integer",
+            "maximum": 3650,
+            "minimum": 0
+          },
+          "predecessors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PredecessorDto"
+            },
+            "maxItems": 50
+          }
+        },
+        "required": [
+          "task_id"
+        ]
+      },
       "SaveTaskDto": {
         "type": "object",
         "properties": {
@@ -23925,24 +24018,6 @@
             "nullable": true
           }
         }
-      },
-      "PredecessorDto": {
-        "type": "object",
-        "properties": {
-          "task_id": {
-            "type": "string",
-            "minLength": 1
-          },
-          "lag_days": {
-            "type": "integer",
-            "description": "รอหลังงานก่อนหน้าเสร็จ (วันทำงาน)",
-            "maximum": 365,
-            "minimum": 0
-          }
-        },
-        "required": [
-          "task_id"
-        ]
       },
       "SavePredecessorsDto": {
         "type": "object",

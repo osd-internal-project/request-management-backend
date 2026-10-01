@@ -585,6 +585,36 @@ export class NotificationsService {
     });
   }
 
+  /** CD-178 — a milestone that unlocks an installment is now forecast later. */
+  async milestoneSlipped(
+    userId: string,
+    companyId: string,
+    input: {
+      project: { id: string; projectNo: string };
+      milestone: string;
+      from: string | null;
+      to: string;
+      installment: { seq: number; label: string; dueOn: string | null };
+    },
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'pm.milestone.slipped',
+      values: {
+        project_no: input.project.projectNo,
+        milestone: input.milestone,
+        from: input.from ?? '-',
+        to: input.to,
+        installment_seq: String(input.installment.seq),
+        installment_label: input.installment.label,
+        pay_due: input.installment.dueOn ?? '-',
+      },
+      resourceType: 'project',
+      resourceId: input.project.id,
+    });
+  }
+
   /** CD-182 — a milestone that unlocks an installment was achieved. */
   async milestoneAchieved(
     userId: string,

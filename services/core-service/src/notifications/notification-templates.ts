@@ -265,6 +265,21 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
     },
   },
   {
+    eventType: 'pm.milestone.slipped',
+    label: 'หมุดหมายที่ผูกงวดชำระเลื่อน (ถึงเจ้าของสัญญาและฝ่ายกฎหมาย)',
+    title: 'โครงการ {{project_no}}: "{{milestone}}" เลื่อนเป็น {{to}}',
+    body: 'เดิมคาดว่า {{from}} — กระทบงวดที่ {{installment_seq}} {{installment_label}} (กำหนดชำระ {{pay_due}})',
+    variables: {
+      project_no: { label: 'เลขที่โครงการ', sample: 'PRJ-OSD-000012' },
+      milestone: { label: 'หมุดหมาย', sample: 'ติดตั้งและทดสอบระบบเสร็จ' },
+      from: { label: 'วันที่คาดเดิม', sample: '2027-03-01' },
+      to: { label: 'วันที่คาดใหม่', sample: '2027-03-12' },
+      installment_seq: { label: 'งวดที่', sample: '2' },
+      installment_label: { label: 'ชื่องวด', sample: 'งวดตามความคืบหน้า' },
+      pay_due: { label: 'กำหนดชำระ', sample: '2027-03-31' },
+    },
+  },
+  {
     eventType: 'pm.milestone.achieved',
     label: 'หมุดหมายโครงการบรรลุ — งวดชำระวางบิลได้ (ถึงเจ้าของสัญญา)',
     title: 'โครงการ {{project_no}}: บรรลุ "{{milestone}}"',

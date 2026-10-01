@@ -261,3 +261,26 @@ export class SavePredecessorsDto {
   @Type(() => PredecessorDto)
   predecessors!: PredecessorDto[];
 }
+
+/** CD-178 — a change to one task, to see what it would move. */
+export class PlanPreviewDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  task_id!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(MAX_DURATION_DAYS)
+  duration_days?: number;
+
+  @ApiPropertyOptional({ type: [PredecessorDto] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50)
+  @ValidateNested({ each: true })
+  @Type(() => PredecessorDto)
+  predecessors?: PredecessorDto[];
+}

@@ -296,3 +296,67 @@ export function wouldNest(
   }
   return false;
 }
+
+// --- CD-178 กำหนดการ: ผลกระทบเมื่อเลื่อนงาน ------------------------------------------
+
+/**
+ * When each milestone is now expected to be reached: the latest finish of
+ * the tasks that deliver it. A milestone no task delivers has no forecast.
+ */
+export function milestoneForecast(
+  tasks: readonly (PlanTask & { milestoneId: string | null })[],
+  schedule: ReadonlyMap<string, ScheduledTask>,
+): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const task of tasks) {
+    if (!task.milestoneId || task.status === 'cancelled') continue;
+    const finish = schedule.get(task.id)?.finish;
+    if (!finish) continue;
+    const known = out.get(task.milestoneId);
+    if (!known || finish > known) out.set(task.milestoneId, finish);
+  }
+  return out;
+}
+
+export interface Shift {
+  id: string;
+  fromStart: string | null;
+  toStart: string | null;
+  fromFinish: string | null;
+  toFinish: string | null;
+}
+
+/** The tasks whose dates differ between two schedules. */
+export function scheduleShifts(
+  before: ReadonlyMap<string, ScheduledTask>,
+  after: ReadonlyMap<string, ScheduledTask>,
+): Shift[] {
+  const ids = new Set([...before.keys(), ...after.keys()]);
+  const out: Shift[] = [];
+  for (const id of ids) {
+    const a = before.get(id);
+    const b = after.get(id);
+    if (a?.start === b?.start && a?.finish === b?.finish) continue;
+    out.push({
+      id,
+      fromStart: a?.start ?? null,
+      toStart: b?.start ?? null,
+      fromFinish: a?.finish ?? null,
+      toFinish: b?.finish ?? null,
+    });
+  }
+  return out;
+}
+
+/** Milestones now forecast later than before — the ones to tell about. */
+export function slippedMilestones(
+  before: ReadonlyMap<string, string>,
+  after: ReadonlyMap<string, string>,
+): { milestoneId: string; from: string | null; to: string }[] {
+  const out: { milestoneId: string; from: string | null; to: string }[] = [];
+  for (const [milestoneId, to] of after) {
+    const from = before.get(milestoneId) ?? null;
+    if (from !== null && to > from) out.push({ milestoneId, from, to });
+  }
+  return out;
+}

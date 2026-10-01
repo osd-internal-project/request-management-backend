@@ -10,13 +10,21 @@ import {
 import { CompanyMemberRepository } from '../access/company-member.repository';
 import { bangkokDay } from '../crm/kyc-rules';
 import { readDeliverables } from '../presales/solution-rules';
-import { SavePredecessorsDto, SaveTaskDto } from './dto/project.dto';
+import { NotificationsService } from '../notifications/notifications.service';
+import {
+  PlanPreviewDto,
+  SavePredecessorsDto,
+  SaveTaskDto,
+} from './dto/project.dto';
 import { matchDeliverable } from './milestone-rules';
 import {
   DEFAULT_WORK_CALENDAR,
   linkProblems,
   MAX_TASKS,
+  milestoneForecast,
   schedulePlan,
+  scheduleShifts,
+  slippedMilestones,
   wbsCodes,
   wouldNest,
   type PlanLink,
@@ -80,6 +88,7 @@ export class PlanService {
     private readonly milestones: ProjectMilestoneRepository,
     private readonly calendars: WorkCalendarRepository,
     private readonly people: CompanyMemberRepository,
+    private readonly notifications: NotificationsService,
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
   ) {}
@@ -91,11 +100,7 @@ export class PlanService {
       this.linkRows(projectId),
       this.startOf(projectId),
       this.calendarOf(project.companyId),
-      this.milestones.findMany({
-        where: { projectId, status: { not: 'cancelled' } },
-        orderBy: { seq: 'asc' },
-        select: { id: true, title: true },
-      }) as Promise<{ id: string; title: string }[]>,
+      this.milestoneRows(projectId),
     ]);
     const codes = wbsCodes(rows);
     const problems = linkProblems(rows, links, codes);
@@ -115,7 +120,8 @@ export class PlanService {
       projectStart: start,
       finish: plan?.finish ?? null,
       problems,
-      milestones,
+      // CD-178 — when each milestone is now expected, against its due day
+      milestones: this.forecastOf(milestones, rows, plan?.tasks ?? null),
       tasks: live
         .sort((a, b) => byCode(a.id).localeCompare(byCode(b.id)))
         .map((row) => {
@@ -221,6 +227,7 @@ export class PlanService {
     const { project } = await this.editable(projectId, actor);
     const current = await this.requireTask(projectId, taskId);
     await this.checkRefs(project.companyId, projectId, dto);
+    const forecast = await this.forecastNow(projectId, project.companyId);
     const moving =
       dto.parent_id !== undefined &&
       (dto.parent_id ?? null) !== current.parentId;
@@ -302,6 +309,7 @@ export class PlanService {
         },
       );
     });
+    await this.tellSlips(projectId, project.companyId, forecast, actor);
     return this.view(projectId, actor);
   }
 
@@ -349,6 +357,7 @@ export class PlanService {
   ) {
     const { project } = await this.editable(projectId, actor);
     await this.requireTask(projectId, taskId);
+    const forecast = await this.forecastNow(projectId, project.companyId);
     const all = await this.taskRows(projectId);
     const known = new Set(
       all.filter((row) => row.status !== 'cancelled').map((row) => row.id),
@@ -405,6 +414,7 @@ export class PlanService {
         },
       );
     });
+    await this.tellSlips(projectId, project.companyId, forecast, actor);
     return this.view(projectId, actor);
   }
 
@@ -480,6 +490,238 @@ export class PlanService {
       );
     });
     return this.view(projectId, actor);
+  }
+
+  /**
+   * CD-178 — what a change to one task would move, before it is saved:
+   * the tasks whose dates change, the project's end, and each milestone's
+   * forecast against its due day.
+   */
+  async preview(projectId: string, dto: PlanPreviewDto, actor: Principal) {
+    const { project } = await this.editable(projectId, actor);
+    const [rows, links, start, calendar, milestones] = await Promise.all([
+      this.taskRows(projectId),
+      this.linkRows(projectId),
+      this.startOf(projectId),
+      this.calendarOf(project.companyId),
+      this.milestoneRows(projectId),
+    ]);
+    if (!rows.some((row) => row.id === dto.task_id)) {
+      throw new AppError('NOT_FOUND', 'ไม่พบงานที่ระบุ');
+    }
+    const changedRows = rows.map((row) =>
+      row.id === dto.task_id && dto.duration_days !== undefined
+        ? { ...row, durationDays: dto.duration_days }
+        : row,
+    );
+    const changedLinks = dto.predecessors
+      ? [
+          ...links.filter((link) => link.successorId !== dto.task_id),
+          ...dto.predecessors.map((item) => ({
+            predecessorId: item.task_id,
+            successorId: dto.task_id,
+            lagDays: item.lag_days ?? 0,
+          })),
+        ]
+      : links;
+    const codes = wbsCodes(rows);
+    const problems = linkProblems(changedRows, changedLinks, codes);
+    const before = schedulePlan(rows, links, start, calendar);
+    const after = problems.length
+      ? null
+      : schedulePlan(changedRows, changedLinks, start, calendar);
+    const titleOf = new Map(rows.map((row) => [row.id, row.title]));
+    const forecastBefore = this.forecastOf(
+      milestones,
+      rows,
+      before?.tasks ?? null,
+    );
+    const forecastAfter = this.forecastOf(
+      milestones,
+      changedRows,
+      after?.tasks ?? null,
+    );
+    return {
+      problems,
+      finish: { from: before?.finish ?? null, to: after?.finish ?? null },
+      moved:
+        before && after
+          ? scheduleShifts(before.tasks, after.tasks).map((shift) => ({
+              ...shift,
+              wbs: codes.get(shift.id) ?? '',
+              title: titleOf.get(shift.id) ?? '',
+            }))
+          : [],
+      milestones: forecastAfter
+        .map((row) => ({
+          ...row,
+          from:
+            forecastBefore.find((item) => item.id === row.id)?.forecast ?? null,
+        }))
+        .filter((row) => row.from !== row.forecast),
+    };
+  }
+
+  /**
+   * CD-178 — after a change is saved: a milestone that unlocks a payment
+   * and is now forecast later is told to the contract's owner (Sales) and
+   * to Legal (`legal.contract.manage`), apart from whoever made the change.
+   */
+  private async tellSlips(
+    projectId: string,
+    companyId: string,
+    before: Map<string, string>,
+    actor: Principal,
+  ) {
+    const after = await this.forecastNow(projectId, companyId);
+    const slipped = slippedMilestones(before, after);
+    if (!slipped.length) return;
+    const project = (await this.projectRows.findFirst({
+      where: { id: projectId },
+      select: {
+        id: true,
+        projectNo: true,
+        name: true,
+        contract: { select: { ownerUserId: true } },
+        milestones: {
+          where: {
+            id: { in: slipped.map((row) => row.milestoneId) },
+            status: 'planned',
+          },
+          select: {
+            id: true,
+            title: true,
+            dueOn: true,
+            installment: {
+              select: { seq: true, label: true, dueOn: true },
+            },
+          },
+        },
+      },
+    })) as {
+      id: string;
+      projectNo: string;
+      name: string;
+      contract: { ownerUserId: string };
+      milestones: {
+        id: string;
+        title: string;
+        dueOn: Date | null;
+        installment: { seq: number; label: string; dueOn: Date | null } | null;
+      }[];
+    } | null;
+    if (!project) return;
+    const legal = (await this.people.findMany({
+      where: {
+        status: 'ACTIVE',
+        roles: {
+          some: {
+            companyId,
+            role: {
+              permissions: {
+                some: { permissionCode: 'legal.contract.manage' },
+              },
+            },
+          },
+        },
+      },
+      select: { id: true },
+    })) as { id: string }[];
+    const recipients = [
+      ...new Set([project.contract.ownerUserId, ...legal.map((row) => row.id)]),
+    ].filter((id) => id !== actor.userId);
+    for (const slip of slipped) {
+      const milestone = project.milestones.find(
+        (row) => row.id === slip.milestoneId,
+      );
+      if (!milestone?.installment) continue;
+      for (const userId of recipients) {
+        await this.notifications
+          .milestoneSlipped(userId, companyId, {
+            project,
+            milestone: milestone.title,
+            from: slip.from,
+            to: slip.to,
+            installment: {
+              seq: milestone.installment.seq,
+              label: milestone.installment.label,
+              dueOn: milestone.installment.dueOn
+                ? milestone.installment.dueOn.toISOString().slice(0, 10)
+                : null,
+            },
+          })
+          .catch(() => undefined);
+      }
+    }
+  }
+
+  /** Each milestone's forecast as the plan stands now. */
+  private async forecastNow(projectId: string, companyId: string) {
+    const [rows, links, start, calendar] = await Promise.all([
+      this.taskRows(projectId),
+      this.linkRows(projectId),
+      this.startOf(projectId),
+      this.calendarOf(companyId),
+    ]);
+    const plan = schedulePlan(rows, links, start, calendar);
+    return plan
+      ? milestoneForecast(rows, plan.tasks)
+      : new Map<string, string>();
+  }
+
+  private async milestoneRows(projectId: string) {
+    return (await this.milestones.findMany({
+      where: { projectId, status: { not: 'cancelled' } },
+      orderBy: { seq: 'asc' },
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        dueOn: true,
+        installment: { select: { seq: true, label: true, dueOn: true } },
+      },
+    })) as unknown as {
+      id: string;
+      title: string;
+      status: string;
+      dueOn: Date | null;
+      installment: { seq: number; label: string; dueOn: Date | null } | null;
+    }[];
+  }
+
+  private forecastOf(
+    milestones: Awaited<ReturnType<PlanService['milestoneRows']>>,
+    rows: readonly TaskRow[],
+    schedule: ReadonlyMap<string, { finish: string }> | null,
+  ) {
+    const forecast = schedule
+      ? milestoneForecast(rows, schedule as never)
+      : new Map<string, string>();
+    const day = (value: Date | null) =>
+      value ? value.toISOString().slice(0, 10) : null;
+    return milestones.map((row) => {
+      const at = forecast.get(row.id) ?? null;
+      const due = day(row.dueOn);
+      const payDue = row.installment ? day(row.installment.dueOn) : null;
+      return {
+        id: row.id,
+        title: row.title,
+        status: row.status,
+        dueOn: due,
+        installment: row.installment
+          ? {
+              seq: row.installment.seq,
+              label: row.installment.label,
+              dueOn: payDue,
+            }
+          : null,
+        forecast: at,
+        late:
+          row.status === 'planned' &&
+          at !== null &&
+          ((due !== null && at > due) || (payDue !== null && at > payDue)),
+      };
+    });
   }
 
   // --- helpers -------------------------------------------------------------------

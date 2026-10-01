@@ -1,5 +1,8 @@
 import {
   linkProblems,
+  milestoneForecast,
+  scheduleShifts,
+  slippedMilestones,
   schedulePlan,
   wbsCodes,
   workdaysFrom,
@@ -159,5 +162,41 @@ describe('CD-177 the breakdown', () => {
   it('cannot move a task under its own child', () => {
     expect(wouldNest(tree, 'p1', 'g1')).toBe(true);
     expect(wouldNest(tree, 'g1', 'p2')).toBe(false);
+  });
+});
+
+describe('CD-178 impact of a change', () => {
+  const tasks = [
+    { ...task('A', 3), milestoneId: null },
+    { ...task('B', 2), milestoneId: 'm1' },
+    { ...task('C', 1), milestoneId: 'm1' },
+    { ...task('D', 1), milestoneId: 'm2' },
+  ];
+  const links = [link('A', 'B')];
+
+  it('forecasts a milestone at the latest finish of its tasks', () => {
+    const plan = schedulePlan(tasks, links, '2026-10-01', calendar)!;
+    expect(Object.fromEntries(milestoneForecast(tasks, plan.tasks))).toEqual({
+      m1: '2026-10-07',
+      m2: '2026-10-01',
+    });
+  });
+
+  it('lists what moves, and the milestones that slip', () => {
+    const before = schedulePlan(tasks, links, '2026-10-01', calendar)!;
+    const longer = tasks.map((row) =>
+      row.id === 'A' ? { ...row, durationDays: 5 } : row,
+    );
+    const after = schedulePlan(longer, links, '2026-10-01', calendar)!;
+    expect(scheduleShifts(before.tasks, after.tasks).map((s) => s.id)).toEqual([
+      'A',
+      'B',
+    ]);
+    expect(
+      slippedMilestones(
+        milestoneForecast(tasks, before.tasks),
+        milestoneForecast(longer, after.tasks),
+      ),
+    ).toEqual([{ milestoneId: 'm1', from: '2026-10-07', to: '2026-10-09' }]);
   });
 });

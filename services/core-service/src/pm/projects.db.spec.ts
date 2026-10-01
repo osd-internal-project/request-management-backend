@@ -597,12 +597,28 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         new ProjectMilestoneRepository(client),
         new WorkCalendarRepository(client),
         new CompanyMemberRepository(client),
+        {
+          milestoneSlipped: (
+            userId: string,
+            _company: string,
+            input: { milestone: string; from: string | null; to: string },
+          ) => {
+            slips.push({ userId, ...input });
+            return Promise.resolve();
+          },
+        } as never,
         { record: () => Promise.resolve() } as never,
         {
           execute: (work: (tx: unknown) => Promise<unknown>) =>
             prisma.$transaction((tx) => work(tx)),
         } as never,
       );
+      const slips: {
+        userId: string;
+        milestone: string;
+        from: string | null;
+        to: string;
+      }[] = [];
       const managerNow = as(engineer, ['notification.read']);
       await expect(
         plan.create(
@@ -668,6 +684,64 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       expect(byTitle('เอกสาร')).toMatchObject({ summary: true });
       expect(view.finish).toBe(byTitle('ติดตั้ง').finish);
       expect(view.projectStart).toBe('2026-10-01');
+
+      // CD-178 — installing delivers a milestone that unlocks a payment
+      const firstPayment = (await schedule.view(contractId, lawyer()))
+        .installments[0];
+      const handover = await milestones.create(
+        projectId,
+        {
+          title: 'ติดตั้งเสร็จ',
+          criteria: ['ระบบเปิดใช้งานได้'],
+          installment_id: firstPayment.id,
+        },
+        managerNow,
+      );
+      await plan.update(
+        projectId,
+        install,
+        { milestone_id: handover.milestone!.id },
+        managerNow,
+      );
+      const forecastOf = (v: typeof view) =>
+        v.milestones.find((row) => row.title === 'ติดตั้งเสร็จ')!.forecast;
+      view = await plan.view(projectId, managerNow);
+      const before = forecastOf(view);
+      expect(before).toBe(byTitle('ติดตั้ง').finish);
+
+      // what a longer survey would move — nothing saved
+      const impact = await plan.preview(
+        projectId,
+        { task_id: survey, duration_days: 6 },
+        managerNow,
+      );
+      expect(impact.moved.map((row) => row.title).sort()).toEqual(
+        ['ติดตั้ง', 'สำรวจหน้างาน'].sort(),
+      );
+      expect(impact.finish.to! > impact.finish.from!).toBe(true);
+      expect(impact.milestones).toEqual([
+        expect.objectContaining({ title: 'ติดตั้งเสร็จ', from: before }),
+      ]);
+      expect(forecastOf(await plan.view(projectId, managerNow))).toBe(before);
+      expect(slips).toEqual([]);
+
+      // saved: the contract's owner hears the payment milestone slipped
+      view = await plan.update(
+        projectId,
+        survey,
+        { duration_days: 6 },
+        managerNow,
+      );
+      expect(forecastOf(view)! > before!).toBe(true);
+      expect(slips).toContainEqual(
+        expect.objectContaining({
+          userId: pm,
+          milestone: 'ติดตั้งเสร็จ',
+          from: before,
+          to: forecastOf(view),
+        }),
+      );
+      expect(slips.some((row) => row.userId === engineer)).toBe(false);
 
       // a loop, a summary, and splitting a linked task are all refused
       await expect(

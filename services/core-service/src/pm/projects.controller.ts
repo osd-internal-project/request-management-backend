@@ -27,6 +27,7 @@ import {
   ListProjectsQueryDto,
   OpenProjectDto,
   SaveMilestoneDto,
+  PlanPreviewDto,
   SavePredecessorsDto,
   SaveTaskDto,
   SaveProjectMembersDto,
@@ -257,6 +258,19 @@ export class ProjectsController {
   @Permissions('notification.read')
   viewPlan(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
     return this.plan.view(id, principal);
+  }
+
+  @ApiOperation({
+    summary: 'ดูผลกระทบก่อนบันทึก: งานที่เลื่อน วันจบโครงการ และหมุดหมาย',
+  })
+  @Post(':id/plan/preview')
+  @Permissions('notification.read')
+  previewPlan(
+    @Param('id') id: string,
+    @Body() dto: PlanPreviewDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.plan.preview(id, dto, principal);
   }
 
   @ApiOperation({ summary: 'เพิ่มงานในแผน' })
