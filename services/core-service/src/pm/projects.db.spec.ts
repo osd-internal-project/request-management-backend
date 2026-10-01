@@ -37,6 +37,7 @@ import {
   ProjectStatusReportRepository,
   ProjectTestItemRepository,
   ProjectTestRunRepository,
+  ProjectReadinessItemRepository,
 } from './project.repositories';
 import { ProjectsService } from './projects.service';
 import { MilestonesService } from './milestones.service';
@@ -52,6 +53,7 @@ import { PaymentsService } from './payments.service';
 import { CloseoutService } from './closeout.service';
 import { StatusReportsService } from './status-reports.service';
 import { TestsService } from './tests.service';
+import { ReadinessService } from './readiness.service';
 import { ContractRiskAssessmentRepository } from '../crm/contract-risk.service';
 import { ContractObligationRepository } from '../crm/contract-obligations.service';
 import {
@@ -255,6 +257,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       });
       await prisma.projectTask.deleteMany({ where: { projectId } });
       await prisma.projectMilestone.deleteMany({ where: { projectId } });
+      await prisma.projectReadinessItem.deleteMany({ where: { projectId } });
       await prisma.projectTestRun.deleteMany({
         where: { item: { projectId } },
       });
@@ -1963,6 +1966,166 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       await prisma.projectIssue.update({
         where: { id: issueId },
         data: { status: 'resolved', resolution: 'ทดสอบ' },
+      });
+    });
+
+    it('CD-225: the readiness check — the company checklist, named inspectors, and the checks the system makes', async () => {
+      const client = prisma as never;
+      const transactions = {
+        execute: (work: (tx: unknown) => Promise<unknown>) =>
+          prisma.$transaction((tx) => work(tx)),
+      } as never;
+      const audit = { record: () => Promise.resolve() } as never;
+      const tests = new TestsService(
+        projects,
+        new ProjectRepository(client),
+        new ProjectChangeRequestRepository(client),
+        new ProjectTestItemRepository(client),
+        new ProjectTestRunRepository(client),
+        new CompanyMemberRepository(client),
+        {} as never,
+        {} as never,
+        audit,
+        transactions,
+      );
+      const named: string[] = [];
+      const ready = new ReadinessService(
+        projects,
+        new ProjectReadinessItemRepository(client),
+        new ProjectIssueRepository(client),
+        tests,
+        {
+          findFirst: () =>
+            Promise.resolve({
+              projectReadinessChecklist: ['หน้างานสะอาด', ' ', 'อบรมผู้ใช้'],
+            }),
+        } as never,
+        new CompanyMemberRepository(client),
+        {
+          readinessAssigned: (
+            userId: string,
+            _c: string,
+            _p: unknown,
+            line: string,
+          ) => {
+            named.push(`${userId}:${line}`);
+            return Promise.resolve();
+          },
+        } as never,
+        audit,
+        transactions,
+      );
+      const managerNow = as(engineer, ['notification.read']);
+      const crew = as(outsider, ['notification.read']);
+      const now = new Date('2026-10-08T03:00:00Z');
+
+      expect((await ready.view(projectId, crew)).started).toBe(false);
+      await expect(ready.start(projectId, crew)).rejects.toMatchObject({
+        code: 'FORBIDDEN',
+      });
+      const started = await ready.start(projectId, managerNow);
+      expect(started.lines.map((line) => line.text)).toEqual([
+        'หน้างานสะอาด',
+        'อบรมผู้ใช้',
+      ]);
+      await expect(ready.start(projectId, managerNow)).rejects.toMatchObject({
+        code: 'CONFLICT',
+      });
+      const [clean, training] = started.lines;
+
+      // the manager names an inspector, who is told and may then check it
+      await ready.update(
+        projectId,
+        clean.id,
+        { inspector_user_id: outsider },
+        managerNow,
+      );
+      expect(named).toEqual([`${outsider}:หน้างานสะอาด`]);
+      await expect(
+        ready.check(
+          projectId,
+          training.id,
+          { result: 'pass', checked_on: '2026-10-08' },
+          crew,
+          now,
+        ),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+      await expect(
+        ready.check(
+          projectId,
+          clean.id,
+          { result: 'pass', checked_on: '2026-10-09' },
+          crew,
+          now,
+        ),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+      await ready.check(
+        projectId,
+        clean.id,
+        { result: 'pass', checked_on: '2026-10-08' },
+        crew,
+        now,
+      );
+
+      // a fail says why; rewording a line means it is checked again
+      await expect(
+        ready.check(
+          projectId,
+          training.id,
+          { result: 'fail', checked_on: '2026-10-08' },
+          managerNow,
+          now,
+        ),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+      const failed = await ready.check(
+        projectId,
+        training.id,
+        { result: 'fail', checked_on: '2026-10-08', note: 'ลูกค้ายังไม่ว่าง' },
+        managerNow,
+        now,
+      );
+      expect(failed.readiness.ready).toBe(false);
+      expect(failed.readiness.blockers).toContain('ไม่ผ่าน: อบรมผู้ใช้');
+      const reworded = await ready.update(
+        projectId,
+        training.id,
+        { text: 'อบรมผู้ใช้งาน 2 รอบ' },
+        managerNow,
+      );
+      expect(
+        reworded.lines.find((line) => line.id === training.id),
+      ).toMatchObject({ result: null, checkedOn: null });
+      await ready.check(
+        projectId,
+        training.id,
+        { result: 'pass', checked_on: '2026-10-08' },
+        managerNow,
+        now,
+      );
+
+      // a line added and removed again leaves no trace on the result
+      const added = await ready.add(
+        projectId,
+        { text: 'ส่งรหัสผ่านให้ลูกค้า' },
+        managerNow,
+      );
+      const extra = added.lines.find(
+        (line) => line.text === 'ส่งรหัสผ่านให้ลูกค้า',
+      )!;
+      await ready.remove(projectId, extra.id, managerNow);
+
+      // the system's own checks: tests passed (CD-221), and no issue open
+      await prisma.projectIssue.updateMany({
+        where: { projectId, status: 'open' },
+        data: { status: 'resolved', resolution: 'ทดสอบ' },
+      });
+      const state = await ready.state(projectId);
+      expect(state.checks.every((check) => check.ok)).toBe(true);
+      expect(state.readiness).toMatchObject({
+        ready: true,
+        passed: 2,
+        total: 2,
+        blockers: [],
       });
     });
 

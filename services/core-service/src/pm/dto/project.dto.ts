@@ -744,3 +744,36 @@ export class RecordTestDto {
   @MaxLength(4000)
   note?: string;
 }
+
+/** CD-225 — a readiness line as the manager plans it. */
+export class SaveReadinessItemDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  text?: string;
+
+  @ApiPropertyOptional({ description: 'ผู้ตรวจ; "" = ไม่ระบุ' })
+  @IsOptional()
+  @IsString()
+  inspector_user_id?: string;
+}
+
+/** CD-225 — a readiness line checked. */
+export class CheckReadinessDto {
+  @ApiPropertyOptional({ enum: ['pass', 'fail'] })
+  @IsOptional()
+  @IsIn(['pass', 'fail'])
+  result?: string;
+
+  @ApiPropertyOptional({ example: '2026-10-08' })
+  @IsOptional()
+  @IsDateString()
+  checked_on?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  note?: string;
+}

@@ -607,6 +607,27 @@ export class NotificationsService {
     });
   }
 
+  /** CD-225 — someone was named to inspect a readiness line. */
+  async readinessAssigned(
+    userId: string,
+    companyId: string,
+    project: { id: string; projectNo: string; name: string },
+    line: string,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'pm.readiness.assigned',
+      values: {
+        project_no: project.projectNo,
+        project_name: project.name,
+        line,
+      },
+      resourceType: 'project',
+      resourceId: project.id,
+    });
+  }
+
   /** CD-192 — this week's status report is drafted (to the manager). */
   async statusReportDue(
     userId: string,

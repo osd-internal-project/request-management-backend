@@ -9363,6 +9363,14 @@
             "minimum": 1,
             "type": "integer"
           },
+          "project_readiness_checklist": {
+            "type": "array",
+            "items": {
+              "maxLength": 1000,
+              "type": "string"
+            },
+            "maxItems": 50
+          },
           "solution_request_type_code": {
             "pattern": "^([A-Z0-9_-]{1,20})?$",
             "type": "string"

@@ -33,6 +33,8 @@ import {
   SaveStatusReportDto,
   SaveTestItemDto,
   RecordTestDto,
+  SaveReadinessItemDto,
+  CheckReadinessDto,
   ListProjectsQueryDto,
   OpenProjectDto,
   SaveMilestoneDto,
@@ -65,6 +67,7 @@ import { PaymentsService } from './payments.service';
 import { CloseoutService } from './closeout.service';
 import { StatusReportsService } from './status-reports.service';
 import { TestsService } from './tests.service';
+import { ReadinessService } from './readiness.service';
 import { MAX_TASK_FILE_BYTES, TaskWorkService } from './task-work.service';
 import { MAX_FILES_PER_UPDATE } from './task-rules';
 import { ProjectsService } from './projects.service';
@@ -93,6 +96,7 @@ export class ProjectsController {
     private readonly closeout: CloseoutService,
     private readonly statusReports: StatusReportsService,
     private readonly tests: TestsService,
+    private readonly readiness: ReadinessService,
   ) {}
 
   @ApiOperation({ summary: 'รายการโครงการ (ทั้งบริษัท หรือของฉัน)' })
@@ -557,6 +561,79 @@ export class ProjectsController {
       type: file.mimeType,
       disposition: `inline; filename*=UTF-8''${encodeURIComponent(file.fileName)}`,
     });
+  }
+
+  // --- CD-225 readiness before handover ---------------------------------------------
+
+  @ApiOperation({
+    summary:
+      'ตรวจความพร้อมก่อนส่งมอบ: รายการตรวจ ข้อที่ระบบตรวจเอง และความพร้อม',
+  })
+  @Get(':id/readiness')
+  @Permissions('notification.read')
+  viewReadiness(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.readiness.view(id, principal);
+  }
+
+  @ApiOperation({ summary: 'เริ่มตรวจ: คัดลอกรายการตรวจมาตรฐานของบริษัท' })
+  @Post(':id/readiness/start')
+  @Permissions('notification.read')
+  startReadiness(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.readiness.start(id, principal);
+  }
+
+  @ApiOperation({ summary: 'เพิ่มรายการตรวจ (ผู้จัดการโครงการ)' })
+  @Post(':id/readiness')
+  @Permissions('notification.read')
+  addReadiness(
+    @Param('id') id: string,
+    @Body() dto: SaveReadinessItemDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.readiness.add(id, dto, principal);
+  }
+
+  @ApiOperation({ summary: 'แก้รายการตรวจ หรือผู้ตรวจ (ผู้จัดการโครงการ)' })
+  @Patch(':id/readiness/:lineId')
+  @Permissions('notification.read')
+  updateReadiness(
+    @Param('id') id: string,
+    @Param('lineId') lineId: string,
+    @Body() dto: SaveReadinessItemDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.readiness.update(id, lineId, dto, principal);
+  }
+
+  @ApiOperation({ summary: 'นำรายการตรวจออก (ผู้จัดการโครงการ)' })
+  @Delete(':id/readiness/:lineId')
+  @Permissions('notification.read')
+  removeReadiness(
+    @Param('id') id: string,
+    @Param('lineId') lineId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.readiness.remove(id, lineId, principal);
+  }
+
+  @ApiOperation({
+    summary: 'บันทึกผลตรวจ ผ่าน/ไม่ผ่าน พร้อมวันที่ (ผู้ตรวจหรือผู้จัดการ)',
+  })
+  @Post(':id/readiness/:lineId/check')
+  @Permissions('notification.read')
+  checkReadiness(
+    @Param('id') id: string,
+    @Param('lineId') lineId: string,
+    @Body() dto: CheckReadinessDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.readiness.check(id, lineId, dto, principal);
   }
 
   // --- CD-192 weekly status reports ------------------------------------------------

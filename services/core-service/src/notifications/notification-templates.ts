@@ -277,6 +277,17 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
     },
   },
   {
+    eventType: 'pm.readiness.assigned',
+    label: 'ได้รับมอบหมายตรวจความพร้อมก่อนส่งมอบ (ถึงผู้ตรวจ)',
+    title: 'โครงการ {{project_no}}: ตรวจความพร้อม — {{line}}',
+    body: '{{project_name}} — บันทึกผลผ่าน/ไม่ผ่านได้ที่การ์ดตรวจความพร้อมในหน้าโครงการ',
+    variables: {
+      project_no: { label: 'เลขที่โครงการ', sample: 'PRJ-OSD-000012' },
+      project_name: { label: 'ชื่อโครงการ', sample: 'ระบบกล้องอาคาร A' },
+      line: { label: 'รายการตรวจ', sample: 'อบรมผู้ใช้งานแล้ว' },
+    },
+  },
+  {
     eventType: 'pm.status_report.due',
     label: 'ร่างรายงานสถานะโครงการประจำสัปดาห์ (ถึงผู้จัดการโครงการ)',
     title: 'โครงการ {{project_no}}: ร่างรายงานสถานะสัปดาห์นี้พร้อมแล้ว',

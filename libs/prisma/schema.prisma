@@ -2425,6 +2425,9 @@ model CrmCompanyConfig {
   /// CD-192 — the health score at which a project turns amber, and red.
   projectHealthAmber               Int      @default(20)
   projectHealthRed                 Int      @default(40)
+  /// CD-225 — the readiness checklist every project starts its check from;
+  /// the manager adds to or removes from it per project.
+  projectReadinessChecklist        String[] @default(["หน้างานสะอาดเรียบร้อย", "ติดป้ายและฉลากอุปกรณ์ครบ", "อบรมผู้ใช้งานแล้ว", "สำรองค่าตั้งค่าระบบแล้ว"])
 
   /// CD-130: ประเภทคำขอ "ขอ Solution และประเมินต้นทุน" (Sales → Pre-Sales) — การ์ด Solution
   /// บนหน้าดีลยื่นประเภทนี้. ช่องบังคับของฟอร์มประเภทนี้คือรายการตรวจความครบ (จุดส่งต่อที่ 2).
@@ -4952,6 +4955,8 @@ model Project {
   statusReports   ProjectStatusReport[]
   /// CD-221 — ข้อทดสอบตามขอบเขตงาน.
   testItems       ProjectTestItem[]
+  /// CD-225 — รายการตรวจความพร้อมก่อนส่งมอบ.
+  readinessItems  ProjectReadinessItem[]
 
   @@unique([companyId, projectNo])
   @@index([companyId, status])
@@ -5631,5 +5636,37 @@ model ProjectTestRun {
 
   @@index([itemId, testedAt])
   @@map("project_test_runs")
+}
+
+/// CD-225 — one line of a project's readiness check before handover: copied
+/// from the company checklist (CrmConfig.projectReadinessChecklist) when the
+/// manager starts the check, or added by them; an inspector named by the
+/// manager records it passed or failed, on a date. Together with the checks
+/// the system makes itself (tests complete — CD-221, no issue open), every
+/// line passed is what lets the acceptance be asked for (CD-189).
+model ProjectReadinessItem {
+  id              String    @id @default(uuid())
+  companyId       String
+  projectId       String
+  seq             Int
+  text            String
+  inspectorUserId String?
+  /// null = not checked yet · pass · fail
+  result          String?
+  checkedOn       DateTime? @db.Date
+  note            String?
+  checkedBy       String?
+  checkedAt       DateTime?
+  createdAt       DateTime  @default(now())
+  createdBy       String
+  updatedAt       DateTime  @updatedAt
+  updatedBy       String?
+  deletedAt       DateTime?
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
+
+  @@unique([projectId, seq])
+  @@index([inspectorUserId, result])
+  @@map("project_readiness_items")
 }
 

@@ -315,3 +315,17 @@ export class ProjectTestRunRepository extends BaseRepository<
     return client.projectTestRun;
   }
 }
+
+/** CD-225 รายการตรวจความพร้อมก่อนส่งมอบ. */
+@Injectable()
+export class ProjectReadinessItemRepository extends BaseRepository<
+  PrismaService['projectReadinessItem']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.projectReadinessItem;
+  }
+}
