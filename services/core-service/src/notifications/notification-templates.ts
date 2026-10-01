@@ -277,6 +277,17 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
     },
   },
   {
+    eventType: 'pm.issue.assigned',
+    label: 'ได้รับมอบหมายปัญหาในโครงการ (ถึงเจ้าของปัญหา)',
+    title: 'โครงการ {{project_no}}: {{issue_no}} {{title}}',
+    body: 'คุณเป็นเจ้าของปัญหานี้ — ดูกำหนดแก้ไขที่หน้าโครงการ',
+    variables: {
+      project_no: { label: 'เลขที่โครงการ', sample: 'PRJ-OSD-000012' },
+      issue_no: { label: 'เลขที่ปัญหา', sample: 'I-3' },
+      title: { label: 'ปัญหา', sample: 'อุปกรณ์มาไม่ครบ' },
+    },
+  },
+  {
     eventType: 'pm.task.assigned',
     label: 'ได้รับมอบหมายงานในโครงการ (ถึงผู้รับผิดชอบงาน)',
     title: 'งานใหม่: {{task}}',

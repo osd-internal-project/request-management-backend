@@ -607,6 +607,24 @@ export class NotificationsService {
     });
   }
 
+  /** CD-184 — an issue was handed to someone to fix. */
+  async issueAssigned(
+    userId: string,
+    companyId: string,
+    project: { id: string; projectNo: string },
+    issueNo: string,
+    title: string,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'pm.issue.assigned',
+      values: { project_no: project.projectNo, issue_no: issueNo, title },
+      resourceType: 'project',
+      resourceId: project.id,
+    });
+  }
+
   /** CD-181 — a task was handed to someone. */
   async taskAssigned(
     userId: string,

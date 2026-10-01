@@ -4922,6 +4922,8 @@ model Project {
   changeRequests  ProjectChangeRequest[]
   /// CD-183 — ความเสี่ยงโครงการ.
   risks           ProjectRisk[]
+  /// CD-184 — ปัญหาระหว่างทาง.
+  issues          ProjectIssue[]
 
   @@unique([companyId, projectNo])
   @@index([companyId, status])
@@ -5310,4 +5312,42 @@ model ProjectRiskReview {
 
   @@index([riskId, reviewedAt])
   @@map("project_risk_reviews")
+}
+
+/// CD-184 — a problem met on the way: what it does to the schedule
+/// (working days) and the cost (baht), who fixes it by when, and how it was
+/// resolved. One that changes what was sold becomes a change request
+/// (CD-185).
+model ProjectIssue {
+  id                 String    @id @default(uuid())
+  companyId          String
+  projectId          String
+  seq                Int
+  title              String
+  description        String?
+  /// low · medium · high · critical
+  severity           String    @default("medium")
+  scheduleImpactDays Int       @default(0)
+  costImpact         Decimal   @default(0) @db.Decimal(14, 2)
+  ownerUserId        String
+  dueOn              DateTime  @db.Date
+  /// The task it holds up, if any.
+  taskId             String?
+  /// open · resolved
+  status             String    @default("open")
+  resolution         String?
+  resolvedAt         DateTime?
+  resolvedBy         String?
+  /// The change request it became (CD-185).
+  changeRequestId    String?
+  createdAt          DateTime  @default(now())
+  createdBy          String
+  updatedAt          DateTime  @updatedAt
+  updatedBy          String?
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, seq])
+  @@index([companyId, status, dueOn])
+  @@map("project_issues")
 }

@@ -23,6 +23,7 @@ import { MAX_DURATION_DAYS } from '../plan-rules';
 import { MAX_NOTE_LENGTH, WORK_STATUSES } from '../task-rules';
 import { BUDGET_CATEGORIES, MAX_BUDGET_LINES } from '../budget-rules';
 import { MAX_CHANGE_LINES } from '../change-rules';
+import { ISSUE_SEVERITIES } from '../issue-rules';
 import {
   MAX_REVIEW_DAYS,
   MIN_REVIEW_DAYS,
@@ -511,4 +512,60 @@ export class ReviewRiskDto {
   @IsOptional()
   @IsIn([...PROJECT_RISK_STATUSES])
   status?: string;
+}
+
+/** CD-184 — an issue; everything optional on edit. */
+export class SaveIssueDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  title?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  description?: string;
+
+  @ApiPropertyOptional({ enum: ISSUE_SEVERITIES })
+  @IsOptional()
+  @IsIn([...ISSUE_SEVERITIES])
+  severity?: string;
+
+  @ApiPropertyOptional({ description: 'วันทำงานที่ล่าช้าเพราะปัญหานี้' })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(3650)
+  schedule_impact_days?: number;
+
+  @ApiPropertyOptional({ description: 'ต้นทุนที่เพิ่มเพราะปัญหานี้ (บาท)' })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  cost_impact?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  owner_user_id?: string;
+
+  @ApiPropertyOptional({ example: '2026-10-15' })
+  @IsOptional()
+  @IsDateString()
+  due_on?: string;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @IsString()
+  task_id?: string | null;
+}
+
+/** CD-184 — how an issue was resolved. */
+export class ResolveIssueDto {
+  @ApiProperty()
+  @IsString()
+  @MaxLength(4000)
+  resolution!: string;
 }

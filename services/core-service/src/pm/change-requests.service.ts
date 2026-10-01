@@ -379,6 +379,16 @@ export class ChangeRequestsService implements OnModuleInit {
     return this.list(projectId, actor);
   }
 
+  /** "CR-n" for each change, for whoever links to one. */
+  async labels(ids: string[]): Promise<Map<string, string>> {
+    if (!ids.length) return new Map();
+    const rows = (await this.changes.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, seq: true },
+    })) as { id: string; seq: number }[];
+    return new Map(rows.map((row) => [row.id, `CR-${row.seq}`]));
+  }
+
   /** May work tied to this change start? Only once the board approved it. */
   async workMayStart(changeRequestId: string | null): Promise<string | null> {
     if (!changeRequestId) return null;

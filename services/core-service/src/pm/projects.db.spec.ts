@@ -20,6 +20,7 @@ import {
   ProjectRepository,
   ProjectBudgetRepository,
   ProjectChangeRequestRepository,
+  ProjectIssueRepository,
   ProjectProgressRepository,
   ProjectRiskRepository,
   ProjectRiskReviewRepository,
@@ -37,6 +38,7 @@ import { ProgressService } from './progress.service';
 import { BudgetService } from './budget.service';
 import { ChangeRequestsService } from './change-requests.service';
 import { ProjectRisksService } from './project-risks.service';
+import { ProjectIssuesService } from './project-issues.service';
 import { ContractRiskAssessmentRepository } from '../crm/contract-risk.service';
 import {
   SolutionRiskRepository,
@@ -239,6 +241,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       });
       await prisma.projectTask.deleteMany({ where: { projectId } });
       await prisma.projectMilestone.deleteMany({ where: { projectId } });
+      await prisma.projectIssue.deleteMany({ where: { projectId } });
       await prisma.projectChangeRequest.deleteMany({ where: { projectId } });
       await prisma.project.deleteMany({ where: { contractId } });
       await prisma.contractInstallment.deleteMany({ where: { contractId } });
@@ -1439,6 +1442,126 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         ['R-1', true],
         ['R-2', true],
       ]);
+    });
+
+    it('CD-184: an issue with an owner and a deadline, late when past it; it becomes a change request; the owner resolves it', async () => {
+      const client = prisma as never;
+      const transactions = {
+        execute: (work: (tx: unknown) => Promise<unknown>) =>
+          prisma.$transaction((tx) => work(tx)),
+      } as never;
+      const audit = { record: () => Promise.resolve() } as never;
+      const told: string[] = [];
+      const changes = new ChangeRequestsService(
+        projects,
+        new ProjectChangeRequestRepository(client),
+        new ProjectBudgetRepository(client),
+        { findFirst: () => Promise.resolve(null) } as never,
+        {
+          findFirst: () => Promise.resolve(null),
+          findMany: () => Promise.resolve([]),
+        } as never,
+        {} as never,
+        new CompanyMemberRepository(client),
+        {} as never,
+        { on: () => undefined } as never,
+        audit,
+        transactions,
+      );
+      const issues = new ProjectIssuesService(
+        projects,
+        new ProjectIssueRepository(client),
+        new ProjectTaskRepository(client),
+        changes,
+        new CompanyMemberRepository(client),
+        {
+          issueAssigned: (userId: string) => {
+            told.push(userId);
+            return Promise.resolve();
+          },
+        } as never,
+        audit,
+        transactions,
+      );
+      const managerNow = as(engineer, ['notification.read']);
+      const crew = as(outsider, ['notification.read']);
+      const survey = await prisma.projectTask.findFirstOrThrow({
+        where: { projectId, title: 'สำรวจหน้างาน' },
+        select: { id: true },
+      });
+
+      await expect(
+        issues.create(
+          projectId,
+          { title: 'ไม่มีเจ้าของ', due_on: '2026-10-05' },
+          managerNow,
+        ),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+      await issues.create(
+        projectId,
+        {
+          title: 'สายสัญญาณไม่ผ่านมาตรฐาน',
+          severity: 'high',
+          schedule_impact_days: 2,
+          cost_impact: 5000,
+          owner_user_id: outsider,
+          due_on: '2026-10-05',
+          task_id: survey.id,
+        },
+        managerNow,
+      );
+      expect(told).toEqual([outsider]);
+      const late = await issues.list(
+        projectId,
+        crew,
+        new Date('2026-10-10T03:00:00Z'),
+      );
+      expect(late.summary).toEqual({
+        open: 1,
+        overdue: 1,
+        scheduleDays: 2,
+        cost: 5000,
+      });
+      const issue = late.issues[0];
+      expect(issue).toMatchObject({
+        label: 'I-1',
+        overdue: true,
+        task: { id: survey.id, title: 'สำรวจหน้างาน' },
+      });
+
+      // it changes what was sold: a change request draft carries its cost
+      const turned = await issues.toChange(projectId, issue.id, managerNow);
+      const cr = await prisma.projectChangeRequest.findUniqueOrThrow({
+        where: { id: turned.changeId },
+      });
+      expect(cr).toMatchObject({
+        title: 'I-1: สายสัญญาณไม่ผ่านมาตรฐาน',
+        scheduleDays: 2,
+        status: 'draft',
+      });
+      expect(Number(cr.costChange)).toBe(5000);
+      expect(turned.issues[0].changeRequest?.label).toBe(`CR-${cr.seq}`);
+      await expect(
+        issues.toChange(projectId, issue.id, managerNow),
+      ).rejects.toMatchObject({ code: 'CONFLICT' });
+
+      // its owner resolves it, with how
+      await expect(
+        issues.resolve(projectId, issue.id, { resolution: ' ' }, crew),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+      const resolved = await issues.resolve(
+        projectId,
+        issue.id,
+        { resolution: 'เปลี่ยนสาย CAT6A ทั้งชั้น' },
+        crew,
+      );
+      expect(resolved.issues[0]).toMatchObject({
+        status: 'resolved',
+        overdue: false,
+      });
+      await expect(
+        issues.update(projectId, issue.id, { title: 'แก้' }, managerNow),
+      ).rejects.toMatchObject({ code: 'CONFLICT' });
     });
   },
 );

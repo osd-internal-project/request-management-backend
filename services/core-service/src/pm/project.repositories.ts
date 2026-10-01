@@ -189,3 +189,17 @@ export class ProjectRiskReviewRepository extends BaseRepository<
     return client.projectRiskReview;
   }
 }
+
+/** CD-184 ปัญหาระหว่างทาง. */
+@Injectable()
+export class ProjectIssueRepository extends BaseRepository<
+  PrismaService['projectIssue']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.projectIssue;
+  }
+}

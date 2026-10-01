@@ -33,8 +33,10 @@ import {
   SavePredecessorsDto,
   ReportProgressDto,
   SaveBudgetDto,
+  ResolveIssueDto,
   ReviewRiskDto,
   SaveChangeRequestDto,
+  SaveIssueDto,
   SaveProjectRiskDto,
   SaveTaskDto,
   TaskReportDto,
@@ -48,6 +50,7 @@ import { ProgressService } from './progress.service';
 import { BudgetService } from './budget.service';
 import { ChangeRequestsService } from './change-requests.service';
 import { ProjectRisksService } from './project-risks.service';
+import { ProjectIssuesService } from './project-issues.service';
 import { MAX_TASK_FILE_BYTES, TaskWorkService } from './task-work.service';
 import { MAX_FILES_PER_UPDATE } from './task-rules';
 import { ProjectsService } from './projects.service';
@@ -70,6 +73,7 @@ export class ProjectsController {
     private readonly budget: BudgetService,
     private readonly changes: ChangeRequestsService,
     private readonly risks: ProjectRisksService,
+    private readonly issues: ProjectIssuesService,
   ) {}
 
   @ApiOperation({ summary: 'รายการโครงการ (ทั้งบริษัท หรือของฉัน)' })
@@ -449,6 +453,64 @@ export class ProjectsController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.changes.cancel(id, changeId, principal);
+  }
+
+  // --- CD-184 issues ----------------------------------------------------------------
+
+  @ApiOperation({ summary: 'ปัญหาระหว่างทางของโครงการ' })
+  @Get(':id/issues')
+  @Permissions('notification.read')
+  listIssues(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.issues.list(id, principal);
+  }
+
+  @ApiOperation({ summary: 'บันทึกปัญหา (เจ้าของและเส้นตายบังคับ)' })
+  @Post(':id/issues')
+  @Permissions('notification.read')
+  createIssue(
+    @Param('id') id: string,
+    @Body() dto: SaveIssueDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.issues.create(id, dto, principal);
+  }
+
+  @ApiOperation({ summary: 'แก้ปัญหาที่ยังเปิดอยู่' })
+  @Patch(':id/issues/:issueId')
+  @Permissions('notification.read')
+  updateIssue(
+    @Param('id') id: string,
+    @Param('issueId') issueId: string,
+    @Body() dto: SaveIssueDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.issues.update(id, issueId, dto, principal);
+  }
+
+  @ApiOperation({ summary: 'ปิดปัญหาพร้อมวิธีแก้ (เจ้าของปัญหาหรือผู้จัดการ)' })
+  @Post(':id/issues/:issueId/resolve')
+  @Permissions('notification.read')
+  resolveIssue(
+    @Param('id') id: string,
+    @Param('issueId') issueId: string,
+    @Body() dto: ResolveIssueDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.issues.resolve(id, issueId, dto, principal);
+  }
+
+  @ApiOperation({ summary: 'แปลงปัญหาเป็นคำขอเปลี่ยนแปลง (ร่าง)' })
+  @Post(':id/issues/:issueId/change')
+  @Permissions('notification.read')
+  issueToChange(
+    @Param('id') id: string,
+    @Param('issueId') issueId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.issues.toChange(id, issueId, principal);
   }
 
   // --- CD-183 risks -----------------------------------------------------------------
