@@ -3,28 +3,20 @@ import {
   BaseRepository,
   PrismaService,
   TQueryClient,
-  TxOption,
 } from '@request-management/share';
 
-/** CD-194 ราคาขายมาตรฐาน. */
+export { ProductPriceRepository } from '../crm/product.repositories';
+
+/** CD-195 ประวัติการบันทึกราคา — append-only. */
 @Injectable()
-export class ProductPriceRepository extends BaseRepository<
-  PrismaService['productPrice']
+export class ProductPriceVersionRepository extends BaseRepository<
+  PrismaService['productPriceVersion']
 > {
   constructor(prisma: PrismaService) {
     super(prisma);
   }
 
   protected delegate(client: TQueryClient) {
-    return client.productPrice;
-  }
-
-  /**
-   * Serialises saves of one product code + currency until the transaction
-   * ends, so two people saving at once cannot both pass the overlap check.
-   */
-  async lockSeries(key: string, option: TxOption): Promise<void> {
-    await (option.prisma ?? this.prisma)
-      .$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`ctd.price.${key}`}))::text AS locked`;
+    return client.productPriceVersion;
   }
 }

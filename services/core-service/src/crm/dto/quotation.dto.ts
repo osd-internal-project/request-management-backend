@@ -71,6 +71,16 @@ export class QuotationLineDto {
   @Min(0)
   @Max(100)
   discount_pct?: number;
+
+  /**
+   * CD-195 — the standard price the unit price came from. Kept only while it
+   * still matches (same code, currency, amount, in effect today); otherwise
+   * the line counts as a price typed by hand.
+   */
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  price_id?: string;
 }
 
 /** สร้างร่างใบเสนอราคาจากโอกาสการขาย — ทุกช่องว่างได้ (ค่าตั้งต้นมาจากโอกาสการขาย/ตั้งค่า). */

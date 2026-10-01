@@ -7,7 +7,7 @@ import {
   MaxLength,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { MAX_PRICE_NOTE } from '../price-rules';
+import { MAX_PRICE_NOTE, MAX_REASON } from '../price-rules';
 
 export class SavePriceDto {
   @ApiProperty({ description: 'รหัสสินค้า SAP (ItemCode)' })
@@ -46,6 +46,15 @@ export class SavePriceDto {
 }
 
 export class UpdatePriceDto {
+  @ApiPropertyOptional({
+    description:
+      'CD-195 — บังคับเมื่อแก้ราคาที่มีผลแล้ว (แก้ได้เฉพาะวันสิ้นสุด)',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(MAX_REASON)
+  reason?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsNumber()
@@ -105,4 +114,26 @@ export class LookupPricesQueryDto {
   @IsOptional()
   @IsString()
   on?: string;
+}
+
+/** CD-195 — ปรับราคาจากวันที่ระบุ: ราคาเดิมสิ้นสุดวันก่อนหน้า ราคาใหม่มีผลต่อ. */
+export class RevisePriceDto {
+  @ApiProperty()
+  @IsNumber()
+  unit_price!: number;
+
+  @ApiProperty({ description: 'YYYY-MM-DD — วันนี้หรือหลังจากนี้' })
+  @IsString()
+  effective_from!: string;
+
+  @ApiProperty({ description: 'เหตุผลที่ปรับราคา' })
+  @IsString()
+  @MaxLength(MAX_REASON)
+  reason!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(MAX_PRICE_NOTE)
+  note?: string;
 }

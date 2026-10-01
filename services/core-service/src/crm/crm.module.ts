@@ -32,7 +32,11 @@ import { SaleOrderErpSyncService } from './sale-order-erp-sync.service';
 import { ErpMockRetirementService } from './erp-mock-retirement.service';
 import { ErpSyncAdminService } from './erp-sync-admin.service';
 import { ProductCatalogService } from './product-catalog.service';
-import { CompanyRepository, ProductRepository } from './product.repositories';
+import {
+  CompanyRepository,
+  ProductPriceRepository,
+  ProductRepository,
+} from './product.repositories';
 import { IntegrationSyncJobRepository } from './integration-job.repository';
 import { KycProductRuleRepository } from './kyc-product.repository';
 import { KycCallbackService } from './kyc-callback.service';
@@ -203,6 +207,8 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     ErpMockRetirementService,
     ErpSyncAdminService,
     ProductRepository,
+    // CD-195 — a quotation line checks the standard price it came from
+    ProductPriceRepository,
     CompanyRepository,
     ProductCatalogService,
     IntegrationSyncJobRepository,

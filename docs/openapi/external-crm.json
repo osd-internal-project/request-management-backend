@@ -8832,6 +8832,10 @@
             "maximum": 100,
             "minimum": 0,
             "type": "number"
+          },
+          "price_id": {
+            "maxLength": 64,
+            "type": "string"
           }
         },
         "required": [

@@ -85,14 +85,20 @@ function harness(seed: Partial<Row>[] = []) {
   const transactions = {
     execute: jest.fn((fn: (prisma: unknown) => Promise<unknown>) => fn({})),
   };
+  const versions = {
+    findFirst: jest.fn(() => Promise.resolve(null)),
+    findMany: jest.fn(() => Promise.resolve([])),
+    create: jest.fn(() => Promise.resolve({})),
+  };
   const service = new PricesService(
     prices as never,
+    versions as never,
     products as never,
     catalog as never,
     audit as never,
     transactions as never,
   );
-  return { service, prices, catalog, audit, rows };
+  return { service, prices, versions, catalog, audit, rows };
 }
 
 describe('PricesService (CD-194)', () => {
@@ -154,9 +160,9 @@ describe('PricesService (CD-194)', () => {
     expect(prices.create).toHaveBeenCalledTimes(2);
   });
 
-  it('an update may keep its own range', async () => {
+  it('an update of a future price may keep its own range', async () => {
     const { service, prices } = harness([
-      { validFrom: d('2026-01-01'), validTo: d('2026-12-31') },
+      { validFrom: d('2099-01-01'), validTo: d('2099-12-31') },
     ]);
     await service.update('p-1', { unitPrice: 1200 }, pricer);
     expect(prices.update).toHaveBeenCalledWith(
@@ -202,6 +208,114 @@ describe('PricesService (CD-194)', () => {
         unit_price: 1000,
         valid_from: '2026-10-01',
       }) as unknown,
+    });
+  });
+
+  describe('CD-195 versions', () => {
+    const started = () =>
+      harness([{ validFrom: d('2020-01-01'), validTo: null, unitPrice: 1000 }]);
+
+    it('writes version 1 when a price is created', async () => {
+      const { service, versions } = harness();
+      await service.create(
+        { productCode: 'SIP-TRUNK', unitPrice: 1, validFrom: '2099-01-01' },
+        pricer,
+      );
+      expect(versions.create).toHaveBeenCalledWith(
+        {
+          data: expect.objectContaining({
+            versionNo: 1,
+            action: 'created',
+          }) as unknown,
+        },
+        { prisma: {} },
+      );
+    });
+
+    it('a started price refuses a new amount but may end, with a reason', async () => {
+      const { service, prices, versions } = started();
+      await expect(
+        service.update('p-1', { unitPrice: 1100, reason: 'x' }, pricer),
+      ).rejects.toMatchObject({ code: 'CONFLICT' });
+      await expect(
+        service.update('p-1', { validTo: '2099-12-31' }, pricer),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+
+      await service.update(
+        'p-1',
+        { validTo: '2099-12-31', reason: 'เลิกขายรุ่นนี้' },
+        pricer,
+      );
+      expect(prices.update).toHaveBeenCalled();
+      expect(versions.create).toHaveBeenCalledWith(
+        {
+          data: expect.objectContaining({
+            action: 'ended',
+            reason: 'เลิกขายรุ่นนี้',
+          }) as unknown,
+        },
+        { prisma: {} },
+      );
+    });
+
+    it('a started price cannot be deleted', async () => {
+      const { service } = started();
+      await expect(service.remove('p-1', pricer)).rejects.toMatchObject({
+        code: 'CONFLICT',
+      });
+    });
+
+    it('revise ends the old row the day before and carries on with a new one', async () => {
+      const { service, prices, versions } = started();
+      await service.revise(
+        'p-1',
+        { unitPrice: 1100, effectiveFrom: '2099-01-01', reason: 'ต้นทุนขึ้น' },
+        pricer,
+      );
+      expect(prices.update).toHaveBeenCalledWith(
+        {
+          where: { id: 'p-1' },
+          data: expect.objectContaining({
+            validTo: d('2098-12-31'),
+          }) as unknown,
+        },
+        { prisma: {} },
+      );
+      expect(prices.create).toHaveBeenCalledWith(
+        {
+          data: expect.objectContaining({
+            unitPrice: 1100,
+            validFrom: d('2099-01-01'),
+            validTo: null,
+          }) as unknown,
+          select: expect.anything() as unknown,
+        },
+        { prisma: {} },
+      );
+      expect(
+        versions.create.mock.calls.map(
+          (call) =>
+            (call as unknown as [{ data: { action: string } }])[0].data.action,
+        ),
+      ).toEqual(['ended', 'revised']);
+    });
+
+    it('revise refuses a date in the past or without a reason', async () => {
+      const { service } = started();
+      await expect(
+        service.revise(
+          'p-1',
+          { unitPrice: 1, effectiveFrom: '2020-06-01', reason: 'x' },
+          pricer,
+        ),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+      await expect(
+        service.revise(
+          'p-1',
+          { unitPrice: 1, effectiveFrom: '2099-01-01' },
+          pricer,
+        ),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
     });
   });
 });

@@ -1,5 +1,9 @@
 import {
   cleanPrice,
+  dayBefore,
+  hasStarted,
+  revisionProblems,
+  startedEditProblems,
   isIsoDate,
   overlaps,
   priceOn,
@@ -95,5 +99,61 @@ describe('price rules (CD-194)', () => {
       ],
     });
     expect(isIsoDate('2026-02-30')).toBe(false);
+  });
+});
+
+describe('price versions (CD-195)', () => {
+  const base = {
+    productCode: 'X',
+    currency: 'THB',
+    unitPrice: 100,
+    validFrom: '2026-01-01',
+    validTo: null,
+    note: '',
+  };
+
+  it('dayBefore crosses months and years', () => {
+    expect(dayBefore('2026-03-01')).toBe('2026-02-28');
+    expect(dayBefore('2027-01-01')).toBe('2026-12-31');
+  });
+
+  it('a started price may only change its end, not into the past', () => {
+    expect(hasStarted(base, '2026-01-01')).toBe(true);
+    expect(hasStarted(base, '2025-12-31')).toBe(false);
+    expect(
+      startedEditProblems(
+        base,
+        { ...base, validTo: '2026-09-29' },
+        '2026-09-30',
+      ),
+    ).toEqual([]);
+    expect(
+      startedEditProblems(
+        base,
+        { ...base, unitPrice: 120, validTo: '2026-09-01' },
+        '2026-09-30',
+      ),
+    ).toEqual([
+      { field: 'unit_price', reason: 'locked_after_start' },
+      { field: 'valid_to', reason: 'before_yesterday' },
+    ]);
+  });
+
+  it('a revision starts today or later, inside the old range', () => {
+    const range = { validFrom: '2026-01-01', validTo: '2026-12-31' };
+    expect(revisionProblems(range, '2026-10-01', '2026-09-30')).toEqual([]);
+    expect(revisionProblems(range, '2026-09-29', '2026-09-30')).toEqual([
+      { field: 'effective_from', reason: 'in_the_past' },
+    ]);
+    expect(revisionProblems(range, '2027-01-01', '2026-09-30')).toEqual([
+      { field: 'effective_from', reason: 'after_end' },
+    ]);
+    expect(
+      revisionProblems(
+        { validFrom: '2026-10-05', validTo: null },
+        '2026-10-05',
+        '2026-09-30',
+      ),
+    ).toEqual([{ field: 'effective_from', reason: 'not_after_start' }]);
   });
 });

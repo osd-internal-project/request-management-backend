@@ -14403,6 +14403,99 @@
         ]
       }
     },
+    "/api/v1/pricing/prices/{id}/revise": {
+      "post": {
+        "operationId": "PricesController_revise",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevisePriceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-195 ปรับราคา — ราคาเดิมสิ้นสุดวันก่อนวันที่มีผล แล้วสร้างราคาใหม่ต่อ",
+        "tags": [
+          "pricing"
+        ],
+        "x-permission": [
+          "pricing.price.manage"
+        ]
+      }
+    },
+    "/api/v1/pricing/prices/{id}/versions": {
+      "get": {
+        "operationId": "PricesController_history",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-195 ประวัติการบันทึกราคานี้",
+        "tags": [
+          "pricing"
+        ],
+        "x-permission": [
+          "pricing.price.read",
+          "pricing.price.manage"
+        ]
+      }
+    },
     "/api/v1/projects": {
       "get": {
         "operationId": "ProjectsController_list",
@@ -23606,6 +23699,11 @@
       "UpdatePriceDto": {
         "type": "object",
         "properties": {
+          "reason": {
+            "type": "string",
+            "description": "CD-195 — บังคับเมื่อแก้ราคาที่มีผลแล้ว (แก้ได้เฉพาะวันสิ้นสุด)",
+            "maxLength": 500
+          },
           "unit_price": {
             "type": "number"
           },
@@ -23621,6 +23719,32 @@
             "maxLength": 500
           }
         }
+      },
+      "RevisePriceDto": {
+        "type": "object",
+        "properties": {
+          "unit_price": {
+            "type": "number"
+          },
+          "effective_from": {
+            "type": "string",
+            "description": "YYYY-MM-DD — วันนี้หรือหลังจากนี้"
+          },
+          "reason": {
+            "type": "string",
+            "description": "เหตุผลที่ปรับราคา",
+            "maxLength": 500
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "effective_from",
+          "reason",
+          "unit_price"
+        ]
       },
       "ProjectMemberDto": {
         "type": "object",
@@ -24759,6 +24883,10 @@
             "maximum": 100,
             "minimum": 0,
             "type": "number"
+          },
+          "price_id": {
+            "maxLength": 64,
+            "type": "string"
           }
         },
         "required": [

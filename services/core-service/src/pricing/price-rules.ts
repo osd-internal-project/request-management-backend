@@ -131,3 +131,73 @@ export function cleanPrice(
     },
   };
 }
+
+// --- CD-195 อายุและเวอร์ชันราคา --------------------------------------------------
+
+export const MAX_REASON = 500;
+
+/** The day before `day` (YYYY-MM-DD). */
+export function dayBefore(day: string): string {
+  const date = new Date(`${day}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() - 1);
+  return date.toISOString().slice(0, 10);
+}
+
+/** A price that has reached its first day is history: it is not rewritten. */
+export const hasStarted = (range: PriceRange, today: string) =>
+  range.validFrom <= today;
+
+/**
+ * What an edit of a started price may change: only its end, and not into
+ * the past — the earliest end is yesterday, which stops it from today.
+ * Returns the problems, empty when the edit is allowed.
+ */
+export function startedEditProblems(
+  before: CleanPrice,
+  after: CleanPrice,
+  today: string,
+): { field: string; reason: string }[] {
+  const problems: { field: string; reason: string }[] = [];
+  if (after.unitPrice !== before.unitPrice) {
+    problems.push({ field: 'unit_price', reason: 'locked_after_start' });
+  }
+  if (after.validFrom !== before.validFrom) {
+    problems.push({ field: 'valid_from', reason: 'locked_after_start' });
+  }
+  if (after.note !== before.note) {
+    problems.push({ field: 'note', reason: 'locked_after_start' });
+  }
+  if (
+    after.validTo !== before.validTo &&
+    after.validTo !== null &&
+    after.validTo < dayBefore(today)
+  ) {
+    problems.push({ field: 'valid_to', reason: 'before_yesterday' });
+  }
+  return problems;
+}
+
+/**
+ * A revision replaces a price from `effectiveFrom`: the old one ends the day
+ * before and the new one keeps the old end. The day must be today or later,
+ * after the old start and inside its range.
+ */
+export function revisionProblems(
+  current: PriceRange,
+  effectiveFrom: unknown,
+  today: string,
+): { field: string; reason: string }[] {
+  if (!isIsoDate(effectiveFrom)) {
+    return [{ field: 'effective_from', reason: 'invalid_date' }];
+  }
+  if (effectiveFrom < today) {
+    return [{ field: 'effective_from', reason: 'in_the_past' }];
+  }
+  if (effectiveFrom <= current.validFrom) {
+    return [{ field: 'effective_from', reason: 'not_after_start' }];
+  }
+  if (current.validTo !== null && effectiveFrom > current.validTo) {
+    return [{ field: 'effective_from', reason: 'after_end' }];
+  }
+  return [];
+}

@@ -3285,6 +3285,9 @@ model QuotationLine {
   /// จำนวน × ราคา × (1 − ส่วนลด%).
   lineTotal   Decimal @db.Decimal(14, 2)
   lineCost    Decimal @db.Decimal(14, 2)
+  /// CD-195 ราคามาตรฐานที่บรรทัดนี้ใช้ (`product_prices.id`) — ว่าง = ราคาที่กรอกเอง.
+  /// ยื่นใบไม่ได้ถ้าราคานั้นไม่มีผลแล้วในวันที่ยื่น.
+  priceId     String?
 
   quotation Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
 
@@ -4985,6 +4988,8 @@ model ProductPrice {
   updatedBy String?
   deletedAt DateTime?
 
+  versions ProductPriceVersion[]
+
   @@index([companyId, productCode, currency])
   @@map("product_prices")
 }
@@ -5039,4 +5044,28 @@ model ProjectTaskLink {
   @@id([predecessorId, successorId])
   @@index([successorId])
   @@map("project_task_links")
+}
+
+/// CD-195 ประวัติทุกครั้งที่ราคาถูกบันทึก — snapshot หลังการเปลี่ยนแปลง ไม่มีการแก้/ลบ.
+model ProductPriceVersion {
+  id        String    @id @default(uuid())
+  priceId   String
+  companyId String
+  versionNo Int
+  /// created | updated | ended | revised | removed
+  action    String
+  unitPrice Decimal   @db.Decimal(14, 2)
+  currency  String
+  validFrom DateTime  @db.Date
+  validTo   DateTime? @db.Date
+  note      String    @default("")
+  /// เหตุผลที่ผู้แก้ระบุ (บังคับเมื่อปรับหรือปิดราคาที่มีผลแล้ว).
+  reason    String    @default("")
+  changedBy String
+  changedAt DateTime  @default(now())
+
+  price ProductPrice @relation(fields: [priceId], references: [id])
+
+  @@unique([priceId, versionNo])
+  @@map("product_price_versions")
 }

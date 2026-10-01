@@ -20,6 +20,7 @@ import {
   QuotationRepository,
 } from './sales.repositories';
 import { ProductCatalogService } from './product-catalog.service';
+import { ProductPriceRepository } from './product.repositories';
 import { CrmConfigRepository } from './segment.repositories';
 import { RunNumberClient } from '../run-number/run-number.client';
 import { CustomerTimelineService } from './customer-timeline.service';
@@ -91,6 +92,7 @@ export class QuotationsService {
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
     private readonly catalog: ProductCatalogService,
+    private readonly prices: ProductPriceRepository,
   ) {}
 
   async list(actor: Principal, query: ListQuotationsQueryDto) {
@@ -242,7 +244,17 @@ export class QuotationsService {
             ownerUserId: opportunity.ownerUserId,
             ownerOrgUnitId: opportunity.ownerOrgUnitId,
             createdBy: actor.userId,
-            lines: { create: linesData(lines, totals) },
+            lines: {
+              create: linesData(
+                lines,
+                totals,
+                await this.priceRefs(
+                  actor.activeCompanyId,
+                  opportunity.currency,
+                  lines,
+                ),
+              ),
+            },
           },
         },
         { prisma },
@@ -321,10 +333,15 @@ export class QuotationsService {
       );
 
       if (dto.lines !== undefined && totals) {
+        const refs = await this.priceRefs(
+          actor.activeCompanyId,
+          found.currency,
+          dto.lines,
+        );
         await prisma.quotationLine.deleteMany({ where: { quotationId: id } });
         if (dto.lines.length) {
           await prisma.quotationLine.createMany({
-            data: linesData(dto.lines, totals).map((line) => ({
+            data: linesData(dto.lines, totals, refs).map((line) => ({
               ...line,
               quotationId: id,
             })),
@@ -381,6 +398,7 @@ export class QuotationsService {
       );
     }
     assertNotExpired(found);
+    await this.assertPricesInEffect(found);
 
     const config = await this.configOf(actor.activeCompanyId);
     const marginPct = found.marginPct;
@@ -678,6 +696,7 @@ export class QuotationsService {
                 discountPct: line.discountPct,
                 lineTotal: line.lineTotal,
                 lineCost: line.lineCost,
+                priceId: line.priceId,
               })),
             },
           },
@@ -790,6 +809,75 @@ export class QuotationsService {
     );
   }
 
+  /**
+   * CD-195 — which lines really carry a standard price: the one named must
+   * exist for the same code and currency, be in effect today and equal the
+   * line's unit price. Anything else is a price typed by hand (null).
+   */
+  private async priceRefs(
+    companyId: string,
+    currency: string,
+    lines: readonly QuotationLineDto[],
+  ): Promise<(string | null)[]> {
+    const ids = [
+      ...new Set(lines.map((line) => line.price_id).filter(Boolean)),
+    ] as string[];
+    if (!ids.length) return lines.map(() => null);
+    const today = startOfToday();
+    const rows = (await this.prices.findMany({
+      where: {
+        id: { in: ids },
+        companyId,
+        currency,
+        deletedAt: null,
+        validFrom: { lte: today },
+        OR: [{ validTo: null }, { validTo: { gte: today } }],
+      },
+      select: { id: true, productCode: true, unitPrice: true },
+    })) as { id: string; productCode: string; unitPrice: Prisma.Decimal }[];
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    return lines.map((line) => {
+      const price = line.price_id ? byId.get(line.price_id) : undefined;
+      return price &&
+        price.productCode === line.product_code?.trim() &&
+        Number(price.unitPrice) === line.unit_price
+        ? price.id
+        : null;
+    });
+  }
+
+  /** CD-195 — a line's standard price must still be in effect on submit. */
+  private async assertPricesInEffect(found: QuotationForAction) {
+    const ids = [
+      ...new Set(found.lines.map((line) => line.priceId).filter(Boolean)),
+    ] as string[];
+    if (!ids.length) return;
+    const today = startOfToday();
+    const live = (await this.prices.findMany({
+      where: {
+        id: { in: ids },
+        deletedAt: null,
+        validFrom: { lte: today },
+        OR: [{ validTo: null }, { validTo: { gte: today } }],
+      },
+      select: { id: true },
+    })) as { id: string }[];
+    const ok = new Set(live.map((row) => row.id));
+    const stale = found.lines.filter(
+      (line) => line.priceId && !ok.has(line.priceId),
+    );
+    if (stale.length) {
+      throw new AppError(
+        'CONFLICT',
+        `ราคามาตรฐานของ ${stale.map((line) => line.productCode ?? `บรรทัด ${line.lineNo}`).join(', ')} ไม่มีผลแล้ว — เลือกสินค้าใหม่เพื่อดึงราคาปัจจุบันก่อนยื่น`,
+        stale.map((line) => ({
+          field: `lines[${line.lineNo - 1}].price_id`,
+          reason: 'price_not_in_effect',
+        })),
+      );
+    }
+  }
+
   private async requireVisible(
     id: string,
     actor: Principal,
@@ -891,6 +979,7 @@ interface QuotationForAction {
     discountPct: Prisma.Decimal;
     lineTotal: Prisma.Decimal;
     lineCost: Prisma.Decimal;
+    priceId: string | null;
   }[];
 }
 
@@ -973,6 +1062,7 @@ function lineInput(line: QuotationLineDto): QuotationLineInput {
 function linesData(
   lines: QuotationLineDto[],
   totals: ReturnType<typeof computeQuotationTotals>,
+  priceRefs: readonly (string | null)[] = [],
 ) {
   return lines.map((line, index) => ({
     lineNo: index + 1,
@@ -985,6 +1075,7 @@ function linesData(
     discountPct: line.discount_pct ?? 0,
     lineTotal: totals.lines[index].lineTotal,
     lineCost: totals.lines[index].lineCost,
+    priceId: priceRefs[index] ?? null,
   }));
 }
 
@@ -1000,4 +1091,9 @@ function totalsData(totals: ReturnType<typeof computeQuotationTotals>) {
     marginAmount: totals.marginAmount,
     marginPct: totals.marginPct,
   };
+}
+
+/** Today as a UTC date, matching the `@db.Date` price columns. */
+function startOfToday(): Date {
+  return new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`);
 }

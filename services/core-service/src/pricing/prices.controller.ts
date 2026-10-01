@@ -14,6 +14,7 @@ import type { Principal } from '@request-management/share';
 import {
   ListPricesQueryDto,
   LookupPricesQueryDto,
+  RevisePriceDto,
   SavePriceDto,
   UpdatePriceDto,
 } from './dto/price.dto';
@@ -84,9 +85,40 @@ export class PricesController {
         ...(dto.valid_from !== undefined ? { validFrom: dto.valid_from } : {}),
         ...(dto.valid_to !== undefined ? { validTo: dto.valid_to } : {}),
         ...(dto.note !== undefined ? { note: dto.note } : {}),
+        reason: dto.reason,
       },
       actor,
     );
+  }
+
+  @ApiOperation({
+    summary:
+      'CD-195 ปรับราคา — ราคาเดิมสิ้นสุดวันก่อนวันที่มีผล แล้วสร้างราคาใหม่ต่อ',
+  })
+  @Post(':id/revise')
+  @Permissions('pricing.price.manage')
+  revise(
+    @Param('id') id: string,
+    @Body() dto: RevisePriceDto,
+    @CurrentPrincipal() actor: Principal,
+  ) {
+    return this.prices.revise(
+      id,
+      {
+        unitPrice: dto.unit_price,
+        effectiveFrom: dto.effective_from,
+        reason: dto.reason,
+        note: dto.note,
+      },
+      actor,
+    );
+  }
+
+  @ApiOperation({ summary: 'CD-195 ประวัติการบันทึกราคานี้' })
+  @Get(':id/versions')
+  @Permissions('pricing.price.read', 'pricing.price.manage')
+  history(@Param('id') id: string, @CurrentPrincipal() actor: Principal) {
+    return this.prices.history(id, actor);
   }
 
   @ApiOperation({ summary: 'CD-194 ลบราคา (soft delete)' })

@@ -66,6 +66,7 @@ function harness(
     minMarginPct?: number;
     requestCreate?: () => Promise<unknown>;
     updateCount?: number;
+    prices?: unknown[];
   } = {},
 ) {
   const audits: { eventType: string; after?: Record<string, unknown> }[] = [];
@@ -83,6 +84,10 @@ function harness(
         Promise.resolve({ count: options.updateCount ?? 1 }),
       ),
     },
+    quotationLine: {
+      deleteMany: jest.fn(() => Promise.resolve({ count: 0 })),
+      createMany: jest.fn(() => Promise.resolve({ count: 1 })),
+    },
   };
   const requestsService = {
     create: jest.fn(
@@ -92,6 +97,10 @@ function harness(
 
   // CD-27 — the SAP catalog check; individual tests make it reject.
   const catalog = { assertKnownCodes: jest.fn(() => Promise.resolve()) };
+  // CD-195 — standard prices a line may name (none by default).
+  const prices = {
+    findMany: jest.fn(() => Promise.resolve(options.prices ?? [])),
+  };
   const service = new QuotationsService(
     quotations as never,
     { findFirst: jest.fn() } as never,
@@ -121,9 +130,18 @@ function harness(
       ),
     } as never,
     catalog as never,
+    prices as never,
   );
 
-  return { service, quotations, tx, requestsService, audits, catalog };
+  return {
+    service,
+    quotations,
+    tx,
+    requestsService,
+    audits,
+    catalog,
+    prices,
+  };
 }
 
 describe('CD-76 ใบเสนอราคา — ตรวจ margin ตอนยื่น', () => {
@@ -372,5 +390,57 @@ describe('CD-76 ผลคำขออนุมัติกลับมาที�
       expect.objectContaining({ product_code: 'TYPO-123' }),
     ]);
     expect(quotations.update).not.toHaveBeenCalled();
+  });
+});
+
+describe('CD-195 ราคามาตรฐานบนบรรทัดใบเสนอราคา', () => {
+  const line = (price_id: string, unit_price = 1250) => ({
+    product_code: 'SIP-TRUNK',
+    description: 'SIP Trunk',
+    quantity: 1,
+    unit_price,
+    price_id,
+  });
+
+  it('เก็บ price_id เฉพาะราคาที่ยังมีผล รหัสตรง และราคาเท่ากัน — ที่เหลือถือว่ากรอกเอง', async () => {
+    const { service, tx } = harness({
+      prices: [{ id: 'p-1', productCode: 'SIP-TRUNK', unitPrice: D(1250) }],
+    });
+    await service.update(
+      'qt-1',
+      { lines: [line('p-1'), line('p-1', 1300), line('p-gone')] },
+      principal(),
+    );
+    const data = (
+      tx.quotationLine.createMany.mock.calls[0] as unknown as [
+        { data: { priceId: string | null }[] },
+      ]
+    )[0].data;
+    expect(data.map((row) => row.priceId)).toEqual(['p-1', null, null]);
+  });
+
+  it('ยื่นไม่ได้ถ้าราคามาตรฐานที่บรรทัดใช้ไม่มีผลแล้ว', async () => {
+    const { service, audits } = harness({
+      row: {
+        lines: [{ lineNo: 1, productCode: 'SIP-TRUNK', priceId: 'p-old' }],
+      },
+      prices: [],
+    });
+    await expect(service.submit('qt-1', {}, principal())).rejects.toMatchObject(
+      { code: 'CONFLICT' },
+    );
+    expect(audits).toHaveLength(0);
+  });
+
+  it('ยื่นได้เมื่อราคายังมีผล', async () => {
+    const { service } = harness({
+      row: {
+        lines: [{ lineNo: 1, productCode: 'SIP-TRUNK', priceId: 'p-1' }],
+      },
+      prices: [{ id: 'p-1' }],
+    });
+    await expect(
+      service.submit('qt-1', {}, principal()),
+    ).resolves.toBeDefined();
   });
 });
