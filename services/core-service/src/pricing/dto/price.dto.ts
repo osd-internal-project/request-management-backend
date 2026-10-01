@@ -11,10 +11,29 @@ import {
   MAX_PRICE_NOTE,
   MAX_REASON,
   PRICE_MODELS,
+  PRICE_SCOPES,
   type PriceModel,
+  type PriceScope,
 } from '../price-rules';
 
 export class SavePriceDto {
+  @ApiPropertyOptional({
+    enum: PRICE_SCOPES,
+    default: 'standard',
+    description: 'CD-197 ราคามาตรฐาน หรือราคาเฉพาะกลุ่มลูกค้า/ลูกค้า/ดีล',
+  })
+  @IsOptional()
+  @IsIn(PRICE_SCOPES)
+  scope?: PriceScope;
+
+  @ApiPropertyOptional({
+    description: 'CD-197 id ของกลุ่มลูกค้า (segment value) ลูกค้า หรือดีล',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  target_id?: string;
+
   @ApiProperty({ description: 'รหัสสินค้า SAP (ItemCode)' })
   @IsString()
   @MaxLength(60)
@@ -97,6 +116,11 @@ export class UpdatePriceDto {
 }
 
 export class ListPricesQueryDto {
+  @ApiPropertyOptional({ enum: ['standard', 'special'], default: 'standard' })
+  @IsOptional()
+  @IsIn(['standard', 'special'])
+  scope?: 'standard' | 'special';
+
   @ApiPropertyOptional({ description: 'ค้นรหัสหรือชื่อสินค้า' })
   @IsOptional()
   @IsString()
@@ -116,6 +140,14 @@ export class ListPricesQueryDto {
 }
 
 export class LookupPricesQueryDto {
+  @ApiPropertyOptional({
+    description: 'CD-197 ดีลของใบเสนอราคา — ใช้หาราคาเฉพาะดีล/ลูกค้า/กลุ่ม',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  opportunity_id?: string;
+
   @ApiProperty({ description: 'รหัสสินค้าคั่นด้วยจุลภาค' })
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.split(',') : value,
@@ -155,4 +187,17 @@ export class RevisePriceDto {
   @IsString()
   @MaxLength(MAX_PRICE_NOTE)
   note?: string;
+}
+
+/** CD-197 — options for the special-price target picker. */
+export class PriceTargetsQueryDto {
+  @ApiProperty({ enum: ['customer', 'segment', 'opportunity'] })
+  @IsIn(['customer', 'segment', 'opportunity'])
+  kind!: 'customer' | 'segment' | 'opportunity';
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  q?: string;
 }

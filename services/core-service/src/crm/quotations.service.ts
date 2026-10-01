@@ -21,6 +21,7 @@ import {
 } from './sales.repositories';
 import { ProductCatalogService } from './product-catalog.service';
 import { ProductPriceRepository } from './product.repositories';
+import { CustomerSegmentAssignmentRepository } from './segment.repositories';
 import { CrmConfigRepository } from './segment.repositories';
 import { RunNumberClient } from '../run-number/run-number.client';
 import { CustomerTimelineService } from './customer-timeline.service';
@@ -95,6 +96,7 @@ export class QuotationsService {
     private readonly transactions: PrismaTransactionService,
     private readonly catalog: ProductCatalogService,
     private readonly prices: ProductPriceRepository,
+    private readonly segmentAssignments: CustomerSegmentAssignmentRepository,
   ) {}
 
   async list(actor: Principal, query: ListQuotationsQueryDto) {
@@ -267,6 +269,7 @@ export class QuotationsService {
                   actor.activeCompanyId,
                   opportunity.currency,
                   lines,
+                  opportunity.id,
                 ),
               ),
             },
@@ -353,6 +356,7 @@ export class QuotationsService {
           actor.activeCompanyId,
           found.currency,
           dto.lines,
+          found.opportunityId,
         );
         await prisma.quotationLine.deleteMany({ where: { quotationId: id } });
         if (dto.lines.length) {
@@ -836,6 +840,7 @@ export class QuotationsService {
     companyId: string,
     currency: string,
     lines: readonly QuotationLineDto[],
+    opportunityId: string,
   ): Promise<(string | null)[]> {
     const ids = [
       ...new Set(lines.map((line) => line.price_id).filter(Boolean)),
@@ -856,23 +861,75 @@ export class QuotationsService {
         productCode: true,
         unitPrice: true,
         priceModel: true,
+        scope: true,
+        customerId: true,
+        segmentValueId: true,
+        opportunityId: true,
       },
     })) as {
       id: string;
       productCode: string;
       unitPrice: Prisma.Decimal;
       priceModel: string;
+      scope: string;
+      customerId: string | null;
+      segmentValueId: string | null;
+      opportunityId: string | null;
     }[];
+    const applies = await this.specialPriceScope(opportunityId, rows);
     const byId = new Map(rows.map((row) => [row.id, row]));
     return lines.map((line) => {
       const price = line.price_id ? byId.get(line.price_id) : undefined;
       return price &&
+        applies(price) &&
         price.productCode === line.product_code?.trim() &&
         price.priceModel === (line.price_model ?? 'unit') &&
         Number(price.unitPrice) === line.unit_price
         ? price.id
         : null;
     });
+  }
+
+  /**
+   * CD-197 — a special price counts only on its own deal, its own customer's
+   * quotations, or a customer in its group. The deal's customer is read now:
+   * a prospect's quotation gains one when the sale order opens.
+   */
+  private async specialPriceScope(
+    opportunityId: string,
+    rows: readonly { scope: string }[],
+  ): Promise<
+    (price: {
+      scope: string;
+      customerId: string | null;
+      segmentValueId: string | null;
+      opportunityId: string | null;
+    }) => boolean
+  > {
+    if (rows.every((row) => row.scope === 'standard')) return () => true;
+    const deal = (await this.opportunities.findFirst({
+      where: { id: opportunityId },
+      select: { customerId: true },
+    })) as { customerId: string | null } | null;
+    const customerId = deal?.customerId ?? null;
+    const segments = customerId
+      ? (
+          (await this.segmentAssignments.findMany({
+            where: { customerId },
+            select: { valueId: true },
+          })) as { valueId: string }[]
+        ).map((row) => row.valueId)
+      : [];
+    return (price) =>
+      price.scope === 'standard' ||
+      (price.scope === 'opportunity' &&
+        price.opportunityId === opportunityId) ||
+      (price.scope === 'customer' &&
+        customerId !== null &&
+        price.customerId === customerId) ||
+      (price.scope === 'segment' &&
+        price.segmentValueId !== null &&
+        segments.includes(price.segmentValueId));
   }
 
   /** CD-195 — a line's standard price must still be in effect on submit. */

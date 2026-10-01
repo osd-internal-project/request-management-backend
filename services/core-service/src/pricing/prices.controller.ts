@@ -14,6 +14,7 @@ import type { Principal } from '@request-management/share';
 import {
   ListPricesQueryDto,
   LookupPricesQueryDto,
+  PriceTargetsQueryDto,
   RevisePriceDto,
   SavePriceDto,
   UpdatePriceDto,
@@ -38,6 +39,7 @@ export class PricesController {
       q: query.q,
       status: query.status,
       productCode: query.product_code,
+      scope: query.scope,
     });
   }
 
@@ -50,7 +52,25 @@ export class PricesController {
     @Query() query: LookupPricesQueryDto,
     @CurrentPrincipal() actor: Principal,
   ) {
-    return this.prices.lookup(actor, query.codes, query.currency, query.on);
+    return this.prices.lookup(
+      actor,
+      query.codes,
+      query.currency,
+      query.on,
+      query.opportunity_id,
+    );
+  }
+
+  @ApiOperation({
+    summary: 'CD-197 ตัวเลือกเป้าหมายของราคาเฉพาะ (ลูกค้า / กลุ่มลูกค้า / ดีล)',
+  })
+  @Get('targets')
+  @Permissions('pricing.price.manage')
+  targets(
+    @Query() query: PriceTargetsQueryDto,
+    @CurrentPrincipal() actor: Principal,
+  ) {
+    return this.prices.targets(actor, query.kind, query.q);
   }
 
   @ApiOperation({ summary: 'CD-194 เพิ่มราคา' })
@@ -59,6 +79,8 @@ export class PricesController {
   create(@Body() dto: SavePriceDto, @CurrentPrincipal() actor: Principal) {
     return this.prices.create(
       {
+        scope: dto.scope,
+        targetId: dto.target_id,
         productCode: dto.product_code,
         priceModel: dto.price_model,
         currency: dto.currency,

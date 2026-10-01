@@ -67,6 +67,8 @@ function harness(
     requestCreate?: () => Promise<unknown>;
     updateCount?: number;
     prices?: unknown[];
+    segments?: { valueId: string }[];
+    dealCustomerId?: string | null;
   } = {},
 ) {
   const audits: { eventType: string; after?: Record<string, unknown> }[] = [];
@@ -101,9 +103,17 @@ function harness(
   const prices = {
     findMany: jest.fn(() => Promise.resolve(options.prices ?? [])),
   };
+  // CD-197 — the groups the deal's customer sits in.
+  const segmentAssignments = {
+    findMany: jest.fn(() => Promise.resolve(options.segments ?? [])),
+  };
   const service = new QuotationsService(
     quotations as never,
-    { findFirst: jest.fn() } as never,
+    {
+      findFirst: jest.fn(() =>
+        Promise.resolve({ customerId: options.dealCustomerId ?? null }),
+      ),
+    } as never,
     {
       findFirst: jest.fn(() =>
         Promise.resolve({
@@ -131,6 +141,7 @@ function harness(
     } as never,
     catalog as never,
     prices as never,
+    segmentAssignments as never,
   );
 
   return {
@@ -410,6 +421,7 @@ describe('CD-195 ราคามาตรฐานบนบรรทัดใบ
           productCode: 'SIP-TRUNK',
           unitPrice: D(1250),
           priceModel: 'unit',
+          scope: 'standard',
         },
       ],
     });
@@ -537,6 +549,7 @@ describe('CD-196 รูปแบบราคาบนบรรทัดใบเ
           productCode: 'MA',
           unitPrice: D(500),
           priceModel: 'monthly',
+          scope: 'standard',
         },
       ],
     });
@@ -561,5 +574,82 @@ describe('CD-196 รูปแบบราคาบนบรรทัดใบเ
       ]
     )[0].data;
     expect(data[0].priceId).toBeNull();
+  });
+});
+
+describe('CD-197 ราคาเฉพาะบนบรรทัดใบเสนอราคา', () => {
+  const special = (over: Record<string, unknown>) => ({
+    id: 'p-sp',
+    productCode: 'SIP-TRUNK',
+    unitPrice: D(900),
+    priceModel: 'unit',
+    scope: 'customer',
+    customerId: 'c-1',
+    segmentValueId: null,
+    opportunityId: null,
+    ...over,
+  });
+  const line = {
+    product_code: 'SIP-TRUNK',
+    description: 'SIP',
+    quantity: 1,
+    unit_price: 900,
+    price_id: 'p-sp',
+  };
+  const kept = async (options: Parameters<typeof harness>[0]) => {
+    const { service, tx } = harness(options);
+    await service.update('qt-1', { lines: [line] }, principal());
+    return (
+      tx.quotationLine.createMany.mock.calls[0] as unknown as [
+        { data: { priceId: string | null }[] },
+      ]
+    )[0].data[0].priceId;
+  };
+
+  it('ราคาเฉพาะลูกค้านับเฉพาะใบของลูกค้ารายนั้น', async () => {
+    expect(await kept({ prices: [special({})], dealCustomerId: 'c-1' })).toBe(
+      'p-sp',
+    );
+    expect(
+      await kept({ prices: [special({})], dealCustomerId: 'c-2' }),
+    ).toBeNull();
+  });
+
+  it('ราคาเฉพาะดีลนับเฉพาะดีลนั้น; ราคากลุ่มนับเมื่อลูกค้าอยู่ในกลุ่ม', async () => {
+    expect(
+      await kept({
+        prices: [
+          special({
+            scope: 'opportunity',
+            customerId: null,
+            opportunityId: 'opp-1',
+          }),
+        ],
+      }),
+    ).toBe('p-sp');
+    expect(
+      await kept({
+        prices: [
+          special({
+            scope: 'opportunity',
+            customerId: null,
+            opportunityId: 'opp-9',
+          }),
+        ],
+      }),
+    ).toBeNull();
+    expect(
+      await kept({
+        prices: [
+          special({
+            scope: 'segment',
+            customerId: null,
+            segmentValueId: 'seg-1',
+          }),
+        ],
+        dealCustomerId: 'c-1',
+        segments: [{ valueId: 'seg-1' }],
+      }),
+    ).toBe('p-sp');
   });
 });

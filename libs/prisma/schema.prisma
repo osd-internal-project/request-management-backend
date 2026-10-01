@@ -4984,19 +4984,26 @@ model ProjectMilestone {
 /// CD-194 ราคาขายมาตรฐานต่อรหัสสินค้า SAP — Pricing เป็นเจ้าของ (SAP เป็นเจ้าของ
 /// รายการสินค้าเท่านั้น). ช่วงเวลามีผลของรหัส+สกุลเงินเดียวกันห้ามซ้อนทับ.
 model ProductPrice {
-  id          String    @id @default(uuid())
-  companyId   String
+  id             String    @id @default(uuid())
+  companyId      String
   /// B1 `ItemCode` — ตรงกับ `products.code`.
-  productCode String
-  currency    String    @default("THB")
-  unitPrice   Decimal   @db.Decimal(14, 2)
+  productCode    String
+  currency       String    @default("THB")
+  unitPrice      Decimal   @db.Decimal(14, 2)
   /// CD-196 unit | lump_sum | monthly — ราคาต่อหน่วย / ราคาเหมา / ราคาต่อเดือน.
-  priceModel  String    @default("unit")
+  priceModel     String    @default("unit")
+  /// CD-197 standard | segment | customer | opportunity — ราคามาตรฐาน หรือ
+  /// ราคาเฉพาะกลุ่มลูกค้า / ลูกค้า / ดีล (ราคาเฉพาะต้องมีวันสิ้นสุด).
+  scope          String    @default("standard")
+  /// CD-197 เป้าหมายของราคาเฉพาะ — ตรงกับ `scope` หนึ่งช่องเท่านั้น.
+  customerId     String?
+  segmentValueId String?
+  opportunityId  String?
   /// วันแรกที่มีผล.
-  validFrom   DateTime  @db.Date
+  validFrom      DateTime  @db.Date
   /// วันสุดท้ายที่มีผล (รวมวันนั้น) — NULL = ไม่มีกำหนดสิ้นสุด.
-  validTo     DateTime? @db.Date
-  note        String    @default("")
+  validTo        DateTime? @db.Date
+  note           String    @default("")
 
   createdBy String
   createdAt DateTime  @default(now())
@@ -5007,6 +5014,7 @@ model ProductPrice {
   versions ProductPriceVersion[]
 
   @@index([companyId, productCode, currency])
+  @@index([companyId, scope])
   @@map("product_prices")
 }
 

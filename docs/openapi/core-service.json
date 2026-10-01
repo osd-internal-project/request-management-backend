@@ -14145,6 +14145,19 @@
         "operationId": "PricesController_list",
         "parameters": [
           {
+            "name": "scope",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "standard",
+              "type": "string",
+              "enum": [
+                "standard",
+                "special"
+              ]
+            }
+          },
+          {
             "name": "q",
             "required": false,
             "in": "query",
@@ -14252,6 +14265,16 @@
         "operationId": "PricesController_lookup",
         "parameters": [
           {
+            "name": "opportunity_id",
+            "required": false,
+            "in": "query",
+            "description": "CD-197 ดีลของใบเสนอราคา — ใช้หาราคาเฉพาะดีล/ลูกค้า/กลุ่ม",
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
             "name": "codes",
             "required": true,
             "in": "query",
@@ -14309,6 +14332,61 @@
         "x-permission": [
           "crm.sales.read",
           "pricing.price.read",
+          "pricing.price.manage"
+        ]
+      }
+    },
+    "/api/v1/pricing/prices/targets": {
+      "get": {
+        "operationId": "PricesController_targets",
+        "parameters": [
+          {
+            "name": "kind",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "customer",
+                "segment",
+                "opportunity"
+              ]
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-197 ตัวเลือกเป้าหมายของราคาเฉพาะ (ลูกค้า / กลุ่มลูกค้า / ดีล)",
+        "tags": [
+          "pricing"
+        ],
+        "x-permission": [
           "pricing.price.manage"
         ]
       }
@@ -24451,6 +24529,22 @@
       "SavePriceDto": {
         "type": "object",
         "properties": {
+          "scope": {
+            "type": "string",
+            "enum": [
+              "standard",
+              "segment",
+              "customer",
+              "opportunity"
+            ],
+            "default": "standard",
+            "description": "CD-197 ราคามาตรฐาน หรือราคาเฉพาะกลุ่มลูกค้า/ลูกค้า/ดีล"
+          },
+          "target_id": {
+            "type": "string",
+            "description": "CD-197 id ของกลุ่มลูกค้า (segment value) ลูกค้า หรือดีล",
+            "maxLength": 64
+          },
           "product_code": {
             "type": "string",
             "description": "รหัสสินค้า SAP (ItemCode)",

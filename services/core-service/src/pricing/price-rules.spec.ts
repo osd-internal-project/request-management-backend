@@ -1,5 +1,7 @@
 import {
   cleanPrice,
+  cleanTarget,
+  pickApplicable,
   dayBefore,
   hasStarted,
   revisionProblems,
@@ -157,5 +159,49 @@ describe('price versions (CD-195)', () => {
         '2026-09-30',
       ),
     ).toEqual([{ field: 'effective_from', reason: 'not_after_start' }]);
+  });
+});
+
+describe('special prices (CD-197)', () => {
+  it('a standard price needs no target; a special one needs a target and an end', () => {
+    expect(cleanTarget(undefined, undefined, null)).toEqual({
+      ok: true,
+      value: { scope: 'standard', targetId: null },
+    });
+    expect(cleanTarget('customer', 'c-1', '2026-12-31')).toEqual({
+      ok: true,
+      value: { scope: 'customer', targetId: 'c-1' },
+    });
+    expect(cleanTarget('segment', '', null)).toEqual({
+      ok: false,
+      problems: [
+        { field: 'target_id', reason: 'required' },
+        { field: 'valid_to', reason: 'required_for_special_price' },
+      ],
+    });
+    expect(cleanTarget('vip', 'x', '2026-12-31')).toMatchObject({ ok: false });
+  });
+
+  it('deal > customer > group > standard; the cheapest group price wins', () => {
+    const rows = [
+      { id: 'std', scope: 'standard' as const, unitPrice: 1000 },
+      { id: 'seg-a', scope: 'segment' as const, unitPrice: 900 },
+      { id: 'seg-b', scope: 'segment' as const, unitPrice: 850 },
+    ];
+    expect(pickApplicable(rows)?.id).toBe('seg-b');
+    expect(
+      pickApplicable([
+        ...rows,
+        { id: 'cust', scope: 'customer' as const, unitPrice: 950 },
+      ])?.id,
+    ).toBe('cust');
+    expect(
+      pickApplicable([
+        ...rows,
+        { id: 'cust', scope: 'customer' as const, unitPrice: 950 },
+        { id: 'deal', scope: 'opportunity' as const, unitPrice: 990 },
+      ])?.id,
+    ).toBe('deal');
+    expect(pickApplicable([])).toBeNull();
   });
 });

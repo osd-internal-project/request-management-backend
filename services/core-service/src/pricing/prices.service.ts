@@ -5,17 +5,27 @@ import {
   auditActor,
   Principal,
   PrismaTransactionService,
+  salesAccessSubject,
+  visibleSalesWhere,
 } from '@request-management/share';
 import type { TQueryClient } from '@request-management/share';
 import { ProductCatalogService } from '../crm/product-catalog.service';
 import { ProductRepository } from '../crm/product.repositories';
+import { CustomerRepository } from '../crm/customer.repository';
+import { OpportunityRepository } from '../crm/sales.repositories';
+import {
+  CustomerSegmentAssignmentRepository,
+  CustomerSegmentValueRepository,
+} from '../crm/segment.repositories';
 import {
   ProductPriceRepository,
   ProductPriceVersionRepository,
 } from './pricing.repositories';
 import {
   cleanPrice,
+  cleanTarget,
   dayBefore,
+  pickApplicable,
   dayOf,
   hasStarted,
   MAX_REASON,
@@ -27,6 +37,8 @@ import {
   priceStatus,
   type CleanPrice,
   type PriceInput,
+  type PriceScope,
+  type PriceTarget,
   type PriceStatus,
 } from './price-rules';
 
@@ -34,6 +46,10 @@ interface PriceRow {
   id: string;
   productCode: string;
   priceModel: string;
+  scope: string;
+  customerId: string | null;
+  segmentValueId: string | null;
+  opportunityId: string | null;
   currency: string;
   unitPrice: unknown;
   validFrom: Date;
@@ -48,6 +64,10 @@ const PRICE_SELECT = {
   id: true,
   productCode: true,
   priceModel: true,
+  scope: true,
+  customerId: true,
+  segmentValueId: true,
+  opportunityId: true,
   currency: true,
   unitPrice: true,
   validFrom: true,
@@ -60,6 +80,7 @@ const PRICE_SELECT = {
 
 const LIST_LIMIT = 500;
 const LOOKUP_LIMIT = 200;
+const TARGET_LIMIT = 50;
 const today = () => new Date().toISOString().slice(0, 10);
 const day = (value: string) => new Date(`${value}T00:00:00Z`);
 
@@ -86,6 +107,13 @@ const day = (value: string) => new Date(`${value}T00:00:00Z`);
  *   and a started price cannot be deleted;
  * - a quotation line remembers the price it came from, and the quotation
  *   cannot be submitted while that price is no longer in effect.
+ *
+ * CD-197 — ราคาเฉพาะลูกค้า (user decisions 1 ต.ค. 2569): a price may be for a
+ * customer group (CM-07 segment value), a customer or a deal instead of
+ * everyone. It keeps every rule above, must have an end date, and its ranges
+ * only collide with prices for the same target. A quotation line takes the
+ * most specific price in effect — deal, customer, group (lowest if several),
+ * then standard.
  */
 @Injectable()
 export class PricesService {
@@ -93,6 +121,10 @@ export class PricesService {
     private readonly prices: ProductPriceRepository,
     private readonly versions: ProductPriceVersionRepository,
     private readonly products: ProductRepository,
+    private readonly customers: CustomerRepository,
+    private readonly opportunities: OpportunityRepository,
+    private readonly segmentValues: CustomerSegmentValueRepository,
+    private readonly segmentAssignments: CustomerSegmentAssignmentRepository,
     private readonly catalog: ProductCatalogService,
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
@@ -102,7 +134,13 @@ export class PricesService {
 
   async list(
     actor: Principal,
-    query: { q?: string; status?: PriceStatus; productCode?: string },
+    query: {
+      q?: string;
+      status?: PriceStatus;
+      productCode?: string;
+      /** CD-197 — `standard` (default) or `special`. */
+      scope?: 'standard' | 'special';
+    },
   ) {
     const companyId = actor.activeCompanyId;
     const term = query.q?.trim();
@@ -123,6 +161,7 @@ export class PricesService {
       where: {
         companyId,
         deletedAt: null,
+        scope: query.scope === 'special' ? { not: 'standard' } : 'standard',
         ...(query.productCode ? { productCode: query.productCode } : {}),
         ...(term
           ? {
@@ -145,9 +184,10 @@ export class PricesService {
       companyId,
       rows.map((row) => row.productCode),
     );
+    const targets = await this.targetLabels(companyId, rows);
     const now = today();
     return rows
-      .map((row) => this.present(row, names, now))
+      .map((row) => this.present(row, names, now, targets))
       .filter((row) => !query.status || row.status === query.status);
   }
 
@@ -160,6 +200,7 @@ export class PricesService {
     codes: readonly string[],
     currency = 'THB',
     on?: string,
+    opportunityId?: string,
   ) {
     const wanted = [...new Set(codes.map((code) => code.trim()))]
       .filter(Boolean)
@@ -171,6 +212,11 @@ export class PricesService {
     }
     if (!wanted.length) return {};
     const date = on ?? today();
+    // CD-197 — which special prices apply: the deal's, its customer's and the
+    // groups that customer sits in. A deal out of reach applies nothing.
+    const context = opportunityId
+      ? await this.contextOf(actor, opportunityId)
+      : null;
     const rows = (await this.prices.findMany({
       where: {
         companyId: actor.activeCompanyId,
@@ -178,7 +224,10 @@ export class PricesService {
         productCode: { in: wanted },
         currency: currency.toUpperCase(),
         validFrom: { lte: day(date) },
-        OR: [{ validTo: null }, { validTo: { gte: day(date) } }],
+        AND: [
+          { OR: [{ validTo: null }, { validTo: { gte: day(date) } }] },
+          { OR: this.applicableScopes(context) },
+        ],
       },
       select: PRICE_SELECT,
     })) as PriceRow[];
@@ -187,6 +236,8 @@ export class PricesService {
       {
         price_id: string;
         price_model: string;
+        /** CD-197 — where the price came from. */
+        scope: string;
         unit_price: number;
         currency: string;
         valid_from: string;
@@ -194,16 +245,22 @@ export class PricesService {
       }
     > = {};
     for (const code of wanted) {
-      const found = priceOn(
+      const found = pickApplicable(
         rows
           .filter((row) => row.productCode === code)
-          .map((row) => ({ ...row, ...this.rangeOf(row) })),
-        date,
+          .map((row) => ({
+            ...row,
+            ...this.rangeOf(row),
+            scope: row.scope as PriceScope,
+            unitPrice: Number(row.unitPrice),
+          }))
+          .filter((row) => priceOn([row], date)),
       );
       if (found) {
         result[code] = {
           price_id: found.id,
           price_model: found.priceModel,
+          scope: found.scope,
           unit_price: Number(found.unitPrice),
           currency: found.currency,
           valid_from: found.validFrom,
@@ -216,18 +273,24 @@ export class PricesService {
 
   // --- writing ------------------------------------------------------------------
 
-  async create(input: PriceInput, actor: Principal) {
+  async create(
+    input: PriceInput & { scope?: unknown; targetId?: unknown },
+    actor: Principal,
+  ) {
     const value = this.clean(input);
+    const target = this.cleanTarget(input.scope, input.targetId, value.validTo);
     const companyId = actor.activeCompanyId;
     await this.catalog.assertCodes(companyId, [
       { code: value.productCode, field: 'product_code' },
     ]);
+    await this.assertTarget(companyId, target);
     const created = await this.transactions.execute(async (prisma) => {
-      await this.assertNoOverlap(companyId, value, null, prisma);
+      await this.assertNoOverlap(companyId, value, target, null, prisma);
       const row = (await this.prices.create(
         {
           data: {
             companyId,
+            ...targetColumns(target),
             productCode: value.productCode,
             priceModel: value.priceModel,
             currency: value.currency,
@@ -257,7 +320,7 @@ export class PricesService {
           ...auditActor(actor),
           resourceType: 'product_price',
           resourceId: row.id,
-          after: { ...value },
+          after: { ...value, ...target },
         },
         { prisma },
       );
@@ -294,8 +357,11 @@ export class PricesService {
         { code: value.productCode, field: 'product_code' },
       ]);
     }
+    // CD-197 — who a price is for never changes; a special one keeps an end.
+    const target = targetOf(existing);
+    this.cleanTarget(target.scope, target.targetId, value.validTo);
     await this.transactions.execute(async (prisma) => {
-      await this.assertNoOverlap(companyId, value, id, prisma);
+      await this.assertNoOverlap(companyId, value, target, id, prisma);
       await this.prices.update(
         {
           where: { id },
@@ -432,11 +498,18 @@ export class PricesService {
         actor,
         prisma,
       );
-      await this.assertNoOverlap(companyId, next, id, prisma);
+      await this.assertNoOverlap(
+        companyId,
+        next,
+        targetOf(existing),
+        id,
+        prisma,
+      );
       const row = (await this.prices.create(
         {
           data: {
             companyId,
+            ...targetColumns(targetOf(existing)),
             productCode: next.productCode,
             priceModel: next.priceModel,
             currency: next.currency,
@@ -588,11 +661,12 @@ export class PricesService {
   private async assertNoOverlap(
     companyId: string,
     value: CleanPrice,
+    target: PriceTarget,
     selfId: string | null,
     prisma: TQueryClient,
   ) {
     await this.prices.lockSeries(
-      `${companyId}:${value.productCode}:${value.currency}`,
+      `${companyId}:${value.productCode}:${value.currency}:${target.scope}:${target.targetId ?? ''}`,
       { prisma },
     );
     const siblings = (await this.prices.findMany(
@@ -601,6 +675,8 @@ export class PricesService {
           companyId,
           productCode: value.productCode,
           currency: value.currency,
+          // CD-197 — ranges collide only with prices for the same target.
+          ...targetColumns(target),
           deletedAt: null,
           ...(selfId ? { id: { not: selfId } } : {}),
         },
@@ -634,10 +710,23 @@ export class PricesService {
     };
   }
 
-  private present(row: PriceRow, names: Map<string, string>, now: string) {
+  private present(
+    row: PriceRow,
+    names: Map<string, string>,
+    now: string,
+    targets: Map<string, string> = new Map(),
+  ) {
     const range = this.rangeOf(row);
+    const target = targetOf(row);
     return {
       id: row.id,
+      scope: target.scope,
+      target: target.targetId
+        ? {
+            id: target.targetId,
+            label: targets.get(target.targetId) ?? target.targetId,
+          }
+        : null,
       productCode: row.productCode,
       productName: names.get(row.productCode) ?? null,
       priceModel: row.priceModel,
@@ -673,6 +762,259 @@ export class PricesService {
   private async one(companyId: string, id: string) {
     const row = await this.require(companyId, id);
     const names = await this.namesOf(companyId, [row.productCode]);
-    return this.present(row, names, today());
+    const targets = await this.targetLabels(companyId, [row]);
+    return this.present(row, names, today(), targets);
   }
+
+  // --- CD-197 targets -------------------------------------------------------------
+
+  private cleanTarget(
+    scope: unknown,
+    targetId: unknown,
+    validTo: string | null,
+  ): PriceTarget {
+    const cleaned = cleanTarget(scope, targetId, validTo);
+    if (!cleaned.ok) {
+      throw new AppError(
+        'VALIDATION_FAILED',
+        'ราคาเฉพาะต้องระบุลูกค้า กลุ่มลูกค้า หรือดีล และต้องมีวันสิ้นสุด',
+        cleaned.problems,
+      );
+    }
+    return cleaned.value;
+  }
+
+  /** The target must be the company's — SCOPE-03 answers 404. */
+  private async assertTarget(companyId: string, target: PriceTarget) {
+    if (target.scope === 'standard' || !target.targetId) return;
+    const found =
+      target.scope === 'customer'
+        ? await this.customers.findFirst({
+            where: { id: target.targetId, companyId },
+            select: { id: true },
+          })
+        : target.scope === 'opportunity'
+          ? await this.opportunities.findFirst({
+              where: { id: target.targetId, companyId },
+              select: { id: true },
+            })
+          : await this.segmentValues.findFirst({
+              where: { id: target.targetId, dimension: { companyId } },
+              select: { id: true },
+            });
+    if (!found) {
+      throw new AppError('NOT_FOUND', 'ไม่พบลูกค้า กลุ่มลูกค้า หรือดีลที่ระบุ');
+    }
+  }
+
+  /** The deal a quotation is for, its customer and the customer's groups. */
+  private async contextOf(actor: Principal, opportunityId: string) {
+    const deal = (await this.opportunities.findFirst({
+      where: {
+        id: opportunityId,
+        AND: [visibleSalesWhere(salesAccessSubject(actor))],
+      },
+      select: { id: true, customerId: true },
+    })) as { id: string; customerId: string | null } | null;
+    if (!deal) return null;
+    const segments = deal.customerId
+      ? ((await this.segmentAssignments.findMany({
+          where: { customerId: deal.customerId },
+          select: { valueId: true },
+        })) as { valueId: string }[])
+      : [];
+    return {
+      opportunityId: deal.id,
+      customerId: deal.customerId,
+      segmentValueIds: segments.map((row) => row.valueId),
+    };
+  }
+
+  private applicableScopes(
+    context: {
+      opportunityId: string;
+      customerId: string | null;
+      segmentValueIds: string[];
+    } | null,
+  ) {
+    return [
+      { scope: 'standard' },
+      ...(context
+        ? [
+            { scope: 'opportunity', opportunityId: context.opportunityId },
+            ...(context.customerId
+              ? [{ scope: 'customer', customerId: context.customerId }]
+              : []),
+            ...(context.segmentValueIds.length
+              ? [
+                  {
+                    scope: 'segment',
+                    segmentValueId: { in: context.segmentValueIds },
+                  },
+                ]
+              : []),
+          ]
+        : []),
+    ];
+  }
+
+  /** "CUS-0001 · บริษัท ก", "ขนาด: Enterprise", "OPP-… · title". */
+  private async targetLabels(companyId: string, rows: readonly PriceRow[]) {
+    const ids = (key: 'customerId' | 'segmentValueId' | 'opportunityId') =>
+      [...new Set(rows.map((row) => row[key]).filter(Boolean))] as string[];
+    const [customers, segments, deals] = await Promise.all([
+      ids('customerId').length
+        ? (this.customers.findMany({
+            where: { companyId, id: { in: ids('customerId') } },
+            select: { id: true, customerCode: true, nameTh: true },
+          }) as Promise<{ id: string; customerCode: string; nameTh: string }[]>)
+        : Promise.resolve([]),
+      ids('segmentValueId').length
+        ? (this.segmentValues.findMany({
+            where: { id: { in: ids('segmentValueId') } },
+            select: {
+              id: true,
+              nameTh: true,
+              dimension: { select: { nameTh: true } },
+            },
+          }) as unknown as Promise<
+            { id: string; nameTh: string; dimension: { nameTh: string } }[]
+          >)
+        : Promise.resolve([]),
+      ids('opportunityId').length
+        ? (this.opportunities.findMany({
+            where: { companyId, id: { in: ids('opportunityId') } },
+            select: { id: true, opportunityCode: true, title: true },
+          }) as Promise<
+            { id: string; opportunityCode: string; title: string }[]
+          >)
+        : Promise.resolve([]),
+    ]);
+    return new Map<string, string>([
+      ...customers.map(
+        (row) =>
+          [row.id, `${row.customerCode} · ${row.nameTh}`] as [string, string],
+      ),
+      ...segments.map(
+        (row) =>
+          [row.id, `${row.dimension.nameTh}: ${row.nameTh}`] as [
+            string,
+            string,
+          ],
+      ),
+      ...deals.map(
+        (row) =>
+          [row.id, `${row.opportunityCode} · ${row.title}`] as [string, string],
+      ),
+    ]);
+  }
+
+  /** CD-197 — what a special price can be for, for the form's picker. */
+  async targets(actor: Principal, kind: unknown, q?: string) {
+    const companyId = actor.activeCompanyId;
+    const term = q?.trim();
+    if (kind === 'customer') {
+      const rows = (await this.customers.findMany({
+        where: {
+          companyId,
+          ...(term
+            ? {
+                OR: [
+                  { customerCode: { contains: term, mode: 'insensitive' } },
+                  { nameTh: { contains: term, mode: 'insensitive' } },
+                ],
+              }
+            : {}),
+        },
+        select: { id: true, customerCode: true, nameTh: true },
+        orderBy: { customerCode: 'asc' },
+        take: TARGET_LIMIT,
+      })) as { id: string; customerCode: string; nameTh: string }[];
+      return rows.map((row) => ({
+        id: row.id,
+        label: `${row.customerCode} · ${row.nameTh}`,
+      }));
+    }
+    if (kind === 'opportunity') {
+      const rows = (await this.opportunities.findMany({
+        where: {
+          companyId,
+          stage: { notIn: ['won', 'lost'] },
+          ...(term
+            ? {
+                OR: [
+                  { opportunityCode: { contains: term, mode: 'insensitive' } },
+                  { title: { contains: term, mode: 'insensitive' } },
+                ],
+              }
+            : {}),
+        },
+        select: { id: true, opportunityCode: true, title: true },
+        orderBy: { opportunityCode: 'desc' },
+        take: TARGET_LIMIT,
+      })) as { id: string; opportunityCode: string; title: string }[];
+      return rows.map((row) => ({
+        id: row.id,
+        label: `${row.opportunityCode} · ${row.title}`,
+      }));
+    }
+    if (kind === 'segment') {
+      const rows = (await this.segmentValues.findMany({
+        where: { active: true, dimension: { companyId, active: true } },
+        select: {
+          id: true,
+          nameTh: true,
+          dimension: { select: { nameTh: true } },
+        },
+        orderBy: [{ dimension: { sortOrder: 'asc' } }, { sortOrder: 'asc' }],
+      })) as unknown as {
+        id: string;
+        nameTh: string;
+        dimension: { nameTh: string };
+      }[];
+      return rows
+        .map((row) => ({
+          id: row.id,
+          label: `${row.dimension.nameTh}: ${row.nameTh}`,
+        }))
+        .filter(
+          (row) =>
+            !term || row.label.toLowerCase().includes(term.toLowerCase()),
+        );
+    }
+    throw new AppError('VALIDATION_FAILED', 'ประเภทเป้าหมายไม่ถูกต้อง', [
+      { field: 'kind', reason: 'invalid' },
+    ]);
+  }
+}
+
+/** CD-197 — the scope and target id of a stored row. */
+function targetOf(row: {
+  scope: string;
+  customerId: string | null;
+  segmentValueId: string | null;
+  opportunityId: string | null;
+}): PriceTarget {
+  const scope = row.scope as PriceScope;
+  return {
+    scope,
+    targetId:
+      scope === 'customer'
+        ? row.customerId
+        : scope === 'segment'
+          ? row.segmentValueId
+          : scope === 'opportunity'
+            ? row.opportunityId
+            : null,
+  };
+}
+
+/** CD-197 — the columns a target is stored in (the others stay null). */
+function targetColumns(target: PriceTarget) {
+  return {
+    scope: target.scope,
+    customerId: target.scope === 'customer' ? target.targetId : null,
+    segmentValueId: target.scope === 'segment' ? target.targetId : null,
+    opportunityId: target.scope === 'opportunity' ? target.targetId : null,
+  };
 }

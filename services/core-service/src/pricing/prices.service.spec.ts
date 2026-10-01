@@ -12,6 +12,10 @@ interface Row {
   companyId: string;
   productCode: string;
   priceModel: string;
+  scope: string;
+  customerId: string | null;
+  segmentValueId: string | null;
+  opportunityId: string | null;
   currency: string;
   unitPrice: number;
   validFrom: Date;
@@ -25,12 +29,22 @@ interface Row {
 
 const d = (value: string) => new Date(`${value}T00:00:00Z`);
 
-function harness(seed: Partial<Row>[] = []) {
+function harness(
+  seed: Partial<Row>[] = [],
+  options: {
+    deal?: { id: string; customerId: string | null } | null;
+    segments?: { valueId: string }[];
+  } = {},
+) {
   const rows: Row[] = seed.map((row, index) => ({
     id: `p-${index + 1}`,
     companyId: 'osd',
     productCode: 'SIP-TRUNK',
     priceModel: 'unit',
+    scope: 'standard',
+    customerId: null,
+    segmentValueId: null,
+    opportunityId: null,
     currency: 'THB',
     unitPrice: 1000,
     validFrom: d('2026-01-01'),
@@ -42,16 +56,28 @@ function harness(seed: Partial<Row>[] = []) {
     deletedAt: null,
     ...row,
   }));
-  const matches = (row: Row, where: Record<string, unknown>) =>
+  const matches = (row: Row, where: Record<string, unknown>): boolean =>
     Object.entries(where).every(([key, value]) => {
-      if (key === 'id' && value && typeof value === 'object') {
-        return row.id !== (value as { not: string }).not;
+      const field = (row as unknown as Record<string, unknown>)[key];
+      if (['validFrom', 'validTo'].includes(key)) return true;
+      if (key === 'AND') {
+        return (value as Record<string, unknown>[]).every((part) =>
+          matches(row, part),
+        );
       }
-      if (key === 'productCode' && value && typeof value === 'object') {
-        return (value as { in: string[] }).in.includes(row.productCode);
+      if (key === 'OR') {
+        const clauses = value as Record<string, unknown>[];
+        // The date clause (validTo) is not modelled — treat it as a pass.
+        if (clauses.some((clause) => 'validTo' in clause)) return true;
+        return clauses.some((clause) => matches(row, clause));
       }
-      if (['validFrom', 'OR'].includes(key)) return true;
-      return (row as unknown as Record<string, unknown>)[key] === value;
+      if (value && typeof value === 'object') {
+        if ('not' in value) return field !== value.not;
+        if ('in' in value) {
+          return (value as { in: unknown[] }).in.includes(field);
+        }
+      }
+      return field === value;
     });
   const prices = {
     findMany: jest.fn(({ where }: { where: Record<string, unknown> }) =>
@@ -92,10 +118,38 @@ function harness(seed: Partial<Row>[] = []) {
     findMany: jest.fn(() => Promise.resolve([])),
     create: jest.fn(() => Promise.resolve({})),
   };
+  // CD-197 — who a special price is for.
+  const customers = {
+    findFirst: jest.fn(({ where }: { where: { id: string } }) =>
+      Promise.resolve(where.id === 'c-1' ? { id: 'c-1' } : null),
+    ),
+    findMany: jest.fn(() =>
+      Promise.resolve([
+        { id: 'c-1', customerCode: 'CUS-1', nameTh: 'ลูกค้า ก' },
+      ]),
+    ),
+  };
+  const opportunities = {
+    findFirst: jest.fn(() =>
+      Promise.resolve(options.deal === undefined ? null : options.deal),
+    ),
+    findMany: jest.fn(() => Promise.resolve([])),
+  };
+  const segmentValues = {
+    findFirst: jest.fn(() => Promise.resolve(null)),
+    findMany: jest.fn(() => Promise.resolve([])),
+  };
+  const segmentAssignments = {
+    findMany: jest.fn(() => Promise.resolve(options.segments ?? [])),
+  };
   const service = new PricesService(
     prices as never,
     versions as never,
     products as never,
+    customers as never,
+    opportunities as never,
+    segmentValues as never,
+    segmentAssignments as never,
     catalog as never,
     audit as never,
     transactions as never,
@@ -117,9 +171,12 @@ describe('PricesService (CD-194)', () => {
     expect(catalog.assertCodes).toHaveBeenCalledWith('osd', [
       { code: 'SIP-TRUNK', field: 'product_code' },
     ]);
-    expect(prices.lockSeries).toHaveBeenCalledWith('osd:SIP-TRUNK:THB', {
-      prisma: {},
-    });
+    expect(prices.lockSeries).toHaveBeenCalledWith(
+      'osd:SIP-TRUNK:THB:standard:',
+      {
+        prisma: {},
+      },
+    );
     expect(created).toMatchObject({
       productCode: 'SIP-TRUNK',
       productName: 'SIP Trunk',
@@ -318,6 +375,131 @@ describe('PricesService (CD-194)', () => {
           pricer,
         ),
       ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+    });
+  });
+
+  describe('CD-197 special prices', () => {
+    it('a special price needs a target of the company and an end date', async () => {
+      const { service, prices } = harness();
+      await expect(
+        service.create(
+          {
+            scope: 'customer',
+            targetId: 'c-1',
+            productCode: 'SIP-TRUNK',
+            unitPrice: 900,
+            validFrom: '2099-01-01',
+          },
+          pricer,
+        ),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+      await expect(
+        service.create(
+          {
+            scope: 'customer',
+            targetId: 'other-company',
+            productCode: 'SIP-TRUNK',
+            unitPrice: 900,
+            validFrom: '2099-01-01',
+            validTo: '2099-12-31',
+          },
+          pricer,
+        ),
+      ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+      await service.create(
+        {
+          scope: 'customer',
+          targetId: 'c-1',
+          productCode: 'SIP-TRUNK',
+          unitPrice: 900,
+          validFrom: '2099-01-01',
+          validTo: '2099-12-31',
+        },
+        pricer,
+      );
+      expect(prices.create).toHaveBeenCalledWith(
+        {
+          data: expect.objectContaining({
+            scope: 'customer',
+            customerId: 'c-1',
+            segmentValueId: null,
+            opportunityId: null,
+          }) as unknown,
+          select: expect.anything() as unknown,
+        },
+        { prisma: {} },
+      );
+    });
+
+    it('a customer price does not collide with the standard price of the same range', async () => {
+      const { service, prices } = harness([
+        { validFrom: d('2099-01-01'), validTo: d('2099-12-31') },
+      ]);
+      await service.create(
+        {
+          scope: 'customer',
+          targetId: 'c-1',
+          productCode: 'SIP-TRUNK',
+          unitPrice: 900,
+          validFrom: '2099-01-01',
+          validTo: '2099-12-31',
+        },
+        pricer,
+      );
+      expect(prices.create).toHaveBeenCalled();
+    });
+
+    it('lookup with a deal picks deal > customer > group > standard', async () => {
+      const seed: Partial<Row>[] = [
+        { unitPrice: 1000 },
+        {
+          scope: 'segment',
+          segmentValueId: 'seg-1',
+          unitPrice: 950,
+          validTo: d('2099-12-31'),
+        },
+        {
+          scope: 'customer',
+          customerId: 'c-1',
+          unitPrice: 920,
+          validTo: d('2099-12-31'),
+        },
+        {
+          scope: 'customer',
+          customerId: 'c-2',
+          unitPrice: 100,
+          validTo: d('2099-12-31'),
+        },
+      ];
+      const withCustomer = harness(seed, {
+        deal: { id: 'opp-1', customerId: 'c-1' },
+        segments: [{ valueId: 'seg-1' }],
+      });
+      expect(
+        (
+          await withCustomer.service.lookup(
+            pricer,
+            ['SIP-TRUNK'],
+            'THB',
+            '2026-10-01',
+            'opp-1',
+          )
+        )['SIP-TRUNK'],
+      ).toMatchObject({ unit_price: 920, scope: 'customer' });
+
+      // No deal (or one out of reach) = standard prices only.
+      const noDeal = harness(seed);
+      expect(
+        (
+          await noDeal.service.lookup(
+            pricer,
+            ['SIP-TRUNK'],
+            'THB',
+            '2026-10-01',
+            'opp-x',
+          )
+        )['SIP-TRUNK'],
+      ).toMatchObject({ unit_price: 1000, scope: 'standard' });
     });
   });
 });

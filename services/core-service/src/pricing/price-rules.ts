@@ -220,3 +220,72 @@ export function revisionProblems(
   }
   return [];
 }
+
+// --- CD-197 ราคาเฉพาะลูกค้า ----------------------------------------------------
+
+export const PRICE_SCOPES = [
+  'standard',
+  'segment',
+  'customer',
+  'opportunity',
+] as const;
+export type PriceScope = (typeof PRICE_SCOPES)[number];
+
+export interface PriceTarget {
+  scope: PriceScope;
+  /** The customer, segment value or deal; null for a standard price. */
+  targetId: string | null;
+}
+
+/**
+ * The scope and its one target, or the problems. A special price names
+ * exactly one target and must end — "ราคาพิเศษที่ไม่มีวันหมดอายุสร้างไม่ได้".
+ */
+export function cleanTarget(
+  scope: unknown,
+  targetId: unknown,
+  validTo: string | null,
+):
+  | { ok: true; value: PriceTarget }
+  | { ok: false; problems: { field: string; reason: string }[] } {
+  const picked = scope === undefined || scope === null ? 'standard' : scope;
+  if (!PRICE_SCOPES.includes(picked as PriceScope)) {
+    return { ok: false, problems: [{ field: 'scope', reason: 'invalid' }] };
+  }
+  if (picked === 'standard') {
+    return { ok: true, value: { scope: 'standard', targetId: null } };
+  }
+  const problems: { field: string; reason: string }[] = [];
+  const id = typeof targetId === 'string' ? targetId.trim() : '';
+  if (!id) problems.push({ field: 'target_id', reason: 'required' });
+  if (validTo === null) {
+    problems.push({ field: 'valid_to', reason: 'required_for_special_price' });
+  }
+  return problems.length
+    ? { ok: false, problems }
+    : { ok: true, value: { scope: picked as PriceScope, targetId: id } };
+}
+
+/** Most specific first: a deal's price beats the customer's, and so on. */
+const SCOPE_RANK: Record<PriceScope, number> = {
+  opportunity: 0,
+  customer: 1,
+  segment: 2,
+  standard: 3,
+};
+
+/**
+ * The price a quotation line gets from the candidates already in effect and
+ * applicable to its deal: the most specific scope wins; inside the segment
+ * scope (a customer may sit in several groups) the lowest price.
+ */
+export function pickApplicable<
+  T extends { scope: PriceScope; unitPrice: number },
+>(candidates: readonly T[]): T | null {
+  return (
+    [...candidates].sort(
+      (a, b) =>
+        SCOPE_RANK[a.scope] - SCOPE_RANK[b.scope] || a.unitPrice - b.unitPrice,
+    )[0] ?? null
+  );
+}
