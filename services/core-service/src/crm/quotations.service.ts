@@ -226,6 +226,15 @@ export class QuotationsService {
     opportunityId: string,
     dto: CreateQuotationDto,
     actor: Principal,
+    /**
+     * CD-198 — set when Pricing starts the quotation from an approved
+     * Solution: the version it came from and each line's cost source.
+     */
+    origin?: {
+      solutionId: string;
+      solutionVersionNo: number;
+      costSources: readonly (string | null)[];
+    },
   ) {
     const opportunity = await this.requireOpenOpportunity(opportunityId, actor);
     const config = await this.configOf(actor.activeCompanyId);
@@ -261,6 +270,12 @@ export class QuotationsService {
             ownerUserId: opportunity.ownerUserId,
             ownerOrgUnitId: opportunity.ownerOrgUnitId,
             createdBy: actor.userId,
+            ...(origin
+              ? {
+                  solutionId: origin.solutionId,
+                  solutionVersionNo: origin.solutionVersionNo,
+                }
+              : {}),
             lines: {
               create: linesData(
                 lines,
@@ -271,7 +286,10 @@ export class QuotationsService {
                   lines,
                   opportunity.id,
                 ),
-              ),
+              ).map((line, index) => ({
+                ...line,
+                costSource: origin?.costSources[index] ?? null,
+              })),
             },
           },
         },
@@ -361,8 +379,11 @@ export class QuotationsService {
         await prisma.quotationLine.deleteMany({ where: { quotationId: id } });
         if (dto.lines.length) {
           await prisma.quotationLine.createMany({
-            data: linesData(dto.lines, totals, refs).map((line) => ({
+            data: linesData(dto.lines, totals, refs).map((line, index) => ({
               ...line,
+              // CD-198 — the cost source survives an edit only while the
+              // line still is the same product at the same cost.
+              costSource: keptCostSource(found.lines[index], dto.lines![index]),
               quotationId: id,
             })),
           });
@@ -703,6 +724,9 @@ export class QuotationsService {
             marginPct: found.marginPct,
             ownerUserId: found.ownerUserId,
             ownerOrgUnitId: found.ownerOrgUnitId,
+            // CD-198 — a new version of a quotation from a Solution still is one.
+            solutionId: found.solutionId,
+            solutionVersionNo: found.solutionVersionNo,
             createdBy: actor.userId,
             lines: {
               create: found.lines.map((line) => ({
@@ -719,6 +743,7 @@ export class QuotationsService {
                 priceId: line.priceId,
                 priceModel: line.priceModel,
                 termMonths: line.termMonths,
+                costSource: line.costSource,
               })),
             },
           },
@@ -1068,7 +1093,10 @@ interface QuotationForAction {
     priceId: string | null;
     priceModel: string;
     termMonths: number | null;
+    costSource: string | null;
   }[];
+  solutionId: string | null;
+  solutionVersionNo: number | null;
 }
 
 interface OpportunityForQuotation {
@@ -1202,4 +1230,22 @@ function totalsData(totals: ReturnType<typeof computeQuotationTotals>) {
 /** Today as a UTC date, matching the `@db.Date` price columns. */
 function startOfToday(): Date {
   return new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`);
+}
+
+/** CD-198 — keep a line's cost source while its product and cost stand. */
+function keptCostSource(
+  before:
+    | {
+        productCode: string | null;
+        unitCost: Prisma.Decimal;
+        costSource: string | null;
+      }
+    | undefined,
+  after: QuotationLineDto,
+): string | null {
+  if (!before?.costSource) return null;
+  return (before.productCode ?? '') === (after.product_code?.trim() ?? '') &&
+    Number(before.unitCost) === (after.unit_cost ?? 0)
+    ? before.costSource
+    : null;
 }

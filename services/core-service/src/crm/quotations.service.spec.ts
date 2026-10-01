@@ -653,3 +653,57 @@ describe('CD-197 ราคาเฉพาะบนบรรทัดใบเส
     ).toBe('p-sp');
   });
 });
+
+describe('CD-198 ที่มาของต้นทุนบนบรรทัดที่สร้างจาก Solution', () => {
+  it('แก้ใบแล้วที่มาคงอยู่เฉพาะบรรทัดที่สินค้าและต้นทุนเดิม', async () => {
+    const { service, tx } = harness({
+      row: {
+        lines: [
+          {
+            lineNo: 1,
+            productCode: 'FG-100F',
+            unitCost: D(38000),
+            costSource: 'ใบเสนอราคาคู่ค้า: ก',
+          },
+          {
+            lineNo: 2,
+            productCode: 'MA',
+            unitCost: D(1000),
+            costSource: 'ต้นทุนอ้างอิง (BOQ)',
+          },
+        ],
+      },
+    });
+    await service.update(
+      'qt-1',
+      {
+        lines: [
+          {
+            product_code: 'FG-100F',
+            description: 'FortiGate',
+            quantity: 2,
+            unit_price: 50000,
+            unit_cost: 38000,
+          },
+          {
+            product_code: 'MA',
+            description: 'MA',
+            quantity: 1,
+            unit_price: 1500,
+            unit_cost: 900,
+          },
+        ],
+      },
+      principal(),
+    );
+    const data = (
+      tx.quotationLine.createMany.mock.calls[0] as unknown as [
+        { data: { costSource: string | null }[] },
+      ]
+    )[0].data;
+    expect(data.map((row) => row.costSource)).toEqual([
+      'ใบเสนอราคาคู่ค้า: ก',
+      null,
+    ]);
+  });
+});

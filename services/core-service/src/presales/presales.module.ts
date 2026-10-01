@@ -1,7 +1,10 @@
 import { Module } from '@nestjs/common';
 import { PrismaTransactionService } from '@request-management/share';
 import { CrmModule } from '../crm/crm.module';
-import { OpportunityRepository } from '../crm/sales.repositories';
+import {
+  OpportunityRepository,
+  QuotationRepository,
+} from '../crm/sales.repositories';
 import { CrmConfigRepository } from '../crm/segment.repositories';
 import { RequestsModule } from '../requests/requests.module';
 import { CompanyRepository } from '../crm/product.repositories';
@@ -47,11 +50,14 @@ import {
     PresalesPartnerFileRepository,
     CompanyRepository,
     OpportunityRepository,
+    // CD-198 — quotations started from a Solution
+    QuotationRepository,
     CrmConfigRepository,
     PrismaTransactionService,
   ],
   exports: [
     CrmModule,
+    QuotationRepository,
     RequestsModule,
     SolutionRepository,
     SolutionVersionRepository,

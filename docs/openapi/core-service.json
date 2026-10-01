@@ -13832,6 +13832,94 @@
         ]
       }
     },
+    "/api/v1/presales/solutions/{id}/versions/{no}/quotation": {
+      "post": {
+        "operationId": "SolutionsController_createQuotation",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "no",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-198 สร้างร่างใบเสนอราคาจาก Solution เวอร์ชันที่พร้อมส่ง Pricing (ต้นทุน+ที่มาต่อบรรทัด)",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "pricing.price.manage",
+          "crm.sales.manage"
+        ]
+      }
+    },
+    "/api/v1/presales/solutions/{id}/quotations": {
+      "get": {
+        "operationId": "SolutionsController_solutionQuotationList",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-198 ใบเสนอราคาที่สร้างจาก Solution นี้",
+        "tags": [
+          "presales"
+        ]
+      }
+    },
     "/api/v1/presales/partners": {
       "get": {
         "operationId": "PartnersController_list",

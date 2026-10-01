@@ -315,6 +315,9 @@ const SEED_ROLES: {
       'notification.read',
       'user.read',
       'crm.sales.read',
+      // CD-198 — Pricing prices every deal's quotation started from a Solution
+      'crm.sales.read.all',
+      'crm.sales.manage',
       'pricing.price.read',
       'pricing.price.manage',
     ],

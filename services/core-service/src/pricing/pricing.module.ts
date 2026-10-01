@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { PrismaTransactionService } from '@request-management/share';
 import { CrmModule } from '../crm/crm.module';
+import { PricesService } from './prices.service';
 import { ProductRepository } from '../crm/product.repositories';
 import { CustomerRepository } from '../crm/customer.repository';
 import { OpportunityRepository } from '../crm/sales.repositories';
@@ -17,6 +18,8 @@ import {
 @Module({
   imports: [CrmModule],
   providers: [
+    // CD-198 — Pre-Sales prices a quotation from a Solution with it
+    PricesService,
     ProductPriceRepository,
     ProductPriceVersionRepository,
     ProductRepository,
@@ -29,6 +32,7 @@ import {
   ],
   exports: [
     CrmModule,
+    PricesService,
     ProductPriceRepository,
     ProductPriceVersionRepository,
     CustomerRepository,

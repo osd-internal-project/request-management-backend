@@ -61,6 +61,7 @@ import { DemosService } from './demos.service';
 import { MAX_TOR_FILE_BYTES, TorService } from './tor.service';
 import { CostService, MAX_QUOTE_FILE_BYTES } from './cost.service';
 import { ProposalService } from './proposal.service';
+import { SolutionQuotationService } from './solution-quotation.service';
 import { MAX_FILE_BYTES, SolutionsService } from './solutions.service';
 
 /**
@@ -84,6 +85,7 @@ export class SolutionsController {
     private readonly tor: TorService,
     private readonly cost: CostService,
     private readonly proposals: ProposalService,
+    private readonly solutionQuotations: SolutionQuotationService,
   ) {}
 
   @ApiOperation({ summary: 'เริ่ม Solution จากคำขอ "ขอ Solution" ที่รับแล้ว' })
@@ -749,5 +751,31 @@ export class SolutionsController {
     @CurrentPrincipal() actor: Principal,
   ) {
     return this.proposals.printView(id, no, actor);
+  }
+
+  // --- CD-198 handoff 3 — Pre-Sales → Pricing ----------------------------------
+
+  @ApiOperation({
+    summary:
+      'CD-198 สร้างร่างใบเสนอราคาจาก Solution เวอร์ชันที่พร้อมส่ง Pricing (ต้นทุน+ที่มาต่อบรรทัด)',
+  })
+  @Post('presales/solutions/:id/versions/:no/quotation')
+  @Permissions('pricing.price.manage', 'crm.sales.manage')
+  createQuotation(
+    @Param('id') id: string,
+    @Param('no', ParseIntPipe) no: number,
+    @CurrentPrincipal() actor: Principal,
+  ) {
+    return this.solutionQuotations.create(id, no, actor);
+  }
+
+  @ApiOperation({ summary: 'CD-198 ใบเสนอราคาที่สร้างจาก Solution นี้' })
+  @Get('presales/solutions/:id/quotations')
+  @Authenticated()
+  solutionQuotationList(
+    @Param('id') id: string,
+    @CurrentPrincipal() actor: Principal,
+  ) {
+    return this.solutionQuotations.forSolution(id, actor);
   }
 }

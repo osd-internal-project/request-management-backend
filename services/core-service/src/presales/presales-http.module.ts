@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { StorageModule, type StorageOptions } from '@request-management/share';
 import { ErpModule } from '../erp/erp.module';
+import { PricingModule } from '../pricing/pricing.module';
+import { SolutionQuotationService } from './solution-quotation.service';
 import { PresalesModule } from './presales.module';
 import { PartnersController } from './partners.controller';
 import { PartnersService } from './partners.service';
@@ -22,6 +24,8 @@ import { ProposalService } from './proposal.service';
     PresalesModule,
     // CD-142 — SAP's supplier list, read live.
     ErpModule,
+    // CD-198 — prices for a quotation started from a Solution
+    PricingModule,
     // Design files — storage for the HTTP half only, like CD-75's photos.
     StorageModule.forRootAsync({
       inject: [ConfigService],
@@ -41,6 +45,7 @@ import { ProposalService } from './proposal.service';
     CostService,
     ProposalService,
     PartnersService,
+    SolutionQuotationService,
   ],
 })
 export class PresalesHttpModule {}

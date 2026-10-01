@@ -3240,14 +3240,17 @@ model Quotation {
   /// คำขอขออนุมัติ margin ต่ำ (`requests.id`) — sync กลับด้วย request.approved/rejected.
   approvalRequestId String?
 
-  submittedAt  DateTime?
-  approvedAt   DateTime?
-  sentAt       DateTime?
-  respondedAt  DateTime?
+  submittedAt       DateTime?
+  approvedAt        DateTime?
+  /// CD-198 Solution เวอร์ชันที่ใบนี้สร้างจาก (จุดส่งต่อที่ 3 Pre-Sales → Pricing).
+  solutionId        String?
+  solutionVersionNo Int?
+  sentAt            DateTime?
+  respondedAt       DateTime?
   /// หมายเหตุตอนลูกค้าตอบรับ/ปฏิเสธ (เช่น เลข PO ลูกค้า).
-  responseNote String?
-  cancelledAt  DateTime?
-  cancelReason String?
+  responseNote      String?
+  cancelledAt       DateTime?
+  cancelReason      String?
 
   /// Scope columns identical to Opportunity so `visibleSalesWhere` applies.
   ownerUserId    String
@@ -3296,6 +3299,9 @@ model QuotationLine {
   priceModel  String  @default("unit")
   /// CD-196 จำนวนเดือนของบรรทัดรายเดือน (1–120) — ว่างสำหรับรูปแบบอื่น.
   termMonths  Int?
+  /// CD-198 ที่มาของต้นทุนเมื่อสร้างจาก Solution — "ใบเสนอราคาคู่ค้า: …",
+  /// "ต้นทุนอ้างอิง", "อัตราแรงงาน" — ว่าง = กรอกเอง.
+  costSource  String?
 
   quotation Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
 
