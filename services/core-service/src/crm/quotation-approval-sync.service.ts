@@ -13,8 +13,8 @@ import { QuotationRepository } from './sales.repositories';
 import { CustomerTimelineService } from './customer-timeline.service';
 
 /**
- * CD-76 — carries the outcome of a low-margin approval request back to its
- * quotation, the same way `KycCallbackService` carries a KYC result to the
+ * CD-76 / CD-201 — carries the outcome of a price approval request back to its
+ * quotation version, the same way `KycCallbackService` carries a KYC result to the
  * customer: subscribed to the in-process domain events (§11.8), after commit.
  *
  * Matched by `Quotation.approvalRequestId`, never by type code — the approval
@@ -126,8 +126,8 @@ export class QuotationApprovalSyncService implements OnModuleInit {
               ? 'quotation.approved'
               : 'quotation.approval_failed',
             summary: approved
-              ? `ใบเสนอราคา ${label} ได้รับอนุมัติ margin · คำขอ ${requestLabel}`
-              : `ใบเสนอราคา ${label} ไม่ผ่านการอนุมัติ margin (${
+              ? `ใบเสนอราคา ${label} ได้รับอนุมัติราคา · คำขอ ${requestLabel}`
+              : `ใบเสนอราคา ${label} ไม่ผ่านการอนุมัติราคา (${
                   outcome === 'rejected' ? 'ไม่อนุมัติ' : 'คำขอถูกยกเลิก'
                 }) — กลับเป็นร่าง`,
             actorId: null,

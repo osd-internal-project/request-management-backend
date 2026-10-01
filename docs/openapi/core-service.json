@@ -7494,13 +7494,21 @@
     },
     "/api/v1/quotations/{id}/submit": {
       "post": {
-        "description": "margin ถึงเกณฑ์ → approved ทันที. ต่ำกว่าเกณฑ์ → ต้องมี reason และระบบเปิดคำขอส่วนลด (ค่าตั้งต้น DSC) แล้วใบค้างที่ pending_approval. ถ้าประเภทคำขอนั้นปิดอยู่ ได้ CRM_QUOTATION_APPROVAL_UNAVAILABLE และใบคงอยู่ที่ draft",
+        "description": "ทุกใบเปิดคำขออนุมัติราคา (ค่าตั้งต้น PRA) ผูกกับเวอร์ชันนี้ แล้วยื่นให้ อัตโนมัติ; ใบค้างที่ pending_approval จนคำขอได้ผล. margin ต่ำกว่าเกณฑ์ → ต้องมี reason. ถ้าประเภทคำขอนั้นปิดอยู่ ได้ CRM_QUOTATION_APPROVAL_UNAVAILABLE และใบคงอยู่ที่ draft",
         "operationId": "QuotationsController_submit",
         "parameters": [
           {
             "name": "id",
             "required": true,
             "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "required": true,
+            "in": "header",
             "schema": {
               "type": "string"
             }
@@ -7535,7 +7543,7 @@
             "bearer": []
           }
         ],
-        "summary": "ยื่นใบเสนอราคาเข้าตรวจ margin",
+        "summary": "ยื่นใบเสนอราคาขออนุมัติราคา",
         "tags": [
           "quotations"
         ],

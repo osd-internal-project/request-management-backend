@@ -65,6 +65,7 @@ function harness(
     row?: Record<string, unknown>;
     minMarginPct?: number;
     requestCreate?: () => Promise<unknown>;
+    requestSubmit?: () => Promise<unknown>;
     updateCount?: number;
     prices?: unknown[];
     segments?: { valueId: string }[];
@@ -95,6 +96,7 @@ function harness(
     create: jest.fn(
       options.requestCreate ?? (() => Promise.resolve({ id: 'req-9' })),
     ),
+    submit: jest.fn(options.requestSubmit ?? (() => Promise.resolve({}))),
   };
 
   // CD-27 — the SAP catalog check; individual tests make it reject.
@@ -120,7 +122,7 @@ function harness(
           minMarginPct: options.minMarginPct ?? 15,
           quotationValidityDays: 30,
           vatPct: 7,
-          quotationApprovalTypeCode: 'DSC',
+          quotationApprovalTypeCode: 'PRA',
         }),
       ),
     } as never,
@@ -155,23 +157,57 @@ function harness(
   };
 }
 
-describe('CD-76 ใบเสนอราคา — ตรวจ margin ตอนยื่น', () => {
-  it('margin ถึงเกณฑ์ = อนุมัติทันที ไม่สร้างคำขอ และเก็บเกณฑ์ที่ใช้ลงใบ', async () => {
+describe('CD-76/CD-201 ใบเสนอราคา — ขออนุมัติราคาตอนยื่น', () => {
+  it('CD-201 margin ถึงเกณฑ์ก็ยังต้องขออนุมัติราคา — คำขอ PRA ผูกเวอร์ชัน แล้วยื่นให้เอง', async () => {
     const { service, tx, requestsService, audits } = harness();
 
-    await service.submit('qt-1', {}, principal());
+    await service.submit('qt-1', {}, principal(), 'Bearer t');
 
-    expect(requestsService.create).not.toHaveBeenCalled();
+    const [dto] = requestsService.create.mock.calls[0] as unknown as [
+      { type_code: string; ref_id: string; form_data: Record<string, unknown> },
+    ];
+    expect(dto.type_code).toBe('PRA');
+    expect(dto.ref_id).toBe('qt-1');
+    expect(dto.form_data).toMatchObject({
+      version_no: 1,
+      net_total: 23000,
+      margin_below_minimum: 'no',
+    });
+    expect(requestsService.submit).toHaveBeenCalledWith(
+      'req-9',
+      expect.anything(),
+      'Bearer t',
+    );
     const call = tx.quotation.updateMany.mock.calls[0] as unknown as [
       { where: { status: { in: string[] } }; data: Record<string, unknown> },
     ];
     expect(call[0].where.status.in).toEqual(['draft']);
     expect(call[0].data).toMatchObject({
-      status: 'approved',
+      status: 'pending_approval',
       minMarginPct: 15,
-      approvalRequired: false,
+      approvalRequired: true,
+      approvalRequestId: 'req-9',
     });
-    expect(audits.map((a) => a.eventType)).toContain('crm.quotation.approved');
+    expect(audits.map((a) => a.eventType)).not.toContain(
+      'crm.quotation.approved',
+    );
+  });
+
+  it('CD-201 ยื่นคำขอให้ไม่ผ่าน = ใบยังรออนุมัติ คำขอค้างเป็นร่างให้เปิดไปยื่นเอง', async () => {
+    const { service, tx } = harness({
+      requestSubmit: () =>
+        Promise.reject(new AppError('VALIDATION_FAILED', 'ต้องแนบเอกสาร')),
+    });
+
+    await service.submit('qt-1', {}, principal(), 'Bearer t');
+
+    const call = tx.quotation.updateMany.mock.calls[0] as unknown as [
+      { data: Record<string, unknown> },
+    ];
+    expect(call[0].data).toMatchObject({
+      status: 'pending_approval',
+      approvalRequestId: 'req-9',
+    });
   });
 
   it('margin ต่ำกว่าเกณฑ์แต่ไม่ให้เหตุผล = VALIDATION_FAILED และไม่แตะอะไรเลย', async () => {
@@ -186,7 +222,7 @@ describe('CD-76 ใบเสนอราคา — ตรวจ margin ตอน
     expect(tx.quotation.updateMany).not.toHaveBeenCalled();
   });
 
-  it('margin ต่ำกว่าเกณฑ์ = ร่างคำขอ DSC อ้างใบเสนอราคาพร้อมตัวเลข แล้วใบรออนุมัติ', async () => {
+  it('margin ต่ำกว่าเกณฑ์ = คำขอเดียวกันพร้อมตัวเลขและเหตุผล แล้วใบรออนุมัติ', async () => {
     const { service, tx, requestsService } = harness({ minMarginPct: 40 });
 
     await service.submit('qt-1', { reason: 'ลูกค้ารายใหญ่' }, principal());
@@ -199,7 +235,7 @@ describe('CD-76 ใบเสนอราคา — ตรวจ margin ตอน
         form_data: Record<string, unknown>;
       },
     ];
-    expect(dto.type_code).toBe('DSC');
+    expect(dto.type_code).toBe('PRA');
     expect(dto.ref_type).toBe('quotation');
     expect(dto.ref_id).toBe('qt-1');
     expect(dto.form_data).toMatchObject({
@@ -209,6 +245,7 @@ describe('CD-76 ใบเสนอราคา — ตรวจ margin ตอน
       discount_pct: 8,
       cost: 15000,
       est_margin_pct: 34.78,
+      margin_below_minimum: 'yes',
     });
     // CD-127 — the margin travels only in the masked field, never in free text
     expect(String(dto.form_data.reason)).not.toContain('34.78');

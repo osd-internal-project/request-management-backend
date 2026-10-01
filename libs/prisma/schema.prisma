@@ -2379,8 +2379,8 @@ model CrmCompanyConfig {
   /// จำนวนวันที่ใบเสนอราคาใหม่มีผล — ค่าตั้งต้นของ `Quotation.validUntil`.
   quotationValidityDays     Int    @default(30)
   vatPct                    Float  @default(7)
-  /// ประเภทคำขอที่ระบบสร้างร่างให้เมื่อ margin ต่ำ — ต้องเปิดให้บริษัทนี้ใช้อยู่.
-  quotationApprovalTypeCode String @default("DSC")
+  /// CD-201 ประเภทคำขออนุมัติราคาที่ทุกใบเสนอราคายื่น — ต้องเปิดให้บริษัทนี้ใช้อยู่.
+  quotationApprovalTypeCode String @default("PRA")
 
   /// CD-65: โอกาสการขายที่เปิดอยู่และไม่มีกิจกรรมเสร็จนานเกินจำนวนวันนี้ = "เงียบ"
   /// → แจ้งหัวหน้าของเจ้าของดีล. 0 = ปิดการแจ้งเตือน.

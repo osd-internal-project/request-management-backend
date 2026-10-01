@@ -52,7 +52,7 @@ const CONFIG_DEFAULTS = {
   minMarginPct: 15,
   quotationValidityDays: 30,
   vatPct: 7,
-  quotationApprovalTypeCode: 'DSC',
+  quotationApprovalTypeCode: 'PRA',
 };
 
 /** Versions that may be replaced by a new one. */
@@ -469,7 +469,19 @@ export class QuotationsService {
    * คำขอถูกสร้างก่อนแก้สถานะใบ: ถ้าสร้างไม่ได้ (ประเภทไม่เปิดให้บริษัทนี้) ใบยังเป็น
    * ร่างเหมือนเดิม ไม่ค้างอยู่ที่ "รออนุมัติ" ที่ไม่มีคำขอให้ใครอนุมัติ.
    */
-  async submit(id: string, dto: SubmitQuotationDto, actor: Principal) {
+  /**
+   * CD-201 — every version goes to price approval: one request per version,
+   * routed by the ladder of the approval type (amount levels live there, on
+   * `net_total`). Margin below the minimum only adds the reason to that same
+   * request. The approval belongs to this version alone — a change after it
+   * is a new version and a new request.
+   */
+  async submit(
+    id: string,
+    dto: SubmitQuotationDto,
+    actor: Principal,
+    authorization?: string,
+  ) {
     const found = await this.requireVisible(id, actor);
     assertStatus(found, ['draft'], 'ยื่นได้เฉพาะใบเสนอราคาที่เป็นร่าง');
 
@@ -492,35 +504,11 @@ export class QuotationsService {
 
     const config = await this.configOf(actor.activeCompanyId);
     const marginPct = found.marginPct;
-    const needsApproval = marginNeedsApproval(marginPct, config.minMarginPct);
+    const marginBelow = marginNeedsApproval(marginPct, config.minMarginPct);
     const now = new Date();
 
-    if (!needsApproval) {
-      await this.transition(found, actor, {
-        from: ['draft'],
-        data: {
-          status: 'approved',
-          submittedAt: now,
-          approvedAt: now,
-          minMarginPct: config.minMarginPct,
-          approvalRequired: false,
-        },
-        eventType: 'crm.quotation.approved',
-        auditAfter: {
-          marginPct: marginPct?.toFixed(2) ?? null,
-          minMarginPct: config.minMarginPct,
-          by: 'margin_check',
-        },
-        timeline: {
-          eventType: 'quotation.approved',
-          summary: `ใบเสนอราคา ${label(found)} ผ่านการตรวจ margin — พร้อมส่งลูกค้า`,
-        },
-      });
-      return this.findOne(id, actor);
-    }
-
     const reason = dto.reason?.trim();
-    if (!reason) {
+    if (marginBelow && !reason) {
       throw new AppError(
         'VALIDATION_FAILED',
         `margin ต่ำกว่าเกณฑ์ ${config.minMarginPct}% — ต้องระบุเหตุผลเพื่อขออนุมัติ`,
@@ -537,6 +525,10 @@ export class QuotationsService {
           ref_id: found.id,
           form_data: {
             customer_name: found.partyName,
+            quotation_no: found.quotationNo,
+            version_no: found.version,
+            // What a ladder level's condition routes on (CD-201).
+            net_total: Number(found.netTotal.toFixed(2)),
             // CD-80 — value before discount, the discount, and the cost: the
             // three inputs the DSC form computes its margin from, so the
             // request shows the same margin the quotation does. Four decimals
@@ -552,10 +544,13 @@ export class QuotationsService {
             // on one that does, the computed value replaces this.
             est_margin_pct:
               marginPct === null ? 0 : Number(marginPct.toFixed(2)),
+            margin_below_minimum: marginBelow ? 'yes' : 'no',
             // The margin itself travels only in `est_margin_pct`, which the
             // masking rule covers; repeating it in free text leaked it to
             // everyone who can read the request (CD-127).
-            reason: `${label(found)} · margin ต่ำกว่าเกณฑ์ ${config.minMarginPct}% — ${reason}`,
+            reason: marginBelow
+              ? `${label(found)} · margin ต่ำกว่าเกณฑ์ ${config.minMarginPct}% — ${reason}`
+              : `${label(found)} · ขออนุมัติราคา${reason ? ` — ${reason}` : ''}`,
           },
         },
         actor,
@@ -587,14 +582,27 @@ export class QuotationsService {
       auditAfter: {
         marginPct: marginPct?.toFixed(2) ?? null,
         minMarginPct: config.minMarginPct,
+        marginBelowMinimum: marginBelow,
         approvalRequestId: request.id,
-        reason,
+        ...(reason ? { reason } : {}),
       },
       timeline: {
         eventType: 'quotation.pending_approval',
-        summary: `ใบเสนอราคา ${label(found)} margin ต่ำกว่าเกณฑ์ — รออนุมัติ`,
+        summary: marginBelow
+          ? `ใบเสนอราคา ${label(found)} รออนุมัติราคา (margin ต่ำกว่าเกณฑ์)`
+          : `ใบเสนอราคา ${label(found)} รออนุมัติราคา`,
       },
     });
+
+    // Filed for the salesperson; a type that asks for more than the system
+    // fills (a document, a receiver) stays a draft they open and finish.
+    if (authorization) {
+      try {
+        await this.requestsService.submit(request.id, actor, authorization);
+      } catch (error) {
+        if (!(error instanceof AppError)) throw error;
+      }
+    }
 
     return this.findOne(id, actor);
   }

@@ -202,7 +202,7 @@ export class CrmAdminService {
         minMarginPct: 15,
         quotationValidityDays: 30,
         vatPct: 7,
-        quotationApprovalTypeCode: 'DSC',
+        quotationApprovalTypeCode: 'PRA',
         targetApprovalTypeCode: null,
         contractRequestTypeCode: null,
         liabilityApprovalRequestTypeCode: null,
@@ -277,7 +277,7 @@ export class CrmAdminService {
               quotationValidityDays: dto.quotation_validity_days ?? 30,
               vatPct: dto.vat_pct ?? 7,
               quotationApprovalTypeCode:
-                dto.quotation_approval_type_code ?? 'DSC',
+                dto.quotation_approval_type_code ?? 'PRA',
               targetApprovalTypeCode: dto.target_approval_type_code || null,
               contractRequestTypeCode: dto.contract_request_type_code || null,
               liabilityApprovalRequestTypeCode:

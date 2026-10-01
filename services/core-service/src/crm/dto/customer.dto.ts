@@ -692,7 +692,7 @@ export class UpdateCrmConfigDto {
   @Max(30)
   vat_pct?: number;
 
-  /** รหัสประเภทคำขอที่ใช้ขออนุมัติ margin ต่ำ — ค่าตั้งต้น `DSC`. */
+  /** รหัสประเภทคำขออนุมัติราคาของทุกใบเสนอราคา (CD-201) — ค่าตั้งต้น `PRA`. */
   @IsOptional()
   @IsString()
   @Matches(/^[A-Z0-9_-]{1,20}$/)

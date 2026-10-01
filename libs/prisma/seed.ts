@@ -567,6 +567,17 @@ async function seedSensitiveFields() {
       field: 'cost',
       visibleToPermission: 'request.sensitive.read',
     },
+    // CD-201: the price approval carries the same figures.
+    {
+      resource: 'request:PRA',
+      field: 'cost',
+      visibleToPermission: 'request.sensitive.read',
+    },
+    {
+      resource: 'request:PRA',
+      field: 'est_margin_pct',
+      visibleToPermission: 'request.sensitive.read',
+    },
     // CM-08: เลขผู้เสียภาษี is masked for callers without the CRM sensitive
     // read; the interceptor drops it from list and detail responses alike.
     {
@@ -882,6 +893,72 @@ async function seedSolutionApprovalMatrix(companyId: string) {
   console.log(
     '  approval matrix: request:SOLA v1 · หัวหน้าผู้ตรวจ → ผู้อำนวยการถัดขึ้นไป',
   );
+}
+
+/**
+ * CD-201 — the price approval ladder, before the work: the requester's head
+ * always, the department head above 1,000,000 and the next level above
+ * 5,000,000 (`net_total`, before VAT).
+ *
+ * **The amounts are placeholders** until Finance confirms the real limits
+ * (CD-26). They are matrix data: an admin replaces them on the approval
+ * matrix screen with a new version, no deploy.
+ */
+async function seedPriceApprovalMatrix(companyId: string) {
+  const existing = await prisma.approvalMatrix.findFirst({
+    where: { companyId, subjectType: 'request:PRA:pre' },
+  });
+  if (existing) {
+    console.log('  approval matrix: request:PRA:pre already present');
+    return;
+  }
+  await prisma.approvalMatrix.create({
+    data: {
+      companyId,
+      subjectType: 'request:PRA:pre',
+      currency: 'THB',
+      version: 1,
+      effectiveFrom: new Date('2026-01-01T00:00:00Z'),
+      publishedAt: new Date('2026-01-01T00:00:00Z'),
+      levels: [
+        { type: 'supervisor', up: 1 },
+        {
+          type: 'supervisor',
+          up: 2,
+          condition: { field: 'net_total', op: 'gt', value: 1000000 },
+        },
+        {
+          type: 'supervisor',
+          up: 3,
+          condition: { field: 'net_total', op: 'gt', value: 5000000 },
+        },
+      ],
+      // NOT NULL and read by nothing — see seedApprovalMatrix.
+      tiers: [{ upto: null, chain: ['team_lead'] }],
+      createdBy: 'seed',
+    },
+  });
+  console.log(
+    '  approval matrix: request:PRA:pre v1 · หัวหน้า → >1ล้าน หัวหน้าแผนก → >5ล้าน ถัดขึ้นไป (ตัวเลขชั่วคราว รอ CD-26)',
+  );
+}
+
+/**
+ * CD-201 — quotations now ask PRA. A company still on DSC, the old default,
+ * is moved; one that chose another type keeps it.
+ */
+async function seedPriceApprovalType(companyId: string) {
+  const config = await prisma.crmCompanyConfig.findUnique({
+    where: { companyId },
+    select: { quotationApprovalTypeCode: true },
+  });
+  if (config?.quotationApprovalTypeCode === 'DSC') {
+    await prisma.crmCompanyConfig.update({
+      where: { companyId },
+      data: { quotationApprovalTypeCode: 'PRA', updatedBy: 'seed' },
+    });
+  }
+  console.log('  quotation approval type: PRA');
 }
 
 /**
@@ -1663,6 +1740,97 @@ async function seedRequestTypes(
       approvalPolicy: {},
       slaHours: 72,
     },
+    {
+      /**
+       * CD-201 — อนุมัติราคา: every quotation version, filed and submitted by
+       * the system on "ยื่น" and bound to that version (`ref_id` = its id).
+       * Approved before the work on the `request:PRA:pre` ladder, whose
+       * levels route on `net_total`. Margin and cost are masked like DSC's.
+       */
+      code: 'PRA',
+      name: 'อนุมัติราคา',
+      receiverOrgUnitId: osdRoot?.id ?? null,
+      refRequired: true,
+      formSchema: {
+        type: 'object',
+        required: [
+          'quotation_no',
+          'version_no',
+          'customer_name',
+          'net_total',
+          'reason',
+        ],
+        properties: {
+          quotation_no: {
+            type: 'string',
+            title: 'เลขที่ใบเสนอราคา',
+            maxLength: 40,
+            'x-order': 10,
+          },
+          version_no: {
+            type: 'number',
+            title: 'เวอร์ชันที่ขออนุมัติ',
+            minimum: 1,
+            'x-order': 20,
+          },
+          customer_name: { type: 'string', title: 'ลูกค้า', 'x-order': 30 },
+          net_total: {
+            type: 'number',
+            title: 'ยอดสุทธิก่อน VAT (THB)',
+            minimum: 0,
+            'x-order': 40,
+          },
+          deal_value: {
+            type: 'number',
+            title: 'มูลค่าก่อนส่วนลด (THB)',
+            minimum: 0,
+            'x-order': 50,
+          },
+          discount_pct: {
+            type: 'number',
+            title: '% ส่วนลด',
+            minimum: 0,
+            maximum: 100,
+            'x-order': 60,
+          },
+          cost: {
+            type: 'number',
+            title: 'ต้นทุน (THB)',
+            minimum: 0,
+            'x-sensitive': true,
+            'x-order': 70,
+          },
+          est_margin_pct: {
+            type: 'number',
+            title: 'margin (%)',
+            'x-sensitive': true,
+            'x-order': 80,
+          },
+          margin_below_minimum: {
+            type: 'string',
+            title: 'margin ต่ำกว่าเกณฑ์',
+            enum: ['yes', 'no'],
+            'x-order': 90,
+          },
+          reason: {
+            type: 'string',
+            title: 'รายละเอียด / เหตุผล',
+            maxLength: 2000,
+            'x-multiline': true,
+            'x-order': 100,
+          },
+        },
+      },
+      requiredDocs: [],
+      returnReasonCodes: [
+        { code: 'PRICE_WRONG', name: 'ราคาไม่ถูกต้อง' },
+        { code: 'MARGIN_TOO_LOW', name: 'margin ต่ำเกินไป' },
+        { code: 'REASON_INSUFFICIENT', name: 'เหตุผลไม่เพียงพอ' },
+        { code: 'OTHER', name: 'อื่น ๆ (ระบุ)' },
+      ],
+      approvalPolicy: {},
+      slaHours: 24,
+    },
   ];
 
   for (const type of types) {
@@ -1838,6 +2006,8 @@ async function main() {
   await seedHandoverItems(demo.id);
   await seedApprovalMatrix(demo.id);
   await seedSolutionApprovalMatrix(demo.id);
+  await seedPriceApprovalMatrix(demo.id);
+  await seedPriceApprovalType(demo.id);
 
   console.log('Done.');
 }

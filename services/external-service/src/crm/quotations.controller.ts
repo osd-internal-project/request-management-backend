@@ -21,6 +21,7 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   Param,
   Patch,
   Post,
@@ -135,13 +136,13 @@ export class ExternalQuotationsController {
     return this.quotations.update(id, dto, principal);
   }
 
-  /** ตรวจ margin → อนุมัติทันที หรือร่างคำขออนุมัติแล้วรอ. */
+  /** CD-201 — ทุกเวอร์ชันขออนุมัติราคาก่อนส่งลูกค้า. */
   @ApiOperation({
-    summary: 'ยื่นใบเสนอราคาเข้าตรวจ margin',
+    summary: 'ยื่นใบเสนอราคาขออนุมัติราคา',
     description:
-      'margin ถึงเกณฑ์ → approved ทันที. ต่ำกว่าเกณฑ์ → ต้องมี reason ' +
-      'และระบบเปิดคำขอส่วนลด (ค่าตั้งต้น DSC) แล้วใบค้างที่ ' +
-      'pending_approval. ถ้าประเภทคำขอนั้นปิดอยู่ ได้ ' +
+      'ทุกใบเปิดคำขออนุมัติราคา (ค่าตั้งต้น PRA) ผูกกับเวอร์ชันนี้ แล้วยื่นให้ ' +
+      'อัตโนมัติ; ใบค้างที่ pending_approval จนคำขอได้ผล. margin ต่ำกว่าเกณฑ์ ' +
+      '→ ต้องมี reason. ถ้าประเภทคำขอนั้นปิดอยู่ ได้ ' +
       'CRM_QUOTATION_APPROVAL_UNAVAILABLE และใบคงอยู่ที่ draft',
   })
   @Post(':id/submit')
@@ -151,8 +152,9 @@ export class ExternalQuotationsController {
     @Param('id') id: string,
     @Body() dto: SubmitQuotationDto,
     @CurrentPrincipal() principal: Principal,
+    @Headers('authorization') authorization: string,
   ) {
-    return this.quotations.submit(id, dto, principal);
+    return this.quotations.submit(id, dto, principal, authorization);
   }
 
   @ApiOperation({
