@@ -18,6 +18,7 @@ import {
 import {
   ProjectMemberRepository,
   ProjectRepository,
+  ProjectBudgetRepository,
   ProjectProgressRepository,
   ProjectTaskFileRepository,
   ProjectTaskLinkRepository,
@@ -30,6 +31,7 @@ import { MilestonesService } from './milestones.service';
 import { PlanService } from './plan.service';
 import { TaskWorkService } from './task-work.service';
 import { ProgressService } from './progress.service';
+import { BudgetService } from './budget.service';
 import { ProjectMilestoneRepository } from './project.repositories';
 import { ContractInstallmentsService } from '../crm/contract-installments.service';
 import {
@@ -1038,6 +1040,85 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
           )
         ).reports,
       ).toHaveLength(2);
+    });
+
+    it('CD-179: a draft from the baseline, completed, locked — then changed only through a change request', async () => {
+      const client = prisma as never;
+      const budget = new BudgetService(
+        projects,
+        new ProjectRepository(client),
+        new ProjectBudgetRepository(client),
+        new CompanyMemberRepository(client),
+        { record: () => Promise.resolve() } as never,
+        {
+          execute: (work: (tx: unknown) => Promise<unknown>) =>
+            prisma.$transaction((tx) => work(tx)),
+        } as never,
+      );
+      const managerNow = as(engineer, ['notification.read']);
+      expect((await budget.view(projectId, managerNow)).current).toBeNull();
+
+      // this contract had no Solution: the draft starts empty
+      const started = await budget.start(projectId, managerNow);
+      expect(started.current).toMatchObject({
+        versionNo: 1,
+        status: 'draft',
+        lines: [],
+        contractValue: 150000,
+      });
+      await expect(budget.start(projectId, managerNow)).rejects.toMatchObject({
+        code: 'CONFLICT',
+      });
+      await expect(budget.lock(projectId, managerNow)).rejects.toMatchObject({
+        code: 'VALIDATION_FAILED',
+      });
+      await expect(
+        budget.saveDraft(
+          projectId,
+          { lines: [] },
+          as(outsider, ['notification.read']),
+        ),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+
+      // a line without a cost cannot be locked
+      const lines = [
+        {
+          category: 'material',
+          code: 'CAM-01',
+          description: 'กล้อง',
+          quantity: 20,
+          unit: 'ตัว',
+          unit_cost: 3000,
+        },
+        {
+          category: 'labor',
+          description: 'ช่างติดตั้ง',
+          quantity: 10,
+          unit: 'man-day',
+          unit_cost: null,
+        },
+      ];
+      const draft = await budget.saveDraft(projectId, { lines }, managerNow);
+      expect(draft.current).toMatchObject({ total: 60000, missingCost: 1 });
+      await expect(budget.lock(projectId, managerNow)).rejects.toMatchObject({
+        code: 'VALIDATION_FAILED',
+      });
+
+      lines[1].unit_cost = 2000;
+      await budget.saveDraft(projectId, { lines }, managerNow);
+      const locked = await budget.lock(projectId, managerNow);
+      expect(locked.current).toMatchObject({
+        status: 'locked',
+        total: 80000,
+        byCategory: { material: 60000, labor: 20000, other: 0 },
+        margin: 70000,
+        marginPct: 46.7,
+      });
+
+      // locked: no more editing here
+      await expect(
+        budget.saveDraft(projectId, { lines }, managerNow),
+      ).rejects.toMatchObject({ code: 'CONFLICT' });
     });
   },
 );

@@ -10,6 +10,7 @@ import {
 } from './projects.controller';
 import { TaskWorkService } from './task-work.service';
 import { ProgressService } from './progress.service';
+import { BudgetService } from './budget.service';
 
 /** The screen-facing routes of {@link PmModule}. */
 @Module({
@@ -23,6 +24,12 @@ import { ProgressService } from './progress.service';
     }),
   ],
   controllers: [ProjectsController, ProjectTasksController],
-  providers: [MilestonesService, PlanService, TaskWorkService, ProgressService],
+  providers: [
+    MilestonesService,
+    PlanService,
+    TaskWorkService,
+    ProgressService,
+    BudgetService,
+  ],
 })
 export class PmHttpModule {}

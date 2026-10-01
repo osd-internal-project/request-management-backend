@@ -4906,6 +4906,8 @@ model Project {
   tasks      ProjectTask[]
   /// CD-188 — ความคืบหน้าที่รายงาน.
   progressReports ProjectProgressReport[]
+  /// CD-179 — งบอ้างอิง (ทุกฉบับ).
+  budgets         ProjectBudget[]
 
   @@unique([companyId, projectNo])
   @@index([companyId, status])
@@ -5148,4 +5150,35 @@ model ProjectProgressReport {
 
   @@index([projectId, reportedAt])
   @@map("project_progress_reports")
+}
+
+/// CD-179 — the project's reference budget. Version 1 starts as a draft
+/// drawn from the baseline (BOQ costs, labour); the manager completes it
+/// and locks it. After that it changes only through a change request
+/// (CD-185), which writes the next version and supersedes this one.
+model ProjectBudget {
+  id              String    @id @default(uuid())
+  companyId       String
+  projectId       String
+  versionNo       Int
+  /// draft · locked · superseded
+  status          String    @default("draft")
+  /// [{ category, code, description, quantity, unit, unitCost, amount }]
+  lines           Json      @default("[]")
+  total           Decimal   @default(0) @db.Decimal(14, 2)
+  contractValue   Decimal?  @db.Decimal(14, 2)
+  note            String?
+  /// CD-185 — the change request that made this version.
+  changeRequestId String?
+  createdAt       DateTime  @default(now())
+  createdBy       String
+  updatedAt       DateTime  @updatedAt
+  updatedBy       String?
+  lockedAt        DateTime?
+  lockedBy        String?
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, versionNo])
+  @@map("project_budgets")
 }

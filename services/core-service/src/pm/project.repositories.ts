@@ -133,3 +133,17 @@ export class ProjectProgressRepository extends BaseRepository<
     return client.projectProgressReport;
   }
 }
+
+/** CD-179 งบอ้างอิง. */
+@Injectable()
+export class ProjectBudgetRepository extends BaseRepository<
+  PrismaService['projectBudget']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.projectBudget;
+  }
+}

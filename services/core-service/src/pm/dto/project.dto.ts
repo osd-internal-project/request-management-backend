@@ -21,6 +21,7 @@ import { MAX_MEMBERS, PROJECT_STATUSES } from '../project-rules';
 import { MAX_CRITERIA, MAX_CRITERION_LENGTH } from '../milestone-rules';
 import { MAX_DURATION_DAYS } from '../plan-rules';
 import { MAX_NOTE_LENGTH, WORK_STATUSES } from '../task-rules';
+import { BUDGET_CATEGORIES, MAX_BUDGET_LINES } from '../budget-rules';
 
 /** CD-175 — one person on the project team. */
 export class ProjectMemberDto {
@@ -316,6 +317,54 @@ export class ReportProgressDto {
   @IsString()
   @MaxLength(2000)
   reason?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  note?: string;
+}
+
+export class BudgetLineDto {
+  @ApiProperty({ enum: BUDGET_CATEGORIES })
+  @IsIn([...BUDGET_CATEGORIES])
+  category!: string;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  code?: string | null;
+
+  @ApiProperty()
+  @IsString()
+  @MaxLength(500)
+  description!: string;
+
+  @ApiProperty()
+  @IsNumber({ maxDecimalPlaces: 4 })
+  quantity!: number;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  unit?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  unit_cost?: number | null;
+}
+
+/** CD-179 — the draft budget, saved whole. */
+export class SaveBudgetDto {
+  @ApiProperty({ type: [BudgetLineDto] })
+  @IsArray()
+  @ArrayMaxSize(MAX_BUDGET_LINES)
+  @ValidateNested({ each: true })
+  @Type(() => BudgetLineDto)
+  lines!: BudgetLineDto[];
 
   @ApiPropertyOptional()
   @IsOptional()

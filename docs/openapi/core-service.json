@@ -15725,6 +15725,178 @@
         ]
       }
     },
+    "/api/v1/projects/{id}/budget": {
+      "get": {
+        "operationId": "ProjectsController_viewBudget",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "งบอ้างอิง: ฉบับปัจจุบัน และทุกฉบับ",
+        "tags": [
+          "projects"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      },
+      "post": {
+        "operationId": "ProjectsController_startBudget",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ตั้งร่างงบจากฐานตั้งต้น (ครั้งแรกเท่านั้น)",
+        "tags": [
+          "projects"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/projects/{id}/budget/draft": {
+      "put": {
+        "operationId": "ProjectsController_saveBudget",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveBudgetDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "บันทึกร่างงบ (ทั้งฉบับ)",
+        "tags": [
+          "projects"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/projects/{id}/budget/lock": {
+      "post": {
+        "operationId": "ProjectsController_lockBudget",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ยืนยันงบ — หลังจากนี้เปลี่ยนได้ผ่านคำขอเปลี่ยนแปลงเท่านั้น",
+        "tags": [
+          "projects"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      }
+    },
     "/api/v1/projects/{id}/progress": {
       "get": {
         "operationId": "ProjectsController_viewProgress",
@@ -24356,6 +24528,64 @@
         },
         "required": [
           "predecessors"
+        ]
+      },
+      "BudgetLineDto": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "type": "string",
+            "enum": [
+              "material",
+              "labor",
+              "other"
+            ]
+          },
+          "code": {
+            "type": "object",
+            "nullable": true,
+            "maxLength": 50
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "quantity": {
+            "type": "number"
+          },
+          "unit": {
+            "type": "object",
+            "nullable": true,
+            "maxLength": 30
+          },
+          "unit_cost": {
+            "type": "object",
+            "nullable": true
+          }
+        },
+        "required": [
+          "category",
+          "description",
+          "quantity"
+        ]
+      },
+      "SaveBudgetDto": {
+        "type": "object",
+        "properties": {
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BudgetLineDto"
+            },
+            "maxItems": 500
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "lines"
         ]
       },
       "ReportProgressDto": {

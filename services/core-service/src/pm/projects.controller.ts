@@ -31,6 +31,7 @@ import {
   PlanPreviewDto,
   SavePredecessorsDto,
   ReportProgressDto,
+  SaveBudgetDto,
   SaveTaskDto,
   TaskReportDto,
   SaveProjectMembersDto,
@@ -40,6 +41,7 @@ import {
 import { MAX_EVIDENCE_BYTES, MilestonesService } from './milestones.service';
 import { PlanService } from './plan.service';
 import { ProgressService } from './progress.service';
+import { BudgetService } from './budget.service';
 import { MAX_TASK_FILE_BYTES, TaskWorkService } from './task-work.service';
 import { MAX_FILES_PER_UPDATE } from './task-rules';
 import { ProjectsService } from './projects.service';
@@ -59,6 +61,7 @@ export class ProjectsController {
     private readonly plan: PlanService,
     private readonly work: TaskWorkService,
     private readonly progress: ProgressService,
+    private readonly budget: BudgetService,
   ) {}
 
   @ApiOperation({ summary: 'รายการโครงการ (ทั้งบริษัท หรือของฉัน)' })
@@ -335,6 +338,51 @@ export class ProjectsController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.plan.setPredecessors(id, taskId, dto, principal);
+  }
+
+  // --- CD-179 budget ----------------------------------------------------------------
+
+  @ApiOperation({ summary: 'งบอ้างอิง: ฉบับปัจจุบัน และทุกฉบับ' })
+  @Get(':id/budget')
+  @Permissions('notification.read')
+  viewBudget(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.budget.view(id, principal);
+  }
+
+  @ApiOperation({ summary: 'ตั้งร่างงบจากฐานตั้งต้น (ครั้งแรกเท่านั้น)' })
+  @Post(':id/budget')
+  @Permissions('notification.read')
+  startBudget(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.budget.start(id, principal);
+  }
+
+  @ApiOperation({ summary: 'บันทึกร่างงบ (ทั้งฉบับ)' })
+  @Put(':id/budget/draft')
+  @Permissions('notification.read')
+  saveBudget(
+    @Param('id') id: string,
+    @Body() dto: SaveBudgetDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.budget.saveDraft(id, dto, principal);
+  }
+
+  @ApiOperation({
+    summary: 'ยืนยันงบ — หลังจากนี้เปลี่ยนได้ผ่านคำขอเปลี่ยนแปลงเท่านั้น',
+  })
+  @Post(':id/budget/lock')
+  @Permissions('notification.read')
+  lockBudget(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.budget.lock(id, principal);
   }
 
   // --- CD-188 progress --------------------------------------------------------------
