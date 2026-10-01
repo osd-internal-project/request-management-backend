@@ -20,7 +20,9 @@ import { PageQueryDto } from '@request-management/share';
 import {
   MAX_TERM_MONTHS,
   PRICE_MODELS,
+  WORK_TYPES,
   type PriceModel,
+  type WorkType,
 } from '../quotation-math';
 
 /** CRM ใบเสนอราคา (CD-76) DTOs — snake_case per the §11.1 API contract. */
@@ -99,6 +101,21 @@ export class QuotationLineDto {
   @Min(1)
   @Max(MAX_TERM_MONTHS)
   term_months?: number;
+
+  /** CD-200 — อุปกรณ์ / วัสดุ / ซอฟต์แวร์ / บริการ. */
+  @IsOptional()
+  @IsIn(WORK_TYPES)
+  work_type?: WorkType;
+
+  /**
+   * CD-200 — the markup the unit price came from. Kept only while the price
+   * still is unit cost × (1 + markup).
+   */
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(1000)
+  markup_pct?: number;
 }
 
 /** สร้างร่างใบเสนอราคาจากโอกาสการขาย — ทุกช่องว่างได้ (ค่าตั้งต้นมาจากโอกาสการขาย/ตั้งค่า). */

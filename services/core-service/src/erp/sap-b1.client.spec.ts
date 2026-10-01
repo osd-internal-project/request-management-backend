@@ -483,6 +483,8 @@ describe('SAP B1 Service Layer driver', () => {
 
   it('listItems: เฉพาะที่ขายได้, ขอหน้าละ 500 แล้วตาม nextLink จนจบ, เลิกขาย/frozen = inactive', async () => {
     const h = harness({
+      'GET /ItemGroups': () =>
+        reply(200, { value: [{ Number: 101, GroupName: 'บริการเสียง' }] }),
       'GET /Items': (req) =>
         req.url.includes('$skip=500')
           ? reply(200, {
@@ -504,6 +506,7 @@ describe('SAP B1 Service Layer driver', () => {
                   SalesUnit: 'ช่อง',
                   Valid: 'tYES',
                   Frozen: 'tNO',
+                  ItemsGroupCode: 101,
                 },
                 {
                   ItemCode: 'FRZ',
@@ -520,9 +523,30 @@ describe('SAP B1 Service Layer driver', () => {
     const items = await h.client.listItems(OSD);
 
     expect(items).toEqual([
-      { code: 'SIP', name: 'SIP Trunk', unit: 'ช่อง', active: true },
-      { code: 'FRZ', name: 'Frozen', unit: null, active: false },
-      { code: 'OLD', name: 'เลิกขาย', unit: null, active: false },
+      {
+        code: 'SIP',
+        name: 'SIP Trunk',
+        unit: 'ช่อง',
+        active: true,
+        groupCode: '101',
+        groupName: 'บริการเสียง',
+      },
+      {
+        code: 'FRZ',
+        name: 'Frozen',
+        unit: null,
+        active: false,
+        groupCode: null,
+        groupName: null,
+      },
+      {
+        code: 'OLD',
+        name: 'เลิกขาย',
+        unit: null,
+        active: false,
+        groupCode: null,
+        groupName: null,
+      },
     ]);
     const pages = h.calls('GET', '/Items');
     expect(pages).toHaveLength(2);

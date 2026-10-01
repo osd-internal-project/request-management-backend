@@ -3278,30 +3278,34 @@ model Quotation {
 
 /// บรรทัดใบเสนอราคา — แทนที่ทั้งชุดได้เฉพาะตอนใบยังเป็น draft (แก้ร่าง ไม่ใช่ลบธุรกรรม).
 model QuotationLine {
-  id          String  @id @default(uuid())
+  id          String   @id @default(uuid())
   quotationId String
   lineNo      Int
   /// รหัสสินค้า/บริการ (ตรง material ใน SAP ถ้ามี) — ว่างได้สำหรับบรรทัดบริการ/ค่าแรง.
   productCode String?
   description String
-  quantity    Decimal @db.Decimal(14, 3)
+  quantity    Decimal  @db.Decimal(14, 3)
   unit        String?
-  unitPrice   Decimal @db.Decimal(14, 2)
-  unitCost    Decimal @default(0) @db.Decimal(14, 2)
-  discountPct Decimal @default(0) @db.Decimal(5, 2)
+  unitPrice   Decimal  @db.Decimal(14, 2)
+  unitCost    Decimal  @default(0) @db.Decimal(14, 2)
+  discountPct Decimal  @default(0) @db.Decimal(5, 2)
   /// จำนวน × ราคา × (1 − ส่วนลด%).
-  lineTotal   Decimal @db.Decimal(14, 2)
-  lineCost    Decimal @db.Decimal(14, 2)
+  lineTotal   Decimal  @db.Decimal(14, 2)
+  lineCost    Decimal  @db.Decimal(14, 2)
   /// CD-195 ราคามาตรฐานที่บรรทัดนี้ใช้ (`product_prices.id`) — ว่าง = ราคาที่กรอกเอง.
   /// ยื่นใบไม่ได้ถ้าราคานั้นไม่มีผลแล้วในวันที่ยื่น.
   priceId     String?
   /// CD-196 unit | lump_sum | monthly — เหมา = จำนวน 1 เสมอ; รายเดือน = × termMonths.
-  priceModel  String  @default("unit")
+  priceModel  String   @default("unit")
   /// CD-196 จำนวนเดือนของบรรทัดรายเดือน (1–120) — ว่างสำหรับรูปแบบอื่น.
   termMonths  Int?
   /// CD-198 ที่มาของต้นทุนเมื่อสร้างจาก Solution — "ใบเสนอราคาคู่ค้า: …",
   /// "ต้นทุนอ้างอิง", "อัตราแรงงาน" — ว่าง = กรอกเอง.
   costSource  String?
+  /// CD-200 ประเภทงาน equipment | material | software | service (เหมือน BOQ).
+  workType    String?
+  /// CD-200 markup ที่ให้ราคานี้ — คงไว้เฉพาะเมื่อราคา = ต้นทุน × (1 + markup).
+  markupPct   Decimal? @db.Decimal(7, 2)
 
   quotation Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
 
@@ -3330,11 +3334,14 @@ model Product {
   companyId String
 
   /// B1 `ItemCode` — ค่าที่ใส่ใน `productCode` ของบรรทัดใบเสนอราคา/ใบสั่งขาย.
-  code   String
-  name   String
+  code      String
+  name      String
   /// หน่วยขาย (B1 `SalesUnit`) — เติมลงบรรทัดตอนเลือกสินค้า.
-  unit   String?
-  active Boolean @default(true)
+  unit      String?
+  /// CD-200 กลุ่มสินค้าใน SAP (B1 `ItemsGroupCode` / `ItemGroups.GroupName`).
+  groupCode String?
+  groupName String?
+  active    Boolean @default(true)
 
   /// รอบ sync ล่าสุดที่เห็นรายการนี้ใน SAP.
   syncedAt  DateTime
@@ -5407,4 +5414,28 @@ model ContractInstallmentBilling {
 
   @@unique([contractId, seq])
   @@map("contract_installment_billings")
+}
+
+/// CD-200 markup ตามประเภทงาน กลุ่มสินค้า หรือกลุ่มลูกค้า — ช่องที่ว่าง = ตรงทุกค่า.
+/// ใช้เสนอราคา = ต้นทุน × (1 + markup) เมื่อไม่มีราคามาตรฐาน/ราคาเฉพาะ.
+model MarkupRule {
+  id               String  @id @default(uuid())
+  companyId        String
+  /// เลขน้อยทำก่อน; เท่ากันใช้กฎที่ระบุเงื่อนไขมากกว่า.
+  priority         Int     @default(100)
+  workType         String?
+  productGroupCode String?
+  segmentValueId   String?
+  markupPct        Decimal @db.Decimal(7, 2)
+  note             String  @default("")
+  active           Boolean @default(true)
+
+  createdBy String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  updatedBy String?
+  deletedAt DateTime?
+
+  @@index([companyId, active])
+  @@map("markup_rules")
 }

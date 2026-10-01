@@ -737,3 +737,41 @@ describe('CD-199 margin ของดีล', () => {
     expect(result.minMarginPct).toBe(15);
   });
 });
+
+describe('CD-200 markup และประเภทงานบนบรรทัด', () => {
+  it('เก็บ markup เฉพาะเมื่อราคา = ต้นทุน × (1 + markup) และเก็บประเภทงาน', async () => {
+    const { service, tx } = harness();
+    await service.update(
+      'qt-1',
+      {
+        lines: [
+          {
+            description: 'A',
+            quantity: 1,
+            unit_cost: 1000,
+            unit_price: 1200,
+            markup_pct: 20,
+            work_type: 'equipment',
+          },
+          {
+            description: 'B',
+            quantity: 1,
+            unit_cost: 1000,
+            unit_price: 1250,
+            markup_pct: 20,
+          },
+        ],
+      },
+      principal(),
+    );
+    const data = (
+      tx.quotationLine.createMany.mock.calls[0] as unknown as [
+        { data: { markupPct: number | null; workType: string | null }[] },
+      ]
+    )[0].data;
+    expect(data.map((row) => [row.markupPct, row.workType])).toEqual([
+      [20, 'equipment'],
+      [null, null],
+    ]);
+  });
+});

@@ -40,6 +40,7 @@ function harness(
     approval?: string;
     complete?: boolean;
     existing?: { id: string } | null;
+    markups?: ({ rule_id: string; markup_pct: number } | null)[];
   } = {},
 ) {
   const solutions = {
@@ -118,6 +119,12 @@ function harness(
       }),
     ),
   };
+  // CD-200 — markup per built line (none unless a test says so).
+  const markup = {
+    suggest: jest.fn((_: unknown, lines: unknown[]) =>
+      Promise.resolve(options.markups ?? lines.map(() => null)),
+    ),
+  };
   const service = new SolutionQuotationService(
     solutions as never,
     versions as never,
@@ -125,8 +132,9 @@ function harness(
     quotationRows as never,
     quotations as never,
     prices as never,
+    markup as never,
   );
-  return { service, quotations, prices };
+  return { service, quotations, prices, markup };
 }
 
 describe('SolutionQuotationService (CD-198)', () => {
@@ -208,5 +216,36 @@ describe('SolutionQuotationService (CD-198)', () => {
     await expect(
       harness().service.create('sol-1', 2, viewer),
     ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+
+  it('CD-200 — a line with cost but no price gets cost × (1 + markup) and keeps the percent', async () => {
+    const { service, quotations, markup } = harness({
+      markups: [
+        { rule_id: 'r-equip', markup_pct: 20 },
+        { rule_id: 'r-all', markup_pct: 10 },
+        { rule_id: 'r-svc', markup_pct: 30 },
+      ],
+    });
+    await service.create('sol-1', 2, pricer);
+    expect(markup.suggest).toHaveBeenCalledWith(
+      pricer,
+      [
+        { productCode: 'FG-100F', workType: 'equipment' },
+        { productCode: 'MA-YEARLY', workType: 'service' },
+        { productCode: null, workType: 'service' },
+      ],
+      'opp-1',
+    );
+    const [, dto] = quotations.createForOpportunity.mock
+      .calls[0] as unknown as [string, { lines: Record<string, unknown>[] }];
+    // FG-100F had no price: 38,000 × 1.2; MA-YEARLY keeps its special price;
+    // labour 4,500 × 1.3.
+    expect(dto.lines.map((line) => [line.unit_price, line.markup_pct])).toEqual(
+      [
+        [45600, 20],
+        [500, undefined],
+        [5850, 30],
+      ],
+    );
   });
 });

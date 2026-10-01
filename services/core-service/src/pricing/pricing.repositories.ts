@@ -20,3 +20,17 @@ export class ProductPriceVersionRepository extends BaseRepository<
     return client.productPriceVersion;
   }
 }
+
+/** CD-200 กฎ markup. */
+@Injectable()
+export class MarkupRuleRepository extends BaseRepository<
+  PrismaService['markupRule']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.markupRule;
+  }
+}

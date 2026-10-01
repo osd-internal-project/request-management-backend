@@ -8849,6 +8849,20 @@
             "maximum": 120,
             "minimum": 1,
             "type": "integer"
+          },
+          "work_type": {
+            "enum": [
+              "equipment",
+              "material",
+              "software",
+              "service"
+            ],
+            "type": "string"
+          },
+          "markup_pct": {
+            "maximum": 1000,
+            "minimum": 0,
+            "type": "number"
           }
         },
         "required": [

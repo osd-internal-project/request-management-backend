@@ -246,3 +246,19 @@ export function dealMargin<T extends DealQuotation>(
     marginPct: revenue.gt(0) ? money(margin.div(revenue).mul(100)) : null,
   };
 }
+
+/** CD-200 — work types, the same list as a Solution's BOQ kinds. */
+export const WORK_TYPES = [
+  'equipment',
+  'material',
+  'software',
+  'service',
+] as const;
+export type WorkType = (typeof WORK_TYPES)[number];
+
+/** CD-200 — the selling price markup gives a cost: cost × (1 + pct/100). */
+export function markupPrice(unitCost: number, markupPct: number): number {
+  return money(
+    new Decimal(unitCost).mul(new Decimal(100).plus(markupPct)).div(100),
+  ).toNumber();
+}

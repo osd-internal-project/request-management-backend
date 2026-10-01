@@ -30,6 +30,9 @@ interface ProductRow {
   name: string;
   unit: string | null;
   active: boolean;
+  /** CD-200 */
+  groupCode?: string | null;
+  groupName?: string | null;
 }
 
 /**
@@ -105,7 +108,14 @@ export class ProductCatalogService implements OnModuleInit, OnModuleDestroy {
     const items = await this.erp.listItems({ companyCode: company.code });
     const existing = (await this.products.findMany({
       where: { companyId: company.id },
-      select: { code: true, name: true, unit: true, active: true },
+      select: {
+        code: true,
+        name: true,
+        unit: true,
+        active: true,
+        groupCode: true,
+        groupName: true,
+      },
     })) as ProductRow[];
 
     const byCode = new Map(existing.map((row) => [row.code, row]));
@@ -123,7 +133,9 @@ export class ProductCatalogService implements OnModuleInit, OnModuleDestroy {
       } else if (
         row.name !== item.name ||
         row.unit !== item.unit ||
-        row.active !== item.active
+        row.active !== item.active ||
+        (row.groupCode ?? null) !== (item.groupCode ?? null) ||
+        (row.groupName ?? null) !== (item.groupName ?? null)
       ) {
         await this.products.update({
           where: { companyId_code: { companyId: company.id, code: item.code } },
@@ -131,6 +143,8 @@ export class ProductCatalogService implements OnModuleInit, OnModuleDestroy {
             name: item.name,
             unit: item.unit,
             active: item.active,
+            groupCode: item.groupCode ?? null,
+            groupName: item.groupName ?? null,
             syncedAt: now,
           },
         });
@@ -146,6 +160,8 @@ export class ProductCatalogService implements OnModuleInit, OnModuleDestroy {
           name: item.name,
           unit: item.unit,
           active: item.active,
+          groupCode: item.groupCode ?? null,
+          groupName: item.groupName ?? null,
           syncedAt: now,
         })),
         skipDuplicates: true,

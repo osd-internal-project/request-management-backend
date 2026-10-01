@@ -210,29 +210,47 @@ const MOCK_VENDORS: readonly ErpVendor[] = [
   },
 ];
 
+const VOICE = { groupCode: '101', groupName: 'บริการเสียง' };
+const DEVICE = { groupCode: '102', groupName: 'อุปกรณ์' };
+const SERVICE = { groupCode: '103', groupName: 'งานบริการ' };
 const MOCK_ITEMS: readonly ErpItem[] = [
   {
     code: 'SIP-TRUNK',
     name: 'SIP Trunk (ต่อช่องสัญญาณ)',
     unit: 'ช่อง',
     active: true,
+    ...VOICE,
   },
   {
     code: 'D-CALLCENTER',
     name: 'D-Callcenter License',
     unit: 'License',
     active: true,
+    ...VOICE,
   },
-  { code: 'IP-PHONE', name: 'IP Phone', unit: 'เครื่อง', active: true },
-  { code: 'HEADSET', name: 'Headset', unit: 'อัน', active: true },
-  { code: 'SERVER', name: 'Server', unit: 'เครื่อง', active: true },
-  { code: 'INSTALL', name: 'ค่าติดตั้ง', unit: 'งาน', active: true },
-  { code: 'MA-YEARLY', name: 'MA รายปี', unit: 'ปี', active: true },
+  {
+    code: 'IP-PHONE',
+    name: 'IP Phone',
+    unit: 'เครื่อง',
+    active: true,
+    ...DEVICE,
+  },
+  { code: 'HEADSET', name: 'Headset', unit: 'อัน', active: true, ...DEVICE },
+  { code: 'SERVER', name: 'Server', unit: 'เครื่อง', active: true, ...DEVICE },
+  {
+    code: 'INSTALL',
+    name: 'ค่าติดตั้ง',
+    unit: 'งาน',
+    active: true,
+    ...SERVICE,
+  },
+  { code: 'MA-YEARLY', name: 'MA รายปี', unit: 'ปี', active: true, ...SERVICE },
   {
     code: 'OLD-PBX',
     name: 'PBX รุ่นเก่า (เลิกขาย)',
     unit: 'เครื่อง',
     active: false,
+    ...DEVICE,
   },
 ];
 

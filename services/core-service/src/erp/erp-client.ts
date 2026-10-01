@@ -118,6 +118,9 @@ export interface ErpItem {
   readonly unit: string | null;
   /** Valid and not frozen — an inactive item cannot go on a new document. */
   readonly active: boolean;
+  /** CD-200 — B1 `ItemsGroupCode` and its `ItemGroups.GroupName`. */
+  readonly groupCode?: string | null;
+  readonly groupName?: string | null;
 }
 
 /**

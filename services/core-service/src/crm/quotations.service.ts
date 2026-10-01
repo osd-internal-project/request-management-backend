@@ -29,6 +29,7 @@ import {
   computeQuotationTotals,
   dealMargin,
   defaultValidUntil,
+  markupPrice,
   marginNeedsApproval,
   monthlyRecurring,
   priceModelProblems,
@@ -792,6 +793,8 @@ export class QuotationsService {
                 priceModel: line.priceModel,
                 termMonths: line.termMonths,
                 costSource: line.costSource,
+                workType: line.workType,
+                markupPct: line.markupPct,
               })),
             },
           },
@@ -1142,6 +1145,8 @@ interface QuotationForAction {
     priceModel: string;
     termMonths: number | null;
     costSource: string | null;
+    workType: string | null;
+    markupPct: Prisma.Decimal | null;
   }[];
   solutionId: string | null;
   solutionVersionNo: number | null;
@@ -1258,6 +1263,13 @@ function linesData(
     priceModel: line.price_model ?? 'unit',
     termMonths:
       line.price_model === 'monthly' ? (line.term_months ?? null) : null,
+    workType: line.work_type ?? null,
+    // CD-200 — the markup stays only while it still explains the price.
+    markupPct:
+      line.markup_pct !== undefined &&
+      markupPrice(line.unit_cost ?? 0, line.markup_pct) === line.unit_price
+        ? line.markup_pct
+        : null,
   }));
 }
 

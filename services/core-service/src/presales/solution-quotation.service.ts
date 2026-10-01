@@ -8,6 +8,8 @@ import {
 } from '../crm/sales.repositories';
 import type { QuotationLineDto } from '../crm/dto/quotation.dto';
 import { PricesService } from '../pricing/prices.service';
+import { MarkupService } from '../pricing/markup.service';
+import { markupPrice } from '../crm/quotation-math';
 import { SolutionVersionRepository } from './solution.repositories';
 import { SolutionsService } from './solutions.service';
 import { readBoq } from './solution-rules';
@@ -49,6 +51,7 @@ export class SolutionQuotationService {
     private readonly quotationRows: QuotationRepository,
     private readonly quotations: QuotationsService,
     private readonly prices: PricesService,
+    private readonly markup: MarkupService,
   ) {}
 
   /** The quotations started from this Solution, newest first. */
@@ -146,6 +149,8 @@ export class SolutionQuotationService {
         price_model: price?.price_model as QuotationLineDto['price_model'],
         term_months:
           price?.price_model === 'monthly' ? DEFAULT_TERM_MONTHS : undefined,
+        // CD-200 — the BOQ kind is the line's work type.
+        work_type: item.kind,
       });
       costSources.push(
         line.source === 'quote'
@@ -161,9 +166,27 @@ export class SolutionQuotationService {
         unit: 'man-day',
         unit_cost: labor.rate,
         unit_price: 0,
+        work_type: 'service',
       });
       costSources.push('อัตราแรงงาน');
     }
+
+    // CD-200 — a line with a cost but no price in effect is offered
+    // cost × (1 + markup) by the rule that applies to it.
+    const markups = await this.markup.suggest(
+      actor,
+      lines.map((line) => ({
+        productCode: line.product_code ?? null,
+        workType: line.work_type ?? null,
+      })),
+      solution.opportunityId,
+    );
+    lines.forEach((line, index) => {
+      const markup = markups[index];
+      if (line.price_id || !markup || !line.unit_cost) return;
+      line.unit_price = markupPrice(line.unit_cost, markup.markup_pct);
+      line.markup_pct = markup.markup_pct;
+    });
 
     const created = await this.quotations.createForOpportunity(
       solution.opportunityId,

@@ -14705,6 +14705,249 @@
         ]
       }
     },
+    "/api/v1/pricing/markup-rules": {
+      "get": {
+        "operationId": "MarkupController_list",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-200 กฎ markup ตามลำดับความสำคัญ",
+        "tags": [
+          "pricing"
+        ],
+        "x-permission": [
+          "pricing.price.read",
+          "pricing.price.manage"
+        ]
+      },
+      "post": {
+        "operationId": "MarkupController_create",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveMarkupDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-200 เพิ่มกฎ markup",
+        "tags": [
+          "pricing"
+        ],
+        "x-permission": [
+          "pricing.price.manage"
+        ]
+      }
+    },
+    "/api/v1/pricing/markup-rules/options": {
+      "get": {
+        "operationId": "MarkupController_options",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-200 ตัวเลือกของฟอร์ม — กลุ่มสินค้า SAP และกลุ่มลูกค้า",
+        "tags": [
+          "pricing"
+        ],
+        "x-permission": [
+          "pricing.price.manage"
+        ]
+      }
+    },
+    "/api/v1/pricing/markup-rules/suggest": {
+      "post": {
+        "operationId": "MarkupController_suggest",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SuggestMarkupDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-200 markup ที่ใช้กับแต่ละบรรทัด (สินค้า + ประเภทงาน) ของดีล — สำหรับเสนอราคาเมื่อไม่มีราคามาตรฐาน",
+        "tags": [
+          "pricing"
+        ],
+        "x-permission": [
+          "crm.sales.read",
+          "pricing.price.read",
+          "pricing.price.manage"
+        ]
+      }
+    },
+    "/api/v1/pricing/markup-rules/{id}": {
+      "patch": {
+        "operationId": "MarkupController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMarkupDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-200 แก้กฎ markup",
+        "tags": [
+          "pricing"
+        ],
+        "x-permission": [
+          "pricing.price.manage"
+        ]
+      },
+      "delete": {
+        "operationId": "MarkupController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-200 ลบกฎ markup (soft delete)",
+        "tags": [
+          "pricing"
+        ],
+        "x-permission": [
+          "pricing.price.manage"
+        ]
+      }
+    },
     "/api/v1/projects": {
       "get": {
         "operationId": "ProjectsController_list",
@@ -25614,6 +25857,131 @@
           "unit_price"
         ]
       },
+      "MarkupLineDto": {
+        "type": "object",
+        "properties": {
+          "product_code": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "work_type": {
+            "type": "string",
+            "enum": [
+              "equipment",
+              "material",
+              "software",
+              "service"
+            ]
+          }
+        }
+      },
+      "SuggestMarkupDto": {
+        "type": "object",
+        "properties": {
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MarkupLineDto"
+            },
+            "maxItems": 200
+          },
+          "opportunity_id": {
+            "type": "string",
+            "description": "ดีลของใบเสนอราคา — ใช้หากลุ่มลูกค้า",
+            "maxLength": 64
+          }
+        },
+        "required": [
+          "lines"
+        ]
+      },
+      "SaveMarkupDto": {
+        "type": "object",
+        "properties": {
+          "priority": {
+            "type": "integer",
+            "default": 100,
+            "description": "เลขน้อยทำก่อน",
+            "minimum": 0
+          },
+          "work_type": {
+            "type": "string",
+            "enum": [
+              "equipment",
+              "material",
+              "software",
+              "service"
+            ],
+            "nullable": true
+          },
+          "product_group_code": {
+            "type": "object",
+            "description": "B1 ItemsGroupCode",
+            "nullable": true,
+            "maxLength": 30
+          },
+          "segment_value_id": {
+            "type": "object",
+            "description": "กลุ่มลูกค้า (segment value)",
+            "nullable": true,
+            "maxLength": 64
+          },
+          "markup_pct": {
+            "type": "number",
+            "description": "markup % (0–1000)"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "active": {
+            "type": "boolean",
+            "default": true
+          }
+        },
+        "required": [
+          "markup_pct"
+        ]
+      },
+      "UpdateMarkupDto": {
+        "type": "object",
+        "properties": {
+          "priority": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "work_type": {
+            "type": "string",
+            "enum": [
+              "equipment",
+              "material",
+              "software",
+              "service"
+            ],
+            "nullable": true
+          },
+          "product_group_code": {
+            "type": "object",
+            "nullable": true,
+            "maxLength": 30
+          },
+          "segment_value_id": {
+            "type": "object",
+            "nullable": true,
+            "maxLength": 64
+          },
+          "markup_pct": {
+            "type": "number"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "active": {
+            "type": "boolean"
+          }
+        }
+      },
       "ProjectMemberDto": {
         "type": "object",
         "properties": {
@@ -27121,6 +27489,20 @@
             "maximum": 120,
             "minimum": 1,
             "type": "integer"
+          },
+          "work_type": {
+            "enum": [
+              "equipment",
+              "material",
+              "software",
+              "service"
+            ],
+            "type": "string"
+          },
+          "markup_pct": {
+            "maximum": 1000,
+            "minimum": 0,
+            "type": "number"
           }
         },
         "required": [

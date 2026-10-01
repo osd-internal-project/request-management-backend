@@ -304,9 +304,21 @@ export class SapB1Client implements ErpClient {
   }
 
   async listItems(ctx: ErpContext): Promise<ErpItem[]> {
+    // CD-200 — item groups by number; a short list, read once per sync.
+    const groupsRes = await this.call(
+      ctx,
+      'GET',
+      '/ItemGroups?$select=Number,GroupName',
+    );
+    const groups = new Map(
+      this.json<{ value: { Number: number; GroupName: string | null }[] }>(
+        groupsRes,
+        'อ่านกลุ่มสินค้า',
+      ).value.map((row) => [row.Number, row.GroupName?.trim() || null]),
+    );
     const items: ErpItem[] = [];
     let path: string | null =
-      `/Items?$select=ItemCode,ItemName,SalesUnit,Valid,Frozen&$filter=${q(
+      `/Items?$select=ItemCode,ItemName,SalesUnit,Valid,Frozen,ItemsGroupCode&$filter=${q(
         "SalesItem eq 'tYES'",
       )}&$orderby=ItemCode`;
 
@@ -321,6 +333,7 @@ export class SapB1Client implements ErpClient {
           SalesUnit: string | null;
           Valid: string;
           Frozen: string;
+          ItemsGroupCode?: number | null;
         }[];
         'odata.nextLink'?: string;
         '@odata.nextLink'?: string;
@@ -332,6 +345,14 @@ export class SapB1Client implements ErpClient {
           name: row.ItemName?.trim() || row.ItemCode,
           unit: row.SalesUnit?.trim() || null,
           active: row.Valid !== 'tNO' && row.Frozen !== 'tYES',
+          groupCode:
+            row.ItemsGroupCode === null || row.ItemsGroupCode === undefined
+              ? null
+              : String(row.ItemsGroupCode),
+          groupName:
+            row.ItemsGroupCode === null || row.ItemsGroupCode === undefined
+              ? null
+              : (groups.get(row.ItemsGroupCode) ?? null),
         });
       }
       path = nextPath(body['odata.nextLink'] ?? body['@odata.nextLink']);
