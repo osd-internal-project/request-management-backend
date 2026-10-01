@@ -30,8 +30,10 @@ import {
   dealMargin,
   defaultValidUntil,
   markupPrice,
-  marginNeedsApproval,
+  cleanMinMargins,
+  marginByWorkType,
   monthlyRecurring,
+  WORK_TYPE_LABELS,
   priceModelProblems,
   quotationExpired,
   type QuotationLineInput,
@@ -53,6 +55,7 @@ const CONFIG_DEFAULTS = {
   quotationValidityDays: 30,
   vatPct: 7,
   quotationApprovalTypeCode: 'PRA',
+  minMarginByWorkType: {} as Record<string, number>,
 };
 
 /** Versions that may be replaced by a new one. */
@@ -208,6 +211,7 @@ export class QuotationsService {
         : Promise.resolve(null),
     ]);
 
+    const config = await this.configOf(found.companyId);
     return {
       ...withExpiry(found),
       // CD-196 — the monthly charge beside the totals (which cover the term).
@@ -220,6 +224,24 @@ export class QuotationsService {
       ),
       versions,
       approvalRequest,
+      // CD-202 — each work type against its own minimum. The route masks
+      // `marginPct`/`costTotal` in these rows like the quotation's own.
+      minMarginByWorkType: config.minMarginByWorkType,
+      marginByWorkType: marginByWorkType(
+        found.lines as {
+          workType: string | null;
+          lineTotal: Prisma.Decimal;
+          lineCost: Prisma.Decimal;
+        }[],
+        config.minMarginByWorkType,
+        config.minMarginPct,
+      ).map((group) => ({
+        workType: group.workType,
+        netTotal: group.netTotal.toFixed(2),
+        costTotal: group.costTotal.toFixed(2),
+        marginPct: group.marginPct?.toFixed(2) ?? null,
+        minMarginPct: group.minMarginPct,
+      })),
     };
   }
 
@@ -267,6 +289,7 @@ export class QuotationsService {
       ...dealMargin(rows),
       currency: deal.currency,
       minMarginPct: config.minMarginPct,
+      minMarginByWorkType: config.minMarginByWorkType,
     };
   }
 
@@ -504,14 +527,29 @@ export class QuotationsService {
 
     const config = await this.configOf(actor.activeCompanyId);
     const marginPct = found.marginPct;
-    const marginBelow = marginNeedsApproval(marginPct, config.minMarginPct);
+    // CD-202 — each work type against its own minimum (the company's when
+    // unset); any one below sends the version to the executive level.
+    const belowTypes = marginByWorkType(
+      found.lines,
+      config.minMarginByWorkType,
+      config.minMarginPct,
+    ).filter((group) => group.below);
+    const marginBelow = belowTypes.length > 0;
+    // Names and minimums only — the margins themselves stay in the masked
+    // field (CD-127).
+    const belowText = belowTypes
+      .map(
+        (group) =>
+          `${group.workType ? WORK_TYPE_LABELS[group.workType] : 'ไม่ระบุประเภทงาน'} (ขั้นต่ำ ${group.minMarginPct}%)`,
+      )
+      .join(', ');
     const now = new Date();
 
     const reason = dto.reason?.trim();
     if (marginBelow && !reason) {
       throw new AppError(
         'VALIDATION_FAILED',
-        `margin ต่ำกว่าเกณฑ์ ${config.minMarginPct}% — ต้องระบุเหตุผลเพื่อขออนุมัติ`,
+        `margin ต่ำกว่าเกณฑ์: ${belowText} — ต้องระบุเหตุผลเพื่อขออนุมัติ`,
         [{ field: 'reason', reason: 'required_when_margin_below_minimum' }],
       );
     }
@@ -549,7 +587,7 @@ export class QuotationsService {
             // masking rule covers; repeating it in free text leaked it to
             // everyone who can read the request (CD-127).
             reason: marginBelow
-              ? `${label(found)} · margin ต่ำกว่าเกณฑ์ ${config.minMarginPct}% — ${reason}`
+              ? `${label(found)} · margin ต่ำกว่าเกณฑ์: ${belowText} — ${reason}`
               : `${label(found)} · ขออนุมัติราคา${reason ? ` — ${reason}` : ''}`,
           },
         },
@@ -1106,9 +1144,18 @@ export class QuotationsService {
         quotationValidityDays: true,
         vatPct: true,
         quotationApprovalTypeCode: true,
+        minMarginByWorkType: true,
       },
-    })) as typeof CONFIG_DEFAULTS | null;
-    return found ?? CONFIG_DEFAULTS;
+    })) as
+      | (Omit<typeof CONFIG_DEFAULTS, 'minMarginByWorkType'> & {
+          minMarginByWorkType: unknown;
+        })
+      | null;
+    if (!found) return CONFIG_DEFAULTS;
+    return {
+      ...found,
+      minMarginByWorkType: cleanMinMargins(found.minMarginByWorkType),
+    };
   }
 }
 

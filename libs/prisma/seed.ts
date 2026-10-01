@@ -900,15 +900,52 @@ async function seedSolutionApprovalMatrix(companyId: string) {
  * always, the department head above 1,000,000 and the next level above
  * 5,000,000 (`net_total`, before VAT).
  *
+ * CD-202 — and the executive level whenever a work type's margin is below its
+ * minimum (`margin_below_minimum` = yes), due in one day. Seeded as the
+ * third level up; the CFO/CEO group replaces it on the approval matrix
+ * screen once it exists.
+ *
  * **The amounts are placeholders** until Finance confirms the real limits
  * (CD-26). They are matrix data: an admin replaces them on the approval
  * matrix screen with a new version, no deploy.
+ *
+ * A ladder the seed published before CD-202 gets the executive level as a new
+ * version (never edited); one an admin published is left to them.
  */
+const PRICE_APPROVAL_EXECUTIVE_LEVEL = {
+  type: 'supervisor',
+  up: 3,
+  condition: { field: 'margin_below_minimum', op: 'eq', value: 'yes' },
+  slaHours: 24,
+};
+
 async function seedPriceApprovalMatrix(companyId: string) {
-  const existing = await prisma.approvalMatrix.findFirst({
+  const latest = await prisma.approvalMatrix.findFirst({
     where: { companyId, subjectType: 'request:PRA:pre' },
+    orderBy: { version: 'desc' },
   });
-  if (existing) {
+  const levels = [
+    { type: 'supervisor', up: 1 },
+    {
+      type: 'supervisor',
+      up: 2,
+      condition: { field: 'net_total', op: 'gt', value: 1000000 },
+    },
+    {
+      type: 'supervisor',
+      up: 3,
+      condition: { field: 'net_total', op: 'gt', value: 5000000 },
+    },
+    PRICE_APPROVAL_EXECUTIVE_LEVEL,
+  ];
+  const hasExecutive = (value: unknown) =>
+    Array.isArray(value) &&
+    value.some(
+      (level: { condition?: { field?: string } }) =>
+        level?.condition?.field === 'margin_below_minimum',
+    );
+
+  if (latest && (hasExecutive(latest.levels) || latest.createdBy !== 'seed')) {
     console.log('  approval matrix: request:PRA:pre already present');
     return;
   }
@@ -917,29 +954,17 @@ async function seedPriceApprovalMatrix(companyId: string) {
       companyId,
       subjectType: 'request:PRA:pre',
       currency: 'THB',
-      version: 1,
-      effectiveFrom: new Date('2026-01-01T00:00:00Z'),
-      publishedAt: new Date('2026-01-01T00:00:00Z'),
-      levels: [
-        { type: 'supervisor', up: 1 },
-        {
-          type: 'supervisor',
-          up: 2,
-          condition: { field: 'net_total', op: 'gt', value: 1000000 },
-        },
-        {
-          type: 'supervisor',
-          up: 3,
-          condition: { field: 'net_total', op: 'gt', value: 5000000 },
-        },
-      ],
+      version: (latest?.version ?? 0) + 1,
+      effectiveFrom: latest ? new Date() : new Date('2026-01-01T00:00:00Z'),
+      publishedAt: latest ? new Date() : new Date('2026-01-01T00:00:00Z'),
+      levels,
       // NOT NULL and read by nothing — see seedApprovalMatrix.
       tiers: [{ upto: null, chain: ['team_lead'] }],
       createdBy: 'seed',
     },
   });
   console.log(
-    '  approval matrix: request:PRA:pre v1 · หัวหน้า → >1ล้าน หัวหน้าแผนก → >5ล้าน ถัดขึ้นไป (ตัวเลขชั่วคราว รอ CD-26)',
+    `  approval matrix: request:PRA:pre v${(latest?.version ?? 0) + 1} · หัวหน้า → >1ล้าน หัวหน้าแผนก → >5ล้าน ถัดขึ้นไป · margin ต่ำ → ผู้บริหาร (24 ชม.) (ตัวเลขชั่วคราว รอ CD-26)`,
   );
 }
 

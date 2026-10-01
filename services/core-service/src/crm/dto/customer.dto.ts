@@ -604,6 +604,19 @@ export class UpdateCrmConfigDto {
   @Max(100)
   min_margin_pct?: number;
 
+  /**
+   * CD-202: margin ขั้นต่ำต่อประเภทงาน เช่น `{ "service": 25, "equipment": 8 }` —
+   * ประเภทที่ไม่ระบุ (หรือ null) ใช้ `min_margin_pct`. ส่งทั้งชุด (แทนที่ของเดิม).
+   */
+  @ApiPropertyOptional({
+    type: 'object',
+    additionalProperties: { type: 'number', nullable: true },
+    example: { service: 25, equipment: 8 },
+  })
+  @IsOptional()
+  @IsObject()
+  min_margin_by_work_type?: Record<string, number | null>;
+
   /** CD-76: จำนวนวันที่ใบเสนอราคาใหม่มีผล (ค่าตั้งต้นของ valid_until). */
   @IsOptional()
   @IsInt()

@@ -262,3 +262,87 @@ export function markupPrice(unitCost: number, markupPct: number): number {
     new Decimal(unitCost).mul(new Decimal(100).plus(markupPct)).div(100),
   ).toNumber();
 }
+
+/** CD-202 — Thai names of the work types, for text a request carries. */
+export const WORK_TYPE_LABELS: Record<WorkType, string> = {
+  equipment: 'อุปกรณ์',
+  material: 'วัสดุ',
+  software: 'ซอฟต์แวร์',
+  service: 'บริการ',
+};
+
+/** CD-202 — the minimum margin a work type is held to; `{}` = the company's. */
+export type MinMarginByWorkType = Partial<Record<WorkType, number>>;
+
+export interface WorkTypeMargin {
+  /** null = lines with no work type, held to the company minimum. */
+  workType: WorkType | null;
+  netTotal: Decimal;
+  costTotal: Decimal;
+  marginPct: Decimal | null;
+  minMarginPct: number;
+  below: boolean;
+}
+
+/**
+ * CD-202 — the margin of each work type on a quotation, against that work
+ * type's own minimum (or the company's). Discounts are per line, so a work
+ * type's figures are just the sum of its lines. Work types in a fixed order,
+ * the untyped lines last.
+ */
+export function marginByWorkType(
+  lines: readonly {
+    workType: string | null;
+    lineTotal: Decimal | number | string;
+    lineCost: Decimal | number | string;
+  }[],
+  thresholds: MinMarginByWorkType,
+  companyMinPct: number,
+): WorkTypeMargin[] {
+  const groups = new Map<WorkType | null, { net: Decimal; cost: Decimal }>();
+  for (const line of lines) {
+    const key = (WORK_TYPES as readonly string[]).includes(line.workType ?? '')
+      ? (line.workType as WorkType)
+      : null;
+    const group = groups.get(key) ?? {
+      net: new Decimal(0),
+      cost: new Decimal(0),
+    };
+    group.net = group.net.plus(line.lineTotal);
+    group.cost = group.cost.plus(line.lineCost);
+    groups.set(key, group);
+  }
+  return [...WORK_TYPES, null]
+    .filter((key) => groups.has(key))
+    .map((key) => {
+      const { net, cost } = groups.get(key)!;
+      const marginPct = net.gt(0)
+        ? money(net.minus(cost).div(net).mul(100))
+        : null;
+      const minMarginPct =
+        key !== null && thresholds[key] !== undefined
+          ? thresholds[key]
+          : companyMinPct;
+      return {
+        workType: key,
+        netTotal: net,
+        costTotal: cost,
+        marginPct,
+        minMarginPct,
+        below: marginNeedsApproval(marginPct, minMarginPct),
+      };
+    });
+}
+
+/** CD-202 — keeps only known work types with a 0–100 minimum. */
+export function cleanMinMargins(value: unknown): MinMarginByWorkType {
+  const out: MinMarginByWorkType = {};
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return out;
+  for (const type of WORK_TYPES) {
+    const raw = (value as Record<string, unknown>)[type];
+    if (raw === null || raw === undefined || raw === '') continue;
+    const pct = Number(raw);
+    if (Number.isFinite(pct) && pct >= 0 && pct <= 100) out[type] = pct;
+  }
+  return out;
+}

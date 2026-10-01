@@ -2381,6 +2381,8 @@ model CrmCompanyConfig {
   vatPct                    Float  @default(7)
   /// CD-201 ประเภทคำขออนุมัติราคาที่ทุกใบเสนอราคายื่น — ต้องเปิดให้บริษัทนี้ใช้อยู่.
   quotationApprovalTypeCode String @default("PRA")
+  /// CD-202 margin ขั้นต่ำต่อประเภทงาน {service: 20, ...} — ประเภทที่ไม่ระบุใช้ minMarginPct.
+  minMarginByWorkType       Json   @default("{}")
 
   /// CD-65: โอกาสการขายที่เปิดอยู่และไม่มีกิจกรรมเสร็จนานเกินจำนวนวันนี้ = "เงียบ"
   /// → แจ้งหัวหน้าของเจ้าของดีล. 0 = ปิดการแจ้งเตือน.

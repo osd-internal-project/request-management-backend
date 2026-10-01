@@ -9230,6 +9230,17 @@
       "UpdateCrmConfigDto": {
         "type": "object",
         "properties": {
+          "min_margin_by_work_type": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number",
+              "nullable": true
+            },
+            "example": {
+              "service": 25,
+              "equipment": 8
+            }
+          },
           "customer_approval_types": {
             "$ref": "#/components/schemas/CustomerApprovalTypesDto"
           },

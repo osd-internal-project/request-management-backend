@@ -55,8 +55,19 @@ function quotationRow(overrides: Record<string, unknown> = {}) {
     approvalRequestId: null,
     ownerUserId: 'me',
     ownerOrgUnitId: 'unit-sales',
-    lines: [{ lineNo: 1 }],
     ...overrides,
+    // CD-202 — each line carries the quotation's margin unless a test says
+    // otherwise, so the per-work-type check sees what the totals say.
+    lines: (
+      (overrides.lines as Record<string, unknown>[] | undefined) ?? [
+        { lineNo: 1 },
+      ]
+    ).map((line) => ({
+      workType: null,
+      lineTotal: D(23000),
+      lineCost: D(15000),
+      ...line,
+    })),
   };
 }
 
@@ -64,6 +75,7 @@ function harness(
   options: {
     row?: Record<string, unknown>;
     minMarginPct?: number;
+    minMarginByWorkType?: Record<string, unknown>;
     requestCreate?: () => Promise<unknown>;
     requestSubmit?: () => Promise<unknown>;
     updateCount?: number;
@@ -123,6 +135,7 @@ function harness(
           quotationValidityDays: 30,
           vatPct: 7,
           quotationApprovalTypeCode: 'PRA',
+          minMarginByWorkType: options.minMarginByWorkType ?? {},
         }),
       ),
     } as never,
@@ -208,6 +221,40 @@ describe('CD-76/CD-201 ใบเสนอราคา — ขออนุมั�
       status: 'pending_approval',
       approvalRequestId: 'req-9',
     });
+  });
+
+  it('CD-202 ประเภทงานที่ต่ำกว่าเกณฑ์ของตัวเอง = ต้องขออนุมัติ แม้ทั้งใบผ่านเกณฑ์บริษัท', async () => {
+    const lines = [
+      {
+        lineNo: 1,
+        workType: 'service',
+        lineTotal: D(10000),
+        lineCost: D(8000),
+      },
+      {
+        lineNo: 2,
+        workType: 'equipment',
+        lineTotal: D(13000),
+        lineCost: D(7000),
+      },
+    ];
+    const { service, requestsService } = harness({
+      row: { lines },
+      minMarginByWorkType: { service: 25 },
+    });
+
+    const refused = service.submit('qt-1', {}, principal());
+    await expect(refused).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+    await expect(refused).rejects.toThrow('บริการ');
+
+    await service.submit('qt-1', { reason: 'ลูกค้ารายใหญ่' }, principal());
+    const [dto] = requestsService.create.mock.calls[0] as unknown as [
+      { form_data: Record<string, unknown> },
+    ];
+    expect(dto.form_data.margin_below_minimum).toBe('yes');
+    // names the work type and its minimum, never the margin itself (CD-127)
+    expect(String(dto.form_data.reason)).toContain('บริการ (ขั้นต่ำ 25%)');
+    expect(String(dto.form_data.reason)).not.toContain('20');
   });
 
   it('margin ต่ำกว่าเกณฑ์แต่ไม่ให้เหตุผล = VALIDATION_FAILED และไม่แตะอะไรเลย', async () => {

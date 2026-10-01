@@ -26,6 +26,7 @@ import {
 import { KycProductRuleRepository } from './kyc-product.repository';
 import { ProductCatalogService } from './product-catalog.service';
 import { CustomerApprovalService } from './customer-approval.service';
+import { cleanMinMargins, WORK_TYPES } from './quotation-math';
 
 /**
  * CM-07 + CM-02/03 configuration — the admin surface behind
@@ -203,6 +204,7 @@ export class CrmAdminService {
         quotationValidityDays: 30,
         vatPct: 7,
         quotationApprovalTypeCode: 'PRA',
+        minMarginByWorkType: {},
         targetApprovalTypeCode: null,
         contractRequestTypeCode: null,
         liabilityApprovalRequestTypeCode: null,
@@ -230,6 +232,12 @@ export class CrmAdminService {
   }
 
   async updateConfig(dto: UpdateCrmConfigDto, actor: Principal) {
+    // CD-202 — known work types only, 0–100; a blank one falls back to the
+    // company minimum, so it is dropped rather than stored.
+    const minMargins =
+      dto.min_margin_by_work_type === undefined
+        ? undefined
+        : assertMinMargins(dto.min_margin_by_work_type);
     // CD-62 — checked before anything is written; `undefined` = untouched.
     // CD-136 — the labour rate table, blank roles dropped, one row a role.
     const laborRates =
@@ -278,6 +286,7 @@ export class CrmAdminService {
               vatPct: dto.vat_pct ?? 7,
               quotationApprovalTypeCode:
                 dto.quotation_approval_type_code ?? 'PRA',
+              minMarginByWorkType: minMargins ?? {},
               targetApprovalTypeCode: dto.target_approval_type_code || null,
               contractRequestTypeCode: dto.contract_request_type_code || null,
               liabilityApprovalRequestTypeCode:
@@ -311,6 +320,7 @@ export class CrmAdminService {
               quotationValidityDays: dto.quotation_validity_days,
               vatPct: dto.vat_pct,
               quotationApprovalTypeCode: dto.quotation_approval_type_code,
+              minMarginByWorkType: minMargins,
               targetApprovalTypeCode:
                 dto.target_approval_type_code === undefined
                   ? undefined
@@ -556,4 +566,27 @@ function letterheadColumns(dto: UpdateCrmConfigDto) {
     letterheadLogo: pick(dto.letterhead_logo),
     quotationTerms: pick(dto.quotation_terms),
   };
+}
+
+/** CD-202 — a work type the quotation does not know, or a % outside 0–100, is refused. */
+function assertMinMargins(value: Record<string, unknown>) {
+  const details = Object.entries(value)
+    .filter(([key, raw]) => {
+      if (!(WORK_TYPES as readonly string[]).includes(key)) return true;
+      if (raw === null || raw === '') return false;
+      const pct = Number(raw);
+      return !Number.isFinite(pct) || pct < 0 || pct > 100;
+    })
+    .map(([key]) => ({
+      field: `min_margin_by_work_type.${key}`,
+      reason: 'invalid',
+    }));
+  if (details.length) {
+    throw new AppError(
+      'VALIDATION_FAILED',
+      'margin ขั้นต่ำตามประเภทงานต้องเป็นประเภทที่รู้จัก และอยู่ระหว่าง 0–100',
+      details,
+    );
+  }
+  return cleanMinMargins(value);
 }

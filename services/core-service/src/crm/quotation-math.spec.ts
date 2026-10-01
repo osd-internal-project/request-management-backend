@@ -1,7 +1,9 @@
 import {
+  cleanMinMargins,
   computeQuotationTotals,
   dealMargin,
   defaultValidUntil,
+  marginByWorkType,
   marginNeedsApproval,
   monthlyRecurring,
   priceModelProblems,
@@ -232,5 +234,53 @@ describe('CD-199 margin ของดีล', () => {
 
   it('ไม่มีรายได้ = margin % ว่าง', () => {
     expect(dealMargin([], now).marginPct).toBeNull();
+  });
+});
+
+describe('CD-202 margin ตามประเภทงาน', () => {
+  const lines = [
+    { workType: 'service', lineTotal: 1000, lineCost: 700 },
+    { workType: 'service', lineTotal: 1000, lineCost: 900 },
+    { workType: 'equipment', lineTotal: 5000, lineCost: 4500 },
+    { workType: null, lineTotal: 100, lineCost: 50 },
+  ];
+
+  it('รวมบรรทัดต่อประเภท แล้วเทียบเกณฑ์ของประเภทนั้น', () => {
+    const groups = marginByWorkType(lines, { service: 25, equipment: 8 }, 15);
+    expect(
+      groups.map((g) => [
+        g.workType,
+        g.marginPct?.toNumber(),
+        g.minMarginPct,
+        g.below,
+      ]),
+    ).toEqual([
+      ['equipment', 10, 8, false],
+      ['service', 20, 25, true],
+      [null, 50, 15, false],
+    ]);
+  });
+
+  it('ประเภทที่ไม่ได้ตั้งเกณฑ์ใช้เกณฑ์ของบริษัท', () => {
+    const groups = marginByWorkType(lines, {}, 15);
+    expect(groups.find((g) => g.workType === 'equipment')?.below).toBe(true);
+    expect(groups.find((g) => g.workType === 'service')?.below).toBe(false);
+  });
+
+  it('ไม่มีรายได้ = ต้องขออนุมัติ เหมือนทั้งใบ', () => {
+    const [group] = marginByWorkType(
+      [{ workType: 'software', lineTotal: 0, lineCost: 10 }],
+      {},
+      15,
+    );
+    expect(group.marginPct).toBeNull();
+    expect(group.below).toBe(true);
+  });
+
+  it('ค่าตั้งค่า: ตัดประเภทที่ไม่รู้จักและตัวเลขนอก 0–100 ทิ้ง', () => {
+    expect(
+      cleanMinMargins({ service: '20', equipment: 150, foo: 5, software: '' }),
+    ).toEqual({ service: 20 });
+    expect(cleanMinMargins(null)).toEqual({});
   });
 });
