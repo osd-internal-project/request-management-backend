@@ -30,6 +30,7 @@ import {
   ProjectTaskRepository,
   ProjectTaskUpdateRepository,
   WorkCalendarRepository,
+  InstallmentBillingRepository,
 } from './project.repositories';
 import { ProjectsService } from './projects.service';
 import { MilestonesService } from './milestones.service';
@@ -41,6 +42,7 @@ import { ChangeRequestsService } from './change-requests.service';
 import { ProjectRisksService } from './project-risks.service';
 import { ProjectIssuesService } from './project-issues.service';
 import { CustomerLogsService } from './customer-logs.service';
+import { PaymentsService } from './payments.service';
 import { ContractRiskAssessmentRepository } from '../crm/contract-risk.service';
 import {
   SolutionRiskRepository,
@@ -247,6 +249,9 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       await prisma.projectCustomerLog.deleteMany({ where: { projectId } });
       await prisma.projectChangeRequest.deleteMany({ where: { projectId } });
       await prisma.project.deleteMany({ where: { contractId } });
+      await prisma.contractInstallmentBilling.deleteMany({
+        where: { contractId },
+      });
       await prisma.contractInstallment.deleteMany({ where: { contractId } });
       await prisma.contractTerms.deleteMany({ where: { contractId } });
       await prisma.contractRiskAssessment.deleteMany({ where: { contractId } });
@@ -1669,6 +1674,107 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       await expect(
         logs.update(projectId, decision.id, { summary: 'แก้' }, crew, today),
       ).rejects.toMatchObject({ code: 'CONFLICT' });
+    });
+    it('CD-193: each installment shows where it stands; billing is recorded by hand and checked', async () => {
+      const client = prisma as never;
+      const transactions = {
+        execute: (work: (tx: unknown) => Promise<unknown>) =>
+          prisma.$transaction((tx) => work(tx)),
+      } as never;
+      const audit = { record: () => Promise.resolve() } as never;
+      const plan = new PlanService(
+        projects,
+        new ProjectRepository(client),
+        new ProjectTaskRepository(client),
+        new ProjectTaskLinkRepository(client),
+        new ProjectMilestoneRepository(client),
+        new WorkCalendarRepository(client),
+        new CompanyMemberRepository(client),
+        { milestoneSlipped: () => Promise.resolve() } as never,
+        audit,
+        transactions,
+      );
+      const payments = new PaymentsService(
+        projects,
+        plan,
+        new ProjectRepository(client),
+        new ContractInstallmentRepository(client),
+        new InstallmentBillingRepository(client),
+        audit,
+        transactions,
+      );
+      const managerNow = as(engineer, ['notification.read']);
+      const crew = as(outsider, ['notification.read']);
+      const today = new Date('2026-10-01T05:00:00Z');
+
+      const before = await payments.view(projectId, crew, today);
+      expect(before.canEdit).toBe(false);
+      expect(before.installments.length).toBeGreaterThan(0);
+      expect(before.totals.received).toBe(0);
+      const first = before.installments[0];
+      expect(first.state).not.toBe('paid');
+
+      await expect(
+        payments.record(
+          projectId,
+          first.seq,
+          { invoiced_on: '2026-09-15', invoiced_amount: first.amount },
+          crew,
+          today,
+        ),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+      await expect(
+        payments.record(
+          projectId,
+          first.seq,
+          { paid_on: '2026-09-20', paid_amount: first.amount },
+          managerNow,
+          today,
+        ),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+      await expect(
+        payments.record(projectId, 999, { note: 'x' }, managerNow, today),
+      ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+
+      const billed = await payments.record(
+        projectId,
+        first.seq,
+        {
+          invoice_no: 'INV-T193',
+          invoiced_on: '2026-09-15',
+          invoiced_amount: first.amount,
+        },
+        managerNow,
+        today,
+      );
+      expect(billed.installments[0]).toMatchObject({
+        state: 'invoiced',
+        billing: { invoiceNo: 'INV-T193', source: 'manual' },
+      });
+      // the same row again, now paid — one row per installment
+      const paid = await payments.record(
+        projectId,
+        first.seq,
+        {
+          invoice_no: 'INV-T193',
+          invoiced_on: '2026-09-15',
+          invoiced_amount: first.amount,
+          paid_on: '2026-09-30',
+          paid_amount: first.amount,
+        },
+        managerNow,
+        today,
+      );
+      expect(paid.installments[0].state).toBe('paid');
+      expect(paid.totals.received).toBe(first.amount);
+      expect(
+        await prisma.contractInstallmentBilling.count({
+          where: { contractId },
+        }),
+      ).toBe(1);
+      expect(
+        paid.forecast.months.find((row) => row.month === '2026-09')?.received,
+      ).toBe(first.amount);
     });
   },
 );

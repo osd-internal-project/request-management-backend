@@ -31,6 +31,7 @@ import {
   SaveMilestoneDto,
   PlanPreviewDto,
   SavePredecessorsDto,
+  RecordBillingDto,
   ReportProgressDto,
   SaveBudgetDto,
   ResolveIssueDto,
@@ -53,6 +54,7 @@ import { ChangeRequestsService } from './change-requests.service';
 import { ProjectRisksService } from './project-risks.service';
 import { ProjectIssuesService } from './project-issues.service';
 import { CustomerLogsService } from './customer-logs.service';
+import { PaymentsService } from './payments.service';
 import { MAX_TASK_FILE_BYTES, TaskWorkService } from './task-work.service';
 import { MAX_FILES_PER_UPDATE } from './task-rules';
 import { ProjectsService } from './projects.service';
@@ -77,6 +79,7 @@ export class ProjectsController {
     private readonly risks: ProjectRisksService,
     private readonly issues: ProjectIssuesService,
     private readonly customerLogs: CustomerLogsService,
+    private readonly payments: PaymentsService,
   ) {}
 
   @ApiOperation({ summary: 'รายการโครงการ (ทั้งบริษัท หรือของฉัน)' })
@@ -456,6 +459,34 @@ export class ProjectsController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.changes.cancel(id, changeId, principal);
+  }
+
+  // --- CD-193 installments -----------------------------------------------------------
+
+  @ApiOperation({
+    summary: 'งวดชำระ: วางบิล รับเงิน เลยกำหนด และพยากรณ์กระแสเงินสด',
+  })
+  @Get(':id/payments')
+  @Permissions('notification.read')
+  viewPayments(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.payments.view(id, principal);
+  }
+
+  @ApiOperation({
+    summary: 'บันทึกการวางบิล/รับเงินของงวด (จนกว่า SAP จะเชื่อม)',
+  })
+  @Put(':id/payments/:seq')
+  @Permissions('notification.read')
+  recordBilling(
+    @Param('id') id: string,
+    @Param('seq', ParseIntPipe) seq: number,
+    @Body() dto: RecordBillingDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.payments.record(id, seq, dto, principal);
   }
 
   // --- CD-186 customer coordination --------------------------------------------------

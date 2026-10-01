@@ -5383,3 +5383,28 @@ model ProjectCustomerLog {
   @@index([projectId, occurredOn])
   @@map("project_customer_logs")
 }
+
+/// CD-193 — whether an installment was billed and paid: the invoice and
+/// the receipt. Recorded by hand until the SAP connector (CD-89) reads them
+/// (`source` = sap). Keyed by the installment's number, not its row, so it
+/// survives Legal rewriting the schedule (CD-164 saves it whole).
+model ContractInstallmentBilling {
+  id             String    @id @default(uuid())
+  companyId      String
+  contractId     String
+  seq            Int
+  invoiceNo      String?
+  invoicedOn     DateTime? @db.Date
+  invoicedAmount Decimal?  @db.Decimal(14, 2)
+  paidOn         DateTime? @db.Date
+  paidAmount     Decimal?  @db.Decimal(14, 2)
+  /// manual · sap
+  source         String    @default("manual")
+  note           String?
+  recordedAt     DateTime  @default(now())
+  recordedBy     String
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([contractId, seq])
+  @@map("contract_installment_billings")
+}

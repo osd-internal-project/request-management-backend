@@ -606,3 +606,40 @@ export class SaveCustomerLogDto {
   @IsBoolean()
   affects_scope?: boolean;
 }
+
+/** CD-193 — an installment billed and/or paid (by hand until SAP). */
+export class RecordBillingDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  invoice_no?: string;
+
+  @ApiPropertyOptional({ example: '2026-11-01' })
+  @IsOptional()
+  @IsDateString()
+  invoiced_on?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  invoiced_amount?: number;
+
+  @ApiPropertyOptional({ example: '2026-11-20' })
+  @IsOptional()
+  @IsDateString()
+  paid_on?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  paid_amount?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  note?: string;
+}

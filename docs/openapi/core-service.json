@@ -16361,6 +16361,106 @@
         ]
       }
     },
+    "/api/v1/projects/{id}/payments": {
+      "get": {
+        "operationId": "ProjectsController_viewPayments",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "งวดชำระ: วางบิล รับเงิน เลยกำหนด และพยากรณ์กระแสเงินสด",
+        "tags": [
+          "projects"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/projects/{id}/payments/{seq}": {
+      "put": {
+        "operationId": "ProjectsController_recordBilling",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "seq",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordBillingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "บันทึกการวางบิล/รับเงินของงวด (จนกว่า SAP จะเชื่อม)",
+        "tags": [
+          "projects"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      }
+    },
     "/api/v1/projects/{id}/customer-logs": {
       "get": {
         "operationId": "ProjectsController_listCustomerLogs",
@@ -25850,6 +25950,37 @@
           "price_change": {
             "type": "number",
             "description": "ราคาที่ลูกค้าจ่ายเพิ่ม (ติดลบ = ลด)"
+          }
+        }
+      },
+      "RecordBillingDto": {
+        "type": "object",
+        "properties": {
+          "invoice_no": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "invoiced_on": {
+            "type": "string",
+            "example": "2026-11-01",
+            "format": "date-time"
+          },
+          "invoiced_amount": {
+            "type": "number",
+            "minimum": 0
+          },
+          "paid_on": {
+            "type": "string",
+            "example": "2026-11-20",
+            "format": "date-time"
+          },
+          "paid_amount": {
+            "type": "number",
+            "minimum": 0
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 2000
           }
         }
       },

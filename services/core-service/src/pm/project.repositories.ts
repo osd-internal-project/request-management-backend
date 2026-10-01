@@ -217,3 +217,17 @@ export class ProjectCustomerLogRepository extends BaseRepository<
     return client.projectCustomerLog;
   }
 }
+
+/** CD-193 การวางบิลและรับเงินของแต่ละงวด. */
+@Injectable()
+export class InstallmentBillingRepository extends BaseRepository<
+  PrismaService['contractInstallmentBilling']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.contractInstallmentBilling;
+  }
+}
