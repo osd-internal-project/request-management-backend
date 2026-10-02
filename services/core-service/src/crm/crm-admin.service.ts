@@ -205,6 +205,7 @@ export class CrmAdminService {
         vatPct: 7,
         quotationApprovalTypeCode: 'PRA',
         minMarginByWorkType: {},
+        costMaxAgeDays: 90,
         targetApprovalTypeCode: null,
         contractRequestTypeCode: null,
         liabilityApprovalRequestTypeCode: null,
@@ -322,6 +323,7 @@ export class CrmAdminService {
               quotationApprovalTypeCode:
                 dto.quotation_approval_type_code ?? 'PRA',
               minMarginByWorkType: minMargins ?? {},
+              costMaxAgeDays: dto.cost_max_age_days ?? 90,
               targetApprovalTypeCode: dto.target_approval_type_code || null,
               contractRequestTypeCode: dto.contract_request_type_code || null,
               liabilityApprovalRequestTypeCode:
@@ -364,6 +366,7 @@ export class CrmAdminService {
               vatPct: dto.vat_pct,
               quotationApprovalTypeCode: dto.quotation_approval_type_code,
               minMarginByWorkType: minMargins,
+              costMaxAgeDays: dto.cost_max_age_days,
               targetApprovalTypeCode:
                 dto.target_approval_type_code === undefined
                   ? undefined

@@ -62,3 +62,17 @@ export class ProductPriceRepository extends BaseRepository<
       .$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`ctd.price.${key}`}))::text AS locked`;
   }
 }
+
+/** CD-206 — suppliers' costs synced from SAP; read by quotations and Pricing. */
+@Injectable()
+export class VendorCostRepository extends BaseRepository<
+  PrismaService['vendorCost']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.vendorCost;
+  }
+}

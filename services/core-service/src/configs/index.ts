@@ -121,6 +121,10 @@ export default () => ({
     itemsRefreshIntervalMs: Number(
       process.env.ERP_ITEMS_REFRESH_INTERVAL_MS ?? 3600000,
     ),
+    /** CD-206 — ต้นทุนคู่ค้า (ใบสั่งซื้อ + ราคาพิเศษผู้ขาย) จาก SAP; ค่าตั้งต้นทุก 6 ชั่วโมง. */
+    vendorCostsRefreshIntervalMs: Number(
+      process.env.ERP_VENDOR_COSTS_REFRESH_INTERVAL_MS ?? 21600000,
+    ),
     /**
      * ERP_MODE=sapb1 — SAP Business One Service Layer (on-premise).
      * ERP_B1_COMPANY_DBS maps `companies.code` to a CompanyDB:

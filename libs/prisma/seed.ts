@@ -1852,6 +1852,13 @@ async function seedRequestTypes(
             enum: ['yes', 'no'],
             'x-order': 92,
           },
+          // CD-206
+          stale_cost: {
+            type: 'string',
+            title: 'มีต้นทุนคู่ค้าที่เก่ากว่าเกณฑ์',
+            enum: ['yes', 'no'],
+            'x-order': 93,
+          },
           // CD-202/204 — what the executive level routes on
           executive_review: {
             type: 'string',

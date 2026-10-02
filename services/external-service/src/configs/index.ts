@@ -120,6 +120,7 @@ export default () => ({
     retryIntervalMs: 0,
     refreshIntervalMs: 0,
     itemsRefreshIntervalMs: 0,
+    vendorCostsRefreshIntervalMs: 0,
   },
   workflow: {
     mode: process.env.WORKFLOW_MODE ?? 'mock',

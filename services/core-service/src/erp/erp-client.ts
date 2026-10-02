@@ -142,6 +142,29 @@ export interface ErpVendor {
   readonly active: boolean;
 }
 
+/**
+ * CD-206 — what a supplier charges for an item, with the date it is from:
+ * the last purchase-order line (B1 `PurchaseOrders`) or a special price the
+ * supplier holds (B1 `SpecialPrices`). Newest per item × supplier × source.
+ */
+export interface ErpVendorCost {
+  /** B1 `ItemCode`. */
+  readonly itemCode: string;
+  /** B1 `CardCode` of the supplier. */
+  readonly vendorCode: string;
+  readonly vendorName: string | null;
+  readonly source: 'purchase_order' | 'special_price';
+  /** Per unit, after the line's discount. */
+  readonly unitCost: number;
+  readonly currency: string;
+  /** PO number, or null for a special price. */
+  readonly docNo: string | null;
+  /** YYYY-MM-DD — the PO's date, or the date a special price starts. */
+  readonly costDate: string;
+  /** YYYY-MM-DD — a special price's end, when it has one. */
+  readonly validTo: string | null;
+}
+
 export interface ErpClient {
   readonly mode: 'mock' | 'sapb1';
   /** The BP already carrying this customerCode, or null — idempotency guard. */
@@ -185,6 +208,11 @@ export interface ErpClient {
   listItems(ctx: ErpContext): Promise<ErpItem[]>;
   /** CD-142 — every supplier (BP `cSupplier`), the whole list (the driver pages). */
   listVendors(ctx: ErpContext): Promise<ErpVendor[]>;
+  /**
+   * CD-206 — suppliers' costs: purchase orders dated on or after `since`
+   * (YYYY-MM-DD) and every supplier special price. The driver pages.
+   */
+  listVendorCosts(ctx: ErpContext, since: string): Promise<ErpVendorCost[]>;
   /** CD-89 — the customer's most recent invoices, newest first (≤ `limit`). */
   listInvoices(
     ctx: ErpContext,

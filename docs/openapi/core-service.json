@@ -11401,6 +11401,150 @@
         ]
       }
     },
+    "/api/v1/pricing/vendor-costs": {
+      "get": {
+        "operationId": "VendorCostController_list",
+        "parameters": [
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "ค้นรหัสสินค้า / รหัสหรือชื่อผู้ขาย",
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "stale",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-206 ต้นทุนคู่ค้าจาก SAP (สำเนา sync) พร้อมวันที่และสถานะเก่า",
+        "tags": [
+          "pricing"
+        ],
+        "x-permission": [
+          "pricing.price.read"
+        ],
+        "x-sensitive-resource": "quotation"
+      }
+    },
+    "/api/v1/pricing/vendor-costs/lookup": {
+      "get": {
+        "operationId": "VendorCostController_lookup",
+        "parameters": [
+          {
+            "name": "codes",
+            "required": false,
+            "in": "query",
+            "description": "รหัสสินค้า คั่นด้วยจุลภาค (สูงสุด 100)",
+            "schema": {
+              "type": "string",
+              "maxLength": 4000
+            }
+          },
+          {
+            "name": "currency",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "THB",
+              "type": "string",
+              "maxLength": 3
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-206 ต้นทุนที่สินค้าแต่ละตัวใช้ตอนนี้ (ล่าสุด สกุลเงินตรง)",
+        "tags": [
+          "pricing"
+        ],
+        "x-permission": [
+          "crm.sales.read"
+        ],
+        "x-sensitive-resource": "quotation"
+      }
+    },
+    "/api/v1/pricing/vendor-costs/sync": {
+      "post": {
+        "operationId": "VendorCostController_sync",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-206 ดึงต้นทุนคู่ค้าจาก SAP ตอนนี้",
+        "tags": [
+          "pricing"
+        ],
+        "x-permission": [
+          "pricing.price.manage"
+        ],
+        "x-sensitive-resource": "quotation"
+      }
+    },
     "/api/v1/presales/solutions": {
       "post": {
         "operationId": "SolutionsController_start",
@@ -24946,6 +25090,11 @@
             "maximum": 100,
             "minimum": 0,
             "type": "number"
+          },
+          "cost_max_age_days": {
+            "maximum": 3650,
+            "minimum": 1,
+            "type": "integer"
           },
           "quotation_validity_days": {
             "maximum": 365,

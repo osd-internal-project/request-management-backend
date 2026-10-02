@@ -69,6 +69,7 @@ function quotationRow(overrides: Record<string, unknown> = {}) {
       systemPrice: null,
       overrideReason: null,
       overriddenBy: null,
+      costDate: null,
       ...line,
     })),
   };
@@ -85,6 +86,9 @@ function harness(
     prices?: unknown[];
     segments?: { valueId: string }[];
     dealCustomerId?: string | null;
+    /** CD-206 — SAP costs stored for the products. */
+    vendorCosts?: Record<string, unknown>[];
+    costMaxAgeDays?: number;
   } = {},
 ) {
   const audits: { eventType: string; after?: Record<string, unknown> }[] = [];
@@ -124,6 +128,11 @@ function harness(
   const segmentAssignments = {
     findMany: jest.fn(() => Promise.resolve(options.segments ?? [])),
   };
+  // CD-206 — suppliers' costs from SAP (none by default).
+  const vendorCosts = {
+    rowsFor: jest.fn(() => Promise.resolve(options.vendorCosts ?? [])),
+    maxAgeDays: jest.fn(() => Promise.resolve(options.costMaxAgeDays ?? 90)),
+  };
   const service = new QuotationsService(
     quotations as never,
     {
@@ -160,6 +169,7 @@ function harness(
     catalog as never,
     prices as never,
     segmentAssignments as never,
+    vendorCosts as never,
   );
 
   return {
@@ -1037,5 +1047,92 @@ describe('CD-204 ควบคุมการแก้ราคาด้วยม
       price_override: 'no',
       executive_review: 'no',
     });
+  });
+});
+
+describe('CD-206 ต้นทุนจากคู่ค้า', () => {
+  const daysAgo = (days: number) =>
+    new Date(Date.now() + 7 * 3_600_000 - days * 86_400_000)
+      .toISOString()
+      .slice(0, 10);
+  const cost = (patch: Record<string, unknown> = {}) => ({
+    productCode: 'IP-PHONE',
+    vendorCode: 'V1',
+    vendorName: 'ผู้ขาย 1',
+    source: 'purchase_order',
+    unitCost: 2100,
+    currency: 'THB',
+    docNo: '1001',
+    costDate: daysAgo(20),
+    validTo: null,
+    ...patch,
+  });
+  const line = (unit_cost: number) => ({
+    product_code: 'IP-PHONE',
+    description: 'IP Phone',
+    quantity: 1,
+    unit_price: 3000,
+    unit_cost,
+  });
+  const saved = (tx: ReturnType<typeof harness>['tx']) =>
+    (
+      tx.quotationLine.createMany.mock.calls[0] as unknown as [
+        { data: { costSource: string | null; costDate: Date | null }[] },
+      ]
+    )[0].data;
+
+  it('ต้นทุนเท่ากับของ SAP = เก็บที่มาและวันที่ของต้นทุน; ต้นทุนที่กรอกเองไม่มี', async () => {
+    const { service, tx } = harness({ vendorCosts: [cost()] });
+    await service.update(
+      'qt-1',
+      { lines: [line(2100), line(1800)] },
+      principal(),
+    );
+    const [fromSap, typed] = saved(tx);
+    expect(fromSap.costSource).toBe('SAP: ใบสั่งซื้อ 1001 · ผู้ขาย 1');
+    expect(fromSap.costDate?.toISOString().slice(0, 10)).toBe(daysAgo(20));
+    expect(typed).toMatchObject({ costSource: null, costDate: null });
+  });
+
+  it('ยื่นใบที่มีต้นทุนเก่ากว่าเกณฑ์ = เตือนในคำขอ ไม่บล็อก', async () => {
+    const { service, requestsService } = harness({
+      costMaxAgeDays: 90,
+      row: {
+        lines: [
+          {
+            lineNo: 1,
+            productCode: 'IP-PHONE',
+            costDate: new Date(`${daysAgo(120)}T00:00:00Z`),
+          },
+        ],
+      },
+    });
+    await service.submit('qt-1', {}, principal());
+    const [dto] = requestsService.create.mock.calls[0] as unknown as [
+      { form_data: Record<string, unknown> },
+    ];
+    expect(dto.form_data.stale_cost).toBe('yes');
+    expect(String(dto.form_data.reason)).toContain(
+      `ต้นทุนเก่า: IP-PHONE ต้นทุนวันที่ ${daysAgo(120)} (120 วัน เกณฑ์ 90 วัน)`,
+    );
+  });
+
+  it('ต้นทุนยังใหม่ = ไม่เตือน', async () => {
+    const { service, requestsService } = harness({
+      row: {
+        lines: [
+          {
+            lineNo: 1,
+            productCode: 'IP-PHONE',
+            costDate: new Date(`${daysAgo(10)}T00:00:00Z`),
+          },
+        ],
+      },
+    });
+    await service.submit('qt-1', {}, principal());
+    const [dto] = requestsService.create.mock.calls[0] as unknown as [
+      { form_data: Record<string, unknown> },
+    ];
+    expect(dto.form_data.stale_cost).toBe('no');
   });
 });

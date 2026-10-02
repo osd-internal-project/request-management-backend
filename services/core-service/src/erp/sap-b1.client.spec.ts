@@ -617,4 +617,118 @@ describe('SAP B1 Service Layer driver', () => {
     expect(page.url).toContain("CardType%20eq%20'cSupplier'");
     expect(page.headers.Prefer).toBe('odata.maxpagesize=500');
   });
+
+  it('listVendorCosts (CD-206): ใบสั่งซื้อล่าสุดต่อสินค้า×ผู้ขาย + ราคาพิเศษของผู้ขายเท่านั้น', async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const h = harness({
+      'GET /PaymentTermsTypes': () => reply(200, { value: [] }),
+      'GET /BusinessPartners': () =>
+        reply(200, {
+          value: [
+            {
+              CardCode: 'V001',
+              CardName: 'ผู้จัดจำหน่าย ก',
+              Valid: 'tYES',
+              Frozen: 'tNO',
+            },
+          ],
+        }),
+      'GET /PurchaseOrders': () =>
+        reply(200, {
+          value: [
+            {
+              DocNum: 1002,
+              DocDate: '2026-09-20T00:00:00Z',
+              CardCode: 'V001',
+              CardName: 'ผู้จัดจำหน่าย ก',
+              DocCurrency: 'THB',
+              DocumentLines: [
+                { ItemCode: 'IP-PHONE', Price: 2100, Currency: 'THB' },
+              ],
+            },
+            {
+              DocNum: 990,
+              DocDate: '2026-06-01T00:00:00Z',
+              CardCode: 'V001',
+              CardName: 'ผู้จัดจำหน่าย ก',
+              DocCurrency: 'THB',
+              // older order for the same item and supplier — ignored
+              DocumentLines: [
+                { ItemCode: 'IP-PHONE', Price: 1900, Currency: 'THB' },
+                { ItemCode: 'HEADSET', Price: 850, Currency: null },
+              ],
+            },
+          ],
+        }),
+      'GET /SpecialPrices': () =>
+        reply(200, {
+          value: [
+            {
+              ItemCode: 'SERVER',
+              CardCode: 'V001',
+              Price: 90000,
+              Currency: 'THB',
+              SpecialPriceDataAreas: [
+                {
+                  DateFrom: '2026-01-01',
+                  Dateto: '2099-12-31',
+                  SpecialPrice: 85000,
+                },
+              ],
+            },
+            // a customer's special price — not a supplier's cost
+            {
+              ItemCode: 'SERVER',
+              CardCode: 'C001',
+              Price: 99000,
+              Currency: 'THB',
+            },
+            // a standing supplier price with no dates
+            {
+              ItemCode: 'INSTALL',
+              CardCode: 'V001',
+              Price: 3500,
+              Currency: 'THB',
+            },
+          ],
+        }),
+    });
+
+    const costs = await h.client.listVendorCosts(OSD, '2025-10-02');
+
+    expect(costs).toEqual([
+      expect.objectContaining({
+        itemCode: 'IP-PHONE',
+        vendorCode: 'V001',
+        source: 'purchase_order',
+        unitCost: 2100,
+        docNo: '1002',
+        costDate: '2026-09-20',
+      }),
+      expect.objectContaining({
+        itemCode: 'HEADSET',
+        unitCost: 850,
+        currency: 'THB',
+        docNo: '990',
+        costDate: '2026-06-01',
+      }),
+      expect.objectContaining({
+        itemCode: 'SERVER',
+        source: 'special_price',
+        unitCost: 85000,
+        costDate: '2026-01-01',
+        validTo: '2099-12-31',
+      }),
+      expect.objectContaining({
+        itemCode: 'INSTALL',
+        source: 'special_price',
+        unitCost: 3500,
+        costDate: today,
+        validTo: null,
+      }),
+    ]);
+    const [orders] = h.calls('GET', '/PurchaseOrders');
+    expect(orders.url).toContain("DocDate%20ge%20'2025-10-02'");
+    expect(orders.url).toContain("Cancelled%20eq%20'tNO'");
+  });
 });

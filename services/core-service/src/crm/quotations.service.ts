@@ -26,6 +26,14 @@ import { CrmConfigRepository } from './segment.repositories';
 import { RunNumberClient } from '../run-number/run-number.client';
 import { CustomerTimelineService } from './customer-timeline.service';
 import { pickApplicable, type PriceScope } from '../pricing/price-rules';
+import { VendorCostService } from './vendor-cost.service';
+import {
+  ageInDays,
+  bestVendorCost,
+  costIsStale,
+  thaiToday,
+  vendorCostSource,
+} from './vendor-costs';
 import {
   computeQuotationTotals,
   dealMargin,
@@ -103,6 +111,7 @@ export class QuotationsService {
     private readonly catalog: ProductCatalogService,
     private readonly prices: ProductPriceRepository,
     private readonly segmentAssignments: CustomerSegmentAssignmentRepository,
+    private readonly vendorCosts: VendorCostService,
   ) {}
 
   async list(actor: Principal, query: ListQuotationsQueryDto) {
@@ -213,7 +222,10 @@ export class QuotationsService {
     ]);
 
     const config = await this.configOf(found.companyId);
+    // CD-206 — the limit a line's SAP cost date is judged against.
+    const costMaxAgeDays = await this.vendorCosts.maxAgeDays(found.companyId);
     return {
+      costMaxAgeDays,
       ...withExpiry(found),
       // CD-196 — the monthly charge beside the totals (which cover the term).
       monthlyRecurring: monthlyRecurring(
@@ -325,6 +337,13 @@ export class QuotationsService {
       [],
     );
 
+    // CD-206 — a cost that is SAP's for the product keeps where and when from.
+    const sapCosts = await this.sapCostRefs(
+      actor.activeCompanyId,
+      opportunity.currency,
+      lines,
+    );
+
     // ออกเลขนอก transaction และหลังตรวจทุกอย่างผ่าน — docs/run-number.md
     const quotationNo = await this.runNumbers.issueUnused(
       { companyId: actor.activeCompanyId, docType: 'QUOTATION' },
@@ -370,7 +389,9 @@ export class QuotationsService {
                 overrides,
               ).map((line, index) => ({
                 ...line,
-                costSource: origin?.costSources[index] ?? null,
+                costSource:
+                  origin?.costSources[index] ?? sapCosts[index]?.source ?? null,
+                costDate: sapCosts[index]?.costDate ?? null,
               })),
             },
           },
@@ -422,6 +443,11 @@ export class QuotationsService {
       await this.catalog.assertKnownCodes(actor.activeCompanyId, dto.lines);
       assertPriceModels(dto.lines);
     }
+    // CD-206 — which costs are SAP's, and from when.
+    const sapCosts =
+      dto.lines !== undefined
+        ? await this.sapCostRefs(found.companyId, found.currency, dto.lines)
+        : [];
     // CD-204 — checked before anything is written; an override already on
     // the draft and left as it was carries over without the permission.
     const overrides =
@@ -480,10 +506,14 @@ export class QuotationsService {
                 ...line,
                 // CD-198 — the cost source survives an edit only while the
                 // line still is the same product at the same cost.
-                costSource: keptCostSource(
-                  found.lines[index],
-                  dto.lines![index],
-                ),
+                costSource:
+                  nonSap(
+                    keptCostSource(found.lines[index], dto.lines![index]),
+                  ) ??
+                  sapCosts[index]?.source ??
+                  null,
+                // CD-206
+                costDate: sapCosts[index]?.costDate ?? null,
                 quotationId: id,
               }),
             ),
@@ -567,6 +597,18 @@ export class QuotationsService {
     const marginBelow = belowTypes.length > 0;
     // CD-204 — lines quoted below the system's price (saved with a reason).
     const overridden = found.lines.filter((line) => line.systemPrice !== null);
+    // CD-206 — SAP costs older than the company's limit: warned, not blocked.
+    const today = thaiToday();
+    const maxAgeDays = await this.vendorCosts.maxAgeDays(found.companyId);
+    const staleCosts = found.lines.filter(
+      (line) =>
+        line.costDate &&
+        costIsStale(
+          line.costDate.toISOString().slice(0, 10),
+          maxAgeDays,
+          today,
+        ),
+    );
     // Names and minimums only — the margins themselves stay in the masked
     // field (CD-127).
     const belowText = belowTypes
@@ -617,6 +659,8 @@ export class QuotationsService {
             margin_below_minimum: marginBelow ? 'yes' : 'no',
             // CD-204 — a price below the system's goes up like a low margin.
             price_override: overridden.length ? 'yes' : 'no',
+            // CD-206
+            stale_cost: staleCosts.length ? 'yes' : 'no',
             executive_review: marginBelow || overridden.length ? 'yes' : 'no',
             // The margin itself travels only in `est_margin_pct`, which the
             // masking rule covers; repeating it in free text leaked it to
@@ -629,6 +673,10 @@ export class QuotationsService {
                 (line) =>
                   `แก้ราคาด้วยมือ: ${line.productCode ?? line.description} ราคาในระบบ ${Number(line.systemPrice).toFixed(2)} → ${Number(line.unitPrice).toFixed(2)} — ${line.overrideReason ?? ''}`,
               ),
+              ...staleCosts.map((line) => {
+                const date = line.costDate!.toISOString().slice(0, 10);
+                return `ต้นทุนเก่า: ${line.productCode ?? line.description} ต้นทุนวันที่ ${date} (${ageInDays(date, today)} วัน เกณฑ์ ${maxAgeDays} วัน)`;
+              }),
             ].join('\n'),
           },
         },
@@ -880,6 +928,7 @@ export class QuotationsService {
                 priceModel: line.priceModel,
                 termMonths: line.termMonths,
                 costSource: line.costSource,
+                costDate: line.costDate,
                 workType: line.workType,
                 markupPct: line.markupPct,
                 systemPrice: line.systemPrice,
@@ -995,6 +1044,42 @@ export class QuotationsService {
       },
       { prisma },
     );
+  }
+
+  /**
+   * CD-206 — the lines whose cost is the one SAP holds for the product now
+   * (see `bestVendorCost`): where it came from and the date it is from. A
+   * cost typed by hand, or a different one, is the user's and gets neither.
+   */
+  private async sapCostRefs(
+    companyId: string,
+    currency: string,
+    lines: readonly QuotationLineDto[],
+  ): Promise<({ source: string; costDate: Date } | null)[]> {
+    const codes = [
+      ...new Set(
+        lines.map((line) => line.product_code?.trim()).filter(Boolean),
+      ),
+    ] as string[];
+    const rows = await this.vendorCosts.rowsFor(companyId, codes);
+    if (!rows.length) return lines.map(() => null);
+    const today = thaiToday();
+    return lines.map((line) => {
+      const code = line.product_code?.trim();
+      const best = code
+        ? bestVendorCost(
+            rows.filter((row) => row.productCode === code),
+            currency,
+            today,
+          )
+        : null;
+      return best && best.unitCost === (line.unit_cost ?? 0)
+        ? {
+            source: vendorCostSource(best),
+            costDate: new Date(`${best.costDate}T00:00:00Z`),
+          }
+        : null;
+    });
   }
 
   /**
@@ -1375,6 +1460,7 @@ interface QuotationForAction {
     priceModel: string;
     termMonths: number | null;
     costSource: string | null;
+    costDate: Date | null;
     workType: string | null;
     markupPct: Prisma.Decimal | null;
     systemPrice: Prisma.Decimal | null;
@@ -1538,6 +1624,11 @@ function startOfToday(): Date {
 }
 
 /** CD-198 — keep a line's cost source while its product and cost stand. */
+/** CD-206 — an SAP source is recomputed on every save, never carried. */
+function nonSap(source: string | null): string | null {
+  return source && !source.startsWith('SAP:') ? source : null;
+}
+
 function keptCostSource(
   before:
     | {

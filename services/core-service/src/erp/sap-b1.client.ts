@@ -8,6 +8,7 @@ import {
   ErpInvoice,
   ErpItem,
   ErpVendor,
+  ErpVendorCost,
   ErpReceivables,
   ErpSalesOrderPayload,
 } from './erp-client';
@@ -421,6 +422,130 @@ export class SapB1Client implements ErpClient {
       path = nextPath(body['odata.nextLink'] ?? body['@odata.nextLink']);
     }
     return vendors;
+  }
+
+  /**
+   * CD-206 — suppliers' costs.
+   *
+   *   - Purchase orders dated on/after `since`, not cancelled, newest first:
+   *     each line's `Price` (per unit, after the line discount) in the line's
+   *     currency; the first seen per item × supplier is the latest.
+   *   - Special prices (`SpecialPrices`) of suppliers only — the entity holds
+   *     customers' too. A price with date ranges takes the range covering
+   *     today (else the latest to start) and its `DateFrom`; one without
+   *     ranges is standing, dated today.
+   *
+   * Field names follow the Service Layer reference; confirm against the
+   * company's B1 with its team (CD-28).
+   */
+  async listVendorCosts(
+    ctx: ErpContext,
+    since: string,
+  ): Promise<ErpVendorCost[]> {
+    const today = new Date().toISOString().slice(0, 10);
+    const vendors = new Map(
+      (await this.listVendors(ctx)).map((vendor) => [vendor.code, vendor.name]),
+    );
+    const costs: ErpVendorCost[] = [];
+    const seen = new Set<string>();
+
+    let path: string | null =
+      `/PurchaseOrders?$select=DocNum,DocDate,CardCode,CardName,DocCurrency,DocumentLines&$filter=${q(
+        `DocDate ge ${literal(since)} and Cancelled eq 'tNO'`,
+      )}&$orderby=DocDate desc,DocNum desc`;
+    for (let page = 0; path && page < ITEMS_MAX_PAGES; page += 1) {
+      const res = await this.call(ctx, 'GET', path, undefined, {
+        Prefer: `odata.maxpagesize=${ITEMS_PAGE_SIZE}`,
+      });
+      const body = this.json<{
+        value: {
+          DocNum: number;
+          DocDate: string;
+          CardCode: string;
+          CardName: string | null;
+          DocCurrency: string | null;
+          DocumentLines: {
+            ItemCode: string | null;
+            Price: number | null;
+            Currency: string | null;
+          }[];
+        }[];
+        'odata.nextLink'?: string;
+        '@odata.nextLink'?: string;
+      }>(res, 'อ่านใบสั่งซื้อ');
+      for (const order of body.value) {
+        for (const line of order.DocumentLines ?? []) {
+          if (!line.ItemCode || line.Price === null || line.Price === undefined)
+            continue;
+          const key = `${line.ItemCode}|${order.CardCode}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          costs.push({
+            itemCode: line.ItemCode,
+            vendorCode: order.CardCode,
+            vendorName:
+              order.CardName?.trim() || vendors.get(order.CardCode) || null,
+            source: 'purchase_order',
+            unitCost: line.Price,
+            currency: line.Currency || order.DocCurrency || 'THB',
+            docNo: String(order.DocNum),
+            costDate: order.DocDate.slice(0, 10),
+            validTo: null,
+          });
+        }
+      }
+      path = nextPath(body['odata.nextLink'] ?? body['@odata.nextLink']);
+    }
+
+    path = `/SpecialPrices?$select=ItemCode,CardCode,Price,Currency,SpecialPriceDataAreas`;
+    for (let page = 0; path && page < ITEMS_MAX_PAGES; page += 1) {
+      const res = await this.call(ctx, 'GET', path, undefined, {
+        Prefer: `odata.maxpagesize=${ITEMS_PAGE_SIZE}`,
+      });
+      const body = this.json<{
+        value: {
+          ItemCode: string;
+          CardCode: string;
+          Price: number | null;
+          Currency: string | null;
+          SpecialPriceDataAreas?: {
+            DateFrom: string | null;
+            Dateto: string | null;
+            SpecialPrice: number | null;
+            PriceCurrency?: string | null;
+          }[];
+        }[];
+        'odata.nextLink'?: string;
+        '@odata.nextLink'?: string;
+      }>(res, 'อ่านราคาพิเศษของผู้ขาย');
+      for (const row of body.value) {
+        if (!vendors.has(row.CardCode)) continue;
+        const areas = (row.SpecialPriceDataAreas ?? []).filter(
+          (area) => area.SpecialPrice !== null && area.DateFrom,
+        );
+        const area =
+          areas.find(
+            (one) =>
+              one.DateFrom!.slice(0, 10) <= today &&
+              (!one.Dateto || one.Dateto.slice(0, 10) >= today),
+          ) ?? areas.sort((a, b) => b.DateFrom!.localeCompare(a.DateFrom!))[0];
+        const unitCost = area ? area.SpecialPrice : row.Price;
+        if (unitCost === null || unitCost === undefined) continue;
+        costs.push({
+          itemCode: row.ItemCode,
+          vendorCode: row.CardCode,
+          vendorName: vendors.get(row.CardCode) ?? null,
+          source: 'special_price',
+          unitCost,
+          currency: area?.PriceCurrency || row.Currency || 'THB',
+          docNo: null,
+          costDate: area ? area.DateFrom!.slice(0, 10) : today,
+          validTo: area?.Dateto ? area.Dateto.slice(0, 10) : null,
+        });
+      }
+      path = nextPath(body['odata.nextLink'] ?? body['@odata.nextLink']);
+    }
+    return costs;
   }
 
   private async orderByCode(

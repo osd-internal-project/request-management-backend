@@ -10914,6 +10914,11 @@
             "minimum": 0,
             "type": "number"
           },
+          "cost_max_age_days": {
+            "maximum": 3650,
+            "minimum": 1,
+            "type": "integer"
+          },
           "quotation_validity_days": {
             "maximum": 365,
             "minimum": 1,

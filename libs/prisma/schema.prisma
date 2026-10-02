@@ -2383,6 +2383,8 @@ model CrmCompanyConfig {
   quotationApprovalTypeCode String @default("PRA")
   /// CD-202 margin ขั้นต่ำต่อประเภทงาน {service: 20, ...} — ประเภทที่ไม่ระบุใช้ minMarginPct.
   minMarginByWorkType       Json   @default("{}")
+  /// CD-206 ต้นทุนคู่ค้าจาก SAP ที่เก่ากว่านี้ (วัน) ถูกเตือนก่อนนำไปคิดราคา.
+  costMaxAgeDays            Int    @default(90)
 
   /// CD-65: โอกาสการขายที่เปิดอยู่และไม่มีกิจกรรมเสร็จนานเกินจำนวนวันนี้ = "เงียบ"
   /// → แจ้งหัวหน้าของเจ้าของดีล. 0 = ปิดการแจ้งเตือน.
@@ -3328,6 +3330,9 @@ model QuotationLine {
   overrideReason String?
   /// ผู้ที่ใส่ราคาต่ำกว่าระบบ (ต้องมี pricing.price.override).
   overriddenBy   String?
+
+  /// CD-206 วันที่ของต้นทุนเมื่อมาจาก SAP (ใบสั่งซื้อ/ราคาพิเศษผู้ขาย) — ว่าง = กรอกเอง.
+  costDate DateTime? @db.Date
 
   quotation Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
 
@@ -5897,3 +5902,25 @@ model ProjectUatFinding {
   @@map("project_uat_findings")
 }
 
+/// CD-206 ต้นทุนคู่ค้าจาก SAP (สำเนา sync) — ราคาซื้อล่าสุดจากใบสั่งซื้อ และราคาพิเศษของผู้ขาย
+/// ต่อสินค้า × ผู้ขาย × แหล่ง พร้อมวันที่ของข้อมูล. SAP เป็นเจ้าของ; ที่นี่อ่านอย่างเดียว.
+model VendorCost {
+  id          String    @id @default(uuid())
+  companyId   String
+  productCode String
+  vendorCode  String
+  vendorName  String?
+  /// purchase_order | special_price
+  source      String
+  unitCost    Decimal   @db.Decimal(14, 2)
+  currency    String
+  docNo       String?
+  /// วันที่ของต้นทุน: วันที่ใบสั่งซื้อ หรือวันเริ่มราคาพิเศษ.
+  costDate    DateTime  @db.Date
+  validTo     DateTime? @db.Date
+  syncedAt    DateTime
+
+  @@unique([companyId, productCode, vendorCode, source])
+  @@index([companyId, productCode])
+  @@map("vendor_costs")
+}

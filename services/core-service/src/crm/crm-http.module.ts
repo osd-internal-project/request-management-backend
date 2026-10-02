@@ -1,3 +1,4 @@
+import { VendorCostController } from './vendor-cost.controller';
 import { PricingExceptionsController } from './pricing-exceptions.controller';
 import { QuotationDiscountController } from './quotation-discount.controller';
 import { Module } from '@nestjs/common';
@@ -96,6 +97,8 @@ import {
     QuotationDiscountController,
     // CD-205 — screens only; see the controller.
     PricingExceptionsController,
+    // CD-206 — screens only; see the controller.
+    VendorCostController,
   ],
   providers: [
     ActivityPhotosService,

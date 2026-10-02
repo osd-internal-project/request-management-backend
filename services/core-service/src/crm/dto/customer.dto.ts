@@ -617,6 +617,13 @@ export class UpdateCrmConfigDto {
   @IsObject()
   min_margin_by_work_type?: Record<string, number | null>;
 
+  /** CD-206: ต้นทุนคู่ค้าจาก SAP ที่เก่ากว่านี้ (วัน) ถูกเตือนก่อนนำไปคิดราคา. */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(3650)
+  cost_max_age_days?: number;
+
   /** CD-76: จำนวนวันที่ใบเสนอราคาใหม่มีผล (ค่าตั้งต้นของ valid_until). */
   @IsOptional()
   @IsInt()

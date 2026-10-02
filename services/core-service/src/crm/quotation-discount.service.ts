@@ -47,6 +47,7 @@ interface StoredLine {
   priceModel: string;
   termMonths: number | null;
   costSource: string | null;
+  costDate: Date | null;
   workType: string | null;
   markupPct: Decimal | null;
   systemPrice: Decimal | null;
@@ -298,6 +299,7 @@ export class QuotationDiscountService {
                 priceModel: line.priceModel,
                 termMonths: line.termMonths,
                 costSource: line.costSource,
+                costDate: line.costDate,
                 workType: line.workType,
                 markupPct: line.markupPct,
                 // CD-204 — the price is unchanged, so is its override.

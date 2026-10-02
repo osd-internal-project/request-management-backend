@@ -35,6 +35,7 @@ import { ProductCatalogService } from './product-catalog.service';
 import {
   CompanyRepository,
   ProductPriceRepository,
+  VendorCostRepository,
   ProductRepository,
 } from './product.repositories';
 import { IntegrationSyncJobRepository } from './integration-job.repository';
@@ -90,6 +91,7 @@ import { QuotationPrintService } from './quotation-print.service';
 import { QuotationApprovalSyncService } from './quotation-approval-sync.service';
 import { QuotationDiscountService } from './quotation-discount.service';
 import { PricingExceptionsService } from './pricing-exceptions.service';
+import { VendorCostService } from './vendor-cost.service';
 import { ApprovalsModule } from '../approvals/approvals.module';
 import { LeadsService } from './leads.service';
 import { LeadStatusService } from './lead-status.service';
@@ -249,6 +251,8 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     QuotationDiscountService,
     PricingExceptionsService,
     PricingExceptionRepository,
+    VendorCostService,
+    VendorCostRepository,
     LeadsService,
     LeadStatusService,
     LeadImportService,
@@ -378,6 +382,7 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     QuotationsService,
     QuotationDiscountService,
     PricingExceptionsService,
+    VendorCostService,
     QuotationPrintService,
     ErpSyncAdminService,
     ProductCatalogService,

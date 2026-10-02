@@ -8,6 +8,7 @@ import {
   ErpReceivables,
   ErpSalesOrderPayload,
   ErpVendor,
+  ErpVendorCost,
 } from './erp-client';
 
 /**
@@ -105,6 +106,18 @@ export class MockSapClient implements ErpClient {
   }
 
   /**
+   * CD-206 — a few costs dated from today, so some are fresh and some are
+   * past a 90-day limit (IP-PHONE's PO, INSTALL) whenever the mock runs.
+   */
+  listVendorCosts(_ctx: ErpContext, since: string): Promise<ErpVendorCost[]> {
+    return Promise.resolve(
+      mockVendorCosts(new Date()).filter(
+        (cost) => cost.source === 'special_price' || cost.costDate >= since,
+      ),
+    );
+  }
+
+  /**
    * CD-89 — deterministic per customer and consistent with `getReceivables`:
    * the open invoices add up to its `outstanding`, plus two paid ones.
    */
@@ -167,6 +180,51 @@ export class MockSapClient implements ErpClient {
  * environment. Real codes come from B1 once ERP_MODE=sapb1.
  */
 /** CD-142 — sample suppliers, clearly not real ones, until CD-28 connects B1. */
+function daysAgo(today: Date, days: number): string {
+  return new Date(today.getTime() - days * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+}
+
+function mockVendorCosts(today: Date): ErpVendorCost[] {
+  const v1 = {
+    vendorCode: 'MOCK-V0001',
+    vendorName: 'ตัวอย่าง ผู้จัดจำหน่ายอุปกรณ์เครือข่าย จำกัด',
+  };
+  const v2 = {
+    vendorCode: 'MOCK-V0002',
+    vendorName: 'ตัวอย่าง ผู้รับเหมางานเดินสาย จำกัด',
+  };
+  const v3 = {
+    vendorCode: 'MOCK-V0003',
+    vendorName: 'ตัวอย่าง ผู้จัดจำหน่ายซอฟต์แวร์ จำกัด',
+  };
+  const po = (docNo: string, days: number) => ({
+    source: 'purchase_order' as const,
+    docNo,
+    costDate: daysAgo(today, days),
+    validTo: null,
+    currency: 'THB',
+  });
+  return [
+    { itemCode: 'SIP-TRUNK', ...v1, unitCost: 650, ...po('PO-1001', 20) },
+    { itemCode: 'IP-PHONE', ...v1, unitCost: 2100, ...po('PO-0950', 120) },
+    { itemCode: 'HEADSET', ...v1, unitCost: 900, ...po('PO-1002', 15) },
+    { itemCode: 'SERVER', ...v1, unitCost: 85000, ...po('PO-1003', 40) },
+    { itemCode: 'INSTALL', ...v2, unitCost: 3500, ...po('PO-0800', 200) },
+    {
+      itemCode: 'D-CALLCENTER',
+      ...v3,
+      unitCost: 18000,
+      source: 'special_price',
+      docNo: null,
+      costDate: daysAgo(today, 10),
+      validTo: daysAgo(today, -355),
+      currency: 'THB',
+    },
+  ];
+}
+
 const MOCK_VENDORS: readonly ErpVendor[] = [
   {
     code: 'MOCK-V0001',
