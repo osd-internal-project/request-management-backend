@@ -5,6 +5,7 @@ import {
   HrLaborRateRepository,
   HrLevelRepository,
   HrMemberRepository,
+  HrReportingRepository,
   HrSkillRepository,
   HrUserSkillRepository,
   HrWorkTypeRepository,
@@ -27,6 +28,8 @@ import { EmployeesService } from './employees.service';
     HrSkillRepository,
     HrUserSkillRepository,
     HrMemberRepository,
+    // CD-230
+    HrReportingRepository,
   ],
   exports: [HrRatesService, EmployeesService],
 })

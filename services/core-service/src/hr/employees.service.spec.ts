@@ -20,7 +20,15 @@ const member = {
 const actor = (userId: string, permissions: string[]) =>
   ({ userId, activeCompanyId: 'osd', permissions }) as unknown as Principal;
 
-function harness(options: { level?: unknown; skills?: { id: string }[] } = {}) {
+function harness(
+  options: {
+    level?: unknown;
+    skills?: { id: string }[];
+    subordinates?: string[];
+    profile?: Record<string, unknown>;
+  } = {},
+) {
+  const audit = { record: jest.fn(() => Promise.resolve()) };
   const tx = {
     hrEmployee: { upsert: jest.fn(() => Promise.resolve({})) },
     hrUserSkill: {
@@ -33,7 +41,27 @@ function harness(options: { level?: unknown; skills?: { id: string }[] } = {}) {
       findFirst: jest.fn(() => Promise.resolve(member)),
       findMany: jest.fn(() => Promise.resolve([member])),
     } as never,
-    { findMany: jest.fn(() => Promise.resolve([])) } as never,
+    {
+      findMany: jest.fn(() =>
+        Promise.resolve(
+          options.profile
+            ? [
+                {
+                  userId: 'u-1',
+                  levelId: 'L1',
+                  level: { id: 'L1', code: 'SE-1', name: 'วิศวกร' },
+                  employmentType: 'contract',
+                  status: 'active',
+                  endDate: new Date('2026-12-31T00:00:00Z'),
+                  note: 'ต่อสัญญาปีละครั้ง',
+                  updatedAt: new Date(),
+                  ...options.profile,
+                },
+              ]
+            : [],
+        ),
+      ),
+    } as never,
     {
       findFirst: jest.fn(() =>
         Promise.resolve(
@@ -47,10 +75,15 @@ function harness(options: { level?: unknown; skills?: { id: string }[] } = {}) {
       ),
     } as never,
     { findMany: jest.fn(() => Promise.resolve([])) } as never,
-    { record: jest.fn(() => Promise.resolve()) } as never,
+    {
+      subordinatesOf: jest.fn(() =>
+        Promise.resolve(options.subordinates ?? []),
+      ),
+    } as never,
+    audit as never,
     { execute: (fn: (prisma: unknown) => Promise<unknown>) => fn(tx) } as never,
   );
-  return { service, tx };
+  return { service, tx, audit };
 }
 
 describe('CD-229 ทะเบียนพนักงาน', () => {
@@ -120,5 +153,76 @@ describe('CD-229 ทะเบียนพนักงาน', () => {
         skills: [{ skill_id: 'X', proficiency: 1 }],
       }),
     ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+  });
+});
+
+describe('CD-230 สิทธิ์และการปกปิดข้อมูลพนักงาน', () => {
+  it('หัวหน้าเห็นลูกทีมใต้สายบังคับบัญชา — ไม่เห็นเงื่อนไขการจ้างและหมายเหตุ; การเปิดดูถูกบันทึก', async () => {
+    const { service, audit } = harness({ subordinates: ['u-1'], profile: {} });
+    const row = await service.findOne(actor('boss', []), 'u-1');
+    expect(row.profile).toEqual({
+      saved: true,
+      levelId: 'L1',
+      level: { id: 'L1', code: 'SE-1', name: 'วิศวกร' },
+      status: 'active',
+    });
+    expect(audit.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: 'hr.employee.viewed',
+        resourceId: 'u-1',
+        after: { as: 'supervisor' },
+      }),
+    );
+  });
+
+  it('คนที่ไม่ใช่หัวหน้า ไม่ใช่ HR = 404', async () => {
+    const { service } = harness({ subordinates: ['someone-else'] });
+    await expect(
+      service.findOne(actor('peer', []), 'u-1'),
+    ).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
+  });
+
+  it('HR เห็นครบ และการดูถูกบันทึก; ดูของตัวเองไม่บันทึก', async () => {
+    const hr = harness({ profile: {} });
+    const row = await hr.service.findOne(
+      actor('hr', ['hr.employee.read']),
+      'u-1',
+    );
+    expect(row.profile).toMatchObject({
+      employmentType: 'contract',
+      note: 'ต่อสัญญาปีละครั้ง',
+    });
+    expect(hr.audit.record).toHaveBeenCalled();
+
+    const self = harness({ profile: {} });
+    await self.service.findOne(actor('u-1', []), 'u-1');
+    expect(self.audit.record).not.toHaveBeenCalled();
+  });
+
+  it('รายชื่อทีมงานสำหรับ PM: ชื่อ สังกัด ระดับ ทักษะ — ไม่มีการจ้าง และไม่มีคนที่ลาออก', async () => {
+    const working = harness({ profile: {} });
+    const { items } = await working.service.staff(
+      actor('pm', ['pm.project.manage']),
+      {},
+    );
+    expect(items).toHaveLength(1);
+    expect(Object.keys(items[0]).sort()).toEqual(
+      [
+        'displayName',
+        'level',
+        'orgUnit',
+        'position',
+        'skills',
+        'userId',
+      ].sort(),
+    );
+
+    const resigned = harness({ profile: { status: 'resigned' } });
+    expect(
+      (await resigned.service.staff(actor('pm', ['pm.project.manage']), {}))
+        .items,
+    ).toHaveLength(0);
   });
 });

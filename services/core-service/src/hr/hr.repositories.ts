@@ -104,3 +104,33 @@ export class HrMemberRepository extends BaseRepository<
     return client.userCompany;
   }
 }
+
+/** CD-230 — the reporting lines of the user directory (who reports to whom). */
+@Injectable()
+export class HrReportingRepository extends BaseRepository<
+  PrismaService['user']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.user;
+  }
+
+  /** Everyone below `userId`, every level down (cycles are cut). */
+  async subordinatesOf(userId: string): Promise<string[]> {
+    const seen = new Set<string>([userId]);
+    let frontier = [userId];
+    while (frontier.length) {
+      const rows = (await this.findMany({
+        where: { supervisorUserId: { in: frontier } },
+        select: { id: true },
+      })) as { id: string }[];
+      frontier = rows.map((row) => row.id).filter((id) => !seen.has(id));
+      frontier.forEach((id) => seen.add(id));
+    }
+    seen.delete(userId);
+    return [...seen];
+  }
+}

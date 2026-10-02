@@ -52,6 +52,32 @@ export class HrController {
     return this.employees.list(principal, query);
   }
 
+  @ApiOperation({
+    summary: 'CD-230 ลูกทีมใต้สายบังคับบัญชา (ทุกชั้น) — ไม่มีเงื่อนไขการจ้าง',
+  })
+  @Get('employees/team')
+  @Authenticated()
+  team(@CurrentPrincipal() principal: Principal) {
+    return this.employees.team(principal);
+  }
+
+  @ApiOperation({
+    summary: 'CD-230 รายชื่อทีมงานสำหรับจัดคน (ชื่อ สังกัด ระดับ ทักษะ)',
+  })
+  @Get('staff')
+  @AnyPermission(
+    'hr.employee.read',
+    'hr.employee.manage',
+    'pm.project.manage',
+    'presales.solution.manage',
+  )
+  staff(
+    @Query() query: ListEmployeesQueryDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.employees.staff(principal, query);
+  }
+
   @ApiOperation({ summary: 'CD-229 โปรไฟล์ของฉัน' })
   @Get('employees/me')
   @Authenticated()

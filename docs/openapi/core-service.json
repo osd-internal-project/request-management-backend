@@ -15461,6 +15461,105 @@
         ]
       }
     },
+    "/api/v1/hr/employees/team": {
+      "get": {
+        "operationId": "HrController_team",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-230 ลูกทีมใต้สายบังคับบัญชา (ทุกชั้น) — ไม่มีเงื่อนไขการจ้าง",
+        "tags": [
+          "hr"
+        ]
+      }
+    },
+    "/api/v1/hr/staff": {
+      "get": {
+        "operationId": "HrController_staff",
+        "parameters": [
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "ชื่อ / อีเมล / รหัสพนักงาน / ตำแหน่ง",
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "level_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "skill_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "active",
+                "on_leave",
+                "resigned"
+              ]
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-230 รายชื่อทีมงานสำหรับจัดคน (ชื่อ สังกัด ระดับ ทักษะ)",
+        "tags": [
+          "hr"
+        ]
+      }
+    },
     "/api/v1/hr/employees/me": {
       "get": {
         "operationId": "HrController_me",

@@ -11,6 +11,7 @@ import {
   HrEmployeeRepository,
   HrLevelRepository,
   HrMemberRepository,
+  HrReportingRepository,
   HrSkillRepository,
   HrUserSkillRepository,
 } from './hr.repositories';
@@ -84,6 +85,7 @@ export class EmployeesService {
     private readonly levels: HrLevelRepository,
     private readonly skills: HrSkillRepository,
     private readonly userSkills: HrUserSkillRepository,
+    private readonly reporting: HrReportingRepository,
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
   ) {}
@@ -136,14 +138,19 @@ export class EmployeesService {
     };
   }
 
-  /** One person — HR, or the person themselves. */
+  /**
+   * One person — CD-230: HR sees all of it; a supervisor sees someone below
+   * them (any depth) without the employment terms; the person sees their own.
+   * Opening someone else's profile is recorded (SCOPE-05).
+   */
   async findOne(actor: Principal, userId: string) {
     const self = userId === actor.userId;
-    if (
-      !self &&
-      !actor.permissions.includes('hr.employee.read') &&
-      !actor.permissions.includes('hr.employee.manage')
-    ) {
+    const hr = isHr(actor);
+    const supervises =
+      !self && !hr
+        ? (await this.reporting.subordinatesOf(actor.userId)).includes(userId)
+        : false;
+    if (!self && !hr && !supervises) {
       // SCOPE-03 — not disclosed.
       throw new AppError('NOT_FOUND', 'ไม่พบพนักงานที่ระบุ');
     }
@@ -152,7 +159,43 @@ export class EmployeesService {
       this.profilesOf(actor.activeCompanyId, [userId]),
       this.skillsOf([userId]),
     ]);
-    return view(member, profiles.get(userId), skills.get(userId));
+    const row = view(member, profiles.get(userId), skills.get(userId));
+    if (!self) {
+      await this.audit.record({
+        eventType: 'hr.employee.viewed',
+        companyId: actor.activeCompanyId,
+        ...auditActor(actor),
+        resourceType: 'user',
+        resourceId: userId,
+        after: { as: hr ? 'hr' : 'supervisor' },
+      });
+    }
+    return hr || self ? row : teamView(row);
+  }
+
+  /** CD-230 — the people below the caller (any depth), as a supervisor sees them. */
+  async team(actor: Principal) {
+    const ids = await this.reporting.subordinatesOf(actor.userId);
+    if (!ids.length) return { items: [] };
+    const rows = await this.rowsFor(actor.activeCompanyId, ids);
+    return { items: rows.map(teamView) };
+  }
+
+  /**
+   * CD-230 — the staffing directory for PM and Pre-Sales: who is here, where,
+   * at what level, with which skills. Nothing about employment or pay, and
+   * nobody who has left.
+   */
+  async staff(actor: Principal, query: ListEmployeesQueryDto) {
+    const { items } = await this.list(actor, query);
+    return {
+      items: items
+        .filter(
+          (row) =>
+            row.profile.status !== 'resigned' && row.accountStatus === 'ACTIVE',
+        )
+        .map(staffView),
+    };
   }
 
   async saveProfile(actor: Principal, userId: string, dto: SaveEmployeeDto) {
@@ -329,6 +372,22 @@ export class EmployeesService {
 
   // --- helpers ---------------------------------------------------------------
 
+  private async rowsFor(companyId: string, userIds: string[]) {
+    const members = (await this.members.findMany({
+      where: { companyId, userId: { in: userIds } },
+      include: { user: { select: USER_SELECT } },
+    })) as unknown as Member[];
+    const [profiles, skills] = await Promise.all([
+      this.profilesOf(companyId, userIds),
+      this.skillsOf(userIds),
+    ]);
+    return members
+      .map((member) =>
+        view(member, profiles.get(member.user.id), skills.get(member.user.id)),
+      )
+      .sort((a, b) => a.displayName.localeCompare(b.displayName, 'th'));
+  }
+
   private async requireMember(companyId: string, userId: string) {
     const member = (await this.members.findFirst({
       where: { companyId, userId },
@@ -421,5 +480,45 @@ export function view(
       .sort(
         (a, b) => b.proficiency - a.proficiency || a.name.localeCompare(b.name),
       ),
+  };
+}
+
+type Row = ReturnType<typeof view>;
+
+function isHr(actor: Principal): boolean {
+  return (
+    actor.permissions.includes('hr.employee.read') ||
+    actor.permissions.includes('hr.employee.manage')
+  );
+}
+
+/** CD-230 — what a supervisor sees: no employment terms, no notes. */
+export function teamView(row: Row) {
+  return {
+    ...row,
+    profile: {
+      saved: row.profile.saved,
+      levelId: row.profile.levelId,
+      level: row.profile.level,
+      status: row.profile.status,
+    },
+  };
+}
+
+/** CD-230 — what PM / Pre-Sales staff by: name, place, level, skills. */
+export function staffView(row: Row) {
+  return {
+    userId: row.userId,
+    displayName: row.displayName,
+    position: row.position,
+    orgUnit: row.orgUnit,
+    level: row.profile.level,
+    skills: row.skills.map((skill) => ({
+      skillId: skill.skillId,
+      name: skill.name,
+      category: skill.category,
+      proficiency: skill.proficiency,
+      certExpired: skill.certExpired,
+    })),
   };
 }
