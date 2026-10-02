@@ -25,6 +25,7 @@ import { CustomerSegmentAssignmentRepository } from './segment.repositories';
 import { CrmConfigRepository } from './segment.repositories';
 import { RunNumberClient } from '../run-number/run-number.client';
 import { CustomerTimelineService } from './customer-timeline.service';
+import { pickApplicable, type PriceScope } from '../pricing/price-rules';
 import {
   computeQuotationTotals,
   dealMargin,
@@ -315,6 +316,14 @@ export class QuotationsService {
     await this.catalog.assertKnownCodes(actor.activeCompanyId, lines);
     assertPriceModels(lines);
     const totals = computeQuotationTotals(lines.map(lineInput), config.vatPct);
+    // CD-204 — a price below the system's needs the permission and a reason.
+    const overrides = await this.priceOverrides(
+      actor,
+      opportunity.currency,
+      lines,
+      opportunity.id,
+      [],
+    );
 
     // ออกเลขนอก transaction และหลังตรวจทุกอย่างผ่าน — docs/run-number.md
     const quotationNo = await this.runNumbers.issueUnused(
@@ -358,6 +367,7 @@ export class QuotationsService {
                   lines,
                   opportunity.id,
                 ),
+                overrides,
               ).map((line, index) => ({
                 ...line,
                 costSource: origin?.costSources[index] ?? null,
@@ -381,6 +391,8 @@ export class QuotationsService {
             opportunityId: opportunity.id,
             lines: lines.length,
             netTotal: totals.netTotal.toFixed(2),
+            // CD-204 — every price set below the system's, with its reason.
+            ...overrideAudit(lines, overrides),
           },
         },
         { prisma },
@@ -410,6 +422,18 @@ export class QuotationsService {
       await this.catalog.assertKnownCodes(actor.activeCompanyId, dto.lines);
       assertPriceModels(dto.lines);
     }
+    // CD-204 — checked before anything is written; an override already on
+    // the draft and left as it was carries over without the permission.
+    const overrides =
+      dto.lines !== undefined
+        ? await this.priceOverrides(
+            actor,
+            found.currency,
+            dto.lines,
+            found.opportunityId,
+            found.lines,
+          )
+        : [];
 
     const totals =
       dto.lines !== undefined
@@ -451,13 +475,18 @@ export class QuotationsService {
         await prisma.quotationLine.deleteMany({ where: { quotationId: id } });
         if (dto.lines.length) {
           await prisma.quotationLine.createMany({
-            data: linesData(dto.lines, totals, refs).map((line, index) => ({
-              ...line,
-              // CD-198 — the cost source survives an edit only while the
-              // line still is the same product at the same cost.
-              costSource: keptCostSource(found.lines[index], dto.lines![index]),
-              quotationId: id,
-            })),
+            data: linesData(dto.lines, totals, refs, overrides).map(
+              (line, index) => ({
+                ...line,
+                // CD-198 — the cost source survives an edit only while the
+                // line still is the same product at the same cost.
+                costSource: keptCostSource(
+                  found.lines[index],
+                  dto.lines![index],
+                ),
+                quotationId: id,
+              }),
+            ),
           });
         }
       }
@@ -472,6 +501,7 @@ export class QuotationsService {
           after: {
             fields: Object.keys(dto),
             ...(totals ? { netTotal: totals.netTotal.toFixed(2) } : {}),
+            ...(dto.lines ? overrideAudit(dto.lines, overrides) : {}),
           },
         },
         { prisma },
@@ -535,6 +565,8 @@ export class QuotationsService {
       config.minMarginPct,
     ).filter((group) => group.below);
     const marginBelow = belowTypes.length > 0;
+    // CD-204 — lines quoted below the system's price (saved with a reason).
+    const overridden = found.lines.filter((line) => line.systemPrice !== null);
     // Names and minimums only — the margins themselves stay in the masked
     // field (CD-127).
     const belowText = belowTypes
@@ -583,12 +615,21 @@ export class QuotationsService {
             est_margin_pct:
               marginPct === null ? 0 : Number(marginPct.toFixed(2)),
             margin_below_minimum: marginBelow ? 'yes' : 'no',
+            // CD-204 — a price below the system's goes up like a low margin.
+            price_override: overridden.length ? 'yes' : 'no',
+            executive_review: marginBelow || overridden.length ? 'yes' : 'no',
             // The margin itself travels only in `est_margin_pct`, which the
             // masking rule covers; repeating it in free text leaked it to
             // everyone who can read the request (CD-127).
-            reason: marginBelow
-              ? `${label(found)} · margin ต่ำกว่าเกณฑ์: ${belowText} — ${reason}`
-              : `${label(found)} · ขออนุมัติราคา${reason ? ` — ${reason}` : ''}`,
+            reason: [
+              marginBelow
+                ? `${label(found)} · margin ต่ำกว่าเกณฑ์: ${belowText} — ${reason}`
+                : `${label(found)} · ขออนุมัติราคา${reason ? ` — ${reason}` : ''}`,
+              ...overridden.map(
+                (line) =>
+                  `แก้ราคาด้วยมือ: ${line.productCode ?? line.description} ราคาในระบบ ${Number(line.systemPrice).toFixed(2)} → ${Number(line.unitPrice).toFixed(2)} — ${line.overrideReason ?? ''}`,
+              ),
+            ].join('\n'),
           },
         },
         actor,
@@ -841,6 +882,9 @@ export class QuotationsService {
                 costSource: line.costSource,
                 workType: line.workType,
                 markupPct: line.markupPct,
+                systemPrice: line.systemPrice,
+                overrideReason: line.overrideReason,
+                overriddenBy: line.overriddenBy,
               })),
             },
           },
@@ -951,6 +995,137 @@ export class QuotationsService {
       },
       { prisma },
     );
+  }
+
+  /**
+   * CD-204 — lines quoted below the price the system holds for the product on
+   * this deal (the deal's, its customer's, its groups' lowest, else the
+   * standard; same price model, in effect today). Raising a price is free;
+   * a line with no system price is typed by hand and is not an override.
+   *
+   * Each override needs `pricing.price.override` and a reason — unless the
+   * draft already carries it unchanged (same product, model, price), which
+   * keeps whoever approved it, so a salesperson can still edit the rest.
+   */
+  private async priceOverrides(
+    actor: Principal,
+    currency: string,
+    lines: readonly QuotationLineDto[],
+    opportunityId: string,
+    previous: readonly {
+      productCode: string | null;
+      priceModel: string;
+      unitPrice: Prisma.Decimal;
+      overrideReason: string | null;
+      overriddenBy: string | null;
+    }[],
+  ): Promise<(PriceOverride | null)[]> {
+    const codes = [
+      ...new Set(
+        lines.map((line) => line.product_code?.trim()).filter(Boolean),
+      ),
+    ] as string[];
+    if (!codes.length) return lines.map(() => null);
+    const today = startOfToday();
+    const rows = (await this.prices.findMany({
+      where: {
+        companyId: actor.activeCompanyId,
+        currency,
+        productCode: { in: codes },
+        deletedAt: null,
+        validFrom: { lte: today },
+        OR: [{ validTo: null }, { validTo: { gte: today } }],
+      },
+      select: {
+        productCode: true,
+        unitPrice: true,
+        priceModel: true,
+        scope: true,
+        customerId: true,
+        segmentValueId: true,
+        opportunityId: true,
+      },
+    })) as {
+      productCode: string;
+      unitPrice: Prisma.Decimal;
+      priceModel: string;
+      scope: string;
+      customerId: string | null;
+      segmentValueId: string | null;
+      opportunityId: string | null;
+    }[];
+    if (!rows.length) return lines.map(() => null);
+    const applies = await this.specialPriceScope(opportunityId, rows);
+    const carried = previous.filter((line) => line.overriddenBy);
+    const mayOverride = actor.permissions.includes('pricing.price.override');
+    const details: { field: string; reason: string }[] = [];
+
+    const result = lines.map((line, index) => {
+      const code = line.product_code?.trim();
+      const model = line.price_model ?? 'unit';
+      const system = pickApplicable(
+        rows
+          .filter(
+            (row) =>
+              row.productCode === code &&
+              row.priceModel === model &&
+              applies(row),
+          )
+          .map((row) => ({
+            scope: row.scope as PriceScope,
+            unitPrice: Number(row.unitPrice),
+          })),
+      );
+      if (!system || line.unit_price >= system.unitPrice) return null;
+
+      const reason = line.override_reason?.trim();
+      const kept = carried.findIndex(
+        (old) =>
+          old.productCode === code &&
+          old.priceModel === model &&
+          Number(old.unitPrice) === line.unit_price &&
+          (!reason || reason === old.overrideReason),
+      );
+      if (kept >= 0) {
+        const [old] = carried.splice(kept, 1);
+        return {
+          systemPrice: system.unitPrice,
+          reason: old.overrideReason ?? '',
+          by: old.overriddenBy!,
+        };
+      }
+      if (!mayOverride) {
+        details.push({
+          field: `lines[${index}].unit_price`,
+          reason: 'override_forbidden',
+        });
+        return null;
+      }
+      if (!reason) {
+        details.push({
+          field: `lines[${index}].override_reason`,
+          reason: 'required',
+        });
+        return null;
+      }
+      return { systemPrice: system.unitPrice, reason, by: actor.userId };
+    });
+
+    if (details.some((detail) => detail.reason === 'override_forbidden')) {
+      throw new AppError(
+        'FORBIDDEN',
+        'ราคาต่ำกว่าราคาในระบบต้องมีสิทธิ์แก้ราคาด้วยมือ — ใช้ราคาในระบบ หรือให้ผู้มีสิทธิ์แก้ให้',
+        details,
+      );
+    }
+    if (details.length) {
+      throw new AppError(
+        'VALIDATION_FAILED',
+        'ราคาต่ำกว่าราคาในระบบต้องระบุเหตุผล',
+        details,
+      );
+    }
+    return result;
   }
 
   /**
@@ -1202,6 +1377,9 @@ interface QuotationForAction {
     costSource: string | null;
     workType: string | null;
     markupPct: Prisma.Decimal | null;
+    systemPrice: Prisma.Decimal | null;
+    overrideReason: string | null;
+    overriddenBy: string | null;
   }[];
   solutionId: string | null;
   solutionVersionNo: number | null;
@@ -1301,6 +1479,7 @@ function linesData(
   lines: QuotationLineDto[],
   totals: ReturnType<typeof computeQuotationTotals>,
   priceRefs: readonly (string | null)[] = [],
+  overrides: readonly (PriceOverride | null)[] = [],
 ) {
   return lines.map((line, index) => ({
     lineNo: index + 1,
@@ -1325,7 +1504,18 @@ function linesData(
       markupPrice(line.unit_cost ?? 0, line.markup_pct) === line.unit_price
         ? line.markup_pct
         : null,
+    // CD-204
+    systemPrice: overrides[index]?.systemPrice ?? null,
+    overrideReason: overrides[index]?.reason ?? null,
+    overriddenBy: overrides[index]?.by ?? null,
   }));
+}
+
+/** CD-204 — a line quoted below the system's price, and on whose word. */
+interface PriceOverride {
+  systemPrice: number;
+  reason: string;
+  by: string;
 }
 
 function totalsData(totals: ReturnType<typeof computeQuotationTotals>) {
@@ -1363,4 +1553,26 @@ function keptCostSource(
     Number(before.unitCost) === (after.unit_cost ?? 0)
     ? before.costSource
     : null;
+}
+
+/** CD-204 — the overrides a save made or kept, for its audit entry. */
+function overrideAudit(
+  lines: readonly QuotationLineDto[],
+  overrides: readonly (PriceOverride | null)[],
+) {
+  const rows = overrides.flatMap((override, index) =>
+    override
+      ? [
+          {
+            line: index + 1,
+            productCode: lines[index].product_code?.trim() ?? null,
+            systemPrice: override.systemPrice,
+            unitPrice: lines[index].unit_price,
+            reason: override.reason,
+            by: override.by,
+          },
+        ]
+      : [],
+  );
+  return rows.length ? { priceOverrides: rows } : {};
 }

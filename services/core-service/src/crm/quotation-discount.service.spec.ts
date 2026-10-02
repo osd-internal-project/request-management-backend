@@ -26,6 +26,9 @@ function line(
     costSource: null,
     workType,
     markupPct: null,
+    systemPrice: null,
+    overrideReason: null,
+    overriddenBy: null,
   };
 }
 

@@ -167,6 +167,8 @@ const SEED_ROLES: {
       'crm.sales.manage',
       'crm.target.manage',
       'crm.campaign.manage',
+      // CD-204 — a department head may quote below the system's price
+      'pricing.price.override',
     ],
     visibilityLevel: 'DEPARTMENT',
   },
@@ -320,6 +322,8 @@ const SEED_ROLES: {
       'crm.sales.manage',
       'pricing.price.read',
       'pricing.price.manage',
+      // CD-204 — quote below the system's price, with a reason
+      'pricing.price.override',
     ],
   },
   {
@@ -909,13 +913,17 @@ async function seedSolutionApprovalMatrix(companyId: string) {
  * (CD-26). They are matrix data: an admin replaces them on the approval
  * matrix screen with a new version, no deploy.
  *
- * A ladder the seed published before CD-202 gets the executive level as a new
- * version (never edited); one an admin published is left to them.
+ * CD-204 — a price quoted below the system's sends it there too: the level
+ * now keys on `executive_review`, which the quotation sets when either holds.
+ *
+ * A ladder the seed published before (without that condition) gets the
+ * current levels as a new version (never edited); one an admin published is
+ * left to them.
  */
 const PRICE_APPROVAL_EXECUTIVE_LEVEL = {
   type: 'supervisor',
   up: 3,
-  condition: { field: 'margin_below_minimum', op: 'eq', value: 'yes' },
+  condition: { field: 'executive_review', op: 'eq', value: 'yes' },
   slaHours: 24,
 };
 
@@ -942,7 +950,7 @@ async function seedPriceApprovalMatrix(companyId: string) {
     Array.isArray(value) &&
     value.some(
       (level: { condition?: { field?: string } }) =>
-        level?.condition?.field === 'margin_below_minimum',
+        level?.condition?.field === 'executive_review',
     );
 
   if (latest && (hasExecutive(latest.levels) || latest.createdBy !== 'seed')) {
@@ -964,7 +972,7 @@ async function seedPriceApprovalMatrix(companyId: string) {
     },
   });
   console.log(
-    `  approval matrix: request:PRA:pre v${(latest?.version ?? 0) + 1} · หัวหน้า → >1ล้าน หัวหน้าแผนก → >5ล้าน ถัดขึ้นไป · margin ต่ำ → ผู้บริหาร (24 ชม.) (ตัวเลขชั่วคราว รอ CD-26)`,
+    `  approval matrix: request:PRA:pre v${(latest?.version ?? 0) + 1} · หัวหน้า → >1ล้าน หัวหน้าแผนก → >5ล้าน ถัดขึ้นไป · margin ต่ำ/แก้ราคาด้วยมือ → ผู้บริหาร (24 ชม.) (ตัวเลขชั่วคราว รอ CD-26)`,
   );
 }
 
@@ -1836,6 +1844,20 @@ async function seedRequestTypes(
             title: 'margin ต่ำกว่าเกณฑ์',
             enum: ['yes', 'no'],
             'x-order': 90,
+          },
+          // CD-204
+          price_override: {
+            type: 'string',
+            title: 'มีการแก้ราคาต่ำกว่าราคาในระบบ',
+            enum: ['yes', 'no'],
+            'x-order': 92,
+          },
+          // CD-202/204 — what the executive level routes on
+          executive_review: {
+            type: 'string',
+            title: 'ต้องให้ผู้บริหารอนุมัติ',
+            enum: ['yes', 'no'],
+            'x-order': 94,
           },
           reason: {
             type: 'string',

@@ -66,6 +66,9 @@ function quotationRow(overrides: Record<string, unknown> = {}) {
       workType: null,
       lineTotal: D(23000),
       lineCost: D(15000),
+      systemPrice: null,
+      overrideReason: null,
+      overriddenBy: null,
       ...line,
     })),
   };
@@ -857,5 +860,172 @@ describe('CD-200 markup และประเภทงานบนบรรท�
       [20, 'equipment'],
       [null, null],
     ]);
+  });
+});
+
+describe('CD-204 ควบคุมการแก้ราคาด้วยมือ', () => {
+  const standard = {
+    id: 'p-1',
+    productCode: 'SIP-TRUNK',
+    unitPrice: D(1000),
+    priceModel: 'unit',
+    scope: 'standard',
+    customerId: null,
+    segmentValueId: null,
+    opportunityId: null,
+  };
+  const line = (unit_price: number, override_reason?: string) => ({
+    product_code: 'SIP-TRUNK',
+    description: 'SIP Trunk',
+    quantity: 1,
+    unit_price,
+    ...(override_reason ? { override_reason } : {}),
+  });
+  const as = (userId: string, extra: string[] = []) =>
+    ({
+      ...principal(),
+      userId,
+      permissions: ['crm.sales.read', 'crm.sales.manage', ...extra],
+    }) as unknown as Principal;
+  const saved = (tx: ReturnType<typeof harness>['tx']) =>
+    (
+      tx.quotationLine.createMany.mock.calls[0] as unknown as [
+        {
+          data: {
+            systemPrice: number | null;
+            overrideReason: string | null;
+            overriddenBy: string | null;
+          }[];
+        },
+      ]
+    )[0].data;
+
+  it('ราคาต่ำกว่าราคาในระบบ โดยไม่มีสิทธิ์ = FORBIDDEN และไม่บันทึกอะไร', async () => {
+    const { service, quotations } = harness({ prices: [standard] });
+    await expect(
+      service.update('qt-1', { lines: [line(900, 'ลูกค้าเก่า')] }, as('sales')),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    expect(quotations.update).not.toHaveBeenCalled();
+  });
+
+  it('มีสิทธิ์แต่ไม่ให้เหตุผล = VALIDATION_FAILED', async () => {
+    const { service } = harness({ prices: [standard] });
+    await expect(
+      service.update(
+        'qt-1',
+        { lines: [line(900)] },
+        as('boss', ['pricing.price.override']),
+      ),
+    ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+  });
+
+  it('มีสิทธิ์และให้เหตุผล = บันทึกราคาในระบบ เหตุผล และผู้แก้ลงบรรทัด', async () => {
+    const { service, tx, audits } = harness({ prices: [standard] });
+    await service.update(
+      'qt-1',
+      { lines: [line(900, 'ลูกค้าเก่า'), line(1000), line(1100)] },
+      as('boss', ['pricing.price.override']),
+    );
+    expect(saved(tx)).toEqual([
+      expect.objectContaining({
+        systemPrice: 1000,
+        overrideReason: 'ลูกค้าเก่า',
+        overriddenBy: 'boss',
+      }),
+      // the system price itself, and above it, are not overrides
+      expect.objectContaining({ systemPrice: null, overriddenBy: null }),
+      expect.objectContaining({ systemPrice: null, overriddenBy: null }),
+    ]);
+    expect(
+      audits.find((a) => a.eventType === 'crm.quotation.updated')?.after,
+    ).toMatchObject({
+      priceOverrides: [
+        expect.objectContaining({ systemPrice: 1000, unitPrice: 900 }),
+      ],
+    });
+  });
+
+  it('เทียบกับราคาเฉพาะลูกค้าที่ใช้ได้กับดีล ไม่ใช่ราคามาตรฐาน', async () => {
+    const { service, tx } = harness({
+      prices: [
+        standard,
+        {
+          ...standard,
+          id: 'p-c',
+          scope: 'customer',
+          customerId: 'c-1',
+          unitPrice: D(850),
+        },
+      ],
+      dealCustomerId: 'c-1',
+    });
+    await service.update('qt-1', { lines: [line(900)] }, as('sales'));
+    expect(saved(tx)[0]).toMatchObject({ systemPrice: null });
+  });
+
+  it('ราคาที่ผู้มีสิทธิ์แก้ไว้แล้ว คงอยู่ได้เมื่อพนักงานขายแก้ส่วนอื่นของร่าง', async () => {
+    const { service, tx } = harness({
+      prices: [standard],
+      row: {
+        lines: [
+          {
+            lineNo: 1,
+            productCode: 'SIP-TRUNK',
+            priceModel: 'unit',
+            unitPrice: D(900),
+            systemPrice: D(1000),
+            overrideReason: 'ลูกค้าเก่า',
+            overriddenBy: 'boss',
+          },
+        ],
+      },
+    });
+    await service.update('qt-1', { lines: [line(900)] }, as('sales'));
+    expect(saved(tx)[0]).toMatchObject({
+      systemPrice: 1000,
+      overrideReason: 'ลูกค้าเก่า',
+      overriddenBy: 'boss',
+    });
+  });
+
+  it('ยื่นใบที่มีการแก้ราคา = คำขอเข้าชั้นผู้บริหารพร้อมรายการที่แก้', async () => {
+    const { service, requestsService } = harness({
+      row: {
+        lines: [
+          {
+            lineNo: 1,
+            productCode: 'SIP-TRUNK',
+            unitPrice: D(900),
+            systemPrice: D(1000),
+            overrideReason: 'ลูกค้าเก่า',
+            overriddenBy: 'boss',
+          },
+        ],
+      },
+    });
+    await service.submit('qt-1', {}, principal());
+    const [dto] = requestsService.create.mock.calls[0] as unknown as [
+      { form_data: Record<string, unknown> },
+    ];
+    expect(dto.form_data).toMatchObject({
+      margin_below_minimum: 'no',
+      price_override: 'yes',
+      executive_review: 'yes',
+    });
+    expect(String(dto.form_data.reason)).toContain(
+      'แก้ราคาด้วยมือ: SIP-TRUNK ราคาในระบบ 1000.00 → 900.00 — ลูกค้าเก่า',
+    );
+  });
+
+  it('ใบที่ไม่มีการแก้ราคาและ margin ผ่าน = ไม่เข้าชั้นผู้บริหาร', async () => {
+    const { service, requestsService } = harness();
+    await service.submit('qt-1', {}, principal());
+    const [dto] = requestsService.create.mock.calls[0] as unknown as [
+      { form_data: Record<string, unknown> },
+    ];
+    expect(dto.form_data).toMatchObject({
+      price_override: 'no',
+      executive_review: 'no',
+    });
   });
 });

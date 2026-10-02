@@ -116,6 +116,17 @@ export class QuotationLineDto {
   @Min(0)
   @Max(1000)
   markup_pct?: number;
+
+  /**
+   * CD-204 — required when the unit price is below the price the system
+   * holds for this product on the deal; doing so needs
+   * `pricing.price.override`. An override saved earlier and left unchanged
+   * keeps its reason.
+   */
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  override_reason?: string;
 }
 
 /** สร้างร่างใบเสนอราคาจากโอกาสการขาย — ทุกช่องว่างได้ (ค่าตั้งต้นมาจากโอกาสการขาย/ตั้งค่า). */

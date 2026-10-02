@@ -48,6 +48,9 @@ interface StoredLine {
   costSource: string | null;
   workType: string | null;
   markupPct: Decimal | null;
+  systemPrice: Decimal | null;
+  overrideReason: string | null;
+  overriddenBy: string | null;
 }
 
 interface QuotationUnderApproval {
@@ -295,6 +298,10 @@ export class QuotationDiscountService {
                 costSource: line.costSource,
                 workType: line.workType,
                 markupPct: line.markupPct,
+                // CD-204 — the price is unchanged, so is its override.
+                systemPrice: line.systemPrice,
+                overrideReason: line.overrideReason,
+                overriddenBy: line.overriddenBy,
               })),
             },
           },

@@ -12862,6 +12862,10 @@
             "maximum": 1000,
             "minimum": 0,
             "type": "number"
+          },
+          "override_reason": {
+            "maxLength": 500,
+            "type": "string"
           }
         },
         "required": [

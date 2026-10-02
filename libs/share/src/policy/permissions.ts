@@ -110,8 +110,14 @@ export const PERMISSIONS = {
    * CD-12 Pricing. `pricing.price.manage` keeps the standard price list
    * (CD-194); `pricing.price.read` sees it. A salesperson gets the price of a
    * product through the quotation form with `crm.sales.read` alone.
+   * `pricing.price.override` (CD-204) quotes a product below the price the
+   * system holds for the deal, with a reason; it goes to executive approval.
    */
-  pricing: ['pricing.price.read', 'pricing.price.manage'],
+  pricing: [
+    'pricing.price.read',
+    'pricing.price.manage',
+    'pricing.price.override',
+  ],
   admin: [
     'admin.role.manage',
     'admin.org.manage',

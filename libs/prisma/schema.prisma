@@ -3321,6 +3321,12 @@ model QuotationLine {
   /// CD-200 markup ที่ให้ราคานี้ — คงไว้เฉพาะเมื่อราคา = ต้นทุน × (1 + markup).
   markupPct   Decimal? @db.Decimal(7, 2)
 
+  /// CD-204 แก้ราคาด้วยมือ: ราคาในระบบที่ใช้ได้กับดีล (ตอนบันทึก) เมื่อใส่ราคาต่ำกว่า — null = ไม่ได้แก้.
+  systemPrice    Decimal? @db.Decimal(14, 2)
+  overrideReason String?
+  /// ผู้ที่ใส่ราคาต่ำกว่าระบบ (ต้องมี pricing.price.override).
+  overriddenBy   String?
+
   quotation Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
 
   @@unique([quotationId, lineNo])
