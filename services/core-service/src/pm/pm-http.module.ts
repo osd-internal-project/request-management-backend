@@ -28,6 +28,7 @@ import { UatService } from './uat.service';
 import { InstallationsService } from './installations.service';
 import { SurveysService } from './surveys.service';
 import { DevPlanService } from './dev-plan.service';
+import { DefectsService } from './defects.service';
 import { TaskEvidenceService } from './task-evidence.service';
 import { DesignsService } from './designs.service';
 import { TechPlanService } from './tech-plan.service';
@@ -70,6 +71,7 @@ import { TechPlanService } from './tech-plan.service';
     InstallationsService,
     SurveysService,
     DevPlanService,
+    DefectsService,
     TaskEvidenceService,
     DesignsService,
     TechPlanService,

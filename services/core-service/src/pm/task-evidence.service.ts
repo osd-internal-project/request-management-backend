@@ -13,7 +13,9 @@ import {
   type TaskEvidence,
 } from './evidence-rules';
 import { wbsCodes } from './plan-rules';
+import { OPEN_DEFECT, proves } from './defect-rules';
 import {
+  ProjectDefectRepository,
   ProjectInstallationRepository,
   ProjectTaskRepository,
   ProjectTestItemRepository,
@@ -34,6 +36,7 @@ interface TaskRow {
   startedAt: Date | null;
   doneAt: Date | null;
   changeRequestId: string | null;
+  sowRef: string | null;
 }
 
 /**
@@ -43,6 +46,10 @@ interface TaskRow {
  * history says so — and the project's progress (CD-188) follows, with
  * nobody closing it by hand. Work a change request added still waits for
  * the change's approval (CD-185).
+ *
+ * CD-213 — a software task (CD-212) is proved by the test items of its SOW
+ * line as well, and held open while a defect against the line is not yet
+ * verified by a retest.
  */
 @Injectable()
 export class TaskEvidenceService {
@@ -56,6 +63,7 @@ export class TaskEvidenceService {
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
     private readonly techPlan: TechPlanService,
+    private readonly defects: ProjectDefectRepository,
   ) {}
 
   /** The leaf tasks evidence may be linked to, labelled with their WBS code. */
@@ -105,6 +113,55 @@ export class TaskEvidenceService {
     }
   }
 
+  /** CD-213 — the software tasks of the SOW lines a test item proves. */
+  async syncSow(
+    projectId: string,
+    sourceRef: string | null,
+    actor: Principal,
+    now = new Date(),
+  ) {
+    if (!sourceRef) return;
+    const rows = (await this.tasks.findMany({
+      where: {
+        projectId,
+        devKind: 'item',
+        sowRef: { not: null },
+        status: { not: 'cancelled' },
+      },
+      select: { id: true, sowRef: true },
+    })) as { id: string; sowRef: string }[];
+    await this.sync(
+      projectId,
+      rows.filter((row) => proves(sourceRef, row.sowRef)).map((row) => row.id),
+      actor,
+      now,
+    );
+  }
+
+  /** CD-213 — the software tasks of one SOW line, after its defects moved. */
+  async syncLine(
+    projectId: string,
+    sowRef: string,
+    actor: Principal,
+    now = new Date(),
+  ) {
+    const rows = (await this.tasks.findMany({
+      where: {
+        projectId,
+        devKind: 'item',
+        sowRef,
+        status: { not: 'cancelled' },
+      },
+      select: { id: true },
+    })) as { id: string }[];
+    await this.sync(
+      projectId,
+      rows.map((row) => row.id),
+      actor,
+      now,
+    );
+  }
+
   private async syncOne(
     projectId: string,
     taskId: string,
@@ -115,7 +172,7 @@ export class TaskEvidenceService {
       where: { id: taskId, projectId },
     })) as TaskRow | null;
     if (!task) return;
-    const evidence = await this.evidence(projectId, taskId);
+    const evidence = await this.evidence(projectId, taskId, task.sowRef);
     const to = evidenceMove(task.status, evidence);
     if (!to) return;
     if (to === 'done' && task.status === 'open') {
@@ -162,15 +219,23 @@ export class TaskEvidenceService {
   private async evidence(
     projectId: string,
     taskId: string,
+    sowRef: string | null = null,
   ): Promise<TaskEvidence> {
-    const [installs, tests] = await Promise.all([
+    const [installs, tests, openDefects] = await Promise.all([
       this.installs.findMany({
         where: { projectId, taskId, deletedAt: null },
         select: { installedOn: true },
       }) as Promise<{ installedOn: Date | null }[]>,
       this.testItems.findMany({
-        where: { projectId, taskId, deletedAt: null },
+        where: {
+          projectId,
+          deletedAt: null,
+          // CD-213 — a software task is proved by its SOW line's items too
+          ...(sowRef ? {} : { taskId }),
+        },
         select: {
+          taskId: true,
+          sourceRef: true,
           waivedAt: true,
           runs: {
             orderBy: { testedAt: 'desc' },
@@ -179,14 +244,33 @@ export class TaskEvidenceService {
           },
         },
       }) as unknown as Promise<
-        { waivedAt: Date | null; runs: { result: string }[] }[]
+        {
+          taskId: string | null;
+          sourceRef: string | null;
+          waivedAt: Date | null;
+          runs: { result: string }[];
+        }[]
       >,
+      this.defects.count({
+        where: {
+          projectId,
+          status: { in: [...OPEN_DEFECT] },
+          OR: [{ taskId }, ...(sowRef ? [{ sowRef }] : [])],
+        },
+      }),
     ]);
     return {
       installs: installs.map((row) => ({
         installed: Boolean(row.installedOn),
       })),
-      tests: tests.map((row) => ({ state: testState(row) })),
+      tests: tests
+        .filter(
+          (row) =>
+            row.taskId === taskId ||
+            (sowRef !== null && proves(row.sourceRef, sowRef)),
+        )
+        .map((row) => ({ state: testState(row) })),
+      openDefects,
     };
   }
 

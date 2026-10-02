@@ -4986,6 +4986,7 @@ model Project {
   designs           ProjectDesign[]
   /// CD-210 — การสำรวจหน้างาน.
   surveys           ProjectSurvey[]
+  defects           ProjectDefect[]
 
   @@unique([companyId, projectNo])
   @@index([companyId, status])
@@ -6251,4 +6252,45 @@ model HrUserSkill {
   @@unique([userId, skillId])
   @@index([skillId])
   @@map("hr_user_skills")
+}
+
+/// CD-213 ข้อบกพร่องงานพัฒนา — a defect found in software work, tied to the
+/// SOW line it breaks. Open defects hold the line's development task open
+/// (CD-218); a fix is closed only by a retest.
+model ProjectDefect {
+  id             String    @id @default(uuid())
+  companyId      String
+  projectId      String
+  seq            Int
+  title          String
+  description    String?
+  /// blocker · major · minor
+  severity       String
+  /// The SOW line: scope:i · deliverable:d · change:<id>.
+  sowRef         String
+  /// The development task it came from (CD-212), if any.
+  taskId         String?
+  foundOn        DateTime  @db.Date
+  assigneeUserId String?
+  /// open · fixed · verified · cancelled
+  status         String    @default("open")
+  fixNote        String?
+  fixedAt        DateTime?
+  fixedBy        String?
+  verifyNote     String?
+  verifiedAt     DateTime?
+  verifiedBy     String?
+  /// The last time a retest failed.
+  reopenNote     String?
+  cancelNote     String?
+  createdAt      DateTime  @default(now())
+  createdBy      String
+  updatedAt      DateTime  @updatedAt
+  updatedBy      String?
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
+
+  @@unique([projectId, seq])
+  @@index([projectId, status])
+  @@map("project_defects")
 }

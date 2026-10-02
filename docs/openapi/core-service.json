@@ -18889,6 +18889,155 @@
         ]
       }
     },
+    "/api/v1/projects/{id}/defects": {
+      "get": {
+        "operationId": "ProjectsController_viewDefects",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ข้อ SOW ของงานพัฒนา ผลทดสอบ และข้อบกพร่อง — ข้อที่ยังพิสูจน์ไม่ได้ค้างเป็นรายการ",
+        "tags": [
+          "projects"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      },
+      "post": {
+        "operationId": "ProjectsController_addDefect",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveDefectDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "บันทึกข้อบกพร่อง (ทีมโครงการ) ผูกกับข้อ SOW",
+        "tags": [
+          "projects"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/projects/{id}/defects/{defectId}/move": {
+      "post": {
+        "operationId": "ProjectsController_moveDefect",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "defectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MoveDefectDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แก้แล้ว · ทดสอบซ้ำผ่าน · ทดสอบซ้ำไม่ผ่าน (เปิดใหม่) · ยกเลิก (ผู้จัดการโครงการ)",
+        "tags": [
+          "projects"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      }
+    },
     "/api/v1/projects/{id}/dev-plan": {
       "get": {
         "operationId": "ProjectsController_viewDevPlan",
@@ -31448,6 +31597,66 @@
             "maxLength": 4000
           }
         }
+      },
+      "SaveDefectDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "example": "บันทึกใบสมัครซ้ำได้",
+            "maxLength": 255
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "blocker",
+              "major",
+              "minor"
+            ],
+            "maxLength": 20
+          },
+          "sow_ref": {
+            "type": "string",
+            "description": "ข้อ SOW: scope:i · deliverable:d · change:<id>",
+            "maxLength": 100
+          },
+          "found_on": {
+            "type": "string",
+            "format": "date",
+            "maxLength": 10
+          },
+          "assignee_user_id": {
+            "type": "object",
+            "nullable": true,
+            "maxLength": 50
+          }
+        }
+      },
+      "MoveDefectDto": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "fix",
+              "verify",
+              "reopen",
+              "cancel"
+            ],
+            "maxLength": 20
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 4000
+          }
+        },
+        "required": [
+          "action"
+        ]
       },
       "AddDevItemsDto": {
         "type": "object",

@@ -1198,3 +1198,58 @@ export class AddDevItemsDto {
   @Max(3650)
   duration_days?: number;
 }
+
+/** CD-213 — a defect in software work, against a SOW line. */
+export class SaveDefectDto {
+  @ApiPropertyOptional({ example: 'บันทึกใบสมัครซ้ำได้' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  title?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  description?: string;
+
+  @ApiPropertyOptional({ enum: ['blocker', 'major', 'minor'] })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  severity?: string;
+
+  @ApiPropertyOptional({
+    description: 'ข้อ SOW: scope:i · deliverable:d · change:<id>',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  sow_ref?: string;
+
+  @ApiPropertyOptional({ format: 'date' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  found_on?: string;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  assignee_user_id?: string | null;
+}
+
+/** CD-213 — fix · verify (retest passed) · reopen (retest failed) · cancel. */
+export class MoveDefectDto {
+  @ApiProperty({ enum: ['fix', 'verify', 'reopen', 'cancel'] })
+  @IsString()
+  @MaxLength(20)
+  action!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  note?: string;
+}

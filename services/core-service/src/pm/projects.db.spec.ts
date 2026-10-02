@@ -46,6 +46,7 @@ import {
   ProjectInstallationRepository,
   ProjectSurveyPhotoRepository,
   ProjectSurveyRepository,
+  ProjectDefectRepository,
   ProjectDesignRepository,
   ProjectDesignFileRepository,
   ProjectTaskEquipmentRepository,
@@ -71,6 +72,7 @@ import { UatService } from './uat.service';
 import { InstallationsService } from './installations.service';
 import { SurveysService } from './surveys.service';
 import { DevPlanService } from './dev-plan.service';
+import { DefectsService } from './defects.service';
 import { TaskEvidenceService } from './task-evidence.service';
 import { DesignsService } from './designs.service';
 import { TechPlanService } from './tech-plan.service';
@@ -277,6 +279,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       });
       await prisma.projectTask.deleteMany({ where: { projectId } });
       await prisma.projectMilestone.deleteMany({ where: { projectId } });
+      await prisma.projectDefect.deleteMany({ where: { projectId } });
       await prisma.projectSurveyPhoto.deleteMany({
         where: { survey: { projectId } },
       });
@@ -1876,6 +1879,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         {
           options: () => Promise.resolve([]),
           sync: () => Promise.resolve(),
+          syncSow: () => Promise.resolve(),
           assertTask: () => Promise.resolve(),
         } as never,
       );
@@ -2039,6 +2043,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         {
           options: () => Promise.resolve([]),
           sync: () => Promise.resolve(),
+          syncSow: () => Promise.resolve(),
           assertTask: () => Promise.resolve(),
         } as never,
       );
@@ -2231,6 +2236,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         audit,
         transactions,
         { handoffBlockers: () => Promise.resolve([]) } as never,
+        new ProjectDefectRepository(client),
       );
       const installs = new InstallationsService(
         projects,
@@ -2826,6 +2832,237 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       }
     });
 
+    it('CD-213: software work proved by its SOW line — tests pass and no defect open closes it; a defect reopens it until a retest passes', async () => {
+      const client = prisma as never;
+      const transactions = {
+        execute: (work: (tx: unknown) => Promise<unknown>) =>
+          prisma.$transaction((tx) => work(tx)),
+      } as never;
+      const quiet = new Proxy(
+        {},
+        { get: () => () => Promise.resolve() },
+      ) as never;
+      const plan = new PlanService(
+        projects,
+        new ProjectRepository(client),
+        new ProjectTaskRepository(client),
+        new ProjectTaskLinkRepository(client),
+        new ProjectMilestoneRepository(client),
+        new WorkCalendarRepository(client),
+        new CompanyMemberRepository(client),
+        quiet,
+        quiet,
+        transactions,
+      );
+      const dev = new DevPlanService(
+        projects,
+        new ProjectRepository(client),
+        new ProjectTaskRepository(client),
+        new ProjectChangeRequestRepository(client),
+        plan,
+      );
+      const evidence = new TaskEvidenceService(
+        new ProjectTaskRepository(client),
+        new ProjectInstallationRepository(client),
+        new ProjectTestItemRepository(client),
+        { workMayStart: () => Promise.resolve(null) } as never,
+        quiet,
+        transactions,
+        { handoffBlockers: () => Promise.resolve([]) } as never,
+        new ProjectDefectRepository(client),
+      );
+      const defects = new DefectsService(
+        projects,
+        new ProjectRepository(client),
+        new ProjectChangeRequestRepository(client),
+        new ProjectTaskRepository(client),
+        new ProjectTestItemRepository(client),
+        new ProjectDefectRepository(client),
+        new CompanyMemberRepository(client),
+        quiet,
+        transactions,
+        evidence,
+      );
+      const managerNow = as(engineer, ['notification.read']);
+      const crew = as(outsider, ['notification.read']);
+      const now = new Date('2026-10-08T03:00:00Z');
+      const project = await prisma.project.findUniqueOrThrow({
+        where: { id: projectId },
+        select: { companyId: true },
+      });
+      // an approved change added a line to the SOW
+      const lastChange = await prisma.projectChangeRequest.findFirst({
+        where: { projectId },
+        orderBy: { seq: 'desc' },
+        select: { seq: true },
+      });
+      const change = await prisma.projectChangeRequest.create({
+        data: {
+          companyId: project.companyId,
+          projectId,
+          seq: (lastChange?.seq ?? 0) + 1,
+          title: 'ส่งออก Excel',
+          reason: 'ลูกค้าขอเพิ่ม',
+          scopeAdded: 'ส่งออกรายงานเป็น Excel',
+          status: 'approved',
+          createdBy: engineer,
+        },
+      });
+      const ref = `change:${change.id}`;
+      const round = await dev.addIteration(
+        projectId,
+        { title: 'Sprint CR' },
+        managerNow,
+      );
+      const sprint = round.iterations.find((row) => row.title === 'Sprint CR')!;
+      const planned = await dev.addItems(
+        projectId,
+        sprint.id,
+        { refs: [ref], owner_user_id: engineer },
+        managerNow,
+      );
+      const taskId = planned.iterations
+        .find((row) => row.id === sprint.id)!
+        .items.find((item) => item.sowRef === ref)!.id;
+      const status = async () =>
+        (
+          await prisma.projectTask.findUniqueOrThrow({
+            where: { id: taskId },
+            select: { status: true },
+          })
+        ).status;
+
+      // no test of the line yet: the work is pending, not closed
+      let view = await defects.view(projectId, crew);
+      expect(view.lines.find((line) => line.ref === ref)).toMatchObject({
+        tests: 0,
+        pending: true,
+        task: { id: taskId },
+      });
+
+      // its test passes: the task closes itself
+      const lastItem = await prisma.projectTestItem.findFirst({
+        where: { projectId },
+        orderBy: { seq: 'desc' },
+        select: { seq: true },
+      });
+      const item = await prisma.projectTestItem.create({
+        data: {
+          companyId: project.companyId,
+          projectId,
+          seq: (lastItem?.seq ?? 0) + 1,
+          source: 'change',
+          sourceRef: ref,
+          text: 'CR: ส่งออกรายงานเป็น Excel',
+          createdBy: engineer,
+        },
+      });
+      await prisma.projectTestRun.create({
+        data: {
+          companyId: project.companyId,
+          itemId: item.id,
+          result: 'pass',
+          testedBy: engineer,
+        },
+      });
+      await evidence.syncSow(projectId, ref, managerNow, now);
+      expect(await status()).toBe('done');
+
+      // a defect against the line reopens it
+      await expect(
+        defects.add(
+          projectId,
+          {
+            title: 'x',
+            severity: 'major',
+            sow_ref: 'scope:999',
+            found_on: '2026-10-08',
+          },
+          crew,
+          now,
+        ),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+      view = await defects.add(
+        projectId,
+        {
+          title: 'ไฟล์ Excel ภาษาไทยเพี้ยน',
+          severity: 'major',
+          sow_ref: ref,
+          found_on: '2026-10-08',
+          assignee_user_id: engineer,
+        },
+        crew,
+        now,
+      );
+      const bug = view.defects.find((row) => row.sowRef === ref)!;
+      expect(bug).toMatchObject({
+        status: 'open',
+        assigneeName: expect.any(String) as never,
+      });
+      expect(await status()).toBe('in_progress');
+      expect(view.lines.find((line) => line.ref === ref)).toMatchObject({
+        tests: 1,
+        passed: 1,
+        openDefects: 1,
+        pending: true,
+      });
+
+      // fixed is not enough; a failed retest reopens; only a passed retest closes
+      await defects.move(
+        projectId,
+        bug.id,
+        { action: 'fix', note: 'ตั้ง UTF-8 BOM' },
+        crew,
+        now,
+      );
+      expect(await status()).toBe('in_progress');
+      await defects.move(
+        projectId,
+        bug.id,
+        { action: 'reopen', note: 'ยังเพี้ยนบน Mac' },
+        crew,
+        now,
+      );
+      await expect(
+        defects.move(
+          projectId,
+          bug.id,
+          { action: 'verify', note: 'ผ่าน' },
+          crew,
+          now,
+        ),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+      await expect(
+        defects.move(
+          projectId,
+          bug.id,
+          { action: 'cancel', note: 'ซ้ำ' },
+          crew,
+          now,
+        ),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+      await defects.move(
+        projectId,
+        bug.id,
+        { action: 'fix', note: 'ใช้ xlsx แทน csv' },
+        crew,
+        now,
+      );
+      view = await defects.move(
+        projectId,
+        bug.id,
+        { action: 'verify', note: 'ทดสอบซ้ำบน Windows และ Mac ผ่าน' },
+        crew,
+        now,
+      );
+      expect(view.defects.find((row) => row.id === bug.id)).toMatchObject({
+        status: 'verified',
+        reopenNote: 'ยังเพี้ยนบน Mac',
+      });
+      expect(await status()).toBe('done');
+      expect(view.lines.find((line) => line.ref === ref)?.pending).toBe(false);
+    });
+
     it('CD-210: a site survey synced from the device — the Solution assumptions checked one by one, each that differs a change request before it completes', async () => {
       const client = prisma as never;
       const transactions = {
@@ -3383,6 +3620,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         {
           options: () => Promise.resolve([]),
           sync: () => Promise.resolve(),
+          syncSow: () => Promise.resolve(),
           assertTask: () => Promise.resolve(),
         } as never,
       );
@@ -3574,6 +3812,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         {
           options: () => Promise.resolve([]),
           sync: () => Promise.resolve(),
+          syncSow: () => Promise.resolve(),
           assertTask: () => Promise.resolve(),
         } as never,
       );

@@ -289,6 +289,7 @@ export class TestsService {
       actor,
       now,
     );
+    await this.taskEvidence.syncSow(projectId, item.sourceRef, actor, now);
     return this.view(projectId, actor);
   }
 
@@ -437,6 +438,7 @@ export class TestsService {
     }
     // CD-218 — the task this item proves follows it
     await this.taskEvidence.sync(projectId, [item.taskId], actor, now);
+    await this.taskEvidence.syncSow(projectId, item.sourceRef, actor, now);
     return this.view(projectId, actor);
   }
 

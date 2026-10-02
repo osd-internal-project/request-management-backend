@@ -482,3 +482,17 @@ export class ProjectSurveyPhotoRepository extends BaseRepository<
     return client.projectSurveyPhoto;
   }
 }
+
+/** CD-213 ข้อบกพร่องงานพัฒนา. */
+@Injectable()
+export class ProjectDefectRepository extends BaseRepository<
+  PrismaService['projectDefect']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.projectDefect;
+  }
+}

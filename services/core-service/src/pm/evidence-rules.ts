@@ -4,11 +4,15 @@
  * every point is installed and every test passed (or waived), the task is
  * done, and the project's progress (CD-188) moves with it; when the
  * evidence stops holding (a point removed, a test failing), it is reopened.
+ * CD-213 — a software task is proved by the test items of its SOW line,
+ * and held open while a defect against that line is unverified.
  */
 
 export interface TaskEvidence {
   installs: readonly { installed: boolean }[];
   tests: readonly { state: string }[];
+  /** CD-213 — defects against the work not yet verified. */
+  openDefects?: number;
 }
 
 export function evidenceOf(evidence: TaskEvidence) {
@@ -17,7 +21,8 @@ export function evidenceOf(evidence: TaskEvidence) {
     evidence.installs.filter((row) => !row.installed).length +
     evidence.tests.filter(
       (row) => row.state !== 'passed' && row.state !== 'waived',
-    ).length;
+    ).length +
+    (evidence.openDefects ?? 0);
   return { linked, missing, complete: linked > 0 && missing === 0 };
 }
 
@@ -41,5 +46,7 @@ export function evidenceNote(
   const state = evidenceOf(evidence);
   return to === 'done'
     ? `ปิดอัตโนมัติ — หลักฐานครบ ${state.linked} รายการ (จุดติดตั้ง ${evidence.installs.length} · ข้อทดสอบ ${evidence.tests.length})`
-    : `เปิดใหม่อัตโนมัติ — หลักฐานยังไม่ครบ ${state.missing} จาก ${state.linked} รายการ`;
+    : evidence.openDefects
+      ? `เปิดใหม่อัตโนมัติ — มีข้อบกพร่องที่ยังไม่ผ่านการทดสอบซ้ำ ${evidence.openDefects} รายการ`
+      : `เปิดใหม่อัตโนมัติ — หลักฐานยังไม่ครบ ${state.missing} จาก ${state.linked} รายการ`;
 }

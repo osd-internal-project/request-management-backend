@@ -37,3 +37,23 @@ describe('CD-218 task evidence', () => {
     );
   });
 });
+
+describe('CD-213 open defects hold the work', () => {
+  it('a task proved by its tests stays open while a defect is unverified', () => {
+    const passed = { installs: [], tests: [{ state: 'passed' }] };
+    expect(evidenceMove('in_progress', passed)).toBe('done');
+    expect(
+      evidenceMove('in_progress', { ...passed, openDefects: 1 }),
+    ).toBeNull();
+    expect(evidenceMove('done', { ...passed, openDefects: 1 })).toBe(
+      'in_progress',
+    );
+    expect(evidenceNote('in_progress', { ...passed, openDefects: 2 })).toBe(
+      'เปิดใหม่อัตโนมัติ — มีข้อบกพร่องที่ยังไม่ผ่านการทดสอบซ้ำ 2 รายการ',
+    );
+    // defects alone are not evidence of the work
+    expect(
+      evidenceMove('in_progress', { installs: [], tests: [], openDefects: 0 }),
+    ).toBeNull();
+  });
+});

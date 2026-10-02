@@ -48,6 +48,8 @@ import {
   SaveInstallationDto,
   SaveSurveyDto,
   AddDevItemsDto,
+  MoveDefectDto,
+  SaveDefectDto,
   SurveyPhotoDto,
   SaveDesignDto,
   SaveTechPlanDto,
@@ -95,6 +97,7 @@ import { DesignsService } from './designs.service';
 import { TechPlanService } from './tech-plan.service';
 import { SurveysService } from './surveys.service';
 import { DevPlanService } from './dev-plan.service';
+import { DefectsService } from './defects.service';
 import { MAX_TASK_FILE_BYTES, TaskWorkService } from './task-work.service';
 import { MAX_FILES_PER_UPDATE } from './task-rules';
 import { ProjectsService } from './projects.service';
@@ -132,6 +135,7 @@ export class ProjectsController {
     private readonly techPlan: TechPlanService,
     private readonly surveys: SurveysService,
     private readonly devPlan: DevPlanService,
+    private readonly defects: DefectsService,
   ) {}
 
   @ApiOperation({ summary: 'รายการโครงการ (ทั้งบริษัท หรือของฉัน)' })
@@ -842,6 +846,47 @@ export class ProjectsController {
       type: file.mimeType,
       disposition: `inline; filename*=UTF-8''${encodeURIComponent(file.fileName)}`,
     });
+  }
+
+  // --- CD-213 ติดตามงานพัฒนาและข้อบกพร่อง ----------------------------------------------
+
+  @ApiOperation({
+    summary:
+      'ข้อ SOW ของงานพัฒนา ผลทดสอบ และข้อบกพร่อง — ข้อที่ยังพิสูจน์ไม่ได้ค้างเป็นรายการ',
+  })
+  @Get(':id/defects')
+  @Permissions('notification.read')
+  viewDefects(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.defects.view(id, principal);
+  }
+
+  @ApiOperation({ summary: 'บันทึกข้อบกพร่อง (ทีมโครงการ) ผูกกับข้อ SOW' })
+  @Post(':id/defects')
+  @Permissions('notification.read')
+  addDefect(
+    @Param('id') id: string,
+    @Body() dto: SaveDefectDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.defects.add(id, dto, principal);
+  }
+
+  @ApiOperation({
+    summary:
+      'แก้แล้ว · ทดสอบซ้ำผ่าน · ทดสอบซ้ำไม่ผ่าน (เปิดใหม่) · ยกเลิก (ผู้จัดการโครงการ)',
+  })
+  @Post(':id/defects/:defectId/move')
+  @Permissions('notification.read')
+  moveDefect(
+    @Param('id') id: string,
+    @Param('defectId') defectId: string,
+    @Body() dto: MoveDefectDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.defects.move(id, defectId, dto, principal);
   }
 
   // --- CD-212 แผนงานพัฒนาซอฟต์แวร์ ---------------------------------------------------
