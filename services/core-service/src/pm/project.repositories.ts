@@ -538,3 +538,17 @@ export class ProjectDeploymentRepository extends BaseRepository<
     return client.projectDeployment;
   }
 }
+
+/** CD-215. */
+@Injectable()
+export class ProjectSoftwareDocumentRepository extends BaseRepository<
+  PrismaService['projectSoftwareDocument']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.projectSoftwareDocument;
+  }
+}

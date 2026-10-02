@@ -221,6 +221,12 @@ export class CrmAdminService {
           'รายการอุปกรณ์และหมายเลขเครื่อง',
           'ผังการเชื่อมต่อระบบ',
         ],
+        projectSoftwareDocuments: [
+          'ข้อกำหนดซอฟต์แวร์',
+          'คู่มือผู้ใช้',
+          'คู่มือผู้ดูแลระบบ',
+          'เอกสารจุดเชื่อมต่อ (API)',
+        ],
         projectReadinessChecklist: [
           'หน้างานสะอาดเรียบร้อย',
           'ติดป้ายและฉลากอุปกรณ์ครบ',
@@ -275,6 +281,17 @@ export class CrmAdminService {
         : [
             ...new Set(
               dto.project_as_built_documents
+                .map((title) => title.trim())
+                .filter(Boolean),
+            ),
+          ];
+    // CD-215 — blank names dropped, each name once
+    const softwareDocuments =
+      dto.project_software_documents === undefined
+        ? undefined
+        : [
+            ...new Set(
+              dto.project_software_documents
                 .map((title) => title.trim())
                 .filter(Boolean),
             ),
@@ -339,6 +356,9 @@ export class CrmAdminService {
               projectHealthRed: dto.project_health_red ?? 40,
               ...(asBuiltDocuments
                 ? { projectAsBuiltDocuments: asBuiltDocuments }
+                : {}),
+              ...(softwareDocuments
+                ? { projectSoftwareDocuments: softwareDocuments }
                 : {}),
               ...(readinessChecklist
                 ? { projectReadinessChecklist: readinessChecklist }
@@ -406,6 +426,7 @@ export class CrmAdminService {
               projectHealthRed: dto.project_health_red,
               projectReadinessChecklist: readinessChecklist,
               projectAsBuiltDocuments: asBuiltDocuments,
+              projectSoftwareDocuments: softwareDocuments,
               solutionRequestTypeCode:
                 dto.solution_request_type_code === undefined
                   ? undefined

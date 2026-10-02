@@ -28,6 +28,7 @@ import { ProjectsService } from './projects.service';
 import { TestsService } from './tests.service';
 import { AsBuiltService } from './as-built.service';
 import { UatService } from './uat.service';
+import { SoftwareDocsService } from './software-docs.service';
 
 interface LineRow {
   id: string;
@@ -74,6 +75,7 @@ export class ReadinessService {
     private readonly notifications: NotificationsService,
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
+    private readonly softwareDocs: SoftwareDocsService,
   ) {}
 
   async view(projectId: string, actor: Principal) {
@@ -111,13 +113,15 @@ export class ReadinessService {
 
   /** For acceptance (CD-189): ready or not, and what stands in the way. */
   async state(projectId: string, companyId: string) {
-    const [rows, coverage, issuesOpen, asBuilt, uat] = await Promise.all([
-      this.rows(projectId),
-      this.tests.coverage(projectId),
-      this.issues.count({ where: { projectId, status: 'open' } }),
-      this.asBuilt.state(projectId, companyId),
-      this.uat.state(projectId),
-    ]);
+    const [rows, coverage, issuesOpen, asBuilt, uat, software] =
+      await Promise.all([
+        this.rows(projectId),
+        this.tests.coverage(projectId),
+        this.issues.count({ where: { projectId, status: 'open' } }),
+        this.asBuilt.state(projectId, companyId),
+        this.uat.state(projectId),
+        this.softwareDocs.state(projectId, companyId),
+      ]);
     const checks = systemChecks({
       tests: coverage,
       issuesOpen,
@@ -127,6 +131,11 @@ export class ReadinessService {
           asBuilt.missingDocuments.length + asBuilt.openDeviations.length,
       },
       uatBlocking: uat.blocking,
+      softwareDocs: software && {
+        complete: software.complete,
+        version: software.target?.version ?? null,
+        missing: software.missing.length,
+      },
     });
     return { checks, readiness: readiness(rows, checks) };
   }

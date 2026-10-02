@@ -2435,6 +2435,8 @@ model CrmCompanyConfig {
   projectReadinessChecklist        String[] @default(["หน้างานสะอาดเรียบร้อย", "ติดป้ายและฉลากอุปกรณ์ครบ", "อบรมผู้ใช้งานแล้ว", "สำรองค่าตั้งค่าระบบแล้ว"])
   /// CD-226 — the as-built documents every project must leave, by name.
   projectAsBuiltDocuments          String[] @default(["แบบติดตั้งจริง", "รายการอุปกรณ์และหมายเลขเครื่อง", "ผังการเชื่อมต่อระบบ"])
+  /// CD-215 — the software documents a software project must leave, per version.
+  projectSoftwareDocuments         String[] @default(["ข้อกำหนดซอฟต์แวร์", "คู่มือผู้ใช้", "คู่มือผู้ดูแลระบบ", "เอกสารจุดเชื่อมต่อ (API)"])
 
   /// CD-130: ประเภทคำขอ "ขอ Solution และประเมินต้นทุน" (Sales → Pre-Sales) — การ์ด Solution
   /// บนหน้าดีลยื่นประเภทนี้. ช่องบังคับของฟอร์มประเภทนี้คือรายการตรวจความครบ (จุดส่งต่อที่ 2).
@@ -4989,6 +4991,7 @@ model Project {
   defects           ProjectDefect[]
   environments      ProjectEnvironment[]
   releases          ProjectRelease[]
+  softwareDocuments ProjectSoftwareDocument[]
 
   @@unique([companyId, projectNo])
   @@index([companyId, status])
@@ -6331,8 +6334,9 @@ model ProjectRelease {
   createdAt DateTime @default(now())
   createdBy String
 
-  project     Project             @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  project     Project                   @relation(fields: [projectId], references: [id], onDelete: Restrict)
   deployments ProjectDeployment[]
+  documents   ProjectSoftwareDocument[]
 
   @@unique([projectId, version])
   @@map("project_releases")
@@ -6357,4 +6361,30 @@ model ProjectDeployment {
 
   @@index([environmentId, deployedAt])
   @@map("project_deployments")
+}
+
+/// CD-215 เอกสารซอฟต์แวร์ — specifications, manuals, interface documents:
+/// the software's as-built, each file for one release (CD-214). A file
+/// carried to a later release shares the stored object.
+model ProjectSoftwareDocument {
+  id         String    @id @default(uuid())
+  companyId  String
+  projectId  String
+  releaseId  String
+  title      String
+  note       String?
+  fileName   String
+  mimeType   String
+  sizeBytes  Int
+  storageKey String
+  uploadedBy String
+  uploadedAt DateTime  @default(now())
+  deletedAt  DateTime?
+  deletedBy  String?
+
+  project Project        @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  release ProjectRelease @relation(fields: [releaseId], references: [id], onDelete: Restrict)
+
+  @@index([projectId, releaseId])
+  @@map("project_software_documents")
 }

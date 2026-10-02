@@ -825,6 +825,14 @@ export class UpdateCrmConfigDto {
   @MaxLength(255, { each: true })
   project_as_built_documents?: string[];
 
+  /** CD-215: ชื่อเอกสารซอฟต์แวร์ที่โครงการซอฟต์แวร์ต้องมีต่อเวอร์ชัน. */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsString({ each: true })
+  @MaxLength(255, { each: true })
+  project_software_documents?: string[];
+
   /**
    * CD-130: รหัสประเภทคำขอ "ขอ Solution และประเมินต้นทุน" (Sales → Pre-Sales).
    * ส่ง `""` = ล้าง (หน้าดีลไม่แสดงการ์ด Solution).

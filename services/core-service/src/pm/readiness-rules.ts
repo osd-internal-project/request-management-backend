@@ -30,7 +30,14 @@ export function systemChecks(facts: {
   asBuilt: { complete: boolean; missing: number };
   /** CD-222 — UAT blockers not yet confirmed fixed by the customer. */
   uatBlocking: readonly string[];
+  /** CD-215 — software projects only; null for the rest. */
+  softwareDocs?: {
+    complete: boolean;
+    version: string | null;
+    missing: number;
+  } | null;
 }): SystemCheck[] {
+  const softwareDocs = facts.softwareDocs;
   return [
     {
       key: 'tests',
@@ -62,6 +69,20 @@ export function systemChecks(facts: {
       ok: facts.uatBlocking.length === 0,
       detail: facts.uatBlocking.length ? facts.uatBlocking.join(', ') : null,
     },
+    ...(softwareDocs
+      ? [
+          {
+            key: 'software_docs',
+            label: 'เอกสารซอฟต์แวร์ครบตามเวอร์ชันที่ส่งมอบ',
+            ok: softwareDocs.complete,
+            detail: softwareDocs.complete
+              ? null
+              : softwareDocs.version
+                ? `เวอร์ชัน ${softwareDocs.version} ค้าง ${softwareDocs.missing} รายการ`
+                : 'ยังไม่มีเวอร์ชันที่ส่งมอบ',
+          },
+        ]
+      : []),
   ];
 }
 

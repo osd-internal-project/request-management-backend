@@ -50,6 +50,7 @@ import {
   ProjectDeploymentRepository,
   ProjectEnvironmentRepository,
   ProjectReleaseRepository,
+  ProjectSoftwareDocumentRepository,
   ProjectDesignRepository,
   ProjectDesignFileRepository,
   ProjectTaskEquipmentRepository,
@@ -77,6 +78,7 @@ import { SurveysService } from './surveys.service';
 import { DevPlanService } from './dev-plan.service';
 import { DefectsService } from './defects.service';
 import { ReleasesService } from './releases.service';
+import { SoftwareDocsService } from './software-docs.service';
 import { TaskEvidenceService } from './task-evidence.service';
 import { DesignsService } from './designs.service';
 import { TechPlanService } from './tech-plan.service';
@@ -283,6 +285,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       });
       await prisma.projectTask.deleteMany({ where: { projectId } });
       await prisma.projectMilestone.deleteMany({ where: { projectId } });
+      await prisma.projectSoftwareDocument.deleteMany({ where: { projectId } });
       await prisma.projectDeployment.deleteMany({
         where: { release: { projectId } },
       });
@@ -3326,6 +3329,127 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       }
     });
 
+    it('CD-215: software documents per version — complete for the version on production, carried forward when unchanged, a readiness check only for software projects', async () => {
+      const client = prisma as never;
+      const transactions = {
+        execute: (work: (tx: unknown) => Promise<unknown>) =>
+          prisma.$transaction((tx) => work(tx)),
+      } as never;
+      const audit = { record: () => Promise.resolve() } as never;
+      const files = new Map<string, Buffer>();
+      const storage = {
+        put: (key: string, body: Buffer) => {
+          files.set(key, body);
+          return Promise.resolve();
+        },
+        remove: () => Promise.resolve(),
+        get: (key: string) => Promise.resolve(Readable.from([files.get(key)!])),
+      };
+      const docs = new SoftwareDocsService(
+        projects,
+        new ProjectSoftwareDocumentRepository(client),
+        new ProjectReleaseRepository(client),
+        new ProjectEnvironmentRepository(client),
+        new ProjectDeploymentRepository(client),
+        new ProjectTaskRepository(client),
+        {
+          findFirst: () =>
+            Promise.resolve({
+              projectSoftwareDocuments: ['คู่มือผู้ใช้', 'เอกสาร API'],
+            }),
+        } as never,
+        new CompanyMemberRepository(client),
+        storage,
+        audit,
+        transactions,
+      );
+      const managerNow = as(engineer, ['notification.read']);
+      const crew = as(outsider, ['notification.read']);
+      const pdf = (name: string) => ({
+        originalname: name,
+        mimetype: 'application/pdf',
+        size: 4,
+        buffer: Buffer.from('%PDF'),
+      });
+      // CD-214 left UAT and production, production running 1.0.1
+      let view = await docs.view(projectId, crew);
+      expect(view.software).toBe(true);
+      expect(view.target).toMatchObject({
+        version: '1.0.1',
+        basis: 'production',
+      });
+      expect(view.missing).toEqual(['คู่มือผู้ใช้', 'เอกสาร API']);
+      const release = (version: string) =>
+        view.releases.find((row) => row.version === version)!.id;
+
+      // a file must say which version it describes
+      await expect(
+        docs.attach(projectId, { title: 'คู่มือผู้ใช้' }, pdf('a.pdf'), crew),
+      ).rejects.toThrow('ต้องเลือกเวอร์ชันที่เอกสารนี้อธิบาย');
+      // the manual written for 1.0.0 does not count for 1.0.1
+      view = await docs.attach(
+        projectId,
+        { title: 'คู่มือผู้ใช้', release_id: release('1.0.0') },
+        pdf('manual.pdf'),
+        crew,
+      );
+      expect(view.missing).toEqual(['คู่มือผู้ใช้', 'เอกสาร API']);
+      // unchanged for 1.0.1: carried forward, the same stored file
+      const manual = view.documents[0].id;
+      view = await docs.carry(projectId, manual, release('1.0.1'), crew);
+      await expect(
+        docs.carry(projectId, manual, release('1.0.1'), crew),
+      ).rejects.toThrow('เวอร์ชันนี้มีไฟล์นี้แล้ว');
+      expect(view.missing).toEqual(['เอกสาร API']);
+      expect(
+        new Set(
+          (
+            await prisma.projectSoftwareDocument.findMany({
+              where: { projectId },
+              select: { storageKey: true },
+            })
+          ).map((row) => row.storageKey),
+        ).size,
+      ).toBe(1);
+
+      // readiness asks it of this (software) project
+      const software = await docs.state(projectId, 'any');
+      expect(software).toMatchObject({
+        complete: false,
+        missing: ['เอกสาร API'],
+      });
+      view = await docs.attach(
+        projectId,
+        { title: 'เอกสาร API', release_id: release('1.0.1') },
+        pdf('api.pdf'),
+        crew,
+      );
+      expect(view).toMatchObject({ complete: true, missing: [] });
+      const file = await docs.download(projectId, view.documents[0].id, crew);
+      expect(file.fileName).toBe('api.pdf');
+
+      // only its uploader or the manager removes one
+      const api = view.documents.find((row) => row.title === 'เอกสาร API')!;
+      await expect(
+        docs.detach(projectId, api.id, as(randomUUID(), ['pm.project.read'])),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+      view = await docs.detach(projectId, api.id, managerNow);
+      expect(view.missing).toEqual(['เอกสาร API']);
+
+      // a project with no software work is not asked
+      const plain = await prisma.project
+        .findFirstOrThrow({
+          where: {
+            id: { not: projectId },
+            environments: { none: {} },
+            tasks: { none: { devKind: 'iteration' } },
+          },
+          select: { id: true },
+        })
+        .catch(() => null);
+      if (plain) expect(await docs.state(plain.id, 'any')).toBeNull();
+    });
+
     it('CD-210: a site survey synced from the device — the Solution assumptions checked one by one, each that differs a change request before it completes', async () => {
       const client = prisma as never;
       const transactions = {
@@ -3939,6 +4063,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         } as never,
         audit,
         transactions,
+        { state: () => Promise.resolve(null) } as never,
       );
       const managerNow = as(engineer, ['notification.read']);
       const crew = as(outsider, ['notification.read']);
@@ -4115,6 +4240,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         {} as never,
         audit,
         transactions,
+        { state: () => Promise.resolve(null) } as never,
       );
       const files = new Map<string, Buffer>();
       const told: string[] = [];

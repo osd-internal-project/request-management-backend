@@ -1323,3 +1323,34 @@ export class DeployReleaseDto {
   @MaxLength(4000)
   override_reason?: string;
 }
+
+/** CD-215 — a software document, for one release. */
+export class AttachSoftwareDocumentDto {
+  @ApiPropertyOptional({ example: 'คู่มือผู้ใช้' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  title?: string;
+
+  @ApiPropertyOptional({
+    description: 'เวอร์ชันที่เอกสารนี้อธิบาย (release id)',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  release_id?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  note?: string;
+}
+
+/** CD-215 — the same file, still right for a later release. */
+export class CarrySoftwareDocumentDto {
+  @ApiProperty()
+  @IsString()
+  @MaxLength(50)
+  release_id!: string;
+}

@@ -54,6 +54,8 @@ import {
   AddDevItemsDto,
   MoveDefectDto,
   DeployReleaseDto,
+  AttachSoftwareDocumentDto,
+  CarrySoftwareDocumentDto,
   SaveEnvironmentDto,
   SaveReleaseDto,
   SaveDefectDto,
@@ -106,6 +108,7 @@ import { SurveysService } from './surveys.service';
 import { DevPlanService } from './dev-plan.service';
 import { DefectsService } from './defects.service';
 import { ReleasesService } from './releases.service';
+import { SoftwareDocsService } from './software-docs.service';
 import { MAX_TASK_FILE_BYTES, TaskWorkService } from './task-work.service';
 import { MAX_FILES_PER_UPDATE } from './task-rules';
 import { ProjectsService } from './projects.service';
@@ -145,6 +148,7 @@ export class ProjectsController {
     private readonly devPlan: DevPlanService,
     private readonly defects: DefectsService,
     private readonly releases: ReleasesService,
+    private readonly softwareDocs: SoftwareDocsService,
   ) {}
 
   @ApiOperation({ summary: 'รายการโครงการ (ทั้งบริษัท หรือของฉัน)' })
@@ -851,6 +855,93 @@ export class ProjectsController {
     @CurrentPrincipal() principal: Principal,
   ): Promise<StreamableFile> {
     const file = await this.installations.photo(id, pointId, which, principal);
+    return new StreamableFile(file.stream, {
+      type: file.mimeType,
+      disposition: `inline; filename*=UTF-8''${encodeURIComponent(file.fileName)}`,
+    });
+  }
+
+  // --- CD-215 เอกสารซอฟต์แวร์ --------------------------------------------------------
+
+  @ApiOperation({
+    summary: 'เอกสารซอฟต์แวร์ตามเวอร์ชัน และที่ยังค้างของเวอร์ชันที่ส่งมอบ',
+  })
+  @Get(':id/software-docs')
+  @Permissions('notification.read')
+  viewSoftwareDocs(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.softwareDocs.view(id, principal);
+  }
+
+  @ApiOperation({ summary: 'แนบเอกสารซอฟต์แวร์ของเวอร์ชันหนึ่ง (ทีมโครงการ)' })
+  @Post(':id/software-docs')
+  @Permissions('notification.read')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['title', 'release_id', 'file'],
+      properties: {
+        title: { type: 'string' },
+        release_id: { type: 'string' },
+        note: { type: 'string' },
+        file: { type: 'string', format: 'binary' },
+      },
+    },
+  })
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: MAX_EVIDENCE_BYTES },
+      defParamCharset: 'utf8',
+    }),
+  )
+  attachSoftwareDoc(
+    @Param('id') id: string,
+    @Body() dto: AttachSoftwareDocumentDto,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.softwareDocs.attach(id, dto, file, principal);
+  }
+
+  @ApiOperation({
+    summary: 'ใช้ไฟล์เดิมกับเวอร์ชันใหม่ (เนื้อหาไม่เปลี่ยน)',
+  })
+  @Post(':id/software-docs/:documentId/carry')
+  @Permissions('notification.read')
+  carrySoftwareDoc(
+    @Param('id') id: string,
+    @Param('documentId') documentId: string,
+    @Body() dto: CarrySoftwareDocumentDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.softwareDocs.carry(id, documentId, dto.release_id, principal);
+  }
+
+  @ApiOperation({
+    summary: 'นำเอกสารซอฟต์แวร์ออก (ผู้แนบหรือผู้จัดการโครงการ)',
+  })
+  @Delete(':id/software-docs/:documentId')
+  @Permissions('notification.read')
+  detachSoftwareDoc(
+    @Param('id') id: string,
+    @Param('documentId') documentId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.softwareDocs.detach(id, documentId, principal);
+  }
+
+  @ApiOperation({ summary: 'ไฟล์เอกสารซอฟต์แวร์' })
+  @Get(':id/software-docs/:documentId/file')
+  @Permissions('notification.read')
+  async softwareDocFile(
+    @Param('id') id: string,
+    @Param('documentId') documentId: string,
+    @CurrentPrincipal() principal: Principal,
+  ): Promise<StreamableFile> {
+    const file = await this.softwareDocs.download(id, documentId, principal);
     return new StreamableFile(file.stream, {
       type: file.mimeType,
       disposition: `inline; filename*=UTF-8''${encodeURIComponent(file.fileName)}`,

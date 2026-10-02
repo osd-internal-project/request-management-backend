@@ -31,6 +31,7 @@ import { SurveysService } from './surveys.service';
 import { DevPlanService } from './dev-plan.service';
 import { DefectsService } from './defects.service';
 import { ReleasesService } from './releases.service';
+import { SoftwareDocsService } from './software-docs.service';
 import { TaskEvidenceService } from './task-evidence.service';
 import { DesignsService } from './designs.service';
 import { TechPlanService } from './tech-plan.service';
@@ -76,6 +77,7 @@ import { TechPlanService } from './tech-plan.service';
     DevPlanService,
     DefectsService,
     ReleasesService,
+    SoftwareDocsService,
     TaskEvidenceService,
     DesignsService,
     TechPlanService,
