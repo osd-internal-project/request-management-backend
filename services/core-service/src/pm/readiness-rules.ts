@@ -28,6 +28,8 @@ export function systemChecks(facts: {
   issuesOpen: number;
   /** CD-226 — the as-built: documents and settled deviations. */
   asBuilt: { complete: boolean; missing: number };
+  /** CD-222 — UAT blockers not yet confirmed fixed by the customer. */
+  uatBlocking: readonly string[];
 }): SystemCheck[] {
   return [
     {
@@ -53,6 +55,12 @@ export function systemChecks(facts: {
       detail: facts.asBuilt.complete
         ? null
         : `ค้าง ${facts.asBuilt.missing} รายการ`,
+    },
+    {
+      key: 'uat',
+      label: 'ประเด็น UAT ที่ปิดกั้นการใช้งานแก้และลูกค้ายืนยันครบ',
+      ok: facts.uatBlocking.length === 0,
+      detail: facts.uatBlocking.length ? facts.uatBlocking.join(', ') : null,
     },
   ];
 }

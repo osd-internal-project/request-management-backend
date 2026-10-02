@@ -885,3 +885,66 @@ export class AcceptanceItemDoneDto {
   @MaxLength(2000)
   note?: string;
 }
+
+/** CD-222 — a point raised in the customer's testing. */
+export class SaveUatFindingDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  title?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  description?: string;
+
+  @ApiPropertyOptional({ enum: ['blocker', 'major', 'minor'] })
+  @IsOptional()
+  @IsIn(['blocker', 'major', 'minor'])
+  severity?: string;
+
+  @ApiPropertyOptional({ description: 'ข้อทดสอบ (CD-221); "" = ไม่ผูก' })
+  @IsOptional()
+  @IsString()
+  test_item_id?: string;
+
+  @ApiPropertyOptional({ description: 'ผู้แจ้งฝั่งลูกค้า' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  reported_by?: string;
+
+  @ApiPropertyOptional({ example: '2026-10-08' })
+  @IsOptional()
+  @IsDateString()
+  reported_on?: string;
+
+  @ApiPropertyOptional({ description: 'ผู้รับผิดชอบ; "" = ไม่ระบุ' })
+  @IsOptional()
+  @IsString()
+  owner_user_id?: string;
+}
+
+/** CD-222 — a UAT point moved: fixed, confirmed, reopened, deferred. */
+export class MoveUatDto {
+  @ApiPropertyOptional({
+    description: 'วิธีแก้ / เหตุผลที่เปิดใหม่ / เหตุผลที่เลื่อน',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  note?: string;
+
+  @ApiPropertyOptional({ description: 'ผู้ยืนยันฝั่งลูกค้า' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  confirmed_by?: string;
+
+  @ApiPropertyOptional({ example: '2026-10-08' })
+  @IsOptional()
+  @IsDateString()
+  confirmed_on?: string;
+}

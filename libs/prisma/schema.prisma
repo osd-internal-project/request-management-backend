@@ -4970,6 +4970,8 @@ model Project {
   asBuiltDeviations ProjectAsBuiltDeviation[]
   /// CD-189 — รอบตรวจรับ.
   acceptances       ProjectAcceptance[]
+  /// CD-222 — ประเด็นจากการทดสอบของลูกค้า (UAT).
+  uatFindings       ProjectUatFinding[]
 
   @@unique([companyId, projectNo])
   @@index([companyId, status])
@@ -5850,3 +5852,48 @@ model PricingException {
   @@index([opportunityId])
   @@map("pricing_exceptions")
 }
+
+/// CD-222 — a point the customer raised while testing (U-n), with how
+/// serious it is: a blocker stops the work being used, so it must be fixed
+/// and the fix confirmed by the customer before acceptance (a system check
+/// of the readiness review, CD-225); a major or minor one may instead be
+/// deferred past acceptance, with the reason. Fixed → confirmed records who
+/// at the customer confirmed it and when; a fix the customer does not
+/// accept reopens it.
+model ProjectUatFinding {
+  id              String    @id @default(uuid())
+  companyId       String
+  projectId       String
+  seq             Int
+  title           String
+  description     String?
+  /// blocker · major · minor
+  severity        String
+  /// The test item (CD-221) it was found under, if any.
+  testItemId      String?
+  /// Who at the customer raised it, and when.
+  reportedBy      String?
+  reportedOn      DateTime  @db.Date
+  ownerUserId     String?
+  /// open · fixed · confirmed · deferred
+  status          String    @default("open")
+  fixNote         String?
+  fixedAt         DateTime?
+  fixedBy         String?
+  confirmedByName String?
+  confirmedOn     DateTime? @db.Date
+  deferReason     String?
+  /// The last time the customer turned a fix down.
+  reopenNote      String?
+  createdAt       DateTime  @default(now())
+  createdBy       String
+  updatedAt       DateTime  @updatedAt
+  updatedBy       String?
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
+
+  @@unique([projectId, seq])
+  @@index([projectId, status])
+  @@map("project_uat_findings")
+}
+

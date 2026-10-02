@@ -42,6 +42,7 @@ import {
   ProjectAsBuiltDeviationRepository,
   ProjectAcceptanceRepository,
   ProjectAcceptanceItemRepository,
+  ProjectUatFindingRepository,
 } from './project.repositories';
 import { ProjectsService } from './projects.service';
 import { MilestonesService } from './milestones.service';
@@ -60,6 +61,7 @@ import { TestsService } from './tests.service';
 import { ReadinessService } from './readiness.service';
 import { AsBuiltService } from './as-built.service';
 import { AcceptanceService } from './acceptance.service';
+import { UatService } from './uat.service';
 import { ContractRiskAssessmentRepository } from '../crm/contract-risk.service';
 import { ContractObligationRepository } from '../crm/contract-obligations.service';
 import {
@@ -263,6 +265,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       });
       await prisma.projectTask.deleteMany({ where: { projectId } });
       await prisma.projectMilestone.deleteMany({ where: { projectId } });
+      await prisma.projectUatFinding.deleteMany({ where: { projectId } });
       await prisma.projectAcceptanceItem.deleteMany({
         where: { acceptance: { projectId } },
       });
@@ -2112,6 +2115,163 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       expect((await asBuilt.state(projectId, companyId)).complete).toBe(true);
     });
 
+    it('CD-222: UAT — points with their severity, fixes the customer confirms, and blockers that hold acceptance', async () => {
+      const client = prisma as never;
+      const transactions = {
+        execute: (work: (tx: unknown) => Promise<unknown>) =>
+          prisma.$transaction((tx) => work(tx)),
+      } as never;
+      const audit = { record: () => Promise.resolve() } as never;
+      const told: string[] = [];
+      const uat = new UatService(
+        projects,
+        new ProjectUatFindingRepository(client),
+        new ProjectTestItemRepository(client),
+        new CompanyMemberRepository(client),
+        {
+          uatAssigned: (
+            userId: string,
+            _c: string,
+            _p: unknown,
+            no: string,
+          ) => {
+            told.push(`${userId}:${no}`);
+            return Promise.resolve();
+          },
+        } as never,
+        audit,
+        transactions,
+      );
+      const managerNow = as(engineer, ['notification.read']);
+      const crew = as(outsider, ['notification.read']);
+      const now = new Date('2026-10-08T03:00:00Z');
+
+      // the team records what the customer found
+      await expect(
+        uat.add(
+          projectId,
+          { title: ' ', severity: 'blocker', reported_on: '2026-10-08' },
+          crew,
+          now,
+        ),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+      await uat.add(
+        projectId,
+        {
+          title: 'พิมพ์รายงานไม่ได้',
+          severity: 'blocker',
+          reported_by: 'คุณสมชาย',
+          reported_on: '2026-10-08',
+          owner_user_id: outsider,
+        },
+        managerNow,
+        now,
+      );
+      const added = await uat.add(
+        projectId,
+        {
+          title: 'สีปุ่มไม่ตรงแบบ',
+          severity: 'minor',
+          reported_on: '2026-10-07',
+        },
+        crew,
+        now,
+      );
+      expect(told).toEqual([`${outsider}:U-1`]);
+      expect(added.blocking).toEqual(['U-1']);
+      const [blocker, minor] = added.findings;
+      expect((await uat.state(projectId)).blocking).toEqual(['U-1']);
+
+      // a blocker cannot be deferred; only the manager defers the rest
+      await expect(
+        uat.move(
+          projectId,
+          blocker.id,
+          'defer',
+          { note: 'ทีหลัง' },
+          managerNow,
+          now,
+        ),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+      await expect(
+        uat.move(projectId, minor.id, 'defer', { note: 'เฟส 2' }, crew, now),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+      await uat.move(
+        projectId,
+        minor.id,
+        'defer',
+        { note: 'เฟส 2' },
+        managerNow,
+        now,
+      );
+
+      // fixed, turned down, fixed again, then confirmed by the customer
+      await expect(
+        uat.move(projectId, blocker.id, 'fix', {}, crew, now),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+      await uat.move(
+        projectId,
+        blocker.id,
+        'fix',
+        { note: 'แก้ไดรเวอร์เครื่องพิมพ์' },
+        crew,
+        now,
+      );
+      expect((await uat.state(projectId)).blocking).toEqual(['U-1']);
+      const reopened = await uat.move(
+        projectId,
+        blocker.id,
+        'reopen',
+        { note: 'ยังพิมพ์ภาษาไทยไม่ได้' },
+        crew,
+        now,
+      );
+      expect(reopened.findings[0]).toMatchObject({
+        status: 'open',
+        reopenNote: 'ยังพิมพ์ภาษาไทยไม่ได้',
+      });
+      await uat.move(
+        projectId,
+        blocker.id,
+        'fix',
+        { note: 'ติดตั้งฟอนต์ไทย' },
+        crew,
+        now,
+      );
+      await expect(
+        uat.move(
+          projectId,
+          blocker.id,
+          'confirm',
+          { confirmed_by: 'คุณสมชาย', confirmed_on: '2026-10-09' },
+          crew,
+          now,
+        ),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+      const confirmed = await uat.move(
+        projectId,
+        blocker.id,
+        'confirm',
+        { confirmed_by: 'คุณสมชาย', confirmed_on: '2026-10-08' },
+        crew,
+        now,
+      );
+      expect(confirmed).toMatchObject({
+        blocking: [],
+        confirmed: 1,
+        deferred: 1,
+      });
+      expect(confirmed.findings[0]).toMatchObject({
+        status: 'confirmed',
+        confirmedByName: 'คุณสมชาย',
+        confirmedOn: '2026-10-08',
+      });
+      // a confirmed point is no longer open to edits
+      await expect(
+        uat.update(projectId, blocker.id, { title: 'อื่น' }, crew, now),
+      ).rejects.toMatchObject({ code: 'CONFLICT' });
+    });
+
     it('CD-225: the readiness check — the company checklist, named inspectors, and the checks the system makes', async () => {
       const client = prisma as never;
       const transactions = {
@@ -2147,6 +2307,15 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
             findFirst: () =>
               Promise.resolve({ projectAsBuiltDocuments: ['แบบติดตั้งจริง'] }),
           } as never,
+          new CompanyMemberRepository(client),
+          {} as never,
+          audit,
+          transactions,
+        ),
+        new UatService(
+          projects,
+          new ProjectUatFindingRepository(client),
+          new ProjectTestItemRepository(client),
           new CompanyMemberRepository(client),
           {} as never,
           audit,
@@ -2321,6 +2490,15 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
             findFirst: () =>
               Promise.resolve({ projectAsBuiltDocuments: ['แบบติดตั้งจริง'] }),
           } as never,
+          new CompanyMemberRepository(client),
+          {} as never,
+          audit,
+          transactions,
+        ),
+        new UatService(
+          projects,
+          new ProjectUatFindingRepository(client),
+          new ProjectTestItemRepository(client),
           new CompanyMemberRepository(client),
           {} as never,
           audit,

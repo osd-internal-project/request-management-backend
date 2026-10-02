@@ -385,3 +385,17 @@ export class ProjectAcceptanceItemRepository extends BaseRepository<
     return client.projectAcceptanceItem;
   }
 }
+
+/** CD-222 ประเด็นจาก UAT. */
+@Injectable()
+export class ProjectUatFindingRepository extends BaseRepository<
+  PrismaService['projectUatFinding']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.projectUatFinding;
+  }
+}

@@ -9,6 +9,7 @@ const allGood = systemChecks({
   tests: { complete: true, total: 3, passed: 3 },
   issuesOpen: 0,
   asBuilt: { complete: true, missing: 0 },
+  uatBlocking: [],
 });
 
 describe('CD-225 readiness rules', () => {
@@ -18,17 +19,20 @@ describe('CD-225 readiness rules', () => {
       tests: { complete: false, total: 4, passed: 1 },
       issuesOpen: 2,
       asBuilt: { complete: false, missing: 3 },
+      uatBlocking: ['U-1'],
     });
     expect(bad.map((check) => [check.key, check.detail])).toEqual([
       ['tests', 'ผ่าน 1/4'],
       ['issues', 'ค้าง 2 ข้อ'],
       ['as_built', 'ค้าง 3 รายการ'],
+      ['uat', 'U-1'],
     ]);
     expect(
       systemChecks({
         tests: { complete: false, total: 0, passed: 0 },
         issuesOpen: 0,
         asBuilt: { complete: true, missing: 0 },
+        uatBlocking: [],
       })[0].detail,
     ).toBe('ยังไม่มีข้อทดสอบ');
   });
@@ -77,6 +81,7 @@ describe('CD-225 readiness rules', () => {
         tests: { complete: false, total: 2, passed: 1 },
         issuesOpen: 0,
         asBuilt: { complete: true, missing: 0 },
+        uatBlocking: [],
       }),
     );
     expect(notYet).toMatchObject({ ready: false, failed: 1, unchecked: 1 });

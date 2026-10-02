@@ -277,6 +277,18 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
     },
   },
   {
+    eventType: 'pm.uat.assigned',
+    label: 'ได้รับมอบหมายประเด็นจาก UAT (ถึงผู้รับผิดชอบ)',
+    title: 'โครงการ {{project_no}}: {{finding_no}} {{title}}',
+    body: '{{project_name}} — แก้แล้วบันทึกวิธีแก้ที่การ์ด UAT ในหน้าโครงการ',
+    variables: {
+      project_no: { label: 'เลขที่โครงการ', sample: 'PRJ-OSD-000012' },
+      project_name: { label: 'ชื่อโครงการ', sample: 'ระบบกล้องอาคาร A' },
+      finding_no: { label: 'เลขที่ประเด็น', sample: 'U-3' },
+      title: { label: 'ประเด็น', sample: 'พิมพ์รายงานไม่ได้' },
+    },
+  },
+  {
     eventType: 'pm.acceptance.item_assigned',
     label: 'ได้รับมอบหมายรายการค้างจากการตรวจรับ (ถึงผู้รับผิดชอบ)',
     title: 'โครงการ {{project_no}}: รายการค้างจากการตรวจรับ {{round}}',

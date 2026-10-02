@@ -607,6 +607,29 @@ export class NotificationsService {
     });
   }
 
+  /** CD-222 — someone was handed a UAT point to fix. */
+  async uatAssigned(
+    userId: string,
+    companyId: string,
+    project: { id: string; projectNo: string; name: string },
+    findingNo: string,
+    title: string,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'pm.uat.assigned',
+      values: {
+        project_no: project.projectNo,
+        project_name: project.name,
+        finding_no: findingNo,
+        title,
+      },
+      resourceType: 'project',
+      resourceId: project.id,
+    });
+  }
+
   /** CD-189 — someone owns an open point from an acceptance. */
   async acceptanceItemAssigned(
     userId: string,

@@ -39,6 +39,8 @@ import {
   BookAcceptanceDto,
   RecordAcceptanceDto,
   AcceptanceItemDoneDto,
+  SaveUatFindingDto,
+  MoveUatDto,
   ListProjectsQueryDto,
   OpenProjectDto,
   SaveMilestoneDto,
@@ -74,6 +76,7 @@ import { TestsService } from './tests.service';
 import { ReadinessService } from './readiness.service';
 import { AsBuiltService } from './as-built.service';
 import { AcceptanceService } from './acceptance.service';
+import { UatService } from './uat.service';
 import { MAX_TASK_FILE_BYTES, TaskWorkService } from './task-work.service';
 import { MAX_FILES_PER_UPDATE } from './task-rules';
 import { ProjectsService } from './projects.service';
@@ -105,6 +108,7 @@ export class ProjectsController {
     private readonly readiness: ReadinessService,
     private readonly asBuilt: AsBuiltService,
     private readonly acceptance: AcceptanceService,
+    private readonly uat: UatService,
   ) {}
 
   @ApiOperation({ summary: 'รายการโครงการ (ทั้งบริษัท หรือของฉัน)' })
@@ -569,6 +573,56 @@ export class ProjectsController {
       type: file.mimeType,
       disposition: `inline; filename*=UTF-8''${encodeURIComponent(file.fileName)}`,
     });
+  }
+
+  // --- CD-222 UAT -------------------------------------------------------------------
+
+  @ApiOperation({
+    summary: 'ประเด็นจากการทดสอบของลูกค้า (UAT) และที่ปิดกั้นการตรวจรับ',
+  })
+  @Get(':id/uat')
+  @Permissions('notification.read')
+  viewUat(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.uat.view(id, principal);
+  }
+
+  @ApiOperation({ summary: 'บันทึกประเด็น UAT (ทีมโครงการ)' })
+  @Post(':id/uat')
+  @Permissions('notification.read')
+  addUat(
+    @Param('id') id: string,
+    @Body() dto: SaveUatFindingDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.uat.add(id, dto, principal);
+  }
+
+  @ApiOperation({ summary: 'แก้ประเด็น UAT ที่ยังเปิดอยู่' })
+  @Patch(':id/uat/:findingId')
+  @Permissions('notification.read')
+  updateUat(
+    @Param('id') id: string,
+    @Param('findingId') findingId: string,
+    @Body() dto: SaveUatFindingDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.uat.update(id, findingId, dto, principal);
+  }
+
+  @ApiOperation({
+    summary:
+      'เปลี่ยนสถานะประเด็น UAT: fix · confirm · reopen · defer · undefer (เลื่อนได้เฉพาะผู้จัดการ)',
+  })
+  @Post(':id/uat/:findingId/:action')
+  @Permissions('notification.read')
+  moveUat(
+    @Param('id') id: string,
+    @Param('findingId') findingId: string,
+    @Param('action') action: string,
+    @Body() dto: MoveUatDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.uat.move(id, findingId, action, dto, principal);
   }
 
   // --- CD-189 acceptance -------------------------------------------------------------

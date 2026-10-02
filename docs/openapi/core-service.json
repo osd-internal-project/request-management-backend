@@ -17120,6 +17120,222 @@
         ]
       }
     },
+    "/api/v1/projects/{id}/uat": {
+      "get": {
+        "operationId": "ProjectsController_viewUat",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ประเด็นจากการทดสอบของลูกค้า (UAT) และที่ปิดกั้นการตรวจรับ",
+        "tags": [
+          "projects"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      },
+      "post": {
+        "operationId": "ProjectsController_addUat",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveUatFindingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "บันทึกประเด็น UAT (ทีมโครงการ)",
+        "tags": [
+          "projects"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/projects/{id}/uat/{findingId}": {
+      "patch": {
+        "operationId": "ProjectsController_updateUat",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "findingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveUatFindingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แก้ประเด็น UAT ที่ยังเปิดอยู่",
+        "tags": [
+          "projects"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/projects/{id}/uat/{findingId}/{action}": {
+      "post": {
+        "operationId": "ProjectsController_moveUat",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "findingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "action",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MoveUatDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เปลี่ยนสถานะประเด็น UAT: fix · confirm · reopen · defer · undefer (เลื่อนได้เฉพาะผู้จัดการ)",
+        "tags": [
+          "projects"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      }
+    },
     "/api/v1/projects/{id}/acceptances": {
       "get": {
         "operationId": "ProjectsController_viewAcceptances",
@@ -28672,6 +28888,65 @@
             "type": "string",
             "description": "เหตุผลที่ยกเว้น; \"\" = ยกเลิกการยกเว้น",
             "maxLength": 2000
+          }
+        }
+      },
+      "SaveUatFindingDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "blocker",
+              "major",
+              "minor"
+            ]
+          },
+          "test_item_id": {
+            "type": "string",
+            "description": "ข้อทดสอบ (CD-221); \"\" = ไม่ผูก"
+          },
+          "reported_by": {
+            "type": "string",
+            "description": "ผู้แจ้งฝั่งลูกค้า",
+            "maxLength": 255
+          },
+          "reported_on": {
+            "type": "string",
+            "example": "2026-10-08",
+            "format": "date-time"
+          },
+          "owner_user_id": {
+            "type": "string",
+            "description": "ผู้รับผิดชอบ; \"\" = ไม่ระบุ"
+          }
+        }
+      },
+      "MoveUatDto": {
+        "type": "object",
+        "properties": {
+          "note": {
+            "type": "string",
+            "description": "วิธีแก้ / เหตุผลที่เปิดใหม่ / เหตุผลที่เลื่อน",
+            "maxLength": 4000
+          },
+          "confirmed_by": {
+            "type": "string",
+            "description": "ผู้ยืนยันฝั่งลูกค้า",
+            "maxLength": 255
+          },
+          "confirmed_on": {
+            "type": "string",
+            "example": "2026-10-08",
+            "format": "date-time"
           }
         }
       },
