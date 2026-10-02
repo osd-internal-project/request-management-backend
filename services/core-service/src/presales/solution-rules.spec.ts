@@ -1,5 +1,6 @@
 import {
   cleanLabor,
+  withoutLaborCost,
   cleanQuoteLines,
   costEstimate,
   vendorQuoteItems,
@@ -814,23 +815,72 @@ describe('CD-136 cost estimate rules', () => {
     lines,
   });
 
-  it('labour takes its rate from the table; an unknown role or no table is named', () => {
-    const rates = [{ role: 'Engineer', rate: 4500 }];
+  it('CD-207 labour takes its rate from HR by level × work type; a missing pair is named', () => {
+    const rates = [
+      {
+        levelCode: 'SE-2',
+        workTypeCode: 'INSTALL',
+        label: 'SE-2 วิศวกรอาวุโส · ติดตั้ง',
+        rate: 6000,
+      },
+    ];
     expect(
-      cleanLabor([{ role: ' Engineer ', mandays: 10, note: 'ติดตั้ง' }], rates),
+      cleanLabor(
+        [
+          {
+            level_code: 'SE-2',
+            work_type_code: 'INSTALL',
+            mandays: 10,
+            note: ' หน้างาน ',
+          },
+        ],
+        rates,
+      ),
     ).toEqual({
-      lines: [{ role: 'Engineer', mandays: 10, rate: 4500, note: 'ติดตั้ง' }],
+      lines: [
+        {
+          role: 'SE-2 วิศวกรอาวุโส · ติดตั้ง',
+          levelCode: 'SE-2',
+          workTypeCode: 'INSTALL',
+          mandays: 10,
+          rate: 6000,
+          note: 'หน้างาน',
+        },
+      ],
       problems: [],
     });
     expect(
-      cleanLabor([{ role: 'PM', mandays: 1 }], rates).problems[0],
-    ).toContain('ไม่มีบทบาท "PM"');
-    expect(cleanLabor([{ role: 'PM', mandays: 1 }], []).problems).toEqual([
-      'ยังไม่ได้ตั้งอัตราต้นทุนแรงงานในตั้งค่า CRM',
-    ]);
+      cleanLabor(
+        [{ level_code: 'PM', work_type_code: 'INSTALL', mandays: 1 }],
+        rates,
+      ).problems[0],
+    ).toContain('ระดับ PM ประเภทงาน INSTALL');
     expect(
-      cleanLabor([{ role: 'Engineer', mandays: 0 }], rates).problems[0],
+      cleanLabor([{ level_code: 'PM', work_type_code: 'X', mandays: 1 }], [])
+        .problems,
+    ).toEqual(['ยังไม่มีอัตราต้นทุนคนที่ HR (ทะเบียนอัตราต้นทุนบุคลากร)']);
+    expect(
+      cleanLabor(
+        [{ level_code: 'SE-2', work_type_code: 'INSTALL', mandays: 0 }],
+        rates,
+      ).problems[0],
     ).toContain('manday');
+  });
+
+  it('CD-207 without hr.rate.read the estimate shows mandays only', () => {
+    const hidden = withoutLaborCost({
+      labor: [{ role: 'x', mandays: 2, rate: 5000, note: '' }],
+      labor_total: 10000,
+      total: 50000,
+      materials_total: 40000,
+    });
+    expect(hidden).toMatchObject({
+      labor: [{ role: 'x', mandays: 2, rate: null }],
+      labor_total: null,
+      total: null,
+      materials_total: 40000,
+      labor_hidden: true,
+    });
   });
 
   it('a quote prices lines by position and pins their product code', () => {

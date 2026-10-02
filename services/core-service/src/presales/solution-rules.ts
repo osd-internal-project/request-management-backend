@@ -1239,11 +1239,23 @@ export interface LaborRate {
 }
 
 export interface LaborLine {
+  /** What the line shows — "SE-2 วิศวกรอาวุโส · ติดตั้ง" (or an old role). */
   role: string;
+  /** CD-207 — HR's level and work type; absent on lines saved before it. */
+  levelCode?: string;
+  workTypeCode?: string;
   mandays: number;
-  /** Cost per manday, copied from the rate table when entered. */
+  /** Cost per manday, copied from HR's rate in effect when entered. */
   rate: number;
   note: string;
+}
+
+/** CD-207 — a level × work type rate in effect, as HR answers it. */
+export interface LaborRateOption {
+  levelCode: string;
+  workTypeCode: string;
+  label: string;
+  rate: number;
 }
 
 /** The settings' rate table, read defensively. */
@@ -1262,11 +1274,16 @@ export function readLabor(value: unknown): LaborLine[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((entry) => {
     if (!entry || typeof entry !== 'object') return [];
-    const { role, mandays, rate, note } = entry as Record<string, unknown>;
+    const { role, mandays, rate, note, levelCode, workTypeCode } =
+      entry as Record<string, unknown>;
     return typeof role === 'string' && role.trim() && finite(mandays)
       ? [
           {
             role: role.trim(),
+            ...(typeof levelCode === 'string' &&
+            typeof workTypeCode === 'string'
+              ? { levelCode, workTypeCode }
+              : {}),
             mandays,
             rate: finite(rate) ? rate : 0,
             note: typeof note === 'string' ? note.trim() : '',
@@ -1277,26 +1294,35 @@ export function readLabor(value: unknown): LaborLine[] {
 }
 
 /**
- * Labour lines as saved: the role must be in the rate table, whose rate is
- * copied in — a later change to the table does not reprice an estimate.
+ * CD-207 — labour lines as saved: a level × work type with a rate in effect
+ * at HR, whose rate is copied in — a later change at HR does not reprice an
+ * estimate until the line is entered again.
  */
 export function cleanLabor(
-  input: readonly { role?: string; mandays?: number; note?: string }[],
-  rates: readonly LaborRate[],
+  input: readonly {
+    level_code?: string;
+    work_type_code?: string;
+    mandays?: number;
+    note?: string;
+  }[],
+  rates: readonly LaborRateOption[],
 ): { lines: LaborLine[]; problems: string[] } {
   const problems: string[] = [];
   const lines: LaborLine[] = [];
-  const byRole = new Map(rates.map((rate) => [rate.role, rate.rate]));
+  const byPair = new Map(
+    rates.map((rate) => [`${rate.levelCode}|${rate.workTypeCode}`, rate]),
+  );
   input.forEach((entry, index) => {
-    const role = entry.role?.trim() ?? '';
-    if (!role) return;
+    const level = entry.level_code?.trim() ?? '';
+    const workType = entry.work_type_code?.trim() ?? '';
+    if (!level && !workType) return;
     const where = `แรงงานบรรทัด ${index + 1}`;
-    const rate = byRole.get(role);
-    if (rate === undefined) {
+    const rate = byPair.get(`${level}|${workType}`);
+    if (!rate) {
       problems.push(
         rates.length
-          ? `${where}: ไม่มีบทบาท "${role}" ในอัตราต้นทุนแรงงาน`
-          : 'ยังไม่ได้ตั้งอัตราต้นทุนแรงงานในตั้งค่า CRM',
+          ? `${where}: ยังไม่มีอัตราต้นทุนของระดับ ${level} ประเภทงาน ${workType} ที่ HR`
+          : 'ยังไม่มีอัตราต้นทุนคนที่ HR (ทะเบียนอัตราต้นทุนบุคลากร)',
       );
       return;
     }
@@ -1305,13 +1331,36 @@ export function cleanLabor(
       return;
     }
     lines.push({
-      role,
+      role: rate.label,
+      levelCode: rate.levelCode,
+      workTypeCode: rate.workTypeCode,
       mandays: entry.mandays,
-      rate,
+      rate: rate.rate,
       note: entry.note?.trim() ?? '',
     });
   });
   return { lines, problems: [...new Set(problems)] };
+}
+
+/**
+ * CD-207 — an estimate as someone without `hr.rate.read` sees it: labour by
+ * mandays only. The labour amount and the total are withheld too, or the
+ * rate would follow by division.
+ */
+export function withoutLaborCost<
+  T extends {
+    labor: LaborLine[];
+    labor_total: number;
+    total: number;
+  },
+>(estimate: T) {
+  return {
+    ...estimate,
+    labor: estimate.labor.map((line) => ({ ...line, rate: null })),
+    labor_total: null,
+    total: null,
+    labor_hidden: true,
+  };
 }
 
 export interface QuoteLine {

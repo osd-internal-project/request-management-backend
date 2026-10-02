@@ -30,6 +30,7 @@ import { SlaHttpModule } from './sla/sla-http.module';
 import { PresalesHttpModule } from './presales/presales-http.module';
 import { PmHttpModule } from './pm/pm-http.module';
 import { PricingHttpModule } from './pricing/pricing-http.module';
+import { HrHttpModule } from './hr/hr-http.module';
 import { SensitiveReadAuditRecorder } from './policy/sensitive-read.recorder';
 import configs from './configs';
 
@@ -64,6 +65,8 @@ import configs from './configs';
     PresalesHttpModule,
     // CD-12 Pricing — standard prices, cost and margin
     PricingHttpModule,
+    // CD-207 — HR's cost rates (part of CD-17).
+    HrHttpModule,
     // CD-18 PM — projects opened from signed contracts
     PmHttpModule,
     // CD-14 — the central signing service (screens + the public signing link)

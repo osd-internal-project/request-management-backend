@@ -1,3 +1,4 @@
+import { HrModule } from '../hr/hr.module';
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { StorageModule, type StorageOptions } from '@request-management/share';
@@ -26,6 +27,8 @@ import { ProposalService } from './proposal.service';
     ErpModule,
     // CD-198 — prices for a quotation started from a Solution
     PricingModule,
+    // CD-207 — HR's labour rates price the estimate.
+    HrModule,
     // Design files — storage for the HTTP half only, like CD-75's photos.
     StorageModule.forRootAsync({
       inject: [ConfigService],

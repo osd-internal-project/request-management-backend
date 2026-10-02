@@ -206,6 +206,10 @@ function harness(options: {
     audit as never,
     { execute: jest.fn((work: (p: unknown) => unknown) => work({})) } as never,
     storage,
+    // CD-207 — HR's pickers.
+    {
+      options: jest.fn(() => Promise.resolve({ levels: [], work_types: [] })),
+    } as never,
   );
   return { service, solutions, versionRepo, files, audit, timeline, storage };
 }
@@ -270,6 +274,34 @@ describe('CD-132 solutions', () => {
     await expect(
       harness({}).service.findOne('sol-1', outsider),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+
+  it('CD-207: labour rates, the labour amount and the total need hr.rate.read', async () => {
+    const labor = [
+      { role: 'SE-1 วิศวกร · ติดตั้ง', mandays: 4, rate: 4500, note: '' },
+    ];
+    const hidden = (await harness({
+      versions: [version({ labor })],
+    }).service.findOne('sol-1', presales)) as unknown as {
+      cost: {
+        labor: { rate: number | null }[];
+        labor_total: number | null;
+        total: number | null;
+      };
+      cost_settings: { labor_rates_visible: boolean };
+    };
+    expect(hidden.cost.labor[0].rate).toBeNull();
+    expect(hidden.cost.labor_total).toBeNull();
+    expect(hidden.cost.total).toBeNull();
+    expect(hidden.cost_settings.labor_rates_visible).toBe(false);
+
+    const shown = (await harness({
+      versions: [version({ labor })],
+    }).service.findOne('sol-1', {
+      ...presales,
+      permissions: [...presales.permissions, 'hr.rate.read'],
+    })) as unknown as { cost: { labor_total: number | null } };
+    expect(shown.cost.labor_total).toBe(18000);
   });
 
   it('ROLE-01: a salesperson cannot edit the design', async () => {

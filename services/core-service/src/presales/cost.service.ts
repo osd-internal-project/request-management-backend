@@ -1,3 +1,4 @@
+import { HrRatesService } from '../hr/hr-rates.service';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import {
@@ -24,7 +25,6 @@ import { SolutionsService } from './solutions.service';
 import {
   cleanLabor,
   cleanQuoteLines,
-  readLaborRates,
   vendorQuoteItems,
 } from './solution-rules';
 import type {
@@ -57,8 +57,8 @@ interface VersionRow {
  *
  * - the estimate belongs to a Solution version: each BOQ line is costed by
  *   the newest partner quote for it, else its reference cost; labour is
- *   mandays × the rate for a role from the settings' rate table (copied in,
- *   until HR — CD-17 — supplies real rates). It stays editable on a draft
+ *   mandays × HR's cost per manday for the line's level × work type
+ *   (CD-207, copied in when entered). It stays editable on a draft
  *   or locked version — costing usually follows the design — and freezes
  *   when the version is superseded;
  * - partner prices come through the "ขอราคาจากคู่ค้า" request type
@@ -86,6 +86,7 @@ export class CostService {
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
+    private readonly hr: HrRatesService,
   ) {}
 
   async saveLabor(
@@ -96,13 +97,10 @@ export class CostService {
   ) {
     const solution = await this.solutions.requireManageable(id, actor);
     const version = await this.requireCostable(id, versionNo);
-    const config = (await this.configs.findFirst({
-      where: { companyId: solution.companyId },
-      select: { presalesLaborRates: true },
-    })) as { presalesLaborRates: unknown } | null;
+    // CD-207 — HR's rates in effect today are the one source.
     const { lines, problems } = cleanLabor(
       dto.lines,
-      readLaborRates(config?.presalesLaborRates),
+      await this.hr.effectiveRates(solution.companyId),
     );
     if (problems.length) {
       throw new AppError(

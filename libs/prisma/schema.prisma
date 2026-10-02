@@ -5972,3 +5972,61 @@ model ProjectInstallation {
   @@map("project_installations")
 }
 
+
+/// CD-207 (ส่วนหนึ่งของ CD-17 HR) ระดับตำแหน่งที่ใช้คิดต้นทุนคน เช่น SE-2 วิศวกรอาวุโส.
+model HrLevel {
+  id        String   @id @default(uuid())
+  companyId String
+  code      String
+  name      String
+  sortOrder Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  rates HrLaborRate[]
+
+  @@unique([companyId, code])
+  @@map("hr_levels")
+}
+
+/// CD-207 ประเภทงานของบุคลากร เช่น ติดตั้ง พัฒนา ที่ปรึกษา ดูแลระบบ.
+model HrWorkType {
+  id        String   @id @default(uuid())
+  companyId String
+  code      String
+  name      String
+  sortOrder Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  rates HrLaborRate[]
+
+  @@unique([companyId, code])
+  @@map("hr_work_types")
+}
+
+/// CD-207 อัตราต้นทุนคนต่อ manday ตามระดับ × ประเภทงาน มีวันที่มีผล — แหล่งเดียวของต้นทุนแรงงาน.
+/// เพิ่มอัตราใหม่ = ปิดอัตราเดิมของคู่เดียวกันวันก่อนหน้า (ประวัติคงอยู่).
+model HrLaborRate {
+  id            String    @id @default(uuid())
+  companyId     String
+  levelId       String
+  workTypeId    String
+  costPerManday Decimal   @db.Decimal(14, 2)
+  /// ราคาขายต่อ manday (ถ้ามี) — ไว้ใช้ภายหลัง.
+  sellPerManday Decimal?  @db.Decimal(14, 2)
+  validFrom     DateTime  @db.Date
+  validTo       DateTime? @db.Date
+  note          String    @default("")
+  createdBy     String
+  createdAt     DateTime  @default(now())
+  deletedAt     DateTime?
+
+  level    HrLevel    @relation(fields: [levelId], references: [id])
+  workType HrWorkType @relation(fields: [workTypeId], references: [id])
+
+  @@index([companyId, levelId, workTypeId, validFrom])
+  @@map("hr_labor_rates")
+}

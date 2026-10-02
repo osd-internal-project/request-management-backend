@@ -195,6 +195,8 @@ const SEED_ROLES: {
       'crm.sales.manage',
       'crm.target.manage',
       'crm.campaign.manage',
+      // CD-207 — people's cost per manday
+      'hr.rate.read',
     ],
     visibilityLevel: 'COMPANY',
   },
@@ -217,6 +219,8 @@ const SEED_ROLES: {
       'report.dashboard.read',
       'notification.read',
       'user.read',
+      // CD-207 — people's cost per manday
+      'hr.rate.read',
     ],
     visibilityLevel: 'COMPANY',
   },
@@ -234,6 +238,8 @@ const SEED_ROLES: {
       'report.dashboard.read',
       'notification.read',
       'user.read',
+      // CD-207 — people's cost per manday
+      'hr.rate.read',
     ],
     visibilityLevel: 'COMPANY',
   },
@@ -324,6 +330,23 @@ const SEED_ROLES: {
       'pricing.price.manage',
       // CD-204 — quote below the system's price, with a reason
       'pricing.price.override',
+      // CD-207 — people's cost per manday, to price labour
+      'hr.rate.read',
+    ],
+  },
+  {
+    // CD-207 (part of CD-17 HR) — keeps the levels, work types and the cost
+    // per manday every labour estimate reads.
+    code: 'hr',
+    name: 'ฝ่ายบุคคล',
+    description: 'ดูแลระดับตำแหน่ง ประเภทงาน และอัตราต้นทุนบุคลากรต่อ manday',
+    permissions: [
+      'request.create',
+      'request.read',
+      'notification.read',
+      'user.read',
+      'hr.rate.read',
+      'hr.rate.manage',
     ],
   },
   {
@@ -974,6 +997,64 @@ async function seedPriceApprovalMatrix(companyId: string) {
   console.log(
     `  approval matrix: request:PRA:pre v${(latest?.version ?? 0) + 1} · หัวหน้า → >1ล้าน หัวหน้าแผนก → >5ล้าน ถัดขึ้นไป · margin ต่ำ/แก้ราคาด้วยมือ → ผู้บริหาร (24 ชม.) (ตัวเลขชั่วคราว รอ CD-26)`,
   );
+}
+
+/**
+ * CD-207 — HR's cost-rate register takes over from the CRM settings' labour
+ * table (CD-136's placeholders): each role there becomes a level, under one
+ * work type "ทั่วไป", at the same rate from 1 Jan 2026. Only for a company
+ * whose register is still empty, so HR's own entries are never touched.
+ */
+async function seedHrLaborRates(companyId: string) {
+  if (await prisma.hrLevel.count({ where: { companyId } })) {
+    console.log('  hr labour rates: already present');
+    return;
+  }
+  const config = await prisma.crmCompanyConfig.findUnique({
+    where: { companyId },
+    select: { presalesLaborRates: true },
+  });
+  const table = (
+    Array.isArray(config?.presalesLaborRates) &&
+    config.presalesLaborRates.length
+      ? (config.presalesLaborRates as { role?: unknown; rate?: unknown }[])
+      : DEFAULT_LABOR_RATES
+  ).filter(
+    (row): row is { role: string; rate: number } =>
+      typeof row.role === 'string' &&
+      row.role.trim() !== '' &&
+      typeof row.rate === 'number',
+  );
+  const workType = await prisma.hrWorkType.create({
+    data: { companyId, code: 'GENERAL', name: 'ทั่วไป', sortOrder: 100 },
+  });
+  const codes = new Set<string>();
+  for (const [index, row] of table.entries()) {
+    let code =
+      row.role
+        .trim()
+        .toUpperCase()
+        .replace(/[^A-Z0-9]+/g, '-')
+        .replace(/^-|-$/g, '')
+        .slice(0, 20) || `L${index + 1}`;
+    if (codes.has(code)) code = `${code.slice(0, 17)}-${index + 1}`;
+    codes.add(code);
+    const level = await prisma.hrLevel.create({
+      data: { companyId, code, name: row.role.trim(), sortOrder: index * 10 },
+    });
+    await prisma.hrLaborRate.create({
+      data: {
+        companyId,
+        levelId: level.id,
+        workTypeId: workType.id,
+        costPerManday: row.rate,
+        validFrom: new Date('2026-01-01T00:00:00Z'),
+        note: 'ย้ายจากอัตราตัวอย่างในตั้งค่า CRM (CD-136)',
+        createdBy: 'seed',
+      },
+    });
+  }
+  console.log(`  hr labour rates: ${table.length} level(s) × ทั่วไป`);
 }
 
 /**
@@ -2056,6 +2137,7 @@ async function main() {
   await seedRequestTypes(demo.id, companies);
   await seedContractRequestType(demo.id);
   await seedSolutionRequestType(demo.id);
+  await seedHrLaborRates(demo.id);
   await seedTradeTerms(demo.id);
   await seedHandoverItems(demo.id);
   await seedApprovalMatrix(demo.id);

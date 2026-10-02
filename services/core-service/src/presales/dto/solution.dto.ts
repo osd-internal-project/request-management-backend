@@ -668,10 +668,17 @@ export class UpdateTorClauseDto {
 
 /** CD-136 — แรงงานหนึ่งบรรทัด (อัตราดึงจากตั้งค่าตามบทบาท). */
 export class LaborLineDto {
-  @ApiProperty()
+  /** CD-207 — HR's level code. */
+  @ApiProperty({ example: 'SE-2' })
   @IsString()
-  @MaxLength(100)
-  role!: string;
+  @MaxLength(20)
+  level_code!: string;
+
+  /** CD-207 — HR's work type code. */
+  @ApiProperty({ example: 'INSTALL' })
+  @IsString()
+  @MaxLength(20)
+  work_type_code!: string;
 
   @ApiProperty()
   @IsNumber()

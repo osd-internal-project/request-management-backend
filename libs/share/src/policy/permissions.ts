@@ -118,6 +118,13 @@ export const PERMISSIONS = {
     'pricing.price.manage',
     'pricing.price.override',
   ],
+  /**
+   * CD-207 (part of CD-17 HR). `hr.rate.read` sees people's cost per manday
+   * and the labour amounts priced from it; without it a Solution's labour
+   * shows mandays only. `hr.rate.manage` keeps the levels, work types and
+   * rates — the one source every labour cost reads.
+   */
+  hr: ['hr.rate.read', 'hr.rate.manage'],
   admin: [
     'admin.role.manage',
     'admin.org.manage',

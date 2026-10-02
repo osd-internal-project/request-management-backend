@@ -97,6 +97,19 @@ function harness(
     audit as never,
     { execute: jest.fn((work: (p: unknown) => unknown) => work({})) } as never,
     { put: jest.fn(), get: jest.fn(), remove: jest.fn() },
+    // CD-207 — HR's rates in effect.
+    {
+      effectiveRates: jest.fn(() =>
+        Promise.resolve([
+          {
+            levelCode: 'SE-1',
+            workTypeCode: 'INSTALL',
+            label: 'SE-1 วิศวกร · ติดตั้ง',
+            rate: 4500,
+          },
+        ]),
+      ),
+    } as never,
   );
   return { service, versions, quotes, requests };
 }
@@ -105,17 +118,30 @@ const argOf = (mock: jest.Mock) =>
   (mock.mock.calls[0] as unknown as [Record<string, unknown>])[0];
 
 describe('CD-136 cost estimate', () => {
-  it('CD-136: labour is saved on a locked version with the table rate copied in', async () => {
+  it("CD-136/207: labour is saved on a locked version with HR's rate copied in", async () => {
     const { service, versions } = harness();
     await service.saveLabor(
       'sol-1',
       2,
-      { lines: [{ role: 'Engineer', mandays: 5 }] },
+      {
+        lines: [{ level_code: 'SE-1', work_type_code: 'INSTALL', mandays: 5 }],
+      },
       presales,
     );
     expect(argOf(versions.updateMany)).toMatchObject({
       where: { id: 'v-2', status: { in: ['draft', 'locked'] } },
-      data: { labor: [{ role: 'Engineer', mandays: 5, rate: 4500, note: '' }] },
+      data: {
+        labor: [
+          {
+            role: 'SE-1 วิศวกร · ติดตั้ง',
+            levelCode: 'SE-1',
+            workTypeCode: 'INSTALL',
+            mandays: 5,
+            rate: 4500,
+            note: '',
+          },
+        ],
+      },
     });
   });
 

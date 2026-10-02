@@ -1,3 +1,4 @@
+import { HrRatesService } from '../hr/hr-rates.service';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import {
@@ -45,7 +46,7 @@ import {
   boqGaps,
   costEstimate,
   readLabor,
-  readLaborRates,
+  withoutLaborCost,
   type QuoteState,
   boqSummary,
   cleanBoq,
@@ -191,6 +192,7 @@ export class SolutionsService {
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
+    private readonly hr: HrRatesService,
   ) {}
 
   // --- starting ----------------------------------------------------------------
@@ -494,11 +496,13 @@ export class SolutionsService {
     const approved = all.find((row) => row.approvalStatus === 'approved');
     const costConfig = (await this.configs.findFirst({
       where: { companyId: solution.companyId },
-      select: { presalesLaborRates: true, vendorQuoteTypeCode: true },
+      select: { vendorQuoteTypeCode: true },
     })) as {
-      presalesLaborRates: unknown;
       vendorQuoteTypeCode: string | null;
     } | null;
+    // CD-207 — the rate, the labour amount and the total need hr.rate.read.
+    const ratesVisible = actor.permissions.includes('hr.rate.read');
+    const estimate = await this.estimateOf(id, version.versionNo);
     const risks = await this.activeRisks(id);
     const riskTotals = riskCounts(risks);
     const demos = await this.activeDemos(id);
@@ -562,11 +566,13 @@ export class SolutionsService {
       boq_summary: boqSummary(version.boq),
       // CD-135 — handoff 3: the latest approved version is what Pricing gets.
       // CD-136 — the estimate of the version shown, and its partner quotes.
-      cost: await this.estimateOf(id, version.versionNo),
+      cost: estimate && !ratesVisible ? withoutLaborCost(estimate) : estimate,
       partner_quotes: await this.activeQuotes(version.id),
       // CD-136 — what the estimate's forms offer: roles and whether VQ is set.
       cost_settings: {
-        labor_rates: readLaborRates(costConfig?.presalesLaborRates),
+        // CD-207 — HR's levels and work types to pick from (no money).
+        labor_options: await this.hr.options(solution.companyId),
+        labor_rates_visible: ratesVisible,
         vendor_quote_configured: Boolean(costConfig?.vendorQuoteTypeCode),
       },
       pricing_ready:

@@ -15324,6 +15324,332 @@
         ]
       }
     },
+    "/api/v1/hr/labor-options": {
+      "get": {
+        "operationId": "HrController_options",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-207 ระดับและประเภทงานสำหรับเลือก (ไม่มีอัตรา)",
+        "tags": [
+          "hr"
+        ]
+      }
+    },
+    "/api/v1/hr/labor-rates": {
+      "get": {
+        "operationId": "HrController_list",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-207 ทะเบียนอัตราต้นทุนคนต่อ manday",
+        "tags": [
+          "hr"
+        ]
+      },
+      "post": {
+        "operationId": "HrController_addRate",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddLaborRateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-207 เพิ่มอัตรา — ปิดอัตราเดิมของคู่เดียวกันวันก่อนหน้า",
+        "tags": [
+          "hr"
+        ],
+        "x-permission": [
+          "hr.rate.manage"
+        ]
+      }
+    },
+    "/api/v1/hr/labor-rates/{id}": {
+      "delete": {
+        "operationId": "HrController_withdrawRate",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-207 ถอนอัตราที่ยังไม่มีผล",
+        "tags": [
+          "hr"
+        ],
+        "x-permission": [
+          "hr.rate.manage"
+        ]
+      }
+    },
+    "/api/v1/hr/levels": {
+      "post": {
+        "operationId": "HrController_addLevel",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveHrItemDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "hr"
+        ],
+        "x-permission": [
+          "hr.rate.manage"
+        ]
+      }
+    },
+    "/api/v1/hr/levels/{id}": {
+      "patch": {
+        "operationId": "HrController_saveLevel",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveHrItemDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "hr"
+        ],
+        "x-permission": [
+          "hr.rate.manage"
+        ]
+      }
+    },
+    "/api/v1/hr/work-types": {
+      "post": {
+        "operationId": "HrController_addWorkType",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveHrItemDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "hr"
+        ],
+        "x-permission": [
+          "hr.rate.manage"
+        ]
+      }
+    },
+    "/api/v1/hr/work-types/{id}": {
+      "patch": {
+        "operationId": "HrController_saveWorkType",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveHrItemDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "hr"
+        ],
+        "x-permission": [
+          "hr.rate.manage"
+        ]
+      }
+    },
     "/api/v1/projects": {
       "get": {
         "operationId": "ProjectsController_list",
@@ -28527,9 +28853,15 @@
       "LaborLineDto": {
         "type": "object",
         "properties": {
-          "role": {
+          "level_code": {
             "type": "string",
-            "maxLength": 100
+            "example": "SE-2",
+            "maxLength": 20
+          },
+          "work_type_code": {
+            "type": "string",
+            "example": "INSTALL",
+            "maxLength": 20
           },
           "mandays": {
             "type": "number"
@@ -28540,8 +28872,9 @@
           }
         },
         "required": [
+          "level_code",
           "mandays",
-          "role"
+          "work_type_code"
         ]
       },
       "SaveLaborDto": {
@@ -28976,6 +29309,67 @@
           "note": {
             "type": "string",
             "maxLength": 500
+          },
+          "active": {
+            "type": "boolean"
+          }
+        }
+      },
+      "AddLaborRateDto": {
+        "type": "object",
+        "properties": {
+          "level_id": {
+            "type": "string"
+          },
+          "work_type_id": {
+            "type": "string"
+          },
+          "cost_per_manday": {
+            "type": "number",
+            "example": 4500,
+            "maximum": 100000000,
+            "minimum": 0
+          },
+          "sell_per_manday": {
+            "type": "number",
+            "example": 9000,
+            "maximum": 100000000,
+            "minimum": 0
+          },
+          "valid_from": {
+            "type": "string",
+            "example": "2026-10-01",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "cost_per_manday",
+          "level_id",
+          "valid_from",
+          "work_type_id"
+        ]
+      },
+      "SaveHrItemDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "SE-2",
+            "pattern": "^[A-Za-z0-9_-]{1,20}$"
+          },
+          "name": {
+            "type": "string",
+            "example": "วิศวกรอาวุโส",
+            "maxLength": 100
+          },
+          "sort_order": {
+            "type": "integer",
+            "maximum": 10000,
+            "minimum": 0
           },
           "active": {
             "type": "boolean"
