@@ -18790,6 +18790,157 @@
         ]
       }
     },
+    "/api/v1/projects/{id}/dev-plan": {
+      "get": {
+        "operationId": "ProjectsController_viewDevPlan",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แผนงานพัฒนาซอฟต์แวร์ — รอบงานในแผน และข้อ SOW ที่ยังไม่อยู่ในรอบใด",
+        "tags": [
+          "projects"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/projects/{id}/dev-plan/iterations": {
+      "post": {
+        "operationId": "ProjectsController_addDevIteration",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveTaskDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เพิ่มรอบงานพัฒนา (งานสรุปในแผน)",
+        "tags": [
+          "projects"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/projects/{id}/dev-plan/iterations/{taskId}/items": {
+      "post": {
+        "operationId": "ProjectsController_addDevItems",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "taskId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddDevItemsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แตกข้อ SOW ลงรอบงาน — ข้อละหนึ่งงานในแผน",
+        "tags": [
+          "projects"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      }
+    },
     "/api/v1/projects/{id}/surveys": {
       "get": {
         "operationId": "ProjectsController_viewSurveys",
@@ -31198,6 +31349,34 @@
             "maxLength": 4000
           }
         }
+      },
+      "AddDevItemsDto": {
+        "type": "object",
+        "properties": {
+          "refs": {
+            "description": "ข้อ SOW: scope:i · deliverable:d · change:<id>",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 100
+            },
+            "maxItems": 50
+          },
+          "owner_user_id": {
+            "type": "object",
+            "nullable": true,
+            "maxLength": 50
+          },
+          "duration_days": {
+            "type": "integer",
+            "description": "วันทำงานต่อข้อ (ค่าเริ่ม 5)",
+            "maximum": 3650,
+            "minimum": 0
+          }
+        },
+        "required": [
+          "refs"
+        ]
       },
       "SurveyAnswerDto": {
         "type": "object",

@@ -5117,6 +5117,12 @@ model ProjectTask {
   crewUserIds  String[]  @default([])
   /// CD-209 — the work needs equipment or tools; then they must be listed.
   needsEquipment Boolean @default(false)
+  /// CD-212 — software work: `iteration` (a round of development, a
+  /// summary task) or `item` (one line of the SOW under it).
+  devKind      String?
+  /// CD-212 — the SOW line a development item delivers: scope:i,
+  /// deliverable:d or change:<id>.
+  sowRef       String?
   /// CD-181 — when the work actually started and finished.
   startedAt    DateTime?
   doneAt       DateTime?

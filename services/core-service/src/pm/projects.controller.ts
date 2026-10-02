@@ -47,6 +47,7 @@ import {
   MoveUatDto,
   SaveInstallationDto,
   SaveSurveyDto,
+  AddDevItemsDto,
   SurveyPhotoDto,
   SaveDesignDto,
   SaveTechPlanDto,
@@ -93,6 +94,7 @@ import {
 import { DesignsService } from './designs.service';
 import { TechPlanService } from './tech-plan.service';
 import { SurveysService } from './surveys.service';
+import { DevPlanService } from './dev-plan.service';
 import { MAX_TASK_FILE_BYTES, TaskWorkService } from './task-work.service';
 import { MAX_FILES_PER_UPDATE } from './task-rules';
 import { ProjectsService } from './projects.service';
@@ -129,6 +131,7 @@ export class ProjectsController {
     private readonly designs: DesignsService,
     private readonly techPlan: TechPlanService,
     private readonly surveys: SurveysService,
+    private readonly devPlan: DevPlanService,
   ) {}
 
   @ApiOperation({ summary: 'รายการโครงการ (ทั้งบริษัท หรือของฉัน)' })
@@ -839,6 +842,44 @@ export class ProjectsController {
       type: file.mimeType,
       disposition: `inline; filename*=UTF-8''${encodeURIComponent(file.fileName)}`,
     });
+  }
+
+  // --- CD-212 แผนงานพัฒนาซอฟต์แวร์ ---------------------------------------------------
+
+  @ApiOperation({
+    summary:
+      'แผนงานพัฒนาซอฟต์แวร์ — รอบงานในแผน และข้อ SOW ที่ยังไม่อยู่ในรอบใด',
+  })
+  @Get(':id/dev-plan')
+  @Permissions('notification.read')
+  viewDevPlan(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.devPlan.view(id, principal);
+  }
+
+  @ApiOperation({ summary: 'เพิ่มรอบงานพัฒนา (งานสรุปในแผน)' })
+  @Post(':id/dev-plan/iterations')
+  @Permissions('notification.read')
+  addDevIteration(
+    @Param('id') id: string,
+    @Body() dto: SaveTaskDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.devPlan.addIteration(id, dto, principal);
+  }
+
+  @ApiOperation({ summary: 'แตกข้อ SOW ลงรอบงาน — ข้อละหนึ่งงานในแผน' })
+  @Post(':id/dev-plan/iterations/:taskId/items')
+  @Permissions('notification.read')
+  addDevItems(
+    @Param('id') id: string,
+    @Param('taskId') taskId: string,
+    @Body() dto: AddDevItemsDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.devPlan.addItems(id, taskId, dto, principal);
   }
 
   // --- CD-210 สำรวจหน้างาน ------------------------------------------------------------

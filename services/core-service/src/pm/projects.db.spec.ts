@@ -70,6 +70,7 @@ import { AcceptanceService } from './acceptance.service';
 import { UatService } from './uat.service';
 import { InstallationsService } from './installations.service';
 import { SurveysService } from './surveys.service';
+import { DevPlanService } from './dev-plan.service';
 import { TaskEvidenceService } from './task-evidence.service';
 import { DesignsService } from './designs.service';
 import { TechPlanService } from './tech-plan.service';
@@ -2685,6 +2686,144 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         managerNow,
       );
       expect(started.task).toMatchObject({ status: 'in_progress' });
+    });
+
+    it('CD-212: the software plan — rounds of development as summary tasks, each SOW line a task under one, never twice', async () => {
+      const client = prisma as never;
+      const transactions = {
+        execute: (work: (tx: unknown) => Promise<unknown>) =>
+          prisma.$transaction((tx) => work(tx)),
+      } as never;
+      const quiet = new Proxy(
+        {},
+        { get: () => () => Promise.resolve() },
+      ) as never;
+      const plan = new PlanService(
+        projects,
+        new ProjectRepository(client),
+        new ProjectTaskRepository(client),
+        new ProjectTaskLinkRepository(client),
+        new ProjectMilestoneRepository(client),
+        new WorkCalendarRepository(client),
+        new CompanyMemberRepository(client),
+        quiet,
+        quiet,
+        transactions,
+      );
+      const dev = new DevPlanService(
+        projects,
+        new ProjectRepository(client),
+        new ProjectTaskRepository(client),
+        new ProjectChangeRequestRepository(client),
+        plan,
+      );
+      const managerNow = as(engineer, ['notification.read']);
+      const crew = as(outsider, ['notification.read']);
+      // the SOW: two scope lines and one deliverable
+      const before = await prisma.project.findUniqueOrThrow({
+        where: { id: projectId },
+        select: { baseline: true },
+      });
+      const baseline = before.baseline as Record<string, unknown>;
+      await prisma.project.update({
+        where: { id: projectId },
+        data: {
+          baseline: {
+            ...baseline,
+            scope: {
+              ...(baseline.scope as Record<string, unknown>),
+              inScope: ['ระบบลงทะเบียน', 'รายงานยอดขาย'],
+              deliverables: [{ title: 'คู่มือผู้ใช้', criteria: [] }],
+            },
+          } as never,
+        },
+      });
+      try {
+        let view = await dev.view(projectId, crew);
+        expect(view.canEdit).toBe(false);
+        expect(view.unplanned.map((row) => row.ref)).toEqual(
+          expect.arrayContaining([
+            'scope:0',
+            'scope:1',
+            'deliverable:0',
+          ]) as never,
+        );
+        const total = view.total;
+
+        // only the manager plans
+        await expect(
+          dev.addIteration(projectId, { title: 'Sprint 1' }, crew),
+        ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+        view = await dev.addIteration(
+          projectId,
+          { title: 'Sprint 1', owner_user_id: engineer },
+          managerNow,
+        );
+        expect(view.iterations).toHaveLength(1);
+        const sprint = view.iterations[0];
+        expect(sprint).toMatchObject({ title: 'Sprint 1', items: [] });
+
+        await expect(
+          dev.addItems(projectId, sprint.id, { refs: ['scope:0'] }, crew),
+        ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+        view = await dev.addItems(
+          projectId,
+          sprint.id,
+          {
+            refs: ['scope:0', 'deliverable:0'],
+            owner_user_id: engineer,
+            duration_days: 3,
+          },
+          managerNow,
+        );
+        expect(view.planned).toBe(2);
+        expect(view.total).toBe(total);
+        expect(view.iterations[0].items).toEqual([
+          expect.objectContaining({
+            title: 'ระบบลงทะเบียน',
+            sowRef: 'scope:0',
+            durationDays: 3,
+            status: 'open',
+          }),
+          expect.objectContaining({
+            title: 'ส่งมอบ คู่มือผู้ใช้',
+            sowRef: 'deliverable:0',
+          }),
+        ] as never);
+        // the items sit under the round in the plan; the round is a summary
+        const planned = await plan.view(projectId, managerNow);
+        const round = planned.tasks.find((task) => task.id === sprint.id)!;
+        expect(round.summary).toBe(true);
+        expect(
+          planned.tasks.filter((task) => task.parentId === sprint.id),
+        ).toHaveLength(2);
+        // a line is planned once; unknown lines are refused
+        await expect(
+          dev.addItems(projectId, sprint.id, { refs: ['scope:0'] }, managerNow),
+        ).rejects.toThrow('ข้อ SOW นี้อยู่ในรอบงานแล้ว: scope:0');
+        await expect(
+          dev.addItems(
+            projectId,
+            sprint.id,
+            { refs: ['scope:99'] },
+            managerNow,
+          ),
+        ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+        await expect(
+          dev.addItems(projectId, 'nope', { refs: ['scope:1'] }, managerNow),
+        ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+        // a cancelled item frees its line
+        const item = view.iterations[0].items[0];
+        await plan.cancel(projectId, item.id, managerNow);
+        view = await dev.view(projectId, managerNow);
+        expect(view.unplanned.map((row) => row.ref)).toContain('scope:0');
+        expect(view.iterations[0].items).toHaveLength(1);
+      } finally {
+        await prisma.project.update({
+          where: { id: projectId },
+          data: { baseline: before.baseline as never },
+        });
+      }
     });
 
     it('CD-210: a site survey synced from the device — the Solution assumptions checked one by one, each that differs a change request before it completes', async () => {

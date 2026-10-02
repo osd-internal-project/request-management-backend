@@ -1172,3 +1172,29 @@ export class SurveyPhotoDto {
   @MaxLength(40)
   taken_at?: string;
 }
+
+/** CD-212 — SOW lines into a round of development. */
+export class AddDevItemsDto {
+  @ApiProperty({
+    type: [String],
+    description: 'ข้อ SOW: scope:i · deliverable:d · change:<id>',
+  })
+  @IsArray()
+  @ArrayMaxSize(50)
+  @IsString({ each: true })
+  @MaxLength(100, { each: true })
+  refs!: string[];
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  owner_user_id?: string | null;
+
+  @ApiPropertyOptional({ description: 'วันทำงานต่อข้อ (ค่าเริ่ม 5)' })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(3650)
+  duration_days?: number;
+}
