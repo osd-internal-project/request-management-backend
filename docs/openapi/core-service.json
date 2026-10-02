@@ -29338,6 +29338,11 @@
             "type": "string",
             "description": "ผู้ทดสอบ; \"\" = ไม่ระบุ"
           },
+          "task_id": {
+            "type": "string",
+            "description": "CD-218 งานในแผนที่ข้อนี้พิสูจน์; \"\" = ไม่ผูก",
+            "maxLength": 50
+          },
           "waived_reason": {
             "type": "string",
             "description": "เหตุผลที่ยกเว้น; \"\" = ยกเลิกการยกเว้น",
@@ -30810,6 +30815,10 @@
           },
           "note": {
             "maxLength": 1000,
+            "type": "string"
+          },
+          "task_id": {
+            "maxLength": 50,
             "type": "string"
           },
           "installed_on": {

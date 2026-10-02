@@ -64,6 +64,7 @@ import { AsBuiltService } from './as-built.service';
 import { AcceptanceService } from './acceptance.service';
 import { UatService } from './uat.service';
 import { InstallationsService } from './installations.service';
+import { TaskEvidenceService } from './task-evidence.service';
 import { ContractRiskAssessmentRepository } from '../crm/contract-risk.service';
 import { ContractObligationRepository } from '../crm/contract-obligations.service';
 import {
@@ -1853,6 +1854,11 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         },
         audit,
         transactions,
+        {
+          options: () => Promise.resolve([]),
+          sync: () => Promise.resolve(),
+          assertTask: () => Promise.resolve(),
+        } as never,
       );
       const managerNow = as(engineer, ['notification.read']);
       const crew = as(outsider, ['notification.read']);
@@ -2011,6 +2017,11 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         storage,
         audit,
         transactions,
+        {
+          options: () => Promise.resolve([]),
+          sync: () => Promise.resolve(),
+          assertTask: () => Promise.resolve(),
+        } as never,
       );
       const asBuilt = new AsBuiltService(
         projects,
@@ -2174,6 +2185,190 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       expect(
         (await installs.photo(projectId, p1.id, 'after', crew)).fileName,
       ).toBe('after.jpg');
+    });
+
+    it('CD-218: a plan task closes itself when its installation points are installed and its tests pass — and reopens when they stop holding', async () => {
+      const client = prisma as never;
+      const transactions = {
+        execute: (work: (tx: unknown) => Promise<unknown>) =>
+          prisma.$transaction((tx) => work(tx)),
+      } as never;
+      const audit = { record: () => Promise.resolve() } as never;
+      const files = new Map<string, Buffer>();
+      const storage = {
+        put: (key: string, body: Buffer) => {
+          files.set(key, body);
+          return Promise.resolve();
+        },
+        remove: () => Promise.resolve(),
+        get: (key: string) => Promise.resolve(Readable.from([files.get(key)!])),
+      };
+      const evidence = new TaskEvidenceService(
+        new ProjectTaskRepository(client),
+        new ProjectInstallationRepository(client),
+        new ProjectTestItemRepository(client),
+        { workMayStart: () => Promise.resolve(null) } as never,
+        audit,
+        transactions,
+      );
+      const installs = new InstallationsService(
+        projects,
+        new ProjectRepository(client),
+        new ProjectInstallationRepository(client),
+        new CompanyMemberRepository(client),
+        storage,
+        audit,
+        transactions,
+        evidence,
+      );
+      const tests = new TestsService(
+        projects,
+        new ProjectRepository(client),
+        new ProjectChangeRequestRepository(client),
+        new ProjectTestItemRepository(client),
+        new ProjectTestRunRepository(client),
+        new CompanyMemberRepository(client),
+        { issueAssigned: () => Promise.resolve() } as never,
+        storage,
+        audit,
+        transactions,
+        evidence,
+      );
+      const managerNow = as(engineer, ['notification.read']);
+      const crew = as(outsider, ['notification.read']);
+      const now = new Date('2026-10-08T03:00:00Z');
+      const photo = [
+        {
+          originalname: 'a.jpg',
+          mimetype: 'image/jpeg',
+          size: 1,
+          buffer: Buffer.from('a'),
+        },
+      ];
+      const pdf = {
+        originalname: 'r.pdf',
+        mimetype: 'application/pdf',
+        size: 1,
+        buffer: Buffer.from('r'),
+      };
+      // a leaf task, and a summary one (with a child) evidence may not point at
+      const task = await prisma.projectTask.create({
+        data: {
+          companyId,
+          projectId,
+          seq: 901,
+          title: 'ติดตั้งกล้องชั้น 4',
+          durationDays: 2,
+          createdBy: engineer,
+        },
+        select: { id: true },
+      });
+      const summary = await prisma.projectTask.create({
+        data: {
+          companyId,
+          projectId,
+          seq: 902,
+          title: 'งานกลุ่ม',
+          createdBy: engineer,
+        },
+        select: { id: true },
+      });
+      await prisma.projectTask.create({
+        data: {
+          companyId,
+          projectId,
+          parentId: summary.id,
+          seq: 1,
+          title: 'งานย่อย',
+          createdBy: engineer,
+        },
+      });
+      const status = async () =>
+        (await prisma.projectTask.findUniqueOrThrow({ where: { id: task.id } }))
+          .status;
+
+      expect(
+        (await evidence.options(projectId)).map((row) => row.id),
+      ).toContain(task.id);
+      await expect(
+        installs.add(
+          projectId,
+          { location: 'ชั้น 4', task_id: summary.id },
+          {},
+          crew,
+          now,
+        ),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+
+      // a point planned and a test item, both linked: the task stays open
+      const planned = await installs.add(
+        projectId,
+        { location: 'ชั้น 4 โถงลิฟต์', task_id: task.id },
+        {},
+        crew,
+        now,
+      );
+      const point = planned.points.find((row) => row.taskId === task.id)!;
+      const added = await tests.add(
+        projectId,
+        { text: 'ภาพชั้น 4 ชัด', task_id: task.id },
+        managerNow,
+      );
+      const item = added.items.find((row) => row.taskId === task.id)!;
+      expect(await status()).toBe('open');
+
+      // installed — still the test to pass
+      await installs.update(
+        projectId,
+        point.id,
+        { installed_on: '2026-10-08' },
+        { after: photo },
+        crew,
+        now,
+      );
+      expect(await status()).toBe('open');
+
+      // passed: the task is done, by the evidence, with a note in its history
+      await tests.record(
+        projectId,
+        item.id,
+        { result: 'pass' },
+        pdf,
+        crew,
+        now,
+      );
+      expect(await status()).toBe('done');
+      const closing = await prisma.projectTaskUpdate.findFirstOrThrow({
+        where: { taskId: task.id },
+        orderBy: { createdAt: 'desc' },
+      });
+      expect(closing).toMatchObject({ statusFrom: 'open', statusTo: 'done' });
+      expect(closing.note).toContain('ปิดอัตโนมัติ');
+
+      // a later failure reopens it; passing again closes it
+      await tests.record(
+        projectId,
+        item.id,
+        { result: 'fail', note: 'ภาพมัว' },
+        undefined,
+        crew,
+        new Date('2026-10-08T04:00:00Z'),
+      );
+      expect(await status()).toBe('in_progress');
+      await tests.record(
+        projectId,
+        item.id,
+        { result: 'pass' },
+        pdf,
+        crew,
+        new Date('2026-10-08T05:00:00Z'),
+      );
+      expect(await status()).toBe('done');
+      // tidy the issue the failure opened, for the steps after
+      await prisma.projectIssue.updateMany({
+        where: { projectId, status: 'open' },
+        data: { status: 'resolved', resolution: 'ทดสอบ' },
+      });
     });
 
     it('CD-226: as-built — the required documents, and every deviation from what was sold with its reason', async () => {
@@ -2483,6 +2678,11 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         {} as never,
         audit,
         transactions,
+        {
+          options: () => Promise.resolve([]),
+          sync: () => Promise.resolve(),
+          assertTask: () => Promise.resolve(),
+        } as never,
       );
       const named: string[] = [];
       const ready = new ReadinessService(
@@ -2668,6 +2868,11 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         {} as never,
         audit,
         transactions,
+        {
+          options: () => Promise.resolve([]),
+          sync: () => Promise.resolve(),
+          assertTask: () => Promise.resolve(),
+        } as never,
       );
       const readiness = new ReadinessService(
         projects,

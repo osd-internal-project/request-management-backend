@@ -5617,6 +5617,8 @@ model ProjectTestItem {
   text          String
   /// How to test it.
   steps         String?
+  /// CD-218 — the plan task this item proves; it closes when its evidence holds.
+  taskId        String?
   ownerUserId   String?
   waivedReason  String?
   waivedAt      DateTime?
@@ -5632,6 +5634,7 @@ model ProjectTestItem {
 
   @@unique([projectId, seq])
   @@unique([projectId, sourceRef])
+  @@index([taskId])
   @@map("project_test_items")
 }
 
@@ -5942,6 +5945,8 @@ model ProjectInstallation {
   location     String
   /// The BOQ line of the baseline (0-based); null = not a BOQ item.
   boqIndex     Int?
+  /// CD-218 — the plan task this point delivers; it closes when its evidence holds.
+  taskId       String?
   serialNo     String?
   note         String?
   installedOn  DateTime? @db.Date
@@ -5963,6 +5968,7 @@ model ProjectInstallation {
   @@unique([projectId, seq])
   @@unique([projectId, serialNo])
   @@index([projectId, boqIndex])
+  @@index([taskId])
   @@map("project_installations")
 }
 

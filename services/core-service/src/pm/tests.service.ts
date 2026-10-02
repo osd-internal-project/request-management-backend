@@ -23,6 +23,7 @@ import {
   ProjectTestRunRepository,
 } from './project.repositories';
 import { ProjectsService } from './projects.service';
+import { TaskEvidenceService } from './task-evidence.service';
 import {
   issueFromFailure,
   MAX_TEST_TEXT,
@@ -52,6 +53,7 @@ interface ItemRow {
   deliverable: string | null;
   text: string;
   steps: string | null;
+  taskId: string | null;
   ownerUserId: string | null;
   waivedReason: string | null;
   waivedAt: Date | null;
@@ -98,12 +100,16 @@ export class TestsService {
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
+    private readonly taskEvidence: TaskEvidenceService,
   ) {}
 
   async view(projectId: string, actor: Principal) {
     const access = await this.projects.access(projectId, actor);
     await this.sync(access);
-    const rows = await this.rows(projectId);
+    const [rows, tasks] = await Promise.all([
+      this.rows(projectId),
+      this.taskEvidence.options(projectId),
+    ]);
     const names = await this.displayNames([
       ...rows.map((row) => row.ownerUserId),
       ...rows.flatMap((row) => row.runs.map((run) => run.testedBy)),
@@ -116,6 +122,7 @@ export class TestsService {
       canEdit: access.canEdit,
       canWrite: this.mayWrite(access, actor),
       coverage: testCoverage(states),
+      tasks,
       items: rows.map((row, index) => ({
         id: row.id,
         label: `T-${row.seq}`,
@@ -123,6 +130,8 @@ export class TestsService {
         deliverable: row.deliverable,
         text: row.text,
         steps: row.steps,
+        taskId: row.taskId,
+        taskLabel: tasks.find((task) => task.id === row.taskId)?.label ?? null,
         ownerUserId: row.ownerUserId,
         ownerName: row.ownerUserId
           ? (names.get(row.ownerUserId) ?? null)
@@ -171,6 +180,8 @@ export class TestsService {
     }
     const owner = dto.owner_user_id || null;
     if (owner) await this.assertPerson(access.project.companyId, owner);
+    const taskId = dto.task_id || null;
+    await this.taskEvidence.assertTask(projectId, taskId);
     await this.transactions.execute(async (prisma) => {
       const last = await prisma.projectTestItem.findFirst({
         where: { projectId },
@@ -186,6 +197,7 @@ export class TestsService {
           text,
           steps: dto.steps?.trim() || null,
           ownerUserId: owner,
+          taskId,
           createdBy: actor.userId,
         },
         select: { id: true },
@@ -202,6 +214,7 @@ export class TestsService {
         { prisma },
       );
     });
+    await this.taskEvidence.sync(projectId, [taskId], actor);
     return this.view(projectId, actor);
   }
 
@@ -231,6 +244,8 @@ export class TestsService {
     if (dto.owner_user_id) {
       await this.assertPerson(access.project.companyId, dto.owner_user_id);
     }
+    const taskId = dto.task_id === undefined ? undefined : dto.task_id || null;
+    if (taskId) await this.taskEvidence.assertTask(projectId, taskId);
     const waive =
       dto.waived_reason === undefined
         ? undefined
@@ -240,6 +255,7 @@ export class TestsService {
       steps: dto.steps === undefined ? undefined : dto.steps.trim() || null,
       ownerUserId:
         dto.owner_user_id === undefined ? undefined : dto.owner_user_id || null,
+      taskId,
       ...(waive === undefined
         ? {}
         : waive
@@ -267,6 +283,12 @@ export class TestsService {
         { prisma },
       );
     });
+    await this.taskEvidence.sync(
+      projectId,
+      [item.taskId, taskId ?? null],
+      actor,
+      now,
+    );
     return this.view(projectId, actor);
   }
 
@@ -413,6 +435,8 @@ export class TestsService {
           this.logger.warn(`test failure notice not sent: ${error.message}`),
         );
     }
+    // CD-218 — the task this item proves follows it
+    await this.taskEvidence.sync(projectId, [item.taskId], actor, now);
     return this.view(projectId, actor);
   }
 

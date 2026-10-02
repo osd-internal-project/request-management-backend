@@ -26,6 +26,7 @@ import {
   ProjectRepository,
 } from './project.repositories';
 import { ProjectsService } from './projects.service';
+import { TaskEvidenceService } from './task-evidence.service';
 
 const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/heic', 'image/webp'];
 
@@ -34,6 +35,7 @@ interface PointRow {
   seq: number;
   location: string;
   boqIndex: number | null;
+  taskId: string | null;
   serialNo: string | null;
   note: string | null;
   installedOn: Date | null;
@@ -82,13 +84,15 @@ export class InstallationsService {
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
+    private readonly evidence: TaskEvidenceService,
   ) {}
 
   async view(projectId: string, actor: Principal) {
     const access = await this.projects.access(projectId, actor);
-    const [baseline, rows] = await Promise.all([
+    const [baseline, rows, tasks] = await Promise.all([
       this.baseline(projectId),
       this.rows(projectId),
+      this.evidence.options(projectId),
     ]);
     const choices = boqChoices(baseline);
     const names = await this.displayNames(
@@ -99,6 +103,7 @@ export class InstallationsService {
       canWrite: this.mayWrite(access, actor),
       boq: boqMatch(baseline, rows),
       choices,
+      tasks,
       installed: rows.filter((row) => row.installedOn).length,
       points: rows.map((row) => ({
         id: row.id,
@@ -108,6 +113,8 @@ export class InstallationsService {
         boqLabel:
           row.boqIndex === null ? null : (choices[row.boqIndex]?.label ?? null),
         serialNo: row.serialNo,
+        taskId: row.taskId,
+        taskLabel: tasks.find((task) => task.id === row.taskId)?.label ?? null,
         note: row.note,
         installedOn: day(row.installedOn),
         installedByName: row.installedBy
@@ -188,6 +195,7 @@ export class InstallationsService {
         { prisma },
       );
     });
+    await this.evidence.sync(projectId, [current.taskId], actor);
     return this.view(projectId, actor);
   }
 
@@ -239,9 +247,15 @@ export class InstallationsService {
         : dto.boq_index === '' || dto.boq_index === null
           ? null
           : Number(dto.boq_index);
+    const taskId =
+      dto.task_id === undefined
+        ? (current?.taskId ?? null)
+        : dto.task_id || null;
+    await this.evidence.assertTask(projectId, taskId);
     const input = {
       location: (dto.location ?? current?.location ?? '').trim(),
       boqIndex: Number.isInteger(boqIndex) ? boqIndex : null,
+      taskId,
       serialNo:
         dto.serial_no === undefined
           ? (current?.serialNo ?? null)
@@ -256,7 +270,10 @@ export class InstallationsService {
           : dto.installed_on.slice(0, 10) || null,
     };
     const problems = pointProblems({
-      ...input,
+      location: input.location,
+      boqIndex: input.boqIndex,
+      serialNo: input.serialNo,
+      installedOn: input.installedOn,
       boqCount: choices.length,
       equipment:
         input.boqIndex !== null && Boolean(choices[input.boqIndex]?.equipment),
@@ -378,6 +395,13 @@ export class InstallationsService {
       }
       throw error;
     }
+    // CD-218 — the tasks this point delivers follow it
+    await this.evidence.sync(
+      projectId,
+      [current?.taskId, input.taskId],
+      actor,
+      now,
+    );
     return this.view(projectId, actor);
   }
 

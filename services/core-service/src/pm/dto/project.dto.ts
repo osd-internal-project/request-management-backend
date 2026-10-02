@@ -724,6 +724,14 @@ export class SaveTestItemDto {
   @IsString()
   owner_user_id?: string;
 
+  @ApiPropertyOptional({
+    description: 'CD-218 งานในแผนที่ข้อนี้พิสูจน์; "" = ไม่ผูก',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  task_id?: string;
+
   @ApiPropertyOptional({ description: 'เหตุผลที่ยกเว้น; "" = ยกเลิกการยกเว้น' })
   @IsOptional()
   @IsString()
@@ -976,6 +984,14 @@ export class SaveInstallationDto {
   @IsString()
   @MaxLength(1000)
   note?: string;
+
+  @ApiPropertyOptional({
+    description: 'CD-218 งานในแผนที่จุดนี้ส่งมอบ; "" = ไม่ผูก',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  task_id?: string;
 
   @ApiPropertyOptional({ description: 'วันที่ติดตั้ง; "" = ยังไม่ติดตั้ง' })
   @IsOptional()
