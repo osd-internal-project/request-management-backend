@@ -1,3 +1,5 @@
+import { PricingAnalyticsService } from './pricing-analytics.service';
+import { PricingAnalyticsRepository } from './pricing-analytics.repository';
 import { Module } from '@nestjs/common';
 import { PrismaTransactionService } from '@request-management/share';
 import { CrmModule } from '../crm/crm.module';
@@ -20,6 +22,9 @@ import {
 @Module({
   imports: [CrmModule],
   providers: [
+    // CD-208
+    PricingAnalyticsService,
+    PricingAnalyticsRepository,
     // CD-198 — Pre-Sales prices a quotation from a Solution with it
     PricesService,
     // CD-200
@@ -37,6 +42,7 @@ import {
   ],
   exports: [
     CrmModule,
+    PricingAnalyticsService,
     PricesService,
     MarkupService,
     MarkupRuleRepository,

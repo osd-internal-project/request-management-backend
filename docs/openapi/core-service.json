@@ -15324,6 +15324,74 @@
         ]
       }
     },
+    "/api/v1/pricing/analytics": {
+      "get": {
+        "description": "จาก Data Mart ส่วนราคา (mart_pricing) — ปรับปรุงทุกชั่วโมง",
+        "operationId": "PricingAnalyticsController_overview",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "เดือนเริ่ม (อนุมัติ)",
+            "schema": {
+              "example": "2026-01",
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}$"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "2026-12",
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}$"
+            }
+          },
+          {
+            "name": "accepted_only",
+            "required": false,
+            "in": "query",
+            "description": "เฉพาะที่ลูกค้าตอบรับ",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-208 margin และส่วนลด ตามลูกค้า/ประเภทงาน/พนักงานขาย/คู่ค้า/กลุ่มสินค้า + แนวโน้มรายเดือน + ข้อยกเว้น",
+        "tags": [
+          "pricing"
+        ],
+        "x-permission": [
+          "pricing.price.read"
+        ]
+      }
+    },
     "/api/v1/hr/labor-options": {
       "get": {
         "operationId": "HrController_options",

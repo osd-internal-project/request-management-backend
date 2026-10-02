@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService, type TQueryClient } from '@request-management/share';
 import { CONTACT_TYPES } from '../crm/prospecting-rules';
+import { martTableName, PRICING_MART_TABLES } from './pricing-mart';
 import { SLA_STATUS_SQL } from '../sla/sla-status';
 
 /** A `timestamp` column (stored as UTC, no zone) as Bangkok wall-clock time. */
@@ -316,7 +317,8 @@ export class DataMartRepository {
 
         const done: { table: string; rows: number; ms: number }[] = [];
         const steps: { table: string; run: () => Promise<void> }[] = [
-          ...MART_TABLES.map((step) => ({
+          // CD-208 — the pricing mart rides the same rebuild.
+          ...[...MART_TABLES, ...PRICING_MART_TABLES].map((step) => ({
             table: step.table,
             run: async () => {
               for (const statement of step.sql) {
@@ -386,7 +388,11 @@ export class DataMartRepository {
        FROM mart.refresh_log`,
     );
     const byName = new Map(rows.map((row) => [row.table_name, row]));
-    return [...MART_TABLES.map(({ table }) => table), ...COMPUTED_TABLES].map(
+    return [
+      ...MART_TABLES.map(({ table }) => table),
+      ...COMPUTED_TABLES,
+      ...PRICING_MART_TABLES.map(({ table }) => table),
+    ].map(
       (table) =>
         byName.get(table) ?? {
           table_name: table,
@@ -402,7 +408,7 @@ export class DataMartRepository {
       table === 'request_backlog_daily' || table === 'customer_health_daily'
         ? `SELECT count(*)::int AS n FROM mart.${table}
            WHERE snapshot_date = ${BKK_TODAY}`
-        : `SELECT count(*)::int AS n FROM mart.${table}`,
+        : `SELECT count(*)::int AS n FROM ${martTableName(table)}`,
     );
     return row?.n ?? 0;
   }

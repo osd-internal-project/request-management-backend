@@ -228,3 +228,23 @@ BEGIN
     ALTER DEFAULT PRIVILEGES IN SCHEMA mart GRANT SELECT ON TABLES TO metabase_ro;
   END IF;
 END $$;
+
+-- CD-208 — the pricing mart (`mart_pricing`) carries margins, costs and
+-- discounts, so `metabase_ro` never reads it (SCOPE-04); the app shows it to
+-- Pricing only. Should Finance want their own Metabase questions over it, a
+-- DBA creates a separate role (`metabase_pricing_ro`, used by a separate
+-- Metabase database connection whose collections only they can open) — this
+-- file grants it only when that role already exists.
+DO $$
+BEGIN
+  IF EXISTS (SELECT FROM pg_namespace WHERE nspname = 'mart_pricing') THEN
+    REVOKE ALL ON SCHEMA mart_pricing FROM metabase_ro;
+    REVOKE ALL ON ALL TABLES IN SCHEMA mart_pricing FROM metabase_ro;
+    IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'metabase_pricing_ro') THEN
+      GRANT USAGE ON SCHEMA mart_pricing TO metabase_pricing_ro;
+      GRANT SELECT ON ALL TABLES IN SCHEMA mart_pricing TO metabase_pricing_ro;
+      ALTER DEFAULT PRIVILEGES IN SCHEMA mart_pricing
+        GRANT SELECT ON TABLES TO metabase_pricing_ro;
+    END IF;
+  END IF;
+END $$;
