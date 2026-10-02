@@ -357,3 +357,31 @@ export class ProjectAsBuiltDeviationRepository extends BaseRepository<
     return client.projectAsBuiltDeviation;
   }
 }
+
+/** CD-189 รอบตรวจรับ. */
+@Injectable()
+export class ProjectAcceptanceRepository extends BaseRepository<
+  PrismaService['projectAcceptance']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.projectAcceptance;
+  }
+}
+
+/** CD-189 รายการค้างจากการตรวจรับ. */
+@Injectable()
+export class ProjectAcceptanceItemRepository extends BaseRepository<
+  PrismaService['projectAcceptanceItem']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.projectAcceptanceItem;
+  }
+}

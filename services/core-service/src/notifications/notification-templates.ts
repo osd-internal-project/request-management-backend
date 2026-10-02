@@ -277,6 +277,17 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
     },
   },
   {
+    eventType: 'pm.acceptance.item_assigned',
+    label: 'ได้รับมอบหมายรายการค้างจากการตรวจรับ (ถึงผู้รับผิดชอบ)',
+    title: 'โครงการ {{project_no}}: รายการค้างจากการตรวจรับ {{round}}',
+    body: '{{project_name}} — ดูกำหนดแก้และปิดรายการได้ที่การ์ดตรวจรับในหน้าโครงการ',
+    variables: {
+      project_no: { label: 'เลขที่โครงการ', sample: 'PRJ-OSD-000012' },
+      project_name: { label: 'ชื่อโครงการ', sample: 'ระบบกล้องอาคาร A' },
+      round: { label: 'รอบตรวจรับ', sample: 'A-1' },
+    },
+  },
+  {
     eventType: 'pm.readiness.assigned',
     label: 'ได้รับมอบหมายตรวจความพร้อมก่อนส่งมอบ (ถึงผู้ตรวจ)',
     title: 'โครงการ {{project_no}}: ตรวจความพร้อม — {{line}}',

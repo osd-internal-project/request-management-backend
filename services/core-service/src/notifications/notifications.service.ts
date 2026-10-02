@@ -607,6 +607,27 @@ export class NotificationsService {
     });
   }
 
+  /** CD-189 — someone owns an open point from an acceptance. */
+  async acceptanceItemAssigned(
+    userId: string,
+    companyId: string,
+    project: { id: string; projectNo: string; name: string },
+    round: string,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'pm.acceptance.item_assigned',
+      values: {
+        project_no: project.projectNo,
+        project_name: project.name,
+        round,
+      },
+      resourceType: 'project',
+      resourceId: project.id,
+    });
+  }
+
   /** CD-225 — someone was named to inspect a readiness line. */
   async readinessAssigned(
     userId: string,

@@ -36,6 +36,9 @@ import {
   SaveReadinessItemDto,
   CheckReadinessDto,
   SaveDeviationDto,
+  BookAcceptanceDto,
+  RecordAcceptanceDto,
+  AcceptanceItemDoneDto,
   ListProjectsQueryDto,
   OpenProjectDto,
   SaveMilestoneDto,
@@ -70,6 +73,7 @@ import { StatusReportsService } from './status-reports.service';
 import { TestsService } from './tests.service';
 import { ReadinessService } from './readiness.service';
 import { AsBuiltService } from './as-built.service';
+import { AcceptanceService } from './acceptance.service';
 import { MAX_TASK_FILE_BYTES, TaskWorkService } from './task-work.service';
 import { MAX_FILES_PER_UPDATE } from './task-rules';
 import { ProjectsService } from './projects.service';
@@ -100,6 +104,7 @@ export class ProjectsController {
     private readonly tests: TestsService,
     private readonly readiness: ReadinessService,
     private readonly asBuilt: AsBuiltService,
+    private readonly acceptance: AcceptanceService,
   ) {}
 
   @ApiOperation({ summary: 'รายการโครงการ (ทั้งบริษัท หรือของฉัน)' })
@@ -560,6 +565,125 @@ export class ProjectsController {
     @CurrentPrincipal() principal: Principal,
   ): Promise<StreamableFile> {
     const file = await this.tests.evidence(id, itemId, runId, principal);
+    return new StreamableFile(file.stream, {
+      type: file.mimeType,
+      disposition: `inline; filename*=UTF-8''${encodeURIComponent(file.fileName)}`,
+    });
+  }
+
+  // --- CD-189 acceptance -------------------------------------------------------------
+
+  @ApiOperation({
+    summary: 'การตรวจรับ: ความพร้อม รอบนัด ผล และรายการค้าง',
+  })
+  @Get(':id/acceptances')
+  @Permissions('notification.read')
+  viewAcceptances(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.acceptance.view(id, principal);
+  }
+
+  @ApiOperation({
+    summary: 'นัดตรวจรับ (เมื่อตรวจความพร้อมผ่าน) — ผู้จัดการโครงการ',
+  })
+  @Post(':id/acceptances')
+  @Permissions('notification.read')
+  bookAcceptance(
+    @Param('id') id: string,
+    @Body() dto: BookAcceptanceDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.acceptance.book(id, dto, principal);
+  }
+
+  @ApiOperation({ summary: 'เลื่อนนัดหรือแก้รายละเอียดนัดตรวจรับ' })
+  @Patch(':id/acceptances/:acceptanceId')
+  @Permissions('notification.read')
+  updateAcceptance(
+    @Param('id') id: string,
+    @Param('acceptanceId') acceptanceId: string,
+    @Body() dto: BookAcceptanceDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.acceptance.update(id, acceptanceId, dto, principal);
+  }
+
+  @ApiOperation({ summary: 'ยกเลิกนัดตรวจรับ' })
+  @Post(':id/acceptances/:acceptanceId/cancel')
+  @Permissions('notification.read')
+  cancelAcceptance(
+    @Param('id') id: string,
+    @Param('acceptanceId') acceptanceId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.acceptance.cancel(id, acceptanceId, principal);
+  }
+
+  @ApiOperation({
+    summary:
+      'บันทึกผลตรวจรับ พร้อมใบตรวจรับที่ลงนาม — ผ่านแล้ว milestone บรรลุให้',
+  })
+  @Post(':id/acceptances/:acceptanceId/result')
+  @Permissions('notification.read')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['result', 'decided_on'],
+      properties: {
+        result: {
+          type: 'string',
+          enum: ['accepted', 'conditional', 'rejected'],
+        },
+        decided_on: { type: 'string', format: 'date' },
+        note: { type: 'string' },
+        items: { type: 'string', description: 'JSON array' },
+        file: { type: 'string', format: 'binary' },
+      },
+    },
+  })
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: MAX_EVIDENCE_BYTES },
+      defParamCharset: 'utf8',
+    }),
+  )
+  recordAcceptance(
+    @Param('id') id: string,
+    @Param('acceptanceId') acceptanceId: string,
+    @Body() dto: RecordAcceptanceDto,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.acceptance.record(id, acceptanceId, dto, file, principal);
+  }
+
+  @ApiOperation({
+    summary: 'ปิดรายการค้างจากการตรวจรับ (ผู้รับผิดชอบหรือผู้จัดการ)',
+  })
+  @Post(':id/acceptances/:acceptanceId/items/:itemId/done')
+  @Permissions('notification.read')
+  closeAcceptanceItem(
+    @Param('id') id: string,
+    @Param('acceptanceId') acceptanceId: string,
+    @Param('itemId') itemId: string,
+    @Body() dto: AcceptanceItemDoneDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.acceptance.closeItem(id, acceptanceId, itemId, dto, principal);
+  }
+
+  @ApiOperation({ summary: 'ไฟล์ใบตรวจรับที่ลงนาม' })
+  @Get(':id/acceptances/:acceptanceId/certificate')
+  @Permissions('notification.read')
+  async acceptanceCertificate(
+    @Param('id') id: string,
+    @Param('acceptanceId') acceptanceId: string,
+    @CurrentPrincipal() principal: Principal,
+  ): Promise<StreamableFile> {
+    const file = await this.acceptance.certificate(id, acceptanceId, principal);
     return new StreamableFile(file.stream, {
       type: file.mimeType,
       disposition: `inline; filename*=UTF-8''${encodeURIComponent(file.fileName)}`,

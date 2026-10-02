@@ -40,6 +40,8 @@ import {
   ProjectReadinessItemRepository,
   ProjectAsBuiltDocumentRepository,
   ProjectAsBuiltDeviationRepository,
+  ProjectAcceptanceRepository,
+  ProjectAcceptanceItemRepository,
 } from './project.repositories';
 import { ProjectsService } from './projects.service';
 import { MilestonesService } from './milestones.service';
@@ -57,6 +59,7 @@ import { StatusReportsService } from './status-reports.service';
 import { TestsService } from './tests.service';
 import { ReadinessService } from './readiness.service';
 import { AsBuiltService } from './as-built.service';
+import { AcceptanceService } from './acceptance.service';
 import { ContractRiskAssessmentRepository } from '../crm/contract-risk.service';
 import { ContractObligationRepository } from '../crm/contract-obligations.service';
 import {
@@ -260,6 +263,10 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       });
       await prisma.projectTask.deleteMany({ where: { projectId } });
       await prisma.projectMilestone.deleteMany({ where: { projectId } });
+      await prisma.projectAcceptanceItem.deleteMany({
+        where: { acceptance: { projectId } },
+      });
+      await prisma.projectAcceptance.deleteMany({ where: { projectId } });
       await prisma.projectReadinessItem.deleteMany({ where: { projectId } });
       await prisma.projectAsBuiltDeviation.deleteMany({ where: { projectId } });
       await prisma.projectAsBuiltDocument.deleteMany({ where: { projectId } });
@@ -2278,6 +2285,288 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         total: 2,
         blockers: [],
       });
+    });
+
+    it('CD-189: acceptance — booked once ready, the result with the signed certificate, open points followed, the milestone achieved', async () => {
+      const client = prisma as never;
+      const transactions = {
+        execute: (work: (tx: unknown) => Promise<unknown>) =>
+          prisma.$transaction((tx) => work(tx)),
+      } as never;
+      const audit = { record: () => Promise.resolve() } as never;
+      const tests = new TestsService(
+        projects,
+        new ProjectRepository(client),
+        new ProjectChangeRequestRepository(client),
+        new ProjectTestItemRepository(client),
+        new ProjectTestRunRepository(client),
+        new CompanyMemberRepository(client),
+        {} as never,
+        {} as never,
+        audit,
+        transactions,
+      );
+      const readiness = new ReadinessService(
+        projects,
+        new ProjectReadinessItemRepository(client),
+        new ProjectIssueRepository(client),
+        tests,
+        new AsBuiltService(
+          projects,
+          new ProjectRepository(client),
+          new ProjectAsBuiltDocumentRepository(client),
+          new ProjectAsBuiltDeviationRepository(client),
+          new ProjectChangeRequestRepository(client),
+          {
+            findFirst: () =>
+              Promise.resolve({ projectAsBuiltDocuments: ['แบบติดตั้งจริง'] }),
+          } as never,
+          new CompanyMemberRepository(client),
+          {} as never,
+          audit,
+          transactions,
+        ),
+        {} as never,
+        new CompanyMemberRepository(client),
+        {} as never,
+        audit,
+        transactions,
+      );
+      const files = new Map<string, Buffer>();
+      const told: string[] = [];
+      const acceptance = new AcceptanceService(
+        projects,
+        readiness,
+        milestones,
+        new ProjectMilestoneRepository(client),
+        new ProjectAcceptanceRepository(client),
+        new ProjectAcceptanceItemRepository(client),
+        new CompanyMemberRepository(client),
+        {
+          acceptanceItemAssigned: (
+            userId: string,
+            _c: string,
+            _p: unknown,
+            round: string,
+          ) => {
+            told.push(`${userId}:${round}`);
+            return Promise.resolve();
+          },
+        } as never,
+        {
+          put: (key: string, body: Buffer) => {
+            files.set(key, body);
+            return Promise.resolve();
+          },
+          remove: () => Promise.resolve(),
+          get: (key: string) =>
+            Promise.resolve(Readable.from([files.get(key)!])),
+        },
+        audit,
+        transactions,
+      );
+      const managerNow = as(engineer, ['notification.read']);
+      const crew = as(outsider, ['notification.read']);
+      const now = new Date('2026-10-08T03:00:00Z');
+      const later = new Date('2026-10-12T03:00:00Z');
+      const signed = {
+        originalname: 'certificate.pdf',
+        mimetype: 'application/pdf',
+        size: 4,
+        buffer: Buffer.from('%PDF'),
+      };
+      // a milestone the customer will accept, one criterion not yet ticked
+      const last = await prisma.projectMilestone.findFirst({
+        where: { projectId },
+        orderBy: { seq: 'desc' },
+        select: { seq: true },
+      });
+      const accepted = await prisma.projectMilestone.create({
+        data: {
+          companyId,
+          projectId,
+          seq: (last?.seq ?? 0) + 1,
+          title: 'ตรวจรับระบบกล้อง',
+          criteria: [{ text: 'ลูกค้าลงนามใบตรวจรับ', met: false }],
+          createdBy: engineer,
+        },
+        select: { id: true },
+      });
+
+      // not ready, not booked
+      const blocker = await prisma.projectIssue.create({
+        data: {
+          companyId,
+          projectId,
+          seq: 950,
+          title: 'ค้างก่อนตรวจรับ',
+          ownerUserId: engineer,
+          dueOn: new Date('2026-10-20T00:00:00Z'),
+          createdBy: engineer,
+        },
+        select: { id: true },
+      });
+      const notReady = acceptance.book(
+        projectId,
+        { milestone_id: accepted.id, scheduled_at: '2026-10-10T02:00:00Z' },
+        managerNow,
+        now,
+      );
+      await expect(notReady).rejects.toMatchObject({
+        code: 'VALIDATION_FAILED',
+      });
+      await expect(notReady).rejects.toThrow('ตรวจความพร้อมยังไม่ผ่าน');
+      await prisma.projectIssue.update({
+        where: { id: blocker.id },
+        data: { status: 'resolved', resolution: 'ทดสอบ' },
+      });
+
+      // ready: only the manager books, in the future, once per milestone
+      await expect(
+        acceptance.book(
+          projectId,
+          { milestone_id: accepted.id, scheduled_at: '2026-10-10T02:00:00Z' },
+          crew,
+          now,
+        ),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+      await expect(
+        acceptance.book(
+          projectId,
+          { milestone_id: accepted.id, scheduled_at: '2026-10-01T02:00:00Z' },
+          managerNow,
+          now,
+        ),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+      const booked = await acceptance.book(
+        projectId,
+        {
+          milestone_id: accepted.id,
+          scheduled_at: '2026-10-10T02:00:00Z',
+          location: 'อาคาร A ชั้น 3',
+          customer_people: 'คุณสมชาย ฝ่ายอาคาร',
+          preparation: 'ผลทดสอบ, แบบติดตั้งจริง',
+        },
+        managerNow,
+        now,
+      );
+      expect(booked.readiness.ready).toBe(true);
+      const round = booked.rounds[0];
+      expect(round).toMatchObject({ label: 'A-1', status: 'scheduled' });
+      await expect(
+        acceptance.book(
+          projectId,
+          { milestone_id: accepted.id, scheduled_at: '2026-10-11T02:00:00Z' },
+          managerNow,
+          now,
+        ),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+
+      // accepted with conditions: the certificate, and each open point dated
+      await expect(
+        acceptance.record(
+          projectId,
+          round.id,
+          { result: 'accepted', decided_on: '2026-10-10' },
+          undefined,
+          managerNow,
+          later,
+        ),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+      const recorded = await acceptance.record(
+        projectId,
+        round.id,
+        {
+          result: 'conditional',
+          decided_on: '2026-10-10',
+          note: 'รับมอบ ยกเว้นป้ายชื่อห้อง',
+          items: JSON.stringify([
+            {
+              text: 'ติดป้ายชื่อห้อง',
+              due_on: '2026-10-20',
+              owner_user_id: outsider,
+            },
+          ]),
+        },
+        signed,
+        managerNow,
+        later,
+      );
+      const done = recorded.rounds.find((row) => row.id === round.id)!;
+      expect(done).toMatchObject({
+        status: 'conditional',
+        certificateName: 'certificate.pdf',
+        followUp: { open: 1, closed: false },
+      });
+      expect(told).toEqual([`${outsider}:A-1`]);
+      // the milestone is achieved, every criterion met, the certificate its evidence
+      const milestone = await prisma.projectMilestone.findUniqueOrThrow({
+        where: { id: accepted.id },
+      });
+      expect(milestone).toMatchObject({
+        status: 'achieved',
+        evidenceName: 'certificate.pdf',
+      });
+      expect(milestone.achievedOn?.toISOString().slice(0, 10)).toBe(
+        '2026-10-10',
+      );
+      expect(
+        (milestone.criteria as { met: boolean }[]).every((c) => c.met),
+      ).toBe(true);
+      await expect(
+        acceptance.record(
+          projectId,
+          round.id,
+          { result: 'accepted', decided_on: '2026-10-10' },
+          signed,
+          managerNow,
+          later,
+        ),
+      ).rejects.toMatchObject({ code: 'CONFLICT' });
+
+      // the open point is closed by its owner, saying how
+      const item = done.items[0];
+      await expect(
+        acceptance.closeItem(projectId, round.id, item.id, {}, crew, later),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+      const closed = await acceptance.closeItem(
+        projectId,
+        round.id,
+        item.id,
+        { note: 'ติดป้ายครบ 12 ห้อง' },
+        crew,
+        later,
+      );
+      expect(
+        closed.rounds.find((row) => row.id === round.id)?.followUp,
+      ).toMatchObject({ open: 0, closed: true });
+      expect(
+        (await acceptance.certificate(projectId, round.id, crew)).fileName,
+      ).toBe('certificate.pdf');
+
+      // a rejected round says why, and needs no certificate
+      const second = await acceptance.book(
+        projectId,
+        { scheduled_at: '2026-10-15T02:00:00Z' },
+        managerNow,
+        later,
+      );
+      const r2 = second.rounds.find((row) => row.label === 'A-2')!;
+      const rejected = await acceptance.record(
+        projectId,
+        r2.id,
+        {
+          result: 'rejected',
+          decided_on: '2026-10-12',
+          note: 'ระบบสำรองไฟยังไม่พร้อม',
+        },
+        undefined,
+        managerNow,
+        later,
+      );
+      expect(rejected.rounds.find((row) => row.id === r2.id)?.status).toBe(
+        'rejected',
+      );
     });
 
     it('CD-192: health from the project figures; the weekly draft, refreshed until submitted; the portfolio puts risk first', async () => {

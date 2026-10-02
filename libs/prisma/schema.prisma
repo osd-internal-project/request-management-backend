@@ -4968,6 +4968,8 @@ model Project {
   /// CD-226 — เอกสารสภาพจริง และจุดที่ต่างจากที่ขาย.
   asBuiltDocuments  ProjectAsBuiltDocument[]
   asBuiltDeviations ProjectAsBuiltDeviation[]
+  /// CD-189 — รอบตรวจรับ.
+  acceptances       ProjectAcceptance[]
 
   @@unique([companyId, projectNo])
   @@index([companyId, status])
@@ -5732,5 +5734,70 @@ model ProjectAsBuiltDeviation {
 
   @@unique([projectId, seq])
   @@map("project_as_built_deviations")
+}
+
+/// CD-189 — an acceptance round with the customer (A-n): booked only once
+/// the readiness review passes (CD-225 — tests, as-built, checklist, no open
+/// issue), for the milestone it accepts; then its result — accepted,
+/// accepted with conditions (the open points, each with a date, followed to
+/// the end) or rejected (why; a new round follows) — with the certificate
+/// the customer signed. Accepted, the milestone is achieved (CD-182).
+model ProjectAcceptance {
+  id              String    @id @default(uuid())
+  companyId       String
+  projectId       String
+  seq             Int
+  milestoneId     String?
+  scheduledAt     DateTime
+  location        String?
+  /// Who attends for the customer.
+  customerPeople  String?
+  /// What is brought: documents, demonstrations.
+  preparation     String?
+  /// scheduled · accepted · conditional · rejected · cancelled
+  status          String    @default("scheduled")
+  decidedOn       DateTime? @db.Date
+  outcomeNote     String?
+  certificateKey  String?
+  certificateName String?
+  certificateMime String?
+  certificateSize Int?
+  decidedBy       String?
+  decidedAt       DateTime?
+  createdAt       DateTime  @default(now())
+  createdBy       String
+  updatedAt       DateTime  @updatedAt
+  updatedBy       String?
+
+  project Project                 @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  items   ProjectAcceptanceItem[]
+
+  @@unique([projectId, seq])
+  @@index([projectId, status])
+  @@map("project_acceptances")
+}
+
+/// CD-189 — a point the customer accepted the work on condition of (or
+/// rejected it for): what, by when, who — followed until done.
+model ProjectAcceptanceItem {
+  id           String    @id @default(uuid())
+  companyId    String
+  acceptanceId String
+  seq          Int
+  text         String
+  dueOn        DateTime  @db.Date
+  ownerUserId  String?
+  /// open · done
+  status       String    @default("open")
+  doneNote     String?
+  doneAt       DateTime?
+  doneBy       String?
+  createdAt    DateTime  @default(now())
+
+  acceptance ProjectAcceptance @relation(fields: [acceptanceId], references: [id], onDelete: Restrict)
+
+  @@unique([acceptanceId, seq])
+  @@index([status, dueOn])
+  @@map("project_acceptance_items")
 }
 

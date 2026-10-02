@@ -818,3 +818,70 @@ export class SaveDeviationDto {
   @IsString()
   change_request_id?: string;
 }
+
+/** CD-189 — an acceptance round booked (or moved). */
+export class BookAcceptanceDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  milestone_id?: string;
+
+  @ApiPropertyOptional({ example: '2026-10-10T09:00:00+07:00' })
+  @IsOptional()
+  @IsDateString()
+  scheduled_at?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  location?: string;
+
+  @ApiPropertyOptional({ description: 'ผู้เข้าร่วมฝั่งลูกค้า' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  customer_people?: string;
+
+  @ApiPropertyOptional({ description: 'เอกสาร/สิ่งที่เตรียมไป' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  preparation?: string;
+}
+
+/** CD-189 — an acceptance result (the signed certificate is multipart). */
+export class RecordAcceptanceDto {
+  @ApiPropertyOptional({ enum: ['accepted', 'conditional', 'rejected'] })
+  @IsOptional()
+  @IsIn(['accepted', 'conditional', 'rejected'])
+  result?: string;
+
+  @ApiPropertyOptional({ example: '2026-10-10' })
+  @IsOptional()
+  @IsDateString()
+  decided_on?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  note?: string;
+
+  @ApiPropertyOptional({
+    description: 'JSON: [{ text, due_on, owner_user_id }] — รายการค้าง',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100000)
+  items?: string;
+}
+
+/** CD-189 — an open point closed. */
+export class AcceptanceItemDoneDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  note?: string;
+}
