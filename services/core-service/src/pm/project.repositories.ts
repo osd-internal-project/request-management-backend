@@ -552,3 +552,31 @@ export class ProjectSoftwareDocumentRepository extends BaseRepository<
     return client.projectSoftwareDocument;
   }
 }
+
+/** CD-217. */
+@Injectable()
+export class ProjectConfigItemRepository extends BaseRepository<
+  PrismaService['projectConfigItem']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.projectConfigItem;
+  }
+}
+
+/** CD-217. */
+@Injectable()
+export class ProjectConfigHistoryRepository extends BaseRepository<
+  PrismaService['projectConfigHistory']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.projectConfigHistory;
+  }
+}

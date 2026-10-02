@@ -1354,3 +1354,63 @@ export class CarrySoftwareDocumentDto {
   @MaxLength(50)
   release_id!: string;
 }
+
+/** CD-217 — a configuration value. */
+export class SaveConfigItemDto {
+  @ApiPropertyOptional({ example: 'Core switch' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  system?: string;
+
+  @ApiPropertyOptional({ description: 'จุดติดตั้ง (CD-216); "" = ไม่ผูก' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  installation_id?: string;
+
+  @ApiPropertyOptional({ description: 'environment (CD-214); "" = ไม่ผูก' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  environment_id?: string;
+
+  @ApiPropertyOptional({ example: 'mgmt_ip' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  key?: string;
+
+  @ApiPropertyOptional({
+    description: 'ค่า · ค่าลับที่มีอยู่แล้ว ไม่ส่ง = คงค่าเดิม',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  value?: string;
+
+  @ApiPropertyOptional({ description: 'ค่าลับ (เก็บแบบเข้ารหัส)' })
+  @IsOptional()
+  @IsBoolean()
+  is_secret?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  note?: string;
+
+  @ApiPropertyOptional({ description: 'เหตุผล (บังคับเมื่อแก้)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  reason?: string;
+}
+
+/** CD-217 — a reason, for a removal or a restore. */
+export class ConfigReasonDto {
+  @ApiProperty()
+  @IsString()
+  @MaxLength(1000)
+  reason!: string;
+}

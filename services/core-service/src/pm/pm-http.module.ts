@@ -8,6 +8,7 @@ import {
   ProjectsController,
   ProjectPortfolioController,
   ProjectReleasesController,
+  ProjectConfigsController,
   ProjectRisksController,
   ProjectTasksController,
 } from './projects.controller';
@@ -32,6 +33,7 @@ import { DevPlanService } from './dev-plan.service';
 import { DefectsService } from './defects.service';
 import { ReleasesService } from './releases.service';
 import { SoftwareDocsService } from './software-docs.service';
+import { ConfigsService } from './configs.service';
 import { TaskEvidenceService } from './task-evidence.service';
 import { DesignsService } from './designs.service';
 import { TechPlanService } from './tech-plan.service';
@@ -53,6 +55,7 @@ import { TechPlanService } from './tech-plan.service';
     ProjectRisksController,
     ProjectPortfolioController,
     ProjectReleasesController,
+    ProjectConfigsController,
   ],
   providers: [
     MilestonesService,
@@ -78,6 +81,7 @@ import { TechPlanService } from './tech-plan.service';
     DefectsService,
     ReleasesService,
     SoftwareDocsService,
+    ConfigsService,
     TaskEvidenceService,
     DesignsService,
     TechPlanService,

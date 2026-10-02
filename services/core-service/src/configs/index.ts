@@ -88,6 +88,14 @@ export default () => ({
     /** CD-171 — reminders / expiry sweep (0 = off, e.g. in tests). */
     sweepIntervalMs: Number(process.env.ESIGN_SWEEP_INTERVAL_MS ?? 3_600_000),
   },
+  /** CD-217 — the key project configuration secrets are encrypted with. */
+  projectConfig: {
+    secret:
+      process.env.CONFIG_SECRET_KEY ??
+      (process.env.NODE_ENV === 'production'
+        ? undefined
+        : 'dev-project-config-secret'),
+  },
   reservePhone: {
     mode: process.env.RESERVE_PHONE_MODE ?? 'mock',
     /** How long a new hold lasts, and the longest one may be set or extended to. */

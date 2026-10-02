@@ -55,6 +55,8 @@ import {
   MoveDefectDto,
   DeployReleaseDto,
   AttachSoftwareDocumentDto,
+  ConfigReasonDto,
+  SaveConfigItemDto,
   CarrySoftwareDocumentDto,
   SaveEnvironmentDto,
   SaveReleaseDto,
@@ -109,6 +111,7 @@ import { DevPlanService } from './dev-plan.service';
 import { DefectsService } from './defects.service';
 import { ReleasesService } from './releases.service';
 import { SoftwareDocsService } from './software-docs.service';
+import { ConfigsService } from './configs.service';
 import { MAX_TASK_FILE_BYTES, TaskWorkService } from './task-work.service';
 import { MAX_FILES_PER_UPDATE } from './task-rules';
 import { ProjectsService } from './projects.service';
@@ -149,6 +152,7 @@ export class ProjectsController {
     private readonly defects: DefectsService,
     private readonly releases: ReleasesService,
     private readonly softwareDocs: SoftwareDocsService,
+    private readonly configs: ConfigsService,
   ) {}
 
   @ApiOperation({ summary: 'รายการโครงการ (ทั้งบริษัท หรือของฉัน)' })
@@ -859,6 +863,95 @@ export class ProjectsController {
       type: file.mimeType,
       disposition: `inline; filename*=UTF-8''${encodeURIComponent(file.fileName)}`,
     });
+  }
+
+  // --- CD-217 ตั้งค่าระบบ -------------------------------------------------------------
+
+  @ApiOperation({
+    summary: 'ค่าตั้งค่าของโครงการ (ค่าลับแสดงเป็น ••••••) · q = ค้นหา',
+  })
+  @Get(':id/configs')
+  @Permissions('notification.read')
+  viewConfigs(
+    @Param('id') id: string,
+    @Query('q') q: string | undefined,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.configs.view(id, principal, q ?? '');
+  }
+
+  @ApiOperation({ summary: 'บันทึกค่าตั้งค่า (ทีมโครงการ)' })
+  @Post(':id/configs')
+  @Permissions('notification.read')
+  addConfig(
+    @Param('id') id: string,
+    @Body() dto: SaveConfigItemDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.configs.add(id, dto, principal);
+  }
+
+  @ApiOperation({ summary: 'แก้ค่าตั้งค่า พร้อมเหตุผล (ทีมโครงการ)' })
+  @Put(':id/configs/:itemId')
+  @Permissions('notification.read')
+  updateConfig(
+    @Param('id') id: string,
+    @Param('itemId') itemId: string,
+    @Body() dto: SaveConfigItemDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.configs.update(id, itemId, dto, principal);
+  }
+
+  @ApiOperation({
+    summary: 'นำค่าตั้งค่าออก พร้อมเหตุผล (ผู้บันทึกหรือผู้จัดการ)',
+  })
+  @Post(':id/configs/:itemId/remove')
+  @Permissions('notification.read')
+  removeConfig(
+    @Param('id') id: string,
+    @Param('itemId') itemId: string,
+    @Body() dto: ConfigReasonDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.configs.remove(id, itemId, dto.reason, principal);
+  }
+
+  @ApiOperation({
+    summary: 'แสดงค่าลับ (ทีมโครงการ) — บันทึกทุกครั้งว่าใครดูเมื่อไร',
+  })
+  @Post(':id/configs/:itemId/reveal')
+  @Permissions('notification.read')
+  revealConfig(
+    @Param('id') id: string,
+    @Param('itemId') itemId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.configs.reveal(id, itemId, principal);
+  }
+
+  @ApiOperation({ summary: 'ประวัติการเปลี่ยนค่า (ค่าลับแสดงเป็น ••••••)' })
+  @Get(':id/configs/:itemId/history')
+  @Permissions('notification.read')
+  configHistory(
+    @Param('id') id: string,
+    @Param('itemId') itemId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.configs.historyOf(id, itemId, principal);
+  }
+
+  @ApiOperation({ summary: 'คืนค่าจากประวัติ พร้อมเหตุผล (ทีมโครงการ)' })
+  @Post(':id/configs/:itemId/history/:historyId/restore')
+  @Permissions('notification.read')
+  restoreConfig(
+    @Param('id') id: string,
+    @Param('itemId') itemId: string,
+    @Param('historyId') historyId: string,
+    @Body() dto: ConfigReasonDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.configs.restore(id, itemId, historyId, dto.reason, principal);
   }
 
   // --- CD-215 เอกสารซอฟต์แวร์ --------------------------------------------------------
@@ -2097,5 +2190,25 @@ export class ProjectReleasesController {
       ]);
     }
     return this.releases.forCustomer(customerId, principal);
+  }
+}
+
+@ApiTags('projects')
+@ApiBearerAuth()
+@Controller('project-configs')
+export class ProjectConfigsController {
+  constructor(private readonly configs: ConfigsService) {}
+
+  @ApiOperation({
+    summary:
+      'CD-217 — ค้นหาค่าตั้งค่าข้ามโครงการที่ผู้ใช้เห็น (ไม่ค้นในค่าลับ)',
+  })
+  @Get()
+  @Permissions('notification.read')
+  search(
+    @Query('q') q: string | undefined,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.configs.search(principal, q ?? '');
   }
 }

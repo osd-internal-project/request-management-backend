@@ -51,6 +51,8 @@ import {
   ProjectEnvironmentRepository,
   ProjectReleaseRepository,
   ProjectSoftwareDocumentRepository,
+  ProjectConfigHistoryRepository,
+  ProjectConfigItemRepository,
   ProjectDesignRepository,
   ProjectDesignFileRepository,
   ProjectTaskEquipmentRepository,
@@ -79,6 +81,7 @@ import { DevPlanService } from './dev-plan.service';
 import { DefectsService } from './defects.service';
 import { ReleasesService } from './releases.service';
 import { SoftwareDocsService } from './software-docs.service';
+import { ConfigsService } from './configs.service';
 import { TaskEvidenceService } from './task-evidence.service';
 import { DesignsService } from './designs.service';
 import { TechPlanService } from './tech-plan.service';
@@ -285,6 +288,10 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       });
       await prisma.projectTask.deleteMany({ where: { projectId } });
       await prisma.projectMilestone.deleteMany({ where: { projectId } });
+      await prisma.projectConfigHistory.deleteMany({
+        where: { item: { projectId } },
+      });
+      await prisma.projectConfigItem.deleteMany({ where: { projectId } });
       await prisma.projectSoftwareDocument.deleteMany({ where: { projectId } });
       await prisma.projectDeployment.deleteMany({
         where: { release: { projectId } },
@@ -3448,6 +3455,167 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         })
         .catch(() => null);
       if (plain) expect(await docs.state(plain.id, 'any')).toBeNull();
+    });
+
+    it('CD-217: configuration as searchable data — secrets sealed and revealed to the team only, every change kept with its reason and restorable', async () => {
+      const client = prisma as never;
+      const transactions = {
+        execute: (work: (tx: unknown) => Promise<unknown>) =>
+          prisma.$transaction((tx) => work(tx)),
+      } as never;
+      const audit = { record: () => Promise.resolve() } as never;
+      const configs = new ConfigsService(
+        projects,
+        new ProjectConfigItemRepository(client),
+        new ProjectConfigHistoryRepository(client),
+        new ProjectInstallationRepository(client),
+        new ProjectEnvironmentRepository(client),
+        new CompanyMemberRepository(client),
+        { get: () => 'test-config-key' } as never,
+        audit,
+        transactions,
+      );
+      const managerNow = as(engineer, ['notification.read']);
+      const crew = as(outsider, ['notification.read']);
+      const reader = as(randomUUID(), ['notification.read', 'pm.project.read']);
+      let view = await configs.view(projectId, crew);
+      const uat = view.environments.find((row) => row.label.startsWith('uat'))!;
+
+      view = await configs.add(
+        projectId,
+        {
+          system: 'Core switch',
+          key: 'mgmt_ip',
+          value: '10.20.0.1',
+          note: 'VLAN 20',
+        },
+        crew,
+      );
+      // the same key on the same system once
+      await expect(
+        configs.add(
+          projectId,
+          { system: 'core SWITCH', key: 'MGMT_IP', value: '10.20.0.2' },
+          crew,
+        ),
+      ).rejects.toThrow('มีค่านี้ในระบบเดียวกันแล้ว');
+      view = await configs.add(
+        projectId,
+        {
+          system: 'Web app',
+          environment_id: uat.id,
+          key: 'db_password',
+          value: 'S3cret!',
+          is_secret: true,
+        },
+        crew,
+      );
+      const ip = view.items.find((row) => row.key === 'mgmt_ip')!;
+      const pw = view.items.find((row) => row.key === 'db_password')!;
+      expect(pw).toMatchObject({ value: '••••••', isSecret: true });
+      expect(pw.environmentLabel).toBe('UAT');
+      // never stored readable
+      const stored = await prisma.projectConfigItem.findUniqueOrThrow({
+        where: { id: pw.id },
+      });
+      expect(stored.value).toBeNull();
+      expect(stored.secretSealed).not.toContain('S3cret!');
+
+      // the team reveals, and it is recorded; others see only that it exists
+      await expect(
+        configs.reveal(projectId, pw.id, reader),
+      ).rejects.toMatchObject({
+        code: 'FORBIDDEN',
+      });
+      expect((await configs.view(projectId, reader)).items).toHaveLength(2);
+      expect(await configs.reveal(projectId, pw.id, crew)).toEqual({
+        value: 'S3cret!',
+      });
+
+      // a change needs its reason; old and new are kept
+      await expect(
+        configs.update(projectId, ip.id, { value: '10.20.0.9' }, crew),
+      ).rejects.toThrow('ต้องระบุเหตุผลที่เปลี่ยน');
+      await configs.update(
+        projectId,
+        ip.id,
+        { value: '10.20.0.9', reason: 'ย้ายวง management' },
+        crew,
+      );
+      // a secret edited without a new value keeps it
+      await configs.update(
+        projectId,
+        pw.id,
+        { note: 'หมุนรหัสทุก 90 วัน', reason: 'เพิ่มหมายเหตุ' },
+        crew,
+      );
+      expect(await configs.reveal(projectId, pw.id, managerNow)).toEqual({
+        value: 'S3cret!',
+      });
+      await configs.update(
+        projectId,
+        pw.id,
+        { value: 'N3w!', reason: 'หมุนรหัส' },
+        crew,
+      );
+      let history = await configs.historyOf(projectId, ip.id, crew);
+      expect(
+        history.entries.map((row) => [row.action, row.oldValue, row.newValue]),
+      ).toEqual([
+        ['updated', '10.20.0.1', '10.20.0.9'],
+        ['created', null, '10.20.0.1'],
+      ]);
+      history = await configs.historyOf(projectId, pw.id, crew);
+      expect(history.entries.map((row) => row.action)).toEqual([
+        'updated',
+        'revealed',
+        'updated',
+        'revealed',
+        'created',
+      ]);
+      expect(history.entries[0]).toMatchObject({
+        oldValue: '••••••',
+        newValue: '••••••',
+      });
+
+      // restore the first secret
+      const first = history.entries.find((row) => row.action === 'created')!;
+      await configs.restore(
+        projectId,
+        pw.id,
+        first.id,
+        'รหัสใหม่ใช้ไม่ได้',
+        crew,
+      );
+      expect(await configs.reveal(projectId, pw.id, crew)).toEqual({
+        value: 'S3cret!',
+      });
+
+      // searchable, here and across projects — never by a secret
+      expect((await configs.view(projectId, crew, '10.20')).items).toHaveLength(
+        1,
+      );
+      const found = await configs.search(managerNow, '10.20.0');
+      expect(found.find((row) => row.label === ip.label)).toMatchObject({
+        projectId,
+        value: '10.20.0.9',
+      });
+      expect(await configs.search(managerNow, 'S3cret')).toEqual([]);
+
+      // removed with a reason (writer or manager); history stays
+      await expect(
+        configs.remove(projectId, ip.id, '', managerNow),
+      ).rejects.toThrow('ต้องระบุเหตุผลที่นำออก');
+      view = await configs.remove(
+        projectId,
+        ip.id,
+        'เปลี่ยนอุปกรณ์',
+        managerNow,
+      );
+      expect(view.items.map((row) => row.key)).toEqual(['db_password']);
+      expect(
+        (await configs.historyOf(projectId, ip.id, crew)).entries[0].action,
+      ).toBe('removed');
     });
 
     it('CD-210: a site survey synced from the device — the Solution assumptions checked one by one, each that differs a change request before it completes', async () => {

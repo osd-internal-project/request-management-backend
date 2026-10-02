@@ -4992,6 +4992,7 @@ model Project {
   environments      ProjectEnvironment[]
   releases          ProjectRelease[]
   softwareDocuments ProjectSoftwareDocument[]
+  configItems       ProjectConfigItem[]
 
   @@unique([companyId, projectNo])
   @@index([companyId, status])
@@ -6387,4 +6388,61 @@ model ProjectSoftwareDocument {
 
   @@index([projectId, releaseId])
   @@map("project_software_documents")
+}
+
+/// CD-217 ตั้งค่าระบบ — a configuration value as searchable data, not only
+/// an attachment: system + key + value, on an installation point (CD-216) or
+/// a software environment (CD-214) or a named system. A secret is stored
+/// encrypted (AES-256-GCM, CONFIG_SECRET_KEY) and never searched.
+model ProjectConfigItem {
+  id             String    @id @default(uuid())
+  companyId      String
+  projectId      String
+  /// C-n within the project
+  seq            Int
+  system         String
+  installationId String?
+  environmentId  String?
+  key            String
+  /// plain values only; null for a secret
+  value          String?
+  isSecret       Boolean   @default(false)
+  /// the secret, sealed; null for a plain value
+  secretSealed   String?
+  note           String?
+  createdAt      DateTime  @default(now())
+  createdBy      String
+  updatedAt      DateTime  @updatedAt
+  updatedBy      String?
+  deletedAt      DateTime?
+  deletedBy      String?
+
+  project Project                @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  history ProjectConfigHistory[]
+
+  @@unique([projectId, seq])
+  @@index([companyId, key])
+  @@map("project_config_items")
+}
+
+/// CD-217 — every change to a value (old and new, sealed for a secret) with
+/// its reason, and every time a secret was shown.
+model ProjectConfigHistory {
+  id        String   @id @default(uuid())
+  companyId String
+  itemId    String
+  /// created · updated · restored · removed · revealed
+  action    String
+  oldValue  String?
+  newValue  String?
+  oldSealed String?
+  newSealed String?
+  reason    String?
+  actorId   String
+  at        DateTime @default(now())
+
+  item ProjectConfigItem @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@index([itemId, at])
+  @@map("project_config_history")
 }
