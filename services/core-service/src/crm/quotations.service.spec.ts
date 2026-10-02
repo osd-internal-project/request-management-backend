@@ -384,6 +384,10 @@ describe('CD-76 ผลคำขออนุมัติกลับมาที�
       quotation: { updateMany: jest.fn(() => Promise.resolve({ count })) },
     };
     const quotations = { findFirst: jest.fn(() => Promise.resolve(found)) };
+    // CD-205 — the register is told every outcome.
+    const exceptions = {
+      recordOutcomeQuietly: jest.fn(() => Promise.resolve()),
+    };
     const sync = new QuotationApprovalSyncService(
       { on: jest.fn() } as never,
       quotations as never,
@@ -399,8 +403,9 @@ describe('CD-76 ผลคำขออนุมัติกลับมาที�
           work(tx),
         ),
       } as never,
+      exceptions as never,
     );
-    return { sync, tx, quotations, audits };
+    return { sync, tx, quotations, audits, exceptions };
   }
 
   const payload = {
@@ -452,12 +457,17 @@ describe('CD-76 ผลคำขออนุมัติกลับมาที�
   });
 
   it('event ซ้ำ / ใบถูกออกเวอร์ชันใหม่ไปแล้ว = ไม่มีอะไรเปลี่ยน', async () => {
-    const { sync, tx, audits } = syncHarness(null);
+    const { sync, tx, audits, exceptions } = syncHarness(null);
 
     await sync.onRequestOutcome(payload, 'approved');
 
     expect(tx.quotation.updateMany).not.toHaveBeenCalled();
     expect(audits).toHaveLength(0);
+    // CD-205 — the register still records it (idempotent on its side)
+    expect(exceptions.recordOutcomeQuietly).toHaveBeenCalledWith(
+      payload.request_id,
+      'approved',
+    );
   });
 
   it('CD-27 แก้รายการด้วยรหัสสินค้าที่ SAP ไม่รู้จัก = VALIDATION_FAILED และไม่บันทึกอะไร', async () => {

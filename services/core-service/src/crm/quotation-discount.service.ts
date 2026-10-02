@@ -12,6 +12,7 @@ import { ApprovalsService } from '../approvals/approvals.service';
 import { QuotationRepository } from './sales.repositories';
 import { CrmConfigRepository } from './segment.repositories';
 import { CustomerTimelineService } from './customer-timeline.service';
+import { PricingExceptionsService } from './pricing-exceptions.service';
 import {
   capDiscounts,
   cleanMinMargins,
@@ -106,6 +107,7 @@ export class QuotationDiscountService {
     private readonly timeline: CustomerTimelineService,
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
+    private readonly exceptions: PricingExceptionsService,
   ) {}
 
   async impact(requestId: string, actor: Principal) {
@@ -226,7 +228,7 @@ export class QuotationDiscountService {
     // it (the sync looks up the request's version that is still pending).
     const final = decided.status === 'approved';
 
-    await this.transactions.execute(async (prisma) => {
+    const created = await this.transactions.execute(async (prisma) => {
       // The sync may already have approved the version asked for after a
       // final decision — it is replaced all the same.
       const superseded = await prisma.quotation.updateMany({
@@ -336,7 +338,21 @@ export class QuotationDiscountService {
           { prisma },
         );
       }
+      return row;
     });
+
+    // CD-205 — the choice goes on the register; a final one also records the
+    // request's outcome against the version it produced.
+    await this.exceptions.recordChoice(
+      requestId,
+      created.id,
+      caps,
+      note,
+      actor,
+    );
+    if (final) {
+      await this.exceptions.recordOutcomeQuietly(requestId, 'approved');
+    }
 
     return this.impact(requestId, actor);
   }

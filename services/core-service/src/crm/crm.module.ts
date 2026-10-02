@@ -66,6 +66,7 @@ import {
   LeadStatusRepository,
   QuotationLineRepository,
   QuotationRepository,
+  PricingExceptionRepository,
   SaleOrderRepository,
   SalesTargetRepository,
   SalesTargetRevisionRepository,
@@ -88,6 +89,7 @@ import { QuotationsService } from './quotations.service';
 import { QuotationPrintService } from './quotation-print.service';
 import { QuotationApprovalSyncService } from './quotation-approval-sync.service';
 import { QuotationDiscountService } from './quotation-discount.service';
+import { PricingExceptionsService } from './pricing-exceptions.service';
 import { ApprovalsModule } from '../approvals/approvals.module';
 import { LeadsService } from './leads.service';
 import { LeadStatusService } from './lead-status.service';
@@ -245,6 +247,8 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     QuotationPrintService,
     QuotationApprovalSyncService,
     QuotationDiscountService,
+    PricingExceptionsService,
+    PricingExceptionRepository,
     LeadsService,
     LeadStatusService,
     LeadImportService,
@@ -373,6 +377,7 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     SaleOrdersService,
     QuotationsService,
     QuotationDiscountService,
+    PricingExceptionsService,
     QuotationPrintService,
     ErpSyncAdminService,
     ProductCatalogService,

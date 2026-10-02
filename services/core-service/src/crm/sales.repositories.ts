@@ -477,3 +477,17 @@ export class CampaignRepository extends BaseRepository<
     return client.campaign;
   }
 }
+
+/** CD-205 — ทะเบียนข้อยกเว้นด้านราคา. */
+@Injectable()
+export class PricingExceptionRepository extends BaseRepository<
+  PrismaService['pricingException']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.pricingException;
+  }
+}

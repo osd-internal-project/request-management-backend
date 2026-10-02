@@ -116,6 +116,11 @@ function harness(options: { status?: string; caseStatus?: string } = {}) {
     },
   };
   const audit = { record: jest.fn(() => Promise.resolve()) };
+  // CD-205 — the register.
+  const exceptions = {
+    recordChoice: jest.fn(() => Promise.resolve()),
+    recordOutcomeQuietly: jest.fn(() => Promise.resolve()),
+  };
   const service = new QuotationDiscountService(
     quotations as never,
     configs as never,
@@ -126,8 +131,9 @@ function harness(options: { status?: string; caseStatus?: string } = {}) {
     {
       execute: (fn: (prisma: unknown) => Promise<unknown>) => fn(tx),
     } as never,
+    exceptions as never,
   );
-  return { service, quotations, approvals, tx, audit };
+  return { service, quotations, approvals, tx, audit, exceptions };
 }
 
 describe('CD-203 บริหารส่วนลด', () => {
@@ -180,7 +186,7 @@ describe('CD-203 บริหารส่วนลด', () => {
   });
 
   it('เลือกทางเลือก = อนุมัติขั้นของตน แล้วออกเวอร์ชันใหม่ตามเพดาน ผูกคำขอเดิม', async () => {
-    const { service, approvals, quotations, tx } = harness();
+    const { service, approvals, quotations, tx, exceptions } = harness();
 
     await service.choose(
       'req-1',
@@ -224,6 +230,18 @@ describe('CD-203 บริหารส่วนลด', () => {
     expect(args.data.lines.create.map((l) => l.discountPct)).toEqual([
       12.5, 10,
     ]);
+    // CD-205 — the choice and, being final, the outcome go on the register
+    expect(exceptions.recordChoice).toHaveBeenCalledWith(
+      'req-1',
+      'qt-2',
+      { service: 12.5 },
+      expect.stringContaining('ลดได้แค่นี้'),
+      expect.anything(),
+    );
+    expect(exceptions.recordOutcomeQuietly).toHaveBeenCalledWith(
+      'req-1',
+      'approved',
+    );
   });
 
   it('ยังมีขั้นถัดไป = เวอร์ชันใหม่ยังรออนุมัติ', async () => {

@@ -11268,6 +11268,139 @@
         ]
       }
     },
+    "/api/v1/pricing/exceptions": {
+      "get": {
+        "description": "Pricing (pricing.price.read) เห็นทั้งหมด; ฝ่ายขายเห็นเฉพาะดีลที่ตนเห็น · ล่าสุดก่อน สูงสุด 200 แถว",
+        "operationId": "PricingExceptionsController_list",
+        "parameters": [
+          {
+            "name": "kind",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "margin_below",
+                "price_override",
+                "discount_option"
+              ]
+            }
+          },
+          {
+            "name": "customer_id",
+            "required": false,
+            "in": "query",
+            "description": "ลูกค้า — รวมดีลที่เคยเป็นผู้มุ่งหวัง",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "opportunity_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "for_opportunity",
+            "required": false,
+            "in": "query",
+            "description": "ดีลที่กำลังทำ — คืนข้อยกเว้นของลูกค้ารายเดียวกันในดีลอื่น",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "ค้นชื่อคู่ค้า / เลขใบเสนอราคา / รหัสสินค้า",
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "2026-10-01",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "2026-10-31",
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-205 ทะเบียนข้อยกเว้นด้านราคา",
+        "tags": [
+          "pricing"
+        ],
+        "x-sensitive-resource": "quotation"
+      }
+    },
+    "/api/v1/pricing/exceptions/backfill": {
+      "post": {
+        "description": "รันซ้ำได้ — แถวเดิมถูกปรับ ไม่เพิ่มซ้ำ",
+        "operationId": "PricingExceptionsController_backfill",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-205 เติมทะเบียนจากคำขออนุมัติราคาที่ได้ผลก่อนมีทะเบียน",
+        "tags": [
+          "pricing"
+        ],
+        "x-permission": [
+          "pricing.price.manage"
+        ]
+      }
+    },
     "/api/v1/presales/solutions": {
       "post": {
         "operationId": "SolutionsController_start",

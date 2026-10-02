@@ -1,3 +1,4 @@
+import { PricingExceptionsController } from './pricing-exceptions.controller';
 import { QuotationDiscountController } from './quotation-discount.controller';
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -93,6 +94,8 @@ import {
     CustomerIntakeAdminController,
     // CD-203 — screens only; see the controller.
     QuotationDiscountController,
+    // CD-205 — screens only; see the controller.
+    PricingExceptionsController,
   ],
   providers: [
     ActivityPhotosService,

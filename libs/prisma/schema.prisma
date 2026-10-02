@@ -5801,3 +5801,52 @@ model ProjectAcceptanceItem {
   @@map("project_acceptance_items")
 }
 
+/// CD-205 ทะเบียนข้อยกเว้นด้านราคา — margin ต่ำกว่าเกณฑ์ / แก้ราคาด้วยมือ / ผู้อนุมัติเลือกส่วนลดทางเลือก.
+/// เขียนเมื่อคำขออนุมัติราคาของใบเสนอราคาได้ผล (คงภาพ ณ ตอนนั้น); หนึ่งแถวต่อชนิดและเรื่องบนคำขอเดียว.
+model PricingException {
+  id            String  @id @default(uuid())
+  companyId     String
+  /// margin_below | price_override | discount_option
+  kind          String
+  /// work type (margin_below) · "<lineNo>:<product>" (price_override) · "v<version>" (discount_option)
+  subjectKey    String
+  requestId     String
+  requestNo     String?
+  quotationId   String
+  quotationNo   String
+  version       Int
+  opportunityId String
+  customerId    String?
+  partyName     String
+  currency      String
+  netTotal      Decimal @db.Decimal(14, 2)
+
+  workType     String?
+  /// ปกปิดเหมือน margin ของใบเสนอราคา (SensitiveResource quotation).
+  marginPct    Decimal? @db.Decimal(7, 2)
+  minMarginPct Decimal? @db.Decimal(7, 2)
+  productCode  String?
+  description  String?
+  systemPrice  Decimal? @db.Decimal(14, 2)
+  unitPrice    Decimal? @db.Decimal(14, 2)
+  /// CD-203 เพดานส่วนลดที่ผู้อนุมัติเลือก { service: 12.5 }.
+  caps         Json?
+
+  reason          String?
+  requestedBy     String?
+  requestedByName String?
+  /// pending | approved | rejected | cancelled | superseded
+  decision        String
+  decidedAt       DateTime?
+  approverIds     String[]  @default([])
+  approverNames   String[]  @default([])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([requestId, kind, subjectKey])
+  @@index([companyId, createdAt])
+  @@index([companyId, customerId])
+  @@index([opportunityId])
+  @@map("pricing_exceptions")
+}

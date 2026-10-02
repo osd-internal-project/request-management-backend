@@ -11,6 +11,7 @@ import {
 } from '../events/event-catalog';
 import { QuotationRepository } from './sales.repositories';
 import { CustomerTimelineService } from './customer-timeline.service';
+import { PricingExceptionsService } from './pricing-exceptions.service';
 
 /**
  * CD-76 / CD-201 — carries the outcome of a price approval request back to its
@@ -35,6 +36,7 @@ export class QuotationApprovalSyncService implements OnModuleInit {
     private readonly timeline: CustomerTimelineService,
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
+    private readonly exceptions: PricingExceptionsService,
   ) {}
 
   onModuleInit(): void {
@@ -78,7 +80,12 @@ export class QuotationApprovalSyncService implements OnModuleInit {
       customerId: string | null;
     } | null;
 
-    if (!quotation) return;
+    if (!quotation) {
+      // CD-205 — an approver's final choice (CD-203) may have released the
+      // version already; its outcome still goes on the register.
+      await this.exceptions.recordOutcomeQuietly(payload.request_id, outcome);
+      return;
+    }
 
     const approved = outcome === 'approved';
     const requestLabel = payload.request_no ?? payload.request_id;
@@ -139,5 +146,7 @@ export class QuotationApprovalSyncService implements OnModuleInit {
     });
 
     this.logger.log(`quotation ${label} ← request ${requestLabel} ${outcome}`);
+    // CD-205 — what the decided version had outside the policy.
+    await this.exceptions.recordOutcomeQuietly(payload.request_id, outcome);
   }
 }
