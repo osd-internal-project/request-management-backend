@@ -347,6 +347,9 @@ const SEED_ROLES: {
       'user.read',
       'hr.rate.read',
       'hr.rate.manage',
+      // CD-229 — the employee register
+      'hr.employee.read',
+      'hr.employee.manage',
     ],
   },
   {
@@ -1055,6 +1058,40 @@ async function seedHrLaborRates(companyId: string) {
     });
   }
   console.log(`  hr labour rates: ${table.length} level(s) × ทั่วไป`);
+}
+
+/**
+ * CD-229 — a starting skill catalog, shared by every company. Upserted by
+ * code without touching a name HR has since changed.
+ */
+const STARTER_SKILLS = [
+  { code: 'NETWORK', name: 'ระบบเครือข่าย', category: 'Infrastructure' },
+  {
+    code: 'SECURITY',
+    name: 'ความปลอดภัยเครือข่าย',
+    category: 'Infrastructure',
+  },
+  { code: 'SERVER', name: 'ระบบเซิร์ฟเวอร์', category: 'Infrastructure' },
+  {
+    code: 'VOICE',
+    name: 'ระบบโทรศัพท์ / Call Center',
+    category: 'Communication',
+  },
+  { code: 'CLOUD', name: 'Cloud', category: 'Infrastructure' },
+  { code: 'DEV', name: 'พัฒนาซอฟต์แวร์', category: 'Software' },
+  { code: 'PM', name: 'บริหารโครงการ', category: 'Management' },
+  { code: 'SOLUTION', name: 'ออกแบบ Solution', category: 'Pre-Sales' },
+];
+
+async function seedHrSkills() {
+  for (const [index, skill] of STARTER_SKILLS.entries()) {
+    await prisma.hrSkill.upsert({
+      where: { code: skill.code },
+      create: { ...skill, sortOrder: index * 10 },
+      update: {},
+    });
+  }
+  console.log(`  hr skills: ${STARTER_SKILLS.length} starter skill(s)`);
 }
 
 /**
@@ -2138,6 +2175,7 @@ async function main() {
   await seedContractRequestType(demo.id);
   await seedSolutionRequestType(demo.id);
   await seedHrLaborRates(demo.id);
+  await seedHrSkills();
   await seedTradeTerms(demo.id);
   await seedHandoverItems(demo.id);
   await seedApprovalMatrix(demo.id);

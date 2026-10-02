@@ -124,7 +124,16 @@ export const PERMISSIONS = {
    * shows mandays only. `hr.rate.manage` keeps the levels, work types and
    * rates — the one source every labour cost reads.
    */
-  hr: ['hr.rate.read', 'hr.rate.manage'],
+  hr: [
+    'hr.rate.read',
+    'hr.rate.manage',
+    /**
+     * CD-229 — the employee register: HR's own facts about a person (level,
+     * employment, skills). Identity stays with the user directory (LDAP).
+     */
+    'hr.employee.read',
+    'hr.employee.manage',
+  ],
   admin: [
     'admin.role.manage',
     'admin.org.manage',

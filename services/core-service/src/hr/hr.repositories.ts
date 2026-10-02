@@ -45,3 +45,62 @@ export class HrLaborRateRepository extends BaseRepository<
     return client.hrLaborRate;
   }
 }
+
+/** CD-229 — HR's profile of a person in one company. */
+@Injectable()
+export class HrEmployeeRepository extends BaseRepository<
+  PrismaService['hrEmployee']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.hrEmployee;
+  }
+}
+
+/** CD-229 — the skill catalog, shared by every company. */
+@Injectable()
+export class HrSkillRepository extends BaseRepository<
+  PrismaService['hrSkill']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.hrSkill;
+  }
+}
+
+/** CD-229 — a person's skills. */
+@Injectable()
+export class HrUserSkillRepository extends BaseRepository<
+  PrismaService['hrUserSkill']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.hrUserSkill;
+  }
+}
+
+/**
+ * CD-229 — who works for a company: its memberships with the user directory
+ * (LDAP-synced) — the register lists these, it never creates people.
+ */
+@Injectable()
+export class HrMemberRepository extends BaseRepository<
+  PrismaService['userCompany']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.userCompany;
+  }
+}

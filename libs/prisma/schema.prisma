@@ -5997,7 +5997,8 @@ model HrLevel {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  rates HrLaborRate[]
+  rates     HrLaborRate[]
+  employees HrEmployee[]
 
   @@unique([companyId, code])
   @@map("hr_levels")
@@ -6184,3 +6185,64 @@ model ProjectSurveyPhoto {
   @@map("project_survey_photos")
 }
 
+/// CD-229 ทะเบียนพนักงาน — ข้อมูลของ HR ต่อคน × บริษัท (ระดับ การจ้าง สถานะ).
+/// ตัวตน ชื่อ อีเมล ตำแหน่ง สังกัด และวันเริ่มงานอยู่ที่ users (ซิงก์จาก LDAP) — ไม่สร้างซ้ำที่นี่.
+model HrEmployee {
+  id             String    @id @default(uuid())
+  companyId      String
+  userId         String
+  levelId        String?
+  /// permanent | contract | outsource | intern
+  employmentType String    @default("permanent")
+  /// active | on_leave | resigned
+  status         String    @default("active")
+  endDate        DateTime? @db.Date
+  note           String    @default("")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  updatedBy      String?
+
+  level HrLevel? @relation(fields: [levelId], references: [id])
+
+  @@unique([companyId, userId])
+  @@index([companyId, levelId])
+  @@map("hr_employees")
+}
+
+/// CD-229 รายการทักษะที่ HR ดูแล — ใช้ร่วมทุกบริษัท.
+model HrSkill {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  name      String
+  category  String   @default("")
+  sortOrder Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  holders HrUserSkill[]
+
+  @@map("hr_skills")
+}
+
+/// CD-229 ทักษะของคน (ติดตัวคน ใช้ได้ทุกบริษัท) ระดับความชำนาญ 1–3 พร้อมใบรับรอง.
+model HrUserSkill {
+  id            String    @id @default(uuid())
+  userId        String
+  skillId       String
+  /// 1 พื้นฐาน · 2 ทำได้เอง · 3 เชี่ยวชาญ
+  proficiency   Int
+  certificate   String    @default("")
+  certExpiresOn DateTime? @db.Date
+  note          String    @default("")
+  updatedAt     DateTime  @updatedAt
+  updatedBy     String?
+  /// ถอดออกจากโปรไฟล์ — คงแถวไว้ (ไม่ลบจริง).
+  deletedAt     DateTime?
+
+  skill HrSkill @relation(fields: [skillId], references: [id])
+
+  @@unique([userId, skillId])
+  @@index([skillId])
+  @@map("hr_user_skills")
+}

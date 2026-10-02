@@ -1,5 +1,10 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  IsArray,
+  IsIn,
+  ValidateNested,
   IsBoolean,
   IsInt,
   IsNumber,
@@ -70,4 +75,136 @@ export class AddLaborRateDto {
   @IsString()
   @MaxLength(500)
   note?: string;
+}
+
+export const EMPLOYMENT_TYPES = [
+  'permanent',
+  'contract',
+  'outsource',
+  'intern',
+] as const;
+export const EMPLOYEE_STATUSES = ['active', 'on_leave', 'resigned'] as const;
+
+export class SaveEmployeeDto {
+  /** An HR level of this company (CD-207); null clears it. */
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @IsString()
+  level_id?: string | null;
+
+  @ApiPropertyOptional({ enum: EMPLOYMENT_TYPES })
+  @IsOptional()
+  @IsIn(EMPLOYMENT_TYPES)
+  employment_type?: string;
+
+  @ApiPropertyOptional({ enum: EMPLOYEE_STATUSES })
+  @IsOptional()
+  @IsIn(EMPLOYEE_STATUSES)
+  status?: string;
+
+  @ApiPropertyOptional({ nullable: true, example: '2026-12-31' })
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  end_date?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  note?: string;
+}
+
+export class EmployeeSkillDto {
+  @ApiProperty()
+  @IsString()
+  skill_id!: string;
+
+  @ApiProperty({ minimum: 1, maximum: 3 })
+  @IsInt()
+  @Min(1)
+  @Max(3)
+  proficiency!: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  certificate?: string;
+
+  @ApiPropertyOptional({ example: '2027-06-30' })
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  cert_expires_on?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  note?: string;
+}
+
+export class SaveEmployeeSkillsDto {
+  @ApiProperty({ type: () => [EmployeeSkillDto] })
+  @IsArray()
+  @ArrayMaxSize(100)
+  @ValidateNested({ each: true })
+  @Type(() => EmployeeSkillDto)
+  skills!: EmployeeSkillDto[];
+}
+
+export class SaveSkillDto {
+  @ApiPropertyOptional({ example: 'FORTINET' })
+  @IsOptional()
+  @IsString()
+  @Matches(/^[A-Za-z0-9_-]{1,30}$/)
+  code?: string;
+
+  @ApiPropertyOptional({ example: 'Fortinet NSE' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  name?: string;
+
+  @ApiPropertyOptional({ example: 'Network' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  category?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(10000)
+  sort_order?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  active?: boolean;
+}
+
+export class ListEmployeesQueryDto {
+  @ApiPropertyOptional({ description: 'ชื่อ / อีเมล / รหัสพนักงาน / ตำแหน่ง' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  q?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  level_id?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  skill_id?: string;
+
+  @ApiPropertyOptional({ enum: EMPLOYEE_STATUSES })
+  @IsOptional()
+  @IsIn(EMPLOYEE_STATUSES)
+  status?: string;
 }

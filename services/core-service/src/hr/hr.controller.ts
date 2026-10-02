@@ -6,23 +6,121 @@ import {
   Param,
   Patch,
   Post,
+  Put,
+  Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   AnyPermission,
+  Authenticated,
   CurrentPrincipal,
   Permissions,
 } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import { HrRatesService } from './hr-rates.service';
-import { AddLaborRateDto, SaveHrItemDto } from './hr.dto';
+import {
+  AddLaborRateDto,
+  ListEmployeesQueryDto,
+  SaveEmployeeDto,
+  SaveEmployeeSkillsDto,
+  SaveHrItemDto,
+  SaveSkillDto,
+} from './hr.dto';
+import { EmployeesService } from './employees.service';
 
 /** CD-207 — ต้นทุนบุคลากร: levels, work types and cost per manday. */
 @ApiTags('hr')
 @ApiBearerAuth()
 @Controller('hr')
 export class HrController {
-  constructor(private readonly hr: HrRatesService) {}
+  constructor(
+    private readonly hr: HrRatesService,
+    private readonly employees: EmployeesService,
+  ) {}
+
+  // --- CD-229 ทะเบียนพนักงาน ------------------------------------------------
+
+  @ApiOperation({
+    summary: 'CD-229 ทะเบียนพนักงานของบริษัท (ข้อมูลจาก LDAP + ของ HR)',
+  })
+  @Get('employees')
+  @AnyPermission('hr.employee.read', 'hr.employee.manage')
+  listEmployees(
+    @Query() query: ListEmployeesQueryDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.employees.list(principal, query);
+  }
+
+  @ApiOperation({ summary: 'CD-229 โปรไฟล์ของฉัน' })
+  @Get('employees/me')
+  @Authenticated()
+  me(@CurrentPrincipal() principal: Principal) {
+    return this.employees.findOne(principal, principal.userId);
+  }
+
+  @ApiOperation({ summary: 'CD-229 โปรไฟล์พนักงาน (HR หรือเจ้าตัว)' })
+  @Get('employees/:userId')
+  @Authenticated()
+  employee(
+    @Param('userId') userId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.employees.findOne(principal, userId);
+  }
+
+  @ApiOperation({ summary: 'CD-229 บันทึกระดับ การจ้าง และสถานะ' })
+  @Put('employees/:userId')
+  @Permissions('hr.employee.manage')
+  saveEmployee(
+    @Param('userId') userId: string,
+    @Body() dto: SaveEmployeeDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.employees.saveProfile(principal, userId, dto);
+  }
+
+  @ApiOperation({ summary: 'CD-229 บันทึกทักษะทั้งชุด (ที่ไม่ส่งมาถูกถอด)' })
+  @Put('employees/:userId/skills')
+  @Permissions('hr.employee.manage')
+  saveSkills(
+    @Param('userId') userId: string,
+    @Body() dto: SaveEmployeeSkillsDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.employees.saveSkills(principal, userId, dto);
+  }
+
+  @ApiOperation({ summary: 'CD-229 รายการทักษะ' })
+  @Get('skills')
+  @AnyPermission(
+    'hr.employee.read',
+    'hr.employee.manage',
+    'pm.project.manage',
+    'presales.solution.manage',
+  )
+  skills(@CurrentPrincipal() principal: Principal) {
+    return this.employees.skillCatalog(principal);
+  }
+
+  @Post('skills')
+  @Permissions('hr.employee.manage')
+  addSkill(
+    @Body() dto: SaveSkillDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.employees.saveSkill(principal, null, dto);
+  }
+
+  @Patch('skills/:id')
+  @Permissions('hr.employee.manage')
+  saveSkill(
+    @Param('id') id: string,
+    @Body() dto: SaveSkillDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.employees.saveSkill(principal, id, dto);
+  }
 
   @ApiOperation({
     summary: 'CD-207 ระดับและประเภทงานสำหรับเลือก (ไม่มีอัตรา)',
