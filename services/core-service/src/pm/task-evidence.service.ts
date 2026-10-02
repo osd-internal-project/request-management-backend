@@ -20,6 +20,7 @@ import {
 } from './project.repositories';
 import { statusStamps } from './task-rules';
 import { testState } from './test-rules';
+import { TechPlanService } from './tech-plan.service';
 
 interface TaskRow {
   id: string;
@@ -54,6 +55,7 @@ export class TaskEvidenceService {
     private readonly changes: ChangeRequestsService,
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
+    private readonly techPlan: TechPlanService,
   ) {}
 
   /** The leaf tasks evidence may be linked to, labelled with their WBS code. */
@@ -120,6 +122,8 @@ export class TaskEvidenceService {
       // work a change request added waits for the change
       const blocked = await this.changes.workMayStart(task.changeRequestId);
       if (blocked) return;
+      // CD-209 — nor before handoff 7
+      if ((await this.techPlan.handoffBlockers(projectId)).length) return;
     }
     const stamps = statusStamps(task, to, now, actor.userId);
     if (!stamps) return;

@@ -22,6 +22,7 @@ import {
   ProjectTaskUpdateRepository,
 } from './project.repositories';
 import { ProjectsService } from './projects.service';
+import { TechPlanService } from './tech-plan.service';
 import {
   reportProblems,
   statusStamps,
@@ -87,6 +88,7 @@ export class TaskWorkService {
     private readonly transactions: PrismaTransactionService,
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
     private readonly changes: ChangeRequestsService,
+    private readonly techPlan: TechPlanService,
   ) {}
 
   /** The tasks handed to me that are still to do, soonest due first. */
@@ -299,6 +301,16 @@ export class TaskWorkService {
     if (stamps && stamps.status !== 'open') {
       const blocked = await this.changes.workMayStart(task.changeRequestId);
       if (blocked) throw new AppError('CONFLICT', blocked);
+    }
+    // CD-209 — handoff 7: no work starts before the plan is fully handed over
+    if (stamps && stamps.status !== 'open' && task.status === 'open') {
+      const blockers = await this.techPlan.handoffBlockers(projectId);
+      if (blockers.length) {
+        throw new AppError(
+          'CONFLICT',
+          `ยังเริ่มงานไม่ได้ — แผนงานเทคนิคยังไม่พร้อม (จุดส่งต่อที่ 7): ${blockers.join(' · ')}`,
+        );
+      }
     }
 
     // bytes first, rows second — like request attachments

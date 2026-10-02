@@ -441,3 +441,17 @@ export class ProjectDesignFileRepository extends BaseRepository<
     return client.projectDesignFile;
   }
 }
+
+/** CD-209 อุปกรณ์และเครื่องมือของงาน. */
+@Injectable()
+export class ProjectTaskEquipmentRepository extends BaseRepository<
+  PrismaService['projectTaskEquipment']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.projectTaskEquipment;
+  }
+}

@@ -40,6 +40,7 @@ import {
   ProjectInstallationRepository,
   ProjectDesignRepository,
   ProjectDesignFileRepository,
+  ProjectTaskEquipmentRepository,
   WorkCalendarRepository,
 } from './project.repositories';
 import { ContractRiskAssessmentRepository } from '../crm/contract-risk.service';
@@ -88,6 +89,7 @@ import { ContractRiskAssessmentRepository } from '../crm/contract-risk.service';
     ProjectInstallationRepository,
     ProjectDesignRepository,
     ProjectDesignFileRepository,
+    ProjectTaskEquipmentRepository,
     ContractObligationRepository,
     ContractRiskAssessmentRepository,
     WorkCalendarRepository,
@@ -133,6 +135,7 @@ import { ContractRiskAssessmentRepository } from '../crm/contract-risk.service';
     ProjectInstallationRepository,
     ProjectDesignRepository,
     ProjectDesignFileRepository,
+    ProjectTaskEquipmentRepository,
     ContractObligationRepository,
     ContractRiskAssessmentRepository,
     WorkCalendarRepository,

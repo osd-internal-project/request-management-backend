@@ -46,6 +46,7 @@ import {
   ProjectInstallationRepository,
   ProjectDesignRepository,
   ProjectDesignFileRepository,
+  ProjectTaskEquipmentRepository,
 } from './project.repositories';
 import { ProjectsService } from './projects.service';
 import { MilestonesService } from './milestones.service';
@@ -68,6 +69,7 @@ import { UatService } from './uat.service';
 import { InstallationsService } from './installations.service';
 import { TaskEvidenceService } from './task-evidence.service';
 import { DesignsService } from './designs.service';
+import { TechPlanService } from './tech-plan.service';
 import { ContractRiskAssessmentRepository } from '../crm/contract-risk.service';
 import { ContractObligationRepository } from '../crm/contract-obligations.service';
 import {
@@ -930,6 +932,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
           },
         },
         { workMayStart: () => Promise.resolve(null) } as never,
+        { handoffBlockers: () => Promise.resolve([]) } as never,
       );
       const managerNow = as(engineer, ['notification.read']);
       const crew = as(outsider, ['notification.read']);
@@ -1259,6 +1262,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         transactions,
         {} as never,
         changes,
+        { handoffBlockers: () => Promise.resolve([]) } as never,
       );
       const managerNow = as(engineer, ['notification.read']);
 
@@ -2218,6 +2222,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         { workMayStart: () => Promise.resolve(null) } as never,
         audit,
         transactions,
+        { handoffBlockers: () => Promise.resolve([]) } as never,
       );
       const installs = new InstallationsService(
         projects,
@@ -2543,6 +2548,136 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       expect(
         (await designs.download(projectId, v2.files[0].id, crew)).fileName,
       ).toBe('layout.pdf');
+    });
+
+    it('CD-209: the technical plan — crew and equipment per task, equipment week by week, and handoff 7 holding the work until the plan is complete', async () => {
+      const client = prisma as never;
+      const transactions = {
+        execute: (work: (tx: unknown) => Promise<unknown>) =>
+          prisma.$transaction((tx) => work(tx)),
+      } as never;
+      const audit = { record: () => Promise.resolve() } as never;
+      const plan = new PlanService(
+        projects,
+        new ProjectRepository(client),
+        new ProjectTaskRepository(client),
+        new ProjectTaskLinkRepository(client),
+        new ProjectMilestoneRepository(client),
+        new WorkCalendarRepository(client),
+        new CompanyMemberRepository(client),
+        { milestoneSlipped: () => Promise.resolve() } as never,
+        audit,
+        transactions,
+      );
+      const techPlan = new TechPlanService(
+        projects,
+        plan,
+        new ProjectRepository(client),
+        new ProjectTaskRepository(client),
+        new ProjectTaskEquipmentRepository(client),
+        new CompanyMemberRepository(client),
+        audit,
+        transactions,
+      );
+      const work = new TaskWorkService(
+        projects,
+        plan,
+        new ProjectTaskRepository(client),
+        new ProjectTaskUpdateRepository(client),
+        new ProjectTaskFileRepository(client),
+        new CompanyMemberRepository(client),
+        { taskDone: () => Promise.resolve() } as never,
+        audit,
+        transactions,
+        {} as never,
+        { workMayStart: () => Promise.resolve(null) } as never,
+        techPlan,
+      );
+      const managerNow = as(engineer, ['notification.read']);
+      const crew = as(outsider, ['notification.read']);
+      // a piece of work with no owner yet
+      const task = await prisma.projectTask.create({
+        data: {
+          companyId,
+          projectId,
+          seq: 950,
+          title: 'ติดตั้งกล้องชั้น 5',
+          durationDays: 3,
+          createdBy: engineer,
+        },
+        select: { id: true },
+      });
+
+      const first = await techPlan.view(projectId, crew);
+      expect(first.canEdit).toBe(false);
+      expect(first.handoff.ready).toBe(false);
+      expect(first.handoff.blockers[0]).toContain('ติดตั้งกล้องชั้น 5');
+      // handoff 7 holds the work: it cannot start
+      await expect(
+        work.report(
+          projectId,
+          task.id,
+          { status: 'in_progress', note: 'เริ่ม' },
+          [],
+          managerNow,
+        ),
+      ).rejects.toMatchObject({ code: 'CONFLICT' });
+
+      // every task gets an owner; this one needs equipment, so it must list it
+      await prisma.projectTask.updateMany({
+        where: { projectId, ownerUserId: null },
+        data: { ownerUserId: engineer },
+      });
+      await expect(
+        techPlan.saveTask(projectId, task.id, { needs_equipment: true }, crew),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+      const needs = await techPlan.saveTask(
+        projectId,
+        task.id,
+        { needs_equipment: true, crew_user_ids: [outsider] },
+        managerNow,
+      );
+      expect(needs.handoff.ready).toBe(false);
+      expect(needs.handoff.blockers).toEqual([
+        expect.stringContaining('งานที่ต้องใช้อุปกรณ์แต่ยังไม่ระบุ'),
+      ]);
+      await expect(
+        techPlan.saveTask(
+          projectId,
+          task.id,
+          { equipment: [{ boq_index: 99, quantity: 1 }] },
+          managerNow,
+        ),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+      const listed = await techPlan.saveTask(
+        projectId,
+        task.id,
+        {
+          equipment: [
+            { boq_index: 0, quantity: 4 },
+            { name: 'บันไดอลูมิเนียม', quantity: 1, unit: 'อัน' },
+          ],
+        },
+        managerNow,
+      );
+      expect(listed.handoff).toEqual({ ready: true, blockers: [] });
+      const row = listed.tasks.find((item) => item.id === task.id)!;
+      expect(row.crew.map((member) => member.id)).toEqual([outsider]);
+      expect(row.equipment.map((line) => [line.name, line.quantity])).toEqual([
+        ['กล้อง IP', 4],
+        ['บันไดอลูมิเนียม', 1],
+      ]);
+      expect(listed.weekly.length).toBeGreaterThan(0);
+
+      // handed over: the work may start
+      const started = await work.report(
+        projectId,
+        task.id,
+        { status: 'in_progress', note: 'เริ่มติดตั้ง' },
+        [],
+        managerNow,
+      );
+      expect(started.task).toMatchObject({ status: 'in_progress' });
     });
 
     it('CD-226: as-built — the required documents, and every deviation from what was sold with its reason', async () => {

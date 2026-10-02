@@ -47,6 +47,7 @@ import {
   MoveUatDto,
   SaveInstallationDto,
   SaveDesignDto,
+  SaveTechPlanDto,
   ListProjectsQueryDto,
   OpenProjectDto,
   SaveMilestoneDto,
@@ -88,6 +89,7 @@ import {
   type PointPhotos,
 } from './installations.service';
 import { DesignsService } from './designs.service';
+import { TechPlanService } from './tech-plan.service';
 import { MAX_TASK_FILE_BYTES, TaskWorkService } from './task-work.service';
 import { MAX_FILES_PER_UPDATE } from './task-rules';
 import { ProjectsService } from './projects.service';
@@ -122,6 +124,7 @@ export class ProjectsController {
     private readonly uat: UatService,
     private readonly installations: InstallationsService,
     private readonly designs: DesignsService,
+    private readonly techPlan: TechPlanService,
   ) {}
 
   @ApiOperation({ summary: 'รายการโครงการ (ทั้งบริษัท หรือของฉัน)' })
@@ -586,6 +589,33 @@ export class ProjectsController {
       type: file.mimeType,
       disposition: `inline; filename*=UTF-8''${encodeURIComponent(file.fileName)}`,
     });
+  }
+
+  // --- CD-209 technical plan ---------------------------------------------------------
+
+  @ApiOperation({
+    summary:
+      'แผนงานเทคนิค: ทีมและอุปกรณ์ต่องาน อุปกรณ์รายสัปดาห์ และจุดส่งต่อที่ 7',
+  })
+  @Get(':id/tech-plan')
+  @Permissions('notification.read')
+  viewTechPlan(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.techPlan.view(id, principal);
+  }
+
+  @ApiOperation({ summary: 'ตั้งทีมและอุปกรณ์ของงาน (ผู้จัดการโครงการ)' })
+  @Put(':id/tech-plan/:taskId')
+  @Permissions('notification.read')
+  saveTechPlan(
+    @Param('id') id: string,
+    @Param('taskId') taskId: string,
+    @Body() dto: SaveTechPlanDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.techPlan.saveTask(id, taskId, dto, principal);
   }
 
   // --- CD-211 detailed design ------------------------------------------------------

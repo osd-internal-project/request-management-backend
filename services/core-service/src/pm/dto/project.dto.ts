@@ -1035,3 +1035,38 @@ export class SaveDesignDto {
   @MaxLength(4000)
   differences?: string;
 }
+
+/** CD-209 — a task's crew and equipment, set whole. */
+export class SaveTechPlanDto {
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'ทีมงานนอกจากผู้รับผิดชอบ',
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50)
+  @IsString({ each: true })
+  crew_user_ids?: string[];
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  needs_equipment?: boolean;
+
+  @ApiPropertyOptional({
+    description:
+      'อุปกรณ์/เครื่องมือ [{ boq_index?, name?, quantity, unit?, note? }]',
+    type: 'array',
+    items: { type: 'object' },
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50)
+  equipment?: {
+    boq_index?: unknown;
+    name?: unknown;
+    quantity?: unknown;
+    unit?: unknown;
+    note?: unknown;
+  }[];
+}

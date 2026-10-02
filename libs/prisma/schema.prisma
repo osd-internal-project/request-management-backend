@@ -5111,6 +5111,10 @@ model ProjectTask {
   /// CD-185 — work that a change request adds: it may not start until the
   /// change is approved.
   changeRequestId String?
+  /// CD-209 — who else works it, beside its owner.
+  crewUserIds  String[]  @default([])
+  /// CD-209 — the work needs equipment or tools; then they must be listed.
+  needsEquipment Boolean @default(false)
   /// CD-181 — when the work actually started and finished.
   startedAt    DateTime?
   doneAt       DateTime?
@@ -5130,6 +5134,8 @@ model ProjectTask {
   /// CD-181 — what was reported from the field, and the files with it.
   updates      ProjectTaskUpdate[]
   files        ProjectTaskFile[]
+  /// CD-209 — the equipment and tools the work needs.
+  equipment    ProjectTaskEquipment[]
 
   @@index([projectId, parentId, seq])
   @@map("project_tasks")
@@ -6095,5 +6101,28 @@ model ProjectDesignFile {
 
   @@index([designId])
   @@map("project_design_files")
+}
+
+/// CD-209 — equipment or a tool a task needs: a BOQ line of the baseline
+/// (by index) or anything else by name, how many. The technical plan sums
+/// them week by week from the plan's dates (CD-178).
+model ProjectTaskEquipment {
+  id        String   @id @default(uuid())
+  companyId String
+  projectId String
+  taskId    String
+  boqIndex  Int?
+  name      String
+  quantity  Decimal  @db.Decimal(12, 2)
+  unit      String?
+  note      String?
+  createdAt DateTime @default(now())
+  createdBy String
+
+  task ProjectTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([taskId])
+  @@map("project_task_equipment")
 }
 

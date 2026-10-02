@@ -17658,6 +17658,106 @@
         ]
       }
     },
+    "/api/v1/projects/{id}/tech-plan": {
+      "get": {
+        "operationId": "ProjectsController_viewTechPlan",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แผนงานเทคนิค: ทีมและอุปกรณ์ต่องาน อุปกรณ์รายสัปดาห์ และจุดส่งต่อที่ 7",
+        "tags": [
+          "projects"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/projects/{id}/tech-plan/{taskId}": {
+      "put": {
+        "operationId": "ProjectsController_saveTechPlan",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "taskId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveTechPlanDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ตั้งทีมและอุปกรณ์ของงาน (ผู้จัดการโครงการ)",
+        "tags": [
+          "projects"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      }
+    },
     "/api/v1/projects/{id}/designs": {
       "get": {
         "operationId": "ProjectsController_viewDesigns",
@@ -30183,6 +30283,30 @@
             "type": "string",
             "description": "เหตุผลที่ยกเว้น; \"\" = ยกเลิกการยกเว้น",
             "maxLength": 2000
+          }
+        }
+      },
+      "SaveTechPlanDto": {
+        "type": "object",
+        "properties": {
+          "crew_user_ids": {
+            "description": "ทีมงานนอกจากผู้รับผิดชอบ",
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 50
+          },
+          "needs_equipment": {
+            "type": "boolean"
+          },
+          "equipment": {
+            "type": "array",
+            "description": "อุปกรณ์/เครื่องมือ [{ boq_index?, name?, quantity, unit?, note? }]",
+            "items": {
+              "type": "object"
+            },
+            "maxItems": 50
           }
         }
       },
