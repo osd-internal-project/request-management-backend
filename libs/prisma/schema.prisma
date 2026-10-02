@@ -4977,6 +4977,8 @@ model Project {
   acceptances       ProjectAcceptance[]
   /// CD-222 — ประเด็นจากการทดสอบของลูกค้า (UAT).
   uatFindings       ProjectUatFinding[]
+  /// CD-216 — จุดติดตั้ง.
+  installations     ProjectInstallation[]
 
   @@unique([companyId, projectNo])
   @@index([companyId, status])
@@ -5924,3 +5926,43 @@ model VendorCost {
   @@index([companyId, productCode])
   @@map("vendor_costs")
 }
+
+/// CD-216 — one installation point (P-n): where, which BOQ line of the
+/// baseline it installs, the unit's serial number (typed in until the SAP
+/// connector reads it, CD-28; unique in the project), and photos before and
+/// after. Installed = `installedOn` set, which needs the after photo (and the
+/// serial, for equipment). Installed units per equipment line are compared
+/// with the BOQ; a line that does not match needs an as-built deviation
+/// (CD-226) pointing at it.
+model ProjectInstallation {
+  id           String    @id @default(uuid())
+  companyId    String
+  projectId    String
+  seq          Int
+  location     String
+  /// The BOQ line of the baseline (0-based); null = not a BOQ item.
+  boqIndex     Int?
+  serialNo     String?
+  note         String?
+  installedOn  DateTime? @db.Date
+  installedBy  String?
+  beforeKey    String?
+  beforeName   String?
+  beforeMime   String?
+  afterKey     String?
+  afterName    String?
+  afterMime    String?
+  createdAt    DateTime  @default(now())
+  createdBy    String
+  updatedAt    DateTime  @updatedAt
+  updatedBy    String?
+  deletedAt    DateTime?
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
+
+  @@unique([projectId, seq])
+  @@unique([projectId, serialNo])
+  @@index([projectId, boqIndex])
+  @@map("project_installations")
+}
+

@@ -25,6 +25,7 @@ import { ReadinessService } from './readiness.service';
 import { AsBuiltService } from './as-built.service';
 import { AcceptanceService } from './acceptance.service';
 import { UatService } from './uat.service';
+import { InstallationsService } from './installations.service';
 
 /** The screen-facing routes of {@link PmModule}. */
 @Module({
@@ -61,6 +62,7 @@ import { UatService } from './uat.service';
     AsBuiltService,
     AcceptanceService,
     UatService,
+    InstallationsService,
   ],
 })
 export class PmHttpModule {}

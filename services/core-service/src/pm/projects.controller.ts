@@ -15,7 +15,11 @@ import {
   UploadedFiles,
   UseInterceptors,
 } from '@nestjs/common';
-import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
+import {
+  FileFieldsInterceptor,
+  FileInterceptor,
+  FilesInterceptor,
+} from '@nestjs/platform-express';
 import {
   ApiBearerAuth,
   ApiBody,
@@ -41,6 +45,7 @@ import {
   AcceptanceItemDoneDto,
   SaveUatFindingDto,
   MoveUatDto,
+  SaveInstallationDto,
   ListProjectsQueryDto,
   OpenProjectDto,
   SaveMilestoneDto,
@@ -77,6 +82,10 @@ import { ReadinessService } from './readiness.service';
 import { AsBuiltService } from './as-built.service';
 import { AcceptanceService } from './acceptance.service';
 import { UatService } from './uat.service';
+import {
+  InstallationsService,
+  type PointPhotos,
+} from './installations.service';
 import { MAX_TASK_FILE_BYTES, TaskWorkService } from './task-work.service';
 import { MAX_FILES_PER_UPDATE } from './task-rules';
 import { ProjectsService } from './projects.service';
@@ -109,6 +118,7 @@ export class ProjectsController {
     private readonly asBuilt: AsBuiltService,
     private readonly acceptance: AcceptanceService,
     private readonly uat: UatService,
+    private readonly installations: InstallationsService,
   ) {}
 
   @ApiOperation({ summary: 'รายการโครงการ (ทั้งบริษัท หรือของฉัน)' })
@@ -569,6 +579,122 @@ export class ProjectsController {
     @CurrentPrincipal() principal: Principal,
   ): Promise<StreamableFile> {
     const file = await this.tests.evidence(id, itemId, runId, principal);
+    return new StreamableFile(file.stream, {
+      type: file.mimeType,
+      disposition: `inline; filename*=UTF-8''${encodeURIComponent(file.fileName)}`,
+    });
+  }
+
+  // --- CD-216 installation ---------------------------------------------------------
+
+  @ApiOperation({
+    summary: 'งานติดตั้งรายจุด และจำนวนที่ติดตั้งเทียบ BOQ',
+  })
+  @Get(':id/installations')
+  @Permissions('notification.read')
+  viewInstallations(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.installations.view(id, principal);
+  }
+
+  @ApiOperation({
+    summary: 'บันทึกจุดติดตั้ง (ทีมโครงการ) — รูปก่อน/หลัง หมายเลขเครื่อง',
+  })
+  @Post(':id/installations')
+  @Permissions('notification.read')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        location: { type: 'string' },
+        boq_index: { type: 'string' },
+        serial_no: { type: 'string' },
+        note: { type: 'string' },
+        installed_on: { type: 'string', format: 'date' },
+        before: { type: 'string', format: 'binary' },
+        after: { type: 'string', format: 'binary' },
+      },
+    },
+  })
+  @UseInterceptors(
+    FileFieldsInterceptor(
+      [
+        { name: 'before', maxCount: 1 },
+        { name: 'after', maxCount: 1 },
+      ],
+      { limits: { fileSize: MAX_EVIDENCE_BYTES }, defParamCharset: 'utf8' },
+    ),
+  )
+  addInstallation(
+    @Param('id') id: string,
+    @Body() dto: SaveInstallationDto,
+    @UploadedFiles() photos: PointPhotos | undefined,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.installations.add(id, dto, photos ?? {}, principal);
+  }
+
+  @ApiOperation({ summary: 'แก้จุดติดตั้ง หรือบันทึกว่าติดตั้งแล้ว' })
+  @Post(':id/installations/:pointId')
+  @Permissions('notification.read')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        location: { type: 'string' },
+        boq_index: { type: 'string' },
+        serial_no: { type: 'string' },
+        note: { type: 'string' },
+        installed_on: { type: 'string', format: 'date' },
+        before: { type: 'string', format: 'binary' },
+        after: { type: 'string', format: 'binary' },
+      },
+    },
+  })
+  @UseInterceptors(
+    FileFieldsInterceptor(
+      [
+        { name: 'before', maxCount: 1 },
+        { name: 'after', maxCount: 1 },
+      ],
+      { limits: { fileSize: MAX_EVIDENCE_BYTES }, defParamCharset: 'utf8' },
+    ),
+  )
+  updateInstallation(
+    @Param('id') id: string,
+    @Param('pointId') pointId: string,
+    @Body() dto: SaveInstallationDto,
+    @UploadedFiles() photos: PointPhotos | undefined,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.installations.update(id, pointId, dto, photos ?? {}, principal);
+  }
+
+  @ApiOperation({ summary: 'ลบจุดติดตั้ง (ผู้บันทึกหรือผู้จัดการโครงการ)' })
+  @Delete(':id/installations/:pointId')
+  @Permissions('notification.read')
+  removeInstallation(
+    @Param('id') id: string,
+    @Param('pointId') pointId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.installations.remove(id, pointId, principal);
+  }
+
+  @ApiOperation({ summary: 'รูปก่อน/หลังติดตั้ง' })
+  @Get(':id/installations/:pointId/photo/:which')
+  @Permissions('notification.read')
+  async installationPhoto(
+    @Param('id') id: string,
+    @Param('pointId') pointId: string,
+    @Param('which') which: string,
+    @CurrentPrincipal() principal: Principal,
+  ): Promise<StreamableFile> {
+    const file = await this.installations.photo(id, pointId, which, principal);
     return new StreamableFile(file.stream, {
       type: file.mimeType,
       disposition: `inline; filename*=UTF-8''${encodeURIComponent(file.fileName)}`,

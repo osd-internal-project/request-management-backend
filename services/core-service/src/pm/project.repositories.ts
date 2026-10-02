@@ -399,3 +399,17 @@ export class ProjectUatFindingRepository extends BaseRepository<
     return client.projectUatFinding;
   }
 }
+
+/** CD-216 จุดติดตั้ง. */
+@Injectable()
+export class ProjectInstallationRepository extends BaseRepository<
+  PrismaService['projectInstallation']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.projectInstallation;
+  }
+}

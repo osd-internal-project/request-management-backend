@@ -71,6 +71,8 @@ export function asBuiltStatus(input: {
     /** The linked change request's status, if any. */
     changeStatus: string | null;
   }[];
+  /** CD-216 — equipment lines installed off the BOQ with no deviation. */
+  boqMismatches?: readonly string[];
 }): AsBuiltStatus {
   const have = new Set(input.uploaded.map((title) => title.trim()));
   const missingDocuments = input.required.filter(
@@ -86,6 +88,7 @@ export function asBuiltStatus(input: {
     }
     return problems;
   });
+  openDeviations.push(...(input.boqMismatches ?? []));
   return {
     complete: !missingDocuments.length && !openDeviations.length,
     missingDocuments,

@@ -20,11 +20,13 @@ import {
   deviationProblems,
   MAX_AS_BUILT_DOCUMENTS,
 } from './as-built-rules';
+import { boqMatch, unexplainedMismatches } from './installation-rules';
 import { AttachCloseDocumentDto, SaveDeviationDto } from './dto/project.dto';
 import { EVIDENCE_TYPES, MAX_EVIDENCE_BYTES } from './milestones.service';
 import {
   ProjectAsBuiltDeviationRepository,
   ProjectAsBuiltDocumentRepository,
+  ProjectInstallationRepository,
   ProjectChangeRequestRepository,
   ProjectRepository,
 } from './project.repositories';
@@ -81,6 +83,7 @@ export class AsBuiltService {
     private readonly projectRows: ProjectRepository,
     private readonly documents: ProjectAsBuiltDocumentRepository,
     private readonly deviations: ProjectAsBuiltDeviationRepository,
+    private readonly installations: ProjectInstallationRepository,
     private readonly changes: ProjectChangeRequestRepository,
     private readonly configs: CrmConfigRepository,
     private readonly people: CompanyMemberRepository,
@@ -98,7 +101,13 @@ export class AsBuiltService {
       this.refs(projectId),
       this.changeRows(projectId),
     ]);
-    const status = this.statusOf(required, documents, deviations, changes);
+    const status = this.statusOf(
+      required,
+      documents,
+      deviations,
+      changes,
+      await this.mismatches(projectId, deviations),
+    );
     const names = await this.displayNames([
       ...documents.map((row) => row.uploadedBy),
       ...deviations.map((row) => row.createdBy),
@@ -158,7 +167,13 @@ export class AsBuiltService {
       this.required(companyId),
       this.changeRows(projectId),
     ]);
-    return this.statusOf(required, documents, deviations, changes);
+    return this.statusOf(
+      required,
+      documents,
+      deviations,
+      changes,
+      await this.mismatches(projectId, deviations),
+    );
   }
 
   // --- documents ---------------------------------------------------------------------
@@ -476,6 +491,7 @@ export class AsBuiltService {
     documents: DocumentRow[],
     deviations: DeviationRow[],
     changes: { id: string; status: string }[],
+    mismatches: string[],
   ) {
     return asBuiltStatus({
       required,
@@ -488,6 +504,7 @@ export class AsBuiltService {
           changes.find((change) => change.id === row.changeRequestId)?.status ??
           null,
       })),
+      boqMismatches: mismatches,
     });
   }
 
@@ -498,6 +515,24 @@ export class AsBuiltService {
     })) as { projectAsBuiltDocuments: string[] | null } | null;
     return (row?.projectAsBuiltDocuments ?? DEFAULT_AS_BUILT_DOCUMENTS).filter(
       (title) => title.trim(),
+    );
+  }
+
+  /** CD-216 — equipment lines installed off the BOQ with no deviation. */
+  private async mismatches(projectId: string, deviations: DeviationRow[]) {
+    const [project, points] = await Promise.all([
+      this.projectRows.findFirst({
+        where: { id: projectId },
+        select: { baseline: true },
+      }) as Promise<{ baseline: unknown } | null>,
+      this.installations.findMany({
+        where: { projectId, deletedAt: null },
+        select: { boqIndex: true, installedOn: true },
+      }) as Promise<{ boqIndex: number | null; installedOn: Date | null }[]>,
+    ]);
+    return unexplainedMismatches(
+      boqMatch(project?.baseline ?? null, points),
+      deviations.map((row) => row.reference),
     );
   }
 

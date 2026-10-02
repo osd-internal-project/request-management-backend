@@ -43,6 +43,7 @@ import {
   ProjectAcceptanceRepository,
   ProjectAcceptanceItemRepository,
   ProjectUatFindingRepository,
+  ProjectInstallationRepository,
 } from './project.repositories';
 import { ProjectsService } from './projects.service';
 import { MilestonesService } from './milestones.service';
@@ -62,6 +63,7 @@ import { ReadinessService } from './readiness.service';
 import { AsBuiltService } from './as-built.service';
 import { AcceptanceService } from './acceptance.service';
 import { UatService } from './uat.service';
+import { InstallationsService } from './installations.service';
 import { ContractRiskAssessmentRepository } from '../crm/contract-risk.service';
 import { ContractObligationRepository } from '../crm/contract-obligations.service';
 import {
@@ -265,6 +267,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       });
       await prisma.projectTask.deleteMany({ where: { projectId } });
       await prisma.projectMilestone.deleteMany({ where: { projectId } });
+      await prisma.projectInstallation.deleteMany({ where: { projectId } });
       await prisma.projectUatFinding.deleteMany({ where: { projectId } });
       await prisma.projectAcceptanceItem.deleteMany({
         where: { acceptance: { projectId } },
@@ -1984,6 +1987,195 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       });
     });
 
+    it('CD-216: installation point by point — serials, photos, and installed units against the BOQ', async () => {
+      const client = prisma as never;
+      const transactions = {
+        execute: (work: (tx: unknown) => Promise<unknown>) =>
+          prisma.$transaction((tx) => work(tx)),
+      } as never;
+      const audit = { record: () => Promise.resolve() } as never;
+      const files = new Map<string, Buffer>();
+      const storage = {
+        put: (key: string, body: Buffer) => {
+          files.set(key, body);
+          return Promise.resolve();
+        },
+        remove: () => Promise.resolve(),
+        get: (key: string) => Promise.resolve(Readable.from([files.get(key)!])),
+      };
+      const installs = new InstallationsService(
+        projects,
+        new ProjectRepository(client),
+        new ProjectInstallationRepository(client),
+        new CompanyMemberRepository(client),
+        storage,
+        audit,
+        transactions,
+      );
+      const asBuilt = new AsBuiltService(
+        projects,
+        new ProjectRepository(client),
+        new ProjectAsBuiltDocumentRepository(client),
+        new ProjectAsBuiltDeviationRepository(client),
+        new ProjectInstallationRepository(client),
+        new ProjectChangeRequestRepository(client),
+        {
+          findFirst: () => Promise.resolve({ projectAsBuiltDocuments: [] }),
+        } as never,
+        new CompanyMemberRepository(client),
+        storage,
+        audit,
+        transactions,
+      );
+      const managerNow = as(engineer, ['notification.read']);
+      const crew = as(outsider, ['notification.read']);
+      const now = new Date('2026-10-08T03:00:00Z');
+      const photo = (name: string) => [
+        {
+          originalname: name,
+          mimetype: 'image/jpeg',
+          size: 3,
+          buffer: Buffer.from('jpg'),
+        },
+      ];
+      // the baseline sold two cameras (and cable, which is not counted)
+      const project = await prisma.project.findUniqueOrThrow({
+        where: { id: projectId },
+        select: { baseline: true },
+      });
+      await prisma.project.update({
+        where: { id: projectId },
+        data: {
+          baseline: {
+            ...(project.baseline as Record<string, unknown>),
+            boq: [
+              {
+                kind: 'equipment',
+                name: 'กล้อง IP',
+                productCode: 'CAM-1',
+                quantity: 2,
+                unit: 'ตัว',
+              },
+              {
+                kind: 'material',
+                name: 'สาย LAN',
+                productCode: 'LAN',
+                quantity: 100,
+                unit: 'ม.',
+              },
+            ],
+          },
+        },
+      });
+
+      const first = await installs.view(projectId, crew);
+      expect(first.boq).toEqual([
+        expect.objectContaining({
+          ref: 'boq:0',
+          quantity: 2,
+          installed: 0,
+          matches: false,
+        }),
+      ]);
+      expect(first.choices).toHaveLength(2);
+      expect(
+        (await asBuilt.state(projectId, companyId)).openDeviations,
+      ).toEqual([
+        'BOQ 1: กล้อง IP: ติดตั้ง 0 จาก 2 — ต้องบันทึกจุดที่ต่างอ้างบรรทัดนี้',
+      ]);
+
+      // planned first; installed needs the after photo and the serial
+      const planned = await installs.add(
+        projectId,
+        { location: 'อาคาร A ชั้น 2', boq_index: '0' },
+        { before: photo('before.jpg') },
+        crew,
+        now,
+      );
+      const p1 = planned.points[0];
+      expect(p1).toMatchObject({
+        label: 'P-1',
+        installedOn: null,
+        beforeName: 'before.jpg',
+      });
+      await expect(
+        installs.update(
+          projectId,
+          p1.id,
+          { installed_on: '2026-10-08', serial_no: 'SN-1' },
+          {},
+          crew,
+          now,
+        ),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+      await expect(
+        installs.update(
+          projectId,
+          p1.id,
+          { installed_on: '2026-10-08' },
+          { after: photo('after.jpg') },
+          crew,
+          now,
+        ),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+      await installs.update(
+        projectId,
+        p1.id,
+        { installed_on: '2026-10-08', serial_no: 'SN-1' },
+        { after: photo('after.jpg') },
+        crew,
+        now,
+      );
+
+      // a serial once per project; a removed point frees it
+      await expect(
+        installs.add(
+          projectId,
+          { location: 'ชั้น 3', boq_index: '0', serial_no: 'SN-1' },
+          {},
+          crew,
+          now,
+        ),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+      const second = await installs.add(
+        projectId,
+        {
+          location: 'ชั้น 3',
+          boq_index: '0',
+          serial_no: 'SN-2',
+          installed_on: '2026-10-08',
+        },
+        { after: photo('after2.jpg') },
+        crew,
+        now,
+      );
+      expect(second.boq[0]).toMatchObject({ installed: 2, matches: true });
+      expect(
+        (await asBuilt.state(projectId, companyId)).openDeviations,
+      ).toEqual([]);
+      const p2 = second.points.find((row) => row.label === 'P-2')!;
+      await installs.remove(projectId, p2.id, crew);
+      expect(
+        (await asBuilt.state(projectId, companyId)).openDeviations,
+      ).toHaveLength(1);
+      const again = await installs.add(
+        projectId,
+        {
+          location: 'ชั้น 3',
+          boq_index: '0',
+          serial_no: 'SN-2',
+          installed_on: '2026-10-08',
+        },
+        { after: photo('after3.jpg') },
+        managerNow,
+        now,
+      );
+      expect(again.boq[0]).toMatchObject({ installed: 2, matches: true });
+      expect(
+        (await installs.photo(projectId, p1.id, 'after', crew)).fileName,
+      ).toBe('after.jpg');
+    });
+
     it('CD-226: as-built — the required documents, and every deviation from what was sold with its reason', async () => {
       const client = prisma as never;
       const transactions = {
@@ -1997,6 +2189,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         new ProjectRepository(client),
         new ProjectAsBuiltDocumentRepository(client),
         new ProjectAsBuiltDeviationRepository(client),
+        new ProjectInstallationRepository(client),
         new ProjectChangeRequestRepository(client),
         {
           findFirst: () =>
@@ -2302,6 +2495,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
           new ProjectRepository(client),
           new ProjectAsBuiltDocumentRepository(client),
           new ProjectAsBuiltDeviationRepository(client),
+          new ProjectInstallationRepository(client),
           new ProjectChangeRequestRepository(client),
           {
             findFirst: () =>
@@ -2485,6 +2679,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
           new ProjectRepository(client),
           new ProjectAsBuiltDocumentRepository(client),
           new ProjectAsBuiltDeviationRepository(client),
+          new ProjectInstallationRepository(client),
           new ProjectChangeRequestRepository(client),
           {
             findFirst: () =>

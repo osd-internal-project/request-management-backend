@@ -948,3 +948,38 @@ export class MoveUatDto {
   @IsDateString()
   confirmed_on?: string;
 }
+
+/** CD-216 — an installation point (the photos are multipart: before, after). */
+export class SaveInstallationDto {
+  @ApiPropertyOptional({ example: 'อาคาร A ชั้น 2 ห้อง 201' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  location?: string;
+
+  @ApiPropertyOptional({
+    description: 'บรรทัด BOQ (เริ่ม 0); "" = ไม่ใช่รายการ BOQ',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  boq_index?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  serial_no?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  note?: string;
+
+  @ApiPropertyOptional({ description: 'วันที่ติดตั้ง; "" = ยังไม่ติดตั้ง' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  installed_on?: string;
+}

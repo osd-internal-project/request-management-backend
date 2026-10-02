@@ -37,6 +37,7 @@ import {
   ProjectAcceptanceRepository,
   ProjectAcceptanceItemRepository,
   ProjectUatFindingRepository,
+  ProjectInstallationRepository,
   WorkCalendarRepository,
 } from './project.repositories';
 import { ContractRiskAssessmentRepository } from '../crm/contract-risk.service';
@@ -82,6 +83,7 @@ import { ContractRiskAssessmentRepository } from '../crm/contract-risk.service';
     ProjectAcceptanceRepository,
     ProjectAcceptanceItemRepository,
     ProjectUatFindingRepository,
+    ProjectInstallationRepository,
     ContractObligationRepository,
     ContractRiskAssessmentRepository,
     WorkCalendarRepository,
@@ -124,6 +126,7 @@ import { ContractRiskAssessmentRepository } from '../crm/contract-risk.service';
     ProjectAcceptanceRepository,
     ProjectAcceptanceItemRepository,
     ProjectUatFindingRepository,
+    ProjectInstallationRepository,
     ContractObligationRepository,
     ContractRiskAssessmentRepository,
     WorkCalendarRepository,
