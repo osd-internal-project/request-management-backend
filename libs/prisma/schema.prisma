@@ -4987,6 +4987,8 @@ model Project {
   /// CD-210 — การสำรวจหน้างาน.
   surveys           ProjectSurvey[]
   defects           ProjectDefect[]
+  environments      ProjectEnvironment[]
+  releases          ProjectRelease[]
 
   @@unique([companyId, projectNo])
   @@index([companyId, status])
@@ -6293,4 +6295,66 @@ model ProjectDefect {
   @@unique([projectId, seq])
   @@index([projectId, status])
   @@map("project_defects")
+}
+
+/// CD-214 Environment — where a project's software runs for the customer:
+/// development, UAT, production, each with its address.
+model ProjectEnvironment {
+  id        String    @id @default(uuid())
+  companyId String
+  projectId String
+  /// dev · uat · production
+  kind      String
+  name      String
+  url       String?
+  note      String?
+  createdAt DateTime  @default(now())
+  createdBy String
+  updatedAt DateTime  @updatedAt
+  updatedBy String?
+  deletedAt DateTime?
+
+  project     Project             @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  deployments ProjectDeployment[]
+
+  @@index([projectId])
+  @@map("project_environments")
+}
+
+/// CD-214 Release — a version of the software made for the customer.
+model ProjectRelease {
+  id        String   @id @default(uuid())
+  companyId String
+  projectId String
+  version   String
+  notes     String?
+  createdAt DateTime @default(now())
+  createdBy String
+
+  project     Project             @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  deployments ProjectDeployment[]
+
+  @@unique([projectId, version])
+  @@map("project_releases")
+}
+
+/// CD-214 — a release put on an environment, by whom and when. The latest
+/// one on an environment is what runs there.
+model ProjectDeployment {
+  id             String   @id @default(uuid())
+  companyId      String
+  releaseId      String
+  environmentId  String
+  deployedAt     DateTime
+  deployedBy     String
+  note           String?
+  /// Production without the UAT gate (a hotfix): the manager's reason.
+  overrideReason String?
+  createdAt      DateTime @default(now())
+
+  release     ProjectRelease     @relation(fields: [releaseId], references: [id], onDelete: Restrict)
+  environment ProjectEnvironment @relation(fields: [environmentId], references: [id], onDelete: Restrict)
+
+  @@index([environmentId, deployedAt])
+  @@map("project_deployments")
 }

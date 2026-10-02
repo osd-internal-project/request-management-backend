@@ -1253,3 +1253,73 @@ export class MoveDefectDto {
   @MaxLength(4000)
   note?: string;
 }
+
+/** CD-214 — an environment the software runs on. */
+export class SaveEnvironmentDto {
+  @ApiPropertyOptional({ enum: ['dev', 'uat', 'production'] })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  kind?: string;
+
+  @ApiPropertyOptional({ example: 'UAT' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  name?: string;
+
+  @ApiPropertyOptional({ example: 'https://uat.example.co.th' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  url?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  note?: string;
+}
+
+/** CD-214 — a release of the software. */
+export class SaveReleaseDto {
+  @ApiProperty({ example: '1.2.0' })
+  @IsString()
+  @MaxLength(50)
+  version!: string;
+
+  @ApiPropertyOptional({ description: 'สิ่งที่เปลี่ยนในเวอร์ชันนี้' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  notes?: string;
+}
+
+/** CD-214 — a release put on an environment. */
+export class DeployReleaseDto {
+  @ApiProperty()
+  @IsString()
+  @MaxLength(50)
+  environment_id!: string;
+
+  @ApiPropertyOptional({ description: 'เวลาที่ deploy (ISO); ไม่ใส่ = ตอนนี้' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  deployed_at?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  note?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'ขึ้น production โดยไม่ผ่านเงื่อนไข UAT/blocker (ผู้จัดการโครงการ) — เหตุผล',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  override_reason?: string;
+}

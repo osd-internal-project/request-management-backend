@@ -496,3 +496,45 @@ export class ProjectDefectRepository extends BaseRepository<
     return client.projectDefect;
   }
 }
+
+/** CD-214. */
+@Injectable()
+export class ProjectEnvironmentRepository extends BaseRepository<
+  PrismaService['projectEnvironment']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.projectEnvironment;
+  }
+}
+
+/** CD-214. */
+@Injectable()
+export class ProjectReleaseRepository extends BaseRepository<
+  PrismaService['projectRelease']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.projectRelease;
+  }
+}
+
+/** CD-214. */
+@Injectable()
+export class ProjectDeploymentRepository extends BaseRepository<
+  PrismaService['projectDeployment']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.projectDeployment;
+  }
+}

@@ -27,7 +27,11 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import { CurrentPrincipal, Permissions } from '@request-management/share';
+import {
+  AppError,
+  CurrentPrincipal,
+  Permissions,
+} from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import {
   AchieveMilestoneDto,
@@ -49,6 +53,9 @@ import {
   SaveSurveyDto,
   AddDevItemsDto,
   MoveDefectDto,
+  DeployReleaseDto,
+  SaveEnvironmentDto,
+  SaveReleaseDto,
   SaveDefectDto,
   SurveyPhotoDto,
   SaveDesignDto,
@@ -98,6 +105,7 @@ import { TechPlanService } from './tech-plan.service';
 import { SurveysService } from './surveys.service';
 import { DevPlanService } from './dev-plan.service';
 import { DefectsService } from './defects.service';
+import { ReleasesService } from './releases.service';
 import { MAX_TASK_FILE_BYTES, TaskWorkService } from './task-work.service';
 import { MAX_FILES_PER_UPDATE } from './task-rules';
 import { ProjectsService } from './projects.service';
@@ -136,6 +144,7 @@ export class ProjectsController {
     private readonly surveys: SurveysService,
     private readonly devPlan: DevPlanService,
     private readonly defects: DefectsService,
+    private readonly releases: ReleasesService,
   ) {}
 
   @ApiOperation({ summary: 'รายการโครงการ (ทั้งบริษัท หรือของฉัน)' })
@@ -846,6 +855,80 @@ export class ProjectsController {
       type: file.mimeType,
       disposition: `inline; filename*=UTF-8''${encodeURIComponent(file.fileName)}`,
     });
+  }
+
+  // --- CD-214 Release และ Environment ------------------------------------------------
+
+  @ApiOperation({
+    summary: 'environment ของโครงการ เวอร์ชันที่ใช้อยู่ และประวัติการ deploy',
+  })
+  @Get(':id/releases')
+  @Permissions('notification.read')
+  viewReleases(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.releases.view(id, principal);
+  }
+
+  @ApiOperation({ summary: 'เพิ่ม environment (ผู้จัดการโครงการ)' })
+  @Post(':id/environments')
+  @Permissions('notification.read')
+  addEnvironment(
+    @Param('id') id: string,
+    @Body() dto: SaveEnvironmentDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.releases.saveEnvironment(id, null, dto, principal);
+  }
+
+  @ApiOperation({ summary: 'แก้ environment (ผู้จัดการโครงการ)' })
+  @Put(':id/environments/:envId')
+  @Permissions('notification.read')
+  updateEnvironment(
+    @Param('id') id: string,
+    @Param('envId') envId: string,
+    @Body() dto: SaveEnvironmentDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.releases.saveEnvironment(id, envId, dto, principal);
+  }
+
+  @ApiOperation({ summary: 'เอา environment ออก (ประวัติ deploy ยังอยู่)' })
+  @Delete(':id/environments/:envId')
+  @Permissions('notification.read')
+  removeEnvironment(
+    @Param('id') id: string,
+    @Param('envId') envId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.releases.removeEnvironment(id, envId, principal);
+  }
+
+  @ApiOperation({ summary: 'บันทึกเวอร์ชันใหม่ (ทีมโครงการ)' })
+  @Post(':id/releases')
+  @Permissions('notification.read')
+  addRelease(
+    @Param('id') id: string,
+    @Body() dto: SaveReleaseDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.releases.addRelease(id, dto, principal);
+  }
+
+  @ApiOperation({
+    summary:
+      'บันทึกการ deploy — production ต้องผ่าน UAT และไม่มี blocker ค้าง (ผู้จัดการข้ามได้พร้อมเหตุผล)',
+  })
+  @Post(':id/releases/:releaseId/deploy')
+  @Permissions('notification.read')
+  deployRelease(
+    @Param('id') id: string,
+    @Param('releaseId') releaseId: string,
+    @Body() dto: DeployReleaseDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.releases.deploy(id, releaseId, dto, principal);
   }
 
   // --- CD-213 ติดตามงานพัฒนาและข้อบกพร่อง ----------------------------------------------
@@ -1898,5 +1981,30 @@ export class ProjectPortfolioController {
   @Permissions('notification.read')
   portfolio(@CurrentPrincipal() principal: Principal) {
     return this.statusReports.portfolio(principal);
+  }
+}
+
+@ApiTags('projects')
+@ApiBearerAuth()
+@Controller('project-releases')
+export class ProjectReleasesController {
+  constructor(private readonly releases: ReleasesService) {}
+
+  @ApiOperation({
+    summary:
+      'CD-214 — เวอร์ชันที่ลูกค้ารายนี้ใช้อยู่ในแต่ละโครงการ (เฉพาะโครงการที่ผู้ใช้เห็น)',
+  })
+  @Get()
+  @Permissions('notification.read')
+  forCustomer(
+    @Query('customer_id') customerId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    if (!customerId) {
+      throw new AppError('VALIDATION_FAILED', 'ต้องระบุลูกค้า', [
+        { field: 'customer_id', reason: 'required' },
+      ]);
+    }
+    return this.releases.forCustomer(customerId, principal);
   }
 }

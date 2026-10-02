@@ -47,6 +47,9 @@ import {
   ProjectSurveyPhotoRepository,
   ProjectSurveyRepository,
   ProjectDefectRepository,
+  ProjectDeploymentRepository,
+  ProjectEnvironmentRepository,
+  ProjectReleaseRepository,
   ProjectDesignRepository,
   ProjectDesignFileRepository,
   ProjectTaskEquipmentRepository,
@@ -73,6 +76,7 @@ import { InstallationsService } from './installations.service';
 import { SurveysService } from './surveys.service';
 import { DevPlanService } from './dev-plan.service';
 import { DefectsService } from './defects.service';
+import { ReleasesService } from './releases.service';
 import { TaskEvidenceService } from './task-evidence.service';
 import { DesignsService } from './designs.service';
 import { TechPlanService } from './tech-plan.service';
@@ -279,6 +283,11 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       });
       await prisma.projectTask.deleteMany({ where: { projectId } });
       await prisma.projectMilestone.deleteMany({ where: { projectId } });
+      await prisma.projectDeployment.deleteMany({
+        where: { release: { projectId } },
+      });
+      await prisma.projectRelease.deleteMany({ where: { projectId } });
+      await prisma.projectEnvironment.deleteMany({ where: { projectId } });
       await prisma.projectDefect.deleteMany({ where: { projectId } });
       await prisma.projectSurveyPhoto.deleteMany({
         where: { survey: { projectId } },
@@ -3061,6 +3070,260 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       });
       expect(await status()).toBe('done');
       expect(view.lines.find((line) => line.ref === ref)?.pending).toBe(false);
+    });
+
+    it('CD-214: releases and environments — production only after UAT and with no blocker, unless the manager overrides; the customer sees what runs', async () => {
+      const client = prisma as never;
+      const transactions = {
+        execute: (work: (tx: unknown) => Promise<unknown>) =>
+          prisma.$transaction((tx) => work(tx)),
+      } as never;
+      const audit = { record: () => Promise.resolve() } as never;
+      const releases = new ReleasesService(
+        projects,
+        new ProjectEnvironmentRepository(client),
+        new ProjectReleaseRepository(client),
+        new ProjectDeploymentRepository(client),
+        new ProjectDefectRepository(client),
+        new ProjectUatFindingRepository(client),
+        new CompanyMemberRepository(client),
+        audit,
+        transactions,
+      );
+      const managerNow = as(engineer, ['notification.read']);
+      const crew = as(outsider, ['notification.read']);
+      const now = new Date('2026-10-08T03:00:00Z');
+      const before = await prisma.project.findUniqueOrThrow({
+        where: { id: projectId },
+        select: { companyId: true, customerId: true },
+      });
+      const customerId = randomUUID();
+      await prisma.project.update({
+        where: { id: projectId },
+        data: { customerId },
+      });
+      // whatever blockers earlier tests left are set aside for this one
+      const parked = await prisma.projectDefect.findMany({
+        where: {
+          projectId,
+          severity: 'blocker',
+          status: { in: ['open', 'fixed'] },
+        },
+        select: { id: true, status: true },
+      });
+      const parkedUat = await prisma.projectUatFinding.findMany({
+        where: {
+          projectId,
+          severity: 'blocker',
+          status: { in: ['open', 'fixed'] },
+        },
+        select: { id: true, status: true },
+      });
+      await prisma.projectDefect.updateMany({
+        where: { id: { in: parked.map((row) => row.id) } },
+        data: { status: 'cancelled' },
+      });
+      await prisma.projectUatFinding.updateMany({
+        where: { id: { in: parkedUat.map((row) => row.id) } },
+        data: { status: 'confirmed' },
+      });
+      try {
+        // the manager sets up the environments
+        await expect(
+          releases.saveEnvironment(
+            projectId,
+            null,
+            { kind: 'dev', name: 'Dev' },
+            crew,
+          ),
+        ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+        for (const [kind, name] of [
+          ['production', 'Production'],
+          ['dev', 'Dev'],
+          ['uat', 'UAT'],
+        ]) {
+          await releases.saveEnvironment(
+            projectId,
+            null,
+            { kind, name, url: `https://${kind}.example.co.th` },
+            managerNow,
+          );
+        }
+        await expect(
+          releases.saveEnvironment(
+            projectId,
+            null,
+            { kind: 'uat', name: 'uat' },
+            managerNow,
+          ),
+        ).rejects.toThrow('มี environment ชื่อนี้แล้ว');
+        let view = await releases.view(projectId, crew);
+        expect(view.environments.map((env) => env.kind)).toEqual([
+          'dev',
+          'uat',
+          'production',
+        ]);
+        const env = (kind: string) =>
+          view.environments.find((row) => row.kind === kind)!.id;
+
+        // the team records a release; a version is recorded once
+        view = await releases.addRelease(
+          projectId,
+          { version: '1.0.0', notes: 'รุ่นแรก' },
+          crew,
+        );
+        await expect(
+          releases.addRelease(projectId, { version: '1.0.0' }, crew),
+        ).rejects.toThrow('มีเวอร์ชันนี้แล้ว');
+        const first = view.releases[0].id;
+
+        // not to production before UAT
+        await expect(
+          releases.deploy(
+            projectId,
+            first,
+            { environment_id: env('production') },
+            crew,
+            now,
+          ),
+        ).rejects.toThrow('เวอร์ชันนี้ยังไม่เคย deploy บน UAT');
+        await releases.deploy(
+          projectId,
+          first,
+          { environment_id: env('dev') },
+          crew,
+          now,
+        );
+        await releases.deploy(
+          projectId,
+          first,
+          { environment_id: env('uat') },
+          crew,
+          now,
+        );
+
+        // nor with a blocker open
+        const lastDefect = await prisma.projectDefect.findFirst({
+          where: { projectId },
+          orderBy: { seq: 'desc' },
+          select: { seq: true },
+        });
+        const blocker = await prisma.projectDefect.create({
+          data: {
+            companyId: before.companyId,
+            projectId,
+            seq: (lastDefect?.seq ?? 0) + 1,
+            title: 'ล็อกอินไม่ได้',
+            severity: 'blocker',
+            sowRef: 'scope:0',
+            foundOn: new Date('2026-10-07T00:00:00Z'),
+            createdBy: engineer,
+          },
+        });
+        await expect(
+          releases.deploy(
+            projectId,
+            first,
+            { environment_id: env('production') },
+            crew,
+            now,
+          ),
+        ).rejects.toThrow('ระดับปิดกั้นค้าง 1 รายการ');
+        // the manager may override, with the reason — the team may not
+        await expect(
+          releases.deploy(
+            projectId,
+            first,
+            { environment_id: env('production'), override_reason: 'ด่วน' },
+            crew,
+            now,
+          ),
+        ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+        view = await releases.deploy(
+          projectId,
+          first,
+          {
+            environment_id: env('production'),
+            override_reason: 'ลูกค้าต้องเปิดใช้วันนี้ ผู้บริหารอนุมัติแล้ว',
+          },
+          managerNow,
+          now,
+        );
+        expect(
+          view.releases[0].deployments.find((row) => row.kind === 'production'),
+        ).toMatchObject({
+          overrideReason: 'ลูกค้าต้องเปิดใช้วันนี้ ผู้บริหารอนุมัติแล้ว',
+        });
+        await prisma.projectDefect.update({
+          where: { id: blocker.id },
+          data: { status: 'verified' },
+        });
+
+        // the next version walks the path; production now runs it
+        view = await releases.addRelease(projectId, { version: '1.0.1' }, crew);
+        const second = view.releases.find((row) => row.version === '1.0.1')!.id;
+        await releases.deploy(
+          projectId,
+          second,
+          { environment_id: env('uat') },
+          crew,
+          new Date(now.getTime() + 30_000),
+        );
+        view = await releases.deploy(
+          projectId,
+          second,
+          { environment_id: env('production') },
+          crew,
+          new Date(now.getTime() + 60_000),
+        );
+        expect(
+          view.environments.map((row) => [row.kind, row.current?.version]),
+        ).toEqual([
+          ['dev', '1.0.0'],
+          ['uat', '1.0.1'],
+          ['production', '1.0.1'],
+        ]);
+
+        // the customer's 360° page: what each project runs
+        const seen = await releases.forCustomer(customerId, managerNow);
+        expect(seen).toHaveLength(1);
+        expect(seen[0].environments[0]).toMatchObject({
+          kind: 'production',
+          version: '1.0.1',
+        });
+        // someone outside the project sees nothing of it
+        expect(
+          await releases.forCustomer(
+            customerId,
+            as(randomUUID(), ['notification.read']),
+          ),
+        ).toEqual([]);
+
+        // an environment taken off keeps its history
+        await releases.removeEnvironment(projectId, env('dev'), managerNow);
+        view = await releases.view(projectId, crew);
+        expect(view.environments).toHaveLength(2);
+        expect(
+          view.releases.find((row) => row.version === '1.0.0')!.deployments,
+        ).toHaveLength(3);
+      } finally {
+        await prisma.project.update({
+          where: { id: projectId },
+          data: { customerId: before.customerId },
+        });
+        for (const row of parked) {
+          await prisma.projectDefect.update({
+            where: { id: row.id },
+            data: { status: row.status },
+          });
+        }
+        for (const row of parkedUat) {
+          await prisma.projectUatFinding.update({
+            where: { id: row.id },
+            data: { status: row.status },
+          });
+        }
+      }
     });
 
     it('CD-210: a site survey synced from the device — the Solution assumptions checked one by one, each that differs a change request before it completes', async () => {

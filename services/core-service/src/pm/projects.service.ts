@@ -642,6 +642,19 @@ export class ProjectsService {
   // --- helpers -------------------------------------------------------------------
 
   /** Everything with `pm.project.read`; otherwise the projects I run, am on, or hold a task in. */
+  /** The projects matching `where` that this person may see. */
+  async visible(actor: Principal, where: Prisma.ProjectWhereInput) {
+    return (await this.projects.findMany({
+      where: {
+        ...where,
+        companyId: actor.activeCompanyId,
+        AND: [this.visibleWhere(actor, false)],
+      },
+      orderBy: { openedAt: 'desc' },
+      select: { id: true, projectNo: true, name: true, status: true },
+    })) as { id: string; projectNo: string; name: string; status: string }[];
+  }
+
   private visibleWhere(
     actor: Principal,
     mineOnly: boolean,
