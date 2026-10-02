@@ -4984,6 +4984,8 @@ model Project {
   installations     ProjectInstallation[]
   /// CD-211 — แบบรายละเอียด (ทุกเวอร์ชัน).
   designs           ProjectDesign[]
+  /// CD-210 — การสำรวจหน้างาน.
+  surveys           ProjectSurvey[]
 
   @@unique([companyId, projectNo])
   @@index([companyId, status])
@@ -6124,5 +6126,61 @@ model ProjectTaskEquipment {
   @@index([projectId])
   @@index([taskId])
   @@map("project_task_equipment")
+}
+
+/// CD-210 — a site survey (S-n), filled on a phone and kept there while
+/// offline: its id is made on the device, so sending it again never makes a
+/// second one. It walks the Solution's assumptions from the baseline —
+/// each holds or does not (`assumptions`: [{ index, text, holds, note,
+/// changeRequestId }]); one that does not must become a change request
+/// (CD-185) before the survey is completed.
+model ProjectSurvey {
+  id          String    @id
+  companyId   String
+  projectId   String
+  seq         Int
+  site        String
+  surveyedOn  DateTime  @db.Date
+  latitude    Decimal?  @db.Decimal(9, 6)
+  longitude   Decimal?  @db.Decimal(9, 6)
+  summary     String?
+  assumptions Json      @default("[]")
+  /// draft · completed
+  status      String    @default("draft")
+  completedAt DateTime?
+  completedBy String?
+  createdAt   DateTime  @default(now())
+  createdBy   String
+  updatedAt   DateTime  @updatedAt
+  updatedBy   String?
+
+  project Project              @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  photos  ProjectSurveyPhoto[]
+
+  @@unique([projectId, seq])
+  @@map("project_surveys")
+}
+
+/// CD-210 — a photo of a survey, with where it was taken. Its id is made on
+/// the device too, so a photo synced twice is kept once.
+model ProjectSurveyPhoto {
+  id         String    @id
+  companyId  String
+  surveyId   String
+  caption    String?
+  latitude   Decimal?  @db.Decimal(9, 6)
+  longitude  Decimal?  @db.Decimal(9, 6)
+  takenAt    DateTime?
+  fileName   String
+  mimeType   String
+  sizeBytes  Int
+  storageKey String
+  uploadedBy String
+  uploadedAt DateTime  @default(now())
+
+  survey ProjectSurvey @relation(fields: [surveyId], references: [id], onDelete: Restrict)
+
+  @@index([surveyId])
+  @@map("project_survey_photos")
 }
 

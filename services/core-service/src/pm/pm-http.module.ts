@@ -26,6 +26,7 @@ import { AsBuiltService } from './as-built.service';
 import { AcceptanceService } from './acceptance.service';
 import { UatService } from './uat.service';
 import { InstallationsService } from './installations.service';
+import { SurveysService } from './surveys.service';
 import { TaskEvidenceService } from './task-evidence.service';
 import { DesignsService } from './designs.service';
 import { TechPlanService } from './tech-plan.service';
@@ -66,6 +67,7 @@ import { TechPlanService } from './tech-plan.service';
     AcceptanceService,
     UatService,
     InstallationsService,
+    SurveysService,
     TaskEvidenceService,
     DesignsService,
     TechPlanService,

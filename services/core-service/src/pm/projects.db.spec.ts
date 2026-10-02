@@ -44,6 +44,8 @@ import {
   ProjectAcceptanceItemRepository,
   ProjectUatFindingRepository,
   ProjectInstallationRepository,
+  ProjectSurveyPhotoRepository,
+  ProjectSurveyRepository,
   ProjectDesignRepository,
   ProjectDesignFileRepository,
   ProjectTaskEquipmentRepository,
@@ -67,6 +69,7 @@ import { AsBuiltService } from './as-built.service';
 import { AcceptanceService } from './acceptance.service';
 import { UatService } from './uat.service';
 import { InstallationsService } from './installations.service';
+import { SurveysService } from './surveys.service';
 import { TaskEvidenceService } from './task-evidence.service';
 import { DesignsService } from './designs.service';
 import { TechPlanService } from './tech-plan.service';
@@ -273,6 +276,10 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       });
       await prisma.projectTask.deleteMany({ where: { projectId } });
       await prisma.projectMilestone.deleteMany({ where: { projectId } });
+      await prisma.projectSurveyPhoto.deleteMany({
+        where: { survey: { projectId } },
+      });
+      await prisma.projectSurvey.deleteMany({ where: { projectId } });
       await prisma.projectDesignFile.deleteMany({
         where: { design: { projectId } },
       });
@@ -2678,6 +2685,252 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         managerNow,
       );
       expect(started.task).toMatchObject({ status: 'in_progress' });
+    });
+
+    it('CD-210: a site survey synced from the device — the Solution assumptions checked one by one, each that differs a change request before it completes', async () => {
+      const client = prisma as never;
+      const transactions = {
+        execute: (work: (tx: unknown) => Promise<unknown>) =>
+          prisma.$transaction((tx) => work(tx)),
+      } as never;
+      const audit = { record: () => Promise.resolve() } as never;
+      const files = new Map<string, Buffer>();
+      const storage = {
+        put: (key: string, body: Buffer) => {
+          files.set(key, body);
+          return Promise.resolve();
+        },
+        remove: (key: string) => {
+          files.delete(key);
+          return Promise.resolve();
+        },
+        get: (key: string) => Promise.resolve(Readable.from([files.get(key)!])),
+      };
+      const changes = new ChangeRequestsService(
+        projects,
+        new ProjectChangeRequestRepository(client),
+        new ProjectBudgetRepository(client),
+        { findFirst: () => Promise.resolve(null) } as never,
+        {
+          findFirst: () => Promise.resolve(null),
+          findMany: () => Promise.resolve([]),
+        } as never,
+        {} as never,
+        new CompanyMemberRepository(client),
+        {} as never,
+        { on: () => undefined } as never,
+        audit,
+        transactions,
+      );
+      const surveys = new SurveysService(
+        projects,
+        new ProjectRepository(client),
+        new ProjectSurveyRepository(client),
+        new ProjectSurveyPhotoRepository(client),
+        changes,
+        new CompanyMemberRepository(client),
+        storage,
+        audit,
+        transactions,
+      );
+      const managerNow = as(engineer, ['notification.read']);
+      const crew = as(outsider, ['notification.read']);
+      const now = new Date('2026-10-08T03:00:00Z');
+      // the Solution assumed power at every point and a low ceiling
+      const project = await prisma.project.findUniqueOrThrow({
+        where: { id: projectId },
+        select: { baseline: true },
+      });
+      const baseline = project.baseline as Record<string, unknown>;
+      await prisma.project.update({
+        where: { id: projectId },
+        data: {
+          baseline: {
+            ...baseline,
+            scope: {
+              ...(baseline.scope as Record<string, unknown>),
+              assumptions: [
+                {
+                  category: 'site',
+                  text: 'มีไฟเลี้ยงทุกจุด',
+                  owner: 'customer',
+                },
+                {
+                  category: 'site',
+                  text: 'เพดานสูงไม่เกิน 4 ม.',
+                  owner: 'customer',
+                },
+              ],
+            },
+          } as never,
+        },
+      });
+      const surveyId = '7b0c1d2e-3f40-4a5b-8c6d-7e8f9a0b1c2d';
+
+      // the crew syncs the draft made offline; syncing again only updates it
+      const first = await surveys.save(
+        projectId,
+        {
+          id: surveyId,
+          site: 'อาคาร A',
+          surveyed_on: '2026-10-07',
+          latitude: 13.7563,
+          longitude: 100.5018,
+          assumptions: [{ index: 0, holds: true }],
+        },
+        crew,
+        now,
+      );
+      expect(first.assumptions).toEqual([
+        'มีไฟเลี้ยงทุกจุด',
+        'เพดานสูงไม่เกิน 4 ม.',
+      ]);
+      await surveys.save(
+        projectId,
+        {
+          id: surveyId,
+          assumptions: [{ index: 1, holds: false, note: 'เพดานสูง 6 ม.' }],
+        },
+        crew,
+        now,
+      );
+      let view = await surveys.view(projectId, crew);
+      expect(view.surveys).toHaveLength(1);
+      expect(view.surveys[0]).toMatchObject({
+        label: 'S-1',
+        site: 'อาคาร A',
+        surveyedOn: '2026-10-07',
+        latitude: 13.7563,
+        status: 'draft',
+        mayComplete: true,
+      });
+      expect(view.surveys[0].assumptions.map((row) => row.holds)).toEqual([
+        true,
+        false,
+      ]);
+      await expect(
+        surveys.save(
+          projectId,
+          { id: 'not-a-uuid', site: 'x', surveyed_on: '2026-10-07' },
+          crew,
+          now,
+        ),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+      await expect(
+        surveys.save(
+          projectId,
+          {
+            id: '8b0c1d2e-3f40-4a5b-8c6d-7e8f9a0b1c2d',
+            site: 'x',
+            surveyed_on: '2026-10-09',
+          },
+          crew,
+          now,
+        ),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+
+      // a photo synced twice is kept once
+      const photoId = '9c0c1d2e-3f40-4a5b-8c6d-7e8f9a0b1c2d';
+      const file = {
+        originalname: 'ceiling.jpg',
+        mimetype: 'image/jpeg',
+        size: 3,
+        buffer: Buffer.from('jpg'),
+      };
+      await surveys.addPhoto(
+        projectId,
+        surveyId,
+        {
+          id: photoId,
+          caption: 'เพดาน',
+          latitude: '13.7563',
+          longitude: '100.5018',
+        },
+        file,
+        crew,
+      );
+      view = await surveys.addPhoto(
+        projectId,
+        surveyId,
+        { id: photoId },
+        file,
+        crew,
+      );
+      expect(view.surveys[0].photos).toEqual([
+        expect.objectContaining({ id: photoId, caption: 'เพดาน' }) as never,
+      ]);
+      expect(files.size).toBe(1);
+      await expect(
+        surveys.addPhoto(
+          projectId,
+          surveyId,
+          { id: 'a0c0c1d2-3f40-4a5b-8c6d-7e8f9a0b1c2d' },
+          { ...file, mimetype: 'application/pdf' },
+          crew,
+        ),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+
+      // it cannot complete while the differing assumption is not a change request
+      await expect(
+        surveys.complete(projectId, surveyId, crew, now),
+      ).rejects.toThrow(
+        'สมมติฐานที่ไม่ตรงต้องแปลงเป็นคำขอเปลี่ยนแปลงก่อน: ข้อ 2',
+      );
+      // only the manager converts it; one that holds cannot be converted
+      await expect(
+        surveys.toChange(projectId, surveyId, 1, crew),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+      await expect(
+        surveys.toChange(projectId, surveyId, 0, managerNow),
+      ).rejects.toMatchObject({ code: 'CONFLICT' });
+      const converted = await surveys.toChange(
+        projectId,
+        surveyId,
+        1,
+        managerNow,
+      );
+      const change = await prisma.projectChangeRequest.findUniqueOrThrow({
+        where: { id: converted.changeId },
+      });
+      expect(change.title).toBe(
+        'S-1: สมมติฐานไม่ตรงหน้างาน — เพดานสูงไม่เกิน 4 ม.',
+      );
+      expect(change.status).toBe('draft');
+      expect(converted.surveys[0].assumptions[1].changeRequestId).toBe(
+        converted.changeId,
+      );
+      await expect(
+        surveys.toChange(projectId, surveyId, 1, managerNow),
+      ).rejects.toMatchObject({ code: 'CONFLICT' });
+      // a later sync from the device does not lose the link
+      await surveys.save(
+        projectId,
+        {
+          id: surveyId,
+          summary: 'ต้องใช้นั่งร้าน',
+          assumptions: [{ index: 1, holds: false, note: 'เพดานสูง 6 ม.' }],
+        },
+        crew,
+        now,
+      );
+
+      // completed, then read only
+      view = await surveys.complete(projectId, surveyId, crew, now);
+      expect(view.surveys[0]).toMatchObject({
+        status: 'completed',
+        summary: 'ต้องใช้นั่งร้าน',
+        problems: [],
+        mayEdit: false,
+      });
+      expect(view.surveys[0].assumptions[1].changeRequestId).toBe(
+        converted.changeId,
+      );
+      await expect(
+        surveys.save(projectId, { id: surveyId, summary: 'แก้' }, crew, now),
+      ).rejects.toMatchObject({ code: 'CONFLICT' });
+      // the photo is still there to read
+      const read = await surveys.photo(projectId, surveyId, photoId, crew);
+      expect(read.fileName).toBe('ceiling.jpg');
     });
 
     it('CD-226: as-built — the required documents, and every deviation from what was sold with its reason', async () => {

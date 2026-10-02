@@ -46,6 +46,8 @@ import {
   SaveUatFindingDto,
   MoveUatDto,
   SaveInstallationDto,
+  SaveSurveyDto,
+  SurveyPhotoDto,
   SaveDesignDto,
   SaveTechPlanDto,
   ListProjectsQueryDto,
@@ -90,6 +92,7 @@ import {
 } from './installations.service';
 import { DesignsService } from './designs.service';
 import { TechPlanService } from './tech-plan.service';
+import { SurveysService } from './surveys.service';
 import { MAX_TASK_FILE_BYTES, TaskWorkService } from './task-work.service';
 import { MAX_FILES_PER_UPDATE } from './task-rules';
 import { ProjectsService } from './projects.service';
@@ -125,6 +128,7 @@ export class ProjectsController {
     private readonly installations: InstallationsService,
     private readonly designs: DesignsService,
     private readonly techPlan: TechPlanService,
+    private readonly surveys: SurveysService,
   ) {}
 
   @ApiOperation({ summary: 'รายการโครงการ (ทั้งบริษัท หรือของฉัน)' })
@@ -835,6 +839,124 @@ export class ProjectsController {
       type: file.mimeType,
       disposition: `inline; filename*=UTF-8''${encodeURIComponent(file.fileName)}`,
     });
+  }
+
+  // --- CD-210 สำรวจหน้างาน ------------------------------------------------------------
+
+  @ApiOperation({
+    summary: 'การสำรวจหน้างาน และสมมติฐานของ Solution ที่ต้องตรวจ',
+  })
+  @Get(':id/surveys')
+  @Permissions('notification.read')
+  viewSurveys(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.surveys.view(id, principal);
+  }
+
+  @ApiOperation({
+    summary:
+      'ซิงก์ร่างการสำรวจจากเครื่อง (รหัสสร้างบนเครื่อง ส่งซ้ำ = แก้ร่างเดิม)',
+  })
+  @Post(':id/surveys')
+  @Permissions('notification.read')
+  saveSurvey(
+    @Param('id') id: string,
+    @Body() dto: SaveSurveyDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.surveys.save(id, dto, principal);
+  }
+
+  @ApiOperation({ summary: 'ซิงก์รูปการสำรวจ (รูปที่ซิงก์แล้วไม่ถูกเพิ่มซ้ำ)' })
+  @Post(':id/surveys/:surveyId/photos')
+  @Permissions('notification.read')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['id', 'file'],
+      properties: {
+        id: { type: 'string', format: 'uuid' },
+        caption: { type: 'string' },
+        latitude: { type: 'string' },
+        longitude: { type: 'string' },
+        taken_at: { type: 'string', format: 'date-time' },
+        file: { type: 'string', format: 'binary' },
+      },
+    },
+  })
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: MAX_EVIDENCE_BYTES },
+      defParamCharset: 'utf8',
+    }),
+  )
+  addSurveyPhoto(
+    @Param('id') id: string,
+    @Param('surveyId') surveyId: string,
+    @Body() dto: SurveyPhotoDto,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.surveys.addPhoto(id, surveyId, dto, file, principal);
+  }
+
+  @ApiOperation({ summary: 'ลบรูปออกจากร่างการสำรวจ' })
+  @Delete(':id/surveys/:surveyId/photos/:photoId')
+  @Permissions('notification.read')
+  removeSurveyPhoto(
+    @Param('id') id: string,
+    @Param('surveyId') surveyId: string,
+    @Param('photoId') photoId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.surveys.removePhoto(id, surveyId, photoId, principal);
+  }
+
+  @ApiOperation({ summary: 'รูปการสำรวจ' })
+  @Get(':id/surveys/:surveyId/photos/:photoId')
+  @Permissions('notification.read')
+  async surveyPhoto(
+    @Param('id') id: string,
+    @Param('surveyId') surveyId: string,
+    @Param('photoId') photoId: string,
+    @CurrentPrincipal() principal: Principal,
+  ): Promise<StreamableFile> {
+    const file = await this.surveys.photo(id, surveyId, photoId, principal);
+    return new StreamableFile(file.stream, {
+      type: file.mimeType,
+      disposition: `inline; filename*=UTF-8''${encodeURIComponent(file.fileName)}`,
+    });
+  }
+
+  @ApiOperation({
+    summary:
+      'แปลงสมมติฐานที่ไม่ตรงหน้างานเป็นคำขอเปลี่ยนแปลง (ผู้จัดการโครงการ)',
+  })
+  @Post(':id/surveys/:surveyId/assumptions/:index/change')
+  @Permissions('notification.read')
+  surveyToChange(
+    @Param('id') id: string,
+    @Param('surveyId') surveyId: string,
+    @Param('index', ParseIntPipe) index: number,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.surveys.toChange(id, surveyId, index, principal);
+  }
+
+  @ApiOperation({
+    summary: 'ปิดการสำรวจ — ทุกข้อต้องตรวจ ข้อที่ไม่ตรงต้องเป็นคำขอเปลี่ยนแปลง',
+  })
+  @Post(':id/surveys/:surveyId/complete')
+  @Permissions('notification.read')
+  completeSurvey(
+    @Param('id') id: string,
+    @Param('surveyId') surveyId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.surveys.complete(id, surveyId, principal);
   }
 
   // --- CD-222 UAT -------------------------------------------------------------------

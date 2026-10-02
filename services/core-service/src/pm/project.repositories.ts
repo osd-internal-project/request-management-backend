@@ -455,3 +455,30 @@ export class ProjectTaskEquipmentRepository extends BaseRepository<
     return client.projectTaskEquipment;
   }
 }
+
+/** CD-210 สำรวจหน้างาน. */
+@Injectable()
+export class ProjectSurveyRepository extends BaseRepository<
+  PrismaService['projectSurvey']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.projectSurvey;
+  }
+}
+
+@Injectable()
+export class ProjectSurveyPhotoRepository extends BaseRepository<
+  PrismaService['projectSurveyPhoto']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.projectSurveyPhoto;
+  }
+}

@@ -1070,3 +1070,105 @@ export class SaveTechPlanDto {
     note?: unknown;
   }[];
 }
+
+/** CD-210 — one assumption of the Solution, as checked on site. */
+export class SurveyAnswerDto {
+  @ApiProperty({ description: 'ลำดับสมมติฐาน (เริ่ม 0)' })
+  @IsInt()
+  @Min(0)
+  @Max(1000)
+  index!: number;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    description: 'true = ตรง, false = ไม่ตรง, null = ยังไม่ตรวจ',
+  })
+  @IsOptional()
+  @IsBoolean()
+  holds?: boolean | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  note?: string | null;
+}
+
+/**
+ * CD-210 — a site survey as the device syncs it. `id` is made on the
+ * device, so syncing the same draft twice only updates it.
+ */
+export class SaveSurveyDto {
+  @ApiProperty({ description: 'UUID ที่เครื่องสร้างตอนเริ่มสำรวจ' })
+  @IsString()
+  @MaxLength(36)
+  id!: string;
+
+  @ApiPropertyOptional({ example: 'อาคาร A ชั้น 2' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  site?: string;
+
+  @ApiPropertyOptional({ format: 'date' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  surveyed_on?: string;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @IsNumber()
+  latitude?: number | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @IsNumber()
+  longitude?: number | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  summary?: string;
+
+  @ApiPropertyOptional({ type: [SurveyAnswerDto] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(1000)
+  @ValidateNested({ each: true })
+  @Type(() => SurveyAnswerDto)
+  assumptions?: SurveyAnswerDto[];
+}
+
+/** CD-210 — a survey photo (multipart: file); `id` is made on the device. */
+export class SurveyPhotoDto {
+  @ApiProperty({ description: 'UUID ที่เครื่องสร้างตอนถ่าย' })
+  @IsString()
+  @MaxLength(36)
+  id!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  caption?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  latitude?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  longitude?: string;
+
+  @ApiPropertyOptional({ description: 'เวลาที่ถ่าย (ISO)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  taken_at?: string;
+}
