@@ -413,3 +413,31 @@ export class ProjectInstallationRepository extends BaseRepository<
     return client.projectInstallation;
   }
 }
+
+/** CD-211 แบบรายละเอียด. */
+@Injectable()
+export class ProjectDesignRepository extends BaseRepository<
+  PrismaService['projectDesign']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.projectDesign;
+  }
+}
+
+/** CD-211 ไฟล์แบบ. */
+@Injectable()
+export class ProjectDesignFileRepository extends BaseRepository<
+  PrismaService['projectDesignFile']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.projectDesignFile;
+  }
+}

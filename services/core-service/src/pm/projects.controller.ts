@@ -46,6 +46,7 @@ import {
   SaveUatFindingDto,
   MoveUatDto,
   SaveInstallationDto,
+  SaveDesignDto,
   ListProjectsQueryDto,
   OpenProjectDto,
   SaveMilestoneDto,
@@ -86,6 +87,7 @@ import {
   InstallationsService,
   type PointPhotos,
 } from './installations.service';
+import { DesignsService } from './designs.service';
 import { MAX_TASK_FILE_BYTES, TaskWorkService } from './task-work.service';
 import { MAX_FILES_PER_UPDATE } from './task-rules';
 import { ProjectsService } from './projects.service';
@@ -119,6 +121,7 @@ export class ProjectsController {
     private readonly acceptance: AcceptanceService,
     private readonly uat: UatService,
     private readonly installations: InstallationsService,
+    private readonly designs: DesignsService,
   ) {}
 
   @ApiOperation({ summary: 'รายการโครงการ (ทั้งบริษัท หรือของฉัน)' })
@@ -583,6 +586,109 @@ export class ProjectsController {
       type: file.mimeType,
       disposition: `inline; filename*=UTF-8''${encodeURIComponent(file.fileName)}`,
     });
+  }
+
+  // --- CD-211 detailed design ------------------------------------------------------
+
+  @ApiOperation({
+    summary: 'แบบรายละเอียดทุกเวอร์ชัน และแบบที่ใช้อยู่ (อนุมัติล่าสุด)',
+  })
+  @Get(':id/designs')
+  @Permissions('notification.read')
+  viewDesigns(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.designs.view(id, principal);
+  }
+
+  @ApiOperation({
+    summary: 'เริ่มแบบเวอร์ชันใหม่ (คัดลอกจากแบบที่ใช้อยู่) — ทีมโครงการ',
+  })
+  @Post(':id/designs')
+  @Permissions('notification.read')
+  createDesign(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.designs.create(id, principal);
+  }
+
+  @ApiOperation({ summary: 'แก้ร่างแบบ' })
+  @Patch(':id/designs/:designId')
+  @Permissions('notification.read')
+  updateDesign(
+    @Param('id') id: string,
+    @Param('designId') designId: string,
+    @Body() dto: SaveDesignDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.designs.update(id, designId, dto, principal);
+  }
+
+  @ApiOperation({ summary: 'แนบไฟล์แบบ (ร่าง)' })
+  @Post(':id/designs/:designId/files')
+  @Permissions('notification.read')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['file'],
+      properties: { file: { type: 'string', format: 'binary' } },
+    },
+  })
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: MAX_EVIDENCE_BYTES },
+      defParamCharset: 'utf8',
+    }),
+  )
+  attachDesignFile(
+    @Param('id') id: string,
+    @Param('designId') designId: string,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.designs.attach(id, designId, file, principal);
+  }
+
+  @ApiOperation({ summary: 'นำไฟล์ออกจากร่างแบบ' })
+  @Delete(':id/designs/:designId/files/:fileId')
+  @Permissions('notification.read')
+  detachDesignFile(
+    @Param('id') id: string,
+    @Param('designId') designId: string,
+    @Param('fileId') fileId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.designs.detach(id, designId, fileId, principal);
+  }
+
+  @ApiOperation({ summary: 'ไฟล์แบบ' })
+  @Get(':id/design-files/:fileId')
+  @Permissions('notification.read')
+  async designFile(
+    @Param('id') id: string,
+    @Param('fileId') fileId: string,
+    @CurrentPrincipal() principal: Principal,
+  ): Promise<StreamableFile> {
+    const file = await this.designs.download(id, fileId, principal);
+    return new StreamableFile(file.stream, {
+      type: file.mimeType,
+      disposition: `inline; filename*=UTF-8''${encodeURIComponent(file.fileName)}`,
+    });
+  }
+
+  @ApiOperation({ summary: 'ส่งร่างแบบขออนุมัติ (ผู้จัดการโครงการ)' })
+  @Post(':id/designs/:designId/submit')
+  @Permissions('notification.read')
+  submitDesign(
+    @Param('id') id: string,
+    @Param('designId') designId: string,
+    @CurrentPrincipal() principal: Principal,
+    @Headers('authorization') authorization: string,
+  ) {
+    return this.designs.submit(id, designId, principal, authorization);
   }
 
   // --- CD-216 installation ---------------------------------------------------------

@@ -781,6 +781,12 @@ export class UpdateCrmConfigDto {
   @Matches(/^([A-Z0-9_-]{1,20})?$/)
   project_close_type_code?: string;
 
+  /** CD-211: รหัสประเภทคำขออนุมัติแบบรายละเอียด; form มี differs_from_solution (1/0). "" = ล้าง. */
+  @IsOptional()
+  @IsString()
+  @Matches(/^([A-Z0-9_-]{1,20})?$/)
+  project_design_type_code?: string;
+
   /** CD-191: ชื่อเอกสารที่ทุกโครงการต้องแนบก่อนขอปิด. */
   @IsOptional()
   @IsArray()

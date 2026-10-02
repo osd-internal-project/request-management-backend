@@ -2421,6 +2421,9 @@ model CrmCompanyConfig {
   /// CD-191 — the request type that asks the project's executives to
   /// close a project; its matrix may route on `contract_value`. NULL = not set.
   projectCloseTypeCode             String?
+  /// CD-211 — the request type a detailed design version is approved on;
+  /// its matrix may route on `differs_from_solution`. NULL = not set.
+  projectDesignTypeCode            String?
   /// CD-191 — the documents every project must leave behind before it may
   /// be closed, by name; each needs a file on the close-out card.
   projectCloseDocuments            String[] @default(["ใบตรวจรับงาน", "เอกสารส่งมอบงาน"])
@@ -4979,6 +4982,8 @@ model Project {
   uatFindings       ProjectUatFinding[]
   /// CD-216 — จุดติดตั้ง.
   installations     ProjectInstallation[]
+  /// CD-211 — แบบรายละเอียด (ทุกเวอร์ชัน).
+  designs           ProjectDesign[]
 
   @@unique([companyId, projectNo])
   @@index([companyId, status])
@@ -6030,3 +6035,65 @@ model HrLaborRate {
   @@index([companyId, levelId, workTypeId, validFrom])
   @@map("hr_labor_rates")
 }
+
+/// CD-211 — a version of the project's detailed design (v1, v2, …): the
+/// drawings (files), the key configuration values, and how it differs from
+/// the approved Solution version it comes from (the project's baseline).
+/// A draft is approved through the request type in CRM settings
+/// (`projectDesignTypeCode`); the newest approved version is the design in
+/// force, and changing it means a new version approved again — an approved
+/// version never changes.
+model ProjectDesign {
+  id                  String    @id @default(uuid())
+  companyId           String
+  projectId           String
+  versionNo           Int
+  title               String
+  summary             String?
+  /// [{ key, value }] — the configuration values the design fixes.
+  configuration       Json      @default("[]")
+  /// The Solution version of the baseline it was drawn from.
+  solutionVersionId   String?
+  differsFromSolution Boolean   @default(false)
+  differences         String?
+  /// draft · submitted · approved · rejected · superseded
+  status              String    @default("draft")
+  requestId           String?
+  error               String?
+  submittedAt         DateTime?
+  submittedBy         String?
+  decidedAt           DateTime?
+  createdAt           DateTime  @default(now())
+  createdBy           String
+  updatedAt           DateTime  @updatedAt
+  updatedBy           String?
+
+  project Project             @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  files   ProjectDesignFile[]
+
+  @@unique([projectId, versionNo])
+  @@index([requestId])
+  @@map("project_designs")
+}
+
+/// CD-211 — a drawing or document of a design version. A new version
+/// copied from the one in force starts with the same files (the same
+/// stored objects).
+model ProjectDesignFile {
+  id         String    @id @default(uuid())
+  companyId  String
+  designId   String
+  fileName   String
+  mimeType   String
+  sizeBytes  Int
+  storageKey String
+  uploadedBy String
+  uploadedAt DateTime  @default(now())
+  deletedAt  DateTime?
+
+  design ProjectDesign @relation(fields: [designId], references: [id], onDelete: Restrict)
+
+  @@index([designId])
+  @@map("project_design_files")
+}
+

@@ -26,6 +26,7 @@ import { EVIDENCE_TYPES, MAX_EVIDENCE_BYTES } from './milestones.service';
 import {
   ProjectAsBuiltDeviationRepository,
   ProjectAsBuiltDocumentRepository,
+  ProjectDesignRepository,
   ProjectInstallationRepository,
   ProjectChangeRequestRepository,
   ProjectRepository,
@@ -84,6 +85,7 @@ export class AsBuiltService {
     private readonly documents: ProjectAsBuiltDocumentRepository,
     private readonly deviations: ProjectAsBuiltDeviationRepository,
     private readonly installations: ProjectInstallationRepository,
+    private readonly designs: ProjectDesignRepository,
     private readonly changes: ProjectChangeRequestRepository,
     private readonly configs: CrmConfigRepository,
     private readonly people: CompanyMemberRepository,
@@ -541,7 +543,23 @@ export class AsBuiltService {
       where: { id: projectId },
       select: { baseline: true },
     })) as { baseline: unknown } | null;
-    return asBuiltRefs(project?.baseline ?? null);
+    // CD-211 — the design in force may be pointed at too
+    const design = (await this.designs.findFirst({
+      where: { projectId, status: 'approved' },
+      orderBy: { versionNo: 'desc' },
+      select: { versionNo: true, title: true },
+    })) as { versionNo: number; title: string } | null;
+    return [
+      ...(design
+        ? [
+            {
+              ref: `design:v${design.versionNo}`,
+              label: `แบบรายละเอียด v${design.versionNo}: ${design.title}`,
+            },
+          ]
+        : []),
+      ...asBuiltRefs(project?.baseline ?? null),
+    ];
   }
 
   private async documentRows(projectId: string) {

@@ -44,6 +44,8 @@ import {
   ProjectAcceptanceItemRepository,
   ProjectUatFindingRepository,
   ProjectInstallationRepository,
+  ProjectDesignRepository,
+  ProjectDesignFileRepository,
 } from './project.repositories';
 import { ProjectsService } from './projects.service';
 import { MilestonesService } from './milestones.service';
@@ -65,6 +67,7 @@ import { AcceptanceService } from './acceptance.service';
 import { UatService } from './uat.service';
 import { InstallationsService } from './installations.service';
 import { TaskEvidenceService } from './task-evidence.service';
+import { DesignsService } from './designs.service';
 import { ContractRiskAssessmentRepository } from '../crm/contract-risk.service';
 import { ContractObligationRepository } from '../crm/contract-obligations.service';
 import {
@@ -268,6 +271,10 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       });
       await prisma.projectTask.deleteMany({ where: { projectId } });
       await prisma.projectMilestone.deleteMany({ where: { projectId } });
+      await prisma.projectDesignFile.deleteMany({
+        where: { design: { projectId } },
+      });
+      await prisma.projectDesign.deleteMany({ where: { projectId } });
       await prisma.projectInstallation.deleteMany({ where: { projectId } });
       await prisma.projectUatFinding.deleteMany({ where: { projectId } });
       await prisma.projectAcceptanceItem.deleteMany({
@@ -2029,6 +2036,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         new ProjectAsBuiltDocumentRepository(client),
         new ProjectAsBuiltDeviationRepository(client),
         new ProjectInstallationRepository(client),
+        new ProjectDesignRepository(client),
         new ProjectChangeRequestRepository(client),
         {
           findFirst: () => Promise.resolve({ projectAsBuiltDocuments: [] }),
@@ -2371,6 +2379,172 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       });
     });
 
+    it('CD-211: the detailed design, version by version — approved through the request type, the newest approved in force, every change a new version', async () => {
+      const client = prisma as never;
+      const transactions = {
+        execute: (work: (tx: unknown) => Promise<unknown>) =>
+          prisma.$transaction((tx) => work(tx)),
+      } as never;
+      const audit = { record: () => Promise.resolve() } as never;
+      const files = new Map<string, Buffer>();
+      const storage = {
+        put: (key: string, body: Buffer) => {
+          files.set(key, body);
+          return Promise.resolve();
+        },
+        remove: () => Promise.resolve(),
+        get: (key: string) => Promise.resolve(Readable.from([files.get(key)!])),
+      };
+      let requestStatus = 'pending_approval';
+      let requestSeq = 0;
+      const asked: unknown[] = [];
+      const told: string[] = [];
+      const designs = new DesignsService(
+        projects,
+        new ProjectRepository(client),
+        new ProjectDesignRepository(client),
+        new ProjectDesignFileRepository(client),
+        {
+          findFirst: () => Promise.resolve({ projectDesignTypeCode: 'DSN' }),
+        } as never,
+        {
+          findFirst: () =>
+            Promise.resolve({ status: requestStatus, requestNo: 'DSN-1' }),
+          findMany: () => Promise.resolve([]),
+        } as never,
+        {
+          create: (input: unknown) => {
+            asked.push(input);
+            requestSeq++;
+            return Promise.resolve({ id: `req-dsn-${tag}-${requestSeq}` });
+          },
+          submit: () => Promise.resolve(),
+        } as never,
+        new CompanyMemberRepository(client),
+        {
+          designDecided: (
+            _u: string,
+            _c: string,
+            _p: unknown,
+            v: string,
+            ok: boolean,
+          ) => {
+            told.push(`${v}:${ok}`);
+            return Promise.resolve();
+          },
+        } as never,
+        { on: () => undefined } as never,
+        storage,
+        audit,
+        transactions,
+      );
+      const managerNow = as(engineer, ['notification.read']);
+      const crew = as(outsider, ['notification.read']);
+      const drawing = {
+        originalname: 'layout.pdf',
+        mimetype: 'application/pdf',
+        size: 4,
+        buffer: Buffer.from('%PDF'),
+      };
+
+      // the team drafts v1
+      const drafted = await designs.create(projectId, crew);
+      const v1 = drafted.versions[0];
+      expect(v1).toMatchObject({ label: 'v1', status: 'draft' });
+      await expect(designs.create(projectId, crew)).rejects.toMatchObject({
+        code: 'CONFLICT',
+      });
+      await expect(
+        designs.update(
+          projectId,
+          v1.id,
+          {
+            configuration: [
+              { key: 'VLAN', value: '20' },
+              { key: 'VLAN', value: '30' },
+            ],
+          },
+          crew,
+        ),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+      await designs.update(
+        projectId,
+        v1.id,
+        {
+          title: 'แบบติดตั้งกล้อง',
+          configuration: [
+            { key: 'VLAN', value: '20' },
+            { key: 'NVR IP', value: '10.0.0.5' },
+          ],
+          differs_from_solution: true,
+        },
+        crew,
+      );
+
+      // only the manager sends; it needs a drawing and the difference said
+      await expect(
+        designs.submit(projectId, v1.id, crew, 'Bearer x'),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+      await expect(
+        designs.submit(projectId, v1.id, managerNow, 'Bearer x'),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+      await designs.attach(projectId, v1.id, drawing, crew);
+      await designs.update(
+        projectId,
+        v1.id,
+        { differences: 'ย้าย NVR ไปห้อง Server ชั้น 1' },
+        crew,
+      );
+      const sent = await designs.submit(
+        projectId,
+        v1.id,
+        managerNow,
+        'Bearer x',
+      );
+      expect(sent.versions[0].status).toBe('submitted');
+      expect(sent.versions[0].request?.id).toBe(`req-dsn-${tag}-1`);
+      expect(asked[0]).toMatchObject({
+        type_code: 'DSN',
+        form_data: { design_no: 'v1', differs_from_solution: 1 },
+      });
+      await expect(
+        designs.update(projectId, v1.id, { title: 'อื่น' }, crew),
+      ).rejects.toMatchObject({ code: 'CONFLICT' });
+
+      // approved: v1 is in force
+      requestStatus = 'approved';
+      const approved = await designs.view(projectId, crew);
+      expect(approved.inForce).toMatchObject({ label: 'v1' });
+      expect(told).toEqual(['v1:true']);
+
+      // a change is v2, copied from v1 with its drawing; approved, it replaces v1
+      requestStatus = 'pending_approval';
+      const v2Draft = await designs.create(projectId, crew);
+      const v2 = v2Draft.versions[0];
+      expect(v2).toMatchObject({
+        label: 'v2',
+        title: 'แบบติดตั้งกล้อง',
+        status: 'draft',
+      });
+      expect(v2.files).toHaveLength(1);
+      expect(v2.configuration).toEqual([
+        { key: 'VLAN', value: '20' },
+        { key: 'NVR IP', value: '10.0.0.5' },
+      ]);
+      await designs.submit(projectId, v2.id, managerNow, 'Bearer x');
+      requestStatus = 'approved';
+      const after = await designs.view(projectId, crew);
+      expect(after.inForce).toMatchObject({ label: 'v2' });
+      expect(after.versions.map((row) => [row.label, row.status])).toEqual([
+        ['v2', 'approved'],
+        ['v1', 'superseded'],
+      ]);
+      expect((await designs.inForce(projectId))?.versionNo).toBe(2);
+      expect(
+        (await designs.download(projectId, v2.files[0].id, crew)).fileName,
+      ).toBe('layout.pdf');
+    });
+
     it('CD-226: as-built — the required documents, and every deviation from what was sold with its reason', async () => {
       const client = prisma as never;
       const transactions = {
@@ -2385,6 +2559,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         new ProjectAsBuiltDocumentRepository(client),
         new ProjectAsBuiltDeviationRepository(client),
         new ProjectInstallationRepository(client),
+        new ProjectDesignRepository(client),
         new ProjectChangeRequestRepository(client),
         {
           findFirst: () =>
@@ -2696,6 +2871,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
           new ProjectAsBuiltDocumentRepository(client),
           new ProjectAsBuiltDeviationRepository(client),
           new ProjectInstallationRepository(client),
+          new ProjectDesignRepository(client),
           new ProjectChangeRequestRepository(client),
           {
             findFirst: () =>
@@ -2885,6 +3061,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
           new ProjectAsBuiltDocumentRepository(client),
           new ProjectAsBuiltDeviationRepository(client),
           new ProjectInstallationRepository(client),
+          new ProjectDesignRepository(client),
           new ProjectChangeRequestRepository(client),
           {
             findFirst: () =>

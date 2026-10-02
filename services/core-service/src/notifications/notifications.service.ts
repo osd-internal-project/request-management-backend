@@ -607,6 +607,29 @@ export class NotificationsService {
     });
   }
 
+  /** CD-211 — the approvers decided on a design version (to who sent it). */
+  async designDecided(
+    userId: string,
+    companyId: string,
+    project: { id: string; projectNo: string; name: string },
+    version: string,
+    approved: boolean,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'pm.design.decided',
+      values: {
+        project_no: project.projectNo,
+        project_name: project.name,
+        version,
+        result: approved ? 'อนุมัติแล้ว' : 'ไม่อนุมัติ',
+      },
+      resourceType: 'project',
+      resourceId: project.id,
+    });
+  }
+
   /** CD-222 — someone was handed a UAT point to fix. */
   async uatAssigned(
     userId: string,

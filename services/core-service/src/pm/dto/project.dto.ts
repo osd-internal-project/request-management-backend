@@ -999,3 +999,39 @@ export class SaveInstallationDto {
   @MaxLength(10)
   installed_on?: string;
 }
+
+/** CD-211 — a draft of the detailed design. */
+export class SaveDesignDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  title?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  summary?: string;
+
+  @ApiPropertyOptional({
+    description: 'ค่าตั้งค่าหลัก [{ key, value }]',
+    type: 'array',
+    items: { type: 'object' },
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(200)
+  configuration?: { key?: unknown; value?: unknown }[];
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  differs_from_solution?: boolean;
+
+  @ApiPropertyOptional({ description: 'ต่างจาก Solution ที่อนุมัติตรงไหน' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  differences?: string;
+}

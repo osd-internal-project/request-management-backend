@@ -277,6 +277,18 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
     },
   },
   {
+    eventType: 'pm.design.decided',
+    label: 'ผลพิจารณาแบบรายละเอียด (ถึงผู้ส่ง)',
+    title: 'โครงการ {{project_no}}: แบบรายละเอียด {{version}} {{result}}',
+    body: '{{project_name}}',
+    variables: {
+      project_no: { label: 'เลขที่โครงการ', sample: 'PRJ-OSD-000012' },
+      project_name: { label: 'ชื่อโครงการ', sample: 'ระบบกล้องอาคาร A' },
+      version: { label: 'เวอร์ชันแบบ', sample: 'v2' },
+      result: { label: 'ผล', sample: 'อนุมัติแล้ว' },
+    },
+  },
+  {
     eventType: 'pm.uat.assigned',
     label: 'ได้รับมอบหมายประเด็นจาก UAT (ถึงผู้รับผิดชอบ)',
     title: 'โครงการ {{project_no}}: {{finding_no}} {{title}}',
