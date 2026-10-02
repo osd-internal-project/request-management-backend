@@ -35,6 +35,7 @@ import {
   RecordTestDto,
   SaveReadinessItemDto,
   CheckReadinessDto,
+  SaveDeviationDto,
   ListProjectsQueryDto,
   OpenProjectDto,
   SaveMilestoneDto,
@@ -68,6 +69,7 @@ import { CloseoutService } from './closeout.service';
 import { StatusReportsService } from './status-reports.service';
 import { TestsService } from './tests.service';
 import { ReadinessService } from './readiness.service';
+import { AsBuiltService } from './as-built.service';
 import { MAX_TASK_FILE_BYTES, TaskWorkService } from './task-work.service';
 import { MAX_FILES_PER_UPDATE } from './task-rules';
 import { ProjectsService } from './projects.service';
@@ -97,6 +99,7 @@ export class ProjectsController {
     private readonly statusReports: StatusReportsService,
     private readonly tests: TestsService,
     private readonly readiness: ReadinessService,
+    private readonly asBuilt: AsBuiltService,
   ) {}
 
   @ApiOperation({ summary: 'รายการโครงการ (ทั้งบริษัท หรือของฉัน)' })
@@ -561,6 +564,113 @@ export class ProjectsController {
       type: file.mimeType,
       disposition: `inline; filename*=UTF-8''${encodeURIComponent(file.fileName)}`,
     });
+  }
+
+  // --- CD-226 as-built ---------------------------------------------------------------
+
+  @ApiOperation({
+    summary: 'เอกสารสภาพจริง: เอกสารที่ต้องมี จุดที่ต่างจากที่ขาย และความครบ',
+  })
+  @Get(':id/as-built')
+  @Permissions('notification.read')
+  viewAsBuilt(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.asBuilt.view(id, principal);
+  }
+
+  @ApiOperation({ summary: 'แนบเอกสารสภาพจริง (ทีมโครงการ)' })
+  @Post(':id/as-built/documents')
+  @Permissions('notification.read')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['title', 'file'],
+      properties: {
+        title: { type: 'string' },
+        note: { type: 'string' },
+        file: { type: 'string', format: 'binary' },
+      },
+    },
+  })
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: MAX_EVIDENCE_BYTES },
+      defParamCharset: 'utf8',
+    }),
+  )
+  attachAsBuilt(
+    @Param('id') id: string,
+    @Body() dto: AttachCloseDocumentDto,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.asBuilt.attach(id, dto, file, principal);
+  }
+
+  @ApiOperation({ summary: 'นำเอกสารสภาพจริงออก (ผู้แนบหรือผู้จัดการโครงการ)' })
+  @Delete(':id/as-built/documents/:documentId')
+  @Permissions('notification.read')
+  detachAsBuilt(
+    @Param('id') id: string,
+    @Param('documentId') documentId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.asBuilt.detach(id, documentId, principal);
+  }
+
+  @ApiOperation({ summary: 'ไฟล์เอกสารสภาพจริง' })
+  @Get(':id/as-built/documents/:documentId/file')
+  @Permissions('notification.read')
+  async asBuiltFile(
+    @Param('id') id: string,
+    @Param('documentId') documentId: string,
+    @CurrentPrincipal() principal: Principal,
+  ): Promise<StreamableFile> {
+    const file = await this.asBuilt.download(id, documentId, principal);
+    return new StreamableFile(file.stream, {
+      type: file.mimeType,
+      disposition: `inline; filename*=UTF-8''${encodeURIComponent(file.fileName)}`,
+    });
+  }
+
+  @ApiOperation({ summary: 'บันทึกจุดที่ทำจริงต่างจากที่ขาย (ทีมโครงการ)' })
+  @Post(':id/as-built/deviations')
+  @Permissions('notification.read')
+  addDeviation(
+    @Param('id') id: string,
+    @Body() dto: SaveDeviationDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.asBuilt.addDeviation(id, dto, principal);
+  }
+
+  @ApiOperation({
+    summary:
+      'แก้จุดที่ต่าง หรือผูกคำขอเปลี่ยนแปลง (ผูกได้เฉพาะผู้จัดการโครงการ)',
+  })
+  @Patch(':id/as-built/deviations/:deviationId')
+  @Permissions('notification.read')
+  updateDeviation(
+    @Param('id') id: string,
+    @Param('deviationId') deviationId: string,
+    @Body() dto: SaveDeviationDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.asBuilt.updateDeviation(id, deviationId, dto, principal);
+  }
+
+  @ApiOperation({ summary: 'ลบจุดที่ต่าง (ผู้บันทึกหรือผู้จัดการโครงการ)' })
+  @Delete(':id/as-built/deviations/:deviationId')
+  @Permissions('notification.read')
+  removeDeviation(
+    @Param('id') id: string,
+    @Param('deviationId') deviationId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.asBuilt.removeDeviation(id, deviationId, principal);
   }
 
   // --- CD-225 readiness before handover ---------------------------------------------

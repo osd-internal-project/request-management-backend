@@ -26,6 +26,7 @@ import {
 } from './project.repositories';
 import { ProjectsService } from './projects.service';
 import { TestsService } from './tests.service';
+import { AsBuiltService } from './as-built.service';
 
 interface LineRow {
   id: string;
@@ -65,6 +66,7 @@ export class ReadinessService {
     private readonly lines: ProjectReadinessItemRepository,
     private readonly issues: ProjectIssueRepository,
     private readonly tests: TestsService,
+    private readonly asBuilt: AsBuiltService,
     private readonly configs: CrmConfigRepository,
     private readonly people: CompanyMemberRepository,
     private readonly notifications: NotificationsService,
@@ -76,7 +78,7 @@ export class ReadinessService {
     const access = await this.projects.access(projectId, actor);
     const [rows, state] = await Promise.all([
       this.rows(projectId),
-      this.state(projectId),
+      this.state(projectId, access.project.companyId),
     ]);
     const names = await this.displayNames(
       rows.flatMap((row) => [row.inspectorUserId, row.checkedBy]),
@@ -106,13 +108,22 @@ export class ReadinessService {
   }
 
   /** For acceptance (CD-189): ready or not, and what stands in the way. */
-  async state(projectId: string) {
-    const [rows, coverage, issuesOpen] = await Promise.all([
+  async state(projectId: string, companyId: string) {
+    const [rows, coverage, issuesOpen, asBuilt] = await Promise.all([
       this.rows(projectId),
       this.tests.coverage(projectId),
       this.issues.count({ where: { projectId, status: 'open' } }),
+      this.asBuilt.state(projectId, companyId),
     ]);
-    const checks = systemChecks({ tests: coverage, issuesOpen });
+    const checks = systemChecks({
+      tests: coverage,
+      issuesOpen,
+      asBuilt: {
+        complete: asBuilt.complete,
+        missing:
+          asBuilt.missingDocuments.length + asBuilt.openDeviations.length,
+      },
+    });
     return { checks, readiness: readiness(rows, checks) };
   }
 

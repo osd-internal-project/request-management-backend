@@ -38,6 +38,8 @@ import {
   ProjectTestItemRepository,
   ProjectTestRunRepository,
   ProjectReadinessItemRepository,
+  ProjectAsBuiltDocumentRepository,
+  ProjectAsBuiltDeviationRepository,
 } from './project.repositories';
 import { ProjectsService } from './projects.service';
 import { MilestonesService } from './milestones.service';
@@ -54,6 +56,7 @@ import { CloseoutService } from './closeout.service';
 import { StatusReportsService } from './status-reports.service';
 import { TestsService } from './tests.service';
 import { ReadinessService } from './readiness.service';
+import { AsBuiltService } from './as-built.service';
 import { ContractRiskAssessmentRepository } from '../crm/contract-risk.service';
 import { ContractObligationRepository } from '../crm/contract-obligations.service';
 import {
@@ -258,6 +261,8 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       await prisma.projectTask.deleteMany({ where: { projectId } });
       await prisma.projectMilestone.deleteMany({ where: { projectId } });
       await prisma.projectReadinessItem.deleteMany({ where: { projectId } });
+      await prisma.projectAsBuiltDeviation.deleteMany({ where: { projectId } });
+      await prisma.projectAsBuiltDocument.deleteMany({ where: { projectId } });
       await prisma.projectTestRun.deleteMany({
         where: { item: { projectId } },
       });
@@ -1969,6 +1974,137 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       });
     });
 
+    it('CD-226: as-built — the required documents, and every deviation from what was sold with its reason', async () => {
+      const client = prisma as never;
+      const transactions = {
+        execute: (work: (tx: unknown) => Promise<unknown>) =>
+          prisma.$transaction((tx) => work(tx)),
+      } as never;
+      const audit = { record: () => Promise.resolve() } as never;
+      const files = new Map<string, Buffer>();
+      const asBuilt = new AsBuiltService(
+        projects,
+        new ProjectRepository(client),
+        new ProjectAsBuiltDocumentRepository(client),
+        new ProjectAsBuiltDeviationRepository(client),
+        new ProjectChangeRequestRepository(client),
+        {
+          findFirst: () =>
+            Promise.resolve({ projectAsBuiltDocuments: ['แบบติดตั้งจริง'] }),
+        } as never,
+        new CompanyMemberRepository(client),
+        {
+          put: (key: string, body: Buffer) => {
+            files.set(key, body);
+            return Promise.resolve();
+          },
+          remove: () => Promise.resolve(),
+          get: (key: string) =>
+            Promise.resolve(Readable.from([files.get(key)!])),
+        },
+        audit,
+        transactions,
+      );
+      const managerNow = as(engineer, ['notification.read']);
+      const crew = as(outsider, ['notification.read']);
+      const drawing = {
+        originalname: 'as-built.pdf',
+        mimetype: 'application/pdf',
+        size: 4,
+        buffer: Buffer.from('%PDF'),
+      };
+
+      const first = await asBuilt.view(projectId, crew);
+      expect(first.canWrite).toBe(true);
+      expect(first).toMatchObject({
+        complete: false,
+        missingDocuments: ['แบบติดตั้งจริง'],
+      });
+
+      // the team uploads; only its uploader or the manager takes it off
+      const attached = await asBuilt.attach(
+        projectId,
+        { title: 'แบบติดตั้งจริง' },
+        drawing,
+        crew,
+      );
+      expect(attached.complete).toBe(true);
+      const docId = attached.required[0].documentIds[0];
+      expect(
+        (await asBuilt.download(projectId, docId, managerNow)).fileName,
+      ).toBe('as-built.pdf');
+
+      // a deviation needs what was planned and what was built, inside the baseline
+      await expect(
+        asBuilt.addDeviation(
+          projectId,
+          { planned: 'x', built: 'y', reference: 'boq:999' },
+          crew,
+        ),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+      const reference = first.refs[0]?.ref;
+      const noted = await asBuilt.addDeviation(
+        projectId,
+        {
+          planned: 'ติดตั้งตามแบบ',
+          built: 'ย้ายจุดติดตั้ง 1 จุด',
+          reference,
+        },
+        crew,
+      );
+      expect(noted.complete).toBe(false);
+      expect(noted.openDeviations).toEqual(['D-1: ยังไม่มีเหตุผล']);
+      const d1 = noted.deviations[0];
+      expect(d1.referenceLabel).toBe(first.refs[0]?.label ?? null);
+
+      // a reason settles it — unless it changes the scope
+      await asBuilt.updateDeviation(
+        projectId,
+        d1.id,
+        { reason: 'ผนังเดิมเจาะไม่ได้', affects_scope: true },
+        crew,
+      );
+      const scoped = await asBuilt.view(projectId, crew);
+      expect(scoped.openDeviations).toEqual([
+        'D-1: กระทบขอบเขต ต้องผูกกับคำขอเปลี่ยนแปลงที่อนุมัติแล้ว',
+      ]);
+      // only the manager links the change request, and only an approved one settles it
+      const approved = await prisma.projectChangeRequest.findFirst({
+        where: { projectId, status: 'approved' },
+        select: { id: true },
+      });
+      const change =
+        approved ??
+        (await prisma.projectChangeRequest.create({
+          data: {
+            companyId,
+            projectId,
+            seq: 900,
+            title: 'ย้ายจุด',
+            reason: 'ทดสอบ',
+            status: 'approved',
+            createdBy: engineer,
+          },
+          select: { id: true },
+        }));
+      await expect(
+        asBuilt.updateDeviation(
+          projectId,
+          d1.id,
+          { change_request_id: change.id },
+          crew,
+        ),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+      const settled = await asBuilt.updateDeviation(
+        projectId,
+        d1.id,
+        { change_request_id: change.id },
+        managerNow,
+      );
+      expect(settled).toMatchObject({ complete: true, openDeviations: [] });
+      expect((await asBuilt.state(projectId, companyId)).complete).toBe(true);
+    });
+
     it('CD-225: the readiness check — the company checklist, named inspectors, and the checks the system makes', async () => {
       const client = prisma as never;
       const transactions = {
@@ -1994,6 +2130,21 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         new ProjectReadinessItemRepository(client),
         new ProjectIssueRepository(client),
         tests,
+        new AsBuiltService(
+          projects,
+          new ProjectRepository(client),
+          new ProjectAsBuiltDocumentRepository(client),
+          new ProjectAsBuiltDeviationRepository(client),
+          new ProjectChangeRequestRepository(client),
+          {
+            findFirst: () =>
+              Promise.resolve({ projectAsBuiltDocuments: ['แบบติดตั้งจริง'] }),
+          } as never,
+          new CompanyMemberRepository(client),
+          {} as never,
+          audit,
+          transactions,
+        ),
         {
           findFirst: () =>
             Promise.resolve({
@@ -2119,7 +2270,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         where: { projectId, status: 'open' },
         data: { status: 'resolved', resolution: 'ทดสอบ' },
       });
-      const state = await ready.state(projectId);
+      const state = await ready.state(projectId, companyId);
       expect(state.checks.every((check) => check.ok)).toBe(true);
       expect(state.readiness).toMatchObject({
         ready: true,

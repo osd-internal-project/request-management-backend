@@ -11031,6 +11031,14 @@
             },
             "maxItems": 50
           },
+          "project_as_built_documents": {
+            "type": "array",
+            "items": {
+              "maxLength": 255,
+              "type": "string"
+            },
+            "maxItems": 20
+          },
           "solution_request_type_code": {
             "pattern": "^([A-Z0-9_-]{1,20})?$",
             "type": "string"

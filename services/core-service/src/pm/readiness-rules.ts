@@ -26,6 +26,8 @@ export interface SystemCheck {
 export function systemChecks(facts: {
   tests: { complete: boolean; total: number; passed: number };
   issuesOpen: number;
+  /** CD-226 — the as-built: documents and settled deviations. */
+  asBuilt: { complete: boolean; missing: number };
 }): SystemCheck[] {
   return [
     {
@@ -43,6 +45,14 @@ export function systemChecks(facts: {
       label: 'ไม่มีปัญหาเปิดค้าง',
       ok: facts.issuesOpen === 0,
       detail: facts.issuesOpen ? `ค้าง ${facts.issuesOpen} ข้อ` : null,
+    },
+    {
+      key: 'as_built',
+      label: 'เอกสารสภาพจริง (As-built) ครบ',
+      ok: facts.asBuilt.complete,
+      detail: facts.asBuilt.complete
+        ? null
+        : `ค้าง ${facts.asBuilt.missing} รายการ`,
     },
   ];
 }

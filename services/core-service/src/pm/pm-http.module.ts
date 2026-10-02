@@ -22,6 +22,7 @@ import { CloseoutService } from './closeout.service';
 import { StatusReportsService } from './status-reports.service';
 import { TestsService } from './tests.service';
 import { ReadinessService } from './readiness.service';
+import { AsBuiltService } from './as-built.service';
 
 /** The screen-facing routes of {@link PmModule}. */
 @Module({
@@ -55,6 +56,7 @@ import { ReadinessService } from './readiness.service';
     StatusReportsService,
     TestsService,
     ReadinessService,
+    AsBuiltService,
   ],
 })
 export class PmHttpModule {}

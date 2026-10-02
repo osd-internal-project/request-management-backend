@@ -777,3 +777,44 @@ export class CheckReadinessDto {
   @MaxLength(2000)
   note?: string;
 }
+
+/** CD-226 — where what was built differs from what was sold. */
+export class SaveDeviationDto {
+  @ApiPropertyOptional({
+    description: '`boq:<i>` หรือ `scope:<i>`; "" = ไม่อ้างอิง',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  reference?: string;
+
+  @ApiPropertyOptional({ description: 'สิ่งที่ขาย/ตามแบบ' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  planned?: string;
+
+  @ApiPropertyOptional({ description: 'สิ่งที่ทำจริง' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  built?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  reason?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  affects_scope?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'คำขอเปลี่ยนแปลง (ผู้จัดการโครงการ); "" = ไม่ผูก',
+  })
+  @IsOptional()
+  @IsString()
+  change_request_id?: string;
+}

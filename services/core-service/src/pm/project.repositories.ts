@@ -329,3 +329,31 @@ export class ProjectReadinessItemRepository extends BaseRepository<
     return client.projectReadinessItem;
   }
 }
+
+/** CD-226 เอกสารสภาพจริง. */
+@Injectable()
+export class ProjectAsBuiltDocumentRepository extends BaseRepository<
+  PrismaService['projectAsBuiltDocument']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.projectAsBuiltDocument;
+  }
+}
+
+/** CD-226 จุดที่ต่างจากที่ขาย. */
+@Injectable()
+export class ProjectAsBuiltDeviationRepository extends BaseRepository<
+  PrismaService['projectAsBuiltDeviation']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.projectAsBuiltDeviation;
+  }
+}

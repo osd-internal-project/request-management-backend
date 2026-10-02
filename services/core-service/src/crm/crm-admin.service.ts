@@ -214,6 +214,11 @@ export class CrmAdminService {
         projectCloseTypeCode: null,
         projectHealthAmber: 20,
         projectHealthRed: 40,
+        projectAsBuiltDocuments: [
+          'แบบติดตั้งจริง',
+          'รายการอุปกรณ์และหมายเลขเครื่อง',
+          'ผังการเชื่อมต่อระบบ',
+        ],
         projectReadinessChecklist: [
           'หน้างานสะอาดเรียบร้อย',
           'ติดป้ายและฉลากอุปกรณ์ครบ',
@@ -260,6 +265,17 @@ export class CrmAdminService {
                   { role: rate.role.trim(), rate: rate.rate },
                 ]),
             ).values(),
+          ];
+    // CD-226 — blank names dropped, each name once
+    const asBuiltDocuments =
+      dto.project_as_built_documents === undefined
+        ? undefined
+        : [
+            ...new Set(
+              dto.project_as_built_documents
+                .map((title) => title.trim())
+                .filter(Boolean),
+            ),
           ];
     // CD-225 — blank lines dropped, each line once
     const readinessChecklist =
@@ -317,6 +333,9 @@ export class CrmAdminService {
               projectCloseTypeCode: dto.project_close_type_code || null,
               projectHealthAmber: dto.project_health_amber ?? 20,
               projectHealthRed: dto.project_health_red ?? 40,
+              ...(asBuiltDocuments
+                ? { projectAsBuiltDocuments: asBuiltDocuments }
+                : {}),
               ...(readinessChecklist
                 ? { projectReadinessChecklist: readinessChecklist }
                 : {}),
@@ -377,6 +396,7 @@ export class CrmAdminService {
               projectHealthAmber: dto.project_health_amber,
               projectHealthRed: dto.project_health_red,
               projectReadinessChecklist: readinessChecklist,
+              projectAsBuiltDocuments: asBuiltDocuments,
               solutionRequestTypeCode:
                 dto.solution_request_type_code === undefined
                   ? undefined

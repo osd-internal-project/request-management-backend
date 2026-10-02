@@ -2428,6 +2428,8 @@ model CrmCompanyConfig {
   /// CD-225 — the readiness checklist every project starts its check from;
   /// the manager adds to or removes from it per project.
   projectReadinessChecklist        String[] @default(["หน้างานสะอาดเรียบร้อย", "ติดป้ายและฉลากอุปกรณ์ครบ", "อบรมผู้ใช้งานแล้ว", "สำรองค่าตั้งค่าระบบแล้ว"])
+  /// CD-226 — the as-built documents every project must leave, by name.
+  projectAsBuiltDocuments          String[] @default(["แบบติดตั้งจริง", "รายการอุปกรณ์และหมายเลขเครื่อง", "ผังการเชื่อมต่อระบบ"])
 
   /// CD-130: ประเภทคำขอ "ขอ Solution และประเมินต้นทุน" (Sales → Pre-Sales) — การ์ด Solution
   /// บนหน้าดีลยื่นประเภทนี้. ช่องบังคับของฟอร์มประเภทนี้คือรายการตรวจความครบ (จุดส่งต่อที่ 2).
@@ -4963,6 +4965,9 @@ model Project {
   testItems       ProjectTestItem[]
   /// CD-225 — รายการตรวจความพร้อมก่อนส่งมอบ.
   readinessItems  ProjectReadinessItem[]
+  /// CD-226 — เอกสารสภาพจริง และจุดที่ต่างจากที่ขาย.
+  asBuiltDocuments  ProjectAsBuiltDocument[]
+  asBuiltDeviations ProjectAsBuiltDeviation[]
 
   @@unique([companyId, projectNo])
   @@index([companyId, status])
@@ -5674,5 +5679,58 @@ model ProjectReadinessItem {
   @@unique([projectId, seq])
   @@index([inspectorUserId, result])
   @@map("project_readiness_items")
+}
+
+/// CD-226 — a document of the project as built: one of the required
+/// as-built documents (by `title`, CrmConfig.projectAsBuiltDocuments) or any
+/// other; a newer upload under the same title is the current one. Removed =
+/// `deletedAt`.
+model ProjectAsBuiltDocument {
+  id         String    @id @default(uuid())
+  companyId  String
+  projectId  String
+  title      String
+  note       String?
+  fileName   String
+  mimeType   String
+  sizeBytes  Int
+  storageKey String
+  uploadedBy String
+  uploadedAt DateTime  @default(now())
+  deletedAt  DateTime?
+  deletedBy  String?
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
+
+  @@index([projectId])
+  @@map("project_as_built_documents")
+}
+
+/// CD-226 — where what was built differs from what was sold (a BOQ line or a
+/// scope line of the baseline, or neither): what was planned, what was
+/// built, and why. One that changes the scope is settled only by an approved
+/// change request (CD-185).
+model ProjectAsBuiltDeviation {
+  id              String    @id @default(uuid())
+  companyId       String
+  projectId       String
+  seq             Int
+  /// `boq:<i>` or `scope:<i>` in the baseline; null = neither.
+  reference       String?
+  planned         String
+  built           String
+  reason          String?
+  affectsScope    Boolean   @default(false)
+  changeRequestId String?
+  createdAt       DateTime  @default(now())
+  createdBy       String
+  updatedAt       DateTime  @updatedAt
+  updatedBy       String?
+  deletedAt       DateTime?
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
+
+  @@unique([projectId, seq])
+  @@map("project_as_built_deviations")
 }
 

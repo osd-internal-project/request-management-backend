@@ -804,6 +804,14 @@ export class UpdateCrmConfigDto {
   @MaxLength(1000, { each: true })
   project_readiness_checklist?: string[];
 
+  /** CD-226: ชื่อเอกสารสภาพจริง (As-built) ที่ทุกโครงการต้องมี. */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsString({ each: true })
+  @MaxLength(255, { each: true })
+  project_as_built_documents?: string[];
+
   /**
    * CD-130: รหัสประเภทคำขอ "ขอ Solution และประเมินต้นทุน" (Sales → Pre-Sales).
    * ส่ง `""` = ล้าง (หน้าดีลไม่แสดงการ์ด Solution).
