@@ -56,6 +56,7 @@ import {
   DeployReleaseDto,
   AttachSoftwareDocumentDto,
   ConfigReasonDto,
+  SaveIntegrationDto,
   SaveConfigItemDto,
   CarrySoftwareDocumentDto,
   SaveEnvironmentDto,
@@ -112,6 +113,7 @@ import { DefectsService } from './defects.service';
 import { ReleasesService } from './releases.service';
 import { SoftwareDocsService } from './software-docs.service';
 import { ConfigsService } from './configs.service';
+import { IntegrationsService } from './integrations.service';
 import { MAX_TASK_FILE_BYTES, TaskWorkService } from './task-work.service';
 import { MAX_FILES_PER_UPDATE } from './task-rules';
 import { ProjectsService } from './projects.service';
@@ -153,6 +155,7 @@ export class ProjectsController {
     private readonly releases: ReleasesService,
     private readonly softwareDocs: SoftwareDocsService,
     private readonly configs: ConfigsService,
+    private readonly integrations: IntegrationsService,
   ) {}
 
   @ApiOperation({ summary: 'รายการโครงการ (ทั้งบริษัท หรือของฉัน)' })
@@ -863,6 +866,59 @@ export class ProjectsController {
       type: file.mimeType,
       disposition: `inline; filename*=UTF-8''${encodeURIComponent(file.fileName)}`,
     });
+  }
+
+  // --- CD-219 เชื่อมต่อระบบ -----------------------------------------------------------
+
+  @ApiOperation({
+    summary: 'จุดเชื่อมต่อกับระบบอื่นของลูกค้า ผู้รับผิดชอบ และผลทดสอบล่าสุด',
+  })
+  @Get(':id/integrations')
+  @Permissions('notification.read')
+  viewIntegrations(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.integrations.view(id, principal);
+  }
+
+  @ApiOperation({
+    summary:
+      'บันทึกจุดเชื่อมต่อ (ทีมโครงการ) — สร้างข้อทดสอบการเชื่อมต่อให้ด้วย',
+  })
+  @Post(':id/integrations')
+  @Permissions('notification.read')
+  addIntegration(
+    @Param('id') id: string,
+    @Body() dto: SaveIntegrationDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.integrations.add(id, dto, principal);
+  }
+
+  @ApiOperation({ summary: 'แก้จุดเชื่อมต่อ (ทีมโครงการ)' })
+  @Put(':id/integrations/:integrationId')
+  @Permissions('notification.read')
+  updateIntegration(
+    @Param('id') id: string,
+    @Param('integrationId') integrationId: string,
+    @Body() dto: SaveIntegrationDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.integrations.update(id, integrationId, dto, principal);
+  }
+
+  @ApiOperation({
+    summary: 'นำจุดเชื่อมต่อออก พร้อมข้อทดสอบ (ผู้บันทึกหรือผู้จัดการ)',
+  })
+  @Delete(':id/integrations/:integrationId')
+  @Permissions('notification.read')
+  removeIntegration(
+    @Param('id') id: string,
+    @Param('integrationId') integrationId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.integrations.remove(id, integrationId, principal);
   }
 
   // --- CD-217 ตั้งค่าระบบ -------------------------------------------------------------

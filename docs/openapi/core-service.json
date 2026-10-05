@@ -18889,6 +18889,202 @@
         ]
       }
     },
+    "/api/v1/projects/{id}/integrations": {
+      "get": {
+        "operationId": "ProjectsController_viewIntegrations",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "จุดเชื่อมต่อกับระบบอื่นของลูกค้า ผู้รับผิดชอบ และผลทดสอบล่าสุด",
+        "tags": [
+          "projects"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      },
+      "post": {
+        "operationId": "ProjectsController_addIntegration",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveIntegrationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "บันทึกจุดเชื่อมต่อ (ทีมโครงการ) — สร้างข้อทดสอบการเชื่อมต่อให้ด้วย",
+        "tags": [
+          "projects"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/projects/{id}/integrations/{integrationId}": {
+      "put": {
+        "operationId": "ProjectsController_updateIntegration",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "integrationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveIntegrationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แก้จุดเชื่อมต่อ (ทีมโครงการ)",
+        "tags": [
+          "projects"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      },
+      "delete": {
+        "operationId": "ProjectsController_removeIntegration",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "integrationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "นำจุดเชื่อมต่อออก พร้อมข้อทดสอบ (ผู้บันทึกหรือผู้จัดการ)",
+        "tags": [
+          "projects"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      }
+    },
     "/api/v1/projects/{id}/configs": {
       "get": {
         "operationId": "ProjectsController_viewConfigs",
@@ -32623,6 +32819,62 @@
             "type": "string",
             "description": "ต่างจาก Solution ที่อนุมัติตรงไหน",
             "maxLength": 4000
+          }
+        }
+      },
+      "SaveIntegrationDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "ส่งใบแจ้งหนี้เข้า ERP ลูกค้า",
+            "maxLength": 200
+          },
+          "target_system": {
+            "type": "string",
+            "example": "SAP ของลูกค้า",
+            "maxLength": 200
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "outbound",
+              "inbound",
+              "both"
+            ],
+            "maxLength": 20
+          },
+          "protocol": {
+            "type": "string",
+            "example": "REST / SFTP / DB link",
+            "maxLength": 100
+          },
+          "endpoint": {
+            "type": "string",
+            "description": "ที่อยู่ปลายทาง (ไม่ใช่ค่าลับ — ค่าลับเก็บในตั้งค่าระบบ CD-217)",
+            "maxLength": 1000
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "contact_id": {
+            "type": "string",
+            "description": "ผู้ติดต่อของลูกค้าใน CRM; \"\" = ไม่ใช้",
+            "maxLength": 50
+          },
+          "contact_name": {
+            "type": "string",
+            "description": "หรือพิมพ์เอง",
+            "maxLength": 200
+          },
+          "contact_phone": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "contact_email": {
+            "type": "string",
+            "maxLength": 200
           }
         }
       },

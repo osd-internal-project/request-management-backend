@@ -4993,6 +4993,7 @@ model Project {
   releases          ProjectRelease[]
   softwareDocuments ProjectSoftwareDocument[]
   configItems       ProjectConfigItem[]
+  integrations      ProjectIntegration[]
 
   @@unique([companyId, projectNo])
   @@index([companyId, status])
@@ -5633,7 +5634,7 @@ model ProjectTestItem {
   companyId     String
   projectId     String
   seq           Int
-  /// scope · criterion · change · manual
+  /// scope · criterion · change · manual · integration (CD-219)
   source        String
   /// Where it came from, unique per project: `scope:3`, `deliverable:1:2`,
   /// `change:<id>`; null for one added by hand.
@@ -6445,4 +6446,42 @@ model ProjectConfigHistory {
 
   @@index([itemId, at])
   @@map("project_config_history")
+}
+
+/// CD-219 เชื่อมต่อระบบ — a point where the delivered system meets another
+/// system of the customer: what, which way, how, and who answers for it on
+/// the customer's side (a CRM contact, or typed in). Its connection test is
+/// a test item (CD-221, sourceRef `integration:<id>`); its addresses and
+/// secrets live in the project configuration (CD-217) under the same name.
+model ProjectIntegration {
+  id             String    @id @default(uuid())
+  companyId      String
+  projectId      String
+  /// I-n within the project
+  seq            Int
+  name           String
+  /// the customer's system on the other side
+  targetSystem   String
+  /// outbound · inbound · both
+  direction      String
+  protocol       String?
+  endpoint       String?
+  description    String?
+  /// a contact of the project's customer (CRM), or the typed fields below
+  contactId      String?
+  contactName    String?
+  contactPhone   String?
+  contactEmail   String?
+  testItemId     String?
+  createdAt      DateTime  @default(now())
+  createdBy      String
+  updatedAt      DateTime  @updatedAt
+  updatedBy      String?
+  deletedAt      DateTime?
+  deletedBy      String?
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
+
+  @@unique([projectId, seq])
+  @@map("project_integrations")
 }

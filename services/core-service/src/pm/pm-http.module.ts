@@ -34,6 +34,7 @@ import { DefectsService } from './defects.service';
 import { ReleasesService } from './releases.service';
 import { SoftwareDocsService } from './software-docs.service';
 import { ConfigsService } from './configs.service';
+import { IntegrationsService } from './integrations.service';
 import { TaskEvidenceService } from './task-evidence.service';
 import { DesignsService } from './designs.service';
 import { TechPlanService } from './tech-plan.service';
@@ -82,6 +83,7 @@ import { TechPlanService } from './tech-plan.service';
     ReleasesService,
     SoftwareDocsService,
     ConfigsService,
+    IntegrationsService,
     TaskEvidenceService,
     DesignsService,
     TechPlanService,

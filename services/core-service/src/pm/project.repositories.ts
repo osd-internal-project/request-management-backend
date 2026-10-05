@@ -580,3 +580,17 @@ export class ProjectConfigHistoryRepository extends BaseRepository<
     return client.projectConfigHistory;
   }
 }
+
+/** CD-219. */
+@Injectable()
+export class ProjectIntegrationRepository extends BaseRepository<
+  PrismaService['projectIntegration']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.projectIntegration;
+  }
+}

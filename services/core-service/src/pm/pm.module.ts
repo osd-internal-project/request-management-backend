@@ -1,3 +1,4 @@
+import { CustomerContactRepository } from '../crm/customer-child.repositories';
 import { Module } from '@nestjs/common';
 import { PrismaTransactionService } from '@request-management/share';
 import { AccessModule } from '../access/access.module';
@@ -47,6 +48,7 @@ import {
   ProjectSoftwareDocumentRepository,
   ProjectConfigHistoryRepository,
   ProjectConfigItemRepository,
+  ProjectIntegrationRepository,
   ProjectDesignRepository,
   ProjectDesignFileRepository,
   ProjectTaskEquipmentRepository,
@@ -105,6 +107,9 @@ import { ContractRiskAssessmentRepository } from '../crm/contract-risk.service';
     ProjectSoftwareDocumentRepository,
     ProjectConfigItemRepository,
     ProjectConfigHistoryRepository,
+    ProjectIntegrationRepository,
+    // CD-219 — the customer's contacts, read for an integration's owner
+    CustomerContactRepository,
     ProjectDesignRepository,
     ProjectDesignFileRepository,
     ProjectTaskEquipmentRepository,
@@ -160,6 +165,9 @@ import { ContractRiskAssessmentRepository } from '../crm/contract-risk.service';
     ProjectSoftwareDocumentRepository,
     ProjectConfigItemRepository,
     ProjectConfigHistoryRepository,
+    ProjectIntegrationRepository,
+    // CD-219 — the customer's contacts, read for an integration's owner
+    CustomerContactRepository,
     ProjectDesignRepository,
     ProjectDesignFileRepository,
     ProjectTaskEquipmentRepository,

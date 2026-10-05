@@ -53,6 +53,7 @@ import {
   ProjectSoftwareDocumentRepository,
   ProjectConfigHistoryRepository,
   ProjectConfigItemRepository,
+  ProjectIntegrationRepository,
   ProjectDesignRepository,
   ProjectDesignFileRepository,
   ProjectTaskEquipmentRepository,
@@ -82,6 +83,8 @@ import { DefectsService } from './defects.service';
 import { ReleasesService } from './releases.service';
 import { SoftwareDocsService } from './software-docs.service';
 import { ConfigsService } from './configs.service';
+import { IntegrationsService } from './integrations.service';
+import { CustomerContactRepository } from '../crm/customer-child.repositories';
 import { TaskEvidenceService } from './task-evidence.service';
 import { DesignsService } from './designs.service';
 import { TechPlanService } from './tech-plan.service';
@@ -288,6 +291,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       });
       await prisma.projectTask.deleteMany({ where: { projectId } });
       await prisma.projectMilestone.deleteMany({ where: { projectId } });
+      await prisma.projectIntegration.deleteMany({ where: { projectId } });
       await prisma.projectConfigHistory.deleteMany({
         where: { item: { projectId } },
       });
@@ -3616,6 +3620,231 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       expect(
         (await configs.historyOf(projectId, ip.id, crew)).entries[0].action,
       ).toBe('removed');
+    });
+
+    it('CD-219: integration points — a customer owner from CRM or typed in, a connection test in the test plan, values kept in the configuration', async () => {
+      const client = prisma as never;
+      const transactions = {
+        execute: (work: (tx: unknown) => Promise<unknown>) =>
+          prisma.$transaction((tx) => work(tx)),
+      } as never;
+      const audit = { record: () => Promise.resolve() } as never;
+      const integrations = new IntegrationsService(
+        projects,
+        new ProjectIntegrationRepository(client),
+        new ProjectTestItemRepository(client),
+        new ProjectConfigItemRepository(client),
+        new CustomerContactRepository(client),
+        new CompanyMemberRepository(client),
+        audit,
+        transactions,
+      );
+      const managerNow = as(engineer, ['notification.read']);
+      const crew = as(outsider, ['notification.read']);
+      const before = await prisma.project.findUniqueOrThrow({
+        where: { id: projectId },
+        select: { companyId: true, customerId: true },
+      });
+      const tag = randomUUID().slice(0, 8);
+      const customer = await prisma.customer.create({
+        data: {
+          companyId: before.companyId,
+          customerCode: `CUS-T219-${tag}`,
+          nameTh: `ทดสอบเชื่อมต่อ ${tag}`,
+          normalizedName: `ทดสอบเชื่อมต่อ ${tag}`,
+          status: 'active',
+          type: 'corporate',
+        },
+      });
+      const other = await prisma.customer.create({
+        data: {
+          companyId: before.companyId,
+          customerCode: `CUS-T219-${tag}-X`,
+          nameTh: `อื่น ${tag}`,
+          normalizedName: `อื่น ${tag}`,
+          status: 'active',
+          type: 'corporate',
+        },
+      });
+      const admin = await prisma.customerContact.create({
+        data: {
+          customerId: customer.id,
+          name: 'คุณวิภา',
+          position: 'ผู้ดูแลระบบ ERP',
+          email: 'wipa@example.co.th',
+        },
+      });
+      const stranger = await prisma.customerContact.create({
+        data: { customerId: other.id, name: 'คนนอก' },
+      });
+      await prisma.project.update({
+        where: { id: projectId },
+        data: { customerId: customer.id },
+      });
+      try {
+        let view = await integrations.view(projectId, crew);
+        expect(view.contacts).toEqual([
+          { id: admin.id, label: 'คุณวิภา · ผู้ดูแลระบบ ERP' },
+        ]);
+        // an owner is needed, and must be this customer's
+        await expect(
+          integrations.add(
+            projectId,
+            {
+              name: 'ส่งใบแจ้งหนี้',
+              target_system: 'SAP',
+              direction: 'outbound',
+            },
+            crew,
+          ),
+        ).rejects.toThrow('ต้องระบุผู้รับผิดชอบฝั่งลูกค้า');
+        await expect(
+          integrations.add(
+            projectId,
+            {
+              name: 'ส่งใบแจ้งหนี้',
+              target_system: 'SAP',
+              direction: 'outbound',
+              contact_id: stranger.id,
+            },
+            crew,
+          ),
+        ).rejects.toThrow('ผู้ติดต่อนี้ไม่ใช่ของลูกค้าโครงการนี้');
+        view = await integrations.add(
+          projectId,
+          {
+            name: 'ส่งใบแจ้งหนี้',
+            target_system: 'SAP ของลูกค้า',
+            direction: 'outbound',
+            protocol: 'REST',
+            endpoint: 'https://erp.example.co.th/api/invoices',
+            contact_id: admin.id,
+          },
+          crew,
+        );
+        view = await integrations.add(
+          projectId,
+          {
+            name: 'รับข้อมูลพนักงาน',
+            target_system: 'HR ของลูกค้า',
+            direction: 'inbound',
+            protocol: 'SFTP',
+            contact_name: 'คุณเอก (ผู้ขาย HR)',
+            contact_email: 'ek@vendor.co.th',
+          },
+          crew,
+        );
+        await expect(
+          integrations.add(
+            projectId,
+            {
+              name: 'ส่งใบแจ้งหนี้',
+              target_system: 'X',
+              direction: 'both',
+              contact_name: 'ก',
+            },
+            crew,
+          ),
+        ).rejects.toThrow('มีจุดเชื่อมต่อชื่อนี้แล้ว');
+        const [invoice, hr] = view.integrations;
+        expect(invoice.contact).toEqual({
+          name: 'คุณวิภา',
+          phone: null,
+          email: 'wipa@example.co.th',
+          fromCrm: true,
+        });
+        expect(hr.contact.fromCrm).toBe(false);
+
+        // its connection test is in the test plan, untested until a run
+        const item = await prisma.projectTestItem.findUniqueOrThrow({
+          where: {
+            projectId_sourceRef: {
+              projectId,
+              sourceRef: `integration:${invoice.id}`,
+            },
+          },
+        });
+        expect(item).toMatchObject({
+          source: 'integration',
+          text: `${invoice.label} ทดสอบการเชื่อมต่อ ส่งใบแจ้งหนี้ → SAP ของลูกค้า`,
+        });
+        expect(invoice.test).toMatchObject({ state: 'untested' });
+        await prisma.projectTestRun.create({
+          data: {
+            companyId: before.companyId,
+            itemId: item.id,
+            result: 'pass',
+            note: 'ส่งใบทดสอบ 3 ใบ เข้าครบ',
+            testedBy: outsider,
+          },
+        });
+        // renaming keeps the test in step; values filed under its name count
+        await prisma.projectConfigItem.create({
+          data: {
+            companyId: before.companyId,
+            projectId,
+            seq: 9000,
+            system: 'ส่งใบแจ้งหนี้ ERP',
+            key: 'api_url',
+            value: 'https://erp.example.co.th/api',
+            createdBy: outsider,
+          },
+        });
+        view = await integrations.update(
+          projectId,
+          invoice.id,
+          { name: 'ส่งใบแจ้งหนี้ ERP' },
+          crew,
+        );
+        expect(view.integrations[0]).toMatchObject({
+          test: { state: 'passed', note: 'ส่งใบทดสอบ 3 ใบ เข้าครบ' },
+          configCount: 1,
+        });
+        expect(
+          (
+            await prisma.projectTestItem.findUniqueOrThrow({
+              where: { id: item.id },
+            })
+          ).text,
+        ).toContain('ส่งใบแจ้งหนี้ ERP →');
+
+        // removed with its test (the recorder or the manager)
+        await expect(
+          integrations.remove(
+            projectId,
+            hr.id,
+            as(randomUUID(), ['notification.read', 'pm.project.read']),
+          ),
+        ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+        view = await integrations.remove(projectId, hr.id, managerNow);
+        expect(view.integrations).toHaveLength(1);
+        expect(
+          (
+            await prisma.projectTestItem.findUniqueOrThrow({
+              where: {
+                projectId_sourceRef: {
+                  projectId,
+                  sourceRef: `integration:${hr.id}`,
+                },
+              },
+            })
+          ).deletedAt,
+        ).not.toBeNull();
+      } finally {
+        await prisma.projectConfigItem.deleteMany({
+          where: { projectId, seq: 9000 },
+        });
+        await prisma.project.update({
+          where: { id: projectId },
+          data: { customerId: before.customerId },
+        });
+        await prisma.customerContact.deleteMany({
+          where: { customerId: { in: [customer.id, other.id] } },
+        });
+        await prisma.customer.deleteMany({
+          where: { id: { in: [customer.id, other.id] } },
+        });
+      }
     });
 
     it('CD-210: a site survey synced from the device — the Solution assumptions checked one by one, each that differs a change request before it completes', async () => {

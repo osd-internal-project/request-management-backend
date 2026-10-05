@@ -131,6 +131,8 @@ interface ProjectRow {
   managerUserId: string;
   status: string;
   contractId: string;
+  /** CD-219 — whose contacts answer for the project's integrations. */
+  customerId: string | null;
   members: { userId: string; role: string | null }[];
   contract: { contractNo: string; ownerUserId: string };
 }
@@ -816,6 +818,7 @@ export class ProjectsService {
         managerUserId: true,
         status: true,
         contractId: true,
+        customerId: true,
         members: { select: { userId: true, role: true } },
         contract: { select: { contractNo: true, ownerUserId: true } },
       },

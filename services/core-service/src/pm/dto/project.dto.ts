@@ -1414,3 +1414,69 @@ export class ConfigReasonDto {
   @MaxLength(1000)
   reason!: string;
 }
+
+/** CD-219 — an integration point with another system of the customer. */
+export class SaveIntegrationDto {
+  @ApiPropertyOptional({ example: 'ส่งใบแจ้งหนี้เข้า ERP ลูกค้า' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  name?: string;
+
+  @ApiPropertyOptional({ example: 'SAP ของลูกค้า' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  target_system?: string;
+
+  @ApiPropertyOptional({ enum: ['outbound', 'inbound', 'both'] })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  direction?: string;
+
+  @ApiPropertyOptional({ example: 'REST / SFTP / DB link' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  protocol?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'ที่อยู่ปลายทาง (ไม่ใช่ค่าลับ — ค่าลับเก็บในตั้งค่าระบบ CD-217)',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  endpoint?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  description?: string;
+
+  @ApiPropertyOptional({ description: 'ผู้ติดต่อของลูกค้าใน CRM; "" = ไม่ใช้' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  contact_id?: string;
+
+  @ApiPropertyOptional({ description: 'หรือพิมพ์เอง' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  contact_name?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  contact_phone?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  contact_email?: string;
+}
