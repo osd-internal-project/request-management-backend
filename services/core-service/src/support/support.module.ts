@@ -1,6 +1,9 @@
 import { Module } from '@nestjs/common';
 import { AccessModule } from '../access/access.module';
 import { CustomerRepository } from '../crm/customer.repository';
+import { ContractTermsRepository } from '../crm/contract-terms.service';
+import { CustomerContractRepository } from '../crm/contract.repositories';
+import { EntitlementsService } from './entitlements.service';
 import {
   ProjectDeploymentRepository,
   ProjectEnvironmentRepository,
@@ -11,6 +14,8 @@ import { ServiceAssetsService } from './service-assets.service';
 import {
   ServiceAssetHistoryRepository,
   ServiceAssetRepository,
+  ServiceEntitlementAssetRepository,
+  ServiceEntitlementRepository,
 } from './support.repositories';
 
 /**
@@ -22,7 +27,12 @@ import {
   imports: [AccessModule],
   providers: [
     ServiceAssetsService,
+    EntitlementsService,
     ServiceAssetRepository,
+    ServiceEntitlementRepository,
+    ServiceEntitlementAssetRepository,
+    ContractTermsRepository,
+    CustomerContractRepository,
     ServiceAssetHistoryRepository,
     ProjectRepository,
     ProjectInstallationRepository,
@@ -30,6 +40,6 @@ import {
     ProjectDeploymentRepository,
     CustomerRepository,
   ],
-  exports: [ServiceAssetsService],
+  exports: [ServiceAssetsService, EntitlementsService],
 })
 export class SupportModule {}

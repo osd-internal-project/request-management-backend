@@ -30,6 +30,7 @@ import {
   ListAssetsQueryDto,
   SaveAssetDto,
 } from './support.dto';
+import { EntitlementsService } from './entitlements.service';
 import {
   ServiceAssetHistoryRepository,
   ServiceAssetRepository,
@@ -106,6 +107,7 @@ export class ServiceAssetsService {
     private readonly people: CompanyMemberRepository,
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
+    private readonly entitlements: EntitlementsService,
   ) {}
 
   /**
@@ -122,11 +124,18 @@ export class ServiceAssetsService {
   }) {
     const project = (await this.projects.findFirst({
       where: { id: input.projectId, companyId: input.companyId },
-      select: { id: true, name: true, customerId: true, baseline: true },
+      select: {
+        id: true,
+        name: true,
+        customerId: true,
+        contractId: true,
+        baseline: true,
+      },
     })) as {
       id: string;
       name: string;
       customerId: string | null;
+      contractId: string;
       baseline: unknown;
     } | null;
     if (!project) return [];
@@ -235,6 +244,19 @@ export class ServiceAssetsService {
         throw error;
       }
     }
+    // CD-237 — the contract's warranty over what this round delivered
+    if (created.length) {
+      await this.entitlements.warrantyFromAcceptance({
+        companyId: input.companyId,
+        projectId: project.id,
+        customerId: project.customerId,
+        contractId: project.contractId,
+        acceptedOn: input.acceptedOn,
+        label: input.label,
+        assetIds: created,
+        actorId: input.actorId,
+      });
+    }
     if (created.length) {
       await this.audit.record({
         eventType: 'service.asset.registered',
@@ -282,7 +304,29 @@ export class ServiceAssetsService {
       }) as Promise<AssetRow[]>,
       this.assets.count({ where }),
     ]);
-    return { total, limited: total > LIMIT, items: await this.views(rows) };
+    const views = await this.views(rows);
+    const covered = await this.entitlements.forAssets(
+      companyId,
+      rows.map((row) => row.id),
+    );
+    return {
+      total,
+      limited: total > LIMIT,
+      items: views.map((row) => {
+        const current = covered.get(row.id)?.current ?? null;
+        return {
+          ...row,
+          coverage: current
+            ? {
+                kind: current.kind,
+                title: current.title,
+                endOn: current.endOn,
+                coverage: current.coverage,
+              }
+            : null,
+        };
+      }),
+    };
   }
 
   async detail(actor: Principal, id: string) {
@@ -301,8 +345,13 @@ export class ServiceAssetsService {
       at: Date;
     }[];
     const names = await this.displayNames(history.map((row) => row.actorId));
+    const covered = (
+      await this.entitlements.forAssets(actor.activeCompanyId, [id])
+    ).get(id);
     return {
       ...view,
+      coverage: covered?.current ?? null,
+      entitlements: covered?.all ?? [],
       history: history.map((entry) => ({
         ...entry,
         actorName: names.get(entry.actorId) ?? null,

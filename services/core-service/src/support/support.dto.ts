@@ -209,3 +209,119 @@ export class ImportAssetsDto {
   @Type(() => ImportAssetRowDto)
   rows!: ImportAssetRowDto[];
 }
+
+/** CD-237 — the entitlements' list. */
+export class ListEntitlementsQueryDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  customer_id?: string;
+
+  @ApiPropertyOptional({
+    enum: ['active', 'upcoming', 'expired', 'cancelled', 'all'],
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  state?: string;
+
+  @ApiPropertyOptional({ description: 'ภายในกี่วันจะหมด (เตือนต่ออายุ)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(4)
+  expiring_days?: string;
+}
+
+/** CD-237 — a warranty or service contract and what it covers. */
+export class SaveEntitlementDto {
+  @ApiPropertyOptional({ enum: ['warranty', 'service_contract'] })
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  kind?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  customer_id?: string;
+
+  @ApiPropertyOptional({ description: 'สัญญาในคลังสัญญา (CD-161)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  contract_id?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  title?: string;
+
+  @ApiPropertyOptional({ description: 'YYYY-MM-DD' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  start_on?: string;
+
+  @ApiPropertyOptional({ description: 'YYYY-MM-DD' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  end_on?: string;
+
+  @ApiPropertyOptional({ enum: ['H24X7', 'H8X7', 'H8X5'] })
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  coverage?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'เวลาตอบ/แก้ต่อความรุนแรง {critical:{responseHours,resolutionHours},…}; null = ล้าง',
+  })
+  @IsOptional()
+  severity_targets?: Record<string, unknown> | null;
+
+  @ApiPropertyOptional({ description: 'ครั้งแก้เหตุ; null = ไม่จำกัด' })
+  @IsOptional()
+  @IsInt()
+  corrective_quota?: number | null;
+
+  @ApiPropertyOptional({ description: 'ครั้งบำรุงรักษา; null = ไม่จำกัด' })
+  @IsOptional()
+  @IsInt()
+  preventive_quota?: number | null;
+
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'อุปกรณ์ที่ครอบคลุม (แทนทั้งชุด)',
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(1000)
+  @IsString({ each: true })
+  asset_ids?: string[];
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  note?: string;
+
+  @ApiPropertyOptional({ description: 'เหตุผล (บังคับเมื่อแก้)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  reason?: string;
+}
+
+/** CD-237 — an entitlement withdrawn, with the reason. */
+export class CancelEntitlementDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(1000)
+  reason!: string;
+}

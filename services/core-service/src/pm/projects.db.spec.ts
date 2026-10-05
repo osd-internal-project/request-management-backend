@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { PrismaClient } from '@prisma/client';
 import type { Principal } from '@request-management/share';
@@ -93,9 +94,12 @@ import { TechChangesService } from './tech-changes.service';
 import { ProjectCostsService } from './project-costs.service';
 import { ResourcesService } from './resources.service';
 import { ServiceAssetsService } from '../support/service-assets.service';
+import { EntitlementsService } from '../support/entitlements.service';
 import {
   ServiceAssetHistoryRepository,
   ServiceAssetRepository,
+  ServiceEntitlementAssetRepository,
+  ServiceEntitlementRepository,
 } from '../support/support.repositories';
 import { HrBookingRepository } from '../hr/hr.repositories';
 import type { DayAvailability } from '../hr/leave-rules';
@@ -307,6 +311,10 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       });
       await prisma.projectTask.deleteMany({ where: { projectId } });
       await prisma.projectMilestone.deleteMany({ where: { projectId } });
+      await prisma.serviceEntitlementAsset.deleteMany({
+        where: { asset: { projectId } },
+      });
+      await prisma.serviceEntitlement.deleteMany({ where: { projectId } });
       await prisma.serviceAssetHistory.deleteMany({
         where: { asset: { projectId } },
       });
@@ -5497,6 +5505,19 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
           execute: (work: (tx: unknown) => Promise<unknown>) =>
             prisma.$transaction((tx) => work(tx)),
         } as never,
+        new EntitlementsService(
+          new ServiceEntitlementRepository(client),
+          new ServiceEntitlementAssetRepository(client),
+          new ServiceAssetRepository(client),
+          new CustomerContractRepository(client),
+          new ContractTermsRepository(client),
+          new CustomerRepository(client),
+          { record: () => Promise.resolve() } as never,
+          {
+            execute: (work: (tx: unknown) => Promise<unknown>) =>
+              prisma.$transaction((tx) => work(tx)),
+          } as never,
+        ),
       );
       const acceptance = new AcceptanceService(
         projects,
@@ -5750,6 +5771,19 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
           execute: (work: (tx: unknown) => Promise<unknown>) =>
             prisma.$transaction((tx) => work(tx)),
         } as never,
+        new EntitlementsService(
+          new ServiceEntitlementRepository(client),
+          new ServiceEntitlementAssetRepository(client),
+          new ServiceAssetRepository(client),
+          new CustomerContractRepository(client),
+          new ContractTermsRepository(client),
+          new CustomerRepository(client),
+          { record: () => Promise.resolve() } as never,
+          {
+            execute: (work: (tx: unknown) => Promise<unknown>) =>
+              prisma.$transaction((tx) => work(tx)),
+          } as never,
+        ),
       );
       const project = await prisma.project.findUniqueOrThrow({
         where: { id: projectId },
@@ -5895,6 +5929,232 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       } finally {
         await prisma.serviceAssetHistory.deleteMany({
           where: { asset: { customerId: customer.id } },
+        });
+        await prisma.serviceAsset.deleteMany({
+          where: { customerId: customer.id },
+        });
+        await prisma.customer.delete({ where: { id: customer.id } });
+      }
+    });
+
+    it('CD-237: entitlements — a warranty from the acceptance date and the contract terms, a service contract set from the register, the strongest cover answering for an asset', async () => {
+      const client = prisma as never;
+      const tx = {
+        execute: (work: (t: unknown) => Promise<unknown>) =>
+          prisma.$transaction((t) => work(t)),
+      } as never;
+      const audit = { record: () => Promise.resolve() } as never;
+      const entitlements = new EntitlementsService(
+        new ServiceEntitlementRepository(client),
+        new ServiceEntitlementAssetRepository(client),
+        new ServiceAssetRepository(client),
+        new CustomerContractRepository(client),
+        new ContractTermsRepository(client),
+        new CustomerRepository(client),
+        audit,
+        tx,
+      );
+      const project = await prisma.project.findUniqueOrThrow({
+        where: { id: projectId },
+        select: { companyId: true, customerId: true, contractId: true },
+      });
+      const companyId = project.companyId;
+      const reader = {
+        ...as(randomUUID(), ['service.asset.read', 'service.asset.manage']),
+        activeCompanyId: companyId,
+      };
+      const tag = randomUUID().slice(0, 6).toUpperCase();
+      const customer = await prisma.customer.create({
+        data: {
+          companyId,
+          customerCode: `CUS-T237-${tag}`,
+          nameTh: `ทดสอบสิทธิ์ ${tag}`,
+          normalizedName: `ทดสอบสิทธิ์ ${tag}`,
+          status: 'active',
+          type: 'corporate',
+        },
+      });
+      const assets = await Promise.all(
+        ['A', 'B'].map((suffix) =>
+          prisma.serviceAsset.create({
+            data: {
+              companyId,
+              customerId: customer.id,
+              kind: 'equipment',
+              source: 'manual',
+              name: `เครื่อง ${suffix}`,
+              serialNo: `T237-${tag}-${suffix}`,
+              createdBy: engineer,
+            },
+          }),
+        ),
+      );
+      const contract = await prisma.customerContract.findUniqueOrThrow({
+        where: { id: project.contractId },
+        select: { id: true, customerId: true },
+      });
+      const termsBefore = await prisma.contractTerms.findUnique({
+        where: { contractId: contract.id },
+      });
+      const levels = {
+        critical: { responseHours: 1, resolutionHours: 4 },
+        high: { responseHours: 2, resolutionHours: 8 },
+        medium: { responseHours: 4, resolutionHours: 24 },
+        low: { responseHours: 8, resolutionHours: 72 },
+      };
+      await prisma.contractTerms.upsert({
+        where: { contractId: contract.id },
+        create: {
+          contractId: contract.id,
+          companyId,
+          warrantyMonths: 12,
+          serviceCoverage: 'H8X5',
+          serviceLevels: levels,
+        },
+        update: {
+          warrantyMonths: 12,
+          serviceCoverage: 'H8X5',
+          serviceLevels: levels,
+        },
+      });
+      // the contract is the project's; for this test its warranty covers the
+      // test customer's assets
+      await prisma.customerContract.update({
+        where: { id: contract.id },
+        data: { customerId: customer.id },
+      });
+      try {
+        // the warranty an acceptance makes: from its date, the contract's level
+        const warrantyId = await entitlements.warrantyFromAcceptance({
+          companyId,
+          projectId,
+          customerId: customer.id,
+          contractId: contract.id,
+          acceptedOn: '2026-10-05',
+          label: 'A-1',
+          assetIds: assets.map((a) => a.id),
+          actorId: engineer,
+        });
+        let detail = await entitlements.detail(reader, warrantyId!);
+        expect(detail).toMatchObject({
+          kind: 'warranty',
+          startOn: '2026-10-05',
+          endOn: '2027-10-04',
+          coverage: 'H8X5',
+          state: 'active',
+        });
+        expect(detail.severityTargets?.critical).toEqual({
+          responseHours: 1,
+          resolutionHours: 4,
+        });
+        expect(detail.assets).toHaveLength(2);
+
+        // a service contract from the register: defaults, then 24x7 on A only
+        const defaults = await entitlements.contractDefaults(
+          reader,
+          contract.id,
+        );
+        expect(defaults).toMatchObject({
+          customerId: customer.id,
+          coverage: 'H8X5',
+        });
+        await expect(
+          entitlements.create(reader, {
+            kind: 'service_contract',
+            customer_id: customer.id,
+            title: 'MA',
+            start_on: '2026-12-01',
+            end_on: '2026-11-01',
+          }),
+        ).rejects.toThrow('วันสิ้นสุดต้องไม่ก่อนวันเริ่ม');
+        const ma = await entitlements.create(reader, {
+          kind: 'service_contract',
+          customer_id: customer.id,
+          contract_id: contract.id,
+          title: 'MA 24x7',
+          start_on: '2026-12-01',
+          end_on: '2027-11-30',
+          coverage: 'H24X7',
+          corrective_quota: null,
+          preventive_quota: 4,
+          asset_ids: [assets[0].id],
+        });
+        expect(ma).toMatchObject({ preventiveLeft: 4, correctiveLeft: null });
+
+        // what answers for A: the warranty now, the 24x7 contract once it runs
+        expect(
+          (
+            await entitlements.coverageOf(companyId, assets[0].id, '2026-11-15')
+          ).map((row) => row.title),
+        ).toEqual([detail.title]);
+        expect(
+          (
+            await entitlements.coverageOf(companyId, assets[0].id, '2027-01-10')
+          )[0],
+        ).toMatchObject({ id: ma.id, coverage: 'H24X7' });
+        expect(
+          (
+            await entitlements.coverageOf(companyId, assets[1].id, '2027-01-10')
+          )[0].id,
+        ).toBe(warrantyId);
+        expect(
+          await entitlements.coverageOf(companyId, assets[1].id, '2027-12-01'),
+        ).toEqual([]);
+
+        // changed with a reason: the contract moves to B; then withdrawn
+        await expect(
+          entitlements.update(reader, ma.id, { asset_ids: [assets[1].id] }),
+        ).rejects.toThrow('ต้องระบุเหตุผลที่แก้');
+        detail = await entitlements.update(reader, ma.id, {
+          asset_ids: [assets[1].id],
+          reason: 'ลูกค้าย้ายสัญญาไปเครื่อง B',
+        });
+        expect(detail.assets.map((a) => a.id)).toEqual([assets[1].id]);
+        // only the customer's own assets
+        await expect(
+          entitlements.update(reader, ma.id, {
+            asset_ids: [randomUUID()],
+            reason: 'x',
+          }),
+        ).rejects.toThrow('มีอุปกรณ์ที่ไม่ใช่ของลูกค้ารายนี้');
+        detail = await entitlements.cancel(reader, ma.id, {
+          reason: 'ลูกค้ายกเลิก MA',
+        });
+        expect(detail.state).toBe('cancelled');
+        const listed = await entitlements.list(reader, {
+          customer_id: customer.id,
+          state: 'all',
+        });
+        expect(
+          listed.map((row) => [row.kind, row.state, row.assetCount]),
+        ).toEqual([
+          ['warranty', expect.any(String), 2],
+          ['service_contract', 'cancelled', 1],
+        ]);
+      } finally {
+        await prisma.customerContract.update({
+          where: { id: contract.id },
+          data: { customerId: contract.customerId },
+        });
+        if (termsBefore) {
+          await prisma.contractTerms.update({
+            where: { contractId: contract.id },
+            data: {
+              warrantyMonths: termsBefore.warrantyMonths,
+              serviceCoverage: termsBefore.serviceCoverage,
+              serviceLevels: termsBefore.serviceLevels ?? Prisma.JsonNull,
+            },
+          });
+        } else {
+          await prisma.contractTerms.delete({
+            where: { contractId: contract.id },
+          });
+        }
+        await prisma.serviceEntitlementAsset.deleteMany({
+          where: { asset: { customerId: customer.id } },
+        });
+        await prisma.serviceEntitlement.deleteMany({
+          where: { customerId: customer.id },
         });
         await prisma.serviceAsset.deleteMany({
           where: { customerId: customer.id },

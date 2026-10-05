@@ -6857,7 +6857,8 @@ model ServiceAsset {
   updatedAt      DateTime  @updatedAt
   updatedBy      String?
 
-  history ServiceAssetHistory[]
+  history      ServiceAssetHistory[]
+  entitlements ServiceEntitlementAsset[]
 
   @@unique([companyId, serialNo])
   @@index([companyId, customerId])
@@ -6882,4 +6883,64 @@ model ServiceAssetHistory {
 
   @@index([assetId, at])
   @@map("service_asset_history")
+}
+
+/// CD-237 สิทธิ์การรับบริการ — what covers a customer's installed assets: a
+/// warranty (made at acceptance from the project's contract, CD-155) or a
+/// service contract (MA) the service team sets from the contract register —
+/// with its service level (CD-151: coverage hours and per-severity times),
+/// its period, and its visit quotas, corrective and preventive apart.
+model ServiceEntitlement {
+  id                String       @id @default(uuid())
+  companyId         String
+  customerId        String
+  contractId        String?
+  projectId         String?
+  /// warranty · service_contract
+  kind              String
+  title             String
+  startOn           DateTime     @db.Date
+  endOn             DateTime     @db.Date
+  coverage          SlaCoverage?
+  /// per severity: {critical: {responseHours, resolutionHours}, …}
+  severityTargets   Json?
+  /// null = unlimited
+  correctiveQuota   Int?
+  preventiveQuota   Int?
+  /// counted by the service work orders (CD-239)
+  correctiveUsed    Int          @default(0)
+  preventiveUsed    Int          @default(0)
+  note              String?
+  /// acceptance round it came from, for a warranty
+  source            String?
+  cancelledAt       DateTime?
+  cancelledBy       String?
+  cancelReason      String?
+  createdAt         DateTime     @default(now())
+  createdBy         String
+  updatedAt         DateTime     @updatedAt
+  updatedBy         String?
+
+  assets ServiceEntitlementAsset[]
+
+  @@index([companyId, customerId])
+  @@index([contractId])
+  @@map("service_entitlements")
+}
+
+/// CD-237 — an asset under an entitlement (taken off keeps the row).
+model ServiceEntitlementAsset {
+  entitlementId String
+  assetId       String
+  addedAt       DateTime  @default(now())
+  addedBy       String
+  removedAt     DateTime?
+  removedBy     String?
+
+  entitlement ServiceEntitlement @relation(fields: [entitlementId], references: [id], onDelete: Restrict)
+  asset       ServiceAsset       @relation(fields: [assetId], references: [id], onDelete: Restrict)
+
+  @@id([entitlementId, assetId])
+  @@index([assetId])
+  @@map("service_entitlement_assets")
 }

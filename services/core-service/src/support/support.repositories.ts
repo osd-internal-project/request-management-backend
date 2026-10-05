@@ -32,3 +32,31 @@ export class ServiceAssetHistoryRepository extends BaseRepository<
     return client.serviceAssetHistory;
   }
 }
+
+/** CD-237 — what covers the assets. */
+@Injectable()
+export class ServiceEntitlementRepository extends BaseRepository<
+  PrismaService['serviceEntitlement']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.serviceEntitlement;
+  }
+}
+
+/** CD-237 — which assets an entitlement covers. */
+@Injectable()
+export class ServiceEntitlementAssetRepository extends BaseRepository<
+  PrismaService['serviceEntitlementAsset']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.serviceEntitlementAsset;
+  }
+}

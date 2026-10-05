@@ -17606,6 +17606,330 @@
         ]
       }
     },
+    "/api/v1/service-entitlements": {
+      "get": {
+        "operationId": "ServiceEntitlementsController_list",
+        "parameters": [
+          {
+            "name": "customer_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 50
+            }
+          },
+          {
+            "name": "state",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "active",
+                "upcoming",
+                "expired",
+                "cancelled",
+                "all"
+              ],
+              "maxLength": 20
+            }
+          },
+          {
+            "name": "expiring_days",
+            "required": false,
+            "in": "query",
+            "description": "ภายในกี่วันจะหมด (เตือนต่ออายุ)",
+            "schema": {
+              "type": "string",
+              "maxLength": 4
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "สิทธิ์บริการ (ประกัน / สัญญาบริการ) — กรองลูกค้า สถานะ ใกล้หมด",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.read"
+        ]
+      },
+      "post": {
+        "operationId": "ServiceEntitlementsController_create",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveEntitlementDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "สร้างสิทธิ์ (สัญญาบริการ MA / ประกันของเดิม)",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.manage"
+        ]
+      }
+    },
+    "/api/v1/service-entitlements/contracts": {
+      "get": {
+        "operationId": "ServiceEntitlementsController_contractsOf",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "สัญญาของลูกค้า (เลขที่และชื่อ) สำหรับตั้งสิทธิ์",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.manage"
+        ]
+      }
+    },
+    "/api/v1/service-entitlements/contract-defaults/{contractId}": {
+      "get": {
+        "operationId": "ServiceEntitlementsController_contractDefaults",
+        "parameters": [
+          {
+            "name": "contractId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ค่าเริ่มต้นจากสัญญา — ลูกค้า ช่วงสัญญา ระดับบริการ (CD-151)",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.manage"
+        ]
+      }
+    },
+    "/api/v1/service-entitlements/{id}": {
+      "get": {
+        "operationId": "ServiceEntitlementsController_detail",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "รายละเอียดสิทธิ์ และอุปกรณ์ที่ครอบคลุม",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.read"
+        ]
+      },
+      "put": {
+        "operationId": "ServiceEntitlementsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveEntitlementDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แก้สิทธิ์ / อุปกรณ์ที่ครอบคลุม พร้อมเหตุผล",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.manage"
+        ]
+      }
+    },
+    "/api/v1/service-entitlements/{id}/cancel": {
+      "post": {
+        "operationId": "ServiceEntitlementsController_cancel",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelEntitlementDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ยกเลิกสิทธิ์ พร้อมเหตุผล",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.manage"
+        ]
+      }
+    },
     "/api/v1/projects": {
       "get": {
         "operationId": "ProjectsController_list",
@@ -35282,6 +35606,93 @@
         "required": [
           "reason",
           "status"
+        ]
+      },
+      "SaveEntitlementDto": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "warranty",
+              "service_contract"
+            ],
+            "maxLength": 30
+          },
+          "customer_id": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "contract_id": {
+            "type": "string",
+            "description": "สัญญาในคลังสัญญา (CD-161)",
+            "maxLength": 50
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "start_on": {
+            "type": "string",
+            "description": "YYYY-MM-DD",
+            "maxLength": 10
+          },
+          "end_on": {
+            "type": "string",
+            "description": "YYYY-MM-DD",
+            "maxLength": 10
+          },
+          "coverage": {
+            "type": "string",
+            "enum": [
+              "H24X7",
+              "H8X7",
+              "H8X5"
+            ],
+            "maxLength": 10
+          },
+          "severity_targets": {
+            "type": "object",
+            "description": "เวลาตอบ/แก้ต่อความรุนแรง {critical:{responseHours,resolutionHours},…}; null = ล้าง"
+          },
+          "corrective_quota": {
+            "type": "object",
+            "description": "ครั้งแก้เหตุ; null = ไม่จำกัด"
+          },
+          "preventive_quota": {
+            "type": "object",
+            "description": "ครั้งบำรุงรักษา; null = ไม่จำกัด"
+          },
+          "asset_ids": {
+            "description": "อุปกรณ์ที่ครอบคลุม (แทนทั้งชุด)",
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 1000
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "reason": {
+            "type": "string",
+            "description": "เหตุผล (บังคับเมื่อแก้)",
+            "maxLength": 1000
+          }
+        }
+      },
+      "CancelEntitlementDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "reason"
         ]
       },
       "ProjectMemberDto": {
