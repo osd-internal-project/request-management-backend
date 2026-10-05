@@ -12,6 +12,8 @@ import { CrmModule } from '../crm/crm.module';
 import { PricingModule } from '../pricing/pricing.module';
 import { TimeMaterialsService } from './time-materials.service';
 import { PmPlanService } from './pm-plan.service';
+import { ClaimsService } from './claims.service';
+import { SpareIssueErpSyncService } from './spare-issue-erp-sync.service';
 import { OpportunityRepository } from '../crm/sales.repositories';
 import { ProductRepository } from '../crm/product.repositories';
 import { ErpModule } from '../erp/erp.module';
@@ -45,6 +47,7 @@ import {
   ServicePmPlanRepository,
   ServicePmRoundRepository,
   ServiceMaOfferRepository,
+  ServiceClaimRepository,
 } from './support.repositories';
 
 /**
@@ -76,6 +79,9 @@ import {
     ServiceBillingRepository,
     TimeMaterialsService,
     PmPlanService,
+    ClaimsService,
+    SpareIssueErpSyncService,
+    ServiceClaimRepository,
     ServicePmPlanRepository,
     ServicePmRoundRepository,
     ServiceMaOfferRepository,
@@ -111,6 +117,7 @@ import {
     ServiceBillingService,
     TimeMaterialsService,
     PmPlanService,
+    ClaimsService,
   ],
 })
 export class SupportModule {}

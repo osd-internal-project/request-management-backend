@@ -8,6 +8,8 @@ import {
   ErpInvoice,
   ErpInvoiceDraftPayload,
   ErpInvoiceDraftState,
+  ErpGoodsIssuePayload,
+  ErpStock,
   ErpItem,
   ErpProjectCost,
   ErpVendor,
@@ -241,6 +243,76 @@ export class SapB1Client implements ErpClient {
       `/Orders(${order.DocEntry})/Cancel`,
     );
     this.ok(res, `ยกเลิกใบสั่งขาย (${reason})`);
+  }
+
+  // --- คลังและใบเบิก (CD-245) ----------------------------------------------------
+
+  async listStock(
+    ctx: ErpContext,
+    itemCodes: readonly string[],
+  ): Promise<ErpStock[]> {
+    const out: ErpStock[] = [];
+    for (const itemCode of itemCodes.slice(0, 50)) {
+      const res = await this.call(
+        ctx,
+        'GET',
+        `/Items(${q(literal(itemCode))})?$select=ItemCode,ItemWarehouseInfoCollection`,
+      );
+      if (res.status === 404) continue;
+      const item = this.json<{
+        ItemWarehouseInfoCollection?: {
+          WarehouseCode: string;
+          InStock: number;
+        }[];
+      }>(res, 'อ่านคงคลัง');
+      for (const row of item.ItemWarehouseInfoCollection ?? []) {
+        out.push({
+          itemCode,
+          warehouseCode: row.WarehouseCode,
+          onHand: Number(row.InStock ?? 0),
+        });
+      }
+    }
+    return out;
+  }
+
+  async findGoodsIssue(
+    ctx: ErpContext,
+    reference: string,
+  ): Promise<{ externalCode: string } | null> {
+    const res = await this.call(
+      ctx,
+      'GET',
+      `/InventoryGenExits?$select=DocEntry,DocNum&$filter=${q(
+        `Reference2 eq ${literal(reference)}`,
+      )}`,
+    );
+    const row = this.json<{ value: { DocNum: number }[] }>(
+      res,
+      'ค้นใบเบิกสินค้า',
+    ).value[0];
+    return row ? { externalCode: String(row.DocNum) } : null;
+  }
+
+  async createGoodsIssue(
+    ctx: ErpContext,
+    payload: ErpGoodsIssuePayload,
+  ): Promise<{ externalCode: string }> {
+    const res = await this.call(ctx, 'POST', '/InventoryGenExits', {
+      DocDate: payload.issuedOn,
+      Reference2: payload.reference.slice(0, 11),
+      Comments: payload.comment.slice(0, 254),
+      DocumentLines: payload.lines.map((line) => ({
+        ItemCode: line.itemCode,
+        Quantity: line.quantity,
+        WarehouseCode: line.warehouseCode,
+        ...(line.serialNo
+          ? { SerialNumbers: [{ InternalSerialNumber: line.serialNo }] }
+          : {}),
+      })),
+    });
+    const issue = this.json<{ DocNum: number }>(res, 'สร้างใบเบิกสินค้า');
+    return { externalCode: String(issue.DocNum) };
   }
 
   // --- ร่างใบแจ้งหนี้งานบริการ (CD-242) -----------------------------------------

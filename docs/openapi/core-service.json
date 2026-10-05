@@ -18962,6 +18962,49 @@
         ]
       }
     },
+    "/api/v1/service-time-materials/stock": {
+      "get": {
+        "operationId": "ServiceTimeMaterialsController_stock",
+        "parameters": [
+          {
+            "name": "codes",
+            "required": true,
+            "in": "query",
+            "description": "รหัสสินค้า คั่นด้วย ,",
+            "schema": {
+              "type": "string",
+              "maxLength": 2000
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-245 คงคลังจาก SAP ต่อคลัง ของรหัสสินค้าที่ระบุ (สำหรับเบิกอะไหล่)",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.read"
+        ]
+      }
+    },
     "/api/v1/service-time-materials/{workOrderId}": {
       "get": {
         "operationId": "ServiceTimeMaterialsController_ofWorkOrder",
@@ -19447,6 +19490,279 @@
           }
         ],
         "summary": "ข้ามรอบนี้ (ต้องมีเหตุผล)",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.manage"
+        ]
+      }
+    },
+    "/api/v1/service-claims": {
+      "get": {
+        "operationId": "ServiceClaimsController_list",
+        "parameters": [
+          {
+            "name": "state",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "open",
+                "overdue",
+                "closed",
+                "all"
+              ]
+            }
+          },
+          {
+            "name": "work_order_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 50
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ทะเบียนเคลม — ค้าง / เลยกำหนด / ปิดแล้ว / ทั้งหมด",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.read"
+        ]
+      },
+      "post": {
+        "operationId": "ServiceClaimsController_open",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenClaimDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เปิดเคลมคืนคู่ค้า",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.manage"
+        ]
+      }
+    },
+    "/api/v1/service-claims/vendors": {
+      "get": {
+        "operationId": "ServiceClaimsController_vendors",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "รายชื่อผู้ขายจาก SAP สำหรับส่งเคลม",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.read"
+        ]
+      }
+    },
+    "/api/v1/service-claims/{id}": {
+      "get": {
+        "operationId": "ServiceClaimsController_detail",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เคลม",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.read"
+        ]
+      }
+    },
+    "/api/v1/service-claims/{id}/step": {
+      "post": {
+        "operationId": "ServiceClaimsController_step",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClaimStepDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ขั้นถัดไปของเคลม — ส่งแล้ว (RMA) / ได้ของคืน / ได้เครดิต / ถูกปฏิเสธ / ยกเลิก",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.manage"
+        ]
+      }
+    },
+    "/api/v1/service-claims/replace/{assetId}": {
+      "post": {
+        "operationId": "ServiceClaimsController_replace",
+        "parameters": [
+          {
+            "name": "assetId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplaceUnitDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เปลี่ยนเครื่อง — อุปกรณ์เดิมเปลี่ยน serial (เก็บประวัติ) + ส่งเครื่องเสียเข้าเคลมได้ทันที",
         "tags": [
           "service"
         ],
@@ -38444,6 +38760,15 @@
             "description": "YYYY-MM-DD (ค่าเริ่ม วันนี้)",
             "maxLength": 10
           },
+          "from_stock": {
+            "type": "boolean",
+            "description": "CD-245 — เบิกจากคลัง (ส่งใบเบิกเข้า SAP)"
+          },
+          "warehouse_code": {
+            "type": "string",
+            "description": "CD-245 — คลังที่เบิก (รหัสคลัง SAP)",
+            "pattern": "^[A-Za-z0-9_.-]{1,20}$"
+          },
           "note": {
             "type": "object",
             "maxLength": 500
@@ -38552,6 +38877,136 @@
           }
         },
         "required": [
+          "reason"
+        ]
+      },
+      "OpenClaimDto": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1
+          },
+          "product_code": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "serial_no": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "vendor_code": {
+            "type": "string",
+            "maxLength": 50,
+            "minLength": 1
+          },
+          "vendor_name": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "work_order_id": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "asset_id": {
+            "type": "string",
+            "maxLength": 50
+          }
+        },
+        "required": [
+          "description",
+          "vendor_code"
+        ]
+      },
+      "ClaimStepDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "sent",
+              "replaced",
+              "credited",
+              "rejected",
+              "cancelled"
+            ]
+          },
+          "rma_no": {
+            "type": "object",
+            "maxLength": 100
+          },
+          "sent_on": {
+            "type": "string",
+            "description": "YYYY-MM-DD",
+            "maxLength": 10
+          },
+          "expected_on": {
+            "type": "object",
+            "description": "YYYY-MM-DD",
+            "maxLength": 10
+          },
+          "resolved_on": {
+            "type": "string",
+            "description": "YYYY-MM-DD",
+            "maxLength": 10
+          },
+          "replacement_serial": {
+            "type": "object",
+            "maxLength": 100
+          },
+          "credit_amount": {
+            "type": "object",
+            "maximum": 999999999999,
+            "minimum": 0
+          },
+          "outcome_note": {
+            "type": "object",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "ReplaceClaimVendorDto": {
+        "type": "object",
+        "properties": {
+          "vendor_code": {
+            "type": "string",
+            "description": "รหัสผู้ขาย SAP"
+          },
+          "vendor_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "vendor_code"
+        ]
+      },
+      "ReplaceUnitDto": {
+        "type": "object",
+        "properties": {
+          "new_serial": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1
+          },
+          "work_order_id": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "claim": {
+            "$ref": "#/components/schemas/ReplaceClaimVendorDto"
+          }
+        },
+        "required": [
+          "new_serial",
           "reason"
         ]
       },

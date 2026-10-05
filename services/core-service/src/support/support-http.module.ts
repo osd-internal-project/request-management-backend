@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import {
   ServiceAssetsController,
   ServiceBillingsController,
+  ServiceClaimsController,
   ServiceEntitlementsController,
   ServiceLabourRatesController,
   ServicePmController,
@@ -23,6 +24,7 @@ import { SupportModule } from './support.module';
     ServiceTimeMaterialsController,
     ServiceLabourRatesController,
     ServicePmController,
+    ServiceClaimsController,
   ],
 })
 export class SupportHttpModule {}

@@ -413,6 +413,19 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
     },
   },
   {
+    eventType: 'service.claim.overdue',
+    label: 'เคลมคืนคู่ค้าเลยวันที่คาดว่าจะได้คืน (ถึงผู้เปิดเคลม)',
+    title: 'เคลมเลยกำหนด: {{vendor}}',
+    body: '{{description}} S/N {{serial_no}} (RMA {{rma_no}}) คาดว่าจะได้คืน {{expected_on}} — ยังไม่ได้ผล',
+    variables: {
+      vendor: { label: 'คู่ค้า', sample: 'บริษัท ตัวแทนกล้อง จำกัด' },
+      description: { label: 'สินค้า', sample: 'กล้อง IP' },
+      serial_no: { label: 'หมายเลขเครื่อง', sample: 'SN-12345' },
+      rma_no: { label: 'เลข RMA', sample: 'RMA-889' },
+      expected_on: { label: 'คาดว่าจะได้คืน', sample: '2026-10-20' },
+    },
+  },
+  {
     eventType: 'service.pm.opened',
     label: 'เปิดใบสั่งงานบำรุงรักษาตามรอบแล้ว (ถึงผู้ดูแลแผน PM)',
     title: 'PM รอบที่ {{round_no}}: {{customer}}',

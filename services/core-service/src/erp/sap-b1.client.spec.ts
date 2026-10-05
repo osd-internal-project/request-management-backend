@@ -830,4 +830,65 @@ describe('SAP B1 Service Layer driver', () => {
       'ใบลดหนี้',
     );
   });
+
+  it('CD-245 listStock: คงคลังต่อคลังจาก ItemWarehouseInfoCollection · ไม่มีสินค้า (404) = ข้าม', async () => {
+    const h = harness({
+      "GET /Items('BRK-01')": () =>
+        reply(200, {
+          ItemCode: 'BRK-01',
+          ItemWarehouseInfoCollection: [
+            { WarehouseCode: 'WH01', InStock: 12 },
+            { WarehouseCode: 'WH-SVC', InStock: 3 },
+          ],
+        }),
+    });
+    const stock = await h.client.listStock(OSD, ['BRK-01', 'NOPE']);
+    expect(stock).toEqual([
+      { itemCode: 'BRK-01', warehouseCode: 'WH01', onHand: 12 },
+      { itemCode: 'BRK-01', warehouseCode: 'WH-SVC', onHand: 3 },
+    ]);
+  });
+
+  it('CD-245 createGoodsIssue: POST InventoryGenExits, Reference2 ≤ 11 ตัว, serial ติดไปกับบรรทัด; findGoodsIssue ค้นด้วย Reference2', async () => {
+    const h = harness({
+      'POST /InventoryGenExits': () =>
+        reply(201, { DocEntry: 9, DocNum: 7001 }),
+      'GET /InventoryGenExits': () =>
+        reply(200, { value: [{ DocEntry: 9, DocNum: 7001 }] }),
+    });
+    const issue = await h.client.createGoodsIssue(OSD, {
+      reference: 'SV1234567890XYZ',
+      issuedOn: '2026-10-05',
+      comment: 'เบิกอะไหล่ งานบริการ',
+      lines: [
+        {
+          itemCode: 'BRK-01',
+          quantity: 2,
+          warehouseCode: 'WH-SVC',
+          serialNo: null,
+        },
+        {
+          itemCode: 'CAM-01',
+          quantity: 1,
+          warehouseCode: 'WH01',
+          serialNo: 'SN9',
+        },
+      ],
+    });
+    expect(issue).toEqual({ externalCode: '7001' });
+    const [sent] = h.calls('POST', '/InventoryGenExits');
+    expect(bodyOf(sent)).toMatchObject({
+      Reference2: 'SV123456789',
+      DocumentLines: [
+        { ItemCode: 'BRK-01', Quantity: 2, WarehouseCode: 'WH-SVC' },
+        {
+          ItemCode: 'CAM-01',
+          SerialNumbers: [{ InternalSerialNumber: 'SN9' }],
+        },
+      ],
+    });
+    expect(await h.client.findGoodsIssue(OSD, 'SV123456789')).toEqual({
+      externalCode: '7001',
+    });
+  });
 });

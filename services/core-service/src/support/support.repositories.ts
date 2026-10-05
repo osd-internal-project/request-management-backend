@@ -214,3 +214,17 @@ export class ServiceMaOfferRepository extends BaseRepository<
     return client.serviceMaOffer;
   }
 }
+
+/** CD-245 — claims to suppliers. */
+@Injectable()
+export class ServiceClaimRepository extends BaseRepository<
+  PrismaService['serviceClaim']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.serviceClaim;
+  }
+}

@@ -1054,6 +1054,35 @@ export class NotificationsService {
   }
 
   /** CD-190 — a project's actual cost crossed a threshold of its budget. */
+  /** CD-245 — a claim sent to a supplier is past the day it was expected back. */
+  async claimOverdue(
+    userId: string,
+    companyId: string,
+    input: {
+      claimId: string;
+      vendorName: string;
+      description: string;
+      serialNo: string;
+      rmaNo: string;
+      expectedOn: string;
+    },
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'service.claim.overdue',
+      values: {
+        vendor: input.vendorName,
+        description: input.description,
+        serial_no: input.serialNo,
+        rma_no: input.rmaNo,
+        expected_on: input.expectedOn,
+      },
+      resourceType: 'service_claim',
+      resourceId: input.claimId,
+    });
+  }
+
   /**
    * CD-244 — a PM round's work order opened ahead (`opened`), could not be
    * opened (`failed`, open it by hand), or the round's day passed undone

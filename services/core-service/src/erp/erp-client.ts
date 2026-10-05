@@ -146,6 +146,32 @@ export interface ErpInvoiceDraftState {
   readonly paid: number | null;
 }
 
+/** CD-245 — what one warehouse holds of an item (B1 `ItemWarehouseInfoCollection`). */
+export interface ErpStock {
+  readonly itemCode: string;
+  readonly warehouseCode: string;
+  readonly onHand: number;
+}
+
+/**
+ * CD-245 — spare parts taken out of stock for a service job: a goods issue
+ * (B1 `InventoryGenExits`). Pending CD-28: the issue's series, the G/L
+ * account the cost lands on, and how serial-managed items are named.
+ */
+export interface ErpGoodsIssuePayload {
+  /** Ours, ≤ 11 chars (B1 `Reference2`) — and the key `findGoodsIssue` uses. */
+  readonly reference: string;
+  /** YYYY-MM-DD. */
+  readonly issuedOn: string;
+  readonly comment: string;
+  readonly lines: readonly {
+    readonly itemCode: string;
+    readonly quantity: number;
+    readonly warehouseCode: string;
+    readonly serialNo: string | null;
+  }[];
+}
+
 /** CD-27 — one sellable item as SAP holds it (B1 `Items`). */
 export interface ErpItem {
   /** B1 `ItemCode` — what quotation/sale-order lines carry as productCode. */
@@ -293,6 +319,17 @@ export interface ErpClient {
    * it is a credit note in SAP, which is finance's to issue.
    */
   cancelInvoiceDraft(ctx: ErpContext, reference: string): Promise<void>;
+  /** CD-245 — on-hand quantity per warehouse of these items (≤ 50). */
+  listStock(ctx: ErpContext, itemCodes: readonly string[]): Promise<ErpStock[]>;
+  /** CD-245 — the goods issue already carrying `reference`, or null. */
+  findGoodsIssue(
+    ctx: ErpContext,
+    reference: string,
+  ): Promise<{ externalCode: string } | null>;
+  createGoodsIssue(
+    ctx: ErpContext,
+    payload: ErpGoodsIssuePayload,
+  ): Promise<{ externalCode: string }>;
   /** CD-89 — the customer's most recent invoices, newest first (≤ `limit`). */
   listInvoices(
     ctx: ErpContext,

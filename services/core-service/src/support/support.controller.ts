@@ -19,6 +19,7 @@ import { OnCallService } from './on-call.service';
 import { ServiceBillingService } from './service-billing.service';
 import { TimeMaterialsService } from './time-materials.service';
 import { PmPlanService } from './pm-plan.service';
+import { ClaimsService } from './claims.service';
 import {
   AssetStatusDto,
   AttachWorkOrderDto,
@@ -45,6 +46,11 @@ import {
   ListPmRoundsQueryDto,
   SavePmPlanDto,
   SkipPmRoundDto,
+  ClaimStepDto,
+  ListClaimsQueryDto,
+  OpenClaimDto,
+  ReplaceUnitDto,
+  StockQueryDto,
 } from './support.dto';
 
 /** CD-236 ทะเบียนอุปกรณ์ที่ติดตั้ง. */
@@ -472,6 +478,19 @@ export class ServiceTimeMaterialsController {
 
   @ApiOperation({
     summary:
+      'CD-245 คงคลังจาก SAP ต่อคลัง ของรหัสสินค้าที่ระบุ (สำหรับเบิกอะไหล่)',
+  })
+  @Get('stock')
+  @Permissions('service.asset.read')
+  stock(
+    @Query() query: StockQueryDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.timeMaterials.stock(principal, query.codes.split(','));
+  }
+
+  @ApiOperation({
+    summary:
       'เวลา (จาก Timesheet) และวัสดุของใบสั่งงาน + รายการที่จะเรียกเก็บ + ต้นทุน/กำไร (hr.rate.read)',
   })
   @Get(':workOrderId')
@@ -607,5 +626,74 @@ export class ServicePmController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.pm.skip(principal, id, dto);
+  }
+}
+
+/** CD-245 อะไหล่และการเคลม. */
+@ApiTags('service')
+@ApiBearerAuth()
+@Controller('service-claims')
+export class ServiceClaimsController {
+  constructor(private readonly claims: ClaimsService) {}
+
+  @ApiOperation({
+    summary: 'ทะเบียนเคลม — ค้าง / เลยกำหนด / ปิดแล้ว / ทั้งหมด',
+  })
+  @Get()
+  @Permissions('service.asset.read')
+  list(
+    @Query() query: ListClaimsQueryDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.claims.list(principal, query);
+  }
+
+  @ApiOperation({ summary: 'รายชื่อผู้ขายจาก SAP สำหรับส่งเคลม' })
+  @Get('vendors')
+  @Permissions('service.asset.read')
+  vendors(@CurrentPrincipal() principal: Principal) {
+    return this.claims.vendors(principal);
+  }
+
+  @ApiOperation({ summary: 'เคลม' })
+  @Get(':id')
+  @Permissions('service.asset.read')
+  detail(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.claims.detail(principal, id);
+  }
+
+  @ApiOperation({ summary: 'เปิดเคลมคืนคู่ค้า' })
+  @Post()
+  @Permissions('service.asset.manage')
+  open(@Body() dto: OpenClaimDto, @CurrentPrincipal() principal: Principal) {
+    return this.claims.open(principal, dto);
+  }
+
+  @ApiOperation({
+    summary:
+      'ขั้นถัดไปของเคลม — ส่งแล้ว (RMA) / ได้ของคืน / ได้เครดิต / ถูกปฏิเสธ / ยกเลิก',
+  })
+  @Post(':id/step')
+  @Permissions('service.asset.manage')
+  step(
+    @Param('id') id: string,
+    @Body() dto: ClaimStepDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.claims.step(principal, id, dto);
+  }
+
+  @ApiOperation({
+    summary:
+      'เปลี่ยนเครื่อง — อุปกรณ์เดิมเปลี่ยน serial (เก็บประวัติ) + ส่งเครื่องเสียเข้าเคลมได้ทันที',
+  })
+  @Post('replace/:assetId')
+  @Permissions('service.asset.manage')
+  replace(
+    @Param('assetId') assetId: string,
+    @Body() dto: ReplaceUnitDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.claims.replaceUnit(principal, assetId, dto);
   }
 }

@@ -130,6 +130,9 @@ function harness(
       }),
     ),
     cancelInvoiceDraft: jest.fn(() => Promise.resolve()),
+    listStock: jest.fn(() => Promise.resolve([])),
+    findGoodsIssue: jest.fn(() => Promise.resolve(null)),
+    createGoodsIssue: jest.fn(() => Promise.resolve({ externalCode: '1' })),
   };
   const calls = erp as unknown as Record<keyof ErpClient, jest.Mock>;
   const customerSync = { queueCustomer: jest.fn(() => Promise.resolve()) };

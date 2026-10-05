@@ -12,6 +12,7 @@ import {
   ServiceEntitlementAssetRepository,
   ServiceBillingRepository,
   ServiceCalendarRepository,
+  ServiceClaimRepository,
   ServiceEntitlementRepository,
   ServiceLabourRateRepository,
   ServiceMaterialUseRepository,
@@ -25,6 +26,8 @@ import {
 } from './support.repositories';
 import { WorkOrdersService } from './work-orders.service';
 import { OnCallService } from './on-call.service';
+import { ClaimsService } from './claims.service';
+import { SpareIssueErpSyncService } from './spare-issue-erp-sync.service';
 import { TimeMaterialsService } from './time-materials.service';
 import { PmPlanService } from './pm-plan.service';
 import { TimesheetsService } from '../hr/timesheets.service';
@@ -131,6 +134,10 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       await prisma.serviceBilling.deleteMany({
         where: { requestId: { in: requestIds } },
       });
+      await prisma.serviceClaim.deleteMany({
+        where: { companyId, createdAt: { gte: startedAt } },
+      });
+      await prisma.serviceAssetHistory.deleteMany({ where: { assetId } });
       await prisma.serviceMaterialUse.deleteMany({
         where: { requestId: { in: requestIds } },
       });
@@ -828,6 +835,9 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         new CompanyMemberRepository(client),
         audit,
         transactions,
+        new CompanyRepository(client),
+        new MockSapClient(),
+        { kick: () => undefined } as never,
       );
       const manager = {
         userId: staff,
@@ -1192,6 +1202,203 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
           owner_user_id: staff,
         }),
       ).rejects.toThrow('สัญญาบริการ');
+    });
+
+    it('CD-245: a spare out of stock becomes a goods issue in SAP and is locked; a unit swapped keeps the asset with a new serial and the faulty one goes on a claim, told once when late', async () => {
+      const client = prisma as never;
+      const transactions = {
+        execute: (work: (tx: unknown) => Promise<unknown>) =>
+          prisma.$transaction((tx) => work(tx)),
+      } as never;
+      const audit = { record: () => Promise.resolve() } as never;
+      const erp = new MockSapClient();
+      const request = await prisma.request.create({
+        data: {
+          requestTypeId: typeId,
+          typeCode,
+          companyId,
+          requesterId: staff,
+          requestNo: `REQ-T245-${tag}`,
+          status: 'in_progress',
+          severity: 'high',
+          formData: { subject: 'กล้องเสีย' },
+        },
+      });
+      requestIds.push(request.id);
+      const order = await prisma.serviceWorkOrder.create({
+        data: {
+          companyId,
+          requestId: request.id,
+          customerId,
+          assetId,
+          workKind: 'corrective',
+          suggestedBilling: 'in_contract',
+          billing: 'in_contract',
+          createdBy: staff,
+        },
+      });
+      const sync = new SpareIssueErpSyncService(
+        new ServiceMaterialUseRepository(client),
+        new CompanyRepository(client),
+        new IntegrationSyncJobRepository(client),
+        erp,
+        { register: () => undefined } as never,
+        audit,
+        { get: () => 0 } as never,
+      );
+      const kicked: string[] = [];
+      const timeMaterials = new TimeMaterialsService(
+        new ServiceWorkOrderRepository(client),
+        new ServiceMaterialUseRepository(client),
+        new ServiceLabourRateRepository(client),
+        new ServiceWorkTypeRepository(client),
+        new ServiceBillingRepository(client),
+        new RequestRepository(client),
+        new ProductRepository(client),
+        { assertCodes: () => Promise.resolve() } as never,
+        { lookup: () => Promise.resolve({}) } as never,
+        { lookup: () => Promise.resolve({ items: [] }) } as never,
+        { serviceTime: () => Promise.resolve([]) } as never,
+        { forRequests: () => Promise.resolve(new Map()) } as never,
+        new CompanyMemberRepository(client),
+        audit,
+        transactions,
+        new CompanyRepository(client),
+        erp,
+        { kick: (id: string) => kicked.push(id) } as never,
+      );
+      const manager = {
+        userId: staff,
+        activeCompanyId: companyId,
+        permissions: ['service.asset.read', 'service.asset.manage'],
+      } as unknown as Principal;
+
+      // on hand per warehouse, from SAP
+      const stock = await timeMaterials.stock(manager, ['CAM-01']);
+      expect(stock.map((row) => row.warehouseCode)).toEqual(['WH01', 'WH-SVC']);
+
+      // out of stock needs a warehouse
+      await expect(
+        timeMaterials.addMaterial(manager, order.id, {
+          product_code: 'CAM-01',
+          quantity: 1,
+          from_stock: true,
+        }),
+      ).rejects.toThrow('ระบุคลัง');
+      const spare = await timeMaterials.addMaterial(manager, order.id, {
+        product_code: 'CAM-01',
+        description: 'กล้อง IP ตัวใหม่',
+        quantity: 1,
+        serial_no: `NEW-${tag}`,
+        from_stock: true,
+        warehouse_code: 'WH01',
+      });
+      expect(kicked).toEqual([spare.id]);
+      const docNo = await sync.push(spare.id);
+      expect(docNo).toMatch(/^MOCK-GI-/);
+      expect(await sync.push(spare.id)).toBe(docNo);
+      const seen = await timeMaterials.ofWorkOrder(manager, order.id);
+      expect(seen.materials[0]).toMatchObject({
+        fromStock: true,
+        warehouseCode: 'WH01',
+        erpStatus: 'synced',
+        erpDocNo: docNo,
+      });
+      // issued in SAP: not edited away here
+      await expect(
+        timeMaterials.removeMaterial(manager, spare.id),
+      ).rejects.toThrow('รับคืนเข้าคลังใน SAP');
+
+      // the unit swapped: same asset, new serial, the faulty one claimed
+      const claims = new ClaimsService(
+        new ServiceClaimRepository(client),
+        new ServiceAssetRepository(client),
+        new ServiceWorkOrderRepository(client),
+        new RequestRepository(client),
+        new CompanyRepository(client),
+        new CompanyMemberRepository(client),
+        erp,
+        {
+          claimOverdue: (_u: string, _c: string, x: { vendorName: string }) => {
+            told.push(x.vendorName);
+            return Promise.resolve();
+          },
+        } as never,
+        audit,
+        transactions,
+        { get: () => 0 } as never,
+      );
+      const told: string[] = [];
+      const before = await prisma.serviceAsset.findUniqueOrThrow({
+        where: { id: assetId },
+      });
+      await expect(
+        claims.replaceUnit(manager, assetId, {
+          new_serial: before.serialNo!,
+          reason: 'x',
+        }),
+      ).rejects.toThrow('ซ้ำกับเครื่องเดิม');
+      const vendors = await claims.vendors(manager);
+      const swapped = await claims.replaceUnit(manager, assetId, {
+        new_serial: `new-${tag}`,
+        reason: 'กล้องภาพไม่ขึ้น เปลี่ยนตัวใหม่',
+        work_order_id: order.id,
+        claim: { vendor_code: vendors[0].code, vendor_name: vendors[0].name },
+      });
+      expect(swapped).toMatchObject({
+        oldSerial: before.serialNo,
+        newSerial: `NEW-${tag}`,
+        claim: {
+          status: 'pending',
+          serialNo: before.serialNo,
+          requestNo: `REQ-T245-${tag}`,
+        },
+      });
+      const history = await prisma.serviceAssetHistory.findFirstOrThrow({
+        where: { assetId, action: 'replaced' },
+      });
+      expect(history.before).toEqual({ serialNo: before.serialNo });
+
+      // sent with an RMA, due back on the 20th — late on the 25th, told once
+      const claimId = swapped.claim!.id;
+      await expect(
+        claims.step(manager, claimId, {
+          status: 'replaced',
+          resolved_on: '2026-10-21',
+        }),
+      ).rejects.toThrow('ไม่ได้');
+      await claims.step(manager, claimId, {
+        status: 'sent',
+        rma_no: 'RMA-889',
+        sent_on: '2026-10-06',
+        expected_on: '2026-10-20',
+      });
+      await claims.sweep(new Date('2026-10-25T03:00:00Z'));
+      await claims.sweep(new Date('2026-10-26T03:00:00Z'));
+      expect(told).toEqual([vendors[0].name]);
+      await expect(
+        claims.step(manager, claimId, {
+          status: 'credited',
+          resolved_on: '2026-10-27',
+        }),
+      ).rejects.toThrow('ยอดเครดิต');
+      const done = await claims.step(manager, claimId, {
+        status: 'replaced',
+        resolved_on: '2026-10-27',
+        replacement_serial: `RPL-${tag}`,
+      });
+      expect(done).toMatchObject({ status: 'replaced', overdue: false });
+      expect(
+        (await claims.list(manager, { work_order_id: order.id })).map(
+          (row) => row.id,
+        ),
+      ).toEqual([claimId]);
+
+      // put the serial back for the other tests' sake
+      await prisma.serviceAsset.update({
+        where: { id: assetId },
+        data: { serialNo: before.serialNo },
+      });
     });
   },
 );

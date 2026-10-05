@@ -7249,6 +7249,14 @@ model ServiceMaterialUse {
   unitCost    Decimal?  @db.Decimal(14, 2)
   usedOn      DateTime  @db.Date
   note        String?
+  /// CD-245 — taken out of stock: a goods issue to SAP (store-and-forward)
+  fromStock     Boolean   @default(false)
+  warehouseCode String?
+  /// none · pending · synced · failed
+  erpStatus     String    @default("none")
+  erpDocNo      String?
+  erpLastError  String?
+  erpSyncedAt   DateTime?
   createdAt   DateTime  @default(now())
   createdBy   String
   updatedAt   DateTime  @updatedAt
@@ -7322,6 +7330,41 @@ model ServiceMaOffer {
   remindedDays  Int[]    @default([])
 
   @@map("service_ma_offers")
+}
+
+/// CD-245 การส่งเคลมคืนคู่ค้า — a faulty unit (often the one a replacement
+/// took out, CD-245) sent back to its supplier: who, their RMA number, when
+/// it went and is expected back, and how it ended.
+///   status: pending · sent · replaced · credited · rejected · cancelled
+model ServiceClaim {
+  id                String    @id @default(uuid())
+  companyId         String
+  workOrderId       String?
+  requestId         String?
+  assetId           String?
+  productCode       String?
+  description       String
+  /// the faulty unit's serial
+  serialNo          String?
+  vendorCode        String
+  vendorName        String
+  rmaNo             String?
+  status            String    @default("pending")
+  sentOn            DateTime? @db.Date
+  expectedOn        DateTime? @db.Date
+  resolvedOn        DateTime? @db.Date
+  replacementSerial String?
+  creditAmount      Decimal?  @db.Decimal(14, 2)
+  outcomeNote       String?
+  overdueNotifiedAt DateTime?
+  createdAt         DateTime  @default(now())
+  createdBy         String
+  updatedAt         DateTime  @updatedAt
+  updatedBy         String?
+
+  @@index([companyId, status])
+  @@index([workOrderId])
+  @@map("service_claims")
 }
 
 /// CD-251 เอกสารส่งมอบของเฟส (หมุดหมาย) — แนบต่อชื่อเอกสาร; ชื่อที่ตรงกับเอกสารบังคับของประเภทงาน
