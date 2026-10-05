@@ -106,3 +106,51 @@ export function nextArticleNo(highest: string | null): string {
   const n = highest ? Number(highest.replace(/^KB-/, '')) || 0 : 0;
   return `KB-${String(n + 1).padStart(5, '0')}`;
 }
+
+// --- CD-260 กลั่นกรองและอนุมัติ ------------------------------------------------
+
+/** Months between reviews when neither the category nor its parent says. */
+export const DEFAULT_REVIEW_MONTHS = 12;
+export const MAX_CHANGE_NOTE = 1000;
+
+/** draft · in_review · returned · approved · discarded */
+export const OPEN_REVISION = ['draft', 'in_review', 'returned'] as const;
+
+/** The category's months, else its parent's, else the default. */
+export function reviewMonthsOf(
+  category: { reviewMonths: number | null; parentId: string | null } | null,
+  parent: { reviewMonths: number | null } | null,
+): number {
+  return (
+    category?.reviewMonths ?? parent?.reviewMonths ?? DEFAULT_REVIEW_MONTHS
+  );
+}
+
+/** YYYY-MM-DD `months` after `from` (the last day of a shorter month). */
+export function addMonths(from: string, months: number): string {
+  const [y, m, d] = from.split('-').map(Number);
+  const target = new Date(Date.UTC(y, m - 1 + months, 1));
+  const last = new Date(
+    Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0),
+  ).getUTCDate();
+  target.setUTCDate(Math.min(d, last));
+  return target.toISOString().slice(0, 10);
+}
+
+/** Where an article stands against its review day. */
+export function reviewState(
+  nextReviewOn: string | null,
+  today: string,
+  warnDays: number,
+): 'none' | 'ok' | 'due_soon' | 'overdue' {
+  if (!nextReviewOn) return 'none';
+  if (nextReviewOn < today) return 'overdue';
+  const warn = new Date(`${today}T00:00:00Z`);
+  warn.setUTCDate(warn.getUTCDate() + warnDays);
+  return nextReviewOn <= warn.toISOString().slice(0, 10) ? 'due_soon' : 'ok';
+}
+
+/** Union of two lists, first-seen order. */
+export function union(a: readonly string[], b: readonly string[]): string[] {
+  return [...new Set([...a, ...b])];
+}

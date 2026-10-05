@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  ParseIntPipe,
   Post,
   Put,
   Query,
@@ -27,6 +28,11 @@ import {
 import type { Principal } from '@request-management/share';
 import {
   ArchiveKbArticleDto,
+  KbConfirmReviewDto,
+  KbMergeDto,
+  KbOwnerDto,
+  KbReviewDecisionDto,
+  SaveKbRevisionDto,
   KbProductsQueryDto,
   RateKbArticleDto,
   SaveKbArticleDto,
@@ -34,6 +40,7 @@ import {
   SearchKbArticlesQueryDto,
 } from './kb.dto';
 import { MAX_FILE_BYTES } from './kb-rules';
+import { KbReviewService } from './kb-review.service';
 import { KbService, type SaveArticle } from './kb.service';
 
 const toInput = (dto: SaveKbArticleDto): SaveArticle => ({
@@ -51,7 +58,181 @@ const toInput = (dto: SaveKbArticleDto): SaveArticle => ({
 @ApiBearerAuth()
 @Controller('kb')
 export class KbController {
-  constructor(private readonly kb: KbService) {}
+  constructor(
+    private readonly kb: KbService,
+    private readonly review: KbReviewService,
+  ) {}
+
+  // --- CD-260 กลั่นกรองและอนุมัติ ---------------------------------------------------
+
+  @ApiOperation({
+    summary: 'CD-260 งานรอตรวจ (ผู้ดูแล) และบทความที่ใกล้/เลยรอบทบทวน',
+  })
+  @Get('review-queue')
+  @Authenticated()
+  reviewQueue(@CurrentPrincipal() principal: Principal) {
+    return this.review.queue(principal);
+  }
+
+  @ApiOperation({ summary: 'CD-260 ส่งฉบับร่างแรกให้ตรวจ' })
+  @Post('articles/:id/submit')
+  @Authenticated()
+  submit(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.review.submit(principal, id);
+  }
+
+  @ApiOperation({
+    summary: 'CD-260 ดึงกลับจากการรอตรวจเพื่อแก้ (ฉบับร่าง หรือฉบับปรับปรุง)',
+  })
+  @Post('articles/:id/withdraw')
+  @Authenticated()
+  withdraw(
+    @Param('id') id: string,
+    @Body() dto: KbReviewDecisionDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.review.withdraw(principal, id, dto.revision_id);
+  }
+
+  @ApiOperation({
+    summary:
+      'CD-260 อนุมัติเผยแพร่ (ฉบับร่างแรก หรือฉบับปรับปรุง) — ผู้ดูแลคลังความรู้',
+  })
+  @Post('articles/:id/approve')
+  @AnyPermission('kb.article.manage')
+  approve(
+    @Param('id') id: string,
+    @Body() dto: KbReviewDecisionDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.review.approve(principal, id, dto.revision_id, dto.note);
+  }
+
+  @ApiOperation({
+    summary: 'CD-260 ตีกลับพร้อมสิ่งที่ต้องแก้ — ผู้ดูแลคลังความรู้',
+  })
+  @Post('articles/:id/send-back')
+  @AnyPermission('kb.article.manage')
+  sendBack(
+    @Param('id') id: string,
+    @Body() dto: KbReviewDecisionDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.review.sendBack(principal, id, dto.note ?? '', dto.revision_id);
+  }
+
+  @ApiOperation({ summary: 'CD-260 เปิดฉบับปรับปรุงของบทความที่เผยแพร่อยู่' })
+  @Post('articles/:id/revisions')
+  @Authenticated()
+  openRevision(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.review.openRevision(principal, id);
+  }
+
+  @ApiOperation({ summary: 'CD-260 ฉบับปรับปรุง' })
+  @Get('articles/:id/revisions/:revisionId')
+  @Authenticated()
+  revision(
+    @Param('id') id: string,
+    @Param('revisionId') revisionId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.review.revisionView(principal, id, revisionId);
+  }
+
+  @ApiOperation({ summary: 'CD-260 แก้ฉบับปรับปรุง' })
+  @Put('articles/:id/revisions/:revisionId')
+  @Authenticated()
+  updateRevision(
+    @Param('id') id: string,
+    @Param('revisionId') revisionId: string,
+    @Body() dto: SaveKbRevisionDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.review.updateRevision(principal, id, revisionId, {
+      ...toInput(dto),
+      changeNote: dto.change_note,
+    });
+  }
+
+  @ApiOperation({ summary: 'CD-260 ส่งฉบับปรับปรุงให้ตรวจ' })
+  @Post('articles/:id/revisions/:revisionId/submit')
+  @Authenticated()
+  submitRevision(
+    @Param('id') id: string,
+    @Param('revisionId') revisionId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.review.submitRevision(principal, id, revisionId);
+  }
+
+  @ApiOperation({ summary: 'CD-260 ทิ้งฉบับปรับปรุง' })
+  @Delete('articles/:id/revisions/:revisionId')
+  @Authenticated()
+  discardRevision(
+    @Param('id') id: string,
+    @Param('revisionId') revisionId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.review.discardRevision(principal, id, revisionId);
+  }
+
+  @ApiOperation({ summary: 'CD-260 ประวัติเวอร์ชันที่เผยแพร่' })
+  @Get('articles/:id/versions')
+  @Authenticated()
+  versions(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.review.versions(principal, id);
+  }
+
+  @ApiOperation({ summary: 'CD-260 เนื้อหาของเวอร์ชันหนึ่ง (ไว้เทียบ)' })
+  @Get('articles/:id/versions/:version')
+  @Authenticated()
+  version(
+    @Param('id') id: string,
+    @Param('version', ParseIntPipe) version: number,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.review.version(principal, id, version);
+  }
+
+  @ApiOperation({ summary: 'CD-260 เปลี่ยนเจ้าของบทความ' })
+  @Put('articles/:id/owner')
+  @Authenticated()
+  setOwner(
+    @Param('id') id: string,
+    @Body() dto: KbOwnerDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.review.setOwner(principal, id, dto.user_id);
+  }
+
+  @ApiOperation({
+    summary: 'CD-260 ทบทวนแล้ว เนื้อหายังถูกต้อง (เจ้าของ/ผู้ดูแล)',
+  })
+  @Post('articles/:id/reviewed')
+  @Authenticated()
+  confirmReview(
+    @Param('id') id: string,
+    @Body() dto: KbConfirmReviewDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.review.confirmReview(principal, id, dto.note);
+  }
+
+  @ApiOperation({
+    summary: 'CD-260 รวมบทความซ้ำเข้าบทความหลัก — ผู้ดูแลคลังความรู้',
+  })
+  @Post('articles/:id/merge')
+  @AnyPermission('kb.article.manage')
+  merge(
+    @Param('id') id: string,
+    @Body() dto: KbMergeDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.review.merge(principal, id, dto.into_id);
+  }
 
   @ApiOperation({ summary: 'CD-259 ค้นบทความ (คำค้น หมวด สินค้า แท็ก สถานะ)' })
   @Get('articles')
@@ -116,6 +297,7 @@ export class KbController {
       parentId: dto.parent_id,
       sortOrder: dto.sort_order,
       active: dto.active,
+      reviewMonths: dto.review_months,
     });
   }
 
@@ -132,6 +314,7 @@ export class KbController {
       parentId: dto.parent_id,
       sortOrder: dto.sort_order,
       active: dto.active,
+      reviewMonths: dto.review_months,
     });
   }
 
@@ -162,13 +345,6 @@ export class KbController {
     return this.kb.remove(principal, id);
   }
 
-  @ApiOperation({ summary: 'CD-259 เผยแพร่ (ผู้ดูแลคลังความรู้)' })
-  @Post('articles/:id/publish')
-  @AnyPermission('kb.article.manage')
-  publish(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
-    return this.kb.publish(principal, id);
-  }
-
   @ApiOperation({ summary: 'CD-259 เลิกใช้ (ผู้ดูแลคลังความรู้)' })
   @Post('articles/:id/archive')
   @AnyPermission('kb.article.manage')
@@ -181,7 +357,8 @@ export class KbController {
   }
 
   @ApiOperation({
-    summary: 'CD-259 กลับเป็นฉบับร่างเพื่อแก้ (ผู้ดูแลคลังความรู้)',
+    summary:
+      'CD-259/260 นำบทความที่เลิกใช้กลับเป็นฉบับร่าง (ผู้ดูแลคลังความรู้)',
   })
   @Post('articles/:id/reopen')
   @AnyPermission('kb.article.manage')

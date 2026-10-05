@@ -657,6 +657,46 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
     },
   },
   {
+    eventType: 'kb.review_requested',
+    label: 'บทความรอตรวจ (ถึงผู้ดูแลคลังความรู้)',
+    title: 'บทความ {{article}} รอตรวจ',
+    body: 'ตรวจ แก้ แล้วอนุมัติเผยแพร่ หรือตีกลับพร้อมสิ่งที่ต้องแก้',
+    variables: {
+      article: { label: 'บทความ', sample: 'KB-00012 · VPN เชื่อมต่อไม่ได้' },
+      note: { label: 'หมายเหตุ', sample: '-' },
+    },
+  },
+  {
+    eventType: 'kb.review_approved',
+    label: 'บทความได้รับอนุมัติเผยแพร่ (ถึงผู้เขียน)',
+    title: 'บทความ {{article}} เผยแพร่แล้ว',
+    body: '{{note}}',
+    variables: {
+      article: { label: 'บทความ', sample: 'KB-00012 · VPN เชื่อมต่อไม่ได้' },
+      note: { label: 'หมายเหตุผู้ตรวจ', sample: 'ขอบคุณครับ' },
+    },
+  },
+  {
+    eventType: 'kb.review_returned',
+    label: 'บทความถูกตีกลับให้แก้ (ถึงผู้เขียน)',
+    title: 'บทความ {{article}} ถูกตีกลับให้แก้',
+    body: '{{note}}',
+    variables: {
+      article: { label: 'บทความ', sample: 'KB-00012 · VPN เชื่อมต่อไม่ได้' },
+      note: { label: 'สิ่งที่ต้องแก้', sample: 'เพิ่มขั้นตอนตรวจสอบหลังแก้' },
+    },
+  },
+  {
+    eventType: 'kb.review_due',
+    label: 'บทความใกล้รอบทบทวน (ถึงเจ้าของบทความ)',
+    title: 'บทความ {{article}} ครบรอบทบทวน {{date}}',
+    body: 'ตรวจว่าเนื้อหายังถูกต้อง — กด "ทบทวนแล้ว" หรือเปิดฉบับปรับปรุง',
+    variables: {
+      article: { label: 'บทความ', sample: 'KB-00012 · VPN เชื่อมต่อไม่ได้' },
+      date: { label: 'วันครบรอบทบทวน', sample: '5/10/2570' },
+    },
+  },
+  {
     eventType: 'delivery.receivables_overdue',
     label: 'สรุปงวดค้างชำระ (ถึงเจ้าของสัญญาและฝ่ายการเงิน)',
     title: 'งวดค้างชำระ {{count}} งวด รวม {{amount}} บาท',

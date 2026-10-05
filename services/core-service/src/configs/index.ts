@@ -199,6 +199,11 @@ export default () => ({
     ),
   },
 
+  kb: {
+    /** CD-260 — review-day reminders of knowledge articles (ms); 0 = off. */
+    reviewIntervalMs: Number(process.env.KB_REVIEW_INTERVAL_MS ?? 21600000),
+  },
+
   crm: {
     /** CD-162 — expiry reminders for contracts without a renewal deal (ms); 0 = off. */
     contractExpiryIntervalMs: Number(

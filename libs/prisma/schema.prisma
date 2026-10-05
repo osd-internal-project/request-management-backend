@@ -7167,14 +7167,17 @@ model ReceivableReminder {
 /// CD-259 (part of CD-22 KBMS) — a process category of the knowledge base,
 /// kept by its owners (`kb.article.manage`); one level under another at most.
 model KbCategory {
-  id        String   @id @default(uuid())
-  companyId String
-  name      String
-  parentId  String?
-  sortOrder Int      @default(0)
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(uuid())
+  companyId    String
+  name         String
+  parentId     String?
+  sortOrder    Int      @default(0)
+  active       Boolean  @default(true)
+  /// CD-260 — months between reviews of its articles (null = 12; a
+  /// sub-category without its own takes its parent's).
+  reviewMonths Int?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@unique([companyId, parentId, name])
   @@index([companyId])
@@ -7186,30 +7189,45 @@ model KbCategory {
 /// · archived. `source` is where it came from (manual now; closed service
 /// jobs, project lessons and Pre-Sales answers later — CD-262..264).
 model KbArticle {
-  id            String    @id @default(uuid())
-  companyId     String
-  articleNo     String
-  title         String
-  summary       String?
-  body          String    @default("")
-  status        String    @default("draft")
-  categoryId    String?
-  tags          String[]  @default([])
-  productCodes  String[]  @default([])
-  productGroups String[]  @default([])
-  source        String    @default("manual")
-  sourceRef     String?
-  authorId      String
-  publishedAt   DateTime?
-  publishedBy   String?
-  archivedAt    DateTime?
-  archivedBy    String?
-  views         Int       @default(0)
-  helpfulYes    Int       @default(0)
-  helpfulNo     Int       @default(0)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  updatedBy     String?
+  id               String    @id @default(uuid())
+  companyId        String
+  articleNo        String
+  title            String
+  summary          String?
+  body             String    @default("")
+  status           String    @default("draft")
+  categoryId       String?
+  tags             String[]  @default([])
+  productCodes     String[]  @default([])
+  productGroups    String[]  @default([])
+  source           String    @default("manual")
+  sourceRef        String?
+  authorId         String
+  publishedAt      DateTime?
+  publishedBy      String?
+  archivedAt       DateTime?
+  archivedBy       String?
+  views            Int       @default(0)
+  helpfulYes       Int       @default(0)
+  helpfulNo        Int       @default(0)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  updatedBy        String?
+  /// CD-260 — who answers for it (reviews it); the author at first.
+  ownerId          String?
+  /// CD-260 — the published version's number (0 = never published).
+  version          Int       @default(0)
+  /// CD-260 — a first draft sent for review (in_review) and sent back.
+  submittedAt      DateTime?
+  reviewNote       String?
+  reviewedBy       String?
+  reviewedAt       DateTime?
+  nextReviewOn     DateTime? @db.Date
+  lastReviewedAt   DateTime?
+  lastReviewedBy   String?
+  reviewRemindedOn DateTime? @db.Date
+  /// CD-260 — merged into another article (archived, readers sent on).
+  mergedIntoId     String?
 
   @@unique([companyId, articleNo])
   @@index([companyId, status])
@@ -7244,6 +7262,54 @@ model KbArticleFile {
 
   @@index([articleId])
   @@map("kb_article_files")
+}
+
+/// CD-260 — a reworking of a published article: the published one stays
+/// up while this is written and reviewed. draft · in_review · returned ·
+/// approved · discarded; one open at a time per article.
+model KbArticleRevision {
+  id            String    @id @default(uuid())
+  articleId     String
+  status        String    @default("draft")
+  title         String
+  summary       String?
+  body          String
+  categoryId    String?
+  tags          String[]  @default([])
+  productCodes  String[]  @default([])
+  productGroups String[]  @default([])
+  changeNote    String    @default("")
+  createdBy     String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  submittedAt   DateTime?
+  reviewedBy    String?
+  reviewedAt    DateTime?
+  reviewNote    String?
+
+  @@index([articleId, status])
+  @@map("kb_article_revisions")
+}
+
+/// CD-260 — what was published, each time: the text, who approved it, when.
+model KbArticleVersion {
+  id            String   @id @default(uuid())
+  articleId     String
+  version       Int
+  title         String
+  summary       String?
+  body          String
+  categoryId    String?
+  tags          String[] @default([])
+  productCodes  String[] @default([])
+  productGroups String[] @default([])
+  changeNote    String   @default("")
+  writtenBy     String
+  approvedBy    String
+  approvedAt    DateTime @default(now())
+
+  @@unique([articleId, version])
+  @@map("kb_article_versions")
 }
 
 /// CD-239 ใบสั่งงานบริการ — the service side of a case (a request, CD-67):

@@ -72,10 +72,12 @@ export class SearchKbArticlesQueryDto {
   @MaxLength(200)
   q?: string;
 
-  @ApiPropertyOptional({ enum: ['published', 'draft', 'archived', 'mine'] })
+  @ApiPropertyOptional({
+    enum: ['published', 'draft', 'in_review', 'archived', 'mine'],
+  })
   @IsOptional()
-  @IsIn(['published', 'draft', 'archived', 'mine'])
-  status?: 'published' | 'draft' | 'archived' | 'mine';
+  @IsIn(['published', 'draft', 'in_review', 'archived', 'mine'])
+  status?: 'published' | 'draft' | 'in_review' | 'archived' | 'mine';
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -147,6 +149,16 @@ export class SaveKbCategoryDto {
   @IsOptional()
   @IsBoolean()
   active?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'CD-260 รอบทบทวนบทความ (เดือน) ว่าง = ตามหมวดแม่ / 12',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(60)
+  review_months?: number | null;
 }
 
 export class KbProductsQueryDto {
@@ -155,4 +167,47 @@ export class KbProductsQueryDto {
   @IsString()
   @MaxLength(100)
   q?: string;
+}
+
+/** CD-260 — a revision: the article's fields plus what changed. */
+export class SaveKbRevisionDto extends SaveKbArticleDto {
+  @ApiPropertyOptional({ description: 'แก้อะไร (บังคับก่อนส่งตรวจ)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  change_note?: string;
+}
+
+export class KbReviewDecisionDto {
+  @ApiPropertyOptional({ description: 'ฉบับปรับปรุง (ว่าง = ฉบับร่างแรก)' })
+  @IsOptional()
+  @IsUUID()
+  revision_id?: string;
+
+  @ApiPropertyOptional({ description: 'หมายเหตุ (บังคับเมื่อตีกลับ)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  note?: string;
+}
+
+export class KbOwnerDto {
+  @ApiProperty()
+  @IsString()
+  @MaxLength(60)
+  user_id!: string;
+}
+
+export class KbMergeDto {
+  @ApiProperty({ description: 'บทความหลักที่จะรวมเข้า' })
+  @IsUUID()
+  into_id!: string;
+}
+
+export class KbConfirmReviewDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  note?: string;
 }

@@ -31,7 +31,7 @@ export interface RuleParamDefinition {
 export interface RuleDefinition {
   code: string;
   /** The screen groups rules by this. */
-  module: 'crm' | 'finance' | 'pm';
+  module: 'crm' | 'finance' | 'pm' | 'kb';
   label: string;
   description: string;
   /** Who receives it — shown on the screen, decided by the rule's code. */
@@ -346,6 +346,26 @@ export const NOTIFICATION_RULES: readonly RuleDefinition[] = [
       },
     ],
     defaults: { days: 7 },
+  },
+  {
+    code: 'kb.review',
+    module: 'kb',
+    label: 'บทความความรู้ใกล้รอบทบทวน',
+    description:
+      'บทความที่เผยแพร่อยู่ใกล้วันครบรอบทบทวน (ตามหมวด ค่าตั้งต้น 12 เดือน) — เตือนเจ้าของบทความก่อนถึงวันตามจำนวนวันที่กำหนด ครั้งเดียวต่อรอบ',
+    recipients:
+      'เจ้าของบทความ (ถ้าไม่อยู่บริษัทแล้ว ส่งผู้ดูแลคลังความรู้ kb.article.manage)',
+    eventTypes: ['kb.review_due'],
+    params: [
+      {
+        key: 'days',
+        label: 'เตือนก่อนครบรอบ (วัน)',
+        kind: 'days',
+        min: 1,
+        max: 90,
+      },
+    ],
+    defaults: { days: 14 },
   },
 ];
 

@@ -1,11 +1,15 @@
 import {
+  addMonths,
   articleProblems,
   helpfulScore,
   likePattern,
   nextArticleNo,
   normalizeTags,
   publishProblems,
+  reviewMonthsOf,
+  reviewState,
   searchTerms,
+  union,
 } from './kb-rules';
 
 const ok = {
@@ -56,5 +60,37 @@ describe('CD-259 KB rules', () => {
   it('numbers articles per company', () => {
     expect(nextArticleNo(null)).toBe('KB-00001');
     expect(nextArticleNo('KB-00041')).toBe('KB-00042');
+  });
+});
+
+describe('CD-260 KB review rules', () => {
+  it('review months: category, then parent, then 12', () => {
+    expect(
+      reviewMonthsOf({ reviewMonths: 6, parentId: 'p' }, { reviewMonths: 3 }),
+    ).toBe(6);
+    expect(
+      reviewMonthsOf(
+        { reviewMonths: null, parentId: 'p' },
+        { reviewMonths: 3 },
+      ),
+    ).toBe(3);
+    expect(reviewMonthsOf(null, null)).toBe(12);
+  });
+
+  it('adds months, holding to the month end', () => {
+    expect(addMonths('2026-10-05', 12)).toBe('2027-10-05');
+    expect(addMonths('2026-01-31', 1)).toBe('2026-02-28');
+    expect(addMonths('2026-11-15', 3)).toBe('2027-02-15');
+  });
+
+  it('review state against today', () => {
+    expect(reviewState(null, '2026-10-05', 14)).toBe('none');
+    expect(reviewState('2026-10-04', '2026-10-05', 14)).toBe('overdue');
+    expect(reviewState('2026-10-19', '2026-10-05', 14)).toBe('due_soon');
+    expect(reviewState('2026-10-20', '2026-10-05', 14)).toBe('ok');
+  });
+
+  it('union keeps order and drops repeats', () => {
+    expect(union(['a', 'b'], ['b', 'c'])).toEqual(['a', 'b', 'c']);
   });
 });

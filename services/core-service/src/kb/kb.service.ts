@@ -12,6 +12,7 @@ import {
   PrismaService,
 } from '@request-management/share';
 import type { ObjectStorage } from '@request-management/share';
+import { thaiToday } from '../crm/vendor-costs';
 import { safeFileName } from '../requests/attachments.service';
 import {
   articleProblems,
@@ -22,7 +23,8 @@ import {
   MAX_FILES_PER_ARTICLE,
   nextArticleNo,
   normalizeTags,
-  publishProblems,
+  OPEN_REVISION,
+  reviewState,
   searchTerms,
   type ArticleStatus,
 } from './kb-rules';
@@ -39,7 +41,7 @@ export interface SaveArticle {
 
 export interface SearchArticles {
   q?: string;
-  status?: ArticleStatus | 'mine';
+  status?: ArticleStatus | 'in_review' | 'mine';
   categoryId?: string;
   productCode?: string;
   tag?: string;
@@ -70,7 +72,19 @@ interface ArticleRow {
   createdAt: Date;
   updatedAt: Date;
   updatedBy: string | null;
+  ownerId: string | null;
+  version: number;
+  submittedAt: Date | null;
+  reviewNote: string | null;
+  reviewedBy: string | null;
+  reviewedAt: Date | null;
+  nextReviewOn: Date | null;
+  lastReviewedAt: Date | null;
+  mergedIntoId: string | null;
 }
+
+/** CD-260 — warn owners this many days before an article's review day. */
+const REVIEW_WARN_DAYS = 30;
 
 const MANAGE = 'kb.article.manage';
 
@@ -83,8 +97,9 @@ const MANAGE = 'kb.article.manage';
  *
  * Who: every member of staff reads what is published, rates it and writes
  * drafts (their own, until published); knowledge owners (`kb.article.manage`)
- * edit any article, publish, archive and keep the categories. The review
- * and approval steps come with CD-260; customer-facing layers with CD-261.
+ * edit any article, archive it and keep the categories. Sending for
+ * review, approval, revisions, versions, review days and merging are in
+ * {@link KbReviewService} (CD-260); customer-facing layers with CD-261.
  */
 @Injectable()
 export class KbService {
@@ -170,7 +185,9 @@ export class KbService {
        LIMIT ${limit}`,
       ...params,
     );
-    const names = await this.people(rows.flatMap((r) => [r.authorId]));
+    const names = await this.people(
+      rows.flatMap((r) => [r.authorId, r.ownerId]),
+    );
     const categories = await this.categoryNames(companyId);
     return {
       canManage: manage,
@@ -191,18 +208,41 @@ export class KbService {
       });
       row.views += 1;
     }
-    const [names, categories, files, mine] = await Promise.all([
-      this.people([row.authorId, row.publishedBy, row.updatedBy]),
-      this.categoryNames(row.companyId),
-      this.prisma.kbArticleFile.findMany({
-        where: { articleId: id, deletedAt: null },
-        orderBy: { uploadedAt: 'asc' },
-      }),
-      this.prisma.kbArticleRating.findUnique({
-        where: { articleId_userId: { articleId: id, userId: actor.userId } },
-      }),
-    ]);
+    const [names, categories, files, mine, revision, merged] =
+      await Promise.all([
+        this.people([
+          row.authorId,
+          row.publishedBy,
+          row.updatedBy,
+          row.ownerId,
+          row.reviewedBy,
+        ]),
+        this.categoryNames(row.companyId),
+        this.prisma.kbArticleFile.findMany({
+          where: { articleId: id, deletedAt: null },
+          orderBy: { uploadedAt: 'asc' },
+        }),
+        this.prisma.kbArticleRating.findUnique({
+          where: { articleId_userId: { articleId: id, userId: actor.userId } },
+        }),
+        this.prisma.kbArticleRevision.findFirst({
+          where: { articleId: id, status: { in: [...OPEN_REVISION] } },
+        }),
+        row.mergedIntoId
+          ? this.prisma.kbArticle.findFirst({
+              where: { id: row.mergedIntoId, companyId: row.companyId },
+              select: { id: true, articleNo: true, title: true },
+            })
+          : Promise.resolve(null),
+      ]);
+    const manage = hasPermission(actor, MANAGE);
     const canEdit = this.canEdit(actor, row);
+    const isOwner = row.ownerId === actor.userId;
+    const published = row.status === 'published';
+    const revisionMine =
+      revision && (revision.createdBy === actor.userId || manage)
+        ? revision
+        : null;
     return {
       ...this.card(row, names, categories),
       body: row.body,
@@ -219,9 +259,39 @@ export class KbService {
         url: `kb/articles/${id}/files/${f.id}`,
       })),
       myRating: mine ? { helpful: mine.helpful, comment: mine.comment } : null,
+      // CD-260
+      version: row.version,
+      ownerId: row.ownerId,
+      submittedAt: row.submittedAt,
+      reviewNote: row.reviewNote,
+      reviewedBy: row.reviewedBy ? (names.get(row.reviewedBy) ?? null) : null,
+      reviewedAt: row.reviewedAt,
+      lastReviewedAt: row.lastReviewedAt,
+      mergedInto: merged,
+      openRevision: revision
+        ? {
+            id: revisionMine ? revision.id : null,
+            status: revision.status,
+            mine: revision.createdBy === actor.userId,
+          }
+        : null,
       canEdit,
-      canPublish: hasPermission(actor, MANAGE) && row.status !== 'published',
-      canArchive: hasPermission(actor, MANAGE) && row.status === 'published',
+      canSubmit:
+        row.status === 'draft' && (row.authorId === actor.userId || manage),
+      canWithdraw:
+        row.status === 'in_review' && (row.authorId === actor.userId || manage),
+      canApprove:
+        manage && (row.status === 'draft' || row.status === 'in_review'),
+      canSendBack: manage && row.status === 'in_review',
+      canRevise:
+        published &&
+        !revision &&
+        (manage || isOwner || row.authorId === actor.userId),
+      canConfirmReview: published && (manage || isOwner),
+      canSetOwner: !row.mergedIntoId && (manage || isOwner),
+      canMerge: manage && !row.mergedIntoId && row.status !== 'archived',
+      canArchive: manage && published,
+      canReopen: manage && row.status === 'archived' && !row.mergedIntoId,
     };
   }
 
@@ -240,6 +310,7 @@ export class KbService {
             companyId: actor.activeCompanyId,
             articleNo: nextArticleNo(last?.articleNo ?? null),
             authorId: actor.userId,
+            ownerId: actor.userId,
           },
         });
         await this.record(actor, row.companyId, 'kb.article.created', row.id, {
@@ -261,17 +332,21 @@ export class KbService {
 
   async update(actor: Principal, id: string, input: SaveArticle) {
     const row = await this.readable(actor, id);
+    if (row.status === 'published' || row.status === 'archived') {
+      throw new AppError(
+        'CONFLICT',
+        'บทความที่เผยแพร่แล้วแก้ผ่านฉบับปรับปรุง — ฉบับเดิมยังเผยแพร่อยู่จนกว่าจะอนุมัติ',
+      );
+    }
     if (!this.canEdit(actor, row)) {
       throw new AppError(
         'FORBIDDEN',
-        'แก้ได้เฉพาะผู้เขียน (ขณะยังเป็นฉบับร่าง) หรือผู้ดูแลคลังความรู้',
+        row.status === 'in_review'
+          ? 'บทความรอตรวจอยู่ — ดึงกลับก่อนจึงแก้ได้'
+          : 'แก้ได้เฉพาะผู้เขียน (ขณะยังเป็นฉบับร่าง) หรือผู้ดูแลคลังความรู้',
       );
     }
     const data = await this.clean(row.companyId, input);
-    if (row.status === 'published') {
-      const problems = publishProblems(data);
-      if (problems.length) throw this.invalid(problems);
-    }
     await this.prisma.kbArticle.update({
       where: { id },
       data: { ...data, updatedBy: actor.userId },
@@ -279,28 +354,6 @@ export class KbService {
     await this.record(actor, row.companyId, 'kb.article.updated', id, {
       title: data.title,
       status: row.status,
-    });
-    return this.findOne(actor, id, false);
-  }
-
-  async publish(actor: Principal, id: string) {
-    const row = await this.managed(actor, id);
-    if (row.status === 'published')
-      throw new AppError('CONFLICT', 'เผยแพร่อยู่แล้ว');
-    const problems = publishProblems(row);
-    if (problems.length) throw this.invalid(problems);
-    await this.prisma.kbArticle.update({
-      where: { id },
-      data: {
-        status: 'published',
-        publishedAt: new Date(),
-        publishedBy: actor.userId,
-        archivedAt: null,
-        archivedBy: null,
-      },
-    });
-    await this.record(actor, row.companyId, 'kb.article.published', id, {
-      articleNo: row.articleNo,
     });
     return this.findOne(actor, id, false);
   }
@@ -325,14 +378,22 @@ export class KbService {
     return this.findOne(actor, id, false);
   }
 
-  /** Back to a draft to rework (an archived one, or a published one withdrawn). */
+  /** An archived article back to a draft, to rework and send for review again. */
   async reopen(actor: Principal, id: string) {
     const row = await this.managed(actor, id);
-    if (row.status === 'draft')
-      throw new AppError('CONFLICT', 'เป็นฉบับร่างอยู่แล้ว');
+    if (row.status !== 'archived' || row.mergedIntoId)
+      throw new AppError(
+        'CONFLICT',
+        'นำกลับมาได้เฉพาะบทความที่เลิกใช้ (ไม่ใช่ที่ถูกรวม)',
+      );
     await this.prisma.kbArticle.update({
       where: { id },
-      data: { status: 'draft', updatedBy: actor.userId },
+      data: {
+        status: 'draft',
+        archivedAt: null,
+        archivedBy: null,
+        updatedBy: actor.userId,
+      },
     });
     await this.record(actor, row.companyId, 'kb.article.reopened', id, {
       from: row.status,
@@ -530,6 +591,7 @@ export class KbService {
         parentId: r.parentId,
         sortOrder: r.sortOrder,
         active: r.active,
+        reviewMonths: r.reviewMonths,
         articles: count(r.id),
       })),
     };
@@ -543,6 +605,7 @@ export class KbService {
       parentId?: string | null;
       sortOrder?: number;
       active?: boolean;
+      reviewMonths?: number | null;
     },
   ) {
     if (!hasPermission(actor, MANAGE))
@@ -580,6 +643,7 @@ export class KbService {
       parentId,
       sortOrder: input.sortOrder ?? 0,
       active: input.active ?? true,
+      reviewMonths: input.reviewMonths ?? null,
     };
     if (id) {
       const row = await this.prisma.kbCategory.findFirst({
@@ -689,7 +753,10 @@ export class KbService {
     const visible =
       row &&
       (row.status === 'published' ||
+        // a merged duplicate: readers land on it and are sent to the main one
+        !!row.mergedIntoId ||
         row.authorId === actor.userId ||
+        row.ownerId === actor.userId ||
         hasPermission(actor, MANAGE));
     if (!row || !visible) throw new AppError('NOT_FOUND', 'ไม่พบบทความที่ระบุ');
     return row;
@@ -701,11 +768,24 @@ export class KbService {
     return this.readable(actor, id);
   }
 
-  private canEdit(actor: Principal, row: ArticleRow) {
+  /** Files go with the text: its editors, or the writer of an open revision. */
+  private async canAttach(actor: Principal, row: ArticleRow) {
+    if (this.canEdit(actor, row)) return true;
+    const revision = await this.prisma.kbArticleRevision.findFirst({
+      where: { articleId: row.id, status: { in: ['draft', 'returned'] } },
+      select: { createdBy: true },
+    });
     return (
-      hasPermission(actor, MANAGE) ||
-      (row.authorId === actor.userId && row.status === 'draft')
+      !!revision &&
+      (revision.createdBy === actor.userId || hasPermission(actor, MANAGE))
     );
+  }
+
+  /** The text itself — a published article changes through a revision. */
+  private canEdit(actor: Principal, row: ArticleRow) {
+    if (row.status === 'draft')
+      return row.authorId === actor.userId || hasPermission(actor, MANAGE);
+    return row.status === 'in_review' && hasPermission(actor, MANAGE);
   }
 
   private card(
@@ -727,6 +807,20 @@ export class KbService {
       productGroups: row.productGroups,
       source: row.source,
       author: names.get(row.authorId) ?? row.authorId,
+      owner: row.ownerId ? (names.get(row.ownerId) ?? row.ownerId) : null,
+      nextReviewOn: row.nextReviewOn
+        ? row.nextReviewOn.toISOString().slice(0, 10)
+        : null,
+      reviewState:
+        row.status === 'published'
+          ? reviewState(
+              row.nextReviewOn
+                ? row.nextReviewOn.toISOString().slice(0, 10)
+                : null,
+              thaiToday(),
+              REVIEW_WARN_DAYS,
+            )
+          : 'none',
       publishedAt: row.publishedAt,
       updatedAt: row.updatedAt,
       views: row.views,

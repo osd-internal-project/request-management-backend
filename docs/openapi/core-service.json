@@ -31176,6 +31176,674 @@
         ]
       }
     },
+    "/api/v1/kb/review-queue": {
+      "get": {
+        "operationId": "KbController_reviewQueue",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-260 งานรอตรวจ (ผู้ดูแล) และบทความที่ใกล้/เลยรอบทบทวน",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/articles/{id}/submit": {
+      "post": {
+        "operationId": "KbController_submit",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-260 ส่งฉบับร่างแรกให้ตรวจ",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/articles/{id}/withdraw": {
+      "post": {
+        "operationId": "KbController_withdraw",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KbReviewDecisionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-260 ดึงกลับจากการรอตรวจเพื่อแก้ (ฉบับร่าง หรือฉบับปรับปรุง)",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/articles/{id}/approve": {
+      "post": {
+        "operationId": "KbController_approve",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KbReviewDecisionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-260 อนุมัติเผยแพร่ (ฉบับร่างแรก หรือฉบับปรับปรุง) — ผู้ดูแลคลังความรู้",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/articles/{id}/send-back": {
+      "post": {
+        "operationId": "KbController_sendBack",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KbReviewDecisionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-260 ตีกลับพร้อมสิ่งที่ต้องแก้ — ผู้ดูแลคลังความรู้",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/articles/{id}/revisions": {
+      "post": {
+        "operationId": "KbController_openRevision",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-260 เปิดฉบับปรับปรุงของบทความที่เผยแพร่อยู่",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/articles/{id}/revisions/{revisionId}": {
+      "get": {
+        "operationId": "KbController_revision",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "revisionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-260 ฉบับปรับปรุง",
+        "tags": [
+          "kb"
+        ]
+      },
+      "put": {
+        "operationId": "KbController_updateRevision",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "revisionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveKbRevisionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-260 แก้ฉบับปรับปรุง",
+        "tags": [
+          "kb"
+        ]
+      },
+      "delete": {
+        "operationId": "KbController_discardRevision",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "revisionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-260 ทิ้งฉบับปรับปรุง",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/articles/{id}/revisions/{revisionId}/submit": {
+      "post": {
+        "operationId": "KbController_submitRevision",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "revisionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-260 ส่งฉบับปรับปรุงให้ตรวจ",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/articles/{id}/versions": {
+      "get": {
+        "operationId": "KbController_versions",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-260 ประวัติเวอร์ชันที่เผยแพร่",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/articles/{id}/versions/{version}": {
+      "get": {
+        "operationId": "KbController_version",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-260 เนื้อหาของเวอร์ชันหนึ่ง (ไว้เทียบ)",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/articles/{id}/owner": {
+      "put": {
+        "operationId": "KbController_setOwner",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KbOwnerDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-260 เปลี่ยนเจ้าของบทความ",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/articles/{id}/reviewed": {
+      "post": {
+        "operationId": "KbController_confirmReview",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KbConfirmReviewDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-260 ทบทวนแล้ว เนื้อหายังถูกต้อง (เจ้าของ/ผู้ดูแล)",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/articles/{id}/merge": {
+      "post": {
+        "operationId": "KbController_merge",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KbMergeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-260 รวมบทความซ้ำเข้าบทความหลัก — ผู้ดูแลคลังความรู้",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
     "/api/v1/kb/articles": {
       "get": {
         "operationId": "KbController_search",
@@ -31199,6 +31867,7 @@
               "enum": [
                 "published",
                 "draft",
+                "in_review",
                 "archived",
                 "mine"
               ]
@@ -31611,44 +32280,6 @@
         ]
       }
     },
-    "/api/v1/kb/articles/{id}/publish": {
-      "post": {
-        "operationId": "KbController_publish",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "X-Company-Id",
-            "in": "header",
-            "required": false,
-            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "CD-259 เผยแพร่ (ผู้ดูแลคลังความรู้)",
-        "tags": [
-          "kb"
-        ]
-      }
-    },
     "/api/v1/kb/articles/{id}/archive": {
       "post": {
         "operationId": "KbController_archive",
@@ -31729,7 +32360,7 @@
             "bearer": []
           }
         ],
-        "summary": "CD-259 กลับเป็นฉบับร่างเพื่อแก้ (ผู้ดูแลคลังความรู้)",
+        "summary": "CD-259/260 นำบทความที่เลิกใช้กลับเป็นฉบับร่าง (ผู้ดูแลคลังความรู้)",
         "tags": [
           "kb"
         ]
@@ -43424,6 +44055,112 @@
           "reported_pct"
         ]
       },
+      "KbReviewDecisionDto": {
+        "type": "object",
+        "properties": {
+          "revision_id": {
+            "type": "string",
+            "description": "ฉบับปรับปรุง (ว่าง = ฉบับร่างแรก)"
+          },
+          "note": {
+            "type": "string",
+            "description": "หมายเหตุ (บังคับเมื่อตีกลับ)",
+            "maxLength": 1000
+          }
+        }
+      },
+      "SaveKbRevisionDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "example": "VPN เชื่อมต่อไม่ได้หลังเปลี่ยนรหัสผ่าน",
+            "maxLength": 200
+          },
+          "summary": {
+            "type": "object",
+            "maxLength": 500
+          },
+          "body": {
+            "type": "string",
+            "description": "Markdown",
+            "maxLength": 100000
+          },
+          "category_id": {
+            "type": "object",
+            "description": "หมวดกระบวนการ"
+          },
+          "tags": {
+            "description": "แท็กอาการ",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "maxItems": 20
+          },
+          "product_codes": {
+            "description": "รหัสสินค้า SAP",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "maxItems": 50
+          },
+          "product_groups": {
+            "description": "กลุ่มสินค้า SAP",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "maxItems": 50
+          },
+          "change_note": {
+            "type": "string",
+            "description": "แก้อะไร (บังคับก่อนส่งตรวจ)",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "body",
+          "title"
+        ]
+      },
+      "KbOwnerDto": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "maxLength": 60
+          }
+        },
+        "required": [
+          "user_id"
+        ]
+      },
+      "KbConfirmReviewDto": {
+        "type": "object",
+        "properties": {
+          "note": {
+            "type": "string",
+            "maxLength": 500
+          }
+        }
+      },
+      "KbMergeDto": {
+        "type": "object",
+        "properties": {
+          "into_id": {
+            "type": "string",
+            "description": "บทความหลักที่จะรวมเข้า"
+          }
+        },
+        "required": [
+          "into_id"
+        ]
+      },
       "SaveKbArticleDto": {
         "type": "object",
         "properties": {
@@ -43495,6 +44232,12 @@
           },
           "active": {
             "type": "boolean"
+          },
+          "review_months": {
+            "type": "object",
+            "description": "CD-260 รอบทบทวนบทความ (เดือน) ว่าง = ตามหมวดแม่ / 12",
+            "maximum": 60,
+            "minimum": 1
           }
         },
         "required": [

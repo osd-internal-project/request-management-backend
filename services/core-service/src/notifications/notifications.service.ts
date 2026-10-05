@@ -738,6 +738,47 @@ export class NotificationsService {
     });
   }
 
+  /** CD-260 — a knowledge article sent for review, approved or sent back. */
+  async kbReview(
+    userId: string,
+    companyId: string,
+    article: { id: string; articleNo: string; title: string },
+    event: 'requested' | 'approved' | 'returned',
+    note: string,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: `kb.review_${event}`,
+      values: {
+        article: `${article.articleNo} · ${article.title}`,
+        note: note || '-',
+      },
+      resourceType: 'kb_article',
+      resourceId: article.id,
+    });
+  }
+
+  /** CD-260 — a knowledge article comes up for review. */
+  async kbReviewDue(
+    userId: string,
+    companyId: string,
+    article: { id: string; articleNo: string; title: string },
+    on: string,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'kb.review_due',
+      values: {
+        article: `${article.articleNo} · ${article.title}`,
+        date: thaiDay(on),
+      },
+      resourceType: 'kb_article',
+      resourceId: article.id,
+    });
+  }
+
   /** CD-256 — the digest of installments past due and unpaid. */
   async receivablesOverdue(
     userId: string,
