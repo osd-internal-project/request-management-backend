@@ -92,6 +92,11 @@ import { IntegrationsService } from './integrations.service';
 import { TechChangesService } from './tech-changes.service';
 import { ProjectCostsService } from './project-costs.service';
 import { ResourcesService } from './resources.service';
+import { ServiceAssetsService } from '../support/service-assets.service';
+import {
+  ServiceAssetHistoryRepository,
+  ServiceAssetRepository,
+} from '../support/support.repositories';
 import { HrBookingRepository } from '../hr/hr.repositories';
 import type { DayAvailability } from '../hr/leave-rules';
 import { CompanyRepository } from '../crm/product.repositories';
@@ -302,6 +307,10 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       });
       await prisma.projectTask.deleteMany({ where: { projectId } });
       await prisma.projectMilestone.deleteMany({ where: { projectId } });
+      await prisma.serviceAssetHistory.deleteMany({
+        where: { asset: { projectId } },
+      });
+      await prisma.serviceAsset.deleteMany({ where: { projectId } });
       await prisma.projectBookingPriority.deleteMany({ where: { projectId } });
       await prisma.projectResourceRequest.deleteMany({ where: { projectId } });
       await prisma.projectCostAlert.deleteMany({ where: { projectId } });
@@ -5473,6 +5482,22 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       );
       const files = new Map<string, Buffer>();
       const told: string[] = [];
+      // CD-236 — acceptance fills the installed base for real
+      const assetsService = new ServiceAssetsService(
+        new ServiceAssetRepository(client),
+        new ServiceAssetHistoryRepository(client),
+        new ProjectRepository(client),
+        new ProjectInstallationRepository(client),
+        new ProjectEnvironmentRepository(client),
+        new ProjectDeploymentRepository(client),
+        new CustomerRepository(client),
+        new CompanyMemberRepository(client),
+        { record: () => Promise.resolve() } as never,
+        {
+          execute: (work: (tx: unknown) => Promise<unknown>) =>
+            prisma.$transaction((tx) => work(tx)),
+        } as never,
+      );
       const acceptance = new AcceptanceService(
         projects,
         readiness,
@@ -5503,6 +5528,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         },
         audit,
         transactions,
+        assetsService,
       );
       const managerNow = as(engineer, ['notification.read']);
       const crew = as(outsider, ['notification.read']);
@@ -5708,6 +5734,174 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       );
     });
 
+    it('CD-236: the installed base — made at acceptance from installed points and production software, entered by hand and from a file, searched by serial', async () => {
+      const client = prisma as never;
+      const assetsService = new ServiceAssetsService(
+        new ServiceAssetRepository(client),
+        new ServiceAssetHistoryRepository(client),
+        new ProjectRepository(client),
+        new ProjectInstallationRepository(client),
+        new ProjectEnvironmentRepository(client),
+        new ProjectDeploymentRepository(client),
+        new CustomerRepository(client),
+        new CompanyMemberRepository(client),
+        { record: () => Promise.resolve() } as never,
+        {
+          execute: (work: (tx: unknown) => Promise<unknown>) =>
+            prisma.$transaction((tx) => work(tx)),
+        } as never,
+      );
+      const project = await prisma.project.findUniqueOrThrow({
+        where: { id: projectId },
+        select: { companyId: true, customerId: true },
+      });
+      const companyId = project.companyId;
+      const reader = {
+        ...as(randomUUID(), ['service.asset.read', 'service.asset.manage']),
+        activeCompanyId: companyId,
+      };
+      // the acceptance (CD-189) put in what was installed and production
+      const fromProject = await prisma.serviceAsset.findMany({
+        where: { projectId },
+        orderBy: { createdAt: 'asc' },
+      });
+      const installed = await prisma.projectInstallation.count({
+        where: { projectId, deletedAt: null, installedOn: { not: null } },
+      });
+      const production = await prisma.projectEnvironment.count({
+        where: { projectId, deletedAt: null, kind: 'production' },
+      });
+      expect(fromProject).toHaveLength(installed + production);
+      expect(
+        fromProject.every((row) => row.source === 'project' && row.acceptedOn),
+      ).toBe(true);
+      // once each: another round adds nothing
+      expect(
+        await assetsService.registerFromAcceptance({
+          projectId,
+          companyId,
+          acceptedOn: '2026-10-05',
+          actorId: engineer,
+          label: 'A-9',
+        }),
+      ).toEqual([]);
+
+      const tag = randomUUID().slice(0, 6).toUpperCase();
+      const customer = await prisma.customer.create({
+        data: {
+          companyId,
+          customerCode: `CUS-T236-${tag}`,
+          nameTh: `ทดสอบทะเบียน ${tag}`,
+          normalizedName: `ทดสอบทะเบียน ${tag}`,
+          status: 'active',
+          type: 'corporate',
+        },
+      });
+      try {
+        // by hand: a customer is needed; the serial is kept normalised
+        await expect(
+          assetsService.create(reader, { kind: 'equipment', name: 'UPS 3kVA' }),
+        ).rejects.toThrow('ต้องระบุลูกค้า');
+        const ups = await assetsService.create(reader, {
+          kind: 'equipment',
+          customer_id: customer.id,
+          name: 'UPS 3kVA',
+          serial_no: ` ups-${tag} 01`,
+          location: 'ห้อง server',
+          installed_on: '2024-03-01',
+        });
+        expect(ups.serialNo).toBe(`UPS-${tag}01`);
+        await expect(
+          assetsService.create(reader, {
+            kind: 'equipment',
+            customer_id: customer.id,
+            name: 'อีกเครื่อง',
+            serial_no: `ups-${tag}01`,
+          }),
+        ).rejects.toThrow('มีในทะเบียนแล้ว');
+
+        // the old base from a file: checked, then written
+        const rows = [
+          {
+            row_no: 2,
+            customer_code: customer.customerCode,
+            name: 'สวิตช์',
+            serial_no: `SW-${tag}`,
+            model: 'C9200',
+          },
+          { row_no: 3, customer_code: 'CUS-NOPE', name: 'x' },
+          {
+            row_no: 4,
+            customer_code: customer.customerCode,
+            name: 'ซ้ำ',
+            serial_no: `ups-${tag}01`,
+          },
+          {
+            row_no: 5,
+            customer_code: customer.customerCode,
+            kind: 'software',
+            name: 'ระบบบัญชี',
+            version: '3.2',
+          },
+        ];
+        const dry = await assetsService.import(reader, {
+          mode: 'dry_run',
+          import_id: `imp-${tag}`,
+          rows,
+        });
+        expect(dry.summary).toEqual({ create: 2, skip: 1, error: 1 });
+        expect(
+          await prisma.serviceAsset.count({
+            where: { customerId: customer.id },
+          }),
+        ).toBe(1);
+        const done = await assetsService.import(reader, {
+          mode: 'commit',
+          import_id: `imp-${tag}`,
+          rows,
+        });
+        expect(done.summary).toEqual({ create: 2, skip: 1, error: 1 });
+
+        // a call comes in: found by serial, or by the customer
+        let found = await assetsService.list(reader, { q: `sw-${tag}` });
+        expect(found.items.map((row) => row.name)).toEqual(['สวิตช์']);
+        found = await assetsService.list(reader, { customer_id: customer.id });
+        expect(found.items).toHaveLength(3);
+
+        // corrected with a reason; replaced, and out of the active list
+        await expect(
+          assetsService.update(reader, ups.id, { location: 'ชั้น 2' }),
+        ).rejects.toThrow('ต้องระบุเหตุผลที่แก้');
+        await assetsService.update(reader, ups.id, {
+          location: 'ชั้น 2',
+          reason: 'ย้ายห้อง',
+        });
+        const replaced = await assetsService.setStatus(reader, ups.id, {
+          status: 'replaced',
+          reason: 'เปลี่ยนเครื่องใหม่จากเคลม',
+        });
+        expect(replaced.history.map((row) => row.action)).toEqual([
+          'status',
+          'updated',
+          'created',
+        ]);
+        found = await assetsService.list(reader, { customer_id: customer.id });
+        expect(found.items).toHaveLength(2);
+        found = await assetsService.list(reader, {
+          customer_id: customer.id,
+          status: 'all',
+        });
+        expect(found.items).toHaveLength(3);
+      } finally {
+        await prisma.serviceAssetHistory.deleteMany({
+          where: { asset: { customerId: customer.id } },
+        });
+        await prisma.serviceAsset.deleteMany({
+          where: { customerId: customer.id },
+        });
+        await prisma.customer.delete({ where: { id: customer.id } });
+      }
+    });
     it('CD-192: health from the project figures; the weekly draft, refreshed until submitted; the portfolio puts risk first', async () => {
       const client = prisma as never;
       const transactions = {

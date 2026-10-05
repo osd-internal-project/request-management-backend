@@ -134,6 +134,13 @@ export const PERMISSIONS = {
     'hr.employee.read',
     'hr.employee.manage',
   ],
+  /**
+   * CD-21 Service & Support. `service.asset.read` sees the installed base
+   * (CD-236 — what each customer has, where, which serial and version);
+   * `service.asset.manage` adds and corrects it, and imports the base that
+   * predates the system.
+   */
+  service: ['service.asset.read', 'service.asset.manage'],
   admin: [
     'admin.role.manage',
     'admin.org.manage',

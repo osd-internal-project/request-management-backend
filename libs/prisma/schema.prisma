@@ -6821,3 +6821,65 @@ model ProjectResourceRequest {
   @@index([requestId])
   @@map("project_resource_requests")
 }
+
+/// CD-236 ทะเบียนอุปกรณ์ที่ติดตั้ง — what each customer has: equipment by
+/// serial and location, and software by its production environment (the
+/// version shown is what runs there now, CD-214). Made at acceptance from
+/// the project's installation points (CD-216) and production environments;
+/// the service team adds what predates the system, by hand or from a file.
+model ServiceAsset {
+  id             String    @id @default(uuid())
+  companyId      String
+  customerId     String?
+  projectId      String?
+  /// equipment · software
+  kind           String
+  /// project · manual · import
+  source         String
+  /// CD-216 point it came from; one asset per point
+  installationId String?  @unique
+  /// CD-214 production environment it came from; one asset per environment
+  environmentId  String?   @unique
+  productCode    String?
+  name           String
+  model          String?
+  serialNo       String?
+  location       String?
+  /// software kept by hand: its version
+  version        String?
+  installedOn    DateTime? @db.Date
+  acceptedOn     DateTime? @db.Date
+  /// active · replaced · removed
+  status         String    @default("active")
+  note           String?
+  createdAt      DateTime  @default(now())
+  createdBy      String
+  updatedAt      DateTime  @updatedAt
+  updatedBy      String?
+
+  history ServiceAssetHistory[]
+
+  @@unique([companyId, serialNo])
+  @@index([companyId, customerId])
+  @@index([projectId])
+  @@map("service_assets")
+}
+
+/// CD-236 — every change to an asset: what it was, what it became, why.
+model ServiceAssetHistory {
+  id        String   @id @default(uuid())
+  companyId String
+  assetId   String
+  /// created · updated · status
+  action    String
+  before    Json?
+  after     Json?
+  reason    String?
+  actorId   String
+  at        DateTime @default(now())
+
+  asset ServiceAsset @relation(fields: [assetId], references: [id], onDelete: Restrict)
+
+  @@index([assetId, at])
+  @@map("service_asset_history")
+}

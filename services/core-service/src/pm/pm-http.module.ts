@@ -41,6 +41,7 @@ import { ProjectCostsService } from './project-costs.service';
 import { ResourcesService } from './resources.service';
 import { ErpModule } from '../erp/erp.module';
 import { HrModule } from '../hr/hr.module';
+import { SupportModule } from '../support/support.module';
 import { CompanyRepository } from '../crm/product.repositories';
 import { TaskEvidenceService } from './task-evidence.service';
 import { DesignsService } from './designs.service';
@@ -53,6 +54,8 @@ import { TechPlanService } from './tech-plan.service';
     // CD-190 — actual costs: the ERP and approved timesheets
     ErpModule,
     HrModule,
+    // CD-236 — acceptance fills the installed base
+    SupportModule,
     // CD-182 milestone evidence — storage for the HTTP half only
     StorageModule.forRootAsync({
       inject: [ConfigService],

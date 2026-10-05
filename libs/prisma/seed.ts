@@ -371,6 +371,21 @@ const SEED_ROLES: {
     ],
   },
   {
+    // CD-21 — ทีมบริการหลังการขาย: the installed base to start with.
+    code: 'service',
+    name: 'ทีมบริการ',
+    description: 'ดูแลลูกค้าหลังใช้งานจริง — ทะเบียนอุปกรณ์ที่ติดตั้ง',
+    permissions: [
+      'request.create',
+      'request.read',
+      'notification.read',
+      'user.read',
+      'crm.customer.read',
+      'service.asset.read',
+      'service.asset.manage',
+    ],
+  },
+  {
     code: 'auditor',
     name: 'ผู้ตรวจสอบ',
     description: 'ตรวจสอบภายใน — อ่านอย่างเดียว ข้ามบริษัทได้',
