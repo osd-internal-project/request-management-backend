@@ -20653,6 +20653,423 @@
         ]
       }
     },
+    "/api/v1/service-portal/contacts": {
+      "get": {
+        "operationId": "ServicePortalController_contacts",
+        "parameters": [
+          {
+            "name": "customer_id",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 50,
+              "minLength": 1
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ผู้ติดต่อของลูกค้าที่เชิญเข้า portal",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.read"
+        ]
+      },
+      "post": {
+        "operationId": "ServicePortalController_invite",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvitePortalContactDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เชิญผู้ติดต่อ — ได้ลิงก์เข้าใช้ (แสดงครั้งเดียว)",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.manage"
+        ]
+      }
+    },
+    "/api/v1/service-portal/contacts/{id}/invite": {
+      "post": {
+        "operationId": "ServicePortalController_reinvite",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ออกลิงก์ใหม่ (ลิงก์เก่าและ session ที่เปิดอยู่ใช้ไม่ได้)",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.manage"
+        ]
+      }
+    },
+    "/api/v1/service-portal/contacts/{id}/revoke": {
+      "post": {
+        "operationId": "ServicePortalController_revoke",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ถอนสิทธิ์เข้า portal ทันที",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.manage"
+        ]
+      }
+    },
+    "/api/v1/service-portal/public/session": {
+      "post": {
+        "operationId": "ServicePortalPublicController_open",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PortalSessionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "เปิด session จากลิงก์เชิญ",
+        "tags": [
+          "service"
+        ]
+      }
+    },
+    "/api/v1/service-portal/public/logout": {
+      "post": {
+        "operationId": "ServicePortalPublicController_logout",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "ออกจากระบบ",
+        "tags": [
+          "service"
+        ]
+      }
+    },
+    "/api/v1/service-portal/public/me": {
+      "get": {
+        "operationId": "ServicePortalPublicController_me",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "ผู้ใช้ portal และลูกค้า",
+        "tags": [
+          "service"
+        ]
+      }
+    },
+    "/api/v1/service-portal/public/assets": {
+      "get": {
+        "operationId": "ServicePortalPublicController_assets",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "อุปกรณ์ที่ติดตั้งของลูกค้า",
+        "tags": [
+          "service"
+        ]
+      }
+    },
+    "/api/v1/service-portal/public/covers": {
+      "get": {
+        "operationId": "ServicePortalPublicController_covers",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "ประกัน/สัญญาบริการของลูกค้า",
+        "tags": [
+          "service"
+        ]
+      }
+    },
+    "/api/v1/service-portal/public/jobs": {
+      "get": {
+        "operationId": "ServicePortalPublicController_jobs",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "งานบริการของลูกค้าและสถานะ",
+        "tags": [
+          "service"
+        ]
+      },
+      "post": {
+        "operationId": "ServicePortalPublicController_raise",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PortalCaseDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "แจ้งเหตุ — เปิดใบสั่งงานบริการ",
+        "tags": [
+          "service"
+        ]
+      }
+    },
+    "/api/v1/service-portal/public/reports": {
+      "get": {
+        "operationId": "ServicePortalPublicController_reports",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "รายงานผลบริการที่ส่งให้ลูกค้าแล้ว",
+        "tags": [
+          "service"
+        ]
+      }
+    },
+    "/api/v1/service-portal/public/reports/{id}/pdf": {
+      "get": {
+        "operationId": "ServicePortalPublicController_reportPdf",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "PDF รายงานผลบริการ",
+        "tags": [
+          "service"
+        ]
+      }
+    },
     "/api/v1/delivery/report/phases": {
       "get": {
         "operationId": "DeliveryController_reportPhases",
@@ -35659,6 +36076,10 @@
             "pattern": "^([A-Z0-9_-]{1,20})?$",
             "type": "string"
           },
+          "service_portal_user_id": {
+            "maxLength": 50,
+            "type": "string"
+          },
           "project_close_documents": {
             "type": "array",
             "items": {
@@ -40617,6 +41038,76 @@
         "required": [
           "index",
           "overall"
+        ]
+      },
+      "InvitePortalContactDto": {
+        "type": "object",
+        "properties": {
+          "customer_id": {
+            "type": "string",
+            "maxLength": 50,
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1
+          },
+          "email": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "phone": {
+            "type": "string",
+            "maxLength": 50
+          }
+        },
+        "required": [
+          "customer_id",
+          "name"
+        ]
+      },
+      "PortalSessionDto": {
+        "type": "object",
+        "properties": {
+          "invite": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{20,64}$"
+          }
+        },
+        "required": [
+          "invite"
+        ]
+      },
+      "PortalCaseDto": {
+        "type": "object",
+        "properties": {
+          "asset_id": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "subject": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1
+          },
+          "detail": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "critical",
+              "high",
+              "medium",
+              "low"
+            ]
+          }
+        },
+        "required": [
+          "severity",
+          "subject"
         ]
       },
       "SendHandoverDto": {

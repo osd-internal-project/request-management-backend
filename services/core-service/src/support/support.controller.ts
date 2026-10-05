@@ -28,6 +28,7 @@ import { ClaimsService } from './claims.service';
 import { ProblemsService } from './problems.service';
 import { ServiceReportsService } from './service-reports.service';
 import { SurveysService } from './surveys.service';
+import { PortalService } from './portal.service';
 import {
   AssetStatusDto,
   AttachWorkOrderDto,
@@ -70,6 +71,10 @@ import {
   ServiceReportPreviewDto,
   ListSurveysQueryDto,
   SurveyAnswerDto,
+  InvitePortalContactDto,
+  PortalCaseDto,
+  PortalContactsQueryDto,
+  PortalSessionDto,
 } from './support.dto';
 
 /** CD-236 ทะเบียนอุปกรณ์ที่ติดตั้ง. */
@@ -957,5 +962,138 @@ export class ServiceSurveysPublicController {
   @Public()
   answer(@Param('token') token: string, @Body() dto: SurveyAnswerDto) {
     return this.surveys.answer(token, dto);
+  }
+}
+
+/** CD-249 Customer Portal — the service team's side (contacts, invites). */
+@ApiTags('service')
+@ApiBearerAuth()
+@Controller('service-portal')
+export class ServicePortalController {
+  constructor(private readonly portal: PortalService) {}
+
+  @ApiOperation({ summary: 'ผู้ติดต่อของลูกค้าที่เชิญเข้า portal' })
+  @Get('contacts')
+  @Permissions('service.asset.read')
+  contacts(
+    @Query() query: PortalContactsQueryDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.portal.contactsOf(principal, query.customer_id);
+  }
+
+  @ApiOperation({ summary: 'เชิญผู้ติดต่อ — ได้ลิงก์เข้าใช้ (แสดงครั้งเดียว)' })
+  @Post('contacts')
+  @Permissions('service.asset.manage')
+  invite(
+    @Body() dto: InvitePortalContactDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.portal.invite(principal, dto);
+  }
+
+  @ApiOperation({
+    summary: 'ออกลิงก์ใหม่ (ลิงก์เก่าและ session ที่เปิดอยู่ใช้ไม่ได้)',
+  })
+  @Post('contacts/:id/invite')
+  @Permissions('service.asset.manage')
+  reinvite(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.portal.reinvite(principal, id);
+  }
+
+  @ApiOperation({ summary: 'ถอนสิทธิ์เข้า portal ทันที' })
+  @Post('contacts/:id/revoke')
+  @Permissions('service.asset.manage')
+  revoke(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.portal.revoke(principal, id);
+  }
+}
+
+/**
+ * CD-249 — the customer's portal, public: an invite link opens a session;
+ * the session token (only its SHA-256 kept) rides in `x-portal-session`,
+ * put there by the web app's server routes from an httpOnly cookie and
+ * rate-limited by address. Every read is pinned to the session's customer.
+ * Declared in AGENTS.md as core-service's third public business surface.
+ */
+@ApiTags('service')
+@Controller('service-portal/public')
+export class ServicePortalPublicController {
+  constructor(private readonly portal: PortalService) {}
+
+  @ApiOperation({ summary: 'เปิด session จากลิงก์เชิญ' })
+  @Post('session')
+  @Public()
+  open(@Body() dto: PortalSessionDto) {
+    return this.portal.openSession(dto.invite);
+  }
+
+  @ApiOperation({ summary: 'ออกจากระบบ' })
+  @Post('logout')
+  @Public()
+  logout(@Headers('x-portal-session') session: string | undefined) {
+    return session ? this.portal.closeSession(session) : { ok: true };
+  }
+
+  @ApiOperation({ summary: 'ผู้ใช้ portal และลูกค้า' })
+  @Get('me')
+  @Public()
+  async me(@Headers('x-portal-session') session: string | undefined) {
+    return this.portal.me(await this.portal.viewer(session));
+  }
+
+  @ApiOperation({ summary: 'อุปกรณ์ที่ติดตั้งของลูกค้า' })
+  @Get('assets')
+  @Public()
+  async assets(@Headers('x-portal-session') session: string | undefined) {
+    return this.portal.assets(await this.portal.viewer(session));
+  }
+
+  @ApiOperation({ summary: 'ประกัน/สัญญาบริการของลูกค้า' })
+  @Get('covers')
+  @Public()
+  async covers(@Headers('x-portal-session') session: string | undefined) {
+    return this.portal.covers(await this.portal.viewer(session));
+  }
+
+  @ApiOperation({ summary: 'งานบริการของลูกค้าและสถานะ' })
+  @Get('jobs')
+  @Public()
+  async jobs(@Headers('x-portal-session') session: string | undefined) {
+    return this.portal.jobs(await this.portal.viewer(session));
+  }
+
+  @ApiOperation({ summary: 'แจ้งเหตุ — เปิดใบสั่งงานบริการ' })
+  @Post('jobs')
+  @Public()
+  async raise(
+    @Headers('x-portal-session') session: string | undefined,
+    @Body() dto: PortalCaseDto,
+  ) {
+    return this.portal.raise(await this.portal.viewer(session), dto);
+  }
+
+  @ApiOperation({ summary: 'รายงานผลบริการที่ส่งให้ลูกค้าแล้ว' })
+  @Get('reports')
+  @Public()
+  async reports(@Headers('x-portal-session') session: string | undefined) {
+    return this.portal.reportsOf(await this.portal.viewer(session));
+  }
+
+  @ApiOperation({ summary: 'PDF รายงานผลบริการ' })
+  @Get('reports/:id/pdf')
+  @Public()
+  async reportPdf(
+    @Headers('x-portal-session') session: string | undefined,
+    @Param('id') id: string,
+  ): Promise<StreamableFile> {
+    const file = await this.portal.reportFile(
+      await this.portal.viewer(session),
+      id,
+    );
+    return new StreamableFile(file.stream, {
+      type: 'application/pdf',
+      disposition: `inline; filename*=UTF-8''${encodeURIComponent(file.fileName)}`,
+    });
   }
 }

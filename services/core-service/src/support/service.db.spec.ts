@@ -20,6 +20,8 @@ import {
   ServiceReportRepository,
   ServiceSlaClockRepository,
   ServiceSurveyRepository,
+  ServicePortalContactRepository,
+  ServicePortalSessionRepository,
   ServiceEntitlementRepository,
   ServiceLabourRateRepository,
   ServiceMaterialUseRepository,
@@ -37,6 +39,7 @@ import { ClaimsService } from './claims.service';
 import { ProblemsService } from './problems.service';
 import { ServiceReportsService } from './service-reports.service';
 import { SurveysService } from './surveys.service';
+import { PortalService } from './portal.service';
 import { SurveySender } from './survey-sender';
 import { ContractTermsRepository as TermsRepo } from '../crm/contract-terms.service';
 import { CrmConfigRepository } from '../crm/segment.repositories';
@@ -146,6 +149,12 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
     afterAll(async () => {
       await prisma.serviceBilling.deleteMany({
         where: { requestId: { in: requestIds } },
+      });
+      await prisma.servicePortalSession.deleteMany({
+        where: { createdAt: { gte: startedAt } },
+      });
+      await prisma.servicePortalContact.deleteMany({
+        where: { customerId },
       });
       await prisma.serviceSurvey.deleteMany({
         where: { requestId: { in: requestIds } },
@@ -1833,6 +1842,175 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       expect(
         figures.byTechnician.find((row) => row.key === staff),
       ).toMatchObject({ low: expect.any(Number) as unknown });
+    });
+
+    it('CD-249: an invited contact opens a session from the link and sees only their customer — assets, covers, jobs, sent reports — and raises a case; reissue and revoke shut the old ways in', async () => {
+      const client = prisma as never;
+      const transactions = {
+        execute: (work: (tx: unknown) => Promise<unknown>) =>
+          prisma.$transaction((tx) => work(tx)),
+      } as never;
+      const audit = { record: () => Promise.resolve() } as never;
+      const manager = {
+        userId: staff,
+        activeCompanyId: companyId,
+        permissions: ['service.asset.read', 'service.asset.manage'],
+      } as unknown as Principal;
+      const requests = {
+        addGuard: () => undefined,
+        create: async (dto: { form_data: Record<string, string> }) => {
+          const row = await prisma.request.create({
+            data: {
+              requestTypeId: typeId,
+              typeCode,
+              companyId,
+              requesterId: staff,
+              status: 'draft',
+              severity: 'high',
+              formData: dto.form_data,
+            },
+          });
+          requestIds.push(row.id);
+          return row;
+        },
+        submit: (id: string) =>
+          prisma.request.update({
+            where: { id },
+            data: { status: 'submitted' },
+          }),
+      };
+      const workOrders = new WorkOrdersService(
+        new ServiceWorkOrderRepository(client),
+        new ServiceAssetRepository(client),
+        new ServiceEntitlementRepository(client),
+        new CustomerRepository(client),
+        {
+          findFirst: () =>
+            Promise.resolve({ serviceWorkOrderTypeCode: typeCode }),
+        } as never,
+        new RequestRepository(client),
+        requests as never,
+        new EntitlementsService(
+          new ServiceEntitlementRepository(client),
+          new ServiceEntitlementAssetRepository(client),
+          new ServiceAssetRepository(client),
+          new CustomerContractRepository(client),
+          new ContractTermsRepository(client),
+          new CustomerRepository(client),
+          audit,
+          transactions,
+        ),
+        { on: () => undefined } as never,
+        audit,
+        transactions,
+        new SlaService(prisma as never),
+        { dispatch: () => Promise.resolve(null) } as never,
+      );
+      let portalUser: string | null = null;
+      const portal = new PortalService(
+        new ServicePortalContactRepository(client),
+        new ServicePortalSessionRepository(client),
+        new CustomerRepository(client),
+        new ServiceAssetRepository(client),
+        new ServiceEntitlementRepository(client),
+        new ServiceEntitlementAssetRepository(client),
+        new ServiceWorkOrderRepository(client),
+        new ServiceReportRepository(client),
+        new RequestRepository(client),
+        {
+          findFirst: () =>
+            Promise.resolve({
+              servicePortalUserId: portalUser,
+              letterheadNameTh: null,
+            }),
+        } as never,
+        workOrders,
+        { principalOf: () => Promise.resolve(manager) } as never,
+        { get: () => Promise.resolve(null) } as never,
+        audit,
+        transactions,
+        { get: () => 'https://ctd.example' } as never,
+      );
+
+      const invited = await portal.invite(manager, {
+        customer_id: customerId,
+        name: 'คุณวิภา (ฝ่ายอาคาร)',
+        email: 'wipa@example.com',
+      });
+      expect(invited.contact.state).toBe('active');
+      const invite = invited.link.split('/f/portal/enter/')[1];
+      const { session } = await portal.openSession(invite);
+      await expect(portal.viewer('x'.repeat(32))).rejects.toMatchObject({
+        code: 'UNAUTHORIZED',
+      });
+      const viewer = await portal.viewer(session);
+      expect(viewer.customerId).toBe(customerId);
+      expect(await portal.me(viewer)).toMatchObject({ canRaise: false });
+
+      expect((await portal.assets(viewer)).map((a) => a.id)).toContain(assetId);
+      expect((await portal.covers(viewer)).map((c) => c.id)).toContain(
+        entitlementId,
+      );
+      const jobs = await portal.jobs(viewer);
+      expect(jobs.length).toBeGreaterThan(0);
+      expect(
+        jobs.every((job) =>
+          ['received', 'working', 'waiting', 'done', 'cancelled'].includes(
+            job.status,
+          ),
+        ),
+      ).toBe(true);
+      // the report CD-247 sent to this customer
+      expect((await portal.reportsOf(viewer)).length).toBeGreaterThanOrEqual(1);
+
+      // raising a case needs the company's portal user
+      await expect(
+        portal.raise(viewer, { subject: 'กล้องดับ', severity: 'high' }),
+      ).rejects.toThrow('ยังไม่เปิดให้แจ้งเหตุ');
+      portalUser = staff;
+      await expect(
+        portal.raise(viewer, {
+          subject: 'กล้องดับ',
+          severity: 'high',
+          asset_id: randomUUID(),
+        }),
+      ).rejects.toThrow('ไม่พบอุปกรณ์');
+      const raised = await portal.raise(viewer, {
+        subject: 'กล้องหน้าลิฟต์ดับ',
+        detail: 'ดับตั้งแต่เช้า',
+        severity: 'high',
+        asset_id: assetId,
+      });
+      const order = await prisma.serviceWorkOrder.findUniqueOrThrow({
+        where: { id: raised.id },
+      });
+      const request = await prisma.request.findUniqueOrThrow({
+        where: { id: order.requestId },
+      });
+      expect(request).toMatchObject({
+        contactName: 'คุณวิภา (ฝ่ายอาคาร)',
+        contactEmail: 'wipa@example.com',
+        status: 'submitted',
+      });
+
+      // a fresh link: the old link and the open session stop
+      const again = await portal.reinvite(manager, invited.contact.id);
+      await expect(portal.openSession(invite)).rejects.toThrow('ลิงก์');
+      await expect(portal.viewer(session)).rejects.toMatchObject({
+        code: 'UNAUTHORIZED',
+      });
+      const second = await portal.openSession(
+        again.link.split('/f/portal/enter/')[1],
+      );
+      await portal.viewer(second.session);
+      // revoked: out at once
+      await portal.revoke(manager, invited.contact.id);
+      await expect(portal.viewer(second.session)).rejects.toMatchObject({
+        code: 'UNAUTHORIZED',
+      });
+      expect((await portal.contactsOf(manager, customerId))[0].state).toBe(
+        'revoked',
+      );
     });
   },
 );

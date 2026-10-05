@@ -11045,6 +11045,10 @@
             "pattern": "^([A-Z0-9_-]{1,20})?$",
             "type": "string"
           },
+          "service_portal_user_id": {
+            "maxLength": 50,
+            "type": "string"
+          },
           "project_close_documents": {
             "type": "array",
             "items": {

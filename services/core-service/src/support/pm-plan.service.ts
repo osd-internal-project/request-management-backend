@@ -788,10 +788,7 @@ export class PmPlanService implements OnModuleInit, OnModuleDestroy {
    * sit, with the service permissions a PM round needs — the same rows the
    * screens' principal is built from, without a token.
    */
-  private async principalOf(
-    userId: string,
-    companyId: string,
-  ): Promise<Principal> {
+  async principalOf(userId: string, companyId: string): Promise<Principal> {
     const user = (await this.people.findFirst({
       where: {
         id: userId,
