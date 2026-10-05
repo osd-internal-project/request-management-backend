@@ -395,6 +395,24 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
     },
   },
   {
+    eventType: 'pm.resource.conflict',
+    label: 'คนในโครงการของคุณถูกจองซ้อนจากอีกโครงการ (ถึงผู้จัดการโครงการ)',
+    title: '{{person}} ถูกจองซ้อนโดยโครงการ {{project_no}}',
+    body: '{{from}} ถึง {{to}} ชนกับ {{your_project}} — จัดลำดับ: {{priority}} · เหตุผล: {{reason}}',
+    variables: {
+      project_no: { label: 'โครงการที่จองเพิ่ม', sample: 'PRJ-OSD-000015' },
+      your_project: {
+        label: 'โครงการของคุณ',
+        sample: 'PRJ-OSD-000012 · ติดตั้งกล้อง อาคาร A',
+      },
+      person: { label: 'ผู้ถูกจอง', sample: 'คุณสมชาย' },
+      from: { label: 'ตั้งแต่', sample: '2026-10-12' },
+      to: { label: 'ถึง', sample: '2026-10-16' },
+      priority: { label: 'การจัดลำดับ', sample: 'PRJ-OSD-000015 มาก่อน' },
+      reason: { label: 'เหตุผล', sample: 'ลูกค้าเร่งเปิดระบบ' },
+    },
+  },
+  {
     eventType: 'pm.cost.warn',
     label: 'ต้นทุนโครงการใกล้เกินงบ (ถึงผู้จัดการโครงการและทีมราคา)',
     title: 'โครงการ {{project_no}}: ต้นทุน{{category}}ใกล้เกินงบ ({{pct}})',

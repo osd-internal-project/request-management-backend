@@ -977,6 +977,41 @@ export class NotificationsService {
     });
   }
 
+  /** CD-180 — someone booked on your project was booked past their time elsewhere. */
+  async resourceConflict(
+    userId: string,
+    companyId: string,
+    input: {
+      project: { id: string; projectNo: string; name?: string };
+      otherProject: string;
+      person: string;
+      from: string;
+      to: string;
+      priority: string;
+      reason: string;
+    },
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'pm.resource.conflict',
+      values: {
+        project_no: input.project.projectNo,
+        your_project: input.otherProject,
+        person: input.person,
+        from: input.from,
+        to: input.to,
+        priority:
+          input.priority === 'this_first'
+            ? `${input.project.projectNo} มาก่อน`
+            : 'โครงการเดิมมาก่อน (ใช้เวลาที่ว่าง)',
+        reason: input.reason,
+      },
+      resourceType: 'project',
+      resourceId: input.project.id,
+    });
+  }
+
   /** CD-190 — a project's actual cost crossed a threshold of its budget. */
   async projectCostAlert(
     userId: string,

@@ -636,3 +636,31 @@ export class ProjectCostAlertRepository extends BaseRepository<
     return client.projectCostAlert;
   }
 }
+
+/** CD-180. */
+@Injectable()
+export class ProjectBookingPriorityRepository extends BaseRepository<
+  PrismaService['projectBookingPriority']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.projectBookingPriority;
+  }
+}
+
+/** CD-180. */
+@Injectable()
+export class ProjectResourceRequestRepository extends BaseRepository<
+  PrismaService['projectResourceRequest']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.projectResourceRequest;
+  }
+}

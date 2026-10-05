@@ -57,6 +57,8 @@ import {
   ProjectTechChangeRepository,
   ProjectCostAlertRepository,
   ProjectCostRepository,
+  ProjectBookingPriorityRepository,
+  ProjectResourceRequestRepository,
   ProjectDesignRepository,
   ProjectDesignFileRepository,
   ProjectTaskEquipmentRepository,
@@ -89,6 +91,9 @@ import { ConfigsService } from './configs.service';
 import { IntegrationsService } from './integrations.service';
 import { TechChangesService } from './tech-changes.service';
 import { ProjectCostsService } from './project-costs.service';
+import { ResourcesService } from './resources.service';
+import { HrBookingRepository } from '../hr/hr.repositories';
+import type { DayAvailability } from '../hr/leave-rules';
 import { CompanyRepository } from '../crm/product.repositories';
 import { CustomerContactRepository } from '../crm/customer-child.repositories';
 import { TaskEvidenceService } from './task-evidence.service';
@@ -297,6 +302,8 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       });
       await prisma.projectTask.deleteMany({ where: { projectId } });
       await prisma.projectMilestone.deleteMany({ where: { projectId } });
+      await prisma.projectBookingPriority.deleteMany({ where: { projectId } });
+      await prisma.projectResourceRequest.deleteMany({ where: { projectId } });
       await prisma.projectCostAlert.deleteMany({ where: { projectId } });
       await prisma.projectCost.deleteMany({ where: { projectId } });
       await prisma.projectTechChange.deleteMany({ where: { projectId } });
@@ -4354,6 +4361,321 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
             data: { status: row.status },
           });
         }
+      }
+    });
+
+    it('CD-180: the team on the project — an overbooking names its priority and reason and tells the clashing project, more people asked through the request engine, load by week', async () => {
+      const client = prisma as never;
+      const transactions = {
+        execute: (work: (tx: unknown) => Promise<unknown>) =>
+          prisma.$transaction((tx) => work(tx)),
+      } as never;
+      const audit = { record: () => Promise.resolve() } as never;
+      const tag = randomUUID().slice(0, 8);
+      const project = await prisma.project.findUniqueOrThrow({
+        where: { id: projectId },
+        select: { companyId: true, projectNo: true },
+      });
+      const companyId = project.companyId;
+      // a second project that already has the person booked
+      const other = await prisma.project.findFirst({
+        where: { companyId, id: { not: projectId } },
+        select: { id: true, managerUserId: true },
+      });
+      const otherId = other?.id ?? projectId;
+      const person = outsider;
+      // CD-232 stood in: 8 h a working day, minus what hr_bookings hold
+      const hours = async (userId: string, from: string, to: string) => {
+        const rows = await prisma.hrBooking.findMany({
+          where: { userId, cancelledAt: null },
+        });
+        const days: DayAvailability[] = [];
+        for (
+          let at = Date.parse(`${from}T00:00:00Z`);
+          at <= Date.parse(`${to}T00:00:00Z`);
+          at += 86_400_000
+        ) {
+          const d = new Date(at).toISOString().slice(0, 10);
+          const working = ![0, 6].includes(new Date(at).getUTCDay());
+          const booked = working
+            ? rows
+                .filter(
+                  (row) =>
+                    row.startDate.toISOString().slice(0, 10) <= d &&
+                    row.endDate.toISOString().slice(0, 10) >= d,
+                )
+                .map((row) => ({
+                  bookingId: row.id,
+                  projectId: row.projectId,
+                  hours: Number(row.hoursPerDay),
+                }))
+            : [];
+          const bookedHours = booked.reduce((sum, b) => sum + b.hours, 0);
+          const capacity = working ? 8 : 0;
+          days.push({
+            day: d,
+            working,
+            capacity,
+            leaveHours: 0,
+            pendingLeave: false,
+            leaveType: null,
+            booked,
+            bookedHours,
+            free: capacity - bookedHours,
+          });
+        }
+        return days;
+      };
+      const availability = {
+        availabilityFor: async (
+          _c: string,
+          userIds: string[],
+          from: string,
+          to: string,
+        ) =>
+          new Map(
+            await Promise.all(
+              userIds.map(
+                async (id) => [id, await hours(id, from, to)] as const,
+              ),
+            ),
+          ),
+        createBooking: async (
+          actor: { userId: string },
+          dto: {
+            user_id: string;
+            project_id: string;
+            start_date: string;
+            end_date: string;
+            hours_per_day: number;
+          },
+        ) => {
+          const row = await prisma.hrBooking.create({
+            data: {
+              companyId,
+              userId: dto.user_id,
+              projectId: dto.project_id,
+              startDate: new Date(`${dto.start_date}T00:00:00Z`),
+              endDate: new Date(`${dto.end_date}T00:00:00Z`),
+              hoursPerDay: dto.hours_per_day,
+              createdBy: actor.userId,
+            },
+          });
+          return { booking: { id: row.id }, overbooked: [] };
+        },
+        cancelBooking: (actor: { userId: string }, id: string) =>
+          prisma.hrBooking.update({
+            where: { id },
+            data: { cancelledAt: new Date(), cancelledBy: actor.userId },
+          }),
+        availability: async (_a: unknown, q: { from: string; to: string }) => ({
+          projects: {},
+          people: [
+            {
+              userId: person,
+              name: 'ช่าง',
+              days: await hours(person, q.from, q.to),
+              totals: { capacity: 0, leave: 0, booked: 0, free: 0 },
+            },
+          ],
+        }),
+      };
+      const statuses = new Map<string, string>();
+      let seq = 0;
+      const asked: { form_data: Record<string, unknown> }[] = [];
+      const told: string[] = [];
+      const resources = new ResourcesService(
+        projects,
+        new ProjectRepository(client),
+        availability as never,
+        new HrBookingRepository(client),
+        new ProjectBookingPriorityRepository(client),
+        new ProjectResourceRequestRepository(client),
+        {
+          findFirst: () => Promise.resolve({ projectResourceTypeCode: 'RES' }),
+        } as never,
+        {
+          findFirst: (args: { where: { id: string } }) =>
+            Promise.resolve({
+              status: statuses.get(args.where.id) ?? 'submitted',
+            }),
+          findMany: () => Promise.resolve([]),
+        } as never,
+        {
+          create: (input: { form_data: Record<string, unknown> }) => {
+            asked.push(input);
+            seq++;
+            return Promise.resolve({ id: `req-rr-${tag}-${seq}` });
+          },
+          submit: () => Promise.resolve(),
+        } as never,
+        new CompanyMemberRepository(client),
+        {
+          resourceConflict: (
+            userId: string,
+            _c: string,
+            input: { priority: string },
+          ) => {
+            told.push(`${userId}:${input.priority}`);
+            return Promise.resolve();
+          },
+        } as never,
+        { on: () => undefined } as never,
+        audit,
+        transactions,
+      );
+      const managerNow = as(engineer, ['notification.read']);
+      const crew = as(outsider, ['notification.read']);
+      // Mon 12 – Fri 16 Oct 2026; the other project holds 6 h a day
+      const held = await prisma.hrBooking.create({
+        data: {
+          companyId,
+          userId: person,
+          projectId: otherId,
+          startDate: new Date('2026-10-12T00:00:00Z'),
+          endDate: new Date('2026-10-16T00:00:00Z'),
+          hoursPerDay: 6,
+          createdBy: engineer,
+        },
+      });
+      try {
+        const want = {
+          user_id: person,
+          start_date: '2026-10-12',
+          end_date: '2026-10-18',
+          hours_per_day: 4,
+        };
+        await expect(
+          resources.preview(projectId, want, crew),
+        ).rejects.toMatchObject({
+          code: 'FORBIDDEN',
+        });
+        const preview = await resources.preview(projectId, want, managerNow);
+        // 5 working days short by 2 h; the weekend is not counted
+        expect(preview.overbooked).toHaveLength(5);
+        expect(preview.overbooked[0]).toMatchObject({
+          day: '2026-10-12',
+          free: 2,
+          short: 2,
+        });
+        if (otherId !== projectId) {
+          expect(preview.conflicts.map((row) => row.projectId)).toEqual([
+            otherId,
+          ]);
+        }
+
+        // past what is free: a priority and its reason, or no booking
+        await expect(
+          resources.book(projectId, want, managerNow),
+        ).rejects.toThrow('ต้องระบุว่าโครงการไหนมาก่อน');
+        let view = await resources.book(
+          projectId,
+          { ...want, priority: 'this_first', reason: 'ลูกค้าเร่งเปิดระบบ' },
+          managerNow,
+          // the view's "today" is the default; bookings run in the future
+        );
+        const mine = view.bookings.find(
+          (row) => row.userId === person && row.hoursPerDay === 4,
+        )!;
+        expect(mine).toMatchObject({ hoursPerDay: 4, overbookedDays: 5 });
+        expect(mine.priority).toMatchObject({
+          priority: 'this_first',
+          reason: 'ลูกค้าเร่งเปิดระบบ',
+        });
+        if (otherId !== projectId && other!.managerUserId !== engineer) {
+          expect(told).toEqual([`${other!.managerUserId}:this_first`]);
+        }
+        // within what is free: no priority asked
+        view = await resources.book(
+          projectId,
+          {
+            user_id: person,
+            start_date: '2026-10-19',
+            end_date: '2026-10-23',
+            hours_per_day: 8,
+          },
+          managerNow,
+        );
+        expect(
+          view.bookings.find((row) => row.startDate === '2026-10-19'),
+        ).toMatchObject({ overbookedDays: 0, priority: null });
+
+        // the team reads it; cancelling frees the time
+        expect(
+          (await resources.view(projectId, crew)).bookings.length,
+        ).toBeGreaterThanOrEqual(2);
+        view = await resources.cancelBooking(projectId, mine.id, managerNow);
+        expect(view.bookings.some((row) => row.id === mine.id)).toBe(false);
+
+        // more people, through the request engine
+        await expect(
+          resources.ask(
+            projectId,
+            {
+              role: '',
+              headcount: 0,
+              start_date: '2026-10-12',
+              end_date: '2026-10-30',
+              hours_per_day: 8,
+            },
+            managerNow,
+            'Bearer x',
+          ),
+        ).rejects.toThrow('ต้องระบุตำแหน่งหรือทักษะที่ต้องการ');
+        view = await resources.ask(
+          projectId,
+          {
+            role: 'วิศวกรเครือข่าย',
+            headcount: 2,
+            start_date: '2026-10-12',
+            end_date: '2026-10-30',
+            hours_per_day: 8,
+          },
+          managerNow,
+          'Bearer x',
+        );
+        expect(asked[0].form_data).toMatchObject({
+          resource_request_no: 'RR-1',
+          role: 'วิศวกรเครือข่าย',
+          headcount: 2,
+        });
+        expect(view.requests[0]).toMatchObject({
+          label: 'RR-1',
+          status: 'submitted',
+        });
+        await expect(
+          resources.fulfil(projectId, view.requests[0].id, managerNow),
+        ).rejects.toThrow('ปิดได้เฉพาะคำขอที่อนุมัติแล้ว');
+        statuses.set(`req-rr-${tag}-1`, 'approved');
+        await resources.syncRequest(`req-rr-${tag}-1`);
+        view = await resources.fulfil(
+          projectId,
+          view.requests[0].id,
+          managerNow,
+        );
+        expect(view.requests[0].status).toBe('fulfilled');
+
+        // the load by week, Monday-aligned
+        const load = await resources.workload(managerNow, {
+          from: '2026-10-14',
+          weeks: '2',
+        });
+        expect(load.weeks).toEqual(['2026-10-12', '2026-10-19']);
+        expect(load.people[0].weeks[1]).toMatchObject({
+          week: '2026-10-19',
+          booked: 40,
+          pct: 100,
+        });
+      } finally {
+        await prisma.projectBookingPriority.deleteMany({
+          where: { projectId },
+        });
+        await prisma.projectResourceRequest.deleteMany({
+          where: { projectId },
+        });
+        await prisma.hrBooking.deleteMany({
+          where: { OR: [{ projectId }, { id: held.id }] },
+        });
       }
     });
 

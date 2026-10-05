@@ -1,4 +1,5 @@
 import { CustomerContactRepository } from '../crm/customer-child.repositories';
+import { HrBookingRepository } from '../hr/hr.repositories';
 import { Module } from '@nestjs/common';
 import { PrismaTransactionService } from '@request-management/share';
 import { AccessModule } from '../access/access.module';
@@ -52,6 +53,8 @@ import {
   ProjectTechChangeRepository,
   ProjectCostAlertRepository,
   ProjectCostRepository,
+  ProjectBookingPriorityRepository,
+  ProjectResourceRequestRepository,
   ProjectDesignRepository,
   ProjectDesignFileRepository,
   ProjectTaskEquipmentRepository,
@@ -114,6 +117,10 @@ import { ContractRiskAssessmentRepository } from '../crm/contract-risk.service';
     ProjectTechChangeRepository,
     ProjectCostRepository,
     ProjectCostAlertRepository,
+    ProjectBookingPriorityRepository,
+    ProjectResourceRequestRepository,
+    // CD-180 — CD-232's bookings, read for the project's team card
+    HrBookingRepository,
     // CD-219 — the customer's contacts, read for an integration's owner
     CustomerContactRepository,
     ProjectDesignRepository,
@@ -175,6 +182,10 @@ import { ContractRiskAssessmentRepository } from '../crm/contract-risk.service';
     ProjectTechChangeRepository,
     ProjectCostRepository,
     ProjectCostAlertRepository,
+    ProjectBookingPriorityRepository,
+    ProjectResourceRequestRepository,
+    // CD-180 — CD-232's bookings, read for the project's team card
+    HrBookingRepository,
     // CD-219 — the customer's contacts, read for an integration's owner
     CustomerContactRepository,
     ProjectDesignRepository,

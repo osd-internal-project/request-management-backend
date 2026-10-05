@@ -59,6 +59,9 @@ import {
   SaveIntegrationDto,
   SaveTechChangeDto,
   AddProjectCostDto,
+  BookResourceDto,
+  SaveResourceRequestDto,
+  WorkloadQueryDto,
   SaveConfigItemDto,
   CarrySoftwareDocumentDto,
   SaveEnvironmentDto,
@@ -118,6 +121,7 @@ import { ConfigsService } from './configs.service';
 import { IntegrationsService } from './integrations.service';
 import { TechChangesService } from './tech-changes.service';
 import { ProjectCostsService } from './project-costs.service';
+import { ResourcesService } from './resources.service';
 import { MAX_TASK_FILE_BYTES, TaskWorkService } from './task-work.service';
 import { MAX_FILES_PER_UPDATE } from './task-rules';
 import { ProjectsService } from './projects.service';
@@ -162,6 +166,7 @@ export class ProjectsController {
     private readonly integrations: IntegrationsService,
     private readonly techChanges: TechChangesService,
     private readonly projectCosts: ProjectCostsService,
+    private readonly resources: ResourcesService,
   ) {}
 
   @ApiOperation({ summary: 'รายการโครงการ (ทั้งบริษัท หรือของฉัน)' })
@@ -872,6 +877,106 @@ export class ProjectsController {
       type: file.mimeType,
       disposition: `inline; filename*=UTF-8''${encodeURIComponent(file.fileName)}`,
     });
+  }
+
+  // --- CD-180 จัดสรรทรัพยากร ----------------------------------------------------------
+
+  @ApiOperation({
+    summary:
+      'ทีมที่จองในโครงการ วันที่จองเกินเวลาว่าง การจัดลำดับ และคำขอทีมเพิ่ม',
+  })
+  @Get(':id/resources')
+  @Permissions('notification.read')
+  viewResources(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.resources.view(id, principal);
+  }
+
+  @ApiOperation({
+    summary:
+      'ตรวจก่อนจอง — วันที่จะเกินเวลาว่าง และโครงการที่ชน (ผู้จัดการโครงการ)',
+  })
+  @Post(':id/resources/preview')
+  @Permissions('notification.read')
+  previewBooking(
+    @Param('id') id: string,
+    @Body() dto: BookResourceDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.resources.preview(id, dto, principal);
+  }
+
+  @ApiOperation({
+    summary:
+      'จองคนเข้าโครงการ — จองเกินเวลาว่างต้องระบุลำดับและเหตุผล (ผู้จัดการโครงการ)',
+  })
+  @Post(':id/resources/bookings')
+  @Permissions('notification.read')
+  bookResource(
+    @Param('id') id: string,
+    @Body() dto: BookResourceDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.resources.book(id, dto, principal);
+  }
+
+  @ApiOperation({ summary: 'ยกเลิกการจอง (ผู้จัดการโครงการ)' })
+  @Delete(':id/resources/bookings/:bookingId')
+  @Permissions('notification.read')
+  cancelResourceBooking(
+    @Param('id') id: string,
+    @Param('bookingId') bookingId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.resources.cancelBooking(id, bookingId, principal);
+  }
+
+  @ApiOperation({ summary: 'ขอทีมเพิ่ม — ยื่นผ่านระบบคำขอ (ผู้จัดการโครงการ)' })
+  @Post(':id/resources/requests')
+  @Permissions('notification.read')
+  askResources(
+    @Param('id') id: string,
+    @Body() dto: SaveResourceRequestDto,
+    @CurrentPrincipal() principal: Principal,
+    @Headers('authorization') authorization: string,
+  ) {
+    return this.resources.ask(id, dto, principal, authorization);
+  }
+
+  @ApiOperation({ summary: 'ยื่นคำขอทีมเพิ่มที่ค้างเป็นร่างอีกครั้ง' })
+  @Post(':id/resources/requests/:requestId/submit')
+  @Permissions('notification.read')
+  submitResourceRequest(
+    @Param('id') id: string,
+    @Param('requestId') requestId: string,
+    @CurrentPrincipal() principal: Principal,
+    @Headers('authorization') authorization: string,
+  ) {
+    return this.resources.submit(id, requestId, principal, authorization);
+  }
+
+  @ApiOperation({ summary: 'ปิดคำขอทีมเพิ่มที่ได้คนครบแล้ว' })
+  @Post(':id/resources/requests/:requestId/fulfil')
+  @Permissions('notification.read')
+  fulfilResourceRequest(
+    @Param('id') id: string,
+    @Param('requestId') requestId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.resources.fulfil(id, requestId, principal);
+  }
+
+  @ApiOperation({ summary: 'ยกเลิกร่างคำขอทีมเพิ่ม' })
+  @Post(':id/resources/requests/:requestId/cancel')
+  @Permissions('notification.read')
+  cancelResourceRequest(
+    @Param('id') id: string,
+    @Param('requestId') requestId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.resources.cancelRequest(id, requestId, principal);
   }
 
   // --- CD-190 ติดตามต้นทุนโครงการ -----------------------------------------------------
@@ -2427,5 +2532,25 @@ export class ProjectConfigsController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.configs.search(principal, q ?? '');
+  }
+}
+
+@ApiTags('projects')
+@ApiBearerAuth()
+@Controller('project-resources')
+export class ProjectWorkloadController {
+  constructor(private readonly resources: ResourcesService) {}
+
+  @ApiOperation({
+    summary:
+      'CD-180 — ภาระงานทีมรายสัปดาห์ข้ามโครงการ (เห็นตามสิทธิ์ของความพร้อมทีม CD-232)',
+  })
+  @Get('workload')
+  @Permissions('notification.read')
+  workload(
+    @Query() query: WorkloadQueryDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.resources.workload(principal, query);
   }
 }

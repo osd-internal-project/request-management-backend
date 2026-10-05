@@ -9,6 +9,7 @@ import {
   ProjectPortfolioController,
   ProjectReleasesController,
   ProjectConfigsController,
+  ProjectWorkloadController,
   ProjectRisksController,
   ProjectTasksController,
 } from './projects.controller';
@@ -37,6 +38,7 @@ import { ConfigsService } from './configs.service';
 import { IntegrationsService } from './integrations.service';
 import { TechChangesService } from './tech-changes.service';
 import { ProjectCostsService } from './project-costs.service';
+import { ResourcesService } from './resources.service';
 import { ErpModule } from '../erp/erp.module';
 import { HrModule } from '../hr/hr.module';
 import { CompanyRepository } from '../crm/product.repositories';
@@ -65,6 +67,7 @@ import { TechPlanService } from './tech-plan.service';
     ProjectPortfolioController,
     ProjectReleasesController,
     ProjectConfigsController,
+    ProjectWorkloadController,
   ],
   providers: [
     MilestonesService,
@@ -94,6 +97,7 @@ import { TechPlanService } from './tech-plan.service';
     IntegrationsService,
     TechChangesService,
     ProjectCostsService,
+    ResourcesService,
     CompanyRepository,
     TaskEvidenceService,
     DesignsService,

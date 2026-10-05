@@ -793,6 +793,12 @@ export class UpdateCrmConfigDto {
   @Matches(/^([A-Z0-9_-]{1,20})?$/)
   project_tech_change_type_code?: string;
 
+  /** CD-180: รหัสประเภทคำขอทีมเพิ่ม (PM → Engineer); form มี role, headcount, start_date, end_date. "" = ล้าง. */
+  @IsOptional()
+  @IsString()
+  @Matches(/^([A-Z0-9_-]{1,20})?$/)
+  project_resource_type_code?: string;
+
   /** CD-191: ชื่อเอกสารที่ทุกโครงการต้องแนบก่อนขอปิด. */
   @IsOptional()
   @IsArray()

@@ -215,6 +215,7 @@ export class CrmAdminService {
         projectCloseTypeCode: null,
         projectDesignTypeCode: null,
         projectTechChangeTypeCode: null,
+        projectResourceTypeCode: null,
         projectHealthAmber: 20,
         projectHealthRed: 40,
         projectCostWarnPct: 90,
@@ -369,6 +370,7 @@ export class CrmAdminService {
               projectDesignTypeCode: dto.project_design_type_code || null,
               projectTechChangeTypeCode:
                 dto.project_tech_change_type_code || null,
+              projectResourceTypeCode: dto.project_resource_type_code || null,
               projectHealthAmber: dto.project_health_amber ?? 20,
               projectHealthRed: dto.project_health_red ?? 40,
               projectCostWarnPct: dto.project_cost_warn_pct ?? 90,
@@ -444,6 +446,10 @@ export class CrmAdminService {
                 dto.project_tech_change_type_code === undefined
                   ? undefined
                   : dto.project_tech_change_type_code || null,
+              projectResourceTypeCode:
+                dto.project_resource_type_code === undefined
+                  ? undefined
+                  : dto.project_resource_type_code || null,
               projectCloseDocuments: closeDocuments,
               projectHealthAmber: dto.project_health_amber,
               projectHealthRed: dto.project_health_red,

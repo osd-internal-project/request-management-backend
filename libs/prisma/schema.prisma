@@ -2426,6 +2426,8 @@ model CrmCompanyConfig {
   projectDesignTypeCode            String?
   /// CD-224 — the request type a technical change is approved under.
   projectTechChangeTypeCode        String?
+  /// CD-180 — the request type a project asks for more people under (PM → Engineer).
+  projectResourceTypeCode          String?
   /// CD-190 — actual cost as % of the reference budget: warn at, alert over.
   projectCostWarnPct               Int      @default(90)
   projectCostAlertPct              Int      @default(100)
@@ -5002,6 +5004,8 @@ model Project {
   techChanges       ProjectTechChange[]
   costs             ProjectCost[]
   costAlerts        ProjectCostAlert[]
+  bookingPriorities ProjectBookingPriority[]
+  resourceRequests  ProjectResourceRequest[]
 
   @@unique([companyId, projectNo])
   @@index([companyId, status])
@@ -6758,4 +6762,62 @@ model HrMandayAlert {
   @@unique([projectId, budgetVersionNo, threshold])
   @@index([companyId])
   @@map("hr_manday_alerts")
+}
+
+/// CD-180 จัดสรรทรัพยากร — a booking (CD-232 `hr_bookings`) that puts someone
+/// past what they have free: which project comes first, why, and the
+/// projects it clashed with (their managers are told).
+model ProjectBookingPriority {
+  id                 String   @id @default(uuid())
+  companyId          String
+  projectId          String
+  bookingId          String   @unique
+  userId             String
+  /// this_first · others_first
+  priority           String
+  reason             String
+  conflictProjectIds String[] @default([])
+  overbookedDays     Int
+  createdBy          String
+  createdAt          DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
+
+  @@index([projectId])
+  @@map("project_booking_priorities")
+}
+
+/// CD-180 — asking for more people when the team is not enough, approved
+/// through the request engine (CrmConfig.projectResourceTypeCode).
+model ProjectResourceRequest {
+  id          String    @id @default(uuid())
+  companyId   String
+  projectId   String
+  /// RR-n within the project
+  seq         Int
+  role        String
+  skillId     String?
+  headcount   Int
+  startDate   DateTime  @db.Date
+  endDate     DateTime  @db.Date
+  hoursPerDay Decimal   @db.Decimal(3, 1)
+  note        String?
+  /// draft · submitted · approved · rejected · fulfilled · cancelled
+  status      String    @default("draft")
+  requestId   String?
+  error       String?
+  submittedAt DateTime?
+  submittedBy String?
+  decidedAt   DateTime?
+  fulfilledAt DateTime?
+  fulfilledBy String?
+  createdAt   DateTime  @default(now())
+  createdBy   String
+  updatedAt   DateTime  @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
+
+  @@unique([projectId, seq])
+  @@index([requestId])
+  @@map("project_resource_requests")
 }
