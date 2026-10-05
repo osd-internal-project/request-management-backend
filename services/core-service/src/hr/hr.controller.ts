@@ -39,6 +39,7 @@ import { EmployeesService } from './employees.service';
 import { TimesheetsService } from './timesheets.service';
 import { LeavesService } from './leaves.service';
 import { AvailabilityService } from './availability.service';
+import { MandayVarianceService } from './manday-variance.service';
 
 /** CD-207 — ต้นทุนบุคลากร: levels, work types and cost per manday. */
 @ApiTags('hr')
@@ -51,7 +52,32 @@ export class HrController {
     private readonly timesheets: TimesheetsService,
     private readonly leaves: LeavesService,
     private readonly availabilityService: AvailabilityService,
+    private readonly mandays: MandayVarianceService,
   ) {}
+
+  // --- CD-233 Manday plan vs actual -------------------------------------------
+
+  @ApiOperation({
+    summary:
+      'CD-233 manday แผนเทียบจริงทุกโครงการที่เห็นได้ (PM/Pricing/HR ทุกโครงการ, ผู้จัดการโครงการของตัวเอง)',
+  })
+  @Get('mandays')
+  @Authenticated()
+  mandayProjects(@CurrentPrincipal() principal: Principal) {
+    return this.mandays.list(principal);
+  }
+
+  @ApiOperation({
+    summary: 'CD-233 manday แผนเทียบจริงของโครงการ: ระดับ × ประเภทงาน และรายคน',
+  })
+  @Get('mandays/:projectId')
+  @Authenticated()
+  mandayProject(
+    @Param('projectId') projectId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.mandays.project(principal, projectId);
+  }
 
   // --- CD-232 Leave and availability ------------------------------------------
 

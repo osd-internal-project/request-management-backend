@@ -493,6 +493,31 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
     },
   },
   {
+    eventType: 'hr.manday.threshold',
+    label: 'Manday ใช้จริงถึงขั้นที่กำหนด (ถึง PM และทีมราคา)',
+    title: 'โครงการ {{project}} ใช้ manday ไป {{percent}}% ของแผน',
+    body: 'ใช้จริง {{actual}} จากแผน {{planned}} manday (Timesheet ที่อนุมัติแล้ว) — ดูรายละเอียดที่หน้า Manday แผนเทียบจริง',
+    variables: {
+      project: { label: 'โครงการ', sample: 'PRJ-2026-0001 · ระบบเครือข่าย' },
+      percent: { label: 'ร้อยละที่ใช้ไป', sample: '104' },
+      actual: { label: 'manday ใช้จริง', sample: '52' },
+      planned: { label: 'manday ตามแผน', sample: '50' },
+    },
+  },
+  {
+    eventType: 'hr.manday.closed',
+    label: 'สรุป manday เมื่อปิดโครงการ (ถึง PM และทีมราคา)',
+    title:
+      'ปิดโครงการ {{project}}: manday จริง {{actual}} / แผน {{planned}} ({{variance}})',
+    body: 'ใช้ปรับการประเมิน manday ของงานถัดไป — ดูแยกตามระดับ × ประเภทงานที่หน้า Manday แผนเทียบจริง',
+    variables: {
+      project: { label: 'โครงการ', sample: 'PRJ-2026-0001 · ระบบเครือข่าย' },
+      actual: { label: 'manday ใช้จริง', sample: '58' },
+      planned: { label: 'manday ตามแผน', sample: '50' },
+      variance: { label: 'ส่วนต่าง', sample: '+16%' },
+    },
+  },
+  {
     eventType: 'pm.project.assigned',
     label: 'ได้รับมอบหมายในโครงการ (ถึงผู้จัดการและทีมโครงการ)',
     title: 'โครงการ {{project_no}}: คุณเป็น{{role}}',

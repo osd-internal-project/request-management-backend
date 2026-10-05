@@ -274,6 +274,100 @@ export class HrWorkRefsRepository {
       .then((rows) => rows.map((row) => row.userId));
   }
 
+  /** CD-233 — projects with what plan-vs-actual needs. */
+  mandayProjects(where: Record<string, unknown>) {
+    return this.prisma.project.findMany({
+      where,
+      select: {
+        id: true,
+        companyId: true,
+        projectNo: true,
+        name: true,
+        status: true,
+        managerUserId: true,
+        solutionVersionId: true,
+        startOn: true,
+        endOn: true,
+        updatedAt: true,
+      },
+      orderBy: { projectNo: 'desc' },
+      take: 300,
+    });
+  }
+
+  /** CD-233 — each project's latest locked budget. */
+  async lockedBudgets(projectIds: string[]) {
+    if (!projectIds.length)
+      return new Map<string, { versionNo: number; lines: unknown }>();
+    const rows = await this.prisma.projectBudget.findMany({
+      where: { projectId: { in: projectIds }, status: 'locked' },
+      select: { projectId: true, versionNo: true, lines: true },
+      orderBy: { versionNo: 'desc' },
+    });
+    const out = new Map<string, { versionNo: number; lines: unknown }>();
+    for (const row of rows)
+      if (!out.has(row.projectId))
+        out.set(row.projectId, { versionNo: row.versionNo, lines: row.lines });
+    return out;
+  }
+
+  /** CD-233 — the labour lines of Solution versions. */
+  async solutionLabor(versionIds: string[]) {
+    if (!versionIds.length) return new Map<string, unknown>();
+    const rows = await this.prisma.solutionVersion.findMany({
+      where: { id: { in: versionIds } },
+      select: { id: true, labor: true },
+    });
+    return new Map(rows.map((row) => [row.id, row.labor as unknown]));
+  }
+
+  /** CD-233 — approved timesheet hours per project. */
+  async approvedHours(companyId: string, projectIds: string[]) {
+    if (!projectIds.length) return new Map<string, number>();
+    const rows = await this.prisma.hrTimesheetLine.groupBy({
+      by: ['projectId'],
+      where: {
+        projectId: { in: projectIds },
+        timesheet: { companyId, status: 'approved' },
+      },
+      _sum: { hours: true },
+    });
+    return new Map(
+      rows.map((row) => [row.projectId ?? '', Number(row._sum.hours ?? 0)]),
+    );
+  }
+
+  /** CD-233 — who in a company holds a permission through an active role. */
+  holdersOf(companyId: string, permission: string) {
+    return this.prisma.userRole
+      .findMany({
+        where: {
+          companyId,
+          role: {
+            active: true,
+            permissions: { some: { permissionCode: permission } },
+          },
+        },
+        select: { userId: true },
+      })
+      .then((rows) => [...new Set(rows.map((row) => row.userId))]);
+  }
+
+  /** CD-233 — level and work type codes by id. */
+  async hrCodes(companyId: string) {
+    const [levels, workTypes] = await Promise.all([
+      this.prisma.hrLevel.findMany({
+        where: { companyId },
+        select: { id: true, code: true, name: true },
+      }),
+      this.prisma.hrWorkType.findMany({
+        where: { companyId },
+        select: { id: true, code: true, name: true },
+      }),
+    ]);
+    return { levels, workTypes };
+  }
+
   names(ids: string[]) {
     return this.prisma.user
       .findMany({
@@ -351,5 +445,19 @@ export class HrCalendarRepository extends BaseRepository<
 
   protected delegate(client: TQueryClient) {
     return client.holidayCalendar;
+  }
+}
+
+/** CD-233 — the steps of plan-vs-actual already sent. */
+@Injectable()
+export class HrMandayAlertRepository extends BaseRepository<
+  PrismaService['hrMandayAlert']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.hrMandayAlert;
   }
 }

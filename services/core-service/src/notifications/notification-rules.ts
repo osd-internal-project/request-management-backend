@@ -14,7 +14,9 @@ export type RuleParamKind =
   /** One whole number of days. */
   | 'days'
   /** Several, each sent once — e.g. reminders at 60 and 30 days. */
-  | 'days_list';
+  | 'days_list'
+  /** CD-233 — several percentages, each sent once (e.g. 80, 100, 120 % of plan). */
+  | 'percent_list';
 
 export interface RuleParamDefinition {
   key: string;
@@ -29,7 +31,7 @@ export interface RuleParamDefinition {
 export interface RuleDefinition {
   code: string;
   /** The screen groups rules by this. */
-  module: 'crm' | 'finance';
+  module: 'crm' | 'finance' | 'pm';
   label: string;
   description: string;
   /** Who receives it — shown on the screen, decided by the rule's code. */
@@ -246,6 +248,27 @@ export const NOTIFICATION_RULES: readonly RuleDefinition[] = [
       },
     ],
     defaults: { days: 14 },
+  },
+  {
+    code: 'manday.variance',
+    module: 'pm',
+    label: 'Manday ใช้จริงเกินแผน',
+    description:
+      'ตรวจวันละครั้ง: manday จาก Timesheet ที่อนุมัติแล้วถึงร้อยละที่กำหนดของ manday ในงบโครงการที่ล็อกล่าสุด — แจ้งครั้งเดียวต่อขั้นต่อเวอร์ชันงบ และสรุปส่วนต่างสุดท้ายเมื่อปิดโครงการ',
+    recipients:
+      'ผู้จัดการโครงการ และผู้มีสิทธิ์ดูแลราคา (pricing.price.manage)',
+    eventTypes: ['hr.manday.threshold', 'hr.manday.closed'],
+    params: [
+      {
+        key: 'percents',
+        label: 'แจ้งเมื่อใช้ไปถึง (% ของแผน)',
+        kind: 'percent_list',
+        min: 10,
+        max: 500,
+        maxItems: 5,
+      },
+    ],
+    defaults: { percents: [120, 100, 80] },
   },
 ];
 

@@ -6742,3 +6742,20 @@ model ProjectCostAlert {
   @@unique([projectId, budgetVersionNo, category, level])
   @@map("project_cost_alerts")
 }
+
+/// CD-233 manday เกินแผน — ขั้น (% ของแผน) ที่แจ้งไปแล้วต่อโครงการต่อเวอร์ชันงบ; threshold 0 = สรุปตอนปิดโครงการ.
+/// งบเวอร์ชันใหม่ (CR) เริ่มนับขั้นใหม่.
+model HrMandayAlert {
+  id              String   @id @default(uuid())
+  companyId       String
+  projectId       String
+  budgetVersionNo Int      @default(0)
+  threshold       Int
+  plannedMandays  Decimal  @db.Decimal(10, 2)
+  actualMandays   Decimal  @db.Decimal(10, 2)
+  sentAt          DateTime @default(now())
+
+  @@unique([projectId, budgetVersionNo, threshold])
+  @@index([companyId])
+  @@map("hr_manday_alerts")
+}

@@ -15392,6 +15392,74 @@
         ]
       }
     },
+    "/api/v1/hr/mandays": {
+      "get": {
+        "operationId": "HrController_mandayProjects",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-233 manday แผนเทียบจริงทุกโครงการที่เห็นได้ (PM/Pricing/HR ทุกโครงการ, ผู้จัดการโครงการของตัวเอง)",
+        "tags": [
+          "hr"
+        ]
+      }
+    },
+    "/api/v1/hr/mandays/{projectId}": {
+      "get": {
+        "operationId": "HrController_mandayProject",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-233 manday แผนเทียบจริงของโครงการ: ระดับ × ประเภทงาน และรายคน",
+        "tags": [
+          "hr"
+        ]
+      }
+    },
     "/api/v1/hr/leave-types": {
       "get": {
         "operationId": "HrController_leaveTypes",

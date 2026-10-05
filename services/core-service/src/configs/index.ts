@@ -173,6 +173,13 @@ export default () => ({
   },
 
   /** CD-65 — รอบตรวจโอกาสการขายที่เงียบเกินเกณฑ์ (ms); 0 = ปิด (tests). */
+  hr: {
+    /** CD-233 — manday plan-vs-actual steps and closing summaries (ms); 0 = off. */
+    mandayVarianceIntervalMs: Number(
+      process.env.HR_MANDAY_VARIANCE_INTERVAL_MS ?? 21600000,
+    ),
+  },
+
   crm: {
     /** CD-162 — expiry reminders for contracts without a renewal deal (ms); 0 = off. */
     contractExpiryIntervalMs: Number(

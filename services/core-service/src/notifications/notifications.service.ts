@@ -672,6 +672,54 @@ export class NotificationsService {
     });
   }
 
+  /** CD-233 — a project's actual mandays reached a step of its plan. */
+  async mandayThreshold(
+    userId: string,
+    companyId: string,
+    project: { id: string; label: string },
+    percent: number,
+    actual: number,
+    planned: number,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'hr.manday.threshold',
+      values: {
+        project: project.label,
+        percent: String(percent),
+        actual: String(actual),
+        planned: String(planned),
+      },
+      resourceType: 'project',
+      resourceId: project.id,
+    });
+  }
+
+  /** CD-233 — a closed project's final mandays against its plan. */
+  async mandayClosed(
+    userId: string,
+    companyId: string,
+    project: { id: string; label: string },
+    actual: number,
+    planned: number,
+    variance: string,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'hr.manday.closed',
+      values: {
+        project: project.label,
+        actual: String(actual),
+        planned: String(planned),
+        variance,
+      },
+      resourceType: 'project',
+      resourceId: project.id,
+    });
+  }
+
   /** CD-175 — someone was made a project's manager or put on its team. */
   async projectAssigned(
     userId: string,
