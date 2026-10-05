@@ -110,6 +110,42 @@ export interface ErpSalesOrderPayload {
   readonly lines: readonly ErpSalesOrderLine[];
 }
 
+/**
+ * CD-242 — a billed service job as SAP receives it: a **draft** A/R invoice
+ * (B1 `Drafts`, `DocObjectCode` oInvoices) that finance checks and posts in
+ * SAP. Pending CD-28: the series, the service item and VAT group the finance
+ * team want on it.
+ */
+export interface ErpInvoiceDraftPayload {
+  /**
+   * Our billing reference — carried as `NumAtCard` and the key the find
+   * searches by, so a retry after a timeout adopts the draft it made.
+   */
+  readonly reference: string;
+  readonly customerExternalCode: string;
+  readonly currency: string;
+  /** YYYY-MM-DD — the document date. */
+  readonly issuedOn: string;
+  readonly comment: string;
+  /** Before VAT, the sum of the lines. */
+  readonly netTotal: number;
+  readonly lines: readonly ErpSalesOrderLine[];
+}
+
+/** CD-242 — where a draft stands in SAP, read back by its reference. */
+export interface ErpInvoiceDraftState {
+  /**
+   * draft — still waiting for finance; open / paid — posted as an A/R
+   * invoice; cancelled — the posted invoice was cancelled; missing — neither
+   * a draft nor an invoice carries the reference (the draft was deleted).
+   */
+  readonly status: 'draft' | 'open' | 'paid' | 'cancelled' | 'missing';
+  /** B1 `DocNum` of the posted invoice. */
+  readonly invoiceNo: string | null;
+  readonly total: number | null;
+  readonly paid: number | null;
+}
+
 /** CD-27 — one sellable item as SAP holds it (B1 `Items`). */
 export interface ErpItem {
   /** B1 `ItemCode` — what quotation/sale-order lines carry as productCode. */
@@ -238,6 +274,25 @@ export interface ErpClient {
     ctx: ErpContext,
     projectCode: string,
   ): Promise<ErpProjectCost[]>;
+  /** CD-242 — the draft (or the invoice posted from it) carrying `reference`. */
+  findInvoiceDraft(
+    ctx: ErpContext,
+    reference: string,
+  ): Promise<{ externalCode: string } | null>;
+  createInvoiceDraft(
+    ctx: ErpContext,
+    payload: ErpInvoiceDraftPayload,
+  ): Promise<{ externalCode: string }>;
+  invoiceDraftState(
+    ctx: ErpContext,
+    reference: string,
+  ): Promise<ErpInvoiceDraftState>;
+  /**
+   * Removes a draft finance has not posted; idempotent when it is already
+   * gone. A posted invoice is not touched — the call fails, because undoing
+   * it is a credit note in SAP, which is finance's to issue.
+   */
+  cancelInvoiceDraft(ctx: ErpContext, reference: string): Promise<void>;
   /** CD-89 — the customer's most recent invoices, newest first (≤ `limit`). */
   listInvoices(
     ctx: ErpContext,

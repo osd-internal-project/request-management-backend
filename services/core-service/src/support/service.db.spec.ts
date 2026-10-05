@@ -10,6 +10,7 @@ import { EntitlementsService } from './entitlements.service';
 import {
   ServiceAssetRepository,
   ServiceEntitlementAssetRepository,
+  ServiceBillingRepository,
   ServiceCalendarRepository,
   ServiceEntitlementRepository,
   ServiceOnCallDispatchRepository,
@@ -18,6 +19,12 @@ import {
 } from './support.repositories';
 import { WorkOrdersService } from './work-orders.service';
 import { OnCallService } from './on-call.service';
+import { ServiceBillingService } from './service-billing.service';
+import { ServiceBillingErpSyncService } from './service-billing-erp-sync.service';
+import { MockSapClient } from '../erp/mock-sap.client';
+import { CustomerExternalCodeRepository } from '../crm/customer-child.repositories';
+import { IntegrationSyncJobRepository } from '../crm/integration-job.repository';
+import { CompanyRepository } from '../crm/product.repositories';
 import { CompanyMemberRepository } from '../access/company-member.repository';
 
 const DB_URL = process.env.CORE_DB_TEST_URL;
@@ -107,6 +114,10 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
     });
 
     afterAll(async () => {
+      await prisma.serviceBilling.deleteMany({
+        where: { requestId: { in: requestIds } },
+      });
+      await prisma.customerExternalCode.deleteMany({ where: { customerId } });
       await prisma.serviceWorkOrder.deleteMany({
         where: { requestId: { in: requestIds } },
       });
@@ -501,6 +512,175 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       expect(
         await onCall.dispatch(fourth, new Date('2031-03-10T03:00:00Z')),
       ).toBeNull();
+    });
+
+    it('CD-242: a billed job done — its charge from the agreed estimate, edited, sent to SAP as a draft invoice, read back, withdrawn', async () => {
+      const client = prisma as never;
+      const transactions = {
+        execute: (work: (tx: unknown) => Promise<unknown>) =>
+          prisma.$transaction((tx) => work(tx)),
+      } as never;
+      const audit = { record: () => Promise.resolve() } as never;
+      const erp = new MockSapClient();
+      const sync = new ServiceBillingErpSyncService(
+        new ServiceBillingRepository(client),
+        new CustomerExternalCodeRepository(client),
+        new CustomerRepository(client),
+        new CompanyRepository(client),
+        new IntegrationSyncJobRepository(client),
+        erp,
+        { queueCustomer: () => Promise.resolve() } as never,
+        { register: () => undefined } as never,
+        audit,
+        { get: () => 0 } as never,
+      );
+      const kicked: string[] = [];
+      const billings = new ServiceBillingService(
+        new ServiceBillingRepository(client),
+        new ServiceWorkOrderRepository(client),
+        new RequestRepository(client),
+        new CustomerRepository(client),
+        new CompanyMemberRepository(client),
+        {
+          kickCreate: (id: string) => kicked.push(`create:${id}`),
+          kickCancel: (id: string) => kicked.push(`cancel:${id}`),
+          refresh: (id: string) => sync.refresh(id),
+        } as never,
+        { assertCodes: () => Promise.resolve() } as never,
+        audit,
+        transactions,
+      );
+      const manager = {
+        userId: staff,
+        activeCompanyId: companyId,
+        permissions: ['service.asset.read', 'service.asset.manage'],
+      } as unknown as Principal;
+
+      const job = async (status: string, billing: string | null) => {
+        const request = await prisma.request.create({
+          data: {
+            requestTypeId: typeId,
+            typeCode,
+            companyId,
+            requesterId: staff,
+            requestNo: `REQ-T242-${tag}-${requestIds.length}`,
+            status: status as never,
+            severity: 'medium',
+            formData: { subject: 'ย้ายจุดกล้อง' },
+          },
+        });
+        requestIds.push(request.id);
+        return prisma.serviceWorkOrder.create({
+          data: {
+            companyId,
+            requestId: request.id,
+            customerId,
+            assetId,
+            workKind: 'corrective',
+            suggestedBilling: 'billable',
+            billing,
+            ackName: 'คุณวิภา',
+            ackOn: new Date(),
+            ackEstimate: 3500,
+            createdBy: staff,
+          },
+        });
+      };
+
+      // in contract, or not done yet: nothing to bill
+      const covered = await job('completed', 'in_contract');
+      await expect(billings.prepare(manager, covered.id)).rejects.toThrow(
+        'เก็บเงินเพิ่ม',
+      );
+      const running = await job('in_progress', 'billable');
+      await expect(billings.prepare(manager, running.id)).rejects.toThrow(
+        'งานเสร็จ',
+      );
+
+      const done = await job('completed', 'billable');
+      const draft = await billings.prepare(manager, done.id);
+      expect(draft).toMatchObject({
+        status: 'draft',
+        netTotal: 3500,
+        reference: expect.stringMatching(/^SVB-REQ-T242-/) as unknown,
+        lines: [
+          {
+            description: 'ค่าบริการ ย้ายจุดกล้อง',
+            unitPrice: 3500,
+            source: 'estimate',
+          },
+        ],
+        erp: { status: 'none' },
+      });
+      await expect(billings.prepare(manager, done.id)).rejects.toThrow(
+        'มีใบเรียกเก็บแล้ว',
+      );
+
+      // the team adds the bracket and drops the price a little
+      const saved = await billings.save(manager, draft.id, {
+        lines: [
+          {
+            description: 'ค่าบริการ ย้ายจุดกล้อง',
+            quantity: 1,
+            unit_price: 3500,
+            discount_pct: 10,
+          },
+          {
+            product_code: 'BRK-01',
+            description: 'ขายึดกล้อง',
+            quantity: 2,
+            unit: 'ชิ้น',
+            unit_price: 450,
+          },
+        ],
+        note: 'ลดค่าบริการ 10%',
+      });
+      expect(saved.netTotal).toBe(4050);
+      expect(saved.lines.map((line) => line.source)).toEqual([
+        'estimate',
+        'manual',
+      ]);
+
+      // no BP yet: confirmed, but SAP waits for the customer
+      await billings.confirm(manager, draft.id);
+      expect(kicked).toEqual([`create:${draft.id}`]);
+      await expect(
+        billings.save(manager, draft.id, { lines: [] }),
+      ).rejects.toThrow('ยังไม่ยืนยันส่ง');
+      await expect(sync.pushBilling(draft.id)).rejects.toThrow('เลข BP');
+
+      await prisma.customerExternalCode.create({
+        data: { customerId, system: 'sap', externalCode: `BP-T242-${tag}` },
+      });
+      const draftNo = await sync.pushBilling(draft.id);
+      expect(draftNo).toMatch(/^MOCK-DR-/);
+      expect(await sync.pushBilling(draft.id)).toBe(draftNo);
+      const sent = await billings.refresh(manager, draft.id);
+      expect(sent.erp).toMatchObject({
+        status: 'synced',
+        draftNo,
+        invoiceStatus: 'draft',
+      });
+
+      // withdrawn before finance posts it: the draft is deleted in SAP
+      await billings.cancel(manager, draft.id, { reason: 'ลูกค้าขอรวมบิล' });
+      expect(kicked[1]).toBe(`cancel:${draft.id}`);
+      await sync.cancelBilling(draft.id);
+      const gone = await billings.detail(manager, draft.id);
+      expect(gone).toMatchObject({
+        status: 'cancelled',
+        cancelReason: 'ลูกค้าขอรวมบิล',
+        erp: { invoiceStatus: 'missing' },
+      });
+      expect(
+        (await erp.invoiceDraftState({ companyCode: 'X' }, gone.reference))
+          .status,
+      ).toBe('missing');
+      expect(await billings.list(manager, { status: 'cancelled' })).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ id: draft.id }) as unknown,
+        ]),
+      );
     });
   },
 );

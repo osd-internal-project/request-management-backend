@@ -731,4 +731,103 @@ describe('SAP B1 Service Layer driver', () => {
     expect(orders.url).toContain("DocDate%20ge%20'2025-10-02'");
     expect(orders.url).toContain("Cancelled%20eq%20'tNO'");
   });
+
+  it('CD-242 createInvoiceDraft: POST Drafts เป็น oInvoices, NumAtCard = เลขอ้างอิงของเรา, บรรทัดบริการใช้ item กลาง', async () => {
+    const h = harness(
+      { 'POST /Drafts': () => reply(201, { DocEntry: 501 }) },
+      { serviceItemCode: 'SERVICE', vatGroup: 'S07' },
+    );
+    const draft = await h.client.createInvoiceDraft(OSD, {
+      reference: 'SVB-REQ-OSD-2610-0001',
+      customerExternalCode: 'CUS-OSD-000001',
+      currency: 'THB',
+      issuedOn: '2026-10-05',
+      comment: 'Connect the Dot งานบริการ',
+      netTotal: 3500,
+      lines: [
+        {
+          lineNo: 1,
+          productCode: null,
+          description: 'ค่าบริการแก้ไขกล้อง',
+          quantity: 1,
+          unit: null,
+          unitPrice: 3500,
+          discountPct: 0,
+          lineTotal: 3500,
+        },
+      ],
+    });
+    expect(draft).toEqual({ externalCode: '501' });
+    const [sent] = h.calls('POST', '/Drafts');
+    expect(bodyOf(sent)).toMatchObject({
+      DocObjectCode: 'oInvoices',
+      CardCode: 'CUS-OSD-000001',
+      NumAtCard: 'SVB-REQ-OSD-2610-0001',
+      DocDate: '2026-10-05',
+      DocumentLines: [
+        { ItemCode: 'SERVICE', Quantity: 1, UnitPrice: 3500, VatGroup: 'S07' },
+      ],
+    });
+  });
+
+  it('CD-242 invoiceDraftState: ใบแจ้งหนี้ที่ออกจากร่างแล้วมาก่อน (เปิด/ชำระ/ยกเลิก) · ยังเป็นร่าง · หายไป', async () => {
+    let invoices: unknown[] = [];
+    let drafts: unknown[] = [{ DocEntry: 501 }];
+    const h = harness({
+      'GET /Invoices': () => reply(200, { value: invoices }),
+      'GET /Drafts': () => reply(200, { value: drafts }),
+    });
+    expect((await h.client.invoiceDraftState(OSD, 'SVB-1')).status).toBe(
+      'draft',
+    );
+    invoices = [
+      {
+        DocNum: 2001,
+        DocTotal: 3745,
+        PaidToDate: 0,
+        DocumentStatus: 'bost_Open',
+        Cancelled: 'tNO',
+      },
+    ];
+    drafts = [];
+    expect(await h.client.invoiceDraftState(OSD, 'SVB-1')).toEqual({
+      status: 'open',
+      invoiceNo: '2001',
+      total: 3745,
+      paid: 0,
+    });
+    invoices = [];
+    expect((await h.client.invoiceDraftState(OSD, 'SVB-1')).status).toBe(
+      'missing',
+    );
+  });
+
+  it('CD-242 cancelInvoiceDraft: ลบร่างที่ยังไม่ออก · ออกใบแจ้งหนี้แล้ว = ปฏิเสธ (ต้องลดหนี้ใน SAP) · ไม่มีร่างแล้ว = ไม่ยิง', async () => {
+    let invoices: unknown[] = [];
+    let drafts: unknown[] = [{ DocEntry: 501 }];
+    const h = harness({
+      'GET /Invoices': () => reply(200, { value: invoices }),
+      'GET /Drafts': () => reply(200, { value: drafts }),
+      'DELETE /Drafts(501)': () => {
+        drafts = [];
+        return reply(204);
+      },
+    });
+    await h.client.cancelInvoiceDraft(OSD, 'SVB-1');
+    await h.client.cancelInvoiceDraft(OSD, 'SVB-1');
+    expect(h.calls('DELETE', '/Drafts(501)')).toHaveLength(1);
+
+    invoices = [
+      {
+        DocNum: 2001,
+        DocTotal: 1,
+        PaidToDate: 0,
+        DocumentStatus: 'bost_Open',
+        Cancelled: 'tNO',
+      },
+    ];
+    await expect(h.client.cancelInvoiceDraft(OSD, 'SVB-1')).rejects.toThrow(
+      'ใบลดหนี้',
+    );
+  });
 });

@@ -6,6 +6,8 @@ import {
   ErpContext,
   ErpCustomerPayload,
   ErpInvoice,
+  ErpInvoiceDraftPayload,
+  ErpInvoiceDraftState,
   ErpItem,
   ErpProjectCost,
   ErpVendor,
@@ -239,6 +241,145 @@ export class SapB1Client implements ErpClient {
       `/Orders(${order.DocEntry})/Cancel`,
     );
     this.ok(res, `ยกเลิกใบสั่งขาย (${reason})`);
+  }
+
+  // --- ร่างใบแจ้งหนี้งานบริการ (CD-242) -----------------------------------------
+
+  async findInvoiceDraft(
+    ctx: ErpContext,
+    reference: string,
+  ): Promise<{ externalCode: string } | null> {
+    const draft = await this.draftByReference(ctx, reference);
+    if (draft) return { externalCode: String(draft.DocEntry) };
+    // posted already: the invoice made from it carries the reference
+    const invoice = await this.invoiceByReference(ctx, reference);
+    return invoice ? { externalCode: `INV-${invoice.DocNum}` } : null;
+  }
+
+  async createInvoiceDraft(
+    ctx: ErpContext,
+    payload: ErpInvoiceDraftPayload,
+  ): Promise<{ externalCode: string }> {
+    const { serviceItemCode, vatGroup } = this.settings;
+    const lines = payload.lines.map((line) => {
+      const itemCode = line.productCode ?? serviceItemCode;
+      if (!itemCode) {
+        throw new AppError(
+          'UPSTREAM_ERROR',
+          `บรรทัด ${line.lineNo} ไม่มีรหัสสินค้า และยังไม่ได้ตั้ง ERP_B1_SERVICE_ITEM สำหรับบรรทัดบริการ`,
+        );
+      }
+      return {
+        ItemCode: itemCode,
+        ItemDescription: line.description.slice(0, 100),
+        Quantity: line.quantity,
+        UnitPrice: line.unitPrice,
+        DiscountPercent: line.discountPct,
+        ...(vatGroup ? { VatGroup: vatGroup } : {}),
+      };
+    });
+    // A draft, not a posted invoice: finance checks and posts it in B1.
+    const res = await this.call(ctx, 'POST', '/Drafts', {
+      DocObjectCode: 'oInvoices',
+      CardCode: payload.customerExternalCode,
+      NumAtCard: payload.reference,
+      DocDate: payload.issuedOn,
+      DocDueDate: payload.issuedOn,
+      Comments: payload.comment.slice(0, 254),
+      DocumentLines: lines,
+    });
+    const draft = this.json<{ DocEntry: number }>(res, 'สร้างร่างใบแจ้งหนี้');
+    return { externalCode: String(draft.DocEntry) };
+  }
+
+  async invoiceDraftState(
+    ctx: ErpContext,
+    reference: string,
+  ): Promise<ErpInvoiceDraftState> {
+    const invoice = await this.invoiceByReference(ctx, reference);
+    if (invoice) {
+      const total = Number(invoice.DocTotal ?? 0);
+      const paid = Number(invoice.PaidToDate ?? 0);
+      return {
+        status:
+          invoice.Cancelled === 'tYES'
+            ? 'cancelled'
+            : invoice.DocumentStatus === 'bost_Open'
+              ? 'open'
+              : 'paid',
+        invoiceNo: String(invoice.DocNum),
+        total,
+        paid,
+      };
+    }
+    const draft = await this.draftByReference(ctx, reference);
+    return {
+      status: draft ? 'draft' : 'missing',
+      invoiceNo: null,
+      total: null,
+      paid: null,
+    };
+  }
+
+  async cancelInvoiceDraft(ctx: ErpContext, reference: string): Promise<void> {
+    const invoice = await this.invoiceByReference(ctx, reference);
+    if (invoice && invoice.Cancelled !== 'tYES') {
+      throw new AppError(
+        'CONFLICT',
+        `การเงินออกใบแจ้งหนี้ ${invoice.DocNum} จากร่างนี้แล้ว — ยกเลิกต้องออกใบลดหนี้ใน SAP`,
+      );
+    }
+    const draft = await this.draftByReference(ctx, reference);
+    if (!draft) return;
+    const res = await this.call(ctx, 'DELETE', `/Drafts(${draft.DocEntry})`);
+    this.ok(res, 'ลบร่างใบแจ้งหนี้');
+  }
+
+  private async draftByReference(
+    ctx: ErpContext,
+    reference: string,
+  ): Promise<{ DocEntry: number } | null> {
+    const res = await this.call(
+      ctx,
+      'GET',
+      `/Drafts?$select=DocEntry&$filter=${q(
+        `NumAtCard eq ${literal(reference)} and DocObjectCode eq 'oInvoices'`,
+      )}`,
+    );
+    return (
+      this.json<{ value: { DocEntry: number }[] }>(res, 'ค้นร่างใบแจ้งหนี้')
+        .value[0] ?? null
+    );
+  }
+
+  private async invoiceByReference(
+    ctx: ErpContext,
+    reference: string,
+  ): Promise<{
+    DocNum: number;
+    DocTotal: number;
+    PaidToDate: number;
+    DocumentStatus: string;
+    Cancelled: string;
+  } | null> {
+    const res = await this.call(
+      ctx,
+      'GET',
+      `/Invoices?$select=DocNum,DocTotal,PaidToDate,DocumentStatus,Cancelled&$filter=${q(
+        `NumAtCard eq ${literal(reference)}`,
+      )}&$orderby=${q('DocEntry desc')}&$top=1`,
+    );
+    return (
+      this.json<{
+        value: {
+          DocNum: number;
+          DocTotal: number;
+          PaidToDate: number;
+          DocumentStatus: string;
+          Cancelled: string;
+        }[];
+      }>(res, 'ค้นใบแจ้งหนี้').value[0] ?? null
+    );
   }
 
   // --- สินค้า (CD-27) ---------------------------------------------------------

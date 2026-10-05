@@ -4,6 +4,8 @@ import {
   ErpContext,
   ErpCustomerPayload,
   ErpInvoice,
+  ErpInvoiceDraftPayload,
+  ErpInvoiceDraftState,
   ErpItem,
   ErpProjectCost,
   ErpReceivables,
@@ -27,6 +29,11 @@ export class MockSapClient implements ErpClient {
   private readonly orders = new Map<
     string,
     { payload: ErpSalesOrderPayload; cancelled: boolean }
+  >();
+  /** CD-242 — drafts by reference; nobody posts them in the mock. */
+  private readonly drafts = new Map<
+    string,
+    { externalCode: string; payload: ErpInvoiceDraftPayload }
   >();
 
   findCustomer(
@@ -200,6 +207,43 @@ export class MockSapClient implements ErpClient {
       status: 'paid',
     }));
     return Promise.resolve([...open, ...paid].slice(0, limit));
+  }
+
+  findInvoiceDraft(
+    _ctx: ErpContext,
+    reference: string,
+  ): Promise<{ externalCode: string } | null> {
+    const draft = this.drafts.get(reference);
+    return Promise.resolve(draft ? { externalCode: draft.externalCode } : null);
+  }
+
+  createInvoiceDraft(
+    _ctx: ErpContext,
+    payload: ErpInvoiceDraftPayload,
+  ): Promise<{ externalCode: string }> {
+    const externalCode = `MOCK-DR-${String(seedOf(payload.reference)).padStart(10, '0')}`;
+    this.drafts.set(payload.reference, { externalCode, payload });
+    this.logger.log(
+      `mock SAP draft A/R invoice ${payload.reference} → ${externalCode} (BP ${payload.customerExternalCode}, ${payload.netTotal})`,
+    );
+    return Promise.resolve({ externalCode });
+  }
+
+  invoiceDraftState(
+    _ctx: ErpContext,
+    reference: string,
+  ): Promise<ErpInvoiceDraftState> {
+    return Promise.resolve(
+      this.drafts.has(reference)
+        ? { status: 'draft', invoiceNo: null, total: null, paid: null }
+        : { status: 'missing', invoiceNo: null, total: null, paid: null },
+    );
+  }
+
+  cancelInvoiceDraft(_ctx: ErpContext, reference: string): Promise<void> {
+    this.drafts.delete(reference);
+    this.logger.log(`mock SAP delete draft ${reference}`);
+    return Promise.resolve();
   }
 
   cancelSalesOrder(

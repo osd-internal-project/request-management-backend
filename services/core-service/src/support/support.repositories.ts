@@ -116,3 +116,17 @@ export class ServiceCalendarRepository extends BaseRepository<
     return client.holidayCalendar;
   }
 }
+
+/** CD-242 — billed service jobs' charges. */
+@Injectable()
+export class ServiceBillingRepository extends BaseRepository<
+  PrismaService['serviceBilling']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.serviceBilling;
+  }
+}

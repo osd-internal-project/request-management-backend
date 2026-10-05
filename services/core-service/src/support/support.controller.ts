@@ -16,6 +16,7 @@ import { ServiceAssetsService } from './service-assets.service';
 import { EntitlementsService } from './entitlements.service';
 import { WorkOrdersService } from './work-orders.service';
 import { OnCallService } from './on-call.service';
+import { ServiceBillingService } from './service-billing.service';
 import {
   AssetStatusDto,
   AttachWorkOrderDto,
@@ -32,6 +33,10 @@ import {
   SaveAssetDto,
   ListOnCallQueryDto,
   SaveOnCallShiftDto,
+  CancelServiceBillingDto,
+  ListServiceBillingsQueryDto,
+  PrepareServiceBillingDto,
+  SaveServiceBillingDto,
 } from './support.dto';
 
 /** CD-236 ทะเบียนอุปกรณ์ที่ติดตั้ง. */
@@ -342,5 +347,100 @@ export class ServiceOnCallController {
   @Permissions('service.asset.manage')
   remove(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
     return this.onCall.remove(principal, id);
+  }
+}
+
+/** CD-242 ส่งข้อมูลเรียกเก็บเงินงานบริการ — billed jobs to SAP as draft invoices. */
+@ApiTags('service')
+@ApiBearerAuth()
+@Controller('service-billings')
+export class ServiceBillingsController {
+  constructor(private readonly billings: ServiceBillingService) {}
+
+  @ApiOperation({
+    summary: 'ใบเรียกเก็บงานบริการ — กรองตามสถานะ / สถานะส่ง SAP',
+  })
+  @Get()
+  @Permissions('service.asset.read')
+  list(
+    @Query() query: ListServiceBillingsQueryDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.billings.list(principal, query);
+  }
+
+  @ApiOperation({
+    summary: 'ใบเรียกเก็บของใบสั่งงาน (null ถ้ายังไม่ได้เตรียม)',
+  })
+  @Get('by-work-order/:workOrderId')
+  @Permissions('service.asset.read')
+  ofWorkOrder(
+    @Param('workOrderId') workOrderId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.billings.ofWorkOrder(principal, workOrderId);
+  }
+
+  @ApiOperation({ summary: 'ใบเรียกเก็บ — รายการ สถานะ และผลจาก SAP' })
+  @Get(':id')
+  @Permissions('service.asset.read')
+  detail(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.billings.detail(principal, id);
+  }
+
+  @ApiOperation({
+    summary:
+      'เตรียมใบเรียกเก็บ — งานเก็บเงินที่เสร็จแล้ว เริ่มจากประมาณการที่ลูกค้ารับทราบ',
+  })
+  @Post()
+  @Permissions('service.asset.manage')
+  prepare(
+    @Body() dto: PrepareServiceBillingDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.billings.prepare(principal, dto.work_order_id);
+  }
+
+  @ApiOperation({ summary: 'แก้รายการ/หมายเหตุ (ก่อนยืนยันส่ง)' })
+  @Put(':id')
+  @Permissions('service.asset.manage')
+  save(
+    @Param('id') id: string,
+    @Body() dto: SaveServiceBillingDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.billings.save(principal, id, dto);
+  }
+
+  @ApiOperation({
+    summary: 'ยืนยันส่ง — ล็อกรายการและส่งเข้า SAP เป็นร่างใบแจ้งหนี้',
+  })
+  @Post(':id/confirm')
+  @Permissions('service.asset.manage')
+  confirm(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.billings.confirm(principal, id);
+  }
+
+  @ApiOperation({
+    summary:
+      'ยกเลิก (พร้อมเหตุผล) — ร่างที่ส่งแล้วถูกลบใน SAP; ออกใบแจ้งหนี้แล้วยกเลิกไม่ได้',
+  })
+  @Post(':id/cancel')
+  @Permissions('service.asset.manage')
+  cancel(
+    @Param('id') id: string,
+    @Body() dto: CancelServiceBillingDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.billings.cancel(principal, id, dto);
+  }
+
+  @ApiOperation({
+    summary: 'อ่านสถานะจาก SAP ตอนนี้ (ออกใบแจ้งหนี้แล้ว/ชำระแล้ว)',
+  })
+  @Post(':id/refresh')
+  @Permissions('service.asset.read')
+  refresh(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.billings.refresh(principal, id);
   }
 }

@@ -9,7 +9,10 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  Matches,
+  Max,
   MaxLength,
+  Min,
   ValidateNested,
 } from 'class-validator';
 
@@ -498,4 +501,97 @@ export class ListOnCallQueryDto {
   @IsString()
   @MaxLength(10)
   to?: string;
+}
+
+/** CD-242 — one line of a service charge. */
+export class ServiceBillingLineDto {
+  @ApiPropertyOptional({
+    description: 'รหัสสินค้า SAP (ว่าง = item บริการกลาง)',
+  })
+  @IsOptional()
+  @IsString()
+  @Matches(/^([A-Za-z0-9_.-]{1,64})?$/)
+  product_code?: string | null;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(200)
+  description!: string;
+
+  @ApiProperty()
+  @IsNumber({ maxDecimalPlaces: 3 })
+  @Min(0.001)
+  @Max(99_999_999)
+  quantity!: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  unit?: string | null;
+
+  @ApiProperty()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(999_999_999_999)
+  unit_price!: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(100)
+  discount_pct?: number;
+
+  @ApiPropertyOptional({ enum: ['estimate', 'manual', 'labour', 'material'] })
+  @IsOptional()
+  @IsIn(['estimate', 'manual', 'labour', 'material'])
+  source?: string;
+}
+
+/** CD-242 — the charge's lines and note, while a draft. */
+export class SaveServiceBillingDto {
+  @ApiProperty({ type: [ServiceBillingLineDto] })
+  @IsArray()
+  @ArrayMaxSize(50)
+  @ValidateNested({ each: true })
+  @Type(() => ServiceBillingLineDto)
+  lines!: ServiceBillingLineDto[];
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  note?: string | null;
+}
+
+export class PrepareServiceBillingDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(50)
+  work_order_id!: string;
+}
+
+export class CancelServiceBillingDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(500)
+  reason!: string;
+}
+
+export class ListServiceBillingsQueryDto {
+  @ApiPropertyOptional({ enum: ['draft', 'confirmed', 'cancelled'] })
+  @IsOptional()
+  @IsIn(['draft', 'confirmed', 'cancelled'])
+  status?: string;
+
+  @ApiPropertyOptional({
+    enum: ['none', 'pending', 'synced', 'not_ready', 'failed', 'skipped'],
+  })
+  @IsOptional()
+  @IsIn(['none', 'pending', 'synced', 'not_ready', 'failed', 'skipped'])
+  erp_status?: string;
 }

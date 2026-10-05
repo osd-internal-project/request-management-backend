@@ -7091,6 +7091,78 @@ model ServiceOnCallDispatch {
   @@map("service_on_call_dispatches")
 }
 
+/// CD-242 ส่งข้อมูลเรียกเก็บเงินงานบริการ — a billed service job's charge,
+/// one per work order: lines the service team confirms (from the customer's
+/// agreed estimate, edited; CD-243 adds time and materials), then sent to SAP
+/// B1 as a draft A/R invoice that finance posts. Separate from project
+/// installment billing (CD-164/193).
+///   status: draft (being prepared) · confirmed (sent / to send) · cancelled
+///   erpStatus: none · pending · synced · not_ready · failed · skipped
+///   erpInvoiceStatus (read back): draft · open · paid · cancelled · missing
+model ServiceBilling {
+  id               String    @id @default(uuid())
+  companyId        String
+  workOrderId      String    @unique
+  requestId        String
+  customerId       String
+  /// our reference in SAP (`NumAtCard`): SVB-<request number>
+  reference        String
+  status           String    @default("draft")
+  currency         String    @default("THB")
+  /// before VAT, the sum of the lines
+  netTotal         Decimal   @default(0) @db.Decimal(14, 2)
+  note             String?
+  confirmedBy      String?
+  confirmedAt      DateTime?
+  cancelledBy      String?
+  cancelledAt      DateTime?
+  cancelReason     String?
+  erpStatus        String    @default("none")
+  /// the draft's key in SAP (B1 Drafts DocEntry)
+  erpDraftNo       String?
+  erpLastError     String?
+  erpSyncedAt      DateTime?
+  erpInvoiceStatus String?
+  /// B1 DocNum of the A/R invoice finance posted from the draft
+  erpInvoiceNo     String?
+  erpInvoiceTotal  Decimal?  @db.Decimal(14, 2)
+  erpPaid          Decimal?  @db.Decimal(14, 2)
+  erpCheckedAt     DateTime?
+  createdAt        DateTime  @default(now())
+  createdBy        String
+  updatedAt        DateTime  @updatedAt
+  updatedBy        String?
+
+  lines ServiceBillingLine[]
+
+  @@unique([companyId, reference])
+  @@index([companyId, status])
+  @@index([erpStatus, erpCheckedAt])
+  @@map("service_billings")
+}
+
+/// CD-242 — one line of a service charge. source: estimate (from the
+/// customer's acknowledgement) · manual · labour / material (CD-243).
+model ServiceBillingLine {
+  id          String  @id @default(uuid())
+  billingId   String
+  lineNo      Int
+  /// SAP ItemCode — null = the general service item (ERP_B1_SERVICE_ITEM)
+  productCode String?
+  description String
+  quantity    Decimal @db.Decimal(14, 3)
+  unit        String?
+  unitPrice   Decimal @db.Decimal(14, 2)
+  discountPct Decimal @default(0) @db.Decimal(5, 2)
+  lineTotal   Decimal @db.Decimal(14, 2)
+  source      String  @default("manual")
+
+  billing ServiceBilling @relation(fields: [billingId], references: [id], onDelete: Cascade)
+
+  @@unique([billingId, lineNo])
+  @@map("service_billing_lines")
+}
+
 /// CD-251 เอกสารส่งมอบของเฟส (หมุดหมาย) — แนบต่อชื่อเอกสาร; ชื่อที่ตรงกับเอกสารบังคับของประเภทงาน
 /// ในรอบส่งของเฟสนั้นนับเป็นเอกสารบังคับ ที่เหลือเป็นเอกสารเพิ่มเติม. ลบ = deletedAt.
 model ProjectDeliveryDocument {

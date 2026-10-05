@@ -6,6 +6,12 @@ import { CustomerContractRepository } from '../crm/contract.repositories';
 import { EntitlementsService } from './entitlements.service';
 import { WorkOrdersService } from './work-orders.service';
 import { OnCallService } from './on-call.service';
+import { ServiceBillingService } from './service-billing.service';
+import { ServiceBillingErpSyncService } from './service-billing-erp-sync.service';
+import { CrmModule } from '../crm/crm.module';
+import { ErpModule } from '../erp/erp.module';
+import { CustomerExternalCodeRepository } from '../crm/customer-child.repositories';
+import { CompanyRepository } from '../crm/product.repositories';
 import { HrModule } from '../hr/hr.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { RequestsModule } from '../requests/requests.module';
@@ -27,6 +33,7 @@ import {
   ServiceOnCallDispatchRepository,
   ServiceOnCallShiftRepository,
   ServiceCalendarRepository,
+  ServiceBillingRepository,
 } from './support.repositories';
 
 /**
@@ -42,12 +49,20 @@ import {
     SlaModule,
     HrModule,
     NotificationsModule,
+    // CD-242 — the SAP queue, its customer push and the item catalog.
+    CrmModule,
+    ErpModule,
   ],
   providers: [
     ServiceAssetsService,
     EntitlementsService,
     WorkOrdersService,
     OnCallService,
+    ServiceBillingService,
+    ServiceBillingErpSyncService,
+    ServiceBillingRepository,
+    CustomerExternalCodeRepository,
+    CompanyRepository,
     ServiceOnCallShiftRepository,
     ServiceOnCallDispatchRepository,
     ServiceCalendarRepository,
@@ -70,6 +85,7 @@ import {
     EntitlementsService,
     WorkOrdersService,
     OnCallService,
+    ServiceBillingService,
   ],
 })
 export class SupportModule {}

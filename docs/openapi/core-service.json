@@ -18554,6 +18554,373 @@
         ]
       }
     },
+    "/api/v1/service-billings": {
+      "get": {
+        "operationId": "ServiceBillingsController_list",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "draft",
+                "confirmed",
+                "cancelled"
+              ]
+            }
+          },
+          {
+            "name": "erp_status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "none",
+                "pending",
+                "synced",
+                "not_ready",
+                "failed",
+                "skipped"
+              ]
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ใบเรียกเก็บงานบริการ — กรองตามสถานะ / สถานะส่ง SAP",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.read"
+        ]
+      },
+      "post": {
+        "operationId": "ServiceBillingsController_prepare",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrepareServiceBillingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เตรียมใบเรียกเก็บ — งานเก็บเงินที่เสร็จแล้ว เริ่มจากประมาณการที่ลูกค้ารับทราบ",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.manage"
+        ]
+      }
+    },
+    "/api/v1/service-billings/by-work-order/{workOrderId}": {
+      "get": {
+        "operationId": "ServiceBillingsController_ofWorkOrder",
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ใบเรียกเก็บของใบสั่งงาน (null ถ้ายังไม่ได้เตรียม)",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.read"
+        ]
+      }
+    },
+    "/api/v1/service-billings/{id}": {
+      "get": {
+        "operationId": "ServiceBillingsController_detail",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ใบเรียกเก็บ — รายการ สถานะ และผลจาก SAP",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.read"
+        ]
+      },
+      "put": {
+        "operationId": "ServiceBillingsController_save",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveServiceBillingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แก้รายการ/หมายเหตุ (ก่อนยืนยันส่ง)",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.manage"
+        ]
+      }
+    },
+    "/api/v1/service-billings/{id}/confirm": {
+      "post": {
+        "operationId": "ServiceBillingsController_confirm",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ยืนยันส่ง — ล็อกรายการและส่งเข้า SAP เป็นร่างใบแจ้งหนี้",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.manage"
+        ]
+      }
+    },
+    "/api/v1/service-billings/{id}/cancel": {
+      "post": {
+        "operationId": "ServiceBillingsController_cancel",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelServiceBillingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ยกเลิก (พร้อมเหตุผล) — ร่างที่ส่งแล้วถูกลบใน SAP; ออกใบแจ้งหนี้แล้วยกเลิกไม่ได้",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.manage"
+        ]
+      }
+    },
+    "/api/v1/service-billings/{id}/refresh": {
+      "post": {
+        "operationId": "ServiceBillingsController_refresh",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "อ่านสถานะจาก SAP ตอนนี้ (ออกใบแจ้งหนี้แล้ว/ชำระแล้ว)",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.read"
+        ]
+      }
+    },
     "/api/v1/delivery/projects/{projectId}/documents": {
       "get": {
         "operationId": "DeliveryController_documents",
@@ -36946,6 +37313,99 @@
           "end_on",
           "primary_user_id",
           "start_on"
+        ]
+      },
+      "PrepareServiceBillingDto": {
+        "type": "object",
+        "properties": {
+          "work_order_id": {
+            "type": "string",
+            "maxLength": 50,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "work_order_id"
+        ]
+      },
+      "ServiceBillingLineDto": {
+        "type": "object",
+        "properties": {
+          "product_code": {
+            "type": "object",
+            "description": "รหัสสินค้า SAP (ว่าง = item บริการกลาง)",
+            "pattern": "^([A-Za-z0-9_.-]{1,64})?$"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1
+          },
+          "quantity": {
+            "type": "number",
+            "maximum": 99999999,
+            "minimum": 0.001
+          },
+          "unit": {
+            "type": "object",
+            "maxLength": 30
+          },
+          "unit_price": {
+            "type": "number",
+            "maximum": 999999999999,
+            "minimum": 0
+          },
+          "discount_pct": {
+            "type": "number",
+            "maximum": 100,
+            "minimum": 0
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "estimate",
+              "manual",
+              "labour",
+              "material"
+            ]
+          }
+        },
+        "required": [
+          "description",
+          "quantity",
+          "unit_price"
+        ]
+      },
+      "SaveServiceBillingDto": {
+        "type": "object",
+        "properties": {
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ServiceBillingLineDto"
+            },
+            "maxItems": 50
+          },
+          "note": {
+            "type": "object",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "lines"
+        ]
+      },
+      "CancelServiceBillingDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "reason"
         ]
       },
       "DeliveryLineDto": {

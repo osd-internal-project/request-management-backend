@@ -104,6 +104,17 @@ function harness(
     listVendorCosts: jest.fn(() => Promise.resolve([])),
     listInvoices: jest.fn(() => Promise.resolve([])),
     listProjectCosts: jest.fn(() => Promise.resolve([])),
+    findInvoiceDraft: jest.fn(() => Promise.resolve(null)),
+    createInvoiceDraft: jest.fn(() => Promise.resolve({ externalCode: '1' })),
+    invoiceDraftState: jest.fn(() =>
+      Promise.resolve({
+        status: 'draft' as const,
+        invoiceNo: null,
+        total: null,
+        paid: null,
+      }),
+    ),
+    cancelInvoiceDraft: jest.fn(() => Promise.resolve()),
   };
 
   const audit = { record: jest.fn(() => Promise.resolve()) };

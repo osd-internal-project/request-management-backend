@@ -7,7 +7,7 @@ import { ConfigService } from '@nestjs/config';
 export const B1_TRANSPORT = 'B1_TRANSPORT';
 
 export interface B1Request {
-  readonly method: 'GET' | 'POST' | 'PATCH';
+  readonly method: 'GET' | 'POST' | 'PATCH' | 'DELETE';
   readonly url: string;
   readonly headers: Record<string, string>;
   readonly body?: string;
