@@ -270,6 +270,25 @@ export const NOTIFICATION_RULES: readonly RuleDefinition[] = [
     ],
     defaults: { percents: [120, 100, 80] },
   },
+  {
+    code: 'delivery.readiness',
+    module: 'pm',
+    label: 'ของยังไม่พร้อมก่อนวันส่งมอบ',
+    description:
+      'รอบส่งมอบที่ใกล้ถึงวันตามแผนแต่ยังมีบรรทัดที่ของไม่พร้อม (หรือยังไม่ทราบ) — แจ้งครั้งเดียวต่อวันที่ตามแผน เลื่อนวันแล้วแจ้งใหม่',
+    recipients: 'ผู้จัดการโครงการ และทีม Delivery (delivery.manage)',
+    eventTypes: ['delivery.not_ready'],
+    params: [
+      {
+        key: 'days',
+        label: 'แจ้งเมื่อเหลือไม่เกิน (วันก่อนวันส่ง)',
+        kind: 'days',
+        min: 1,
+        max: 60,
+      },
+    ],
+    defaults: { days: 7 },
+  },
 ];
 
 const BY_CODE = new Map(NOTIFICATION_RULES.map((rule) => [rule.code, rule]));

@@ -17930,6 +17930,251 @@
         ]
       }
     },
+    "/api/v1/delivery/deliveries": {
+      "get": {
+        "operationId": "DeliveryController_list",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "2026-10-01",
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "2026-11-30",
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "planned",
+                "delivered",
+                "cancelled"
+              ]
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-250 รอบส่งของทุกโครงการ (ของไม่พร้อมใกล้วันส่งขึ้นเตือน)",
+        "tags": [
+          "delivery"
+        ]
+      }
+    },
+    "/api/v1/delivery/projects/{projectId}": {
+      "get": {
+        "operationId": "DeliveryController_project",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-250 แผนส่งมอบของโครงการ: รอบส่ง หมุดหมาย และ BOQ ที่วางแผนแล้ว",
+        "tags": [
+          "delivery"
+        ]
+      }
+    },
+    "/api/v1/delivery/projects/{projectId}/deliveries": {
+      "post": {
+        "operationId": "DeliveryController_create",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveDeliveryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-250 เพิ่มรอบส่ง (ทีม Delivery / ผู้จัดการโครงการ)",
+        "tags": [
+          "delivery"
+        ]
+      }
+    },
+    "/api/v1/delivery/deliveries/{id}": {
+      "put": {
+        "operationId": "DeliveryController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveDeliveryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-250 แก้รอบส่ง (เลื่อนวัน = เตือนใหม่)",
+        "tags": [
+          "delivery"
+        ]
+      }
+    },
+    "/api/v1/delivery/deliveries/{id}/cancel": {
+      "post": {
+        "operationId": "DeliveryController_cancel",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelDeliveryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-250 ยกเลิกรอบส่ง (ต้องมีเหตุผล)",
+        "tags": [
+          "delivery"
+        ]
+      }
+    },
     "/api/v1/projects": {
       "get": {
         "operationId": "ProjectsController_list",
@@ -35689,6 +35934,107 @@
             "type": "string",
             "maxLength": 1000,
             "minLength": 1
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "DeliveryLineDto": {
+        "type": "object",
+        "properties": {
+          "boq_index": {
+            "type": "integer",
+            "description": "บรรทัด BOQ ของฐานตั้งต้น (0-based)",
+            "minimum": 0
+          },
+          "quantity": {
+            "type": "number",
+            "example": 4
+          },
+          "readiness": {
+            "type": "string",
+            "enum": [
+              "unknown",
+              "ready",
+              "partial",
+              "not_ready"
+            ],
+            "default": "unknown"
+          },
+          "ready_qty": {
+            "type": "object",
+            "description": "จำนวนที่พร้อม (เมื่อพร้อมบางส่วน)"
+          },
+          "expected_on": {
+            "type": "object",
+            "example": "2026-10-15",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "fallback_plan": {
+            "type": "string",
+            "description": "ต้องมีเมื่อไม่พร้อมหรือพร้อมบางส่วน",
+            "maxLength": 1000
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "boq_index",
+          "quantity"
+        ]
+      },
+      "SaveDeliveryDto": {
+        "type": "object",
+        "properties": {
+          "milestone_id": {
+            "type": "string"
+          },
+          "planned_on": {
+            "type": "string",
+            "example": "2026-10-20",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "location": {
+            "type": "string",
+            "example": "อาคาร A ชั้น 3",
+            "maxLength": 1000
+          },
+          "receiver_name": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "receiver_phone": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeliveryLineDto"
+            },
+            "maxItems": 200
+          }
+        },
+        "required": [
+          "lines",
+          "location",
+          "milestone_id",
+          "planned_on"
+        ]
+      },
+      "CancelDeliveryDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 1000
           }
         },
         "required": [

@@ -720,6 +720,29 @@ export class NotificationsService {
     });
   }
 
+  /** CD-250 — a delivery trip is near with goods still not ready. */
+  async deliveryNotReady(
+    userId: string,
+    companyId: string,
+    delivery: { id: string; projectId: string; label: string; seq: number },
+    plannedOn: string,
+    lines: number,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'delivery.not_ready',
+      values: {
+        project: delivery.label,
+        seq: String(delivery.seq),
+        date: thaiDay(plannedOn),
+        lines: String(lines),
+      },
+      resourceType: 'project',
+      resourceId: delivery.projectId,
+    });
+  }
+
   /** CD-175 — someone was made a project's manager or put on its team. */
   async projectAssigned(
     userId: string,

@@ -6944,3 +6944,52 @@ model ServiceEntitlementAsset {
   @@index([assetId])
   @@map("service_entitlement_assets")
 }
+
+/// CD-250 แผนส่งมอบ — รอบส่งของหนึ่งรอบของหมุดหมาย (หมุดหมายหนึ่งส่งได้หลายรอบ):
+/// วันที่ สถานที่ ผู้รับ และบรรทัด BOQ × จำนวน. planned · delivered · cancelled.
+model ProjectDelivery {
+  id            String    @id @default(uuid())
+  companyId     String
+  projectId     String
+  milestoneId   String
+  seq           Int
+  plannedOn     DateTime  @db.Date
+  location      String
+  receiverName  String    @default("")
+  receiverPhone String    @default("")
+  note          String    @default("")
+  status        String    @default("planned")
+  /// แจ้งเตือนของยังไม่พร้อมไปแล้ว (ครั้งเดียวต่อวันที่ตามแผน).
+  warnedFor     DateTime? @db.Date
+  createdAt     DateTime  @default(now())
+  createdBy     String
+  updatedAt     DateTime  @updatedAt
+  updatedBy     String?
+
+  lines ProjectDeliveryLine[]
+
+  @@unique([projectId, seq])
+  @@index([companyId, status, plannedOn])
+  @@index([milestoneId])
+  @@map("project_deliveries")
+}
+
+/// CD-250 บรรทัดของรอบส่ง: บรรทัด BOQ ของฐานตั้งต้น (0-based) × จำนวน และความพร้อมของสินค้า
+/// (บันทึกเองจนกว่าจะอ่านสต็อก SAP ได้ — CD-28). ไม่พร้อม/บางส่วนต้องมีแผนสำรอง.
+model ProjectDeliveryLine {
+  id           String    @id @default(uuid())
+  deliveryId   String
+  boqIndex     Int
+  quantity     Decimal   @db.Decimal(12, 2)
+  /// unknown · ready · partial · not_ready
+  readiness    String    @default("unknown")
+  readyQty     Decimal?  @db.Decimal(12, 2)
+  expectedOn   DateTime? @db.Date
+  fallbackPlan String    @default("")
+  note         String    @default("")
+
+  delivery ProjectDelivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+
+  @@index([deliveryId])
+  @@map("project_delivery_lines")
+}

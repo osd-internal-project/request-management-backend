@@ -141,6 +141,12 @@ export const PERMISSIONS = {
    * predates the system.
    */
   service: ['service.asset.read', 'service.asset.manage'],
+  /**
+   * CD-20 Delivery — the delivery team's plans of what goes where and when
+   * (CD-250). A project's manager and `pm.project.manage` change their own
+   * project's plan too; its team reads it.
+   */
+  delivery: ['delivery.read', 'delivery.manage'],
   admin: [
     'admin.role.manage',
     'admin.org.manage',

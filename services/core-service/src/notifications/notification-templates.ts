@@ -536,6 +536,19 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
     },
   },
   {
+    eventType: 'delivery.not_ready',
+    label: 'ของยังไม่พร้อมก่อนวันส่งมอบ (ถึง PM และทีม Delivery)',
+    title:
+      'โครงการ {{project}}: รอบส่งที่ {{seq}} วันที่ {{date}} ของยังไม่พร้อม {{lines}} บรรทัด',
+    body: 'ตรวจแผนสำรองหรือเลื่อนวันส่งที่แท็บส่งมอบของโครงการ',
+    variables: {
+      project: { label: 'โครงการ', sample: 'PRJ-2026-0001 · ระบบเครือข่าย' },
+      seq: { label: 'รอบส่ง', sample: '2' },
+      date: { label: 'วันที่ส่งตามแผน', sample: '12/10/2569' },
+      lines: { label: 'จำนวนบรรทัดที่ไม่พร้อม', sample: '3' },
+    },
+  },
+  {
     eventType: 'pm.project.assigned',
     label: 'ได้รับมอบหมายในโครงการ (ถึงผู้จัดการและทีมโครงการ)',
     title: 'โครงการ {{project_no}}: คุณเป็น{{role}}',

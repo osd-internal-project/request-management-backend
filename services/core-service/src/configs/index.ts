@@ -180,6 +180,13 @@ export default () => ({
     ),
   },
 
+  delivery: {
+    /** CD-250 — goods-not-ready warnings before a delivery (ms); 0 = off. */
+    readinessIntervalMs: Number(
+      process.env.DELIVERY_READINESS_INTERVAL_MS ?? 21600000,
+    ),
+  },
+
   crm: {
     /** CD-162 — expiry reminders for contracts without a renewal deal (ms); 0 = off. */
     contractExpiryIntervalMs: Number(

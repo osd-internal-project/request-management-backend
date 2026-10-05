@@ -386,6 +386,21 @@ const SEED_ROLES: {
     ],
   },
   {
+    // CD-20 — ทีม Delivery: plans deliveries across projects (CD-250).
+    code: 'delivery',
+    name: 'ทีม Delivery',
+    description: 'วางแผนส่งมอบ ตรวจความพร้อมของสินค้า และประสานการตรวจรับทุกโครงการ',
+    permissions: [
+      'request.create',
+      'request.read',
+      'notification.read',
+      'user.read',
+      'pm.project.read',
+      'delivery.read',
+      'delivery.manage',
+    ],
+  },
+  {
     code: 'auditor',
     name: 'ผู้ตรวจสอบ',
     description: 'ตรวจสอบภายใน — อ่านอย่างเดียว ข้ามบริษัทได้',
