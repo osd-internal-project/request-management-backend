@@ -15392,6 +15392,115 @@
         ]
       }
     },
+    "/api/v1/hr/labor-costs/service": {
+      "get": {
+        "operationId": "HrController_serviceLaborCosts",
+        "parameters": [
+          {
+            "name": "from",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "example": "2026-10-01",
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          {
+            "name": "to",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "example": "2026-10-31",
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          {
+            "name": "group",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "request",
+              "type": "string",
+              "enum": [
+                "request",
+                "type",
+                "month",
+                "person"
+              ]
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-234 ต้นทุนแรงงานงานบริการ (Timesheet อนุมัติ × อัตราของวันนั้น) ตามคำขอ/ประเภท/เดือน/คน",
+        "tags": [
+          "hr"
+        ],
+        "x-permission": [
+          "hr.rate.read"
+        ]
+      }
+    },
+    "/api/v1/hr/labor-costs/service/{requestId}": {
+      "get": {
+        "operationId": "HrController_serviceLaborCost",
+        "parameters": [
+          {
+            "name": "requestId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-234 ต้นทุนแรงงานของเคสบริการหนึ่ง รายคนรายวัน",
+        "tags": [
+          "hr"
+        ],
+        "x-permission": [
+          "hr.rate.read"
+        ]
+      }
+    },
     "/api/v1/hr/mandays": {
       "get": {
         "operationId": "HrController_mandayProjects",

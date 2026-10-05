@@ -25,6 +25,7 @@ import { TimesheetsService } from './timesheets.service';
 import { LeavesService } from './leaves.service';
 import { AvailabilityService } from './availability.service';
 import { MandayVarianceService } from './manday-variance.service';
+import { LaborCostService } from './labor-cost.service';
 import { NotificationsModule } from '../notifications/notifications.module';
 
 /**
@@ -64,6 +65,8 @@ import { NotificationsModule } from '../notifications/notifications.module';
     // CD-233
     MandayVarianceService,
     HrMandayAlertRepository,
+    // CD-234
+    LaborCostService,
   ],
   exports: [
     HrRatesService,
@@ -72,6 +75,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     LeavesService,
     AvailabilityService,
     MandayVarianceService,
+    LaborCostService,
   ],
 })
 export class HrModule {}

@@ -34,12 +34,14 @@ import {
   RequestLeaveDto,
   SaveLeaveEntitlementDto,
   SaveLeaveTypeDto,
+  LaborCostQueryDto,
 } from './hr.dto';
 import { EmployeesService } from './employees.service';
 import { TimesheetsService } from './timesheets.service';
 import { LeavesService } from './leaves.service';
 import { AvailabilityService } from './availability.service';
 import { MandayVarianceService } from './manday-variance.service';
+import { LaborCostService } from './labor-cost.service';
 
 /** CD-207 — ต้นทุนบุคลากร: levels, work types and cost per manday. */
 @ApiTags('hr')
@@ -53,7 +55,33 @@ export class HrController {
     private readonly leaves: LeavesService,
     private readonly availabilityService: AvailabilityService,
     private readonly mandays: MandayVarianceService,
+    private readonly laborCosts: LaborCostService,
   ) {}
+
+  // --- CD-234 Labour cost -----------------------------------------------------
+
+  @ApiOperation({
+    summary:
+      'CD-234 ต้นทุนแรงงานงานบริการ (Timesheet อนุมัติ × อัตราของวันนั้น) ตามคำขอ/ประเภท/เดือน/คน',
+  })
+  @Get('labor-costs/service')
+  @Permissions('hr.rate.read')
+  serviceLaborCosts(
+    @Query() query: LaborCostQueryDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.laborCosts.report(principal, query);
+  }
+
+  @ApiOperation({ summary: 'CD-234 ต้นทุนแรงงานของเคสบริการหนึ่ง รายคนรายวัน' })
+  @Get('labor-costs/service/:requestId')
+  @Permissions('hr.rate.read')
+  serviceLaborCost(
+    @Param('requestId') requestId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.laborCosts.request(principal, requestId);
+  }
 
   // --- CD-233 Manday plan vs actual -------------------------------------------
 

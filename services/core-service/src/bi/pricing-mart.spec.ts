@@ -10,6 +10,7 @@ describe('CD-208 pricing mart', () => {
     expect(PRICING_MART_TABLES.map((step) => step.table)).toEqual([
       'pricing.fact_quotation_lines',
       'pricing.fact_pricing_exceptions',
+      'pricing.fact_labor_costs',
     ]);
     const sql = PRICING_MART_TABLES.flatMap((step) => step.sql).join('\n');
     expect(sql).not.toMatch(/\bmart\.(?!refresh_log)/);
@@ -42,5 +43,14 @@ describe('CD-208 pricing mart', () => {
       'mart_pricing.fact_quotation_lines',
     );
     expect(martTableName('fact_sales')).toBe('mart.fact_sales');
+  });
+
+  it('CD-234: labour priced with the rate of the day worked, approved weeks only', () => {
+    const labor = PRICING_MART_TABLES[2].sql.join('\n');
+    expect(labor).toContain(`t.status = 'approved'`);
+    expect(labor).toContain(`hr."validFrom" <= l."workDate"`);
+    expect(labor).toContain('l.hours / 8 * rate."costPerManday"');
+    const mart = MART_TABLES.flatMap((step) => step.sql).join('\n');
+    expect(mart).not.toMatch(/hr_labor_rates|costPerManday/);
   });
 });

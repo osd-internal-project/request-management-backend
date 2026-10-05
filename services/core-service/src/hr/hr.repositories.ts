@@ -216,7 +216,13 @@ export class HrWorkRefsRepository {
   requests(where: Record<string, unknown>) {
     return this.prisma.request.findMany({
       where,
-      select: { id: true, requestNo: true, typeCode: true, status: true },
+      select: {
+        id: true,
+        requestNo: true,
+        typeCode: true,
+        status: true,
+        contactCompany: true,
+      },
       orderBy: { createdAt: 'desc' },
       take: 100,
     });
@@ -366,6 +372,20 @@ export class HrWorkRefsRepository {
       }),
     ]);
     return { levels, workTypes };
+  }
+
+  /** CD-234 — requests by id, any number (no paging). */
+  requestsByIds(companyId: string, ids: string[]) {
+    return this.prisma.request.findMany({
+      where: { companyId, id: { in: ids } },
+      select: {
+        id: true,
+        requestNo: true,
+        typeCode: true,
+        status: true,
+        contactCompany: true,
+      },
+    });
   }
 
   names(ids: string[]) {

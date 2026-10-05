@@ -441,3 +441,23 @@ export class AvailabilityQueryDto {
   @IsString()
   skill_id?: string;
 }
+
+export class LaborCostQueryDto {
+  @ApiProperty({ example: '2026-10-01' })
+  @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  from!: string;
+
+  @ApiProperty({ example: '2026-10-31' })
+  @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  to!: string;
+
+  @ApiPropertyOptional({
+    enum: ['request', 'type', 'month', 'person'],
+    default: 'request',
+  })
+  @IsOptional()
+  @IsIn(['request', 'type', 'month', 'person'])
+  group?: string;
+}
