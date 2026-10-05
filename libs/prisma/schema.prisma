@@ -7528,6 +7528,34 @@ model ServiceProblemDismissal {
   @@map("service_problem_dismissals")
 }
 
+/// CD-247 รายงานผลบริการ — an issued service report: one cover (a service
+/// contract or a warranty, CD-237) for one period, its figures frozen as they
+/// were on issue (`data`), the penalty a person confirmed from the contract's
+/// terms, the PDF sent to the customer, and when it was sent.
+model ServiceReport {
+  id             String    @id @default(uuid())
+  companyId      String
+  entitlementId  String
+  customerId     String
+  reportNo       String
+  periodFrom     DateTime  @db.Date
+  periodTo       DateTime  @db.Date
+  /// the figures on issue: jobs, response/resolution met, PM rounds
+  data           Json
+  penaltyAmount  Decimal?  @db.Decimal(14, 2)
+  penaltyNote    String?
+  pdfKey         String
+  issuedAt       DateTime  @default(now())
+  issuedBy       String
+  sentOn         DateTime? @db.Date
+  sentTo         String?
+  sentBy         String?
+
+  @@unique([companyId, reportNo])
+  @@index([entitlementId, periodFrom])
+  @@map("service_reports")
+}
+
 /// CD-251 เอกสารส่งมอบของเฟส (หมุดหมาย) — แนบต่อชื่อเอกสาร; ชื่อที่ตรงกับเอกสารบังคับของประเภทงาน
 /// ในรอบส่งของเฟสนั้นนับเป็นเอกสารบังคับ ที่เหลือเป็นเอกสารเพิ่มเติม. ลบ = deletedAt.
 model ProjectDeliveryDocument {

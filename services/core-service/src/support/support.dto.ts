@@ -1034,3 +1034,67 @@ export class ListProblemsQueryDto {
   @IsIn(['open', 'resolved', 'all'])
   state?: 'open' | 'resolved' | 'all';
 }
+
+/** CD-247 — a cover over a period (and the basis the penalty is on). */
+export class ServiceReportPreviewDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(50)
+  entitlement_id!: string;
+
+  @ApiProperty({ description: 'YYYY-MM-DD' })
+  @IsString()
+  @MaxLength(10)
+  from!: string;
+
+  @ApiProperty({ description: 'YYYY-MM-DD (รวมวันนี้)' })
+  @IsString()
+  @MaxLength(10)
+  to!: string;
+
+  @ApiPropertyOptional({
+    description: 'ฐานคิดค่าปรับ (บาท) เช่น ค่าบริการรายเดือน',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  basis_amount?: number;
+}
+
+/** CD-247 — issue it, with the penalty confirmed. */
+export class IssueServiceReportDto extends ServiceReportPreviewDto {
+  @ApiPropertyOptional({ description: 'ค่าปรับที่ยืนยัน (บาท) — ว่าง = ไม่มี' })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  penalty_amount?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  penalty_note?: string;
+}
+
+export class MarkReportSentDto {
+  @ApiProperty({ description: 'YYYY-MM-DD' })
+  @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  sent_on!: string;
+
+  @ApiProperty({ description: 'ส่งถึงใคร/ช่องทาง' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  sent_to!: string;
+}
+
+export class ListServiceReportsQueryDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  entitlement_id?: string;
+}

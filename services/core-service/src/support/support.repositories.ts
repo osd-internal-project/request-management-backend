@@ -270,3 +270,31 @@ export class ServiceProblemDismissalRepository extends BaseRepository<
     return client.serviceProblemDismissal;
   }
 }
+
+/** CD-247 — issued service reports. */
+@Injectable()
+export class ServiceReportRepository extends BaseRepository<
+  PrismaService['serviceReport']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.serviceReport;
+  }
+}
+
+/** CD-247 — the cases' SLA clocks, read for the report. */
+@Injectable()
+export class ServiceSlaClockRepository extends BaseRepository<
+  PrismaService['slaClock']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.slaClock;
+  }
+}

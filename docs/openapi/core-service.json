@@ -20165,6 +20165,295 @@
         ]
       }
     },
+    "/api/v1/service-reports/preview": {
+      "get": {
+        "operationId": "ServiceReportsController_preview",
+        "parameters": [
+          {
+            "name": "entitlement_id",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 50,
+              "minLength": 1
+            }
+          },
+          {
+            "name": "from",
+            "required": true,
+            "in": "query",
+            "description": "YYYY-MM-DD",
+            "schema": {
+              "type": "string",
+              "maxLength": 10
+            }
+          },
+          {
+            "name": "to",
+            "required": true,
+            "in": "query",
+            "description": "YYYY-MM-DD (รวมวันนี้)",
+            "schema": {
+              "type": "string",
+              "maxLength": 10
+            }
+          },
+          {
+            "name": "basis_amount",
+            "required": false,
+            "in": "query",
+            "description": "ฐานคิดค่าปรับ (บาท) เช่น ค่าบริการรายเดือน",
+            "schema": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ตัวเลขของสิทธิ์/สัญญาในงวด (สด) — งานตามความรุนแรง ตอบกลับ/แก้ไขทันกำหนด รอบ PM ค่าปรับประมาณ",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.read"
+        ]
+      }
+    },
+    "/api/v1/service-reports": {
+      "get": {
+        "operationId": "ServiceReportsController_list",
+        "parameters": [
+          {
+            "name": "entitlement_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 50
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "รายงานที่ออกแล้ว",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.read"
+        ]
+      },
+      "post": {
+        "operationId": "ServiceReportsController_issue",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IssueServiceReportDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ออกรายงาน — เก็บตัวเลขงวดนี้ + PDF + ค่าปรับที่ยืนยัน",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.manage"
+        ]
+      }
+    },
+    "/api/v1/service-reports/{id}": {
+      "get": {
+        "operationId": "ServiceReportsController_detail",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "รายงานที่ออกแล้ว (ตัวเลข ณ วันที่ออก)",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.read"
+        ]
+      }
+    },
+    "/api/v1/service-reports/{id}/pdf": {
+      "get": {
+        "operationId": "ServiceReportsController_pdf",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "PDF ของรายงาน",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.read"
+        ]
+      }
+    },
+    "/api/v1/service-reports/{id}/sent": {
+      "post": {
+        "operationId": "ServiceReportsController_sent",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MarkReportSentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "บันทึกว่าส่งรายงานให้ลูกค้าแล้ว",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.manage"
+        ]
+      }
+    },
     "/api/v1/delivery/projects/{projectId}/handovers": {
       "get": {
         "operationId": "DeliveryController_handoversOfProject",
@@ -39945,6 +40234,65 @@
         },
         "required": [
           "work_order_ids"
+        ]
+      },
+      "IssueServiceReportDto": {
+        "type": "object",
+        "properties": {
+          "entitlement_id": {
+            "type": "string",
+            "maxLength": 50,
+            "minLength": 1
+          },
+          "from": {
+            "type": "string",
+            "description": "YYYY-MM-DD",
+            "maxLength": 10
+          },
+          "to": {
+            "type": "string",
+            "description": "YYYY-MM-DD (รวมวันนี้)",
+            "maxLength": 10
+          },
+          "basis_amount": {
+            "type": "number",
+            "description": "ฐานคิดค่าปรับ (บาท) เช่น ค่าบริการรายเดือน",
+            "minimum": 0
+          },
+          "penalty_amount": {
+            "type": "number",
+            "description": "ค่าปรับที่ยืนยัน (บาท) — ว่าง = ไม่มี",
+            "minimum": 0
+          },
+          "penalty_note": {
+            "type": "string",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "entitlement_id",
+          "from",
+          "to"
+        ]
+      },
+      "MarkReportSentDto": {
+        "type": "object",
+        "properties": {
+          "sent_on": {
+            "type": "string",
+            "description": "YYYY-MM-DD",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "sent_to": {
+            "type": "string",
+            "description": "ส่งถึงใคร/ช่องทาง",
+            "maxLength": 255,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "sent_on",
+          "sent_to"
         ]
       },
       "SendHandoverDto": {

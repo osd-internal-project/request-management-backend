@@ -8,6 +8,7 @@ import {
   Post,
   Put,
   Query,
+  StreamableFile,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentPrincipal, Permissions } from '@request-management/share';
@@ -21,6 +22,7 @@ import { TimeMaterialsService } from './time-materials.service';
 import { PmPlanService } from './pm-plan.service';
 import { ClaimsService } from './claims.service';
 import { ProblemsService } from './problems.service';
+import { ServiceReportsService } from './service-reports.service';
 import {
   AssetStatusDto,
   AttachWorkOrderDto,
@@ -57,6 +59,10 @@ import {
   ListProblemsQueryDto,
   OpenProblemDto,
   UpdateProblemDto,
+  IssueServiceReportDto,
+  ListServiceReportsQueryDto,
+  MarkReportSentDto,
+  ServiceReportPreviewDto,
 } from './support.dto';
 
 /** CD-236 ทะเบียนอุปกรณ์ที่ติดตั้ง. */
@@ -800,5 +806,80 @@ export class ServiceProblemsController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.problems.unlink(principal, id, workOrderId);
+  }
+}
+
+/** CD-247 รายงานผลบริการ. */
+@ApiTags('service')
+@ApiBearerAuth()
+@Controller('service-reports')
+export class ServiceReportsController {
+  constructor(private readonly reports: ServiceReportsService) {}
+
+  @ApiOperation({
+    summary:
+      'ตัวเลขของสิทธิ์/สัญญาในงวด (สด) — งานตามความรุนแรง ตอบกลับ/แก้ไขทันกำหนด รอบ PM ค่าปรับประมาณ',
+  })
+  @Get('preview')
+  @Permissions('service.asset.read')
+  preview(
+    @Query() query: ServiceReportPreviewDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.reports.preview(principal, query);
+  }
+
+  @ApiOperation({ summary: 'รายงานที่ออกแล้ว' })
+  @Get()
+  @Permissions('service.asset.read')
+  list(
+    @Query() query: ListServiceReportsQueryDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.reports.list(principal, query.entitlement_id);
+  }
+
+  @ApiOperation({ summary: 'รายงานที่ออกแล้ว (ตัวเลข ณ วันที่ออก)' })
+  @Get(':id')
+  @Permissions('service.asset.read')
+  detail(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.reports.detail(principal, id);
+  }
+
+  @ApiOperation({ summary: 'PDF ของรายงาน' })
+  @Get(':id/pdf')
+  @Permissions('service.asset.read')
+  async pdf(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ): Promise<StreamableFile> {
+    const file = await this.reports.file(principal, id);
+    return new StreamableFile(file.stream, {
+      type: 'application/pdf',
+      disposition: `inline; filename*=UTF-8''${encodeURIComponent(file.fileName)}`,
+    });
+  }
+
+  @ApiOperation({
+    summary: 'ออกรายงาน — เก็บตัวเลขงวดนี้ + PDF + ค่าปรับที่ยืนยัน',
+  })
+  @Post()
+  @Permissions('service.asset.manage')
+  issue(
+    @Body() dto: IssueServiceReportDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.reports.issue(principal, dto);
+  }
+
+  @ApiOperation({ summary: 'บันทึกว่าส่งรายงานให้ลูกค้าแล้ว' })
+  @Post(':id/sent')
+  @Permissions('service.asset.manage')
+  sent(
+    @Param('id') id: string,
+    @Body() dto: MarkReportSentDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.reports.markSent(principal, id, dto);
   }
 }

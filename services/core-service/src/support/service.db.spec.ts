@@ -16,6 +16,9 @@ import {
   ServiceProblemDismissalRepository,
   ServiceProblemLinkRepository,
   ServiceProblemRepository,
+  ServicePmRoundRepository as PmRoundRepo,
+  ServiceReportRepository,
+  ServiceSlaClockRepository,
   ServiceEntitlementRepository,
   ServiceLabourRateRepository,
   ServiceMaterialUseRepository,
@@ -31,6 +34,9 @@ import { WorkOrdersService } from './work-orders.service';
 import { OnCallService } from './on-call.service';
 import { ClaimsService } from './claims.service';
 import { ProblemsService } from './problems.service';
+import { ServiceReportsService } from './service-reports.service';
+import { ContractTermsRepository as TermsRepo } from '../crm/contract-terms.service';
+import { CrmConfigRepository } from '../crm/segment.repositories';
 import { SpareIssueErpSyncService } from './spare-issue-erp-sync.service';
 import { TimeMaterialsService } from './time-materials.service';
 import { PmPlanService } from './pm-plan.service';
@@ -137,6 +143,9 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
     afterAll(async () => {
       await prisma.serviceBilling.deleteMany({
         where: { requestId: { in: requestIds } },
+      });
+      await prisma.serviceReport.deleteMany({
+        where: { companyId, issuedAt: { gte: startedAt } },
       });
       await prisma.serviceProblemLink.deleteMany({
         where: { linkedAt: { gte: startedAt } },
@@ -1549,6 +1558,158 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
           (p) => p.id === problem.id,
         )?.jobCount,
       ).toBe(group!.jobIds.length + 1);
+    });
+
+    it('CD-247: a cover over a period — jobs measured against the levels committed, response and resolution apart, PM rounds; issued frozen with a PDF and recorded as sent', async () => {
+      const client = prisma as never;
+      const transactions = {
+        execute: (work: (tx: unknown) => Promise<unknown>) =>
+          prisma.$transaction((tx) => work(tx)),
+      } as never;
+      const audit = { record: () => Promise.resolve() } as never;
+      const stored = new Map<string, Buffer>();
+      const reports = new ServiceReportsService(
+        new ServiceReportRepository(client),
+        new ServiceEntitlementRepository(client),
+        new ServiceWorkOrderRepository(client),
+        new ServiceSlaClockRepository(client),
+        new PmRoundRepo(client),
+        new RequestRepository(client),
+        new CustomerRepository(client),
+        new CustomerContractRepository(client),
+        new TermsRepo(client),
+        new CompanyRepository(client),
+        new CrmConfigRepository(client),
+        {
+          put: (key: string, body: Buffer) => {
+            stored.set(key, body);
+            return Promise.resolve();
+          },
+          get: () => Promise.resolve(null),
+        } as never,
+        audit,
+        transactions,
+      );
+      const manager = {
+        userId: staff,
+        activeCompanyId: companyId,
+        permissions: ['service.asset.read', 'service.asset.manage'],
+      } as unknown as Principal;
+      // a period far ahead, so only this test's jobs are in it
+      const job = async (
+        severity: 'high' | 'low',
+        clock: { responded: string; due: string; done: string | null },
+      ) => {
+        const request = await prisma.request.create({
+          data: {
+            requestTypeId: typeId,
+            typeCode,
+            companyId,
+            requesterId: staff,
+            status: clock.done ? 'completed' : 'in_progress',
+            completedAt: clock.done ? new Date(clock.done) : null,
+            severity,
+            formData: { subject: `งาน ${severity}` },
+          },
+        });
+        requestIds.push(request.id);
+        const order = await prisma.serviceWorkOrder.create({
+          data: {
+            companyId,
+            requestId: request.id,
+            customerId,
+            assetId,
+            workKind: 'corrective',
+            suggestedBilling: 'in_contract',
+            billing: 'in_contract',
+            entitlementId,
+            createdBy: staff,
+            createdAt: new Date('2032-05-10T02:00:00Z'),
+          },
+        });
+        await prisma.slaClock.create({
+          data: {
+            requestId: request.id,
+            startedAt: new Date('2032-05-10T02:00:00Z'),
+            responseDueAt: new Date('2032-05-10T03:00:00Z'),
+            respondedAt: new Date(clock.responded),
+            dueAt: new Date(clock.due),
+            state: clock.done ? 'met' : 'running',
+          },
+        });
+        return order;
+      };
+      // in time on both
+      await job('high', {
+        responded: '2032-05-10T02:30:00Z',
+        due: '2032-05-10T08:00:00Z',
+        done: '2032-05-10T07:00:00Z',
+      });
+      // answered late, fixed 5 h late
+      await job('high', {
+        responded: '2032-05-10T04:00:00Z',
+        due: '2032-05-10T08:00:00Z',
+        done: '2032-05-10T13:00:00Z',
+      });
+      await job('low', {
+        responded: '2032-05-10T02:10:00Z',
+        due: '2032-05-12T02:00:00Z',
+        done: '2032-05-11T02:00:00Z',
+      });
+
+      await expect(
+        reports.preview(manager, {
+          entitlement_id: entitlementId,
+          from: '2032-05-31',
+          to: '2032-05-01',
+        }),
+      ).rejects.toThrow('วันสิ้นสุด');
+      const now = new Date('2032-06-01T00:00:00Z');
+      const view = await reports.preview(
+        manager,
+        { entitlement_id: entitlementId, from: '2032-05-01', to: '2032-05-31' },
+        now,
+      );
+      expect(view.jobs).toHaveLength(3);
+      const high = view.figures.find((f) => f.severity === 'high')!;
+      expect(high).toMatchObject({
+        jobs: 2,
+        responseMet: 1,
+        responseMissed: 1,
+        resolutionMet: 1,
+        resolutionMissed: 1,
+        resolutionPct: 50,
+      });
+      expect(view.figures.at(-1)).toMatchObject({ severity: 'all', jobs: 3 });
+      expect(view.jobs.find((j) => j.resolution === 'missed')?.lateHours).toBe(
+        5,
+      );
+      // no contract behind this cover: no penalty terms
+      expect(view.penalty.estimate.amount).toBeNull();
+
+      const issued = await reports.issue(manager, {
+        entitlement_id: entitlementId,
+        from: '2032-05-01',
+        to: '2032-05-31',
+        penalty_amount: 2500,
+        penalty_note: 'ตามสัญญาข้อ 7',
+      });
+      expect(issued).toMatchObject({
+        reportNo: expect.stringMatching(/^SVR-/) as unknown,
+        jobs: 3,
+        penaltyAmount: 2500,
+        sentOn: null,
+      });
+      const [pdf] = [...stored.values()];
+      expect(pdf.subarray(0, 4).toString()).toBe('%PDF');
+      const sent = await reports.markSent(manager, issued.id, {
+        sent_on: '2032-06-02',
+        sent_to: 'คุณวิภา ฝ่ายอาคาร (อีเมล)',
+      });
+      expect(sent).toMatchObject({ sentOn: '2032-06-02' });
+      expect(
+        (await reports.list(manager, entitlementId)).map((r) => r.id),
+      ).toContain(issued.id);
     });
   },
 );
