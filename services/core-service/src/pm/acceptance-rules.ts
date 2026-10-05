@@ -48,6 +48,8 @@ export interface ResultInput {
   decidedOn: string | null;
   note: string;
   hasCertificate: boolean;
+  /** CD-252 — signed electronically afterwards: nothing to attach now. */
+  certificateViaEsign?: boolean;
   items: readonly { text: string; dueOn: string | null }[];
   today: string;
 }
@@ -64,7 +66,8 @@ export function resultProblems(input: ResultInput): string[] {
   }
   if (
     (input.result === 'accepted' || input.result === 'conditional') &&
-    !input.hasCertificate
+    !input.hasCertificate &&
+    !input.certificateViaEsign
   ) {
     problems.push('ต้องแนบใบตรวจรับที่ลูกค้าลงนามแล้ว');
   }

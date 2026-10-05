@@ -1,3 +1,4 @@
+import type { Request } from 'express';
 import {
   Body,
   Controller,
@@ -7,6 +8,7 @@ import {
   Post,
   Put,
   Query,
+  Req,
   StreamableFile,
   UploadedFile,
   UseInterceptors,
@@ -22,6 +24,8 @@ import {
 import { MAX_EVIDENCE_BYTES } from '../pm/milestones.service';
 import { DeliveryDocsService } from './delivery-docs.service';
 import { InstallConfirmationsService } from './install-confirmations.service';
+import { AcceptanceCertificatesService } from './acceptance-certificates.service';
+import { metaOf } from '../esign/esign.controller';
 import {
   AnyPermission,
   Authenticated,
@@ -32,6 +36,8 @@ import {
   AttachDeliveryDocumentDto,
   CancelDeliveryDto,
   ConfirmInstallDto,
+  PaperCertificateDto,
+  SendCertificateDto,
   ListDeliveriesQueryDto,
   SaveDeliveryDto,
 } from './delivery.dto';
@@ -46,7 +52,130 @@ export class DeliveryController {
     private readonly deliveries: DeliveriesService,
     private readonly docs: DeliveryDocsService,
     private readonly installs: InstallConfirmationsService,
+    private readonly certificates: AcceptanceCertificatesService,
   ) {}
+
+  // --- CD-252 ใบรับรองการตรวจรับ ---------------------------------------------------
+
+  @ApiOperation({
+    summary: 'CD-252 ใบรับรองการตรวจรับของทุกรอบที่บันทึกผลรับมอบแล้ว',
+  })
+  @Get('projects/:projectId/certificates')
+  @Authenticated()
+  certificateList(
+    @Param('projectId') projectId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.certificates.list(principal, projectId);
+  }
+
+  @ApiOperation({
+    summary: 'CD-252 ร่างใบรับรองจากผลตรวจรับ (สร้างใหม่ได้ก่อนส่ง)',
+  })
+  @Post('projects/:projectId/certificates/:acceptanceId/draft')
+  @Authenticated()
+  draftCertificate(
+    @Param('projectId') projectId: string,
+    @Param('acceptanceId') acceptanceId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.certificates.generate(principal, projectId, acceptanceId);
+  }
+
+  @ApiOperation({ summary: 'CD-252 ส่งใบรับรองลงนามอิเล็กทรอนิกส์' })
+  @Post('projects/:projectId/certificates/:acceptanceId/send')
+  @Authenticated()
+  sendCertificate(
+    @Param('projectId') projectId: string,
+    @Param('acceptanceId') acceptanceId: string,
+    @Body() dto: SendCertificateDto,
+    @Req() request: Request,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.certificates.send(
+      principal,
+      projectId,
+      acceptanceId,
+      dto,
+      metaOf(request),
+    );
+  }
+
+  @ApiOperation({ summary: 'CD-252 ถอนใบรับรองที่ส่งลงนาม (ต้องมีเหตุผล)' })
+  @Post('projects/:projectId/certificates/:acceptanceId/withdraw')
+  @Authenticated()
+  withdrawCertificate(
+    @Param('projectId') projectId: string,
+    @Param('acceptanceId') acceptanceId: string,
+    @Body() dto: CancelDeliveryDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.certificates.withdraw(
+      principal,
+      projectId,
+      acceptanceId,
+      dto.reason,
+    );
+  }
+
+  @ApiOperation({
+    summary: 'CD-252 บันทึกใบรับรองที่ลูกค้าลงนามบนกระดาษ (สแกน + เหตุผล)',
+  })
+  @Post('projects/:projectId/certificates/:acceptanceId/paper')
+  @Authenticated()
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['reason'],
+      properties: {
+        reason: { type: 'string' },
+        file: { type: 'string', format: 'binary' },
+      },
+    },
+  })
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: MAX_EVIDENCE_BYTES },
+      defParamCharset: 'utf8',
+    }),
+  )
+  paperCertificate(
+    @Param('projectId') projectId: string,
+    @Param('acceptanceId') acceptanceId: string,
+    @Body() dto: PaperCertificateDto,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.certificates.paper(
+      principal,
+      projectId,
+      acceptanceId,
+      dto.reason,
+      file,
+    );
+  }
+
+  @ApiOperation({ summary: 'CD-252 ไฟล์ใบรับรอง (ร่าง หรือฉบับลงนาม)' })
+  @Get('projects/:projectId/certificates/:acceptanceId/:which')
+  @Authenticated()
+  async certificateFile(
+    @Param('projectId') projectId: string,
+    @Param('acceptanceId') acceptanceId: string,
+    @Param('which') which: string,
+    @CurrentPrincipal() principal: Principal,
+  ): Promise<StreamableFile> {
+    const file = await this.certificates.file(
+      principal,
+      projectId,
+      acceptanceId,
+      which === 'signed' ? 'signed' : 'draft',
+    );
+    return new StreamableFile(file.stream, {
+      type: file.mimeType,
+      disposition: `inline; filename*=UTF-8''${encodeURIComponent(file.fileName)}`,
+    });
+  }
 
   // --- CD-254 ยืนยันงานติดตั้งเสร็จ ----------------------------------------------
 

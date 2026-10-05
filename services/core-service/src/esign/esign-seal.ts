@@ -100,7 +100,7 @@ function fontFile(name: string): Buffer {
   return readFileSync(join(root, 'files', name));
 }
 
-interface Fonts {
+export interface Fonts {
   thai: PDFFont;
   latin: PDFFont;
   thaiBold: PDFFont;
@@ -110,7 +110,7 @@ interface Fonts {
 const THAI = /[฀-๿]+|[^฀-๿]+/g;
 
 /** Thai and everything else come from two font files; draw run by run. */
-class Writer {
+export class Writer {
   constructor(private readonly fonts: Fonts) {}
 
   private runs(text: string, bold: boolean) {
@@ -177,6 +177,25 @@ class Writer {
     if (line) lines.push(line);
     return lines;
   }
+}
+
+/** CD-252 — the Sarabun faces (Thai + Latin, regular + bold) for another PDF. */
+export async function embedSarabun(doc: PDFDocument): Promise<Fonts> {
+  doc.registerFontkit(fontkit);
+  return {
+    thai: await doc.embedFont(fontFile('sarabun-thai-400-normal.woff'), {
+      subset: true,
+    }),
+    latin: await doc.embedFont(fontFile('sarabun-latin-400-normal.woff'), {
+      subset: true,
+    }),
+    thaiBold: await doc.embedFont(fontFile('sarabun-thai-700-normal.woff'), {
+      subset: true,
+    }),
+    latinBold: await doc.embedFont(fontFile('sarabun-latin-700-normal.woff'), {
+      subset: true,
+    }),
+  };
 }
 
 export async function seal(input: SealInput): Promise<Uint8Array> {

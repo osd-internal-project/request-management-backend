@@ -377,6 +377,8 @@ export class AcceptanceService {
       decidedOn: dto.decided_on?.slice(0, 10) ?? null,
       note: (dto.note ?? '').trim(),
       hasCertificate: Boolean(file),
+      // CD-252 — the certificate comes later, signed electronically
+      certificateViaEsign: dto.certificate_via === 'esign' && !file,
       items: items.map((item) => ({ text: item.text, dueOn: item.dueOn })),
       today: bangkokDay(now),
     };

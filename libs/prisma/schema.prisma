@@ -7019,6 +7019,34 @@ model ProjectInstallConfirmation {
   @@map("project_install_confirmations")
 }
 
+/// CD-252 ใบรับรองการตรวจรับของรอบตรวจรับหนึ่ง (CD-189) — ระบบสร้าง PDF ตามแบบบริษัท ส่งลงนามอิเล็กทรอนิกส์
+/// (CD-14) หรือรับฉบับกระดาษที่สแกนพร้อมเหตุผล. `signed` เท่านั้นที่ใช้วางบิลได้ (CD-253).
+/// draft · sent · signed · cancelled ; source esign · paper
+model AcceptanceCertificate {
+  id            String    @id @default(uuid())
+  companyId     String
+  projectId     String
+  acceptanceId  String    @unique
+  milestoneId   String?
+  certificateNo String
+  status        String    @default("draft")
+  source        String    @default("esign")
+  draftKey      String?
+  envelopeId    String?   @unique
+  signedKey     String?
+  signedName    String?
+  signedSize    Int?
+  signedAt      DateTime?
+  paperReason   String?
+  createdAt     DateTime  @default(now())
+  createdBy     String
+  updatedAt     DateTime  @updatedAt
+  updatedBy     String?
+
+  @@index([projectId])
+  @@map("acceptance_certificates")
+}
+
 /// CD-239 ใบสั่งงานบริการ — the service side of a case (a request, CD-67):
 /// which asset, corrective or preventive, and from the start whether it is
 /// covered or billed — the system suggests from the asset's entitlements

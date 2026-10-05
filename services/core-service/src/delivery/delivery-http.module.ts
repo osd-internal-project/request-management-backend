@@ -4,6 +4,8 @@ import { StorageModule, type StorageOptions } from '@request-management/share';
 import { PmModule } from '../pm/pm.module';
 import { PmHttpModule } from '../pm/pm-http.module';
 import { InstallConfirmationsService } from './install-confirmations.service';
+import { AcceptanceCertificatesService } from './acceptance-certificates.service';
+import { EsignModule } from '../esign/esign.module';
 import { DeliveryModule } from './delivery.module';
 import { DeliveryController } from './delivery.controller';
 import { DeliveryDocsService } from './delivery-docs.service';
@@ -16,6 +18,8 @@ import { DeliveryDocsService } from './delivery-docs.service';
     PmModule,
     // CD-254 — the readiness check the confirmation rests on
     PmHttpModule,
+    // CD-252 — certificates are signed through the central e-sign service
+    EsignModule,
     // CD-251 delivery documents — storage for the HTTP half only
     StorageModule.forRootAsync({
       inject: [ConfigService],
@@ -24,6 +28,10 @@ import { DeliveryDocsService } from './delivery-docs.service';
     }),
   ],
   controllers: [DeliveryController],
-  providers: [DeliveryDocsService, InstallConfirmationsService],
+  providers: [
+    DeliveryDocsService,
+    InstallConfirmationsService,
+    AcceptanceCertificatesService,
+  ],
 })
 export class DeliveryHttpModule {}

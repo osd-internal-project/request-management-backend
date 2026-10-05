@@ -1,7 +1,10 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
+import { EnvelopeSignerDto } from '../esign/esign.dto';
 import {
   ArrayMaxSize,
+  ArrayMinSize,
+  Max,
   IsArray,
   IsIn,
   IsInt,
@@ -144,4 +147,45 @@ export class ConfirmInstallDto {
   @IsString()
   @MaxLength(1000)
   note?: string;
+}
+
+/** CD-252 — send a drafted acceptance certificate for signing. */
+export class SendCertificateDto {
+  @ApiProperty({ description: 'แม่แบบตำแหน่งลงนามประเภทใบตรวจรับ (ระบบลงนาม)' })
+  @IsString()
+  layout_id!: string;
+
+  @ApiPropertyOptional({ enum: ['sequential', 'parallel'] })
+  @IsOptional()
+  @IsIn(['sequential', 'parallel'])
+  mode?: 'sequential' | 'parallel';
+
+  @ApiPropertyOptional({ example: 14 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(90)
+  expires_in_days?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  message?: string;
+
+  @ApiProperty({ type: [EnvelopeSignerDto] })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(12)
+  @ValidateNested({ each: true })
+  @Type(() => EnvelopeSignerDto)
+  signers!: EnvelopeSignerDto[];
+}
+
+/** CD-252 — a certificate signed on paper. */
+export class PaperCertificateDto {
+  @ApiProperty({ description: 'เหตุผลที่ไม่ลงนามอิเล็กทรอนิกส์' })
+  @IsString()
+  @MaxLength(1000)
+  reason!: string;
 }

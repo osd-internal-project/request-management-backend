@@ -19455,6 +19455,324 @@
         ]
       }
     },
+    "/api/v1/delivery/projects/{projectId}/certificates": {
+      "get": {
+        "operationId": "DeliveryController_certificateList",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-252 ใบรับรองการตรวจรับของทุกรอบที่บันทึกผลรับมอบแล้ว",
+        "tags": [
+          "delivery"
+        ]
+      }
+    },
+    "/api/v1/delivery/projects/{projectId}/certificates/{acceptanceId}/draft": {
+      "post": {
+        "operationId": "DeliveryController_draftCertificate",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "acceptanceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-252 ร่างใบรับรองจากผลตรวจรับ (สร้างใหม่ได้ก่อนส่ง)",
+        "tags": [
+          "delivery"
+        ]
+      }
+    },
+    "/api/v1/delivery/projects/{projectId}/certificates/{acceptanceId}/send": {
+      "post": {
+        "operationId": "DeliveryController_sendCertificate",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "acceptanceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendCertificateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-252 ส่งใบรับรองลงนามอิเล็กทรอนิกส์",
+        "tags": [
+          "delivery"
+        ]
+      }
+    },
+    "/api/v1/delivery/projects/{projectId}/certificates/{acceptanceId}/withdraw": {
+      "post": {
+        "operationId": "DeliveryController_withdrawCertificate",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "acceptanceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelDeliveryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-252 ถอนใบรับรองที่ส่งลงนาม (ต้องมีเหตุผล)",
+        "tags": [
+          "delivery"
+        ]
+      }
+    },
+    "/api/v1/delivery/projects/{projectId}/certificates/{acceptanceId}/paper": {
+      "post": {
+        "operationId": "DeliveryController_paperCertificate",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "acceptanceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "reason"
+                ],
+                "properties": {
+                  "reason": {
+                    "type": "string"
+                  },
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-252 บันทึกใบรับรองที่ลูกค้าลงนามบนกระดาษ (สแกน + เหตุผล)",
+        "tags": [
+          "delivery"
+        ]
+      }
+    },
+    "/api/v1/delivery/projects/{projectId}/certificates/{acceptanceId}/{which}": {
+      "get": {
+        "operationId": "DeliveryController_certificateFile",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "acceptanceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "which",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-252 ไฟล์ใบรับรอง (ร่าง หรือฉบับลงนาม)",
+        "tags": [
+          "delivery"
+        ]
+      }
+    },
     "/api/v1/delivery/projects/{projectId}/install-gate": {
       "get": {
         "operationId": "DeliveryController_installGate",
@@ -38237,14 +38555,43 @@
           "reason"
         ]
       },
-      "ConfirmInstallDto": {
+      "SendCertificateDto": {
         "type": "object",
         "properties": {
-          "note": {
+          "layout_id": {
+            "type": "string",
+            "description": "แม่แบบตำแหน่งลงนามประเภทใบตรวจรับ (ระบบลงนาม)"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "sequential",
+              "parallel"
+            ]
+          },
+          "expires_in_days": {
+            "type": "integer",
+            "example": 14,
+            "maximum": 90,
+            "minimum": 1
+          },
+          "message": {
             "type": "string",
             "maxLength": 1000
+          },
+          "signers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EnvelopeSignerDto"
+            },
+            "maxItems": 12,
+            "minItems": 1
           }
-        }
+        },
+        "required": [
+          "layout_id",
+          "signers"
+        ]
       },
       "CancelDeliveryDto": {
         "type": "object",
@@ -38257,6 +38604,15 @@
         "required": [
           "reason"
         ]
+      },
+      "ConfirmInstallDto": {
+        "type": "object",
+        "properties": {
+          "note": {
+            "type": "string",
+            "maxLength": 1000
+          }
+        }
       },
       "DeliveryLineDto": {
         "type": "object",
@@ -40686,6 +41042,18 @@
           }
         }
       },
+      "PaperCertificateDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "maxLength": 1000,
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
       "AttachDeliveryDocumentDto": {
         "type": "object",
         "properties": {
@@ -40864,6 +41232,13 @@
           },
           "items": {
             "maxLength": 100000,
+            "type": "string"
+          },
+          "certificate_via": {
+            "enum": [
+              "upload",
+              "esign"
+            ],
             "type": "string"
           }
         }

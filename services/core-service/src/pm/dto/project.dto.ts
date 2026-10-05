@@ -884,6 +884,15 @@ export class RecordAcceptanceDto {
   @IsString()
   @MaxLength(100000)
   items?: string;
+
+  /**
+   * CD-252 — `esign`: the certificate is drawn up and signed electronically
+   * after the result (Delivery), so none is attached now. Default `upload`.
+   */
+  @ApiPropertyOptional({ enum: ['upload', 'esign'], default: 'upload' })
+  @IsOptional()
+  @IsIn(['upload', 'esign'])
+  certificate_via?: string;
 }
 
 /** CD-189 — an open point closed. */
