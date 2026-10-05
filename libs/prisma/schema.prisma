@@ -2428,6 +2428,8 @@ model CrmCompanyConfig {
   projectTechChangeTypeCode        String?
   /// CD-180 — the request type a project asks for more people under (PM → Engineer).
   projectResourceTypeCode          String?
+  /// CD-239 — the request type service work orders are raised as (a case type).
+  serviceWorkOrderTypeCode         String?
   /// CD-190 — actual cost as % of the reference budget: warn at, alert over.
   projectCostWarnPct               Int      @default(90)
   projectCostAlertPct              Int      @default(100)
@@ -6992,4 +6994,47 @@ model ProjectDeliveryLine {
 
   @@index([deliveryId])
   @@map("project_delivery_lines")
+}
+
+/// CD-239 ใบสั่งงานบริการ — the service side of a case (a request, CD-67):
+/// which asset, corrective or preventive, and from the start whether it is
+/// covered or billed — the system suggests from the asset's entitlements
+/// (CD-237), a person confirms, a different answer needs its reason, and a
+/// billed job needs the customer's acknowledgement before work starts. Closed
+/// with its cause and fix.
+model ServiceWorkOrder {
+  id                     String    @id @default(uuid())
+  companyId              String
+  requestId              String    @unique
+  customerId             String?
+  assetId                String?
+  /// corrective · preventive
+  workKind               String
+  /// what the system suggested at opening: in_contract · billable
+  suggestedBilling       String
+  suggestedEntitlementId String?
+  suggestionNote         String?
+  /// confirmed: in_contract · billable (null until confirmed)
+  billing                String?
+  entitlementId          String?
+  billingReason          String?
+  confirmedBy            String?
+  confirmedAt            DateTime?
+  /// the quota counter this order took (corrective · preventive), given back on cancel
+  quotaTaken             String?
+  /// a billed job: who agreed for the customer, when, the estimate
+  ackName                String?
+  ackOn                  DateTime? @db.Date
+  ackEstimate            Decimal?  @db.Decimal(14, 2)
+  ackBy                  String?
+  cause                  String?
+  resolution             String?
+  createdAt              DateTime  @default(now())
+  createdBy              String
+  updatedAt              DateTime  @updatedAt
+  updatedBy              String?
+
+  @@index([companyId, customerId])
+  @@index([assetId])
+  @@map("service_work_orders")
 }

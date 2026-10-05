@@ -60,3 +60,17 @@ export class ServiceEntitlementAssetRepository extends BaseRepository<
     return client.serviceEntitlementAsset;
   }
 }
+
+/** CD-239 — the service side of a case. */
+@Injectable()
+export class ServiceWorkOrderRepository extends BaseRepository<
+  PrismaService['serviceWorkOrder']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.serviceWorkOrder;
+  }
+}

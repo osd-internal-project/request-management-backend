@@ -4,6 +4,9 @@ import { CustomerRepository } from '../crm/customer.repository';
 import { ContractTermsRepository } from '../crm/contract-terms.service';
 import { CustomerContractRepository } from '../crm/contract.repositories';
 import { EntitlementsService } from './entitlements.service';
+import { WorkOrdersService } from './work-orders.service';
+import { RequestsModule } from '../requests/requests.module';
+import { CrmConfigRepository } from '../crm/segment.repositories';
 import {
   ProjectDeploymentRepository,
   ProjectEnvironmentRepository,
@@ -16,6 +19,7 @@ import {
   ServiceAssetRepository,
   ServiceEntitlementAssetRepository,
   ServiceEntitlementRepository,
+  ServiceWorkOrderRepository,
 } from './support.repositories';
 
 /**
@@ -24,10 +28,13 @@ import {
  * repository instances, so PM can call it at acceptance without a cycle.
  */
 @Module({
-  imports: [AccessModule],
+  imports: [AccessModule, RequestsModule],
   providers: [
     ServiceAssetsService,
     EntitlementsService,
+    WorkOrdersService,
+    ServiceWorkOrderRepository,
+    CrmConfigRepository,
     ServiceAssetRepository,
     ServiceEntitlementRepository,
     ServiceEntitlementAssetRepository,
@@ -40,6 +47,6 @@ import {
     ProjectDeploymentRepository,
     CustomerRepository,
   ],
-  exports: [ServiceAssetsService, EntitlementsService],
+  exports: [ServiceAssetsService, EntitlementsService, WorkOrdersService],
 })
 export class SupportModule {}

@@ -799,6 +799,12 @@ export class UpdateCrmConfigDto {
   @Matches(/^([A-Z0-9_-]{1,20})?$/)
   project_resource_type_code?: string;
 
+  /** CD-239: รหัสประเภทคำขอใบสั่งงานบริการ (ประเภทเคสที่มีความรุนแรง). "" = ล้าง. */
+  @IsOptional()
+  @IsString()
+  @Matches(/^([A-Z0-9_-]{1,20})?$/)
+  service_work_order_type_code?: string;
+
   /** CD-191: ชื่อเอกสารที่ทุกโครงการต้องแนบก่อนขอปิด. */
   @IsOptional()
   @IsArray()

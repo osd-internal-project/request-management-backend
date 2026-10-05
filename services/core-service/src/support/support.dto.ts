@@ -6,6 +6,7 @@ import {
   IsIn,
   IsInt,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
   MaxLength,
@@ -324,4 +325,131 @@ export class CancelEntitlementDto {
   @IsNotEmpty()
   @MaxLength(1000)
   reason!: string;
+}
+
+/** CD-239 — a service job, raised as a case. */
+export class OpenWorkOrderDto {
+  @ApiProperty()
+  @IsString()
+  @MaxLength(50)
+  customer_id!: string;
+
+  @ApiPropertyOptional({ description: 'อุปกรณ์ในทะเบียน (CD-236)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  asset_id?: string;
+
+  @ApiProperty({ enum: ['corrective', 'preventive'] })
+  @IsIn(['corrective', 'preventive'])
+  work_kind!: string;
+
+  @ApiProperty({ enum: ['critical', 'high', 'medium', 'low'] })
+  @IsIn(['critical', 'high', 'medium', 'low'])
+  severity!: string;
+
+  @ApiProperty({ example: 'กล้องชั้น 2 ภาพไม่ขึ้น' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  subject!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  detail?: string;
+}
+
+/** CD-239 — an existing case (e.g. from LINE, CD-66) made a service job. */
+export class AttachWorkOrderDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  customer_id?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  asset_id?: string;
+
+  @ApiProperty({ enum: ['corrective', 'preventive'] })
+  @IsIn(['corrective', 'preventive'])
+  work_kind!: string;
+}
+
+/** CD-239 — in contract or billed, confirmed by a person. */
+export class ConfirmBillingDto {
+  @ApiProperty({ enum: ['in_contract', 'billable'] })
+  @IsString()
+  @MaxLength(20)
+  billing!: string;
+
+  @ApiPropertyOptional({ description: 'สิทธิ์ที่ครอบคลุม (อยู่ในสัญญา)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  entitlement_id?: string;
+
+  @ApiPropertyOptional({ description: 'บังคับเมื่อต่างจากที่ระบบเสนอ' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  reason?: string;
+}
+
+/** CD-239 — the customer agreed to pay for a billed job. */
+export class CustomerAckDto {
+  @ApiProperty()
+  @IsString()
+  @MaxLength(200)
+  name!: string;
+
+  @ApiProperty({ description: 'YYYY-MM-DD' })
+  @IsString()
+  @MaxLength(10)
+  on!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  estimate?: number | null;
+}
+
+/** CD-239 — why it failed and how it was fixed. */
+export class WorkOrderOutcomeDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  cause?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  resolution?: string;
+}
+
+/** CD-239 — the work orders' list. */
+export class ListWorkOrdersQueryDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  customer_id?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  asset_id?: string;
+
+  @ApiPropertyOptional({ enum: ['open', 'all'] })
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  state?: string;
 }

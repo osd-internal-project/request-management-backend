@@ -17930,6 +17930,405 @@
         ]
       }
     },
+    "/api/v1/service-work-orders": {
+      "get": {
+        "operationId": "ServiceWorkOrdersController_list",
+        "parameters": [
+          {
+            "name": "customer_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 50
+            }
+          },
+          {
+            "name": "asset_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 50
+            }
+          },
+          {
+            "name": "state",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "open",
+                "all"
+              ],
+              "maxLength": 10
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ใบสั่งงานบริการ — ที่ยังเปิด หรือทั้งหมด",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.read"
+        ]
+      },
+      "post": {
+        "operationId": "ServiceWorkOrdersController_open",
+        "parameters": [
+          {
+            "name": "authorization",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenWorkOrderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เปิดใบสั่งงานบริการ — สร้างเคสและส่ง พร้อมข้อเสนออยู่ในสัญญา/เก็บเงิน",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.manage"
+        ]
+      }
+    },
+    "/api/v1/service-work-orders/by-request/{requestId}": {
+      "get": {
+        "operationId": "ServiceWorkOrdersController_ofRequest",
+        "parameters": [
+          {
+            "name": "requestId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ข้อมูลบริการของคำขอ (null ถ้าคำขอนี้ไม่ใช่ใบสั่งงานบริการ)",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/service-work-orders/attach/{requestId}": {
+      "post": {
+        "operationId": "ServiceWorkOrdersController_attach",
+        "parameters": [
+          {
+            "name": "requestId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttachWorkOrderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ผูกคำขอที่มีอยู่ (เช่นจาก LINE) เป็นใบสั่งงานบริการ",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.manage"
+        ]
+      }
+    },
+    "/api/v1/service-work-orders/{id}": {
+      "get": {
+        "operationId": "ServiceWorkOrdersController_detail",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "รายละเอียด + สิทธิ์ที่ครอบคลุมอุปกรณ์วันนี้",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.read"
+        ]
+      }
+    },
+    "/api/v1/service-work-orders/{id}/billing": {
+      "post": {
+        "operationId": "ServiceWorkOrdersController_confirm",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmBillingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ยืนยันอยู่ในสัญญา/เก็บเงินเพิ่ม (ต่างจากที่ระบบเสนอต้องมีเหตุผล)",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.manage"
+        ]
+      }
+    },
+    "/api/v1/service-work-orders/{id}/customer-ack": {
+      "post": {
+        "operationId": "ServiceWorkOrdersController_acknowledge",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerAckDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ลูกค้ารับทราบค่าใช้จ่าย (งานเก็บเงินเพิ่ม)",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.manage"
+        ]
+      }
+    },
+    "/api/v1/service-work-orders/{id}/outcome": {
+      "put": {
+        "operationId": "ServiceWorkOrdersController_outcome",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkOrderOutcomeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "สาเหตุและวิธีแก้ (ทีมบริการ หรือผู้รับผิดชอบงาน) — ต้องมีก่อนแจ้งงานเสร็จ",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      }
+    },
     "/api/v1/delivery/deliveries": {
       "get": {
         "operationId": "DeliveryController_list",
@@ -31773,6 +32172,10 @@
             "pattern": "^([A-Z0-9_-]{1,20})?$",
             "type": "string"
           },
+          "service_work_order_type_code": {
+            "pattern": "^([A-Z0-9_-]{1,20})?$",
+            "type": "string"
+          },
           "project_close_documents": {
             "type": "array",
             "items": {
@@ -35939,6 +36342,135 @@
         "required": [
           "reason"
         ]
+      },
+      "OpenWorkOrderDto": {
+        "type": "object",
+        "properties": {
+          "customer_id": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "asset_id": {
+            "type": "string",
+            "description": "อุปกรณ์ในทะเบียน (CD-236)",
+            "maxLength": 50
+          },
+          "work_kind": {
+            "type": "string",
+            "enum": [
+              "corrective",
+              "preventive"
+            ]
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "critical",
+              "high",
+              "medium",
+              "low"
+            ]
+          },
+          "subject": {
+            "type": "string",
+            "example": "กล้องชั้น 2 ภาพไม่ขึ้น",
+            "maxLength": 255,
+            "minLength": 1
+          },
+          "detail": {
+            "type": "string",
+            "maxLength": 4000
+          }
+        },
+        "required": [
+          "customer_id",
+          "severity",
+          "subject",
+          "work_kind"
+        ]
+      },
+      "AttachWorkOrderDto": {
+        "type": "object",
+        "properties": {
+          "customer_id": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "asset_id": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "work_kind": {
+            "type": "string",
+            "enum": [
+              "corrective",
+              "preventive"
+            ]
+          }
+        },
+        "required": [
+          "work_kind"
+        ]
+      },
+      "ConfirmBillingDto": {
+        "type": "object",
+        "properties": {
+          "billing": {
+            "type": "string",
+            "enum": [
+              "in_contract",
+              "billable"
+            ],
+            "maxLength": 20
+          },
+          "entitlement_id": {
+            "type": "string",
+            "description": "สิทธิ์ที่ครอบคลุม (อยู่ในสัญญา)",
+            "maxLength": 50
+          },
+          "reason": {
+            "type": "string",
+            "description": "บังคับเมื่อต่างจากที่ระบบเสนอ",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "billing"
+        ]
+      },
+      "CustomerAckDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "on": {
+            "type": "string",
+            "description": "YYYY-MM-DD",
+            "maxLength": 10
+          },
+          "estimate": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "name",
+          "on"
+        ]
+      },
+      "WorkOrderOutcomeDto": {
+        "type": "object",
+        "properties": {
+          "cause": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "resolution": {
+            "type": "string",
+            "maxLength": 4000
+          }
+        }
       },
       "DeliveryLineDto": {
         "type": "object",
