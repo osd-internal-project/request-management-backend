@@ -2446,6 +2446,9 @@ model CrmCompanyConfig {
   projectAsBuiltDocuments          String[] @default(["แบบติดตั้งจริง", "รายการอุปกรณ์และหมายเลขเครื่อง", "ผังการเชื่อมต่อระบบ"])
   /// CD-215 — the software documents a software project must leave, per version.
   projectSoftwareDocuments         String[] @default(["ข้อกำหนดซอฟต์แวร์", "คู่มือผู้ใช้", "คู่มือผู้ดูแลระบบ", "เอกสารจุดเชื่อมต่อ (API)"])
+  /// CD-251 — เอกสารส่งมอบบังคับต่อประเภทงาน `{equipment|material|software|service: [ชื่อ]}`;
+  /// ประเภทที่ไม่ได้ตั้ง = ค่าตั้งต้นในโค้ด (delivery-docs-rules.ts).
+  deliveryDocuments                Json     @default("{}")
 
   /// CD-130: ประเภทคำขอ "ขอ Solution และประเมินต้นทุน" (Sales → Pre-Sales) — การ์ด Solution
   /// บนหน้าดีลยื่นประเภทนี้. ช่องบังคับของฟอร์มประเภทนี้คือรายการตรวจความครบ (จุดส่งต่อที่ 2).
@@ -7037,4 +7040,26 @@ model ServiceWorkOrder {
   @@index([companyId, customerId])
   @@index([assetId])
   @@map("service_work_orders")
+}
+
+/// CD-251 เอกสารส่งมอบของเฟส (หมุดหมาย) — แนบต่อชื่อเอกสาร; ชื่อที่ตรงกับเอกสารบังคับของประเภทงาน
+/// ในรอบส่งของเฟสนั้นนับเป็นเอกสารบังคับ ที่เหลือเป็นเอกสารเพิ่มเติม. ลบ = deletedAt.
+model ProjectDeliveryDocument {
+  id          String    @id @default(uuid())
+  companyId   String
+  projectId   String
+  milestoneId String
+  title       String
+  note        String?
+  fileName    String
+  mimeType    String
+  sizeBytes   Int
+  storageKey  String
+  uploadedBy  String
+  uploadedAt  DateTime  @default(now())
+  deletedAt   DateTime?
+  deletedBy   String?
+
+  @@index([projectId, milestoneId])
+  @@map("project_delivery_documents")
 }

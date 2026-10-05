@@ -431,7 +431,8 @@ export class DeliveriesService implements OnModuleInit, OnModuleDestroy {
 
   // --- helpers ----------------------------------------------------------------
 
-  private async access(actor: Principal, projectId: string) {
+  /** Who may see (and plan) a project's delivery — shared with CD-251. */
+  async access(actor: Principal, projectId: string) {
     const project = (await this.projectRows.findFirst({
       where: { id: projectId, companyId: actor.activeCompanyId },
       select: PROJECT_SELECT,

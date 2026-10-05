@@ -5310,6 +5310,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         audit,
         transactions,
         { state: () => Promise.resolve(null) } as never,
+        { forProject: () => Promise.resolve(null) } as never,
       );
       const managerNow = as(engineer, ['notification.read']);
       const crew = as(outsider, ['notification.read']);
@@ -5487,6 +5488,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         audit,
         transactions,
         { state: () => Promise.resolve(null) } as never,
+        { forProject: () => Promise.resolve(null) } as never,
       );
       const files = new Map<string, Buffer>();
       const told: string[] = [];

@@ -27,6 +27,10 @@ import { KycProductRuleRepository } from './kyc-product.repository';
 import { ProductCatalogService } from './product-catalog.service';
 import { CustomerApprovalService } from './customer-approval.service';
 import { cleanMinMargins, WORK_TYPES } from './quotation-math';
+import {
+  cleanDocumentsSetting,
+  documentsByType,
+} from '../delivery/delivery-docs-rules';
 
 /**
  * CM-07 + CM-02/03 configuration — the admin surface behind
@@ -190,9 +194,14 @@ export class CrmAdminService {
   // --- CRM config (CM-03 threshold, quotation defaults) ---------------------
 
   async getConfig(actor: Principal) {
-    const found = await this.configs.findFirst({
+    const saved = await this.configs.findFirst({
       where: { companyId: actor.activeCompanyId },
     });
+    // CD-251 — each work type's delivery documents as they apply (saved or standard)
+    const found = saved && {
+      ...saved,
+      deliveryDocuments: documentsByType(saved.deliveryDocuments),
+    };
 
     // Defaults are visible before the first save, so the admin screen never
     // renders blanks that mean "whatever the code does".
@@ -205,6 +214,7 @@ export class CrmAdminService {
         vatPct: 7,
         quotationApprovalTypeCode: 'PRA',
         minMarginByWorkType: {},
+        deliveryDocuments: documentsByType({}),
         costMaxAgeDays: 90,
         targetApprovalTypeCode: null,
         contractRequestTypeCode: null,
@@ -276,6 +286,19 @@ export class CrmAdminService {
       dto.min_margin_by_work_type === undefined
         ? undefined
         : assertMinMargins(dto.min_margin_by_work_type);
+    // CD-251 — the delivery documents per work type; known types only.
+    let deliveryDocuments: Prisma.InputJsonValue | undefined;
+    if (dto.delivery_documents !== undefined) {
+      const { value, problems } = cleanDocumentsSetting(dto.delivery_documents);
+      if (problems.length) {
+        throw new AppError(
+          'VALIDATION_FAILED',
+          problems[0],
+          problems.map((reason) => ({ field: 'delivery_documents', reason })),
+        );
+      }
+      deliveryDocuments = value;
+    }
     // CD-62 — checked before anything is written; `undefined` = untouched.
     // CD-136 — the labour rate table, blank roles dropped, one row a role.
     const laborRates =
@@ -358,6 +381,7 @@ export class CrmAdminService {
               quotationApprovalTypeCode:
                 dto.quotation_approval_type_code ?? 'PRA',
               minMarginByWorkType: minMargins ?? {},
+              deliveryDocuments: deliveryDocuments ?? {},
               costMaxAgeDays: dto.cost_max_age_days ?? 90,
               targetApprovalTypeCode: dto.target_approval_type_code || null,
               contractRequestTypeCode: dto.contract_request_type_code || null,
@@ -412,6 +436,7 @@ export class CrmAdminService {
               vatPct: dto.vat_pct,
               quotationApprovalTypeCode: dto.quotation_approval_type_code,
               minMarginByWorkType: minMargins,
+              deliveryDocuments,
               costMaxAgeDays: dto.cost_max_age_days,
               targetApprovalTypeCode:
                 dto.target_approval_type_code === undefined

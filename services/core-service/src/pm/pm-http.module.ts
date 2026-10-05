@@ -4,6 +4,7 @@ import { StorageModule, type StorageOptions } from '@request-management/share';
 import { MilestonesService } from './milestones.service';
 import { PlanService } from './plan.service';
 import { PmModule } from './pm.module';
+import { DeliveryDocsState } from '../delivery/delivery-docs.state';
 import {
   ProjectsController,
   ProjectPortfolioController,
@@ -86,6 +87,8 @@ import { TechPlanService } from './tech-plan.service';
     CloseoutService,
     StatusReportsService,
     TestsService,
+    // CD-251 — the delivery pack, for the readiness check (no module cycle)
+    DeliveryDocsState,
     ReadinessService,
     AsBuiltService,
     AcceptanceService,

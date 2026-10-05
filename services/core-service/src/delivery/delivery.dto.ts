@@ -120,3 +120,20 @@ export class CancelDeliveryDto {
   @MaxLength(1000)
   reason!: string;
 }
+
+export class AttachDeliveryDocumentDto {
+  @ApiProperty()
+  @IsString()
+  milestone_id!: string;
+
+  @ApiProperty({ example: 'ใบส่งของ' })
+  @IsString()
+  @MaxLength(255)
+  title!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  note?: string;
+}

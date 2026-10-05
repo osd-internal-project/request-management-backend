@@ -53,3 +53,17 @@ export class DeliveryPeopleRepository {
       .then((rows) => [...new Set(rows.map((row) => row.userId))]);
   }
 }
+
+/** CD-251 — the files of a phase's delivery pack. */
+@Injectable()
+export class ProjectDeliveryDocumentRepository extends BaseRepository<
+  PrismaService['projectDeliveryDocument']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.projectDeliveryDocument;
+  }
+}

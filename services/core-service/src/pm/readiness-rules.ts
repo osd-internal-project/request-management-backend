@@ -36,8 +36,15 @@ export function systemChecks(facts: {
     version: string | null;
     missing: number;
   } | null;
+  /** CD-251 — the next phase's delivery documents; null with no trip yet. */
+  deliveryDocs?: {
+    complete: boolean;
+    milestone: string;
+    missing: readonly string[];
+  } | null;
 }): SystemCheck[] {
   const softwareDocs = facts.softwareDocs;
+  const deliveryDocs = facts.deliveryDocs;
   return [
     {
       key: 'tests',
@@ -80,6 +87,18 @@ export function systemChecks(facts: {
               : softwareDocs.version
                 ? `เวอร์ชัน ${softwareDocs.version} ค้าง ${softwareDocs.missing} รายการ`
                 : 'ยังไม่มีเวอร์ชันที่ส่งมอบ',
+          },
+        ]
+      : []),
+    ...(deliveryDocs
+      ? [
+          {
+            key: 'delivery_docs',
+            label: `เอกสารส่งมอบของเฟส "${deliveryDocs.milestone}" ครบ`,
+            ok: deliveryDocs.complete,
+            detail: deliveryDocs.complete
+              ? null
+              : `ขาด ${deliveryDocs.missing.join(', ')}`,
           },
         ]
       : []),

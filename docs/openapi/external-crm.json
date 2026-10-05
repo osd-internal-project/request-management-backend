@@ -9245,6 +9245,21 @@
               "equipment": 8
             }
           },
+          "delivery_documents": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "example": {
+              "equipment": [
+                "ใบส่งของ",
+                "ใบรับประกันอุปกรณ์"
+              ]
+            }
+          },
           "customer_approval_types": {
             "$ref": "#/components/schemas/CustomerApprovalTypesDto"
           },

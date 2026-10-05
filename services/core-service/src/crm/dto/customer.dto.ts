@@ -617,6 +617,19 @@ export class UpdateCrmConfigDto {
   @IsObject()
   min_margin_by_work_type?: Record<string, number | null>;
 
+  /**
+   * CD-251: เอกสารส่งมอบบังคับต่อประเภทงาน (equipment / material / software /
+   * service) — ประเภทที่ไม่ได้ส่ง = ใช้ค่าตั้งต้น; ส่ง `[]` = ไม่บังคับเอกสาร.
+   */
+  @ApiPropertyOptional({
+    type: 'object',
+    additionalProperties: { type: 'array', items: { type: 'string' } },
+    example: { equipment: ['ใบส่งของ', 'ใบรับประกันอุปกรณ์'] },
+  })
+  @IsOptional()
+  @IsObject()
+  delivery_documents?: Record<string, unknown>;
+
   /** CD-206: ต้นทุนคู่ค้าจาก SAP ที่เก่ากว่านี้ (วัน) ถูกเตือนก่อนนำไปคิดราคา. */
   @IsOptional()
   @IsInt()

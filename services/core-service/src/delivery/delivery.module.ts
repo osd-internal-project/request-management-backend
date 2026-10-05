@@ -1,10 +1,12 @@
 import { Module } from '@nestjs/common';
 import { PmModule } from '../pm/pm.module';
 import { DeliveriesService } from './deliveries.service';
+import { DeliveryDocsState } from './delivery-docs.state';
 import {
   DeliveryPeopleRepository,
   ProjectDeliveryLineRepository,
   ProjectDeliveryRepository,
+  ProjectDeliveryDocumentRepository,
 } from './delivery.repositories';
 
 /**
@@ -19,7 +21,14 @@ import {
     ProjectDeliveryRepository,
     ProjectDeliveryLineRepository,
     DeliveryPeopleRepository,
+    // CD-251
+    DeliveryDocsState,
+    ProjectDeliveryDocumentRepository,
   ],
-  exports: [DeliveriesService],
+  exports: [
+    DeliveriesService,
+    DeliveryDocsState,
+    ProjectDeliveryDocumentRepository,
+  ],
 })
 export class DeliveryModule {}

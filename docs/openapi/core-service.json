@@ -18329,6 +18329,202 @@
         ]
       }
     },
+    "/api/v1/delivery/projects/{projectId}/documents": {
+      "get": {
+        "operationId": "DeliveryController_documents",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-251 ชุดเอกสารส่งมอบรายเฟส: เอกสารบังคับตามประเภทงาน ที่แนบแล้ว และที่ขาด",
+        "tags": [
+          "delivery"
+        ]
+      },
+      "post": {
+        "operationId": "DeliveryController_attachDocument",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "milestone_id",
+                  "title",
+                  "file"
+                ],
+                "properties": {
+                  "milestone_id": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "note": {
+                    "type": "string"
+                  },
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-251 แนบเอกสารส่งมอบของเฟส (ทีมโครงการ)",
+        "tags": [
+          "delivery"
+        ]
+      }
+    },
+    "/api/v1/delivery/projects/{projectId}/documents/{documentId}": {
+      "delete": {
+        "operationId": "DeliveryController_removeDocument",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "documentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-251 ลบเอกสารส่งมอบ (ผู้แนบ / ทีม Delivery / ผู้จัดการ)",
+        "tags": [
+          "delivery"
+        ]
+      }
+    },
+    "/api/v1/delivery/projects/{projectId}/documents/{documentId}/file": {
+      "get": {
+        "operationId": "DeliveryController_documentFile",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "documentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-251 ไฟล์เอกสารส่งมอบ",
+        "tags": [
+          "delivery"
+        ]
+      }
+    },
     "/api/v1/delivery/deliveries": {
       "get": {
         "operationId": "DeliveryController_list",
@@ -32051,6 +32247,21 @@
               "equipment": 8
             }
           },
+          "delivery_documents": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "example": {
+              "equipment": [
+                "ใบส่งของ",
+                "ใบรับประกันอุปกรณ์"
+              ]
+            }
+          },
           "customer_approval_types": {
             "$ref": "#/components/schemas/CustomerApprovalTypesDto"
           },
@@ -38911,6 +39122,26 @@
             "type": "string"
           }
         }
+      },
+      "AttachDeliveryDocumentDto": {
+        "type": "object",
+        "properties": {
+          "milestone_id": {
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "note": {
+            "maxLength": 1000,
+            "type": "string"
+          }
+        },
+        "required": [
+          "milestone_id",
+          "title"
+        ]
       },
       "AchieveMilestoneDto": {
         "type": "object",
