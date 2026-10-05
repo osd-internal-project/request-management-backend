@@ -2,7 +2,7 @@ import { Controller, Get, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import { IsBoolean, IsOptional, IsString, MaxLength } from 'class-validator';
-import { CurrentPrincipal, Permissions } from '@request-management/share';
+import { AnyPermission, CurrentPrincipal } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import { ProductCatalogService } from '../crm/product-catalog.service';
 
@@ -32,7 +32,8 @@ export class ProductsController {
   constructor(private readonly catalog: ProductCatalogService) {}
 
   @Get()
-  @Permissions('crm.sales.read')
+  // CD-242 — the service team picks SAP items for a billed job's charge.
+  @AnyPermission('crm.sales.read', 'service.asset.manage')
   @ApiOperation({
     summary: 'ค้นสินค้า/บริการจาก SAP (สำเนาใน CTD) ของบริษัทที่ทำงานอยู่',
   })

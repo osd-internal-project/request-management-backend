@@ -27,6 +27,10 @@ import { KycProductRuleRepository } from './kyc-product.repository';
 import { ProductCatalogService } from './product-catalog.service';
 import { CustomerApprovalService } from './customer-approval.service';
 import { cleanMinMargins, WORK_TYPES } from './quotation-math';
+import {
+  cleanDocumentsSetting,
+  documentsByType,
+} from '../delivery/delivery-docs-rules';
 
 /**
  * CM-07 + CM-02/03 configuration — the admin surface behind
@@ -190,9 +194,14 @@ export class CrmAdminService {
   // --- CRM config (CM-03 threshold, quotation defaults) ---------------------
 
   async getConfig(actor: Principal) {
-    const found = await this.configs.findFirst({
+    const saved = await this.configs.findFirst({
       where: { companyId: actor.activeCompanyId },
     });
+    // CD-251 — each work type's delivery documents as they apply (saved or standard)
+    const found = saved && {
+      ...saved,
+      deliveryDocuments: documentsByType(saved.deliveryDocuments),
+    };
 
     // Defaults are visible before the first save, so the admin screen never
     // renders blanks that mean "whatever the code does".
@@ -205,6 +214,7 @@ export class CrmAdminService {
         vatPct: 7,
         quotationApprovalTypeCode: 'PRA',
         minMarginByWorkType: {},
+        deliveryDocuments: documentsByType({}),
         costMaxAgeDays: 90,
         targetApprovalTypeCode: null,
         contractRequestTypeCode: null,
@@ -215,8 +225,13 @@ export class CrmAdminService {
         projectCloseTypeCode: null,
         projectDesignTypeCode: null,
         projectTechChangeTypeCode: null,
+        projectResourceTypeCode: null,
+        serviceWorkOrderTypeCode: null,
         projectHealthAmber: 20,
         projectHealthRed: 40,
+        projectCostWarnPct: 90,
+        projectCostAlertPct: 100,
+        serviceOnCallEscalateMinutes: 30,
         projectAsBuiltDocuments: [
           'แบบติดตั้งจริง',
           'รายการอุปกรณ์และหมายเลขเครื่อง',
@@ -254,12 +269,37 @@ export class CrmAdminService {
   }
 
   async updateConfig(dto: UpdateCrmConfigDto, actor: Principal) {
+    // CD-190 — the alert is never below the warning
+    if (
+      dto.project_cost_warn_pct !== undefined &&
+      dto.project_cost_alert_pct !== undefined &&
+      dto.project_cost_alert_pct < dto.project_cost_warn_pct
+    ) {
+      throw new AppError(
+        'VALIDATION_FAILED',
+        'เกณฑ์เกินงบต้องไม่ต่ำกว่าเกณฑ์เตือน',
+        [{ field: 'project_cost_alert_pct', reason: 'below warn' }],
+      );
+    }
     // CD-202 — known work types only, 0–100; a blank one falls back to the
     // company minimum, so it is dropped rather than stored.
     const minMargins =
       dto.min_margin_by_work_type === undefined
         ? undefined
         : assertMinMargins(dto.min_margin_by_work_type);
+    // CD-251 — the delivery documents per work type; known types only.
+    let deliveryDocuments: Prisma.InputJsonValue | undefined;
+    if (dto.delivery_documents !== undefined) {
+      const { value, problems } = cleanDocumentsSetting(dto.delivery_documents);
+      if (problems.length) {
+        throw new AppError(
+          'VALIDATION_FAILED',
+          problems[0],
+          problems.map((reason) => ({ field: 'delivery_documents', reason })),
+        );
+      }
+      deliveryDocuments = value;
+    }
     // CD-62 — checked before anything is written; `undefined` = untouched.
     // CD-136 — the labour rate table, blank roles dropped, one row a role.
     const laborRates =
@@ -342,6 +382,7 @@ export class CrmAdminService {
               quotationApprovalTypeCode:
                 dto.quotation_approval_type_code ?? 'PRA',
               minMarginByWorkType: minMargins ?? {},
+              deliveryDocuments: deliveryDocuments ?? {},
               costMaxAgeDays: dto.cost_max_age_days ?? 90,
               targetApprovalTypeCode: dto.target_approval_type_code || null,
               contractRequestTypeCode: dto.contract_request_type_code || null,
@@ -355,8 +396,15 @@ export class CrmAdminService {
               projectDesignTypeCode: dto.project_design_type_code || null,
               projectTechChangeTypeCode:
                 dto.project_tech_change_type_code || null,
+              projectResourceTypeCode: dto.project_resource_type_code || null,
+              serviceWorkOrderTypeCode:
+                dto.service_work_order_type_code || null,
               projectHealthAmber: dto.project_health_amber ?? 20,
               projectHealthRed: dto.project_health_red ?? 40,
+              projectCostWarnPct: dto.project_cost_warn_pct ?? 90,
+              projectCostAlertPct: dto.project_cost_alert_pct ?? 100,
+              serviceOnCallEscalateMinutes:
+                dto.service_on_call_escalate_minutes ?? 30,
               ...(asBuiltDocuments
                 ? { projectAsBuiltDocuments: asBuiltDocuments }
                 : {}),
@@ -391,6 +439,7 @@ export class CrmAdminService {
               vatPct: dto.vat_pct,
               quotationApprovalTypeCode: dto.quotation_approval_type_code,
               minMarginByWorkType: minMargins,
+              deliveryDocuments,
               costMaxAgeDays: dto.cost_max_age_days,
               targetApprovalTypeCode:
                 dto.target_approval_type_code === undefined
@@ -428,9 +477,21 @@ export class CrmAdminService {
                 dto.project_tech_change_type_code === undefined
                   ? undefined
                   : dto.project_tech_change_type_code || null,
+              projectResourceTypeCode:
+                dto.project_resource_type_code === undefined
+                  ? undefined
+                  : dto.project_resource_type_code || null,
+              serviceWorkOrderTypeCode:
+                dto.service_work_order_type_code === undefined
+                  ? undefined
+                  : dto.service_work_order_type_code || null,
               projectCloseDocuments: closeDocuments,
               projectHealthAmber: dto.project_health_amber,
               projectHealthRed: dto.project_health_red,
+              projectCostWarnPct: dto.project_cost_warn_pct,
+              projectCostAlertPct: dto.project_cost_alert_pct,
+              serviceOnCallEscalateMinutes:
+                dto.service_on_call_escalate_minutes,
               projectReadinessChecklist: readinessChecklist,
               projectAsBuiltDocuments: asBuiltDocuments,
               projectSoftwareDocuments: softwareDocuments,

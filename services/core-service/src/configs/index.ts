@@ -173,6 +173,20 @@ export default () => ({
   },
 
   /** CD-65 — รอบตรวจโอกาสการขายที่เงียบเกินเกณฑ์ (ms); 0 = ปิด (tests). */
+  hr: {
+    /** CD-233 — manday plan-vs-actual steps and closing summaries (ms); 0 = off. */
+    mandayVarianceIntervalMs: Number(
+      process.env.HR_MANDAY_VARIANCE_INTERVAL_MS ?? 21600000,
+    ),
+  },
+
+  delivery: {
+    /** CD-250 — goods-not-ready warnings before a delivery (ms); 0 = off. */
+    readinessIntervalMs: Number(
+      process.env.DELIVERY_READINESS_INTERVAL_MS ?? 21600000,
+    ),
+  },
+
   crm: {
     /** CD-162 — expiry reminders for contracts without a renewal deal (ms); 0 = off. */
     contractExpiryIntervalMs: Number(
@@ -210,6 +224,20 @@ export default () => ({
     /** CD-192 — weekly status report drafts, refreshed daily (ms); 0 = off. */
     statusReportIntervalMs: Number(
       process.env.PM_STATUS_REPORT_INTERVAL_MS ?? 3600000,
+    ),
+    /** CD-190 — ERP project costs + budget thresholds (ms); 0 = off. */
+    costSweepIntervalMs: Number(
+      process.env.PM_COST_SWEEP_INTERVAL_MS ?? 21600000,
+    ),
+  },
+  service: {
+    /** CD-241 — out-of-hours cases not received in time go to the backup (ms); 0 = off. */
+    onCallSweepIntervalMs: Number(
+      process.env.SERVICE_ON_CALL_SWEEP_INTERVAL_MS ?? 60000,
+    ),
+    /** CD-244 — PM rounds opened ahead, late rounds, service-contract offers (ms); 0 = off. */
+    pmSweepIntervalMs: Number(
+      process.env.SERVICE_PM_SWEEP_INTERVAL_MS ?? 3600000,
     ),
   },
   /** CD-52 — how often due daily digests are looked for (ms); 0 = off (tests). */

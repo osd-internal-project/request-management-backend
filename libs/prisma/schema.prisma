@@ -2426,6 +2426,16 @@ model CrmCompanyConfig {
   projectDesignTypeCode            String?
   /// CD-224 — the request type a technical change is approved under.
   projectTechChangeTypeCode        String?
+  /// CD-180 — the request type a project asks for more people under (PM → Engineer).
+  projectResourceTypeCode          String?
+  /// CD-239 — the request type service work orders are raised as (a case type).
+  serviceWorkOrderTypeCode         String?
+  /// CD-241 — minutes the one on call has to receive an out-of-hours case
+  /// before it goes to the backup; 0 = never handed on.
+  serviceOnCallEscalateMinutes     Int      @default(30)
+  /// CD-190 — actual cost as % of the reference budget: warn at, alert over.
+  projectCostWarnPct               Int      @default(90)
+  projectCostAlertPct              Int      @default(100)
   /// CD-191 — the documents every project must leave behind before it may
   /// be closed, by name; each needs a file on the close-out card.
   projectCloseDocuments            String[] @default(["ใบตรวจรับงาน", "เอกสารส่งมอบงาน"])
@@ -2439,6 +2449,9 @@ model CrmCompanyConfig {
   projectAsBuiltDocuments          String[] @default(["แบบติดตั้งจริง", "รายการอุปกรณ์และหมายเลขเครื่อง", "ผังการเชื่อมต่อระบบ"])
   /// CD-215 — the software documents a software project must leave, per version.
   projectSoftwareDocuments         String[] @default(["ข้อกำหนดซอฟต์แวร์", "คู่มือผู้ใช้", "คู่มือผู้ดูแลระบบ", "เอกสารจุดเชื่อมต่อ (API)"])
+  /// CD-251 — เอกสารส่งมอบบังคับต่อประเภทงาน `{equipment|material|software|service: [ชื่อ]}`;
+  /// ประเภทที่ไม่ได้ตั้ง = ค่าตั้งต้นในโค้ด (delivery-docs-rules.ts).
+  deliveryDocuments                Json     @default("{}")
 
   /// CD-130: ประเภทคำขอ "ขอ Solution และประเมินต้นทุน" (Sales → Pre-Sales) — การ์ด Solution
   /// บนหน้าดีลยื่นประเภทนี้. ช่องบังคับของฟอร์มประเภทนี้คือรายการตรวจความครบ (จุดส่งต่อที่ 2).
@@ -4997,6 +5010,10 @@ model Project {
   configItems       ProjectConfigItem[]
   integrations      ProjectIntegration[]
   techChanges       ProjectTechChange[]
+  costs             ProjectCost[]
+  costAlerts        ProjectCostAlert[]
+  bookingPriorities ProjectBookingPriority[]
+  resourceRequests  ProjectResourceRequest[]
 
   @@unique([companyId, projectNo])
   @@index([companyId, status])
@@ -6591,4 +6608,740 @@ model HrInternalActivity {
   updatedAt DateTime @updatedAt
 
   @@map("hr_internal_activities")
+}
+
+/// CD-232 ประเภทการลาของบริษัท (ลาพักร้อน ลาป่วย ลากิจ …) พร้อมสิทธิ์ตั้งต้นต่อปี (null = ไม่จำกัด).
+model HrLeaveType {
+  id         String   @id @default(uuid())
+  companyId  String
+  code       String
+  name       String
+  /// วันต่อปีปฏิทิน; null = ไม่นับโควตา.
+  annualDays Decimal? @db.Decimal(4, 1)
+  sortOrder  Int      @default(0)
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  leaves       HrLeave[]
+  entitlements HrLeaveEntitlement[]
+
+  @@unique([companyId, code])
+  @@map("hr_leave_types")
+}
+
+/// CD-232 สิทธิ์วันลาของคนหนึ่งในปีหนึ่ง ที่ฝ่ายบุคคลตั้งแทนค่าตั้งต้นของประเภท.
+model HrLeaveEntitlement {
+  id          String   @id @default(uuid())
+  companyId   String
+  userId      String
+  leaveTypeId String
+  year        Int
+  days        Decimal  @db.Decimal(4, 1)
+  updatedBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  leaveType HrLeaveType @relation(fields: [leaveTypeId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, userId, leaveTypeId, year])
+  @@map("hr_leave_entitlements")
+}
+
+/// CD-232 ใบลา — เต็มวันเป็นช่วง หรือครึ่งวัน (เช้า/บ่าย) วันเดียว; หัวหน้าตามผังหรือฝ่ายบุคคลอนุมัติ.
+/// `days` = วันทำการในช่วง (ไม่นับวันหยุดบริษัท). รออนุมัติ/อนุมัติแล้ว ถือว่าไม่ว่าง.
+model HrLeave {
+  id           String    @id @default(uuid())
+  companyId    String
+  userId       String
+  leaveTypeId  String
+  startDate    DateTime  @db.Date
+  endDate      DateTime  @db.Date
+  /// full | am | pm
+  part         String    @default("full")
+  days         Decimal   @db.Decimal(4, 1)
+  reason       String    @default("")
+  /// pending | approved | rejected | cancelled
+  status       String    @default("pending")
+  decidedBy    String?
+  decidedAt    DateTime?
+  decisionNote String?
+  cancelledAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  leaveType HrLeaveType @relation(fields: [leaveTypeId], references: [id])
+
+  @@index([companyId, userId, startDate])
+  @@index([companyId, status])
+  @@map("hr_leaves")
+}
+
+/// CD-232 การจองตัวคนเข้าโครงการเป็นช่วงวัน (ชั่วโมงต่อวันทำการ) — PM ของโครงการหรือฝ่ายบุคคลจอง.
+/// ความพร้อม = 8 ชม. ในวันทำการ − ลา − ที่ถูกจอง; จองเกินได้แต่มีคำเตือน (CD-180 ตรวจการจองซ้อนต่อ).
+model HrBooking {
+  id          String    @id @default(uuid())
+  companyId   String
+  userId      String
+  projectId   String
+  startDate   DateTime  @db.Date
+  endDate     DateTime  @db.Date
+  hoursPerDay Decimal   @db.Decimal(3, 1)
+  note        String    @default("")
+  createdBy   String
+  cancelledAt DateTime?
+  cancelledBy String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([companyId, userId, startDate])
+  @@index([projectId])
+  @@map("hr_bookings")
+}
+
+/// CD-190 ติดตามต้นทุนโครงการ — an actual cost outside labour (labour comes
+/// from approved timesheets, CD-231): read from the ERP by project code
+/// (`erpKey` set, replaced on every sync) or entered by the manager with its
+/// evidence.
+model ProjectCost {
+  id           String    @id @default(uuid())
+  companyId    String
+  projectId    String
+  /// material · other
+  category     String
+  /// erp · manual
+  source       String
+  /// the ERP line's identity, unique per project; null for a manual entry
+  erpKey       String?
+  docNo        String?
+  description  String
+  amount       Decimal   @db.Decimal(14, 2)
+  incurredOn   DateTime  @db.Date
+  vendorName   String?
+  evidenceKey  String?
+  evidenceName String?
+  evidenceMime String?
+  evidenceSize Int?
+  createdAt    DateTime  @default(now())
+  createdBy    String
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+  deletedBy    String?
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
+
+  @@unique([projectId, erpKey])
+  @@index([projectId, incurredOn])
+  @@map("project_costs")
+}
+
+/// CD-190 — a threshold crossed, told once per budget version and level.
+model ProjectCostAlert {
+  id              String   @id @default(uuid())
+  companyId       String
+  projectId       String
+  budgetVersionNo Int
+  /// material · labor · other · total
+  category        String
+  /// warn · over
+  level           String
+  budget          Decimal  @db.Decimal(14, 2)
+  actual          Decimal  @db.Decimal(14, 2)
+  createdAt       DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
+
+  @@unique([projectId, budgetVersionNo, category, level])
+  @@map("project_cost_alerts")
+}
+
+/// CD-233 manday เกินแผน — ขั้น (% ของแผน) ที่แจ้งไปแล้วต่อโครงการต่อเวอร์ชันงบ; threshold 0 = สรุปตอนปิดโครงการ.
+/// งบเวอร์ชันใหม่ (CR) เริ่มนับขั้นใหม่.
+model HrMandayAlert {
+  id              String   @id @default(uuid())
+  companyId       String
+  projectId       String
+  budgetVersionNo Int      @default(0)
+  threshold       Int
+  plannedMandays  Decimal  @db.Decimal(10, 2)
+  actualMandays   Decimal  @db.Decimal(10, 2)
+  sentAt          DateTime @default(now())
+
+  @@unique([projectId, budgetVersionNo, threshold])
+  @@index([companyId])
+  @@map("hr_manday_alerts")
+}
+
+/// CD-180 จัดสรรทรัพยากร — a booking (CD-232 `hr_bookings`) that puts someone
+/// past what they have free: which project comes first, why, and the
+/// projects it clashed with (their managers are told).
+model ProjectBookingPriority {
+  id                 String   @id @default(uuid())
+  companyId          String
+  projectId          String
+  bookingId          String   @unique
+  userId             String
+  /// this_first · others_first
+  priority           String
+  reason             String
+  conflictProjectIds String[] @default([])
+  overbookedDays     Int
+  createdBy          String
+  createdAt          DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
+
+  @@index([projectId])
+  @@map("project_booking_priorities")
+}
+
+/// CD-180 — asking for more people when the team is not enough, approved
+/// through the request engine (CrmConfig.projectResourceTypeCode).
+model ProjectResourceRequest {
+  id          String    @id @default(uuid())
+  companyId   String
+  projectId   String
+  /// RR-n within the project
+  seq         Int
+  role        String
+  skillId     String?
+  headcount   Int
+  startDate   DateTime  @db.Date
+  endDate     DateTime  @db.Date
+  hoursPerDay Decimal   @db.Decimal(3, 1)
+  note        String?
+  /// draft · submitted · approved · rejected · fulfilled · cancelled
+  status      String    @default("draft")
+  requestId   String?
+  error       String?
+  submittedAt DateTime?
+  submittedBy String?
+  decidedAt   DateTime?
+  fulfilledAt DateTime?
+  fulfilledBy String?
+  createdAt   DateTime  @default(now())
+  createdBy   String
+  updatedAt   DateTime  @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
+
+  @@unique([projectId, seq])
+  @@index([requestId])
+  @@map("project_resource_requests")
+}
+
+/// CD-236 ทะเบียนอุปกรณ์ที่ติดตั้ง — what each customer has: equipment by
+/// serial and location, and software by its production environment (the
+/// version shown is what runs there now, CD-214). Made at acceptance from
+/// the project's installation points (CD-216) and production environments;
+/// the service team adds what predates the system, by hand or from a file.
+model ServiceAsset {
+  id             String    @id @default(uuid())
+  companyId      String
+  customerId     String?
+  projectId      String?
+  /// equipment · software
+  kind           String
+  /// project · manual · import
+  source         String
+  /// CD-216 point it came from; one asset per point
+  installationId String?  @unique
+  /// CD-214 production environment it came from; one asset per environment
+  environmentId  String?   @unique
+  productCode    String?
+  name           String
+  model          String?
+  serialNo       String?
+  location       String?
+  /// software kept by hand: its version
+  version        String?
+  installedOn    DateTime? @db.Date
+  acceptedOn     DateTime? @db.Date
+  /// active · replaced · removed
+  status         String    @default("active")
+  note           String?
+  createdAt      DateTime  @default(now())
+  createdBy      String
+  updatedAt      DateTime  @updatedAt
+  updatedBy      String?
+
+  history      ServiceAssetHistory[]
+  entitlements ServiceEntitlementAsset[]
+
+  @@unique([companyId, serialNo])
+  @@index([companyId, customerId])
+  @@index([projectId])
+  @@map("service_assets")
+}
+
+/// CD-236 — every change to an asset: what it was, what it became, why.
+model ServiceAssetHistory {
+  id        String   @id @default(uuid())
+  companyId String
+  assetId   String
+  /// created · updated · status
+  action    String
+  before    Json?
+  after     Json?
+  reason    String?
+  actorId   String
+  at        DateTime @default(now())
+
+  asset ServiceAsset @relation(fields: [assetId], references: [id], onDelete: Restrict)
+
+  @@index([assetId, at])
+  @@map("service_asset_history")
+}
+
+/// CD-237 สิทธิ์การรับบริการ — what covers a customer's installed assets: a
+/// warranty (made at acceptance from the project's contract, CD-155) or a
+/// service contract (MA) the service team sets from the contract register —
+/// with its service level (CD-151: coverage hours and per-severity times),
+/// its period, and its visit quotas, corrective and preventive apart.
+model ServiceEntitlement {
+  id                String       @id @default(uuid())
+  companyId         String
+  customerId        String
+  contractId        String?
+  projectId         String?
+  /// warranty · service_contract
+  kind              String
+  title             String
+  startOn           DateTime     @db.Date
+  endOn             DateTime     @db.Date
+  coverage          SlaCoverage?
+  /// per severity: {critical: {responseHours, resolutionHours}, …}
+  severityTargets   Json?
+  /// null = unlimited
+  correctiveQuota   Int?
+  preventiveQuota   Int?
+  /// counted by the service work orders (CD-239)
+  correctiveUsed    Int          @default(0)
+  preventiveUsed    Int          @default(0)
+  note              String?
+  /// acceptance round it came from, for a warranty
+  source            String?
+  cancelledAt       DateTime?
+  cancelledBy       String?
+  cancelReason      String?
+  createdAt         DateTime     @default(now())
+  createdBy         String
+  updatedAt         DateTime     @updatedAt
+  updatedBy         String?
+
+  assets ServiceEntitlementAsset[]
+
+  @@index([companyId, customerId])
+  @@index([contractId])
+  @@map("service_entitlements")
+}
+
+/// CD-237 — an asset under an entitlement (taken off keeps the row).
+model ServiceEntitlementAsset {
+  entitlementId String
+  assetId       String
+  addedAt       DateTime  @default(now())
+  addedBy       String
+  removedAt     DateTime?
+  removedBy     String?
+
+  entitlement ServiceEntitlement @relation(fields: [entitlementId], references: [id], onDelete: Restrict)
+  asset       ServiceAsset       @relation(fields: [assetId], references: [id], onDelete: Restrict)
+
+  @@id([entitlementId, assetId])
+  @@index([assetId])
+  @@map("service_entitlement_assets")
+}
+
+/// CD-250 แผนส่งมอบ — รอบส่งของหนึ่งรอบของหมุดหมาย (หมุดหมายหนึ่งส่งได้หลายรอบ):
+/// วันที่ สถานที่ ผู้รับ และบรรทัด BOQ × จำนวน. planned · delivered · cancelled.
+model ProjectDelivery {
+  id            String    @id @default(uuid())
+  companyId     String
+  projectId     String
+  milestoneId   String
+  seq           Int
+  plannedOn     DateTime  @db.Date
+  location      String
+  receiverName  String    @default("")
+  receiverPhone String    @default("")
+  note          String    @default("")
+  status        String    @default("planned")
+  /// แจ้งเตือนของยังไม่พร้อมไปแล้ว (ครั้งเดียวต่อวันที่ตามแผน).
+  warnedFor     DateTime? @db.Date
+  createdAt     DateTime  @default(now())
+  createdBy     String
+  updatedAt     DateTime  @updatedAt
+  updatedBy     String?
+
+  lines ProjectDeliveryLine[]
+
+  @@unique([projectId, seq])
+  @@index([companyId, status, plannedOn])
+  @@index([milestoneId])
+  @@map("project_deliveries")
+}
+
+/// CD-250 บรรทัดของรอบส่ง: บรรทัด BOQ ของฐานตั้งต้น (0-based) × จำนวน และความพร้อมของสินค้า
+/// (บันทึกเองจนกว่าจะอ่านสต็อก SAP ได้ — CD-28). ไม่พร้อม/บางส่วนต้องมีแผนสำรอง.
+model ProjectDeliveryLine {
+  id           String    @id @default(uuid())
+  deliveryId   String
+  boqIndex     Int
+  quantity     Decimal   @db.Decimal(12, 2)
+  /// unknown · ready · partial · not_ready
+  readiness    String    @default("unknown")
+  readyQty     Decimal?  @db.Decimal(12, 2)
+  expectedOn   DateTime? @db.Date
+  fallbackPlan String    @default("")
+  note         String    @default("")
+
+  delivery ProjectDelivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+
+  @@index([deliveryId])
+  @@map("project_delivery_lines")
+}
+
+/// CD-254 ยืนยันงานติดตั้งของเฟส (หมุดหมาย) เสร็จ — ผู้จัดการโครงการยืนยันเมื่อการตรวจความพร้อม (CD-225)
+/// ผ่าน (ยกเว้นข้อเอกสารส่งมอบ); เป็นข้อหนึ่งของการตรวจความพร้อมก่อนนัดตรวจรับเฟสนั้น.
+/// `checks` = ผลการตรวจ ณ ตอนยืนยัน. ยกเลิกได้ก่อนเฟสบรรลุ (ลบแถว + audit).
+model ProjectInstallConfirmation {
+  id          String   @id @default(uuid())
+  companyId   String
+  projectId   String
+  milestoneId String   @unique
+  note        String   @default("")
+  checks      Json     @default("[]")
+  confirmedAt DateTime @default(now())
+  confirmedBy String
+
+  @@index([projectId])
+  @@map("project_install_confirmations")
+}
+
+/// CD-252 ใบรับรองการตรวจรับของรอบตรวจรับหนึ่ง (CD-189) — ระบบสร้าง PDF ตามแบบบริษัท ส่งลงนามอิเล็กทรอนิกส์
+/// (CD-14) หรือรับฉบับกระดาษที่สแกนพร้อมเหตุผล. `signed` เท่านั้นที่ใช้วางบิลได้ (CD-253).
+/// draft · sent · signed · cancelled ; source esign · paper
+model AcceptanceCertificate {
+  id            String    @id @default(uuid())
+  companyId     String
+  projectId     String
+  acceptanceId  String    @unique
+  milestoneId   String?
+  certificateNo String
+  status        String    @default("draft")
+  source        String    @default("esign")
+  draftKey      String?
+  envelopeId    String?   @unique
+  signedKey     String?
+  signedName    String?
+  signedSize    Int?
+  signedAt      DateTime?
+  paperReason   String?
+  createdAt     DateTime  @default(now())
+  createdBy     String
+  updatedAt     DateTime  @updatedAt
+  updatedBy     String?
+
+  @@index([projectId])
+  @@map("acceptance_certificates")
+}
+
+/// CD-239 ใบสั่งงานบริการ — the service side of a case (a request, CD-67):
+/// which asset, corrective or preventive, and from the start whether it is
+/// covered or billed — the system suggests from the asset's entitlements
+/// (CD-237), a person confirms, a different answer needs its reason, and a
+/// billed job needs the customer's acknowledgement before work starts. Closed
+/// with its cause and fix.
+model ServiceWorkOrder {
+  id                     String    @id @default(uuid())
+  companyId              String
+  requestId              String    @unique
+  customerId             String?
+  assetId                String?
+  /// corrective · preventive
+  workKind               String
+  /// what the system suggested at opening: in_contract · billable
+  suggestedBilling       String
+  suggestedEntitlementId String?
+  suggestionNote         String?
+  /// confirmed: in_contract · billable (null until confirmed)
+  billing                String?
+  entitlementId          String?
+  billingReason          String?
+  confirmedBy            String?
+  confirmedAt            DateTime?
+  /// the quota counter this order took (corrective · preventive), given back on cancel
+  quotaTaken             String?
+  /// a billed job: who agreed for the customer, when, the estimate
+  ackName                String?
+  ackOn                  DateTime? @db.Date
+  ackEstimate            Decimal?  @db.Decimal(14, 2)
+  ackBy                  String?
+  cause                  String?
+  resolution             String?
+  createdAt              DateTime  @default(now())
+  createdBy              String
+  updatedAt              DateTime  @updatedAt
+  updatedBy              String?
+
+  @@index([companyId, customerId])
+  @@index([assetId])
+  @@map("service_work_orders")
+}
+
+/// CD-241 ตารางเวรนอกเวลา — a span of days (inclusive, the company's local
+/// dates) with a primary on call and a backup. Out of hours is the company's
+/// working calendar's: outside the day's window, weekends and holidays.
+/// Spans may not overlap within a company. Removed = deletedAt.
+model ServiceOnCallShift {
+  id            String    @id @default(uuid())
+  companyId     String
+  startOn       DateTime  @db.Date
+  endOn         DateTime  @db.Date
+  primaryUserId String
+  backupUserId  String?
+  note          String?
+  createdAt     DateTime  @default(now())
+  createdBy     String
+  updatedAt     DateTime  @updatedAt
+  updatedBy     String?
+  deletedAt     DateTime?
+  deletedBy     String?
+
+  @@index([companyId, startOn])
+  @@map("service_on_call_shifts")
+}
+
+/// CD-241 — an out-of-hours case sent to whoever was on call (made its
+/// receiver), and handed to the backup when they did not receive it in time.
+model ServiceOnCallDispatch {
+  id                     String    @id @default(uuid())
+  companyId              String
+  requestId              String    @unique
+  shiftId                String
+  /// whoever it was sent to last; level primary · backup
+  userId                 String
+  level                  String
+  /// the receiver the case had before it was sent to the rota
+  previousReceiverUserId String?
+  sentAt                 DateTime  @default(now())
+  /// handed on: from whom (userId is then the backup)
+  escalatedAt            DateTime?
+  escalatedFromUserId    String?
+  /// no longer watched: received, closed, handed on, or nobody to hand to
+  settledAt              DateTime?
+
+  @@index([settledAt, sentAt])
+  @@map("service_on_call_dispatches")
+}
+
+/// CD-242 ส่งข้อมูลเรียกเก็บเงินงานบริการ — a billed service job's charge,
+/// one per work order: lines the service team confirms (from the customer's
+/// agreed estimate, edited; CD-243 adds time and materials), then sent to SAP
+/// B1 as a draft A/R invoice that finance posts. Separate from project
+/// installment billing (CD-164/193).
+///   status: draft (being prepared) · confirmed (sent / to send) · cancelled
+///   erpStatus: none · pending · synced · not_ready · failed · skipped
+///   erpInvoiceStatus (read back): draft · open · paid · cancelled · missing
+model ServiceBilling {
+  id               String    @id @default(uuid())
+  companyId        String
+  workOrderId      String    @unique
+  requestId        String
+  customerId       String
+  /// our reference in SAP (`NumAtCard`): SVB-<request number>
+  reference        String
+  status           String    @default("draft")
+  currency         String    @default("THB")
+  /// before VAT, the sum of the lines
+  netTotal         Decimal   @default(0) @db.Decimal(14, 2)
+  note             String?
+  confirmedBy      String?
+  confirmedAt      DateTime?
+  cancelledBy      String?
+  cancelledAt      DateTime?
+  cancelReason     String?
+  erpStatus        String    @default("none")
+  /// the draft's key in SAP (B1 Drafts DocEntry)
+  erpDraftNo       String?
+  erpLastError     String?
+  erpSyncedAt      DateTime?
+  erpInvoiceStatus String?
+  /// B1 DocNum of the A/R invoice finance posted from the draft
+  erpInvoiceNo     String?
+  erpInvoiceTotal  Decimal?  @db.Decimal(14, 2)
+  erpPaid          Decimal?  @db.Decimal(14, 2)
+  erpCheckedAt     DateTime?
+  createdAt        DateTime  @default(now())
+  createdBy        String
+  updatedAt        DateTime  @updatedAt
+  updatedBy        String?
+
+  lines ServiceBillingLine[]
+
+  @@unique([companyId, reference])
+  @@index([companyId, status])
+  @@index([erpStatus, erpCheckedAt])
+  @@map("service_billings")
+}
+
+/// CD-242 — one line of a service charge. source: estimate (from the
+/// customer's acknowledgement) · manual · labour / material (CD-243).
+model ServiceBillingLine {
+  id          String  @id @default(uuid())
+  billingId   String
+  lineNo      Int
+  /// SAP ItemCode — null = the general service item (ERP_B1_SERVICE_ITEM)
+  productCode String?
+  description String
+  quantity    Decimal @db.Decimal(14, 3)
+  unit        String?
+  unitPrice   Decimal @db.Decimal(14, 2)
+  discountPct Decimal @default(0) @db.Decimal(5, 2)
+  lineTotal   Decimal @db.Decimal(14, 2)
+  source      String  @default("manual")
+
+  billing ServiceBilling @relation(fields: [billingId], references: [id], onDelete: Cascade)
+
+  @@unique([billingId, lineNo])
+  @@map("service_billing_lines")
+}
+
+/// CD-243 — what an hour of service work is charged to the customer, per HR
+/// work type (CD-207): a selling rate, not the confidential cost rate. The
+/// labour line on a charge carries `productCode` (SAP service item) when set.
+model ServiceLabourRate {
+  id          String   @id @default(uuid())
+  companyId   String
+  workTypeId  String
+  hourlyRate  Decimal  @db.Decimal(12, 2)
+  productCode String?
+  note        String?
+  createdAt   DateTime @default(now())
+  createdBy   String
+  updatedAt   DateTime @updatedAt
+  updatedBy   String?
+
+  @@unique([companyId, workTypeId])
+  @@map("service_labour_rates")
+}
+
+/// CD-243 บันทึกวัสดุที่ใช้จริง — an SAP item used on a service job: the
+/// selling price from the standard price list (CD-194) when there is one,
+/// edited; the cost from suppliers' SAP costs (CD-206) at the time, kept for
+/// the job's margin. `billable` false = covered (in contract). Removed =
+/// deletedAt.
+model ServiceMaterialUse {
+  id          String    @id @default(uuid())
+  companyId   String
+  workOrderId String
+  requestId   String
+  productCode String
+  description String
+  quantity    Decimal   @db.Decimal(14, 3)
+  unit        String?
+  serialNo    String?
+  billable    Boolean   @default(true)
+  unitPrice   Decimal?  @db.Decimal(14, 2)
+  /// standard · manual
+  priceSource String?
+  unitCost    Decimal?  @db.Decimal(14, 2)
+  usedOn      DateTime  @db.Date
+  note        String?
+  createdAt   DateTime  @default(now())
+  createdBy   String
+  updatedAt   DateTime  @updatedAt
+  updatedBy   String?
+  deletedAt   DateTime?
+  deletedBy   String?
+
+  @@index([workOrderId])
+  @@index([companyId, usedOn])
+  @@map("service_material_uses")
+}
+
+/// CD-244 แผนบำรุงรักษาตามรอบ — the preventive-maintenance plan of a
+/// service contract entitlement (CD-237): how often, how many days ahead its
+/// work order opens, and who it is opened under. The rounds follow from it,
+/// from the cover's start to its end, no more than its preventive quota.
+model ServicePmPlan {
+  id            String   @id @default(uuid())
+  companyId     String
+  entitlementId String   @unique
+  /// monthly · quarterly · semiannual · yearly
+  interval      String
+  leadDays      Int      @default(14)
+  ownerUserId   String
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  createdBy     String
+  updatedAt     DateTime @updatedAt
+  updatedBy     String?
+
+  @@index([companyId])
+  @@map("service_pm_plans")
+}
+
+/// CD-244 — one PM round: due on a date, opened as a preventive work order
+/// ahead of it, done when that order's case is done.
+///   status: planned · opened · done · skipped · failed (could not be opened)
+model ServicePmRound {
+  id                String    @id @default(uuid())
+  companyId         String
+  entitlementId     String
+  roundNo           Int
+  dueOn             DateTime  @db.Date
+  status            String    @default("planned")
+  workOrderId       String?
+  requestId         String?
+  openedAt          DateTime?
+  openError         String?
+  doneAt            DateTime?
+  skippedReason     String?
+  skippedBy         String?
+  overdueNotifiedAt DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@unique([entitlementId, roundNo])
+  @@index([companyId, status, dueOn])
+  @@map("service_pm_rounds")
+}
+
+/// CD-244 — a cover with no contract behind it (a warranty, or a service
+/// contract not in the contract register) nearing its end: a deal offering a
+/// service contract opened for the customer's account owner, as CD-70 does
+/// for contracts, and reminded while it is open.
+model ServiceMaOffer {
+  id            String   @id @default(uuid())
+  companyId     String
+  entitlementId String   @unique
+  opportunityId String?
+  openedAt      DateTime @default(now())
+  remindedDays  Int[]    @default([])
+
+  @@map("service_ma_offers")
+}
+
+/// CD-251 เอกสารส่งมอบของเฟส (หมุดหมาย) — แนบต่อชื่อเอกสาร; ชื่อที่ตรงกับเอกสารบังคับของประเภทงาน
+/// ในรอบส่งของเฟสนั้นนับเป็นเอกสารบังคับ ที่เหลือเป็นเอกสารเพิ่มเติม. ลบ = deletedAt.
+model ProjectDeliveryDocument {
+  id          String    @id @default(uuid())
+  companyId   String
+  projectId   String
+  milestoneId String
+  title       String
+  note        String?
+  fileName    String
+  mimeType    String
+  sizeBytes   Int
+  storageKey  String
+  uploadedBy  String
+  uploadedAt  DateTime  @default(now())
+  deletedAt   DateTime?
+  deletedBy   String?
+
+  @@index([projectId, milestoneId])
+  @@map("project_delivery_documents")
 }

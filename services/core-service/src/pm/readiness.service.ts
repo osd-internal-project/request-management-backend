@@ -29,6 +29,7 @@ import { TestsService } from './tests.service';
 import { AsBuiltService } from './as-built.service';
 import { UatService } from './uat.service';
 import { SoftwareDocsService } from './software-docs.service';
+import { DeliveryDocsState } from '../delivery/delivery-docs.state';
 
 interface LineRow {
   id: string;
@@ -76,6 +77,8 @@ export class ReadinessService {
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
     private readonly softwareDocs: SoftwareDocsService,
+    // CD-251 — the next phase's delivery documents
+    private readonly deliveryDocs: DeliveryDocsState,
   ) {}
 
   async view(projectId: string, actor: Principal) {
@@ -113,7 +116,7 @@ export class ReadinessService {
 
   /** For acceptance (CD-189): ready or not, and what stands in the way. */
   async state(projectId: string, companyId: string) {
-    const [rows, coverage, issuesOpen, asBuilt, uat, software] =
+    const [rows, coverage, issuesOpen, asBuilt, uat, software, delivery] =
       await Promise.all([
         this.rows(projectId),
         this.tests.coverage(projectId),
@@ -121,6 +124,7 @@ export class ReadinessService {
         this.asBuilt.state(projectId, companyId),
         this.uat.state(projectId),
         this.softwareDocs.state(projectId, companyId),
+        this.deliveryDocs.forProject(projectId, companyId),
       ]);
     const checks = systemChecks({
       tests: coverage,
@@ -135,6 +139,12 @@ export class ReadinessService {
         complete: software.complete,
         version: software.target?.version ?? null,
         missing: software.missing.length,
+      },
+      deliveryDocs: delivery && {
+        complete: delivery.complete,
+        milestone: `${delivery.milestone.seq}. ${delivery.milestone.title}`,
+        missing: delivery.missing,
+        installed: delivery.installed,
       },
     });
     return { checks, readiness: readiness(rows, checks) };

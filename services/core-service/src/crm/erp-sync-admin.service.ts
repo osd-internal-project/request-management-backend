@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
 import {
   AppError,
   AuditWriter,
@@ -28,6 +29,21 @@ const RETRY_WAIT_MS = 5_000;
 
 export type ErpJobFilter = 'failed' | 'pending' | 'all';
 
+/**
+ * CD-242 — another module's kinds on the same queue (service billing): how
+ * to label its rows for this company, mark one pending again on retry, and
+ * run its sweeper. Registered from that module, so `crm/` never imports it.
+ */
+export interface ErpJobKindHandler {
+  readonly kinds: readonly string[];
+  label(
+    ids: string[],
+    companyId: string,
+  ): Promise<Map<string, ErpJobItem['resource']>>;
+  reset(resourceId: string, prisma: Prisma.TransactionClient): Promise<void>;
+  sweep(): Promise<void>;
+}
+
 export interface ErpJobItem {
   id: string;
   kind: string;
@@ -39,7 +55,7 @@ export interface ErpJobItem {
   createdAt: Date;
   updatedAt: Date;
   resource: {
-    type: 'customer' | 'sale_order';
+    type: 'customer' | 'sale_order' | 'service_billing';
     id: string;
     /** รหัสที่คนอ่าน — รหัสลูกค้า หรือเลขใบสั่งขาย. */
     code: string;
@@ -73,6 +89,7 @@ interface JobRow {
 @Injectable()
 export class ErpSyncAdminService {
   private readonly logger = new Logger(ErpSyncAdminService.name);
+  private readonly handlers: ErpJobKindHandler[] = [];
 
   constructor(
     private readonly jobs: IntegrationSyncJobRepository,
@@ -83,6 +100,10 @@ export class ErpSyncAdminService {
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
   ) {}
+
+  register(handler: ErpJobKindHandler): void {
+    this.handlers.push(handler);
+  }
 
   async list(actor: Principal, filter: ErpJobFilter = 'failed') {
     const rows = (await this.jobs.findMany({
@@ -126,6 +147,7 @@ export class ErpSyncAdminService {
     }
 
     const isSaleOrder = SALE_ORDER_KINDS.includes(row.kind);
+    const handler = this.handlers.find((h) => h.kinds.includes(row.kind));
 
     await this.transactions.execute(async (prisma) => {
       await this.jobs.update(
@@ -142,6 +164,7 @@ export class ErpSyncAdminService {
           { prisma },
         );
       }
+      if (handler) await handler.reset(row.resourceId, prisma);
 
       await this.audit.record(
         {
@@ -164,9 +187,11 @@ export class ErpSyncAdminService {
     // After the commit, not inside it. Waited on only up to RETRY_WAIT_MS —
     // past that it carries on in the background and the list shows the end.
     const sweep = (
-      isSaleOrder
-        ? this.saleOrderSync.processQueue()
-        : this.customerSync.processQueue()
+      handler
+        ? handler.sweep()
+        : isSaleOrder
+          ? this.saleOrderSync.processQueue()
+          : this.customerSync.processQueue()
     ).catch((error) =>
       this.logger.warn(`sweep after retry ${id} failed: ${String(error)}`),
     );
@@ -231,6 +256,16 @@ export class ErpSyncAdminService {
 
     const customerById = new Map(customers.map((c) => [c.id, c]));
     const orderById = new Map(saleOrders.map((o) => [o.id, o]));
+    const others = new Map<string, ErpJobItem['resource']>();
+    for (const handler of this.handlers) {
+      const ids = rows
+        .filter((row) => handler.kinds.includes(row.kind))
+        .map((row) => row.resourceId);
+      if (!ids.length) continue;
+      for (const [id, resource] of await handler.label(ids, companyId)) {
+        others.set(id, resource);
+      }
+    }
 
     return rows.flatMap((row): ErpJobItem[] => {
       const base = {
@@ -270,6 +305,13 @@ export class ErpSyncAdminService {
             },
           },
         ];
+      }
+      const other = others.get(row.resourceId);
+      if (
+        other &&
+        this.handlers.some((handler) => handler.kinds.includes(row.kind))
+      ) {
+        return [{ ...base, resource: other }];
       }
       return [];
     });

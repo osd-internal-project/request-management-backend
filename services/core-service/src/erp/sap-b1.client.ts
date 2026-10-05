@@ -6,7 +6,10 @@ import {
   ErpContext,
   ErpCustomerPayload,
   ErpInvoice,
+  ErpInvoiceDraftPayload,
+  ErpInvoiceDraftState,
   ErpItem,
+  ErpProjectCost,
   ErpVendor,
   ErpVendorCost,
   ErpReceivables,
@@ -240,6 +243,145 @@ export class SapB1Client implements ErpClient {
     this.ok(res, `ยกเลิกใบสั่งขาย (${reason})`);
   }
 
+  // --- ร่างใบแจ้งหนี้งานบริการ (CD-242) -----------------------------------------
+
+  async findInvoiceDraft(
+    ctx: ErpContext,
+    reference: string,
+  ): Promise<{ externalCode: string } | null> {
+    const draft = await this.draftByReference(ctx, reference);
+    if (draft) return { externalCode: String(draft.DocEntry) };
+    // posted already: the invoice made from it carries the reference
+    const invoice = await this.invoiceByReference(ctx, reference);
+    return invoice ? { externalCode: `INV-${invoice.DocNum}` } : null;
+  }
+
+  async createInvoiceDraft(
+    ctx: ErpContext,
+    payload: ErpInvoiceDraftPayload,
+  ): Promise<{ externalCode: string }> {
+    const { serviceItemCode, vatGroup } = this.settings;
+    const lines = payload.lines.map((line) => {
+      const itemCode = line.productCode ?? serviceItemCode;
+      if (!itemCode) {
+        throw new AppError(
+          'UPSTREAM_ERROR',
+          `บรรทัด ${line.lineNo} ไม่มีรหัสสินค้า และยังไม่ได้ตั้ง ERP_B1_SERVICE_ITEM สำหรับบรรทัดบริการ`,
+        );
+      }
+      return {
+        ItemCode: itemCode,
+        ItemDescription: line.description.slice(0, 100),
+        Quantity: line.quantity,
+        UnitPrice: line.unitPrice,
+        DiscountPercent: line.discountPct,
+        ...(vatGroup ? { VatGroup: vatGroup } : {}),
+      };
+    });
+    // A draft, not a posted invoice: finance checks and posts it in B1.
+    const res = await this.call(ctx, 'POST', '/Drafts', {
+      DocObjectCode: 'oInvoices',
+      CardCode: payload.customerExternalCode,
+      NumAtCard: payload.reference,
+      DocDate: payload.issuedOn,
+      DocDueDate: payload.issuedOn,
+      Comments: payload.comment.slice(0, 254),
+      DocumentLines: lines,
+    });
+    const draft = this.json<{ DocEntry: number }>(res, 'สร้างร่างใบแจ้งหนี้');
+    return { externalCode: String(draft.DocEntry) };
+  }
+
+  async invoiceDraftState(
+    ctx: ErpContext,
+    reference: string,
+  ): Promise<ErpInvoiceDraftState> {
+    const invoice = await this.invoiceByReference(ctx, reference);
+    if (invoice) {
+      const total = Number(invoice.DocTotal ?? 0);
+      const paid = Number(invoice.PaidToDate ?? 0);
+      return {
+        status:
+          invoice.Cancelled === 'tYES'
+            ? 'cancelled'
+            : invoice.DocumentStatus === 'bost_Open'
+              ? 'open'
+              : 'paid',
+        invoiceNo: String(invoice.DocNum),
+        total,
+        paid,
+      };
+    }
+    const draft = await this.draftByReference(ctx, reference);
+    return {
+      status: draft ? 'draft' : 'missing',
+      invoiceNo: null,
+      total: null,
+      paid: null,
+    };
+  }
+
+  async cancelInvoiceDraft(ctx: ErpContext, reference: string): Promise<void> {
+    const invoice = await this.invoiceByReference(ctx, reference);
+    if (invoice && invoice.Cancelled !== 'tYES') {
+      throw new AppError(
+        'CONFLICT',
+        `การเงินออกใบแจ้งหนี้ ${invoice.DocNum} จากร่างนี้แล้ว — ยกเลิกต้องออกใบลดหนี้ใน SAP`,
+      );
+    }
+    const draft = await this.draftByReference(ctx, reference);
+    if (!draft) return;
+    const res = await this.call(ctx, 'DELETE', `/Drafts(${draft.DocEntry})`);
+    this.ok(res, 'ลบร่างใบแจ้งหนี้');
+  }
+
+  private async draftByReference(
+    ctx: ErpContext,
+    reference: string,
+  ): Promise<{ DocEntry: number } | null> {
+    const res = await this.call(
+      ctx,
+      'GET',
+      `/Drafts?$select=DocEntry&$filter=${q(
+        `NumAtCard eq ${literal(reference)} and DocObjectCode eq 'oInvoices'`,
+      )}`,
+    );
+    return (
+      this.json<{ value: { DocEntry: number }[] }>(res, 'ค้นร่างใบแจ้งหนี้')
+        .value[0] ?? null
+    );
+  }
+
+  private async invoiceByReference(
+    ctx: ErpContext,
+    reference: string,
+  ): Promise<{
+    DocNum: number;
+    DocTotal: number;
+    PaidToDate: number;
+    DocumentStatus: string;
+    Cancelled: string;
+  } | null> {
+    const res = await this.call(
+      ctx,
+      'GET',
+      `/Invoices?$select=DocNum,DocTotal,PaidToDate,DocumentStatus,Cancelled&$filter=${q(
+        `NumAtCard eq ${literal(reference)}`,
+      )}&$orderby=${q('DocEntry desc')}&$top=1`,
+    );
+    return (
+      this.json<{
+        value: {
+          DocNum: number;
+          DocTotal: number;
+          PaidToDate: number;
+          DocumentStatus: string;
+          Cancelled: string;
+        }[];
+      }>(res, 'ค้นใบแจ้งหนี้').value[0] ?? null
+    );
+  }
+
   // --- สินค้า (CD-27) ---------------------------------------------------------
 
   /**
@@ -438,6 +580,67 @@ export class SapB1Client implements ErpClient {
    * Field names follow the Service Layer reference; confirm against the
    * company's B1 with its team (CD-28).
    */
+  /**
+   * CD-190 — A/P invoices whose header carries the project code, every line
+   * (the header filter is what B1's OData can do; a line booked to another
+   * project inside such an invoice is skipped). Which documents finance
+   * books project costs on is still to be confirmed with the B1 team (CD-28).
+   */
+  async listProjectCosts(
+    ctx: ErpContext,
+    projectCode: string,
+  ): Promise<ErpProjectCost[]> {
+    const costs: ErpProjectCost[] = [];
+    let path: string | null =
+      `/PurchaseInvoices?$select=DocEntry,DocNum,DocDate,CardName,Project,DocumentLines&$filter=${q(
+        `Project eq ${literal(projectCode)} and Cancelled eq 'tNO'`,
+      )}&$orderby=DocDate desc,DocNum desc`;
+    for (let page = 0; path && page < ITEMS_MAX_PAGES; page += 1) {
+      const res = await this.call(ctx, 'GET', path, undefined, {
+        Prefer: `odata.maxpagesize=${ITEMS_PAGE_SIZE}`,
+      });
+      const body = this.json<{
+        value: {
+          DocEntry: number;
+          DocNum: number;
+          DocDate: string;
+          CardName: string | null;
+          Project: string | null;
+          DocumentLines: {
+            LineNum: number;
+            ItemCode: string | null;
+            ItemDescription: string | null;
+            LineTotal: number | null;
+            ProjectCode: string | null;
+          }[];
+        }[];
+        'odata.nextLink'?: string;
+        '@odata.nextLink'?: string;
+      }>(res, 'อ่านต้นทุนโครงการ');
+      for (const doc of body.value) {
+        for (const line of doc.DocumentLines ?? []) {
+          if (line.ProjectCode && line.ProjectCode !== projectCode) continue;
+          if (line.LineTotal === null || line.LineTotal === undefined) continue;
+          costs.push({
+            key: `PCH:${doc.DocEntry}:${line.LineNum}`,
+            docNo: String(doc.DocNum),
+            postedOn: doc.DocDate.slice(0, 10),
+            itemCode: line.ItemCode,
+            description:
+              line.ItemDescription?.trim() ||
+              line.ItemCode ||
+              `AP ${doc.DocNum}`,
+            amount: line.LineTotal,
+            category: line.ItemCode ? 'material' : 'other',
+            vendorName: doc.CardName?.trim() || null,
+          });
+        }
+      }
+      path = nextPath(body['odata.nextLink'] ?? body['@odata.nextLink']);
+    }
+    return costs;
+  }
+
   async listVendorCosts(
     ctx: ErpContext,
     since: string,

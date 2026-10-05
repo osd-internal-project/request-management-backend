@@ -20,6 +20,8 @@ const HOUR_MS = 60 * 60 * 1000;
 
 /** What the clock needs to know about a request to pick its budget. */
 interface ClockSubject {
+  /** The request's id — CD-240 looks up its service work order by it. */
+  id?: string;
   companyId: string;
   typeCode: string;
   severity: RequestSeverity | null;
@@ -283,9 +285,10 @@ export class SlaService {
     prisma: Prisma.TransactionClient,
     subject: ClockSubject,
   ): Promise<{ hours: number | null; responseHours: number | null }> {
-    // CD-151 — a case raised against a contract with service levels is held
-    // to the contract's targets, not the type's.
-    const contracted = await this.contractLevels(prisma, subject);
+    // CD-240 — a service work order is held to its entitlement's levels;
+    // CD-151 — a case raised against a contract with service levels to the
+    // contract's targets; either before the type's.
+    const contracted = await this.committedLevels(prisma, subject);
     if (contracted && subject.severity) {
       return {
         hours: contracted.targets[subject.severity].resolutionHours,
@@ -310,6 +313,112 @@ export class SlaService {
       hours: config?.hours ?? subject.requestType.slaHours,
       responseHours: null,
     };
+  }
+
+  /** The levels this request is held to by an entitlement or a contract. */
+  private async committedLevels(
+    prisma: Prisma.TransactionClient,
+    subject: ClockSubject,
+  ): Promise<{
+    targets: SeverityTargets;
+    coverage: SlaCoverage | null;
+  } | null> {
+    return (
+      (await this.entitlementLevels(prisma, subject)) ??
+      (await this.contractLevels(prisma, subject))
+    );
+  }
+
+  /**
+   * CD-240 — a service work order's entitlement (CD-237): the one confirmed,
+   * or the one suggested until then; none once it is confirmed as billed.
+   * Null for any other request, or when the entitlement records no
+   * per-severity times.
+   */
+  private async entitlementLevels(
+    prisma: Prisma.TransactionClient,
+    subject: ClockSubject,
+  ): Promise<{
+    targets: SeverityTargets;
+    coverage: SlaCoverage | null;
+  } | null> {
+    if (!subject.id || !subject.severity) return null;
+    const order = await prisma.serviceWorkOrder.findUnique({
+      where: { requestId: subject.id },
+      select: {
+        billing: true,
+        entitlementId: true,
+        suggestedEntitlementId: true,
+      },
+    });
+    // a job confirmed as billed is not under the cover: the type's levels
+    if (!order || order.billing === 'billable') return null;
+    const entitlementId = order.entitlementId ?? order.suggestedEntitlementId;
+    if (!entitlementId) return null;
+    const entitlement = await prisma.serviceEntitlement.findUnique({
+      where: { id: entitlementId },
+      select: { severityTargets: true, coverage: true },
+    });
+    const targets = readSeverityTargets(entitlement?.severityTargets);
+    if (!targets) return null;
+    return { targets, coverage: entitlement?.coverage ?? null };
+  }
+
+  /**
+   * CD-240 — the levels a request is held to changed after its clock began
+   * (a service work order opened on it, or its entitlement confirmed): the
+   * deadlines are worked out again under them. The working time already used
+   * stays used; a response already given stays given.
+   */
+  async retarget(
+    prisma: Prisma.TransactionClient,
+    requestId: string,
+    at = new Date(),
+  ): Promise<void> {
+    const clock = await prisma.slaClock.findUnique({
+      where: { requestId },
+      include: { request: { include: { requestType: true } } },
+    });
+    if (!clock || !['running', 'paused'].includes(clock.state)) return;
+    const { hours, responseHours } = await this.budgetFor(
+      prisma,
+      clock.request,
+    );
+    if (hours === null) return;
+    const { calendar, coverage } = await this.rulesFor(prisma, clock.request);
+    const data: Prisma.SlaClockUpdateInput = {};
+    if (responseHours !== null && !clock.respondedAt) {
+      const from = clock.request.submittedAt ?? clock.startedAt;
+      data.responseDueAt = addWorkingMs(
+        from,
+        responseHours * HOUR_MS,
+        calendar,
+        coverage,
+      );
+    }
+    let dueAt: Date | null = null;
+    if (clock.state === 'running') {
+      const ran = Math.max(
+        workingMsBetween(clock.startedAt, at, calendar, coverage),
+        0,
+      );
+      const used = clock.accumulatedMs + ran;
+      dueAt = addWorkingMs(
+        at,
+        Math.max(hours * HOUR_MS - used, 0),
+        calendar,
+        coverage,
+      );
+      Object.assign(data, { startedAt: at, accumulatedMs: used, dueAt });
+    }
+    if (!Object.keys(data).length) return;
+    await prisma.slaClock.update({ where: { requestId }, data });
+    if (dueAt) {
+      await prisma.request.update({
+        where: { id: requestId },
+        data: { dueAt },
+      });
+    }
   }
 
   /**
@@ -445,7 +554,7 @@ export class SlaService {
         where: { companyId, requestTypeCode: typeCode },
       }),
       prisma.holidayCalendar.findUnique({ where: { companyId } }),
-      this.contractLevels(prisma, subject),
+      this.committedLevels(prisma, subject),
     ]);
 
     const calendar: WorkingCalendar = stored

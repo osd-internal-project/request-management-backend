@@ -10901,6 +10901,21 @@
               "equipment": 8
             }
           },
+          "delivery_documents": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "example": {
+              "equipment": [
+                "ใบส่งของ",
+                "ใบรับประกันอุปกรณ์"
+              ]
+            }
+          },
           "customer_approval_types": {
             "$ref": "#/components/schemas/CustomerApprovalTypesDto"
           },
@@ -11018,6 +11033,14 @@
             "pattern": "^([A-Z0-9_-]{1,20})?$",
             "type": "string"
           },
+          "project_resource_type_code": {
+            "pattern": "^([A-Z0-9_-]{1,20})?$",
+            "type": "string"
+          },
+          "service_work_order_type_code": {
+            "pattern": "^([A-Z0-9_-]{1,20})?$",
+            "type": "string"
+          },
           "project_close_documents": {
             "type": "array",
             "items": {
@@ -11034,6 +11057,21 @@
           "project_health_red": {
             "maximum": 500,
             "minimum": 1,
+            "type": "integer"
+          },
+          "project_cost_warn_pct": {
+            "maximum": 500,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "project_cost_alert_pct": {
+            "maximum": 500,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "service_on_call_escalate_minutes": {
+            "maximum": 1440,
+            "minimum": 0,
             "type": "integer"
           },
           "project_readiness_checklist": {

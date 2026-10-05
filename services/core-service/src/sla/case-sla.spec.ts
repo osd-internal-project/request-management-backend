@@ -59,6 +59,8 @@ function clockHarness(options: {
     slaConfig: {
       findFirst: jest.fn(() => Promise.resolve(options.config ?? null)),
     },
+    // CD-240 — no service work order on these cases
+    serviceWorkOrder: { findUnique: jest.fn(() => Promise.resolve(null)) },
     holidayCalendar: { findUnique: jest.fn(() => Promise.resolve(null)) },
     slaClock: {
       upsert: jest.fn((args: Record<string, unknown>) => {

@@ -117,8 +117,36 @@ const REQUEST_TREE_SELECT = {
   receiver: { select: { displayName: true } },
 } as const;
 
+/** The moves another module may hold a request at (CD-239). */
+export type GuardedAction = 'receive' | 'complete';
+export type RequestGuard = (request: {
+  id: string;
+  companyId: string;
+}) => Promise<void>;
+
 @Injectable()
 export class RequestsService {
+  /**
+   * CD-239 — checks another module holds on a request before it moves: a
+   * service work order may not start before it is decided in-contract or
+   * billable, nor close without its cause and fix. A guard throws an
+   * AppError to stop the move; the engine keeps the transition table.
+   */
+  private readonly guards = new Map<GuardedAction, RequestGuard[]>();
+
+  addGuard(action: GuardedAction, guard: RequestGuard): void {
+    this.guards.set(action, [...(this.guards.get(action) ?? []), guard]);
+  }
+
+  private async runGuards(
+    action: GuardedAction,
+    request: { id: string; companyId: string },
+  ): Promise<void> {
+    for (const guard of this.guards.get(action) ?? []) {
+      await guard(request);
+    }
+  }
+
   constructor(
     private readonly requests: RequestRepository,
     private readonly attachments: AttachmentRepository,
@@ -1248,6 +1276,7 @@ export class RequestsService {
         'รับเรื่องได้เฉพาะผู้ที่ถูกระบุเป็นผู้รับเรื่อง',
       );
     }
+    await this.runGuards('receive', before);
 
     const flowV2 = await this.flowV2Of(before);
     if (flowV2) return this.receiveV2(before, flowV2, actor);
@@ -1480,6 +1509,7 @@ export class RequestsService {
     // a bystander does neither.
     this.assertMayAct(before, actor, 'complete', 'แจ้งงานเสร็จ');
     assertNotFlowV2(before);
+    await this.runGuards('complete', before);
 
     assertTransition(before.status, 'completed');
 

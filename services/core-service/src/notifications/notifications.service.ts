@@ -597,6 +597,170 @@ export class NotificationsService {
     });
   }
 
+  /** CD-232 — someone asked for leave; their supervisor decides. */
+  async leaveRequested(
+    userId: string,
+    companyId: string,
+    leave: { id: string; startDate: string; endDate: string; days: number },
+    name: string,
+    type: string,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'hr.leave.requested',
+      values: {
+        name,
+        type,
+        period: thaiPeriod(leave.startDate, leave.endDate),
+        days: String(leave.days),
+      },
+      resourceType: 'hr_leave',
+      resourceId: leave.id,
+    });
+  }
+
+  /** CD-232 — a leave was approved or rejected. */
+  async leaveDecided(
+    userId: string,
+    companyId: string,
+    leave: { id: string; startDate: string; endDate: string },
+    type: string,
+    approved: boolean,
+    note: string,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'hr.leave.decided',
+      values: {
+        type,
+        period: thaiPeriod(leave.startDate, leave.endDate),
+        outcome: approved ? 'อนุมัติแล้ว' : 'ไม่อนุมัติ',
+        note,
+      },
+      resourceType: 'hr_leave',
+      resourceId: leave.id,
+    });
+  }
+
+  /** CD-232 — someone was booked onto a project for a stretch of days. */
+  async bookingCreated(
+    userId: string,
+    companyId: string,
+    booking: {
+      id: string;
+      startDate: string;
+      endDate: string;
+      hoursPerDay: number;
+    },
+    project: string,
+    by: string,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'hr.booking.created',
+      values: {
+        project,
+        period: thaiPeriod(booking.startDate, booking.endDate),
+        hours: String(booking.hoursPerDay),
+        by,
+      },
+      resourceType: 'hr_booking',
+      resourceId: booking.id,
+    });
+  }
+
+  /** CD-233 — a project's actual mandays reached a step of its plan. */
+  async mandayThreshold(
+    userId: string,
+    companyId: string,
+    project: { id: string; label: string },
+    percent: number,
+    actual: number,
+    planned: number,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'hr.manday.threshold',
+      values: {
+        project: project.label,
+        percent: String(percent),
+        actual: String(actual),
+        planned: String(planned),
+      },
+      resourceType: 'project',
+      resourceId: project.id,
+    });
+  }
+
+  /** CD-233 — a closed project's final mandays against its plan. */
+  async mandayClosed(
+    userId: string,
+    companyId: string,
+    project: { id: string; label: string },
+    actual: number,
+    planned: number,
+    variance: string,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'hr.manday.closed',
+      values: {
+        project: project.label,
+        actual: String(actual),
+        planned: String(planned),
+        variance,
+      },
+      resourceType: 'project',
+      resourceId: project.id,
+    });
+  }
+
+  /** CD-254 — a phase's installation was confirmed complete. */
+  async deliveryInstalled(
+    userId: string,
+    companyId: string,
+    project: { id: string; label: string },
+    phase: string,
+    by: string,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'delivery.installed',
+      values: { project: project.label, phase, by },
+      resourceType: 'project',
+      resourceId: project.id,
+    });
+  }
+
+  /** CD-250 — a delivery trip is near with goods still not ready. */
+  async deliveryNotReady(
+    userId: string,
+    companyId: string,
+    delivery: { id: string; projectId: string; label: string; seq: number },
+    plannedOn: string,
+    lines: number,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'delivery.not_ready',
+      values: {
+        project: delivery.label,
+        seq: String(delivery.seq),
+        date: thaiDay(plannedOn),
+        lines: String(lines),
+      },
+      resourceType: 'project',
+      resourceId: delivery.projectId,
+    });
+  }
+
   /** CD-175 — someone was made a project's manager or put on its team. */
   async projectAssigned(
     userId: string,
@@ -848,6 +1012,171 @@ export class NotificationsService {
         installment_seq: String(input.installment.seq),
         installment_label: input.installment.label,
         pay_due: input.installment.dueOn ?? '-',
+      },
+      resourceType: 'project',
+      resourceId: input.project.id,
+    });
+  }
+
+  /** CD-180 — someone booked on your project was booked past their time elsewhere. */
+  async resourceConflict(
+    userId: string,
+    companyId: string,
+    input: {
+      project: { id: string; projectNo: string; name?: string };
+      otherProject: string;
+      person: string;
+      from: string;
+      to: string;
+      priority: string;
+      reason: string;
+    },
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'pm.resource.conflict',
+      values: {
+        project_no: input.project.projectNo,
+        your_project: input.otherProject,
+        person: input.person,
+        from: input.from,
+        to: input.to,
+        priority:
+          input.priority === 'this_first'
+            ? `${input.project.projectNo} มาก่อน`
+            : 'โครงการเดิมมาก่อน (ใช้เวลาที่ว่าง)',
+        reason: input.reason,
+      },
+      resourceType: 'project',
+      resourceId: input.project.id,
+    });
+  }
+
+  /** CD-190 — a project's actual cost crossed a threshold of its budget. */
+  /**
+   * CD-244 — a PM round's work order opened ahead (`opened`), could not be
+   * opened (`failed`, open it by hand), or the round's day passed undone
+   * (`overdue`); to the plan's owner.
+   */
+  async pmRound(
+    userId: string,
+    companyId: string,
+    input: {
+      kind: 'opened' | 'failed' | 'overdue';
+      entitlementId: string;
+      title: string;
+      customer: string;
+      dueOn: string;
+      roundNo: number;
+      requestId: string | null;
+      requestNo: string | null;
+      error?: string;
+    },
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: `service.pm.${input.kind}`,
+      values: {
+        title: input.title,
+        customer: input.customer,
+        due_on: input.dueOn,
+        round_no: String(input.roundNo),
+        request_no: input.requestNo ?? '',
+        error: input.error ?? '',
+      },
+      resourceType: input.requestId ? 'request' : 'service_entitlement',
+      resourceId: input.requestId ?? input.entitlementId,
+    });
+  }
+
+  /**
+   * CD-244 — a cover with no contract nearing its end: a service-contract
+   * offer was opened (`opened`) or is still open at a reminder step (`due`).
+   */
+  async maOffer(
+    userId: string,
+    companyId: string,
+    input: {
+      kind: 'opened' | 'due';
+      title: string;
+      customer: string;
+      endOn: string;
+      daysLeft: number;
+      opportunityId: string;
+      opportunityCode: string;
+    },
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: `crm.ma_offer.${input.kind}`,
+      values: {
+        title: input.title,
+        customer: input.customer,
+        end_on: input.endOn,
+        days_left: String(input.daysLeft),
+        opportunity_code: input.opportunityCode,
+      },
+      resourceType: 'opportunity',
+      resourceId: input.opportunityId,
+    });
+  }
+
+  /**
+   * CD-241 — an out-of-hours case sent to whoever is on call, or handed on
+   * to the backup when the first did not receive it in time.
+   */
+  async onCallDispatched(
+    userId: string,
+    companyId: string,
+    input: {
+      requestId: string;
+      requestNo: string | null;
+      subject: string;
+      reason: string;
+    },
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'service.oncall.dispatched',
+      values: {
+        request_no: input.requestNo ?? input.requestId,
+        subject: input.subject,
+        reason: input.reason,
+      },
+      resourceType: 'request',
+      resourceId: input.requestId,
+    });
+  }
+
+  async projectCostAlert(
+    userId: string,
+    companyId: string,
+    input: {
+      project: { id: string; projectNo: string; name: string };
+      category: string;
+      level: 'warn' | 'over';
+      budget: number;
+      actual: number;
+      pct: number | null;
+    },
+  ): Promise<void> {
+    const baht = (value: number) =>
+      value.toLocaleString('th-TH', { maximumFractionDigits: 2 });
+    await this.emit({
+      userId,
+      companyId,
+      eventType: `pm.cost.${input.level}`,
+      values: {
+        project_no: input.project.projectNo,
+        project: input.project.name,
+        category: input.category,
+        budget: baht(input.budget),
+        actual: baht(input.actual),
+        pct: input.pct === null ? 'ไม่มีงบ' : `${input.pct}%`,
       },
       resourceType: 'project',
       resourceId: input.project.id,
@@ -1418,6 +1747,10 @@ export function formatPhoneNumber(number: string): string {
 }
 
 /** CD-231 — a YYYY-MM-DD day as the Thai calendar writes it. */
+function thaiPeriod(from: string, to: string): string {
+  return from === to ? thaiDay(from) : `${thaiDay(from)} – ${thaiDay(to)}`;
+}
+
 function thaiDay(value: string): string {
   return new Date(`${value}T00:00:00Z`).toLocaleDateString('th-TH', {
     timeZone: 'UTC',

@@ -5,6 +5,7 @@ import {
   IsBoolean,
   IsDateString,
   IsInt,
+  Matches,
   IsNumber,
   Max,
   Min,
@@ -883,6 +884,15 @@ export class RecordAcceptanceDto {
   @IsString()
   @MaxLength(100000)
   items?: string;
+
+  /**
+   * CD-252 — `esign`: the certificate is drawn up and signed electronically
+   * after the result (Delivery), so none is attached now. Default `upload`.
+   */
+  @ApiPropertyOptional({ enum: ['upload', 'esign'], default: 'upload' })
+  @IsOptional()
+  @IsIn(['upload', 'esign'])
+  certificate_via?: string;
 }
 
 /** CD-189 — an open point closed. */
@@ -1559,4 +1569,146 @@ export class SaveTechChangeDto {
   @IsString()
   @MaxLength(4000)
   scope_removed?: string;
+}
+
+/** CD-190 — an actual cost the manager records, with its evidence. */
+export class AddProjectCostDto {
+  @ApiPropertyOptional({ enum: ['material', 'other'] })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  category?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  description?: string;
+
+  @ApiPropertyOptional({ description: 'บาท (ติดลบได้ เช่น เครดิตโน้ต)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  amount?: string;
+
+  @ApiPropertyOptional({ description: 'YYYY-MM-DD' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  incurred_on?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  vendor_name?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  doc_no?: string;
+}
+
+/** CD-180 — someone put on the project for a stretch of days. */
+export class BookResourceDto {
+  @ApiProperty()
+  @IsString()
+  @MaxLength(50)
+  user_id!: string;
+
+  @ApiProperty({ example: '2026-10-12' })
+  @IsString()
+  @MaxLength(10)
+  start_date!: string;
+
+  @ApiProperty({ example: '2026-10-30' })
+  @IsString()
+  @MaxLength(10)
+  end_date!: string;
+
+  @ApiProperty({ example: 8 })
+  @IsNumber()
+  hours_per_day!: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  note?: string;
+
+  @ApiPropertyOptional({
+    enum: ['this_first', 'others_first'],
+    description: 'บังคับเมื่อจองเกินเวลาว่าง',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  priority?: string;
+
+  @ApiPropertyOptional({
+    description: 'เหตุผลของการจัดลำดับ (บังคับเมื่อจองเกิน)',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  reason?: string;
+}
+
+/** CD-180 — asking for more people. */
+export class SaveResourceRequestDto {
+  @ApiProperty({ example: 'วิศวกรเครือข่าย' })
+  @IsString()
+  @MaxLength(200)
+  role!: string;
+
+  @ApiPropertyOptional({ description: 'ทักษะในทะเบียนพนักงาน (CD-229)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  skill_id?: string;
+
+  @ApiProperty({ example: 2 })
+  @IsInt()
+  headcount!: number;
+
+  @ApiProperty({ example: '2026-10-12' })
+  @IsString()
+  @MaxLength(10)
+  start_date!: string;
+
+  @ApiProperty({ example: '2026-10-30' })
+  @IsString()
+  @MaxLength(10)
+  end_date!: string;
+
+  @ApiProperty({ example: 8 })
+  @IsNumber()
+  hours_per_day!: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  note?: string;
+}
+
+/** CD-180 — the team's load, week by week. */
+export class WorkloadQueryDto {
+  @ApiProperty({ example: '2026-10-05' })
+  @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  from!: string;
+
+  @ApiPropertyOptional({ example: 8, description: '1–13 สัปดาห์' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2)
+  weeks?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  skill_id?: string;
 }

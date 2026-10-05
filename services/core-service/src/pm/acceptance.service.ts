@@ -39,6 +39,8 @@ import {
   ProjectMilestoneRepository,
 } from './project.repositories';
 import { ProjectsService } from './projects.service';
+import { ServiceAssetsService } from '../support/service-assets.service';
+
 import { ReadinessService } from './readiness.service';
 
 interface RoundRow {
@@ -112,6 +114,7 @@ export class AcceptanceService {
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
+    private readonly assets: ServiceAssetsService,
   ) {}
 
   async view(projectId: string, actor: Principal, now = new Date()) {
@@ -374,6 +377,8 @@ export class AcceptanceService {
       decidedOn: dto.decided_on?.slice(0, 10) ?? null,
       note: (dto.note ?? '').trim(),
       hasCertificate: Boolean(file),
+      // CD-252 — the certificate comes later, signed electronically
+      certificateViaEsign: dto.certificate_via === 'esign' && !file,
       items: items.map((item) => ({ text: item.text, dueOn: item.dueOn })),
       today: bangkokDay(now),
     };
@@ -480,6 +485,20 @@ export class AcceptanceService {
         actor,
         now,
       );
+    }
+    // CD-236 — what was delivered goes into the customer's installed base
+    if (input.result === 'accepted' || input.result === 'conditional') {
+      await this.assets
+        .registerFromAcceptance({
+          projectId,
+          companyId: access.project.companyId,
+          acceptedOn: input.decidedOn!,
+          actorId: actor.userId,
+          label,
+        })
+        .catch((error: Error) =>
+          this.logger.warn(`installed base not registered: ${error.message}`),
+        );
     }
     for (const owner of new Set(items.map((item) => item.ownerUserId))) {
       if (!owner || owner === actor.userId) continue;

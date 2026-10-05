@@ -4,7 +4,10 @@ import {
   ErpContext,
   ErpCustomerPayload,
   ErpInvoice,
+  ErpInvoiceDraftPayload,
+  ErpInvoiceDraftState,
   ErpItem,
+  ErpProjectCost,
   ErpReceivables,
   ErpSalesOrderPayload,
   ErpVendor,
@@ -26,6 +29,11 @@ export class MockSapClient implements ErpClient {
   private readonly orders = new Map<
     string,
     { payload: ErpSalesOrderPayload; cancelled: boolean }
+  >();
+  /** CD-242 — drafts by reference; nobody posts them in the mock. */
+  private readonly drafts = new Map<
+    string,
+    { externalCode: string; payload: ErpInvoiceDraftPayload }
   >();
 
   findCustomer(
@@ -118,6 +126,44 @@ export class MockSapClient implements ErpClient {
   }
 
   /**
+   * CD-190 — two lines per project, fixed by its code, numbered `MOCK-` so a
+   * real driver's first sync replaces them.
+   */
+  listProjectCosts(
+    _ctx: ErpContext,
+    projectCode: string,
+  ): Promise<ErpProjectCost[]> {
+    const seed = [...projectCode].reduce(
+      (sum, char) => sum + char.charCodeAt(0),
+      0,
+    );
+    const day = (offset: number) =>
+      new Date(Date.now() - offset * 86_400_000).toISOString().slice(0, 10);
+    return Promise.resolve([
+      {
+        key: `mock:${projectCode}:1`,
+        docNo: `MOCK-AP-${1000 + (seed % 900)}`,
+        postedOn: day(10),
+        itemCode: 'MOCK-ITEM',
+        description: 'อุปกรณ์ (ตัวอย่างจาก ERP จำลอง)',
+        amount: 10000 + (seed % 50) * 1000,
+        category: 'material',
+        vendorName: 'คู่ค้าตัวอย่าง',
+      },
+      {
+        key: `mock:${projectCode}:2`,
+        docNo: `MOCK-AP-${2000 + (seed % 900)}`,
+        postedOn: day(3),
+        itemCode: null,
+        description: 'ค่าขนส่ง (ตัวอย่างจาก ERP จำลอง)',
+        amount: 1500,
+        category: 'other',
+        vendorName: 'คู่ค้าตัวอย่าง',
+      },
+    ]);
+  }
+
+  /**
    * CD-89 — deterministic per customer and consistent with `getReceivables`:
    * the open invoices add up to its `outstanding`, plus two paid ones.
    */
@@ -161,6 +207,43 @@ export class MockSapClient implements ErpClient {
       status: 'paid',
     }));
     return Promise.resolve([...open, ...paid].slice(0, limit));
+  }
+
+  findInvoiceDraft(
+    _ctx: ErpContext,
+    reference: string,
+  ): Promise<{ externalCode: string } | null> {
+    const draft = this.drafts.get(reference);
+    return Promise.resolve(draft ? { externalCode: draft.externalCode } : null);
+  }
+
+  createInvoiceDraft(
+    _ctx: ErpContext,
+    payload: ErpInvoiceDraftPayload,
+  ): Promise<{ externalCode: string }> {
+    const externalCode = `MOCK-DR-${String(seedOf(payload.reference)).padStart(10, '0')}`;
+    this.drafts.set(payload.reference, { externalCode, payload });
+    this.logger.log(
+      `mock SAP draft A/R invoice ${payload.reference} → ${externalCode} (BP ${payload.customerExternalCode}, ${payload.netTotal})`,
+    );
+    return Promise.resolve({ externalCode });
+  }
+
+  invoiceDraftState(
+    _ctx: ErpContext,
+    reference: string,
+  ): Promise<ErpInvoiceDraftState> {
+    return Promise.resolve(
+      this.drafts.has(reference)
+        ? { status: 'draft', invoiceNo: null, total: null, paid: null }
+        : { status: 'missing', invoiceNo: null, total: null, paid: null },
+    );
+  }
+
+  cancelInvoiceDraft(_ctx: ErpContext, reference: string): Promise<void> {
+    this.drafts.delete(reference);
+    this.logger.log(`mock SAP delete draft ${reference}`);
+    return Promise.resolve();
   }
 
   cancelSalesOrder(

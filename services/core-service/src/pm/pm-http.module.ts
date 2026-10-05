@@ -4,11 +4,13 @@ import { StorageModule, type StorageOptions } from '@request-management/share';
 import { MilestonesService } from './milestones.service';
 import { PlanService } from './plan.service';
 import { PmModule } from './pm.module';
+import { DeliveryDocsState } from '../delivery/delivery-docs.state';
 import {
   ProjectsController,
   ProjectPortfolioController,
   ProjectReleasesController,
   ProjectConfigsController,
+  ProjectWorkloadController,
   ProjectRisksController,
   ProjectTasksController,
 } from './projects.controller';
@@ -36,6 +38,12 @@ import { SoftwareDocsService } from './software-docs.service';
 import { ConfigsService } from './configs.service';
 import { IntegrationsService } from './integrations.service';
 import { TechChangesService } from './tech-changes.service';
+import { ProjectCostsService } from './project-costs.service';
+import { ResourcesService } from './resources.service';
+import { ErpModule } from '../erp/erp.module';
+import { HrModule } from '../hr/hr.module';
+import { SupportModule } from '../support/support.module';
+import { CompanyRepository } from '../crm/product.repositories';
 import { TaskEvidenceService } from './task-evidence.service';
 import { DesignsService } from './designs.service';
 import { TechPlanService } from './tech-plan.service';
@@ -44,6 +52,11 @@ import { TechPlanService } from './tech-plan.service';
 @Module({
   imports: [
     PmModule,
+    // CD-190 — actual costs: the ERP and approved timesheets
+    ErpModule,
+    HrModule,
+    // CD-236 — acceptance fills the installed base
+    SupportModule,
     // CD-182 milestone evidence — storage for the HTTP half only
     StorageModule.forRootAsync({
       inject: [ConfigService],
@@ -51,6 +64,8 @@ import { TechPlanService } from './tech-plan.service';
         config.get<StorageOptions>('storage'),
     }),
   ],
+  // CD-254 — Delivery confirms installation against the readiness check
+  exports: [ReadinessService],
   controllers: [
     ProjectsController,
     ProjectTasksController,
@@ -58,6 +73,7 @@ import { TechPlanService } from './tech-plan.service';
     ProjectPortfolioController,
     ProjectReleasesController,
     ProjectConfigsController,
+    ProjectWorkloadController,
   ],
   providers: [
     MilestonesService,
@@ -73,6 +89,8 @@ import { TechPlanService } from './tech-plan.service';
     CloseoutService,
     StatusReportsService,
     TestsService,
+    // CD-251 — the delivery pack, for the readiness check (no module cycle)
+    DeliveryDocsState,
     ReadinessService,
     AsBuiltService,
     AcceptanceService,
@@ -86,6 +104,9 @@ import { TechPlanService } from './tech-plan.service';
     ConfigsService,
     IntegrationsService,
     TechChangesService,
+    ProjectCostsService,
+    ResourcesService,
+    CompanyRepository,
     TaskEvidenceService,
     DesignsService,
     TechPlanService,

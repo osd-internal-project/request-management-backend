@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { PrismaClient } from '@prisma/client';
 import type { Principal } from '@request-management/share';
@@ -55,6 +56,10 @@ import {
   ProjectConfigItemRepository,
   ProjectIntegrationRepository,
   ProjectTechChangeRepository,
+  ProjectCostAlertRepository,
+  ProjectCostRepository,
+  ProjectBookingPriorityRepository,
+  ProjectResourceRequestRepository,
   ProjectDesignRepository,
   ProjectDesignFileRepository,
   ProjectTaskEquipmentRepository,
@@ -86,6 +91,19 @@ import { SoftwareDocsService } from './software-docs.service';
 import { ConfigsService } from './configs.service';
 import { IntegrationsService } from './integrations.service';
 import { TechChangesService } from './tech-changes.service';
+import { ProjectCostsService } from './project-costs.service';
+import { ResourcesService } from './resources.service';
+import { ServiceAssetsService } from '../support/service-assets.service';
+import { EntitlementsService } from '../support/entitlements.service';
+import {
+  ServiceAssetHistoryRepository,
+  ServiceAssetRepository,
+  ServiceEntitlementAssetRepository,
+  ServiceEntitlementRepository,
+} from '../support/support.repositories';
+import { HrBookingRepository } from '../hr/hr.repositories';
+import type { DayAvailability } from '../hr/leave-rules';
+import { CompanyRepository } from '../crm/product.repositories';
 import { CustomerContactRepository } from '../crm/customer-child.repositories';
 import { TaskEvidenceService } from './task-evidence.service';
 import { DesignsService } from './designs.service';
@@ -293,6 +311,18 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       });
       await prisma.projectTask.deleteMany({ where: { projectId } });
       await prisma.projectMilestone.deleteMany({ where: { projectId } });
+      await prisma.serviceEntitlementAsset.deleteMany({
+        where: { asset: { projectId } },
+      });
+      await prisma.serviceEntitlement.deleteMany({ where: { projectId } });
+      await prisma.serviceAssetHistory.deleteMany({
+        where: { asset: { projectId } },
+      });
+      await prisma.serviceAsset.deleteMany({ where: { projectId } });
+      await prisma.projectBookingPriority.deleteMany({ where: { projectId } });
+      await prisma.projectResourceRequest.deleteMany({ where: { projectId } });
+      await prisma.projectCostAlert.deleteMany({ where: { projectId } });
+      await prisma.projectCost.deleteMany({ where: { projectId } });
       await prisma.projectTechChange.deleteMany({ where: { projectId } });
       await prisma.projectIntegration.deleteMany({ where: { projectId } });
       await prisma.projectConfigHistory.deleteMany({
@@ -4078,6 +4108,594 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       }
     });
 
+    it("CD-190: actual cost against the locked budget — labour from timesheets at the day's rate, ERP and manual costs, thresholds told once", async () => {
+      const client = prisma as never;
+      const transactions = {
+        execute: (work: (tx: unknown) => Promise<unknown>) =>
+          prisma.$transaction((tx) => work(tx)),
+      } as never;
+      const audit = { record: () => Promise.resolve() } as never;
+      const files = new Map<string, Buffer>();
+      const storage = {
+        put: (key: string, body: Buffer) => {
+          files.set(key, body);
+          return Promise.resolve();
+        },
+        remove: () => Promise.resolve(),
+        get: (key: string) => Promise.resolve(Readable.from([files.get(key)!])),
+      };
+      let erpLines = [
+        {
+          key: 'PCH:1:0',
+          docNo: '5001',
+          postedOn: '2026-10-01',
+          itemCode: 'CAM-1',
+          description: 'กล้อง IP',
+          amount: 60000,
+          category: 'material' as const,
+          vendorName: 'ผู้ขายกล้อง',
+        },
+        {
+          key: 'PCH:2:0',
+          docNo: '5002',
+          postedOn: '2026-10-02',
+          itemCode: null,
+          description: 'ค่าขนส่ง',
+          amount: 500,
+          category: 'other' as const,
+          vendorName: null,
+        },
+      ];
+      const told: string[] = [];
+      const costs = new ProjectCostsService(
+        projects,
+        new ProjectRepository(client),
+        new ProjectBudgetRepository(client),
+        new ProjectCostRepository(client),
+        new ProjectCostAlertRepository(client),
+        new CompanyRepository(client),
+        { findFirst: () => Promise.resolve(null) } as never,
+        {
+          // 10 approved man-days: 8 on 30 Sep at 4,000, 2 from 1 Oct at 4,800
+          projectActuals: () =>
+            Promise.resolve({
+              hours: 84,
+              mandays: 10.5,
+              lines: [
+                {
+                  levelId: 'L2',
+                  workTypeId: 'W1',
+                  date: '2026-09-30',
+                  hours: 64,
+                },
+                {
+                  levelId: 'L2',
+                  workTypeId: 'W1',
+                  date: '2026-10-01',
+                  hours: 16,
+                },
+                {
+                  levelId: null,
+                  workTypeId: 'W1',
+                  date: '2026-10-01',
+                  hours: 4,
+                },
+              ],
+            }),
+        } as never,
+        {
+          rateRows: () =>
+            Promise.resolve([
+              {
+                levelId: 'L2',
+                workTypeId: 'W1',
+                validFrom: '2026-01-01',
+                validTo: '2026-09-30',
+                costPerManday: 4000,
+              },
+              {
+                levelId: 'L2',
+                workTypeId: 'W1',
+                validFrom: '2026-10-01',
+                validTo: null,
+                costPerManday: 4800,
+              },
+            ]),
+        } as never,
+        { listProjectCosts: () => Promise.resolve(erpLines) } as never,
+        new CompanyMemberRepository(client),
+        {
+          projectCostAlert: (
+            userId: string,
+            _c: string,
+            input: { category: string; level: string },
+          ) => {
+            told.push(
+              `${userId === engineer ? 'pm' : userId}:${input.category}:${input.level}`,
+            );
+            return Promise.resolve();
+          },
+        } as never,
+        storage,
+        audit,
+        transactions,
+        { get: () => 0 } as never,
+      );
+      const managerNow = as(engineer, ['notification.read']);
+      const crew = as(outsider, ['notification.read']);
+      // what the manager was told; the pricing team gets the same
+      const toPm = () => told.filter((line) => line.startsWith('pm:'));
+      const companyId = (
+        await prisma.project.findUniqueOrThrow({
+          where: { id: projectId },
+          select: { companyId: true },
+        })
+      ).companyId;
+      // a known locked budget for this test, the versions before set aside
+      const before = await prisma.projectBudget.findMany({
+        where: { projectId },
+        select: { id: true, status: true, versionNo: true },
+      });
+      await prisma.projectBudget.updateMany({
+        where: { projectId, status: 'locked' },
+        data: { status: 'superseded' },
+      });
+      const versionNo =
+        before.reduce((max, row) => Math.max(max, row.versionNo), 0) + 1;
+      const budget = await prisma.projectBudget.create({
+        data: {
+          companyId,
+          projectId,
+          versionNo,
+          status: 'locked',
+          total: 150000,
+          lines: [
+            {
+              category: 'material',
+              code: null,
+              description: 'อุปกรณ์',
+              quantity: 1,
+              unit: null,
+              unitCost: 100000,
+              amount: 100000,
+            },
+            {
+              category: 'labor',
+              code: null,
+              description: 'แรงงาน',
+              quantity: 1,
+              unit: null,
+              unitCost: 50000,
+              amount: 50000,
+            },
+          ],
+          createdBy: engineer,
+        },
+      });
+      try {
+        // labour 8×4,000 + 2×4,800 = 41,600; 4 hours with no level unpriced
+        let view = await costs.view(projectId, crew);
+        expect(view.labor).toEqual({
+          amount: 41600,
+          hours: 84,
+          mandays: 10.5,
+          unpricedHours: 4,
+        });
+        expect(view.budget).toEqual({ versionNo });
+
+        // the ERP's lines come in on a sync (the manager's, or the pass)
+        await expect(costs.syncNow(projectId, crew)).rejects.toMatchObject({
+          code: 'FORBIDDEN',
+        });
+        view = await costs.syncNow(projectId, managerNow);
+        expect(
+          view.rows.map((row) => [row.category, row.actual, row.level]),
+        ).toEqual([
+          ['material', 60000, 'ok'],
+          ['labor', 41600, 'ok'],
+          // spent with nothing budgeted
+          ['other', 500, 'over'],
+          ['total', 102100, 'ok'],
+        ]);
+        expect(toPm()).toEqual(['pm:อื่น ๆ:over']);
+
+        // the manager records a cost, with its evidence
+        const pdf = {
+          originalname: 'receipt.pdf',
+          mimetype: 'application/pdf',
+          size: 4,
+          buffer: Buffer.from('%PDF'),
+        };
+        await expect(
+          costs.add(
+            projectId,
+            {
+              category: 'material',
+              description: 'รถกระเช้า',
+              amount: '35000',
+              incurred_on: '2026-10-03',
+            },
+            undefined,
+            managerNow,
+          ),
+        ).rejects.toThrow('ต้องแนบหลักฐาน');
+        view = await costs.add(
+          projectId,
+          {
+            category: 'material',
+            description: 'รถกระเช้า',
+            amount: '35000',
+            incurred_on: '2026-10-03',
+          },
+          pdf,
+          managerNow,
+        );
+        // material 95,000 = 95%: warned; told once
+        expect(view.rows[0]).toMatchObject({
+          actual: 95000,
+          pct: 95,
+          level: 'warn',
+        });
+        // and the total, 137,100 of 150,000 = 91.4%
+        expect(toPm()).toEqual([
+          'pm:อื่น ๆ:over',
+          'pm:วัสดุ/อุปกรณ์:warn',
+          'pm:รวม:warn',
+        ]);
+        const sent = told.length;
+        await costs.check(projectId, companyId);
+        expect(told).toHaveLength(sent);
+        const manual = view.entries.find((row) => row.source === 'manual')!;
+        expect(
+          (await costs.evidence(projectId, manual.id, crew)).fileName,
+        ).toBe('receipt.pdf');
+
+        // a line the ERP no longer lists goes; a manual one stays
+        erpLines = erpLines.slice(0, 1);
+        view = await costs.syncNow(projectId, managerNow);
+        expect(view.rows.find((row) => row.category === 'other')).toMatchObject(
+          {
+            actual: 0,
+          },
+        );
+        expect(view.entries.map((row) => row.source).sort()).toEqual([
+          'erp',
+          'manual',
+        ]);
+        const erpRow = view.entries.find((row) => row.source === 'erp')!;
+        await expect(
+          costs.remove(projectId, erpRow.id, managerNow),
+        ).rejects.toThrow('รายการจาก ERP');
+        view = await costs.remove(projectId, manual.id, managerNow);
+        expect(view.rows[0]).toMatchObject({ actual: 60000 });
+      } finally {
+        await prisma.projectCostAlert.deleteMany({ where: { projectId } });
+        await prisma.projectCost.deleteMany({ where: { projectId } });
+        await prisma.projectBudget.delete({ where: { id: budget.id } });
+        for (const row of before) {
+          await prisma.projectBudget.update({
+            where: { id: row.id },
+            data: { status: row.status },
+          });
+        }
+      }
+    });
+
+    it('CD-180: the team on the project — an overbooking names its priority and reason and tells the clashing project, more people asked through the request engine, load by week', async () => {
+      const client = prisma as never;
+      const transactions = {
+        execute: (work: (tx: unknown) => Promise<unknown>) =>
+          prisma.$transaction((tx) => work(tx)),
+      } as never;
+      const audit = { record: () => Promise.resolve() } as never;
+      const tag = randomUUID().slice(0, 8);
+      const project = await prisma.project.findUniqueOrThrow({
+        where: { id: projectId },
+        select: { companyId: true, projectNo: true },
+      });
+      const companyId = project.companyId;
+      // a second project that already has the person booked
+      const other = await prisma.project.findFirst({
+        where: { companyId, id: { not: projectId } },
+        select: { id: true, managerUserId: true },
+      });
+      const otherId = other?.id ?? projectId;
+      const person = outsider;
+      // CD-232 stood in: 8 h a working day, minus what hr_bookings hold
+      const hours = async (userId: string, from: string, to: string) => {
+        const rows = await prisma.hrBooking.findMany({
+          where: { userId, cancelledAt: null },
+        });
+        const days: DayAvailability[] = [];
+        for (
+          let at = Date.parse(`${from}T00:00:00Z`);
+          at <= Date.parse(`${to}T00:00:00Z`);
+          at += 86_400_000
+        ) {
+          const d = new Date(at).toISOString().slice(0, 10);
+          const working = ![0, 6].includes(new Date(at).getUTCDay());
+          const booked = working
+            ? rows
+                .filter(
+                  (row) =>
+                    row.startDate.toISOString().slice(0, 10) <= d &&
+                    row.endDate.toISOString().slice(0, 10) >= d,
+                )
+                .map((row) => ({
+                  bookingId: row.id,
+                  projectId: row.projectId,
+                  hours: Number(row.hoursPerDay),
+                }))
+            : [];
+          const bookedHours = booked.reduce((sum, b) => sum + b.hours, 0);
+          const capacity = working ? 8 : 0;
+          days.push({
+            day: d,
+            working,
+            capacity,
+            leaveHours: 0,
+            pendingLeave: false,
+            leaveType: null,
+            booked,
+            bookedHours,
+            free: capacity - bookedHours,
+          });
+        }
+        return days;
+      };
+      const availability = {
+        availabilityFor: async (
+          _c: string,
+          userIds: string[],
+          from: string,
+          to: string,
+        ) =>
+          new Map(
+            await Promise.all(
+              userIds.map(
+                async (id) => [id, await hours(id, from, to)] as const,
+              ),
+            ),
+          ),
+        createBooking: async (
+          actor: { userId: string },
+          dto: {
+            user_id: string;
+            project_id: string;
+            start_date: string;
+            end_date: string;
+            hours_per_day: number;
+          },
+        ) => {
+          const row = await prisma.hrBooking.create({
+            data: {
+              companyId,
+              userId: dto.user_id,
+              projectId: dto.project_id,
+              startDate: new Date(`${dto.start_date}T00:00:00Z`),
+              endDate: new Date(`${dto.end_date}T00:00:00Z`),
+              hoursPerDay: dto.hours_per_day,
+              createdBy: actor.userId,
+            },
+          });
+          return { booking: { id: row.id }, overbooked: [] };
+        },
+        cancelBooking: (actor: { userId: string }, id: string) =>
+          prisma.hrBooking.update({
+            where: { id },
+            data: { cancelledAt: new Date(), cancelledBy: actor.userId },
+          }),
+        availability: async (_a: unknown, q: { from: string; to: string }) => ({
+          projects: {},
+          people: [
+            {
+              userId: person,
+              name: 'ช่าง',
+              days: await hours(person, q.from, q.to),
+              totals: { capacity: 0, leave: 0, booked: 0, free: 0 },
+            },
+          ],
+        }),
+      };
+      const statuses = new Map<string, string>();
+      let seq = 0;
+      const asked: { form_data: Record<string, unknown> }[] = [];
+      const told: string[] = [];
+      const resources = new ResourcesService(
+        projects,
+        new ProjectRepository(client),
+        availability as never,
+        new HrBookingRepository(client),
+        new ProjectBookingPriorityRepository(client),
+        new ProjectResourceRequestRepository(client),
+        {
+          findFirst: () => Promise.resolve({ projectResourceTypeCode: 'RES' }),
+        } as never,
+        {
+          findFirst: (args: { where: { id: string } }) =>
+            Promise.resolve({
+              status: statuses.get(args.where.id) ?? 'submitted',
+            }),
+          findMany: () => Promise.resolve([]),
+        } as never,
+        {
+          create: (input: { form_data: Record<string, unknown> }) => {
+            asked.push(input);
+            seq++;
+            return Promise.resolve({ id: `req-rr-${tag}-${seq}` });
+          },
+          submit: () => Promise.resolve(),
+        } as never,
+        new CompanyMemberRepository(client),
+        {
+          resourceConflict: (
+            userId: string,
+            _c: string,
+            input: { priority: string },
+          ) => {
+            told.push(`${userId}:${input.priority}`);
+            return Promise.resolve();
+          },
+        } as never,
+        { on: () => undefined } as never,
+        audit,
+        transactions,
+      );
+      const managerNow = as(engineer, ['notification.read']);
+      const crew = as(outsider, ['notification.read']);
+      // Mon 12 – Fri 16 Oct 2026; the other project holds 6 h a day
+      const held = await prisma.hrBooking.create({
+        data: {
+          companyId,
+          userId: person,
+          projectId: otherId,
+          startDate: new Date('2026-10-12T00:00:00Z'),
+          endDate: new Date('2026-10-16T00:00:00Z'),
+          hoursPerDay: 6,
+          createdBy: engineer,
+        },
+      });
+      try {
+        const want = {
+          user_id: person,
+          start_date: '2026-10-12',
+          end_date: '2026-10-18',
+          hours_per_day: 4,
+        };
+        await expect(
+          resources.preview(projectId, want, crew),
+        ).rejects.toMatchObject({
+          code: 'FORBIDDEN',
+        });
+        const preview = await resources.preview(projectId, want, managerNow);
+        // 5 working days short by 2 h; the weekend is not counted
+        expect(preview.overbooked).toHaveLength(5);
+        expect(preview.overbooked[0]).toMatchObject({
+          day: '2026-10-12',
+          free: 2,
+          short: 2,
+        });
+        if (otherId !== projectId) {
+          expect(preview.conflicts.map((row) => row.projectId)).toEqual([
+            otherId,
+          ]);
+        }
+
+        // past what is free: a priority and its reason, or no booking
+        await expect(
+          resources.book(projectId, want, managerNow),
+        ).rejects.toThrow('ต้องระบุว่าโครงการไหนมาก่อน');
+        let view = await resources.book(
+          projectId,
+          { ...want, priority: 'this_first', reason: 'ลูกค้าเร่งเปิดระบบ' },
+          managerNow,
+          // the view's "today" is the default; bookings run in the future
+        );
+        const mine = view.bookings.find(
+          (row) => row.userId === person && row.hoursPerDay === 4,
+        )!;
+        expect(mine).toMatchObject({ hoursPerDay: 4, overbookedDays: 5 });
+        expect(mine.priority).toMatchObject({
+          priority: 'this_first',
+          reason: 'ลูกค้าเร่งเปิดระบบ',
+        });
+        if (otherId !== projectId && other!.managerUserId !== engineer) {
+          expect(told).toEqual([`${other!.managerUserId}:this_first`]);
+        }
+        // within what is free: no priority asked
+        view = await resources.book(
+          projectId,
+          {
+            user_id: person,
+            start_date: '2026-10-19',
+            end_date: '2026-10-23',
+            hours_per_day: 8,
+          },
+          managerNow,
+        );
+        expect(
+          view.bookings.find((row) => row.startDate === '2026-10-19'),
+        ).toMatchObject({ overbookedDays: 0, priority: null });
+
+        // the team reads it; cancelling frees the time
+        expect(
+          (await resources.view(projectId, crew)).bookings.length,
+        ).toBeGreaterThanOrEqual(2);
+        view = await resources.cancelBooking(projectId, mine.id, managerNow);
+        expect(view.bookings.some((row) => row.id === mine.id)).toBe(false);
+
+        // more people, through the request engine
+        await expect(
+          resources.ask(
+            projectId,
+            {
+              role: '',
+              headcount: 0,
+              start_date: '2026-10-12',
+              end_date: '2026-10-30',
+              hours_per_day: 8,
+            },
+            managerNow,
+            'Bearer x',
+          ),
+        ).rejects.toThrow('ต้องระบุตำแหน่งหรือทักษะที่ต้องการ');
+        view = await resources.ask(
+          projectId,
+          {
+            role: 'วิศวกรเครือข่าย',
+            headcount: 2,
+            start_date: '2026-10-12',
+            end_date: '2026-10-30',
+            hours_per_day: 8,
+          },
+          managerNow,
+          'Bearer x',
+        );
+        expect(asked[0].form_data).toMatchObject({
+          resource_request_no: 'RR-1',
+          role: 'วิศวกรเครือข่าย',
+          headcount: 2,
+        });
+        expect(view.requests[0]).toMatchObject({
+          label: 'RR-1',
+          status: 'submitted',
+        });
+        await expect(
+          resources.fulfil(projectId, view.requests[0].id, managerNow),
+        ).rejects.toThrow('ปิดได้เฉพาะคำขอที่อนุมัติแล้ว');
+        statuses.set(`req-rr-${tag}-1`, 'approved');
+        await resources.syncRequest(`req-rr-${tag}-1`);
+        view = await resources.fulfil(
+          projectId,
+          view.requests[0].id,
+          managerNow,
+        );
+        expect(view.requests[0].status).toBe('fulfilled');
+
+        // the load by week, Monday-aligned
+        const load = await resources.workload(managerNow, {
+          from: '2026-10-14',
+          weeks: '2',
+        });
+        expect(load.weeks).toEqual(['2026-10-12', '2026-10-19']);
+        expect(load.people[0].weeks[1]).toMatchObject({
+          week: '2026-10-19',
+          booked: 40,
+          pct: 100,
+        });
+      } finally {
+        await prisma.projectBookingPriority.deleteMany({
+          where: { projectId },
+        });
+        await prisma.projectResourceRequest.deleteMany({
+          where: { projectId },
+        });
+        await prisma.hrBooking.deleteMany({
+          where: { OR: [{ projectId }, { id: held.id }] },
+        });
+      }
+    });
+
     it('CD-210: a site survey synced from the device — the Solution assumptions checked one by one, each that differs a change request before it completes', async () => {
       const client = prisma as never;
       const transactions = {
@@ -4692,6 +5310,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         audit,
         transactions,
         { state: () => Promise.resolve(null) } as never,
+        { forProject: () => Promise.resolve(null) } as never,
       );
       const managerNow = as(engineer, ['notification.read']);
       const crew = as(outsider, ['notification.read']);
@@ -4869,9 +5488,39 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         audit,
         transactions,
         { state: () => Promise.resolve(null) } as never,
+        { forProject: () => Promise.resolve(null) } as never,
       );
       const files = new Map<string, Buffer>();
       const told: string[] = [];
+      // CD-236 — acceptance fills the installed base for real
+      const assetsService = new ServiceAssetsService(
+        new ServiceAssetRepository(client),
+        new ServiceAssetHistoryRepository(client),
+        new ProjectRepository(client),
+        new ProjectInstallationRepository(client),
+        new ProjectEnvironmentRepository(client),
+        new ProjectDeploymentRepository(client),
+        new CustomerRepository(client),
+        new CompanyMemberRepository(client),
+        { record: () => Promise.resolve() } as never,
+        {
+          execute: (work: (tx: unknown) => Promise<unknown>) =>
+            prisma.$transaction((tx) => work(tx)),
+        } as never,
+        new EntitlementsService(
+          new ServiceEntitlementRepository(client),
+          new ServiceEntitlementAssetRepository(client),
+          new ServiceAssetRepository(client),
+          new CustomerContractRepository(client),
+          new ContractTermsRepository(client),
+          new CustomerRepository(client),
+          { record: () => Promise.resolve() } as never,
+          {
+            execute: (work: (tx: unknown) => Promise<unknown>) =>
+              prisma.$transaction((tx) => work(tx)),
+          } as never,
+        ),
+      );
       const acceptance = new AcceptanceService(
         projects,
         readiness,
@@ -4902,6 +5551,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         },
         audit,
         transactions,
+        assetsService,
       );
       const managerNow = as(engineer, ['notification.read']);
       const crew = as(outsider, ['notification.read']);
@@ -5107,6 +5757,413 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       );
     });
 
+    it('CD-236: the installed base — made at acceptance from installed points and production software, entered by hand and from a file, searched by serial', async () => {
+      const client = prisma as never;
+      const assetsService = new ServiceAssetsService(
+        new ServiceAssetRepository(client),
+        new ServiceAssetHistoryRepository(client),
+        new ProjectRepository(client),
+        new ProjectInstallationRepository(client),
+        new ProjectEnvironmentRepository(client),
+        new ProjectDeploymentRepository(client),
+        new CustomerRepository(client),
+        new CompanyMemberRepository(client),
+        { record: () => Promise.resolve() } as never,
+        {
+          execute: (work: (tx: unknown) => Promise<unknown>) =>
+            prisma.$transaction((tx) => work(tx)),
+        } as never,
+        new EntitlementsService(
+          new ServiceEntitlementRepository(client),
+          new ServiceEntitlementAssetRepository(client),
+          new ServiceAssetRepository(client),
+          new CustomerContractRepository(client),
+          new ContractTermsRepository(client),
+          new CustomerRepository(client),
+          { record: () => Promise.resolve() } as never,
+          {
+            execute: (work: (tx: unknown) => Promise<unknown>) =>
+              prisma.$transaction((tx) => work(tx)),
+          } as never,
+        ),
+      );
+      const project = await prisma.project.findUniqueOrThrow({
+        where: { id: projectId },
+        select: { companyId: true, customerId: true },
+      });
+      const companyId = project.companyId;
+      const reader = {
+        ...as(randomUUID(), ['service.asset.read', 'service.asset.manage']),
+        activeCompanyId: companyId,
+      };
+      // the acceptance (CD-189) put in what was installed and production
+      const fromProject = await prisma.serviceAsset.findMany({
+        where: { projectId },
+        orderBy: { createdAt: 'asc' },
+      });
+      const installed = await prisma.projectInstallation.count({
+        where: { projectId, deletedAt: null, installedOn: { not: null } },
+      });
+      const production = await prisma.projectEnvironment.count({
+        where: { projectId, deletedAt: null, kind: 'production' },
+      });
+      expect(fromProject).toHaveLength(installed + production);
+      expect(
+        fromProject.every((row) => row.source === 'project' && row.acceptedOn),
+      ).toBe(true);
+      // once each: another round adds nothing
+      expect(
+        await assetsService.registerFromAcceptance({
+          projectId,
+          companyId,
+          acceptedOn: '2026-10-05',
+          actorId: engineer,
+          label: 'A-9',
+        }),
+      ).toEqual([]);
+
+      const tag = randomUUID().slice(0, 6).toUpperCase();
+      const customer = await prisma.customer.create({
+        data: {
+          companyId,
+          customerCode: `CUS-T236-${tag}`,
+          nameTh: `ทดสอบทะเบียน ${tag}`,
+          normalizedName: `ทดสอบทะเบียน ${tag}`,
+          status: 'active',
+          type: 'corporate',
+        },
+      });
+      try {
+        // by hand: a customer is needed; the serial is kept normalised
+        await expect(
+          assetsService.create(reader, { kind: 'equipment', name: 'UPS 3kVA' }),
+        ).rejects.toThrow('ต้องระบุลูกค้า');
+        const ups = await assetsService.create(reader, {
+          kind: 'equipment',
+          customer_id: customer.id,
+          name: 'UPS 3kVA',
+          serial_no: ` ups-${tag} 01`,
+          location: 'ห้อง server',
+          installed_on: '2024-03-01',
+        });
+        expect(ups.serialNo).toBe(`UPS-${tag}01`);
+        await expect(
+          assetsService.create(reader, {
+            kind: 'equipment',
+            customer_id: customer.id,
+            name: 'อีกเครื่อง',
+            serial_no: `ups-${tag}01`,
+          }),
+        ).rejects.toThrow('มีในทะเบียนแล้ว');
+
+        // the old base from a file: checked, then written
+        const rows = [
+          {
+            row_no: 2,
+            customer_code: customer.customerCode,
+            name: 'สวิตช์',
+            serial_no: `SW-${tag}`,
+            model: 'C9200',
+          },
+          { row_no: 3, customer_code: 'CUS-NOPE', name: 'x' },
+          {
+            row_no: 4,
+            customer_code: customer.customerCode,
+            name: 'ซ้ำ',
+            serial_no: `ups-${tag}01`,
+          },
+          {
+            row_no: 5,
+            customer_code: customer.customerCode,
+            kind: 'software',
+            name: 'ระบบบัญชี',
+            version: '3.2',
+          },
+        ];
+        const dry = await assetsService.import(reader, {
+          mode: 'dry_run',
+          import_id: `imp-${tag}`,
+          rows,
+        });
+        expect(dry.summary).toEqual({ create: 2, skip: 1, error: 1 });
+        expect(
+          await prisma.serviceAsset.count({
+            where: { customerId: customer.id },
+          }),
+        ).toBe(1);
+        const done = await assetsService.import(reader, {
+          mode: 'commit',
+          import_id: `imp-${tag}`,
+          rows,
+        });
+        expect(done.summary).toEqual({ create: 2, skip: 1, error: 1 });
+
+        // a call comes in: found by serial, or by the customer
+        let found = await assetsService.list(reader, { q: `sw-${tag}` });
+        expect(found.items.map((row) => row.name)).toEqual(['สวิตช์']);
+        found = await assetsService.list(reader, { customer_id: customer.id });
+        expect(found.items).toHaveLength(3);
+
+        // corrected with a reason; replaced, and out of the active list
+        await expect(
+          assetsService.update(reader, ups.id, { location: 'ชั้น 2' }),
+        ).rejects.toThrow('ต้องระบุเหตุผลที่แก้');
+        await assetsService.update(reader, ups.id, {
+          location: 'ชั้น 2',
+          reason: 'ย้ายห้อง',
+        });
+        const replaced = await assetsService.setStatus(reader, ups.id, {
+          status: 'replaced',
+          reason: 'เปลี่ยนเครื่องใหม่จากเคลม',
+        });
+        expect(replaced.history.map((row) => row.action)).toEqual([
+          'status',
+          'updated',
+          'created',
+        ]);
+        found = await assetsService.list(reader, { customer_id: customer.id });
+        expect(found.items).toHaveLength(2);
+        found = await assetsService.list(reader, {
+          customer_id: customer.id,
+          status: 'all',
+        });
+        expect(found.items).toHaveLength(3);
+      } finally {
+        await prisma.serviceAssetHistory.deleteMany({
+          where: { asset: { customerId: customer.id } },
+        });
+        await prisma.serviceAsset.deleteMany({
+          where: { customerId: customer.id },
+        });
+        await prisma.customer.delete({ where: { id: customer.id } });
+      }
+    });
+
+    it('CD-237: entitlements — a warranty from the acceptance date and the contract terms, a service contract set from the register, the strongest cover answering for an asset', async () => {
+      const client = prisma as never;
+      const tx = {
+        execute: (work: (t: unknown) => Promise<unknown>) =>
+          prisma.$transaction((t) => work(t)),
+      } as never;
+      const audit = { record: () => Promise.resolve() } as never;
+      const entitlements = new EntitlementsService(
+        new ServiceEntitlementRepository(client),
+        new ServiceEntitlementAssetRepository(client),
+        new ServiceAssetRepository(client),
+        new CustomerContractRepository(client),
+        new ContractTermsRepository(client),
+        new CustomerRepository(client),
+        audit,
+        tx,
+      );
+      const project = await prisma.project.findUniqueOrThrow({
+        where: { id: projectId },
+        select: { companyId: true, customerId: true, contractId: true },
+      });
+      const companyId = project.companyId;
+      const reader = {
+        ...as(randomUUID(), ['service.asset.read', 'service.asset.manage']),
+        activeCompanyId: companyId,
+      };
+      const tag = randomUUID().slice(0, 6).toUpperCase();
+      const customer = await prisma.customer.create({
+        data: {
+          companyId,
+          customerCode: `CUS-T237-${tag}`,
+          nameTh: `ทดสอบสิทธิ์ ${tag}`,
+          normalizedName: `ทดสอบสิทธิ์ ${tag}`,
+          status: 'active',
+          type: 'corporate',
+        },
+      });
+      const assets = await Promise.all(
+        ['A', 'B'].map((suffix) =>
+          prisma.serviceAsset.create({
+            data: {
+              companyId,
+              customerId: customer.id,
+              kind: 'equipment',
+              source: 'manual',
+              name: `เครื่อง ${suffix}`,
+              serialNo: `T237-${tag}-${suffix}`,
+              createdBy: engineer,
+            },
+          }),
+        ),
+      );
+      const contract = await prisma.customerContract.findUniqueOrThrow({
+        where: { id: project.contractId },
+        select: { id: true, customerId: true },
+      });
+      const termsBefore = await prisma.contractTerms.findUnique({
+        where: { contractId: contract.id },
+      });
+      const levels = {
+        critical: { responseHours: 1, resolutionHours: 4 },
+        high: { responseHours: 2, resolutionHours: 8 },
+        medium: { responseHours: 4, resolutionHours: 24 },
+        low: { responseHours: 8, resolutionHours: 72 },
+      };
+      await prisma.contractTerms.upsert({
+        where: { contractId: contract.id },
+        create: {
+          contractId: contract.id,
+          companyId,
+          warrantyMonths: 12,
+          serviceCoverage: 'H8X5',
+          serviceLevels: levels,
+        },
+        update: {
+          warrantyMonths: 12,
+          serviceCoverage: 'H8X5',
+          serviceLevels: levels,
+        },
+      });
+      // the contract is the project's; for this test its warranty covers the
+      // test customer's assets
+      await prisma.customerContract.update({
+        where: { id: contract.id },
+        data: { customerId: customer.id },
+      });
+      try {
+        // the warranty an acceptance makes: from its date, the contract's level
+        const warrantyId = await entitlements.warrantyFromAcceptance({
+          companyId,
+          projectId,
+          customerId: customer.id,
+          contractId: contract.id,
+          acceptedOn: '2026-10-05',
+          label: 'A-1',
+          assetIds: assets.map((a) => a.id),
+          actorId: engineer,
+        });
+        let detail = await entitlements.detail(reader, warrantyId!);
+        expect(detail).toMatchObject({
+          kind: 'warranty',
+          startOn: '2026-10-05',
+          endOn: '2027-10-04',
+          coverage: 'H8X5',
+          state: 'active',
+        });
+        expect(detail.severityTargets?.critical).toEqual({
+          responseHours: 1,
+          resolutionHours: 4,
+        });
+        expect(detail.assets).toHaveLength(2);
+
+        // a service contract from the register: defaults, then 24x7 on A only
+        const defaults = await entitlements.contractDefaults(
+          reader,
+          contract.id,
+        );
+        expect(defaults).toMatchObject({
+          customerId: customer.id,
+          coverage: 'H8X5',
+        });
+        await expect(
+          entitlements.create(reader, {
+            kind: 'service_contract',
+            customer_id: customer.id,
+            title: 'MA',
+            start_on: '2026-12-01',
+            end_on: '2026-11-01',
+          }),
+        ).rejects.toThrow('วันสิ้นสุดต้องไม่ก่อนวันเริ่ม');
+        const ma = await entitlements.create(reader, {
+          kind: 'service_contract',
+          customer_id: customer.id,
+          contract_id: contract.id,
+          title: 'MA 24x7',
+          start_on: '2026-12-01',
+          end_on: '2027-11-30',
+          coverage: 'H24X7',
+          corrective_quota: null,
+          preventive_quota: 4,
+          asset_ids: [assets[0].id],
+        });
+        expect(ma).toMatchObject({ preventiveLeft: 4, correctiveLeft: null });
+
+        // what answers for A: the warranty now, the 24x7 contract once it runs
+        expect(
+          (
+            await entitlements.coverageOf(companyId, assets[0].id, '2026-11-15')
+          ).map((row) => row.title),
+        ).toEqual([detail.title]);
+        expect(
+          (
+            await entitlements.coverageOf(companyId, assets[0].id, '2027-01-10')
+          )[0],
+        ).toMatchObject({ id: ma.id, coverage: 'H24X7' });
+        expect(
+          (
+            await entitlements.coverageOf(companyId, assets[1].id, '2027-01-10')
+          )[0].id,
+        ).toBe(warrantyId);
+        expect(
+          await entitlements.coverageOf(companyId, assets[1].id, '2027-12-01'),
+        ).toEqual([]);
+
+        // changed with a reason: the contract moves to B; then withdrawn
+        await expect(
+          entitlements.update(reader, ma.id, { asset_ids: [assets[1].id] }),
+        ).rejects.toThrow('ต้องระบุเหตุผลที่แก้');
+        detail = await entitlements.update(reader, ma.id, {
+          asset_ids: [assets[1].id],
+          reason: 'ลูกค้าย้ายสัญญาไปเครื่อง B',
+        });
+        expect(detail.assets.map((a) => a.id)).toEqual([assets[1].id]);
+        // only the customer's own assets
+        await expect(
+          entitlements.update(reader, ma.id, {
+            asset_ids: [randomUUID()],
+            reason: 'x',
+          }),
+        ).rejects.toThrow('มีอุปกรณ์ที่ไม่ใช่ของลูกค้ารายนี้');
+        detail = await entitlements.cancel(reader, ma.id, {
+          reason: 'ลูกค้ายกเลิก MA',
+        });
+        expect(detail.state).toBe('cancelled');
+        const listed = await entitlements.list(reader, {
+          customer_id: customer.id,
+          state: 'all',
+        });
+        expect(
+          listed.map((row) => [row.kind, row.state, row.assetCount]),
+        ).toEqual([
+          ['warranty', expect.any(String), 2],
+          ['service_contract', 'cancelled', 1],
+        ]);
+      } finally {
+        await prisma.customerContract.update({
+          where: { id: contract.id },
+          data: { customerId: contract.customerId },
+        });
+        if (termsBefore) {
+          await prisma.contractTerms.update({
+            where: { contractId: contract.id },
+            data: {
+              warrantyMonths: termsBefore.warrantyMonths,
+              serviceCoverage: termsBefore.serviceCoverage,
+              serviceLevels: termsBefore.serviceLevels ?? Prisma.JsonNull,
+            },
+          });
+        } else {
+          await prisma.contractTerms.delete({
+            where: { contractId: contract.id },
+          });
+        }
+        await prisma.serviceEntitlementAsset.deleteMany({
+          where: { asset: { customerId: customer.id } },
+        });
+        await prisma.serviceEntitlement.deleteMany({
+          where: { customerId: customer.id },
+        });
+        await prisma.serviceAsset.deleteMany({
+          where: { customerId: customer.id },
+        });
+        await prisma.customer.delete({ where: { id: customer.id } });
+      }
+    });
     it('CD-192: health from the project figures; the weekly draft, refreshed until submitted; the portfolio puts risk first', async () => {
       const client = prisma as never;
       const transactions = {

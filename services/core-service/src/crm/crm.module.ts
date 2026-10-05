@@ -385,6 +385,9 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     VendorCostService,
     QuotationPrintService,
     ErpSyncAdminService,
+    // CD-242 — service billing shares the SAP queue and its customer push.
+    IntegrationSyncJobRepository,
+    CustomerErpSyncService,
     ProductCatalogService,
   ],
 })

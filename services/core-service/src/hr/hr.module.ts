@@ -13,9 +13,19 @@ import {
   HrSkillRepository,
   HrUserSkillRepository,
   HrWorkTypeRepository,
+  HrBookingRepository,
+  HrCalendarRepository,
+  HrLeaveEntitlementRepository,
+  HrLeaveRepository,
+  HrLeaveTypeRepository,
+  HrMandayAlertRepository,
 } from './hr.repositories';
 import { EmployeesService } from './employees.service';
 import { TimesheetsService } from './timesheets.service';
+import { LeavesService } from './leaves.service';
+import { AvailabilityService } from './availability.service';
+import { MandayVarianceService } from './manday-variance.service';
+import { LaborCostService } from './labor-cost.service';
 import { NotificationsModule } from '../notifications/notifications.module';
 
 /**
@@ -44,7 +54,28 @@ import { NotificationsModule } from '../notifications/notifications.module';
     HrTimesheetLineRepository,
     HrInternalActivityRepository,
     HrWorkRefsRepository,
+    // CD-232
+    LeavesService,
+    AvailabilityService,
+    HrLeaveTypeRepository,
+    HrLeaveEntitlementRepository,
+    HrLeaveRepository,
+    HrBookingRepository,
+    HrCalendarRepository,
+    // CD-233
+    MandayVarianceService,
+    HrMandayAlertRepository,
+    // CD-234
+    LaborCostService,
   ],
-  exports: [HrRatesService, EmployeesService, TimesheetsService],
+  exports: [
+    HrRatesService,
+    EmployeesService,
+    TimesheetsService,
+    LeavesService,
+    AvailabilityService,
+    MandayVarianceService,
+    LaborCostService,
+  ],
 })
 export class HrModule {}

@@ -617,6 +617,19 @@ export class UpdateCrmConfigDto {
   @IsObject()
   min_margin_by_work_type?: Record<string, number | null>;
 
+  /**
+   * CD-251: เอกสารส่งมอบบังคับต่อประเภทงาน (equipment / material / software /
+   * service) — ประเภทที่ไม่ได้ส่ง = ใช้ค่าตั้งต้น; ส่ง `[]` = ไม่บังคับเอกสาร.
+   */
+  @ApiPropertyOptional({
+    type: 'object',
+    additionalProperties: { type: 'array', items: { type: 'string' } },
+    example: { equipment: ['ใบส่งของ', 'ใบรับประกันอุปกรณ์'] },
+  })
+  @IsOptional()
+  @IsObject()
+  delivery_documents?: Record<string, unknown>;
+
   /** CD-206: ต้นทุนคู่ค้าจาก SAP ที่เก่ากว่านี้ (วัน) ถูกเตือนก่อนนำไปคิดราคา. */
   @IsOptional()
   @IsInt()
@@ -793,6 +806,18 @@ export class UpdateCrmConfigDto {
   @Matches(/^([A-Z0-9_-]{1,20})?$/)
   project_tech_change_type_code?: string;
 
+  /** CD-180: รหัสประเภทคำขอทีมเพิ่ม (PM → Engineer); form มี role, headcount, start_date, end_date. "" = ล้าง. */
+  @IsOptional()
+  @IsString()
+  @Matches(/^([A-Z0-9_-]{1,20})?$/)
+  project_resource_type_code?: string;
+
+  /** CD-239: รหัสประเภทคำขอใบสั่งงานบริการ (ประเภทเคสที่มีความรุนแรง). "" = ล้าง. */
+  @IsOptional()
+  @IsString()
+  @Matches(/^([A-Z0-9_-]{1,20})?$/)
+  service_work_order_type_code?: string;
+
   /** CD-191: ชื่อเอกสารที่ทุกโครงการต้องแนบก่อนขอปิด. */
   @IsOptional()
   @IsArray()
@@ -814,6 +839,27 @@ export class UpdateCrmConfigDto {
   @Min(1)
   @Max(500)
   project_health_red?: number;
+
+  /** CD-190: ต้นทุนจริงถึงกี่ % ของงบจึงเตือนว่าใกล้เกิน (ค่าเริ่ม 90). */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(500)
+  project_cost_warn_pct?: number;
+
+  /** CD-190: ต้นทุนจริงเกินกี่ % ของงบจึงแจ้งว่าเกินงบ (ค่าเริ่ม 100, ไม่ต่ำกว่าเกณฑ์เตือน). */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(500)
+  project_cost_alert_pct?: number;
+
+  /** CD-241: นาทีที่เวรหลักมีให้กดรับเคสนอกเวลา ก่อนส่งต่อเวรสำรอง (ค่าเริ่ม 30; 0 = ไม่ส่งต่อ). */
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(1440)
+  service_on_call_escalate_minutes?: number;
 
   /** CD-225: รายการตรวจความพร้อมก่อนส่งมอบมาตรฐานของบริษัท. */
   @IsOptional()

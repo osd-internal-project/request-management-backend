@@ -5,6 +5,8 @@
  * (SCOPE-04); the app reads it with `pricing.price.read`.
  */
 
+import { HOURS_PER_MANDAY } from '../hr/timesheet-rules';
+
 /** A `timestamp` column (stored as UTC, no zone) as Bangkok wall-clock time. */
 const bkk = (column: string) =>
   `((${column}) AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Bangkok'`;
@@ -84,6 +86,44 @@ export const PRICING_MART_TABLES: readonly { table: string; sql: string[] }[] =
          FROM pricing_exceptions pe
          JOIN companies c ON c.id = pe."companyId"
          WHERE pe.decision <> 'superseded'`,
+      ],
+    },
+    {
+      // CD-234 — approved hours priced with the rate in effect on the day
+      // worked (the person's level now × the line's work type), as
+      // LaborCostService prices them; no level or no rate = unpriced (null).
+      table: 'pricing.fact_labor_costs',
+      sql: [
+        `DELETE FROM mart_pricing.fact_labor_costs`,
+        `INSERT INTO mart_pricing.fact_labor_costs
+         SELECT l.id, c.code, l."workDate", to_char(l."workDate", 'YYYY-MM'),
+                l.kind, p."projectNo", r."requestNo", r."typeCode",
+                l."solutionId", l."internalCode", t."userId", u."displayName",
+                lv.code, wt.code, l.hours, l.billable,
+                rate."costPerManday",
+                round(l.hours / ${HOURS_PER_MANDAY} * rate."costPerManday", 2)
+         FROM hr_timesheet_lines l
+         JOIN hr_timesheets t ON t.id = l."timesheetId" AND t.status = 'approved'
+         JOIN companies c ON c.id = t."companyId"
+         JOIN hr_work_types wt ON wt.id = l."workTypeId"
+         LEFT JOIN hr_employees e
+           ON e."companyId" = t."companyId" AND e."userId" = t."userId"
+         LEFT JOIN hr_levels lv ON lv.id = e."levelId"
+         LEFT JOIN projects p ON p.id = l."projectId"
+         LEFT JOIN requests r ON r.id = l."requestId"
+         LEFT JOIN users u ON u.id = t."userId"
+         LEFT JOIN LATERAL (
+           SELECT hr."costPerManday"
+           FROM hr_labor_rates hr
+           WHERE hr."companyId" = t."companyId"
+             AND hr."levelId" = e."levelId"
+             AND hr."workTypeId" = l."workTypeId"
+             AND hr."deletedAt" IS NULL
+             AND hr."validFrom" <= l."workDate"
+             AND (hr."validTo" IS NULL OR hr."validTo" >= l."workDate")
+           ORDER BY hr."validFrom" DESC
+           LIMIT 1
+         ) rate ON true`,
       ],
     },
   ];

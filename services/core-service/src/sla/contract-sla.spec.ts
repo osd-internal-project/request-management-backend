@@ -17,6 +17,8 @@ function harness(contractTerms: Record<string, unknown> | null) {
         }),
       ),
     },
+    // CD-240 — no service work order on these cases
+    serviceWorkOrder: { findUnique: jest.fn(() => Promise.resolve(null)) },
     holidayCalendar: { findUnique: jest.fn(() => Promise.resolve(null)) },
     customerContract: {
       findFirst: jest.fn(() =>

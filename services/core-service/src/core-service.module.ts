@@ -31,6 +31,8 @@ import { PresalesHttpModule } from './presales/presales-http.module';
 import { PmHttpModule } from './pm/pm-http.module';
 import { PricingHttpModule } from './pricing/pricing-http.module';
 import { HrHttpModule } from './hr/hr-http.module';
+import { SupportHttpModule } from './support/support-http.module';
+import { DeliveryHttpModule } from './delivery/delivery-http.module';
 import { SensitiveReadAuditRecorder } from './policy/sensitive-read.recorder';
 import configs from './configs';
 
@@ -67,6 +69,10 @@ import configs from './configs';
     PricingHttpModule,
     // CD-207 — HR's cost rates (part of CD-17).
     HrHttpModule,
+    // CD-21 Service & Support
+    SupportHttpModule,
+    // CD-20 Delivery
+    DeliveryHttpModule,
     // CD-18 PM — projects opened from signed contracts
     PmHttpModule,
     // CD-14 — the central signing service (screens + the public signing link)

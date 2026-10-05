@@ -285,3 +285,179 @@ export class ReturnTimesheetDto {
   @MaxLength(1000)
   reason!: string;
 }
+
+export class SaveLeaveTypeDto {
+  @ApiPropertyOptional({ example: 'ANNUAL', description: 'แก้ไม่ได้หลังสร้าง' })
+  @IsOptional()
+  @IsString()
+  @Matches(/^[A-Za-z0-9_-]{1,20}$/)
+  code?: string;
+
+  @ApiProperty({ example: 'ลาพักร้อน' })
+  @IsString()
+  @MaxLength(100)
+  name!: string;
+
+  @ApiPropertyOptional({
+    description: 'สิทธิ์ตั้งต้นต่อปี (วัน); null = ไม่จำกัด',
+    nullable: true,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(365)
+  annual_days?: number | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  sort_order?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  active?: boolean;
+}
+
+export class SaveLeaveEntitlementDto {
+  @ApiProperty()
+  @IsString()
+  user_id!: string;
+
+  @ApiProperty()
+  @IsString()
+  leave_type_id!: string;
+
+  @ApiProperty({ example: 2026 })
+  @IsInt()
+  @Min(2000)
+  @Max(2100)
+  year!: number;
+
+  @ApiProperty({ description: 'วัน (ทีละ 0.5)', example: 10 })
+  @IsNumber()
+  @Min(0)
+  @Max(365)
+  days!: number;
+}
+
+export class RequestLeaveDto {
+  @ApiProperty()
+  @IsString()
+  leave_type_id!: string;
+
+  @ApiProperty({ example: '2026-10-12' })
+  @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  start_date!: string;
+
+  @ApiProperty({ example: '2026-10-14' })
+  @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  end_date!: string;
+
+  @ApiPropertyOptional({ enum: ['full', 'am', 'pm'], default: 'full' })
+  @IsOptional()
+  @IsIn(['full', 'am', 'pm'])
+  part?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  reason?: string;
+}
+
+export class DecideLeaveDto {
+  @ApiPropertyOptional({ description: 'ต้องมีเมื่อไม่อนุมัติ' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  note?: string;
+}
+
+export class CreateBookingDto {
+  @ApiProperty()
+  @IsString()
+  user_id!: string;
+
+  @ApiProperty()
+  @IsString()
+  project_id!: string;
+
+  @ApiProperty({ example: '2026-10-12' })
+  @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  start_date!: string;
+
+  @ApiProperty({ example: '2026-10-30' })
+  @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  end_date!: string;
+
+  @ApiProperty({
+    description: 'ชั่วโมงต่อวันทำการ ทีละ 0.5 (0.5–8)',
+    example: 4,
+  })
+  @IsNumber()
+  @Min(0.5)
+  @Max(8)
+  hours_per_day!: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  note?: string;
+}
+
+export class AvailabilityQueryDto {
+  @ApiProperty({ example: '2026-10-05' })
+  @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  from!: string;
+
+  @ApiProperty({ example: '2026-10-30' })
+  @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  to!: string;
+
+  @ApiPropertyOptional({
+    description: 'คั่นด้วย , ; ไม่ระบุ = ทุกคนที่เห็นได้',
+  })
+  @IsOptional()
+  @IsString()
+  user_ids?: string;
+
+  @ApiPropertyOptional({
+    description: 'เฉพาะทีมของโครงการนี้ (ผู้จัดการ + สมาชิก)',
+  })
+  @IsOptional()
+  @IsString()
+  project_id?: string;
+
+  @ApiPropertyOptional({ description: 'เฉพาะคนที่มีทักษะนี้' })
+  @IsOptional()
+  @IsString()
+  skill_id?: string;
+}
+
+export class LaborCostQueryDto {
+  @ApiProperty({ example: '2026-10-01' })
+  @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  from!: string;
+
+  @ApiProperty({ example: '2026-10-31' })
+  @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  to!: string;
+
+  @ApiPropertyOptional({
+    enum: ['request', 'type', 'month', 'person'],
+    default: 'request',
+  })
+  @IsOptional()
+  @IsIn(['request', 'type', 'month', 'person'])
+  group?: string;
+}

@@ -121,6 +121,23 @@ export class HrRatesService {
     };
   }
 
+  /**
+   * CD-190 — every live rate of the company, by level and work type id,
+   * each with its period, to cost hours on the day they were worked.
+   */
+  async rateRows(companyId: string) {
+    const rates = (await this.rates.findMany({
+      where: { companyId, deletedAt: null },
+    })) as StoredRate[];
+    return rates.map((rate) => ({
+      levelId: rate.levelId,
+      workTypeId: rate.workTypeId,
+      validFrom: day(rate.validFrom),
+      validTo: rate.validTo ? day(rate.validTo) : null,
+      costPerManday: Number(rate.costPerManday),
+    }));
+  }
+
   /** Every pair's rate in effect on `on` (default today), by code. */
   async effectiveRates(
     companyId: string,

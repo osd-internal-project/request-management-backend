@@ -366,6 +366,36 @@ export class TimesheetsService {
     return { hours, mandays: mandays(hours), lines };
   }
 
+  /**
+   * CD-243 — time logged against service cases (requests), submitted or
+   * approved: the job's time and materials, and its labour charge (approved
+   * and billable only — the caller decides).
+   */
+  async serviceTime(companyId: string, requestIds: string[]) {
+    if (!requestIds.length) return [];
+    const rows = (await this.sheets.findMany({
+      where: {
+        companyId,
+        status: { in: ['submitted', 'approved'] },
+        lines: { some: { kind: 'service', requestId: { in: requestIds } } },
+      },
+      include: {
+        lines: { where: { kind: 'service', requestId: { in: requestIds } } },
+      },
+    })) as unknown as SheetRow[];
+    return rows.flatMap((row) =>
+      row.lines.map((line) => ({
+        userId: row.userId,
+        requestId: line.requestId!,
+        workTypeId: line.workTypeId,
+        date: day(line.workDate),
+        hours: Number(line.hours),
+        billable: line.billable,
+        approved: row.status === 'approved',
+      })),
+    );
+  }
+
   // --- helpers ---------------------------------------------------------------
 
   private async findSheet(

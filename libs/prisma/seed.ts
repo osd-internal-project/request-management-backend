@@ -371,6 +371,36 @@ const SEED_ROLES: {
     ],
   },
   {
+    // CD-21 — ทีมบริการหลังการขาย: the installed base to start with.
+    code: 'service',
+    name: 'ทีมบริการ',
+    description: 'ดูแลลูกค้าหลังใช้งานจริง — ทะเบียนอุปกรณ์ที่ติดตั้ง',
+    permissions: [
+      'request.create',
+      'request.read',
+      'notification.read',
+      'user.read',
+      'crm.customer.read',
+      'service.asset.read',
+      'service.asset.manage',
+    ],
+  },
+  {
+    // CD-20 — ทีม Delivery: plans deliveries across projects (CD-250).
+    code: 'delivery',
+    name: 'ทีม Delivery',
+    description: 'วางแผนส่งมอบ ตรวจความพร้อมของสินค้า และประสานการตรวจรับทุกโครงการ',
+    permissions: [
+      'request.create',
+      'request.read',
+      'notification.read',
+      'user.read',
+      'pm.project.read',
+      'delivery.read',
+      'delivery.manage',
+    ],
+  },
+  {
     code: 'auditor',
     name: 'ผู้ตรวจสอบ',
     description: 'ตรวจสอบภายใน — อ่านอย่างเดียว ข้ามบริษัทได้',
@@ -1090,6 +1120,29 @@ const INTERNAL_ACTIVITIES = [
   { code: 'ADMIN', name: 'งานธุรการ' },
   { code: 'INTERNAL_IT', name: 'ดูแลระบบภายใน' },
 ];
+
+/**
+ * CD-232 — the kinds of leave a company starts with; the allowances follow
+ * the Labour Protection Act's floor (annual 6, sick 30, personal business 3).
+ * HR changes them, and sets a person's own allowance per year.
+ */
+const LEAVE_TYPES = [
+  { code: 'ANNUAL', name: 'ลาพักร้อน', annualDays: 6 },
+  { code: 'SICK', name: 'ลาป่วย', annualDays: 30 },
+  { code: 'PERSONAL', name: 'ลากิจ', annualDays: 3 },
+  { code: 'TRAINING', name: 'ลาฝึกอบรม', annualDays: null },
+  { code: 'OTHER', name: 'ลาอื่น ๆ', annualDays: null },
+];
+
+async function seedHrLeaveTypes(companyId: string) {
+  for (const [index, type] of LEAVE_TYPES.entries()) {
+    await prisma.hrLeaveType.upsert({
+      where: { companyId_code: { companyId, code: type.code } },
+      create: { ...type, companyId, sortOrder: index * 10 },
+      update: {},
+    });
+  }
+}
 
 async function seedHrInternalActivities() {
   for (const [index, activity] of INTERNAL_ACTIVITIES.entries()) {
@@ -2186,6 +2239,7 @@ async function main() {
   for (const company of companies) {
     await seedRoles(company.id);
     await seedCrmDefaults(company.id);
+    await seedHrLeaveTypes(company.id);
   }
 
   await seedOrgTree(demo.id);
