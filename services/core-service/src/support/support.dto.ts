@@ -917,3 +917,120 @@ export class StockQueryDto {
   @MaxLength(2000)
   codes!: string;
 }
+
+/** CD-246 — a problem behind repeated faults. */
+export class OpenProblemDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  title!: string;
+
+  @ApiProperty({ enum: ['asset', 'model', 'customer_model'] })
+  @IsIn(['asset', 'model', 'customer_model'])
+  scope!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  asset_id?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  product_code?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  customer_id?: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(50)
+  owner_user_id!: string;
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(200)
+  @IsString({ each: true })
+  work_order_ids?: string[];
+}
+
+export class UpdateProblemDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  title?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  owner_user_id?: string;
+
+  @ApiPropertyOptional({
+    enum: ['open', 'investigating', 'known_error', 'resolved', 'closed'],
+  })
+  @IsOptional()
+  @IsIn(['open', 'investigating', 'known_error', 'resolved', 'closed'])
+  status?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  workaround?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  root_cause?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  permanent_fix?: string | null;
+
+  @ApiPropertyOptional({ description: 'CD-224 — เลขการปรับแก้ทางเทคนิค' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  tech_change_ref?: string | null;
+}
+
+export class LinkProblemJobsDto {
+  @ApiProperty({ type: [String] })
+  @IsArray()
+  @ArrayMaxSize(200)
+  @IsString({ each: true })
+  work_order_ids!: string[];
+}
+
+export class DismissGroupDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(200)
+  group_key!: string;
+
+  @ApiProperty()
+  @IsInt()
+  @Min(1)
+  size!: number;
+}
+
+export class ListProblemsQueryDto {
+  @ApiPropertyOptional({ enum: ['open', 'resolved', 'all'] })
+  @IsOptional()
+  @IsIn(['open', 'resolved', 'all'])
+  state?: 'open' | 'resolved' | 'all';
+}

@@ -19771,6 +19771,400 @@
         ]
       }
     },
+    "/api/v1/service-problems/suggestions": {
+      "get": {
+        "operationId": "ServiceProblemsController_suggestions",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "กลุ่มงานแก้เหตุที่เกิดซ้ำ (เครื่อง / รุ่น / ลูกค้า+รุ่น) ที่น่าจะเป็นปัญหาเดียวกัน",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.read"
+        ]
+      }
+    },
+    "/api/v1/service-problems/suggestions/dismiss": {
+      "post": {
+        "operationId": "ServiceProblemsController_dismiss",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DismissGroupDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ไม่ใช่ปัญหาเดียวกัน — ซ่อนจนกว่ากลุ่มจะโตขึ้น",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.manage"
+        ]
+      }
+    },
+    "/api/v1/service-problems/by-work-order/{workOrderId}": {
+      "get": {
+        "operationId": "ServiceProblemsController_forWorkOrder",
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ปัญหาของใบสั่งงาน + ปัญหาที่เปิดอยู่ที่ตรงกับงานนี้",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.read"
+        ]
+      }
+    },
+    "/api/v1/service-problems": {
+      "get": {
+        "operationId": "ServiceProblemsController_list",
+        "parameters": [
+          {
+            "name": "state",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "open",
+                "resolved",
+                "all"
+              ]
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ทะเบียนปัญหา — เปิดอยู่ / แก้แล้ว / ทั้งหมด",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.read"
+        ]
+      },
+      "post": {
+        "operationId": "ServiceProblemsController_open",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenProblemDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เปิดปัญหา (รวมใบงานที่เลือก)",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.manage"
+        ]
+      }
+    },
+    "/api/v1/service-problems/{id}": {
+      "get": {
+        "operationId": "ServiceProblemsController_detail",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ปัญหา พร้อมใบงานที่ผูก",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.read"
+        ]
+      },
+      "put": {
+        "operationId": "ServiceProblemsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProblemDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แก้ปัญหา — วิธีแก้ชั่วคราว / สาเหตุราก / วิธีแก้ถาวร / สถานะ",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.manage"
+        ]
+      }
+    },
+    "/api/v1/service-problems/{id}/jobs": {
+      "post": {
+        "operationId": "ServiceProblemsController_link",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinkProblemJobsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ผูกใบงานเพิ่ม",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.manage"
+        ]
+      }
+    },
+    "/api/v1/service-problems/{id}/jobs/{workOrderId}": {
+      "delete": {
+        "operationId": "ServiceProblemsController_unlink",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "workOrderId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ถอดใบงานออกจากปัญหา",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.manage"
+        ]
+      }
+    },
     "/api/v1/delivery/projects/{projectId}/billing": {
       "get": {
         "operationId": "DeliveryController_billingView",
@@ -34545,6 +34939,26 @@
             "minimum": 0,
             "type": "integer"
           },
+          "service_repeat_days": {
+            "maximum": 730,
+            "minimum": 7,
+            "type": "integer"
+          },
+          "service_repeat_asset": {
+            "maximum": 100,
+            "minimum": 2,
+            "type": "integer"
+          },
+          "service_repeat_model": {
+            "maximum": 1000,
+            "minimum": 2,
+            "type": "integer"
+          },
+          "service_repeat_customer_model": {
+            "maximum": 100,
+            "minimum": 2,
+            "type": "integer"
+          },
           "project_readiness_checklist": {
             "type": "array",
             "items": {
@@ -39226,6 +39640,126 @@
         "required": [
           "new_serial",
           "reason"
+        ]
+      },
+      "DismissGroupDto": {
+        "type": "object",
+        "properties": {
+          "group_key": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "group_key",
+          "size"
+        ]
+      },
+      "OpenProblemDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "asset",
+              "model",
+              "customer_model"
+            ]
+          },
+          "asset_id": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "product_code": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "customer_id": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "owner_user_id": {
+            "type": "string",
+            "maxLength": 50,
+            "minLength": 1
+          },
+          "work_order_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 200
+          }
+        },
+        "required": [
+          "owner_user_id",
+          "scope",
+          "title"
+        ]
+      },
+      "UpdateProblemDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "owner_user_id": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "investigating",
+              "known_error",
+              "resolved",
+              "closed"
+            ]
+          },
+          "workaround": {
+            "type": "object",
+            "maxLength": 4000
+          },
+          "root_cause": {
+            "type": "object",
+            "maxLength": 4000
+          },
+          "permanent_fix": {
+            "type": "object",
+            "maxLength": 4000
+          },
+          "tech_change_ref": {
+            "type": "object",
+            "description": "CD-224 — เลขการปรับแก้ทางเทคนิค",
+            "maxLength": 100
+          }
+        }
+      },
+      "LinkProblemJobsDto": {
+        "type": "object",
+        "properties": {
+          "work_order_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 200
+          }
+        },
+        "required": [
+          "work_order_ids"
         ]
       },
       "SendInstallmentDto": {

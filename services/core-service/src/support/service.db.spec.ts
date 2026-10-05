@@ -13,6 +13,9 @@ import {
   ServiceBillingRepository,
   ServiceCalendarRepository,
   ServiceClaimRepository,
+  ServiceProblemDismissalRepository,
+  ServiceProblemLinkRepository,
+  ServiceProblemRepository,
   ServiceEntitlementRepository,
   ServiceLabourRateRepository,
   ServiceMaterialUseRepository,
@@ -27,6 +30,7 @@ import {
 import { WorkOrdersService } from './work-orders.service';
 import { OnCallService } from './on-call.service';
 import { ClaimsService } from './claims.service';
+import { ProblemsService } from './problems.service';
 import { SpareIssueErpSyncService } from './spare-issue-erp-sync.service';
 import { TimeMaterialsService } from './time-materials.service';
 import { PmPlanService } from './pm-plan.service';
@@ -133,6 +137,15 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
     afterAll(async () => {
       await prisma.serviceBilling.deleteMany({
         where: { requestId: { in: requestIds } },
+      });
+      await prisma.serviceProblemLink.deleteMany({
+        where: { linkedAt: { gte: startedAt } },
+      });
+      await prisma.serviceProblem.deleteMany({
+        where: { companyId, createdAt: { gte: startedAt } },
+      });
+      await prisma.serviceProblemDismissal.deleteMany({
+        where: { companyId, dismissedAt: { gte: startedAt } },
       });
       await prisma.serviceClaim.deleteMany({
         where: { companyId, createdAt: { gte: startedAt } },
@@ -1399,6 +1412,143 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         where: { id: assetId },
         data: { serialNo: before.serialNo },
       });
+    });
+
+    it('CD-246: repeated faults on one unit are suggested as one problem, made one by a person, worked to its root cause; a new job on that unit sees it with the workaround', async () => {
+      const client = prisma as never;
+      const transactions = {
+        execute: (work: (tx: unknown) => Promise<unknown>) =>
+          prisma.$transaction((tx) => work(tx)),
+      } as never;
+      const audit = { record: () => Promise.resolve() } as never;
+      const problems = new ProblemsService(
+        new ServiceProblemRepository(client),
+        new ServiceProblemLinkRepository(client),
+        new ServiceProblemDismissalRepository(client),
+        new ServiceWorkOrderRepository(client),
+        new ServiceAssetRepository(client),
+        new RequestRepository(client),
+        new CustomerRepository(client),
+        { findFirst: () => Promise.resolve(null) } as never,
+        new CompanyMemberRepository(client),
+        audit,
+        transactions,
+      );
+      const manager = {
+        userId: staff,
+        activeCompanyId: companyId,
+        permissions: ['service.asset.read', 'service.asset.manage'],
+      } as unknown as Principal;
+      const job = async (subject: string) => {
+        const request = await prisma.request.create({
+          data: {
+            requestTypeId: typeId,
+            typeCode,
+            companyId,
+            requesterId: staff,
+            status: 'completed',
+            severity: 'medium',
+            formData: { subject },
+          },
+        });
+        requestIds.push(request.id);
+        return prisma.serviceWorkOrder.create({
+          data: {
+            companyId,
+            requestId: request.id,
+            customerId,
+            assetId,
+            workKind: 'corrective',
+            suggestedBilling: 'in_contract',
+            createdBy: staff,
+          },
+        });
+      };
+      await job('ภาพกระตุก');
+      await job('ภาพกระตุกอีก');
+      await job('ภาพดับ');
+
+      const suggested = await problems.suggestions(manager);
+      const group = suggested.groups.find((g) => g.key === `asset:${assetId}`);
+      expect(group).toBeDefined();
+      expect(group!.jobIds.length).toBeGreaterThanOrEqual(3);
+      expect(group!.jobs[0]).toHaveProperty('subject');
+
+      // set aside: hidden until it grows
+      await problems.dismiss(manager, {
+        group_key: group!.key,
+        size: group!.jobIds.length,
+      });
+      expect(
+        (await problems.suggestions(manager)).groups.some(
+          (g) => g.key === group!.key,
+        ),
+      ).toBe(false);
+
+      // made one problem from the group's jobs
+      const problem = await problems.open(manager, {
+        title: 'กล้องตัวเดิมภาพกระตุกซ้ำ',
+        scope: 'asset',
+        asset_id: assetId,
+        owner_user_id: staff,
+        work_order_ids: group!.jobIds,
+      });
+      expect(problem.jobs).toHaveLength(group!.jobIds.length);
+      await expect(
+        problems.open(manager, {
+          title: 'ซ้ำ',
+          scope: 'asset',
+          asset_id: assetId,
+          owner_user_id: staff,
+          work_order_ids: [group!.jobIds[0]],
+        }),
+      ).rejects.toThrow('ผูกกับปัญหาอื่น');
+
+      // worked: a workaround first, then the root cause and the fix
+      await expect(
+        problems.update(manager, problem.id, { status: 'known_error' }),
+      ).rejects.toThrow('วิธีแก้ชั่วคราว');
+      await problems.update(manager, problem.id, {
+        status: 'known_error',
+        workaround: 'รีสตาร์ท PoE switch พอร์ต 4',
+      });
+
+      // a new job on that unit sees the open problem and its workaround
+      const fresh = await job('ภาพกระตุกอีกแล้ว');
+      const seen = await problems.forWorkOrder(manager, fresh.id);
+      expect(seen.linked).toBeNull();
+      expect(seen.matches.map((p) => p.id)).toContain(problem.id);
+      expect(seen.matches.find((p) => p.id === problem.id)?.workaround).toBe(
+        'รีสตาร์ท PoE switch พอร์ต 4',
+      );
+      await problems.link(manager, problem.id, { work_order_ids: [fresh.id] });
+      expect((await problems.forWorkOrder(manager, fresh.id)).linked?.id).toBe(
+        problem.id,
+      );
+
+      await expect(
+        problems.update(manager, problem.id, { status: 'resolved' }),
+      ).rejects.toThrow('สาเหตุราก');
+      const resolved = await problems.update(manager, problem.id, {
+        status: 'resolved',
+        root_cause: 'สายแลนเสื่อมจากความชื้น',
+        permanent_fix: 'เปลี่ยนสายเป็นชนิด outdoor + กล่องกันน้ำ',
+        tech_change_ref: 'TC-0001',
+      });
+      expect(resolved).toMatchObject({ status: 'resolved' });
+      expect(resolved.resolvedAt).not.toBeNull();
+      // resolved problems are not offered to new jobs
+      const later = await job('ภาพปกติดี');
+      expect(
+        (await problems.forWorkOrder(manager, later.id)).matches.map(
+          (p) => p.id,
+        ),
+      ).not.toContain(problem.id);
+      expect(
+        (await problems.list(manager, { state: 'resolved' })).find(
+          (p) => p.id === problem.id,
+        )?.jobCount,
+      ).toBe(group!.jobIds.length + 1);
     });
   },
 );

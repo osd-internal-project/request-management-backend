@@ -2433,6 +2433,12 @@ model CrmCompanyConfig {
   /// CD-241 — minutes the one on call has to receive an out-of-hours case
   /// before it goes to the backup; 0 = never handed on.
   serviceOnCallEscalateMinutes     Int      @default(30)
+  /// CD-246 — repeated corrective jobs within this many days suggest one
+  /// problem: on one unit, one model (any customer), one model at a customer.
+  serviceRepeatDays                Int      @default(90)
+  serviceRepeatAsset               Int      @default(3)
+  serviceRepeatModel               Int      @default(5)
+  serviceRepeatCustomerModel       Int      @default(3)
   /// CD-190 — actual cost as % of the reference budget: warn at, alert over.
   projectCostWarnPct               Int      @default(90)
   projectCostAlertPct              Int      @default(100)
@@ -7430,6 +7436,66 @@ model ServiceClaim {
   @@index([companyId, status])
   @@index([workOrderId])
   @@map("service_claims")
+}
+
+/// CD-246 ปัญหาที่เกิดซ้ำ — a problem behind repeated faults (one unit, one
+/// model, or one model at one customer), worked to its root cause instead of
+/// repairing the same thing again.
+///   status: open · investigating · known_error (a workaround) ·
+///           resolved (root cause + permanent fix) · closed
+model ServiceProblem {
+  id            String    @id @default(uuid())
+  companyId     String
+  problemNo     String
+  title         String
+  /// asset · model · customer_model
+  scope         String
+  assetId       String?
+  productCode   String?
+  customerId    String?
+  ownerUserId   String
+  status        String    @default("open")
+  workaround    String?
+  rootCause     String?
+  permanentFix  String?
+  /// CD-224 — the technical change that fixes it, by reference
+  techChangeRef String?
+  resolvedAt    DateTime?
+  closedAt      DateTime?
+  createdAt     DateTime  @default(now())
+  createdBy     String
+  updatedAt     DateTime  @updatedAt
+  updatedBy     String?
+
+  @@unique([companyId, problemNo])
+  @@index([companyId, status])
+  @@map("service_problems")
+}
+
+/// CD-246 — a work order counted against a problem (one problem per order).
+model ServiceProblemLink {
+  id          String   @id @default(uuid())
+  problemId   String
+  workOrderId String   @unique
+  linkedBy    String
+  linkedAt    DateTime @default(now())
+
+  @@index([problemId])
+  @@map("service_problem_links")
+}
+
+/// CD-246 — a suggested group someone said is not one problem; it comes back
+/// only when it has grown past the size it had then.
+model ServiceProblemDismissal {
+  id          String   @id @default(uuid())
+  companyId   String
+  groupKey    String
+  size        Int
+  dismissedBy String
+  dismissedAt DateTime @default(now())
+
+  @@unique([companyId, groupKey])
+  @@map("service_problem_dismissals")
 }
 
 /// CD-251 เอกสารส่งมอบของเฟส (หมุดหมาย) — แนบต่อชื่อเอกสาร; ชื่อที่ตรงกับเอกสารบังคับของประเภทงาน

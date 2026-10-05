@@ -228,3 +228,45 @@ export class ServiceClaimRepository extends BaseRepository<
     return client.serviceClaim;
   }
 }
+
+/** CD-246 — problems behind repeated faults. */
+@Injectable()
+export class ServiceProblemRepository extends BaseRepository<
+  PrismaService['serviceProblem']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.serviceProblem;
+  }
+}
+
+/** CD-246 — jobs under a problem. */
+@Injectable()
+export class ServiceProblemLinkRepository extends BaseRepository<
+  PrismaService['serviceProblemLink']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.serviceProblemLink;
+  }
+}
+
+/** CD-246 — suggested groups set aside. */
+@Injectable()
+export class ServiceProblemDismissalRepository extends BaseRepository<
+  PrismaService['serviceProblemDismissal']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.serviceProblemDismissal;
+  }
+}

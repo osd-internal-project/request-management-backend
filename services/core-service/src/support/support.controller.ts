@@ -20,6 +20,7 @@ import { ServiceBillingService } from './service-billing.service';
 import { TimeMaterialsService } from './time-materials.service';
 import { PmPlanService } from './pm-plan.service';
 import { ClaimsService } from './claims.service';
+import { ProblemsService } from './problems.service';
 import {
   AssetStatusDto,
   AttachWorkOrderDto,
@@ -51,6 +52,11 @@ import {
   OpenClaimDto,
   ReplaceUnitDto,
   StockQueryDto,
+  DismissGroupDto,
+  LinkProblemJobsDto,
+  ListProblemsQueryDto,
+  OpenProblemDto,
+  UpdateProblemDto,
 } from './support.dto';
 
 /** CD-236 ทะเบียนอุปกรณ์ที่ติดตั้ง. */
@@ -695,5 +701,104 @@ export class ServiceClaimsController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.claims.replaceUnit(principal, assetId, dto);
+  }
+}
+
+/** CD-246 ปัญหาที่เกิดซ้ำ. */
+@ApiTags('service')
+@ApiBearerAuth()
+@Controller('service-problems')
+export class ServiceProblemsController {
+  constructor(private readonly problems: ProblemsService) {}
+
+  @ApiOperation({
+    summary:
+      'กลุ่มงานแก้เหตุที่เกิดซ้ำ (เครื่อง / รุ่น / ลูกค้า+รุ่น) ที่น่าจะเป็นปัญหาเดียวกัน',
+  })
+  @Get('suggestions')
+  @Permissions('service.asset.read')
+  suggestions(@CurrentPrincipal() principal: Principal) {
+    return this.problems.suggestions(principal);
+  }
+
+  @ApiOperation({ summary: 'ไม่ใช่ปัญหาเดียวกัน — ซ่อนจนกว่ากลุ่มจะโตขึ้น' })
+  @Post('suggestions/dismiss')
+  @Permissions('service.asset.manage')
+  dismiss(
+    @Body() dto: DismissGroupDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.problems.dismiss(principal, dto);
+  }
+
+  @ApiOperation({
+    summary: 'ปัญหาของใบสั่งงาน + ปัญหาที่เปิดอยู่ที่ตรงกับงานนี้',
+  })
+  @Get('by-work-order/:workOrderId')
+  @Permissions('service.asset.read')
+  forWorkOrder(
+    @Param('workOrderId') workOrderId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.problems.forWorkOrder(principal, workOrderId);
+  }
+
+  @ApiOperation({ summary: 'ทะเบียนปัญหา — เปิดอยู่ / แก้แล้ว / ทั้งหมด' })
+  @Get()
+  @Permissions('service.asset.read')
+  list(
+    @Query() query: ListProblemsQueryDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.problems.list(principal, query);
+  }
+
+  @ApiOperation({ summary: 'ปัญหา พร้อมใบงานที่ผูก' })
+  @Get(':id')
+  @Permissions('service.asset.read')
+  detail(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.problems.detail(principal, id);
+  }
+
+  @ApiOperation({ summary: 'เปิดปัญหา (รวมใบงานที่เลือก)' })
+  @Post()
+  @Permissions('service.asset.manage')
+  open(@Body() dto: OpenProblemDto, @CurrentPrincipal() principal: Principal) {
+    return this.problems.open(principal, dto);
+  }
+
+  @ApiOperation({
+    summary: 'แก้ปัญหา — วิธีแก้ชั่วคราว / สาเหตุราก / วิธีแก้ถาวร / สถานะ',
+  })
+  @Put(':id')
+  @Permissions('service.asset.manage')
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateProblemDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.problems.update(principal, id, dto);
+  }
+
+  @ApiOperation({ summary: 'ผูกใบงานเพิ่ม' })
+  @Post(':id/jobs')
+  @Permissions('service.asset.manage')
+  link(
+    @Param('id') id: string,
+    @Body() dto: LinkProblemJobsDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.problems.link(principal, id, dto);
+  }
+
+  @ApiOperation({ summary: 'ถอดใบงานออกจากปัญหา' })
+  @Delete(':id/jobs/:workOrderId')
+  @Permissions('service.asset.manage')
+  unlink(
+    @Param('id') id: string,
+    @Param('workOrderId') workOrderId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.problems.unlink(principal, id, workOrderId);
   }
 }

@@ -233,6 +233,10 @@ export class CrmAdminService {
         projectCostWarnPct: 90,
         projectCostAlertPct: 100,
         serviceOnCallEscalateMinutes: 30,
+        serviceRepeatDays: 90,
+        serviceRepeatAsset: 3,
+        serviceRepeatModel: 5,
+        serviceRepeatCustomerModel: 3,
         projectAsBuiltDocuments: [
           'แบบติดตั้งจริง',
           'รายการอุปกรณ์และหมายเลขเครื่อง',
@@ -408,6 +412,11 @@ export class CrmAdminService {
               projectCostAlertPct: dto.project_cost_alert_pct ?? 100,
               serviceOnCallEscalateMinutes:
                 dto.service_on_call_escalate_minutes ?? 30,
+              serviceRepeatDays: dto.service_repeat_days ?? 90,
+              serviceRepeatAsset: dto.service_repeat_asset ?? 3,
+              serviceRepeatModel: dto.service_repeat_model ?? 5,
+              serviceRepeatCustomerModel:
+                dto.service_repeat_customer_model ?? 3,
               ...(asBuiltDocuments
                 ? { projectAsBuiltDocuments: asBuiltDocuments }
                 : {}),
@@ -499,6 +508,10 @@ export class CrmAdminService {
               projectCostAlertPct: dto.project_cost_alert_pct,
               serviceOnCallEscalateMinutes:
                 dto.service_on_call_escalate_minutes,
+              serviceRepeatDays: dto.service_repeat_days,
+              serviceRepeatAsset: dto.service_repeat_asset,
+              serviceRepeatModel: dto.service_repeat_model,
+              serviceRepeatCustomerModel: dto.service_repeat_customer_model,
               projectReadinessChecklist: readinessChecklist,
               projectAsBuiltDocuments: asBuiltDocuments,
               projectSoftwareDocuments: softwareDocuments,
