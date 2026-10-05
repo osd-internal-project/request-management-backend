@@ -155,6 +155,12 @@ export const PERMISSIONS = {
      */
     'delivery.receivable.read',
   ],
+  /**
+   * CD-22 KBMS (CD-259) — every member of staff reads published articles,
+   * rates them and writes drafts; `kb.article.manage` (knowledge owners)
+   * edits anyone's, publishes, archives and keeps the categories.
+   */
+  kb: ['kb.article.manage'],
   admin: [
     'admin.role.manage',
     'admin.org.manage',

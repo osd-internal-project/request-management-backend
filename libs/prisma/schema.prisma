@@ -7164,6 +7164,88 @@ model ReceivableReminder {
   @@map("receivable_reminders")
 }
 
+/// CD-259 (part of CD-22 KBMS) — a process category of the knowledge base,
+/// kept by its owners (`kb.article.manage`); one level under another at most.
+model KbCategory {
+  id        String   @id @default(uuid())
+  companyId String
+  name      String
+  parentId  String?
+  sortOrder Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, parentId, name])
+  @@index([companyId])
+  @@map("kb_categories")
+}
+
+/// CD-259 — a knowledge article: Markdown, by product (SAP item codes and
+/// item groups), process category and free symptom tags. draft · published
+/// · archived. `source` is where it came from (manual now; closed service
+/// jobs, project lessons and Pre-Sales answers later — CD-262..264).
+model KbArticle {
+  id            String    @id @default(uuid())
+  companyId     String
+  articleNo     String
+  title         String
+  summary       String?
+  body          String    @default("")
+  status        String    @default("draft")
+  categoryId    String?
+  tags          String[]  @default([])
+  productCodes  String[]  @default([])
+  productGroups String[]  @default([])
+  source        String    @default("manual")
+  sourceRef     String?
+  authorId      String
+  publishedAt   DateTime?
+  publishedBy   String?
+  archivedAt    DateTime?
+  archivedBy    String?
+  views         Int       @default(0)
+  helpfulYes    Int       @default(0)
+  helpfulNo     Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  updatedBy     String?
+
+  @@unique([companyId, articleNo])
+  @@index([companyId, status])
+  @@index([categoryId])
+  @@map("kb_articles")
+}
+
+/// CD-259 — one reader's say on whether an article helped (latest wins).
+model KbArticleRating {
+  articleId String
+  userId    String
+  helpful   Boolean
+  comment   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([articleId, userId])
+  @@map("kb_article_ratings")
+}
+
+/// CD-259 — an image or file an article shows or links (MinIO).
+model KbArticleFile {
+  id         String    @id @default(uuid())
+  articleId  String
+  fileName   String
+  mimeType   String
+  sizeBytes  Int
+  storageKey String
+  uploadedBy String
+  uploadedAt DateTime  @default(now())
+  deletedAt  DateTime?
+
+  @@index([articleId])
+  @@map("kb_article_files")
+}
+
 /// CD-239 ใบสั่งงานบริการ — the service side of a case (a request, CD-67):
 /// which asset, corrective or preventive, and from the start whether it is
 /// covered or billed — the system suggests from the asset's entitlements

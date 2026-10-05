@@ -422,6 +422,19 @@ const SEED_ROLES: {
     ],
   },
   {
+    // CD-259 (CD-22 KBMS) — owners of the knowledge base.
+    code: 'knowledge',
+    name: 'ผู้ดูแลคลังความรู้',
+    description: 'ตรวจ แก้ เผยแพร่ และเลิกใช้บทความความรู้ จัดหมวดหมู่',
+    permissions: [
+      'request.create',
+      'request.read',
+      'notification.read',
+      'user.read',
+      'kb.article.manage',
+    ],
+  },
+  {
     code: 'auditor',
     name: 'ผู้ตรวจสอบ',
     description: 'ตรวจสอบภายใน — อ่านอย่างเดียว ข้ามบริษัทได้',
