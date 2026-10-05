@@ -6592,3 +6592,92 @@ model HrInternalActivity {
 
   @@map("hr_internal_activities")
 }
+
+/// CD-232 ประเภทการลาของบริษัท (ลาพักร้อน ลาป่วย ลากิจ …) พร้อมสิทธิ์ตั้งต้นต่อปี (null = ไม่จำกัด).
+model HrLeaveType {
+  id         String   @id @default(uuid())
+  companyId  String
+  code       String
+  name       String
+  /// วันต่อปีปฏิทิน; null = ไม่นับโควตา.
+  annualDays Decimal? @db.Decimal(4, 1)
+  sortOrder  Int      @default(0)
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  leaves       HrLeave[]
+  entitlements HrLeaveEntitlement[]
+
+  @@unique([companyId, code])
+  @@map("hr_leave_types")
+}
+
+/// CD-232 สิทธิ์วันลาของคนหนึ่งในปีหนึ่ง ที่ฝ่ายบุคคลตั้งแทนค่าตั้งต้นของประเภท.
+model HrLeaveEntitlement {
+  id          String   @id @default(uuid())
+  companyId   String
+  userId      String
+  leaveTypeId String
+  year        Int
+  days        Decimal  @db.Decimal(4, 1)
+  updatedBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  leaveType HrLeaveType @relation(fields: [leaveTypeId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, userId, leaveTypeId, year])
+  @@map("hr_leave_entitlements")
+}
+
+/// CD-232 ใบลา — เต็มวันเป็นช่วง หรือครึ่งวัน (เช้า/บ่าย) วันเดียว; หัวหน้าตามผังหรือฝ่ายบุคคลอนุมัติ.
+/// `days` = วันทำการในช่วง (ไม่นับวันหยุดบริษัท). รออนุมัติ/อนุมัติแล้ว ถือว่าไม่ว่าง.
+model HrLeave {
+  id           String    @id @default(uuid())
+  companyId    String
+  userId       String
+  leaveTypeId  String
+  startDate    DateTime  @db.Date
+  endDate      DateTime  @db.Date
+  /// full | am | pm
+  part         String    @default("full")
+  days         Decimal   @db.Decimal(4, 1)
+  reason       String    @default("")
+  /// pending | approved | rejected | cancelled
+  status       String    @default("pending")
+  decidedBy    String?
+  decidedAt    DateTime?
+  decisionNote String?
+  cancelledAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  leaveType HrLeaveType @relation(fields: [leaveTypeId], references: [id])
+
+  @@index([companyId, userId, startDate])
+  @@index([companyId, status])
+  @@map("hr_leaves")
+}
+
+/// CD-232 การจองตัวคนเข้าโครงการเป็นช่วงวัน (ชั่วโมงต่อวันทำการ) — PM ของโครงการหรือฝ่ายบุคคลจอง.
+/// ความพร้อม = 8 ชม. ในวันทำการ − ลา − ที่ถูกจอง; จองเกินได้แต่มีคำเตือน (CD-180 ตรวจการจองซ้อนต่อ).
+model HrBooking {
+  id          String    @id @default(uuid())
+  companyId   String
+  userId      String
+  projectId   String
+  startDate   DateTime  @db.Date
+  endDate     DateTime  @db.Date
+  hoursPerDay Decimal   @db.Decimal(3, 1)
+  note        String    @default("")
+  createdBy   String
+  cancelledAt DateTime?
+  cancelledBy String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([companyId, userId, startDate])
+  @@index([projectId])
+  @@map("hr_bookings")
+}

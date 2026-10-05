@@ -429,6 +429,42 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
     },
   },
   {
+    eventType: 'hr.leave.requested',
+    label: 'คำขอลารออนุมัติ (ถึงหัวหน้า)',
+    title: '{{name}} ขอ{{type}} {{period}}',
+    body: '{{days}} วันทำการ — เปิดหน้าอนุมัติการลาเพื่ออนุมัติหรือปฏิเสธ',
+    variables: {
+      name: { label: 'ชื่อพนักงาน', sample: 'สมชาย ใจดี' },
+      type: { label: 'ประเภทการลา', sample: 'ลาพักร้อน' },
+      period: { label: 'ช่วงวันที่', sample: '12/10/2569 – 14/10/2569' },
+      days: { label: 'จำนวนวัน', sample: '3' },
+    },
+  },
+  {
+    eventType: 'hr.leave.decided',
+    label: 'ผลการขอลา (ถึงเจ้าของ)',
+    title: '{{type}} {{period}} — {{outcome}}',
+    body: '{{note}}',
+    variables: {
+      type: { label: 'ประเภทการลา', sample: 'ลาพักร้อน' },
+      period: { label: 'ช่วงวันที่', sample: '12/10/2569 – 14/10/2569' },
+      outcome: { label: 'ผล', sample: 'อนุมัติแล้ว' },
+      note: { label: 'หมายเหตุจากผู้อนุมัติ', sample: 'ช่วงนั้นมีส่งมอบงาน' },
+    },
+  },
+  {
+    eventType: 'hr.booking.created',
+    label: 'ถูกจองตัวเข้าโครงการ (ถึงตัวคน)',
+    title: 'คุณถูกจองเข้าโครงการ {{project}}',
+    body: '{{period}} วันละ {{hours}} ชม. — โดย {{by}}',
+    variables: {
+      project: { label: 'โครงการ', sample: 'PRJ-2026-0001 · ระบบเครือข่าย' },
+      period: { label: 'ช่วงวันที่', sample: '12/10/2569 – 30/10/2569' },
+      hours: { label: 'ชั่วโมงต่อวัน', sample: '4' },
+      by: { label: 'ผู้จอง', sample: 'วิชัย ส.' },
+    },
+  },
+  {
     eventType: 'pm.project.assigned',
     label: 'ได้รับมอบหมายในโครงการ (ถึงผู้จัดการและทีมโครงการ)',
     title: 'โครงการ {{project_no}}: คุณเป็น{{role}}',

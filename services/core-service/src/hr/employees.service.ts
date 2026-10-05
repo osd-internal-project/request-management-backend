@@ -372,6 +372,31 @@ export class EmployeesService {
 
   // --- helpers ---------------------------------------------------------------
 
+  /**
+   * CD-232 — the people an availability grid shows, with staffing fields
+   * only: everyone in the company (or `userIds`), still employed and active.
+   */
+  async staffRows(companyId: string, userIds?: string[], skillId?: string) {
+    const ids =
+      userIds ??
+      (
+        (await this.members.findMany({
+          where: { companyId },
+          select: { userId: true },
+          take: LIST_LIMIT,
+        })) as unknown as { userId: string }[]
+      ).map((member) => member.userId);
+    if (!ids.length) return [];
+    return (await this.rowsFor(companyId, ids))
+      .filter(
+        (row) =>
+          row.profile.status !== 'resigned' &&
+          row.accountStatus === 'ACTIVE' &&
+          (!skillId || row.skills.some((skill) => skill.skillId === skillId)),
+      )
+      .map(staffView);
+  }
+
   private async rowsFor(companyId: string, userIds: string[]) {
     const members = (await this.members.findMany({
       where: { companyId, userId: { in: userIds } },

@@ -15392,6 +15392,662 @@
         ]
       }
     },
+    "/api/v1/hr/leave-types": {
+      "get": {
+        "operationId": "HrController_leaveTypes",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-232 ประเภทการลา (HR เห็นที่เลิกใช้ด้วย)",
+        "tags": [
+          "hr"
+        ]
+      },
+      "post": {
+        "operationId": "HrController_createLeaveType",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveLeaveTypeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-232 เพิ่มประเภทการลา",
+        "tags": [
+          "hr"
+        ],
+        "x-permission": [
+          "hr.employee.manage"
+        ]
+      }
+    },
+    "/api/v1/hr/leave-types/{id}": {
+      "put": {
+        "operationId": "HrController_updateLeaveType",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveLeaveTypeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-232 แก้ประเภทการลา",
+        "tags": [
+          "hr"
+        ],
+        "x-permission": [
+          "hr.employee.manage"
+        ]
+      }
+    },
+    "/api/v1/hr/leave-entitlements": {
+      "get": {
+        "operationId": "HrController_leaveEntitlements",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-232 สิทธิ์วันลารายคนที่ตั้งแทนค่าตั้งต้น",
+        "tags": [
+          "hr"
+        ]
+      },
+      "put": {
+        "operationId": "HrController_saveLeaveEntitlement",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveLeaveEntitlementDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-232 ตั้งสิทธิ์วันลาของคนในปีหนึ่ง",
+        "tags": [
+          "hr"
+        ],
+        "x-permission": [
+          "hr.employee.manage"
+        ]
+      }
+    },
+    "/api/v1/hr/leaves/me": {
+      "get": {
+        "operationId": "HrController_myLeaves",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-232 ใบลาและสิทธิ์คงเหลือของฉันในปี",
+        "tags": [
+          "hr"
+        ]
+      }
+    },
+    "/api/v1/hr/leaves/pending": {
+      "get": {
+        "operationId": "HrController_pendingLeaves",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-232 ใบลาที่รอฉันอนุมัติ",
+        "tags": [
+          "hr"
+        ]
+      }
+    },
+    "/api/v1/hr/leaves/balances/{userId}": {
+      "get": {
+        "operationId": "HrController_leaveBalances",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-232 สิทธิ์คงเหลือของพนักงาน (ตัวเอง หัวหน้า หรือ HR)",
+        "tags": [
+          "hr"
+        ]
+      }
+    },
+    "/api/v1/hr/leaves": {
+      "post": {
+        "operationId": "HrController_requestLeave",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestLeaveDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-232 ยื่นลา (แจ้งหัวหน้าตามผัง)",
+        "tags": [
+          "hr"
+        ]
+      }
+    },
+    "/api/v1/hr/leaves/{id}/cancel": {
+      "post": {
+        "operationId": "HrController_cancelLeave",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-232 ยกเลิกใบลา",
+        "tags": [
+          "hr"
+        ]
+      }
+    },
+    "/api/v1/hr/leaves/{id}/approve": {
+      "post": {
+        "operationId": "HrController_approveLeave",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecideLeaveDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-232 อนุมัติใบลา (หัวหน้าตามผังหรือ HR)",
+        "tags": [
+          "hr"
+        ]
+      }
+    },
+    "/api/v1/hr/leaves/{id}/reject": {
+      "post": {
+        "operationId": "HrController_rejectLeave",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecideLeaveDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-232 ไม่อนุมัติใบลา (ต้องมีเหตุผล)",
+        "tags": [
+          "hr"
+        ]
+      }
+    },
+    "/api/v1/hr/availability": {
+      "get": {
+        "operationId": "HrController_availability",
+        "parameters": [
+          {
+            "name": "from",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "example": "2026-10-05",
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          {
+            "name": "to",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "example": "2026-10-30",
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          {
+            "name": "user_ids",
+            "required": false,
+            "in": "query",
+            "description": "คั่นด้วย , ; ไม่ระบุ = ทุกคนที่เห็นได้",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "project_id",
+            "required": false,
+            "in": "query",
+            "description": "เฉพาะทีมของโครงการนี้ (ผู้จัดการ + สมาชิก)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "skill_id",
+            "required": false,
+            "in": "query",
+            "description": "เฉพาะคนที่มีทักษะนี้",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-232 ความพร้อมรายคนรายวัน (8 ชม. − ลา − จอง) ตามสิทธิ์ที่เห็นคนได้",
+        "tags": [
+          "hr"
+        ]
+      }
+    },
+    "/api/v1/hr/bookings": {
+      "get": {
+        "operationId": "HrController_bookings",
+        "parameters": [
+          {
+            "name": "project_id",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-232 การจองตัวคนของโครงการ",
+        "tags": [
+          "hr"
+        ]
+      },
+      "post": {
+        "operationId": "HrController_createBooking",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBookingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-232 จองตัวคนเข้าโครงการ (PM ของโครงการ/HR) — จองเกินได้ ตอบวันที่เกิน",
+        "tags": [
+          "hr"
+        ]
+      }
+    },
+    "/api/v1/hr/bookings/{id}": {
+      "delete": {
+        "operationId": "HrController_cancelBooking",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-232 ยกเลิกการจอง",
+        "tags": [
+          "hr"
+        ]
+      }
+    },
     "/api/v1/hr/timesheets/options": {
       "get": {
         "operationId": "HrController_timesheetOptions",
@@ -32832,6 +33488,153 @@
             "type": "boolean"
           }
         }
+      },
+      "SaveLeaveTypeDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "ANNUAL",
+            "description": "แก้ไม่ได้หลังสร้าง",
+            "pattern": "^[A-Za-z0-9_-]{1,20}$"
+          },
+          "name": {
+            "type": "string",
+            "example": "ลาพักร้อน",
+            "maxLength": 100
+          },
+          "annual_days": {
+            "type": "object",
+            "description": "สิทธิ์ตั้งต้นต่อปี (วัน); null = ไม่จำกัด",
+            "nullable": true,
+            "maximum": 365,
+            "minimum": 0
+          },
+          "sort_order": {
+            "type": "integer"
+          },
+          "active": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "SaveLeaveEntitlementDto": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string"
+          },
+          "leave_type_id": {
+            "type": "string"
+          },
+          "year": {
+            "type": "integer",
+            "example": 2026,
+            "maximum": 2100,
+            "minimum": 2000
+          },
+          "days": {
+            "type": "number",
+            "description": "วัน (ทีละ 0.5)",
+            "example": 10,
+            "maximum": 365,
+            "minimum": 0
+          }
+        },
+        "required": [
+          "days",
+          "leave_type_id",
+          "user_id",
+          "year"
+        ]
+      },
+      "RequestLeaveDto": {
+        "type": "object",
+        "properties": {
+          "leave_type_id": {
+            "type": "string"
+          },
+          "start_date": {
+            "type": "string",
+            "example": "2026-10-12",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "end_date": {
+            "type": "string",
+            "example": "2026-10-14",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "part": {
+            "type": "string",
+            "enum": [
+              "full",
+              "am",
+              "pm"
+            ],
+            "default": "full"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "end_date",
+          "leave_type_id",
+          "start_date"
+        ]
+      },
+      "DecideLeaveDto": {
+        "type": "object",
+        "properties": {
+          "note": {
+            "type": "string",
+            "description": "ต้องมีเมื่อไม่อนุมัติ",
+            "maxLength": 1000
+          }
+        }
+      },
+      "CreateBookingDto": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "start_date": {
+            "type": "string",
+            "example": "2026-10-12",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "end_date": {
+            "type": "string",
+            "example": "2026-10-30",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "hours_per_day": {
+            "type": "number",
+            "description": "ชั่วโมงต่อวันทำการ ทีละ 0.5 (0.5–8)",
+            "example": 4,
+            "maximum": 8,
+            "minimum": 0.5
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "end_date",
+          "hours_per_day",
+          "project_id",
+          "start_date",
+          "user_id"
+        ]
       },
       "TimesheetRowDto": {
         "type": "object",

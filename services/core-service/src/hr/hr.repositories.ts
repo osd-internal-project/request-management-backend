@@ -253,6 +253,27 @@ export class HrWorkRefsRepository {
       .then((row) => row ?? null);
   }
 
+  /** CD-232 — a project with who runs it. */
+  project(companyId: string, id: string) {
+    return this.prisma.project.findFirst({
+      where: { id, companyId },
+      select: {
+        id: true,
+        projectNo: true,
+        name: true,
+        status: true,
+        managerUserId: true,
+      },
+    });
+  }
+
+  /** CD-232 — a project's manager and team. */
+  projectPeople(projectId: string) {
+    return this.prisma.projectMember
+      .findMany({ where: { projectId }, select: { userId: true } })
+      .then((rows) => rows.map((row) => row.userId));
+  }
+
   names(ids: string[]) {
     return this.prisma.user
       .findMany({
@@ -260,5 +281,75 @@ export class HrWorkRefsRepository {
         select: { id: true, displayName: true },
       })
       .then((rows) => new Map(rows.map((row) => [row.id, row.displayName])));
+  }
+}
+
+/** CD-232 — the company's kinds of leave and their yearly allowance. */
+@Injectable()
+export class HrLeaveTypeRepository extends BaseRepository<
+  PrismaService['hrLeaveType']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.hrLeaveType;
+  }
+}
+
+/** CD-232 — one person's allowance for a year, where HR set it. */
+@Injectable()
+export class HrLeaveEntitlementRepository extends BaseRepository<
+  PrismaService['hrLeaveEntitlement']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.hrLeaveEntitlement;
+  }
+}
+
+/** CD-232 — leave requests. */
+@Injectable()
+export class HrLeaveRepository extends BaseRepository<
+  PrismaService['hrLeave']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.hrLeave;
+  }
+}
+
+/** CD-232 — people booked onto projects. */
+@Injectable()
+export class HrBookingRepository extends BaseRepository<
+  PrismaService['hrBooking']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.hrBooking;
+  }
+}
+
+/** CD-232 — the company's working weekdays and holidays (SLA's calendar). */
+@Injectable()
+export class HrCalendarRepository extends BaseRepository<
+  PrismaService['holidayCalendar']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.holidayCalendar;
   }
 }

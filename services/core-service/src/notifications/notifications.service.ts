@@ -597,6 +597,81 @@ export class NotificationsService {
     });
   }
 
+  /** CD-232 — someone asked for leave; their supervisor decides. */
+  async leaveRequested(
+    userId: string,
+    companyId: string,
+    leave: { id: string; startDate: string; endDate: string; days: number },
+    name: string,
+    type: string,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'hr.leave.requested',
+      values: {
+        name,
+        type,
+        period: thaiPeriod(leave.startDate, leave.endDate),
+        days: String(leave.days),
+      },
+      resourceType: 'hr_leave',
+      resourceId: leave.id,
+    });
+  }
+
+  /** CD-232 — a leave was approved or rejected. */
+  async leaveDecided(
+    userId: string,
+    companyId: string,
+    leave: { id: string; startDate: string; endDate: string },
+    type: string,
+    approved: boolean,
+    note: string,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'hr.leave.decided',
+      values: {
+        type,
+        period: thaiPeriod(leave.startDate, leave.endDate),
+        outcome: approved ? 'อนุมัติแล้ว' : 'ไม่อนุมัติ',
+        note,
+      },
+      resourceType: 'hr_leave',
+      resourceId: leave.id,
+    });
+  }
+
+  /** CD-232 — someone was booked onto a project for a stretch of days. */
+  async bookingCreated(
+    userId: string,
+    companyId: string,
+    booking: {
+      id: string;
+      startDate: string;
+      endDate: string;
+      hoursPerDay: number;
+    },
+    project: string,
+    by: string,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'hr.booking.created',
+      values: {
+        project,
+        period: thaiPeriod(booking.startDate, booking.endDate),
+        hours: String(booking.hoursPerDay),
+        by,
+      },
+      resourceType: 'hr_booking',
+      resourceId: booking.id,
+    });
+  }
+
   /** CD-175 — someone was made a project's manager or put on its team. */
   async projectAssigned(
     userId: string,
@@ -1418,6 +1493,10 @@ export function formatPhoneNumber(number: string): string {
 }
 
 /** CD-231 — a YYYY-MM-DD day as the Thai calendar writes it. */
+function thaiPeriod(from: string, to: string): string {
+  return from === to ? thaiDay(from) : `${thaiDay(from)} – ${thaiDay(to)}`;
+}
+
 function thaiDay(value: string): string {
   return new Date(`${value}T00:00:00Z`).toLocaleDateString('th-TH', {
     timeZone: 'UTC',
