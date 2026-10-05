@@ -380,6 +380,19 @@ answer. It shows the job's number, subject and done date, nothing else. The
 web app reaches it from `/api/public/survey/*`, rate-limited by address. A
 third is again a decision to state here.
 
+**The third: the Customer Portal (CD-249, 5 Oct 2026, user decision).**
+`ServicePortalPublicController` — `service-portal/public/*` — is `@Public()` on
+core-service. No password exists anywhere: the service team invites a person
+at a customer, and that private invite link (only its SHA-256 stored, 90 days,
+revoked or reissued at will) opens an 8-hour session whose token (also stored
+only as a hash) the web app keeps in an httpOnly cookie and passes as
+`x-portal-session` from its server routes (`/api/public/portal/*`,
+rate-limited by address). Every read is pinned to the session's customer: its
+installed assets, covers, service jobs (plain status words), and service
+reports already sent to it; a case it raises is a service job under the
+company's configured portal user, as a CD-66 channel's requester is. A
+fourth is a decision to state here.
+
 `crm/leads/intake` earned its suffix on 21 Sep 2026: it used to be `POST
 crm/leads`, which `ExternalLeadsController.create` also bound. That controller
 registers first, so the intake route was unreachable and every web form calling

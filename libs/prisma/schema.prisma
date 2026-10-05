@@ -2439,6 +2439,9 @@ model CrmCompanyConfig {
   serviceRepeatAsset               Int      @default(3)
   serviceRepeatModel               Int      @default(5)
   serviceRepeatCustomerModel       Int      @default(3)
+  /// CD-249 — the staff user a case raised in the Customer Portal is raised
+  /// under (as a CD-66 channel's). NULL = the portal cannot open cases.
+  servicePortalUserId              String?
   /// CD-190 — actual cost as % of the reference budget: warn at, alert over.
   projectCostWarnPct               Int      @default(90)
   projectCostAlertPct              Int      @default(100)
@@ -7600,6 +7603,42 @@ model ServiceSurvey {
   @@index([companyId, answeredAt])
   @@index([customerId, answeredAt])
   @@map("service_surveys")
+}
+
+/// CD-249 Customer Portal — a person at a customer the service team invited:
+/// their private invite link (only its SHA-256 kept; 90 days; revocable,
+/// reissued) opens a portal session that sees that customer's own things.
+/// No password anywhere (AGENTS.md).
+model ServicePortalContact {
+  id             String    @id @default(uuid())
+  companyId      String
+  customerId     String
+  name           String
+  email          String?
+  phone          String?
+  inviteHash     String?   @unique
+  inviteExpires  DateTime?
+  invitedAt      DateTime  @default(now())
+  invitedBy      String
+  lastSeenAt     DateTime?
+  revokedAt      DateTime?
+  revokedBy      String?
+
+  @@index([companyId, customerId])
+  @@map("service_portal_contacts")
+}
+
+/// CD-249 — a browser session opened from an invite link (8 hours; only the
+/// token's SHA-256 kept, in an httpOnly cookie on the web app's side).
+model ServicePortalSession {
+  id        String   @id @default(uuid())
+  contactId String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([contactId])
+  @@map("service_portal_sessions")
 }
 
 /// CD-251 เอกสารส่งมอบของเฟส (หมุดหมาย) — แนบต่อชื่อเอกสาร; ชื่อที่ตรงกับเอกสารบังคับของประเภทงาน

@@ -1142,3 +1142,70 @@ export class ListSurveysQueryDto {
   @Matches(/^\d{4}-\d{2}-\d{2}$/)
   from?: string;
 }
+
+/** CD-249 — a person at a customer, invited to the portal. */
+export class InvitePortalContactDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(50)
+  customer_id!: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(200)
+  name!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  email?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  phone?: string;
+}
+
+export class PortalContactsQueryDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(50)
+  customer_id!: string;
+}
+
+export class PortalSessionDto {
+  @ApiProperty()
+  @IsString()
+  @Matches(/^[A-Za-z0-9_-]{20,64}$/)
+  invite!: string;
+}
+
+/** CD-249 — a case raised by the customer in the portal. */
+export class PortalCaseDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  asset_id?: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  subject!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  detail?: string;
+
+  @ApiProperty({ enum: ['critical', 'high', 'medium', 'low'] })
+  @IsIn(['critical', 'high', 'medium', 'low'])
+  severity!: string;
+}

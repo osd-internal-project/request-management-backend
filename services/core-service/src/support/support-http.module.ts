@@ -8,9 +8,14 @@ import { CompanyRepository } from '../crm/product.repositories';
 import { CrmConfigRepository } from '../crm/segment.repositories';
 import { RequestRepository } from '../requests/request.repository';
 import { ServiceReportsService } from './service-reports.service';
+import { PortalService } from './portal.service';
 import {
+  ServiceEntitlementAssetRepository,
   ServiceEntitlementRepository,
   ServicePmRoundRepository,
+  ServicePortalContactRepository,
+  ServicePortalSessionRepository,
+  ServiceAssetRepository,
   ServiceReportRepository,
   ServiceSlaClockRepository,
   ServiceWorkOrderRepository,
@@ -23,6 +28,8 @@ import {
   ServiceReportsController,
   ServiceSurveysController,
   ServiceSurveysPublicController,
+  ServicePortalController,
+  ServicePortalPublicController,
   ServiceEntitlementsController,
   ServiceLabourRatesController,
   ServicePmController,
@@ -45,6 +52,12 @@ import { SupportModule } from './support.module';
   ],
   providers: [
     ServiceReportsService,
+    // CD-249 — the portal reads report PDFs from storage too
+    PortalService,
+    ServicePortalContactRepository,
+    ServicePortalSessionRepository,
+    ServiceAssetRepository,
+    ServiceEntitlementAssetRepository,
     ServiceReportRepository,
     ServiceSlaClockRepository,
     ServiceEntitlementRepository,
@@ -71,6 +84,8 @@ import { SupportModule } from './support.module';
     ServiceReportsController,
     ServiceSurveysController,
     ServiceSurveysPublicController,
+    ServicePortalController,
+    ServicePortalPublicController,
   ],
 })
 export class SupportHttpModule {}

@@ -312,3 +312,31 @@ export class ServiceSurveyRepository extends BaseRepository<
     return client.serviceSurvey;
   }
 }
+
+/** CD-249 — people at customers invited to the portal. */
+@Injectable()
+export class ServicePortalContactRepository extends BaseRepository<
+  PrismaService['servicePortalContact']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.servicePortalContact;
+  }
+}
+
+/** CD-249 — portal sessions. */
+@Injectable()
+export class ServicePortalSessionRepository extends BaseRepository<
+  PrismaService['servicePortalSession']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.servicePortalSession;
+  }
+}

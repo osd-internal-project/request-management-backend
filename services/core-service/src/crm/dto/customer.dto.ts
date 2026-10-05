@@ -827,6 +827,12 @@ export class UpdateCrmConfigDto {
   @Matches(/^([A-Z0-9_-]{1,20})?$/)
   service_work_order_type_code?: string;
 
+  /** CD-249: ผู้ใช้ที่เคสจาก Customer Portal เปิดในนาม (ช่องทางแบบ CD-66). "" = ปิดการแจ้งเหตุใน portal. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  service_portal_user_id?: string;
+
   /** CD-191: ชื่อเอกสารที่ทุกโครงการต้องแนบก่อนขอปิด. */
   @IsOptional()
   @IsArray()
