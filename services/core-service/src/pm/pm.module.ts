@@ -49,6 +49,7 @@ import {
   ProjectConfigHistoryRepository,
   ProjectConfigItemRepository,
   ProjectIntegrationRepository,
+  ProjectTechChangeRepository,
   ProjectDesignRepository,
   ProjectDesignFileRepository,
   ProjectTaskEquipmentRepository,
@@ -108,6 +109,7 @@ import { ContractRiskAssessmentRepository } from '../crm/contract-risk.service';
     ProjectConfigItemRepository,
     ProjectConfigHistoryRepository,
     ProjectIntegrationRepository,
+    ProjectTechChangeRepository,
     // CD-219 — the customer's contacts, read for an integration's owner
     CustomerContactRepository,
     ProjectDesignRepository,
@@ -166,6 +168,7 @@ import { ContractRiskAssessmentRepository } from '../crm/contract-risk.service';
     ProjectConfigItemRepository,
     ProjectConfigHistoryRepository,
     ProjectIntegrationRepository,
+    ProjectTechChangeRepository,
     // CD-219 — the customer's contacts, read for an integration's owner
     CustomerContactRepository,
     ProjectDesignRepository,

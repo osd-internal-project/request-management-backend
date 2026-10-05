@@ -35,6 +35,7 @@ import { ReleasesService } from './releases.service';
 import { SoftwareDocsService } from './software-docs.service';
 import { ConfigsService } from './configs.service';
 import { IntegrationsService } from './integrations.service';
+import { TechChangesService } from './tech-changes.service';
 import { TaskEvidenceService } from './task-evidence.service';
 import { DesignsService } from './designs.service';
 import { TechPlanService } from './tech-plan.service';
@@ -84,6 +85,7 @@ import { TechPlanService } from './tech-plan.service';
     SoftwareDocsService,
     ConfigsService,
     IntegrationsService,
+    TechChangesService,
     TaskEvidenceService,
     DesignsService,
     TechPlanService,

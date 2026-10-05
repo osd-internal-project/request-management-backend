@@ -594,3 +594,17 @@ export class ProjectIntegrationRepository extends BaseRepository<
     return client.projectIntegration;
   }
 }
+
+/** CD-224. */
+@Injectable()
+export class ProjectTechChangeRepository extends BaseRepository<
+  PrismaService['projectTechChange']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.projectTechChange;
+  }
+}

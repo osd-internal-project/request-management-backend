@@ -787,6 +787,12 @@ export class UpdateCrmConfigDto {
   @Matches(/^([A-Z0-9_-]{1,20})?$/)
   project_design_type_code?: string;
 
+  /** CD-224: รหัสประเภทคำขออนุมัติปรับแก้ทางเทคนิค; form มี affects_scope (1/0) และ cost_change. "" = ล้าง. */
+  @IsOptional()
+  @IsString()
+  @Matches(/^([A-Z0-9_-]{1,20})?$/)
+  project_tech_change_type_code?: string;
+
   /** CD-191: ชื่อเอกสารที่ทุกโครงการต้องแนบก่อนขอปิด. */
   @IsOptional()
   @IsArray()

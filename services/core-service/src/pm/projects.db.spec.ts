@@ -54,6 +54,7 @@ import {
   ProjectConfigHistoryRepository,
   ProjectConfigItemRepository,
   ProjectIntegrationRepository,
+  ProjectTechChangeRepository,
   ProjectDesignRepository,
   ProjectDesignFileRepository,
   ProjectTaskEquipmentRepository,
@@ -84,6 +85,7 @@ import { ReleasesService } from './releases.service';
 import { SoftwareDocsService } from './software-docs.service';
 import { ConfigsService } from './configs.service';
 import { IntegrationsService } from './integrations.service';
+import { TechChangesService } from './tech-changes.service';
 import { CustomerContactRepository } from '../crm/customer-child.repositories';
 import { TaskEvidenceService } from './task-evidence.service';
 import { DesignsService } from './designs.service';
@@ -291,6 +293,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       });
       await prisma.projectTask.deleteMany({ where: { projectId } });
       await prisma.projectMilestone.deleteMany({ where: { projectId } });
+      await prisma.projectTechChange.deleteMany({ where: { projectId } });
       await prisma.projectIntegration.deleteMany({ where: { projectId } });
       await prisma.projectConfigHistory.deleteMany({
         where: { item: { projectId } },
@@ -3843,6 +3846,234 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         });
         await prisma.customer.deleteMany({
           where: { id: { in: [customer.id, other.id] } },
+        });
+      }
+    });
+
+    it('CD-224: technical changes — BOQ, cost and scope impact, approved through the request engine; a scope change carries a CR and lands in the as-built once both are approved', async () => {
+      const client = prisma as never;
+      const transactions = {
+        execute: (work: (tx: unknown) => Promise<unknown>) =>
+          prisma.$transaction((tx) => work(tx)),
+      } as never;
+      const audit = { record: () => Promise.resolve() } as never;
+      const tag = randomUUID().slice(0, 8);
+      const statuses = new Map<string, string>();
+      const requestRows = {
+        findFirst: (args: { where: { id: string } }) =>
+          Promise.resolve({
+            status: statuses.get(args.where.id) ?? 'submitted',
+          }),
+        findMany: () => Promise.resolve([]),
+      } as never;
+      const asked: { form_data: Record<string, unknown> }[] = [];
+      let seq = 0;
+      const requests = {
+        create: (input: { form_data: Record<string, unknown> }) => {
+          asked.push(input);
+          seq++;
+          return Promise.resolve({ id: `req-tc-${tag}-${seq}` });
+        },
+        submit: () => Promise.resolve(),
+      } as never;
+      const changes = new ChangeRequestsService(
+        projects,
+        new ProjectChangeRequestRepository(client),
+        new ProjectBudgetRepository(client),
+        {
+          findFirst: () => Promise.resolve({ projectChangeTypeCode: 'CHG' }),
+        } as never,
+        requestRows,
+        requests,
+        new CompanyMemberRepository(client),
+        { changeDecided: () => Promise.resolve() } as never,
+        { on: () => undefined } as never,
+        audit,
+        transactions,
+      );
+      const tech = new TechChangesService(
+        projects,
+        new ProjectRepository(client),
+        new ProjectTechChangeRepository(client),
+        new ProjectChangeRequestRepository(client),
+        changes,
+        {
+          findFirst: () =>
+            Promise.resolve({ projectTechChangeTypeCode: 'TCH' }),
+        } as never,
+        requestRows,
+        requests,
+        new CompanyMemberRepository(client),
+        { on: () => undefined } as never,
+        audit,
+        transactions,
+      );
+      const managerNow = as(engineer, ['notification.read']);
+      const crew = as(outsider, ['notification.read']);
+      const deviationsBefore = await prisma.projectAsBuiltDeviation.count({
+        where: { projectId },
+      });
+      const lastDeviation = await prisma.projectAsBuiltDeviation.findFirst({
+        where: { projectId },
+        orderBy: { seq: 'desc' },
+        select: { seq: true },
+      });
+      const crsBefore = (
+        await prisma.projectChangeRequest.findMany({
+          where: { projectId },
+          select: { id: true },
+        })
+      ).map((row) => row.id);
+      try {
+        // the BOQ the baseline sold (CD-216 set it: two cameras)
+        let view = await tech.view(projectId, crew);
+        expect(view.boq[0]).toMatchObject({ ref: 'boq:0' });
+        await expect(
+          tech.create(
+            projectId,
+            { title: 'x', lines: [{ ref: 'boq:0', quantity_to: 2 }] },
+            crew,
+          ),
+        ).rejects.toThrow('จำนวนไม่เปลี่ยน');
+        view = await tech.create(
+          projectId,
+          {
+            title: 'เพิ่มกล้องทางเข้า',
+            reason: 'ทางเข้าด้านหลังไม่มีมุมมอง',
+            lines: [{ ref: 'boq:0', quantity_to: 3, unit_cost: 4000 }],
+          },
+          crew,
+        );
+        const first = view.changes[0];
+        expect(first).toMatchObject({
+          label: 'TC-1',
+          costChange: 4000,
+          status: 'draft',
+        });
+        expect(first.lines[0]).toMatchObject({
+          name: 'กล้อง IP',
+          quantityFrom: 2,
+        });
+
+        // the manager submits it, through the request engine
+        await expect(
+          tech.submit(projectId, first.id, crew, 'Bearer x'),
+        ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+        view = await tech.submit(projectId, first.id, managerNow, 'Bearer x');
+        expect(asked[0].form_data).toMatchObject({
+          tech_change_no: 'TC-1',
+          affects_scope: 0,
+          cost_change: 4000,
+        });
+        const firstRequest = `req-tc-${tag}-1`;
+        statuses.set(firstRequest, 'approved');
+        await tech.syncRequest(firstRequest);
+        view = await tech.view(projectId, crew);
+        expect(view.changes[0]).toMatchObject({
+          status: 'approved',
+          inForce: true,
+          applied: true,
+        });
+        // it is in the as-built now, explaining the third camera
+        const landed = await prisma.projectAsBuiltDeviation.findMany({
+          where: { projectId },
+          orderBy: { seq: 'desc' },
+          take: 1,
+        });
+        expect(landed[0]).toMatchObject({
+          reference: 'boq:0',
+          planned: 'กล้อง IP × 2 ตัว',
+          built: 'กล้อง IP × 3 ตัว',
+          reason: 'TC-1 เพิ่มกล้องทางเข้า: ทางเข้าด้านหลังไม่มีมุมมอง',
+        });
+        // once only
+        await tech.syncRequest(firstRequest);
+        await tech.view(projectId, crew);
+        expect(
+          await prisma.projectAsBuiltDeviation.count({ where: { projectId } }),
+        ).toBe(deviationsBefore + 1);
+
+        // a scope change: a CR must be opened (by the manager) before it goes
+        view = await tech.create(
+          projectId,
+          {
+            title: 'ย้ายห้องควบคุม',
+            reason: 'ลูกค้าเปลี่ยนห้อง',
+            lines: [{ ref: 'boq:1', quantity_to: 150 }],
+            affects_scope: true,
+            scope_added: 'เดินสายเพิ่มไปห้องควบคุมใหม่ชั้น 2',
+          },
+          crew,
+        );
+        const second = view.changes.find((row) => row.label === 'TC-2')!;
+        await expect(
+          tech.submit(projectId, second.id, managerNow, 'Bearer x'),
+        ).rejects.toThrow('ต้องเปิดคำขอเปลี่ยนแปลง (CR) ก่อนยื่น');
+        await expect(
+          tech.openChange(projectId, second.id, crew),
+        ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+        const opened = await tech.openChange(projectId, second.id, managerNow);
+        const cr = await prisma.projectChangeRequest.findUniqueOrThrow({
+          where: { id: opened.changeId },
+        });
+        expect(cr).toMatchObject({
+          title: 'TC-2: ย้ายห้องควบคุม',
+          scopeAdded: 'เดินสายเพิ่มไปห้องควบคุมใหม่ชั้น 2',
+          status: 'draft',
+        });
+        expect(cr.costLines).toEqual([
+          expect.objectContaining({ description: 'สาย LAN', quantity: 50 }),
+        ]);
+        await tech.submit(projectId, second.id, managerNow, 'Bearer x');
+        const secondRequest = `req-tc-${tag}-2`;
+        statuses.set(secondRequest, 'approved');
+        await tech.syncRequest(secondRequest);
+        view = await tech.view(projectId, crew);
+        // approved, but waiting on its CR
+        expect(view.changes.find((row) => row.label === 'TC-2')).toMatchObject({
+          status: 'approved',
+          inForce: false,
+          applied: false,
+          change: { status: 'draft' },
+        });
+
+        // the CR's board approves: the change is in force and in the as-built
+        // (its cost lines dropped here, so no budget version is written)
+        const crRequest = `req-cr-${tag}`;
+        await prisma.projectChangeRequest.update({
+          where: { id: cr.id },
+          data: { status: 'submitted', requestId: crRequest, costLines: [] },
+        });
+        statuses.set(crRequest, 'approved');
+        await tech.syncRequest(crRequest);
+        view = await tech.view(projectId, crew);
+        expect(view.changes.find((row) => row.label === 'TC-2')).toMatchObject({
+          inForce: true,
+          applied: true,
+          change: { status: 'approved' },
+        });
+        const scoped = await prisma.projectAsBuiltDeviation.findFirstOrThrow({
+          where: { projectId, reference: 'boq:1', changeRequestId: cr.id },
+        });
+        expect(scoped).toMatchObject({
+          planned: 'สาย LAN × 100 ม.',
+          built: 'สาย LAN × 150 ม.',
+          affectsScope: true,
+        });
+
+        // a draft withdrawn
+        view = await tech.create(projectId, { title: 'ทดลอง' }, crew);
+        const third = view.changes.find((row) => row.label === 'TC-3')!;
+        view = await tech.cancel(projectId, third.id, crew);
+        expect(view.changes.map((row) => row.label)).toEqual(['TC-2', 'TC-1']);
+      } finally {
+        // what this test added stays out of the tests after it
+        await prisma.projectAsBuiltDeviation.deleteMany({
+          where: { projectId, seq: { gt: lastDeviation?.seq ?? 0 } },
+        });
+        await prisma.projectTechChange.deleteMany({ where: { projectId } });
+        await prisma.projectChangeRequest.deleteMany({
+          where: { projectId, id: { notIn: crsBefore } },
         });
       }
     });

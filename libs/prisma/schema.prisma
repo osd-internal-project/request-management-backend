@@ -2424,6 +2424,8 @@ model CrmCompanyConfig {
   /// CD-211 — the request type a detailed design version is approved on;
   /// its matrix may route on `differs_from_solution`. NULL = not set.
   projectDesignTypeCode            String?
+  /// CD-224 — the request type a technical change is approved under.
+  projectTechChangeTypeCode        String?
   /// CD-191 — the documents every project must leave behind before it may
   /// be closed, by name; each needs a file on the close-out card.
   projectCloseDocuments            String[] @default(["ใบตรวจรับงาน", "เอกสารส่งมอบงาน"])
@@ -4994,6 +4996,7 @@ model Project {
   softwareDocuments ProjectSoftwareDocument[]
   configItems       ProjectConfigItem[]
   integrations      ProjectIntegration[]
+  techChanges       ProjectTechChange[]
 
   @@unique([companyId, projectNo])
   @@index([companyId, status])
@@ -6484,4 +6487,46 @@ model ProjectIntegration {
 
   @@unique([projectId, seq])
   @@map("project_integrations")
+}
+
+/// CD-224 ปรับแก้ทางเทคนิค — a technical change the engineers ask approval
+/// for, with what it does to the BOQ, the cost and the scope. Approved under
+/// CrmConfig.projectTechChangeTypeCode; one that changes the scope also
+/// carries a change request (CD-185) and is in force only once both are
+/// approved — then its BOQ lines become as-built deviations (CD-226).
+model ProjectTechChange {
+  id               String    @id @default(uuid())
+  companyId        String
+  projectId        String
+  /// TC-n within the project
+  seq              Int
+  title            String
+  reason           String?
+  description      String?
+  /// [{ref: 'boq:i'|null, name, unit, quantityFrom, quantityTo, unitCost}]
+  boqLines         Json      @default("[]")
+  costChange       Decimal   @default(0) @db.Decimal(14, 2)
+  affectsScope     Boolean   @default(false)
+  scopeAdded       String?
+  scopeRemoved     String?
+  changeRequestId  String?
+  /// draft · submitted · approved · rejected · cancelled
+  status           String    @default("draft")
+  requestId        String?
+  error            String?
+  submittedAt      DateTime?
+  submittedBy      String?
+  decidedAt        DateTime?
+  /// when its deviations went into the as-built
+  appliedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  createdBy        String
+  updatedAt        DateTime  @updatedAt
+  updatedBy        String?
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
+
+  @@unique([projectId, seq])
+  @@index([requestId])
+  @@map("project_tech_changes")
 }

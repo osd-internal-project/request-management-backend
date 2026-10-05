@@ -57,6 +57,7 @@ import {
   AttachSoftwareDocumentDto,
   ConfigReasonDto,
   SaveIntegrationDto,
+  SaveTechChangeDto,
   SaveConfigItemDto,
   CarrySoftwareDocumentDto,
   SaveEnvironmentDto,
@@ -114,6 +115,7 @@ import { ReleasesService } from './releases.service';
 import { SoftwareDocsService } from './software-docs.service';
 import { ConfigsService } from './configs.service';
 import { IntegrationsService } from './integrations.service';
+import { TechChangesService } from './tech-changes.service';
 import { MAX_TASK_FILE_BYTES, TaskWorkService } from './task-work.service';
 import { MAX_FILES_PER_UPDATE } from './task-rules';
 import { ProjectsService } from './projects.service';
@@ -156,6 +158,7 @@ export class ProjectsController {
     private readonly softwareDocs: SoftwareDocsService,
     private readonly configs: ConfigsService,
     private readonly integrations: IntegrationsService,
+    private readonly techChanges: TechChangesService,
   ) {}
 
   @ApiOperation({ summary: 'รายการโครงการ (ทั้งบริษัท หรือของฉัน)' })
@@ -866,6 +869,80 @@ export class ProjectsController {
       type: file.mimeType,
       disposition: `inline; filename*=UTF-8''${encodeURIComponent(file.fileName)}`,
     });
+  }
+
+  // --- CD-224 ปรับแก้ทางเทคนิค --------------------------------------------------------
+
+  @ApiOperation({
+    summary:
+      'การปรับแก้ทางเทคนิค — ผลกระทบต่อ BOQ ต้นทุน ขอบเขต และสถานะอนุมัติ',
+  })
+  @Get(':id/tech-changes')
+  @Permissions('notification.read')
+  viewTechChanges(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.techChanges.view(id, principal);
+  }
+
+  @ApiOperation({ summary: 'ร่างการปรับแก้ทางเทคนิค (ทีมโครงการ)' })
+  @Post(':id/tech-changes')
+  @Permissions('notification.read')
+  createTechChange(
+    @Param('id') id: string,
+    @Body() dto: SaveTechChangeDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.techChanges.create(id, dto, principal);
+  }
+
+  @ApiOperation({ summary: 'แก้ร่างการปรับแก้ (ผู้บันทึกหรือผู้จัดการ)' })
+  @Put(':id/tech-changes/:techChangeId')
+  @Permissions('notification.read')
+  updateTechChange(
+    @Param('id') id: string,
+    @Param('techChangeId') techChangeId: string,
+    @Body() dto: SaveTechChangeDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.techChanges.update(id, techChangeId, dto, principal);
+  }
+
+  @ApiOperation({ summary: 'ยกเลิกร่างการปรับแก้' })
+  @Post(':id/tech-changes/:techChangeId/cancel')
+  @Permissions('notification.read')
+  cancelTechChange(
+    @Param('id') id: string,
+    @Param('techChangeId') techChangeId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.techChanges.cancel(id, techChangeId, principal);
+  }
+
+  @ApiOperation({
+    summary: 'เปิดคำขอเปลี่ยนแปลง (CR) จากการปรับแก้ที่กระทบขอบเขต (ผู้จัดการ)',
+  })
+  @Post(':id/tech-changes/:techChangeId/change-request')
+  @Permissions('notification.read')
+  openTechChangeCr(
+    @Param('id') id: string,
+    @Param('techChangeId') techChangeId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.techChanges.openChange(id, techChangeId, principal);
+  }
+
+  @ApiOperation({ summary: 'ยื่นขออนุมัติการปรับแก้ (ผู้จัดการโครงการ)' })
+  @Post(':id/tech-changes/:techChangeId/submit')
+  @Permissions('notification.read')
+  submitTechChange(
+    @Param('id') id: string,
+    @Param('techChangeId') techChangeId: string,
+    @CurrentPrincipal() principal: Principal,
+    @Headers('authorization') authorization: string,
+  ) {
+    return this.techChanges.submit(id, techChangeId, principal, authorization);
   }
 
   // --- CD-219 เชื่อมต่อระบบ -----------------------------------------------------------

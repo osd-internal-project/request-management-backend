@@ -1480,3 +1480,83 @@ export class SaveIntegrationDto {
   @MaxLength(200)
   contact_email?: string;
 }
+
+/** CD-224 — one BOQ line a technical change touches. */
+export class TechChangeLineDto {
+  @ApiPropertyOptional({
+    description: 'บรรทัด BOQ ในฐานตั้งต้น `boq:i`; ไม่ส่ง = รายการใหม่',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  ref?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  name?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  unit?: string;
+
+  @ApiProperty({ description: 'จำนวนหลังปรับแก้' })
+  @IsNumber()
+  quantity_to!: number;
+
+  @ApiPropertyOptional({
+    description: 'ต้นทุนต่อหน่วย; ไม่ส่ง = ต้นทุนอ้างอิงใน BOQ',
+  })
+  @IsOptional()
+  @IsNumber()
+  unit_cost?: number | null;
+}
+
+/** CD-224 — a technical change. */
+export class SaveTechChangeDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  title?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  reason?: string;
+
+  @ApiPropertyOptional({ description: 'ปรับแก้อะไร อย่างไร' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  description?: string;
+
+  @ApiPropertyOptional({ type: [TechChangeLineDto] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(100)
+  @ValidateNested({ each: true })
+  @Type(() => TechChangeLineDto)
+  lines?: TechChangeLineDto[];
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  affects_scope?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  scope_added?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  scope_removed?: string;
+}
