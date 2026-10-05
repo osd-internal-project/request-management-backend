@@ -29318,9 +29318,6 @@
         "summary": "ค้นสินค้า/บริการจาก SAP (สำเนาใน CTD) ของบริษัทที่ทำงานอยู่",
         "tags": [
           "products"
-        ],
-        "x-permission": [
-          "crm.sales.read"
         ]
       }
     },
