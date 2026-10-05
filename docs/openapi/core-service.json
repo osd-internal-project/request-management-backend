@@ -19218,6 +19218,243 @@
         ]
       }
     },
+    "/api/v1/service-pm/rounds": {
+      "get": {
+        "operationId": "ServicePmController_list",
+        "parameters": [
+          {
+            "name": "state",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "upcoming",
+                "overdue",
+                "done",
+                "all"
+              ]
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "รอบบำรุงรักษาทุกสัญญา — ใกล้ถึง (60 วัน) / เลยกำหนด / เสร็จ / ทั้งหมด",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.read"
+        ]
+      }
+    },
+    "/api/v1/service-pm/plans/{entitlementId}": {
+      "get": {
+        "operationId": "ServicePmController_planOf",
+        "parameters": [
+          {
+            "name": "entitlementId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แผนบำรุงรักษาและรอบของสิทธิ์สัญญาบริการ",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.read"
+        ]
+      },
+      "put": {
+        "operationId": "ServicePmController_savePlan",
+        "parameters": [
+          {
+            "name": "entitlementId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SavePmPlanDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ตั้ง/แก้แผน — รอบที่ยังไม่เปิดจัดใหม่ตามแผน รอบที่เปิดแล้วคงไว้",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.manage"
+        ]
+      }
+    },
+    "/api/v1/service-pm/rounds/{id}/open": {
+      "post": {
+        "operationId": "ServicePmController_open",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เปิดใบสั่งงานของรอบนี้ตอนนี้ (ในนามผู้กด)",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.manage"
+        ]
+      }
+    },
+    "/api/v1/service-pm/rounds/{id}/skip": {
+      "post": {
+        "operationId": "ServicePmController_skip",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SkipPmRoundDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ข้ามรอบนี้ (ต้องมีเหตุผล)",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.manage"
+        ]
+      }
+    },
     "/api/v1/delivery/projects/{projectId}/install-gate": {
       "get": {
         "operationId": "DeliveryController_installGate",
@@ -37952,6 +38189,52 @@
         "required": [
           "hourly_rate",
           "work_type_id"
+        ]
+      },
+      "SavePmPlanDto": {
+        "type": "object",
+        "properties": {
+          "interval": {
+            "type": "string",
+            "enum": [
+              "monthly",
+              "quarterly",
+              "semiannual",
+              "yearly"
+            ]
+          },
+          "lead_days": {
+            "type": "integer",
+            "description": "เปิดใบงานล่วงหน้ากี่วัน (ค่าเริ่ม 14)",
+            "maximum": 90,
+            "minimum": 0
+          },
+          "owner_user_id": {
+            "type": "string",
+            "description": "ผู้ดูแลแผน — ใบงานเปิดในนามคนนี้",
+            "maxLength": 50,
+            "minLength": 1
+          },
+          "active": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "interval",
+          "owner_user_id"
+        ]
+      },
+      "SkipPmRoundDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "reason"
         ]
       },
       "ConfirmInstallDto": {

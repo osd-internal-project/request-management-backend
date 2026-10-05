@@ -11,6 +11,8 @@ import { ServiceBillingErpSyncService } from './service-billing-erp-sync.service
 import { CrmModule } from '../crm/crm.module';
 import { PricingModule } from '../pricing/pricing.module';
 import { TimeMaterialsService } from './time-materials.service';
+import { PmPlanService } from './pm-plan.service';
+import { OpportunityRepository } from '../crm/sales.repositories';
 import { ProductRepository } from '../crm/product.repositories';
 import { ErpModule } from '../erp/erp.module';
 import { CustomerExternalCodeRepository } from '../crm/customer-child.repositories';
@@ -40,6 +42,9 @@ import {
   ServiceLabourRateRepository,
   ServiceMaterialUseRepository,
   ServiceWorkTypeRepository,
+  ServicePmPlanRepository,
+  ServicePmRoundRepository,
+  ServiceMaOfferRepository,
 } from './support.repositories';
 
 /**
@@ -70,6 +75,11 @@ import {
     ServiceBillingErpSyncService,
     ServiceBillingRepository,
     TimeMaterialsService,
+    PmPlanService,
+    ServicePmPlanRepository,
+    ServicePmRoundRepository,
+    ServiceMaOfferRepository,
+    OpportunityRepository,
     ServiceLabourRateRepository,
     ServiceMaterialUseRepository,
     ServiceWorkTypeRepository,
@@ -100,6 +110,7 @@ import {
     OnCallService,
     ServiceBillingService,
     TimeMaterialsService,
+    PmPlanService,
   ],
 })
 export class SupportModule {}

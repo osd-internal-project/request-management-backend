@@ -18,6 +18,7 @@ import { WorkOrdersService } from './work-orders.service';
 import { OnCallService } from './on-call.service';
 import { ServiceBillingService } from './service-billing.service';
 import { TimeMaterialsService } from './time-materials.service';
+import { PmPlanService } from './pm-plan.service';
 import {
   AssetStatusDto,
   AttachWorkOrderDto,
@@ -41,6 +42,9 @@ import {
   AddMaterialUseDto,
   SaveLabourRateDto,
   UpdateMaterialUseDto,
+  ListPmRoundsQueryDto,
+  SavePmPlanDto,
+  SkipPmRoundDto,
 } from './support.dto';
 
 /** CD-236 ทะเบียนอุปกรณ์ที่ติดตั้ง. */
@@ -537,5 +541,71 @@ export class ServiceLabourRatesController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.timeMaterials.saveLabourRate(principal, dto);
+  }
+}
+
+/** CD-244 แผนบำรุงรักษาตามรอบ. */
+@ApiTags('service')
+@ApiBearerAuth()
+@Controller('service-pm')
+export class ServicePmController {
+  constructor(private readonly pm: PmPlanService) {}
+
+  @ApiOperation({
+    summary:
+      'รอบบำรุงรักษาทุกสัญญา — ใกล้ถึง (60 วัน) / เลยกำหนด / เสร็จ / ทั้งหมด',
+  })
+  @Get('rounds')
+  @Permissions('service.asset.read')
+  list(
+    @Query() query: ListPmRoundsQueryDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.pm.list(principal, query);
+  }
+
+  @ApiOperation({ summary: 'แผนบำรุงรักษาและรอบของสิทธิ์สัญญาบริการ' })
+  @Get('plans/:entitlementId')
+  @Permissions('service.asset.read')
+  planOf(
+    @Param('entitlementId') entitlementId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.pm.planOf(principal, entitlementId);
+  }
+
+  @ApiOperation({
+    summary: 'ตั้ง/แก้แผน — รอบที่ยังไม่เปิดจัดใหม่ตามแผน รอบที่เปิดแล้วคงไว้',
+  })
+  @Put('plans/:entitlementId')
+  @Permissions('service.asset.manage')
+  savePlan(
+    @Param('entitlementId') entitlementId: string,
+    @Body() dto: SavePmPlanDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.pm.savePlan(principal, entitlementId, dto);
+  }
+
+  @ApiOperation({ summary: 'เปิดใบสั่งงานของรอบนี้ตอนนี้ (ในนามผู้กด)' })
+  @Post('rounds/:id/open')
+  @Permissions('service.asset.manage')
+  open(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+    @Headers('authorization') authorization: string,
+  ) {
+    return this.pm.openNow(principal, id, authorization ?? '');
+  }
+
+  @ApiOperation({ summary: 'ข้ามรอบนี้ (ต้องมีเหตุผล)' })
+  @Post('rounds/:id/skip')
+  @Permissions('service.asset.manage')
+  skip(
+    @Param('id') id: string,
+    @Body() dto: SkipPmRoundDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.pm.skip(principal, id, dto);
   }
 }

@@ -706,3 +706,43 @@ export class SaveLabourRateDto {
   @MaxLength(200)
   note?: string | null;
 }
+
+/** CD-244 — a service contract's PM plan. */
+export class SavePmPlanDto {
+  @ApiProperty({ enum: ['monthly', 'quarterly', 'semiannual', 'yearly'] })
+  @IsIn(['monthly', 'quarterly', 'semiannual', 'yearly'])
+  interval!: string;
+
+  @ApiPropertyOptional({ description: 'เปิดใบงานล่วงหน้ากี่วัน (ค่าเริ่ม 14)' })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(90)
+  lead_days?: number;
+
+  @ApiProperty({ description: 'ผู้ดูแลแผน — ใบงานเปิดในนามคนนี้' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(50)
+  owner_user_id!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  active?: boolean;
+}
+
+export class SkipPmRoundDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(500)
+  reason!: string;
+}
+
+export class ListPmRoundsQueryDto {
+  @ApiPropertyOptional({ enum: ['upcoming', 'overdue', 'done', 'all'] })
+  @IsOptional()
+  @IsIn(['upcoming', 'overdue', 'done', 'all'])
+  state?: 'upcoming' | 'overdue' | 'done' | 'all';
+}

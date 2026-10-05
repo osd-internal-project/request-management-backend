@@ -7233,6 +7233,69 @@ model ServiceMaterialUse {
   @@map("service_material_uses")
 }
 
+/// CD-244 แผนบำรุงรักษาตามรอบ — the preventive-maintenance plan of a
+/// service contract entitlement (CD-237): how often, how many days ahead its
+/// work order opens, and who it is opened under. The rounds follow from it,
+/// from the cover's start to its end, no more than its preventive quota.
+model ServicePmPlan {
+  id            String   @id @default(uuid())
+  companyId     String
+  entitlementId String   @unique
+  /// monthly · quarterly · semiannual · yearly
+  interval      String
+  leadDays      Int      @default(14)
+  ownerUserId   String
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  createdBy     String
+  updatedAt     DateTime @updatedAt
+  updatedBy     String?
+
+  @@index([companyId])
+  @@map("service_pm_plans")
+}
+
+/// CD-244 — one PM round: due on a date, opened as a preventive work order
+/// ahead of it, done when that order's case is done.
+///   status: planned · opened · done · skipped · failed (could not be opened)
+model ServicePmRound {
+  id                String    @id @default(uuid())
+  companyId         String
+  entitlementId     String
+  roundNo           Int
+  dueOn             DateTime  @db.Date
+  status            String    @default("planned")
+  workOrderId       String?
+  requestId         String?
+  openedAt          DateTime?
+  openError         String?
+  doneAt            DateTime?
+  skippedReason     String?
+  skippedBy         String?
+  overdueNotifiedAt DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@unique([entitlementId, roundNo])
+  @@index([companyId, status, dueOn])
+  @@map("service_pm_rounds")
+}
+
+/// CD-244 — a cover with no contract behind it (a warranty, or a service
+/// contract not in the contract register) nearing its end: a deal offering a
+/// service contract opened for the customer's account owner, as CD-70 does
+/// for contracts, and reminded while it is open.
+model ServiceMaOffer {
+  id            String   @id @default(uuid())
+  companyId     String
+  entitlementId String   @unique
+  opportunityId String?
+  openedAt      DateTime @default(now())
+  remindedDays  Int[]    @default([])
+
+  @@map("service_ma_offers")
+}
+
 /// CD-251 เอกสารส่งมอบของเฟส (หมุดหมาย) — แนบต่อชื่อเอกสาร; ชื่อที่ตรงกับเอกสารบังคับของประเภทงาน
 /// ในรอบส่งของเฟสนั้นนับเป็นเอกสารบังคับ ที่เหลือเป็นเอกสารเพิ่มเติม. ลบ = deletedAt.
 model ProjectDeliveryDocument {

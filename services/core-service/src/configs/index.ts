@@ -235,6 +235,10 @@ export default () => ({
     onCallSweepIntervalMs: Number(
       process.env.SERVICE_ON_CALL_SWEEP_INTERVAL_MS ?? 60000,
     ),
+    /** CD-244 — PM rounds opened ahead, late rounds, service-contract offers (ms); 0 = off. */
+    pmSweepIntervalMs: Number(
+      process.env.SERVICE_PM_SWEEP_INTERVAL_MS ?? 3600000,
+    ),
   },
   /** CD-52 — how often due daily digests are looked for (ms); 0 = off (tests). */
   notificationDigestIntervalMs: Number(

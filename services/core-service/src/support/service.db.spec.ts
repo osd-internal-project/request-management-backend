@@ -15,6 +15,9 @@ import {
   ServiceEntitlementRepository,
   ServiceLabourRateRepository,
   ServiceMaterialUseRepository,
+  ServiceMaOfferRepository,
+  ServicePmPlanRepository,
+  ServicePmRoundRepository,
   ServiceWorkTypeRepository,
   ServiceOnCallDispatchRepository,
   ServiceOnCallShiftRepository,
@@ -23,6 +26,7 @@ import {
 import { WorkOrdersService } from './work-orders.service';
 import { OnCallService } from './on-call.service';
 import { TimeMaterialsService } from './time-materials.service';
+import { PmPlanService } from './pm-plan.service';
 import { TimesheetsService } from '../hr/timesheets.service';
 import { HrTimesheetRepository } from '../hr/hr.repositories';
 import { ProductRepository } from '../crm/product.repositories';
@@ -52,6 +56,8 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
     const shiftIds: string[] = [];
     const userIds: string[] = [];
     const workTypeIds: string[] = [];
+    const extraEntitlements: string[] = [];
+    const startedAt = new Date();
 
     beforeAll(async () => {
       prisma = new PrismaClient({ datasources: { db: { url: DB_URL } } });
@@ -142,6 +148,15 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         where: { id: { in: workTypeIds } },
       });
       await prisma.customerExternalCode.deleteMany({ where: { customerId } });
+      await prisma.servicePmRound.deleteMany({
+        where: { entitlementId: { in: [entitlementId, ...extraEntitlements] } },
+      });
+      await prisma.servicePmPlan.deleteMany({
+        where: { entitlementId: { in: [entitlementId, ...extraEntitlements] } },
+      });
+      await prisma.serviceMaOffer.deleteMany({
+        where: { openedAt: { gte: startedAt } },
+      });
       await prisma.serviceWorkOrder.deleteMany({
         where: { requestId: { in: requestIds } },
       });
@@ -162,7 +177,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         where: { entitlementId },
       });
       await prisma.serviceEntitlement.deleteMany({
-        where: { id: entitlementId },
+        where: { id: { in: [entitlementId, ...extraEntitlements] } },
       });
       await prisma.serviceAsset.deleteMany({ where: { id: assetId } });
       await prisma.customer.deleteMany({ where: { id: customerId } });
@@ -954,6 +969,229 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
           quantity: 1,
         }),
       ).rejects.toThrow('ส่งใบเรียกเก็บ');
+    });
+
+    it('CD-244: a service contract plans its PM rounds — each opened ahead as a contract visit under the plan owner, done with its case, told once when late; a cover with no contract gets a service-contract offer before it ends', async () => {
+      const client = prisma as never;
+      const transactions = {
+        execute: (work: (tx: unknown) => Promise<unknown>) =>
+          prisma.$transaction((tx) => work(tx)),
+      } as never;
+      const audit = { record: () => Promise.resolve() } as never;
+      // the request engine stood in, as in CD-239
+      const requests = {
+        addGuard: () => undefined,
+        create: async (dto: { form_data: Record<string, string> }) => {
+          const row = await prisma.request.create({
+            data: {
+              requestTypeId: typeId,
+              typeCode,
+              companyId,
+              requesterId: staff,
+              status: 'draft',
+              severity: 'low',
+              formData: dto.form_data,
+            },
+          });
+          requestIds.push(row.id);
+          return row;
+        },
+        submit: (id: string) =>
+          prisma.request.update({
+            where: { id },
+            data: { status: 'submitted' },
+          }),
+      };
+      const entitlements = new EntitlementsService(
+        new ServiceEntitlementRepository(client),
+        new ServiceEntitlementAssetRepository(client),
+        new ServiceAssetRepository(client),
+        new CustomerContractRepository(client),
+        new ContractTermsRepository(client),
+        new CustomerRepository(client),
+        audit,
+        transactions,
+      );
+      const workOrders = new WorkOrdersService(
+        new ServiceWorkOrderRepository(client),
+        new ServiceAssetRepository(client),
+        new ServiceEntitlementRepository(client),
+        new CustomerRepository(client),
+        {
+          findFirst: () =>
+            Promise.resolve({ serviceWorkOrderTypeCode: typeCode }),
+        } as never,
+        new RequestRepository(client),
+        requests as never,
+        entitlements,
+        { on: () => undefined } as never,
+        audit,
+        transactions,
+        new SlaService(prisma as never),
+        { dispatch: () => Promise.resolve(null) } as never,
+      );
+      const told: string[] = [];
+      const deals: string[] = [];
+      const standard = {
+        enabled: true,
+        params: { open_days: 90, remind_days: [60, 30] },
+      };
+      const pm = new PmPlanService(
+        new ServicePmPlanRepository(client),
+        new ServicePmRoundRepository(client),
+        new ServiceMaOfferRepository(client),
+        new ServiceEntitlementRepository(client),
+        new ServiceEntitlementAssetRepository(client),
+        new RequestRepository(client),
+        new CustomerRepository(client),
+        {
+          findFirst: () =>
+            Promise.resolve({
+              id: 'opp-t244',
+              opportunityCode: 'OPP-T244',
+              ownerUserId: staff,
+            }),
+        } as never,
+        new CompanyMemberRepository(client),
+        workOrders,
+        {
+          createRenewal: (input: { title: string }) => {
+            deals.push(input.title);
+            return Promise.resolve({
+              id: 'opp-t244',
+              opportunityCode: 'OPP-T244',
+            });
+          },
+        } as never,
+        {
+          across: () =>
+            Promise.resolve({
+              standard,
+              byCompany: new Map(),
+              of: () => standard,
+            }),
+        } as never,
+        {
+          pmRound: (
+            _u: string,
+            _c: string,
+            x: { kind: string; roundNo: number },
+          ) => {
+            told.push(`pm.${x.kind}#${x.roundNo}`);
+            return Promise.resolve();
+          },
+          maOffer: (_u: string, _c: string, x: { kind: string }) => {
+            told.push(`ma.${x.kind}`);
+            return Promise.resolve();
+          },
+        } as never,
+        audit,
+        transactions,
+        { get: () => 0 } as never,
+      );
+      const manager = {
+        userId: staff,
+        activeCompanyId: companyId,
+        permissions: ['service.asset.read', 'service.asset.manage'],
+      } as unknown as Principal;
+
+      // the contract cover from beforeAll: 1 Jan 2026 → 31 Dec next year
+      const planned = await pm.savePlan(manager, entitlementId, {
+        interval: 'quarterly',
+        lead_days: 14,
+        owner_user_id: staff,
+      });
+      expect(planned.plan).toMatchObject({
+        interval: 'quarterly',
+        leadDays: 14,
+      });
+      expect(planned.rounds[0]).toMatchObject({
+        roundNo: 1,
+        dueOn: '2026-04-01',
+        status: 'planned',
+      });
+
+      // 20 Mar: round 1 (due 1 Apr) is within 14 days — opened, in contract
+      const first = await pm.sweep(new Date('2026-03-20T03:00:00Z'));
+      expect(first.opened).toBe(1);
+      const round1 = (await pm.planOf(manager, entitlementId)).rounds[0];
+      expect(round1).toMatchObject({
+        status: 'opened',
+        request: { status: 'submitted' },
+      });
+      const order = await prisma.serviceWorkOrder.findUniqueOrThrow({
+        where: { id: round1.workOrderId! },
+      });
+      expect(order).toMatchObject({
+        workKind: 'preventive',
+        billing: 'in_contract',
+        entitlementId,
+      });
+      expect(told).toContain('pm.opened#1');
+      // not twice
+      expect((await pm.sweep(new Date('2026-03-21T03:00:00Z'))).opened).toBe(0);
+
+      // its case done → the round is done
+      await prisma.request.update({
+        where: { id: round1.requestId! },
+        data: { status: 'completed' },
+      });
+      expect((await pm.sweep(new Date('2026-03-22T03:00:00Z'))).done).toBe(1);
+
+      // round 2 (1 Jul) left undone past its day: told once
+      await pm.sweep(new Date('2026-07-05T03:00:00Z'));
+      await pm.sweep(new Date('2026-07-06T03:00:00Z'));
+      expect(told.filter((one) => one === 'pm.overdue#2')).toHaveLength(1);
+
+      // round 3 skipped, with why
+      const round3 = (await pm.planOf(manager, entitlementId)).rounds[2];
+      const skipped = await pm.skip(manager, round3.id, {
+        reason: 'ลูกค้าปิดอาคารปรับปรุง',
+      });
+      expect(skipped).toMatchObject({
+        status: 'skipped',
+        skippedReason: 'ลูกค้าปิดอาคารปรับปรุง',
+      });
+
+      // a warranty ending in 80 days, no contract: offered once to the account owner
+      await prisma.customer.update({
+        where: { id: customerId },
+        data: { accountOwnerUserId: staff },
+      });
+      const today = new Date().toISOString().slice(0, 10);
+      const end = new Date(Date.parse(`${today}T00:00:00Z`) + 80 * 86_400_000);
+      const warranty = await prisma.serviceEntitlement.create({
+        data: {
+          companyId,
+          customerId,
+          kind: 'warranty',
+          title: `ประกัน ${tag}`,
+          startOn: new Date('2026-01-01T00:00:00Z'),
+          endOn: end,
+          createdBy: staff,
+        },
+      });
+      extraEntitlements.push(warranty.id);
+      await pm.sweep(new Date());
+      await pm.sweep(new Date());
+      expect(
+        deals.filter((title) => title.includes(`ประกัน ${tag}`)),
+      ).toHaveLength(1);
+      expect(
+        told.filter((one) => one === 'ma.opened').length,
+      ).toBeGreaterThanOrEqual(1);
+      // 25 days on (55 left): the 60-day reminder while the deal is open
+      const later = new Date(Date.now() + 25 * 86_400_000);
+      await pm.sweep(later);
+      expect(told).toContain('ma.due');
+
+      // a warranty cannot carry a plan
+      await expect(
+        pm.savePlan(manager, warranty.id, {
+          interval: 'monthly',
+          owner_user_id: staff,
+        }),
+      ).rejects.toThrow('สัญญาบริการ');
     });
   },
 );

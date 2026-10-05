@@ -1055,6 +1055,76 @@ export class NotificationsService {
 
   /** CD-190 — a project's actual cost crossed a threshold of its budget. */
   /**
+   * CD-244 — a PM round's work order opened ahead (`opened`), could not be
+   * opened (`failed`, open it by hand), or the round's day passed undone
+   * (`overdue`); to the plan's owner.
+   */
+  async pmRound(
+    userId: string,
+    companyId: string,
+    input: {
+      kind: 'opened' | 'failed' | 'overdue';
+      entitlementId: string;
+      title: string;
+      customer: string;
+      dueOn: string;
+      roundNo: number;
+      requestId: string | null;
+      requestNo: string | null;
+      error?: string;
+    },
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: `service.pm.${input.kind}`,
+      values: {
+        title: input.title,
+        customer: input.customer,
+        due_on: input.dueOn,
+        round_no: String(input.roundNo),
+        request_no: input.requestNo ?? '',
+        error: input.error ?? '',
+      },
+      resourceType: input.requestId ? 'request' : 'service_entitlement',
+      resourceId: input.requestId ?? input.entitlementId,
+    });
+  }
+
+  /**
+   * CD-244 — a cover with no contract nearing its end: a service-contract
+   * offer was opened (`opened`) or is still open at a reminder step (`due`).
+   */
+  async maOffer(
+    userId: string,
+    companyId: string,
+    input: {
+      kind: 'opened' | 'due';
+      title: string;
+      customer: string;
+      endOn: string;
+      daysLeft: number;
+      opportunityId: string;
+      opportunityCode: string;
+    },
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: `crm.ma_offer.${input.kind}`,
+      values: {
+        title: input.title,
+        customer: input.customer,
+        end_on: input.endOn,
+        days_left: String(input.daysLeft),
+        opportunity_code: input.opportunityCode,
+      },
+      resourceType: 'opportunity',
+      resourceId: input.opportunityId,
+    });
+  }
+
+  /**
    * CD-241 — an out-of-hours case sent to whoever is on call, or handed on
    * to the backup when the first did not receive it in time.
    */

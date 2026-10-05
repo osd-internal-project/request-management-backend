@@ -392,6 +392,8 @@ export class OpportunitiesService {
     ownerUserId: string;
     ownerOrgUnitId: string | null;
     contractNo: string;
+    /** CD-244 — a cover with no contract: what it is, for the timeline. */
+    origin?: { dealType: 'renewal' | 'upsell'; summary: string };
   }): Promise<{ id: string; opportunityCode: string }> {
     const opportunityCode = await this.runNumbers.issueUnused(
       { companyId: input.companyId, docType: 'OPPORTUNITY' },
@@ -406,7 +408,7 @@ export class OpportunitiesService {
             companyId: input.companyId,
             customerId: input.customerId,
             // CD-86 — a renewal is its own deal type, not a title prefix.
-            dealType: 'renewal',
+            dealType: input.origin?.dealType ?? 'renewal',
             title: input.title,
             amount: input.amount,
             expectedCloseAt: input.expectedCloseAt,
@@ -443,7 +445,9 @@ export class OpportunitiesService {
           refType: 'opportunity',
           refId: row.id,
           eventType: 'opportunity.created',
-          summary: `เปิดโอกาสต่ออายุ ${opportunityCode} จากสัญญา ${input.contractNo} (อัตโนมัติ)`,
+          summary: input.origin
+            ? `เปิดโอกาส ${opportunityCode} — ${input.origin.summary} (อัตโนมัติ)`
+            : `เปิดโอกาสต่ออายุ ${opportunityCode} จากสัญญา ${input.contractNo} (อัตโนมัติ)`,
           actorId: null,
           actorName: 'ระบบ (ต่ออายุสัญญา)',
         },

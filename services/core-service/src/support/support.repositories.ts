@@ -172,3 +172,45 @@ export class ServiceWorkTypeRepository extends BaseRepository<
     return client.hrWorkType;
   }
 }
+
+/** CD-244 — PM plans. */
+@Injectable()
+export class ServicePmPlanRepository extends BaseRepository<
+  PrismaService['servicePmPlan']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.servicePmPlan;
+  }
+}
+
+/** CD-244 — PM rounds. */
+@Injectable()
+export class ServicePmRoundRepository extends BaseRepository<
+  PrismaService['servicePmRound']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.servicePmRound;
+  }
+}
+
+/** CD-244 — service-contract offers for covers with no contract. */
+@Injectable()
+export class ServiceMaOfferRepository extends BaseRepository<
+  PrismaService['serviceMaOffer']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.serviceMaOffer;
+  }
+}
