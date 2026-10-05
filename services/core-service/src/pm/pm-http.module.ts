@@ -64,6 +64,8 @@ import { TechPlanService } from './tech-plan.service';
         config.get<StorageOptions>('storage'),
     }),
   ],
+  // CD-254 — Delivery confirms installation against the readiness check
+  exports: [ReadinessService],
   controllers: [
     ProjectsController,
     ProjectTasksController,

@@ -720,6 +720,24 @@ export class NotificationsService {
     });
   }
 
+  /** CD-254 — a phase's installation was confirmed complete. */
+  async deliveryInstalled(
+    userId: string,
+    companyId: string,
+    project: { id: string; label: string },
+    phase: string,
+    by: string,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'delivery.installed',
+      values: { project: project.label, phase, by },
+      resourceType: 'project',
+      resourceId: project.id,
+    });
+  }
+
   /** CD-250 — a delivery trip is near with goods still not ready. */
   async deliveryNotReady(
     userId: string,

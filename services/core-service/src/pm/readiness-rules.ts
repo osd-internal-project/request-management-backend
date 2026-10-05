@@ -41,6 +41,8 @@ export function systemChecks(facts: {
     complete: boolean;
     milestone: string;
     missing: readonly string[];
+    /** CD-254 — its installation confirmed complete by the manager. */
+    installed?: boolean;
   } | null;
 }): SystemCheck[] {
   const softwareDocs = facts.softwareDocs;
@@ -100,6 +102,18 @@ export function systemChecks(facts: {
               ? null
               : `ขาด ${deliveryDocs.missing.join(', ')}`,
           },
+          ...(deliveryDocs.installed === undefined
+            ? []
+            : [
+                {
+                  key: 'install_confirmed',
+                  label: `ยืนยันงานติดตั้งของเฟส "${deliveryDocs.milestone}" เสร็จแล้ว`,
+                  ok: deliveryDocs.installed,
+                  detail: deliveryDocs.installed
+                    ? null
+                    : 'ผู้จัดการโครงการยังไม่ได้ยืนยัน',
+                },
+              ]),
         ]
       : []),
   ];

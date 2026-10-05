@@ -550,6 +550,17 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
     },
   },
   {
+    eventType: 'delivery.installed',
+    label: 'ยืนยันติดตั้งเสร็จแล้ว (ถึง PM และทีม Delivery)',
+    title: 'โครงการ {{project}}: งานติดตั้งเฟส {{phase}} เสร็จแล้ว',
+    body: 'ยืนยันโดย {{by}} — เตรียมเอกสารส่งมอบและนัดตรวจรับกับลูกค้า',
+    variables: {
+      project: { label: 'โครงการ', sample: 'PRJ-2026-0001 · ระบบเครือข่าย' },
+      phase: { label: 'เฟส (หมุดหมาย)', sample: '2. ติดตั้งอาคาร B' },
+      by: { label: 'ผู้ยืนยัน', sample: 'วิชัย ส.' },
+    },
+  },
+  {
     eventType: 'delivery.not_ready',
     label: 'ของยังไม่พร้อมก่อนวันส่งมอบ (ถึง PM และทีม Delivery)',
     title:

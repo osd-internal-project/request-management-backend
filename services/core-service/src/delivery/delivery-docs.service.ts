@@ -5,6 +5,7 @@ import {
   AppError,
   AuditWriter,
   auditActor,
+  hasPermission,
   OBJECT_STORAGE,
   Principal,
   PrismaTransactionService,
@@ -16,7 +17,10 @@ import { safeFileName } from '../requests/attachments.service';
 import { DeliveriesService } from './deliveries.service';
 import { DELIVERY_WORK_TYPES } from './delivery-docs-rules';
 import { DeliveryDocsState } from './delivery-docs.state';
-import { ProjectDeliveryDocumentRepository } from './delivery.repositories';
+import {
+  ProjectDeliveryDocumentRepository,
+  ProjectInstallConfirmationRepository,
+} from './delivery.repositories';
 
 /** Most files one phase keeps. */
 const MAX_DOCS_PER_PHASE = 100;
@@ -57,6 +61,7 @@ export class DeliveryDocsService {
     private readonly state: DeliveryDocsState,
     private readonly milestones: ProjectMilestoneRepository,
     private readonly documents: ProjectDeliveryDocumentRepository,
+    private readonly confirmations: ProjectInstallConfirmationRepository,
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
@@ -66,7 +71,7 @@ export class DeliveryDocsService {
   async view(actor: Principal, projectId: string) {
     const { project, canEdit } = await this.deliveries.access(actor, projectId);
     const running = project.status === 'active' || project.status === 'on_hold';
-    const [milestones, next] = await Promise.all([
+    const [milestones, next, confirmed] = await Promise.all([
       this.milestones.findMany({
         where: { projectId, status: { not: 'cancelled' } },
         select: { id: true, seq: true, title: true, status: true },
@@ -75,7 +80,25 @@ export class DeliveryDocsService {
         { id: string; seq: number; title: string; status: string }[]
       >,
       this.state.forProject(projectId, project.companyId),
+      // CD-254 — each phase's confirmed installation
+      this.confirmations.findMany({
+        where: { projectId },
+        select: {
+          milestoneId: true,
+          confirmedAt: true,
+          confirmedBy: true,
+          note: true,
+        },
+      }) as unknown as Promise<
+        {
+          milestoneId: string;
+          confirmedAt: Date;
+          confirmedBy: string;
+          note: string;
+        }[]
+      >,
     ]);
+    const installed = new Map(confirmed.map((c) => [c.milestoneId, c]));
     const phases = await Promise.all(
       milestones.map(async (milestone) => {
         const pack = await this.state.pack(
@@ -86,6 +109,7 @@ export class DeliveryDocsService {
         return {
           milestone,
           next: next?.milestone.id === milestone.id,
+          installed: installed.get(milestone.id) ?? null,
           workTypes: pack.workTypes,
           complete: pack.complete,
           missing: pack.missing,
@@ -102,6 +126,11 @@ export class DeliveryDocsService {
     return {
       project: { id: project.id, status: project.status },
       canAttach: running,
+      // CD-254 — the project's manager confirms installation
+      canConfirmInstall:
+        running &&
+        (hasPermission(actor, 'pm.project.manage') ||
+          project.managerUserId === actor.userId),
       workTypes: DELIVERY_WORK_TYPES,
       // a phase with nothing planned and nothing attached is noise
       phases: phases.filter(

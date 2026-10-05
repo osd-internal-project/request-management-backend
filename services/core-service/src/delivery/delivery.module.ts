@@ -7,6 +7,7 @@ import {
   ProjectDeliveryLineRepository,
   ProjectDeliveryRepository,
   ProjectDeliveryDocumentRepository,
+  ProjectInstallConfirmationRepository,
 } from './delivery.repositories';
 
 /**
@@ -24,11 +25,16 @@ import {
     // CD-251
     DeliveryDocsState,
     ProjectDeliveryDocumentRepository,
+    // CD-254
+    ProjectInstallConfirmationRepository,
   ],
   exports: [
     DeliveriesService,
     DeliveryDocsState,
     ProjectDeliveryDocumentRepository,
+    ProjectInstallConfirmationRepository,
+    ProjectDeliveryRepository,
+    DeliveryPeopleRepository,
   ],
 })
 export class DeliveryModule {}

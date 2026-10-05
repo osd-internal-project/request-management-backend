@@ -144,6 +144,7 @@ export class ReadinessService {
         complete: delivery.complete,
         milestone: `${delivery.milestone.seq}. ${delivery.milestone.title}`,
         missing: delivery.missing,
+        installed: delivery.installed,
       },
     });
     return { checks, readiness: readiness(rows, checks) };

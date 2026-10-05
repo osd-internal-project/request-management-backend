@@ -21,6 +21,7 @@ import {
 } from '@nestjs/swagger';
 import { MAX_EVIDENCE_BYTES } from '../pm/milestones.service';
 import { DeliveryDocsService } from './delivery-docs.service';
+import { InstallConfirmationsService } from './install-confirmations.service';
 import {
   AnyPermission,
   Authenticated,
@@ -30,6 +31,7 @@ import type { Principal } from '@request-management/share';
 import {
   AttachDeliveryDocumentDto,
   CancelDeliveryDto,
+  ConfirmInstallDto,
   ListDeliveriesQueryDto,
   SaveDeliveryDto,
 } from './delivery.dto';
@@ -43,7 +45,56 @@ export class DeliveryController {
   constructor(
     private readonly deliveries: DeliveriesService,
     private readonly docs: DeliveryDocsService,
+    private readonly installs: InstallConfirmationsService,
   ) {}
+
+  // --- CD-254 ยืนยันงานติดตั้งเสร็จ ----------------------------------------------
+
+  @ApiOperation({
+    summary: 'CD-254 สิ่งที่ยังขวางการยืนยันติดตั้งเสร็จ (จากการตรวจความพร้อม)',
+  })
+  @Get('projects/:projectId/install-gate')
+  @Authenticated()
+  installGate(
+    @Param('projectId') projectId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.installs.gate(principal, projectId);
+  }
+
+  @ApiOperation({
+    summary:
+      'CD-254 ยืนยันงานติดตั้งของเฟสเสร็จ (ผู้จัดการโครงการ) — แจ้งทีม Delivery',
+  })
+  @Post('projects/:projectId/phases/:milestoneId/install')
+  @Authenticated()
+  confirmInstall(
+    @Param('projectId') projectId: string,
+    @Param('milestoneId') milestoneId: string,
+    @Body() dto: ConfirmInstallDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.installs.confirm(
+      principal,
+      projectId,
+      milestoneId,
+      dto.note ?? '',
+    );
+  }
+
+  @ApiOperation({
+    summary: 'CD-254 ยกเลิกการยืนยันติดตั้งเสร็จ (ต้องมีเหตุผล)',
+  })
+  @Post('projects/:projectId/phases/:milestoneId/install/revoke')
+  @Authenticated()
+  revokeInstall(
+    @Param('projectId') projectId: string,
+    @Param('milestoneId') milestoneId: string,
+    @Body() dto: CancelDeliveryDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.installs.revoke(principal, projectId, milestoneId, dto.reason);
+  }
 
   // --- CD-251 ชุดเอกสารส่งมอบ ---------------------------------------------------
 

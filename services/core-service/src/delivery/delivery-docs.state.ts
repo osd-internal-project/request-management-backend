@@ -37,8 +37,14 @@ export class DeliveryDocsState {
       trips.map((t) => t.milestoneId),
     );
     if (!phase) return null;
-    const pack = await this.pack(projectId, companyId, phase.id);
-    return { milestone: phase, ...pack };
+    const [pack, confirmed] = await Promise.all([
+      this.pack(projectId, companyId, phase.id),
+      this.prisma.projectInstallConfirmation.count({
+        where: { milestoneId: phase.id },
+      }),
+    ]);
+    // CD-254 — the phase's installation confirmed complete
+    return { milestone: phase, installed: confirmed > 0, ...pack };
   }
 
   /** One phase: its work types, the documents they require, and what is in. */

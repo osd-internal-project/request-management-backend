@@ -67,3 +67,17 @@ export class ProjectDeliveryDocumentRepository extends BaseRepository<
     return client.projectDeliveryDocument;
   }
 }
+
+/** CD-254 — each phase's confirmed installation. */
+@Injectable()
+export class ProjectInstallConfirmationRepository extends BaseRepository<
+  PrismaService['projectInstallConfirmation']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.projectInstallConfirmation;
+  }
+}

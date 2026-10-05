@@ -18921,6 +18921,156 @@
         ]
       }
     },
+    "/api/v1/delivery/projects/{projectId}/install-gate": {
+      "get": {
+        "operationId": "DeliveryController_installGate",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-254 สิ่งที่ยังขวางการยืนยันติดตั้งเสร็จ (จากการตรวจความพร้อม)",
+        "tags": [
+          "delivery"
+        ]
+      }
+    },
+    "/api/v1/delivery/projects/{projectId}/phases/{milestoneId}/install": {
+      "post": {
+        "operationId": "DeliveryController_confirmInstall",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "milestoneId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmInstallDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-254 ยืนยันงานติดตั้งของเฟสเสร็จ (ผู้จัดการโครงการ) — แจ้งทีม Delivery",
+        "tags": [
+          "delivery"
+        ]
+      }
+    },
+    "/api/v1/delivery/projects/{projectId}/phases/{milestoneId}/install/revoke": {
+      "post": {
+        "operationId": "DeliveryController_revokeInstall",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "milestoneId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelDeliveryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-254 ยกเลิกการยืนยันติดตั้งเสร็จ (ต้องมีเหตุผล)",
+        "tags": [
+          "delivery"
+        ]
+      }
+    },
     "/api/v1/delivery/projects/{projectId}/documents": {
       "get": {
         "operationId": "DeliveryController_documents",
@@ -37405,6 +37555,27 @@
           "reason"
         ]
       },
+      "ConfirmInstallDto": {
+        "type": "object",
+        "properties": {
+          "note": {
+            "type": "string",
+            "maxLength": 1000
+          }
+        }
+      },
+      "CancelDeliveryDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
       "DeliveryLineDto": {
         "type": "object",
         "properties": {
@@ -37492,18 +37663,6 @@
           "location",
           "milestone_id",
           "planned_on"
-        ]
-      },
-      "CancelDeliveryDto": {
-        "type": "object",
-        "properties": {
-          "reason": {
-            "type": "string",
-            "maxLength": 1000
-          }
-        },
-        "required": [
-          "reason"
         ]
       },
       "ProjectMemberDto": {

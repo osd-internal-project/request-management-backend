@@ -137,3 +137,11 @@ export class AttachDeliveryDocumentDto {
   @MaxLength(1000)
   note?: string;
 }
+
+export class ConfirmInstallDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  note?: string;
+}

@@ -7002,6 +7002,23 @@ model ProjectDeliveryLine {
   @@map("project_delivery_lines")
 }
 
+/// CD-254 ยืนยันงานติดตั้งของเฟส (หมุดหมาย) เสร็จ — ผู้จัดการโครงการยืนยันเมื่อการตรวจความพร้อม (CD-225)
+/// ผ่าน (ยกเว้นข้อเอกสารส่งมอบ); เป็นข้อหนึ่งของการตรวจความพร้อมก่อนนัดตรวจรับเฟสนั้น.
+/// `checks` = ผลการตรวจ ณ ตอนยืนยัน. ยกเลิกได้ก่อนเฟสบรรลุ (ลบแถว + audit).
+model ProjectInstallConfirmation {
+  id          String   @id @default(uuid())
+  companyId   String
+  projectId   String
+  milestoneId String   @unique
+  note        String   @default("")
+  checks      Json     @default("[]")
+  confirmedAt DateTime @default(now())
+  confirmedBy String
+
+  @@index([projectId])
+  @@map("project_install_confirmations")
+}
+
 /// CD-239 ใบสั่งงานบริการ — the service side of a case (a request, CD-67):
 /// which asset, corrective or preventive, and from the start whether it is
 /// covered or billed — the system suggests from the asset's entitlements
