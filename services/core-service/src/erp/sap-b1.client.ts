@@ -7,6 +7,7 @@ import {
   ErpCustomerPayload,
   ErpInvoice,
   ErpItem,
+  ErpProjectCost,
   ErpVendor,
   ErpVendorCost,
   ErpReceivables,
@@ -438,6 +439,67 @@ export class SapB1Client implements ErpClient {
    * Field names follow the Service Layer reference; confirm against the
    * company's B1 with its team (CD-28).
    */
+  /**
+   * CD-190 — A/P invoices whose header carries the project code, every line
+   * (the header filter is what B1's OData can do; a line booked to another
+   * project inside such an invoice is skipped). Which documents finance
+   * books project costs on is still to be confirmed with the B1 team (CD-28).
+   */
+  async listProjectCosts(
+    ctx: ErpContext,
+    projectCode: string,
+  ): Promise<ErpProjectCost[]> {
+    const costs: ErpProjectCost[] = [];
+    let path: string | null =
+      `/PurchaseInvoices?$select=DocEntry,DocNum,DocDate,CardName,Project,DocumentLines&$filter=${q(
+        `Project eq ${literal(projectCode)} and Cancelled eq 'tNO'`,
+      )}&$orderby=DocDate desc,DocNum desc`;
+    for (let page = 0; path && page < ITEMS_MAX_PAGES; page += 1) {
+      const res = await this.call(ctx, 'GET', path, undefined, {
+        Prefer: `odata.maxpagesize=${ITEMS_PAGE_SIZE}`,
+      });
+      const body = this.json<{
+        value: {
+          DocEntry: number;
+          DocNum: number;
+          DocDate: string;
+          CardName: string | null;
+          Project: string | null;
+          DocumentLines: {
+            LineNum: number;
+            ItemCode: string | null;
+            ItemDescription: string | null;
+            LineTotal: number | null;
+            ProjectCode: string | null;
+          }[];
+        }[];
+        'odata.nextLink'?: string;
+        '@odata.nextLink'?: string;
+      }>(res, 'อ่านต้นทุนโครงการ');
+      for (const doc of body.value) {
+        for (const line of doc.DocumentLines ?? []) {
+          if (line.ProjectCode && line.ProjectCode !== projectCode) continue;
+          if (line.LineTotal === null || line.LineTotal === undefined) continue;
+          costs.push({
+            key: `PCH:${doc.DocEntry}:${line.LineNum}`,
+            docNo: String(doc.DocNum),
+            postedOn: doc.DocDate.slice(0, 10),
+            itemCode: line.ItemCode,
+            description:
+              line.ItemDescription?.trim() ||
+              line.ItemCode ||
+              `AP ${doc.DocNum}`,
+            amount: line.LineTotal,
+            category: line.ItemCode ? 'material' : 'other',
+            vendorName: doc.CardName?.trim() || null,
+          });
+        }
+      }
+      path = nextPath(body['odata.nextLink'] ?? body['@odata.nextLink']);
+    }
+    return costs;
+  }
+
   async listVendorCosts(
     ctx: ErpContext,
     since: string,

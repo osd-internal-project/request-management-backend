@@ -58,6 +58,7 @@ import {
   ConfigReasonDto,
   SaveIntegrationDto,
   SaveTechChangeDto,
+  AddProjectCostDto,
   SaveConfigItemDto,
   CarrySoftwareDocumentDto,
   SaveEnvironmentDto,
@@ -116,6 +117,7 @@ import { SoftwareDocsService } from './software-docs.service';
 import { ConfigsService } from './configs.service';
 import { IntegrationsService } from './integrations.service';
 import { TechChangesService } from './tech-changes.service';
+import { ProjectCostsService } from './project-costs.service';
 import { MAX_TASK_FILE_BYTES, TaskWorkService } from './task-work.service';
 import { MAX_FILES_PER_UPDATE } from './task-rules';
 import { ProjectsService } from './projects.service';
@@ -159,6 +161,7 @@ export class ProjectsController {
     private readonly configs: ConfigsService,
     private readonly integrations: IntegrationsService,
     private readonly techChanges: TechChangesService,
+    private readonly projectCosts: ProjectCostsService,
   ) {}
 
   @ApiOperation({ summary: 'รายการโครงการ (ทั้งบริษัท หรือของฉัน)' })
@@ -869,6 +872,87 @@ export class ProjectsController {
       type: file.mimeType,
       disposition: `inline; filename*=UTF-8''${encodeURIComponent(file.fileName)}`,
     });
+  }
+
+  // --- CD-190 ติดตามต้นทุนโครงการ -----------------------------------------------------
+
+  @ApiOperation({
+    summary:
+      'ต้นทุนจริงเทียบงบอ้างอิง ต่อหมวดและรวม — แรงงานจาก Timesheet วัสดุ/อื่น ๆ จาก ERP และที่บันทึกเอง',
+  })
+  @Get(':id/costs')
+  @Permissions('notification.read')
+  viewCosts(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.projectCosts.view(id, principal);
+  }
+
+  @ApiOperation({
+    summary: 'บันทึกต้นทุนจริงเอง พร้อมหลักฐาน (ผู้จัดการโครงการ)',
+  })
+  @Post(':id/costs')
+  @Permissions('notification.read')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['category', 'description', 'amount', 'incurred_on', 'file'],
+      properties: {
+        category: { type: 'string', enum: ['material', 'other'] },
+        description: { type: 'string' },
+        amount: { type: 'string' },
+        incurred_on: { type: 'string', format: 'date' },
+        vendor_name: { type: 'string' },
+        doc_no: { type: 'string' },
+        file: { type: 'string', format: 'binary' },
+      },
+    },
+  })
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: MAX_EVIDENCE_BYTES },
+      defParamCharset: 'utf8',
+    }),
+  )
+  addCost(
+    @Param('id') id: string,
+    @Body() dto: AddProjectCostDto,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.projectCosts.add(id, dto, file, principal);
+  }
+
+  @ApiOperation({ summary: 'นำรายการต้นทุนที่บันทึกเองออก (ผู้จัดการโครงการ)' })
+  @Delete(':id/costs/:costId')
+  @Permissions('notification.read')
+  removeCost(
+    @Param('id') id: string,
+    @Param('costId') costId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.projectCosts.remove(id, costId, principal);
+  }
+
+  @ApiOperation({ summary: 'หลักฐานของรายการต้นทุน' })
+  @Get(':id/costs/:costId/file')
+  @Permissions('notification.read')
+  async costEvidence(
+    @Param('id') id: string,
+    @Param('costId') costId: string,
+    @CurrentPrincipal() principal: Principal,
+  ): Promise<StreamableFile> {
+    const file = await this.projectCosts.evidence(id, costId, principal);
+    return new StreamableFile(file.stream, {
+      type: file.mimeType,
+      disposition: `inline; filename*=UTF-8''${encodeURIComponent(file.fileName)}`,
+    });
+  }
+
+  @ApiOperation({ summary: 'อ่านต้นทุนจาก ERP ตอนนี้ (ผู้จัดการโครงการ)' })
+  @Post(':id/costs/sync')
+  @Permissions('notification.read')
+  syncCosts(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.projectCosts.syncNow(id, principal);
   }
 
   // --- CD-224 ปรับแก้ทางเทคนิค --------------------------------------------------------

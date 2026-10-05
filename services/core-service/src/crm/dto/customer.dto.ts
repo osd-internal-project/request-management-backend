@@ -815,6 +815,20 @@ export class UpdateCrmConfigDto {
   @Max(500)
   project_health_red?: number;
 
+  /** CD-190: ต้นทุนจริงถึงกี่ % ของงบจึงเตือนว่าใกล้เกิน (ค่าเริ่ม 90). */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(500)
+  project_cost_warn_pct?: number;
+
+  /** CD-190: ต้นทุนจริงเกินกี่ % ของงบจึงแจ้งว่าเกินงบ (ค่าเริ่ม 100, ไม่ต่ำกว่าเกณฑ์เตือน). */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(500)
+  project_cost_alert_pct?: number;
+
   /** CD-225: รายการตรวจความพร้อมก่อนส่งมอบมาตรฐานของบริษัท. */
   @IsOptional()
   @IsArray()

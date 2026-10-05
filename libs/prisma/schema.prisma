@@ -2426,6 +2426,9 @@ model CrmCompanyConfig {
   projectDesignTypeCode            String?
   /// CD-224 — the request type a technical change is approved under.
   projectTechChangeTypeCode        String?
+  /// CD-190 — actual cost as % of the reference budget: warn at, alert over.
+  projectCostWarnPct               Int      @default(90)
+  projectCostAlertPct              Int      @default(100)
   /// CD-191 — the documents every project must leave behind before it may
   /// be closed, by name; each needs a file on the close-out card.
   projectCloseDocuments            String[] @default(["ใบตรวจรับงาน", "เอกสารส่งมอบงาน"])
@@ -4997,6 +5000,8 @@ model Project {
   configItems       ProjectConfigItem[]
   integrations      ProjectIntegration[]
   techChanges       ProjectTechChange[]
+  costs             ProjectCost[]
+  costAlerts        ProjectCostAlert[]
 
   @@unique([companyId, projectNo])
   @@index([companyId, status])
@@ -6680,4 +6685,60 @@ model HrBooking {
   @@index([companyId, userId, startDate])
   @@index([projectId])
   @@map("hr_bookings")
+}
+
+/// CD-190 ติดตามต้นทุนโครงการ — an actual cost outside labour (labour comes
+/// from approved timesheets, CD-231): read from the ERP by project code
+/// (`erpKey` set, replaced on every sync) or entered by the manager with its
+/// evidence.
+model ProjectCost {
+  id           String    @id @default(uuid())
+  companyId    String
+  projectId    String
+  /// material · other
+  category     String
+  /// erp · manual
+  source       String
+  /// the ERP line's identity, unique per project; null for a manual entry
+  erpKey       String?
+  docNo        String?
+  description  String
+  amount       Decimal   @db.Decimal(14, 2)
+  incurredOn   DateTime  @db.Date
+  vendorName   String?
+  evidenceKey  String?
+  evidenceName String?
+  evidenceMime String?
+  evidenceSize Int?
+  createdAt    DateTime  @default(now())
+  createdBy    String
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+  deletedBy    String?
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
+
+  @@unique([projectId, erpKey])
+  @@index([projectId, incurredOn])
+  @@map("project_costs")
+}
+
+/// CD-190 — a threshold crossed, told once per budget version and level.
+model ProjectCostAlert {
+  id              String   @id @default(uuid())
+  companyId       String
+  projectId       String
+  budgetVersionNo Int
+  /// material · labor · other · total
+  category        String
+  /// warn · over
+  level           String
+  budget          Decimal  @db.Decimal(14, 2)
+  actual          Decimal  @db.Decimal(14, 2)
+  createdAt       DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
+
+  @@unique([projectId, budgetVersionNo, category, level])
+  @@map("project_cost_alerts")
 }

@@ -118,6 +118,7 @@ function harness(
     listVendors: jest.fn(() => Promise.resolve([])),
     listVendorCosts: jest.fn(() => Promise.resolve([])),
     listInvoices: jest.fn(() => Promise.resolve([])),
+    listProjectCosts: jest.fn(() => Promise.resolve([])),
   };
   const calls = erp as unknown as Record<keyof ErpClient, jest.Mock>;
   const customerSync = { queueCustomer: jest.fn(() => Promise.resolve()) };

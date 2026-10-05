@@ -55,6 +55,8 @@ import {
   ProjectConfigItemRepository,
   ProjectIntegrationRepository,
   ProjectTechChangeRepository,
+  ProjectCostAlertRepository,
+  ProjectCostRepository,
   ProjectDesignRepository,
   ProjectDesignFileRepository,
   ProjectTaskEquipmentRepository,
@@ -86,6 +88,8 @@ import { SoftwareDocsService } from './software-docs.service';
 import { ConfigsService } from './configs.service';
 import { IntegrationsService } from './integrations.service';
 import { TechChangesService } from './tech-changes.service';
+import { ProjectCostsService } from './project-costs.service';
+import { CompanyRepository } from '../crm/product.repositories';
 import { CustomerContactRepository } from '../crm/customer-child.repositories';
 import { TaskEvidenceService } from './task-evidence.service';
 import { DesignsService } from './designs.service';
@@ -293,6 +297,8 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       });
       await prisma.projectTask.deleteMany({ where: { projectId } });
       await prisma.projectMilestone.deleteMany({ where: { projectId } });
+      await prisma.projectCostAlert.deleteMany({ where: { projectId } });
+      await prisma.projectCost.deleteMany({ where: { projectId } });
       await prisma.projectTechChange.deleteMany({ where: { projectId } });
       await prisma.projectIntegration.deleteMany({ where: { projectId } });
       await prisma.projectConfigHistory.deleteMany({
@@ -4075,6 +4081,279 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         await prisma.projectChangeRequest.deleteMany({
           where: { projectId, id: { notIn: crsBefore } },
         });
+      }
+    });
+
+    it("CD-190: actual cost against the locked budget — labour from timesheets at the day's rate, ERP and manual costs, thresholds told once", async () => {
+      const client = prisma as never;
+      const transactions = {
+        execute: (work: (tx: unknown) => Promise<unknown>) =>
+          prisma.$transaction((tx) => work(tx)),
+      } as never;
+      const audit = { record: () => Promise.resolve() } as never;
+      const files = new Map<string, Buffer>();
+      const storage = {
+        put: (key: string, body: Buffer) => {
+          files.set(key, body);
+          return Promise.resolve();
+        },
+        remove: () => Promise.resolve(),
+        get: (key: string) => Promise.resolve(Readable.from([files.get(key)!])),
+      };
+      let erpLines = [
+        {
+          key: 'PCH:1:0',
+          docNo: '5001',
+          postedOn: '2026-10-01',
+          itemCode: 'CAM-1',
+          description: 'กล้อง IP',
+          amount: 60000,
+          category: 'material' as const,
+          vendorName: 'ผู้ขายกล้อง',
+        },
+        {
+          key: 'PCH:2:0',
+          docNo: '5002',
+          postedOn: '2026-10-02',
+          itemCode: null,
+          description: 'ค่าขนส่ง',
+          amount: 500,
+          category: 'other' as const,
+          vendorName: null,
+        },
+      ];
+      const told: string[] = [];
+      const costs = new ProjectCostsService(
+        projects,
+        new ProjectRepository(client),
+        new ProjectBudgetRepository(client),
+        new ProjectCostRepository(client),
+        new ProjectCostAlertRepository(client),
+        new CompanyRepository(client),
+        { findFirst: () => Promise.resolve(null) } as never,
+        {
+          // 10 approved man-days: 8 on 30 Sep at 4,000, 2 from 1 Oct at 4,800
+          projectActuals: () =>
+            Promise.resolve({
+              hours: 84,
+              mandays: 10.5,
+              lines: [
+                {
+                  levelId: 'L2',
+                  workTypeId: 'W1',
+                  date: '2026-09-30',
+                  hours: 64,
+                },
+                {
+                  levelId: 'L2',
+                  workTypeId: 'W1',
+                  date: '2026-10-01',
+                  hours: 16,
+                },
+                {
+                  levelId: null,
+                  workTypeId: 'W1',
+                  date: '2026-10-01',
+                  hours: 4,
+                },
+              ],
+            }),
+        } as never,
+        {
+          rateRows: () =>
+            Promise.resolve([
+              {
+                levelId: 'L2',
+                workTypeId: 'W1',
+                validFrom: '2026-01-01',
+                validTo: '2026-09-30',
+                costPerManday: 4000,
+              },
+              {
+                levelId: 'L2',
+                workTypeId: 'W1',
+                validFrom: '2026-10-01',
+                validTo: null,
+                costPerManday: 4800,
+              },
+            ]),
+        } as never,
+        { listProjectCosts: () => Promise.resolve(erpLines) } as never,
+        new CompanyMemberRepository(client),
+        {
+          projectCostAlert: (
+            userId: string,
+            _c: string,
+            input: { category: string; level: string },
+          ) => {
+            told.push(
+              `${userId === engineer ? 'pm' : userId}:${input.category}:${input.level}`,
+            );
+            return Promise.resolve();
+          },
+        } as never,
+        storage,
+        audit,
+        transactions,
+        { get: () => 0 } as never,
+      );
+      const managerNow = as(engineer, ['notification.read']);
+      const crew = as(outsider, ['notification.read']);
+      // what the manager was told; the pricing team gets the same
+      const toPm = () => told.filter((line) => line.startsWith('pm:'));
+      const companyId = (
+        await prisma.project.findUniqueOrThrow({
+          where: { id: projectId },
+          select: { companyId: true },
+        })
+      ).companyId;
+      // a known locked budget for this test, the versions before set aside
+      const before = await prisma.projectBudget.findMany({
+        where: { projectId },
+        select: { id: true, status: true, versionNo: true },
+      });
+      await prisma.projectBudget.updateMany({
+        where: { projectId, status: 'locked' },
+        data: { status: 'superseded' },
+      });
+      const versionNo =
+        before.reduce((max, row) => Math.max(max, row.versionNo), 0) + 1;
+      const budget = await prisma.projectBudget.create({
+        data: {
+          companyId,
+          projectId,
+          versionNo,
+          status: 'locked',
+          total: 150000,
+          lines: [
+            {
+              category: 'material',
+              code: null,
+              description: 'อุปกรณ์',
+              quantity: 1,
+              unit: null,
+              unitCost: 100000,
+              amount: 100000,
+            },
+            {
+              category: 'labor',
+              code: null,
+              description: 'แรงงาน',
+              quantity: 1,
+              unit: null,
+              unitCost: 50000,
+              amount: 50000,
+            },
+          ],
+          createdBy: engineer,
+        },
+      });
+      try {
+        // labour 8×4,000 + 2×4,800 = 41,600; 4 hours with no level unpriced
+        let view = await costs.view(projectId, crew);
+        expect(view.labor).toEqual({
+          amount: 41600,
+          hours: 84,
+          mandays: 10.5,
+          unpricedHours: 4,
+        });
+        expect(view.budget).toEqual({ versionNo });
+
+        // the ERP's lines come in on a sync (the manager's, or the pass)
+        await expect(costs.syncNow(projectId, crew)).rejects.toMatchObject({
+          code: 'FORBIDDEN',
+        });
+        view = await costs.syncNow(projectId, managerNow);
+        expect(
+          view.rows.map((row) => [row.category, row.actual, row.level]),
+        ).toEqual([
+          ['material', 60000, 'ok'],
+          ['labor', 41600, 'ok'],
+          // spent with nothing budgeted
+          ['other', 500, 'over'],
+          ['total', 102100, 'ok'],
+        ]);
+        expect(toPm()).toEqual(['pm:อื่น ๆ:over']);
+
+        // the manager records a cost, with its evidence
+        const pdf = {
+          originalname: 'receipt.pdf',
+          mimetype: 'application/pdf',
+          size: 4,
+          buffer: Buffer.from('%PDF'),
+        };
+        await expect(
+          costs.add(
+            projectId,
+            {
+              category: 'material',
+              description: 'รถกระเช้า',
+              amount: '35000',
+              incurred_on: '2026-10-03',
+            },
+            undefined,
+            managerNow,
+          ),
+        ).rejects.toThrow('ต้องแนบหลักฐาน');
+        view = await costs.add(
+          projectId,
+          {
+            category: 'material',
+            description: 'รถกระเช้า',
+            amount: '35000',
+            incurred_on: '2026-10-03',
+          },
+          pdf,
+          managerNow,
+        );
+        // material 95,000 = 95%: warned; told once
+        expect(view.rows[0]).toMatchObject({
+          actual: 95000,
+          pct: 95,
+          level: 'warn',
+        });
+        // and the total, 137,100 of 150,000 = 91.4%
+        expect(toPm()).toEqual([
+          'pm:อื่น ๆ:over',
+          'pm:วัสดุ/อุปกรณ์:warn',
+          'pm:รวม:warn',
+        ]);
+        const sent = told.length;
+        await costs.check(projectId, companyId);
+        expect(told).toHaveLength(sent);
+        const manual = view.entries.find((row) => row.source === 'manual')!;
+        expect(
+          (await costs.evidence(projectId, manual.id, crew)).fileName,
+        ).toBe('receipt.pdf');
+
+        // a line the ERP no longer lists goes; a manual one stays
+        erpLines = erpLines.slice(0, 1);
+        view = await costs.syncNow(projectId, managerNow);
+        expect(view.rows.find((row) => row.category === 'other')).toMatchObject(
+          {
+            actual: 0,
+          },
+        );
+        expect(view.entries.map((row) => row.source).sort()).toEqual([
+          'erp',
+          'manual',
+        ]);
+        const erpRow = view.entries.find((row) => row.source === 'erp')!;
+        await expect(
+          costs.remove(projectId, erpRow.id, managerNow),
+        ).rejects.toThrow('รายการจาก ERP');
+        view = await costs.remove(projectId, manual.id, managerNow);
+        expect(view.rows[0]).toMatchObject({ actual: 60000 });
+      } finally {
+        await prisma.projectCostAlert.deleteMany({ where: { projectId } });
+        await prisma.projectCost.deleteMany({ where: { projectId } });
+        await prisma.projectBudget.delete({ where: { id: budget.id } });
+        for (const row of before) {
+          await prisma.projectBudget.update({
+            where: { id: row.id },
+            data: { status: row.status },
+          });
+        }
       }
     });
 

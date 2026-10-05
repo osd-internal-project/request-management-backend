@@ -9380,6 +9380,16 @@
             "minimum": 1,
             "type": "integer"
           },
+          "project_cost_warn_pct": {
+            "maximum": 500,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "project_cost_alert_pct": {
+            "maximum": 500,
+            "minimum": 1,
+            "type": "integer"
+          },
           "project_readiness_checklist": {
             "type": "array",
             "items": {

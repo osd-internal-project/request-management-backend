@@ -36,6 +36,10 @@ import { SoftwareDocsService } from './software-docs.service';
 import { ConfigsService } from './configs.service';
 import { IntegrationsService } from './integrations.service';
 import { TechChangesService } from './tech-changes.service';
+import { ProjectCostsService } from './project-costs.service';
+import { ErpModule } from '../erp/erp.module';
+import { HrModule } from '../hr/hr.module';
+import { CompanyRepository } from '../crm/product.repositories';
 import { TaskEvidenceService } from './task-evidence.service';
 import { DesignsService } from './designs.service';
 import { TechPlanService } from './tech-plan.service';
@@ -44,6 +48,9 @@ import { TechPlanService } from './tech-plan.service';
 @Module({
   imports: [
     PmModule,
+    // CD-190 — actual costs: the ERP and approved timesheets
+    ErpModule,
+    HrModule,
     // CD-182 milestone evidence — storage for the HTTP half only
     StorageModule.forRootAsync({
       inject: [ConfigService],
@@ -86,6 +93,8 @@ import { TechPlanService } from './tech-plan.service';
     ConfigsService,
     IntegrationsService,
     TechChangesService,
+    ProjectCostsService,
+    CompanyRepository,
     TaskEvidenceService,
     DesignsService,
     TechPlanService,

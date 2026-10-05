@@ -1560,3 +1560,42 @@ export class SaveTechChangeDto {
   @MaxLength(4000)
   scope_removed?: string;
 }
+
+/** CD-190 — an actual cost the manager records, with its evidence. */
+export class AddProjectCostDto {
+  @ApiPropertyOptional({ enum: ['material', 'other'] })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  category?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  description?: string;
+
+  @ApiPropertyOptional({ description: 'บาท (ติดลบได้ เช่น เครดิตโน้ต)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  amount?: string;
+
+  @ApiPropertyOptional({ description: 'YYYY-MM-DD' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  incurred_on?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  vendor_name?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  doc_no?: string;
+}

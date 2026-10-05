@@ -103,6 +103,7 @@ function harness(
     listVendors: jest.fn(() => Promise.resolve([])),
     listVendorCosts: jest.fn(() => Promise.resolve([])),
     listInvoices: jest.fn(() => Promise.resolve([])),
+    listProjectCosts: jest.fn(() => Promise.resolve([])),
   };
 
   const audit = { record: jest.fn(() => Promise.resolve()) };

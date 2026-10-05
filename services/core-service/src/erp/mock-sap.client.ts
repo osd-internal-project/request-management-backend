@@ -5,6 +5,7 @@ import {
   ErpCustomerPayload,
   ErpInvoice,
   ErpItem,
+  ErpProjectCost,
   ErpReceivables,
   ErpSalesOrderPayload,
   ErpVendor,
@@ -115,6 +116,44 @@ export class MockSapClient implements ErpClient {
         (cost) => cost.source === 'special_price' || cost.costDate >= since,
       ),
     );
+  }
+
+  /**
+   * CD-190 — two lines per project, fixed by its code, numbered `MOCK-` so a
+   * real driver's first sync replaces them.
+   */
+  listProjectCosts(
+    _ctx: ErpContext,
+    projectCode: string,
+  ): Promise<ErpProjectCost[]> {
+    const seed = [...projectCode].reduce(
+      (sum, char) => sum + char.charCodeAt(0),
+      0,
+    );
+    const day = (offset: number) =>
+      new Date(Date.now() - offset * 86_400_000).toISOString().slice(0, 10);
+    return Promise.resolve([
+      {
+        key: `mock:${projectCode}:1`,
+        docNo: `MOCK-AP-${1000 + (seed % 900)}`,
+        postedOn: day(10),
+        itemCode: 'MOCK-ITEM',
+        description: 'อุปกรณ์ (ตัวอย่างจาก ERP จำลอง)',
+        amount: 10000 + (seed % 50) * 1000,
+        category: 'material',
+        vendorName: 'คู่ค้าตัวอย่าง',
+      },
+      {
+        key: `mock:${projectCode}:2`,
+        docNo: `MOCK-AP-${2000 + (seed % 900)}`,
+        postedOn: day(3),
+        itemCode: null,
+        description: 'ค่าขนส่ง (ตัวอย่างจาก ERP จำลอง)',
+        amount: 1500,
+        category: 'other',
+        vendorName: 'คู่ค้าตัวอย่าง',
+      },
+    ]);
   }
 
   /**

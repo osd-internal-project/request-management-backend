@@ -19839,6 +19839,271 @@
         ]
       }
     },
+    "/api/v1/projects/{id}/costs": {
+      "get": {
+        "operationId": "ProjectsController_viewCosts",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ต้นทุนจริงเทียบงบอ้างอิง ต่อหมวดและรวม — แรงงานจาก Timesheet วัสดุ/อื่น ๆ จาก ERP และที่บันทึกเอง",
+        "tags": [
+          "projects"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      },
+      "post": {
+        "operationId": "ProjectsController_addCost",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "category",
+                  "description",
+                  "amount",
+                  "incurred_on",
+                  "file"
+                ],
+                "properties": {
+                  "category": {
+                    "type": "string",
+                    "enum": [
+                      "material",
+                      "other"
+                    ]
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "amount": {
+                    "type": "string"
+                  },
+                  "incurred_on": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "vendor_name": {
+                    "type": "string"
+                  },
+                  "doc_no": {
+                    "type": "string"
+                  },
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "บันทึกต้นทุนจริงเอง พร้อมหลักฐาน (ผู้จัดการโครงการ)",
+        "tags": [
+          "projects"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/projects/{id}/costs/{costId}": {
+      "delete": {
+        "operationId": "ProjectsController_removeCost",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "costId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "นำรายการต้นทุนที่บันทึกเองออก (ผู้จัดการโครงการ)",
+        "tags": [
+          "projects"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/projects/{id}/costs/{costId}/file": {
+      "get": {
+        "operationId": "ProjectsController_costEvidence",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "costId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "หลักฐานของรายการต้นทุน",
+        "tags": [
+          "projects"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/projects/{id}/costs/sync": {
+      "post": {
+        "operationId": "ProjectsController_syncCosts",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "อ่านต้นทุนจาก ERP ตอนนี้ (ผู้จัดการโครงการ)",
+        "tags": [
+          "projects"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      }
+    },
     "/api/v1/projects/{id}/tech-changes": {
       "get": {
         "operationId": "ProjectsController_viewTechChanges",
@@ -30002,6 +30267,16 @@
             "minimum": 1,
             "type": "integer"
           },
+          "project_cost_warn_pct": {
+            "maximum": 500,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "project_cost_alert_pct": {
+            "maximum": 500,
+            "minimum": 1,
+            "type": "integer"
+          },
           "project_readiness_checklist": {
             "type": "array",
             "items": {
@@ -36202,6 +36477,35 @@
           },
           "installed_on": {
             "maxLength": 10,
+            "type": "string"
+          }
+        }
+      },
+      "AddProjectCostDto": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "maxLength": 20,
+            "type": "string"
+          },
+          "description": {
+            "maxLength": 500,
+            "type": "string"
+          },
+          "amount": {
+            "maxLength": 30,
+            "type": "string"
+          },
+          "incurred_on": {
+            "maxLength": 10,
+            "type": "string"
+          },
+          "vendor_name": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "doc_no": {
+            "maxLength": 100,
             "type": "string"
           }
         }

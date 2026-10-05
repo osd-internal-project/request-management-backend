@@ -217,6 +217,8 @@ export class CrmAdminService {
         projectTechChangeTypeCode: null,
         projectHealthAmber: 20,
         projectHealthRed: 40,
+        projectCostWarnPct: 90,
+        projectCostAlertPct: 100,
         projectAsBuiltDocuments: [
           'แบบติดตั้งจริง',
           'รายการอุปกรณ์และหมายเลขเครื่อง',
@@ -254,6 +256,18 @@ export class CrmAdminService {
   }
 
   async updateConfig(dto: UpdateCrmConfigDto, actor: Principal) {
+    // CD-190 — the alert is never below the warning
+    if (
+      dto.project_cost_warn_pct !== undefined &&
+      dto.project_cost_alert_pct !== undefined &&
+      dto.project_cost_alert_pct < dto.project_cost_warn_pct
+    ) {
+      throw new AppError(
+        'VALIDATION_FAILED',
+        'เกณฑ์เกินงบต้องไม่ต่ำกว่าเกณฑ์เตือน',
+        [{ field: 'project_cost_alert_pct', reason: 'below warn' }],
+      );
+    }
     // CD-202 — known work types only, 0–100; a blank one falls back to the
     // company minimum, so it is dropped rather than stored.
     const minMargins =
@@ -357,6 +371,8 @@ export class CrmAdminService {
                 dto.project_tech_change_type_code || null,
               projectHealthAmber: dto.project_health_amber ?? 20,
               projectHealthRed: dto.project_health_red ?? 40,
+              projectCostWarnPct: dto.project_cost_warn_pct ?? 90,
+              projectCostAlertPct: dto.project_cost_alert_pct ?? 100,
               ...(asBuiltDocuments
                 ? { projectAsBuiltDocuments: asBuiltDocuments }
                 : {}),
@@ -431,6 +447,8 @@ export class CrmAdminService {
               projectCloseDocuments: closeDocuments,
               projectHealthAmber: dto.project_health_amber,
               projectHealthRed: dto.project_health_red,
+              projectCostWarnPct: dto.project_cost_warn_pct,
+              projectCostAlertPct: dto.project_cost_alert_pct,
               projectReadinessChecklist: readinessChecklist,
               projectAsBuiltDocuments: asBuiltDocuments,
               projectSoftwareDocuments: softwareDocuments,

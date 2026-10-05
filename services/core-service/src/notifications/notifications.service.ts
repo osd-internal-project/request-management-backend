@@ -929,6 +929,38 @@ export class NotificationsService {
     });
   }
 
+  /** CD-190 — a project's actual cost crossed a threshold of its budget. */
+  async projectCostAlert(
+    userId: string,
+    companyId: string,
+    input: {
+      project: { id: string; projectNo: string; name: string };
+      category: string;
+      level: 'warn' | 'over';
+      budget: number;
+      actual: number;
+      pct: number | null;
+    },
+  ): Promise<void> {
+    const baht = (value: number) =>
+      value.toLocaleString('th-TH', { maximumFractionDigits: 2 });
+    await this.emit({
+      userId,
+      companyId,
+      eventType: `pm.cost.${input.level}`,
+      values: {
+        project_no: input.project.projectNo,
+        project: input.project.name,
+        category: input.category,
+        budget: baht(input.budget),
+        actual: baht(input.actual),
+        pct: input.pct === null ? 'ไม่มีงบ' : `${input.pct}%`,
+      },
+      resourceType: 'project',
+      resourceId: input.project.id,
+    });
+  }
+
   /** CD-182 — a milestone that unlocks an installment was achieved. */
   async milestoneAchieved(
     userId: string,
