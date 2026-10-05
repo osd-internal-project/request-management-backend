@@ -11069,6 +11069,11 @@
             "minimum": 1,
             "type": "integer"
           },
+          "service_on_call_escalate_minutes": {
+            "maximum": 1440,
+            "minimum": 0,
+            "type": "integer"
+          },
           "project_readiness_checklist": {
             "type": "array",
             "items": {

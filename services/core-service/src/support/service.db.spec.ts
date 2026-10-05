@@ -10,10 +10,15 @@ import { EntitlementsService } from './entitlements.service';
 import {
   ServiceAssetRepository,
   ServiceEntitlementAssetRepository,
+  ServiceCalendarRepository,
   ServiceEntitlementRepository,
+  ServiceOnCallDispatchRepository,
+  ServiceOnCallShiftRepository,
   ServiceWorkOrderRepository,
 } from './support.repositories';
 import { WorkOrdersService } from './work-orders.service';
+import { OnCallService } from './on-call.service';
+import { CompanyMemberRepository } from '../access/company-member.repository';
 
 const DB_URL = process.env.CORE_DB_TEST_URL;
 
@@ -30,6 +35,8 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
     let typeCode: string;
     const tag = randomUUID().slice(0, 6).toUpperCase();
     const requestIds: string[] = [];
+    const shiftIds: string[] = [];
+    const userIds: string[] = [];
 
     beforeAll(async () => {
       prisma = new PrismaClient({ datasources: { db: { url: DB_URL } } });
@@ -103,6 +110,15 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       await prisma.serviceWorkOrder.deleteMany({
         where: { requestId: { in: requestIds } },
       });
+      await prisma.serviceOnCallDispatch.deleteMany({
+        where: { requestId: { in: requestIds } },
+      });
+      await prisma.serviceOnCallShift.deleteMany({
+        where: { id: { in: shiftIds } },
+      });
+      await prisma.requestEvent.deleteMany({
+        where: { requestId: { in: requestIds } },
+      });
       await prisma.slaClock.deleteMany({
         where: { requestId: { in: requestIds } },
       });
@@ -115,6 +131,10 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       });
       await prisma.serviceAsset.deleteMany({ where: { id: assetId } });
       await prisma.customer.deleteMany({ where: { id: customerId } });
+      await prisma.userCompany.deleteMany({
+        where: { userId: { in: userIds } },
+      });
+      await prisma.user.deleteMany({ where: { id: { in: userIds } } });
       await prisma.$disconnect();
     });
 
@@ -186,6 +206,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         audit,
         transactions,
         new SlaService(prisma as never),
+        { dispatch: () => Promise.resolve(null) } as never,
       );
       orders.onModuleInit();
       const manager = {
@@ -324,6 +345,162 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       expect(await orders.ofRequest(manager, line.id)).toMatchObject({
         id: attached.id,
       });
+    });
+
+    it('CD-241: an out-of-hours case goes to whoever is on call — the backup when the primary is on leave, or has not received it in time', async () => {
+      const client = prisma as never;
+      const transactions = {
+        execute: (work: (tx: unknown) => Promise<unknown>) =>
+          prisma.$transaction((tx) => work(tx)),
+      } as never;
+      // two people of the company to put on the rota
+      const [primary, backup] = await Promise.all(
+        ['a', 'b'].map(async (suffix) => {
+          const user = await prisma.user.create({
+            data: {
+              keycloakId: `t241-${tag}-${suffix}`,
+              username: `t241-${tag}-${suffix}`,
+              displayName: `เวรทดสอบ ${suffix.toUpperCase()}`,
+              companies: { create: { companyId } },
+            },
+          });
+          userIds.push(user.id);
+          return user.id;
+        }),
+      );
+      const told: { userId: string; reason: string }[] = [];
+      let away = new Set<string>();
+      const onCall = new OnCallService(
+        new ServiceOnCallShiftRepository(client),
+        new ServiceOnCallDispatchRepository(client),
+        {
+          findFirst: () =>
+            Promise.resolve({ serviceOnCallEscalateMinutes: 30 }),
+        } as never,
+        new RequestRepository(client),
+        {
+          holding: (_c: string, ids: string[]) =>
+            Promise.resolve(
+              new Map(ids.filter((id) => away.has(id)).map((id) => [id, [{}]])),
+            ),
+        } as never,
+        {
+          onCallDispatched: (
+            userId: string,
+            _c: string,
+            x: { reason: string },
+          ) => {
+            told.push({ userId, reason: x.reason });
+            return Promise.resolve();
+          },
+        } as never,
+        new ServiceCalendarRepository(client),
+        new CompanyMemberRepository(client),
+        { record: () => Promise.resolve() } as never,
+        transactions,
+        { get: () => 0 } as never,
+      );
+      const manager = {
+        userId: staff,
+        activeCompanyId: companyId,
+        permissions: ['service.asset.read', 'service.asset.manage'],
+      } as unknown as Principal;
+      // far ahead, so no rota of the database's own is in the way
+      const shift = await onCall.create(manager, {
+        start_on: '2031-03-08',
+        end_on: '2031-03-09',
+        primary_user_id: primary,
+        backup_user_id: backup,
+      });
+      shiftIds.push(shift.id);
+      await expect(
+        onCall.create(manager, {
+          start_on: '2031-03-09',
+          end_on: '2031-03-12',
+          primary_user_id: backup,
+        }),
+      ).rejects.toThrow('ทับกับเวร');
+
+      const raise = async () => {
+        const row = await prisma.request.create({
+          data: {
+            requestTypeId: typeId,
+            typeCode,
+            companyId,
+            requesterId: staff,
+            receiverUserId: staff,
+            status: 'submitted',
+            severity: 'high',
+            formData: { subject: 'ระบบล่มกลางดึก' },
+          },
+        });
+        requestIds.push(row.id);
+        return row.id;
+      };
+      // Saturday 8 Mar 2031, 03:00 Bangkok
+      const night = new Date('2031-03-07T20:00:00Z');
+      const first = await raise();
+      const sent = await onCall.dispatch(first, night);
+      expect(sent).toMatchObject({ userId: primary, level: 'primary' });
+      expect(
+        (await prisma.request.findUniqueOrThrow({ where: { id: first } }))
+          .receiverUserId,
+      ).toBe(primary);
+      expect(told).toEqual([
+        { userId: primary, reason: 'แจ้งนอกเวลาทำการ — คุณเป็นเวรหลัก' },
+      ]);
+      expect(await onCall.dispatch(first, night)).toBeNull();
+      expect(
+        await prisma.requestEvent.count({
+          where: { requestId: first, type: 'service.oncall.dispatched' },
+        }),
+      ).toBe(1);
+
+      // 10 minutes on: still the primary's
+      const later = (minutes: number) =>
+        new Date(night.getTime() + minutes * 60_000);
+      expect((await onCall.sweep(later(10))).handed).toBe(0);
+      // 30 minutes and not received: to the backup
+      expect((await onCall.sweep(later(31))).handed).toBe(1);
+      expect(
+        (await prisma.request.findUniqueOrThrow({ where: { id: first } }))
+          .receiverUserId,
+      ).toBe(backup);
+      expect(told[1].userId).toBe(backup);
+      expect(told[1].reason).toContain('ภายใน 30 นาที');
+      expect(await onCall.ofRequest(manager, first)).toMatchObject({
+        userId: backup,
+        level: 'backup',
+        watching: false,
+      });
+
+      // the primary on leave: straight to the backup, nobody further
+      away = new Set([primary]);
+      const second = await raise();
+      expect(await onCall.dispatch(second, later(40))).toMatchObject({
+        userId: backup,
+        level: 'backup',
+      });
+
+      // received before the minutes run out: left alone
+      away = new Set();
+      const third = await raise();
+      await onCall.dispatch(third, later(50));
+      await prisma.request.update({
+        where: { id: third },
+        data: { status: 'in_progress' },
+      });
+      await onCall.sweep(later(120));
+      expect(
+        (await prisma.request.findUniqueOrThrow({ where: { id: third } }))
+          .receiverUserId,
+      ).toBe(primary);
+
+      // Monday 10:00 Bangkok, in hours: not the rota's
+      const fourth = await raise();
+      expect(
+        await onCall.dispatch(fourth, new Date('2031-03-10T03:00:00Z')),
+      ).toBeNull();
     });
   },
 );

@@ -231,6 +231,7 @@ export class CrmAdminService {
         projectHealthRed: 40,
         projectCostWarnPct: 90,
         projectCostAlertPct: 100,
+        serviceOnCallEscalateMinutes: 30,
         projectAsBuiltDocuments: [
           'แบบติดตั้งจริง',
           'รายการอุปกรณ์และหมายเลขเครื่อง',
@@ -402,6 +403,8 @@ export class CrmAdminService {
               projectHealthRed: dto.project_health_red ?? 40,
               projectCostWarnPct: dto.project_cost_warn_pct ?? 90,
               projectCostAlertPct: dto.project_cost_alert_pct ?? 100,
+              serviceOnCallEscalateMinutes:
+                dto.service_on_call_escalate_minutes ?? 30,
               ...(asBuiltDocuments
                 ? { projectAsBuiltDocuments: asBuiltDocuments }
                 : {}),
@@ -487,6 +490,8 @@ export class CrmAdminService {
               projectHealthRed: dto.project_health_red,
               projectCostWarnPct: dto.project_cost_warn_pct,
               projectCostAlertPct: dto.project_cost_alert_pct,
+              serviceOnCallEscalateMinutes:
+                dto.service_on_call_escalate_minutes,
               projectReadinessChecklist: readinessChecklist,
               projectAsBuiltDocuments: asBuiltDocuments,
               projectSoftwareDocuments: softwareDocuments,

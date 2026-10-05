@@ -18329,6 +18329,231 @@
         ]
       }
     },
+    "/api/v1/service-on-call": {
+      "get": {
+        "operationId": "ServiceOnCallController_list",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "YYYY-MM-DD",
+            "schema": {
+              "type": "string",
+              "maxLength": 10
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "YYYY-MM-DD",
+            "schema": {
+              "type": "string",
+              "maxLength": 10
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ตารางเวรนอกเวลา (ค่าเริ่มต้น: จากวันนี้ 8 สัปดาห์) และเวรตอนนี้",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.read"
+        ]
+      },
+      "post": {
+        "operationId": "ServiceOnCallController_create",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveOnCallShiftDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ลงเวร — ช่วงวันที่ เวรหลัก เวรสำรอง",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.manage"
+        ]
+      }
+    },
+    "/api/v1/service-on-call/by-request/{requestId}": {
+      "get": {
+        "operationId": "ServiceOnCallController_ofRequest",
+        "parameters": [
+          {
+            "name": "requestId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "คำขอนี้ถูกส่งถึงเวรนอกเวลาหรือไม่ — ถึงใคร ส่งต่อสำรองหรือยัง",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.read"
+        ]
+      }
+    },
+    "/api/v1/service-on-call/{id}": {
+      "put": {
+        "operationId": "ServiceOnCallController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveOnCallShiftDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แก้เวร / สลับเวร",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.manage"
+        ]
+      },
+      "delete": {
+        "operationId": "ServiceOnCallController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ลบเวร (เก็บประวัติไว้)",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.manage"
+        ]
+      }
+    },
     "/api/v1/delivery/projects/{projectId}/documents": {
       "get": {
         "operationId": "DeliveryController_documents",
@@ -32415,6 +32640,11 @@
             "minimum": 1,
             "type": "integer"
           },
+          "service_on_call_escalate_minutes": {
+            "maximum": 1440,
+            "minimum": 0,
+            "type": "integer"
+          },
           "project_readiness_checklist": {
             "type": "array",
             "items": {
@@ -36682,6 +36912,41 @@
             "maxLength": 4000
           }
         }
+      },
+      "SaveOnCallShiftDto": {
+        "type": "object",
+        "properties": {
+          "start_on": {
+            "type": "string",
+            "description": "YYYY-MM-DD",
+            "maxLength": 10
+          },
+          "end_on": {
+            "type": "string",
+            "description": "YYYY-MM-DD (รวมวันนี้)",
+            "maxLength": 10
+          },
+          "primary_user_id": {
+            "type": "string",
+            "description": "เวรหลัก",
+            "maxLength": 50,
+            "minLength": 1
+          },
+          "backup_user_id": {
+            "type": "object",
+            "description": "เวรสำรอง",
+            "maxLength": 50
+          },
+          "note": {
+            "type": "object",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "end_on",
+          "primary_user_id",
+          "start_on"
+        ]
       },
       "DeliveryLineDto": {
         "type": "object",

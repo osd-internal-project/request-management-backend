@@ -16,6 +16,7 @@ import { RequestRepository } from '../requests/request.repository';
 import { RequestsService } from '../requests/requests.service';
 import { SlaService } from '../sla/sla.service';
 import { EntitlementsService } from './entitlements.service';
+import { OnCallService } from './on-call.service';
 import {
   AttachWorkOrderDto,
   ConfirmBillingDto,
@@ -100,6 +101,7 @@ export class WorkOrdersService implements OnModuleInit {
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
     private readonly sla: SlaService,
+    private readonly onCall: OnCallService,
   ) {}
 
   onModuleInit(): void {
@@ -484,6 +486,12 @@ export class WorkOrdersService implements OnModuleInit {
       await this.sla.retarget(prisma, requestId);
       return created;
     });
+    // CD-241 — opened out of hours: to whoever is on call
+    await this.onCall
+      .dispatch(requestId)
+      .catch((error: Error) =>
+        this.logger.warn(`not sent to the on-call rota: ${error.message}`),
+      );
     return row.id;
   }
 

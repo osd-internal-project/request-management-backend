@@ -230,6 +230,12 @@ export default () => ({
       process.env.PM_COST_SWEEP_INTERVAL_MS ?? 21600000,
     ),
   },
+  service: {
+    /** CD-241 — out-of-hours cases not received in time go to the backup (ms); 0 = off. */
+    onCallSweepIntervalMs: Number(
+      process.env.SERVICE_ON_CALL_SWEEP_INTERVAL_MS ?? 60000,
+    ),
+  },
   /** CD-52 — how often due daily digests are looked for (ms); 0 = off (tests). */
   notificationDigestIntervalMs: Number(
     process.env.NOTIFICATION_DIGEST_INTERVAL_MS ?? 300000,

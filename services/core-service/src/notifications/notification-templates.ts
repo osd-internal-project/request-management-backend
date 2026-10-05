@@ -413,6 +413,20 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
     },
   },
   {
+    eventType: 'service.oncall.dispatched',
+    label: 'เคสนอกเวลาส่งถึงเวร (ถึงเวรหลัก/สำรอง)',
+    title: 'เวรนอกเวลา: {{request_no}} {{subject}}',
+    body: '{{reason}} — กดรับเรื่องในระบบเพื่อเริ่มงาน',
+    variables: {
+      request_no: REQUEST_NO,
+      subject: { label: 'เรื่อง', sample: 'กล้องภาพไม่ขึ้น' },
+      reason: {
+        label: 'เหตุที่ส่งถึง',
+        sample: 'คุณเป็นเวรหลักคืนนี้',
+      },
+    },
+  },
+  {
     eventType: 'pm.cost.warn',
     label: 'ต้นทุนโครงการใกล้เกินงบ (ถึงผู้จัดการโครงการและทีมราคา)',
     title: 'โครงการ {{project_no}}: ต้นทุน{{category}}ใกล้เกินงบ ({{pct}})',

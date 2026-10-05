@@ -74,3 +74,45 @@ export class ServiceWorkOrderRepository extends BaseRepository<
     return client.serviceWorkOrder;
   }
 }
+
+/** CD-241 — the out-of-hours rota. */
+@Injectable()
+export class ServiceOnCallShiftRepository extends BaseRepository<
+  PrismaService['serviceOnCallShift']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.serviceOnCallShift;
+  }
+}
+
+/** CD-241 — cases sent to the rota. */
+@Injectable()
+export class ServiceOnCallDispatchRepository extends BaseRepository<
+  PrismaService['serviceOnCallDispatch']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.serviceOnCallDispatch;
+  }
+}
+
+/** CD-241 — the company's working calendar, to tell out of hours. */
+@Injectable()
+export class ServiceCalendarRepository extends BaseRepository<
+  PrismaService['holidayCalendar']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.holidayCalendar;
+  }
+}

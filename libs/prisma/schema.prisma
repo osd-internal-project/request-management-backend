@@ -2430,6 +2430,9 @@ model CrmCompanyConfig {
   projectResourceTypeCode          String?
   /// CD-239 — the request type service work orders are raised as (a case type).
   serviceWorkOrderTypeCode         String?
+  /// CD-241 — minutes the one on call has to receive an out-of-hours case
+  /// before it goes to the backup; 0 = never handed on.
+  serviceOnCallEscalateMinutes     Int      @default(30)
   /// CD-190 — actual cost as % of the reference budget: warn at, alert over.
   projectCostWarnPct               Int      @default(90)
   projectCostAlertPct              Int      @default(100)
@@ -7040,6 +7043,52 @@ model ServiceWorkOrder {
   @@index([companyId, customerId])
   @@index([assetId])
   @@map("service_work_orders")
+}
+
+/// CD-241 ตารางเวรนอกเวลา — a span of days (inclusive, the company's local
+/// dates) with a primary on call and a backup. Out of hours is the company's
+/// working calendar's: outside the day's window, weekends and holidays.
+/// Spans may not overlap within a company. Removed = deletedAt.
+model ServiceOnCallShift {
+  id            String    @id @default(uuid())
+  companyId     String
+  startOn       DateTime  @db.Date
+  endOn         DateTime  @db.Date
+  primaryUserId String
+  backupUserId  String?
+  note          String?
+  createdAt     DateTime  @default(now())
+  createdBy     String
+  updatedAt     DateTime  @updatedAt
+  updatedBy     String?
+  deletedAt     DateTime?
+  deletedBy     String?
+
+  @@index([companyId, startOn])
+  @@map("service_on_call_shifts")
+}
+
+/// CD-241 — an out-of-hours case sent to whoever was on call (made its
+/// receiver), and handed to the backup when they did not receive it in time.
+model ServiceOnCallDispatch {
+  id                     String    @id @default(uuid())
+  companyId              String
+  requestId              String    @unique
+  shiftId                String
+  /// whoever it was sent to last; level primary · backup
+  userId                 String
+  level                  String
+  /// the receiver the case had before it was sent to the rota
+  previousReceiverUserId String?
+  sentAt                 DateTime  @default(now())
+  /// handed on: from whom (userId is then the backup)
+  escalatedAt            DateTime?
+  escalatedFromUserId    String?
+  /// no longer watched: received, closed, handed on, or nobody to hand to
+  settledAt              DateTime?
+
+  @@index([settledAt, sentAt])
+  @@map("service_on_call_dispatches")
 }
 
 /// CD-251 เอกสารส่งมอบของเฟส (หมุดหมาย) — แนบต่อชื่อเอกสาร; ชื่อที่ตรงกับเอกสารบังคับของประเภทงาน

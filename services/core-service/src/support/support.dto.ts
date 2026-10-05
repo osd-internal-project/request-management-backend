@@ -453,3 +453,49 @@ export class ListWorkOrdersQueryDto {
   @MaxLength(10)
   state?: string;
 }
+
+/** CD-241 — a span of the out-of-hours rota. */
+export class SaveOnCallShiftDto {
+  @ApiProperty({ description: 'YYYY-MM-DD' })
+  @IsString()
+  @MaxLength(10)
+  start_on!: string;
+
+  @ApiProperty({ description: 'YYYY-MM-DD (รวมวันนี้)' })
+  @IsString()
+  @MaxLength(10)
+  end_on!: string;
+
+  @ApiProperty({ description: 'เวรหลัก' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(50)
+  primary_user_id!: string;
+
+  @ApiPropertyOptional({ description: 'เวรสำรอง' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  backup_user_id?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  note?: string | null;
+}
+
+/** CD-241 — the rota between two dates (default: from today, 8 weeks). */
+export class ListOnCallQueryDto {
+  @ApiPropertyOptional({ description: 'YYYY-MM-DD' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  from?: string;
+
+  @ApiPropertyOptional({ description: 'YYYY-MM-DD' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  to?: string;
+}

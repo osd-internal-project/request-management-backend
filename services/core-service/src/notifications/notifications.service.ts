@@ -1036,6 +1036,34 @@ export class NotificationsService {
   }
 
   /** CD-190 — a project's actual cost crossed a threshold of its budget. */
+  /**
+   * CD-241 — an out-of-hours case sent to whoever is on call, or handed on
+   * to the backup when the first did not receive it in time.
+   */
+  async onCallDispatched(
+    userId: string,
+    companyId: string,
+    input: {
+      requestId: string;
+      requestNo: string | null;
+      subject: string;
+      reason: string;
+    },
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'service.oncall.dispatched',
+      values: {
+        request_no: input.requestNo ?? input.requestId,
+        subject: input.subject,
+        reason: input.reason,
+      },
+      resourceType: 'request',
+      resourceId: input.requestId,
+    });
+  }
+
   async projectCostAlert(
     userId: string,
     companyId: string,

@@ -854,6 +854,13 @@ export class UpdateCrmConfigDto {
   @Max(500)
   project_cost_alert_pct?: number;
 
+  /** CD-241: นาทีที่เวรหลักมีให้กดรับเคสนอกเวลา ก่อนส่งต่อเวรสำรอง (ค่าเริ่ม 30; 0 = ไม่ส่งต่อ). */
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(1440)
+  service_on_call_escalate_minutes?: number;
+
   /** CD-225: รายการตรวจความพร้อมก่อนส่งมอบมาตรฐานของบริษัท. */
   @IsOptional()
   @IsArray()

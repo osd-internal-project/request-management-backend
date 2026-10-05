@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Headers,
   Param,
@@ -14,6 +15,7 @@ import type { Principal } from '@request-management/share';
 import { ServiceAssetsService } from './service-assets.service';
 import { EntitlementsService } from './entitlements.service';
 import { WorkOrdersService } from './work-orders.service';
+import { OnCallService } from './on-call.service';
 import {
   AssetStatusDto,
   AttachWorkOrderDto,
@@ -28,6 +30,8 @@ import {
   ImportAssetsDto,
   ListAssetsQueryDto,
   SaveAssetDto,
+  ListOnCallQueryDto,
+  SaveOnCallShiftDto,
 } from './support.dto';
 
 /** CD-236 ทะเบียนอุปกรณ์ที่ติดตั้ง. */
@@ -278,5 +282,65 @@ export class ServiceWorkOrdersController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.orders.outcome(principal, id, dto);
+  }
+}
+
+/** CD-241 ตารางเวรนอกเวลา. */
+@ApiTags('service')
+@ApiBearerAuth()
+@Controller('service-on-call')
+export class ServiceOnCallController {
+  constructor(private readonly onCall: OnCallService) {}
+
+  @ApiOperation({
+    summary: 'ตารางเวรนอกเวลา (ค่าเริ่มต้น: จากวันนี้ 8 สัปดาห์) และเวรตอนนี้',
+  })
+  @Get()
+  @Permissions('service.asset.read')
+  list(
+    @Query() query: ListOnCallQueryDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.onCall.list(principal, query);
+  }
+
+  @ApiOperation({
+    summary: 'คำขอนี้ถูกส่งถึงเวรนอกเวลาหรือไม่ — ถึงใคร ส่งต่อสำรองหรือยัง',
+  })
+  @Get('by-request/:requestId')
+  @Permissions('service.asset.read')
+  ofRequest(
+    @Param('requestId') requestId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.onCall.ofRequest(principal, requestId);
+  }
+
+  @ApiOperation({ summary: 'ลงเวร — ช่วงวันที่ เวรหลัก เวรสำรอง' })
+  @Post()
+  @Permissions('service.asset.manage')
+  create(
+    @Body() dto: SaveOnCallShiftDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.onCall.create(principal, dto);
+  }
+
+  @ApiOperation({ summary: 'แก้เวร / สลับเวร' })
+  @Put(':id')
+  @Permissions('service.asset.manage')
+  update(
+    @Param('id') id: string,
+    @Body() dto: SaveOnCallShiftDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.onCall.update(principal, id, dto);
+  }
+
+  @ApiOperation({ summary: 'ลบเวร (เก็บประวัติไว้)' })
+  @Delete(':id')
+  @Permissions('service.asset.manage')
+  remove(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.onCall.remove(principal, id);
   }
 }

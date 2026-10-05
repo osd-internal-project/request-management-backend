@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import {
   ServiceAssetsController,
   ServiceEntitlementsController,
+  ServiceOnCallController,
   ServiceWorkOrdersController,
 } from './support.controller';
 import { SupportModule } from './support.module';
@@ -13,6 +14,7 @@ import { SupportModule } from './support.module';
     ServiceAssetsController,
     ServiceEntitlementsController,
     ServiceWorkOrdersController,
+    ServiceOnCallController,
   ],
 })
 export class SupportHttpModule {}
