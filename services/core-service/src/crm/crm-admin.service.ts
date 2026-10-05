@@ -223,6 +223,7 @@ export class CrmAdminService {
         contractApprovalTypeCode: null,
         projectChangeTypeCode: null,
         projectCloseTypeCode: null,
+        deliveryBillingExceptionTypeCode: null,
         projectDesignTypeCode: null,
         projectTechChangeTypeCode: null,
         projectResourceTypeCode: null,
@@ -393,6 +394,8 @@ export class CrmAdminService {
               contractApprovalTypeCode: dto.contract_approval_type_code || null,
               projectChangeTypeCode: dto.project_change_type_code || null,
               projectCloseTypeCode: dto.project_close_type_code || null,
+              deliveryBillingExceptionTypeCode:
+                dto.delivery_billing_exception_type_code || null,
               projectDesignTypeCode: dto.project_design_type_code || null,
               projectTechChangeTypeCode:
                 dto.project_tech_change_type_code || null,
@@ -469,6 +472,10 @@ export class CrmAdminService {
                 dto.project_close_type_code === undefined
                   ? undefined
                   : dto.project_close_type_code || null,
+              deliveryBillingExceptionTypeCode:
+                dto.delivery_billing_exception_type_code === undefined
+                  ? undefined
+                  : dto.delivery_billing_exception_type_code || null,
               projectDesignTypeCode:
                 dto.project_design_type_code === undefined
                   ? undefined

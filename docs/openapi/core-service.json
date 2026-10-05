@@ -19771,6 +19771,220 @@
         ]
       }
     },
+    "/api/v1/delivery/projects/{projectId}/billing": {
+      "get": {
+        "operationId": "DeliveryController_billingView",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-253 งวดของสัญญา: สถานะวางบิล/SAP และสิ่งที่ยังขวาง",
+        "tags": [
+          "delivery"
+        ]
+      }
+    },
+    "/api/v1/delivery/projects/{projectId}/billing/{seq}/send": {
+      "post": {
+        "operationId": "DeliveryController_sendInstallment",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "seq",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendInstallmentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-253 ส่งวางบิลงวดเข้า SAP (ผู้จัดการโครงการ — เงื่อนไขต้องครบ)",
+        "tags": [
+          "delivery"
+        ]
+      }
+    },
+    "/api/v1/delivery/projects/{projectId}/billing/{seq}/cancel": {
+      "post": {
+        "operationId": "DeliveryController_cancelInstallment",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "seq",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelDeliveryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-253 ถอนการวางบิล (ก่อนการเงินออกใบแจ้งหนี้)",
+        "tags": [
+          "delivery"
+        ]
+      }
+    },
+    "/api/v1/delivery/projects/{projectId}/billing/{seq}/exception": {
+      "post": {
+        "operationId": "DeliveryController_requestBillingException",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "seq",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "authorization",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelDeliveryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-253 ขอยกเว้นวางบิลก่อนปิดรายการค้าง (คำขอให้ผู้บริหารอนุมัติ)",
+        "tags": [
+          "delivery"
+        ]
+      }
+    },
     "/api/v1/delivery/projects/{projectId}/certificates": {
       "get": {
         "operationId": "DeliveryController_certificateList",
@@ -34278,6 +34492,10 @@
             "pattern": "^([A-Z0-9_-]{1,20})?$",
             "type": "string"
           },
+          "delivery_billing_exception_type_code": {
+            "pattern": "^([A-Z0-9_-]{1,20})?$",
+            "type": "string"
+          },
           "project_design_type_code": {
             "pattern": "^([A-Z0-9_-]{1,20})?$",
             "type": "string"
@@ -39010,6 +39228,27 @@
           "reason"
         ]
       },
+      "SendInstallmentDto": {
+        "type": "object",
+        "properties": {
+          "note": {
+            "type": "string",
+            "maxLength": 1000
+          }
+        }
+      },
+      "CancelDeliveryDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
       "SendCertificateDto": {
         "type": "object",
         "properties": {
@@ -39046,18 +39285,6 @@
         "required": [
           "layout_id",
           "signers"
-        ]
-      },
-      "CancelDeliveryDto": {
-        "type": "object",
-        "properties": {
-          "reason": {
-            "type": "string",
-            "maxLength": 1000
-          }
-        },
-        "required": [
-          "reason"
         ]
       },
       "ConfirmInstallDto": {

@@ -9369,6 +9369,10 @@
             "pattern": "^([A-Z0-9_-]{1,20})?$",
             "type": "string"
           },
+          "delivery_billing_exception_type_code": {
+            "pattern": "^([A-Z0-9_-]{1,20})?$",
+            "type": "string"
+          },
           "project_design_type_code": {
             "pattern": "^([A-Z0-9_-]{1,20})?$",
             "type": "string"

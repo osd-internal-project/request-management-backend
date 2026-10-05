@@ -2452,6 +2452,8 @@ model CrmCompanyConfig {
   /// CD-251 — เอกสารส่งมอบบังคับต่อประเภทงาน `{equipment|material|software|service: [ชื่อ]}`;
   /// ประเภทที่ไม่ได้ตั้ง = ค่าตั้งต้นในโค้ด (delivery-docs-rules.ts).
   deliveryDocuments                Json     @default("{}")
+  /// CD-253 — ประเภทคำขอ "ยกเว้นวางบิลก่อนปิดรายการค้าง" (ผู้บริหารอนุมัติ); NULL = ขอยกเว้นไม่ได้.
+  deliveryBillingExceptionTypeCode String?
 
   /// CD-130: ประเภทคำขอ "ขอ Solution และประเมินต้นทุน" (Sales → Pre-Sales) — การ์ด Solution
   /// บนหน้าดีลยื่นประเภทนี้. ช่องบังคับของฟอร์มประเภทนี้คือรายการตรวจความครบ (จุดส่งต่อที่ 2).
@@ -7045,6 +7047,69 @@ model AcceptanceCertificate {
 
   @@index([projectId])
   @@map("acceptance_certificates")
+}
+
+/// CD-253 การวางบิลงวดของสัญญาเข้า SAP (ฉบับร่างใบแจ้งหนี้ — CD-242 ErpClient) — หนึ่งแถวต่องวด
+/// (สัญญา + ลำดับงวด เหมือน CD-193). ผู้จัดการโครงการยืนยันเมื่อเงื่อนไขของชนิดงวดครบ
+/// (มัดจำ: สัญญาลงนาม · ตามความคืบหน้า/สุดท้าย: หมุดหมายบรรลุ + ใบรับรองลงนาม + รายการค้างปิด
+/// หรือคำขอยกเว้นอนุมัติ · คืนเงินประกัน: พ้นระยะประกัน). reference = NumAtCard `INS-<สัญญา>-<งวด>`.
+/// status: sent · cancelled ; exceptionStatus: none · submitted · approved · rejected
+model InstallmentInvoice {
+  id                 String    @id @default(uuid())
+  companyId          String
+  projectId          String
+  contractId         String
+  seq                Int
+  kind               String
+  label              String
+  reference          String
+  customerId         String
+  currency           String    @default("THB")
+  /// before VAT — SAP adds VAT
+  amount             Decimal   @db.Decimal(14, 2)
+  acceptanceId       String?
+  status             String    @default("none")
+  note               String?
+  exceptionStatus    String    @default("none")
+  exceptionRequestId String?   @unique
+  exceptionReason    String?
+  confirmedBy        String?
+  confirmedAt        DateTime?
+  cancelledBy        String?
+  cancelledAt        DateTime?
+  cancelReason       String?
+  erpStatus          String    @default("none")
+  erpDraftNo         String?
+  erpLastError       String?
+  erpSyncedAt        DateTime?
+  erpInvoiceStatus   String?
+  erpInvoiceNo       String?
+  erpInvoiceTotal    Decimal?  @db.Decimal(14, 2)
+  erpPaid            Decimal?  @db.Decimal(14, 2)
+  erpCheckedAt       DateTime?
+  createdAt          DateTime  @default(now())
+  createdBy          String
+  updatedAt          DateTime  @updatedAt
+  updatedBy          String?
+
+  @@unique([contractId, seq])
+  @@unique([companyId, reference])
+  @@index([projectId])
+  @@index([erpStatus, erpCheckedAt])
+  @@map("installment_invoices")
+}
+
+/// CD-253 เตือนคืนเงินประกันผลงานล่วงหน้าแล้ว (ครั้งเดียวต่องวดต่อวันสิ้นสุดประกัน).
+model RetentionReminder {
+  id         String   @id @default(uuid())
+  companyId  String
+  contractId String
+  seq        Int
+  dueOn      DateTime @db.Date
+  sentAt     DateTime @default(now())
+
+  @@unique([contractId, seq, dueOn])
+  @@map("retention_reminders")
 }
 
 /// CD-239 ใบสั่งงานบริการ — the service side of a case (a request, CD-67):

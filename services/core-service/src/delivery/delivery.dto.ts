@@ -189,3 +189,12 @@ export class PaperCertificateDto {
   @MaxLength(1000)
   reason!: string;
 }
+
+/** CD-253 — send an installment for billing. */
+export class SendInstallmentDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  note?: string;
+}

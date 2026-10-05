@@ -185,6 +185,10 @@ export default () => ({
     readinessIntervalMs: Number(
       process.env.DELIVERY_READINESS_INTERVAL_MS ?? 21600000,
     ),
+    /** CD-253 — retention release reminders (ms); 0 = off. */
+    retentionIntervalMs: Number(
+      process.env.DELIVERY_RETENTION_INTERVAL_MS ?? 21600000,
+    ),
   },
 
   crm: {

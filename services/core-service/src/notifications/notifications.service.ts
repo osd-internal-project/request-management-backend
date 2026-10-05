@@ -720,6 +720,24 @@ export class NotificationsService {
     });
   }
 
+  /** CD-253 — the warranty ends soon: prepare the retention release. */
+  async retentionDue(
+    userId: string,
+    companyId: string,
+    project: { id: string; label: string },
+    installment: string,
+    endsOn: string,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'delivery.retention_due',
+      values: { project: project.label, installment, date: thaiDay(endsOn) },
+      resourceType: 'project',
+      resourceId: project.id,
+    });
+  }
+
   /** CD-254 — a phase's installation was confirmed complete. */
   async deliveryInstalled(
     userId: string,

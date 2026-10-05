@@ -634,6 +634,17 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
     },
   },
   {
+    eventType: 'delivery.retention_due',
+    label: 'ใกล้คืนเงินประกันผลงาน (ถึง PM และทีม Delivery)',
+    title: 'โครงการ {{project}}: ระยะประกันสิ้นสุด {{date}}',
+    body: 'เตรียมคืนเงินประกันผลงาน ({{installment}}) — วางบิลงวดนี้ได้เมื่อพ้นระยะประกัน',
+    variables: {
+      project: { label: 'โครงการ', sample: 'PRJ-2026-0001 · ระบบเครือข่าย' },
+      installment: { label: 'งวด', sample: '4. คืนเงินประกันผลงาน 5%' },
+      date: { label: 'วันสิ้นสุดประกัน', sample: '30/9/2570' },
+    },
+  },
+  {
     eventType: 'delivery.installed',
     label: 'ยืนยันติดตั้งเสร็จแล้ว (ถึง PM และทีม Delivery)',
     title: 'โครงการ {{project}}: งานติดตั้งเฟส {{phase}} เสร็จแล้ว',

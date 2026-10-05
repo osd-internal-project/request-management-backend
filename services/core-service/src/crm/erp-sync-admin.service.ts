@@ -55,7 +55,12 @@ export interface ErpJobItem {
   createdAt: Date;
   updatedAt: Date;
   resource: {
-    type: 'customer' | 'sale_order' | 'service_billing' | 'service_material';
+    type:
+      | 'customer'
+      | 'sale_order'
+      | 'service_billing'
+      | 'service_material'
+      | 'installment_invoice';
     id: string;
     /** รหัสที่คนอ่าน — รหัสลูกค้า หรือเลขใบสั่งขาย. */
     code: string;

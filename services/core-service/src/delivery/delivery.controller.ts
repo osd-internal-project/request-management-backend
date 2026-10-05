@@ -3,6 +3,8 @@ import {
   Body,
   Controller,
   Delete,
+  Headers,
+  ParseIntPipe,
   Get,
   Param,
   Post,
@@ -25,6 +27,7 @@ import { MAX_EVIDENCE_BYTES } from '../pm/milestones.service';
 import { DeliveryDocsService } from './delivery-docs.service';
 import { InstallConfirmationsService } from './install-confirmations.service';
 import { AcceptanceCertificatesService } from './acceptance-certificates.service';
+import { InstallmentBillingService } from './installment-billing.service';
 import { metaOf } from '../esign/esign.controller';
 import {
   AnyPermission,
@@ -38,6 +41,7 @@ import {
   ConfirmInstallDto,
   PaperCertificateDto,
   SendCertificateDto,
+  SendInstallmentDto,
   ListDeliveriesQueryDto,
   SaveDeliveryDto,
 } from './delivery.dto';
@@ -53,7 +57,69 @@ export class DeliveryController {
     private readonly docs: DeliveryDocsService,
     private readonly installs: InstallConfirmationsService,
     private readonly certificates: AcceptanceCertificatesService,
+    private readonly billing: InstallmentBillingService,
   ) {}
+
+  // --- CD-253 วางบิลรายงวด ---------------------------------------------------------
+
+  @ApiOperation({
+    summary: 'CD-253 งวดของสัญญา: สถานะวางบิล/SAP และสิ่งที่ยังขวาง',
+  })
+  @Get('projects/:projectId/billing')
+  @Authenticated()
+  billingView(
+    @Param('projectId') projectId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.billing.view(principal, projectId);
+  }
+
+  @ApiOperation({
+    summary: 'CD-253 ส่งวางบิลงวดเข้า SAP (ผู้จัดการโครงการ — เงื่อนไขต้องครบ)',
+  })
+  @Post('projects/:projectId/billing/:seq/send')
+  @Authenticated()
+  sendInstallment(
+    @Param('projectId') projectId: string,
+    @Param('seq', ParseIntPipe) seq: number,
+    @Body() dto: SendInstallmentDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.billing.send(principal, projectId, seq, dto.note ?? '');
+  }
+
+  @ApiOperation({ summary: 'CD-253 ถอนการวางบิล (ก่อนการเงินออกใบแจ้งหนี้)' })
+  @Post('projects/:projectId/billing/:seq/cancel')
+  @Authenticated()
+  cancelInstallment(
+    @Param('projectId') projectId: string,
+    @Param('seq', ParseIntPipe) seq: number,
+    @Body() dto: CancelDeliveryDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.billing.cancel(principal, projectId, seq, dto.reason);
+  }
+
+  @ApiOperation({
+    summary: 'CD-253 ขอยกเว้นวางบิลก่อนปิดรายการค้าง (คำขอให้ผู้บริหารอนุมัติ)',
+  })
+  @Post('projects/:projectId/billing/:seq/exception')
+  @Authenticated()
+  requestBillingException(
+    @Param('projectId') projectId: string,
+    @Param('seq', ParseIntPipe) seq: number,
+    @Body() dto: CancelDeliveryDto,
+    @Headers('authorization') authorization: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.billing.requestException(
+      principal,
+      projectId,
+      seq,
+      dto.reason,
+      authorization ?? '',
+    );
+  }
 
   // --- CD-252 ใบรับรองการตรวจรับ ---------------------------------------------------
 

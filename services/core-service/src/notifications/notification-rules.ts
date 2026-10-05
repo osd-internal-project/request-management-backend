@@ -289,6 +289,25 @@ export const NOTIFICATION_RULES: readonly RuleDefinition[] = [
     ],
     defaults: { days: 7 },
   },
+  {
+    code: 'retention.release',
+    module: 'pm',
+    label: 'ใกล้คืนเงินประกันผลงาน',
+    description:
+      'สัญญาที่มีงวดคืนเงินประกันผลงาน — เตือนก่อนระยะประกันสิ้นสุดตามจำนวนวันที่กำหนด ให้เตรียมคำขอคืนเงินประกัน (ครั้งเดียวต่อวันสิ้นสุดประกัน)',
+    recipients: 'ผู้จัดการโครงการ และทีม Delivery (delivery.manage)',
+    eventTypes: ['delivery.retention_due'],
+    params: [
+      {
+        key: 'days',
+        label: 'เตือนก่อนประกันสิ้นสุด (วัน)',
+        kind: 'days',
+        min: 1,
+        max: 180,
+      },
+    ],
+    defaults: { days: 30 },
+  },
 ];
 
 const BY_CODE = new Map(NOTIFICATION_RULES.map((rule) => [rule.code, rule]));
