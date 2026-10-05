@@ -397,7 +397,7 @@ export class SurveysService implements OnModuleInit {
     const base =
       this.config.get<string>('service.surveyPublicUrl') ??
       'http://localhost:3000';
-    return `${base.replace(/\/$/, '')}/s/${token}`;
+    return `${base.replace(/\/$/, '')}/f/survey/${token}`;
   }
 
   private async byToken(token: string) {

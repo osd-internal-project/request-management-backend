@@ -1792,9 +1792,9 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         to: 'wipa@example.com',
         delivered: false,
       });
-      expect(started!.link).toMatch(/^https:\/\/ctd\.example\/s\//);
+      expect(started!.link).toMatch(/^https:\/\/ctd\.example\/f\/survey\//);
       expect(await surveys.onDone(request.id)).toBeNull();
-      const token = started!.link.split('/s/')[1];
+      const token = started!.link.split('/f/survey/')[1];
       // only the hash is kept
       const stored = await prisma.serviceSurvey.findUniqueOrThrow({
         where: { workOrderId: order.id },
