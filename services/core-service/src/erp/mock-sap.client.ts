@@ -6,6 +6,8 @@ import {
   ErpInvoice,
   ErpInvoiceDraftPayload,
   ErpInvoiceDraftState,
+  ErpGoodsIssuePayload,
+  ErpStock,
   ErpItem,
   ErpProjectCost,
   ErpReceivables,
@@ -30,6 +32,8 @@ export class MockSapClient implements ErpClient {
     string,
     { payload: ErpSalesOrderPayload; cancelled: boolean }
   >();
+  /** CD-245 — goods issues by reference. */
+  private readonly issues = new Map<string, string>();
   /** CD-242 — drafts by reference; nobody posts them in the mock. */
   private readonly drafts = new Map<
     string,
@@ -207,6 +211,43 @@ export class MockSapClient implements ErpClient {
       status: 'paid',
     }));
     return Promise.resolve([...open, ...paid].slice(0, limit));
+  }
+
+  /** Two warehouses, a steady quantity per item — enough to pick from. */
+  listStock(
+    _ctx: ErpContext,
+    itemCodes: readonly string[],
+  ): Promise<ErpStock[]> {
+    return Promise.resolve(
+      itemCodes.slice(0, 50).flatMap((itemCode) => [
+        {
+          itemCode,
+          warehouseCode: 'WH01',
+          onHand: (seedOf(itemCode) % 20) + 1,
+        },
+        { itemCode, warehouseCode: 'WH-SVC', onHand: seedOf(itemCode) % 5 },
+      ]),
+    );
+  }
+
+  findGoodsIssue(
+    _ctx: ErpContext,
+    reference: string,
+  ): Promise<{ externalCode: string } | null> {
+    const externalCode = this.issues.get(reference);
+    return Promise.resolve(externalCode ? { externalCode } : null);
+  }
+
+  createGoodsIssue(
+    _ctx: ErpContext,
+    payload: ErpGoodsIssuePayload,
+  ): Promise<{ externalCode: string }> {
+    const externalCode = `MOCK-GI-${String(seedOf(payload.reference)).padStart(10, '0')}`;
+    this.issues.set(payload.reference, externalCode);
+    this.logger.log(
+      `mock SAP goods issue ${payload.reference} → ${externalCode} (${payload.lines.length} lines)`,
+    );
+    return Promise.resolve({ externalCode });
   }
 
   findInvoiceDraft(

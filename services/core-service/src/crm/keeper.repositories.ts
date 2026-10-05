@@ -32,3 +32,17 @@ export class CustomerTouchpointRepository extends BaseRepository<
     return client.customerTouchpoint;
   }
 }
+
+/** CD-248 — service ratings, read for the customer's health. */
+@Injectable()
+export class KeeperSurveyRepository extends BaseRepository<
+  PrismaService['serviceSurvey']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.serviceSurvey;
+  }
+}

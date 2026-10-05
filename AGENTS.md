@@ -371,6 +371,15 @@ The web app reaches these from its own server routes (`/api/public/esign/*`),
 which rate-limit by address, as the CD-66 intake form does. A second public
 core-service route is a decision to state here, like the list above.
 
+**The second: the customer's service survey (CD-248, 5 Oct 2026, user
+decision).** `ServiceSurveysPublicController` — `GET/POST
+service-surveys/public/:token` (read the job's name and answer once) — is
+`@Public()` on core-service on the e-sign pattern: the link's secret is the
+credential, only its SHA-256 is stored, it expires (14 days) and takes one
+answer. It shows the job's number, subject and done date, nothing else. The
+web app reaches it from `/api/public/survey/*`, rate-limited by address. A
+third is again a decision to state here.
+
 `crm/leads/intake` earned its suffix on 21 Sep 2026: it used to be `POST
 crm/leads`, which `ExternalLeadsController.create` also bound. That controller
 registers first, so the intake route was unreachable and every web form calling

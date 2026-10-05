@@ -1,5 +1,12 @@
 import { Module } from '@nestjs/common';
 import { PmModule } from '../pm/pm.module';
+import { ErpModule } from '../erp/erp.module';
+import { InstallmentBillingService } from './installment-billing.service';
+import { InstallmentErpSyncService } from './installment-erp-sync.service';
+import { RetentionReminderService } from './retention-reminder.service';
+import { ServiceHandoversService } from './service-handovers.service';
+import { DeliveryReportService } from './delivery-report.service';
+import { ReceivableReminderService } from './receivable-reminder.service';
 import { DeliveriesService } from './deliveries.service';
 import { DeliveryDocsState } from './delivery-docs.state';
 import {
@@ -15,7 +22,8 @@ import {
  * milestones, its baseline BOQ, and who may see it.
  */
 @Module({
-  imports: [PmModule],
+  // CD-253 — the SAP client for installment invoices
+  imports: [PmModule, ErpModule],
   providers: [
     // CD-250
     DeliveriesService,
@@ -27,9 +35,21 @@ import {
     ProjectDeliveryDocumentRepository,
     // CD-254
     ProjectInstallConfirmationRepository,
+    // CD-253
+    InstallmentBillingService,
+    InstallmentErpSyncService,
+    RetentionReminderService,
+    // CD-255
+    ServiceHandoversService,
+    // CD-256
+    DeliveryReportService,
+    ReceivableReminderService,
   ],
   exports: [
     DeliveriesService,
+    ServiceHandoversService,
+    DeliveryReportService,
+    InstallmentBillingService,
     DeliveryDocsState,
     ProjectDeliveryDocumentRepository,
     ProjectInstallConfirmationRepository,

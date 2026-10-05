@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import {
   accessSubject,
@@ -29,6 +29,7 @@ import {
 import {
   assessHealth,
   CONTRACT_WINDOW_DAYS,
+  CSAT_WINDOW_DAYS,
   EXPANSION_TYPES,
   INVOICE_ALERT_LOOKBACK_DAYS,
   nextReviewAfter,
@@ -38,6 +39,7 @@ import {
 import {
   CustomerAccountPlanRepository,
   CustomerTouchpointRepository,
+  KeeperSurveyRepository,
 } from './keeper.repositories';
 import { bangkokDay } from './kyc-rules';
 import {
@@ -145,6 +147,8 @@ export class KeeperService {
     private readonly members: CompanyMemberRepository,
     private readonly timeline: CustomerTimelineService,
     private readonly audit: AuditWriter,
+    // CD-248 — service ratings feed health; absent in harnesses without it
+    @Optional() private readonly surveys?: KeeperSurveyRepository,
   ) {}
 
   async portfolio(
@@ -733,6 +737,25 @@ export class KeeperService {
     const cases = seesCases
       ? await this.casesByCustomer(ids, deals, quotes, actor)
       : null;
+    // CD-248 — each customer's own ratings of service jobs, recent ones
+    const csat = new Map<string, { sum: number; count: number }>();
+    for (const row of this.surveys
+      ? ((await this.surveys.findMany({
+          where: {
+            customerId: { in: ids },
+            answeredAt: {
+              gte: new Date(now.getTime() - CSAT_WINDOW_DAYS * DAY_MS),
+            },
+            overall: { not: null },
+          },
+          select: { customerId: true, overall: true },
+        })) as { customerId: string; overall: number }[])
+      : []) {
+      const entry = csat.get(row.customerId) ?? { sum: 0, count: 0 };
+      entry.sum += row.overall;
+      entry.count += 1;
+      csat.set(row.customerId, entry);
+    }
     const dealById = new Map(deals.map((deal) => [deal.id, deal]));
     const visible = visibleDealIds
       ? new Set(visibleDealIds.map((row) => row.id))
@@ -788,6 +811,17 @@ export class KeeperService {
             renewalLost: ending.some((row) => renewalOf(row)?.stage === 'lost'),
           },
           satisfaction,
+          csat: csat.has(customer.id)
+            ? {
+                avg:
+                  Math.round(
+                    (csat.get(customer.id)!.sum /
+                      csat.get(customer.id)!.count) *
+                      10,
+                  ) / 10,
+                count: csat.get(customer.id)!.count,
+              }
+            : null,
           lastContactAt,
           since: customer.createdAt,
         },

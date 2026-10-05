@@ -3,6 +3,7 @@ import { PrismaService, type TQueryClient } from '@request-management/share';
 import { CONTACT_TYPES } from '../crm/prospecting-rules';
 import { martTableName, PRICING_MART_TABLES } from './pricing-mart';
 import { HOURS_PER_MANDAY } from '../hr/timesheet-rules';
+import { DEFAULT_CREDIT_DAYS } from '../pm/payment-rules';
 import { SLA_STATUS_SQL } from '../sla/sla-status';
 
 /** A `timestamp` column (stored as UTC, no zone) as Bangkok wall-clock time. */
@@ -357,6 +358,127 @@ export const MART_TABLES: readonly { table: string; sql: string[] }[] = [
        LEFT JOIN hr_employees e
          ON e."companyId" = cap.company_id AND e."userId" = cap.user_id
        LEFT JOIN hr_levels lv ON lv.id = e."levelId"`,
+    ],
+  },
+  {
+    // CD-256 — every phase (milestone, not cancelled) of every project: its
+    // deliveries (CD-250), its acceptance (CD-189) and whether that came by
+    // the milestone's due day; points still open; certificate (CD-252) and
+    // handover to the service team (CD-255).
+    table: 'fact_delivery_phases',
+    sql: [
+      `DELETE FROM mart.fact_delivery_phases`,
+      `INSERT INTO mart.fact_delivery_phases
+       WITH today AS (
+         SELECT (now() AT TIME ZONE 'Asia/Bangkok')::date AS d
+       ),
+       trips AS (
+         SELECT "milestoneId" AS milestone_id,
+                count(*) FILTER (WHERE status <> 'cancelled')::int AS planned,
+                count(*) FILTER (WHERE status = 'delivered')::int AS delivered,
+                max("plannedOn") FILTER (WHERE status = 'delivered') AS last_on
+         FROM project_deliveries GROUP BY 1
+       ),
+       rounds AS (
+         SELECT "milestoneId" AS milestone_id,
+                count(*) FILTER (WHERE status <> 'cancelled')::int AS rounds,
+                min(seq) FILTER (WHERE status <> 'cancelled') AS first_seq
+         FROM project_acceptances WHERE "milestoneId" IS NOT NULL GROUP BY 1
+       ),
+       passed AS (
+         SELECT DISTINCT ON ("milestoneId") "milestoneId" AS milestone_id,
+                id, seq, status, "decidedOn"::date AS decided_on
+         FROM project_acceptances
+         WHERE "milestoneId" IS NOT NULL
+           AND status IN ('accepted', 'conditional')
+         ORDER BY "milestoneId", seq
+       ),
+       open_items AS (
+         SELECT a."milestoneId" AS milestone_id, count(*)::int AS n
+         FROM project_acceptance_items i
+         JOIN project_acceptances a ON a.id = i."acceptanceId"
+         WHERE i.status = 'open' AND a."milestoneId" IS NOT NULL
+         GROUP BY 1
+       )
+       SELECT c.code, p.id, p."projectNo", p.name, p.status::text,
+              cu."nameTh", u."displayName",
+              m.id, m.seq, m.title, m."dueOn"::date,
+              COALESCE(t.planned, 0), COALESCE(t.delivered, 0), t.last_on::date,
+              COALESCE(r.rounds, 0),
+              CASE
+                WHEN pa.id IS NOT NULL THEN 'accepted'
+                WHEN COALESCE(r.rounds, 0) > 0 THEN 'in_acceptance'
+                WHEN COALESCE(t.planned, 0) > 0
+                     AND t.delivered = t.planned THEN 'delivered'
+                WHEN COALESCE(t.delivered, 0) > 0 THEN 'delivering'
+                ELSE 'not_started'
+              END,
+              pa.decided_on, to_char(pa.decided_on, 'YYYY-MM'), pa.status,
+              CASE WHEN pa.id IS NULL THEN NULL ELSE pa.seq = r.first_seq END,
+              CASE WHEN pa.decided_on IS NULL OR m."dueOn" IS NULL THEN NULL
+                   ELSE pa.decided_on <= m."dueOn"::date END,
+              CASE
+                WHEN m."dueOn" IS NULL THEN NULL
+                WHEN pa.decided_on IS NOT NULL
+                  THEN GREATEST(pa.decided_on - m."dueOn"::date, 0)
+                ELSE NULLIF(GREATEST(today.d - m."dueOn"::date, 0), 0)
+              END,
+              COALESCE(oi.n, 0),
+              EXISTS (SELECT 1 FROM acceptance_certificates ac
+                      WHERE ac."acceptanceId" = pa.id AND ac.status = 'signed'),
+              (SELECT h.status FROM service_handovers h
+               WHERE h."acceptanceId" = pa.id)
+       FROM project_milestones m
+       CROSS JOIN today
+       JOIN projects p ON p.id = m."projectId"
+       JOIN companies c ON c.id = p."companyId"
+       LEFT JOIN customers cu ON cu.id = p."customerId"
+       LEFT JOIN users u ON u.id = p."managerUserId"
+       LEFT JOIN trips t ON t.milestone_id = m.id
+       LEFT JOIN rounds r ON r.milestone_id = m.id
+       LEFT JOIN passed pa ON pa.milestone_id = m.id
+       LEFT JOIN open_items oi ON oi.milestone_id = m.id
+       WHERE m.status <> 'cancelled' AND p.status::text <> 'cancelled'`,
+    ],
+  },
+  {
+    // CD-256 — every installment billed (an invoice day recorded, by hand
+    // CD-193 or read back from SAP CD-253): due ${DEFAULT_CREDIT_DAYS} days
+    // after the invoice, as CD-193 counts it; overdue while unpaid after that.
+    table: 'fact_receivables',
+    sql: [
+      `DELETE FROM mart.fact_receivables`,
+      `INSERT INTO mart.fact_receivables
+       WITH today AS (
+         SELECT (now() AT TIME ZONE 'Asia/Bangkok')::date AS d
+       )
+       SELECT c.code, cc.id, cc."contractNo", i.seq, i.label, i.kind,
+              p.id, p."projectNo", p.name, cu."nameTh",
+              cc."ownerUserId", u."displayName",
+              i.amount, b."invoiceNo", b."invoicedOn"::date, b."invoicedAmount",
+              b."invoicedOn"::date + ${DEFAULT_CREDIT_DAYS},
+              b."paidOn"::date, b."paidAmount",
+              CASE
+                WHEN b."paidOn" IS NOT NULL THEN 'paid'
+                WHEN b."invoicedOn"::date + ${DEFAULT_CREDIT_DAYS} < today.d
+                  THEN 'overdue'
+                ELSE 'open'
+              END,
+              CASE
+                WHEN b."paidOn" IS NULL
+                     AND b."invoicedOn"::date + ${DEFAULT_CREDIT_DAYS} < today.d
+                  THEN today.d - (b."invoicedOn"::date + ${DEFAULT_CREDIT_DAYS})
+              END
+       FROM contract_installment_billings b
+       CROSS JOIN today
+       JOIN contract_installments i
+         ON i."contractId" = b."contractId" AND i.seq = b.seq
+       JOIN customer_contracts cc ON cc.id = b."contractId"
+       JOIN companies c ON c.id = cc."companyId"
+       LEFT JOIN projects p ON p."contractId" = cc.id
+       LEFT JOIN customers cu ON cu.id = COALESCE(p."customerId", cc."customerId")
+       LEFT JOIN users u ON u.id = cc."ownerUserId"
+       WHERE b."invoicedOn" IS NOT NULL`,
     ],
   },
 ];

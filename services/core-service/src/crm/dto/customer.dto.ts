@@ -794,6 +794,15 @@ export class UpdateCrmConfigDto {
   @Matches(/^([A-Z0-9_-]{1,20})?$/)
   project_close_type_code?: string;
 
+  /**
+   * CD-253: รหัสประเภทคำขอ "ยกเว้นวางบิลก่อนปิดรายการค้าง" (ผู้บริหารอนุมัติ).
+   * ส่ง `""` = ล้าง (ขอยกเว้นไม่ได้).
+   */
+  @IsOptional()
+  @IsString()
+  @Matches(/^([A-Z0-9_-]{1,20})?$/)
+  delivery_billing_exception_type_code?: string;
+
   /** CD-211: รหัสประเภทคำขออนุมัติแบบรายละเอียด; form มี differs_from_solution (1/0). "" = ล้าง. */
   @IsOptional()
   @IsString()
@@ -860,6 +869,34 @@ export class UpdateCrmConfigDto {
   @Min(0)
   @Max(1440)
   service_on_call_escalate_minutes?: number;
+
+  /** CD-246: งานแก้เหตุซ้ำภายในกี่วันจึงนับเป็นกลุ่ม (ค่าเริ่ม 90). */
+  @IsOptional()
+  @IsInt()
+  @Min(7)
+  @Max(730)
+  service_repeat_days?: number;
+
+  /** CD-246: เครื่องเดียวกันซ้ำกี่ครั้งจึงเสนอเป็นปัญหา (ค่าเริ่ม 3). */
+  @IsOptional()
+  @IsInt()
+  @Min(2)
+  @Max(100)
+  service_repeat_asset?: number;
+
+  /** CD-246: รุ่นเดียวกัน (ทุกลูกค้า) ซ้ำกี่ครั้ง (ค่าเริ่ม 5). */
+  @IsOptional()
+  @IsInt()
+  @Min(2)
+  @Max(1000)
+  service_repeat_model?: number;
+
+  /** CD-246: รุ่นเดียวกันที่ลูกค้าเดียวกันซ้ำกี่ครั้ง (ค่าเริ่ม 3). */
+  @IsOptional()
+  @IsInt()
+  @Min(2)
+  @Max(100)
+  service_repeat_customer_model?: number;
 
   /** CD-225: รายการตรวจความพร้อมก่อนส่งมอบมาตรฐานของบริษัท. */
   @IsOptional()

@@ -70,7 +70,11 @@ export default () => ({
   /** CD-91 — BiModule is not imported here today; zero keeps it so if it ever is. */
   martRefreshIntervalMs: 0,
   /** CD-241 — SupportModule is not imported here; zero keeps it so if it ever is. */
-  service: { onCallSweepIntervalMs: 0, pmSweepIntervalMs: 0 },
+  service: {
+    onCallSweepIntervalMs: 0,
+    pmSweepIntervalMs: 0,
+    claimSweepIntervalMs: 0,
+  },
   /** CD-90 — likewise: the lake is fed by core-service only. */
   lake: { databaseUrl: '', extractIntervalMs: 0, sapIntervalMs: 0 },
   /** CD-78 — Reserve-phone (the phone number inventory); only `mock` exists yet. */

@@ -289,6 +289,64 @@ export const NOTIFICATION_RULES: readonly RuleDefinition[] = [
     ],
     defaults: { days: 7 },
   },
+  {
+    code: 'retention.release',
+    module: 'pm',
+    label: 'ใกล้คืนเงินประกันผลงาน',
+    description:
+      'สัญญาที่มีงวดคืนเงินประกันผลงาน — เตือนก่อนระยะประกันสิ้นสุดตามจำนวนวันที่กำหนด ให้เตรียมคำขอคืนเงินประกัน (ครั้งเดียวต่อวันสิ้นสุดประกัน)',
+    recipients: 'ผู้จัดการโครงการ และทีม Delivery (delivery.manage)',
+    eventTypes: ['delivery.retention_due'],
+    params: [
+      {
+        key: 'days',
+        label: 'เตือนก่อนประกันสิ้นสุด (วัน)',
+        kind: 'days',
+        min: 1,
+        max: 180,
+      },
+    ],
+    defaults: { days: 30 },
+  },
+  {
+    code: 'service.handover',
+    module: 'pm',
+    label: 'ส่งมอบให้ทีมบริการยังไม่รับทราบ',
+    description:
+      'งานที่ทีม Delivery ส่งต่อให้ทีมบริการหลังตรวจรับแล้ว แต่ทีมบริการยังไม่กดรับทราบ — เตือนซ้ำทุกจำนวนวันที่กำหนดจนกว่าจะรับทราบ',
+    recipients: 'ทีมบริการ (service.asset.manage)',
+    eventTypes: ['delivery.handover_overdue'],
+    params: [
+      {
+        key: 'days',
+        label: 'เตือนเมื่อค้างเกิน (วัน)',
+        kind: 'days',
+        min: 1,
+        max: 30,
+      },
+    ],
+    defaults: { days: 3 },
+  },
+  {
+    code: 'receivable.overdue',
+    module: 'finance',
+    label: 'งวดค้างชำระ',
+    description:
+      'งวดที่วางบิลแล้วเลยกำหนดชำระ (วันออกใบแจ้งหนี้ + เครดิต 30 วัน) แต่ยังไม่ได้รับเงิน — สรุปส่งพนักงานขายเจ้าของสัญญา (เฉพาะของตัวเอง) และฝ่ายการเงิน (ทุกสัญญา) ซ้ำทุกจำนวนวันที่กำหนด',
+    recipients:
+      'เจ้าของสัญญา (ฝ่ายขาย) และฝ่ายการเงิน (delivery.receivable.read)',
+    eventTypes: ['delivery.receivables_overdue'],
+    params: [
+      {
+        key: 'days',
+        label: 'ส่งสรุปซ้ำทุก (วัน)',
+        kind: 'days',
+        min: 1,
+        max: 30,
+      },
+    ],
+    defaults: { days: 7 },
+  },
 ];
 
 const BY_CODE = new Map(NOTIFICATION_RULES.map((rule) => [rule.code, rule]));

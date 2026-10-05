@@ -8,9 +8,14 @@ import {
   Post,
   Put,
   Query,
+  StreamableFile,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { CurrentPrincipal, Permissions } from '@request-management/share';
+import {
+  CurrentPrincipal,
+  Permissions,
+  Public,
+} from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import { ServiceAssetsService } from './service-assets.service';
 import { EntitlementsService } from './entitlements.service';
@@ -19,6 +24,10 @@ import { OnCallService } from './on-call.service';
 import { ServiceBillingService } from './service-billing.service';
 import { TimeMaterialsService } from './time-materials.service';
 import { PmPlanService } from './pm-plan.service';
+import { ClaimsService } from './claims.service';
+import { ProblemsService } from './problems.service';
+import { ServiceReportsService } from './service-reports.service';
+import { SurveysService } from './surveys.service';
 import {
   AssetStatusDto,
   AttachWorkOrderDto,
@@ -45,6 +54,22 @@ import {
   ListPmRoundsQueryDto,
   SavePmPlanDto,
   SkipPmRoundDto,
+  ClaimStepDto,
+  ListClaimsQueryDto,
+  OpenClaimDto,
+  ReplaceUnitDto,
+  StockQueryDto,
+  DismissGroupDto,
+  LinkProblemJobsDto,
+  ListProblemsQueryDto,
+  OpenProblemDto,
+  UpdateProblemDto,
+  IssueServiceReportDto,
+  ListServiceReportsQueryDto,
+  MarkReportSentDto,
+  ServiceReportPreviewDto,
+  ListSurveysQueryDto,
+  SurveyAnswerDto,
 } from './support.dto';
 
 /** CD-236 ทะเบียนอุปกรณ์ที่ติดตั้ง. */
@@ -472,6 +497,19 @@ export class ServiceTimeMaterialsController {
 
   @ApiOperation({
     summary:
+      'CD-245 คงคลังจาก SAP ต่อคลัง ของรหัสสินค้าที่ระบุ (สำหรับเบิกอะไหล่)',
+  })
+  @Get('stock')
+  @Permissions('service.asset.read')
+  stock(
+    @Query() query: StockQueryDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.timeMaterials.stock(principal, query.codes.split(','));
+  }
+
+  @ApiOperation({
+    summary:
       'เวลา (จาก Timesheet) และวัสดุของใบสั่งงาน + รายการที่จะเรียกเก็บ + ต้นทุน/กำไร (hr.rate.read)',
   })
   @Get(':workOrderId')
@@ -607,5 +645,317 @@ export class ServicePmController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.pm.skip(principal, id, dto);
+  }
+}
+
+/** CD-245 อะไหล่และการเคลม. */
+@ApiTags('service')
+@ApiBearerAuth()
+@Controller('service-claims')
+export class ServiceClaimsController {
+  constructor(private readonly claims: ClaimsService) {}
+
+  @ApiOperation({
+    summary: 'ทะเบียนเคลม — ค้าง / เลยกำหนด / ปิดแล้ว / ทั้งหมด',
+  })
+  @Get()
+  @Permissions('service.asset.read')
+  list(
+    @Query() query: ListClaimsQueryDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.claims.list(principal, query);
+  }
+
+  @ApiOperation({ summary: 'รายชื่อผู้ขายจาก SAP สำหรับส่งเคลม' })
+  @Get('vendors')
+  @Permissions('service.asset.read')
+  vendors(@CurrentPrincipal() principal: Principal) {
+    return this.claims.vendors(principal);
+  }
+
+  @ApiOperation({ summary: 'เคลม' })
+  @Get(':id')
+  @Permissions('service.asset.read')
+  detail(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.claims.detail(principal, id);
+  }
+
+  @ApiOperation({ summary: 'เปิดเคลมคืนคู่ค้า' })
+  @Post()
+  @Permissions('service.asset.manage')
+  open(@Body() dto: OpenClaimDto, @CurrentPrincipal() principal: Principal) {
+    return this.claims.open(principal, dto);
+  }
+
+  @ApiOperation({
+    summary:
+      'ขั้นถัดไปของเคลม — ส่งแล้ว (RMA) / ได้ของคืน / ได้เครดิต / ถูกปฏิเสธ / ยกเลิก',
+  })
+  @Post(':id/step')
+  @Permissions('service.asset.manage')
+  step(
+    @Param('id') id: string,
+    @Body() dto: ClaimStepDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.claims.step(principal, id, dto);
+  }
+
+  @ApiOperation({
+    summary:
+      'เปลี่ยนเครื่อง — อุปกรณ์เดิมเปลี่ยน serial (เก็บประวัติ) + ส่งเครื่องเสียเข้าเคลมได้ทันที',
+  })
+  @Post('replace/:assetId')
+  @Permissions('service.asset.manage')
+  replace(
+    @Param('assetId') assetId: string,
+    @Body() dto: ReplaceUnitDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.claims.replaceUnit(principal, assetId, dto);
+  }
+}
+
+/** CD-246 ปัญหาที่เกิดซ้ำ. */
+@ApiTags('service')
+@ApiBearerAuth()
+@Controller('service-problems')
+export class ServiceProblemsController {
+  constructor(private readonly problems: ProblemsService) {}
+
+  @ApiOperation({
+    summary:
+      'กลุ่มงานแก้เหตุที่เกิดซ้ำ (เครื่อง / รุ่น / ลูกค้า+รุ่น) ที่น่าจะเป็นปัญหาเดียวกัน',
+  })
+  @Get('suggestions')
+  @Permissions('service.asset.read')
+  suggestions(@CurrentPrincipal() principal: Principal) {
+    return this.problems.suggestions(principal);
+  }
+
+  @ApiOperation({ summary: 'ไม่ใช่ปัญหาเดียวกัน — ซ่อนจนกว่ากลุ่มจะโตขึ้น' })
+  @Post('suggestions/dismiss')
+  @Permissions('service.asset.manage')
+  dismiss(
+    @Body() dto: DismissGroupDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.problems.dismiss(principal, dto);
+  }
+
+  @ApiOperation({
+    summary: 'ปัญหาของใบสั่งงาน + ปัญหาที่เปิดอยู่ที่ตรงกับงานนี้',
+  })
+  @Get('by-work-order/:workOrderId')
+  @Permissions('service.asset.read')
+  forWorkOrder(
+    @Param('workOrderId') workOrderId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.problems.forWorkOrder(principal, workOrderId);
+  }
+
+  @ApiOperation({ summary: 'ทะเบียนปัญหา — เปิดอยู่ / แก้แล้ว / ทั้งหมด' })
+  @Get()
+  @Permissions('service.asset.read')
+  list(
+    @Query() query: ListProblemsQueryDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.problems.list(principal, query);
+  }
+
+  @ApiOperation({ summary: 'ปัญหา พร้อมใบงานที่ผูก' })
+  @Get(':id')
+  @Permissions('service.asset.read')
+  detail(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.problems.detail(principal, id);
+  }
+
+  @ApiOperation({ summary: 'เปิดปัญหา (รวมใบงานที่เลือก)' })
+  @Post()
+  @Permissions('service.asset.manage')
+  open(@Body() dto: OpenProblemDto, @CurrentPrincipal() principal: Principal) {
+    return this.problems.open(principal, dto);
+  }
+
+  @ApiOperation({
+    summary: 'แก้ปัญหา — วิธีแก้ชั่วคราว / สาเหตุราก / วิธีแก้ถาวร / สถานะ',
+  })
+  @Put(':id')
+  @Permissions('service.asset.manage')
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateProblemDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.problems.update(principal, id, dto);
+  }
+
+  @ApiOperation({ summary: 'ผูกใบงานเพิ่ม' })
+  @Post(':id/jobs')
+  @Permissions('service.asset.manage')
+  link(
+    @Param('id') id: string,
+    @Body() dto: LinkProblemJobsDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.problems.link(principal, id, dto);
+  }
+
+  @ApiOperation({ summary: 'ถอดใบงานออกจากปัญหา' })
+  @Delete(':id/jobs/:workOrderId')
+  @Permissions('service.asset.manage')
+  unlink(
+    @Param('id') id: string,
+    @Param('workOrderId') workOrderId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.problems.unlink(principal, id, workOrderId);
+  }
+}
+
+/** CD-247 รายงานผลบริการ. */
+@ApiTags('service')
+@ApiBearerAuth()
+@Controller('service-reports')
+export class ServiceReportsController {
+  constructor(private readonly reports: ServiceReportsService) {}
+
+  @ApiOperation({
+    summary:
+      'ตัวเลขของสิทธิ์/สัญญาในงวด (สด) — งานตามความรุนแรง ตอบกลับ/แก้ไขทันกำหนด รอบ PM ค่าปรับประมาณ',
+  })
+  @Get('preview')
+  @Permissions('service.asset.read')
+  preview(
+    @Query() query: ServiceReportPreviewDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.reports.preview(principal, query);
+  }
+
+  @ApiOperation({ summary: 'รายงานที่ออกแล้ว' })
+  @Get()
+  @Permissions('service.asset.read')
+  list(
+    @Query() query: ListServiceReportsQueryDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.reports.list(principal, query.entitlement_id);
+  }
+
+  @ApiOperation({ summary: 'รายงานที่ออกแล้ว (ตัวเลข ณ วันที่ออก)' })
+  @Get(':id')
+  @Permissions('service.asset.read')
+  detail(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.reports.detail(principal, id);
+  }
+
+  @ApiOperation({ summary: 'PDF ของรายงาน' })
+  @Get(':id/pdf')
+  @Permissions('service.asset.read')
+  async pdf(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ): Promise<StreamableFile> {
+    const file = await this.reports.file(principal, id);
+    return new StreamableFile(file.stream, {
+      type: 'application/pdf',
+      disposition: `inline; filename*=UTF-8''${encodeURIComponent(file.fileName)}`,
+    });
+  }
+
+  @ApiOperation({
+    summary: 'ออกรายงาน — เก็บตัวเลขงวดนี้ + PDF + ค่าปรับที่ยืนยัน',
+  })
+  @Post()
+  @Permissions('service.asset.manage')
+  issue(
+    @Body() dto: IssueServiceReportDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.reports.issue(principal, dto);
+  }
+
+  @ApiOperation({ summary: 'บันทึกว่าส่งรายงานให้ลูกค้าแล้ว' })
+  @Post(':id/sent')
+  @Permissions('service.asset.manage')
+  sent(
+    @Param('id') id: string,
+    @Body() dto: MarkReportSentDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.reports.markSent(principal, id, dto);
+  }
+}
+
+/** CD-248 ความพึงพอใจหลังปิดงาน — the team's side. */
+@ApiTags('service')
+@ApiBearerAuth()
+@Controller('service-surveys')
+export class ServiceSurveysController {
+  constructor(private readonly surveys: SurveysService) {}
+
+  @ApiOperation({
+    summary: 'ผลประเมินและตัวชี้วัดทีมบริการ (รายเดือน / รายช่าง)',
+  })
+  @Get()
+  @Permissions('service.asset.read')
+  list(
+    @Query() query: ListSurveysQueryDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.surveys.list(principal, query);
+  }
+
+  @ApiOperation({ summary: 'แบบประเมินของใบสั่งงาน (null = ยังไม่มี)' })
+  @Get('by-work-order/:workOrderId')
+  @Permissions('service.asset.read')
+  ofWorkOrder(
+    @Param('workOrderId') workOrderId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.surveys.ofWorkOrder(principal, workOrderId);
+  }
+
+  @ApiOperation({
+    summary:
+      'ออกลิงก์ใหม่ (ลิงก์เก่าใช้ไม่ได้) — แสดงครั้งเดียวให้คัดลอกส่งเอง',
+  })
+  @Post('by-work-order/:workOrderId/link')
+  @Permissions('service.asset.manage')
+  reissue(
+    @Param('workOrderId') workOrderId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.surveys.reissue(principal, workOrderId);
+  }
+}
+
+/**
+ * CD-248 — the customer's survey page, public: the link's secret (only its
+ * SHA-256 is kept) is the credential, as for an e-sign link (CD-14). The web
+ * app calls these from its own server routes, which rate-limit by address.
+ * Declared in AGENTS.md as core-service's second public business surface.
+ */
+@ApiTags('service')
+@Controller('service-surveys/public')
+export class ServiceSurveysPublicController {
+  constructor(private readonly surveys: SurveysService) {}
+
+  @ApiOperation({ summary: 'แบบประเมินจากลิงก์ (สาธารณะ)' })
+  @Get(':token')
+  @Public()
+  view(@Param('token') token: string) {
+    return this.surveys.publicView(token);
+  }
+
+  @ApiOperation({ summary: 'ส่งคำตอบ (ครั้งเดียว ก่อนหมดอายุ)' })
+  @Post(':token')
+  @Public()
+  answer(@Param('token') token: string, @Body() dto: SurveyAnswerDto) {
+    return this.surveys.answer(token, dto);
   }
 }

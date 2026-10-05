@@ -9369,6 +9369,10 @@
             "pattern": "^([A-Z0-9_-]{1,20})?$",
             "type": "string"
           },
+          "delivery_billing_exception_type_code": {
+            "pattern": "^([A-Z0-9_-]{1,20})?$",
+            "type": "string"
+          },
           "project_design_type_code": {
             "pattern": "^([A-Z0-9_-]{1,20})?$",
             "type": "string"
@@ -9416,6 +9420,26 @@
           "service_on_call_escalate_minutes": {
             "maximum": 1440,
             "minimum": 0,
+            "type": "integer"
+          },
+          "service_repeat_days": {
+            "maximum": 730,
+            "minimum": 7,
+            "type": "integer"
+          },
+          "service_repeat_asset": {
+            "maximum": 100,
+            "minimum": 2,
+            "type": "integer"
+          },
+          "service_repeat_model": {
+            "maximum": 1000,
+            "minimum": 2,
+            "type": "integer"
+          },
+          "service_repeat_customer_model": {
+            "maximum": 100,
+            "minimum": 2,
             "type": "integer"
           },
           "project_readiness_checklist": {

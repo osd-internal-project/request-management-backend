@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import {
   AppError,
@@ -9,7 +9,13 @@ import {
 } from '@request-management/share';
 import { CompanyMemberRepository } from '../access/company-member.repository';
 import { ProductCatalogService } from '../crm/product-catalog.service';
-import { ProductRepository } from '../crm/product.repositories';
+import {
+  CompanyRepository,
+  ProductRepository,
+} from '../crm/product.repositories';
+import { ERP_CLIENT } from '../erp/erp-client';
+import type { ErpClient } from '../erp/erp-client';
+import { SpareIssueErpSyncService } from './spare-issue-erp-sync.service';
 import { VendorCostService } from '../crm/vendor-cost.service';
 import { thaiToday } from '../crm/vendor-costs';
 import { LaborCostService } from '../hr/labor-cost.service';
@@ -61,6 +67,11 @@ interface MaterialRow {
   note: string | null;
   createdBy: string;
   createdAt: Date;
+  fromStock: boolean;
+  warehouseCode: string | null;
+  erpStatus: string;
+  erpDocNo: string | null;
+  erpLastError: string | null;
 }
 
 interface RateRow {
@@ -109,6 +120,10 @@ export class TimeMaterialsService {
     private readonly people: CompanyMemberRepository,
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
+    // CD-245 — spares out of stock: on-hand from SAP, the goods issue to it
+    private readonly companies: CompanyRepository,
+    @Inject(ERP_CLIENT) private readonly erp: ErpClient,
+    private readonly issues: SpareIssueErpSyncService,
   ) {}
 
   /** The job's time, materials, what they would charge, and (if allowed) its margin. */
@@ -212,6 +227,11 @@ export class TimeMaterialsService {
         usedOn: day(row.usedOn),
         note: row.note,
         createdByName: names.get(row.createdBy) ?? row.createdBy,
+        fromStock: row.fromStock,
+        warehouseCode: row.warehouseCode,
+        erpStatus: row.erpStatus,
+        erpDocNo: row.erpDocNo,
+        erpLastError: row.erpLastError,
       })),
       charge: {
         lines: [...labour.lines, ...material.lines],
@@ -258,6 +278,11 @@ export class TimeMaterialsService {
       where: { companyId: order.companyId, code },
       select: { name: true, unit: true },
     })) as { name: string; unit: string | null } | null;
+    if (dto.from_stock && !dto.warehouse_code) {
+      throw new AppError('VALIDATION_FAILED', 'เบิกจากคลังต้องระบุคลัง', [
+        { field: 'warehouse_code', reason: 'required' },
+      ]);
+    }
     const usedOn = dto.used_on ?? thaiToday();
     if (!isDay(usedOn)) {
       throw new AppError('VALIDATION_FAILED', 'วันที่ใช้ไม่ถูกต้อง');
@@ -292,6 +317,9 @@ export class TimeMaterialsService {
           usedOn: new Date(`${usedOn}T00:00:00Z`),
           note: dto.note?.trim() || null,
           createdBy: actor.userId,
+          fromStock: dto.from_stock ?? false,
+          warehouseCode: dto.from_stock ? dto.warehouse_code : null,
+          erpStatus: dto.from_stock ? 'pending' : 'none',
         },
         select: { id: true },
       });
@@ -312,6 +340,8 @@ export class TimeMaterialsService {
       );
       return created;
     });
+    // CD-245 — out of stock: the goods issue goes to SAP after the commit
+    if (dto.from_stock) this.issues.kick(row.id);
     return { id: row.id };
   }
 
@@ -326,6 +356,7 @@ export class TimeMaterialsService {
       before.workOrderId,
     );
     await this.assertMayRecord(actor, order);
+    assertNotIssued(before);
     await this.transactions.execute(async (prisma) => {
       await prisma.serviceMaterialUse.update({
         where: { id },
@@ -370,6 +401,7 @@ export class TimeMaterialsService {
       before.workOrderId,
     );
     await this.assertMayRecord(actor, order);
+    assertNotIssued(before);
     await this.transactions.execute(async (prisma) => {
       await prisma.serviceMaterialUse.update({
         where: { id },
@@ -392,6 +424,27 @@ export class TimeMaterialsService {
       );
     });
     return { id };
+  }
+
+  /** CD-245 — what SAP holds of these items, per warehouse (for picking a spare). */
+  async stock(actor: Principal, codes: string[]) {
+    const wanted = [...new Set(codes.map((code) => code.trim()))]
+      .filter(Boolean)
+      .slice(0, 50);
+    if (!wanted.length) return [];
+    const company = (await this.companies.findFirst({
+      where: { id: actor.activeCompanyId },
+      select: { code: true },
+    })) as { code: string } | null;
+    if (!company) throw new AppError('NOT_FOUND', 'ไม่พบบริษัท');
+    try {
+      return await this.erp.listStock({ companyCode: company.code }, wanted);
+    } catch (error) {
+      throw new AppError(
+        'UPSTREAM_ERROR',
+        `อ่านคงคลังจาก SAP ไม่ได้: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   }
 
   // --- selling rates -----------------------------------------------------------
@@ -549,6 +602,16 @@ export class TimeMaterialsService {
       select: { id: true, displayName: true },
     })) as { id: string; displayName: string }[];
     return new Map(users.map((user) => [user.id, user.displayName]));
+  }
+}
+
+/** A spare SAP has issued out of stock cannot be edited away here. */
+function assertNotIssued(row: { erpStatus: string; erpDocNo: string | null }) {
+  if (row.erpStatus === 'synced' && row.erpDocNo) {
+    throw new AppError(
+      'CONFLICT',
+      `เบิกจากคลัง SAP แล้ว (ใบเบิก ${row.erpDocNo}) — แก้/ลบไม่ได้ ถ้าคืนของต้องรับคืนเข้าคลังใน SAP`,
+    );
   }
 }
 

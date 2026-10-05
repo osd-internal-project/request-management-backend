@@ -214,3 +214,101 @@ export class ServiceMaOfferRepository extends BaseRepository<
     return client.serviceMaOffer;
   }
 }
+
+/** CD-245 — claims to suppliers. */
+@Injectable()
+export class ServiceClaimRepository extends BaseRepository<
+  PrismaService['serviceClaim']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.serviceClaim;
+  }
+}
+
+/** CD-246 — problems behind repeated faults. */
+@Injectable()
+export class ServiceProblemRepository extends BaseRepository<
+  PrismaService['serviceProblem']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.serviceProblem;
+  }
+}
+
+/** CD-246 — jobs under a problem. */
+@Injectable()
+export class ServiceProblemLinkRepository extends BaseRepository<
+  PrismaService['serviceProblemLink']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.serviceProblemLink;
+  }
+}
+
+/** CD-246 — suggested groups set aside. */
+@Injectable()
+export class ServiceProblemDismissalRepository extends BaseRepository<
+  PrismaService['serviceProblemDismissal']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.serviceProblemDismissal;
+  }
+}
+
+/** CD-247 — issued service reports. */
+@Injectable()
+export class ServiceReportRepository extends BaseRepository<
+  PrismaService['serviceReport']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.serviceReport;
+  }
+}
+
+/** CD-247 — the cases' SLA clocks, read for the report. */
+@Injectable()
+export class ServiceSlaClockRepository extends BaseRepository<
+  PrismaService['slaClock']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.slaClock;
+  }
+}
+
+/** CD-248 — satisfaction surveys after service jobs. */
+@Injectable()
+export class ServiceSurveyRepository extends BaseRepository<
+  PrismaService['serviceSurvey']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.serviceSurvey;
+  }
+}

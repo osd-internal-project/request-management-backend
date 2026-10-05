@@ -640,6 +640,19 @@ export class AddMaterialUseDto {
   @MaxLength(10)
   used_on?: string;
 
+  @ApiPropertyOptional({
+    description: 'CD-245 — เบิกจากคลัง (ส่งใบเบิกเข้า SAP)',
+  })
+  @IsOptional()
+  @IsBoolean()
+  from_stock?: boolean;
+
+  @ApiPropertyOptional({ description: 'CD-245 — คลังที่เบิก (รหัสคลัง SAP)' })
+  @IsOptional()
+  @IsString()
+  @Matches(/^[A-Za-z0-9_.-]{1,20}$/)
+  warehouse_code?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
@@ -745,4 +758,387 @@ export class ListPmRoundsQueryDto {
   @IsOptional()
   @IsIn(['upcoming', 'overdue', 'done', 'all'])
   state?: 'upcoming' | 'overdue' | 'done' | 'all';
+}
+
+/** CD-245 — the faulty unit out, a new one in (and optionally a claim). */
+export class ReplaceClaimVendorDto {
+  @ApiProperty({ description: 'รหัสผู้ขาย SAP' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(50)
+  vendor_code!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  vendor_name?: string;
+}
+
+export class ReplaceUnitDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(100)
+  new_serial!: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(500)
+  reason!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  work_order_id?: string;
+
+  @ApiPropertyOptional({ type: ReplaceClaimVendorDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ReplaceClaimVendorDto)
+  claim?: ReplaceClaimVendorDto;
+}
+
+/** CD-245 — a claim on its own. */
+export class OpenClaimDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(200)
+  description!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  product_code?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  serial_no?: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(50)
+  vendor_code!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  vendor_name?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  work_order_id?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  asset_id?: string;
+}
+
+/** CD-245 — a claim's next step. */
+export class ClaimStepDto {
+  @ApiProperty({
+    enum: ['sent', 'replaced', 'credited', 'rejected', 'cancelled'],
+  })
+  @IsIn(['sent', 'replaced', 'credited', 'rejected', 'cancelled'])
+  status!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  rma_no?: string | null;
+
+  @ApiPropertyOptional({ description: 'YYYY-MM-DD' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  sent_on?: string;
+
+  @ApiPropertyOptional({ description: 'YYYY-MM-DD' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  expected_on?: string | null;
+
+  @ApiPropertyOptional({ description: 'YYYY-MM-DD' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  resolved_on?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  replacement_serial?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(999_999_999_999)
+  credit_amount?: number | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  outcome_note?: string | null;
+}
+
+export class ListClaimsQueryDto {
+  @ApiPropertyOptional({ enum: ['open', 'overdue', 'closed', 'all'] })
+  @IsOptional()
+  @IsIn(['open', 'overdue', 'closed', 'all'])
+  state?: 'open' | 'overdue' | 'closed' | 'all';
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  work_order_id?: string;
+}
+
+export class StockQueryDto {
+  @ApiProperty({ description: 'รหัสสินค้า คั่นด้วย ,' })
+  @IsString()
+  @MaxLength(2000)
+  codes!: string;
+}
+
+/** CD-246 — a problem behind repeated faults. */
+export class OpenProblemDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  title!: string;
+
+  @ApiProperty({ enum: ['asset', 'model', 'customer_model'] })
+  @IsIn(['asset', 'model', 'customer_model'])
+  scope!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  asset_id?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  product_code?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  customer_id?: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(50)
+  owner_user_id!: string;
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(200)
+  @IsString({ each: true })
+  work_order_ids?: string[];
+}
+
+export class UpdateProblemDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  title?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  owner_user_id?: string;
+
+  @ApiPropertyOptional({
+    enum: ['open', 'investigating', 'known_error', 'resolved', 'closed'],
+  })
+  @IsOptional()
+  @IsIn(['open', 'investigating', 'known_error', 'resolved', 'closed'])
+  status?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  workaround?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  root_cause?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  permanent_fix?: string | null;
+
+  @ApiPropertyOptional({ description: 'CD-224 — เลขการปรับแก้ทางเทคนิค' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  tech_change_ref?: string | null;
+}
+
+export class LinkProblemJobsDto {
+  @ApiProperty({ type: [String] })
+  @IsArray()
+  @ArrayMaxSize(200)
+  @IsString({ each: true })
+  work_order_ids!: string[];
+}
+
+export class DismissGroupDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(200)
+  group_key!: string;
+
+  @ApiProperty()
+  @IsInt()
+  @Min(1)
+  size!: number;
+}
+
+export class ListProblemsQueryDto {
+  @ApiPropertyOptional({ enum: ['open', 'resolved', 'all'] })
+  @IsOptional()
+  @IsIn(['open', 'resolved', 'all'])
+  state?: 'open' | 'resolved' | 'all';
+}
+
+/** CD-247 — a cover over a period (and the basis the penalty is on). */
+export class ServiceReportPreviewDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(50)
+  entitlement_id!: string;
+
+  @ApiProperty({ description: 'YYYY-MM-DD' })
+  @IsString()
+  @MaxLength(10)
+  from!: string;
+
+  @ApiProperty({ description: 'YYYY-MM-DD (รวมวันนี้)' })
+  @IsString()
+  @MaxLength(10)
+  to!: string;
+
+  @ApiPropertyOptional({
+    description: 'ฐานคิดค่าปรับ (บาท) เช่น ค่าบริการรายเดือน',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  basis_amount?: number;
+}
+
+/** CD-247 — issue it, with the penalty confirmed. */
+export class IssueServiceReportDto extends ServiceReportPreviewDto {
+  @ApiPropertyOptional({ description: 'ค่าปรับที่ยืนยัน (บาท) — ว่าง = ไม่มี' })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  penalty_amount?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  penalty_note?: string;
+}
+
+export class MarkReportSentDto {
+  @ApiProperty({ description: 'YYYY-MM-DD' })
+  @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  sent_on!: string;
+
+  @ApiProperty({ description: 'ส่งถึงใคร/ช่องทาง' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  sent_to!: string;
+}
+
+export class ListServiceReportsQueryDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  entitlement_id?: string;
+}
+
+/** CD-248 — the customer's answer (public). */
+export class SurveyAnswerDto {
+  @ApiProperty({ minimum: 1, maximum: 5 })
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  overall!: number;
+
+  @ApiPropertyOptional({ minimum: 1, maximum: 5 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  speed?: number | null;
+
+  @ApiPropertyOptional({ minimum: 1, maximum: 5 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  technician?: number | null;
+
+  @ApiPropertyOptional({ minimum: 1, maximum: 5 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  outcome?: number | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  comment?: string | null;
+}
+
+export class ListSurveysQueryDto {
+  @ApiPropertyOptional({ description: 'YYYY-MM-DD (ค่าเริ่ม 180 วันก่อน)' })
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  from?: string;
 }

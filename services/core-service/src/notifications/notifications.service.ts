@@ -720,6 +720,70 @@ export class NotificationsService {
     });
   }
 
+  /** CD-253 — the warranty ends soon: prepare the retention release. */
+  async retentionDue(
+    userId: string,
+    companyId: string,
+    project: { id: string; label: string },
+    installment: string,
+    endsOn: string,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'delivery.retention_due',
+      values: { project: project.label, installment, date: thaiDay(endsOn) },
+      resourceType: 'project',
+      resourceId: project.id,
+    });
+  }
+
+  /** CD-256 — the digest of installments past due and unpaid. */
+  async receivablesOverdue(
+    userId: string,
+    companyId: string,
+    count: number,
+    amount: number,
+    days: number,
+    everyContract: boolean,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'delivery.receivables_overdue',
+      values: {
+        count: String(count),
+        amount: amount.toLocaleString('en-US', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }),
+        days: String(days),
+        scope: everyContract ? 'ทุกสัญญา' : 'ของสัญญาที่คุณดูแล',
+      },
+      resourceType: 'delivery_report',
+      resourceId: 'receivables',
+    });
+  }
+
+  /** CD-255 — a handover to the service team, or what came of it. */
+  async serviceHandover(
+    userId: string,
+    companyId: string,
+    project: { id: string; label: string },
+    round: string,
+    event: 'sent' | 'overdue' | 'acknowledged' | 'questioned',
+    text: string,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: `delivery.handover_${event}`,
+      values: { project: project.label, round, text: text || '-' },
+      resourceType: 'project',
+      resourceId: project.id,
+    });
+  }
+
   /** CD-254 — a phase's installation was confirmed complete. */
   async deliveryInstalled(
     userId: string,
@@ -1054,6 +1118,62 @@ export class NotificationsService {
   }
 
   /** CD-190 — a project's actual cost crossed a threshold of its budget. */
+  /** CD-248 — a customer rated a service job low: follow up. */
+  async surveyLow(
+    userId: string,
+    companyId: string,
+    input: {
+      requestId: string;
+      requestNo: string | null;
+      customer: string;
+      overall: number;
+      comment: string;
+    },
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'service.survey.low',
+      values: {
+        request_no: input.requestNo ?? input.requestId,
+        customer: input.customer,
+        overall: String(input.overall),
+        comment: input.comment || '—',
+      },
+      resourceType: 'request',
+      resourceId: input.requestId,
+    });
+  }
+
+  /** CD-245 — a claim sent to a supplier is past the day it was expected back. */
+  async claimOverdue(
+    userId: string,
+    companyId: string,
+    input: {
+      claimId: string;
+      vendorName: string;
+      description: string;
+      serialNo: string;
+      rmaNo: string;
+      expectedOn: string;
+    },
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'service.claim.overdue',
+      values: {
+        vendor: input.vendorName,
+        description: input.description,
+        serial_no: input.serialNo,
+        rma_no: input.rmaNo,
+        expected_on: input.expectedOn,
+      },
+      resourceType: 'service_claim',
+      resourceId: input.claimId,
+    });
+  }
+
   /**
    * CD-244 — a PM round's work order opened ahead (`opened`), could not be
    * opened (`failed`, open it by hand), or the round's day passed undone

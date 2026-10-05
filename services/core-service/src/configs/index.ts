@@ -185,6 +185,18 @@ export default () => ({
     readinessIntervalMs: Number(
       process.env.DELIVERY_READINESS_INTERVAL_MS ?? 21600000,
     ),
+    /** CD-253 — retention release reminders (ms); 0 = off. */
+    retentionIntervalMs: Number(
+      process.env.DELIVERY_RETENTION_INTERVAL_MS ?? 21600000,
+    ),
+    /** CD-255 — reminders for handovers the service team has not acknowledged (ms); 0 = off. */
+    handoverIntervalMs: Number(
+      process.env.DELIVERY_HANDOVER_INTERVAL_MS ?? 10800000,
+    ),
+    /** CD-256 — overdue-installment digests (ms); 0 = off. */
+    receivableIntervalMs: Number(
+      process.env.DELIVERY_RECEIVABLE_INTERVAL_MS ?? 21600000,
+    ),
   },
 
   crm: {
@@ -236,6 +248,15 @@ export default () => ({
       process.env.SERVICE_ON_CALL_SWEEP_INTERVAL_MS ?? 60000,
     ),
     /** CD-244 — PM rounds opened ahead, late rounds, service-contract offers (ms); 0 = off. */
+    /** CD-248 — where a customer's survey link opens (the web app). */
+    surveyPublicUrl:
+      process.env.SURVEY_PUBLIC_URL ??
+      process.env.ESIGN_PUBLIC_URL ??
+      'http://localhost:3000',
+    /** CD-245 — claims past their expected day (ms); 0 = off. */
+    claimSweepIntervalMs: Number(
+      process.env.SERVICE_CLAIM_SWEEP_INTERVAL_MS ?? 3600000,
+    ),
     pmSweepIntervalMs: Number(
       process.env.SERVICE_PM_SWEEP_INTERVAL_MS ?? 3600000,
     ),

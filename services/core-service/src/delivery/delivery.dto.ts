@@ -189,3 +189,56 @@ export class PaperCertificateDto {
   @MaxLength(1000)
   reason!: string;
 }
+
+/** CD-253 — send an installment for billing. */
+export class SendInstallmentDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  note?: string;
+}
+
+/** CD-255 — hand a round over to the service team (again, with an answer). */
+export class SendHandoverDto {
+  @ApiPropertyOptional({ description: 'หมายเหตุ/คำตอบถึงทีมบริการ' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  note?: string;
+}
+
+/** CD-255 — the service team acknowledges, or sends a question back. */
+export class AnswerHandoverDto {
+  @ApiProperty({ enum: ['acknowledge', 'question'] })
+  @IsIn(['acknowledge', 'question'])
+  action!: 'acknowledge' | 'question';
+
+  @ApiPropertyOptional({
+    description: 'หมายเหตุ (รับทราบ) หรือคำถาม (ส่งกลับ)',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  text?: string;
+}
+
+export class ListHandoversQueryDto {
+  @ApiPropertyOptional({ enum: ['sent', 'questioned', 'acknowledged'] })
+  @IsOptional()
+  @IsIn(['sent', 'questioned', 'acknowledged'])
+  status?: string;
+}
+
+/** CD-256 — months of the acceptance report (YYYY-MM, inclusive). */
+export class DeliveryReportQueryDto {
+  @ApiPropertyOptional({ example: '2026-01' })
+  @IsOptional()
+  @Matches(/^\d{4}-(0[1-9]|1[0-2])$/)
+  from?: string;
+
+  @ApiPropertyOptional({ example: '2026-12' })
+  @IsOptional()
+  @Matches(/^\d{4}-(0[1-9]|1[0-2])$/)
+  to?: string;
+}

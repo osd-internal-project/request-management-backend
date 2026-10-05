@@ -115,6 +115,9 @@ function harness(
       }),
     ),
     cancelInvoiceDraft: jest.fn(() => Promise.resolve()),
+    listStock: jest.fn(() => Promise.resolve([])),
+    findGoodsIssue: jest.fn(() => Promise.resolve(null)),
+    createGoodsIssue: jest.fn(() => Promise.resolve({ externalCode: '1' })),
   };
 
   const audit = { record: jest.fn(() => Promise.resolve()) };

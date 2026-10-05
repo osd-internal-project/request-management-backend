@@ -2433,6 +2433,12 @@ model CrmCompanyConfig {
   /// CD-241 — minutes the one on call has to receive an out-of-hours case
   /// before it goes to the backup; 0 = never handed on.
   serviceOnCallEscalateMinutes     Int      @default(30)
+  /// CD-246 — repeated corrective jobs within this many days suggest one
+  /// problem: on one unit, one model (any customer), one model at a customer.
+  serviceRepeatDays                Int      @default(90)
+  serviceRepeatAsset               Int      @default(3)
+  serviceRepeatModel               Int      @default(5)
+  serviceRepeatCustomerModel       Int      @default(3)
   /// CD-190 — actual cost as % of the reference budget: warn at, alert over.
   projectCostWarnPct               Int      @default(90)
   projectCostAlertPct              Int      @default(100)
@@ -2452,6 +2458,8 @@ model CrmCompanyConfig {
   /// CD-251 — เอกสารส่งมอบบังคับต่อประเภทงาน `{equipment|material|software|service: [ชื่อ]}`;
   /// ประเภทที่ไม่ได้ตั้ง = ค่าตั้งต้นในโค้ด (delivery-docs-rules.ts).
   deliveryDocuments                Json     @default("{}")
+  /// CD-253 — ประเภทคำขอ "ยกเว้นวางบิลก่อนปิดรายการค้าง" (ผู้บริหารอนุมัติ); NULL = ขอยกเว้นไม่ได้.
+  deliveryBillingExceptionTypeCode String?
 
   /// CD-130: ประเภทคำขอ "ขอ Solution และประเมินต้นทุน" (Sales → Pre-Sales) — การ์ด Solution
   /// บนหน้าดีลยื่นประเภทนี้. ช่องบังคับของฟอร์มประเภทนี้คือรายการตรวจความครบ (จุดส่งต่อที่ 2).
@@ -7047,6 +7055,112 @@ model AcceptanceCertificate {
   @@map("acceptance_certificates")
 }
 
+/// CD-253 การวางบิลงวดของสัญญาเข้า SAP (ฉบับร่างใบแจ้งหนี้ — CD-242 ErpClient) — หนึ่งแถวต่องวด
+/// (สัญญา + ลำดับงวด เหมือน CD-193). ผู้จัดการโครงการยืนยันเมื่อเงื่อนไขของชนิดงวดครบ
+/// (มัดจำ: สัญญาลงนาม · ตามความคืบหน้า/สุดท้าย: หมุดหมายบรรลุ + ใบรับรองลงนาม + รายการค้างปิด
+/// หรือคำขอยกเว้นอนุมัติ · คืนเงินประกัน: พ้นระยะประกัน). reference = NumAtCard `INS-<สัญญา>-<งวด>`.
+/// status: sent · cancelled ; exceptionStatus: none · submitted · approved · rejected
+model InstallmentInvoice {
+  id                 String    @id @default(uuid())
+  companyId          String
+  projectId          String
+  contractId         String
+  seq                Int
+  kind               String
+  label              String
+  reference          String
+  customerId         String
+  currency           String    @default("THB")
+  /// before VAT — SAP adds VAT
+  amount             Decimal   @db.Decimal(14, 2)
+  acceptanceId       String?
+  status             String    @default("none")
+  note               String?
+  exceptionStatus    String    @default("none")
+  exceptionRequestId String?   @unique
+  exceptionReason    String?
+  confirmedBy        String?
+  confirmedAt        DateTime?
+  cancelledBy        String?
+  cancelledAt        DateTime?
+  cancelReason       String?
+  erpStatus          String    @default("none")
+  erpDraftNo         String?
+  erpLastError       String?
+  erpSyncedAt        DateTime?
+  erpInvoiceStatus   String?
+  erpInvoiceNo       String?
+  erpInvoiceTotal    Decimal?  @db.Decimal(14, 2)
+  erpPaid            Decimal?  @db.Decimal(14, 2)
+  erpCheckedAt       DateTime?
+  createdAt          DateTime  @default(now())
+  createdBy          String
+  updatedAt          DateTime  @updatedAt
+  updatedBy          String?
+
+  @@unique([contractId, seq])
+  @@unique([companyId, reference])
+  @@index([projectId])
+  @@index([erpStatus, erpCheckedAt])
+  @@map("installment_invoices")
+}
+
+/// CD-253 เตือนคืนเงินประกันผลงานล่วงหน้าแล้ว (ครั้งเดียวต่องวดต่อวันสิ้นสุดประกัน).
+model RetentionReminder {
+  id         String   @id @default(uuid())
+  companyId  String
+  contractId String
+  seq        Int
+  dueOn      DateTime @db.Date
+  sentAt     DateTime @default(now())
+
+  @@unique([contractId, seq, dueOn])
+  @@map("retention_reminders")
+}
+
+/// CD-255 ส่งมอบงานให้ทีมบริการหลังตรวจรับ (รอบตรวจรับละหนึ่ง) — ทีม Delivery ส่งชุดข้อมูล
+/// (อุปกรณ์ สิทธิ์ประกัน ระดับบริการ เอกสาร ใบรับรอง ผู้ติดต่อ รายการค้าง) ทีมบริการรับทราบ
+/// หรือถามกลับ; ค้างเกินกำหนดเตือนซ้ำ (CD-53 service.handover). sent · questioned · acknowledged
+model ServiceHandover {
+  id             String    @id @default(uuid())
+  companyId      String
+  projectId      String
+  acceptanceId   String    @unique
+  milestoneId    String?
+  status         String    @default("sent")
+  note           String    @default("")
+  /// ชุดข้อมูล ณ ตอนส่ง: { assetIds, entitlementIds, documentIds, certificateId, contactIds, openPoints }
+  snapshot       Json      @default("{}")
+  sentBy         String
+  sentAt         DateTime  @default(now())
+  question       String?
+  questionedBy   String?
+  questionedAt   DateTime?
+  acknowledgedBy String?
+  acknowledgedAt DateTime?
+  ackNote        String?
+  remindedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([companyId, status])
+  @@index([projectId])
+  @@map("service_handovers")
+}
+
+/// CD-256 — when a person was last sent the overdue-installments digest (the
+/// `receivable.overdue` rule repeats it every N days).
+model ReceivableReminder {
+  companyId String
+  userId    String
+  sentAt    DateTime
+  count     Int
+  amount    Decimal  @db.Decimal(18, 2)
+
+  @@id([companyId, userId])
+  @@map("receivable_reminders")
+}
+
 /// CD-239 ใบสั่งงานบริการ — the service side of a case (a request, CD-67):
 /// which asset, corrective or preventive, and from the start whether it is
 /// covered or billed — the system suggests from the asset's entitlements
@@ -7249,6 +7363,14 @@ model ServiceMaterialUse {
   unitCost    Decimal?  @db.Decimal(14, 2)
   usedOn      DateTime  @db.Date
   note        String?
+  /// CD-245 — taken out of stock: a goods issue to SAP (store-and-forward)
+  fromStock     Boolean   @default(false)
+  warehouseCode String?
+  /// none · pending · synced · failed
+  erpStatus     String    @default("none")
+  erpDocNo      String?
+  erpLastError  String?
+  erpSyncedAt   DateTime?
   createdAt   DateTime  @default(now())
   createdBy   String
   updatedAt   DateTime  @updatedAt
@@ -7322,6 +7444,162 @@ model ServiceMaOffer {
   remindedDays  Int[]    @default([])
 
   @@map("service_ma_offers")
+}
+
+/// CD-245 การส่งเคลมคืนคู่ค้า — a faulty unit (often the one a replacement
+/// took out, CD-245) sent back to its supplier: who, their RMA number, when
+/// it went and is expected back, and how it ended.
+///   status: pending · sent · replaced · credited · rejected · cancelled
+model ServiceClaim {
+  id                String    @id @default(uuid())
+  companyId         String
+  workOrderId       String?
+  requestId         String?
+  assetId           String?
+  productCode       String?
+  description       String
+  /// the faulty unit's serial
+  serialNo          String?
+  vendorCode        String
+  vendorName        String
+  rmaNo             String?
+  status            String    @default("pending")
+  sentOn            DateTime? @db.Date
+  expectedOn        DateTime? @db.Date
+  resolvedOn        DateTime? @db.Date
+  replacementSerial String?
+  creditAmount      Decimal?  @db.Decimal(14, 2)
+  outcomeNote       String?
+  overdueNotifiedAt DateTime?
+  createdAt         DateTime  @default(now())
+  createdBy         String
+  updatedAt         DateTime  @updatedAt
+  updatedBy         String?
+
+  @@index([companyId, status])
+  @@index([workOrderId])
+  @@map("service_claims")
+}
+
+/// CD-246 ปัญหาที่เกิดซ้ำ — a problem behind repeated faults (one unit, one
+/// model, or one model at one customer), worked to its root cause instead of
+/// repairing the same thing again.
+///   status: open · investigating · known_error (a workaround) ·
+///           resolved (root cause + permanent fix) · closed
+model ServiceProblem {
+  id            String    @id @default(uuid())
+  companyId     String
+  problemNo     String
+  title         String
+  /// asset · model · customer_model
+  scope         String
+  assetId       String?
+  productCode   String?
+  customerId    String?
+  ownerUserId   String
+  status        String    @default("open")
+  workaround    String?
+  rootCause     String?
+  permanentFix  String?
+  /// CD-224 — the technical change that fixes it, by reference
+  techChangeRef String?
+  resolvedAt    DateTime?
+  closedAt      DateTime?
+  createdAt     DateTime  @default(now())
+  createdBy     String
+  updatedAt     DateTime  @updatedAt
+  updatedBy     String?
+
+  @@unique([companyId, problemNo])
+  @@index([companyId, status])
+  @@map("service_problems")
+}
+
+/// CD-246 — a work order counted against a problem (one problem per order).
+model ServiceProblemLink {
+  id          String   @id @default(uuid())
+  problemId   String
+  workOrderId String   @unique
+  linkedBy    String
+  linkedAt    DateTime @default(now())
+
+  @@index([problemId])
+  @@map("service_problem_links")
+}
+
+/// CD-246 — a suggested group someone said is not one problem; it comes back
+/// only when it has grown past the size it had then.
+model ServiceProblemDismissal {
+  id          String   @id @default(uuid())
+  companyId   String
+  groupKey    String
+  size        Int
+  dismissedBy String
+  dismissedAt DateTime @default(now())
+
+  @@unique([companyId, groupKey])
+  @@map("service_problem_dismissals")
+}
+
+/// CD-247 รายงานผลบริการ — an issued service report: one cover (a service
+/// contract or a warranty, CD-237) for one period, its figures frozen as they
+/// were on issue (`data`), the penalty a person confirmed from the contract's
+/// terms, the PDF sent to the customer, and when it was sent.
+model ServiceReport {
+  id             String    @id @default(uuid())
+  companyId      String
+  entitlementId  String
+  customerId     String
+  reportNo       String
+  periodFrom     DateTime  @db.Date
+  periodTo       DateTime  @db.Date
+  /// the figures on issue: jobs, response/resolution met, PM rounds
+  data           Json
+  penaltyAmount  Decimal?  @db.Decimal(14, 2)
+  penaltyNote    String?
+  pdfKey         String
+  issuedAt       DateTime  @default(now())
+  issuedBy       String
+  sentOn         DateTime? @db.Date
+  sentTo         String?
+  sentBy         String?
+
+  @@unique([companyId, reportNo])
+  @@index([entitlementId, periodFrom])
+  @@map("service_reports")
+}
+
+/// CD-248 ความพึงพอใจหลังปิดงานบริการ — one survey per service job, sent
+/// when its case is done: a private link (only its SHA-256 is kept) the
+/// customer answers once before it expires. Overall 1–5 (required), speed /
+/// technician / outcome 1–5 (optional), a comment. Feeds the service team's
+/// figures and the customer's health (Keeper, CD-86).
+model ServiceSurvey {
+  id             String    @id @default(uuid())
+  companyId      String
+  workOrderId    String    @unique
+  requestId      String
+  customerId     String?
+  /// who worked the case when it was done — the technician's figures
+  assigneeUserId String?
+  tokenHash      String    @unique
+  expiresAt      DateTime
+  /// email · line · none (the link is copied by hand)
+  sentVia        String    @default("none")
+  sentTo         String?
+  sentAt         DateTime?
+  answeredAt     DateTime?
+  overall        Int?
+  speed          Int?
+  technician     Int?
+  outcome        Int?
+  comment        String?
+  lowAlertedAt   DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([companyId, answeredAt])
+  @@index([customerId, answeredAt])
+  @@map("service_surveys")
 }
 
 /// CD-251 เอกสารส่งมอบของเฟส (หมุดหมาย) — แนบต่อชื่อเอกสาร; ชื่อที่ตรงกับเอกสารบังคับของประเภทงาน
