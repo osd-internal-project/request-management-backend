@@ -1,3 +1,4 @@
+import { thaiToday } from '../crm/vendor-costs';
 import {
   Body,
   Controller,
@@ -25,8 +26,11 @@ import {
   SaveEmployeeSkillsDto,
   SaveHrItemDto,
   SaveSkillDto,
+  ReturnTimesheetDto,
+  SaveTimesheetWeekDto,
 } from './hr.dto';
 import { EmployeesService } from './employees.service';
+import { TimesheetsService } from './timesheets.service';
 
 /** CD-207 — ต้นทุนบุคลากร: levels, work types and cost per manday. */
 @ApiTags('hr')
@@ -36,7 +40,83 @@ export class HrController {
   constructor(
     private readonly hr: HrRatesService,
     private readonly employees: EmployeesService,
+    private readonly timesheets: TimesheetsService,
   ) {}
+
+  // --- CD-231 Timesheet ------------------------------------------------------
+
+  @ApiOperation({ summary: 'CD-231 งานที่ลงเวลาได้ และประเภทงาน' })
+  @Get('timesheets/options')
+  @Authenticated()
+  timesheetOptions(@CurrentPrincipal() principal: Principal) {
+    return this.timesheets.options(principal);
+  }
+
+  @ApiOperation({ summary: 'CD-231 Timesheet ของฉันในสัปดาห์ของวันที่ระบุ' })
+  @Get('timesheets/week')
+  @Authenticated()
+  timesheetWeek(
+    @Query('day') dayOf: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.timesheets.week(
+      principal,
+      /^\d{4}-\d{2}-\d{2}$/.test(dayOf ?? '') ? dayOf : thaiToday(),
+    );
+  }
+
+  @ApiOperation({
+    summary: 'CD-231 บันทึกทั้งสัปดาห์ (ร่าง/ถูกตีกลับเท่านั้น)',
+  })
+  @Put('timesheets/week')
+  @Authenticated()
+  saveTimesheetWeek(
+    @Body() dto: SaveTimesheetWeekDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.timesheets.saveWeek(principal, dto);
+  }
+
+  @ApiOperation({ summary: 'CD-231 สัปดาห์ที่รอฉันอนุมัติ (ลูกทีมทุกชั้น)' })
+  @Get('timesheets/pending')
+  @Authenticated()
+  pendingTimesheets(@CurrentPrincipal() principal: Principal) {
+    return this.timesheets.pending(principal);
+  }
+
+  @Get('timesheets/:id')
+  @Authenticated()
+  timesheet(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.timesheets.findOne(principal, id);
+  }
+
+  @Post('timesheets/:id/submit')
+  @Authenticated()
+  submitTimesheet(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.timesheets.submit(principal, id);
+  }
+
+  @Post('timesheets/:id/approve')
+  @Authenticated()
+  approveTimesheet(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.timesheets.approve(principal, id);
+  }
+
+  @Post('timesheets/:id/return')
+  @Authenticated()
+  returnTimesheet(
+    @Param('id') id: string,
+    @Body() dto: ReturnTimesheetDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.timesheets.returnSheet(principal, id, dto.reason);
+  }
 
   // --- CD-229 ทะเบียนพนักงาน ------------------------------------------------
 

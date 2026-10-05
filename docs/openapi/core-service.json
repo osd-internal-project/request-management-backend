@@ -15392,6 +15392,300 @@
         ]
       }
     },
+    "/api/v1/hr/timesheets/options": {
+      "get": {
+        "operationId": "HrController_timesheetOptions",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-231 งานที่ลงเวลาได้ และประเภทงาน",
+        "tags": [
+          "hr"
+        ]
+      }
+    },
+    "/api/v1/hr/timesheets/week": {
+      "get": {
+        "operationId": "HrController_timesheetWeek",
+        "parameters": [
+          {
+            "name": "day",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-231 Timesheet ของฉันในสัปดาห์ของวันที่ระบุ",
+        "tags": [
+          "hr"
+        ]
+      },
+      "put": {
+        "operationId": "HrController_saveTimesheetWeek",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveTimesheetWeekDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-231 บันทึกทั้งสัปดาห์ (ร่าง/ถูกตีกลับเท่านั้น)",
+        "tags": [
+          "hr"
+        ]
+      }
+    },
+    "/api/v1/hr/timesheets/pending": {
+      "get": {
+        "operationId": "HrController_pendingTimesheets",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-231 สัปดาห์ที่รอฉันอนุมัติ (ลูกทีมทุกชั้น)",
+        "tags": [
+          "hr"
+        ]
+      }
+    },
+    "/api/v1/hr/timesheets/{id}": {
+      "get": {
+        "operationId": "HrController_timesheet",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "hr"
+        ]
+      }
+    },
+    "/api/v1/hr/timesheets/{id}/submit": {
+      "post": {
+        "operationId": "HrController_submitTimesheet",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "hr"
+        ]
+      }
+    },
+    "/api/v1/hr/timesheets/{id}/approve": {
+      "post": {
+        "operationId": "HrController_approveTimesheet",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "hr"
+        ]
+      }
+    },
+    "/api/v1/hr/timesheets/{id}/return": {
+      "post": {
+        "operationId": "HrController_returnTimesheet",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReturnTimesheetDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "hr"
+        ]
+      }
+    },
     "/api/v1/hr/employees": {
       "get": {
         "operationId": "HrController_listEmployees",
@@ -32538,6 +32832,95 @@
             "type": "boolean"
           }
         }
+      },
+      "TimesheetRowDto": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "project",
+              "service",
+              "presales",
+              "internal"
+            ]
+          },
+          "project_id": {
+            "type": "object"
+          },
+          "project_task_id": {
+            "type": "object"
+          },
+          "request_id": {
+            "type": "object",
+            "description": "เคสบริการ = คำขอ"
+          },
+          "solution_id": {
+            "type": "object"
+          },
+          "internal_code": {
+            "type": "object"
+          },
+          "work_type_id": {
+            "type": "string",
+            "description": "ประเภทงานของ HR (CD-207)"
+          },
+          "billable": {
+            "type": "boolean",
+            "description": "เฉพาะงานโครงการ/บริการ — ค่าตั้งต้น true"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "hours": {
+            "type": "object",
+            "description": "วันที่ (YYYY-MM-DD) → ชั่วโมง",
+            "example": {
+              "2026-10-05": 4,
+              "2026-10-06": 7.5
+            }
+          }
+        },
+        "required": [
+          "hours",
+          "kind",
+          "work_type_id"
+        ]
+      },
+      "SaveTimesheetWeekDto": {
+        "type": "object",
+        "properties": {
+          "week_start": {
+            "type": "string",
+            "example": "2026-10-05",
+            "description": "วันจันทร์ของสัปดาห์",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TimesheetRowDto"
+            },
+            "maxItems": 100
+          }
+        },
+        "required": [
+          "rows",
+          "week_start"
+        ]
+      },
+      "ReturnTimesheetDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "reason"
+        ]
       },
       "SaveEmployeeDto": {
         "type": "object",

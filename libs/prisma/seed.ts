@@ -1083,6 +1083,25 @@ const STARTER_SKILLS = [
   { code: 'SOLUTION', name: 'ออกแบบ Solution', category: 'Pre-Sales' },
 ];
 
+/** CD-231 — internal (non-billable) activities time can be logged against. */
+const INTERNAL_ACTIVITIES = [
+  { code: 'TRAINING', name: 'อบรม / สัมมนา' },
+  { code: 'MEETING', name: 'ประชุมภายใน' },
+  { code: 'ADMIN', name: 'งานธุรการ' },
+  { code: 'INTERNAL_IT', name: 'ดูแลระบบภายใน' },
+];
+
+async function seedHrInternalActivities() {
+  for (const [index, activity] of INTERNAL_ACTIVITIES.entries()) {
+    await prisma.hrInternalActivity.upsert({
+      where: { code: activity.code },
+      create: { ...activity, sortOrder: index * 10 },
+      update: {},
+    });
+  }
+  console.log(`  hr internal activities: ${INTERNAL_ACTIVITIES.length}`);
+}
+
 async function seedHrSkills() {
   for (const [index, skill] of STARTER_SKILLS.entries()) {
     await prisma.hrSkill.upsert({
@@ -2176,6 +2195,7 @@ async function main() {
   await seedSolutionRequestType(demo.id);
   await seedHrLaborRates(demo.id);
   await seedHrSkills();
+  await seedHrInternalActivities();
   await seedTradeTerms(demo.id);
   await seedHandoverItems(demo.id);
   await seedApprovalMatrix(demo.id);

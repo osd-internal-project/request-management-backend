@@ -562,6 +562,41 @@ export class NotificationsService {
     });
   }
 
+  /** CD-231 — a week's timesheet waits on its supervisor. */
+  async timesheetSubmitted(
+    userId: string,
+    companyId: string,
+    sheet: { id: string; weekStart: string },
+    name: string,
+    hours: number,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'hr.timesheet.submitted',
+      values: { name, week: thaiDay(sheet.weekStart), hours: String(hours) },
+      resourceType: 'hr_timesheet',
+      resourceId: sheet.id,
+    });
+  }
+
+  /** CD-231 — a week's timesheet was returned to its owner. */
+  async timesheetReturned(
+    userId: string,
+    companyId: string,
+    sheet: { id: string; weekStart: string },
+    reason: string,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'hr.timesheet.returned',
+      values: { week: thaiDay(sheet.weekStart), reason },
+      resourceType: 'hr_timesheet',
+      resourceId: sheet.id,
+    });
+  }
+
   /** CD-175 — someone was made a project's manager or put on its team. */
   async projectAssigned(
     userId: string,
@@ -1380,4 +1415,11 @@ export function formatPhoneNumber(number: string): string {
     return `${number.slice(0, 3)}-${number.slice(3, 6)}-${number.slice(6)}`;
   }
   return number;
+}
+
+/** CD-231 — a YYYY-MM-DD day as the Thai calendar writes it. */
+function thaiDay(value: string): string {
+  return new Date(`${value}T00:00:00Z`).toLocaleDateString('th-TH', {
+    timeZone: 'UTC',
+  });
 }

@@ -408,6 +408,27 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
     },
   },
   {
+    eventType: 'hr.timesheet.submitted',
+    label: 'Timesheet รออนุมัติ (ถึงหัวหน้า)',
+    title: 'Timesheet ของ {{name}} สัปดาห์ {{week}} รออนุมัติ',
+    body: 'รวม {{hours}} ชั่วโมง — เปิดหน้า Timesheet เพื่ออนุมัติหรือตีกลับ',
+    variables: {
+      name: { label: 'ชื่อพนักงาน', sample: 'สมชาย ใจดี' },
+      week: { label: 'สัปดาห์ (วันจันทร์)', sample: '05/10/2569' },
+      hours: { label: 'ชั่วโมงรวม', sample: '40' },
+    },
+  },
+  {
+    eventType: 'hr.timesheet.returned',
+    label: 'Timesheet ถูกตีกลับ (ถึงเจ้าของ)',
+    title: 'Timesheet สัปดาห์ {{week}} ถูกตีกลับ',
+    body: 'เหตุผล: {{reason}} — แก้แล้วส่งใหม่ได้',
+    variables: {
+      week: { label: 'สัปดาห์ (วันจันทร์)', sample: '05/10/2569' },
+      reason: { label: 'เหตุผล', sample: 'ลงเวลาโครงการผิดงานย่อย' },
+    },
+  },
+  {
     eventType: 'pm.project.assigned',
     label: 'ได้รับมอบหมายในโครงการ (ถึงผู้จัดการและทีมโครงการ)',
     title: 'โครงการ {{project_no}}: คุณเป็น{{role}}',

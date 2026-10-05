@@ -134,3 +134,131 @@ export class HrReportingRepository extends BaseRepository<
     return [...seen];
   }
 }
+
+/** CD-231 — weekly timesheets and their lines. */
+@Injectable()
+export class HrTimesheetRepository extends BaseRepository<
+  PrismaService['hrTimesheet']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.hrTimesheet;
+  }
+}
+
+@Injectable()
+export class HrTimesheetLineRepository extends BaseRepository<
+  PrismaService['hrTimesheetLine']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.hrTimesheetLine;
+  }
+}
+
+/** CD-231 — internal (non-billable) activities time can be logged against. */
+@Injectable()
+export class HrInternalActivityRepository extends BaseRepository<
+  PrismaService['hrInternalActivity']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.hrInternalActivity;
+  }
+}
+
+/**
+ * CD-231 — the work a timesheet line can point at, read only: projects and
+ * their tasks (PM), requests (service cases), Solutions (Pre-Sales).
+ */
+@Injectable()
+export class HrWorkRefsRepository {
+  constructor(private readonly prisma: PrismaService) {}
+
+  projects(where: Record<string, unknown>) {
+    return this.prisma.project.findMany({
+      where,
+      select: { id: true, projectNo: true, name: true, status: true },
+      orderBy: { projectNo: 'desc' },
+      take: 200,
+    });
+  }
+
+  tasks(projectIds: string[]) {
+    return this.prisma.projectTask.findMany({
+      where: { projectId: { in: projectIds } },
+      select: {
+        id: true,
+        projectId: true,
+        seq: true,
+        title: true,
+        status: true,
+      },
+      orderBy: [{ projectId: 'asc' }, { seq: 'asc' }],
+    });
+  }
+
+  memberProjectIds(userId: string) {
+    return this.prisma.projectMember
+      .findMany({ where: { userId }, select: { projectId: true } })
+      .then((rows) => rows.map((row) => row.projectId));
+  }
+
+  requests(where: Record<string, unknown>) {
+    return this.prisma.request.findMany({
+      where,
+      select: { id: true, requestNo: true, typeCode: true, status: true },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+  }
+
+  requestTypeNames(codes: string[]) {
+    return this.prisma.requestType
+      .findMany({
+        where: { code: { in: codes } },
+        select: { code: true, name: true },
+      })
+      .then((rows) => new Map(rows.map((row) => [row.code, row.name])));
+  }
+
+  solutions(where: Record<string, unknown>) {
+    return this.prisma.solution.findMany({
+      where,
+      select: {
+        id: true,
+        title: true,
+        opportunity: { select: { opportunityCode: true } },
+      },
+      orderBy: { updatedAt: 'desc' },
+      take: 100,
+    });
+  }
+
+  supervisorOf(userId: string) {
+    return this.prisma.user
+      .findUnique({
+        where: { id: userId },
+        select: { supervisorUserId: true, displayName: true },
+      })
+      .then((row) => row ?? null);
+  }
+
+  names(ids: string[]) {
+    return this.prisma.user
+      .findMany({
+        where: { id: { in: ids } },
+        select: { id: true, displayName: true },
+      })
+      .then((rows) => new Map(rows.map((row) => [row.id, row.displayName])));
+  }
+}

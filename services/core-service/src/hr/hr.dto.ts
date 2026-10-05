@@ -4,6 +4,7 @@ import {
   ArrayMaxSize,
   IsArray,
   IsIn,
+  IsObject,
   ValidateNested,
   IsBoolean,
   IsInt,
@@ -207,4 +208,80 @@ export class ListEmployeesQueryDto {
   @IsOptional()
   @IsIn(EMPLOYEE_STATUSES)
   status?: string;
+}
+
+export class TimesheetRowDto {
+  @ApiProperty({ enum: ['project', 'service', 'presales', 'internal'] })
+  @IsIn(['project', 'service', 'presales', 'internal'])
+  kind!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  project_id?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  project_task_id?: string | null;
+
+  @ApiPropertyOptional({ description: 'เคสบริการ = คำขอ' })
+  @IsOptional()
+  @IsString()
+  request_id?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  solution_id?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  internal_code?: string | null;
+
+  @ApiProperty({ description: 'ประเภทงานของ HR (CD-207)' })
+  @IsString()
+  work_type_id!: string;
+
+  @ApiPropertyOptional({
+    description: 'เฉพาะงานโครงการ/บริการ — ค่าตั้งต้น true',
+  })
+  @IsOptional()
+  @IsBoolean()
+  billable?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  note?: string;
+
+  @ApiProperty({
+    description: 'วันที่ (YYYY-MM-DD) → ชั่วโมง',
+    example: { '2026-10-05': 4, '2026-10-06': 7.5 },
+  })
+  @IsObject()
+  hours!: Record<string, number>;
+}
+
+export class SaveTimesheetWeekDto {
+  @ApiProperty({ example: '2026-10-05', description: 'วันจันทร์ของสัปดาห์' })
+  @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  week_start!: string;
+
+  @ApiProperty({ type: () => [TimesheetRowDto] })
+  @IsArray()
+  @ArrayMaxSize(100)
+  @ValidateNested({ each: true })
+  @Type(() => TimesheetRowDto)
+  rows!: TimesheetRowDto[];
+}
+
+export class ReturnTimesheetDto {
+  @ApiProperty()
+  @IsString()
+  @MaxLength(1000)
+  reason!: string;
 }

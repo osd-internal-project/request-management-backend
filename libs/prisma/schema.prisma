@@ -6530,3 +6530,65 @@ model ProjectTechChange {
   @@index([requestId])
   @@map("project_tech_changes")
 }
+
+/// CD-231 Timesheet รายสัปดาห์ต่อคน (สัปดาห์เริ่มวันจันทร์) — ร่าง → ส่ง → อนุมัติ/ตีกลับ โดยหัวหน้าตามผัง.
+model HrTimesheet {
+  id           String    @id @default(uuid())
+  companyId    String
+  userId       String
+  /// วันจันทร์ของสัปดาห์
+  weekStart    DateTime  @db.Date
+  /// draft | submitted | approved | returned
+  status       String    @default("draft")
+  submittedAt  DateTime?
+  decidedAt    DateTime?
+  decidedBy    String?
+  returnReason String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  lines HrTimesheetLine[]
+
+  @@unique([companyId, userId, weekStart])
+  @@index([companyId, status])
+  @@map("hr_timesheets")
+}
+
+/// CD-231 ชั่วโมงต่อวันต่องาน — โครงการ (+งานย่อย) / เคสบริการ (คำขอ) / Pre-Sales (Solution) / งานภายใน.
+model HrTimesheetLine {
+  id            String   @id @default(uuid())
+  timesheetId   String
+  workDate      DateTime @db.Date
+  /// project | service | presales | internal
+  kind          String
+  projectId     String?
+  projectTaskId String?
+  /// เคสบริการ = คำขอ (CD-67)
+  requestId     String?
+  solutionId    String?
+  internalCode  String?
+  /// ประเภทงานของ HR (CD-207) — ใช้คิดต้นทุนแรงงาน
+  workTypeId    String
+  hours         Decimal  @db.Decimal(4, 1)
+  billable      Boolean
+  note          String   @default("")
+
+  timesheet HrTimesheet @relation(fields: [timesheetId], references: [id], onDelete: Cascade)
+
+  @@index([timesheetId, workDate])
+  @@index([projectId, workDate])
+  @@map("hr_timesheet_lines")
+}
+
+/// CD-231 งานภายใน (ไม่ billable) ที่ลงเวลาได้ เช่น อบรม ประชุม งานธุรการ — ใช้ร่วมทุกบริษัท.
+model HrInternalActivity {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  name      String
+  sortOrder Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("hr_internal_activities")
+}
