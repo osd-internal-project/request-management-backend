@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService, type TQueryClient } from '@request-management/share';
 import { CONTACT_TYPES } from '../crm/prospecting-rules';
 import { martTableName, PRICING_MART_TABLES } from './pricing-mart';
+import { HOURS_PER_MANDAY } from '../hr/timesheet-rules';
 import { SLA_STATUS_SQL } from '../sla/sla-status';
 
 /** A `timestamp` column (stored as UTC, no zone) as Bangkok wall-clock time. */
@@ -267,6 +268,95 @@ export const MART_TABLES: readonly { table: string; sql: string[] }[] = [
        FROM project_status_reports s
        JOIN companies c ON c.id = s."companyId"
        GROUP BY 1, 2, 3`,
+    ],
+  },
+  {
+    // CD-235 — Utilization per person × month, the last 12 months (this
+    // month to date). Available = the company's working days (its weekdays,
+    // less its holidays — the SLA calendar) × 8, less approved leave (half a
+    // day = 4). Logged = approved timesheets. Hours only: no rate, no cost.
+    table: 'fact_utilization',
+    sql: [
+      `DELETE FROM mart.fact_utilization`,
+      `INSERT INTO mart.fact_utilization
+       WITH today AS (
+         SELECT (now() AT TIME ZONE 'Asia/Bangkok')::date AS d
+       ),
+       months AS (
+         SELECT to_char(m, 'YYYY-MM') AS month, m::date AS first_day,
+                LEAST((m + interval '1 month - 1 day')::date, today.d) AS last_day
+         FROM today, generate_series(
+           date_trunc('month', today.d) - interval '11 months',
+           date_trunc('month', today.d), interval '1 month') m
+       ),
+       calendars AS (
+         SELECT c.id AS company_id, c.code,
+                COALESCE(NULLIF(h."workingWeekdays", '{}'), '{1,2,3,4,5}') AS weekdays,
+                COALESCE(h.holidays, '[]'::jsonb) AS holidays
+         FROM companies c
+         LEFT JOIN holiday_calendars h ON h."companyId" = c.id
+       ),
+       work_days AS (
+         SELECT k.company_id, k.code, mo.month, d::date AS day
+         FROM calendars k
+         CROSS JOIN months mo
+         CROSS JOIN generate_series(mo.first_day, mo.last_day, interval '1 day') d
+         WHERE extract(isodow FROM d)::int = ANY (k.weekdays)
+           AND NOT (k.holidays ? to_char(d, 'YYYY-MM-DD'))
+       ),
+       people AS (
+         SELECT "companyId" AS company_id, "userId" AS user_id
+         FROM hr_employees WHERE status <> 'resigned'
+         UNION
+         SELECT "companyId", "userId" FROM hr_timesheets WHERE status = 'approved'
+       ),
+       capacity AS (
+         SELECT p.company_id, wd.code, p.user_id, wd.month,
+                count(*) * ${HOURS_PER_MANDAY} AS working,
+                sum(LEAST(${HOURS_PER_MANDAY}, COALESCE(lv.hours, 0))) AS leave
+         FROM people p
+         JOIN work_days wd ON wd.company_id = p.company_id
+         LEFT JOIN LATERAL (
+           SELECT sum(CASE WHEN l.part = 'full' THEN ${HOURS_PER_MANDAY}
+                           ELSE ${HOURS_PER_MANDAY} / 2 END) AS hours
+           FROM hr_leaves l
+           WHERE l."companyId" = p.company_id AND l."userId" = p.user_id
+             AND l.status = 'approved'
+             AND wd.day BETWEEN l."startDate" AND l."endDate"
+         ) lv ON true
+         GROUP BY 1, 2, 3, 4
+       ),
+       logged AS (
+         SELECT t."companyId" AS company_id, t."userId" AS user_id,
+                to_char(l."workDate", 'YYYY-MM') AS month,
+                sum(l.hours) AS hours,
+                COALESCE(sum(l.hours) FILTER (WHERE l.billable), 0) AS billable,
+                COALESCE(sum(l.hours) FILTER (WHERE l.kind = 'project'), 0) AS project,
+                COALESCE(sum(l.hours) FILTER (WHERE l.kind = 'service'), 0) AS service,
+                COALESCE(sum(l.hours) FILTER (WHERE l.kind = 'presales'), 0) AS presales,
+                COALESCE(sum(l.hours) FILTER (WHERE l.kind = 'internal'), 0) AS internal
+         FROM hr_timesheet_lines l
+         JOIN hr_timesheets t ON t.id = l."timesheetId" AND t.status = 'approved'
+         GROUP BY 1, 2, 3
+       )
+       SELECT cap.code, cap.month, cap.user_id, u."displayName", ou.name,
+              lv.code, lv.name,
+              cap.working, cap.leave, cap.working - cap.leave,
+              COALESCE(lg.hours, 0), COALESCE(lg.billable, 0),
+              COALESCE(lg.project, 0), COALESCE(lg.service, 0),
+              COALESCE(lg.presales, 0), COALESCE(lg.internal, 0),
+              GREATEST(cap.working - cap.leave - COALESCE(lg.hours, 0), 0),
+              round(100.0 * COALESCE(lg.billable, 0)
+                    / NULLIF(cap.working - cap.leave, 0), 1),
+              round(100.0 * lg.billable / NULLIF(lg.hours, 0), 1)
+       FROM capacity cap
+       LEFT JOIN logged lg ON lg.company_id = cap.company_id
+         AND lg.user_id = cap.user_id AND lg.month = cap.month
+       LEFT JOIN users u ON u.id = cap.user_id
+       LEFT JOIN org_units ou ON ou.id = u."orgUnitId"
+       LEFT JOIN hr_employees e
+         ON e."companyId" = cap.company_id AND e."userId" = cap.user_id
+       LEFT JOIN hr_levels lv ON lv.id = e."levelId"`,
     ],
   },
 ];
