@@ -1098,3 +1098,47 @@ export class ListServiceReportsQueryDto {
   @MaxLength(50)
   entitlement_id?: string;
 }
+
+/** CD-248 — the customer's answer (public). */
+export class SurveyAnswerDto {
+  @ApiProperty({ minimum: 1, maximum: 5 })
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  overall!: number;
+
+  @ApiPropertyOptional({ minimum: 1, maximum: 5 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  speed?: number | null;
+
+  @ApiPropertyOptional({ minimum: 1, maximum: 5 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  technician?: number | null;
+
+  @ApiPropertyOptional({ minimum: 1, maximum: 5 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  outcome?: number | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  comment?: string | null;
+}
+
+export class ListSurveysQueryDto {
+  @ApiPropertyOptional({ description: 'YYYY-MM-DD (ค่าเริ่ม 180 วันก่อน)' })
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  from?: string;
+}

@@ -20454,6 +20454,205 @@
         ]
       }
     },
+    "/api/v1/service-surveys": {
+      "get": {
+        "operationId": "ServiceSurveysController_list",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "YYYY-MM-DD (ค่าเริ่ม 180 วันก่อน)",
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ผลประเมินและตัวชี้วัดทีมบริการ (รายเดือน / รายช่าง)",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.read"
+        ]
+      }
+    },
+    "/api/v1/service-surveys/by-work-order/{workOrderId}": {
+      "get": {
+        "operationId": "ServiceSurveysController_ofWorkOrder",
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แบบประเมินของใบสั่งงาน (null = ยังไม่มี)",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.read"
+        ]
+      }
+    },
+    "/api/v1/service-surveys/by-work-order/{workOrderId}/link": {
+      "post": {
+        "operationId": "ServiceSurveysController_reissue",
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ออกลิงก์ใหม่ (ลิงก์เก่าใช้ไม่ได้) — แสดงครั้งเดียวให้คัดลอกส่งเอง",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.manage"
+        ]
+      }
+    },
+    "/api/v1/service-surveys/public/{token}": {
+      "get": {
+        "operationId": "ServiceSurveysPublicController_view",
+        "parameters": [
+          {
+            "name": "token",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "แบบประเมินจากลิงก์ (สาธารณะ)",
+        "tags": [
+          "service"
+        ]
+      },
+      "post": {
+        "operationId": "ServiceSurveysPublicController_answer",
+        "parameters": [
+          {
+            "name": "token",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SurveyAnswerDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "ส่งคำตอบ (ครั้งเดียว ก่อนหมดอายุ)",
+        "tags": [
+          "service"
+        ]
+      }
+    },
     "/api/v1/delivery/projects/{projectId}/handovers": {
       "get": {
         "operationId": "DeliveryController_handoversOfProject",
@@ -40295,6 +40494,51 @@
           "sent_to"
         ]
       },
+      "SurveyAnswerDto": {
+        "type": "object",
+        "properties": {
+          "overall": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "speed": {
+            "type": "object",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "technician": {
+            "type": "object",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "outcome": {
+            "type": "object",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "comment": {
+            "type": "object",
+            "maxLength": 2000
+          },
+          "index": {
+            "maximum": 1000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "holds": {
+            "type": "boolean"
+          },
+          "note": {
+            "maxLength": 4000,
+            "type": "string"
+          }
+        },
+        "required": [
+          "index",
+          "overall"
+        ]
+      },
       "SendHandoverDto": {
         "type": "object",
         "properties": {
@@ -41340,29 +41584,6 @@
         },
         "required": [
           "refs"
-        ]
-      },
-      "SurveyAnswerDto": {
-        "type": "object",
-        "properties": {
-          "index": {
-            "type": "integer",
-            "description": "ลำดับสมมติฐาน (เริ่ม 0)",
-            "maximum": 1000,
-            "minimum": 0
-          },
-          "holds": {
-            "type": "object",
-            "nullable": true,
-            "description": "true = ตรง, false = ไม่ตรง, null = ยังไม่ตรวจ"
-          },
-          "note": {
-            "type": "object",
-            "maxLength": 4000
-          }
-        },
-        "required": [
-          "index"
         ]
       },
       "SaveSurveyDto": {

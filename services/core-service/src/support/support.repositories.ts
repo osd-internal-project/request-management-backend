@@ -298,3 +298,17 @@ export class ServiceSlaClockRepository extends BaseRepository<
     return client.slaClock;
   }
 }
+
+/** CD-248 — satisfaction surveys after service jobs. */
+@Injectable()
+export class ServiceSurveyRepository extends BaseRepository<
+  PrismaService['serviceSurvey']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.serviceSurvey;
+  }
+}

@@ -413,6 +413,18 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
     },
   },
   {
+    eventType: 'service.survey.low',
+    label: 'ลูกค้าให้คะแนนงานบริการต่ำ (ถึงเจ้าของลูกค้าและผู้เปิดใบงาน)',
+    title: 'ลูกค้าให้คะแนนต่ำ: {{customer}} ({{overall}}/5)',
+    body: 'งาน {{request_no}} — ความเห็น: {{comment}} · กรุณาติดตามลูกค้า',
+    variables: {
+      request_no: REQUEST_NO,
+      customer: { label: 'ลูกค้า', sample: 'บริษัท กขค จำกัด' },
+      overall: { label: 'คะแนน', sample: '2' },
+      comment: { label: 'ความเห็นลูกค้า', sample: 'ช่างมาช้า' },
+    },
+  },
+  {
     eventType: 'service.claim.overdue',
     label: 'เคลมคืนคู่ค้าเลยวันที่คาดว่าจะได้คืน (ถึงผู้เปิดเคลม)',
     title: 'เคลมเลยกำหนด: {{vendor}}',

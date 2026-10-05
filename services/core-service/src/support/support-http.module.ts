@@ -21,6 +21,8 @@ import {
   ServiceClaimsController,
   ServiceProblemsController,
   ServiceReportsController,
+  ServiceSurveysController,
+  ServiceSurveysPublicController,
   ServiceEntitlementsController,
   ServiceLabourRatesController,
   ServicePmController,
@@ -67,6 +69,8 @@ import { SupportModule } from './support.module';
     ServiceClaimsController,
     ServiceProblemsController,
     ServiceReportsController,
+    ServiceSurveysController,
+    ServiceSurveysPublicController,
   ],
 })
 export class SupportHttpModule {}

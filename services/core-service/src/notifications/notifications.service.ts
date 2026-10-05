@@ -1091,6 +1091,33 @@ export class NotificationsService {
   }
 
   /** CD-190 — a project's actual cost crossed a threshold of its budget. */
+  /** CD-248 — a customer rated a service job low: follow up. */
+  async surveyLow(
+    userId: string,
+    companyId: string,
+    input: {
+      requestId: string;
+      requestNo: string | null;
+      customer: string;
+      overall: number;
+      comment: string;
+    },
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'service.survey.low',
+      values: {
+        request_no: input.requestNo ?? input.requestId,
+        customer: input.customer,
+        overall: String(input.overall),
+        comment: input.comment || '—',
+      },
+      resourceType: 'request',
+      resourceId: input.requestId,
+    });
+  }
+
   /** CD-245 — a claim sent to a supplier is past the day it was expected back. */
   async claimOverdue(
     userId: string,

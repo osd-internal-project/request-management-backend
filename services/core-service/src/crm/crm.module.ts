@@ -82,6 +82,7 @@ import { AccountReviewReminderService } from './account-review-reminder.service'
 import {
   CustomerAccountPlanRepository,
   CustomerTouchpointRepository,
+  KeeperSurveyRepository,
 } from './keeper.repositories';
 import { TargetAccountRepository } from './target-accounts.repository';
 import { CustomerInvoicesService } from './customer-invoices.service';
@@ -323,6 +324,7 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     AccountReviewReminderService,
     CustomerAccountPlanRepository,
     CustomerTouchpointRepository,
+    KeeperSurveyRepository,
     CustomerInvoicesService,
     RequestTimelineSyncService,
     OpportunityStaleMonitorService,

@@ -19,6 +19,7 @@ import {
   ServicePmRoundRepository as PmRoundRepo,
   ServiceReportRepository,
   ServiceSlaClockRepository,
+  ServiceSurveyRepository,
   ServiceEntitlementRepository,
   ServiceLabourRateRepository,
   ServiceMaterialUseRepository,
@@ -35,6 +36,8 @@ import { OnCallService } from './on-call.service';
 import { ClaimsService } from './claims.service';
 import { ProblemsService } from './problems.service';
 import { ServiceReportsService } from './service-reports.service';
+import { SurveysService } from './surveys.service';
+import { SurveySender } from './survey-sender';
 import { ContractTermsRepository as TermsRepo } from '../crm/contract-terms.service';
 import { CrmConfigRepository } from '../crm/segment.repositories';
 import { SpareIssueErpSyncService } from './spare-issue-erp-sync.service';
@@ -142,6 +145,9 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
 
     afterAll(async () => {
       await prisma.serviceBilling.deleteMany({
+        where: { requestId: { in: requestIds } },
+      });
+      await prisma.serviceSurvey.deleteMany({
         where: { requestId: { in: requestIds } },
       });
       await prisma.serviceReport.deleteMany({
@@ -1710,6 +1716,123 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       expect(
         (await reports.list(manager, entitlementId)).map((r) => r.id),
       ).toContain(issued.id);
+    });
+
+    it('CD-248: a service job done sends its survey once; the customer answers once on the public link; a low score tells the account owner; figures per technician', async () => {
+      const client = prisma as never;
+      const transactions = {
+        execute: (work: (tx: unknown) => Promise<unknown>) =>
+          prisma.$transaction((tx) => work(tx)),
+      } as never;
+      const audit = { record: () => Promise.resolve() } as never;
+      const told: { userId: string; overall: number }[] = [];
+      const surveys = new SurveysService(
+        new ServiceSurveyRepository(client),
+        new ServiceWorkOrderRepository(client),
+        new RequestRepository(client),
+        new CustomerRepository(client),
+        new CompanyRepository(client),
+        new CrmConfigRepository(client),
+        new CompanyMemberRepository(client),
+        new SurveySender({ get: () => undefined } as never),
+        { on: () => undefined } as never,
+        {
+          surveyLow: (userId: string, _c: string, x: { overall: number }) => {
+            told.push({ userId, overall: x.overall });
+            return Promise.resolve();
+          },
+        } as never,
+        audit,
+        transactions,
+        { get: () => 'https://ctd.example' } as never,
+      );
+      const manager = {
+        userId: staff,
+        activeCompanyId: companyId,
+        permissions: ['service.asset.read', 'service.asset.manage'],
+      } as unknown as Principal;
+      await prisma.customer.update({
+        where: { id: customerId },
+        data: { accountOwnerUserId: staff },
+      });
+      const request = await prisma.request.create({
+        data: {
+          requestTypeId: typeId,
+          typeCode,
+          companyId,
+          requesterId: staff,
+          requestNo: `REQ-T248-${tag}`,
+          status: 'completed',
+          completedAt: new Date(),
+          assigneeUserId: staff,
+          contactName: 'คุณวิภา',
+          contactEmail: 'wipa@example.com',
+          severity: 'medium',
+          formData: { subject: 'กล้องดับ' },
+        },
+      });
+      requestIds.push(request.id);
+      const order = await prisma.serviceWorkOrder.create({
+        data: {
+          companyId,
+          requestId: request.id,
+          customerId,
+          assetId,
+          workKind: 'corrective',
+          suggestedBilling: 'in_contract',
+          createdBy: staff,
+        },
+      });
+      // a case that is not a service job: no survey
+      expect(await surveys.onDone(randomUUID())).toBeNull();
+
+      const started = await surveys.onDone(request.id);
+      expect(started!.delivery).toEqual({
+        via: 'email',
+        to: 'wipa@example.com',
+        delivered: false,
+      });
+      expect(started!.link).toMatch(/^https:\/\/ctd\.example\/s\//);
+      expect(await surveys.onDone(request.id)).toBeNull();
+      const token = started!.link.split('/s/')[1];
+      // only the hash is kept
+      const stored = await prisma.serviceSurvey.findUniqueOrThrow({
+        where: { workOrderId: order.id },
+      });
+      expect(stored.tokenHash).not.toBe(token);
+
+      expect(await surveys.publicView(token)).toMatchObject({
+        requestNo: `REQ-T248-${tag}`,
+        subject: 'กล้องดับ',
+        state: 'open',
+      });
+      await expect(surveys.publicView('nope')).rejects.toThrow('ไม่พบ');
+      await expect(surveys.answer(token, { overall: 0 })).rejects.toThrow(
+        '1–5',
+      );
+      await surveys.answer(token, {
+        overall: 2,
+        speed: 1,
+        technician: 4,
+        comment: 'ช่างมาช้า',
+      });
+      expect(told).toEqual([{ userId: staff, overall: 2 }]);
+      await expect(surveys.answer(token, { overall: 5 })).rejects.toThrow(
+        'ตอบแล้ว',
+      );
+      await expect(surveys.reissue(manager, order.id)).rejects.toThrow(
+        'ตอบแบบประเมินนี้แล้ว',
+      );
+      expect(await surveys.ofWorkOrder(manager, order.id)).toMatchObject({
+        state: 'answered',
+        overall: 2,
+        comment: 'ช่างมาช้า',
+      });
+      const figures = await surveys.list(manager, {});
+      expect(figures.total.answered).toBeGreaterThanOrEqual(1);
+      expect(
+        figures.byTechnician.find((row) => row.key === staff),
+      ).toMatchObject({ low: expect.any(Number) as unknown });
     });
   },
 );

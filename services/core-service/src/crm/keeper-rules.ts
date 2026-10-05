@@ -25,7 +25,9 @@ export type HealthSignalCode =
   /** The owner rated the customer low at the last review. */
   | 'low_satisfaction'
   /** Nobody has been in touch for too long. */
-  | 'no_contact';
+  | 'no_contact'
+  /** CD-248 — the customer rated our service jobs low lately. */
+  | 'service_csat_low';
 
 export interface HealthSignal {
   code: HealthSignalCode;
@@ -47,6 +49,11 @@ export interface HealthInput {
   };
   /** Latest review rating, 1–5. */
   satisfaction: number | null;
+  /**
+   * CD-248 — the customer's own ratings of service jobs (overall 1–5) in
+   * the last CSAT_WINDOW_DAYS; null / absent = none or not assessed.
+   */
+  csat?: { avg: number; count: number } | null;
   lastContactAt: Date | null;
   /** Customer created — "no contact" counts from here when never contacted. */
   since: Date;
@@ -63,6 +70,9 @@ export const CONTRACT_WINDOW_DAYS = 60;
 export const INVOICE_ALERT_LOOKBACK_DAYS = 45;
 
 const DAY_MS = 86_400_000;
+/** CD-248 — service ratings this recent count; at least this many to judge. */
+export const CSAT_WINDOW_DAYS = 90;
+export const CSAT_MIN_ANSWERS = 2;
 
 export function assessHealth(
   input: HealthInput,
@@ -113,6 +123,18 @@ export function assessHealth(
       code: 'low_satisfaction',
       level: input.satisfaction <= 2 ? 'red' : 'amber',
       values: { score: input.satisfaction },
+    });
+  }
+
+  if (
+    input.csat &&
+    input.csat.count >= CSAT_MIN_ANSWERS &&
+    input.csat.avg < 3.5
+  ) {
+    signals.push({
+      code: 'service_csat_low',
+      level: input.csat.avg < 2.5 ? 'red' : 'amber',
+      values: { avg: input.csat.avg, count: input.csat.count },
     });
   }
 

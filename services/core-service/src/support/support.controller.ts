@@ -11,7 +11,11 @@ import {
   StreamableFile,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { CurrentPrincipal, Permissions } from '@request-management/share';
+import {
+  CurrentPrincipal,
+  Permissions,
+  Public,
+} from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import { ServiceAssetsService } from './service-assets.service';
 import { EntitlementsService } from './entitlements.service';
@@ -23,6 +27,7 @@ import { PmPlanService } from './pm-plan.service';
 import { ClaimsService } from './claims.service';
 import { ProblemsService } from './problems.service';
 import { ServiceReportsService } from './service-reports.service';
+import { SurveysService } from './surveys.service';
 import {
   AssetStatusDto,
   AttachWorkOrderDto,
@@ -63,6 +68,8 @@ import {
   ListServiceReportsQueryDto,
   MarkReportSentDto,
   ServiceReportPreviewDto,
+  ListSurveysQueryDto,
+  SurveyAnswerDto,
 } from './support.dto';
 
 /** CD-236 ทะเบียนอุปกรณ์ที่ติดตั้ง. */
@@ -881,5 +888,74 @@ export class ServiceReportsController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.reports.markSent(principal, id, dto);
+  }
+}
+
+/** CD-248 ความพึงพอใจหลังปิดงาน — the team's side. */
+@ApiTags('service')
+@ApiBearerAuth()
+@Controller('service-surveys')
+export class ServiceSurveysController {
+  constructor(private readonly surveys: SurveysService) {}
+
+  @ApiOperation({
+    summary: 'ผลประเมินและตัวชี้วัดทีมบริการ (รายเดือน / รายช่าง)',
+  })
+  @Get()
+  @Permissions('service.asset.read')
+  list(
+    @Query() query: ListSurveysQueryDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.surveys.list(principal, query);
+  }
+
+  @ApiOperation({ summary: 'แบบประเมินของใบสั่งงาน (null = ยังไม่มี)' })
+  @Get('by-work-order/:workOrderId')
+  @Permissions('service.asset.read')
+  ofWorkOrder(
+    @Param('workOrderId') workOrderId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.surveys.ofWorkOrder(principal, workOrderId);
+  }
+
+  @ApiOperation({
+    summary:
+      'ออกลิงก์ใหม่ (ลิงก์เก่าใช้ไม่ได้) — แสดงครั้งเดียวให้คัดลอกส่งเอง',
+  })
+  @Post('by-work-order/:workOrderId/link')
+  @Permissions('service.asset.manage')
+  reissue(
+    @Param('workOrderId') workOrderId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.surveys.reissue(principal, workOrderId);
+  }
+}
+
+/**
+ * CD-248 — the customer's survey page, public: the link's secret (only its
+ * SHA-256 is kept) is the credential, as for an e-sign link (CD-14). The web
+ * app calls these from its own server routes, which rate-limit by address.
+ * Declared in AGENTS.md as core-service's second public business surface.
+ */
+@ApiTags('service')
+@Controller('service-surveys/public')
+export class ServiceSurveysPublicController {
+  constructor(private readonly surveys: SurveysService) {}
+
+  @ApiOperation({ summary: 'แบบประเมินจากลิงก์ (สาธารณะ)' })
+  @Get(':token')
+  @Public()
+  view(@Param('token') token: string) {
+    return this.surveys.publicView(token);
+  }
+
+  @ApiOperation({ summary: 'ส่งคำตอบ (ครั้งเดียว ก่อนหมดอายุ)' })
+  @Post(':token')
+  @Public()
+  answer(@Param('token') token: string, @Body() dto: SurveyAnswerDto) {
+    return this.surveys.answer(token, dto);
   }
 }

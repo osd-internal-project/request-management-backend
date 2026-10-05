@@ -7556,6 +7556,39 @@ model ServiceReport {
   @@map("service_reports")
 }
 
+/// CD-248 ความพึงพอใจหลังปิดงานบริการ — one survey per service job, sent
+/// when its case is done: a private link (only its SHA-256 is kept) the
+/// customer answers once before it expires. Overall 1–5 (required), speed /
+/// technician / outcome 1–5 (optional), a comment. Feeds the service team's
+/// figures and the customer's health (Keeper, CD-86).
+model ServiceSurvey {
+  id             String    @id @default(uuid())
+  companyId      String
+  workOrderId    String    @unique
+  requestId      String
+  customerId     String?
+  /// who worked the case when it was done — the technician's figures
+  assigneeUserId String?
+  tokenHash      String    @unique
+  expiresAt      DateTime
+  /// email · line · none (the link is copied by hand)
+  sentVia        String    @default("none")
+  sentTo         String?
+  sentAt         DateTime?
+  answeredAt     DateTime?
+  overall        Int?
+  speed          Int?
+  technician     Int?
+  outcome        Int?
+  comment        String?
+  lowAlertedAt   DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([companyId, answeredAt])
+  @@index([customerId, answeredAt])
+  @@map("service_surveys")
+}
+
 /// CD-251 เอกสารส่งมอบของเฟส (หมุดหมาย) — แนบต่อชื่อเอกสาร; ชื่อที่ตรงกับเอกสารบังคับของประเภทงาน
 /// ในรอบส่งของเฟสนั้นนับเป็นเอกสารบังคับ ที่เหลือเป็นเอกสารเพิ่มเติม. ลบ = deletedAt.
 model ProjectDeliveryDocument {
