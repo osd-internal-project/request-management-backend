@@ -391,6 +391,7 @@ export class PortalService {
           status: true,
           severity: true,
           formData: true,
+          submittedAt: true,
           completedAt: true,
         },
       }) as Promise<
@@ -400,6 +401,7 @@ export class PortalService {
           status: string;
           severity: string | null;
           formData: unknown;
+          submittedAt: Date | null;
           completedAt: Date | null;
         }[]
       >,
@@ -428,7 +430,7 @@ export class PortalService {
           asset: asset
             ? [asset.name, asset.serialNo].filter(Boolean).join(' · ')
             : null,
-          openedOn: day(order.createdAt),
+          openedOn: day(request.submittedAt ?? order.createdAt),
           doneOn: day(request.completedAt),
         },
       ];

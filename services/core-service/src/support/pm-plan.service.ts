@@ -211,12 +211,8 @@ export class PmPlanService implements OnModuleInit, OnModuleDestroy {
       ]);
     }
     const active = dto.active ?? true;
-    const schedule = pmSchedule({
-      startOn: day(entitlement.startOn),
-      endOn: day(entitlement.endOn),
-      interval: dto.interval as PmInterval,
-      quota: entitlement.preventiveQuota,
-    });
+    const today = thaiToday();
+    let rounds = 0;
     await this.transactions.execute(async (prisma) => {
       await prisma.servicePmPlan.upsert({
         where: { entitlementId },
@@ -244,23 +240,35 @@ export class PmPlanService implements OnModuleInit, OnModuleDestroy {
       });
       const kept = (await prisma.servicePmRound.findMany({
         where: { entitlementId },
-        select: { roundNo: true },
-      })) as { roundNo: number }[];
-      const taken = new Set(kept.map((row) => row.roundNo));
+        select: { roundNo: true, dueOn: true },
+      })) as { roundNo: number; dueOn: Date }[];
+      // new rounds start today and after the last one that happened, number
+      // on from it, and only use the quota still left
+      const lastDue = kept.reduce((last, row) => {
+        const due = day(row.dueOn);
+        return due > last ? due : last;
+      }, '');
+      const lastNo = kept.reduce((last, row) => Math.max(last, row.roundNo), 0);
+      const schedule = pmSchedule({
+        startOn: day(entitlement.startOn),
+        endOn: day(entitlement.endOn),
+        interval: dto.interval as PmInterval,
+        quota:
+          entitlement.preventiveQuota === null
+            ? null
+            : Math.max(0, entitlement.preventiveQuota - kept.length),
+        from: today,
+        after: lastDue || undefined,
+      });
+      rounds = active ? schedule.length : 0;
       if (active) {
         await prisma.servicePmRound.createMany({
-          data: schedule.flatMap((dueOn, index) =>
-            taken.has(index + 1)
-              ? []
-              : [
-                  {
-                    companyId,
-                    entitlementId,
-                    roundNo: index + 1,
-                    dueOn: asDate(dueOn),
-                  },
-                ],
-          ),
+          data: schedule.map((dueOn, index) => ({
+            companyId,
+            entitlementId,
+            roundNo: lastNo + index + 1,
+            dueOn: asDate(dueOn),
+          })),
         });
       }
       await this.audit.record(
@@ -275,7 +283,7 @@ export class PmPlanService implements OnModuleInit, OnModuleDestroy {
             leadDays,
             ownerUserId: dto.owner_user_id,
             active,
-            rounds: schedule.length,
+            rounds,
           },
         },
         { prisma },

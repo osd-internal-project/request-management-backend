@@ -50,6 +50,28 @@ describe('CD-244 maintenance plan rules', () => {
     ).toEqual([]);
   });
 
+  it('a plan set up part way through lays only the rounds still ahead', () => {
+    const cover = {
+      startOn: '2026-01-01',
+      endOn: '2027-12-31',
+      interval: 'quarterly' as const,
+    };
+    expect(pmSchedule({ ...cover, quota: 4, from: '2026-10-05' })).toEqual([
+      '2027-01-01',
+      '2027-04-01',
+      '2027-07-01',
+      '2027-10-01',
+    ]);
+    expect(
+      pmSchedule({
+        ...cover,
+        quota: 2,
+        from: '2026-10-05',
+        after: '2027-01-01',
+      }),
+    ).toEqual(['2027-04-01', '2027-07-01']);
+  });
+
   it('checks a plan', () => {
     expect(planProblems({ interval: 'quarterly', leadDays: 14 })).toEqual([]);
     expect(planProblems({ interval: 'weekly', leadDays: 14 })).toHaveLength(1);
