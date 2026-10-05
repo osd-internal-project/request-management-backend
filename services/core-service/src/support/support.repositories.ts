@@ -130,3 +130,45 @@ export class ServiceBillingRepository extends BaseRepository<
     return client.serviceBilling;
   }
 }
+
+/** CD-243 — selling rates per work type. */
+@Injectable()
+export class ServiceLabourRateRepository extends BaseRepository<
+  PrismaService['serviceLabourRate']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.serviceLabourRate;
+  }
+}
+
+/** CD-243 — materials used on service jobs. */
+@Injectable()
+export class ServiceMaterialUseRepository extends BaseRepository<
+  PrismaService['serviceMaterialUse']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.serviceMaterialUse;
+  }
+}
+
+/** CD-243 — HR work types (CD-207), to name the selling rates. */
+@Injectable()
+export class ServiceWorkTypeRepository extends BaseRepository<
+  PrismaService['hrWorkType']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.hrWorkType;
+  }
+}

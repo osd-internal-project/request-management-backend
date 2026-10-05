@@ -13,12 +13,19 @@ import {
   ServiceBillingRepository,
   ServiceCalendarRepository,
   ServiceEntitlementRepository,
+  ServiceLabourRateRepository,
+  ServiceMaterialUseRepository,
+  ServiceWorkTypeRepository,
   ServiceOnCallDispatchRepository,
   ServiceOnCallShiftRepository,
   ServiceWorkOrderRepository,
 } from './support.repositories';
 import { WorkOrdersService } from './work-orders.service';
 import { OnCallService } from './on-call.service';
+import { TimeMaterialsService } from './time-materials.service';
+import { TimesheetsService } from '../hr/timesheets.service';
+import { HrTimesheetRepository } from '../hr/hr.repositories';
+import { ProductRepository } from '../crm/product.repositories';
 import { ServiceBillingService } from './service-billing.service';
 import { ServiceBillingErpSyncService } from './service-billing-erp-sync.service';
 import { MockSapClient } from '../erp/mock-sap.client';
@@ -44,6 +51,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
     const requestIds: string[] = [];
     const shiftIds: string[] = [];
     const userIds: string[] = [];
+    const workTypeIds: string[] = [];
 
     beforeAll(async () => {
       prisma = new PrismaClient({ datasources: { db: { url: DB_URL } } });
@@ -116,6 +124,22 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
     afterAll(async () => {
       await prisma.serviceBilling.deleteMany({
         where: { requestId: { in: requestIds } },
+      });
+      await prisma.serviceMaterialUse.deleteMany({
+        where: { requestId: { in: requestIds } },
+      });
+      await prisma.hrTimesheet.deleteMany({
+        where: {
+          companyId,
+          userId: staff,
+          weekStart: { gte: new Date('2031-01-01') },
+        },
+      });
+      await prisma.serviceLabourRate.deleteMany({
+        where: { companyId, workTypeId: { in: workTypeIds } },
+      });
+      await prisma.hrWorkType.deleteMany({
+        where: { id: { in: workTypeIds } },
       });
       await prisma.customerExternalCode.deleteMany({ where: { customerId } });
       await prisma.serviceWorkOrder.deleteMany({
@@ -547,6 +571,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
           refresh: (id: string) => sync.refresh(id),
         } as never,
         { assertCodes: () => Promise.resolve() } as never,
+        { chargeLines: () => Promise.resolve([]) } as never,
         audit,
         transactions,
       );
@@ -681,6 +706,254 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
           expect.objectContaining({ id: draft.id }) as unknown,
         ]),
       );
+    });
+
+    it('CD-243: a job time from timesheets and materials from SAP items become its charge — at the selling rate, with its cost and margin for those who may see cost', async () => {
+      const client = prisma as never;
+      const transactions = {
+        execute: (work: (tx: unknown) => Promise<unknown>) =>
+          prisma.$transaction((tx) => work(tx)),
+      } as never;
+      const audit = { record: () => Promise.resolve() } as never;
+      const workType = await prisma.hrWorkType.create({
+        data: { companyId, code: `T243-${tag}`, name: 'ซ่อมหน้างาน' },
+      });
+      workTypeIds.push(workType.id);
+      const request = await prisma.request.create({
+        data: {
+          requestTypeId: typeId,
+          typeCode,
+          companyId,
+          requesterId: staff,
+          requestNo: `REQ-T243-${tag}`,
+          status: 'completed',
+          severity: 'medium',
+          formData: { subject: 'กล้องดับ' },
+        },
+      });
+      requestIds.push(request.id);
+      const order = await prisma.serviceWorkOrder.create({
+        data: {
+          companyId,
+          requestId: request.id,
+          customerId,
+          assetId,
+          workKind: 'corrective',
+          suggestedBilling: 'billable',
+          billing: 'billable',
+          ackEstimate: 5000,
+          createdBy: staff,
+        },
+      });
+      // 3 h billable + 1 h not, approved; 2 h still waiting
+      const sheet = async (
+        weekStart: string,
+        status: string,
+        lines: { hours: number; billable: boolean }[],
+      ) =>
+        prisma.hrTimesheet.create({
+          data: {
+            companyId,
+            userId: staff,
+            weekStart: new Date(`${weekStart}T00:00:00Z`),
+            status,
+            lines: {
+              create: lines.map((line) => ({
+                workDate: new Date(`${weekStart}T00:00:00Z`),
+                kind: 'service',
+                requestId: request.id,
+                workTypeId: workType.id,
+                hours: line.hours,
+                billable: line.billable,
+              })),
+            },
+          },
+        });
+      await sheet('2031-03-03', 'approved', [
+        { hours: 3, billable: true },
+        { hours: 1, billable: false },
+      ]);
+      await sheet('2031-03-10', 'submitted', [{ hours: 2, billable: true }]);
+
+      const timeMaterials = new TimeMaterialsService(
+        new ServiceWorkOrderRepository(client),
+        new ServiceMaterialUseRepository(client),
+        new ServiceLabourRateRepository(client),
+        new ServiceWorkTypeRepository(client),
+        new ServiceBillingRepository(client),
+        new RequestRepository(client),
+        new ProductRepository(client),
+        { assertCodes: () => Promise.resolve() } as never,
+        {
+          lookup: (_a: unknown, codes: string[]) =>
+            Promise.resolve(
+              codes[0] === 'BRK-01' ? { 'BRK-01': { unit_price: 450 } } : {},
+            ),
+        } as never,
+        {
+          lookup: () => Promise.resolve({ items: [{ unitCost: 300 }] }),
+        } as never,
+        new TimesheetsService(
+          new HrTimesheetRepository(client),
+          {} as never,
+          {} as never,
+          {} as never,
+          {} as never,
+          {} as never,
+          {} as never,
+          audit,
+          transactions,
+        ),
+        {
+          forRequests: () =>
+            Promise.resolve(
+              new Map([[request.id, { cost: 1200, unpricedHours: 0 }]]),
+            ),
+        } as never,
+        new CompanyMemberRepository(client),
+        audit,
+        transactions,
+      );
+      const manager = {
+        userId: staff,
+        activeCompanyId: companyId,
+        permissions: ['service.asset.read', 'service.asset.manage'],
+      } as unknown as Principal;
+      const finance = {
+        ...manager,
+        permissions: [...manager.permissions, 'hr.rate.read'],
+      } as unknown as Principal;
+
+      const rates = await timeMaterials.saveLabourRate(manager, {
+        work_type_id: workType.id,
+        hourly_rate: 800,
+        product_code: 'SV-LAB',
+      });
+      expect(rates.find((row) => row.workTypeId === workType.id)).toMatchObject(
+        {
+          hourlyRate: 800,
+          productCode: 'SV-LAB',
+        },
+      );
+      await timeMaterials.addMaterial(manager, order.id, {
+        product_code: 'BRK-01',
+        description: 'ขายึดกล้อง',
+        quantity: 2,
+        serial_no: 'SN-77',
+      });
+      await timeMaterials.addMaterial(manager, order.id, {
+        product_code: 'CAM-01',
+        description: 'กล้องสำรอง (เปลี่ยนในประกัน)',
+        quantity: 1,
+        billable: false,
+      });
+      // not the service team, not the case's assignee
+      await expect(
+        timeMaterials.addMaterial(
+          {
+            ...manager,
+            userId: randomUUID(),
+            permissions: ['service.asset.read'],
+          } as never,
+          order.id,
+          { product_code: 'BRK-01', quantity: 1 },
+        ),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+
+      const seen = await timeMaterials.ofWorkOrder(finance, order.id);
+      expect(seen.time).toMatchObject({ approved: 4, pending: 2, billable: 3 });
+      expect(seen.materials).toEqual([
+        expect.objectContaining({
+          productCode: 'BRK-01',
+          unitPrice: 450,
+          priceSource: 'standard',
+          unitCost: 300,
+          billable: true,
+        }) as unknown,
+        expect.objectContaining({
+          productCode: 'CAM-01',
+          unitPrice: null,
+          billable: false,
+        }) as unknown,
+      ]);
+      expect(seen.charge.lines).toEqual([
+        expect.objectContaining({
+          description: 'ค่าแรง ซ่อมหน้างาน',
+          quantity: 3,
+          unitPrice: 800,
+          productCode: 'SV-LAB',
+        }) as unknown,
+        expect.objectContaining({
+          description: 'ขายึดกล้อง · S/N SN-77',
+          quantity: 2,
+          unitPrice: 450,
+        }) as unknown,
+      ]);
+      expect(seen.costs).toMatchObject({
+        labour: { cost: 1200 },
+        materials: { cost: 900 },
+      });
+      // no hr.rate.read: no cost
+      const plain = await timeMaterials.ofWorkOrder(manager, order.id);
+      expect(plain.costs).toBeNull();
+      expect(plain.materials[0].unitCost).toBeNull();
+
+      // the charge starts from the actual, not the estimate
+      const billings = new ServiceBillingService(
+        new ServiceBillingRepository(client),
+        new ServiceWorkOrderRepository(client),
+        new RequestRepository(client),
+        new CustomerRepository(client),
+        new CompanyMemberRepository(client),
+        { kickCreate: () => undefined, kickCancel: () => undefined } as never,
+        { assertCodes: () => Promise.resolve() } as never,
+        timeMaterials,
+        audit,
+        transactions,
+      );
+      const draft = await billings.prepare(manager, order.id);
+      expect(draft.netTotal).toBe(3300);
+      expect(draft.lines.map((line) => line.source)).toEqual([
+        'labour',
+        'material',
+      ]);
+      // a typed line stays when time and materials are pulled again
+      await billings.save(manager, draft.id, {
+        lines: [
+          ...draft.lines.map((line) => ({
+            product_code: line.productCode,
+            description: line.description,
+            quantity: line.quantity,
+            unit_price: line.unitPrice,
+          })),
+          { description: 'ค่าเดินทาง', quantity: 1, unit_price: 300 },
+        ],
+      });
+      await timeMaterials.addMaterial(manager, order.id, {
+        product_code: 'BRK-01',
+        description: 'ขายึดกล้อง',
+        quantity: 1,
+        unit_price: 500,
+      });
+      const pulled = await billings.pull(manager, draft.id);
+      expect(pulled.lines.map((line) => [line.source, line.lineTotal])).toEqual(
+        [
+          ['manual', 300],
+          ['labour', 2400],
+          ['material', 900],
+          ['material', 500],
+        ],
+      );
+      expect(pulled.netTotal).toBe(4100);
+
+      // sent: the materials are locked
+      await billings.confirm(manager, draft.id);
+      await expect(
+        timeMaterials.addMaterial(manager, order.id, {
+          product_code: 'BRK-01',
+          quantity: 1,
+        }),
+      ).rejects.toThrow('ส่งใบเรียกเก็บ');
     });
   },
 );

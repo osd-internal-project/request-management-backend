@@ -3,6 +3,8 @@ import {
   ServiceAssetsController,
   ServiceBillingsController,
   ServiceEntitlementsController,
+  ServiceLabourRatesController,
+  ServiceTimeMaterialsController,
   ServiceOnCallController,
   ServiceWorkOrdersController,
 } from './support.controller';
@@ -17,6 +19,8 @@ import { SupportModule } from './support.module';
     ServiceWorkOrdersController,
     ServiceOnCallController,
     ServiceBillingsController,
+    ServiceTimeMaterialsController,
+    ServiceLabourRatesController,
   ],
 })
 export class SupportHttpModule {}

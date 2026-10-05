@@ -17,6 +17,7 @@ import { EntitlementsService } from './entitlements.service';
 import { WorkOrdersService } from './work-orders.service';
 import { OnCallService } from './on-call.service';
 import { ServiceBillingService } from './service-billing.service';
+import { TimeMaterialsService } from './time-materials.service';
 import {
   AssetStatusDto,
   AttachWorkOrderDto,
@@ -37,6 +38,9 @@ import {
   ListServiceBillingsQueryDto,
   PrepareServiceBillingDto,
   SaveServiceBillingDto,
+  AddMaterialUseDto,
+  SaveLabourRateDto,
+  UpdateMaterialUseDto,
 } from './support.dto';
 
 /** CD-236 ทะเบียนอุปกรณ์ที่ติดตั้ง. */
@@ -436,11 +440,102 @@ export class ServiceBillingsController {
   }
 
   @ApiOperation({
+    summary:
+      'ดึงเวลาและวัสดุเข้าใบร่าง — แทนบรรทัดค่าแรง/วัสดุเดิม คงบรรทัดที่พิมพ์เอง',
+  })
+  @Post(':id/pull')
+  @Permissions('service.asset.manage')
+  pull(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.billings.pull(principal, id);
+  }
+
+  @ApiOperation({
     summary: 'อ่านสถานะจาก SAP ตอนนี้ (ออกใบแจ้งหนี้แล้ว/ชำระแล้ว)',
   })
   @Post(':id/refresh')
   @Permissions('service.asset.read')
   refresh(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
     return this.billings.refresh(principal, id);
+  }
+}
+
+/** CD-243 บันทึกเวลาและวัสดุงานบริการ. */
+@ApiTags('service')
+@ApiBearerAuth()
+@Controller('service-time-materials')
+export class ServiceTimeMaterialsController {
+  constructor(private readonly timeMaterials: TimeMaterialsService) {}
+
+  @ApiOperation({
+    summary:
+      'เวลา (จาก Timesheet) และวัสดุของใบสั่งงาน + รายการที่จะเรียกเก็บ + ต้นทุน/กำไร (hr.rate.read)',
+  })
+  @Get(':workOrderId')
+  @Permissions('service.asset.read')
+  ofWorkOrder(
+    @Param('workOrderId') workOrderId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.timeMaterials.ofWorkOrder(principal, workOrderId);
+  }
+
+  @ApiOperation({
+    summary:
+      'บันทึกวัสดุที่ใช้ (รหัสสินค้า SAP) — ทีมบริการหรือผู้รับผิดชอบเคส; ราคามาตรฐาน/ต้นทุนเติมให้',
+  })
+  @Post(':workOrderId/materials')
+  @Permissions('service.asset.read')
+  addMaterial(
+    @Param('workOrderId') workOrderId: string,
+    @Body() dto: AddMaterialUseDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.timeMaterials.addMaterial(principal, workOrderId, dto);
+  }
+
+  @ApiOperation({ summary: 'แก้รายการวัสดุ' })
+  @Put('materials/:id')
+  @Permissions('service.asset.read')
+  updateMaterial(
+    @Param('id') id: string,
+    @Body() dto: UpdateMaterialUseDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.timeMaterials.updateMaterial(principal, id, dto);
+  }
+
+  @ApiOperation({ summary: 'ลบรายการวัสดุ (เก็บประวัติไว้)' })
+  @Delete('materials/:id')
+  @Permissions('service.asset.read')
+  removeMaterial(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.timeMaterials.removeMaterial(principal, id);
+  }
+}
+
+/** CD-243 — selling rates of service labour per work type. */
+@ApiTags('service')
+@ApiBearerAuth()
+@Controller('service-labour-rates')
+export class ServiceLabourRatesController {
+  constructor(private readonly timeMaterials: TimeMaterialsService) {}
+
+  @ApiOperation({ summary: 'อัตราค่าแรงเรียกเก็บต่อชั่วโมง ตามประเภทงาน' })
+  @Get()
+  @Permissions('service.asset.read')
+  list(@CurrentPrincipal() principal: Principal) {
+    return this.timeMaterials.labourRates(principal);
+  }
+
+  @ApiOperation({ summary: 'ตั้งอัตราค่าแรงเรียกเก็บของประเภทงาน' })
+  @Put()
+  @Permissions('service.asset.manage')
+  save(
+    @Body() dto: SaveLabourRateDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.timeMaterials.saveLabourRate(principal, dto);
   }
 }

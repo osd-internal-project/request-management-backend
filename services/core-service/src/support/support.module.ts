@@ -9,6 +9,9 @@ import { OnCallService } from './on-call.service';
 import { ServiceBillingService } from './service-billing.service';
 import { ServiceBillingErpSyncService } from './service-billing-erp-sync.service';
 import { CrmModule } from '../crm/crm.module';
+import { PricingModule } from '../pricing/pricing.module';
+import { TimeMaterialsService } from './time-materials.service';
+import { ProductRepository } from '../crm/product.repositories';
 import { ErpModule } from '../erp/erp.module';
 import { CustomerExternalCodeRepository } from '../crm/customer-child.repositories';
 import { CompanyRepository } from '../crm/product.repositories';
@@ -34,6 +37,9 @@ import {
   ServiceOnCallShiftRepository,
   ServiceCalendarRepository,
   ServiceBillingRepository,
+  ServiceLabourRateRepository,
+  ServiceMaterialUseRepository,
+  ServiceWorkTypeRepository,
 } from './support.repositories';
 
 /**
@@ -52,6 +58,8 @@ import {
     // CD-242 — the SAP queue, its customer push and the item catalog.
     CrmModule,
     ErpModule,
+    // CD-243 — standard prices for materials used.
+    PricingModule,
   ],
   providers: [
     ServiceAssetsService,
@@ -61,6 +69,11 @@ import {
     ServiceBillingService,
     ServiceBillingErpSyncService,
     ServiceBillingRepository,
+    TimeMaterialsService,
+    ServiceLabourRateRepository,
+    ServiceMaterialUseRepository,
+    ServiceWorkTypeRepository,
+    ProductRepository,
     CustomerExternalCodeRepository,
     CompanyRepository,
     ServiceOnCallShiftRepository,
@@ -86,6 +99,7 @@ import {
     WorkOrdersService,
     OnCallService,
     ServiceBillingService,
+    TimeMaterialsService,
   ],
 })
 export class SupportModule {}

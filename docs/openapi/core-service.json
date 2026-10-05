@@ -18880,6 +18880,47 @@
         ]
       }
     },
+    "/api/v1/service-billings/{id}/pull": {
+      "post": {
+        "operationId": "ServiceBillingsController_pull",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ดึงเวลาและวัสดุเข้าใบร่าง — แทนบรรทัดค่าแรง/วัสดุเดิม คงบรรทัดที่พิมพ์เอง",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.manage"
+        ]
+      }
+    },
     "/api/v1/service-billings/{id}/refresh": {
       "post": {
         "operationId": "ServiceBillingsController_refresh",
@@ -18918,6 +18959,262 @@
         ],
         "x-permission": [
           "service.asset.read"
+        ]
+      }
+    },
+    "/api/v1/service-time-materials/{workOrderId}": {
+      "get": {
+        "operationId": "ServiceTimeMaterialsController_ofWorkOrder",
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เวลา (จาก Timesheet) และวัสดุของใบสั่งงาน + รายการที่จะเรียกเก็บ + ต้นทุน/กำไร (hr.rate.read)",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.read"
+        ]
+      }
+    },
+    "/api/v1/service-time-materials/{workOrderId}/materials": {
+      "post": {
+        "operationId": "ServiceTimeMaterialsController_addMaterial",
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddMaterialUseDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "บันทึกวัสดุที่ใช้ (รหัสสินค้า SAP) — ทีมบริการหรือผู้รับผิดชอบเคส; ราคามาตรฐาน/ต้นทุนเติมให้",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.read"
+        ]
+      }
+    },
+    "/api/v1/service-time-materials/materials/{id}": {
+      "put": {
+        "operationId": "ServiceTimeMaterialsController_updateMaterial",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMaterialUseDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แก้รายการวัสดุ",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.read"
+        ]
+      },
+      "delete": {
+        "operationId": "ServiceTimeMaterialsController_removeMaterial",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ลบรายการวัสดุ (เก็บประวัติไว้)",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.read"
+        ]
+      }
+    },
+    "/api/v1/service-labour-rates": {
+      "get": {
+        "operationId": "ServiceLabourRatesController_list",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "อัตราค่าแรงเรียกเก็บต่อชั่วโมง ตามประเภทงาน",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.read"
+        ]
+      },
+      "put": {
+        "operationId": "ServiceLabourRatesController_save",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveLabourRateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ตั้งอัตราค่าแรงเรียกเก็บของประเภทงาน",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.manage"
         ]
       }
     },
@@ -37553,6 +37850,108 @@
         },
         "required": [
           "reason"
+        ]
+      },
+      "AddMaterialUseDto": {
+        "type": "object",
+        "properties": {
+          "product_code": {
+            "type": "string",
+            "description": "รหัสสินค้า SAP",
+            "pattern": "^[A-Za-z0-9_.-]{1,64}$"
+          },
+          "description": {
+            "type": "string",
+            "description": "ว่าง = ชื่อสินค้าใน SAP",
+            "maxLength": 200
+          },
+          "quantity": {
+            "type": "number",
+            "maximum": 99999999,
+            "minimum": 0.001
+          },
+          "serial_no": {
+            "type": "object",
+            "maxLength": 100
+          },
+          "billable": {
+            "type": "boolean",
+            "description": "ค่าเริ่ม = งานเก็บเงิน"
+          },
+          "unit_price": {
+            "type": "object",
+            "description": "ว่าง = ราคามาตรฐาน (CD-194)",
+            "maximum": 999999999999,
+            "minimum": 0
+          },
+          "used_on": {
+            "type": "string",
+            "description": "YYYY-MM-DD (ค่าเริ่ม วันนี้)",
+            "maxLength": 10
+          },
+          "note": {
+            "type": "object",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "product_code",
+          "quantity"
+        ]
+      },
+      "UpdateMaterialUseDto": {
+        "type": "object",
+        "properties": {
+          "quantity": {
+            "type": "number",
+            "maximum": 99999999,
+            "minimum": 0.001
+          },
+          "serial_no": {
+            "type": "object",
+            "maxLength": 100
+          },
+          "billable": {
+            "type": "boolean"
+          },
+          "unit_price": {
+            "type": "number",
+            "maximum": 999999999999,
+            "minimum": 0
+          },
+          "note": {
+            "type": "object",
+            "maxLength": 500
+          }
+        }
+      },
+      "SaveLabourRateDto": {
+        "type": "object",
+        "properties": {
+          "work_type_id": {
+            "type": "string",
+            "maxLength": 50,
+            "minLength": 1
+          },
+          "hourly_rate": {
+            "type": "number",
+            "description": "บาทต่อชั่วโมง",
+            "maximum": 9999999,
+            "minimum": 0
+          },
+          "product_code": {
+            "type": "object",
+            "description": "รหัสสินค้า SAP ของบรรทัดค่าแรง",
+            "pattern": "^([A-Za-z0-9_.-]{1,64})?$"
+          },
+          "note": {
+            "type": "object",
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "hourly_rate",
+          "work_type_id"
         ]
       },
       "ConfirmInstallDto": {

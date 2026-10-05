@@ -7180,6 +7180,59 @@ model ServiceBillingLine {
   @@map("service_billing_lines")
 }
 
+/// CD-243 — what an hour of service work is charged to the customer, per HR
+/// work type (CD-207): a selling rate, not the confidential cost rate. The
+/// labour line on a charge carries `productCode` (SAP service item) when set.
+model ServiceLabourRate {
+  id          String   @id @default(uuid())
+  companyId   String
+  workTypeId  String
+  hourlyRate  Decimal  @db.Decimal(12, 2)
+  productCode String?
+  note        String?
+  createdAt   DateTime @default(now())
+  createdBy   String
+  updatedAt   DateTime @updatedAt
+  updatedBy   String?
+
+  @@unique([companyId, workTypeId])
+  @@map("service_labour_rates")
+}
+
+/// CD-243 บันทึกวัสดุที่ใช้จริง — an SAP item used on a service job: the
+/// selling price from the standard price list (CD-194) when there is one,
+/// edited; the cost from suppliers' SAP costs (CD-206) at the time, kept for
+/// the job's margin. `billable` false = covered (in contract). Removed =
+/// deletedAt.
+model ServiceMaterialUse {
+  id          String    @id @default(uuid())
+  companyId   String
+  workOrderId String
+  requestId   String
+  productCode String
+  description String
+  quantity    Decimal   @db.Decimal(14, 3)
+  unit        String?
+  serialNo    String?
+  billable    Boolean   @default(true)
+  unitPrice   Decimal?  @db.Decimal(14, 2)
+  /// standard · manual
+  priceSource String?
+  unitCost    Decimal?  @db.Decimal(14, 2)
+  usedOn      DateTime  @db.Date
+  note        String?
+  createdAt   DateTime  @default(now())
+  createdBy   String
+  updatedAt   DateTime  @updatedAt
+  updatedBy   String?
+  deletedAt   DateTime?
+  deletedBy   String?
+
+  @@index([workOrderId])
+  @@index([companyId, usedOn])
+  @@map("service_material_uses")
+}
+
 /// CD-251 เอกสารส่งมอบของเฟส (หมุดหมาย) — แนบต่อชื่อเอกสาร; ชื่อที่ตรงกับเอกสารบังคับของประเภทงาน
 /// ในรอบส่งของเฟสนั้นนับเป็นเอกสารบังคับ ที่เหลือเป็นเอกสารเพิ่มเติม. ลบ = deletedAt.
 model ProjectDeliveryDocument {

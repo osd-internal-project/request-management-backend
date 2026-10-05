@@ -22,6 +22,8 @@ import {
   type BillingLineInput,
 } from './billing-rules';
 import { ServiceBillingErpSyncService } from './service-billing-erp-sync.service';
+import { TimeMaterialsService } from './time-materials.service';
+import { rebuildLines, type ChargeLine } from './time-material-rules';
 import {
   CancelServiceBillingDto,
   ListServiceBillingsQueryDto,
@@ -119,6 +121,7 @@ export class ServiceBillingService {
     private readonly people: CompanyMemberRepository,
     private readonly sync: ServiceBillingErpSyncService,
     private readonly catalog: ProductCatalogService,
+    private readonly timeMaterials: TimeMaterialsService,
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
   ) {}
@@ -172,8 +175,15 @@ export class ServiceBillingService {
     if (await this.billings.count({ where: { workOrderId } })) {
       throw new AppError('CONFLICT', 'งานนี้มีใบเรียกเก็บแล้ว');
     }
+    // CD-243 — the actual time and materials when there are any, else the
+    // estimate the customer agreed to
+    const actual = await this.timeMaterials.chargeLines(companyId, workOrderId);
     const first = estimateLine(subjectOf(request), num(order.ackEstimate));
-    const lines = first ? [first] : [];
+    const lines: ChargeLine[] = actual.length
+      ? actual
+      : first
+        ? [{ ...first, source: 'estimate' }]
+        : [];
     const created = await this.transactions.execute(async (prisma) => {
       const row = await prisma.serviceBilling.create({
         data: {
@@ -187,7 +197,7 @@ export class ServiceBillingService {
           lines: {
             create: lines.map((line, index) => ({
               ...this.lineData(line, index),
-              source: 'estimate',
+              source: line.source,
             })),
           },
         },
@@ -261,6 +271,61 @@ export class ServiceBillingService {
       await this.audit.record(
         {
           eventType: 'service.billing.saved',
+          companyId: before.companyId,
+          ...auditActor(actor),
+          resourceType: 'service_billing',
+          resourceId: id,
+          before: { netTotal: Number(before.netTotal) },
+          after: { netTotal: netTotal(lines), lines: lines.length },
+        },
+        { prisma },
+      );
+    });
+    return this.detail(actor, id);
+  }
+
+  /**
+   * CD-243 — the draft's labour and material lines rebuilt from the job's
+   * time and materials now; typed lines stay, the estimate goes once there
+   * is something actual to charge.
+   */
+  async pull(actor: Principal, id: string) {
+    const before = await this.require(actor.activeCompanyId, id);
+    if (before.status !== 'draft') {
+      throw new AppError(
+        'CONFLICT',
+        'ดึงเวลาและวัสดุได้เฉพาะใบที่ยังไม่ยืนยันส่ง',
+      );
+    }
+    const fresh = await this.timeMaterials.chargeLines(
+      before.companyId,
+      before.workOrderId,
+    );
+    const lines = rebuildLines(
+      before.lines.map((line) => ({
+        ...lineInput(line),
+        source: line.source as ChargeLine['source'],
+      })),
+      fresh,
+    );
+    await this.transactions.execute(async (prisma) => {
+      await prisma.serviceBillingLine.deleteMany({ where: { billingId: id } });
+      await prisma.serviceBilling.update({
+        where: { id },
+        data: {
+          netTotal: netTotal(lines),
+          updatedBy: actor.userId,
+          lines: {
+            create: lines.map((line, index) => ({
+              ...this.lineData(line, index),
+              source: line.source,
+            })),
+          },
+        },
+      });
+      await this.audit.record(
+        {
+          eventType: 'service.billing.pulled',
           companyId: before.companyId,
           ...auditActor(actor),
           resourceType: 'service_billing',

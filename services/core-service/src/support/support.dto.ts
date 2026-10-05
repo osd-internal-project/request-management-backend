@@ -3,6 +3,7 @@ import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   IsArray,
+  IsBoolean,
   IsIn,
   IsInt,
   IsNotEmpty,
@@ -594,4 +595,114 @@ export class ListServiceBillingsQueryDto {
   @IsOptional()
   @IsIn(['none', 'pending', 'synced', 'not_ready', 'failed', 'skipped'])
   erp_status?: string;
+}
+
+/** CD-243 — an SAP item used on a service job. */
+export class AddMaterialUseDto {
+  @ApiProperty({ description: 'รหัสสินค้า SAP' })
+  @IsString()
+  @Matches(/^[A-Za-z0-9_.-]{1,64}$/)
+  product_code!: string;
+
+  @ApiPropertyOptional({ description: 'ว่าง = ชื่อสินค้าใน SAP' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  description?: string;
+
+  @ApiProperty()
+  @IsNumber({ maxDecimalPlaces: 3 })
+  @Min(0.001)
+  @Max(99_999_999)
+  quantity!: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  serial_no?: string | null;
+
+  @ApiPropertyOptional({ description: 'ค่าเริ่ม = งานเก็บเงิน' })
+  @IsOptional()
+  @IsBoolean()
+  billable?: boolean;
+
+  @ApiPropertyOptional({ description: 'ว่าง = ราคามาตรฐาน (CD-194)' })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(999_999_999_999)
+  unit_price?: number | null;
+
+  @ApiPropertyOptional({ description: 'YYYY-MM-DD (ค่าเริ่ม วันนี้)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  used_on?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  note?: string | null;
+}
+
+export class UpdateMaterialUseDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 3 })
+  @Min(0.001)
+  @Max(99_999_999)
+  quantity?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  serial_no?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  billable?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(999_999_999_999)
+  unit_price?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  note?: string | null;
+}
+
+/** CD-243 — the selling rate of an hour of one work type. */
+export class SaveLabourRateDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(50)
+  work_type_id!: string;
+
+  @ApiProperty({ description: 'บาทต่อชั่วโมง' })
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(9_999_999)
+  hourly_rate!: number;
+
+  @ApiPropertyOptional({ description: 'รหัสสินค้า SAP ของบรรทัดค่าแรง' })
+  @IsOptional()
+  @IsString()
+  @Matches(/^([A-Za-z0-9_.-]{1,64})?$/)
+  product_code?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  note?: string | null;
 }
