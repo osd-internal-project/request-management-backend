@@ -5,6 +5,7 @@ import { ContractTermsRepository } from '../crm/contract-terms.service';
 import { CustomerContractRepository } from '../crm/contract.repositories';
 import { CustomerRepository } from '../crm/customer.repository';
 import { RequestRepository } from '../requests/request.repository';
+import { SlaService } from '../sla/sla.service';
 import { EntitlementsService } from './entitlements.service';
 import {
   ServiceAssetRepository,
@@ -81,7 +82,14 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
           title: `MA ${tag}`,
           startOn: new Date('2026-01-01T00:00:00Z'),
           endOn: new Date(`${Number(today.slice(0, 4)) + 1}-12-31T00:00:00Z`),
-          coverage: 'H8X5',
+          coverage: 'H24X7',
+          // CD-240 — high: 1 h to respond, 6 h to fix
+          severityTargets: {
+            critical: { responseHours: 0.5, resolutionHours: 2 },
+            high: { responseHours: 1, resolutionHours: 6 },
+            medium: { responseHours: 4, resolutionHours: 24 },
+            low: { responseHours: 8, resolutionHours: 48 },
+          },
           correctiveQuota: 1,
           preventiveQuota: null,
           createdBy: staff,
@@ -93,6 +101,9 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
 
     afterAll(async () => {
       await prisma.serviceWorkOrder.deleteMany({
+        where: { requestId: { in: requestIds } },
+      });
+      await prisma.slaClock.deleteMany({
         where: { requestId: { in: requestIds } },
       });
       await prisma.request.deleteMany({ where: { id: { in: requestIds } } });
@@ -174,6 +185,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         } as never,
         audit,
         transactions,
+        new SlaService(prisma as never),
       );
       orders.onModuleInit();
       const manager = {
@@ -206,12 +218,28 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         billing: null,
         request: { status: 'submitted', subject: 'กล้องภาพไม่ขึ้น' },
       });
+      // CD-240 — a clock running on the type's 48 h moves to the cover's 6 h
+      const startedAt = new Date();
+      await prisma.slaClock.create({
+        data: {
+          requestId: first.requestId,
+          startedAt,
+          dueAt: new Date(startedAt.getTime() + 48 * 3_600_000),
+          state: 'running',
+        },
+      });
       // not started before it is decided
       await expect(
         guards.get('receive')!({ id: first.requestId }),
       ).rejects.toThrow('ยังไม่ได้ยืนยัน');
       await orders.confirm(manager, first.id, { billing: 'in_contract' });
       expect(await used()).toBe(1);
+      const clock = await prisma.slaClock.findUniqueOrThrow({
+        where: { requestId: first.requestId },
+      });
+      const left = clock.dueAt.getTime() - Date.now();
+      expect(left).toBeGreaterThan(5.9 * 3_600_000);
+      expect(left).toBeLessThanOrEqual(6 * 3_600_000);
       await guards.get('receive')!({ id: first.requestId });
 
       // the second: the visit is used — suggested billed

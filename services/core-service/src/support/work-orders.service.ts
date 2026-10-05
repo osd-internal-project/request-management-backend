@@ -14,6 +14,7 @@ import { DomainEventsService } from '../events/domain-events.service';
 import { DOMAIN_EVENTS } from '../events/event-catalog';
 import { RequestRepository } from '../requests/request.repository';
 import { RequestsService } from '../requests/requests.service';
+import { SlaService } from '../sla/sla.service';
 import { EntitlementsService } from './entitlements.service';
 import {
   AttachWorkOrderDto,
@@ -98,6 +99,7 @@ export class WorkOrdersService implements OnModuleInit {
     private readonly events: DomainEventsService,
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
+    private readonly sla: SlaService,
   ) {}
 
   onModuleInit(): void {
@@ -310,6 +312,8 @@ export class WorkOrdersService implements OnModuleInit {
         },
         { prisma },
       );
+      // CD-240 — the confirmed cover's levels (or the type's, when billed)
+      await this.sla.retarget(prisma, order.requestId);
     });
     return this.detail(actor, id);
   }
@@ -476,6 +480,8 @@ export class WorkOrdersService implements OnModuleInit {
         },
         { prisma },
       );
+      // CD-240 — the clock began on the type's levels; the cover's apply now
+      await this.sla.retarget(prisma, requestId);
       return created;
     });
     return row.id;
