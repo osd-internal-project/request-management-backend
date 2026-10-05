@@ -229,3 +229,16 @@ export class ListHandoversQueryDto {
   @IsIn(['sent', 'questioned', 'acknowledged'])
   status?: string;
 }
+
+/** CD-256 — months of the acceptance report (YYYY-MM, inclusive). */
+export class DeliveryReportQueryDto {
+  @ApiPropertyOptional({ example: '2026-01' })
+  @IsOptional()
+  @Matches(/^\d{4}-(0[1-9]|1[0-2])$/)
+  from?: string;
+
+  @ApiPropertyOptional({ example: '2026-12' })
+  @IsOptional()
+  @Matches(/^\d{4}-(0[1-9]|1[0-2])$/)
+  to?: string;
+}

@@ -146,7 +146,15 @@ export const PERMISSIONS = {
    * (CD-250). A project's manager and `pm.project.manage` change their own
    * project's plan too; its team reads it.
    */
-  delivery: ['delivery.read', 'delivery.manage'],
+  delivery: [
+    'delivery.read',
+    'delivery.manage',
+    /**
+     * CD-256 — every contract's installments billed and past due but not yet
+     * paid (finance). Without it a salesperson sees only their own contracts'.
+     */
+    'delivery.receivable.read',
+  ],
   admin: [
     'admin.role.manage',
     'admin.org.manage',

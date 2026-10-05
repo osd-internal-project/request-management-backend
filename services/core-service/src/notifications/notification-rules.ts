@@ -327,6 +327,26 @@ export const NOTIFICATION_RULES: readonly RuleDefinition[] = [
     ],
     defaults: { days: 3 },
   },
+  {
+    code: 'receivable.overdue',
+    module: 'finance',
+    label: 'งวดค้างชำระ',
+    description:
+      'งวดที่วางบิลแล้วเลยกำหนดชำระ (วันออกใบแจ้งหนี้ + เครดิต 30 วัน) แต่ยังไม่ได้รับเงิน — สรุปส่งพนักงานขายเจ้าของสัญญา (เฉพาะของตัวเอง) และฝ่ายการเงิน (ทุกสัญญา) ซ้ำทุกจำนวนวันที่กำหนด',
+    recipients:
+      'เจ้าของสัญญา (ฝ่ายขาย) และฝ่ายการเงิน (delivery.receivable.read)',
+    eventTypes: ['delivery.receivables_overdue'],
+    params: [
+      {
+        key: 'days',
+        label: 'ส่งสรุปซ้ำทุก (วัน)',
+        kind: 'days',
+        min: 1,
+        max: 30,
+      },
+    ],
+    defaults: { days: 7 },
+  },
 ];
 
 const BY_CODE = new Map(NOTIFICATION_RULES.map((rule) => [rule.code, rule]));

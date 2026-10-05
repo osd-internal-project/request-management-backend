@@ -7148,6 +7148,19 @@ model ServiceHandover {
   @@map("service_handovers")
 }
 
+/// CD-256 — when a person was last sent the overdue-installments digest (the
+/// `receivable.overdue` rule repeats it every N days).
+model ReceivableReminder {
+  companyId String
+  userId    String
+  sentAt    DateTime
+  count     Int
+  amount    Decimal  @db.Decimal(18, 2)
+
+  @@id([companyId, userId])
+  @@map("receivable_reminders")
+}
+
 /// CD-239 ใบสั่งงานบริการ — the service side of a case (a request, CD-67):
 /// which asset, corrective or preventive, and from the start whether it is
 /// covered or billed — the system suggests from the asset's entitlements

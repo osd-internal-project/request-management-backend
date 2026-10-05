@@ -657,6 +657,18 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
     },
   },
   {
+    eventType: 'delivery.receivables_overdue',
+    label: 'สรุปงวดค้างชำระ (ถึงเจ้าของสัญญาและฝ่ายการเงิน)',
+    title: 'งวดค้างชำระ {{count}} งวด รวม {{amount}} บาท',
+    body: 'วางบิลแล้วเลยกำหนดชำระแต่ยังไม่ได้รับเงิน {{scope}} — นานสุด {{days}} วัน ดูรายการในรายงานการส่งมอบ',
+    variables: {
+      count: { label: 'จำนวนงวด', sample: '3' },
+      amount: { label: 'ยอดรวม (บาท)', sample: '1,250,000.00' },
+      days: { label: 'ค้างนานสุด (วัน)', sample: '45' },
+      scope: { label: 'ขอบเขต', sample: 'ของสัญญาที่คุณดูแล' },
+    },
+  },
+  {
     eventType: 'delivery.handover_sent',
     label: 'ส่งมอบงานให้ทีมบริการ (ถึงทีมบริการ)',
     title: 'โครงการ {{project}}: ส่งมอบงานรอบ {{round}} ให้ทีมบริการ',

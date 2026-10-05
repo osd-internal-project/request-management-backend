@@ -54,6 +54,8 @@ describe('CD-91 Data Mart', () => {
       'fact_projects',
       'project_health_weekly',
       'fact_utilization',
+      'fact_delivery_phases',
+      'fact_receivables',
     ]);
     // CD-92 — then the tables the application computes, trend after source
     expect([...COMPUTED_TABLES]).toEqual([

@@ -197,6 +197,8 @@ const SEED_ROLES: {
       'crm.campaign.manage',
       // CD-207 — people's cost per manday
       'hr.rate.read',
+      // CD-256 — installments past due, every contract
+      'delivery.receivable.read',
     ],
     visibilityLevel: 'COMPANY',
   },
@@ -221,6 +223,8 @@ const SEED_ROLES: {
       'user.read',
       // CD-207 — people's cost per manday
       'hr.rate.read',
+      // CD-256 — installments past due, every contract
+      'delivery.receivable.read',
     ],
     visibilityLevel: 'COMPANY',
   },
@@ -240,6 +244,8 @@ const SEED_ROLES: {
       'user.read',
       // CD-207 — people's cost per manday
       'hr.rate.read',
+      // CD-256 — installments past due, every contract
+      'delivery.receivable.read',
     ],
     visibilityLevel: 'COMPANY',
   },
@@ -398,6 +404,21 @@ const SEED_ROLES: {
       'pm.project.read',
       'delivery.read',
       'delivery.manage',
+    ],
+  },
+  {
+    // CD-256 — ฝ่ายการเงิน: follows installments billed and not yet paid.
+    code: 'finance',
+    name: 'ฝ่ายการเงิน',
+    description: 'ติดตามงวดที่วางบิลแล้วแต่เลยกำหนดชำระ และรายงานการส่งมอบทุกโครงการ',
+    permissions: [
+      'request.create',
+      'request.read',
+      'notification.read',
+      'user.read',
+      'pm.project.read',
+      'delivery.read',
+      'delivery.receivable.read',
     ],
   },
   {

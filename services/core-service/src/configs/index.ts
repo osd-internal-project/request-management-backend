@@ -193,6 +193,10 @@ export default () => ({
     handoverIntervalMs: Number(
       process.env.DELIVERY_HANDOVER_INTERVAL_MS ?? 10800000,
     ),
+    /** CD-256 — overdue-installment digests (ms); 0 = off. */
+    receivableIntervalMs: Number(
+      process.env.DELIVERY_RECEIVABLE_INTERVAL_MS ?? 21600000,
+    ),
   },
 
   crm: {

@@ -29,6 +29,7 @@ import { InstallConfirmationsService } from './install-confirmations.service';
 import { AcceptanceCertificatesService } from './acceptance-certificates.service';
 import { InstallmentBillingService } from './installment-billing.service';
 import { ServiceHandoversService } from './service-handovers.service';
+import { DeliveryReportService } from './delivery-report.service';
 import { metaOf } from '../esign/esign.controller';
 import {
   AnyPermission,
@@ -38,6 +39,7 @@ import {
 import type { Principal } from '@request-management/share';
 import {
   AnswerHandoverDto,
+  DeliveryReportQueryDto,
   AttachDeliveryDocumentDto,
   ListHandoversQueryDto,
   SendHandoverDto,
@@ -63,7 +65,38 @@ export class DeliveryController {
     private readonly certificates: AcceptanceCertificatesService,
     private readonly billing: InstallmentBillingService,
     private readonly handovers: ServiceHandoversService,
+    private readonly report: DeliveryReportService,
   ) {}
+
+  // --- CD-256 รายงานการส่งมอบ ---------------------------------------------------
+
+  @ApiOperation({
+    summary:
+      'CD-256 สถานะทุกเฟส อัตราตรวจรับตรงกำหนดรายเดือน และรายการค้างรับมอบ (จาก Data Mart)',
+  })
+  @Get('report/phases')
+  @AnyPermission(
+    'delivery.read',
+    'delivery.manage',
+    'delivery.receivable.read',
+    'pm.project.read',
+  )
+  reportPhases(
+    @Query() query: DeliveryReportQueryDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.report.phases(principal, query.from, query.to);
+  }
+
+  @ApiOperation({
+    summary:
+      'CD-256 งวดที่วางบิลแล้วยังไม่ได้รับเงิน — การเงินเห็นทุกสัญญา ฝ่ายขายเห็นของตัวเอง',
+  })
+  @Get('report/receivables')
+  @Authenticated()
+  reportReceivables(@CurrentPrincipal() principal: Principal) {
+    return this.report.receivables(principal);
+  }
 
   // --- CD-255 ส่งมอบให้ทีมบริการ ----------------------------------------------------
 

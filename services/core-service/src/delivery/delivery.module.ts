@@ -5,6 +5,8 @@ import { InstallmentBillingService } from './installment-billing.service';
 import { InstallmentErpSyncService } from './installment-erp-sync.service';
 import { RetentionReminderService } from './retention-reminder.service';
 import { ServiceHandoversService } from './service-handovers.service';
+import { DeliveryReportService } from './delivery-report.service';
+import { ReceivableReminderService } from './receivable-reminder.service';
 import { DeliveriesService } from './deliveries.service';
 import { DeliveryDocsState } from './delivery-docs.state';
 import {
@@ -39,10 +41,14 @@ import {
     RetentionReminderService,
     // CD-255
     ServiceHandoversService,
+    // CD-256
+    DeliveryReportService,
+    ReceivableReminderService,
   ],
   exports: [
     DeliveriesService,
     ServiceHandoversService,
+    DeliveryReportService,
     InstallmentBillingService,
     DeliveryDocsState,
     ProjectDeliveryDocumentRepository,

@@ -738,6 +738,33 @@ export class NotificationsService {
     });
   }
 
+  /** CD-256 — the digest of installments past due and unpaid. */
+  async receivablesOverdue(
+    userId: string,
+    companyId: string,
+    count: number,
+    amount: number,
+    days: number,
+    everyContract: boolean,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'delivery.receivables_overdue',
+      values: {
+        count: String(count),
+        amount: amount.toLocaleString('en-US', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }),
+        days: String(days),
+        scope: everyContract ? 'ทุกสัญญา' : 'ของสัญญาที่คุณดูแล',
+      },
+      resourceType: 'delivery_report',
+      resourceId: 'receivables',
+    });
+  }
+
   /** CD-255 — a handover to the service team, or what came of it. */
   async serviceHandover(
     userId: string,

@@ -20653,6 +20653,86 @@
         ]
       }
     },
+    "/api/v1/delivery/report/phases": {
+      "get": {
+        "operationId": "DeliveryController_reportPhases",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "2026-01",
+              "type": "string",
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "2026-12",
+              "type": "string",
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-256 สถานะทุกเฟส อัตราตรวจรับตรงกำหนดรายเดือน และรายการค้างรับมอบ (จาก Data Mart)",
+        "tags": [
+          "delivery"
+        ]
+      }
+    },
+    "/api/v1/delivery/report/receivables": {
+      "get": {
+        "operationId": "DeliveryController_reportReceivables",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-256 งวดที่วางบิลแล้วยังไม่ได้รับเงิน — การเงินเห็นทุกสัญญา ฝ่ายขายเห็นของตัวเอง",
+        "tags": [
+          "delivery"
+        ]
+      }
+    },
     "/api/v1/delivery/projects/{projectId}/handovers": {
       "get": {
         "operationId": "DeliveryController_handoversOfProject",
