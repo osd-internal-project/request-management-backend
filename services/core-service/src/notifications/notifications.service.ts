@@ -738,6 +738,25 @@ export class NotificationsService {
     });
   }
 
+  /** CD-255 — a handover to the service team, or what came of it. */
+  async serviceHandover(
+    userId: string,
+    companyId: string,
+    project: { id: string; label: string },
+    round: string,
+    event: 'sent' | 'overdue' | 'acknowledged' | 'questioned',
+    text: string,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: `delivery.handover_${event}`,
+      values: { project: project.label, round, text: text || '-' },
+      resourceType: 'project',
+      resourceId: project.id,
+    });
+  }
+
   /** CD-254 — a phase's installation was confirmed complete. */
   async deliveryInstalled(
     userId: string,

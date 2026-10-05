@@ -20165,6 +20165,191 @@
         ]
       }
     },
+    "/api/v1/delivery/projects/{projectId}/handovers": {
+      "get": {
+        "operationId": "DeliveryController_handoversOfProject",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-255 รอบตรวจรับของโครงการ: สิ่งที่จะส่งต่อและสถานะการรับทราบของทีมบริการ",
+        "tags": [
+          "delivery"
+        ]
+      }
+    },
+    "/api/v1/delivery/projects/{projectId}/handovers/{acceptanceId}/send": {
+      "post": {
+        "operationId": "DeliveryController_sendHandover",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "acceptanceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendHandoverDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-255 ส่งต่อรอบตรวจรับให้ทีมบริการ (ทีม Delivery / ผู้จัดการโครงการ — ส่งซ้ำเพื่อตอบคำถาม)",
+        "tags": [
+          "delivery"
+        ]
+      }
+    },
+    "/api/v1/delivery/handovers": {
+      "get": {
+        "operationId": "DeliveryController_handoverInbox",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "sent",
+                "questioned",
+                "acknowledged"
+              ]
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-255 กล่องงานส่งมอบของทีมบริการ",
+        "tags": [
+          "delivery"
+        ]
+      }
+    },
+    "/api/v1/delivery/handovers/{id}/answer": {
+      "post": {
+        "operationId": "DeliveryController_answerHandover",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnswerHandoverDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-255 ทีมบริการรับทราบ หรือส่งคำถามกลับ",
+        "tags": [
+          "delivery"
+        ]
+      }
+    },
     "/api/v1/delivery/projects/{projectId}/billing": {
       "get": {
         "operationId": "DeliveryController_billingView",
@@ -39760,6 +39945,36 @@
         },
         "required": [
           "work_order_ids"
+        ]
+      },
+      "SendHandoverDto": {
+        "type": "object",
+        "properties": {
+          "note": {
+            "type": "string",
+            "description": "หมายเหตุ/คำตอบถึงทีมบริการ",
+            "maxLength": 2000
+          }
+        }
+      },
+      "AnswerHandoverDto": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "acknowledge",
+              "question"
+            ]
+          },
+          "text": {
+            "type": "string",
+            "description": "หมายเหตุ (รับทราบ) หรือคำถาม (ส่งกลับ)",
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "action"
         ]
       },
       "SendInstallmentDto": {

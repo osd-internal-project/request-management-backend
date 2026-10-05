@@ -308,6 +308,25 @@ export const NOTIFICATION_RULES: readonly RuleDefinition[] = [
     ],
     defaults: { days: 30 },
   },
+  {
+    code: 'service.handover',
+    module: 'pm',
+    label: 'ส่งมอบให้ทีมบริการยังไม่รับทราบ',
+    description:
+      'งานที่ทีม Delivery ส่งต่อให้ทีมบริการหลังตรวจรับแล้ว แต่ทีมบริการยังไม่กดรับทราบ — เตือนซ้ำทุกจำนวนวันที่กำหนดจนกว่าจะรับทราบ',
+    recipients: 'ทีมบริการ (service.asset.manage)',
+    eventTypes: ['delivery.handover_overdue'],
+    params: [
+      {
+        key: 'days',
+        label: 'เตือนเมื่อค้างเกิน (วัน)',
+        kind: 'days',
+        min: 1,
+        max: 30,
+      },
+    ],
+    defaults: { days: 3 },
+  },
 ];
 
 const BY_CODE = new Map(NOTIFICATION_RULES.map((rule) => [rule.code, rule]));

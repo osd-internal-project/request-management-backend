@@ -198,3 +198,34 @@ export class SendInstallmentDto {
   @MaxLength(1000)
   note?: string;
 }
+
+/** CD-255 — hand a round over to the service team (again, with an answer). */
+export class SendHandoverDto {
+  @ApiPropertyOptional({ description: 'หมายเหตุ/คำตอบถึงทีมบริการ' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  note?: string;
+}
+
+/** CD-255 — the service team acknowledges, or sends a question back. */
+export class AnswerHandoverDto {
+  @ApiProperty({ enum: ['acknowledge', 'question'] })
+  @IsIn(['acknowledge', 'question'])
+  action!: 'acknowledge' | 'question';
+
+  @ApiPropertyOptional({
+    description: 'หมายเหตุ (รับทราบ) หรือคำถาม (ส่งกลับ)',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  text?: string;
+}
+
+export class ListHandoversQueryDto {
+  @ApiPropertyOptional({ enum: ['sent', 'questioned', 'acknowledged'] })
+  @IsOptional()
+  @IsIn(['sent', 'questioned', 'acknowledged'])
+  status?: string;
+}

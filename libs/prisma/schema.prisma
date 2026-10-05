@@ -7118,6 +7118,36 @@ model RetentionReminder {
   @@map("retention_reminders")
 }
 
+/// CD-255 ส่งมอบงานให้ทีมบริการหลังตรวจรับ (รอบตรวจรับละหนึ่ง) — ทีม Delivery ส่งชุดข้อมูล
+/// (อุปกรณ์ สิทธิ์ประกัน ระดับบริการ เอกสาร ใบรับรอง ผู้ติดต่อ รายการค้าง) ทีมบริการรับทราบ
+/// หรือถามกลับ; ค้างเกินกำหนดเตือนซ้ำ (CD-53 service.handover). sent · questioned · acknowledged
+model ServiceHandover {
+  id             String    @id @default(uuid())
+  companyId      String
+  projectId      String
+  acceptanceId   String    @unique
+  milestoneId    String?
+  status         String    @default("sent")
+  note           String    @default("")
+  /// ชุดข้อมูล ณ ตอนส่ง: { assetIds, entitlementIds, documentIds, certificateId, contactIds, openPoints }
+  snapshot       Json      @default("{}")
+  sentBy         String
+  sentAt         DateTime  @default(now())
+  question       String?
+  questionedBy   String?
+  questionedAt   DateTime?
+  acknowledgedBy String?
+  acknowledgedAt DateTime?
+  ackNote        String?
+  remindedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([companyId, status])
+  @@index([projectId])
+  @@map("service_handovers")
+}
+
 /// CD-239 ใบสั่งงานบริการ — the service side of a case (a request, CD-67):
 /// which asset, corrective or preventive, and from the start whether it is
 /// covered or billed — the system suggests from the asset's entitlements

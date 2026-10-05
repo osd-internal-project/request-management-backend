@@ -189,6 +189,10 @@ export default () => ({
     retentionIntervalMs: Number(
       process.env.DELIVERY_RETENTION_INTERVAL_MS ?? 21600000,
     ),
+    /** CD-255 — reminders for handovers the service team has not acknowledged (ms); 0 = off. */
+    handoverIntervalMs: Number(
+      process.env.DELIVERY_HANDOVER_INTERVAL_MS ?? 10800000,
+    ),
   },
 
   crm: {

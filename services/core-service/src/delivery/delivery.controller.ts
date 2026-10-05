@@ -28,6 +28,7 @@ import { DeliveryDocsService } from './delivery-docs.service';
 import { InstallConfirmationsService } from './install-confirmations.service';
 import { AcceptanceCertificatesService } from './acceptance-certificates.service';
 import { InstallmentBillingService } from './installment-billing.service';
+import { ServiceHandoversService } from './service-handovers.service';
 import { metaOf } from '../esign/esign.controller';
 import {
   AnyPermission,
@@ -36,7 +37,10 @@ import {
 } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import {
+  AnswerHandoverDto,
   AttachDeliveryDocumentDto,
+  ListHandoversQueryDto,
+  SendHandoverDto,
   CancelDeliveryDto,
   ConfirmInstallDto,
   PaperCertificateDto,
@@ -58,7 +62,71 @@ export class DeliveryController {
     private readonly installs: InstallConfirmationsService,
     private readonly certificates: AcceptanceCertificatesService,
     private readonly billing: InstallmentBillingService,
+    private readonly handovers: ServiceHandoversService,
   ) {}
+
+  // --- CD-255 ส่งมอบให้ทีมบริการ ----------------------------------------------------
+
+  @ApiOperation({
+    summary:
+      'CD-255 รอบตรวจรับของโครงการ: สิ่งที่จะส่งต่อและสถานะการรับทราบของทีมบริการ',
+  })
+  @Get('projects/:projectId/handovers')
+  @Authenticated()
+  handoversOfProject(
+    @Param('projectId') projectId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.handovers.projectView(principal, projectId);
+  }
+
+  @ApiOperation({
+    summary:
+      'CD-255 ส่งต่อรอบตรวจรับให้ทีมบริการ (ทีม Delivery / ผู้จัดการโครงการ — ส่งซ้ำเพื่อตอบคำถาม)',
+  })
+  @Post('projects/:projectId/handovers/:acceptanceId/send')
+  @Authenticated()
+  sendHandover(
+    @Param('projectId') projectId: string,
+    @Param('acceptanceId') acceptanceId: string,
+    @Body() dto: SendHandoverDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.handovers.send(
+      principal,
+      projectId,
+      acceptanceId,
+      dto.note ?? '',
+    );
+  }
+
+  @ApiOperation({ summary: 'CD-255 กล่องงานส่งมอบของทีมบริการ' })
+  @Get('handovers')
+  @AnyPermission(
+    'service.asset.read',
+    'service.asset.manage',
+    'delivery.read',
+    'delivery.manage',
+  )
+  handoverInbox(
+    @Query() query: ListHandoversQueryDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.handovers.inbox(principal, query.status);
+  }
+
+  @ApiOperation({ summary: 'CD-255 ทีมบริการรับทราบ หรือส่งคำถามกลับ' })
+  @Post('handovers/:id/answer')
+  @AnyPermission('service.asset.manage')
+  answerHandover(
+    @Param('id') id: string,
+    @Body() dto: AnswerHandoverDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return dto.action === 'acknowledge'
+      ? this.handovers.acknowledge(principal, id, dto.text ?? '')
+      : this.handovers.ask(principal, id, dto.text ?? '');
+  }
 
   // --- CD-253 วางบิลรายงวด ---------------------------------------------------------
 

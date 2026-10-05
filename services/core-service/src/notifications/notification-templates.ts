@@ -645,6 +645,50 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
     },
   },
   {
+    eventType: 'delivery.handover_sent',
+    label: 'ส่งมอบงานให้ทีมบริการ (ถึงทีมบริการ)',
+    title: 'โครงการ {{project}}: ส่งมอบงานรอบ {{round}} ให้ทีมบริการ',
+    body: 'ตรวจรายการอุปกรณ์ ประกัน ระดับบริการ และผู้ติดต่อ แล้วกดรับทราบหรือส่งคำถามกลับ — {{text}}',
+    variables: {
+      project: { label: 'โครงการ', sample: 'PRJ-2026-0001 · ระบบเครือข่าย' },
+      round: { label: 'รอบตรวจรับ', sample: 'A-1' },
+      text: { label: 'ข้อความ', sample: 'อุปกรณ์ 12 รายการ ประกัน 1 ปี' },
+    },
+  },
+  {
+    eventType: 'delivery.handover_overdue',
+    label: 'ส่งมอบให้ทีมบริการยังไม่รับทราบ (ถึงทีมบริการ)',
+    title: 'โครงการ {{project}}: งานส่งมอบรอบ {{round}} ยังไม่รับทราบ',
+    body: 'ทีม Delivery ส่งต่อแล้ว รอทีมบริการกดรับทราบหรือส่งคำถามกลับ — {{text}}',
+    variables: {
+      project: { label: 'โครงการ', sample: 'PRJ-2026-0001 · ระบบเครือข่าย' },
+      round: { label: 'รอบตรวจรับ', sample: 'A-1' },
+      text: { label: 'ข้อความ', sample: 'อุปกรณ์ 12 รายการ ประกัน 1 ปี' },
+    },
+  },
+  {
+    eventType: 'delivery.handover_acknowledged',
+    label: 'ทีมบริการรับทราบการส่งมอบ (ถึงผู้ส่ง)',
+    title: 'โครงการ {{project}}: ทีมบริการรับทราบงานรอบ {{round}} แล้ว',
+    body: '{{text}}',
+    variables: {
+      project: { label: 'โครงการ', sample: 'PRJ-2026-0001 · ระบบเครือข่าย' },
+      round: { label: 'รอบตรวจรับ', sample: 'A-1' },
+      text: { label: 'ข้อความ', sample: 'อุปกรณ์ 12 รายการ ประกัน 1 ปี' },
+    },
+  },
+  {
+    eventType: 'delivery.handover_questioned',
+    label: 'ทีมบริการส่งคำถามกลับ (ถึงผู้ส่ง)',
+    title: 'โครงการ {{project}}: ทีมบริการถามเรื่องงานรอบ {{round}}',
+    body: '{{text}} — ตอบโดยส่งต่ออีกครั้งพร้อมคำตอบ',
+    variables: {
+      project: { label: 'โครงการ', sample: 'PRJ-2026-0001 · ระบบเครือข่าย' },
+      round: { label: 'รอบตรวจรับ', sample: 'A-1' },
+      text: { label: 'ข้อความ', sample: 'อุปกรณ์ 12 รายการ ประกัน 1 ปี' },
+    },
+  },
+  {
     eventType: 'delivery.installed',
     label: 'ยืนยันติดตั้งเสร็จแล้ว (ถึง PM และทีม Delivery)',
     title: 'โครงการ {{project}}: งานติดตั้งเฟส {{phase}} เสร็จแล้ว',
