@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { StorageModule, type StorageOptions } from '@request-management/share';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { KbController } from './kb.controller';
+import { KbFieldService } from './kb-field.service';
 import { KbPortalService } from './kb-portal.service';
 import { KbReviewService } from './kb-review.service';
 import { KbService } from './kb.service';
@@ -19,7 +20,7 @@ import { KbService } from './kb.service';
     }),
   ],
   controllers: [KbController],
-  providers: [KbService, KbReviewService, KbPortalService],
+  providers: [KbService, KbReviewService, KbPortalService, KbFieldService],
   // CD-261 — the Portal's public routes (support module) read through KbPortalService
   exports: [KbService, KbReviewService, KbPortalService],
 })

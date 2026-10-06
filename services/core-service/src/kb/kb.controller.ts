@@ -28,7 +28,11 @@ import {
 import type { Principal } from '@request-management/share';
 import {
   ArchiveKbArticleDto,
+  KbArticleUseDto,
   KbConfirmReviewDto,
+  KbDraftFromJobsDto,
+  KbInboxQueryDto,
+  KbSkipJobsDto,
   KbWithdrawFromCustomersDto,
   KbMergeDto,
   KbOwnerDto,
@@ -41,6 +45,7 @@ import {
   SearchKbArticlesQueryDto,
 } from './kb.dto';
 import { MAX_FILE_BYTES } from './kb-rules';
+import { KbFieldService } from './kb-field.service';
 import { KbReviewService } from './kb-review.service';
 import { KbService, type SaveArticle } from './kb.service';
 
@@ -64,7 +69,86 @@ export class KbController {
   constructor(
     private readonly kb: KbService,
     private readonly review: KbReviewService,
+    private readonly field: KbFieldService,
   ) {}
+
+  // --- CD-262 ความรู้จากงานบริการที่ปิดและปัญหาราก ------------------------------------
+
+  @ApiOperation({
+    summary:
+      'CD-262 กล่องความรู้จากหน้างาน (ใบงานบริการที่ปิด) — ทีมบริการ/ผู้ดูแลคลังความรู้',
+  })
+  @Get('field-inbox')
+  @AnyPermission('kb.article.manage', 'service.asset.manage')
+  fieldInbox(
+    @Query() query: KbInboxQueryDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.field.inbox(principal, query.status);
+  }
+
+  @ApiOperation({ summary: 'CD-262 รวมใบงานที่เลือกเป็นฉบับร่างบทความ' })
+  @Post('field-inbox/draft')
+  @AnyPermission('kb.article.manage', 'service.asset.manage')
+  draftFromJobs(
+    @Body() dto: KbDraftFromJobsDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.field.draftFrom(principal, dto.ids, dto.title);
+  }
+
+  @ApiOperation({ summary: 'CD-262 ข้ามใบงานที่ไม่ควรเป็นบทความ' })
+  @Post('field-inbox/skip')
+  @AnyPermission('kb.article.manage', 'service.asset.manage')
+  skipJobs(
+    @Body() dto: KbSkipJobsDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.field.skip(principal, dto.ids, dto.reason);
+  }
+
+  @ApiOperation({
+    summary: 'CD-262 บทความแนะนำสำหรับใบงานบริการ และที่ใช้แก้แล้ว',
+  })
+  @Get('work-orders/:workOrderId/suggestions')
+  @Authenticated()
+  suggestions(
+    @Param('workOrderId') workOrderId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.field.suggest(principal, workOrderId);
+  }
+
+  @ApiOperation({
+    summary: 'CD-262 บันทึกว่าใช้บทความนี้แก้ใบงาน (หรือเอาออก)',
+  })
+  @Post('work-orders/:workOrderId/uses')
+  @Authenticated()
+  markUsed(
+    @Param('workOrderId') workOrderId: string,
+    @Body() dto: KbArticleUseDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.field.markUsed(
+      principal,
+      workOrderId,
+      dto.article_id,
+      dto.used,
+    );
+  }
+
+  @ApiOperation({
+    summary: 'CD-262 ที่มาของบทความ (ใบงาน/ปัญหาราก) และจำนวนครั้งที่ใช้แก้งาน',
+  })
+  @Get('articles/:id/provenance')
+  @Authenticated()
+  async provenance(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    await this.kb.findOne(principal, id, false);
+    return this.field.provenance(id);
+  }
 
   // --- CD-260 กลั่นกรองและอนุมัติ ---------------------------------------------------
 

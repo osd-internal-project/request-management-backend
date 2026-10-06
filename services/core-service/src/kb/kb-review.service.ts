@@ -657,6 +657,71 @@ export class KbReviewService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
+   * CD-262 — the system reworks a published article (its root-cause problem
+   * changed): a revision written by `writer`, sent straight for review. Null
+   * when a revision is already open — the next sweep tries again.
+   */
+  async systemRevision(
+    articleId: string,
+    content: { title: string; body: string },
+    writer: string,
+    changeNote: string,
+  ) {
+    const row = await this.prisma.kbArticle.findUnique({
+      where: { id: articleId },
+    });
+    if (!row || row.status !== 'published') return null;
+    if (await this.openRevisionOf(articleId)) return null;
+    const rev = await this.prisma.kbArticleRevision.create({
+      data: {
+        articleId,
+        status: 'in_review',
+        title: content.title,
+        summary: row.summary,
+        body: content.body,
+        categoryId: row.categoryId,
+        tags: row.tags,
+        productCodes: row.productCodes,
+        productGroups: row.productGroups,
+        audience: row.audience,
+        customerIds: row.customerIds,
+        changeNote: changeNote.slice(0, MAX_CHANGE_NOTE),
+        createdBy: writer,
+        submittedAt: new Date(),
+      },
+    });
+    await this.tellOwners(
+      row.companyId,
+      '',
+      row.articleNo,
+      row.title,
+      articleId,
+      'requested',
+    );
+    return rev.id;
+  }
+
+  /** CD-262 — a draft the system wrote, straight into review. */
+  async submitSystemDraft(articleId: string) {
+    const row = await this.prisma.kbArticle.findUnique({
+      where: { id: articleId },
+    });
+    if (!row || row.status !== 'draft') return;
+    await this.prisma.kbArticle.update({
+      where: { id: articleId },
+      data: { status: 'in_review', submittedAt: new Date() },
+    });
+    await this.tellOwners(
+      row.companyId,
+      '',
+      row.articleNo,
+      row.title,
+      articleId,
+      'requested',
+    );
+  }
+
+  /**
    * CD-261 — a knowledge owner takes an article out of the Portal at once (a
    * slip): it becomes internal as a new version, without waiting for a
    * revision to go through review.

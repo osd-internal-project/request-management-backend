@@ -320,28 +320,49 @@ export class KbService {
   }
 
   async create(actor: Principal, input: SaveArticle) {
-    const data = await this.clean(actor.activeCompanyId, input);
+    const row = await this.insertDraft(
+      actor.activeCompanyId,
+      actor.userId,
+      input,
+    );
+    await this.record(actor, row.companyId, 'kb.article.created', row.id, {
+      articleNo: row.articleNo,
+      title: row.title,
+    });
+    return this.findOne(actor, row.id, false);
+  }
+
+  /**
+   * CD-262 — a draft written for someone by the system (from closed service
+   * jobs or a known error): `source` says where it came from.
+   */
+  async insertDraft(
+    companyId: string,
+    authorId: string,
+    input: SaveArticle,
+    origin: { source: string; sourceRef: string | null } = {
+      source: 'manual',
+      sourceRef: null,
+    },
+  ) {
+    const data = await this.clean(companyId, input);
     for (let attempt = 0; ; attempt++) {
       const last = await this.prisma.kbArticle.findFirst({
-        where: { companyId: actor.activeCompanyId },
+        where: { companyId },
         orderBy: { articleNo: 'desc' },
         select: { articleNo: true },
       });
       try {
-        const row = await this.prisma.kbArticle.create({
+        return await this.prisma.kbArticle.create({
           data: {
             ...data,
-            companyId: actor.activeCompanyId,
+            ...origin,
+            companyId,
             articleNo: nextArticleNo(last?.articleNo ?? null),
-            authorId: actor.userId,
-            ownerId: actor.userId,
+            authorId,
+            ownerId: authorId,
           },
         });
-        await this.record(actor, row.companyId, 'kb.article.created', row.id, {
-          articleNo: row.articleNo,
-          title: row.title,
-        });
-        return this.findOne(actor, row.id, false);
       } catch (error) {
         if (
           attempt < 5 &&

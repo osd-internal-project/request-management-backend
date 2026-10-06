@@ -202,6 +202,8 @@ export default () => ({
   kb: {
     /** CD-260 — review-day reminders of knowledge articles (ms); 0 = off. */
     reviewIntervalMs: Number(process.env.KB_REVIEW_INTERVAL_MS ?? 21600000),
+    /** CD-262 — known errors into articles, and closed jobs missed (ms); 0 = off. */
+    ingestIntervalMs: Number(process.env.KB_INGEST_INTERVAL_MS ?? 3600000),
   },
 
   crm: {

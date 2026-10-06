@@ -21231,6 +21231,253 @@
         ]
       }
     },
+    "/api/v1/kb/field-inbox": {
+      "get": {
+        "operationId": "KbController_fieldInbox",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "drafted",
+                "skipped"
+              ]
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-262 กล่องความรู้จากหน้างาน (ใบงานบริการที่ปิด) — ทีมบริการ/ผู้ดูแลคลังความรู้",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/field-inbox/draft": {
+      "post": {
+        "operationId": "KbController_draftFromJobs",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KbDraftFromJobsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-262 รวมใบงานที่เลือกเป็นฉบับร่างบทความ",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/field-inbox/skip": {
+      "post": {
+        "operationId": "KbController_skipJobs",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KbSkipJobsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-262 ข้ามใบงานที่ไม่ควรเป็นบทความ",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/work-orders/{workOrderId}/suggestions": {
+      "get": {
+        "operationId": "KbController_suggestions",
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-262 บทความแนะนำสำหรับใบงานบริการ และที่ใช้แก้แล้ว",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/work-orders/{workOrderId}/uses": {
+      "post": {
+        "operationId": "KbController_markUsed",
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KbArticleUseDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-262 บันทึกว่าใช้บทความนี้แก้ใบงาน (หรือเอาออก)",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/articles/{id}/provenance": {
+      "get": {
+        "operationId": "KbController_provenance",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-262 ที่มาของบทความ (ใบงาน/ปัญหาราก) และจำนวนครั้งที่ใช้แก้งาน",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
     "/api/v1/kb/review-queue": {
       "get": {
         "operationId": "KbController_reviewQueue",
@@ -43132,6 +43379,62 @@
         },
         "required": [
           "helpful"
+        ]
+      },
+      "KbDraftFromJobsDto": {
+        "type": "object",
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20
+          },
+          "title": {
+            "type": "string",
+            "description": "ชื่อบทความ (ว่าง = อาการของใบแรก)",
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "ids"
+        ]
+      },
+      "KbSkipJobsDto": {
+        "type": "object",
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 100
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "ids",
+          "reason"
+        ]
+      },
+      "KbArticleUseDto": {
+        "type": "object",
+        "properties": {
+          "article_id": {
+            "type": "string"
+          },
+          "used": {
+            "type": "boolean",
+            "description": "true = ใช้บทความนี้แก้, false = เอาออก"
+          }
+        },
+        "required": [
+          "article_id",
+          "used"
         ]
       },
       "KbReviewDecisionDto": {

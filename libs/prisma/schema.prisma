@@ -7402,6 +7402,59 @@ model KbPortalRating {
   @@map("kb_portal_ratings")
 }
 
+/// CD-262 — a closed service job waiting to become knowledge: its symptom,
+/// cause and fix, picked by the service team or a knowledge owner into a
+/// draft (several jobs into one), or skipped. pending · drafted · skipped.
+model KbCandidate {
+  id          String    @id @default(uuid())
+  companyId   String
+  source      String    @default("work_order")
+  workOrderId String
+  requestId   String
+  requestNo   String?
+  title       String
+  cause       String
+  resolution  String
+  productCode String?
+  groupCode   String?
+  customerId  String?
+  closedAt    DateTime
+  status      String    @default("pending")
+  articleId   String?
+  decidedBy   String?
+  decidedAt   DateTime?
+  skipReason  String?
+  createdAt   DateTime  @default(now())
+
+  @@unique([source, workOrderId])
+  @@index([companyId, status])
+  @@map("kb_candidates")
+}
+
+/// CD-262 — an article a technician used to fix a service job.
+model KbArticleUse {
+  articleId   String
+  workOrderId String
+  usedBy      String
+  usedAt      DateTime @default(now())
+
+  @@id([articleId, workOrderId])
+  @@index([workOrderId])
+  @@map("kb_article_uses")
+}
+
+/// CD-262 — the article kept in step with a root-cause problem (CD-246):
+/// `syncedAt` is the problem's `updatedAt` its text was last taken from.
+model KbProblemLink {
+  problemId String   @id
+  articleId String
+  syncedAt  DateTime
+  createdAt DateTime @default(now())
+
+  @@index([articleId])
+  @@map("kb_problem_links")
+}
+
 /// CD-239 ใบสั่งงานบริการ — the service side of a case (a request, CD-67):
 /// which asset, corrective or preventive, and from the start whether it is
 /// covered or billed — the system suggests from the asset's entitlements

@@ -1,0 +1,100 @@
+/**
+ * CD-262 ความรู้จากงานบริการที่ปิดและปัญหาราก (part of CD-22 KBMS) — how a
+ * closed job or a known error reads as an article, apart from the database.
+ */
+
+export interface JobFacts {
+  requestNo: string | null;
+  title: string;
+  cause: string;
+  resolution: string;
+}
+
+/** A draft from one or several closed jobs that share a fix. */
+export function articleFromJobs(jobs: readonly JobFacts[]) {
+  const refs = jobs.map((j) => j.requestNo).filter((n): n is string => !!n);
+  const unique = (values: string[]) => [
+    ...new Set(values.map((v) => v.trim()).filter(Boolean)),
+  ];
+  const symptoms = unique(jobs.map((j) => j.title));
+  const causes = unique(jobs.map((j) => j.cause));
+  const fixes = unique(jobs.map((j) => j.resolution));
+  const body = [
+    '## อาการ',
+    ...symptoms.map((s) => `- ${s}`),
+    '',
+    '## สาเหตุ',
+    ...causes.map((c) => `- ${c}`),
+    '',
+    '## วิธีแก้',
+    ...(fixes.length === 1
+      ? [fixes[0]]
+      : fixes.map((f, i) => `${i + 1}. ${f}`)),
+    '',
+    refs.length ? `> ที่มา: ใบงานบริการ ${refs.join(', ')}` : '',
+  ]
+    .join('\n')
+    .trim();
+  return {
+    title: symptoms[0] ?? 'วิธีแก้จากงานบริการ',
+    body,
+    sourceRef: refs.join(', ') || null,
+  };
+}
+
+export const PROBLEM_KNOWN = ['known_error', 'resolved', 'closed'] as const;
+
+const PROBLEM_STATUS: Record<string, string> = {
+  known_error: 'ทราบสาเหตุแล้ว มีวิธีหลบเลี่ยง',
+  resolved: 'แก้ถาวรแล้ว',
+  closed: 'ปิดแล้ว',
+};
+
+export interface ProblemFacts {
+  problemNo: string;
+  title: string;
+  status: string;
+  rootCause: string | null;
+  workaround: string | null;
+  permanentFix: string | null;
+}
+
+/** Ready to become knowledge: known, with a workaround or a fix written. */
+export function problemReady(p: ProblemFacts): boolean {
+  return (
+    (PROBLEM_KNOWN as readonly string[]).includes(p.status) &&
+    !!(p.workaround?.trim() || p.permanentFix?.trim())
+  );
+}
+
+/** The article a known error reads as. */
+export function articleFromProblem(p: ProblemFacts) {
+  const section = (heading: string, text: string | null) =>
+    text?.trim() ? [`## ${heading}`, text.trim(), ''] : [];
+  const body = [
+    `> ปัญหาที่ทราบแล้ว ${p.problemNo} — ${PROBLEM_STATUS[p.status] ?? p.status}`,
+    '',
+    ...section('สาเหตุราก', p.rootCause),
+    ...section('วิธีหลบเลี่ยง', p.workaround),
+    ...section('การแก้ถาวร', p.permanentFix),
+  ]
+    .join('\n')
+    .trim();
+  return {
+    title: `ปัญหาที่ทราบแล้ว: ${p.title}`,
+    body,
+    sourceRef: p.problemNo,
+  };
+}
+
+/** Words of a job's subject worth searching on (Thai stays whole). */
+export function subjectTerms(subject: string): string[] {
+  return [
+    ...new Set(
+      subject
+        .toLowerCase()
+        .split(/[\s,./:;()[\]"'!?-]+/)
+        .filter((w) => w.length >= 3),
+    ),
+  ].slice(0, 6);
+}

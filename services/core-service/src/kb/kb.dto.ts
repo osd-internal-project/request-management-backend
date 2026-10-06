@@ -241,3 +241,48 @@ export class KbWithdrawFromCustomersDto {
   @MaxLength(500)
   reason!: string;
 }
+
+/** CD-262 — closed jobs picked into one draft. */
+export class KbDraftFromJobsDto {
+  @ApiProperty({ type: [String] })
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsUUID('all', { each: true })
+  ids!: string[];
+
+  @ApiPropertyOptional({ description: 'ชื่อบทความ (ว่าง = อาการของใบแรก)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  title?: string;
+}
+
+export class KbSkipJobsDto {
+  @ApiProperty({ type: [String] })
+  @IsArray()
+  @ArrayMaxSize(100)
+  @IsUUID('all', { each: true })
+  ids!: string[];
+
+  @ApiProperty()
+  @IsString()
+  @MaxLength(500)
+  reason!: string;
+}
+
+export class KbInboxQueryDto {
+  @ApiPropertyOptional({ enum: ['pending', 'drafted', 'skipped'] })
+  @IsOptional()
+  @IsIn(['pending', 'drafted', 'skipped'])
+  status?: string;
+}
+
+export class KbArticleUseDto {
+  @ApiProperty()
+  @IsUUID()
+  article_id!: string;
+
+  @ApiProperty({ description: 'true = ใช้บทความนี้แก้, false = เอาออก' })
+  @IsBoolean()
+  used!: boolean;
+}
