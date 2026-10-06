@@ -35489,6 +35489,357 @@
         ]
       }
     },
+    "/api/v1/ai-audit/mcp-calls": {
+      "get": {
+        "operationId": "AiAuditController_mcp",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "เลขหน้าที่ต้องการ เริ่มที่ 1",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page_size",
+            "required": false,
+            "in": "query",
+            "description": "จำนวนรายการต่อหน้า",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "`sort=field` เรียงขึ้น, `sort=-field` เรียงลง",
+            "schema": {
+              "example": "-createdAt",
+              "type": "string",
+              "pattern": "^-?[a-zA-Z_][a-zA-Z0-9_]*$"
+            }
+          },
+          {
+            "name": "user_id",
+            "required": false,
+            "in": "query",
+            "description": "ผู้ถาม (user id)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "ตั้งแต่วันที่",
+            "schema": {
+              "example": "2026-10-01",
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "ถึงวันที่ (รวม)",
+            "schema": {
+              "example": "2026-10-31",
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "name",
+            "required": false,
+            "in": "query",
+            "description": "MCP: ชื่อ tool · โมเดล: งาน AI (task)",
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ok",
+                "error",
+                "quota",
+                "disabled"
+              ]
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-279 การเรียก MCP tool — ใคร เมื่อไร tool ไหน ตัวกรอง และรายการที่ตอบกลับ (id)",
+        "tags": [
+          "ai-audit"
+        ],
+        "x-permission": [
+          "admin.ai.audit"
+        ]
+      }
+    },
+    "/api/v1/ai-audit/llm-calls": {
+      "get": {
+        "operationId": "AiAuditController_llm",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "เลขหน้าที่ต้องการ เริ่มที่ 1",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page_size",
+            "required": false,
+            "in": "query",
+            "description": "จำนวนรายการต่อหน้า",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "`sort=field` เรียงขึ้น, `sort=-field` เรียงลง",
+            "schema": {
+              "example": "-createdAt",
+              "type": "string",
+              "pattern": "^-?[a-zA-Z_][a-zA-Z0-9_]*$"
+            }
+          },
+          {
+            "name": "user_id",
+            "required": false,
+            "in": "query",
+            "description": "ผู้ถาม (user id)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "ตั้งแต่วันที่",
+            "schema": {
+              "example": "2026-10-01",
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "ถึงวันที่ (รวม)",
+            "schema": {
+              "example": "2026-10-31",
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "name",
+            "required": false,
+            "in": "query",
+            "description": "MCP: ชื่อ tool · โมเดล: งาน AI (task)",
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ok",
+                "error",
+                "quota",
+                "disabled"
+              ]
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-279 การเรียกโมเดลผ่าน LLM Gateway — งาน โมเดล token ค่าใช้จ่าย",
+        "tags": [
+          "ai-audit"
+        ],
+        "x-permission": [
+          "admin.ai.audit"
+        ]
+      }
+    },
+    "/api/v1/ai-audit/filters": {
+      "get": {
+        "operationId": "AiAuditController_filters",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-279 ตัวเลือกค้นหา: tool งาน AI และคนที่มีบันทึก",
+        "tags": [
+          "ai-audit"
+        ],
+        "x-permission": [
+          "admin.ai.audit"
+        ]
+      }
+    },
+    "/api/v1/ai-audit/policy": {
+      "get": {
+        "operationId": "AiAuditController_policy",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-279 อายุการเก็บบันทึก AI ของบริษัท",
+        "tags": [
+          "ai-audit"
+        ],
+        "x-permission": [
+          "admin.ai.audit"
+        ]
+      },
+      "put": {
+        "operationId": "AiAuditController_savePolicy",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveAiAuditPolicyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-279 ตั้งอายุการเก็บบันทึก AI (วัน)",
+        "tags": [
+          "ai-audit"
+        ],
+        "x-permission": [
+          "admin.ai.audit"
+        ]
+      }
+    },
     "/api/v1/esign/authorities": {
       "get": {
         "operationId": "EsignController_listAuthorities",
@@ -47969,6 +48320,21 @@
         },
         "required": [
           "prompt"
+        ]
+      },
+      "SaveAiAuditPolicyDto": {
+        "type": "object",
+        "properties": {
+          "retention_days": {
+            "type": "integer",
+            "example": 365,
+            "minimum": 30,
+            "maximum": 3650,
+            "description": "เก็บบันทึกกี่วัน — เก่ากว่านี้ระบบลบทิ้งวันละครั้ง"
+          }
+        },
+        "required": [
+          "retention_days"
         ]
       },
       "SaveEsignAuthorityDto": {

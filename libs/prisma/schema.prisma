@@ -3589,7 +3589,47 @@ model LlmCall {
 
   @@index([companyId, createdAt])
   @@index([companyId, task, createdAt])
+  @@index([companyId, userId, createdAt])
   @@map("llm_calls")
+}
+
+/// CD-279 — one MCP tool call: who asked, what was asked, which rows answered.
+/// Never the rows' values; the chat's text lives in LibreChat.
+model McpCall {
+  id                String   @id @default(uuid())
+  companyId         String
+  /// The person the call was done as; null when they could not be resolved.
+  userId            String?
+  /// Called with a service account's key on the person's behalf (X-Acting-User).
+  viaServiceAccount Boolean  @default(false)
+  tool              String
+  isWrite           Boolean  @default(false)
+  /// Read tools: the filters (values cut to 200 chars) · write tools: field names only.
+  args              Json     @default("{}")
+  /// Ids of the rows the answer carried (at most 100).
+  resultIds         String[] @default([])
+  resultCount       Int      @default(0)
+  /// ok | error
+  status            String
+  errorCode         String?
+  durationMs        Int      @default(0)
+  createdAt         DateTime @default(now())
+
+  @@index([companyId, createdAt])
+  @@index([companyId, userId, createdAt])
+  @@index([companyId, tool, createdAt])
+  @@map("mcp_calls")
+}
+
+/// CD-279 — how long a company keeps its AI logs (MCP calls and model calls).
+model AiAuditPolicy {
+  id            String   @id @default(uuid())
+  companyId     String   @unique
+  retentionDays Int      @default(365)
+  updatedBy     String?
+  updatedAt     DateTime @updatedAt
+
+  @@map("ai_audit_policies")
 }
 
 /// CD-273 — ไฟล์ในคลังแบรนด์ (โลโก้ เทมเพลตข้อเสนอ เอกสารนำเสนอ …) ·

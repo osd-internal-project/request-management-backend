@@ -43,6 +43,11 @@ function harness(
 
 const caller = { companyId: 'osd', userId: 'u-1', task: 'summary' };
 
+/** The `data` of the log row written by the n-th `create` call. */
+const logged = (create: jest.Mock, n = 0) =>
+  (create.mock.calls[n] as unknown as [{ data: Record<string, unknown> }])[0]
+    .data;
+
 describe('CD-275 LlmService — every model call through one door', () => {
   it('uses the default model, answers, and logs tokens and cost', async () => {
     const { service, calls } = harness({
@@ -54,18 +59,17 @@ describe('CD-275 LlmService — every model call through one door', () => {
     ]);
 
     expect(reply.text).toBe('[mock chat-default] สรุปให้หน่อย');
-    expect(calls.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        companyId: 'osd',
-        userId: 'u-1',
-        task: 'summary',
-        kind: 'chat',
-        model: 'chat-default',
-        status: 'ok',
-        totalTokens: reply.usage.totalTokens,
-        costEstimate: expect.any(Number),
-      }),
+    const data = logged(calls.create);
+    expect(data).toMatchObject({
+      companyId: 'osd',
+      userId: 'u-1',
+      task: 'summary',
+      kind: 'chat',
+      model: 'chat-default',
+      status: 'ok',
+      totalTokens: reply.usage.totalTokens,
     });
+    expect(typeof data.costEstimate).toBe('number');
   });
 
   it('the company setting picks the model; embeddings come back in order', async () => {
@@ -101,8 +105,9 @@ describe('CD-275 LlmService — every model call through one door', () => {
       service.chat(caller, [{ role: 'user', content: 'x' }]),
     ).rejects.toMatchObject({ code: 'LLM_QUOTA_EXCEEDED' });
     expect(client.chat).not.toHaveBeenCalled();
-    expect(calls.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({ status: 'quota', totalTokens: 0 }),
+    expect(logged(calls.create)).toMatchObject({
+      status: 'quota',
+      totalTokens: 0,
     });
   });
 
@@ -127,11 +132,9 @@ describe('CD-275 LlmService — every model call through one door', () => {
     await expect(broken.service.chat(caller, [])).rejects.toMatchObject({
       code: 'UPSTREAM_ERROR',
     });
-    expect(broken.calls.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        status: 'error',
-        error: 'LLM Gateway ตอบ 502',
-      }),
+    expect(logged(broken.calls.create)).toMatchObject({
+      status: 'error',
+      error: 'LLM Gateway ตอบ 502',
     });
 
     const fine = harness();

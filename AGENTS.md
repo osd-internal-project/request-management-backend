@@ -404,6 +404,15 @@ tool to its gate and to calling as that person (and scans for mart access);
 fails if any read tool's answer carries the other company's or a colleague's
 rows. A new tool needs no new test — both read the generated catalogue.
 
+**Every MCP tool call is logged (CD-279), and the log is the one place rows
+are deleted by policy.** `McpService` writes `mcp_calls` (person, tool, a
+read's filters or a write's field names, the answer's row ids and count —
+never values); `LlmService` writes `llm_calls`. Both are kept for the
+company's `ai_audit_policies.retentionDays` (default 365) and the daily
+sweep in `AiAuditService` deletes older rows — a declared exception to "no
+hard deletes": these are access logs, and keeping them only as long as the
+policy says is what the policy is for. `audit_logs` stays append-only.
+
 `crm/leads/intake` earned its suffix on 21 Sep 2026: it used to be `POST
 crm/leads`, which `ExternalLeadsController.create` also bound. That controller
 registers first, so the intake route was unreachable and every web form calling

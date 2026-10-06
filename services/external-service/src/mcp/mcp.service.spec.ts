@@ -111,9 +111,57 @@ describe('MCP — the protocol', () => {
     };
 
     const actors = { resolve: jest.fn(() => Promise.resolve(principal())) };
+    const callLog = { record: jest.fn(() => Promise.resolve()) };
 
-    return { service: new McpService(tools as never, actors as never), tools };
+    return {
+      service: new McpService(
+        tools as never,
+        actors as never,
+        callLog as never,
+      ),
+      tools,
+      callLog,
+    };
   }
+
+  it('CD-279: logs each tool call — the person, the tool, the answer or the code', async () => {
+    const ok = serviceWith(() => Promise.resolve({ data: [{ id: 'r-1' }] }));
+    await ok.service.handle(
+      {
+        jsonrpc: '2.0',
+        id: 3,
+        method: 'tools/call',
+        params: { name: 'get_request_types', arguments: { q: 'it' } },
+      },
+      httpRequest(),
+      principal(),
+    );
+    expect(ok.callLog.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: principal().userId,
+        tool: 'get_request_types',
+        args: { q: 'it' },
+        result: { data: [{ id: 'r-1' }] },
+      }),
+    );
+
+    const refused = serviceWith(() =>
+      Promise.reject(new AppError('FORBIDDEN', 'ไม่มีสิทธิ์')),
+    );
+    await refused.service.handle(
+      {
+        jsonrpc: '2.0',
+        id: 4,
+        method: 'tools/call',
+        params: { name: 'get_request_types', arguments: {} },
+      },
+      httpRequest(),
+      principal(),
+    );
+    expect(refused.callLog.record).toHaveBeenCalledWith(
+      expect.objectContaining({ errorCode: 'FORBIDDEN' }),
+    );
+  });
 
   it('answers initialize with the revision it actually speaks', async () => {
     const { service } = serviceWith(() => Promise.resolve({}));

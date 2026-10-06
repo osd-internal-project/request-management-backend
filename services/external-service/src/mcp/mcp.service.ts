@@ -30,6 +30,7 @@ import {
   SERVER_INSTRUCTIONS,
   toolResult,
 } from './mcp-protocol';
+import { McpCallLogService } from '@request-management/core-service';
 import { McpToolRegistry } from './mcp-tools';
 import { McpActorService } from './mcp-actor';
 
@@ -40,6 +41,7 @@ export class McpService {
   constructor(
     private readonly tools: McpToolRegistry,
     private readonly actors: McpActorService,
+    private readonly callLog: McpCallLogService,
   ) {}
 
   /**
@@ -134,6 +136,8 @@ export class McpService {
         ? (rpc.params.arguments as Record<string, unknown>)
         : {};
 
+    const started = Date.now();
+    let actor: Principal | null = null;
     try {
       /*
         Identity is resolved per call, not per request: `initialize` and
@@ -141,17 +145,47 @@ export class McpService {
         user there would make the handshake impossible for the service-account
         route.
       */
-      const actor = await this.actors.resolve(request, caller);
+      actor = await this.actors.resolve(request, caller);
 
       const value = await this.tools.call(name, args, {
         actor,
         authorization: request.headers.authorization ?? '',
       });
 
+      this.log(caller, actor, name, args, started, { result: value });
       return rpcResult(rpc.id, toolResult(value));
     } catch (error) {
-      return rpcResult(rpc.id, toolResult(this.explain(error), true));
+      const explained = this.explain(error);
+      this.log(caller, actor, name, args, started, {
+        errorCode: String(explained.code),
+      });
+      return rpcResult(rpc.id, toolResult(explained, true));
     }
+  }
+
+  /**
+   * CD-279 — the AI audit log's line for this call. Not awaited: the log
+   * never slows or fails the answer (`McpCallLogService` swallows its own
+   * errors). A call whose person could not be resolved is still logged,
+   * under the caller's company with no person.
+   */
+  private log(
+    caller: Principal,
+    actor: Principal | null,
+    tool: string,
+    args: Record<string, unknown>,
+    started: number,
+    outcome: { result?: unknown; errorCode?: string },
+  ): void {
+    void this.callLog.record({
+      companyId: (actor ?? caller).activeCompanyId,
+      userId: actor?.userId ?? null,
+      viaServiceAccount: caller.isServiceAccount,
+      tool,
+      args,
+      durationMs: Date.now() - started,
+      ...outcome,
+    });
   }
 
   /**

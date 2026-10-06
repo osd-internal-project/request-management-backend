@@ -7,11 +7,14 @@ import {
 import { LLM_CLIENT } from './llm-client';
 import { MockLlmClient } from './mock-llm.client';
 import {
+  AiAuditPolicyRepository,
   LlmCallRepository,
   LlmModelPriceRepository,
   LlmTaskSettingRepository,
+  McpCallRepository,
 } from './llm.repositories';
 import { LlmService } from './llm.service';
+import { McpCallLogService } from './mcp-call-log.service';
 
 /**
  * CD-275 — the LLM Gateway doorway. `LLM_MODE=mock` (default) needs nothing;
@@ -50,12 +53,19 @@ import { LlmService } from './llm.service';
     LlmModelPriceRepository,
     LlmCallRepository,
     LlmService,
+    // CD-279 — the AI audit log
+    McpCallRepository,
+    AiAuditPolicyRepository,
+    McpCallLogService,
   ],
   exports: [
     LlmService,
     LlmTaskSettingRepository,
     LlmModelPriceRepository,
     LlmCallRepository,
+    McpCallRepository,
+    AiAuditPolicyRepository,
+    McpCallLogService,
   ],
 })
 export class LlmModule {}

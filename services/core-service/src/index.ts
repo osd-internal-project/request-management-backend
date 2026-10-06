@@ -147,6 +147,11 @@ export {
 export { parseCompanyDbs } from './erp/sap-b1.config';
 // CD-275 — the LLM Gateway: AI features in either service call LlmService
 export { LlmModule } from './llm/llm.module';
+// CD-279 — the MCP door logs each tool call into the AI audit log
+export {
+  McpCallLogService,
+  type McpCallEntry,
+} from './llm/mcp-call-log.service';
 export { LlmService, type LlmCaller } from './llm/llm.service';
 export type { ChatMessage, LlmUsage } from './llm/llm-client';
 export { LLM_TASKS } from './llm/llm-tasks';

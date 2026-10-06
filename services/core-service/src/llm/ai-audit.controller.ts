@@ -1,0 +1,66 @@
+import { Body, Controller, Get, Put, Query } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { CurrentPrincipal, Permissions } from '@request-management/share';
+import type { Principal } from '@request-management/share';
+import { AiAuditSearchDto, SaveAiAuditPolicyDto } from './ai-audit.dto';
+import { AiAuditService } from './ai-audit.service';
+
+/** CD-279 — the AI audit log and its retention (reviewers). */
+@ApiTags('ai-audit')
+@ApiBearerAuth()
+@Controller('ai-audit')
+export class AiAuditController {
+  constructor(private readonly audit: AiAuditService) {}
+
+  @ApiOperation({
+    summary:
+      'CD-279 การเรียก MCP tool — ใคร เมื่อไร tool ไหน ตัวกรอง และรายการที่ตอบกลับ (id)',
+  })
+  @Get('mcp-calls')
+  @Permissions('admin.ai.audit')
+  mcp(
+    @Query() query: AiAuditSearchDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.audit.mcp(principal, query);
+  }
+
+  @ApiOperation({
+    summary:
+      'CD-279 การเรียกโมเดลผ่าน LLM Gateway — งาน โมเดล token ค่าใช้จ่าย',
+  })
+  @Get('llm-calls')
+  @Permissions('admin.ai.audit')
+  llm(
+    @Query() query: AiAuditSearchDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.audit.llm(principal, query);
+  }
+
+  @ApiOperation({
+    summary: 'CD-279 ตัวเลือกค้นหา: tool งาน AI และคนที่มีบันทึก',
+  })
+  @Get('filters')
+  @Permissions('admin.ai.audit')
+  filters(@CurrentPrincipal() principal: Principal) {
+    return this.audit.filters(principal);
+  }
+
+  @ApiOperation({ summary: 'CD-279 อายุการเก็บบันทึก AI ของบริษัท' })
+  @Get('policy')
+  @Permissions('admin.ai.audit')
+  policy(@CurrentPrincipal() principal: Principal) {
+    return this.audit.policy(principal);
+  }
+
+  @ApiOperation({ summary: 'CD-279 ตั้งอายุการเก็บบันทึก AI (วัน)' })
+  @Put('policy')
+  @Permissions('admin.ai.audit')
+  savePolicy(
+    @Body() dto: SaveAiAuditPolicyDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.audit.savePolicy(principal, dto);
+  }
+}

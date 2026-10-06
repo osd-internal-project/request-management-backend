@@ -298,6 +298,10 @@ export default () => ({
       apiKey: process.env.LLM_GATEWAY_API_KEY,
       timeoutMs: Number(process.env.LLM_GATEWAY_TIMEOUT_MS ?? 60000),
     },
+    /** CD-279 — how often old AI log rows are removed (ms); 0 = off. */
+    auditSweepIntervalMs: Number(
+      process.env.AI_AUDIT_SWEEP_INTERVAL_MS ?? 86_400_000,
+    ),
   },
   /** CD-15 MACOM */
   macom: {

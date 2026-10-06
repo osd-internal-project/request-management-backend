@@ -217,6 +217,12 @@ export const PERMISSIONS = {
      * `admin.integration.manage`: this spends money per call.
      */
     'admin.llm.manage',
+    /**
+     * CD-279 — reading the AI audit log (every MCP tool call and model call:
+     * who asked what, which rows answered) and setting how long it is kept.
+     * Apart from `admin.llm.manage` so reviewing is not the configurer's job.
+     */
+    'admin.ai.audit',
   ],
   /**
    * AUTH-06: สิทธิ์ของบัญชีบริการ — ออกให้กุญแจ API ที่หน้าจอ API key ไม่ใช่
