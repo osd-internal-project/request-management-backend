@@ -296,6 +296,12 @@ export const PERMISSIONS = {
     'integration.delivery.read',
     'integration.support.read',
     'integration.support.manage',
+    /**
+     * CD-265 (CD-22 KBMS) — an AI channel that talks to customers (AI CARE,
+     * AI SMART) reads published customer-facing articles and reports which
+     * it answered with. Robot-only: no acting person, never internal articles.
+     */
+    'integration.kb.read',
   ],
 } as const;
 

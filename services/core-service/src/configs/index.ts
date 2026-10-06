@@ -204,6 +204,10 @@ export default () => ({
     reviewIntervalMs: Number(process.env.KB_REVIEW_INTERVAL_MS ?? 21600000),
     /** CD-262 — known errors into articles, and closed jobs missed (ms); 0 = off. */
     ingestIntervalMs: Number(process.env.KB_INGEST_INTERVAL_MS ?? 3600000),
+    /** CD-265 — clearing AI question/answer texts past retention (ms); 0 = off. */
+    aiPurgeIntervalMs: Number(process.env.KB_AI_PURGE_INTERVAL_MS ?? 21600000),
+    /** CD-265 — days AI question/answer texts are kept. */
+    aiRetentionDays: Number(process.env.KB_AI_RETENTION_DAYS ?? 180),
   },
 
   crm: {

@@ -116,6 +116,10 @@ export { DeliveriesService } from './delivery/deliveries.service';
 export { InstallmentBillingService } from './delivery/installment-billing.service';
 export { ServiceHandoversService } from './delivery/service-handovers.service';
 export { SupportModule } from './support/support.module';
+// CD-265 — the knowledge base for AI channels (no controllers, no storage)
+export { KbAiModule } from './kb/kb-ai.module';
+export { KbAiService, AI_CHANNELS } from './kb/kb-ai.service';
+export { KbAiSearchDto, KbAiAnswerDto } from './kb/kb-ai.dto';
 export { ServiceAssetsService } from './support/service-assets.service';
 export { EntitlementsService } from './support/entitlements.service';
 export { WorkOrdersService } from './support/work-orders.service';

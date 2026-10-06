@@ -27,6 +27,7 @@ import { PmModule } from './pm/pm.module';
 import { DeliveryModule } from './delivery/delivery.module';
 import { SupportApiModule } from './support/support.module';
 import { FlowModule } from './flow/flow.module';
+import { KbApiModule } from './kb/kb.module';
 import configs from './configs';
 
 /**
@@ -75,6 +76,7 @@ import configs from './configs';
     DeliveryModule,
     SupportApiModule,
     FlowModule,
+    KbApiModule,
     McpModule,
   ],
   providers: [

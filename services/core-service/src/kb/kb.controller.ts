@@ -45,6 +45,8 @@ import {
   SearchKbArticlesQueryDto,
 } from './kb.dto';
 import { MAX_FILE_BYTES } from './kb-rules';
+import { KbAiLogQueryDto } from './kb-ai.dto';
+import { KbAiService } from './kb-ai.service';
 import { KbFieldService } from './kb-field.service';
 import { KbLessonService } from './kb-lesson.service';
 import { KbReviewService } from './kb-review.service';
@@ -72,7 +74,25 @@ export class KbController {
     private readonly review: KbReviewService,
     private readonly field: KbFieldService,
     private readonly lessons: KbLessonService,
+    private readonly ai: KbAiService,
   ) {}
+
+  @ApiOperation({
+    summary:
+      'CD-265 บันทึกคำถามที่ AI ค้นคลังความรู้ บทความที่ได้ และคำตอบที่อ้างอิง — ผู้ดูแลคลังความรู้',
+  })
+  @Get('ai-log')
+  @AnyPermission('kb.article.manage')
+  aiLog(
+    @Query() query: KbAiLogQueryDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.ai.log(principal, {
+      outcome: query.outcome,
+      channel: query.channel,
+      articleId: query.article_id,
+    });
+  }
 
   @ApiOperation({
     summary:
@@ -174,7 +194,12 @@ export class KbController {
     @CurrentPrincipal() principal: Principal,
   ) {
     await this.kb.findOne(principal, id, false);
-    return this.field.provenance(id);
+    const [origin, aiCitations] = await Promise.all([
+      this.field.provenance(id),
+      this.ai.citationCount(id),
+    ]);
+    // CD-265 — how often AI answers cited it
+    return { ...origin, aiCitations };
   }
 
   // --- CD-260 กลั่นกรองและอนุมัติ ---------------------------------------------------

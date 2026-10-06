@@ -7642,6 +7642,43 @@ model KbProblemLink {
   @@map("kb_problem_links")
 }
 
+/// CD-265 — one search an AI channel (AI CARE, AI SMART) made of the
+/// knowledge base, what it got back, and what it answered with. The
+/// question and answer texts are cleared after the retention period
+/// (`textPurgedAt`); which articles were cited and whether it could answer
+/// stay for the figures. pending · answered · unanswered
+model KbAiQuery {
+  id              String    @id @default(uuid())
+  companyId       String
+  channel         String
+  conversationRef String?
+  customerId      String?
+  question        String?
+  /// [{ articleId, version }] in the order returned
+  results         Json      @default("[]")
+  outcome         String    @default("pending")
+  answer          String?
+  answeredAt      DateTime?
+  textPurgedAt    DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@index([companyId, createdAt])
+  @@index([companyId, outcome])
+  @@map("kb_ai_queries")
+}
+
+/// CD-265 — an article an AI answer cited, at the version it read.
+model KbAiCitation {
+  queryId   String
+  articleId String
+  version   Int
+  createdAt DateTime @default(now())
+
+  @@id([queryId, articleId])
+  @@index([articleId])
+  @@map("kb_ai_citations")
+}
+
 /// CD-239 ใบสั่งงานบริการ — the service side of a case (a request, CD-67):
 /// which asset, corrective or preventive, and from the start whether it is
 /// covered or billed — the system suggests from the asset's entitlements

@@ -4,6 +4,7 @@ import { StorageModule, type StorageOptions } from '@request-management/share';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { PmModule } from '../pm/pm.module';
 import { PresalesModule } from '../presales/presales.module';
+import { KbAiModule } from './kb-ai.module';
 import { KbController } from './kb.controller';
 import { KbFieldService } from './kb-field.service';
 import { KbLessonService } from './kb-lesson.service';
@@ -16,6 +17,8 @@ import { KbService } from './kb.service';
 /** CD-22 KBMS — คลังความรู้ (images and files of articles live in MinIO). */
 @Module({
   imports: [
+    // CD-265 — the AI log for knowledge owners
+    KbAiModule,
     // CD-260 — review notices and the kb.review rule
     NotificationsModule,
     // CD-263 — project lessons, projects and their budgets

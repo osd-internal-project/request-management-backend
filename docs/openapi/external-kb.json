@@ -1,0 +1,189 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/v1/kb/ai/search": {
+      "post": {
+        "description": "ตอบ queryId + บทความ (Markdown, เวอร์ชัน) · ใส่ customer_code เพื่อรวมบทความเฉพาะลูกค้ารายนั้น · ทุกการค้นถูกบันทึก",
+        "operationId": "KbAiController_search",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KbAiSearchDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ค้นบทความที่เผยแพร่ให้ลูกค้าเพื่อใช้ตอบ (CD-265)",
+        "tags": [
+          "kb"
+        ],
+        "x-permission": [
+          "integration.kb.read"
+        ]
+      }
+    },
+    "/api/v1/kb/ai/queries/{queryId}/answer": {
+      "post": {
+        "description": "อ้างอิงได้เฉพาะบทความที่การค้นนั้นส่งกลับไป · ตอบไม่ได้ = ช่องว่างความรู้ (CD-266) · บันทึกได้ครั้งเดียว",
+        "operationId": "KbAiController_answer",
+        "parameters": [
+          {
+            "name": "queryId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KbAiAnswerDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "บันทึกคำตอบและบทความที่อ้างอิง หรือว่าตอบไม่ได้ (CD-265)",
+        "tags": [
+          "kb"
+        ],
+        "x-permission": [
+          "integration.kb.read"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "Request Form — External API · kb",
+    "description": "**ทุก route มีสองประตู** และ Swagger ของแต่ละ route บอกไว้ทั้งคู่: bearer ต้องถือสิทธิ์ `integration.*` ของ route นั้น (ประตูของเครื่อง) และคนที่ระบุใน header `X-Acting-User` ต้องถือสิทธิ์ของงานนั้นเอง (ประตูของคน) — ระบบทำงานในนามคนนั้น timeline จึงบันทึกชื่อคนจริง ไม่ใช่ชื่อบัญชีบริการ\n\n**bearer รับได้สองแบบ**\n\n1. access token ของ service account จาก Keycloak (client_credentials) อายุสั้น ต้องขอใหม่เมื่อหมดอายุ\n2. **API key** ที่ขึ้นต้นด้วย `rfk_` — ไม่มีวันหมดอายุ ไม่ต้องต่ออายุ ระบบแลกเป็น token ให้เองตอนใช้ ออกด้วย `yarn apikey:issue` และเพิกถอนด้วย `yarn apikey:revoke` (มีผลทันที)\n\nทั้งสองแบบส่งเหมือนกัน: `Authorization: Bearer <ค่า>` และได้สิทธิ์ชุดเดียวกัน — key ตัดสินว่า *เข้าได้ไหม* token บอกว่า *ทำอะไรได้*",
+    "version": "1.0"
+  },
+  "tags": [],
+  "servers": [
+    {
+      "url": "http://192.168.31.52:3503",
+      "description": "เครื่องภายใน OSD"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
+    "schemas": {
+      "KbAiAnswerDto": {
+        "type": "object",
+        "properties": {
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "answered",
+              "unanswered"
+            ]
+          },
+          "answer": {
+            "type": "string",
+            "description": "ข้อความที่ตอบลูกค้า (เก็บตามระยะที่กำหนด)",
+            "maxLength": 4000
+          },
+          "cited_article_ids": {
+            "description": "บทความที่คำตอบอ้างอิง (จากผลค้นนี้)",
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 10
+          }
+        },
+        "required": [
+          "outcome"
+        ]
+      },
+      "KbAiSearchDto": {
+        "type": "object",
+        "properties": {
+          "question": {
+            "type": "string",
+            "description": "คำถามของลูกค้า (เว้นวรรคระหว่างคำ)",
+            "maxLength": 4000
+          },
+          "channel": {
+            "type": "string",
+            "enum": [
+              "ai_care",
+              "ai_smart"
+            ]
+          },
+          "customer_code": {
+            "type": "string",
+            "description": "รหัสลูกค้าในบทสนทนา — ได้บทความเฉพาะของลูกค้ารายนี้ด้วย",
+            "maxLength": 60
+          },
+          "conversation_ref": {
+            "type": "string",
+            "description": "อ้างอิงบทสนทนาฝั่ง AI",
+            "maxLength": 200
+          },
+          "limit": {
+            "type": "integer",
+            "default": 5,
+            "maximum": 10,
+            "minimum": 1
+          }
+        },
+        "required": [
+          "channel",
+          "question"
+        ]
+      }
+    }
+  }
+}

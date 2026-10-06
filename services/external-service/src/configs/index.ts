@@ -91,7 +91,13 @@ export default () => ({
   },
   hr: { mandayVarianceIntervalMs: 0 },
   esign: { sweepIntervalMs: 0 },
-  kb: { reviewIntervalMs: 0 },
+  // CD-262/263 sweeps and CD-265's text purge run in core-service only
+  kb: {
+    reviewIntervalMs: 0,
+    ingestIntervalMs: 0,
+    aiPurgeIntervalMs: 0,
+    aiRetentionDays: Number(process.env.KB_AI_RETENTION_DAYS ?? 180),
+  },
   notificationDigestIntervalMs: 0,
   /** CD-90 — likewise: the lake is fed by core-service only. */
   lake: { databaseUrl: '', extractIntervalMs: 0, sapIntervalMs: 0 },

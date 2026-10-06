@@ -148,6 +148,13 @@
 |---|---|---|---|---|
 | GET | `/flow/opportunities/{id}` | ติดตามดีลทั้งสาย — ดีล → Pre-Sales → ใบเสนอราคา → ใบสั่งขาย → สัญญา → โครงการ | integration.flow.read | crm.sales.read |
 
+## kb
+
+| Method | Path | ทำอะไร | สิทธิ์กุญแจ | สิทธิ์คน |
+|---|---|---|---|---|
+| POST | `/kb/ai/search` | ค้นบทความที่เผยแพร่ให้ลูกค้าเพื่อใช้ตอบ (CD-265) | integration.kb.read |  |
+| POST | `/kb/ai/queries/{queryId}/answer` | บันทึกคำตอบและบทความที่อ้างอิง หรือว่าตอบไม่ได้ (CD-265) | integration.kb.read |  |
+
 ## legal — คลังสัญญา — อ่านอย่างเดียว
 
 | Method | Path | ทำอะไร | สิทธิ์กุญแจ | สิทธิ์คน |

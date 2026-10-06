@@ -21231,6 +21231,69 @@
         ]
       }
     },
+    "/api/v1/kb/ai-log": {
+      "get": {
+        "operationId": "KbController_aiLog",
+        "parameters": [
+          {
+            "name": "outcome",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "answered",
+                "unanswered"
+              ]
+            }
+          },
+          {
+            "name": "channel",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ai_care",
+                "ai_smart"
+              ]
+            }
+          },
+          {
+            "name": "article_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-265 บันทึกคำถามที่ AI ค้นคลังความรู้ บทความที่ได้ และคำตอบที่อ้างอิง — ผู้ดูแลคลังความรู้",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
     "/api/v1/kb/projects/{projectId}/lessons/send": {
       "post": {
         "operationId": "KbController_sendLessons",
