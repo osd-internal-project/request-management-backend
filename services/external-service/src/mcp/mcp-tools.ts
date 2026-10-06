@@ -292,19 +292,19 @@ export class McpToolRegistry implements OnModuleInit {
     assistant_get_summary: (_args, { actor }) => this.assistant.summary(actor),
 
     assistant_get_deals_closing: (args, { actor }) =>
-      this.assistant.closingDeals(actor, args as never),
+      this.assistant.closingDeals(actor, args),
 
     assistant_get_deals_silent: (args, { actor }) =>
-      this.assistant.silentDeals(actor, args as never),
+      this.assistant.silentDeals(actor, args),
 
     assistant_get_approvals: (_args, { actor }) =>
       this.assistant.myApprovals(actor),
 
     assistant_get_projects_at_risk: (args, { actor }) =>
-      this.assistant.projectsAtRisk(actor, args as never),
+      this.assistant.projectsAtRisk(actor, args),
 
     assistant_get_service_jobs: (args, { actor }) =>
-      this.assistant.serviceJobs(actor, args as never),
+      this.assistant.serviceJobs(actor, args),
 
     assistant_get_kb_articles: (args, { actor }) =>
       this.assistant.articles(actor, {
