@@ -211,6 +211,12 @@ export const PERMISSIONS = {
      * คำขอไม่ใช่การตั้งค่า CRM.
      */
     'admin.notification.manage',
+    /**
+     * CD-275 — the LLM Gateway: which model each AI task uses, token quotas,
+     * model prices for the cost estimate, and the usage log. Apart from
+     * `admin.integration.manage`: this spends money per call.
+     */
+    'admin.llm.manage',
   ],
   /**
    * AUTH-06: สิทธิ์ของบัญชีบริการ — ออกให้กุญแจ API ที่หน้าจอ API key ไม่ใช่

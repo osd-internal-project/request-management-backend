@@ -35192,6 +35192,219 @@
         ]
       }
     },
+    "/api/v1/llm/settings": {
+      "get": {
+        "operationId": "LlmController_settings",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-275 งาน AI ทุกงาน: โมเดล โควตา การใช้เดือนนี้ + ราคาโมเดล",
+        "tags": [
+          "llm"
+        ],
+        "x-permission": [
+          "admin.llm.manage"
+        ]
+      }
+    },
+    "/api/v1/llm/tasks/{task}": {
+      "put": {
+        "operationId": "LlmController_updateTask",
+        "parameters": [
+          {
+            "name": "task",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateLlmTaskDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-275 ตั้งโมเดล/โควตา/เปิดปิด ของงาน AI หนึ่งงาน",
+        "tags": [
+          "llm"
+        ],
+        "x-permission": [
+          "admin.llm.manage"
+        ]
+      }
+    },
+    "/api/v1/llm/prices": {
+      "put": {
+        "operationId": "LlmController_savePrices",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveLlmPricesDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-275 ราคาโมเดล (ทั้งชุด) สำหรับประมาณค่าใช้จ่าย",
+        "tags": [
+          "llm"
+        ],
+        "x-permission": [
+          "admin.llm.manage"
+        ]
+      }
+    },
+    "/api/v1/llm/usage": {
+      "get": {
+        "operationId": "LlmController_usage",
+        "parameters": [
+          {
+            "name": "month",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "2026-10",
+              "type": "string",
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-275 การใช้งานรายเดือน: รวม รายงาน รายโมเดล รายคน ล่าสุด",
+        "tags": [
+          "llm"
+        ],
+        "x-permission": [
+          "admin.llm.manage"
+        ]
+      }
+    },
+    "/api/v1/llm/test": {
+      "post": {
+        "operationId": "LlmController_test",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LlmTestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-275 ทดลองเรียกโมเดลผ่าน Gateway (นับโควตาของงาน admin.test)",
+        "tags": [
+          "llm"
+        ],
+        "x-permission": [
+          "admin.llm.manage"
+        ]
+      }
+    },
     "/api/v1/esign/authorities": {
       "get": {
         "operationId": "EsignController_listAuthorities",
@@ -47593,6 +47806,85 @@
         },
         "required": [
           "reason"
+        ]
+      },
+      "UpdateLlmTaskDto": {
+        "type": "object",
+        "properties": {
+          "model": {
+            "type": "string",
+            "description": "ชื่อโมเดลที่ Gateway รู้จัก · ว่าง = ใช้ค่าตั้งต้น",
+            "maxLength": 200
+          },
+          "monthly_token_quota": {
+            "type": "integer",
+            "nullable": true,
+            "description": "token ต่อเดือน · null = ไม่จำกัด",
+            "maximum": 2000000000,
+            "minimum": 0
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        }
+      },
+      "LlmPriceDto": {
+        "type": "object",
+        "properties": {
+          "model": {
+            "type": "string",
+            "example": "gpt-4o-mini",
+            "maxLength": 200,
+            "minLength": 1
+          },
+          "input_per_1k": {
+            "type": "number",
+            "example": 0.006,
+            "description": "บาทต่อ 1,000 token ขาเข้า",
+            "maximum": 100000,
+            "minimum": 0
+          },
+          "output_per_1k": {
+            "type": "number",
+            "example": 0.024,
+            "description": "บาทต่อ 1,000 token ขาออก",
+            "maximum": 100000,
+            "minimum": 0
+          }
+        },
+        "required": [
+          "input_per_1k",
+          "model",
+          "output_per_1k"
+        ]
+      },
+      "SaveLlmPricesDto": {
+        "type": "object",
+        "properties": {
+          "prices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LlmPriceDto"
+            },
+            "maxItems": 100
+          }
+        },
+        "required": [
+          "prices"
+        ]
+      },
+      "LlmTestDto": {
+        "type": "object",
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "example": "สรุปสั้น ๆ ว่าระบบ CTD คืออะไร",
+            "maxLength": 2000,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "prompt"
         ]
       },
       "SaveEsignAuthorityDto": {

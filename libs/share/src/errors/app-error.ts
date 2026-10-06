@@ -82,6 +82,10 @@ export const ErrorCatalog = {
   /** CM-06/D-30 — the integration layer's answer when SAP (or a later
    * external system) refuses or is unreachable; the sync queue retries. */
   UPSTREAM_ERROR: HttpStatus.BAD_GATEWAY,
+  /** CD-275 — an AI task's monthly token quota is used up. */
+  LLM_QUOTA_EXCEEDED: HttpStatus.TOO_MANY_REQUESTS,
+  /** CD-275 — an AI task switched off in the LLM settings. */
+  LLM_TASK_DISABLED: HttpStatus.CONFLICT,
   /** Object storage (MinIO/S3) is unreachable or refused the call. */
   STORAGE_UNAVAILABLE: HttpStatus.BAD_GATEWAY,
   /** REQ-03: the attachment row predates file storage and has no bytes behind it. */

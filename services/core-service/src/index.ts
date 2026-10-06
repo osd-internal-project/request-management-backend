@@ -132,3 +132,8 @@ export {
 
 // ERP config parsing — external-service builds the same `erp.b1` block.
 export { parseCompanyDbs } from './erp/sap-b1.config';
+// CD-275 — the LLM Gateway: AI features in either service call LlmService
+export { LlmModule } from './llm/llm.module';
+export { LlmService, type LlmCaller } from './llm/llm.service';
+export type { ChatMessage, LlmUsage } from './llm/llm-client';
+export { LLM_TASKS } from './llm/llm-tasks';

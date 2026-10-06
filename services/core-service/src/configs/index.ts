@@ -281,6 +281,18 @@ export default () => ({
    * CD-90 — the Data Lake: a separate PostgreSQL warehouse database. Unset =
    * no lake, nothing runs. Changed rows every hour, SAP invoices daily.
    */
+  /** CD-275 — the company LLM Gateway (OpenAI-compatible). */
+  llm: {
+    /** mock (default, no network) | gateway */
+    mode: process.env.LLM_MODE ?? 'mock',
+    defaultChatModel: process.env.LLM_DEFAULT_CHAT_MODEL ?? 'default-chat',
+    defaultEmbedModel: process.env.LLM_DEFAULT_EMBED_MODEL ?? 'default-embed',
+    gateway: {
+      url: process.env.LLM_GATEWAY_URL,
+      apiKey: process.env.LLM_GATEWAY_API_KEY,
+      timeoutMs: Number(process.env.LLM_GATEWAY_TIMEOUT_MS ?? 60000),
+    },
+  },
   /** CD-15 MACOM */
   macom: {
     /** CD-271 — content due tomorrow / an hour late (ms); 0 = off. */

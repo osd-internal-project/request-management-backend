@@ -3538,6 +3538,60 @@ model Campaign {
   @@map("campaigns")
 }
 
+/// CD-275 — โมเดลที่งาน AI หนึ่งใช้ และโควตา token รายเดือน (ต่อบริษัท).
+/// ไม่มีแถว = ใช้ค่าตั้งต้นจากแคตตาล็อกงานในโค้ด (`llm-tasks.ts`).
+model LlmTaskSetting {
+  id                String   @id @default(uuid())
+  companyId         String
+  task              String
+  model             String?
+  /// token ต่อเดือน · null = ไม่จำกัด
+  monthlyTokenQuota Int?
+  enabled           Boolean  @default(true)
+  updatedAt         DateTime @updatedAt
+  updatedBy         String?
+
+  @@unique([companyId, task])
+  @@map("llm_task_settings")
+}
+
+/// CD-275 — ราคาโมเดล (บาทต่อ 1,000 token) ใช้ประมาณค่าใช้จ่ายในบันทึกการเรียก.
+model LlmModelPrice {
+  id               String   @id @default(uuid())
+  companyId        String
+  model            String
+  inputPer1k       Decimal  @db.Decimal(12, 4)
+  outputPer1k      Decimal  @db.Decimal(12, 4)
+  updatedAt        DateTime @updatedAt
+  updatedBy        String?
+
+  @@unique([companyId, model])
+  @@map("llm_model_prices")
+}
+
+/// CD-275 — ทุกการเรียกโมเดลผ่าน Gateway (ไม่เก็บข้อความ prompt/คำตอบ).
+model LlmCall {
+  id               String   @id @default(uuid())
+  companyId        String
+  userId           String?
+  task             String
+  kind             String
+  model            String
+  promptTokens     Int      @default(0)
+  completionTokens Int      @default(0)
+  totalTokens      Int      @default(0)
+  costEstimate     Decimal? @db.Decimal(12, 4)
+  durationMs       Int      @default(0)
+  /// ok | error | quota | disabled
+  status           String
+  error            String?
+  createdAt        DateTime @default(now())
+
+  @@index([companyId, createdAt])
+  @@index([companyId, task, createdAt])
+  @@map("llm_calls")
+}
+
 /// CD-273 — ไฟล์ในคลังแบรนด์ (โลโก้ เทมเพลตข้อเสนอ เอกสารนำเสนอ …) ·
 /// ทุกคนเห็นเฉพาะฉบับปัจจุบัน (`currentVersionId`), ฉบับเก่าเก็บไว้ให้ MACOM.
 model BrandAsset {

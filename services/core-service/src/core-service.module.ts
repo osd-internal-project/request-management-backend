@@ -35,6 +35,7 @@ import { SupportHttpModule } from './support/support-http.module';
 import { DeliveryHttpModule } from './delivery/delivery-http.module';
 import { KbModule } from './kb/kb.module';
 import { MacomHttpModule } from './macom/macom-http.module';
+import { LlmHttpModule } from './llm/llm-http.module';
 import { SensitiveReadAuditRecorder } from './policy/sensitive-read.recorder';
 import configs from './configs';
 
@@ -79,6 +80,8 @@ import configs from './configs';
     KbModule,
     // CD-15 MACOM
     MacomHttpModule,
+    // CD-24 — the LLM Gateway
+    LlmHttpModule,
     // CD-18 PM — projects opened from signed contracts
     PmHttpModule,
     // CD-14 — the central signing service (screens + the public signing link)
