@@ -21255,6 +21255,66 @@
         ]
       }
     },
+    "/api/v1/kb/semantic": {
+      "get": {
+        "operationId": "KbController_semanticStatus",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-267 สถานะดัชนีค้นหาเชิงความหมาย (บทความที่เผยแพร่ / ทำดัชนีแล้ว / โมเดล) — ผู้ดูแลคลังความรู้",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/semantic/index": {
+      "post": {
+        "operationId": "KbController_semanticIndex",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-267 ทำดัชนีบทความที่ยังไม่มีหรือเปลี่ยนแล้วทันที (ครั้งละไม่เกิน 100 บทความ) — ผู้ดูแลคลังความรู้",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
     "/api/v1/kb/gaps": {
       "get": {
         "operationId": "KbController_gapList",

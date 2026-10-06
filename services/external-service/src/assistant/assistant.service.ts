@@ -266,6 +266,9 @@ export class AssistantService {
         category: row.category?.name ?? null,
         tags: row.tags,
         score: row.score,
+        // CD-267 — found by words, by meaning or both, and the passage that matched
+        match: row.match,
+        passage: row.passage,
       })),
     };
   }

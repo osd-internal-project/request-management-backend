@@ -16,7 +16,10 @@ import { AI_CHANNELS, type AiChannel } from './kb-ai.service';
 
 /** CD-265 — an AI channel's search of customer-facing articles. */
 export class KbAiSearchDto {
-  @ApiProperty({ description: 'คำถามของลูกค้า (เว้นวรรคระหว่างคำ)' })
+  @ApiProperty({
+    description:
+      'คำถามของลูกค้า — ค้นทั้งคำ (เว้นวรรคระหว่างคำ) และความหมาย (CD-267)',
+  })
   @IsString()
   @MaxLength(4000)
   question!: string;

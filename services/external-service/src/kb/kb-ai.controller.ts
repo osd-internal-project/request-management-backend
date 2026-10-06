@@ -38,7 +38,7 @@ export class KbAiController {
   @ApiOperation({
     summary: 'ค้นบทความที่เผยแพร่ให้ลูกค้าเพื่อใช้ตอบ (CD-265)',
     description:
-      'ตอบ queryId + บทความ (Markdown, เวอร์ชัน) · ใส่ customer_code เพื่อรวมบทความเฉพาะลูกค้ารายนั้น · ทุกการค้นถูกบันทึก',
+      'ตอบ queryId + บทความ (Markdown, เวอร์ชัน) · ใส่ customer_code เพื่อรวมบทความเฉพาะลูกค้ารายนั้น · ทุกการค้นถูกบันทึก · CD-267 ค้นทั้งคำและความหมาย: match = keyword | meaning | both และ passage = ท่อนที่ตรงความหมายที่สุด (heading, text, similarity) หรือ null',
   })
   search(@Body() dto: KbAiSearchDto, @CurrentPrincipal() principal: Principal) {
     return this.ai.search(principal.activeCompanyId, {

@@ -3,7 +3,7 @@
   "paths": {
     "/api/v1/kb/ai/search": {
       "post": {
-        "description": "ตอบ queryId + บทความ (Markdown, เวอร์ชัน) · ใส่ customer_code เพื่อรวมบทความเฉพาะลูกค้ารายนั้น · ทุกการค้นถูกบันทึก",
+        "description": "ตอบ queryId + บทความ (Markdown, เวอร์ชัน) · ใส่ customer_code เพื่อรวมบทความเฉพาะลูกค้ารายนั้น · ทุกการค้นถูกบันทึก · CD-267 ค้นทั้งคำและความหมาย: match = keyword | meaning | both และ passage = ท่อนที่ตรงความหมายที่สุด (heading, text, similarity) หรือ null",
         "operationId": "KbAiController_search",
         "parameters": [
           {
@@ -152,7 +152,7 @@
         "properties": {
           "question": {
             "type": "string",
-            "description": "คำถามของลูกค้า (เว้นวรรคระหว่างคำ)",
+            "description": "คำถามของลูกค้า — ค้นทั้งคำ (เว้นวรรคระหว่างคำ) และความหมาย (CD-267)",
             "maxLength": 4000
           },
           "channel": {

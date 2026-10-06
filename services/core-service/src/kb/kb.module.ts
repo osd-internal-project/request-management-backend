@@ -5,6 +5,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { PmModule } from '../pm/pm.module';
 import { PresalesModule } from '../presales/presales.module';
 import { KbAiModule } from './kb-ai.module';
+import { KbSemanticModule } from './kb-semantic.module';
 import { KbController } from './kb.controller';
 import { KbFieldService } from './kb-field.service';
 import { KbLessonService } from './kb-lesson.service';
@@ -25,6 +26,7 @@ import { KbService } from './kb.service';
   imports: [
     // CD-265 — the AI log for knowledge owners
     KbAiModule,
+    KbSemanticModule,
     // CD-260 — review notices and the kb.review rule
     NotificationsModule,
     // CD-263 — project lessons, projects and their budgets

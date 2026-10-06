@@ -6,6 +6,7 @@ import {
   KbAiSearchRepository,
 } from './kb-ai.repositories';
 import { KbAiService } from './kb-ai.service';
+import { KbSemanticModule } from './kb-semantic.module';
 
 /**
  * CD-265 — the knowledge base for AI channels. No controllers and no
@@ -13,7 +14,7 @@ import { KbAiService } from './kb-ai.service';
  * (`api/v1/kb/ai/*`), core-service for the knowledge owners' log.
  */
 @Module({
-  imports: [CrmModule],
+  imports: [CrmModule, KbSemanticModule],
   providers: [
     KbAiService,
     KbAiQueryRepository,

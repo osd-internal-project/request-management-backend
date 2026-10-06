@@ -208,6 +208,12 @@ export default () => ({
     aiPurgeIntervalMs: Number(process.env.KB_AI_PURGE_INTERVAL_MS ?? 21600000),
     /** CD-265 — days AI question/answer texts are kept. */
     aiRetentionDays: Number(process.env.KB_AI_RETENTION_DAYS ?? 180),
+    /** CD-267 — embedding new/changed published articles (ms); 0 = off. */
+    embedIntervalMs: Number(process.env.KB_EMBED_INTERVAL_MS ?? 300000),
+    /** CD-267 — cosine a passage needs to count as a match by meaning. */
+    semanticMinSimilarity: Number(
+      process.env.KB_SEMANTIC_MIN_SIMILARITY ?? 0.35,
+    ),
   },
 
   crm: {

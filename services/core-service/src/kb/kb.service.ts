@@ -16,6 +16,8 @@ import {
 import type { ObjectStorage } from '@request-management/share';
 import { thaiToday } from '../crm/vendor-costs';
 import { safeFileName } from '../requests/attachments.service';
+import { byRank, matchFields } from './kb-semantic-rank';
+import { KbSemanticService } from './kb-semantic.service';
 import {
   articleProblems,
   audienceCustomers,
@@ -120,6 +122,7 @@ export class KbService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditWriter,
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
+    private readonly semantic: KbSemanticService,
   ) {}
 
   // --- articles ---------------------------------------------------------------
@@ -166,11 +169,12 @@ export class KbService {
 
     const terms = searchTerms(query.q);
     const scores: string[] = [];
+    const matches: string[] = [];
     for (const term of terms) {
       const p = param(likePattern(term));
       const tags = `array_to_string(a.tags, ' ')`;
       const codes = `array_to_string(a."productCodes", ' ')`;
-      where.push(
+      matches.push(
         `(a.title ILIKE ${p} OR a.summary ILIKE ${p} OR a.body ILIKE ${p}
           OR ${tags} ILIKE ${p} OR ${codes} ILIKE ${p} OR a."articleNo" ILIKE ${p})`,
       );
@@ -188,17 +192,40 @@ export class KbService {
       : helpful;
     const limit = Math.min(Math.max(query.limit ?? 50, 1), 200);
 
-    const rows = await this.prisma.$queryRawUnsafe<
-      (ArticleRow & { score: number })[]
-    >(
-      `SELECT a.*, (${score})::float AS score
+    // CD-267 — and by meaning: published articles whose passages match
+    const meaning =
+      terms.length && status === 'published'
+        ? await this.semantic.search(
+            companyId,
+            actor.userId,
+            query.q ?? '',
+            limit,
+          )
+        : null;
+    const meaningIds = [...(meaning?.keys() ?? [])];
+    const keywordHit = matches.length
+      ? `COALESCE(${matches.join(' AND ')}, FALSE)`
+      : 'TRUE';
+    const semanticHit = meaningIds.length
+      ? `a.id = ANY(${param(meaningIds)}::text[])`
+      : 'FALSE';
+    if (matches.length) where.push(`(${keywordHit} OR ${semanticHit})`);
+    // found by meaning first, so the limit never cuts them off
+    const meaningFirst = meaningIds.length ? `${semanticHit} DESC, ` : '';
+
+    const rows = await this.prisma
+      .$queryRawUnsafe<
+        (ArticleRow & { score: number; keyword_hit: boolean })[]
+      >(
+        `SELECT a.*, (${score})::float AS score, ${keywordHit} AS keyword_hit
        FROM kb_articles a
        WHERE ${where.join(' AND ')}
-       ORDER BY ${terms.length ? 'score DESC,' : ''}
+       ORDER BY ${meaningFirst}${terms.length ? 'score DESC,' : ''}
                 COALESCE(a."publishedAt", a."updatedAt") DESC
-       LIMIT ${limit}`,
-      ...params,
-    );
+       LIMIT ${limit + meaningIds.length}`,
+        ...params,
+      )
+      .then((found) => byRank(found, meaning, limit));
     // CD-261 — a selected-customers article only for those who see one of them
     const allowed = await this.customersSeen(
       actor,
@@ -215,6 +242,7 @@ export class KbService {
       items: visible.map((row) => ({
         ...this.card(row, names, categories),
         score: terms.length ? Math.round(row.score * 10) / 10 : null,
+        ...matchFields(row, meaning),
       })),
     };
   }

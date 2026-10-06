@@ -53,6 +53,7 @@ import { KbAiLogQueryDto } from './kb-ai.dto';
 import { KbAiService } from './kb-ai.service';
 import { KbFieldService } from './kb-field.service';
 import { KbGapService } from './kb-gap.service';
+import { KbSemanticService } from './kb-semantic.service';
 import { KbLessonService } from './kb-lesson.service';
 import { KbReviewService } from './kb-review.service';
 import { KbService, type SaveArticle } from './kb.service';
@@ -81,7 +82,37 @@ export class KbController {
     private readonly lessons: KbLessonService,
     private readonly ai: KbAiService,
     private readonly gaps: KbGapService,
+    private readonly semantic: KbSemanticService,
   ) {}
+
+  // --- CD-267 ค้นหาเชิงความหมาย -----------------------------------------------------
+
+  @ApiOperation({
+    summary:
+      'CD-267 สถานะดัชนีค้นหาเชิงความหมาย (บทความที่เผยแพร่ / ทำดัชนีแล้ว / โมเดล) — ผู้ดูแลคลังความรู้',
+  })
+  @Get('semantic')
+  @AnyPermission('kb.article.manage')
+  semanticStatus(@CurrentPrincipal() principal: Principal) {
+    return this.semantic.status(principal.activeCompanyId);
+  }
+
+  @ApiOperation({
+    summary:
+      'CD-267 ทำดัชนีบทความที่ยังไม่มีหรือเปลี่ยนแล้วทันที (ครั้งละไม่เกิน 100 บทความ) — ผู้ดูแลคลังความรู้',
+  })
+  @Post('semantic/index')
+  @AnyPermission('kb.article.manage')
+  async semanticIndex(@CurrentPrincipal() principal: Principal) {
+    const done = await this.semantic.indexCompany(
+      principal.activeCompanyId,
+      100,
+    );
+    return {
+      ...done,
+      ...(await this.semantic.status(principal.activeCompanyId)),
+    };
+  }
 
   // --- CD-266 ช่องว่างความรู้ ---------------------------------------------------------
 

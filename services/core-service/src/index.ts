@@ -127,6 +127,8 @@ export { ServiceHandoversService } from './delivery/service-handovers.service';
 export { SupportModule } from './support/support.module';
 // CD-265 — the knowledge base for AI channels (no controllers, no storage)
 export { KbAiModule } from './kb/kb-ai.module';
+// CD-267 — search by meaning, which KbService needs wherever it is declared
+export { KbSemanticModule } from './kb/kb-semantic.module';
 export { KbAiService, AI_CHANNELS } from './kb/kb-ai.service';
 export { KbAiSearchDto, KbAiAnswerDto } from './kb/kb-ai.dto';
 // CD-276 — staff search for the assistant, declared by external without KbModule's controller

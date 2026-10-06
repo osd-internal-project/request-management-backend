@@ -7,6 +7,8 @@ import {
 } from '@request-management/share';
 import type { ObjectStorage } from '@request-management/share';
 import { likePattern, searchTerms } from './kb-rules';
+import { byRank, matchFields } from './kb-semantic-rank';
+import { KbSemanticService } from './kb-semantic.service';
 
 /** Who reads, as the Portal (CD-249) resolves its session. */
 export interface KbPortalViewer {
@@ -30,6 +32,7 @@ interface PortalRow {
   portalHelpfulNo: number;
   for_equipment: boolean;
   score: number;
+  keyword_hit: boolean;
 }
 
 /**
@@ -51,6 +54,7 @@ export class KbPortalService {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage,
+    private readonly semantic: KbSemanticService,
   ) {}
 
   /** The articles this customer may read; `q` as staff search does. */
@@ -72,11 +76,12 @@ export class KbPortalService {
       `(a.audience = 'customers' OR (a.audience = 'selected' AND $2 = ANY(a."customerIds")))`,
     ];
     const scores: string[] = [];
+    const matches: string[] = [];
     const terms = searchTerms(q);
     for (const term of terms) {
       const p = param(likePattern(term));
       const tags = `array_to_string(a.tags, ' ')`;
-      where.push(
+      matches.push(
         `(a.title ILIKE ${p} OR a.summary ILIKE ${p} OR a.body ILIKE ${p} OR ${tags} ILIKE ${p})`,
       );
       scores.push(
@@ -93,16 +98,36 @@ export class KbPortalService {
       `CASE WHEN ${forEquipment} THEN 4 ELSE 0 END`,
       helpful,
     ].join(' + ');
-    const rows = await this.prisma.$queryRawUnsafe<PortalRow[]>(
-      `SELECT a.id, a."articleNo", a.title, a.summary, a."categoryId", a.tags,
-              a."productCodes", a."productGroups", a."publishedAt", a."updatedAt",
-              a."portalHelpfulYes", a."portalHelpfulNo",
-              ${forEquipment} AS for_equipment, (${score})::float AS score
-       FROM kb_articles a
-       WHERE ${where.join(' AND ')}
-       ORDER BY score DESC, a."publishedAt" DESC NULLS LAST
-       LIMIT ${Math.min(Math.max(limit, 1), 100)}`,
-      ...params,
+    // CD-267 — and by meaning
+    const max = Math.min(Math.max(limit, 1), 100);
+    const meaning = terms.length
+      ? await this.semantic.search(viewer.companyId, null, q ?? '', max)
+      : null;
+    const meaningIds = [...(meaning?.keys() ?? [])];
+    const keywordHit = matches.length
+      ? `COALESCE(${matches.join(' AND ')}, FALSE)`
+      : 'TRUE';
+    const semanticHit = meaningIds.length
+      ? `a.id = ANY(${param(meaningIds)}::text[])`
+      : 'FALSE';
+    if (matches.length) where.push(`(${keywordHit} OR ${semanticHit})`);
+    // found by meaning first, so the limit never cuts them off
+    const meaningFirst = meaningIds.length ? `${semanticHit} DESC, ` : '';
+    const rows = byRank(
+      await this.prisma.$queryRawUnsafe<PortalRow[]>(
+        `SELECT a.id, a."articleNo", a.title, a.summary, a."categoryId", a.tags,
+                a."productCodes", a."productGroups", a."publishedAt", a."updatedAt",
+                a."portalHelpfulYes", a."portalHelpfulNo",
+                ${forEquipment} AS for_equipment, (${score})::float AS score,
+                ${keywordHit} AS keyword_hit
+         FROM kb_articles a
+         WHERE ${where.join(' AND ')}
+         ORDER BY ${meaningFirst}score DESC, a."publishedAt" DESC NULLS LAST
+         LIMIT ${max + meaningIds.length}`,
+        ...params,
+      ),
+      meaning,
+      max,
     );
     const categories = await this.categoryNames(viewer.companyId);
     return {
@@ -116,6 +141,7 @@ export class KbPortalService {
         tags: r.tags,
         forYourEquipment: r.for_equipment,
         publishedAt: r.publishedAt,
+        ...matchFields(r, meaning),
         helpfulPct:
           r.portalHelpfulYes + r.portalHelpfulNo
             ? Math.round(

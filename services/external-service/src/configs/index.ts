@@ -97,6 +97,22 @@ export default () => ({
     ingestIntervalMs: 0,
     aiPurgeIntervalMs: 0,
     aiRetentionDays: Number(process.env.KB_AI_RETENTION_DAYS ?? 180),
+    // CD-267 — articles are embedded by core-service; AI search here reads them
+    embedIntervalMs: 0,
+    semanticMinSimilarity: Number(
+      process.env.KB_SEMANTIC_MIN_SIMILARITY ?? 0.35,
+    ),
+  },
+  /** CD-275 — the LLM Gateway, for CD-267's AI search by meaning. */
+  llm: {
+    mode: process.env.LLM_MODE ?? 'mock',
+    defaultChatModel: process.env.LLM_DEFAULT_CHAT_MODEL ?? 'default-chat',
+    defaultEmbedModel: process.env.LLM_DEFAULT_EMBED_MODEL ?? 'default-embed',
+    gateway: {
+      url: process.env.LLM_GATEWAY_URL,
+      apiKey: process.env.LLM_GATEWAY_API_KEY,
+      timeoutMs: Number(process.env.LLM_GATEWAY_TIMEOUT_MS ?? 60000),
+    },
   },
   notificationDigestIntervalMs: 0,
   /** CD-90 — likewise: the lake is fed by core-service only. */

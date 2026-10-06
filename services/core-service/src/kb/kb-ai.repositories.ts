@@ -44,6 +44,8 @@ export interface AiSearchRow {
   tags: string[];
   productCodes: string[];
   score: number;
+  /** CD-267 — false when found only by meaning. */
+  keyword_hit: boolean;
 }
 
 /**
@@ -60,6 +62,8 @@ export class KbAiSearchRepository {
     customerId: string | null,
     terms: string[],
     limit: number,
+    /** CD-267 — articles found by meaning, also returned when no word matches. */
+    meaningIds: string[] = [],
   ) {
     const params: unknown[] = [companyId, customerId];
     const where = [
@@ -68,12 +72,13 @@ export class KbAiSearchRepository {
       `(a.audience = 'customers' OR (a.audience = 'selected' AND $2::text IS NOT NULL AND $2::text = ANY(a."customerIds")))`,
     ];
     const scores: string[] = [];
+    const matches: string[] = [];
     for (const term of terms) {
       params.push(likePattern(term));
       const p = `$${params.length}`;
       const tags = `array_to_string(a.tags, ' ')`;
       const codes = `array_to_string(a."productCodes", ' ')`;
-      where.push(
+      matches.push(
         `(a.title ILIKE ${p} OR a.summary ILIKE ${p} OR a.body ILIKE ${p} OR ${tags} ILIKE ${p} OR ${codes} ILIKE ${p})`,
       );
       scores.push(
@@ -86,13 +91,25 @@ export class KbAiSearchRepository {
     const helpful = `(a."helpfulYes" + a."portalHelpfulYes" + 1)::float
       / (a."helpfulYes" + a."helpfulNo" + a."portalHelpfulYes" + a."portalHelpfulNo" + 2)`;
     const score = [...scores, `2 * ${helpful}`].join(' + ');
+    const keywordHit = matches.length
+      ? `COALESCE(${matches.join(' AND ')}, FALSE)`
+      : 'TRUE';
+    let semanticHit = 'FALSE';
+    if (meaningIds.length) {
+      params.push(meaningIds);
+      semanticHit = `a.id = ANY($${params.length}::text[])`;
+    }
+    if (matches.length) where.push(`(${keywordHit} OR ${semanticHit})`);
+    // found by meaning first, so the limit never cuts them off
+    const meaningFirst = meaningIds.length ? `${semanticHit} DESC, ` : '';
+    const max = Math.min(Math.max(Math.trunc(limit), 1), 10);
     return this.prisma.$queryRawUnsafe<AiSearchRow[]>(
       `SELECT a.id, a."articleNo", a.version, a.title, a.summary, a.body, a.tags,
-              a."productCodes", (${score})::float AS score
+              a."productCodes", (${score})::float AS score, ${keywordHit} AS keyword_hit
        FROM kb_articles a
        WHERE ${where.join(' AND ')}
-       ORDER BY score DESC, a."publishedAt" DESC NULLS LAST
-       LIMIT ${Math.min(Math.max(Math.trunc(limit), 1), 10)}`,
+       ORDER BY ${meaningFirst}score DESC, a."publishedAt" DESC NULLS LAST
+       LIMIT ${max + meaningIds.length}`,
       ...params,
     );
   }

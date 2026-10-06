@@ -14,6 +14,8 @@ import {
   KbAiSearchRepository,
 } from './kb-ai.repositories';
 import { searchTerms } from './kb-rules';
+import { byRank, matchFields } from './kb-semantic-rank';
+import { KbSemanticService } from './kb-semantic.service';
 
 export const AI_CHANNELS = ['ai_care', 'ai_smart'] as const;
 export type AiChannel = (typeof AI_CHANNELS)[number];
@@ -63,6 +65,7 @@ export class KbAiService implements OnModuleInit, OnModuleDestroy {
     private readonly searcher: KbAiSearchRepository,
     private readonly customers: CustomerRepository,
     private readonly config: ConfigService,
+    private readonly semantic: KbSemanticService,
   ) {}
 
   onModuleInit(): void {
@@ -101,11 +104,19 @@ export class KbAiService implements OnModuleInit, OnModuleDestroy {
     const customerId = input.customerCode
       ? await this.customerId(companyId, input.customerCode)
       : null;
-    const rows = await this.searcher.search(
-      companyId,
-      customerId,
-      searchTerms(question),
-      input.limit ?? 5,
+    // CD-267 — by words and by meaning
+    const limit = Math.min(Math.max(Math.trunc(input.limit ?? 5), 1), 10);
+    const meaning = await this.semantic.search(companyId, null, question, 10);
+    const rows = byRank(
+      await this.searcher.search(
+        companyId,
+        customerId,
+        searchTerms(question),
+        limit,
+        [...(meaning?.keys() ?? [])],
+      ),
+      meaning,
+      limit,
     );
     const query = (await this.queries.create({
       data: {
@@ -128,6 +139,7 @@ export class KbAiService implements OnModuleInit, OnModuleDestroy {
         body: r.body,
         tags: r.tags,
         productCodes: r.productCodes,
+        ...matchFields(r, meaning),
       })),
     };
   }

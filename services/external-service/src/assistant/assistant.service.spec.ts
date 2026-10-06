@@ -114,6 +114,8 @@ function harness() {
             tags: [],
             score: 5,
             body: 'ยาวมาก',
+            match: 'meaning',
+            passage: { heading: 'วิธีแก้', text: 'ท่อน', similarity: 0.8 },
           },
         ],
       }),
@@ -224,7 +226,12 @@ describe('CD-276 assistant', () => {
   it('articles answer short cards, never the body', async () => {
     const answer = await harness().service.articles(person([]), { q: 'vpn' });
     expect(answer.items[0]).toEqual(
-      expect.objectContaining({ article_no: 'KB-1' }),
+      expect.objectContaining({
+        article_no: 'KB-1',
+        // CD-267 — how it was found reaches the assistant
+        match: 'meaning',
+        passage: { heading: 'วิธีแก้', text: 'ท่อน', similarity: 0.8 },
+      }),
     );
     expect(answer.items[0]).not.toHaveProperty('body');
   });

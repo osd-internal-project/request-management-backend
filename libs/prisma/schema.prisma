@@ -7780,6 +7780,30 @@ model KbGap {
   @@map("kb_gaps")
 }
 
+/// CD-267 — a passage of a published knowledge article and its embedding,
+/// for searching by meaning. Cut by heading; `hash` is of the embedded text,
+/// so an unchanged passage keeps its vector when the article is republished.
+/// Vectors from different models never compare: search uses the passages of
+/// the model the company's `kb.embed` task uses now. No fixed dimension
+/// (pgvector is not on the servers; cosine is worked out in the app).
+model KbChunk {
+  id             String   @id @default(uuid())
+  companyId      String
+  articleId      String
+  articleVersion Int
+  seq            Int
+  heading        String?
+  text           String
+  hash           String
+  model          String
+  vector         Float[]  @db.Real
+  createdAt      DateTime @default(now())
+
+  @@unique([articleId, seq])
+  @@index([companyId, model])
+  @@map("kb_chunks")
+}
+
 /// CD-239 ใบสั่งงานบริการ — the service side of a case (a request, CD-67):
 /// which asset, corrective or preventive, and from the start whether it is
 /// covered or billed — the system suggests from the asset's entitlements

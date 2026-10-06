@@ -90,3 +90,132 @@ export class KbGapStatsRepository {
     );
   }
 }
+
+export interface ChunkVectorRow {
+  articleId: string;
+  seq: number;
+  heading: string | null;
+  vector: number[];
+}
+
+export interface EmbedPendingRow {
+  id: string;
+  companyId: string;
+  version: number;
+  title: string;
+  summary: string | null;
+  body: string;
+  tags: string[];
+}
+
+/**
+ * CD-267 — passages of published articles and their embeddings. A
+ * republished article's passages are replaced at once, never half-written.
+ */
+@Injectable()
+export class KbChunkRepository extends BaseRepository<
+  PrismaService['kbChunk']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.kbChunk;
+  }
+
+  async replaceForArticle(
+    articleId: string,
+    rows: {
+      companyId: string;
+      articleVersion: number;
+      seq: number;
+      heading: string | null;
+      text: string;
+      hash: string;
+      model: string;
+      vector: number[];
+    }[],
+  ) {
+    await this.prisma.$transaction([
+      this.prisma.kbChunk.deleteMany({ where: { articleId } }),
+      this.prisma.kbChunk.createMany({
+        data: rows.map((row) => ({ ...row, articleId })),
+      }),
+    ]);
+  }
+
+  /** Companies with published articles. */
+  async companies() {
+    const rows = await this.prisma.$queryRawUnsafe<{ companyId: string }[]>(
+      `SELECT DISTINCT "companyId" FROM kb_articles WHERE status = 'published'`,
+    );
+    return rows.map((r) => r.companyId);
+  }
+
+  /** Published articles with no passages of this version and model yet. */
+  pending(companyId: string, model: string, limit: number) {
+    return this.prisma.$queryRawUnsafe<EmbedPendingRow[]>(
+      `SELECT a.id, a."companyId", a.version, a.title, a.summary, a.body, a.tags
+       FROM kb_articles a
+       WHERE a."companyId" = $1 AND a.status = 'published'
+         AND NOT EXISTS (SELECT 1 FROM kb_chunks c
+                         WHERE c."articleId" = a.id AND c."articleVersion" = a.version
+                           AND c.model = $2)
+       ORDER BY a."publishedAt" DESC NULLS LAST
+       LIMIT ${Math.max(1, Math.trunc(limit))}`,
+      companyId,
+      model,
+    );
+  }
+
+  /** Passages of articles no longer published — never searched again. */
+  dropUnpublished() {
+    return this.prisma.$executeRawUnsafe(
+      `DELETE FROM kb_chunks c WHERE NOT EXISTS (
+         SELECT 1 FROM kb_articles a WHERE a.id = c."articleId" AND a.status = 'published')`,
+    );
+  }
+
+  /** Count and newest passage — when it changes, the cached vectors are old. */
+  async stamp(companyId: string, model: string) {
+    const [row] = await this.prisma.$queryRawUnsafe<
+      { n: number; latest: Date | null }[]
+    >(
+      `SELECT count(*)::int AS n, max("createdAt") AS latest
+       FROM kb_chunks WHERE "companyId" = $1 AND model = $2`,
+      companyId,
+      model,
+    );
+    return `${row?.n ?? 0}:${row?.latest?.toISOString() ?? ''}`;
+  }
+
+  vectors(companyId: string, model: string) {
+    return this.prisma.$queryRawUnsafe<ChunkVectorRow[]>(
+      `SELECT "articleId", seq, heading, vector
+       FROM kb_chunks WHERE "companyId" = $1 AND model = $2`,
+      companyId,
+      model,
+    );
+  }
+
+  /** Published articles, and how many have passages of this model. */
+  async coverage(companyId: string, model: string) {
+    const [row] = await this.prisma.$queryRawUnsafe<
+      { published: number; indexed: number; passages: number }[]
+    >(
+      `SELECT
+         (SELECT count(*)::int FROM kb_articles
+          WHERE "companyId" = $1 AND status = 'published') AS published,
+         (SELECT count(DISTINCT a.id)::int FROM kb_articles a
+          JOIN kb_chunks c ON c."articleId" = a.id AND c."articleVersion" = a.version
+           AND c.model = $2
+          WHERE a."companyId" = $1 AND a.status = 'published') AS indexed,
+         (SELECT count(*)::int FROM kb_chunks
+          WHERE "companyId" = $1 AND model = $2) AS passages`,
+      companyId,
+      model,
+    );
+    return row ?? { published: 0, indexed: 0, passages: 0 };
+  }
+}

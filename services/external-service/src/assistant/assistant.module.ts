@@ -7,6 +7,7 @@ import {
 import {
   ApprovalsModule,
   CrmModule as CoreCrmModule,
+  KbSemanticModule,
   KbService,
   PaymentsService,
   PlanService,
@@ -40,6 +41,8 @@ import { AssistantService } from './assistant.service';
     RequestModule,
     AuthModule,
     AuditModule,
+    // CD-267 — KbService searches by meaning too
+    KbSemanticModule,
   ],
   controllers: [AssistantController],
   providers: [
