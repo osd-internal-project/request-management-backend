@@ -690,6 +690,18 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
     },
   },
   {
+    eventType: 'kb.lessons_drafted',
+    label: 'บทเรียนโครงการเข้าคลังความรู้แล้ว (ถึงผู้จัดการโครงการ)',
+    title:
+      'บทเรียน {{count}} ข้อของโครงการ {{project}} อยู่ในฉบับร่าง {{article}}',
+    body: 'เกลาเนื้อหา ตัดชื่อลูกค้าและราคาออก แล้วกดส่งตรวจ',
+    variables: {
+      article: { label: 'บทความ', sample: 'KB-00031' },
+      project: { label: 'โครงการ', sample: 'PRJ-2026-0001 · ระบบเครือข่าย' },
+      count: { label: 'จำนวนบทเรียน', sample: '6' },
+    },
+  },
+  {
     eventType: 'kb.review_requested',
     label: 'บทความรอตรวจ (ถึงผู้ดูแลคลังความรู้)',
     title: 'บทความ {{article}} รอตรวจ',

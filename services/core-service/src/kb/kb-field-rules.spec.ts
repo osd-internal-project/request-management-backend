@@ -1,5 +1,7 @@
 import {
+  appendLessons,
   articleFromJobs,
+  articleFromLessons,
   articleFromProblem,
   problemReady,
   subjectTerms,
@@ -60,5 +62,28 @@ describe('CD-262 field knowledge rules', () => {
       'ที่',
       'ชั้น',
     ]);
+  });
+});
+
+describe('CD-263 project lessons', () => {
+  it('one draft per project, sections by kind, empty kinds left out', () => {
+    const a = articleFromLessons({ projectNo: 'PRJ-1', name: 'เครือข่าย' }, [
+      { kind: 'improve', text: 'สั่งของช้า' },
+      { kind: 'went_well', text: 'ทีมประสานดี' },
+      { kind: 'improve', text: ' ' },
+    ]);
+    expect(a.title).toBe('บทเรียนจากโครงการ PRJ-1 · เครือข่าย');
+    expect(a.body).toContain(
+      '## สิ่งที่ทำได้ดี\n- ทีมประสานดี\n\n## สิ่งที่ควรปรับปรุง\n- สั่งของช้า',
+    );
+    expect(a.body).not.toContain('ข้อแนะนำ');
+    expect(a.sourceRef).toBe('PRJ-1');
+  });
+
+  it('later lessons are appended', () => {
+    expect(
+      appendLessons('x', [{ kind: 'recommend', text: 'จองรถล่วงหน้า' }]),
+    ).toBe('x\n\n## ข้อแนะนำสำหรับโครงการต่อไป\n- จองรถล่วงหน้า');
+    expect(appendLessons('x', [])).toBe('x');
   });
 });

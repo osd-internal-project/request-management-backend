@@ -21231,6 +21231,44 @@
         ]
       }
     },
+    "/api/v1/kb/projects/{projectId}/lessons/send": {
+      "post": {
+        "operationId": "KbController_sendLessons",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-263 ส่งบทเรียนของโครงการเข้าคลังความรู้ (เป็นฉบับร่างของผู้จัดการโครงการ) — ไม่ต้องรอปิดโครงการ",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
     "/api/v1/kb/field-inbox": {
       "get": {
         "operationId": "KbController_fieldInbox",

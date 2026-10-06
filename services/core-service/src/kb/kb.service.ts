@@ -172,10 +172,11 @@ export class KbService {
       const codes = `array_to_string(a."productCodes", ' ')`;
       where.push(
         `(a.title ILIKE ${p} OR a.summary ILIKE ${p} OR a.body ILIKE ${p}
-          OR ${tags} ILIKE ${p} OR ${codes} ILIKE ${p})`,
+          OR ${tags} ILIKE ${p} OR ${codes} ILIKE ${p} OR a."articleNo" ILIKE ${p})`,
       );
       scores.push(
-        `(CASE WHEN a.title ILIKE ${p} THEN 5 ELSE 0 END
+        `(CASE WHEN a."articleNo" ILIKE ${p} THEN 10 ELSE 0 END
+          + CASE WHEN a.title ILIKE ${p} THEN 5 ELSE 0 END
           + CASE WHEN ${tags} ILIKE ${p} OR ${codes} ILIKE ${p} THEN 3 ELSE 0 END
           + CASE WHEN a.summary ILIKE ${p} THEN 2 ELSE 0 END
           + CASE WHEN a.body ILIKE ${p} THEN 1 ELSE 0 END)`,

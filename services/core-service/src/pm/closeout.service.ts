@@ -175,6 +175,8 @@ export class CloseoutService implements OnModuleInit {
           kind: true,
           text: true,
           kbmsStatus: true,
+          // CD-263 — the knowledge article it went into
+          kbmsRef: true,
           createdBy: true,
           createdAt: true,
         },
@@ -184,6 +186,7 @@ export class CloseoutService implements OnModuleInit {
           kind: string;
           text: string;
           kbmsStatus: string;
+          kbmsRef: string | null;
           createdBy: string;
           createdAt: Date;
         }[]

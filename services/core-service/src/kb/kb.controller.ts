@@ -46,6 +46,7 @@ import {
 } from './kb.dto';
 import { MAX_FILE_BYTES } from './kb-rules';
 import { KbFieldService } from './kb-field.service';
+import { KbLessonService } from './kb-lesson.service';
 import { KbReviewService } from './kb-review.service';
 import { KbService, type SaveArticle } from './kb.service';
 
@@ -70,7 +71,21 @@ export class KbController {
     private readonly kb: KbService,
     private readonly review: KbReviewService,
     private readonly field: KbFieldService,
+    private readonly lessons: KbLessonService,
   ) {}
+
+  @ApiOperation({
+    summary:
+      'CD-263 ส่งบทเรียนของโครงการเข้าคลังความรู้ (เป็นฉบับร่างของผู้จัดการโครงการ) — ไม่ต้องรอปิดโครงการ',
+  })
+  @Post('projects/:projectId/lessons/send')
+  @Authenticated()
+  sendLessons(
+    @Param('projectId') projectId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.lessons.send(principal, projectId);
+  }
 
   // --- CD-262 ความรู้จากงานบริการที่ปิดและปัญหาราก ------------------------------------
 

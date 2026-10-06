@@ -738,6 +738,24 @@ export class NotificationsService {
     });
   }
 
+  /** CD-263 — a project's lessons became (or were added to) a knowledge draft. */
+  async kbLessonsDrafted(
+    userId: string,
+    companyId: string,
+    article: { id: string; articleNo: string },
+    project: string,
+    count: number,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'kb.lessons_drafted',
+      values: { article: article.articleNo, project, count: String(count) },
+      resourceType: 'kb_article',
+      resourceId: article.id,
+    });
+  }
+
   /** CD-260 — a knowledge article sent for review, approved or sent back. */
   async kbReview(
     userId: string,

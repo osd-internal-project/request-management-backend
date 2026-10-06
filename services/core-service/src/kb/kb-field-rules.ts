@@ -98,3 +98,53 @@ export function subjectTerms(subject: string): string[] {
     ),
   ].slice(0, 6);
 }
+
+// --- CD-263 บทเรียนปิดโครงการ ------------------------------------------------------
+
+export interface LessonFacts {
+  kind: string;
+  text: string;
+}
+
+const LESSON_HEADINGS: [string, string][] = [
+  ['went_well', 'สิ่งที่ทำได้ดี'],
+  ['improve', 'สิ่งที่ควรปรับปรุง'],
+  ['recommend', 'ข้อแนะนำสำหรับโครงการต่อไป'],
+];
+
+/** Lessons as Markdown sections, by kind, in the order the project wrote them. */
+export function lessonSections(lessons: readonly LessonFacts[]): string {
+  return LESSON_HEADINGS.flatMap(([kind, heading]) => {
+    const rows = lessons.filter((l) => l.kind === kind && l.text.trim());
+    return rows.length
+      ? [`## ${heading}`, ...rows.map((l) => `- ${l.text.trim()}`), '']
+      : [];
+  })
+    .join('\n')
+    .trim();
+}
+
+/** One project's lessons as one draft. */
+export function articleFromLessons(
+  project: { projectNo: string; name: string },
+  lessons: readonly LessonFacts[],
+) {
+  return {
+    title: `บทเรียนจากโครงการ ${project.projectNo} · ${project.name}`,
+    body: [
+      `> บทเรียนปิดโครงการ ${project.projectNo} — ตัดชื่อลูกค้า ราคา และข้อมูลเฉพาะรายออกก่อนส่งตรวจ`,
+      '',
+      lessonSections(lessons),
+    ].join('\n'),
+    sourceRef: project.projectNo,
+  };
+}
+
+/** Lessons written after the draft was made, added under their headings. */
+export function appendLessons(
+  body: string,
+  lessons: readonly LessonFacts[],
+): string {
+  const extra = lessonSections(lessons);
+  return extra ? `${body.trimEnd()}\n\n${extra}` : body;
+}
