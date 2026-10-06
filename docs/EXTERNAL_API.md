@@ -368,6 +368,27 @@ client ที่ถือสิทธิ์ Keycloak Admin API และ redirec
 **เมื่อ login ผ่านแล้ว `X-Acting-User` ห้ามส่ง** — token บอกอยู่แล้วว่าเป็นใคร
 ถ้าส่งมาจะถูกปฏิเสธ เพราะถ้ายอมรับ ใครที่ login แล้วก็สวมเป็นคนอื่นได้
 
+#### ลิงก์แหล่งที่มาและคำแนะนำของผู้ช่วย (CD-278)
+
+ทุกคำตอบของ tool มีลิงก์กลับไปหน้าจอต้นทาง — `link` บนแต่ละรายการ (คำขอ ดีล
+ลูกค้า Lead ใบเสนอราคา โครงการ บทความ) และ `source_link` บนทั้งคำตอบ
+สร้างจาก `PUBLIC_WEB_URL` ของ external-service (ตัวเดียวกับปุ่มบนการ์ด Teams)
+ถ้าไม่ตั้ง ลิงก์จะเป็น path อย่างเดียว (`/pages/opportunities/<id>`) และ log เตือนตอน boot
+
+คำแนะนำให้ผู้ช่วยอ้างลิงก์ทุกครั้ง และบอกว่าไม่พบเมื่อ tool ไม่คืนข้อมูล ส่งมากับ
+`initialize` ในฟิลด์ `instructions` (ข้อความอยู่ที่ `SERVER_INSTRUCTIONS` ใน
+`mcp-protocol.ts`) — ใน `librechat.yaml` ให้เปิดรับ:
+
+```yaml
+mcpServers:
+  osd-rm-mcp:
+    type: streamable-http
+    url: http://<host>:3503/api/v1/mcp
+    serverInstructions: true   # ใช้คำแนะนำจากเซิร์ฟเวอร์เป็น system prompt
+```
+
+อย่าคัดลอกคำแนะนำไปวางใน agent ของ LibreChat แทน — สองสำเนาจะเพี้ยนจากกัน
+
 #### `PUBLIC_BASE_URL` ต้องเป็น URL ที่ LibreChat มองเห็น
 
 ค่านี้ไปโผล่สองที่: ฟิลด์ `resource` ในเอกสาร discovery และใน header

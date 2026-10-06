@@ -27,6 +27,7 @@ import {
   rpcError,
   rpcResult,
   SERVER_INFO,
+  SERVER_INSTRUCTIONS,
   toolResult,
 } from './mcp-protocol';
 import { McpToolRegistry } from './mcp-tools';
@@ -66,6 +67,7 @@ export class McpService {
           protocolVersion: PROTOCOL_VERSION,
           capabilities: { tools: {} },
           serverInfo: SERVER_INFO,
+          instructions: SERVER_INSTRUCTIONS,
         });
 
       case 'notifications/initialized':

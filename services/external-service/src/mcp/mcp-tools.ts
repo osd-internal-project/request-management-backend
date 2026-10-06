@@ -27,6 +27,7 @@ import {
 } from '@request-management/core-service';
 import { RequestApiService } from '../request/request.service';
 import { AssistantService } from '../assistant/assistant.service';
+import { SourceLinks } from '../common/source-links';
 
 /** One entry of `external-tools.json`. */
 interface ToolSpec {
@@ -173,6 +174,7 @@ export class McpToolRegistry implements OnModuleInit {
     private readonly opportunities: OpportunitiesService,
     private readonly quotations: QuotationsService,
     private readonly assistant: AssistantService,
+    private readonly links: SourceLinks,
   ) {}
 
   /**
@@ -451,10 +453,12 @@ export class McpToolRegistry implements OnModuleInit {
 
     const value = await this.handlers[name](args, context);
     const resource = this.sensitiveResources.get(name);
+    const masked = resource
+      ? this.masker.mask(resource, value, context.actor)
+      : value;
 
-    if (!resource) return value;
-
-    return this.masker.mask(resource, value, context.actor);
+    // CD-278 — every row cites its page, after masking decided what is shown
+    return this.links.attach(name, masked);
   }
 
   /**

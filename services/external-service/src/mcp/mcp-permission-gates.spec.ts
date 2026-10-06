@@ -5,6 +5,7 @@ import {
   SensitiveFieldMasker,
   type Principal,
 } from '@request-management/share';
+import { SourceLinks } from '../common/source-links';
 import { McpToolRegistry } from './mcp-tools';
 
 /**
@@ -92,6 +93,7 @@ function registry(calls: unknown[][]): McpToolRegistry {
     service(),
     service(),
     service(),
+    new SourceLinks({ get: () => 'https://ctd.test' } as never),
   );
   built.onModuleInit();
   return built;

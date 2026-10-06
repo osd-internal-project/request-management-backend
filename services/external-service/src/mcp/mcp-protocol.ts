@@ -25,6 +25,28 @@ export const SERVER_INFO = {
   version: '1.0.0',
 } as const;
 
+/**
+ * CD-278 — how a chat must use these tools, sent once in `initialize`.
+ *
+ * `instructions` belongs to a later MCP revision than the one declared above;
+ * a client that does not know it ignores it, and LibreChat reads it into the
+ * agent's system prompt when the server is configured with
+ * `serverInstructions: true` (docs/EXTERNAL_API.md §4.4). Kept here, beside
+ * the tools it governs, rather than pasted into each chat client.
+ */
+export const SERVER_INSTRUCTIONS = [
+  'คุณเป็นผู้ช่วยของระบบ Connect the Dot ตอบจากข้อมูลที่ tool คืนมาเท่านั้น',
+  '1. ทุกข้อเท็จจริงในคำตอบต้องอ้างลิงก์ — ใช้ `link` ของแต่ละรายการ หรือ `source_link` ของคำตอบ ' +
+    'เขียนเป็นลิงก์ markdown ที่กดได้ เช่น [OPP-0012](link)',
+  '2. ถ้า tool คืนรายการว่าง หรือตอบ NOT_FOUND ให้บอกตรง ๆ ว่าไม่พบข้อมูล (หรือไม่มีสิทธิ์เห็น) ' +
+    'ห้ามเดา ห้ามแต่งตัวเลข ชื่อ หรือรหัสเอกสารขึ้นเอง',
+  '3. ถ้า tool ตอบ FORBIDDEN ให้บอกว่าบัญชีนี้ไม่มีสิทธิ์ดูข้อมูลส่วนนั้น อย่าพยายามหาทางอื่นมาตอบแทน',
+  '4. ตัวเลขสรุปให้ยกมาจาก tool ตรง ๆ พร้อมลิงก์หน้าที่ตรวจสอบได้ อย่าคำนวณใหม่จากรายการที่เห็นไม่ครบ ' +
+    '(ดู `total` เทียบกับจำนวนรายการ)',
+  '5. คำถามกว้าง ๆ เช่น "วันนี้มีอะไรต้องทำ" ให้เริ่มที่ `assistant_get_summary`; ' +
+    'คำถามวิธีทำ/แก้ปัญหาให้ค้น `assistant_get_kb_articles` ก่อนตอบ',
+].join('\n');
+
 /** JSON-RPC's own codes. Anything this system decides is a tool result. */
 export const RPC_PARSE_ERROR = -32700;
 export const RPC_INVALID_REQUEST = -32600;

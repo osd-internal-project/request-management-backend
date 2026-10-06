@@ -2,6 +2,7 @@ import {
   SensitiveFieldMasker,
   type Principal,
 } from '@request-management/share';
+import { SourceLinks } from '../common/source-links';
 import { AssistantService } from './assistant.service';
 
 const person = (permissions: string[], hidden: string[] = []) =>
@@ -14,6 +15,7 @@ const person = (permissions: string[], hidden: string[] = []) =>
   }) as unknown as Principal;
 
 const dealRow = (overrides: Record<string, unknown> = {}) => ({
+  id: 'opp-1',
   opportunityCode: 'OPP-1',
   title: 'ระบบกล้อง',
   stage: 'proposing',
@@ -36,6 +38,7 @@ function harness() {
         data: [
           dealRow(),
           dealRow({
+            id: 'opp-2',
             opportunityCode: 'OPP-2',
             expectedCloseAt: new Date('2020-01-01T00:00:00Z'),
           }),
@@ -68,16 +71,19 @@ function harness() {
         counts: { red: 1, amber: 1, green: 1, unreported: 0 },
         projects: [
           {
+            id: 'p-1',
             projectNo: 'P1',
             name: 'แดง',
             health: { level: 'red', factors: [] },
           },
           {
+            id: 'p-2',
             projectNo: 'P2',
             name: 'เหลือง',
             health: { level: 'amber', factors: [] },
           },
           {
+            id: 'p-3',
             projectNo: 'P3',
             name: 'เขียว',
             health: { level: 'green', factors: [] },
@@ -107,6 +113,7 @@ function harness() {
       Promise.resolve({
         items: [
           {
+            id: 'kb-1',
             articleNo: 'KB-1',
             title: 'VPN',
             summary: 's',
@@ -155,6 +162,7 @@ function harness() {
     requestApi as never,
     requestRows as never,
     new SensitiveFieldMasker(),
+    new SourceLinks({ get: () => 'https://ctd.test' } as never),
   );
   return { service, opportunities, approvals, statusReports, kb, requestApi };
 }
@@ -173,6 +181,32 @@ describe('CD-276 assistant', () => {
     expect(answer.items.map((row) => row.code)).toEqual(['OPP-2', 'OPP-1']);
     expect(answer.items[0].past_expected_close).toBe(true);
     expect(answer.items[1].amount).toBe(120000);
+  });
+
+  it('CD-278: every row and the answer cite their page', async () => {
+    const h = harness();
+    const deals = await h.service.closingDeals(person(['crm.sales.read']), {});
+    expect(deals.items[0].link).toBe(
+      'https://ctd.test/pages/opportunities/opp-2',
+    );
+    expect(deals.source_link).toBe('https://ctd.test/pages/opportunities');
+    expect(deals.items[0]).not.toHaveProperty('id');
+    const approvals = await h.service.myApprovals(person(['approval.decide']));
+    expect(approvals.items[0].link).toBe('https://ctd.test/pages/requests/r-1');
+    const projects = await h.service.projectsAtRisk(person([]), {});
+    expect(projects.items[0].link).toBe('https://ctd.test/pages/projects/p-1');
+    const jobs = await h.service.serviceJobs(
+      person(['service.asset.read']),
+      {},
+    );
+    expect(jobs.items[0].link).toBe('https://ctd.test/pages/requests/r-1');
+    const articles = await h.service.articles(person([]), { q: 'vpn' });
+    expect(articles.items[0].link).toBe('https://ctd.test/pages/kb/kb-1');
+    const summary = await h.service.summary(person(['request.read']));
+    expect(summary.requests?.link).toBe('https://ctd.test/pages/requests');
+    expect(summary.projects?.link).toBe(
+      'https://ctd.test/pages/projects/portfolio',
+    );
   });
 
   it('silent deals are the stale alert and the overdue follow-up, both through list', async () => {
@@ -239,7 +273,7 @@ describe('CD-276 assistant', () => {
   it('the summary leaves out a section the person has no screen for', async () => {
     const { service, requestApi, approvals } = harness();
     const answer = await service.summary(person(['request.read']));
-    expect(answer.requests).toEqual({ open_total: 4 });
+    expect(answer.requests).toMatchObject({ open_total: 4 });
     expect(answer.approvals).toBeNull();
     expect(answer.sales).toBeNull();
     expect(answer.service).toBeNull();

@@ -18,6 +18,7 @@ import {
 } from '@request-management/core-service';
 import { AuthModule } from '../auth/auth.module';
 import { NoFileStorage } from '../common/no-file-storage';
+import { SourceLinks } from '../common/source-links';
 import { PmModule } from '../pm/pm.module';
 import { RequestModule } from '../request/request.module';
 import { AssistantController } from './assistant.controller';
@@ -47,6 +48,8 @@ import { AssistantService } from './assistant.service';
   controllers: [AssistantController],
   providers: [
     AssistantService,
+    // CD-278 — the page each answer came from; MCP links its other tools too
+    SourceLinks,
     StatusReportsService,
     PlanService,
     ProgressService,
@@ -67,6 +70,6 @@ import { AssistantService } from './assistant.service';
     },
   ],
   // McpModule serves the same answers as tools
-  exports: [AssistantService],
+  exports: [AssistantService, SourceLinks],
 })
 export class AssistantModule {}

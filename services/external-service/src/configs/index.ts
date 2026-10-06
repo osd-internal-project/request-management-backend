@@ -128,6 +128,11 @@ export default () => ({
    * CD-51 — Microsoft Teams notifications (a bot's 1:1 chat per person).
    * off (default) = no Teams channel · mock = log only · botframework = real.
    */
+  /**
+   * CD-278 — the web app's address, for the source link on every MCP answer
+   * (`<PUBLIC_WEB_URL>/pages/opportunities/<id>`). Unset = paths only.
+   */
+  publicWebUrl: process.env.PUBLIC_WEB_URL,
   teams: {
     mode: process.env.TEAMS_MODE ?? 'off',
     bot: {

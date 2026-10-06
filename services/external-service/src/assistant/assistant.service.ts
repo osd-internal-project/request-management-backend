@@ -13,6 +13,7 @@ import {
   StatusReportsService,
   WorkOrdersService,
 } from '@request-management/core-service';
+import { PAGES, SourceLinks } from '../common/source-links';
 import { RequestApiService } from '../request/request.service';
 import type {
   AssistantArticlesQueryDto,
@@ -27,6 +28,7 @@ const MAX_ROWS = 100;
 const DAY_MS = 86_400_000;
 
 interface DealRow {
+  id: string;
   opportunityCode: string;
   title: string;
   stage: string;
@@ -46,6 +48,7 @@ const day = (value: Date | null) =>
 
 function deal(row: DealRow) {
   return {
+    id: row.id,
     code: row.opportunityCode,
     title: row.title,
     customer: row.customer?.nameTh ?? row.prospectName,
@@ -84,7 +87,14 @@ export class AssistantService {
     private readonly requestApi: RequestApiService,
     private readonly requestRows: RequestRepository,
     private readonly masker: SensitiveFieldMasker,
+    private readonly links: SourceLinks,
   ) {}
+
+  /** CD-278 — a deal row as the chat cites it. */
+  private dealLinked(row: DealRow) {
+    const { id, ...rest } = deal(row);
+    return { ...rest, link: this.links.url(PAGES.opportunity(id)) };
+  }
 
   /** Open deals expected to close within `days` — late ones first. */
   async closingDeals(actor: Principal, query: ClosingDealsQueryDto) {
@@ -97,7 +107,7 @@ export class AssistantService {
     })) as { data: DealRow[]; total: number };
     const today = new Date().toISOString().slice(0, 10);
     const items = page.data
-      .map(deal)
+      .map((row) => this.dealLinked(row))
       .sort((a, b) =>
         (a.expected_close_on ?? '').localeCompare(b.expected_close_on ?? ''),
       )
@@ -106,7 +116,12 @@ export class AssistantService {
         past_expected_close:
           row.expected_close_on !== null && row.expected_close_on < today,
       }));
-    return { days, total: page.total, items };
+    return {
+      days,
+      total: page.total,
+      items,
+      source_link: this.links.url(PAGES.opportunities),
+    };
   }
 
   /**
@@ -123,11 +138,15 @@ export class AssistantService {
       }) as Promise<{ data: DealRow[]; total: number }>;
     const [stale, overdue] = await Promise.all([ask('stale'), ask('overdue')]);
     return {
-      silent: { total: stale.total, items: stale.data.map(deal) },
+      silent: {
+        total: stale.total,
+        items: stale.data.map((row) => this.dealLinked(row)),
+      },
       follow_up_overdue: {
         total: overdue.total,
-        items: overdue.data.map(deal),
+        items: overdue.data.map((row) => this.dealLinked(row)),
       },
+      source_link: this.links.url(PAGES.opportunities),
     };
   }
 
@@ -189,8 +208,12 @@ export class AssistantService {
           currency: row.currency,
           step: row.currentStep,
           waiting_days: Math.floor((now - row.createdAt.getTime()) / DAY_MS),
+          link: this.links.url(
+            request ? PAGES.request(request.id) : PAGES.approvals,
+          ),
         };
       }),
+      source_link: this.links.url(PAGES.approvals),
     };
   }
 
@@ -212,8 +235,13 @@ export class AssistantService {
         payments_overdue: row.paymentsOverdue,
         end_on: row.endOn,
         contract_value: row.contractValue,
+        link: this.links.url(PAGES.project(row.id)),
       }));
-    return { counts: portfolio.counts, items };
+    return {
+      counts: portfolio.counts,
+      items,
+      source_link: this.links.url(PAGES.portfolio),
+    };
   }
 
   /** Open service jobs, each flagged when its SLA has run out. */
@@ -243,12 +271,14 @@ export class AssistantService {
         asset: row.asset?.name ?? null,
         work_kind: row.workKind,
         overdue: late.has(row.requestId),
+        link: this.links.url(PAGES.request(row.requestId)),
       }))
       .filter((row) => query.overdue !== 'true' || row.overdue);
     return {
       total: rows.length,
       overdue: rows.filter((row) => row.overdue).length,
       items: rows.slice(0, MAX_ROWS),
+      source_link: this.links.url(PAGES.workOrders),
     };
   }
 
@@ -269,7 +299,9 @@ export class AssistantService {
         // CD-267 — found by words, by meaning or both, and the passage that matched
         match: row.match,
         passage: row.passage,
+        link: this.links.url(PAGES.kbArticle(row.id)),
       })),
+      source_link: this.links.url(PAGES.kb),
     };
   }
 
@@ -305,19 +337,23 @@ export class AssistantService {
             }))
           : null,
       ]);
+    // CD-278 — each figure cites the screen it can be checked on.
+    const at = <T extends object>(value: T | null, page: string) =>
+      value ? { ...value, link: this.links.url(page) } : null;
     return {
-      requests,
-      approvals,
+      requests: at(requests, PAGES.requests),
+      approvals: at(approvals, PAGES.approvals),
       sales: sales
         ? {
             leads: sales.leads,
             opportunities: sales.opportunities,
             activities: sales.activities,
             closing_in_30_days: closing?.total ?? 0,
+            link: this.links.url(PAGES.crmDashboard),
           }
         : null,
-      projects,
-      service,
+      projects: at(projects, PAGES.portfolio),
+      service: at(service, PAGES.workOrders),
     };
   }
 

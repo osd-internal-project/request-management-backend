@@ -1,5 +1,6 @@
 import { AppError, SensitiveFieldMasker } from '@request-management/share';
 import type { Principal } from '@request-management/share';
+import { SourceLinks } from '../common/source-links';
 import { McpToolRegistry } from './mcp-tools';
 import type { ToolContext } from './mcp-tools';
 
@@ -37,6 +38,7 @@ function bareRegistry(): McpToolRegistry {
     {} as never,
     {} as never,
     {} as never,
+    new SourceLinks({ get: () => 'https://ctd.test' } as never),
   );
 }
 

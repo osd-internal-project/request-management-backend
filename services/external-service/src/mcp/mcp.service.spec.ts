@@ -128,6 +128,11 @@ describe('MCP — the protocol', () => {
       id: 1,
       result: { protocolVersion: '2024-11-05' },
     });
+    // CD-278 — the chat is told to cite links and to say "not found"
+    const instructions = (answer as { result: { instructions: string } }).result
+      .instructions;
+    expect(instructions).toContain('link');
+    expect(instructions).toContain('ไม่พบข้อมูล');
   });
 
   /** A notification has no `id`; JSON-RPC forbids answering one. */
