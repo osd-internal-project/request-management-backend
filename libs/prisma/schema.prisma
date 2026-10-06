@@ -2442,6 +2442,10 @@ model CrmCompanyConfig {
   /// CD-249 — the staff user a case raised in the Customer Portal is raised
   /// under (as a CD-66 channel's). NULL = the portal cannot open cases.
   servicePortalUserId              String?
+  /// CD-272 — ประเภทคำขออนุมัติคอนเทนต์ · ว่าง = ส่งอนุมัติไม่ได้
+  contentApprovalTypeCode String?
+  /// CD-272 — true = ทุกคอนเทนต์ต้องอนุมัติ (ไม่ใช่เฉพาะที่พาดพิงลูกค้า/ราคา/คู่ค้า)
+  contentApprovalAll      Boolean @default(false)
   /// CD-190 — actual cost as % of the reference budget: warn at, alert over.
   projectCostWarnPct               Int      @default(90)
   projectCostAlertPct              Int      @default(100)
@@ -3553,6 +3557,16 @@ model ContentItem {
   remindedAt    DateTime?
   overdueAt     DateTime?
   copiedFromId  String?
+  /// CD-272 — พาดพิงลูกค้า / ราคา / คู่ค้า → ต้องอนุมัติก่อนพร้อมเผยแพร่
+  mentionsCustomer  Boolean @default(false)
+  mentionsPrice     Boolean @default(false)
+  mentionsPartner   Boolean @default(false)
+  /// none | pending | approved | rejected | cancelled
+  approvalStatus    String  @default("none")
+  approvalRequestId String?
+  /// เวอร์ชันที่อนุมัติ — แก้เนื้อหาหลังอนุมัติ (version เปลี่ยน) ต้องขอใหม่
+  approvedVersion   Int?
+  approvalNote      String?
 
   createdAt DateTime @default(now())
   createdBy String?

@@ -1270,6 +1270,27 @@ export class NotificationsService {
     });
   }
 
+  /** CD-272 — the approval of a post came back, to its owner. */
+  async contentApproval(
+    userId: string,
+    companyId: string,
+    input: {
+      kind: 'approved' | 'rejected';
+      contentId: string;
+      title: string;
+      reason: string;
+    },
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: `macom.content.${input.kind}`,
+      values: { title: input.title, reason: input.reason },
+      resourceType: 'content_item',
+      resourceId: input.contentId,
+    });
+  }
+
   /**
    * CD-271 — a post on the content calendar: due tomorrow (`due`) or past its
    * time and not marked published (`overdue`), to its owner.

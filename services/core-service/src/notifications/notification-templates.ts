@@ -483,6 +483,29 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
     },
   },
   {
+    eventType: 'macom.content.approved',
+    label: 'คอนเทนต์ผ่านการอนุมัติ (ถึงผู้รับผิดชอบ)',
+    title: 'อนุมัติแล้ว: {{title}}',
+    body: 'พร้อมเผยแพร่ตามกำหนด',
+    variables: {
+      title: { label: 'คอนเทนต์', sample: 'โพสต์โปรโมชันกล้อง' },
+      reason: { label: 'หมายเหตุ', sample: '' },
+    },
+  },
+  {
+    eventType: 'macom.content.rejected',
+    label: 'คอนเทนต์ไม่ผ่านการอนุมัติ (ถึงผู้รับผิดชอบ)',
+    title: 'ไม่อนุมัติ: {{title}}',
+    body: '{{reason}} — กลับเป็นร่างให้แก้แล้วส่งใหม่',
+    variables: {
+      title: { label: 'คอนเทนต์', sample: 'โพสต์โปรโมชันกล้อง' },
+      reason: {
+        label: 'เหตุผล',
+        sample: 'ไม่อนุมัติ — ดูเหตุผลในคำขอ REQ-OSD-000123',
+      },
+    },
+  },
+  {
     eventType: 'macom.content.due',
     label: 'คอนเทนต์ถึงกำหนดเผยแพร่พรุ่งนี้ (ถึงผู้รับผิดชอบ)',
     title: 'พรุ่งนี้เผยแพร่: {{title}}',

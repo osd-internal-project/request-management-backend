@@ -24,12 +24,24 @@ const item = (overrides: Record<string, unknown> = {}) => ({
   remindedAt: null,
   overdueAt: null,
   copiedFromId: null,
+  mentionsCustomer: false,
+  mentionsPrice: false,
+  mentionsPartner: false,
+  approvalStatus: 'none',
+  approvalRequestId: null,
+  approvedVersion: null,
+  approvalNote: null,
   createdAt: new Date('2026-10-01T00:00:00Z'),
   ...overrides,
 });
 
 function harness(
-  options: { found?: unknown; member?: unknown; due?: unknown[] } = {},
+  options: {
+    found?: unknown;
+    member?: unknown;
+    due?: unknown[];
+    approveAll?: boolean;
+  } = {},
 ) {
   const items = {
     findFirst: jest.fn(() =>
@@ -76,6 +88,11 @@ function harness(
   };
   const audit = { record: jest.fn(() => Promise.resolve()) };
   const config = { get: jest.fn(() => 0) };
+  const configs = {
+    findFirst: jest.fn(() =>
+      Promise.resolve({ contentApprovalAll: options.approveAll ?? false }),
+    ),
+  };
   const service = new ContentService(
     items as never,
     files as never,
@@ -85,6 +102,7 @@ function harness(
     transactions as never,
     audit as never,
     config as never,
+    configs as never,
   );
   return { service, items, notifications, tx };
 }
@@ -219,6 +237,51 @@ describe('CD-271 content calendar', () => {
       'u-mkt',
       'osd',
       expect.objectContaining({ kind: 'overdue', channel: 'Facebook' }),
+    );
+  });
+
+  it('CD-272: flagged content cannot go Ready without an approval of this version', async () => {
+    const flagged = harness({ found: item({ mentionsPrice: true }) });
+    await expect(
+      flagged.service.move(actor, 'c-1', { status: 'ready' }),
+    ).rejects.toMatchObject({ code: 'CONFLICT' });
+
+    const approved = harness({
+      found: item({
+        mentionsPrice: true,
+        approvalStatus: 'approved',
+        approvedVersion: 1,
+      }),
+    });
+    await approved.service.move(actor, 'c-1', { status: 'ready' });
+    expect(approved.items.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: 'ready' }),
+      }),
+    );
+
+    const everything = harness({ approveAll: true });
+    await expect(
+      everything.service.move(actor, 'c-1', { status: 'ready' }),
+    ).rejects.toMatchObject({ code: 'CONFLICT' });
+  });
+
+  it('CD-272: editing the words of an approved Ready post drops it to Draft', async () => {
+    const { service, items } = harness({
+      found: item({
+        status: 'ready',
+        mentionsCustomer: true,
+        approvalStatus: 'approved',
+        approvedVersion: 1,
+      }),
+    });
+
+    await service.update(actor, 'c-1', { ...save, caption: 'แก้ราคาใหม่' });
+
+    expect(items.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: 'draft', version: 2 }),
+      }),
     );
   });
 });

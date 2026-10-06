@@ -9745,6 +9745,13 @@
             "maxLength": 50,
             "type": "string"
           },
+          "content_approval_type_code": {
+            "pattern": "^([A-Z0-9_-]{1,20})?$",
+            "type": "string"
+          },
+          "content_approval_all": {
+            "type": "boolean"
+          },
           "project_close_documents": {
             "type": "array",
             "items": {

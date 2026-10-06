@@ -15,10 +15,14 @@ import type { Principal } from '@request-management/share';
 import { CompanyMemberRepository } from '../access/company-member.repository';
 import { backgroundTick } from '../common/background-tick';
 import { CampaignRepository } from '../crm/sales.repositories';
+import { CrmConfigRepository } from '../crm/segment.repositories';
 import { NotificationsService } from '../notifications/notifications.service';
 import {
+  approvedNow,
   canMove,
   editable,
+  needsApproval,
+  readyBlocker,
   overdueNow,
   publishProblems,
   remindNow,
@@ -51,6 +55,13 @@ export interface ContentRow {
   remindedAt: Date | null;
   overdueAt: Date | null;
   copiedFromId: string | null;
+  mentionsCustomer: boolean;
+  mentionsPrice: boolean;
+  mentionsPartner: boolean;
+  approvalStatus: string;
+  approvalRequestId: string | null;
+  approvedVersion: number | null;
+  approvalNote: string | null;
   createdAt: Date;
 }
 
@@ -91,6 +102,7 @@ export class ContentService implements OnModuleInit, OnModuleDestroy {
     private readonly transactions: PrismaTransactionService,
     private readonly audit: AuditWriter,
     private readonly config: ConfigService,
+    private readonly configs: CrmConfigRepository,
   ) {}
 
   onModuleInit(): void {
@@ -178,6 +190,9 @@ export class ContentService implements OnModuleInit, OnModuleDestroy {
         caption: dto.caption ?? '',
         ownerUserId: owner,
         plannedAt: new Date(dto.planned_at),
+        mentionsCustomer: dto.mentions_customer ?? false,
+        mentionsPrice: dto.mentions_price ?? false,
+        mentionsPartner: dto.mentions_partner ?? false,
         createdBy: actor.userId,
         updatedBy: actor.userId,
       },
@@ -221,6 +236,17 @@ export class ContentService implements OnModuleInit, OnModuleDestroy {
       (dto.caption ?? '') !== row.caption ||
       dto.channel !== row.channel ||
       campaignId !== row.campaignId;
+    const flags = {
+      mentionsCustomer: dto.mentions_customer ?? row.mentionsCustomer,
+      mentionsPrice: dto.mentions_price ?? row.mentionsPrice,
+      mentionsPartner: dto.mentions_partner ?? row.mentionsPartner,
+    };
+    const version = changed ? row.version + 1 : row.version;
+    // CD-272 — a Ready post whose approval no longer covers it goes back to Draft
+    const all = (await this.approvalSettings(row.companyId)).all;
+    const backToDraft =
+      row.status === 'ready' &&
+      readyBlocker({ ...row, ...flags, version }, all) !== null;
     await this.items.update({
       where: { id },
       data: {
@@ -230,7 +256,9 @@ export class ContentService implements OnModuleInit, OnModuleDestroy {
         campaignId,
         ownerUserId: owner,
         plannedAt,
-        ...(changed ? { version: row.version + 1 } : {}),
+        ...flags,
+        ...(changed ? { version } : {}),
+        ...(backToDraft ? { status: 'draft' } : {}),
         // a new time is a new reminder
         ...(plannedAt.getTime() !== row.plannedAt.getTime()
           ? { remindedAt: null, overdueAt: null }
@@ -265,6 +293,13 @@ export class ContentService implements OnModuleInit, OnModuleDestroy {
         'CONFLICT',
         `เปลี่ยนจาก ${row.status} เป็น ${dto.status} ไม่ได้`,
       );
+    }
+    if (dto.status === 'ready') {
+      const blocker = readyBlocker(
+        row,
+        (await this.approvalSettings(row.companyId)).all,
+      );
+      if (blocker) throw new AppError('CONFLICT', blocker);
     }
     if (dto.status === 'published') {
       const problems = publishProblems(dto.published_url);
@@ -405,6 +440,15 @@ export class ContentService implements OnModuleInit, OnModuleDestroy {
     return { sent };
   }
 
+  /** CD-272 — is every post to be approved, or only flagged ones. */
+  async approvalSettings(companyId: string) {
+    const config = (await this.configs.findFirst({
+      where: { companyId },
+      select: { contentApprovalAll: true },
+    })) as { contentApprovalAll: boolean } | null;
+    return { all: config?.contentApprovalAll ?? false };
+  }
+
   /** One item of the caller's company (404 for another company's). */
   async require(actor: Principal, id: string): Promise<ContentRow> {
     const row = (await this.items.findFirst({
@@ -415,6 +459,9 @@ export class ContentService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async present(rows: ContentRow[]) {
+    const all = rows.length
+      ? (await this.approvalSettings(rows[0].companyId)).all
+      : false;
     const [names, campaigns] = await Promise.all([
       this.namesOf(rows.map((row) => row.ownerUserId)),
       this.campaignNames(
@@ -440,6 +487,20 @@ export class ContentService implements OnModuleInit, OnModuleDestroy {
       cancel_reason: row.cancelReason,
       version: row.version,
       copied_from_id: row.copiedFromId,
+      // CD-272
+      mentions: {
+        customer: row.mentionsCustomer,
+        price: row.mentionsPrice,
+        partner: row.mentionsPartner,
+      },
+      needs_approval: needsApproval(row, all),
+      approval: {
+        status: row.approvalStatus,
+        request_id: row.approvalRequestId,
+        approved_version: row.approvedVersion,
+        current: approvedNow(row),
+        note: row.approvalNote,
+      },
     }));
   }
 

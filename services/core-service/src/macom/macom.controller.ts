@@ -31,6 +31,7 @@ import { CampaignPlanService } from './campaign-plan.service';
 import { CampaignReceiptsService } from './campaign-receipts.service';
 import { CampaignEventsService } from '../crm/campaign-events.service';
 import { ContentService } from './content.service';
+import { ContentApprovalService } from './content-approval.service';
 import {
   ContentFilesService,
   MAX_CONTENT_MEDIA_BYTES,
@@ -48,6 +49,7 @@ import {
   ListContentQueryDto,
   MoveContentDto,
   SaveContentDto,
+  WithdrawContentDto,
   SaveBudgetLinesDto,
   VoidCampaignSpendDto,
 } from './macom.dto';
@@ -63,7 +65,35 @@ export class MacomController {
     private readonly events: CampaignEventsService,
     private readonly content: ContentService,
     private readonly contentFiles: ContentFilesService,
+    private readonly contentApproval: ContentApprovalService,
   ) {}
+
+  // --- CD-272 อนุมัติสื่อและเนื้อหา -------------------------------------------
+
+  @ApiOperation({
+    summary: 'CD-272 ส่งอนุมัติคอนเทนต์ (ยื่นคำขอตามประเภทในตั้งค่า CRM)',
+  })
+  @Post('content/:id/approval')
+  @Permissions('crm.campaign.manage')
+  sendForApproval(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.contentApproval.send(principal, id);
+  }
+
+  @ApiOperation({
+    summary: 'CD-272 ถอนออกจากการรออนุมัติ (ยกเลิกคำขอ) กลับเป็นร่าง',
+  })
+  @Post('content/:id/approval/withdraw')
+  @Permissions('crm.campaign.manage')
+  withdrawApproval(
+    @Param('id') id: string,
+    @Body() dto: WithdrawContentDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.contentApproval.withdraw(principal, id, dto.reason ?? '');
+  }
 
   // --- CD-271 ปฏิทินคอนเทนต์ ------------------------------------------------
 

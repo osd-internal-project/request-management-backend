@@ -33115,6 +33115,98 @@
         ]
       }
     },
+    "/api/v1/macom/content/{id}/approval": {
+      "post": {
+        "operationId": "MacomController_sendForApproval",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-272 ส่งอนุมัติคอนเทนต์ (ยื่นคำขอตามประเภทในตั้งค่า CRM)",
+        "tags": [
+          "macom"
+        ],
+        "x-permission": [
+          "crm.campaign.manage"
+        ]
+      }
+    },
+    "/api/v1/macom/content/{id}/approval/withdraw": {
+      "post": {
+        "operationId": "MacomController_withdrawApproval",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WithdrawContentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-272 ถอนออกจากการรออนุมัติ (ยกเลิกคำขอ) กลับเป็นร่าง",
+        "tags": [
+          "macom"
+        ],
+        "x-permission": [
+          "crm.campaign.manage"
+        ]
+      }
+    },
     "/api/v1/macom/content": {
       "get": {
         "operationId": "MacomController_contentList",
@@ -33165,6 +33257,7 @@
               "type": "string",
               "enum": [
                 "draft",
+                "pending_approval",
                 "ready",
                 "published",
                 "cancelled"
@@ -39075,6 +39168,13 @@
           "service_portal_user_id": {
             "maxLength": 50,
             "type": "string"
+          },
+          "content_approval_type_code": {
+            "pattern": "^([A-Z0-9_-]{1,20})?$",
+            "type": "string"
+          },
+          "content_approval_all": {
+            "type": "boolean"
           },
           "project_close_documents": {
             "type": "array",
@@ -46155,6 +46255,16 @@
           "reported_pct"
         ]
       },
+      "WithdrawContentDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "example": "ขอแก้ราคาในโพสต์",
+            "maxLength": 500
+          }
+        }
+      },
       "SaveContentDto": {
         "type": "object",
         "properties": {
@@ -46190,6 +46300,18 @@
             "description": "ผู้รับผิดชอบ · ไม่ส่ง = ผู้สร้าง",
             "maxLength": 64
           },
+          "mentions_customer": {
+            "type": "boolean",
+            "description": "CD-272 — พาดพิงลูกค้า"
+          },
+          "mentions_price": {
+            "type": "boolean",
+            "description": "CD-272 — พาดพิงราคา"
+          },
+          "mentions_partner": {
+            "type": "boolean",
+            "description": "CD-272 — พาดพิงคู่ค้า"
+          },
           "campaign_id": {
             "type": "string",
             "description": "แคมเปญ · ว่าง = ไม่ผูก",
@@ -46209,6 +46331,7 @@
             "type": "string",
             "enum": [
               "draft",
+              "pending_approval",
               "ready",
               "published",
               "cancelled"

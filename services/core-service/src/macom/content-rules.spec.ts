@@ -1,4 +1,5 @@
 import {
+  readyBlocker,
   canMove,
   editable,
   overdueNow,
@@ -65,5 +66,40 @@ describe('CD-271 content calendar rules', () => {
     expect(publishProblems('https://facebook.com/osd/posts/1')).toEqual([]);
     expect(publishProblems('')).toHaveLength(1);
     expect(publishProblems('facebook.com/x')).toHaveLength(1);
+  });
+
+  it('CD-272: flagged content (or all, by setting) needs approval for the current version', () => {
+    const plain = {
+      mentionsCustomer: false,
+      mentionsPrice: false,
+      mentionsPartner: false,
+      approvalStatus: 'none',
+      approvedVersion: null,
+      version: 1,
+    };
+    expect(readyBlocker(plain, false)).toBeNull();
+    expect(readyBlocker(plain, true)).not.toBeNull();
+    const priced = { ...plain, mentionsPrice: true };
+    expect(readyBlocker(priced, false)).not.toBeNull();
+    expect(
+      readyBlocker(
+        { ...priced, approvalStatus: 'approved', approvedVersion: 1 },
+        false,
+      ),
+    ).toBeNull();
+    // edited after approval: version 2 is not what was approved
+    expect(
+      readyBlocker(
+        {
+          ...priced,
+          approvalStatus: 'approved',
+          approvedVersion: 1,
+          version: 2,
+        },
+        false,
+      ),
+    ).not.toBeNull();
+    expect(canMove('draft', 'pending_approval')).toBe(false);
+    expect(canMove('pending_approval', 'ready')).toBe(false);
   });
 });

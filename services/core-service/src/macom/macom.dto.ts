@@ -2,6 +2,7 @@ import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   IsArray,
+  IsBoolean,
   IsDateString,
   IsIn,
   IsNotEmpty,
@@ -159,6 +160,21 @@ export class SaveContentDto {
   @MaxLength(64)
   owner_user_id?: string;
 
+  @ApiPropertyOptional({ description: 'CD-272 — พาดพิงลูกค้า' })
+  @IsOptional()
+  @IsBoolean()
+  mentions_customer?: boolean;
+
+  @ApiPropertyOptional({ description: 'CD-272 — พาดพิงราคา' })
+  @IsOptional()
+  @IsBoolean()
+  mentions_price?: boolean;
+
+  @ApiPropertyOptional({ description: 'CD-272 — พาดพิงคู่ค้า' })
+  @IsOptional()
+  @IsBoolean()
+  mentions_partner?: boolean;
+
   @ApiPropertyOptional({ description: 'แคมเปญ · ว่าง = ไม่ผูก' })
   @IsOptional()
   @IsString()
@@ -190,4 +206,12 @@ export class CopyContentDto {
   @ApiProperty({ enum: CONTENT_CHANNELS })
   @IsIn(CONTENT_CHANNELS)
   channel!: string;
+}
+
+export class WithdrawContentDto {
+  @ApiPropertyOptional({ example: 'ขอแก้ราคาในโพสต์' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  reason?: string;
 }
