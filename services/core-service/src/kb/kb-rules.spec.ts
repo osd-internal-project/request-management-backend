@@ -106,3 +106,24 @@ describe('CD-261 KB audience rules', () => {
     expect(audienceCustomers('selected', ['a', 'a', ''])).toEqual(['a']);
   });
 });
+
+describe('questionTerms (CD-281)', () => {
+  it('cuts Thai into words and leaves out what only makes a sentence', () => {
+    const { questionTerms, minMatches } =
+      jest.requireActual<typeof import('./kb-rules')>('./kb-rules');
+    expect(questionTerms('ตู้สาขาโทรออกไม่ได้อีกแล้วครับ')).toEqual([
+      'ตู้',
+      'สาขา',
+      'โทร',
+      'ออก',
+    ]);
+    expect(questionTerms('Router รีสตาร์ทยังไง')).toEqual([
+      'router',
+      'รี',
+      'สตาร์ท',
+    ]);
+    expect(questionTerms('สวัสดีครับ')).toEqual([]);
+    expect(questionTerms('  ')).toEqual([]);
+    expect([0, 1, 2, 3, 4, 5].map(minMatches)).toEqual([0, 1, 1, 2, 2, 3]);
+  });
+});

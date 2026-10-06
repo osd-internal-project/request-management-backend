@@ -122,6 +122,10 @@ export default () => ({
     sweepIntervalMs: 0,
     idleHours: Number(process.env.CARE_IDLE_HOURS ?? 24),
     retentionDays: Number(process.env.CARE_RETENTION_DAYS ?? 180),
+    /** CD-281 — AI CARE answers from the knowledge base itself; off = the connector's own AI does. */
+    autoReply: (process.env.CARE_AUTO_REPLY ?? 'on') !== 'off',
+    /** CD-281 — the web app, for Customer Portal links to the articles cited. */
+    publicWebUrl: process.env.PUBLIC_WEB_URL,
   },
   /** CD-90 — likewise: the lake is fed by core-service only. */
   lake: { databaseUrl: '', extractIntervalMs: 0, sapIntervalMs: 0 },

@@ -13,7 +13,7 @@ import {
   KbAiQueryRepository,
   KbAiSearchRepository,
 } from './kb-ai.repositories';
-import { searchTerms } from './kb-rules';
+import { minMatches, questionTerms } from './kb-rules';
 import { byRank, matchFields } from './kb-semantic-rank';
 import { KbSemanticService } from './kb-semantic.service';
 
@@ -107,17 +107,24 @@ export class KbAiService implements OnModuleInit, OnModuleDestroy {
     // CD-267 — by words and by meaning
     const limit = Math.min(Math.max(Math.trunc(input.limit ?? 5), 1), 10);
     const meaning = await this.semantic.search(companyId, null, question, 10);
-    const rows = byRank(
-      await this.searcher.search(
-        companyId,
-        customerId,
-        searchTerms(question),
-        limit,
-        [...(meaning?.keys() ?? [])],
-      ),
-      meaning,
-      limit,
-    );
+    // CD-281 — a question's words (Thai cut into words), half of them enough
+    const terms = questionTerms(question);
+    const rows =
+      terms.length || meaning?.size
+        ? byRank(
+            await this.searcher.search(
+              companyId,
+              customerId,
+              terms,
+              limit,
+              [...(meaning?.keys() ?? [])],
+              minMatches(terms.length),
+            ),
+            meaning,
+            limit,
+          )
+        : // nothing to search by: no articles, rather than the most liked ones
+          [];
     const query = (await this.queries.create({
       data: {
         companyId,

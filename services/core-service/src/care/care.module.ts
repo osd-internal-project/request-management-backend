@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { KbAiModule } from '../kb/kb-ai.module';
+import { LlmModule } from '../llm/llm.module';
 import { SupportModule } from '../support/support.module';
 import { ServiceAssetRepository } from '../support/support.repositories';
 import {
@@ -7,6 +9,7 @@ import {
   CareIdentityRepository,
   CareMessageRepository,
 } from './care.repositories';
+import { CareAnswerService } from './care-answer.service';
 import { CareService } from './care.service';
 
 /**
@@ -15,9 +18,11 @@ import { CareService } from './care.service';
  * (CareHttpModule), external-service the channels and AI (`api/v1/care/*`).
  */
 @Module({
-  imports: [SupportModule],
+  // CD-281 — answers from the knowledge base through the LLM Gateway
+  imports: [SupportModule, KbAiModule, LlmModule],
   providers: [
     CareService,
+    CareAnswerService,
     CareConversationRepository,
     CareMessageRepository,
     CareIdentityRepository,

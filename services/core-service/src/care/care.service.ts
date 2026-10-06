@@ -31,6 +31,7 @@ import {
   type Claims,
   type Identification,
 } from './care-rules';
+import { CareAnswerService } from './care-answer.service';
 import {
   CareContactLookupRepository,
   CareConversationRepository,
@@ -119,6 +120,7 @@ export class CareService implements OnModuleInit, OnModuleDestroy {
     private readonly entitlements: EntitlementsService,
     private readonly audit: AuditWriter,
     private readonly config: ConfigService,
+    private readonly answers: CareAnswerService,
   ) {}
 
   onModuleInit(): void {
@@ -208,7 +210,67 @@ export class CareService implements OnModuleInit, OnModuleDestroy {
           : {}),
       },
     });
-    return { isNew, ...(await this.context(conversation)) };
+    const context = await this.context(conversation);
+    // CD-281 — AI CARE answers while it is handling the conversation
+    const reply =
+      conversation.status === 'open' && text && this.autoReply()
+        ? await this.answerFor(conversation, context)
+        : null;
+    if (reply) {
+      const sent = (await this.messages.create({
+        data: {
+          conversationId: conversation.id,
+          direction: 'out',
+          author: 'ai',
+          text: reply.text,
+          kbQueryId: reply.kbQueryId,
+        },
+      })) as MessageRow;
+      await this.conversations.update({
+        where: { id: conversation.id },
+        data: { messages: { increment: 1 }, lastMessageAt: new Date() },
+      });
+      context.history.push(this.message(sent));
+      context.conversation.messages += 1;
+    }
+    return { isNew, ...context, reply };
+  }
+
+  /** CARE_AUTO_REPLY=off — a connector with its own AI answers (and posts replies). */
+  private autoReply() {
+    return this.config.get<boolean>('care.autoReply') ?? true;
+  }
+
+  /** The customer's latest words (since the last answer) asked of the knowledge base. */
+  private async answerFor(
+    conversation: ConversationRow,
+    context: Awaited<ReturnType<CareService['context']>>,
+  ) {
+    const history = context.history;
+    let start = history.length;
+    while (start > 0 && history[start - 1].direction === 'in') start -= 1;
+    const question = history
+      .slice(start)
+      .map((m) => m.text)
+      .filter(Boolean)
+      .join('\n');
+    if (!question) return null;
+    return this.answers.answer({
+      companyId: conversation.companyId,
+      conversationId: conversation.id,
+      question,
+      // customer-specific articles and equipment only for a verified sender
+      customerCode: context.customer?.code ?? null,
+      customerName: context.customer?.name ?? null,
+      assets: context.assets.map((a) => ({
+        name: a.name,
+        model: a.model,
+        coverage: a.coverage
+          ? { title: a.coverage.title, endOn: a.coverage.endOn }
+          : null,
+      })),
+      history: history.slice(0, start),
+    });
   }
 
   /** What was answered (AI, or a system notice) — recorded in the conversation. */

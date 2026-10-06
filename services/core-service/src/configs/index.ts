@@ -295,6 +295,10 @@ export default () => ({
     idleHours: Number(process.env.CARE_IDLE_HOURS ?? 24),
     /** CD-280 — days message texts are kept once a conversation is closed. */
     retentionDays: Number(process.env.CARE_RETENTION_DAYS ?? 180),
+    /** CD-281 — AI CARE answers from the knowledge base itself; off = the connector's own AI does. */
+    autoReply: (process.env.CARE_AUTO_REPLY ?? 'on') !== 'off',
+    /** CD-281 — the web app, for Customer Portal links to the articles cited. */
+    publicWebUrl: process.env.PUBLIC_WEB_URL,
   },
   /** CD-275 — the company LLM Gateway (OpenAI-compatible). */
   llm: {

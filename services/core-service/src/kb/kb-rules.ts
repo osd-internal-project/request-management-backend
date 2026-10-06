@@ -59,6 +59,133 @@ export function searchTerms(query: string | undefined | null): string[] {
   return [...terms].slice(0, MAX_TERMS);
 }
 
+/** Words a question carries that say nothing about its subject. */
+const QUESTION_STOPWORDS = new Set([
+  'ไม่',
+  'ได้',
+  'อีก',
+  'แล้ว',
+  'ครับ',
+  'คับ',
+  'ค่ะ',
+  'คะ',
+  'ค่า',
+  'นะ',
+  'จ้ะ',
+  'จ้า',
+  'ที่',
+  'และ',
+  'หรือ',
+  'แต่',
+  'จะ',
+  'มี',
+  'เป็น',
+  'ของ',
+  'ให้',
+  'กับ',
+  'ใน',
+  'การ',
+  'ความ',
+  'อยาก',
+  'ช่วย',
+  'หน่อย',
+  'ยัง',
+  'ด้วย',
+  'มาก',
+  'ทำ',
+  'ไง',
+  'ยังไง',
+  'อย่างไร',
+  'อะไร',
+  'ไหม',
+  'มั้ย',
+  'เลย',
+  'ก็',
+  'คือ',
+  'ว่า',
+  'นี้',
+  'นั้น',
+  'จาก',
+  'ถึง',
+  'โดย',
+  'เพื่อ',
+  'ต้อง',
+  'ควร',
+  'เรา',
+  'ผม',
+  'ดิฉัน',
+  'ฉัน',
+  'หนู',
+  'คุณ',
+  'เขา',
+  'มัน',
+  'สวัสดี',
+  'ขอบคุณ',
+  'รบกวน',
+  'สอบถาม',
+  'the',
+  'a',
+  'an',
+  'is',
+  'are',
+  'to',
+  'of',
+  'how',
+  'what',
+  'why',
+  'please',
+  'my',
+  'i',
+  'it',
+  'can',
+  'not',
+  'do',
+  'does',
+]);
+const QUESTION_TERMS = 12;
+
+/**
+ * `Intl.Segmenter` (Node 16+), typed here because not every tsconfig in the
+ * repo (the openapi script's) carries the ES2022 Intl types.
+ */
+const ThaiWords = (
+  Intl as unknown as {
+    Segmenter: new (
+      locale: string,
+      options: { granularity: 'word' },
+    ) => {
+      segment(
+        text: string,
+      ): Iterable<{ segment: string; isWordLike?: boolean }>;
+    };
+  }
+).Segmenter;
+
+/**
+ * CD-281 — the words of a question a customer typed, for the AI channels'
+ * search: Thai has no spaces between words, so it is cut into words (the
+ * runtime's Thai dictionary), and words that only make a sentence are left
+ * out. An article matches when it holds at least half of them
+ * ({@link minMatches}) — a question is not a list of required keywords.
+ */
+export function questionTerms(question: string | undefined | null): string[] {
+  if (!question?.trim()) return [];
+  const words = new Set<string>();
+  const segmenter = new ThaiWords('th', { granularity: 'word' });
+  for (const part of segmenter.segment(question.toLowerCase())) {
+    const word = part.segment.trim();
+    if (!part.isWordLike || word.length < 2) continue;
+    if (QUESTION_STOPWORDS.has(word)) continue;
+    words.add(word);
+  }
+  return [...words].slice(0, QUESTION_TERMS);
+}
+
+/** Of `n` question words, how many an article must hold. */
+export function minMatches(n: number): number {
+  return n ? Math.max(1, Math.ceil(n / 2)) : 0;
+}
+
 /** `%term%` for ILIKE, with the pattern characters taken literally. */
 export function likePattern(term: string): string {
   return `%${term.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;

@@ -64,6 +64,8 @@ export class KbAiSearchRepository {
     limit: number,
     /** CD-267 — articles found by meaning, also returned when no word matches. */
     meaningIds: string[] = [],
+    /** CD-281 — how many of the terms an article must hold (default: all). */
+    atLeast = terms.length,
   ) {
     const params: unknown[] = [companyId, customerId];
     const where = [
@@ -91,9 +93,13 @@ export class KbAiSearchRepository {
     const helpful = `(a."helpfulYes" + a."portalHelpfulYes" + 1)::float
       / (a."helpfulYes" + a."helpfulNo" + a."portalHelpfulYes" + a."portalHelpfulNo" + 2)`;
     const score = [...scores, `2 * ${helpful}`].join(' + ');
-    const keywordHit = matches.length
-      ? `COALESCE(${matches.join(' AND ')}, FALSE)`
-      : 'TRUE';
+    const keywordHit = !matches.length
+      ? 'TRUE'
+      : atLeast >= matches.length
+        ? `COALESCE(${matches.join(' AND ')}, FALSE)`
+        : `(${matches
+            .map((m) => `(CASE WHEN COALESCE(${m}, FALSE) THEN 1 ELSE 0 END)`)
+            .join(' + ')}) >= ${Math.max(1, Math.trunc(atLeast))}`;
     let semanticHit = 'FALSE';
     if (meaningIds.length) {
       params.push(meaningIds);
