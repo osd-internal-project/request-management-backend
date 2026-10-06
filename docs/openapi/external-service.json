@@ -11591,6 +11591,50 @@
         ]
       }
     },
+    "/api/v1/smart/prospects/ingest": {
+      "post": {
+        "description": "ต้องเป็นแหล่งชนิด push ที่ตั้งไว้ในบริษัทของกุญแจ · ครั้งละไม่เกิน 1000 รายการ · รายการที่มีอยู่แล้ว (แหล่งเดียวกัน+external_ref เดียวกัน หรือเลขนิติบุคคลซ้ำ) นับเป็นซ้ำ ไม่บันทึกซ้ำ · ยังไม่เข้า CRM จนกว่าจะผ่านการคัดกรอง",
+        "operationId": "ExternalSmartIngestController_push",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushProspectsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ส่งรายชื่อธุรกิจที่กวาดได้เข้าคิวของ AI SMART",
+        "tags": [
+          "smart"
+        ],
+        "x-permission": [
+          "integration.smart.ingest"
+        ]
+      }
+    },
     "/api/v1/mcp": {
       "post": {
         "description": "Endpoint เดียวสำหรับทุก tool — ชื่อ tool อยู่ใน body ไม่ใช่ใน path รายการ tool ทั้งหมดอยู่ที่ docs/openapi/external-tools.json ดูวิธีใช้ที่ docs/EXTERNAL_API.md",
@@ -15661,6 +15705,88 @@
         },
         "required": [
           "outcome"
+        ]
+      },
+      "FoundProspectDto": {
+        "type": "object",
+        "properties": {
+          "external_ref": {
+            "type": "string",
+            "description": "รหัสของรายการที่แหล่ง (เลขทะเบียน DBD, URL หน้า …)",
+            "maxLength": 200
+          },
+          "name": {
+            "type": "string",
+            "example": "บริษัท ตัวอย่าง จำกัด",
+            "maxLength": 200
+          },
+          "tax_id": {
+            "type": "string",
+            "example": "0105551234567",
+            "maxLength": 30
+          },
+          "phone": {
+            "type": "string",
+            "maxLength": 30
+          },
+          "email": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "website": {
+            "type": "string",
+            "maxLength": 300
+          },
+          "industry": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "province": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "registered_capital": {
+            "type": "object",
+            "example": 5000000
+          },
+          "sales_axis": {
+            "type": "string",
+            "enum": [
+              "getter",
+              "government",
+              "partner",
+              "keeper"
+            ]
+          },
+          "evidence": {
+            "type": "object",
+            "description": "หลักฐานว่าเห็นที่ไหน: url, snippet, fetched_at และข้อมูลดิบ"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "PushProspectsDto": {
+        "type": "object",
+        "properties": {
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FoundProspectDto"
+            },
+            "maxItems": 1000
+          },
+          "source_code": {
+            "type": "string",
+            "example": "VENDOR-X",
+            "description": "รหัสแหล่งชนิด push ที่ตั้งไว้",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "rows",
+          "source_code"
         ]
       },
       "ImportCustomerRowDto": {

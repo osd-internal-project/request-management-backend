@@ -303,6 +303,13 @@ export default () => ({
       process.env.AI_AUDIT_SWEEP_INTERVAL_MS ?? 86_400_000,
     ),
   },
+  /** CD-16 AI SMART */
+  smart: {
+    /** mock (default) | off — real connectors arrive with their providers. */
+    connectorMode: process.env.SMART_CONNECTOR_MODE ?? 'mock',
+    /** How often due sources are swept (ms); 0 = off. */
+    sweepIntervalMs: Number(process.env.SMART_SWEEP_INTERVAL_MS ?? 900_000),
+  },
   /** CD-15 MACOM */
   macom: {
     /** CD-271 — content due tomorrow / an hour late (ms); 0 = off. */

@@ -69,6 +69,13 @@ export const PERMISSIONS = {
     'crm.target.manage',
     /** CD-71: สร้าง/แก้/ปิดแคมเปญการตลาด — ดูผลแคมเปญใช้ `crm.sales.read`. */
     'crm.campaign.manage',
+    /**
+     * CD-16 AI SMART — swept outside leads before they reach CRM: the sources
+     * and their sweeps, and the raw list (CD-289). Apart from `crm.sales.*` so
+     * a sales rep's screens never carry unscreened data.
+     */
+    'smart.prospect.read',
+    'smart.prospect.manage',
   ],
   /**
    * CD-11 Pre-Sales. `presales.solution.read` sees every Solution in the
@@ -322,6 +329,12 @@ export const PERMISSIONS = {
      * permission through `@ActingPermissions`.
      */
     'integration.assistant.read',
+    /**
+     * CD-289 — a licensed crawler or data vendor pushes what it found into
+     * AI SMART's staging list (`smart/prospects/ingest`). Robot-only: there is
+     * no acting person, and nothing reaches CRM until screening.
+     */
+    'integration.smart.ingest',
   ],
 } as const;
 

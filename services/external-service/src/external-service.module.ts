@@ -29,6 +29,7 @@ import { SupportApiModule } from './support/support.module';
 import { FlowModule } from './flow/flow.module';
 import { KbApiModule } from './kb/kb.module';
 import { AssistantModule } from './assistant/assistant.module';
+import { SmartApiModule } from './smart/smart.module';
 import configs from './configs';
 
 /**
@@ -80,6 +81,8 @@ import configs from './configs';
     KbApiModule,
     // CD-276 — the personal assistant's questions
     AssistantModule,
+    // CD-289 — a vendor pushes swept leads into AI SMART
+    SmartApiModule,
     McpModule,
   ],
   providers: [

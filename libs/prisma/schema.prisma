@@ -8342,3 +8342,85 @@ model ProjectDeliveryDocument {
   @@index([projectId, milestoneId])
   @@map("project_delivery_documents")
 }
+
+/// CD-289 (CD-16 AI SMART) — where outside leads are swept from, and what to look for.
+/// `kind`: dbd | web | social (a connector searches on a schedule) · push (a
+/// licensed crawler/vendor pushes through the external API) · file (the team
+/// imports a downloaded file).
+model SmartSource {
+  id            String    @id @default(uuid())
+  companyId     String
+  code          String
+  name          String
+  kind          String
+  /// The sales axis its finds feed (getter | government | partner | keeper); null = decided per row.
+  salesAxis     String?
+  /// Search terms for a connector: keywords, industries, provinces, capital range.
+  criteria      Json      @default("{}")
+  /// How often a connector source is swept (hours); null = by hand only.
+  intervalHours Int?
+  active        Boolean   @default(true)
+  lastRunAt     DateTime?
+  createdBy     String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([companyId, code])
+  @@map("smart_sources")
+}
+
+/// CD-289 — one sweep of one source: what it found and what was new.
+model SmartSweepRun {
+  id          String    @id @default(uuid())
+  companyId   String
+  sourceId    String
+  /// schedule | manual | push | file
+  trigger     String
+  /// running | ok | error
+  status      String    @default("running")
+  found       Int       @default(0)
+  added       Int       @default(0)
+  duplicates  Int       @default(0)
+  rejected    Int       @default(0)
+  error       String?
+  startedBy   String?
+  startedAt   DateTime  @default(now())
+  finishedAt  DateTime?
+
+  @@index([companyId, sourceId, startedAt])
+  @@map("smart_sweep_runs")
+}
+
+/// CD-289 — a business found outside, held here (not in CRM) until screening
+/// (CD-290) sends it on or discards it. Keeps where it came from and the evidence.
+model SmartProspect {
+  id                String    @id @default(uuid())
+  companyId         String
+  sourceId          String
+  runId             String?
+  /// The record's id at the source (DBD registration no., page URL …) — one row per source and ref.
+  externalRef       String
+  name              String
+  taxId             String?
+  phone             String?
+  email             String?
+  website           String?
+  industry          String?
+  province          String?
+  registeredCapital Decimal?  @db.Decimal(16, 2)
+  salesAxis         String?
+  /// Where and when it was seen: url, snippet, fetchedAt, and the source's raw fields.
+  evidence          Json      @default("{}")
+  /// new | screened | sent | discarded
+  status            String    @default("new")
+  discardReason     String?
+  decidedBy         String?
+  decidedAt         DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@unique([companyId, sourceId, externalRef])
+  @@index([companyId, status, createdAt])
+  @@index([companyId, taxId])
+  @@map("smart_prospects")
+}

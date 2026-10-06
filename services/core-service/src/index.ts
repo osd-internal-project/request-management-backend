@@ -155,3 +155,8 @@ export {
 export { LlmService, type LlmCaller } from './llm/llm.service';
 export type { ChatMessage, LlmUsage } from './llm/llm-client';
 export { LLM_TASKS } from './llm/llm-tasks';
+// CD-289 — a vendor pushes swept leads through external-service
+export { SmartModule } from './smart/smart.module';
+export { SmartIngestService } from './smart/smart-ingest.service';
+export { PushProspectsDto } from './smart/smart.dto';
+export { toFound } from './smart/smart.service';

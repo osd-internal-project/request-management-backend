@@ -225,6 +225,12 @@
 | POST | `/request/intake/channels/{channel}` | ช่องทางอื่น (เช่น AI CARE) ยื่นคำขอแทนลูกค้า (CD-66) | integration.request.intake |  |
 | GET | `/request/intake/status/{token}` | สถานะคำขอตามลิงก์ติดตามของลูกค้า (CD-66) | integration.request.intake |  |
 
+## smart — ส่งรายชื่อธุรกิจที่กวาดได้ (crawler/ผู้ให้บริการข้อมูล) เข้าคิวของ AI SMART
+
+| Method | Path | ทำอะไร | สิทธิ์กุญแจ | สิทธิ์คน |
+|---|---|---|---|---|
+| POST | `/smart/prospects/ingest` | ส่งรายชื่อธุรกิจที่กวาดได้เข้าคิวของ AI SMART | integration.smart.ingest |  |
+
 ## support — งานบริการหลังการขาย — ทะเบียนอุปกรณ์ สิทธิ์บริการ และเปิดใบสั่งงานบริการ
 
 | Method | Path | ทำอะไร | สิทธิ์กุญแจ | สิทธิ์คน |

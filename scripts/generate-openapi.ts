@@ -227,6 +227,15 @@ const MODULE_DOCS: Readonly<Record<string, ModuleDoc>> = {
       'จึงไม่เห็นเกินกว่าที่หน้าจอของคนนั้นแสดง · ใช้ผ่าน MCP เป็นหลัก (`assistant_*`)',
     tags: [{ name: 'assistant', description: 'ผู้ช่วยส่วนตัว (CD-276)' }],
   },
+  smart: {
+    title: 'Request Form — External API · AI SMART',
+    summary: 'ส่งรายชื่อธุรกิจที่กวาดได้ (crawler/ผู้ให้บริการข้อมูล) เข้าคิวของ AI SMART',
+    notes:
+      'ไม่มี `X-Acting-User` — ระบบภายนอกส่งในนามตัวเอง (`integration.smart.ingest`) · ' +
+      'ต้องมีแหล่งชนิด push ที่ตั้งไว้ในหน้า AI SMART ของบริษัทเดียวกับกุญแจ · ' +
+      'ส่งซ้ำได้ รายการที่มีอยู่แล้วนับเป็นซ้ำ · ยังไม่เข้า CRM จนกว่าจะผ่านการคัดกรอง',
+    tags: [{ name: 'smart', description: 'AI SMART — รับรายชื่อที่กวาดได้' }],
+  },
   mcp: {
     title: 'Request Form — External API · MCP',
     summary: 'ช่องทาง JSON-RPC สำหรับ tool-caller (LibreChat, MCP client)',

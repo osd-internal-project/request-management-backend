@@ -2297,6 +2297,8 @@
                 "crm.sales.manage",
                 "crm.target.manage",
                 "crm.campaign.manage",
+                "smart.prospect.read",
+                "smart.prospect.manage",
                 "presales.solution.read",
                 "presales.solution.manage",
                 "report.request.read",
@@ -2356,7 +2358,8 @@
                 "integration.support.read",
                 "integration.support.manage",
                 "integration.kb.read",
-                "integration.assistant.read"
+                "integration.assistant.read",
+                "integration.smart.ingest"
               ],
               "type": "string"
             }
@@ -2415,6 +2418,8 @@
                 "crm.sales.manage",
                 "crm.target.manage",
                 "crm.campaign.manage",
+                "smart.prospect.read",
+                "smart.prospect.manage",
                 "presales.solution.read",
                 "presales.solution.manage",
                 "report.request.read",
@@ -2474,7 +2479,8 @@
                 "integration.support.read",
                 "integration.support.manage",
                 "integration.kb.read",
-                "integration.assistant.read"
+                "integration.assistant.read",
+                "integration.smart.ingest"
               ],
               "type": "string"
             }
@@ -2717,6 +2723,8 @@
               "crm.sales.manage",
               "crm.target.manage",
               "crm.campaign.manage",
+              "smart.prospect.read",
+              "smart.prospect.manage",
               "presales.solution.read",
               "presales.solution.manage",
               "report.request.read",
@@ -2776,7 +2784,8 @@
               "integration.support.read",
               "integration.support.manage",
               "integration.kb.read",
-              "integration.assistant.read"
+              "integration.assistant.read",
+              "integration.smart.ingest"
             ],
             "type": "string"
           }

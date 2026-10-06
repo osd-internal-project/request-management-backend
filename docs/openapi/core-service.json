@@ -35276,6 +35276,502 @@
         ]
       }
     },
+    "/api/v1/smart/sources": {
+      "get": {
+        "operationId": "SmartController_sources",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-289 แหล่งกวาด Lead ทั้งหมด พร้อมจำนวนที่ได้",
+        "tags": [
+          "smart"
+        ],
+        "x-permission": [
+          "smart.prospect.read"
+        ]
+      },
+      "post": {
+        "operationId": "SmartController_createSource",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveSmartSourceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-289 เพิ่มแหล่งกวาด Lead",
+        "tags": [
+          "smart"
+        ],
+        "x-permission": [
+          "smart.prospect.manage"
+        ]
+      }
+    },
+    "/api/v1/smart/sources/{id}": {
+      "put": {
+        "operationId": "SmartController_updateSource",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveSmartSourceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-289 แก้แหล่งกวาด Lead (เงื่อนไข รอบ เปิด/ปิด)",
+        "tags": [
+          "smart"
+        ],
+        "x-permission": [
+          "smart.prospect.manage"
+        ]
+      }
+    },
+    "/api/v1/smart/sources/{id}/run": {
+      "post": {
+        "operationId": "SmartController_run",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-289 กวาดแหล่งนี้เดี๋ยวนี้ (dbd/web/social)",
+        "tags": [
+          "smart"
+        ],
+        "x-permission": [
+          "smart.prospect.manage"
+        ]
+      }
+    },
+    "/api/v1/smart/sources/{id}/import": {
+      "post": {
+        "operationId": "SmartController_import",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportProspectsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-289 นำเข้ารายชื่อจากไฟล์ (แหล่งชนิด file)",
+        "tags": [
+          "smart"
+        ],
+        "x-permission": [
+          "smart.prospect.manage"
+        ]
+      }
+    },
+    "/api/v1/smart/runs": {
+      "get": {
+        "operationId": "SmartController_runs",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-289 ประวัติการกวาด (100 รอบล่าสุด)",
+        "tags": [
+          "smart"
+        ],
+        "x-permission": [
+          "smart.prospect.read"
+        ]
+      }
+    },
+    "/api/v1/smart/prospects": {
+      "get": {
+        "operationId": "SmartController_prospects",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "เลขหน้าที่ต้องการ เริ่มที่ 1",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page_size",
+            "required": false,
+            "in": "query",
+            "description": "จำนวนรายการต่อหน้า",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "`sort=field` เรียงขึ้น, `sort=-field` เรียงลง",
+            "schema": {
+              "example": "-createdAt",
+              "type": "string",
+              "pattern": "^-?[a-zA-Z_][a-zA-Z0-9_]*$"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "new",
+                "screened",
+                "sent",
+                "discarded"
+              ]
+            }
+          },
+          {
+            "name": "source_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sales_axis",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "getter",
+                "government",
+                "partner",
+                "keeper"
+              ]
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "ชื่อ เลขนิติบุคคล เบอร์ หรือจังหวัด",
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-289 รายชื่อที่กวาดได้ (ยังไม่เข้า CRM)",
+        "tags": [
+          "smart"
+        ],
+        "x-permission": [
+          "smart.prospect.read"
+        ]
+      }
+    },
+    "/api/v1/smart/prospects/{id}": {
+      "get": {
+        "operationId": "SmartController_prospect",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-289 รายชื่อที่กวาดได้ หนึ่งรายการ พร้อมหลักฐาน",
+        "tags": [
+          "smart"
+        ],
+        "x-permission": [
+          "smart.prospect.read"
+        ]
+      }
+    },
+    "/api/v1/smart/prospects/{id}/discard": {
+      "post": {
+        "operationId": "SmartController_discard",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DiscardProspectDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-289 ทิ้งรายชื่อ พร้อมเหตุผล",
+        "tags": [
+          "smart"
+        ],
+        "x-permission": [
+          "smart.prospect.manage"
+        ]
+      }
+    },
+    "/api/v1/smart/prospects/{id}/reopen": {
+      "post": {
+        "operationId": "SmartController_reopen",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-289 เปิดรายชื่อที่ทิ้งไปแล้วกลับมา",
+        "tags": [
+          "smart"
+        ],
+        "x-permission": [
+          "smart.prospect.manage"
+        ]
+      }
+    },
     "/api/v1/llm/settings": {
       "get": {
         "operationId": "LlmController_settings",
@@ -48235,6 +48731,192 @@
           "reason": {
             "type": "string",
             "example": "บันทึกซ้ำ",
+            "maxLength": 500,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "SmartCriteriaDto": {
+        "type": "object",
+        "properties": {
+          "keywords": {
+            "example": [
+              "โรงงาน",
+              "คลังสินค้า"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "industries": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "provinces": {
+            "example": [
+              "ชลบุรี",
+              "ระยอง"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "minCapital": {
+            "type": "number",
+            "example": 5000000,
+            "description": "ทุนจดทะเบียนขั้นต่ำ (บาท)"
+          },
+          "maxResults": {
+            "type": "number",
+            "example": 20,
+            "description": "จำนวนสูงสุดต่อคำค้นต่อรอบ"
+          }
+        }
+      },
+      "SaveSmartSourceDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "DBD-EAST",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$"
+          },
+          "name": {
+            "type": "string",
+            "example": "DBD — โรงงานภาคตะวันออก",
+            "maxLength": 200,
+            "minLength": 1
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "dbd",
+              "web",
+              "social",
+              "push",
+              "file"
+            ]
+          },
+          "sales_axis": {
+            "type": "string",
+            "enum": [
+              "getter",
+              "government",
+              "partner",
+              "keeper"
+            ],
+            "nullable": true
+          },
+          "criteria": {
+            "$ref": "#/components/schemas/SmartCriteriaDto"
+          },
+          "interval_hours": {
+            "type": "object",
+            "nullable": true,
+            "example": 24,
+            "description": "กวาดทุกกี่ชั่วโมง (เฉพาะ dbd/web/social) · ว่าง = กดเองเท่านั้น",
+            "maximum": 2160,
+            "minimum": 1
+          },
+          "active": {
+            "type": "boolean",
+            "default": true
+          }
+        },
+        "required": [
+          "code",
+          "kind",
+          "name"
+        ]
+      },
+      "FoundProspectDto": {
+        "type": "object",
+        "properties": {
+          "external_ref": {
+            "type": "string",
+            "description": "รหัสของรายการที่แหล่ง (เลขทะเบียน DBD, URL หน้า …)",
+            "maxLength": 200
+          },
+          "name": {
+            "type": "string",
+            "example": "บริษัท ตัวอย่าง จำกัด",
+            "maxLength": 200
+          },
+          "tax_id": {
+            "type": "string",
+            "example": "0105551234567",
+            "maxLength": 30
+          },
+          "phone": {
+            "type": "string",
+            "maxLength": 30
+          },
+          "email": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "website": {
+            "type": "string",
+            "maxLength": 300
+          },
+          "industry": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "province": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "registered_capital": {
+            "type": "object",
+            "example": 5000000
+          },
+          "sales_axis": {
+            "type": "string",
+            "enum": [
+              "getter",
+              "government",
+              "partner",
+              "keeper"
+            ]
+          },
+          "evidence": {
+            "type": "object",
+            "description": "หลักฐานว่าเห็นที่ไหน: url, snippet, fetched_at และข้อมูลดิบ"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "ImportProspectsDto": {
+        "type": "object",
+        "properties": {
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FoundProspectDto"
+            },
+            "maxItems": 1000
+          }
+        },
+        "required": [
+          "rows"
+        ]
+      },
+      "DiscardProspectDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "example": "ไม่ใช่กลุ่มเป้าหมาย",
             "maxLength": 500,
             "minLength": 1
           }

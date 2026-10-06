@@ -1,0 +1,159 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/v1/smart/prospects/ingest": {
+      "post": {
+        "description": "ต้องเป็นแหล่งชนิด push ที่ตั้งไว้ในบริษัทของกุญแจ · ครั้งละไม่เกิน 1000 รายการ · รายการที่มีอยู่แล้ว (แหล่งเดียวกัน+external_ref เดียวกัน หรือเลขนิติบุคคลซ้ำ) นับเป็นซ้ำ ไม่บันทึกซ้ำ · ยังไม่เข้า CRM จนกว่าจะผ่านการคัดกรอง",
+        "operationId": "ExternalSmartIngestController_push",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushProspectsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ส่งรายชื่อธุรกิจที่กวาดได้เข้าคิวของ AI SMART",
+        "tags": [
+          "smart"
+        ],
+        "x-permission": [
+          "integration.smart.ingest"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "Request Form — External API · AI SMART",
+    "description": "ส่งรายชื่อธุรกิจที่กวาดได้ (crawler/ผู้ให้บริการข้อมูล) เข้าคิวของ AI SMART\n\n**ทุก route มีสองประตู** และ Swagger ของแต่ละ route บอกไว้ทั้งคู่: bearer ต้องถือสิทธิ์ `integration.*` ของ route นั้น (ประตูของเครื่อง) และคนที่ระบุใน header `X-Acting-User` ต้องถือสิทธิ์ของงานนั้นเอง (ประตูของคน) — ระบบทำงานในนามคนนั้น timeline จึงบันทึกชื่อคนจริง ไม่ใช่ชื่อบัญชีบริการ\n\n**bearer รับได้สองแบบ**\n\n1. access token ของ service account จาก Keycloak (client_credentials) อายุสั้น ต้องขอใหม่เมื่อหมดอายุ\n2. **API key** ที่ขึ้นต้นด้วย `rfk_` — ไม่มีวันหมดอายุ ไม่ต้องต่ออายุ ระบบแลกเป็น token ให้เองตอนใช้ ออกด้วย `yarn apikey:issue` และเพิกถอนด้วย `yarn apikey:revoke` (มีผลทันที)\n\nทั้งสองแบบส่งเหมือนกัน: `Authorization: Bearer <ค่า>` และได้สิทธิ์ชุดเดียวกัน — key ตัดสินว่า *เข้าได้ไหม* token บอกว่า *ทำอะไรได้*\n\nไม่มี `X-Acting-User` — ระบบภายนอกส่งในนามตัวเอง (`integration.smart.ingest`) · ต้องมีแหล่งชนิด push ที่ตั้งไว้ในหน้า AI SMART ของบริษัทเดียวกับกุญแจ · ส่งซ้ำได้ รายการที่มีอยู่แล้วนับเป็นซ้ำ · ยังไม่เข้า CRM จนกว่าจะผ่านการคัดกรอง",
+    "version": "1.0"
+  },
+  "tags": [
+    {
+      "name": "smart",
+      "description": "AI SMART — รับรายชื่อที่กวาดได้"
+    }
+  ],
+  "servers": [
+    {
+      "url": "http://192.168.31.52:3503",
+      "description": "เครื่องภายใน OSD"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
+    "schemas": {
+      "FoundProspectDto": {
+        "type": "object",
+        "properties": {
+          "external_ref": {
+            "type": "string",
+            "description": "รหัสของรายการที่แหล่ง (เลขทะเบียน DBD, URL หน้า …)",
+            "maxLength": 200
+          },
+          "name": {
+            "type": "string",
+            "example": "บริษัท ตัวอย่าง จำกัด",
+            "maxLength": 200
+          },
+          "tax_id": {
+            "type": "string",
+            "example": "0105551234567",
+            "maxLength": 30
+          },
+          "phone": {
+            "type": "string",
+            "maxLength": 30
+          },
+          "email": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "website": {
+            "type": "string",
+            "maxLength": 300
+          },
+          "industry": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "province": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "registered_capital": {
+            "type": "object",
+            "example": 5000000
+          },
+          "sales_axis": {
+            "type": "string",
+            "enum": [
+              "getter",
+              "government",
+              "partner",
+              "keeper"
+            ]
+          },
+          "evidence": {
+            "type": "object",
+            "description": "หลักฐานว่าเห็นที่ไหน: url, snippet, fetched_at และข้อมูลดิบ"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "PushProspectsDto": {
+        "type": "object",
+        "properties": {
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FoundProspectDto"
+            },
+            "maxItems": 1000
+          },
+          "source_code": {
+            "type": "string",
+            "example": "VENDOR-X",
+            "description": "รหัสแหล่งชนิด push ที่ตั้งไว้",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "rows",
+          "source_code"
+        ]
+      }
+    }
+  }
+}

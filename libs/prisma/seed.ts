@@ -406,6 +406,22 @@ const SEED_ROLES: {
     ],
   },
   {
+    // CD-16 AI SMART — the team that runs the lead sweeps (CD-289): sources,
+    // file imports, and the raw list before screening.
+    code: 'ai_smart',
+    name: 'ทีม AI SMART (กวาด Lead)',
+    description: 'ตั้งแหล่งกวาด Lead นำเข้าไฟล์ และคัดรายชื่อก่อนส่งเข้า CRM',
+    permissions: [
+      'request.create',
+      'request.read',
+      'notification.read',
+      'user.read',
+      'crm.sales.read',
+      'smart.prospect.read',
+      'smart.prospect.manage',
+    ],
+  },
+  {
     // CD-20 — ทีม Delivery: plans deliveries across projects (CD-250).
     code: 'delivery',
     name: 'ทีม Delivery',

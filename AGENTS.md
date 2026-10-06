@@ -358,6 +358,13 @@ end of those — a customer's web form, a workflow engine, another module. Addin
 a fifth is a decision to state out loud here, not a default and not a paragraph
 in the controller.
 
+**The fifth: `smart/prospects/ingest` (CD-289, 6 Oct 2026, user decision).** A
+licensed crawler or data vendor pushes businesses it found into AI SMART's
+staging list, under its own scope `integration.smart.ingest`. Nobody at the
+other end is a user, and nothing it sends reaches CRM — rows wait in
+`smart_prospects` for screening (CD-290). It writes only to a source the
+company set up as kind `push`. A sixth is again a decision to state here.
+
 **core-service's one public business surface: e-signature (CD-14, 30 Sep
 2026).** `EsignPublicController` — `esign/public/:token/*` (a signer's link:
 view, one-time code, document, sign, decline) and `esign/verify/:code*` (the
