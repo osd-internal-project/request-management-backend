@@ -11,6 +11,7 @@ import {
   IsUUID,
   Max,
   MaxLength,
+  Matches,
   Min,
 } from 'class-validator';
 import { MAX_BODY, MAX_SUMMARY, MAX_TAGS, MAX_TITLE } from './kb-rules';
@@ -285,4 +286,45 @@ export class KbArticleUseDto {
   @ApiProperty({ description: 'true = ใช้บทความนี้แก้, false = เอาออก' })
   @IsBoolean()
   used!: boolean;
+}
+
+/** CD-266 — the gap list. */
+export class KbGapsQueryDto {
+  @ApiPropertyOptional({ enum: ['open', 'assigned', 'resolved', 'dismissed'] })
+  @IsOptional()
+  @IsIn(['open', 'assigned', 'resolved', 'dismissed'])
+  status?: string;
+
+  @ApiPropertyOptional({ enum: ['ai_unanswered', 'low_rated', 'search_miss'] })
+  @IsOptional()
+  @IsIn(['ai_unanswered', 'low_rated', 'search_miss'])
+  kind?: string;
+
+  @ApiPropertyOptional({ description: 'เฉพาะที่มอบให้ฉัน' })
+  @IsOptional()
+  @IsIn(['true', 'false'])
+  mine?: string;
+}
+
+export class KbGapAssignDto {
+  @ApiProperty()
+  @IsUUID()
+  assignee_id!: string;
+
+  @ApiProperty({ example: '2026-10-20' })
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  due_on!: string;
+}
+
+export class KbGapLinkDto {
+  @ApiProperty()
+  @IsUUID()
+  article_id!: string;
+}
+
+export class KbGapDismissDto {
+  @ApiProperty()
+  @IsString()
+  @MaxLength(500)
+  reason!: string;
 }

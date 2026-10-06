@@ -8,7 +8,13 @@ import { KbAiModule } from './kb-ai.module';
 import { KbController } from './kb.controller';
 import { KbFieldService } from './kb-field.service';
 import { KbLessonService } from './kb-lesson.service';
-import { KbArticleRepository, KbCandidateRepository } from './kb.repositories';
+import {
+  KbArticleRepository,
+  KbCandidateRepository,
+  KbGapRepository,
+  KbGapStatsRepository,
+} from './kb.repositories';
+import { KbGapService } from './kb-gap.service';
 import { KbPresalesService } from './kb-presales.service';
 import { KbPortalService } from './kb-portal.service';
 import { KbReviewService } from './kb-review.service';
@@ -41,6 +47,10 @@ import { KbService } from './kb.service';
     KbArticleRepository,
     KbCandidateRepository,
     KbPresalesService,
+    // CD-266
+    KbGapService,
+    KbGapRepository,
+    KbGapStatsRepository,
   ],
   // CD-261 — the Portal's public routes (support module) read through KbPortalService
   exports: [KbService, KbReviewService, KbPortalService],

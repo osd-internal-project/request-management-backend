@@ -20,6 +20,7 @@ import { KbAiService } from './kb-ai.service';
     KbAiCitationRepository,
     KbAiSearchRepository,
   ],
-  exports: [KbAiService],
+  // CD-266 — the gap sweep reads unanswered questions
+  exports: [KbAiService, KbAiQueryRepository],
 })
 export class KbAiModule {}

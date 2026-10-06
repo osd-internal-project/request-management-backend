@@ -757,6 +757,26 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
     },
   },
   {
+    eventType: 'kb.gap_assigned',
+    label: 'ได้รับมอบหมายให้เติมช่องว่างความรู้ (ถึงผู้เติม)',
+    title: 'ช่วยเติมความรู้: {{gap}}',
+    body: 'กำหนดส่ง {{date}} — เขียนบทความใหม่หรือผูกบทความที่มีอยู่ แล้วส่งตรวจ',
+    variables: {
+      gap: { label: 'ช่องว่าง', sample: 'VPN หลุดเมื่อเปลี่ยนเครือข่าย' },
+      date: { label: 'กำหนดส่ง', sample: '20/10/2569' },
+    },
+  },
+  {
+    eventType: 'kb.gap_overdue',
+    label: 'ช่องว่างความรู้เลยกำหนด (ถึงผู้เติม)',
+    title: 'เลยกำหนดเติมความรู้: {{gap}}',
+    body: 'กำหนดส่ง {{date}} — เขียนบทความหรือแจ้งผู้ดูแลคลังความรู้',
+    variables: {
+      gap: { label: 'ช่องว่าง', sample: 'VPN หลุดเมื่อเปลี่ยนเครือข่าย' },
+      date: { label: 'กำหนดส่ง', sample: '20/10/2569' },
+    },
+  },
+  {
     eventType: 'kb.lessons_drafted',
     label: 'บทเรียนโครงการเข้าคลังความรู้แล้ว (ถึงผู้จัดการโครงการ)',
     title:

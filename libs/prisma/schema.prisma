@@ -7660,6 +7660,8 @@ model KbAiQuery {
   answer          String?
   answeredAt      DateTime?
   textPurgedAt    DateTime?
+  /// CD-266 — the knowledge gap an unanswered question was counted into
+  gapId           String?
   createdAt       DateTime  @default(now())
 
   @@index([companyId, createdAt])
@@ -7677,6 +7679,51 @@ model KbAiCitation {
   @@id([queryId, articleId])
   @@index([articleId])
   @@map("kb_ai_citations")
+}
+
+/// CD-266 — a gap in the knowledge base, for the team to fill:
+/// ai_unanswered (a question an AI channel could not answer; the same
+/// question counted once), low_rated (a published article readers found
+/// unhelpful) or search_miss (a staff search that found nothing, counted).
+/// open · assigned · resolved · dismissed. Closed by an article once it is
+/// published (or, for a low-rated one, by its next version).
+model KbGap {
+  id                  String    @id @default(uuid())
+  companyId           String
+  kind                String
+  /// what makes it the same gap: the question or search words normalised, or the article id
+  key                 String
+  title               String
+  /// the latest wording seen (cleared with the AI texts past retention)
+  detail              String?
+  occurrences         Int       @default(1)
+  /// low_rated — the article, and its version when the gap opened
+  articleId           String?
+  articleVersion      Int?
+  /// low_rated — the article's votes (staff + Portal) when the gap last
+  /// closed: only votes after count, so a fixed article starts afresh
+  baseYes             Int       @default(0)
+  baseNo              Int       @default(0)
+  status              String    @default("open")
+  assigneeId          String?
+  dueOn               DateTime? @db.Date
+  assignedBy          String?
+  assignedAt          DateTime?
+  /// the article that fills it (closes when published)
+  resolutionArticleId String?
+  resolvedAt          DateTime?
+  resolvedBy          String?
+  dismissReason       String?
+  remindedOn          DateTime? @db.Date
+  firstSeenAt         DateTime  @default(now())
+  lastSeenAt          DateTime  @default(now())
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@unique([companyId, kind, key])
+  @@index([companyId, status])
+  @@index([assigneeId, status])
+  @@map("kb_gaps")
 }
 
 /// CD-239 ใบสั่งงานบริการ — the service side of a case (a request, CD-67):

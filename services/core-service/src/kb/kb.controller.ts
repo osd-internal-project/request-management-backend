@@ -30,6 +30,10 @@ import {
   ArchiveKbArticleDto,
   KbArticleUseDto,
   KbConfirmReviewDto,
+  KbGapAssignDto,
+  KbGapDismissDto,
+  KbGapLinkDto,
+  KbGapsQueryDto,
   KbDraftFromJobsDto,
   KbInboxQueryDto,
   KbSkipJobsDto,
@@ -48,6 +52,7 @@ import { MAX_FILE_BYTES } from './kb-rules';
 import { KbAiLogQueryDto } from './kb-ai.dto';
 import { KbAiService } from './kb-ai.service';
 import { KbFieldService } from './kb-field.service';
+import { KbGapService } from './kb-gap.service';
 import { KbLessonService } from './kb-lesson.service';
 import { KbReviewService } from './kb-review.service';
 import { KbService, type SaveArticle } from './kb.service';
@@ -75,7 +80,86 @@ export class KbController {
     private readonly field: KbFieldService,
     private readonly lessons: KbLessonService,
     private readonly ai: KbAiService,
+    private readonly gaps: KbGapService,
   ) {}
+
+  // --- CD-266 ช่องว่างความรู้ ---------------------------------------------------------
+
+  @ApiOperation({
+    summary:
+      'CD-266 ช่องว่างความรู้ (AI ตอบไม่ได้ · คะแนนต่ำ · ค้นไม่เจอ) — ผู้ดูแลเห็นทั้งหมด คนอื่นเห็นที่มอบให้ตัวเอง',
+  })
+  @Get('gaps')
+  @Authenticated()
+  gapList(
+    @Query() query: KbGapsQueryDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.gaps.list(principal, {
+      status: query.status,
+      kind: query.kind,
+      mine: query.mine === 'true',
+    });
+  }
+
+  @ApiOperation({
+    summary:
+      'CD-266 อัตราตอบได้เองของ AI และช่องว่างเปิด/ปิด รายเดือน (12 เดือน)',
+  })
+  @Get('gaps/monthly')
+  @AnyPermission('kb.article.manage')
+  gapMonthly(@CurrentPrincipal() principal: Principal) {
+    return this.gaps.monthly(principal);
+  }
+
+  @ApiOperation({
+    summary: 'CD-266 มอบหมายผู้เติมพร้อมกำหนดส่ง — ผู้ดูแลคลังความรู้',
+  })
+  @Post('gaps/:id/assign')
+  @AnyPermission('kb.article.manage')
+  gapAssign(
+    @Param('id') id: string,
+    @Body() dto: KbGapAssignDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.gaps.assign(principal, id, dto.assignee_id, dto.due_on);
+  }
+
+  @ApiOperation({
+    summary: 'CD-266 เริ่มเขียนบทความจากช่องว่าง (ฉบับร่างของผู้เติม)',
+  })
+  @Post('gaps/:id/article')
+  @Authenticated()
+  gapArticle(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.gaps.startArticle(principal, id);
+  }
+
+  @ApiOperation({
+    summary: 'CD-266 เติมด้วยบทความที่มีอยู่ (ปิดเมื่อบทความเผยแพร่)',
+  })
+  @Post('gaps/:id/link')
+  @Authenticated()
+  gapLink(
+    @Param('id') id: string,
+    @Body() dto: KbGapLinkDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.gaps.link(principal, id, dto.article_id);
+  }
+
+  @ApiOperation({ summary: 'CD-266 ปิดทิ้งพร้อมเหตุผล — ผู้ดูแลคลังความรู้' })
+  @Post('gaps/:id/dismiss')
+  @AnyPermission('kb.article.manage')
+  gapDismiss(
+    @Param('id') id: string,
+    @Body() dto: KbGapDismissDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.gaps.dismiss(principal, id, dto.reason);
+  }
 
   @ApiOperation({
     summary:
@@ -390,11 +474,11 @@ export class KbController {
   @ApiOperation({ summary: 'CD-259 ค้นบทความ (คำค้น หมวด สินค้า แท็ก สถานะ)' })
   @Get('articles')
   @Authenticated()
-  search(
+  async search(
     @Query() query: SearchKbArticlesQueryDto,
     @CurrentPrincipal() principal: Principal,
   ) {
-    return this.kb.search(principal, {
+    const result = await this.kb.search(principal, {
       q: query.q,
       status: query.status,
       categoryId: query.category_id,
@@ -403,6 +487,17 @@ export class KbController {
       audience: query.audience,
       limit: query.limit,
     });
+    // CD-266 — a plain keyword search of published articles that found nothing
+    const plain =
+      !query.status &&
+      !query.category_id &&
+      !query.product_code &&
+      !query.tag &&
+      !query.audience;
+    if (plain && query.q?.trim() && !result.items.length) {
+      await this.gaps.recordSearchMiss(principal.activeCompanyId, query.q);
+    }
+    return result;
   }
 
   @ApiOperation({ summary: 'CD-259 เขียนบทความใหม่ (ฉบับร่าง)' })

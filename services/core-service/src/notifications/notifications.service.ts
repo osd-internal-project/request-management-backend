@@ -738,6 +738,24 @@ export class NotificationsService {
     });
   }
 
+  /** CD-266 — a knowledge gap to fill (assigned), or past its due day. */
+  async kbGap(
+    userId: string,
+    companyId: string,
+    gap: { id: string; title: string },
+    dueOn: string,
+    event: 'assigned' | 'overdue',
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: `kb.gap_${event}`,
+      values: { gap: gap.title.slice(0, 120), date: thaiDay(dueOn) },
+      resourceType: 'kb_gap',
+      resourceId: gap.id,
+    });
+  }
+
   /** CD-263 — a project's lessons became (or were added to) a knowledge draft. */
   async kbLessonsDrafted(
     userId: string,

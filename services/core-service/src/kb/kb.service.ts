@@ -945,6 +945,11 @@ export class KbService {
     };
   }
 
+  /** CD-266 — display names, for the gap list. */
+  peopleNames(ids: (string | null)[]) {
+    return this.people(ids);
+  }
+
   private async people(ids: (string | null)[]) {
     const unique = [...new Set(ids.filter((id): id is string => !!id))];
     if (!unique.length) return new Map<string, string>();

@@ -21231,6 +21231,288 @@
         ]
       }
     },
+    "/api/v1/kb/gaps": {
+      "get": {
+        "operationId": "KbController_gapList",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "open",
+                "assigned",
+                "resolved",
+                "dismissed"
+              ]
+            }
+          },
+          {
+            "name": "kind",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ai_unanswered",
+                "low_rated",
+                "search_miss"
+              ]
+            }
+          },
+          {
+            "name": "mine",
+            "required": false,
+            "in": "query",
+            "description": "เฉพาะที่มอบให้ฉัน",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-266 ช่องว่างความรู้ (AI ตอบไม่ได้ · คะแนนต่ำ · ค้นไม่เจอ) — ผู้ดูแลเห็นทั้งหมด คนอื่นเห็นที่มอบให้ตัวเอง",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/gaps/monthly": {
+      "get": {
+        "operationId": "KbController_gapMonthly",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-266 อัตราตอบได้เองของ AI และช่องว่างเปิด/ปิด รายเดือน (12 เดือน)",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/gaps/{id}/assign": {
+      "post": {
+        "operationId": "KbController_gapAssign",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KbGapAssignDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-266 มอบหมายผู้เติมพร้อมกำหนดส่ง — ผู้ดูแลคลังความรู้",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/gaps/{id}/article": {
+      "post": {
+        "operationId": "KbController_gapArticle",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-266 เริ่มเขียนบทความจากช่องว่าง (ฉบับร่างของผู้เติม)",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/gaps/{id}/link": {
+      "post": {
+        "operationId": "KbController_gapLink",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KbGapLinkDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-266 เติมด้วยบทความที่มีอยู่ (ปิดเมื่อบทความเผยแพร่)",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/gaps/{id}/dismiss": {
+      "post": {
+        "operationId": "KbController_gapDismiss",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KbGapDismissDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-266 ปิดทิ้งพร้อมเหตุผล — ผู้ดูแลคลังความรู้",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
     "/api/v1/kb/ai-log": {
       "get": {
         "operationId": "KbController_aiLog",
@@ -45042,6 +45324,46 @@
         },
         "required": [
           "helpful"
+        ]
+      },
+      "KbGapAssignDto": {
+        "type": "object",
+        "properties": {
+          "assignee_id": {
+            "type": "string"
+          },
+          "due_on": {
+            "type": "string",
+            "example": "2026-10-20",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          }
+        },
+        "required": [
+          "assignee_id",
+          "due_on"
+        ]
+      },
+      "KbGapLinkDto": {
+        "type": "object",
+        "properties": {
+          "article_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "article_id"
+        ]
+      },
+      "KbGapDismissDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "reason"
         ]
       },
       "KbDraftFromJobsDto": {
