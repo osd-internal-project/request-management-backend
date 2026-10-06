@@ -31796,6 +31796,54 @@
         ]
       }
     },
+    "/api/v1/kb/articles/{id}/withdraw-from-customers": {
+      "post": {
+        "operationId": "KbController_withdrawFromCustomers",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KbWithdrawFromCustomersDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-261 ถอนบทความออกจาก Portal ลูกค้าทันที (เป็นภายใน) — ผู้ดูแลคลังความรู้",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
     "/api/v1/kb/articles/{id}/merge": {
       "post": {
         "operationId": "KbController_merge",
@@ -31898,6 +31946,19 @@
             "schema": {
               "type": "string",
               "maxLength": 60
+            }
+          },
+          {
+            "name": "audience",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "internal",
+                "customers",
+                "selected"
+              ]
             }
           },
           {
@@ -44117,6 +44178,23 @@
             },
             "maxItems": 50
           },
+          "audience": {
+            "type": "string",
+            "enum": [
+              "internal",
+              "customers",
+              "selected"
+            ],
+            "description": "CD-261 ชั้นการเผยแพร่ (ค่าตั้งต้น internal)"
+          },
+          "customer_ids": {
+            "description": "ลูกค้า (เมื่อ audience = selected)",
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 50
+          },
           "change_note": {
             "type": "string",
             "description": "แก้อะไร (บังคับก่อนส่งตรวจ)",
@@ -44148,6 +44226,18 @@
             "maxLength": 500
           }
         }
+      },
+      "KbWithdrawFromCustomersDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "reason"
+        ]
       },
       "KbMergeDto": {
         "type": "object",
@@ -44206,6 +44296,23 @@
             "items": {
               "type": "string",
               "maxLength": 60
+            },
+            "maxItems": 50
+          },
+          "audience": {
+            "type": "string",
+            "enum": [
+              "internal",
+              "customers",
+              "selected"
+            ],
+            "description": "CD-261 ชั้นการเผยแพร่ (ค่าตั้งต้น internal)"
+          },
+          "customer_ids": {
+            "description": "ลูกค้า (เมื่อ audience = selected)",
+            "type": "array",
+            "items": {
+              "type": "string"
             },
             "maxItems": 50
           }

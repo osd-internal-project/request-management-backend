@@ -1,6 +1,8 @@
 import {
   addMonths,
   articleProblems,
+  audienceCustomers,
+  audienceProblems,
   helpfulScore,
   likePattern,
   nextArticleNo,
@@ -92,5 +94,15 @@ describe('CD-260 KB review rules', () => {
 
   it('union keeps order and drops repeats', () => {
     expect(union(['a', 'b'], ['b', 'c'])).toEqual(['a', 'b', 'c']);
+  });
+});
+
+describe('CD-261 KB audience rules', () => {
+  it('selected needs customers; others drop them', () => {
+    expect(audienceProblems('internal', [])).toEqual([]);
+    expect(audienceProblems('selected', [])).toHaveLength(1);
+    expect(audienceProblems('public', [])).toHaveLength(1);
+    expect(audienceCustomers('customers', ['a'])).toEqual([]);
+    expect(audienceCustomers('selected', ['a', 'a', ''])).toEqual(['a']);
   });
 });

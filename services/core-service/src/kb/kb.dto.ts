@@ -61,6 +61,24 @@ export class SaveKbArticleDto {
   @IsString({ each: true })
   @MaxLength(60, { each: true })
   product_groups?: string[];
+
+  @ApiPropertyOptional({
+    enum: ['internal', 'customers', 'selected'],
+    description: 'CD-261 ชั้นการเผยแพร่ (ค่าตั้งต้น internal)',
+  })
+  @IsOptional()
+  @IsIn(['internal', 'customers', 'selected'])
+  audience?: 'internal' | 'customers' | 'selected';
+
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'ลูกค้า (เมื่อ audience = selected)',
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50)
+  @IsUUID('all', { each: true })
+  customer_ids?: string[];
 }
 
 export class SearchKbArticlesQueryDto {
@@ -97,6 +115,11 @@ export class SearchKbArticlesQueryDto {
   @IsString()
   @MaxLength(60)
   tag?: string;
+
+  @ApiPropertyOptional({ enum: ['internal', 'customers', 'selected'] })
+  @IsOptional()
+  @IsIn(['internal', 'customers', 'selected'])
+  audience?: 'internal' | 'customers' | 'selected';
 
   @ApiPropertyOptional({ default: 50 })
   @IsOptional()
@@ -210,4 +233,11 @@ export class KbConfirmReviewDto {
   @IsString()
   @MaxLength(500)
   note?: string;
+}
+
+export class KbWithdrawFromCustomersDto {
+  @ApiProperty()
+  @IsString()
+  @MaxLength(500)
+  reason!: string;
 }

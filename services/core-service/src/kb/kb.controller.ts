@@ -29,6 +29,7 @@ import type { Principal } from '@request-management/share';
 import {
   ArchiveKbArticleDto,
   KbConfirmReviewDto,
+  KbWithdrawFromCustomersDto,
   KbMergeDto,
   KbOwnerDto,
   KbReviewDecisionDto,
@@ -51,6 +52,8 @@ const toInput = (dto: SaveKbArticleDto): SaveArticle => ({
   tags: dto.tags,
   productCodes: dto.product_codes,
   productGroups: dto.product_groups,
+  audience: dto.audience,
+  customerIds: dto.customer_ids,
 });
 
 /** CD-22 KBMS — คลังความรู้ (CD-259 คลังบทความ). */
@@ -222,6 +225,20 @@ export class KbController {
   }
 
   @ApiOperation({
+    summary:
+      'CD-261 ถอนบทความออกจาก Portal ลูกค้าทันที (เป็นภายใน) — ผู้ดูแลคลังความรู้',
+  })
+  @Post('articles/:id/withdraw-from-customers')
+  @AnyPermission('kb.article.manage')
+  withdrawFromCustomers(
+    @Param('id') id: string,
+    @Body() dto: KbWithdrawFromCustomersDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.review.withdrawFromCustomers(principal, id, dto.reason);
+  }
+
+  @ApiOperation({
     summary: 'CD-260 รวมบทความซ้ำเข้าบทความหลัก — ผู้ดูแลคลังความรู้',
   })
   @Post('articles/:id/merge')
@@ -247,6 +264,7 @@ export class KbController {
       categoryId: query.category_id,
       productCode: query.product_code,
       tag: query.tag,
+      audience: query.audience,
       limit: query.limit,
     });
   }

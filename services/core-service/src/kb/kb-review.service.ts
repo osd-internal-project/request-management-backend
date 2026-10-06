@@ -22,6 +22,8 @@ import { NotificationsService } from '../notifications/notifications.service';
 import {
   addMonths,
   articleProblems,
+  audienceCustomers,
+  audienceProblems,
   MAX_CHANGE_NOTE,
   normalizeTags,
   OPEN_REVISION,
@@ -29,7 +31,7 @@ import {
   reviewMonthsOf,
   union,
 } from './kb-rules';
-import type { SaveArticle } from './kb.service';
+import { KbService, type SaveArticle } from './kb.service';
 
 const MANAGE = 'kb.article.manage';
 const RULE = 'kb.review';
@@ -48,6 +50,8 @@ interface Content {
   tags: string[];
   productCodes: string[];
   productGroups: string[];
+  audience: string;
+  customerIds: string[];
 }
 
 /**
@@ -78,6 +82,7 @@ export class KbReviewService implements OnModuleInit, OnModuleDestroy {
     private readonly rules: NotificationRulesService,
     private readonly notifications: NotificationsService,
     private readonly config: ConfigService,
+    private readonly kb: KbService,
   ) {}
 
   onModuleInit(): void {
@@ -185,6 +190,8 @@ export class KbReviewService implements OnModuleInit, OnModuleDestroy {
         tags: row.tags,
         productCodes: row.productCodes,
         productGroups: row.productGroups,
+        audience: row.audience,
+        customerIds: row.customerIds,
         createdBy: actor.userId,
       },
     });
@@ -208,6 +215,8 @@ export class KbReviewService implements OnModuleInit, OnModuleDestroy {
       tags: rev.tags,
       productCodes: rev.productCodes,
       productGroups: rev.productGroups,
+      audience: rev.audience,
+      customerIds: rev.customerIds,
       changeNote: rev.changeNote,
       createdBy: names.get(rev.createdBy) ?? rev.createdBy,
       createdAt: rev.createdAt,
@@ -542,6 +551,7 @@ export class KbReviewService implements OnModuleInit, OnModuleDestroy {
       tags: row.tags,
       productCodes: row.productCodes,
       productGroups: row.productGroups,
+      audience: row.audience,
       changeNote: row.changeNote,
       approvedAt: row.approvedAt,
     };
@@ -646,6 +656,41 @@ export class KbReviewService implements OnModuleInit, OnModuleDestroy {
     return { reminded };
   }
 
+  /**
+   * CD-261 — a knowledge owner takes an article out of the Portal at once (a
+   * slip): it becomes internal as a new version, without waiting for a
+   * revision to go through review.
+   */
+  async withdrawFromCustomers(actor: Principal, id: string, reason: string) {
+    this.assertOwner(actor);
+    if (!reason.trim()) throw invalid(['ต้องระบุเหตุผลที่ถอนจากลูกค้า']);
+    const row = await this.article(actor, id);
+    if (row.status !== 'published' || row.audience === 'internal')
+      throw new AppError('CONFLICT', 'บทความนี้ไม่ได้เผยแพร่ให้ลูกค้าอยู่');
+    await this.prisma.$transaction(async (tx) => {
+      await this.publishVersion(
+        tx,
+        actor,
+        row,
+        { ...row, audience: 'internal', customerIds: [] },
+        actor.userId,
+        `ถอนจากลูกค้า: ${reason.trim()}`,
+      );
+    });
+    await this.record(
+      actor,
+      row.companyId,
+      'kb.article.withdrawn_from_customers',
+      id,
+      {
+        from: row.audience,
+        customerIds: row.customerIds,
+        reason: reason.trim(),
+      },
+    );
+    return { id, version: row.version + 1 };
+  }
+
   // --- merge ------------------------------------------------------------------
 
   /** Merges a duplicate into the main article (knowledge owners). */
@@ -746,6 +791,8 @@ export class KbReviewService implements OnModuleInit, OnModuleDestroy {
         tags: content.tags,
         productCodes: content.productCodes,
         productGroups: content.productGroups,
+        audience: content.audience,
+        customerIds: content.customerIds,
         changeNote: changeNote.slice(0, MAX_CHANGE_NOTE),
         writtenBy: writer,
         approvedBy: actor.userId,
@@ -761,6 +808,8 @@ export class KbReviewService implements OnModuleInit, OnModuleDestroy {
         tags: content.tags,
         productCodes: content.productCodes,
         productGroups: content.productGroups,
+        audience: content.audience,
+        customerIds: content.customerIds,
         status: 'published',
         version,
         publishedAt: new Date(),
@@ -792,7 +841,10 @@ export class KbReviewService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async clean(companyId: string, input: SaveArticle): Promise<Content> {
+    const audience = input.audience ?? 'internal';
     const content: Content = {
+      audience,
+      customerIds: audienceCustomers(audience, input.customerIds ?? []),
       title: input.title.trim(),
       summary: input.summary?.trim() || null,
       body: input.body ?? '',
@@ -809,12 +861,22 @@ export class KbReviewService implements OnModuleInit, OnModuleDestroy {
         ),
       ],
     };
-    const problems = articleProblems(content);
+    const problems = [
+      ...articleProblems(content),
+      ...audienceProblems(content.audience, content.customerIds),
+    ];
     if (content.categoryId) {
       const found = await this.prisma.kbCategory.count({
         where: { id: content.categoryId, companyId },
       });
       if (!found) problems.push('ไม่พบหมวดที่เลือก');
+    }
+    if (content.customerIds.length) {
+      const found = await this.prisma.customer.count({
+        where: { companyId, id: { in: content.customerIds } },
+      });
+      if (found !== content.customerIds.length)
+        problems.push('ไม่พบลูกค้าบางรายที่เลือก');
     }
     if (problems.length) throw invalid(problems);
     return content;
@@ -831,6 +893,16 @@ export class KbReviewService implements OnModuleInit, OnModuleDestroy {
       row.ownerId === actor.userId ||
       hasPermission(actor, MANAGE);
     if (!visible) throw new AppError('NOT_FOUND', 'ไม่พบบทความที่ระบุ');
+    if (
+      row.audience === 'selected' &&
+      !hasPermission(actor, MANAGE) &&
+      row.authorId !== actor.userId &&
+      row.ownerId !== actor.userId
+    ) {
+      const seen = await this.kb.customersSeen(actor, row.customerIds);
+      if (!row.customerIds.some((id) => seen.has(id)))
+        throw new AppError('NOT_FOUND', 'ไม่พบบทความที่ระบุ');
+    }
     return row;
   }
 

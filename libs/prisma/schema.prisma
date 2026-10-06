@@ -7228,6 +7228,15 @@ model KbArticle {
   reviewRemindedOn DateTime? @db.Date
   /// CD-260 — merged into another article (archived, readers sent on).
   mergedIntoId     String?
+  /// CD-261 — who it is for: internal (staff only) · customers (every
+  /// customer, in the Portal too) · selected (only `customerIds`, and staff
+  /// who can see one of them in CRM).
+  audience         String    @default("internal")
+  customerIds      String[]  @default([])
+  /// CD-261 — Portal readers' views and votes, apart from staff's.
+  portalViews      Int       @default(0)
+  portalHelpfulYes Int       @default(0)
+  portalHelpfulNo  Int       @default(0)
 
   @@unique([companyId, articleNo])
   @@index([companyId, status])
@@ -7286,6 +7295,9 @@ model KbArticleRevision {
   reviewedBy    String?
   reviewedAt    DateTime?
   reviewNote    String?
+  /// CD-261
+  audience      String    @default("internal")
+  customerIds   String[]  @default([])
 
   @@index([articleId, status])
   @@map("kb_article_revisions")
@@ -7307,9 +7319,24 @@ model KbArticleVersion {
   writtenBy     String
   approvedBy    String
   approvedAt    DateTime @default(now())
+  /// CD-261
+  audience      String   @default("internal")
+  customerIds   String[] @default([])
 
   @@unique([articleId, version])
   @@map("kb_article_versions")
+}
+
+/// CD-261 — a Portal contact's say on whether an article helped (latest wins).
+model KbPortalRating {
+  articleId String
+  contactId String
+  helpful   Boolean
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([articleId, contactId])
+  @@map("kb_portal_ratings")
 }
 
 /// CD-239 ใบสั่งงานบริการ — the service side of a case (a request, CD-67):

@@ -6,6 +6,8 @@ import {
   AppError,
   AuditWriter,
   auditActor,
+  customerAccessSubject,
+  visibleCustomersWhere,
   hasPermission,
   OBJECT_STORAGE,
   Principal,
@@ -16,6 +18,8 @@ import { thaiToday } from '../crm/vendor-costs';
 import { safeFileName } from '../requests/attachments.service';
 import {
   articleProblems,
+  audienceCustomers,
+  audienceProblems,
   FILE_TYPES,
   helpfulScore,
   likePattern,
@@ -37,6 +41,9 @@ export interface SaveArticle {
   tags?: string[];
   productCodes?: string[];
   productGroups?: string[];
+  /** CD-261 — internal · customers · selected (with `customerIds`). */
+  audience?: string;
+  customerIds?: string[];
 }
 
 export interface SearchArticles {
@@ -45,6 +52,7 @@ export interface SearchArticles {
   categoryId?: string;
   productCode?: string;
   tag?: string;
+  audience?: string;
   limit?: number;
 }
 
@@ -81,6 +89,11 @@ interface ArticleRow {
   nextReviewOn: Date | null;
   lastReviewedAt: Date | null;
   mergedIntoId: string | null;
+  audience: string;
+  customerIds: string[];
+  portalViews: number;
+  portalHelpfulYes: number;
+  portalHelpfulNo: number;
 }
 
 /** CD-260 — warn owners this many days before an article's review day. */
@@ -185,14 +198,20 @@ export class KbService {
        LIMIT ${limit}`,
       ...params,
     );
+    // CD-261 — a selected-customers article only for those who see one of them
+    const allowed = await this.customersSeen(
+      actor,
+      rows.flatMap((r) => (r.audience === 'selected' ? r.customerIds : [])),
+    );
+    const visible = rows.filter((r) => this.seesAudience(actor, r, allowed));
     const names = await this.people(
-      rows.flatMap((r) => [r.authorId, r.ownerId]),
+      visible.flatMap((r) => [r.authorId, r.ownerId]),
     );
     const categories = await this.categoryNames(companyId);
     return {
       canManage: manage,
       terms,
-      items: rows.map((row) => ({
+      items: visible.map((row) => ({
         ...this.card(row, names, categories),
         score: terms.length ? Math.round(row.score * 10) / 10 : null,
       })),
@@ -259,6 +278,11 @@ export class KbService {
         url: `kb/articles/${id}/files/${f.id}`,
       })),
       myRating: mine ? { helpful: mine.helpful, comment: mine.comment } : null,
+      // CD-261
+      customers: await this.customerNames(actor, row),
+      portalViews: row.portalViews,
+      portalHelpfulYes: row.portalHelpfulYes,
+      portalHelpfulNo: row.portalHelpfulNo,
       // CD-260
       version: row.version,
       ownerId: row.ownerId,
@@ -718,10 +742,13 @@ export class KbService {
   // --- helpers ----------------------------------------------------------------
 
   private async clean(companyId: string, input: SaveArticle) {
+    const audience = input.audience ?? 'internal';
     const data = {
       title: input.title.trim(),
       summary: input.summary?.trim() || null,
       body: input.body ?? '',
+      audience,
+      customerIds: audienceCustomers(audience, input.customerIds ?? []),
       categoryId: input.categoryId || null,
       tags: normalizeTags(input.tags ?? []),
       productCodes: [
@@ -735,12 +762,22 @@ export class KbService {
         ),
       ],
     };
-    const problems = articleProblems(data);
+    const problems = [
+      ...articleProblems(data),
+      ...audienceProblems(data.audience, data.customerIds),
+    ];
     if (data.categoryId) {
       const category = await this.prisma.kbCategory.findFirst({
         where: { id: data.categoryId, companyId },
       });
       if (!category) problems.push('ไม่พบหมวดที่เลือก');
+    }
+    if (data.customerIds.length) {
+      const found = await this.prisma.customer.count({
+        where: { companyId, id: { in: data.customerIds } },
+      });
+      if (found !== data.customerIds.length)
+        problems.push('ไม่พบลูกค้าบางรายที่เลือก');
     }
     if (problems.length) throw this.invalid(problems);
     return data;
@@ -759,7 +796,56 @@ export class KbService {
         row.ownerId === actor.userId ||
         hasPermission(actor, MANAGE));
     if (!row || !visible) throw new AppError('NOT_FOUND', 'ไม่พบบทความที่ระบุ');
+    if (row.audience === 'selected' && !row.mergedIntoId) {
+      const allowed = await this.customersSeen(actor, row.customerIds);
+      if (!this.seesAudience(actor, row, allowed))
+        throw new AppError('NOT_FOUND', 'ไม่พบบทความที่ระบุ');
+    }
     return row;
+  }
+
+  /**
+   * CD-261 — of these customers, the ones the caller may see in CRM (the
+   * rule of the customer pages, CM-08). Knowledge owners see every article.
+   */
+  async customersSeen(actor: Principal, ids: readonly string[]) {
+    const unique = [...new Set(ids)];
+    if (!unique.length || hasPermission(actor, MANAGE)) return new Set(unique);
+    const rows = await this.prisma.customer.findMany({
+      where: {
+        id: { in: unique },
+        AND: [visibleCustomersWhere(customerAccessSubject(actor))],
+      },
+      select: { id: true },
+    });
+    return new Set(rows.map((r) => r.id));
+  }
+
+  /** A selected-customers article: its owners, or someone who sees one of them. */
+  private seesAudience(
+    actor: Principal,
+    row: Pick<ArticleRow, 'audience' | 'customerIds' | 'authorId' | 'ownerId'>,
+    allowed: Set<string>,
+  ) {
+    if (row.audience !== 'selected') return true;
+    if (hasPermission(actor, MANAGE)) return true;
+    if (row.authorId === actor.userId || row.ownerId === actor.userId)
+      return true;
+    return row.customerIds.some((id) => allowed.has(id));
+  }
+
+  private async customerNames(actor: Principal, row: ArticleRow) {
+    if (!row.customerIds.length) return [];
+    const allowed = await this.customersSeen(actor, row.customerIds);
+    const rows = await this.prisma.customer.findMany({
+      where: { id: { in: row.customerIds.filter((id) => allowed.has(id)) } },
+      select: { id: true, customerCode: true, nameTh: true },
+    });
+    return rows.map((c) => ({
+      id: c.id,
+      code: c.customerCode,
+      name: c.nameTh,
+    }));
   }
 
   private async managed(actor: Principal, id: string) {
@@ -806,6 +892,7 @@ export class KbService {
       productCodes: row.productCodes,
       productGroups: row.productGroups,
       source: row.source,
+      audience: row.audience,
       author: names.get(row.authorId) ?? row.authorId,
       owner: row.ownerId ? (names.get(row.ownerId) ?? row.ownerId) : null,
       nextReviewOn: row.nextReviewOn

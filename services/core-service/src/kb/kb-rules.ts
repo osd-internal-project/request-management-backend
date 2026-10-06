@@ -154,3 +154,33 @@ export function reviewState(
 export function union(a: readonly string[], b: readonly string[]): string[] {
   return [...new Set([...a, ...b])];
 }
+
+// --- CD-261 ชั้นการเผยแพร่ -------------------------------------------------------
+
+/** internal (staff only) · customers (every customer) · selected (named ones). */
+export const AUDIENCES = ['internal', 'customers', 'selected'] as const;
+export type Audience = (typeof AUDIENCES)[number];
+export const MAX_AUDIENCE_CUSTOMERS = 50;
+
+export function audienceProblems(
+  audience: string,
+  customerIds: readonly string[],
+): string[] {
+  if (!(AUDIENCES as readonly string[]).includes(audience))
+    return ['ชั้นการเผยแพร่ไม่ถูกต้อง'];
+  if (audience === 'selected' && !customerIds.length)
+    return ['เลือกลูกค้าอย่างน้อยหนึ่งรายสำหรับบทความเฉพาะลูกค้า'];
+  if (customerIds.length > MAX_AUDIENCE_CUSTOMERS)
+    return [`ผูกลูกค้าได้ไม่เกิน ${MAX_AUDIENCE_CUSTOMERS} ราย`];
+  return [];
+}
+
+/** Customers are kept only for `selected`. */
+export function audienceCustomers(
+  audience: string,
+  customerIds: readonly string[],
+): string[] {
+  return audience === 'selected'
+    ? [...new Set(customerIds.filter(Boolean))]
+    : [];
+}
