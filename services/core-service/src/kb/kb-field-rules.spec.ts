@@ -1,6 +1,8 @@
 import {
   appendLessons,
   articleFromJobs,
+  articleFromQa,
+  boqProductCode,
   articleFromLessons,
   articleFromProblem,
   problemReady,
@@ -85,5 +87,37 @@ describe('CD-263 project lessons', () => {
       appendLessons('x', [{ kind: 'recommend', text: 'จองรถล่วงหน้า' }]),
     ).toBe('x\n\n## ข้อแนะนำสำหรับโครงการต่อไป\n- จองรถล่วงหน้า');
     expect(appendLessons('x', [])).toBe('x');
+  });
+});
+
+describe('CD-264 Pre-Sales Q&A', () => {
+  it('one answer: question and answer sections, no customer', () => {
+    const a = articleFromQa([
+      { question: 'รองรับ HA ไหม', answer: 'รองรับ active-passive' },
+    ]);
+    expect(a.title).toBe('รองรับ HA ไหม');
+    expect(a.body).toContain(
+      '## คำถาม\nรองรับ HA ไหม\n\n## คำตอบ\nรองรับ active-passive',
+    );
+  });
+
+  it('several: numbered, unanswered dropped', () => {
+    const a = articleFromQa([
+      { question: 'q1', answer: 'a1' },
+      { question: 'q2', answer: ' ' },
+      { question: 'q3', answer: 'a3' },
+    ]);
+    expect(a.body).toContain('## 1. q1\na1\n\n## 2. q3\na3');
+  });
+
+  it('BOQ product: equipment first', () => {
+    expect(
+      boqProductCode([
+        { kind: 'service', productCode: 'SVC' },
+        { kind: 'equipment', productCode: 'FG-100' },
+      ]),
+    ).toBe('FG-100');
+    expect(boqProductCode([{ kind: 'service', productCode: '' }])).toBeNull();
+    expect(boqProductCode(null)).toBeNull();
   });
 });

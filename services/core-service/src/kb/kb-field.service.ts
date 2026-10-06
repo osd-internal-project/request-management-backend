@@ -19,6 +19,7 @@ import { DOMAIN_EVENTS } from '../events/event-catalog';
 import { DomainEventsService } from '../events/domain-events.service';
 import {
   articleFromJobs,
+  articleFromQa,
   articleFromProblem,
   problemReady,
   subjectTerms,
@@ -26,6 +27,7 @@ import {
 } from './kb-field-rules';
 import { likePattern } from './kb-rules';
 import { KbReviewService } from './kb-review.service';
+import { KbPresalesService } from './kb-presales.service';
 import { KbService } from './kb.service';
 
 const MANAGE = 'kb.article.manage';
@@ -61,6 +63,7 @@ export class KbFieldService implements OnModuleInit, OnModuleDestroy {
     private readonly events: DomainEventsService,
     private readonly audit: AuditWriter,
     private readonly config: ConfigService,
+    private readonly presales: KbPresalesService,
   ) {}
 
   onModuleInit(): void {
@@ -126,6 +129,7 @@ export class KbFieldService implements OnModuleInit, OnModuleDestroy {
       return await this.prisma.kbCandidate.create({
         data: {
           companyId: order.companyId,
+          sourceId: order.id,
           workOrderId: order.id,
           requestId,
           requestNo: request?.requestNo ?? null,
@@ -151,6 +155,9 @@ export class KbFieldService implements OnModuleInit, OnModuleDestroy {
   /** The inbox: pending by default, grouped by product for picking together. */
   async inbox(actor: Principal, status = 'pending') {
     this.assertTriage(actor);
+    // CD-264 — answered Pre-Sales questions, fresh each time the inbox opens
+    if (status === 'pending')
+      await this.presales.capture(actor.activeCompanyId);
     const rows = await this.prisma.kbCandidate.findMany({
       where: { companyId: actor.activeCompanyId, status },
       orderBy: { closedAt: 'desc' },
@@ -203,6 +210,8 @@ export class KbFieldService implements OnModuleInit, OnModuleDestroy {
       canManage: hasPermission(actor, MANAGE),
       items: rows.map((r) => ({
         id: r.id,
+        source: r.source,
+        solutionId: r.solutionId,
         workOrderId: r.workOrderId,
         requestId: r.requestId,
         requestNo: r.requestNo,
@@ -236,7 +245,23 @@ export class KbFieldService implements OnModuleInit, OnModuleDestroy {
         'CONFLICT',
         'บางรายการถูกคัดไปแล้ว — โหลดใหม่อีกครั้ง',
       );
-    const draft = articleFromJobs(rows);
+    const sources = new Set(rows.map((r) => r.source));
+    if (sources.size > 1)
+      throw new AppError(
+        'VALIDATION_FAILED',
+        'รวมใบงานบริการกับคำถาม Pre-Sales ในบทความเดียวไม่ได้ — เลือกทีละแหล่ง',
+        [{ field: 'ids', reason: 'mixed_sources' }],
+      );
+    const presales = sources.has('presales');
+    const draft = presales
+      ? {
+          ...articleFromQa(
+            rows.map((r) => ({ question: r.title, answer: r.resolution })),
+          ),
+          // no customer or deal in the article; the inbox keeps where it came from
+          sourceRef: null,
+        }
+      : articleFromJobs(rows.map((r) => ({ ...r, requestNo: r.requestNo })));
     const article = await this.kb.insertDraft(
       actor.activeCompanyId,
       actor.userId,
@@ -257,7 +282,7 @@ export class KbFieldService implements OnModuleInit, OnModuleDestroy {
           ),
         ],
       },
-      { source: 'service', sourceRef: draft.sourceRef },
+      { source: presales ? 'presales' : 'service', sourceRef: draft.sourceRef },
     );
     await this.prisma.kbCandidate.updateMany({
       where: { id: { in: rows.map((r) => r.id) } },
@@ -427,7 +452,12 @@ export class KbFieldService implements OnModuleInit, OnModuleDestroy {
       this.prisma.kbArticleUse.count({ where: { articleId } }),
       this.prisma.kbCandidate.findMany({
         where: { articleId, status: 'drafted' },
-        select: { requestId: true, requestNo: true },
+        select: {
+          source: true,
+          requestId: true,
+          requestNo: true,
+          solutionId: true,
+        },
       }),
       this.prisma.kbProblemLink.findFirst({ where: { articleId } }),
     ]);
@@ -437,13 +467,29 @@ export class KbFieldService implements OnModuleInit, OnModuleDestroy {
           select: { id: true, problemNo: true, title: true, status: true },
         })
       : null;
-    return { usedOnJobs: uses, fromJobs: jobs, fromProblem: problemRow };
+    return {
+      usedOnJobs: uses,
+      fromJobs: jobs.filter((j) => j.source === 'work_order'),
+      // CD-264 — the Solutions it came from (staff only; never in the article)
+      fromSolutions: [
+        ...new Map(
+          jobs
+            .filter((j) => j.source === 'presales' && j.solutionId)
+            .map((j) => [
+              j.solutionId!,
+              { solutionId: j.solutionId!, title: j.requestNo },
+            ]),
+        ).values(),
+      ],
+      fromProblem: problemRow,
+    };
   }
 
   // --- root-cause problems and catch-up ------------------------------------------
 
   async sweep(now: Date = new Date()) {
-    let captured = 0;
+    // CD-264 — answered Pre-Sales questions, every company
+    let captured = await this.presales.capture();
     // Jobs closed while the listener was down.
     const since = new Date(now.getTime() - BACKFILL_DAYS * 86_400_000);
     const missed = await this.prisma.$queryRawUnsafe<{ request_id: string }[]>(
@@ -580,11 +626,12 @@ export class KbFieldService implements OnModuleInit, OnModuleDestroy {
   private assertTriage(actor: Principal) {
     if (
       !hasPermission(actor, MANAGE) &&
-      !hasPermission(actor, 'service.asset.manage')
+      !hasPermission(actor, 'service.asset.manage') &&
+      !hasPermission(actor, 'presales.solution.manage')
     )
       throw new AppError(
         'FORBIDDEN',
-        'คัดความรู้ได้เฉพาะทีมบริการหรือผู้ดูแลคลังความรู้',
+        'คัดความรู้ได้เฉพาะทีมบริการ Pre-Sales หรือผู้ดูแลคลังความรู้',
       );
   }
 

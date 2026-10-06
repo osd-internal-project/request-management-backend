@@ -7516,12 +7516,22 @@ model KbPortalRating {
 model KbCandidate {
   id          String    @id @default(uuid())
   companyId   String
+  /// work_order (CD-262) · presales (CD-264, a Solution's answered question)
   source      String    @default("work_order")
-  workOrderId String
-  requestId   String
+  /// the row it came from: the work order, or the clarification
+  sourceId    String
+  workOrderId String?
+  requestId   String?
+  /// what to show for where it came from: the job's request number, or the
+  /// Solution's title (CD-264)
   requestNo   String?
+  /// CD-264 — the Solution, to open it from the inbox
+  solutionId  String?
+  /// the symptom / the question
   title       String
+  /// the cause (empty for a question)
   cause       String
+  /// the fix / the answer
   resolution  String
   productCode String?
   groupCode   String?
@@ -7534,8 +7544,9 @@ model KbCandidate {
   skipReason  String?
   createdAt   DateTime  @default(now())
 
-  @@unique([source, workOrderId])
+  @@unique([source, sourceId])
   @@index([companyId, status])
+  @@index([workOrderId])
   @@map("kb_candidates")
 }
 

@@ -22,3 +22,17 @@ export class KbArticleRepository extends BaseRepository<
     return client.kbArticle;
   }
 }
+
+/** CD-264 — the field-knowledge inbox (service jobs, Pre-Sales answers). */
+@Injectable()
+export class KbCandidateRepository extends BaseRepository<
+  PrismaService['kbCandidate']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.kbCandidate;
+  }
+}

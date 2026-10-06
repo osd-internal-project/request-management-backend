@@ -3,10 +3,12 @@ import { ConfigService } from '@nestjs/config';
 import { StorageModule, type StorageOptions } from '@request-management/share';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { PmModule } from '../pm/pm.module';
+import { PresalesModule } from '../presales/presales.module';
 import { KbController } from './kb.controller';
 import { KbFieldService } from './kb-field.service';
 import { KbLessonService } from './kb-lesson.service';
-import { KbArticleRepository } from './kb.repositories';
+import { KbArticleRepository, KbCandidateRepository } from './kb.repositories';
+import { KbPresalesService } from './kb-presales.service';
 import { KbPortalService } from './kb-portal.service';
 import { KbReviewService } from './kb-review.service';
 import { KbService } from './kb.service';
@@ -18,6 +20,8 @@ import { KbService } from './kb.service';
     NotificationsModule,
     // CD-263 — project lessons, projects and their budgets
     PmModule,
+    // CD-264 — Solutions and their answered questions
+    PresalesModule,
     StorageModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) =>
@@ -32,6 +36,8 @@ import { KbService } from './kb.service';
     KbFieldService,
     KbLessonService,
     KbArticleRepository,
+    KbCandidateRepository,
+    KbPresalesService,
   ],
   // CD-261 — the Portal's public routes (support module) read through KbPortalService
   exports: [KbService, KbReviewService, KbPortalService],

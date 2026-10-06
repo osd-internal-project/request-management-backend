@@ -148,3 +148,54 @@ export function appendLessons(
   const extra = lessonSections(lessons);
   return extra ? `${body.trimEnd()}\n\n${extra}` : body;
 }
+
+// --- CD-264 คำถาม-คำตอบเทคนิค Pre-Sales ------------------------------------------
+
+export interface QaFacts {
+  question: string;
+  answer: string;
+}
+
+/**
+ * Answered questions as a Q&A article. Who answered and for which customer
+ * are left out on purpose: the inbox keeps where it came from, the article
+ * only the knowledge.
+ */
+export function articleFromQa(items: readonly QaFacts[]) {
+  const rows = items.filter((q) => q.question.trim() && q.answer.trim());
+  const body = [
+    '> จากคำถาม-คำตอบเทคนิคของ Pre-Sales — ตัดชื่อลูกค้า สถานที่ และตัวเลขเฉพาะรายในคำตอบออกก่อนส่งตรวจ',
+    '',
+    ...(rows.length === 1
+      ? [
+          '## คำถาม',
+          rows[0].question.trim(),
+          '',
+          '## คำตอบ',
+          rows[0].answer.trim(),
+        ]
+      : rows.flatMap((q, i) => [
+          `## ${i + 1}. ${q.question.trim()}`,
+          q.answer.trim(),
+          '',
+        ])),
+  ]
+    .join('\n')
+    .trim();
+  return {
+    title: rows[0]?.question.trim().slice(0, 200) ?? 'คำถาม-คำตอบเทคนิค',
+    body,
+  };
+}
+
+/** The first SAP item on a Solution's BOQ (equipment first). */
+export function boqProductCode(boq: unknown): string | null {
+  const lines = Array.isArray(boq)
+    ? (boq as { kind?: string; productCode?: string }[])
+    : [];
+  const coded = lines.filter(
+    (l) => typeof l.productCode === 'string' && l.productCode.trim(),
+  );
+  const first = coded.find((l) => l.kind === 'equipment') ?? coded[0];
+  return first?.productCode?.trim() ?? null;
+}

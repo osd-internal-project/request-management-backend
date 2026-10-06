@@ -94,7 +94,11 @@ export class KbController {
       'CD-262 กล่องความรู้จากหน้างาน (ใบงานบริการที่ปิด) — ทีมบริการ/ผู้ดูแลคลังความรู้',
   })
   @Get('field-inbox')
-  @AnyPermission('kb.article.manage', 'service.asset.manage')
+  @AnyPermission(
+    'kb.article.manage',
+    'service.asset.manage',
+    'presales.solution.manage',
+  )
   fieldInbox(
     @Query() query: KbInboxQueryDto,
     @CurrentPrincipal() principal: Principal,
@@ -104,7 +108,11 @@ export class KbController {
 
   @ApiOperation({ summary: 'CD-262 รวมใบงานที่เลือกเป็นฉบับร่างบทความ' })
   @Post('field-inbox/draft')
-  @AnyPermission('kb.article.manage', 'service.asset.manage')
+  @AnyPermission(
+    'kb.article.manage',
+    'service.asset.manage',
+    'presales.solution.manage',
+  )
   draftFromJobs(
     @Body() dto: KbDraftFromJobsDto,
     @CurrentPrincipal() principal: Principal,
@@ -114,7 +122,11 @@ export class KbController {
 
   @ApiOperation({ summary: 'CD-262 ข้ามใบงานที่ไม่ควรเป็นบทความ' })
   @Post('field-inbox/skip')
-  @AnyPermission('kb.article.manage', 'service.asset.manage')
+  @AnyPermission(
+    'kb.article.manage',
+    'service.asset.manage',
+    'presales.solution.manage',
+  )
   skipJobs(
     @Body() dto: KbSkipJobsDto,
     @CurrentPrincipal() principal: Principal,
