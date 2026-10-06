@@ -35532,6 +35532,92 @@
         ]
       }
     },
+    "/api/v1/smart/prospects/screen": {
+      "post": {
+        "operationId": "SmartController_screen",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScreenProspectsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-290 คัดกรองใหม่ — ตรวจซ้ำกับ CRM และให้คะแนน (ว่าง = ทุกรายการที่รออยู่)",
+        "tags": [
+          "smart"
+        ],
+        "x-permission": [
+          "smart.prospect.manage"
+        ]
+      }
+    },
+    "/api/v1/smart/prospects/send": {
+      "post": {
+        "operationId": "SmartController_send",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendProspectsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-290 ส่งเข้า CRM เป็น Lead — ผ่านการคัดกรองเดียวกับ Lead จากแคมเปญ",
+        "tags": [
+          "smart"
+        ],
+        "x-permission": [
+          "smart.prospect.manage"
+        ]
+      }
+    },
     "/api/v1/smart/sources": {
       "get": {
         "operationId": "SmartController_sources",
@@ -35853,6 +35939,30 @@
                 "government",
                 "partner",
                 "keeper"
+              ]
+            }
+          },
+          {
+            "name": "min_score",
+            "required": false,
+            "in": "query",
+            "description": "CD-290 — คะแนนความพร้อมขั้นต่ำ",
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 0
+            }
+          },
+          {
+            "name": "match_kind",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "customer",
+                "lead",
+                "none"
               ]
             }
           },
@@ -49021,6 +49131,33 @@
         },
         "required": [
           "reason"
+        ]
+      },
+      "ScreenProspectsDto": {
+        "type": "object",
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 1000
+          }
+        }
+      },
+      "SendProspectsDto": {
+        "type": "object",
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 100
+          }
+        },
+        "required": [
+          "ids"
         ]
       },
       "SmartCriteriaDto": {

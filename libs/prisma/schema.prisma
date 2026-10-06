@@ -8414,6 +8414,21 @@ model SmartProspect {
   /// new | screened | sent | discarded
   status            String    @default("new")
   discardReason     String?
+  /// CD-290 — readiness 0–100 from the rules, and each rule's points.
+  score             Int?
+  scoreReasons      Json      @default("[]")
+  /// CD-290 — the model's short take (smart.score), when a real gateway is on.
+  aiSummary         String?
+  /// CD-290 — what CRM already holds: customer | lead | none.
+  matchKind         String?
+  matchCustomerId   String?
+  matchLeadId       String?
+  screenedAt        DateTime?
+  /// CD-290 — the Lead it became (or joined) when sent to CRM.
+  leadId            String?
+  sentOutcome       String?
+  sentBy            String?
+  sentAt            DateTime?
   decidedBy         String?
   decidedAt         DateTime?
   createdAt         DateTime  @default(now())
@@ -8422,6 +8437,7 @@ model SmartProspect {
   @@unique([companyId, sourceId, externalRef])
   @@index([companyId, status, createdAt])
   @@index([companyId, taxId])
+  @@index([companyId, status, score])
   @@map("smart_prospects")
 }
 

@@ -1,4 +1,8 @@
 import { Module } from '@nestjs/common';
+import { CrmModule } from '../crm/crm.module';
+import { LeadRepository } from '../crm/sales.repositories';
+import { LlmModule } from '../llm/llm.module';
+import { SmartScreeningService } from './smart-screening.service';
 import { ConfigService } from '@nestjs/config';
 import { MockSmartConnector, SMART_CONNECTORS } from './smart-connector';
 import { SmartIngestService } from './smart-ingest.service';
@@ -18,6 +22,8 @@ import { SmartService } from './smart.service';
  * Real connectors join the map as providers are contracted.
  */
 @Module({
+  // CD-290 — screening matches CRM and sends through the campaign screening
+  imports: [CrmModule, LlmModule],
   providers: [
     {
       provide: SMART_CONNECTORS,
@@ -41,8 +47,11 @@ import { SmartService } from './smart.service';
     SmartIngestService,
     SmartSweepService,
     SmartService,
+    SmartScreeningService,
+    LeadRepository,
   ],
   exports: [
+    SmartScreeningService,
     SmartIngestService,
     SmartService,
     SmartProspectRepository,

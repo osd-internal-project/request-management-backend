@@ -65,10 +65,12 @@ function harness(
       }),
     ),
   };
+  const screening = { screenRun: jest.fn(() => Promise.resolve(0)) };
   const ingest = new SmartIngestService(
     sources as never,
     runs as never,
     prospects as never,
+    screening as never,
   );
   const sweep = new SmartSweepService(
     sources as never,
@@ -86,7 +88,7 @@ function harness(
     audit as never,
     { execute: jest.fn((fn: (p: unknown) => unknown) => fn({})) } as never,
   );
-  return { ingest, sweep, service, sources, runs, prospects, audit };
+  return { ingest, sweep, service, sources, runs, prospects, audit, screening };
 }
 
 describe('CD-289 AI SMART — sweeping into the staging list', () => {
@@ -111,6 +113,8 @@ describe('CD-289 AI SMART — sweeping into the staging list', () => {
       rejected: 1,
       problems: [{ row: 5, reason: 'ไม่มีชื่อธุรกิจ' }],
     });
+    // CD-290 — what the batch added is screened at once
+    expect(h.screening.screenRun).toHaveBeenCalledWith('osd', 'run-1');
     expect(h.runs.update).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ status: 'ok', added: 1 }) as unknown,

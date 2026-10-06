@@ -7,7 +7,10 @@ import {
   ImportProspectsDto,
   ListProspectsQueryDto,
   SaveSmartSourceDto,
+  ScreenProspectsDto,
+  SendProspectsDto,
 } from './smart.dto';
+import { SmartScreeningService } from './smart-screening.service';
 import { SmartService } from './smart.service';
 
 /** CD-289 (CD-16 AI SMART) — sweep sources and the staging list. */
@@ -15,7 +18,36 @@ import { SmartService } from './smart.service';
 @ApiBearerAuth()
 @Controller('smart')
 export class SmartController {
-  constructor(private readonly smart: SmartService) {}
+  constructor(
+    private readonly smart: SmartService,
+    private readonly screening: SmartScreeningService,
+  ) {}
+
+  @ApiOperation({
+    summary:
+      'CD-290 คัดกรองใหม่ — ตรวจซ้ำกับ CRM และให้คะแนน (ว่าง = ทุกรายการที่รออยู่)',
+  })
+  @Post('prospects/screen')
+  @Permissions('smart.prospect.manage')
+  screen(
+    @Body() dto: ScreenProspectsDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.screening.rescreen(principal, dto.ids ?? []);
+  }
+
+  @ApiOperation({
+    summary:
+      'CD-290 ส่งเข้า CRM เป็น Lead — ผ่านการคัดกรองเดียวกับ Lead จากแคมเปญ',
+  })
+  @Post('prospects/send')
+  @Permissions('smart.prospect.manage')
+  send(
+    @Body() dto: SendProspectsDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.screening.send(principal, dto.ids);
+  }
 
   @ApiOperation({ summary: 'CD-289 แหล่งกวาด Lead ทั้งหมด พร้อมจำนวนที่ได้' })
   @Get('sources')

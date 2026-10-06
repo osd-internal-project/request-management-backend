@@ -6,6 +6,7 @@ import {
   type FoundProspect,
   MAX_ROWS_PER_BATCH,
 } from './smart-rules';
+import { SmartScreeningService } from './smart-screening.service';
 import {
   SmartProspectRepository,
   SmartSourceRepository,
@@ -50,6 +51,7 @@ export class SmartIngestService {
     private readonly sources: SmartSourceRepository,
     private readonly runs: SmartSweepRunRepository,
     private readonly prospects: SmartProspectRepository,
+    private readonly screening: SmartScreeningService,
   ) {}
 
   /** Rows pushed by a vendor through the external API, to a `push` source. */
@@ -134,6 +136,8 @@ export class SmartIngestService {
       problems: problems.slice(0, 50),
     };
     await this.finish(source, run.id, outcome);
+    // CD-290 — what this batch added is screened straight away
+    if (count > 0) await this.screening.screenRun(source.companyId, run.id);
     return outcome;
   }
 

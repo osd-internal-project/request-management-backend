@@ -61,6 +61,16 @@ interface ProspectRow {
   discardReason: string | null;
   decidedAt: Date | null;
   createdAt: Date;
+  score: number | null;
+  scoreReasons: unknown;
+  aiSummary: string | null;
+  matchKind: string | null;
+  matchCustomerId: string | null;
+  matchLeadId: string | null;
+  screenedAt: Date | null;
+  leadId: string | null;
+  sentOutcome: string | null;
+  sentAt: Date | null;
 }
 
 /**
@@ -268,6 +278,10 @@ export class SmartService {
       ...(query.status ? { status: query.status } : {}),
       ...(query.source_id ? { sourceId: query.source_id } : {}),
       ...(query.sales_axis ? { salesAxis: query.sales_axis } : {}),
+      ...(query.min_score !== undefined
+        ? { score: { gte: query.min_score } }
+        : {}),
+      ...(query.match_kind ? { matchKind: query.match_kind } : {}),
     };
     const q = query.q?.trim();
     if (q) {
@@ -282,7 +296,14 @@ export class SmartService {
     const [rows, total] = await Promise.all([
       this.prospects.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        // CD-290 — the review queue reads best-first
+        orderBy:
+          query.status === 'screened'
+            ? [
+                { score: { sort: 'desc', nulls: 'last' } },
+                { createdAt: 'desc' },
+              ]
+            : { createdAt: 'desc' },
         skip,
         take,
       }) as Promise<ProspectRow[]>,
@@ -407,6 +428,17 @@ export class SmartService {
       discard_reason: row.discardReason,
       decided_at: row.decidedAt,
       created_at: row.createdAt,
+      // CD-290
+      score: row.score,
+      score_reasons: row.scoreReasons,
+      ai_summary: row.aiSummary,
+      match_kind: row.matchKind,
+      match_customer_id: row.matchCustomerId,
+      match_lead_id: row.matchLeadId,
+      screened_at: row.screenedAt,
+      lead_id: row.leadId,
+      sent_outcome: row.sentOutcome,
+      sent_at: row.sentAt,
     };
   }
 }

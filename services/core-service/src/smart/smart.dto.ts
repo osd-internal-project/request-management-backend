@@ -1,6 +1,7 @@
 import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
+  ArrayNotEmpty,
   IsArray,
   IsBoolean,
   IsIn,
@@ -214,6 +215,19 @@ export class ListProspectsQueryDto extends PageQueryDto {
   @IsIn(SALES_AXES)
   sales_axis?: string;
 
+  @ApiPropertyOptional({ description: 'CD-290 — คะแนนความพร้อมขั้นต่ำ' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  min_score?: number;
+
+  @ApiPropertyOptional({ enum: ['customer', 'lead', 'none'] })
+  @IsOptional()
+  @IsIn(['customer', 'lead', 'none'])
+  match_kind?: string;
+
   @ApiPropertyOptional({ description: 'ชื่อ เลขนิติบุคคล เบอร์ หรือจังหวัด' })
   @IsOptional()
   @IsString()
@@ -227,4 +241,24 @@ export class DiscardProspectDto {
   @IsNotEmpty()
   @MaxLength(500)
   reason!: string;
+}
+
+/** CD-290 — rows to screen again; none = every row still waiting. */
+export class ScreenProspectsDto {
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(1000)
+  @IsString({ each: true })
+  ids?: string[];
+}
+
+/** CD-290 — rows a person sends to CRM. */
+export class SendProspectsDto {
+  @ApiProperty({ type: [String] })
+  @IsArray()
+  @ArrayNotEmpty()
+  @ArrayMaxSize(100)
+  @IsString({ each: true })
+  ids!: string[];
 }
