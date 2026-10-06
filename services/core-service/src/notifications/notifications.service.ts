@@ -1271,6 +1271,35 @@ export class NotificationsService {
   }
 
   /**
+   * CD-271 — a post on the content calendar: due tomorrow (`due`) or past its
+   * time and not marked published (`overdue`), to its owner.
+   */
+  async contentReminder(
+    userId: string,
+    companyId: string,
+    input: {
+      kind: 'due' | 'overdue';
+      contentId: string;
+      title: string;
+      channel: string;
+      plannedAt: string;
+    },
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: `macom.content.${input.kind}`,
+      values: {
+        title: input.title,
+        channel: input.channel,
+        planned_at: input.plannedAt,
+      },
+      resourceType: 'content_item',
+      resourceId: input.contentId,
+    });
+  }
+
+  /**
    * CD-269 — a Lead from a campaign channel: a new one in the receiving
    * team's pool (`routed`, to the team head), one that matched an existing
    * customer (`customer`, to the account owner), or the same person

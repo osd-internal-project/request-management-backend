@@ -1,11 +1,13 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
   Post,
   Put,
+  Query,
   StreamableFile,
   UploadedFile,
   UseInterceptors,
@@ -28,6 +30,11 @@ import { MAX_EVIDENCE_BYTES } from '../pm/milestones.service';
 import { CampaignPlanService } from './campaign-plan.service';
 import { CampaignReceiptsService } from './campaign-receipts.service';
 import { CampaignEventsService } from '../crm/campaign-events.service';
+import { ContentService } from './content.service';
+import {
+  ContentFilesService,
+  MAX_CONTENT_MEDIA_BYTES,
+} from './content-files.service';
 import {
   CheckInDto,
   ConvertRegistrationsDto,
@@ -37,6 +44,10 @@ import {
 } from '../crm/dto/sales.dto';
 import {
   AddCampaignSpendDto,
+  CopyContentDto,
+  ListContentQueryDto,
+  MoveContentDto,
+  SaveContentDto,
   SaveBudgetLinesDto,
   VoidCampaignSpendDto,
 } from './macom.dto';
@@ -50,7 +61,130 @@ export class MacomController {
     private readonly plans: CampaignPlanService,
     private readonly receipts: CampaignReceiptsService,
     private readonly events: CampaignEventsService,
+    private readonly content: ContentService,
+    private readonly contentFiles: ContentFilesService,
   ) {}
+
+  // --- CD-271 ปฏิทินคอนเทนต์ ------------------------------------------------
+
+  @ApiOperation({
+    summary: 'CD-271 ปฏิทินคอนเทนต์ (ช่วงวันที่ ช่องทาง สถานะ แคมเปญ)',
+  })
+  @Get('content')
+  @AnyPermission('crm.sales.read', 'crm.campaign.manage')
+  contentList(
+    @Query() query: ListContentQueryDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.content.list(principal, query);
+  }
+
+  @ApiOperation({ summary: 'CD-271 คอนเทนต์หนึ่งชิ้นพร้อมไฟล์' })
+  @Get('content/:id')
+  @AnyPermission('crm.sales.read', 'crm.campaign.manage')
+  contentOne(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.content.one(principal, id);
+  }
+
+  @ApiOperation({ summary: 'CD-271 สร้างคอนเทนต์ (ร่าง)' })
+  @Post('content')
+  @Permissions('crm.campaign.manage')
+  createContent(
+    @Body() dto: SaveContentDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.content.create(principal, dto);
+  }
+
+  @ApiOperation({ summary: 'CD-271 แก้คอนเทนต์ (ก่อนเผยแพร่)' })
+  @Put('content/:id')
+  @Permissions('crm.campaign.manage')
+  updateContent(
+    @Param('id') id: string,
+    @Body() dto: SaveContentDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.content.update(principal, id, dto);
+  }
+
+  @ApiOperation({
+    summary:
+      'CD-271 เปลี่ยนสถานะ: พร้อม / เผยแพร่แล้ว (ลิงก์) / ยกเลิก (เหตุผล) / กลับเป็นร่าง',
+  })
+  @Post('content/:id/move')
+  @Permissions('crm.campaign.manage')
+  moveContent(
+    @Param('id') id: string,
+    @Body() dto: MoveContentDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.content.move(principal, id, dto);
+  }
+
+  @ApiOperation({ summary: 'CD-271 คัดลอกไปอีกช่องทาง (ร่างใหม่ ไฟล์เดิม)' })
+  @Post('content/:id/copy')
+  @Permissions('crm.campaign.manage')
+  copyContent(
+    @Param('id') id: string,
+    @Body() dto: CopyContentDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.content.copy(principal, id, dto);
+  }
+
+  @ApiOperation({ summary: 'CD-271 แนบสื่อ (รูป/วิดีโอ MP4/PDF)' })
+  @Post('content/:id/files')
+  @Permissions('crm.campaign.manage')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['file'],
+      properties: { file: { type: 'string', format: 'binary' } },
+    },
+  })
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: MAX_CONTENT_MEDIA_BYTES },
+      defParamCharset: 'utf8',
+    }),
+  )
+  attachContentFile(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.contentFiles.attach(principal, id, file);
+  }
+
+  @ApiOperation({ summary: 'CD-271 เอาไฟล์ออกจากคอนเทนต์' })
+  @Delete('content/:id/files/:fileId')
+  @Permissions('crm.campaign.manage')
+  removeContentFile(
+    @Param('id') id: string,
+    @Param('fileId') fileId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.contentFiles.remove(principal, id, fileId);
+  }
+
+  @ApiOperation({ summary: 'CD-271 ไฟล์สื่อของคอนเทนต์' })
+  @Get('content/:id/files/:fileId')
+  @AnyPermission('crm.sales.read', 'crm.campaign.manage')
+  async contentFile(
+    @Param('id') id: string,
+    @Param('fileId') fileId: string,
+    @CurrentPrincipal() principal: Principal,
+  ): Promise<StreamableFile> {
+    const file = await this.contentFiles.file(principal, id, fileId);
+    return new StreamableFile(file.stream, {
+      type: file.mimeType,
+      disposition: `inline; filename*=UTF-8''${encodeURIComponent(file.fileName)}`,
+    });
+  }
 
   // --- CD-270 อีเวนต์ --------------------------------------------------------
   // Registrations carry phones and e-mails of people who are not customers

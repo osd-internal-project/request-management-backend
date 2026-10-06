@@ -483,6 +483,28 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
     },
   },
   {
+    eventType: 'macom.content.due',
+    label: 'คอนเทนต์ถึงกำหนดเผยแพร่พรุ่งนี้ (ถึงผู้รับผิดชอบ)',
+    title: 'พรุ่งนี้เผยแพร่: {{title}}',
+    body: '{{channel}} · กำหนด {{planned_at}}',
+    variables: {
+      title: { label: 'คอนเทนต์', sample: 'โพสต์เปิดตัวสัมมนา Smart Building' },
+      channel: { label: 'ช่องทาง', sample: 'Facebook' },
+      planned_at: { label: 'กำหนดเผยแพร่', sample: '10/10/2026 10:00' },
+    },
+  },
+  {
+    eventType: 'macom.content.overdue',
+    label: 'คอนเทนต์เลยกำหนดแต่ยังไม่บันทึกว่าเผยแพร่ (ถึงผู้รับผิดชอบ)',
+    title: 'เลยกำหนดเผยแพร่: {{title}}',
+    body: '{{channel}} · กำหนด {{planned_at}} — ถ้าโพสต์แล้วให้ใส่ลิงก์, ถ้าเลื่อนให้แก้วันที่',
+    variables: {
+      title: { label: 'คอนเทนต์', sample: 'โพสต์เปิดตัวสัมมนา Smart Building' },
+      channel: { label: 'ช่องทาง', sample: 'Facebook' },
+      planned_at: { label: 'กำหนดเผยแพร่', sample: '10/10/2026 10:00' },
+    },
+  },
+  {
     eventType: 'crm.campaign_lead.routed',
     label: 'Lead ใหม่จากแคมเปญเข้ากองของทีม (ถึงหัวหน้าทีมที่รับ)',
     title: 'Lead ใหม่จาก {{campaign}}',

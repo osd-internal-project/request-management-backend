@@ -277,6 +277,13 @@ export default () => ({
    * CD-90 — the Data Lake: a separate PostgreSQL warehouse database. Unset =
    * no lake, nothing runs. Changed rows every hour, SAP invoices daily.
    */
+  /** CD-15 MACOM */
+  macom: {
+    /** CD-271 — content due tomorrow / an hour late (ms); 0 = off. */
+    contentSweepIntervalMs: Number(
+      process.env.MACOM_CONTENT_SWEEP_INTERVAL_MS ?? 900000,
+    ),
+  },
   lake: {
     databaseUrl: process.env.LAKE_DATABASE_URL ?? '',
     extractIntervalMs: Number(process.env.LAKE_EXTRACT_INTERVAL_MS ?? 3600000),

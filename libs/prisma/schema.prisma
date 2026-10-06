@@ -3526,9 +3526,64 @@ model Campaign {
   budgetLines   CampaignBudgetLine[]
   spends        CampaignSpend[]
   registrations CampaignRegistration[]
+  contents      ContentItem[]
 
   @@unique([companyId, code])
   @@map("campaigns")
+}
+
+/// CD-271 — คอนเทนต์หนึ่งชิ้น = โพสต์หนึ่งครั้งบนช่องทางเดียว (ปฏิทินคอนเทนต์).
+/// draft → ready → published | cancelled (CD-272 แทรกขั้นรออนุมัติ).
+model ContentItem {
+  id            String    @id @default(uuid())
+  companyId     String
+  campaignId    String?
+  /// line_oa | facebook | tiktok | instagram | website | email
+  channel       String
+  title         String
+  caption       String    @default("")
+  ownerUserId   String
+  plannedAt     DateTime
+  status        String    @default("draft")
+  publishedAt   DateTime?
+  publishedUrl  String?
+  cancelReason  String?
+  /// ทุกครั้งที่แก้เนื้อหา +1 — CD-272 ผูกการอนุมัติกับเวอร์ชันนี้
+  version       Int       @default(1)
+  remindedAt    DateTime?
+  overdueAt     DateTime?
+  copiedFromId  String?
+
+  createdAt DateTime @default(now())
+  createdBy String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  campaign Campaign?     @relation(fields: [campaignId], references: [id])
+  files    ContentFile[]
+
+  @@index([companyId, plannedAt])
+  @@index([companyId, status])
+  @@map("content_items")
+}
+
+/// CD-271 — สื่อของคอนเทนต์ (รูป/วิดีโอ/PDF) บน MinIO · ไม่ลบไฟล์จริง.
+model ContentFile {
+  id         String    @id @default(uuid())
+  companyId  String
+  contentId  String
+  fileName   String
+  mimeType   String
+  sizeBytes  Int
+  storageKey String
+  uploadedBy String?
+  createdAt  DateTime  @default(now())
+  removedAt  DateTime?
+
+  content ContentItem @relation(fields: [contentId], references: [id])
+
+  @@index([contentId])
+  @@map("content_files")
 }
 
 /// CD-270 — ผู้ลงทะเบียนอีเวนต์ (จากฟอร์มสาธารณะ หรือ walk-in หน้างาน).

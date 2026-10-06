@@ -69,6 +69,8 @@ export default () => ({
   slaSweepIntervalMs: 0,
   /** CD-91 — BiModule is not imported here today; zero keeps it so if it ever is. */
   martRefreshIntervalMs: 0,
+  /** CD-271 — the content calendar's reminders run on core-service only. */
+  macom: { contentSweepIntervalMs: 0 },
   /** CD-241 — SupportModule is imported since 6 Oct 2026 (`support/*`); its sweeps stay off. */
   service: {
     onCallSweepIntervalMs: 0,
