@@ -231,6 +231,7 @@ export class CrmAdminService {
         servicePortalUserId: null,
         contentApprovalTypeCode: null,
         contentApprovalAll: false,
+        brandApprovalTypeCode: null,
         projectHealthAmber: 20,
         projectHealthRed: 40,
         projectCostWarnPct: 90,
@@ -412,6 +413,7 @@ export class CrmAdminService {
               servicePortalUserId: dto.service_portal_user_id || null,
               contentApprovalTypeCode: dto.content_approval_type_code || null,
               contentApprovalAll: dto.content_approval_all ?? false,
+              brandApprovalTypeCode: dto.brand_approval_type_code || null,
               projectHealthAmber: dto.project_health_amber ?? 20,
               projectHealthRed: dto.project_health_red ?? 40,
               projectCostWarnPct: dto.project_cost_warn_pct ?? 90,
@@ -516,6 +518,10 @@ export class CrmAdminService {
                   ? undefined
                   : dto.content_approval_type_code || null,
               contentApprovalAll: dto.content_approval_all,
+              brandApprovalTypeCode:
+                dto.brand_approval_type_code === undefined
+                  ? undefined
+                  : dto.brand_approval_type_code || null,
               projectCloseDocuments: closeDocuments,
               projectHealthAmber: dto.project_health_amber,
               projectHealthRed: dto.project_health_red,

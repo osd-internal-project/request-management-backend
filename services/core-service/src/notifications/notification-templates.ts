@@ -483,6 +483,28 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
     },
   },
   {
+    eventType: 'macom.brand.approved',
+    label: 'ไฟล์คลังแบรนด์ฉบับใหม่ผ่านการอนุมัติ (ถึงผู้อัปโหลด)',
+    title: 'อนุมัติแล้ว: {{name}} ฉบับที่ {{version_no}}',
+    body: 'เป็นฉบับปัจจุบันในคลังแบรนด์แล้ว',
+    variables: {
+      name: { label: 'ไฟล์', sample: 'โลโก้บริษัท (แนวนอน)' },
+      version_no: { label: 'ฉบับที่', sample: '3' },
+      reason: { label: 'เหตุผล', sample: '' },
+    },
+  },
+  {
+    eventType: 'macom.brand.rejected',
+    label: 'ไฟล์คลังแบรนด์ฉบับใหม่ไม่ผ่านการอนุมัติ (ถึงผู้อัปโหลด)',
+    title: 'ไม่อนุมัติ: {{name}} ฉบับที่ {{version_no}}',
+    body: '{{reason}}',
+    variables: {
+      name: { label: 'ไฟล์', sample: 'โลโก้บริษัท (แนวนอน)' },
+      version_no: { label: 'ฉบับที่', sample: '3' },
+      reason: { label: 'เหตุผล', sample: '' },
+    },
+  },
+  {
     eventType: 'macom.content.approved',
     label: 'คอนเทนต์ผ่านการอนุมัติ (ถึงผู้รับผิดชอบ)',
     title: 'อนุมัติแล้ว: {{title}}',

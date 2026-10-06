@@ -4,6 +4,7 @@ import { StorageModule, type StorageOptions } from '@request-management/share';
 import { CrmModule } from '../crm/crm.module';
 import { CampaignReceiptsService } from './campaign-receipts.service';
 import { ContentFilesService } from './content-files.service';
+import { BrandFilesService } from './brand-files.service';
 import { MacomController } from './macom.controller';
 import { MacomModule } from './macom.module';
 
@@ -20,6 +21,6 @@ import { MacomModule } from './macom.module';
     }),
   ],
   controllers: [MacomController],
-  providers: [CampaignReceiptsService, ContentFilesService],
+  providers: [CampaignReceiptsService, ContentFilesService, BrandFilesService],
 })
 export class MacomHttpModule {}

@@ -16,6 +16,7 @@ import {
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { CONTENT_CHANNELS, CONTENT_STATUSES } from './content-rules';
+import { BRAND_CATEGORIES } from './brand-rules';
 
 // --- CD-268 แผนงบแคมเปญ ------------------------------------------------------
 
@@ -214,4 +215,99 @@ export class WithdrawContentDto {
   @IsString()
   @MaxLength(500)
   reason?: string;
+}
+
+// --- CD-273 คลังแบรนด์และเทมเพลต ------------------------------------------------
+
+export class ListBrandAssetsQueryDto {
+  @ApiPropertyOptional({ enum: BRAND_CATEGORIES })
+  @IsOptional()
+  @IsIn(BRAND_CATEGORIES)
+  category?: string;
+
+  @ApiPropertyOptional({ description: 'ค้นชื่อ คำอธิบาย แท็ก' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  q?: string;
+
+  @ApiPropertyOptional({ description: '`true` = รวมที่เลิกใช้ (MACOM)' })
+  @IsOptional()
+  @IsIn(['true'])
+  include_retired?: string;
+}
+
+/** Sent as multipart fields with the first file. */
+export class CreateBrandAssetDto {
+  @ApiProperty({ enum: BRAND_CATEGORIES })
+  @IsIn(BRAND_CATEGORIES)
+  category!: string;
+
+  @ApiProperty({ example: 'โลโก้บริษัท (แนวนอน)' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  name!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  description?: string;
+
+  @ApiPropertyOptional({ description: 'คั่นด้วยจุลภาค' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  tags?: string;
+
+  @ApiPropertyOptional({ description: 'หมายเหตุของฉบับนี้' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  note?: string;
+}
+
+export class UpdateBrandAssetDto {
+  @ApiPropertyOptional({ enum: BRAND_CATEGORIES })
+  @IsOptional()
+  @IsIn(BRAND_CATEGORIES)
+  category?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  name?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  description?: string;
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsString({ each: true })
+  @MaxLength(50, { each: true })
+  tags?: string[];
+}
+
+export class BrandVersionNoteDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  note?: string;
+}
+
+export class RetireBrandAssetDto {
+  @ApiProperty({ example: 'เปลี่ยนโลโก้ใหม่แล้ว' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(500)
+  reason!: string;
 }

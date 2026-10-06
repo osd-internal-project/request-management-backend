@@ -5,9 +5,12 @@ import { CampaignPlanService } from './campaign-plan.service';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { ContentService } from './content.service';
 import { ContentApprovalService } from './content-approval.service';
+import { BrandService } from './brand.service';
 import { CrmConfigRepository } from '../crm/segment.repositories';
 import { RequestsModule } from '../requests/requests.module';
 import {
+  BrandAssetRepository,
+  BrandAssetVersionRepository,
   ContentFileRepository,
   ContentItemRepository,
 } from './macom.repositories';
@@ -28,12 +31,18 @@ import {
     // CD-272
     ContentApprovalService,
     CrmConfigRepository,
+    // CD-273
+    BrandService,
+    BrandAssetRepository,
+    BrandAssetVersionRepository,
   ],
   exports: [
     CampaignPlanService,
     ContentService,
     ContentFileRepository,
     ContentApprovalService,
+    BrandService,
+    BrandAssetVersionRepository,
   ],
 })
 export class MacomModule {}

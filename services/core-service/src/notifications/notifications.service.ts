@@ -1270,6 +1270,32 @@ export class NotificationsService {
     });
   }
 
+  /** CD-273 — a brand file's new version was approved or not, to its uploader. */
+  async brandVersion(
+    userId: string,
+    companyId: string,
+    input: {
+      kind: 'approved' | 'rejected';
+      assetId: string;
+      name: string;
+      versionNo: number;
+      reason: string;
+    },
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: `macom.brand.${input.kind}`,
+      values: {
+        name: input.name,
+        version_no: String(input.versionNo),
+        reason: input.reason,
+      },
+      resourceType: 'brand_asset',
+      resourceId: input.assetId,
+    });
+  }
+
   /** CD-272 — the approval of a post came back, to its owner. */
   async contentApproval(
     userId: string,

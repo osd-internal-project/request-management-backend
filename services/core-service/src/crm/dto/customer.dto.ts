@@ -844,6 +844,12 @@ export class UpdateCrmConfigDto {
   @IsBoolean()
   content_approval_all?: boolean;
 
+  /** CD-273: ประเภทคำขออนุมัติไฟล์คลังแบรนด์ (MACOM). "" = อัปโหลดฉบับใหม่ไม่ได้. */
+  @IsOptional()
+  @IsString()
+  @Matches(/^([A-Z0-9_-]{1,20})?$/)
+  brand_approval_type_code?: string;
+
   /** CD-191: ชื่อเอกสารที่ทุกโครงการต้องแนบก่อนขอปิด. */
   @IsOptional()
   @IsArray()

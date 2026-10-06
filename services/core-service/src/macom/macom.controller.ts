@@ -22,6 +22,7 @@ import {
 } from '@nestjs/swagger';
 import {
   AnyPermission,
+  Authenticated,
   CurrentPrincipal,
   Permissions,
 } from '@request-management/share';
@@ -32,6 +33,9 @@ import { CampaignReceiptsService } from './campaign-receipts.service';
 import { CampaignEventsService } from '../crm/campaign-events.service';
 import { ContentService } from './content.service';
 import { ContentApprovalService } from './content-approval.service';
+import { BrandService } from './brand.service';
+import { BrandFilesService } from './brand-files.service';
+import { MAX_BRAND_FILE_BYTES, inlineSafe } from './brand-rules';
 import {
   ContentFilesService,
   MAX_CONTENT_MEDIA_BYTES,
@@ -50,6 +54,11 @@ import {
   MoveContentDto,
   SaveContentDto,
   WithdrawContentDto,
+  BrandVersionNoteDto,
+  CreateBrandAssetDto,
+  ListBrandAssetsQueryDto,
+  RetireBrandAssetDto,
+  UpdateBrandAssetDto,
   SaveBudgetLinesDto,
   VoidCampaignSpendDto,
 } from './macom.dto';
@@ -66,7 +75,151 @@ export class MacomController {
     private readonly content: ContentService,
     private readonly contentFiles: ContentFilesService,
     private readonly contentApproval: ContentApprovalService,
+    private readonly brand: BrandService,
+    private readonly brandFiles: BrandFilesService,
   ) {}
+
+  // --- CD-273 คลังแบรนด์และเทมเพลต --------------------------------------------
+  // Every member of staff browses the current versions; MACOM manages.
+
+  @ApiOperation({
+    summary: 'CD-273 คลังแบรนด์ — ไฟล์ฉบับปัจจุบัน (หมวด ค้นหา)',
+  })
+  @Get('brand')
+  @Authenticated()
+  brandList(
+    @Query() query: ListBrandAssetsQueryDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.brand.list(principal, query);
+  }
+
+  @ApiOperation({
+    summary: 'CD-273 ไฟล์แบรนด์หนึ่งรายการ (MACOM เห็นประวัติฉบับ)',
+  })
+  @Get('brand/:id')
+  @Authenticated()
+  brandOne(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.brand.one(principal, id);
+  }
+
+  @ApiOperation({ summary: 'CD-273 ดาวน์โหลดฉบับปัจจุบัน' })
+  @Get('brand/:id/file')
+  @Authenticated()
+  async brandFile(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ): Promise<StreamableFile> {
+    return this.brandStream(await this.brandFiles.file(principal, id));
+  }
+
+  @ApiOperation({ summary: 'CD-273 ดาวน์โหลดฉบับใดก็ได้ (MACOM)' })
+  @Get('brand/:id/versions/:versionId/file')
+  @Permissions('crm.campaign.manage')
+  async brandVersionFile(
+    @Param('id') id: string,
+    @Param('versionId') versionId: string,
+    @CurrentPrincipal() principal: Principal,
+  ): Promise<StreamableFile> {
+    return this.brandStream(
+      await this.brandFiles.file(principal, id, versionId),
+    );
+  }
+
+  @ApiOperation({
+    summary:
+      'CD-273 เพิ่มไฟล์ใหม่ + ฉบับแรก (รออนุมัติ — ยื่นคำขอตามตั้งค่า CRM)',
+  })
+  @Post('brand')
+  @Permissions('crm.campaign.manage')
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: MAX_BRAND_FILE_BYTES },
+      defParamCharset: 'utf8',
+    }),
+  )
+  createBrandAsset(
+    @Body() dto: CreateBrandAssetDto,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.brandFiles.create(principal, dto, file);
+  }
+
+  @ApiOperation({ summary: 'CD-273 อัปโหลดฉบับใหม่ (รออนุมัติ)' })
+  @Post('brand/:id/versions')
+  @Permissions('crm.campaign.manage')
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: MAX_BRAND_FILE_BYTES },
+      defParamCharset: 'utf8',
+    }),
+  )
+  addBrandVersion(
+    @Param('id') id: string,
+    @Body() dto: BrandVersionNoteDto,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.brandFiles.addVersion(principal, id, dto.note, file);
+  }
+
+  @ApiOperation({ summary: 'CD-273 แก้ชื่อ หมวด คำอธิบาย แท็ก' })
+  @Patch('brand/:id')
+  @Permissions('crm.campaign.manage')
+  updateBrandAsset(
+    @Param('id') id: string,
+    @Body() dto: UpdateBrandAssetDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.brand.update(principal, id, dto);
+  }
+
+  @ApiOperation({ summary: 'CD-273 เลิกใช้ไฟล์ (ซ่อนจากทุกคน เก็บประวัติไว้)' })
+  @Post('brand/:id/retire')
+  @Permissions('crm.campaign.manage')
+  retireBrandAsset(
+    @Param('id') id: string,
+    @Body() dto: RetireBrandAssetDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.brand.retire(principal, id, dto);
+  }
+
+  @ApiOperation({ summary: 'CD-273 เปิดใช้ไฟล์ที่เลิกใช้กลับมา' })
+  @Post('brand/:id/restore')
+  @Permissions('crm.campaign.manage')
+  restoreBrandAsset(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.brand.retire(principal, id, null);
+  }
+
+  @ApiOperation({ summary: 'CD-273 ถอนฉบับที่รออนุมัติ (ยกเลิกคำขอ)' })
+  @Post('brand-versions/:versionId/withdraw')
+  @Permissions('crm.campaign.manage')
+  withdrawBrandVersion(
+    @Param('versionId') versionId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.brand.withdraw(principal, versionId);
+  }
+
+  /** Pictures and PDFs open in the browser; everything else (SVG too) downloads. */
+  private brandStream(file: {
+    stream: import('node:stream').Readable;
+    fileName: string;
+    mimeType: string;
+  }) {
+    const name = encodeURIComponent(file.fileName);
+    return new StreamableFile(file.stream, {
+      type: file.mimeType,
+      disposition: `${inlineSafe(file.mimeType) ? 'inline' : 'attachment'}; filename*=UTF-8''${name}`,
+    });
+  }
 
   // --- CD-272 อนุมัติสื่อและเนื้อหา -------------------------------------------
 

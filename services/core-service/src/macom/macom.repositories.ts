@@ -32,3 +32,31 @@ export class ContentFileRepository extends BaseRepository<
     return client.contentFile;
   }
 }
+
+/** CD-273 — a file in the brand library. */
+@Injectable()
+export class BrandAssetRepository extends BaseRepository<
+  PrismaService['brandAsset']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.brandAsset;
+  }
+}
+
+/** CD-273 — one version of a brand file. */
+@Injectable()
+export class BrandAssetVersionRepository extends BaseRepository<
+  PrismaService['brandAssetVersion']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.brandAssetVersion;
+  }
+}

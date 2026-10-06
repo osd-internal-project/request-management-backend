@@ -2446,6 +2446,8 @@ model CrmCompanyConfig {
   contentApprovalTypeCode String?
   /// CD-272 — true = ทุกคอนเทนต์ต้องอนุมัติ (ไม่ใช่เฉพาะที่พาดพิงลูกค้า/ราคา/คู่ค้า)
   contentApprovalAll      Boolean @default(false)
+  /// CD-273 — ประเภทคำขออนุมัติไฟล์คลังแบรนด์ · ว่าง = อัปโหลดเวอร์ชันใหม่ไม่ได้
+  brandApprovalTypeCode   String?
   /// CD-190 — actual cost as % of the reference budget: warn at, alert over.
   projectCostWarnPct               Int      @default(90)
   projectCostAlertPct              Int      @default(100)
@@ -3534,6 +3536,58 @@ model Campaign {
 
   @@unique([companyId, code])
   @@map("campaigns")
+}
+
+/// CD-273 — ไฟล์ในคลังแบรนด์ (โลโก้ เทมเพลตข้อเสนอ เอกสารนำเสนอ …) ·
+/// ทุกคนเห็นเฉพาะฉบับปัจจุบัน (`currentVersionId`), ฉบับเก่าเก็บไว้ให้ MACOM.
+model BrandAsset {
+  id               String    @id @default(uuid())
+  companyId        String
+  /// logo | proposal_template | presentation | guideline | graphic | other
+  category         String
+  name             String
+  description      String?
+  tags             String[]  @default([])
+  currentVersionId String?
+  retiredAt        DateTime?
+  retiredBy        String?
+  retireReason     String?
+
+  createdAt DateTime @default(now())
+  createdBy String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  versions BrandAssetVersion[]
+
+  @@index([companyId, category])
+  @@map("brand_assets")
+}
+
+/// CD-273 — ฉบับหนึ่งของไฟล์แบรนด์ · ขึ้นเป็นฉบับปัจจุบันเมื่ออนุมัติ (คำขอตามประเภทในตั้งค่า CRM).
+model BrandAssetVersion {
+  id                String    @id @default(uuid())
+  companyId         String
+  assetId           String
+  versionNo         Int
+  fileName          String
+  mimeType          String
+  sizeBytes         Int
+  storageKey        String
+  note              String?
+  /// pending | approved | rejected | cancelled
+  status            String    @default("pending")
+  approvalRequestId String?
+  decidedAt         DateTime?
+  decisionNote      String?
+  uploadedBy        String?
+  createdAt         DateTime  @default(now())
+
+  asset BrandAsset @relation(fields: [assetId], references: [id])
+
+  @@unique([assetId, versionNo])
+  @@index([approvalRequestId])
+  @@map("brand_asset_versions")
 }
 
 /// CD-271 — คอนเทนต์หนึ่งชิ้น = โพสต์หนึ่งครั้งบนช่องทางเดียว (ปฏิทินคอนเทนต์).
