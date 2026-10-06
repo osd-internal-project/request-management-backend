@@ -218,6 +218,26 @@ const MODULE_DOCS: Readonly<Record<string, ModuleDoc>> = {
       'ลูกค้าแจ้งเองใช้ช่องทาง `request/intake/*` หรือ Customer Portal ไม่ใช่ที่นี่',
     tags: [{ name: 'support', description: 'งานบริการหลังการขาย' }],
   },
+  kb: {
+    title: 'Request Form — External API · KBMS',
+    summary:
+      'คลังความรู้สำหรับช่องทาง AI ที่คุยกับลูกค้า (AI CARE, AI SMART) — ค้นบทความแล้วรายงานคำตอบและบทความที่อ้างอิง',
+    notes:
+      'หุ่นยนต์เท่านั้น (key ที่มี `integration.kb.read`) · ได้เฉพาะบทความที่เผยแพร่ให้ลูกค้า ' +
+      '(ทุกราย หรือรายที่ระบุด้วย customer_code) ไม่มีบทความภายใน · ค้นทั้งคำและความหมาย (CD-267) · ทุกการค้นถูกบันทึก',
+    tags: [{ name: 'kb', description: 'คลังความรู้สำหรับ AI (CD-265)' }],
+  },
+  care: {
+    title: 'Request Form — External API · AI CARE',
+    summary:
+      'บทสนทนากับลูกค้าเดิมทุกช่องทาง (LINE, Facebook, Instagram, TikTok, อีเมล, เว็บแชต, D-Callcenter) สำหรับตัวเชื่อมช่องทางและ AI CARE',
+    notes:
+      'หุ่นยนต์เท่านั้น (key ที่มี `integration.care.manage`) บริษัทมาจาก key · ' +
+      'ข้อความของผู้ส่งเดียวกันต่อบทสนทนาเดิม (เงียบ 24 ชม. เริ่มใหม่) · ' +
+      'ข้อมูลลูกค้า อุปกรณ์ และสิทธิ์บริการส่งกลับเฉพาะผู้ส่งที่ยืนยันตัวตนแล้ว ' +
+      '(ตัวตนจากช่องทางตรงผู้ติดต่อ หรือทีมบริการยืนยัน) · สิ่งที่ลูกค้าพิมพ์แจ้งเป็นแค่ "อ้างว่าเป็น"',
+    tags: [{ name: 'care', description: 'AI CARE — บทสนทนา (CD-280)' }],
+  },
   assistant: {
     title: 'Request Form — External API · Assistant',
     summary:

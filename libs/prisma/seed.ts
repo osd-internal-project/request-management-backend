@@ -389,6 +389,8 @@ const SEED_ROLES: {
       'crm.customer.read',
       'service.asset.read',
       'service.asset.manage',
+      // CD-280 — AI CARE conversations
+      'service.care.manage',
     ],
   },
   {

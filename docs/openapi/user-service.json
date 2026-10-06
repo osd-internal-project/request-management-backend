@@ -2320,6 +2320,7 @@
                 "hr.employee.manage",
                 "service.asset.read",
                 "service.asset.manage",
+                "service.care.manage",
                 "delivery.read",
                 "delivery.manage",
                 "delivery.receivable.read",
@@ -2358,6 +2359,7 @@
                 "integration.support.read",
                 "integration.support.manage",
                 "integration.kb.read",
+                "integration.care.manage",
                 "integration.assistant.read",
                 "integration.smart.ingest"
               ],
@@ -2441,6 +2443,7 @@
                 "hr.employee.manage",
                 "service.asset.read",
                 "service.asset.manage",
+                "service.care.manage",
                 "delivery.read",
                 "delivery.manage",
                 "delivery.receivable.read",
@@ -2479,6 +2482,7 @@
                 "integration.support.read",
                 "integration.support.manage",
                 "integration.kb.read",
+                "integration.care.manage",
                 "integration.assistant.read",
                 "integration.smart.ingest"
               ],
@@ -2746,6 +2750,7 @@
               "hr.employee.manage",
               "service.asset.read",
               "service.asset.manage",
+              "service.care.manage",
               "delivery.read",
               "delivery.manage",
               "delivery.receivable.read",
@@ -2784,6 +2789,7 @@
               "integration.support.read",
               "integration.support.manage",
               "integration.kb.read",
+              "integration.care.manage",
               "integration.assistant.read",
               "integration.smart.ingest"
             ],

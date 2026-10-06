@@ -1,0 +1,291 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/v1/care/messages": {
+      "post": {
+        "description": "ตอบ isNew + conversation (id, status, identification) + customer/contact/assets/entitlements (เฉพาะผู้ส่งที่ยืนยันแล้ว) + history 20 ข้อความล่าสุด",
+        "operationId": "CareApiController_receive",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CareInboundDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ข้อความจากลูกค้า เข้าบทสนทนา (CD-280)",
+        "tags": [
+          "care"
+        ],
+        "x-permission": [
+          "integration.care.manage"
+        ]
+      }
+    },
+    "/api/v1/care/conversations/{id}/replies": {
+      "post": {
+        "operationId": "CareApiController_reply",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CareReplyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "สิ่งที่ตอบลูกค้าไป (AI หรือข้อความระบบ) บันทึกในบทสนทนา (CD-280)",
+        "tags": [
+          "care"
+        ],
+        "x-permission": [
+          "integration.care.manage"
+        ]
+      }
+    },
+    "/api/v1/care/conversations/{id}": {
+      "get": {
+        "operationId": "CareApiController_conversation",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "บทสนทนาและบริบทลูกค้า (CD-280)",
+        "tags": [
+          "care"
+        ],
+        "x-permission": [
+          "integration.care.manage"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "Request Form — External API · AI CARE",
+    "description": "บทสนทนากับลูกค้าเดิมทุกช่องทาง (LINE, Facebook, Instagram, TikTok, อีเมล, เว็บแชต, D-Callcenter) สำหรับตัวเชื่อมช่องทางและ AI CARE\n\n**ทุก route มีสองประตู** และ Swagger ของแต่ละ route บอกไว้ทั้งคู่: bearer ต้องถือสิทธิ์ `integration.*` ของ route นั้น (ประตูของเครื่อง) และคนที่ระบุใน header `X-Acting-User` ต้องถือสิทธิ์ของงานนั้นเอง (ประตูของคน) — ระบบทำงานในนามคนนั้น timeline จึงบันทึกชื่อคนจริง ไม่ใช่ชื่อบัญชีบริการ\n\n**bearer รับได้สองแบบ**\n\n1. access token ของ service account จาก Keycloak (client_credentials) อายุสั้น ต้องขอใหม่เมื่อหมดอายุ\n2. **API key** ที่ขึ้นต้นด้วย `rfk_` — ไม่มีวันหมดอายุ ไม่ต้องต่ออายุ ระบบแลกเป็น token ให้เองตอนใช้ ออกด้วย `yarn apikey:issue` และเพิกถอนด้วย `yarn apikey:revoke` (มีผลทันที)\n\nทั้งสองแบบส่งเหมือนกัน: `Authorization: Bearer <ค่า>` และได้สิทธิ์ชุดเดียวกัน — key ตัดสินว่า *เข้าได้ไหม* token บอกว่า *ทำอะไรได้*\n\nหุ่นยนต์เท่านั้น (key ที่มี `integration.care.manage`) บริษัทมาจาก key · ข้อความของผู้ส่งเดียวกันต่อบทสนทนาเดิม (เงียบ 24 ชม. เริ่มใหม่) · ข้อมูลลูกค้า อุปกรณ์ และสิทธิ์บริการส่งกลับเฉพาะผู้ส่งที่ยืนยันตัวตนแล้ว (ตัวตนจากช่องทางตรงผู้ติดต่อ หรือทีมบริการยืนยัน) · สิ่งที่ลูกค้าพิมพ์แจ้งเป็นแค่ \"อ้างว่าเป็น\"",
+    "version": "1.0"
+  },
+  "tags": [
+    {
+      "name": "care",
+      "description": "AI CARE — บทสนทนา (CD-280)"
+    }
+  ],
+  "servers": [
+    {
+      "url": "http://192.168.31.52:3503",
+      "description": "เครื่องภายใน OSD"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
+    "schemas": {
+      "CareAttachmentDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "photo.jpg",
+            "maxLength": 300
+          },
+          "type": {
+            "type": "string",
+            "example": "image/jpeg",
+            "maxLength": 100
+          },
+          "url": {
+            "type": "string",
+            "description": "ที่อยู่ไฟล์ฝั่งช่องทาง",
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "CareClaimDto": {
+        "type": "object",
+        "properties": {
+          "phone": {
+            "type": "string",
+            "description": "เบอร์ที่ลูกค้าพิมพ์/แจ้ง",
+            "maxLength": 40
+          },
+          "email": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "customer_code": {
+            "type": "string",
+            "example": "CUS-OSDD-T89",
+            "maxLength": 40
+          }
+        }
+      },
+      "CareInboundDto": {
+        "type": "object",
+        "properties": {
+          "channel": {
+            "type": "string",
+            "enum": [
+              "line",
+              "facebook",
+              "instagram",
+              "tiktok",
+              "email",
+              "web",
+              "callcenter",
+              "api"
+            ]
+          },
+          "sender_ref": {
+            "type": "string",
+            "description": "ตัวตนผู้ส่งตามช่องทาง — LINE userId · อีเมลผู้ส่ง · เบอร์ผู้โทร · id ผู้ใช้ Facebook/IG/TikTok · id เว็บแชต",
+            "maxLength": 200
+          },
+          "sender_name": {
+            "type": "string",
+            "description": "ชื่อที่แสดงของผู้ส่ง",
+            "maxLength": 200
+          },
+          "text": {
+            "type": "string",
+            "description": "ข้อความ (ต้องมีข้อความหรือไฟล์แนบ)",
+            "maxLength": 4000
+          },
+          "attachments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CareAttachmentDto"
+            },
+            "maxItems": 20
+          },
+          "claimed": {
+            "description": "สิ่งที่ลูกค้าแจ้งว่าเป็นตัวเอง — จับคู่ได้แค่ \"อ้างว่าเป็น\" (ยังไม่เปิดข้อมูลอุปกรณ์/สิทธิ์)",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CareClaimDto"
+              }
+            ]
+          },
+          "received_at": {
+            "type": "string",
+            "description": "เวลาที่ช่องทางรับข้อความ (ISO 8601)"
+          }
+        },
+        "required": [
+          "channel",
+          "sender_ref"
+        ]
+      },
+      "CareReplyDto": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 4000
+          },
+          "author": {
+            "type": "string",
+            "enum": [
+              "ai",
+              "system"
+            ],
+            "default": "ai"
+          },
+          "kb_query_id": {
+            "type": "string",
+            "description": "queryId จาก POST kb/ai/search ที่คำตอบนี้อ้างอิง (CD-265)"
+          }
+        },
+        "required": [
+          "text"
+        ]
+      }
+    }
+  }
+}

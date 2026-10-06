@@ -32,6 +32,7 @@ import { PmHttpModule } from './pm/pm-http.module';
 import { PricingHttpModule } from './pricing/pricing-http.module';
 import { HrHttpModule } from './hr/hr-http.module';
 import { SupportHttpModule } from './support/support-http.module';
+import { CareHttpModule } from './care/care-http.module';
 import { DeliveryHttpModule } from './delivery/delivery-http.module';
 import { KbModule } from './kb/kb.module';
 import { MacomHttpModule } from './macom/macom-http.module';
@@ -75,6 +76,8 @@ import configs from './configs';
     HrHttpModule,
     // CD-21 Service & Support
     SupportHttpModule,
+    // CD-23 AI CARE
+    CareHttpModule,
     // CD-20 Delivery
     DeliveryHttpModule,
     // CD-22 KBMS

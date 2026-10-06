@@ -28,6 +28,7 @@ import { DeliveryModule } from './delivery/delivery.module';
 import { SupportApiModule } from './support/support.module';
 import { FlowModule } from './flow/flow.module';
 import { KbApiModule } from './kb/kb.module';
+import { CareApiModule } from './care/care.module';
 import { AssistantModule } from './assistant/assistant.module';
 import { SmartApiModule } from './smart/smart.module';
 import configs from './configs';
@@ -79,6 +80,7 @@ import configs from './configs';
     SupportApiModule,
     FlowModule,
     KbApiModule,
+    CareApiModule,
     // CD-276 — the personal assistant's questions
     AssistantModule,
     // CD-289 — a vendor pushes swept leads into AI SMART

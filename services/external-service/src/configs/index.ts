@@ -117,6 +117,12 @@ export default () => ({
     },
   },
   notificationDigestIntervalMs: 0,
+  /** CD-280 — idle-close and text clearing run in core-service only. */
+  care: {
+    sweepIntervalMs: 0,
+    idleHours: Number(process.env.CARE_IDLE_HOURS ?? 24),
+    retentionDays: Number(process.env.CARE_RETENTION_DAYS ?? 180),
+  },
   /** CD-90 — likewise: the lake is fed by core-service only. */
   lake: { databaseUrl: '', extractIntervalMs: 0, sapIntervalMs: 0 },
   /** CD-78 — Reserve-phone (the phone number inventory); only `mock` exists yet. */

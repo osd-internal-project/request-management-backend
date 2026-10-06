@@ -23,6 +23,14 @@
 | GET | `/assistant/service-jobs` | งานบริการที่ยังค้าง | integration.assistant.read | service.asset.read |
 | GET | `/assistant/kb/articles` | ค้นบทความในคลังความรู้ | integration.assistant.read | notification.read |
 
+## care — บทสนทนากับลูกค้าเดิมทุกช่องทาง (LINE, Facebook, Instagram, TikTok, อีเมล, เว็บแชต, D-Callcenter) สำหรับตัวเชื่อมช่องทางและ AI CARE
+
+| Method | Path | ทำอะไร | สิทธิ์กุญแจ | สิทธิ์คน |
+|---|---|---|---|---|
+| POST | `/care/messages` | ข้อความจากลูกค้า เข้าบทสนทนา (CD-280) | integration.care.manage |  |
+| POST | `/care/conversations/{id}/replies` | สิ่งที่ตอบลูกค้าไป (AI หรือข้อความระบบ) บันทึกในบทสนทนา (CD-280) | integration.care.manage |  |
+| GET | `/care/conversations/{id}` | บทสนทนาและบริบทลูกค้า (CD-280) | integration.care.manage |  |
+
 ## crm — ทะเบียนลูกค้า, Lead, โอกาสการขาย, ใบเสนอราคา, ใบสั่งขาย และหน้าตั้งค่า CRM
 
 | Method | Path | ทำอะไร | สิทธิ์กุญแจ | สิทธิ์คน |
@@ -160,7 +168,7 @@
 |---|---|---|---|---|
 | GET | `/flow/opportunities/{id}` | ติดตามดีลทั้งสาย — ดีล → Pre-Sales → ใบเสนอราคา → ใบสั่งขาย → สัญญา → โครงการ | integration.flow.read | crm.sales.read |
 
-## kb
+## kb — คลังความรู้สำหรับช่องทาง AI ที่คุยกับลูกค้า (AI CARE, AI SMART) — ค้นบทความแล้วรายงานคำตอบและบทความที่อ้างอิง
 
 | Method | Path | ทำอะไร | สิทธิ์กุญแจ | สิทธิ์คน |
 |---|---|---|---|---|

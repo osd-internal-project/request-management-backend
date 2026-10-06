@@ -160,3 +160,7 @@ export { SmartModule } from './smart/smart.module';
 export { SmartIngestService } from './smart/smart-ingest.service';
 export { PushProspectsDto } from './smart/smart.dto';
 export { toFound } from './smart/smart.service';
+// CD-23 AI CARE
+export { CareModule } from './care/care.module';
+export { CareService } from './care/care.service';
+export { CareInboundDto, CareReplyDto } from './care/care.dto';

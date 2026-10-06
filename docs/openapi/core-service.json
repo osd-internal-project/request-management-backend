@@ -23429,6 +23429,262 @@
         ]
       }
     },
+    "/api/v1/care/conversations": {
+      "get": {
+        "operationId": "CareController_list",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "live",
+                "open",
+                "waiting_human",
+                "with_agent",
+                "closed"
+              ]
+            }
+          },
+          {
+            "name": "channel",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "line",
+                "facebook",
+                "instagram",
+                "tiktok",
+                "email",
+                "web",
+                "callcenter",
+                "api"
+              ]
+            }
+          },
+          {
+            "name": "identification",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "unknown",
+                "claimed",
+                "verified"
+              ]
+            }
+          },
+          {
+            "name": "customer_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-280 บทสนทนา AI CARE (ล่าสุดก่อน, 200 รายการ)",
+        "tags": [
+          "care"
+        ]
+      }
+    },
+    "/api/v1/care/conversations/{id}": {
+      "get": {
+        "operationId": "CareController_detail",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-280 บทสนทนาเดียว — ข้อความทั้งหมด ลูกค้า อุปกรณ์และสิทธิ์บริการ",
+        "tags": [
+          "care"
+        ]
+      }
+    },
+    "/api/v1/care/customers/{customerId}/contacts": {
+      "get": {
+        "operationId": "CareController_contacts",
+        "parameters": [
+          {
+            "name": "customerId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-280 ผู้ติดต่อของลูกค้า สำหรับยืนยันตัวผู้ส่ง",
+        "tags": [
+          "care"
+        ]
+      }
+    },
+    "/api/v1/care/conversations/{id}/verify": {
+      "post": {
+        "operationId": "CareController_verify",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CareVerifyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-280 ยืนยันว่าผู้ส่งคือผู้ติดต่อของลูกค้า — จำไว้ ครั้งหน้าช่องทางนี้ยืนยันอัตโนมัติ",
+        "tags": [
+          "care"
+        ]
+      }
+    },
+    "/api/v1/care/conversations/{id}/close": {
+      "post": {
+        "operationId": "CareController_close",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CareCloseDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-280 ปิดบทสนทนาพร้อมผล",
+        "tags": [
+          "care"
+        ]
+      }
+    },
     "/api/v1/delivery/report/phases": {
       "get": {
         "operationId": "DeliveryController_reportPhases",
@@ -46826,6 +47082,34 @@
         },
         "required": [
           "helpful"
+        ]
+      },
+      "CareVerifyDto": {
+        "type": "object",
+        "properties": {
+          "contact_id": {
+            "type": "string",
+            "description": "ผู้ติดต่อของลูกค้าที่ยืนยันว่าเป็นผู้ส่ง"
+          }
+        },
+        "required": [
+          "contact_id"
+        ]
+      },
+      "CareCloseDto": {
+        "type": "object",
+        "properties": {
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "resolved",
+              "no_reply",
+              "spam"
+            ]
+          }
+        },
+        "required": [
+          "outcome"
         ]
       },
       "SendHandoverDto": {

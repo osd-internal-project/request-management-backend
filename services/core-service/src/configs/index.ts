@@ -287,6 +287,15 @@ export default () => ({
    * CD-90 — the Data Lake: a separate PostgreSQL warehouse database. Unset =
    * no lake, nothing runs. Changed rows every hour, SAP invoices daily.
    */
+  /** CD-23 AI CARE */
+  care: {
+    /** CD-280 — idle conversations closed and old texts cleared (ms); 0 = off. */
+    sweepIntervalMs: Number(process.env.CARE_SWEEP_INTERVAL_MS ?? 900000),
+    /** CD-280 — hours of silence after which a sender's next message starts anew. */
+    idleHours: Number(process.env.CARE_IDLE_HOURS ?? 24),
+    /** CD-280 — days message texts are kept once a conversation is closed. */
+    retentionDays: Number(process.env.CARE_RETENTION_DAYS ?? 180),
+  },
   /** CD-275 — the company LLM Gateway (OpenAI-compatible). */
   llm: {
     /** mock (default, no network) | gateway */

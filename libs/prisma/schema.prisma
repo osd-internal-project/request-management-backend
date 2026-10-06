@@ -8424,3 +8424,78 @@ model SmartProspect {
   @@index([companyId, taxId])
   @@map("smart_prospects")
 }
+
+/// CD-280 (CD-23 AI CARE) — one conversation with a customer on one channel:
+/// a sender's messages join the open one; a conversation AI is handling
+/// closes after `care.idleHours` of silence (one waiting for or with a person
+/// never closes by itself). `identification`: unknown · claimed (the sender
+/// typed a phone / email / customer code that matches a contact — general
+/// answers only) · verified (the channel's own identity matched a contact,
+/// or a staff member confirmed it — assets and coverage may be used).
+/// status: open · waiting_human · with_agent · closed.
+model CareConversation {
+  id             String    @id @default(uuid())
+  companyId      String
+  channel        String
+  senderRef      String
+  senderName     String?
+  identification String    @default("unknown")
+  customerId     String?
+  contactId      String?
+  verifiedAt     DateTime?
+  verifiedBy     String?
+  verifyMethod   String?
+  status         String    @default("open")
+  outcome        String?
+  messages       Int       @default(0)
+  openedAt       DateTime  @default(now())
+  lastMessageAt  DateTime  @default(now())
+  closedAt       DateTime?
+  closedBy       String?
+  textPurgedAt   DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([companyId, channel, senderRef, status])
+  @@index([companyId, status, lastMessageAt])
+  @@index([customerId])
+  @@map("care_conversations")
+}
+
+/// CD-280 — a message in a conversation. direction in (from the customer) ·
+/// out (to them); author customer · ai · agent · system. `text` is cleared
+/// after `care.retentionDays` (attachments' names stay, files are the
+/// channel's).
+model CareMessage {
+  id             String   @id @default(uuid())
+  conversationId String
+  direction      String
+  author         String
+  authorUserId   String?
+  text           String?
+  attachments    Json     @default("[]")
+  /// CD-265 — the knowledge search an AI answer came from
+  kbQueryId      String?
+  createdAt      DateTime @default(now())
+
+  @@index([conversationId, createdAt])
+  @@map("care_messages")
+}
+
+/// CD-280 — a channel identity confirmed to be a customer's contact, so the
+/// next conversation from it starts verified.
+model CareIdentity {
+  id         String   @id @default(uuid())
+  companyId  String
+  channel    String
+  senderRef  String
+  customerId String
+  contactId  String
+  method     String
+  verifiedBy String?
+  createdAt  DateTime @default(now())
+
+  @@unique([companyId, channel, senderRef])
+  @@index([contactId])
+  @@map("care_identities")
+}

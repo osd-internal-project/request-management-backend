@@ -365,6 +365,19 @@ other end is a user, and nothing it sends reaches CRM — rows wait in
 `smart_prospects` for screening (CD-290). It writes only to a source the
 company set up as kind `push`. A sixth is again a decision to state here.
 
+**The sixth: AI channels that talk to customers — `kb/ai/*` (CD-265, 5 Oct
+2026) and `care/*` (CD-280, 6 Oct 2026, user decision).** A channel connector
+(LINE, Facebook, Instagram, TikTok, email, web chat, D-Callcenter) or AI CARE
+itself posts what a customer wrote and what was answered, under
+`integration.care.manage`; AI CARE and AI SMART read customer-facing articles
+under `integration.kb.read`. The person at the other end is a customer, never
+one of our users. `kb/ai` returns only articles published to customers (all,
+or the one named). `care` returns a customer's name, assets and coverage only
+once the sender is *verified* — the platform's own identity (LINE id, email
+sender, caller number) matched one contact, or the service team confirmed it;
+what a sender types only *claims* a customer. A seventh is again a decision to
+state here.
+
 **core-service's one public business surface: e-signature (CD-14, 30 Sep
 2026).** `EsignPublicController` — `esign/public/:token/*` (a signer's link:
 view, one-time code, document, sign, decline) and `esign/verify/:code*` (the

@@ -146,8 +146,16 @@ export const PERMISSIONS = {
    * (CD-236 — what each customer has, where, which serial and version);
    * `service.asset.manage` adds and corrects it, and imports the base that
    * predates the system.
+   *
+   * CD-280 (CD-23 AI CARE) — `service.care.manage` reads the conversations
+   * AI CARE holds with customers on every channel and confirms who a sender
+   * is (linking the channel identity to a customer contact).
    */
-  service: ['service.asset.read', 'service.asset.manage'],
+  service: [
+    'service.asset.read',
+    'service.asset.manage',
+    'service.care.manage',
+  ],
   /**
    * CD-20 Delivery — the delivery team's plans of what goes where and when
    * (CD-250). A project's manager and `pm.project.manage` change their own
@@ -321,6 +329,13 @@ export const PERMISSIONS = {
      * it answered with. Robot-only: no acting person, never internal articles.
      */
     'integration.kb.read',
+    /**
+     * CD-280 (CD-23 AI CARE) — a channel connector or AI CARE posts what a
+     * customer wrote and what was answered, and reads the conversation with
+     * the customer it is (assets and coverage only once the sender is
+     * verified). Robot-only.
+     */
+    'integration.care.manage',
     /**
      * CD-276 (CD-24) — the personal assistant (LibreChat over MCP) asks the
      * questions people ask in a chat: deals closing or gone quiet, my
