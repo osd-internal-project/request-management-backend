@@ -74,6 +74,7 @@ import {
   CampaignRepository,
   CampaignBudgetLineRepository,
   CampaignSpendRepository,
+  CampaignRegistrationRepository,
 } from './sales.repositories';
 import { CampaignsService } from './campaigns.service';
 import { TargetAccountsService } from './target-accounts.service';
@@ -174,6 +175,8 @@ import { SaleOrdersService } from './sale-orders.service';
 import { LeadImportService } from './lead-import.service';
 import { LeadIntakeService } from './lead-intake.service';
 import { CampaignLeadIntakeService } from './campaign-lead-intake.service';
+import { CampaignEventsService } from './campaign-events.service';
+import { CampaignRegistrationWriter } from './campaign-registration.writer';
 import { LeadWorkflowService } from './lead-workflow.service';
 import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
 
@@ -263,6 +266,10 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     LeadIntakeService,
     // CD-269 — one screening for every Lead from outside
     CampaignLeadIntakeService,
+    // CD-270 — events
+    CampaignRegistrationRepository,
+    CampaignRegistrationWriter,
+    CampaignEventsService,
     LeadWorkflowService,
     LeadWorkflowSyncService,
     OpportunitiesService,
@@ -359,6 +366,7 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     LeadImportService,
     LeadIntakeService,
     CampaignLeadIntakeService,
+    CampaignEventsService,
     LeadWorkflowService,
     OpportunitiesService,
     OpportunityActivitiesService,

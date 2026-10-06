@@ -16,9 +16,12 @@ import {
 import { CustomerContactRepository } from './customer-child.repositories';
 import { CustomerRepository } from './customer.repository';
 import { IntakeLeadDto } from './dto/lead-intake.dto';
+import { eventOpen, seatFor } from './campaign-event-rules';
+import { CampaignRegistrationWriter } from './campaign-registration.writer';
 import { LeadStatusService } from './lead-status.service';
 import { LeadsService } from './leads.service';
 import {
+  CampaignRegistrationRepository,
   CampaignRepository,
   LeadActivityRepository,
   LeadRepository,
@@ -48,6 +51,12 @@ interface CampaignRow {
   receivingOrgUnitId: string | null;
   formEnabled: boolean;
   formIntro: string | null;
+  kind: string;
+  eventStartsAt: Date | null;
+  eventEndsAt: Date | null;
+  eventVenue: string | null;
+  eventOnlineUrl: string | null;
+  eventCapacity: number | null;
 }
 
 const LEAD_SELECT = {
@@ -89,6 +98,9 @@ export class CampaignLeadIntakeService {
     private readonly statuses: LeadStatusService,
     private readonly orgUnits: OrgUnitRepository,
     private readonly notifications: NotificationsService,
+    // CD-270 — on an event campaign the form records a registration
+    private readonly registrations: CampaignRegistrationWriter,
+    private readonly registrationRows: CampaignRegistrationRepository,
   ) {}
 
   /** The screening, for any channel. `dto.source_code` must be set. */
@@ -202,9 +214,29 @@ export class CampaignLeadIntakeService {
   /** What the form page shows — only a campaign that is open and has it on. */
   async formOf(token: string, key: ApiKeyContext | undefined) {
     const campaign = await this.campaignByToken(token, key);
+    if (campaign.kind !== 'event') {
+      return {
+        campaign: campaign.name,
+        intro: campaign.formIntro,
+        kind: 'campaign',
+      };
+    }
+    const seated = await this.registrationRows.count({
+      where: { campaignId: campaign.id, status: 'registered' },
+    });
     return {
       campaign: campaign.name,
       intro: campaign.formIntro,
+      kind: 'event',
+      event: {
+        starts_at: campaign.eventStartsAt?.toISOString() ?? null,
+        ends_at: campaign.eventEndsAt?.toISOString() ?? null,
+        venue: campaign.eventVenue,
+        online: Boolean(campaign.eventOnlineUrl),
+        // the form says so up front, rather than after they type it all in
+        full: seatFor(campaign.eventCapacity, seated) === 'waitlisted',
+        open: eventOpen(campaign.eventEndsAt, new Date()),
+      },
     };
   }
 
@@ -215,6 +247,7 @@ export class CampaignLeadIntakeService {
     key: ApiKeyContext | undefined,
   ) {
     const campaign = await this.campaignByToken(token, key);
+    if (campaign.kind === 'event') return this.registerFor(campaign, dto);
     const result = await this.receive(
       {
         ...dto,
@@ -225,6 +258,32 @@ export class CampaignLeadIntakeService {
     );
     // The person on the form learns it was received — nothing about the Lead.
     return { received: true, outcome: result.outcome };
+  }
+
+  /**
+   * CD-270 — an event's form makes a registration, not a Lead: Leads come
+   * after the event, from those who came and are interested.
+   */
+  private async registerFor(campaign: CampaignRow, dto: IntakeLeadDto) {
+    if (!eventOpen(campaign.eventEndsAt, new Date())) {
+      throw new AppError('CONFLICT', 'งานนี้จบแล้ว — ปิดรับลงทะเบียน');
+    }
+    const contactName = dto.contact_name?.trim() || dto.name.trim();
+    const result = await this.registrations.register(campaign, {
+      contactName,
+      company: dto.contact_name?.trim() ? dto.name.trim() : null,
+      position: dto.contact_position?.trim() || null,
+      phone: dto.phone?.trim() || null,
+      email: dto.email?.trim() || null,
+      need: dto.note?.trim() || null,
+    });
+    return {
+      received: true,
+      status: result.status,
+      // the online link only once they hold a seat
+      online_url:
+        result.status === 'registered' ? campaign.eventOnlineUrl : null,
+    };
   }
 
   // --- Lead Ads (Facebook / TikTok) -----------------------------------------

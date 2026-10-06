@@ -478,6 +478,20 @@ export class CampaignRepository extends BaseRepository<
   }
 }
 
+/** CD-270 ผู้ลงทะเบียนอีเวนต์. */
+@Injectable()
+export class CampaignRegistrationRepository extends BaseRepository<
+  PrismaService['campaignRegistration']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.campaignRegistration;
+  }
+}
+
 /** CD-268 งบแคมเปญรายช่องทาง. */
 @Injectable()
 export class CampaignBudgetLineRepository extends BaseRepository<

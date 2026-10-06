@@ -1285,6 +1285,50 @@ export class CreateCampaignDto {
   @IsString({ each: true })
   @MaxLength(100, { each: true })
   ad_form_ids?: string[];
+
+  @ApiPropertyOptional({
+    enum: ['campaign', 'event'],
+    description:
+      'CD-270 — อีเวนต์: ฟอร์มรับลงทะเบียน แล้วหลังงานแปลงผู้เข้าร่วมที่สนใจเป็น Lead',
+  })
+  @IsOptional()
+  @IsIn(['campaign', 'event'])
+  kind?: string;
+
+  @ApiPropertyOptional({ example: '2026-10-20T02:00:00.000Z' })
+  @IsOptional()
+  @IsDateString()
+  event_starts_at?: string;
+
+  @ApiPropertyOptional({ example: '2026-10-20T08:00:00.000Z' })
+  @IsOptional()
+  @IsDateString()
+  event_ends_at?: string;
+
+  @ApiPropertyOptional({ example: 'ห้อง Ballroom โรงแรม …' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  event_venue?: string;
+
+  @ApiPropertyOptional({
+    description: 'ลิงก์ออนไลน์ — แสดงเฉพาะผู้ที่ได้ที่นั่ง',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  event_online_url?: string;
+
+  @ApiPropertyOptional({
+    type: Number,
+    nullable: true,
+    description: 'ที่นั่ง — เต็มแล้วเข้ารายชื่อสำรอง · null = ไม่จำกัด',
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(100_000)
+  event_capacity?: number | null;
 }
 
 /** แก้ได้ทุกอย่างยกเว้นรหัส — Lead เก่าและเว็บฟอร์มอ้างรหัสนั้นอยู่. */
@@ -1399,6 +1443,134 @@ export class UpdateCampaignDto {
   @IsString({ each: true })
   @MaxLength(100, { each: true })
   ad_form_ids?: string[];
+
+  @ApiPropertyOptional({
+    enum: ['campaign', 'event'],
+    description:
+      'CD-270 — อีเวนต์: ฟอร์มรับลงทะเบียน แล้วหลังงานแปลงผู้เข้าร่วมที่สนใจเป็น Lead',
+  })
+  @IsOptional()
+  @IsIn(['campaign', 'event'])
+  kind?: string;
+
+  @ApiPropertyOptional({ example: '2026-10-20T02:00:00.000Z' })
+  @IsOptional()
+  @IsDateString()
+  event_starts_at?: string;
+
+  @ApiPropertyOptional({ example: '2026-10-20T08:00:00.000Z' })
+  @IsOptional()
+  @IsDateString()
+  event_ends_at?: string;
+
+  @ApiPropertyOptional({ example: 'ห้อง Ballroom โรงแรม …' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  event_venue?: string;
+
+  @ApiPropertyOptional({
+    description: 'ลิงก์ออนไลน์ — แสดงเฉพาะผู้ที่ได้ที่นั่ง',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  event_online_url?: string;
+
+  @ApiPropertyOptional({
+    type: Number,
+    nullable: true,
+    description: 'ที่นั่ง — เต็มแล้วเข้ารายชื่อสำรอง · null = ไม่จำกัด',
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(100_000)
+  event_capacity?: number | null;
+}
+
+// --- CD-270 อีเวนต์ ------------------------------------------------------------
+
+export class WalkInDto {
+  @ApiProperty({ example: 'สมชาย ใจดี' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  contact_name!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  company?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  position?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  phone?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  email?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(1500)
+  need?: string;
+}
+
+export class CheckInDto {
+  @ApiProperty({ description: 'true = มาแล้ว · false = ยกเลิกการติ๊ก' })
+  @IsBoolean()
+  attended!: boolean;
+}
+
+export class RegistrationStatusDto {
+  @ApiProperty({
+    enum: ['registered', 'cancelled'],
+    description:
+      'registered = ให้ที่นั่ง (จากรายชื่อสำรอง) · cancelled = ยกเลิก',
+  })
+  @IsIn(['registered', 'cancelled'])
+  status!: 'registered' | 'cancelled';
+}
+
+export class FollowRegistrationDto {
+  @ApiPropertyOptional({
+    enum: ['interested', 'later', 'not_interested', ''],
+    description: 'ความสนใจหลังงาน · ว่าง = ล้าง',
+  })
+  @IsOptional()
+  @IsIn(['interested', 'later', 'not_interested', ''])
+  interest?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(1500)
+  follow_note?: string;
+}
+
+export class ConvertRegistrationsDto {
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'ว่าง = ทุกคนที่มาและสนใจและยังไม่เป็น Lead',
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(500)
+  @IsString({ each: true })
+  registration_ids?: string[];
 }
 
 export class ListCampaignsQueryDto {

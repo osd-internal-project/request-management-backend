@@ -7768,6 +7768,41 @@
               "maxLength": 100
             },
             "maxItems": 20
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "campaign",
+              "event"
+            ],
+            "description": "CD-270 — อีเวนต์: ฟอร์มรับลงทะเบียน แล้วหลังงานแปลงผู้เข้าร่วมที่สนใจเป็น Lead"
+          },
+          "event_starts_at": {
+            "type": "string",
+            "example": "2026-10-20T02:00:00.000Z",
+            "format": "date-time"
+          },
+          "event_ends_at": {
+            "type": "string",
+            "example": "2026-10-20T08:00:00.000Z",
+            "format": "date-time"
+          },
+          "event_venue": {
+            "type": "string",
+            "example": "ห้อง Ballroom โรงแรม …",
+            "maxLength": 500
+          },
+          "event_online_url": {
+            "type": "string",
+            "description": "ลิงก์ออนไลน์ — แสดงเฉพาะผู้ที่ได้ที่นั่ง",
+            "maxLength": 500
+          },
+          "event_capacity": {
+            "type": "integer",
+            "nullable": true,
+            "description": "ที่นั่ง — เต็มแล้วเข้ารายชื่อสำรอง · null = ไม่จำกัด",
+            "maximum": 100000,
+            "minimum": 1
           }
         },
         "required": [
@@ -9484,6 +9519,41 @@
               "maxLength": 100
             },
             "maxItems": 20
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "campaign",
+              "event"
+            ],
+            "description": "CD-270 — อีเวนต์: ฟอร์มรับลงทะเบียน แล้วหลังงานแปลงผู้เข้าร่วมที่สนใจเป็น Lead"
+          },
+          "event_starts_at": {
+            "type": "string",
+            "example": "2026-10-20T02:00:00.000Z",
+            "format": "date-time"
+          },
+          "event_ends_at": {
+            "type": "string",
+            "example": "2026-10-20T08:00:00.000Z",
+            "format": "date-time"
+          },
+          "event_venue": {
+            "type": "string",
+            "example": "ห้อง Ballroom โรงแรม …",
+            "maxLength": 500
+          },
+          "event_online_url": {
+            "type": "string",
+            "description": "ลิงก์ออนไลน์ — แสดงเฉพาะผู้ที่ได้ที่นั่ง",
+            "maxLength": 500
+          },
+          "event_capacity": {
+            "type": "integer",
+            "nullable": true,
+            "description": "ที่นั่ง — เต็มแล้วเข้ารายชื่อสำรอง · null = ไม่จำกัด",
+            "maximum": 100000,
+            "minimum": 1
           },
           "name": {
             "maxLength": 255,

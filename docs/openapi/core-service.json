@@ -33115,6 +33115,302 @@
         ]
       }
     },
+    "/api/v1/macom/events/{campaignId}/registrations": {
+      "get": {
+        "operationId": "MacomController_registrations",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-270 รายชื่อผู้ลงทะเบียนอีเวนต์ + ตัวเลขสรุป (เช็กอินหน้างาน)",
+        "tags": [
+          "macom"
+        ],
+        "x-permission": [
+          "crm.campaign.manage"
+        ]
+      }
+    },
+    "/api/v1/macom/events/{campaignId}/walk-ins": {
+      "post": {
+        "operationId": "MacomController_walkIn",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WalkInDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-270 เพิ่ม walk-in หน้างาน (นับว่ามาแล้ว)",
+        "tags": [
+          "macom"
+        ],
+        "x-permission": [
+          "crm.campaign.manage"
+        ]
+      }
+    },
+    "/api/v1/macom/events/{campaignId}/convert": {
+      "post": {
+        "operationId": "MacomController_convert",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConvertRegistrationsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-270 แปลงผู้เข้าร่วมที่สนใจเป็น Lead (ผ่านการคัดกรอง CD-269)",
+        "tags": [
+          "macom"
+        ],
+        "x-permission": [
+          "crm.campaign.manage"
+        ]
+      }
+    },
+    "/api/v1/macom/event-registrations/{id}/check-in": {
+      "post": {
+        "operationId": "MacomController_checkIn",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckInDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-270 เช็กอิน / ยกเลิกเช็กอิน",
+        "tags": [
+          "macom"
+        ],
+        "x-permission": [
+          "crm.campaign.manage"
+        ]
+      }
+    },
+    "/api/v1/macom/event-registrations/{id}/status": {
+      "post": {
+        "operationId": "MacomController_setStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegistrationStatusDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-270 ให้ที่นั่งจากรายชื่อสำรอง หรือยกเลิก",
+        "tags": [
+          "macom"
+        ],
+        "x-permission": [
+          "crm.campaign.manage"
+        ]
+      }
+    },
+    "/api/v1/macom/event-registrations/{id}/follow": {
+      "patch": {
+        "operationId": "MacomController_follow",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FollowRegistrationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-270 ความสนใจและหมายเหตุหลังงาน",
+        "tags": [
+          "macom"
+        ],
+        "x-permission": [
+          "crm.campaign.manage"
+        ]
+      }
+    },
     "/api/v1/macom/campaigns/{id}/plan": {
       "get": {
         "operationId": "MacomController_plan",
@@ -39499,6 +39795,41 @@
               "maxLength": 100
             },
             "maxItems": 20
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "campaign",
+              "event"
+            ],
+            "description": "CD-270 — อีเวนต์: ฟอร์มรับลงทะเบียน แล้วหลังงานแปลงผู้เข้าร่วมที่สนใจเป็น Lead"
+          },
+          "event_starts_at": {
+            "type": "string",
+            "example": "2026-10-20T02:00:00.000Z",
+            "format": "date-time"
+          },
+          "event_ends_at": {
+            "type": "string",
+            "example": "2026-10-20T08:00:00.000Z",
+            "format": "date-time"
+          },
+          "event_venue": {
+            "type": "string",
+            "example": "ห้อง Ballroom โรงแรม …",
+            "maxLength": 500
+          },
+          "event_online_url": {
+            "type": "string",
+            "description": "ลิงก์ออนไลน์ — แสดงเฉพาะผู้ที่ได้ที่นั่ง",
+            "maxLength": 500
+          },
+          "event_capacity": {
+            "type": "integer",
+            "nullable": true,
+            "description": "ที่นั่ง — เต็มแล้วเข้ารายชื่อสำรอง · null = ไม่จำกัด",
+            "maximum": 100000,
+            "minimum": 1
           }
         },
         "required": [
@@ -39566,6 +39897,41 @@
               "maxLength": 100
             },
             "maxItems": 20
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "campaign",
+              "event"
+            ],
+            "description": "CD-270 — อีเวนต์: ฟอร์มรับลงทะเบียน แล้วหลังงานแปลงผู้เข้าร่วมที่สนใจเป็น Lead"
+          },
+          "event_starts_at": {
+            "type": "string",
+            "example": "2026-10-20T02:00:00.000Z",
+            "format": "date-time"
+          },
+          "event_ends_at": {
+            "type": "string",
+            "example": "2026-10-20T08:00:00.000Z",
+            "format": "date-time"
+          },
+          "event_venue": {
+            "type": "string",
+            "example": "ห้อง Ballroom โรงแรม …",
+            "maxLength": 500
+          },
+          "event_online_url": {
+            "type": "string",
+            "description": "ลิงก์ออนไลน์ — แสดงเฉพาะผู้ที่ได้ที่นั่ง",
+            "maxLength": 500
+          },
+          "event_capacity": {
+            "type": "integer",
+            "nullable": true,
+            "description": "ที่นั่ง — เต็มแล้วเข้ารายชื่อสำรอง · null = ไม่จำกัด",
+            "maximum": 100000,
+            "minimum": 1
           },
           "name": {
             "maxLength": 255,
@@ -45314,6 +45680,100 @@
         "required": [
           "reported_pct"
         ]
+      },
+      "WalkInDto": {
+        "type": "object",
+        "properties": {
+          "contact_name": {
+            "type": "string",
+            "example": "สมชาย ใจดี",
+            "maxLength": 255,
+            "minLength": 1
+          },
+          "company": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "position": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "phone": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "email": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "need": {
+            "type": "string",
+            "maxLength": 1500
+          }
+        },
+        "required": [
+          "contact_name"
+        ]
+      },
+      "ConvertRegistrationsDto": {
+        "type": "object",
+        "properties": {
+          "registration_ids": {
+            "description": "ว่าง = ทุกคนที่มาและสนใจและยังไม่เป็น Lead",
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 500
+          }
+        }
+      },
+      "CheckInDto": {
+        "type": "object",
+        "properties": {
+          "attended": {
+            "type": "boolean",
+            "description": "true = มาแล้ว · false = ยกเลิกการติ๊ก"
+          }
+        },
+        "required": [
+          "attended"
+        ]
+      },
+      "RegistrationStatusDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "registered",
+              "cancelled"
+            ],
+            "description": "registered = ให้ที่นั่ง (จากรายชื่อสำรอง) · cancelled = ยกเลิก"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "FollowRegistrationDto": {
+        "type": "object",
+        "properties": {
+          "interest": {
+            "type": "string",
+            "enum": [
+              "interested",
+              "later",
+              "not_interested",
+              ""
+            ],
+            "description": "ความสนใจหลังงาน · ว่าง = ล้าง"
+          },
+          "follow_note": {
+            "type": "string",
+            "maxLength": 1500
+          }
+        }
       },
       "SaveBudgetLinesDto": {
         "type": "object",

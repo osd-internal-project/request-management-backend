@@ -44,6 +44,12 @@ interface CampaignRow {
   formToken: string | null;
   formIntro: string | null;
   adFormIds: string[];
+  kind: string;
+  eventStartsAt: Date | null;
+  eventEndsAt: Date | null;
+  eventVenue: string | null;
+  eventOnlineUrl: string | null;
+  eventCapacity: number | null;
   createdAt: Date;
 }
 
@@ -77,6 +83,15 @@ export interface CampaignView {
     intro: string | null;
     ad_form_ids: string[];
   };
+  /** CD-270 — `campaign` | `event`, and the event's day, place and seats. */
+  kind: string;
+  event: {
+    starts_at: string | null;
+    ends_at: string | null;
+    venue: string | null;
+    online_url: string | null;
+    capacity: number | null;
+  } | null;
   /** สัดส่วนที่ถึงเป้า (1 = ถึงเป้า) — null เมื่อไม่ตั้งเป้า. */
   progress: {
     leads: number | null;
@@ -251,6 +266,17 @@ export class CampaignsService {
             }
           : null,
         has_budget_lines: lines.some((line) => line.campaignId === row.id),
+        kind: row.kind,
+        event:
+          row.kind === 'event'
+            ? {
+                starts_at: row.eventStartsAt?.toISOString() ?? null,
+                ends_at: row.eventEndsAt?.toISOString() ?? null,
+                venue: row.eventVenue,
+                online_url: row.eventOnlineUrl,
+                capacity: row.eventCapacity,
+              }
+            : null,
         form: {
           enabled: row.formEnabled,
           token: row.formToken,
@@ -403,6 +429,15 @@ export class CampaignsService {
     existing: { id: string; formToken: string | null } | null = null,
   ) {
     const existingToken = existing?.formToken ?? null;
+    if (
+      dto.event_starts_at &&
+      dto.event_ends_at &&
+      dto.event_ends_at < dto.event_starts_at
+    ) {
+      throw new AppError('VALIDATION_FAILED', 'เวลาจบงานต้องหลังเวลาเริ่ม', [
+        { field: 'event_ends_at', reason: 'before_start' },
+      ]);
+    }
     if (dto.ad_form_ids?.length) {
       // one ad form feeds one campaign — otherwise its Leads have no home
       const taken = (await this.campaigns.findFirst({
@@ -461,6 +496,23 @@ export class CampaignsService {
               ? { formToken: newFormToken() }
               : {}),
           }
+        : {}),
+      // CD-270 — the event's day, place and seats
+      ...(dto.kind !== undefined ? { kind: dto.kind } : {}),
+      ...(dto.event_starts_at !== undefined
+        ? { eventStartsAt: new Date(dto.event_starts_at) }
+        : {}),
+      ...(dto.event_ends_at !== undefined
+        ? { eventEndsAt: new Date(dto.event_ends_at) }
+        : {}),
+      ...(dto.event_venue !== undefined
+        ? { eventVenue: dto.event_venue.trim() || null }
+        : {}),
+      ...(dto.event_online_url !== undefined
+        ? { eventOnlineUrl: dto.event_online_url.trim() || null }
+        : {}),
+      ...(dto.event_capacity !== undefined
+        ? { eventCapacity: dto.event_capacity }
         : {}),
       ...(dto.form_intro !== undefined
         ? { formIntro: dto.form_intro.trim() || null }

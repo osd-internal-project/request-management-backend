@@ -3499,26 +3499,73 @@ model Campaign {
   /// CD-268 — เป้าหมาย: จำนวน Lead, ดีลที่ปิดได้, ยอดขาย.
   targetLeads        Int?
   targetDeals        Int?
-  targetSales        Decimal? @db.Decimal(14, 2)
+  targetSales        Decimal?  @db.Decimal(14, 2)
   /// CD-269 — ฟอร์มสาธารณะของแคมเปญ (/f/lead/<formToken>) · token สุ่ม เดาไม่ได้.
-  formEnabled        Boolean  @default(false)
-  formToken          String?  @unique
+  formEnabled        Boolean   @default(false)
+  formToken          String?   @unique
   formIntro          String?
   /// CD-269 — id ฟอร์ม Lead Ads (Facebook/TikTok) ที่ส่ง Lead เข้าแคมเปญนี้.
-  adFormIds          String[] @default([])
+  adFormIds          String[]  @default([])
+  /// CD-270 — `campaign` | `event`. อีเวนต์: ฟอร์มสาธารณะรับลงทะเบียน (ไม่ใช่ Lead)
+  /// แล้วหลังงานแปลงเฉพาะผู้เข้าร่วมที่สนใจเป็น Lead.
+  kind               String    @default("campaign")
+  eventStartsAt      DateTime?
+  eventEndsAt        DateTime?
+  eventVenue         String?
+  eventOnlineUrl     String?
+  /// ที่นั่ง — เต็มแล้วผู้ลงทะเบียนต่อไปเข้ารายชื่อสำรอง. null = ไม่จำกัด.
+  eventCapacity      Int?
 
   createdAt DateTime @default(now())
   createdBy String?
   updatedAt DateTime @updatedAt
   updatedBy String?
 
-  company     Company              @relation(fields: [companyId], references: [id])
-  leads       Lead[]
-  budgetLines CampaignBudgetLine[]
-  spends      CampaignSpend[]
+  company       Company                @relation(fields: [companyId], references: [id])
+  leads         Lead[]
+  budgetLines   CampaignBudgetLine[]
+  spends        CampaignSpend[]
+  registrations CampaignRegistration[]
 
   @@unique([companyId, code])
   @@map("campaigns")
+}
+
+/// CD-270 — ผู้ลงทะเบียนอีเวนต์ (จากฟอร์มสาธารณะ หรือ walk-in หน้างาน).
+/// ไม่ใช่ Lead — หลังงานแปลงเฉพาะคนที่มาและสนใจ (`leadId`).
+model CampaignRegistration {
+  id          String    @id @default(uuid())
+  companyId   String
+  campaignId  String
+  company     String?
+  contactName String
+  position    String?
+  phone       String?
+  email       String?
+  need        String?
+  consentAt   DateTime?
+  /// registered | waitlisted | cancelled
+  status      String    @default("registered")
+  walkIn      Boolean   @default(false)
+  attendedAt  DateTime?
+  attendedBy  String?
+  /// interested | later | not_interested — ตั้งหลังงาน
+  interest    String?
+  followNote  String?
+  leadId      String?
+  leadOutcome String?
+  convertedAt DateTime?
+  convertedBy String?
+
+  createdAt DateTime @default(now())
+  createdBy String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  campaign Campaign @relation(fields: [campaignId], references: [id])
+
+  @@index([campaignId, status])
+  @@map("campaign_registrations")
 }
 
 /// CD-268 — งบแคมเปญรายช่องทาง. งบรวมของแคมเปญ (`campaigns.budget`) = ผลรวม

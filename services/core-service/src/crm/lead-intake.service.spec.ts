@@ -166,6 +166,8 @@ function harness(
         { listAll: jest.fn(() => Promise.resolve(rows)) } as never,
         { findFirst: jest.fn(() => Promise.resolve(null)) } as never,
         { campaignLead: jest.fn(() => Promise.resolve()) } as never,
+        { register: jest.fn() } as never,
+        { count: jest.fn(() => Promise.resolve(0)) } as never,
       ),
     ),
     leads,

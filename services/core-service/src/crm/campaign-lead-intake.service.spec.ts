@@ -36,6 +36,7 @@ function harness(
     contacts?: unknown[];
     campaignFound?: unknown;
     manager?: string | null;
+    seated?: number;
   } = {},
 ) {
   const leadsService = {
@@ -79,6 +80,14 @@ function harness(
     ),
   };
   const notifications = { campaignLead: jest.fn(() => Promise.resolve()) };
+  const writer = {
+    register: jest.fn(() =>
+      Promise.resolve({ id: 'reg-1', status: 'registered', repeat: false }),
+    ),
+  };
+  const registrationRows = {
+    count: jest.fn(() => Promise.resolve(options.seated ?? 0)),
+  };
   const service = new CampaignLeadIntakeService(
     leadsService as never,
     leads as never,
@@ -89,6 +98,8 @@ function harness(
     statuses as never,
     orgUnits as never,
     notifications as never,
+    writer as never,
+    registrationRows as never,
   );
   return {
     service,
@@ -97,6 +108,7 @@ function harness(
     activities,
     customers,
     notifications,
+    writer,
   };
 }
 
@@ -228,6 +240,7 @@ describe('CD-269 one screening for every Lead from outside', () => {
     await expect(service.formOf('tok', undefined)).resolves.toEqual({
       campaign: 'งาน Expo',
       intro: 'ลงทะเบียนรับเอกสาร',
+      kind: 'campaign',
     });
     await expect(
       service.formOf('tok', { companyId: 'other' } as never),
@@ -287,5 +300,66 @@ describe('CD-269 one screening for every Lead from outside', () => {
     await expect(
       unmapped.service.receiveAd('tiktok', {}, robot, undefined),
     ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+  });
+
+  it('CD-270: an event form records a registration, not a Lead', async () => {
+    const event = {
+      ...campaign,
+      kind: 'event',
+      eventStartsAt: new Date('2099-10-20T02:00:00Z'),
+      eventEndsAt: new Date('2099-10-20T08:00:00Z'),
+      eventVenue: 'ห้อง Ballroom',
+      eventOnlineUrl: 'https://meet.example/abc',
+      eventCapacity: 2,
+    };
+    const { service, leadsService, writer } = harness({
+      campaignFound: event,
+      seated: 2,
+    });
+
+    await expect(service.formOf('tok', undefined)).resolves.toMatchObject({
+      kind: 'event',
+      event: { venue: 'ห้อง Ballroom', online: true, full: true, open: true },
+    });
+    const answer = await service.submitForm(
+      'tok',
+      {
+        name: 'บจก. ตัวอย่าง',
+        contact_name: 'สมชาย',
+        phone: '0812345678',
+        note: 'สนใจกล้อง',
+      },
+      robot,
+      undefined,
+    );
+    expect(answer).toEqual({
+      received: true,
+      status: 'registered',
+      online_url: 'https://meet.example/abc',
+    });
+    expect(writer.register).toHaveBeenCalledWith(event, {
+      contactName: 'สมชาย',
+      company: 'บจก. ตัวอย่าง',
+      position: null,
+      phone: '0812345678',
+      email: null,
+      need: 'สนใจกล้อง',
+    });
+    expect(leadsService.create).not.toHaveBeenCalled();
+
+    const ended = harness({
+      campaignFound: {
+        ...event,
+        eventEndsAt: new Date('2020-01-01T00:00:00Z'),
+      },
+    });
+    await expect(
+      ended.service.submitForm(
+        'tok',
+        { name: 'x', phone: '0812345678' },
+        robot,
+        undefined,
+      ),
+    ).rejects.toMatchObject({ code: 'CONFLICT' });
   });
 });

@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  Patch,
   Post,
   Put,
   StreamableFile,
@@ -26,6 +27,14 @@ import type { Principal } from '@request-management/share';
 import { MAX_EVIDENCE_BYTES } from '../pm/milestones.service';
 import { CampaignPlanService } from './campaign-plan.service';
 import { CampaignReceiptsService } from './campaign-receipts.service';
+import { CampaignEventsService } from '../crm/campaign-events.service';
+import {
+  CheckInDto,
+  ConvertRegistrationsDto,
+  FollowRegistrationDto,
+  RegistrationStatusDto,
+  WalkInDto,
+} from '../crm/dto/sales.dto';
 import {
   AddCampaignSpendDto,
   SaveBudgetLinesDto,
@@ -40,7 +49,81 @@ export class MacomController {
   constructor(
     private readonly plans: CampaignPlanService,
     private readonly receipts: CampaignReceiptsService,
+    private readonly events: CampaignEventsService,
   ) {}
+
+  // --- CD-270 อีเวนต์ --------------------------------------------------------
+  // Registrations carry phones and e-mails of people who are not customers
+  // yet: campaign managers only.
+
+  @ApiOperation({
+    summary: 'CD-270 รายชื่อผู้ลงทะเบียนอีเวนต์ + ตัวเลขสรุป (เช็กอินหน้างาน)',
+  })
+  @Get('events/:campaignId/registrations')
+  @Permissions('crm.campaign.manage')
+  registrations(
+    @Param('campaignId') campaignId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.events.list(principal, campaignId);
+  }
+
+  @ApiOperation({ summary: 'CD-270 เพิ่ม walk-in หน้างาน (นับว่ามาแล้ว)' })
+  @Post('events/:campaignId/walk-ins')
+  @Permissions('crm.campaign.manage')
+  walkIn(
+    @Param('campaignId') campaignId: string,
+    @Body() dto: WalkInDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.events.walkIn(principal, campaignId, dto);
+  }
+
+  @ApiOperation({
+    summary: 'CD-270 แปลงผู้เข้าร่วมที่สนใจเป็น Lead (ผ่านการคัดกรอง CD-269)',
+  })
+  @Post('events/:campaignId/convert')
+  @Permissions('crm.campaign.manage')
+  convert(
+    @Param('campaignId') campaignId: string,
+    @Body() dto: ConvertRegistrationsDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.events.convert(principal, campaignId, dto);
+  }
+
+  @ApiOperation({ summary: 'CD-270 เช็กอิน / ยกเลิกเช็กอิน' })
+  @Post('event-registrations/:id/check-in')
+  @Permissions('crm.campaign.manage')
+  checkIn(
+    @Param('id') id: string,
+    @Body() dto: CheckInDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.events.checkIn(principal, id, dto.attended);
+  }
+
+  @ApiOperation({ summary: 'CD-270 ให้ที่นั่งจากรายชื่อสำรอง หรือยกเลิก' })
+  @Post('event-registrations/:id/status')
+  @Permissions('crm.campaign.manage')
+  setStatus(
+    @Param('id') id: string,
+    @Body() dto: RegistrationStatusDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.events.setStatus(principal, id, dto);
+  }
+
+  @ApiOperation({ summary: 'CD-270 ความสนใจและหมายเหตุหลังงาน' })
+  @Patch('event-registrations/:id/follow')
+  @Permissions('crm.campaign.manage')
+  follow(
+    @Param('id') id: string,
+    @Body() dto: FollowRegistrationDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.events.follow(principal, id, dto);
+  }
 
   // --- CD-268 แผนงบแคมเปญ ---------------------------------------------------
 
