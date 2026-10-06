@@ -392,6 +392,20 @@ const SEED_ROLES: {
     ],
   },
   {
+    // CD-15 — ทีม MACOM: campaigns, their budget and spend (CD-268).
+    code: 'marketing',
+    name: 'ทีมการตลาด (MACOM)',
+    description: 'วางแคมเปญ งบ และค่าใช้จ่าย · ดูผลแคมเปญถึงยอดขาย',
+    permissions: [
+      'request.create',
+      'request.read',
+      'notification.read',
+      'user.read',
+      'crm.sales.read',
+      'crm.campaign.manage',
+    ],
+  },
+  {
     // CD-20 — ทีม Delivery: plans deliveries across projects (CD-250).
     code: 'delivery',
     name: 'ทีม Delivery',

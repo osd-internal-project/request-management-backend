@@ -3492,16 +3492,79 @@ model Campaign {
   /// ปิดแล้ว = ผูก Lead ใหม่ไม่ได้ แต่ผลเดิมยังดูได้.
   active    Boolean   @default(true)
 
+  /// CD-268 — แกนขายที่แคมเปญป้อน: getter | government | partner | keeper.
+  salesAxis          String?
+  /// CD-268 — ทีมที่รับ Lead ของแคมเปญ (CD-269 ใช้ส่ง Lead เข้าทีมนี้).
+  receivingOrgUnitId String?
+  /// CD-268 — เป้าหมาย: จำนวน Lead, ดีลที่ปิดได้, ยอดขาย.
+  targetLeads        Int?
+  targetDeals        Int?
+  targetSales        Decimal? @db.Decimal(14, 2)
+
   createdAt DateTime @default(now())
   createdBy String?
   updatedAt DateTime @updatedAt
   updatedBy String?
 
-  company Company @relation(fields: [companyId], references: [id])
-  leads   Lead[]
+  company     Company              @relation(fields: [companyId], references: [id])
+  leads       Lead[]
+  budgetLines CampaignBudgetLine[]
+  spends      CampaignSpend[]
 
   @@unique([companyId, code])
   @@map("campaigns")
+}
+
+/// CD-268 — งบแคมเปญรายช่องทาง. งบรวมของแคมเปญ (`campaigns.budget`) = ผลรวม
+/// บรรทัดเมื่อมีบรรทัด.
+model CampaignBudgetLine {
+  id         String  @id @default(uuid())
+  companyId  String
+  campaignId String
+  channel    String
+  planned    Decimal @db.Decimal(14, 2)
+  note       String?
+  sortOrder  Int     @default(0)
+
+  createdAt DateTime @default(now())
+  createdBy String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  campaign Campaign        @relation(fields: [campaignId], references: [id])
+  spends   CampaignSpend[]
+
+  @@index([campaignId])
+  @@map("campaign_budget_lines")
+}
+
+/// CD-268 — ค่าใช้จ่ายจริงของแคมเปญ พร้อมใบเสร็จ · ไม่ลบ — ยกเลิกพร้อมเหตุผล.
+model CampaignSpend {
+  id           String    @id @default(uuid())
+  companyId    String
+  campaignId   String
+  budgetLineId String?
+  spentOn      DateTime  @db.Date
+  amount       Decimal   @db.Decimal(14, 2)
+  vendor       String?
+  note         String?
+  receiptKey   String?
+  receiptName  String?
+  receiptType  String?
+  voidedAt     DateTime?
+  voidedBy     String?
+  voidReason   String?
+
+  createdAt DateTime @default(now())
+  createdBy String?
+  updatedAt DateTime @updatedAt
+
+  campaign   Campaign            @relation(fields: [campaignId], references: [id])
+  budgetLine CampaignBudgetLine? @relation(fields: [budgetLineId], references: [id])
+
+  @@index([campaignId])
+  @@index([budgetLineId])
+  @@map("campaign_spends")
 }
 
 /// CD-61 — ระดับความเสี่ยงลูกค้า.

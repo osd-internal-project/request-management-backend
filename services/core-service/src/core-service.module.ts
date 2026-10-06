@@ -34,6 +34,7 @@ import { HrHttpModule } from './hr/hr-http.module';
 import { SupportHttpModule } from './support/support-http.module';
 import { DeliveryHttpModule } from './delivery/delivery-http.module';
 import { KbModule } from './kb/kb.module';
+import { MacomHttpModule } from './macom/macom-http.module';
 import { SensitiveReadAuditRecorder } from './policy/sensitive-read.recorder';
 import configs from './configs';
 
@@ -76,6 +77,8 @@ import configs from './configs';
     DeliveryHttpModule,
     // CD-22 KBMS
     KbModule,
+    // CD-15 MACOM
+    MacomHttpModule,
     // CD-18 PM — projects opened from signed contracts
     PmHttpModule,
     // CD-14 — the central signing service (screens + the public signing link)

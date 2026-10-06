@@ -72,6 +72,8 @@ import {
   SalesTargetRepository,
   SalesTargetRevisionRepository,
   CampaignRepository,
+  CampaignBudgetLineRepository,
+  CampaignSpendRepository,
 } from './sales.repositories';
 import { CampaignsService } from './campaigns.service';
 import { TargetAccountsService } from './target-accounts.service';
@@ -315,6 +317,8 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     SalesTargetRepository,
     SalesTargetRevisionRepository,
     CampaignRepository,
+    CampaignBudgetLineRepository,
+    CampaignSpendRepository,
     CampaignsService,
     TargetAccountsService,
     TargetAccountRepository,
@@ -376,6 +380,10 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     CrmDashboardService,
     SalesTargetsService,
     CampaignsService,
+    // CD-268 — the MACOM campaign plan works on these
+    CampaignRepository,
+    CampaignBudgetLineRepository,
+    CampaignSpendRepository,
     TargetAccountsService,
     KeeperService,
     CustomerIntakeService,

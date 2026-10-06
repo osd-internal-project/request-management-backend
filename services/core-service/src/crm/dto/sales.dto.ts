@@ -1159,6 +1159,14 @@ export class SetSalesTargetDto {
 
 const CAMPAIGN_CODE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$/;
 
+/** CD-268 — the sales axes a campaign can feed. */
+export const CAMPAIGN_SALES_AXES = [
+  'getter',
+  'government',
+  'partner',
+  'keeper',
+] as const;
+
 export class CreateCampaignDto {
   @ApiProperty({
     example: 'EXPO-2026-Q4',
@@ -1201,6 +1209,56 @@ export class CreateCampaignDto {
   @IsString()
   @MaxLength(2000)
   note?: string;
+
+  @ApiPropertyOptional({
+    enum: CAMPAIGN_SALES_AXES,
+    description: 'CD-268 — แกนขายที่แคมเปญป้อน · ว่าง = ล้าง',
+  })
+  @IsOptional()
+  @IsIn([...CAMPAIGN_SALES_AXES, ''])
+  sales_axis?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'CD-268 — ทีมที่รับ Lead ของแคมเปญ (id หน่วยงาน) · ว่าง = ล้าง',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  receiving_org_unit_id?: string;
+
+  @ApiPropertyOptional({
+    type: Number,
+    nullable: true,
+    description: 'CD-268 — เป้าจำนวน Lead · null = ล้าง',
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(1_000_000)
+  target_leads?: number | null;
+
+  @ApiPropertyOptional({
+    type: Number,
+    nullable: true,
+    description: 'CD-268 — เป้าดีลที่ปิดได้ · null = ล้าง',
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(1_000_000)
+  target_deals?: number | null;
+
+  @ApiPropertyOptional({
+    type: Number,
+    nullable: true,
+    description: 'CD-268 — เป้ายอดขาย (บาท) · null = ล้าง',
+  })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(999_999_999_999)
+  target_sales?: number | null;
 }
 
 /** แก้ได้ทุกอย่างยกเว้นรหัส — Lead เก่าและเว็บฟอร์มอ้างรหัสนั้นอยู่. */
@@ -1239,6 +1297,56 @@ export class UpdateCampaignDto {
   @IsOptional()
   @IsBoolean()
   active?: boolean;
+
+  @ApiPropertyOptional({
+    enum: CAMPAIGN_SALES_AXES,
+    description: 'CD-268 — แกนขายที่แคมเปญป้อน · ว่าง = ล้าง',
+  })
+  @IsOptional()
+  @IsIn([...CAMPAIGN_SALES_AXES, ''])
+  sales_axis?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'CD-268 — ทีมที่รับ Lead ของแคมเปญ (id หน่วยงาน) · ว่าง = ล้าง',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  receiving_org_unit_id?: string;
+
+  @ApiPropertyOptional({
+    type: Number,
+    nullable: true,
+    description: 'CD-268 — เป้าจำนวน Lead · null = ล้าง',
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(1_000_000)
+  target_leads?: number | null;
+
+  @ApiPropertyOptional({
+    type: Number,
+    nullable: true,
+    description: 'CD-268 — เป้าดีลที่ปิดได้ · null = ล้าง',
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(1_000_000)
+  target_deals?: number | null;
+
+  @ApiPropertyOptional({
+    type: Number,
+    nullable: true,
+    description: 'CD-268 — เป้ายอดขาย (บาท) · null = ล้าง',
+  })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(999_999_999_999)
+  target_sales?: number | null;
 }
 
 export class ListCampaignsQueryDto {

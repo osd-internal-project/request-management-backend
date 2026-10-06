@@ -8892,6 +8892,15 @@
             }
           },
           {
+            "name": "opportunity_id",
+            "required": false,
+            "in": "query",
+            "description": "id โอกาสการขายที่สัญญานี้มาจาก",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "ends_from",
             "required": false,
             "in": "query",
@@ -22533,6 +22542,15 @@
             }
           },
           {
+            "name": "opportunity_id",
+            "required": false,
+            "in": "query",
+            "description": "id โอกาสการขายที่โครงการนี้มาจาก",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "X-Company-Id",
             "in": "header",
             "required": false,
@@ -32660,6 +32678,293 @@
         ]
       }
     },
+    "/api/v1/macom/campaigns/{id}/plan": {
+      "get": {
+        "operationId": "MacomController_plan",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-268 แผนงบของแคมเปญ: งบรายช่องทางและค่าใช้จ่ายจริง",
+        "tags": [
+          "macom"
+        ]
+      }
+    },
+    "/api/v1/macom/campaigns/{id}/budget-lines": {
+      "put": {
+        "operationId": "MacomController_saveLines",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveBudgetLinesDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-268 บันทึกงบรายช่องทาง (ทั้งชุด) — งบรวมแคมเปญ = ผลรวม",
+        "tags": [
+          "macom"
+        ],
+        "x-permission": [
+          "crm.campaign.manage"
+        ]
+      }
+    },
+    "/api/v1/macom/campaigns/{id}/spends": {
+      "post": {
+        "operationId": "MacomController_addSpend",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddCampaignSpendDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-268 บันทึกค่าใช้จ่ายจริงของแคมเปญ",
+        "tags": [
+          "macom"
+        ],
+        "x-permission": [
+          "crm.campaign.manage"
+        ]
+      }
+    },
+    "/api/v1/macom/campaign-spends/{spendId}/void": {
+      "post": {
+        "operationId": "MacomController_voidSpend",
+        "parameters": [
+          {
+            "name": "spendId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VoidCampaignSpendDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-268 ยกเลิกค่าใช้จ่าย (ไม่ลบ — เก็บเหตุผล)",
+        "tags": [
+          "macom"
+        ],
+        "x-permission": [
+          "crm.campaign.manage"
+        ]
+      }
+    },
+    "/api/v1/macom/campaign-spends/{spendId}/receipt": {
+      "post": {
+        "operationId": "MacomController_attachReceipt",
+        "parameters": [
+          {
+            "name": "spendId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-268 แนบ/เปลี่ยนใบเสร็จของค่าใช้จ่าย",
+        "tags": [
+          "macom"
+        ],
+        "x-permission": [
+          "crm.campaign.manage"
+        ]
+      },
+      "get": {
+        "operationId": "MacomController_receipt",
+        "parameters": [
+          {
+            "name": "spendId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-268 ไฟล์ใบเสร็จของค่าใช้จ่าย",
+        "tags": [
+          "macom"
+        ]
+      }
+    },
     "/api/v1/esign/authorities": {
       "get": {
         "operationId": "EsignController_listAuthorities",
@@ -38703,6 +39008,42 @@
           "note": {
             "type": "string",
             "maxLength": 2000
+          },
+          "sales_axis": {
+            "type": "string",
+            "enum": [
+              "getter",
+              "government",
+              "partner",
+              "keeper"
+            ],
+            "description": "CD-268 — แกนขายที่แคมเปญป้อน · ว่าง = ล้าง"
+          },
+          "receiving_org_unit_id": {
+            "type": "string",
+            "description": "CD-268 — ทีมที่รับ Lead ของแคมเปญ (id หน่วยงาน) · ว่าง = ล้าง",
+            "maxLength": 64
+          },
+          "target_leads": {
+            "type": "integer",
+            "nullable": true,
+            "description": "CD-268 — เป้าจำนวน Lead · null = ล้าง",
+            "maximum": 1000000,
+            "minimum": 0
+          },
+          "target_deals": {
+            "type": "integer",
+            "nullable": true,
+            "description": "CD-268 — เป้าดีลที่ปิดได้ · null = ล้าง",
+            "maximum": 1000000,
+            "minimum": 0
+          },
+          "target_sales": {
+            "type": "number",
+            "nullable": true,
+            "description": "CD-268 — เป้ายอดขาย (บาท) · null = ล้าง",
+            "maximum": 999999999999,
+            "minimum": 0
           }
         },
         "required": [
@@ -38716,6 +39057,42 @@
           "active": {
             "type": "boolean",
             "description": "false = ปิด (ผูก Lead ใหม่ไม่ได้)"
+          },
+          "sales_axis": {
+            "type": "string",
+            "enum": [
+              "getter",
+              "government",
+              "partner",
+              "keeper"
+            ],
+            "description": "CD-268 — แกนขายที่แคมเปญป้อน · ว่าง = ล้าง"
+          },
+          "receiving_org_unit_id": {
+            "type": "string",
+            "description": "CD-268 — ทีมที่รับ Lead ของแคมเปญ (id หน่วยงาน) · ว่าง = ล้าง",
+            "maxLength": 64
+          },
+          "target_leads": {
+            "type": "integer",
+            "nullable": true,
+            "description": "CD-268 — เป้าจำนวน Lead · null = ล้าง",
+            "maximum": 1000000,
+            "minimum": 0
+          },
+          "target_deals": {
+            "type": "integer",
+            "nullable": true,
+            "description": "CD-268 — เป้าดีลที่ปิดได้ · null = ล้าง",
+            "maximum": 1000000,
+            "minimum": 0
+          },
+          "target_sales": {
+            "type": "number",
+            "nullable": true,
+            "description": "CD-268 — เป้ายอดขาย (บาท) · null = ล้าง",
+            "maximum": 999999999999,
+            "minimum": 0
           },
           "name": {
             "maxLength": 255,
@@ -43054,11 +43431,31 @@
           "unit_cost": {
             "type": "object",
             "nullable": true
+          },
+          "id": {
+            "maxLength": 64,
+            "type": "string"
+          },
+          "channel": {
+            "maxLength": 100,
+            "type": "string",
+            "minLength": 1
+          },
+          "planned": {
+            "maximum": 999999999999,
+            "minimum": 0,
+            "type": "number"
+          },
+          "note": {
+            "maxLength": 500,
+            "type": "string"
           }
         },
         "required": [
           "category",
+          "channel",
           "description",
+          "planned",
           "quantity"
         ]
       },
@@ -44376,6 +44773,69 @@
         },
         "required": [
           "helpful"
+        ]
+      },
+      "SaveBudgetLinesDto": {
+        "type": "object",
+        "properties": {
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BudgetLineDto"
+            },
+            "maxItems": 50
+          }
+        },
+        "required": [
+          "lines"
+        ]
+      },
+      "AddCampaignSpendDto": {
+        "type": "object",
+        "properties": {
+          "spent_on": {
+            "type": "string",
+            "example": "2026-10-05",
+            "format": "date-time"
+          },
+          "amount": {
+            "type": "number",
+            "example": 12500,
+            "maximum": 999999999999,
+            "minimum": 0.01
+          },
+          "budget_line_id": {
+            "type": "string",
+            "description": "บรรทัดงบที่ใช้ · ว่าง = ไม่ระบุช่องทาง",
+            "maxLength": 64
+          },
+          "vendor": {
+            "type": "string",
+            "example": "Meta Platforms",
+            "maxLength": 255
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "amount",
+          "spent_on"
+        ]
+      },
+      "VoidCampaignSpendDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "example": "บันทึกซ้ำ",
+            "maxLength": 500,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "reason"
         ]
       },
       "SaveEsignAuthorityDto": {

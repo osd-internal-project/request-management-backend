@@ -28,6 +28,11 @@ const campaignRow = (overrides: Record<string, unknown> = {}) => ({
   budget: new Prisma.Decimal(100_000),
   note: null,
   active: true,
+  salesAxis: null,
+  receivingOrgUnitId: null,
+  targetLeads: null,
+  targetDeals: null,
+  targetSales: null,
   createdAt: new Date(),
   ...overrides,
 });
@@ -39,6 +44,9 @@ function harness(
     leads?: unknown[];
     orders?: unknown[];
     createFails?: Error;
+    lines?: unknown[];
+    spends?: unknown[];
+    units?: unknown[];
   } = {},
 ) {
   const leadWheres: Record<string, unknown>[] = [];
@@ -62,11 +70,31 @@ function harness(
     findMany: jest.fn(() => Promise.resolve(options.orders ?? [])),
   };
   const audit = { record: jest.fn(() => Promise.resolve()) };
+  const orgUnits = {
+    findFirst: jest.fn((args: { where: { id: string } }) =>
+      Promise.resolve(
+        ((options.units ?? []) as { id: string }[]).find(
+          (unit) => unit.id === args.where.id,
+        ) ?? null,
+      ),
+    ),
+    findMany: jest.fn(() => Promise.resolve(options.units ?? [])),
+  };
+  const budgetLines = {
+    findFirst: jest.fn(() => Promise.resolve((options.lines ?? [])[0] ?? null)),
+    findMany: jest.fn(() => Promise.resolve(options.lines ?? [])),
+  };
+  const spends = {
+    findMany: jest.fn(() => Promise.resolve(options.spends ?? [])),
+  };
   const service = new CampaignsService(
     campaigns as never,
     leads as never,
     saleOrders as never,
     audit as never,
+    orgUnits as never,
+    budgetLines as never,
+    spends as never,
   );
   return { service, campaigns, audit, leadWheres };
 }
@@ -171,6 +199,130 @@ describe('CD-71 CampaignsService', () => {
     expect((leadWheres[0].AND as unknown[])[0]).toMatchObject({
       companyId: 'company-osd',
     });
+  });
+
+  it('CD-268: axis, team, targets, progress and spend on the list', async () => {
+    const { service } = harness({
+      rows: [
+        campaignRow({
+          salesAxis: 'getter',
+          receivingOrgUnitId: 'ou-sales',
+          targetLeads: 8,
+          targetDeals: 2,
+          targetSales: new Prisma.Decimal(600_000),
+        }),
+      ],
+      leads: [
+        {
+          campaignId: 'cmp-1',
+          convertedOpportunityId: 'opp-1',
+          convertedOpportunity: { stage: 'won' },
+        },
+        {
+          campaignId: 'cmp-1',
+          convertedOpportunityId: null,
+          convertedOpportunity: null,
+        },
+      ],
+      orders: [{ opportunityId: 'opp-1', amount: new Prisma.Decimal(300_000) }],
+      lines: [{ campaignId: 'cmp-1' }],
+      spends: [
+        {
+          campaignId: 'cmp-1',
+          budgetLineId: null,
+          amount: new Prisma.Decimal(90_000),
+          voidedAt: null,
+        },
+        {
+          campaignId: 'cmp-1',
+          budgetLineId: null,
+          amount: new Prisma.Decimal(50_000),
+          voidedAt: new Date(),
+        },
+        {
+          campaignId: 'cmp-1',
+          budgetLineId: null,
+          amount: new Prisma.Decimal(20_000),
+          voidedAt: null,
+        },
+      ],
+      units: [{ id: 'ou-sales', name: 'ทีมขายลูกค้าใหม่' }],
+    });
+
+    const [row] = await service.list({}, principal());
+
+    expect(row).toMatchObject({
+      sales_axis: 'getter',
+      receiving_org_unit: { id: 'ou-sales', name: 'ทีมขายลูกค้าใหม่' },
+      has_budget_lines: true,
+      // voided spend never counts
+      spent: 110_000,
+      over_budget: true,
+      targets: { leads: 8, deals: 2, sales: 600_000 },
+      progress: { leads: 0.25, deals: 0.5, sales: 0.5 },
+    });
+  });
+
+  it('CD-268: without campaign.manage the counts go through lead visibility', async () => {
+    const { service, leadWheres } = harness({ rows: [campaignRow()] });
+    const sales = {
+      ...principal(),
+      permissions: ['crm.sales.read'],
+    } as unknown as Principal;
+
+    await service.list({}, sales);
+
+    expect((leadWheres[0].AND as Record<string, unknown>[])[0]).not.toEqual({
+      companyId: 'company-osd',
+    });
+  });
+
+  it('CD-268: the budget comes from its lines once there are any', async () => {
+    const { service, campaigns } = harness({
+      found: campaignRow(),
+      lines: [{ id: 'line-1' }],
+    });
+
+    await expect(
+      service.update('cmp-1', { budget: 5000 }, principal()),
+    ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+    expect(campaigns.update).not.toHaveBeenCalled();
+  });
+
+  it('CD-268: the receiving team must be a unit of this company', async () => {
+    const { service, campaigns } = harness({
+      found: campaignRow(),
+      units: [{ id: 'ou-sales', name: 'ทีมขาย' }],
+    });
+
+    await expect(
+      service.update(
+        'cmp-1',
+        { receiving_org_unit_id: 'ou-elsewhere' },
+        principal(),
+      ),
+    ).rejects.toBeInstanceOf(AppError);
+
+    await service.update(
+      'cmp-1',
+      {
+        sales_axis: 'government',
+        receiving_org_unit_id: 'ou-sales',
+        target_leads: 50,
+        target_sales: null,
+      },
+      principal(),
+    );
+    expect(campaigns.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          salesAxis: 'government',
+          receivingOrgUnitId: 'ou-sales',
+          targetLeads: 50,
+          targetSales: null,
+        }),
+      }),
+    );
   });
 
   it('CD-71: codes are stored upper-case and audited on create', async () => {
