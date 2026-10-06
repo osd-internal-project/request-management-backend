@@ -160,6 +160,27 @@ export class ExternalListRequestsDto extends PageQueryDto {
   @IsString()
   type_code?: string;
 
+  /**
+   * The requests raised on one record — what a deal's cards list (6 Oct
+   * 2026): `ref_type=opportunity&ref_id=<เลขดีล>` with the solution, demo or
+   * contract type. Passed through to the same filter the screen uses.
+   */
+  @ApiPropertyOptional({
+    example: 'opportunity',
+    description: 'คำขอที่ผูกกับเอกสารชนิดนี้ — ใช้คู่กับ ref_id',
+  })
+  @IsOptional()
+  @IsString()
+  ref_type?: string;
+
+  @ApiPropertyOptional({
+    example: 'D-501',
+    description: 'เลขที่เอกสารที่คำขอผูกอยู่ เช่นเลขดีล',
+  })
+  @IsOptional()
+  @IsString()
+  ref_id?: string;
+
   @ApiPropertyOptional({ description: 'ค้นหาเลขที่ / อ้างอิง' })
   @IsOptional()
   @IsString()

@@ -1,0 +1,441 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/v1/legal/contracts": {
+      "get": {
+        "description": "`opportunity_id` = สัญญาที่เกิดจากดีลนั้น · `search` = เลขที่/ชื่อ/คู่สัญญา · สัญญาลับพิเศษเห็นเฉพาะผู้มีสิทธิ์",
+        "operationId": "ExternalContractsController_list",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "เลขหน้าที่ต้องการ เริ่มที่ 1",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page_size",
+            "required": false,
+            "in": "query",
+            "description": "จำนวนรายการต่อหน้า",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "`sort=field` เรียงขึ้น, `sort=-field` เรียงลง",
+            "schema": {
+              "example": "-createdAt",
+              "type": "string",
+              "pattern": "^-?[a-zA-Z_][a-zA-Z0-9_]*$"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "เลขที่/ชื่อสัญญา/คู่สัญญา/ลูกค้า/หมายเหตุ",
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "text",
+            "required": false,
+            "in": "query",
+            "description": "ข้อความในเนื้อสัญญา (ไฟล์ PDF ที่แนบ)",
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "kind",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "standard",
+                "nda",
+                "msa",
+                "other"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "active",
+                "renewed",
+                "ended",
+                "cancelled"
+              ]
+            }
+          },
+          {
+            "name": "customer_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "opportunity_id",
+            "required": false,
+            "in": "query",
+            "description": "id โอกาสการขายที่สัญญานี้มาจาก",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ends_from",
+            "required": false,
+            "in": "query",
+            "description": "หมดอายุตั้งแต่ (YYYY-MM-DD)",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "ends_to",
+            "required": false,
+            "in": "query",
+            "description": "หมดอายุถึง (YYYY-MM-DD)",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "min_value",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "max_value",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "confidential",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ค้นคลังสัญญา",
+        "tags": [
+          "legal"
+        ],
+        "x-permission": [
+          "integration.legal.read"
+        ],
+        "x-acting-permission": [
+          "legal.contract.read"
+        ]
+      }
+    },
+    "/api/v1/legal/contracts/{id}": {
+      "get": {
+        "description": "สถานะ วันลงนาม ดีลและคำขอต้นทาง โครงการที่เปิดจากสัญญานี้ และรายชื่อไฟล์ (ตัวไฟล์ดาวน์โหลดจากหน้าเว็บ)",
+        "operationId": "ExternalContractsController_detail",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "รายละเอียดสัญญา",
+        "tags": [
+          "legal"
+        ],
+        "x-permission": [
+          "integration.legal.read"
+        ],
+        "x-acting-permission": [
+          "legal.contract.read"
+        ]
+      }
+    },
+    "/api/v1/legal/contracts/{id}/terms": {
+      "get": {
+        "operationId": "ExternalContractsController_viewTerms",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ข้อกำหนดของสัญญา — ความรับผิด ค่าปรับ การรับประกัน ระดับบริการ",
+        "tags": [
+          "legal"
+        ],
+        "x-permission": [
+          "integration.legal.read"
+        ],
+        "x-acting-permission": [
+          "legal.contract.read"
+        ]
+      }
+    },
+    "/api/v1/legal/contracts/{id}/installments": {
+      "get": {
+        "description": "ทุกงวด พร้อมสัดส่วนต่อมูลค่าสัญญา ผลรวม และส่วนต่าง",
+        "operationId": "ExternalContractsController_viewInstallments",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แผนการวางบิลตามงวด (CD-164)",
+        "tags": [
+          "legal"
+        ],
+        "x-permission": [
+          "integration.legal.read"
+        ],
+        "x-acting-permission": [
+          "legal.contract.read"
+        ]
+      }
+    },
+    "/api/v1/legal/contracts/{id}/obligations": {
+      "get": {
+        "operationId": "ExternalContractsController_listObligations",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ข้อผูกพันของสัญญา (CD-163)",
+        "tags": [
+          "legal"
+        ],
+        "x-permission": [
+          "integration.legal.read"
+        ],
+        "x-acting-permission": [
+          "legal.contract.read"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "Request Form — External API · Legal",
+    "description": "คลังสัญญา — อ่านอย่างเดียว\n\n**ทุก route มีสองประตู** และ Swagger ของแต่ละ route บอกไว้ทั้งคู่: bearer ต้องถือสิทธิ์ `integration.*` ของ route นั้น (ประตูของเครื่อง) และคนที่ระบุใน header `X-Acting-User` ต้องถือสิทธิ์ของงานนั้นเอง (ประตูของคน) — ระบบทำงานในนามคนนั้น timeline จึงบันทึกชื่อคนจริง ไม่ใช่ชื่อบัญชีบริการ\n\n**bearer รับได้สองแบบ**\n\n1. access token ของ service account จาก Keycloak (client_credentials) อายุสั้น ต้องขอใหม่เมื่อหมดอายุ\n2. **API key** ที่ขึ้นต้นด้วย `rfk_` — ไม่มีวันหมดอายุ ไม่ต้องต่ออายุ ระบบแลกเป็น token ให้เองตอนใช้ ออกด้วย `yarn apikey:issue` และเพิกถอนด้วย `yarn apikey:revoke` (มีผลทันที)\n\nทั้งสองแบบส่งเหมือนกัน: `Authorization: Bearer <ค่า>` และได้สิทธิ์ชุดเดียวกัน — key ตัดสินว่า *เข้าได้ไหม* token บอกว่า *ทำอะไรได้*\n\n**ขอทำสัญญา** = ยื่นคำขอประเภท `contractRequestTypeCode` ของดีลผ่าน `POST /request/requests` พร้อม `ref_type=opportunity` · ร่าง ตรวจ อนุมัติ และลงนามทำบนหน้าจอฝ่ายกฎหมาย · ผู้ใช้ใน `X-Acting-User` ต้องถือ `legal.contract.read` และสัญญาลับพิเศษเห็นเฉพาะผู้มีสิทธิ์",
+    "version": "1.0"
+  },
+  "tags": [
+    {
+      "name": "legal",
+      "description": "คลังสัญญา"
+    }
+  ],
+  "servers": [
+    {
+      "url": "http://192.168.31.52:3503",
+      "description": "เครื่องภายใน OSD"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
+    "schemas": {}
+  }
+}

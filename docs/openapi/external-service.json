@@ -451,6 +451,26 @@
             }
           },
           {
+            "name": "ref_type",
+            "required": false,
+            "in": "query",
+            "description": "คำขอที่ผูกกับเอกสารชนิดนี้ — ใช้คู่กับ ref_id",
+            "schema": {
+              "example": "opportunity",
+              "type": "string"
+            }
+          },
+          {
+            "name": "ref_id",
+            "required": false,
+            "in": "query",
+            "description": "เลขที่เอกสารที่คำขอผูกอยู่ เช่นเลขดีล",
+            "schema": {
+              "example": "D-501",
+              "type": "string"
+            }
+          },
+          {
             "name": "q",
             "required": false,
             "in": "query",
@@ -591,6 +611,26 @@
             "required": false,
             "in": "query",
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ref_type",
+            "required": false,
+            "in": "query",
+            "description": "คำขอที่ผูกกับเอกสารชนิดนี้ — ใช้คู่กับ ref_id",
+            "schema": {
+              "example": "opportunity",
+              "type": "string"
+            }
+          },
+          {
+            "name": "ref_id",
+            "required": false,
+            "in": "query",
+            "description": "เลขที่เอกสารที่คำขอผูกอยู่ เช่นเลขดีล",
+            "schema": {
+              "example": "D-501",
               "type": "string"
             }
           },
@@ -8965,6 +9005,1890 @@
         ]
       }
     },
+    "/api/v1/presales/opportunities/{id}/solutions": {
+      "get": {
+        "description": "แต่ละใบพร้อมเวอร์ชัน สถานะอนุมัติ และจำนวนความต้องการ/ประเด็นที่ค้าง — ดีลที่มองไม่เห็นตอบ 404",
+        "operationId": "ExternalSolutionsController_forDeal",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Solution ทั้งหมดของดีล",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "integration.presales.read"
+        ],
+        "x-acting-permission": [
+          "crm.sales.read"
+        ]
+      }
+    },
+    "/api/v1/presales/solutions/{id}": {
+      "get": {
+        "description": "ความต้องการ ประเด็นชี้แจง ความเสี่ยง Demo/POC TOR และเวอร์ชันปัจจุบัน (ขอบเขต สมมติฐาน BOQ) — อัตราค่าแรงเห็นเฉพาะผู้ถือ hr.rate.read",
+        "operationId": "ExternalSolutionsController_findOne",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Solution พร้อมเวอร์ชันล่าสุด",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "integration.presales.read"
+        ],
+        "x-acting-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/presales/solutions/{id}/versions/{no}": {
+      "get": {
+        "operationId": "ExternalSolutionsController_version",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "no",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Solution ที่เวอร์ชันที่ระบุ",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "integration.presales.read"
+        ],
+        "x-acting-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/presales/solutions/{id}/versions/{no}/proposal": {
+      "get": {
+        "description": "เฉพาะเวอร์ชันที่อนุมัติแล้ว ไม่มีต้นทุน — ฉบับที่ส่งให้ลูกค้าได้",
+        "operationId": "ExternalSolutionsController_proposal",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "no",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ข้อเสนอทางเทคนิค (CD-137)",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "integration.presales.read"
+        ],
+        "x-acting-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/presales/solutions/{id}/quotations": {
+      "get": {
+        "description": "เลขที่ เวอร์ชัน สถานะ และยอดสุทธิ — รายละเอียดเต็มที่ `GET crm/quotations/{id}`",
+        "operationId": "ExternalSolutionsController_quotationsOf",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ใบเสนอราคาที่สร้างจาก Solution นี้ (CD-198)",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "integration.presales.read"
+        ],
+        "x-acting-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/legal/contracts": {
+      "get": {
+        "description": "`opportunity_id` = สัญญาที่เกิดจากดีลนั้น · `search` = เลขที่/ชื่อ/คู่สัญญา · สัญญาลับพิเศษเห็นเฉพาะผู้มีสิทธิ์",
+        "operationId": "ExternalContractsController_list",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "เลขหน้าที่ต้องการ เริ่มที่ 1",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page_size",
+            "required": false,
+            "in": "query",
+            "description": "จำนวนรายการต่อหน้า",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "`sort=field` เรียงขึ้น, `sort=-field` เรียงลง",
+            "schema": {
+              "example": "-createdAt",
+              "type": "string",
+              "pattern": "^-?[a-zA-Z_][a-zA-Z0-9_]*$"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "เลขที่/ชื่อสัญญา/คู่สัญญา/ลูกค้า/หมายเหตุ",
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "text",
+            "required": false,
+            "in": "query",
+            "description": "ข้อความในเนื้อสัญญา (ไฟล์ PDF ที่แนบ)",
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "kind",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "standard",
+                "nda",
+                "msa",
+                "other"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "active",
+                "renewed",
+                "ended",
+                "cancelled"
+              ]
+            }
+          },
+          {
+            "name": "customer_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "opportunity_id",
+            "required": false,
+            "in": "query",
+            "description": "id โอกาสการขายที่สัญญานี้มาจาก",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ends_from",
+            "required": false,
+            "in": "query",
+            "description": "หมดอายุตั้งแต่ (YYYY-MM-DD)",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "ends_to",
+            "required": false,
+            "in": "query",
+            "description": "หมดอายุถึง (YYYY-MM-DD)",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "min_value",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "max_value",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "confidential",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ค้นคลังสัญญา",
+        "tags": [
+          "legal"
+        ],
+        "x-permission": [
+          "integration.legal.read"
+        ],
+        "x-acting-permission": [
+          "legal.contract.read"
+        ]
+      }
+    },
+    "/api/v1/legal/contracts/{id}": {
+      "get": {
+        "description": "สถานะ วันลงนาม ดีลและคำขอต้นทาง โครงการที่เปิดจากสัญญานี้ และรายชื่อไฟล์ (ตัวไฟล์ดาวน์โหลดจากหน้าเว็บ)",
+        "operationId": "ExternalContractsController_detail",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "รายละเอียดสัญญา",
+        "tags": [
+          "legal"
+        ],
+        "x-permission": [
+          "integration.legal.read"
+        ],
+        "x-acting-permission": [
+          "legal.contract.read"
+        ]
+      }
+    },
+    "/api/v1/legal/contracts/{id}/terms": {
+      "get": {
+        "operationId": "ExternalContractsController_viewTerms",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ข้อกำหนดของสัญญา — ความรับผิด ค่าปรับ การรับประกัน ระดับบริการ",
+        "tags": [
+          "legal"
+        ],
+        "x-permission": [
+          "integration.legal.read"
+        ],
+        "x-acting-permission": [
+          "legal.contract.read"
+        ]
+      }
+    },
+    "/api/v1/legal/contracts/{id}/installments": {
+      "get": {
+        "description": "ทุกงวด พร้อมสัดส่วนต่อมูลค่าสัญญา ผลรวม และส่วนต่าง",
+        "operationId": "ExternalContractsController_viewInstallments",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แผนการวางบิลตามงวด (CD-164)",
+        "tags": [
+          "legal"
+        ],
+        "x-permission": [
+          "integration.legal.read"
+        ],
+        "x-acting-permission": [
+          "legal.contract.read"
+        ]
+      }
+    },
+    "/api/v1/legal/contracts/{id}/obligations": {
+      "get": {
+        "operationId": "ExternalContractsController_listObligations",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ข้อผูกพันของสัญญา (CD-163)",
+        "tags": [
+          "legal"
+        ],
+        "x-permission": [
+          "integration.legal.read"
+        ],
+        "x-acting-permission": [
+          "legal.contract.read"
+        ]
+      }
+    },
+    "/api/v1/pm/projects": {
+      "get": {
+        "description": "`opportunity_id` = โครงการของดีลนั้น · `scope=mine` = ที่ผู้ใช้เป็นผู้จัดการหรืออยู่ในทีม",
+        "operationId": "ExternalProjectsController_list",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "เลขหน้าที่ต้องการ เริ่มที่ 1",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page_size",
+            "required": false,
+            "in": "query",
+            "description": "จำนวนรายการต่อหน้า",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "`sort=field` เรียงขึ้น, `sort=-field` เรียงลง",
+            "schema": {
+              "example": "-createdAt",
+              "type": "string",
+              "pattern": "^-?[a-zA-Z_][a-zA-Z0-9_]*$"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "เลขที่ ชื่อโครงการ หรือเลขที่สัญญา",
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "active",
+                "on_hold",
+                "closed",
+                "cancelled"
+              ]
+            }
+          },
+          {
+            "name": "scope",
+            "required": false,
+            "in": "query",
+            "description": "mine = ที่ฉันเป็นผู้จัดการหรืออยู่ในทีม",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "mine"
+              ]
+            }
+          },
+          {
+            "name": "opportunity_id",
+            "required": false,
+            "in": "query",
+            "description": "id โอกาสการขายที่โครงการนี้มาจาก",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ค้นโครงการ",
+        "tags": [
+          "pm"
+        ],
+        "x-permission": [
+          "integration.pm.read"
+        ],
+        "x-acting-permission": [
+          "notification.read"
+        ]
+      },
+      "post": {
+        "description": "ออกเลขที่โครงการ ดึงหมุดหมาย/งวดจากสัญญา แจ้งผู้จัดการและทีม · สัญญายังไม่ลงนาม หรือเปิดโครงการไปแล้ว = `409 CONFLICT` พร้อมเหตุผล · `manager_user_id` เป็น uuid หาได้จาก `GET request/users`",
+        "operationId": "ExternalProjectsController_open",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "ควรส่งทุกครั้ง — หนึ่งค่าต่อหนึ่งเจตนา ยิงซ้ำด้วยค่าเดิมและ body เดิมจะได้ผลลัพธ์เดิมกลับไป ไม่เกิดรายการที่สอง",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "6f6bd3a7-7308-4d2e-a4de-75e1f89b6871"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenProjectDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เปิดโครงการจากสัญญาที่ลงนามแล้ว (CD-175)",
+        "tags": [
+          "pm"
+        ],
+        "x-permission": [
+          "integration.pm.manage"
+        ],
+        "x-acting-permission": [
+          "pm.project.manage"
+        ]
+      }
+    },
+    "/api/v1/pm/projects/openable-contracts": {
+      "get": {
+        "description": "ตัวเลือกของ `contract_id` สำหรับ `POST pm/projects`",
+        "operationId": "ExternalProjectsController_openable",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "สัญญาที่ลงนามแล้วและยังไม่ได้เปิดโครงการ",
+        "tags": [
+          "pm"
+        ],
+        "x-permission": [
+          "integration.pm.manage"
+        ],
+        "x-acting-permission": [
+          "pm.project.manage"
+        ]
+      }
+    },
+    "/api/v1/pm/projects/preview/{contractId}": {
+      "get": {
+        "description": "ดึงจากสัญญา ขอบเขตงาน (SOW) และ BOQ ของ Solution ที่อนุมัติ · `problems` ไม่ว่าง = เปิดไม่ได้จนกว่าจะแก้",
+        "operationId": "ExternalProjectsController_preview",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "contractId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ตรวจก่อนเปิดโครงการ — ข้อมูลที่จะดึงมา และสิ่งที่ยังขาด",
+        "tags": [
+          "pm"
+        ],
+        "x-permission": [
+          "integration.pm.manage"
+        ],
+        "x-acting-permission": [
+          "pm.project.manage"
+        ]
+      }
+    },
+    "/api/v1/pm/projects/by-contract/{contractId}": {
+      "get": {
+        "description": "`null` = สัญญานี้ยังไม่ได้เปิดโครงการ",
+        "operationId": "ExternalProjectsController_forContract",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "contractId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "โครงการที่เปิดจากสัญญานี้",
+        "tags": [
+          "pm"
+        ],
+        "x-permission": [
+          "integration.pm.read"
+        ],
+        "x-acting-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/pm/projects/{id}": {
+      "get": {
+        "operationId": "ExternalProjectsController_detail",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "รายละเอียดโครงการ",
+        "tags": [
+          "pm"
+        ],
+        "x-permission": [
+          "integration.pm.read"
+        ],
+        "x-acting-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/pm/projects/{id}/milestones": {
+      "get": {
+        "operationId": "ExternalProjectsController_listMilestones",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "หมุดหมายของโครงการ และงวดชำระของสัญญา (CD-182)",
+        "tags": [
+          "pm"
+        ],
+        "x-permission": [
+          "integration.pm.read"
+        ],
+        "x-acting-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/delivery/projects/{projectId}": {
+      "get": {
+        "description": "รอบส่ง หมุดหมาย และ BOQ ที่วางแผนแล้ว",
+        "operationId": "ExternalDeliveryController_project",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แผนส่งมอบของโครงการ (CD-250)",
+        "tags": [
+          "delivery"
+        ],
+        "x-permission": [
+          "integration.delivery.read"
+        ],
+        "x-acting-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/delivery/projects/{projectId}/billing": {
+      "get": {
+        "operationId": "ExternalDeliveryController_billingView",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "งวดของสัญญา: สถานะวางบิล/SAP และสิ่งที่ยังขวาง (CD-253)",
+        "tags": [
+          "delivery"
+        ],
+        "x-permission": [
+          "integration.delivery.read"
+        ],
+        "x-acting-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/delivery/projects/{projectId}/handovers": {
+      "get": {
+        "operationId": "ExternalDeliveryController_handoversOfProject",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "รอบตรวจรับที่ส่งต่อให้ทีมบริการ และสถานะการรับทราบ (CD-255)",
+        "tags": [
+          "delivery"
+        ],
+        "x-permission": [
+          "integration.delivery.read"
+        ],
+        "x-acting-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/support/assets": {
+      "get": {
+        "description": "`q` = serial / ชื่อ / รุ่น / สถานที่ · กรองตามลูกค้าได้",
+        "operationId": "ExternalSupportController_listAssets",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "serial / ชื่อ / รุ่น / สถานที่ / รหัสสินค้า",
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "customer_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 50
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "active",
+                "replaced",
+                "removed",
+                "all"
+              ],
+              "maxLength": 20
+            }
+          },
+          {
+            "name": "kind",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "equipment",
+                "software"
+              ],
+              "maxLength": 20
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ค้นทะเบียนอุปกรณ์ที่ติดตั้ง",
+        "tags": [
+          "support"
+        ],
+        "x-permission": [
+          "integration.support.read"
+        ],
+        "x-acting-permission": [
+          "service.asset.read"
+        ]
+      }
+    },
+    "/api/v1/support/assets/{id}": {
+      "get": {
+        "operationId": "ExternalSupportController_asset",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "รายละเอียดและประวัติของอุปกรณ์",
+        "tags": [
+          "support"
+        ],
+        "x-permission": [
+          "integration.support.read"
+        ],
+        "x-acting-permission": [
+          "service.asset.read"
+        ]
+      }
+    },
+    "/api/v1/support/entitlements": {
+      "get": {
+        "description": "กรองลูกค้า สถานะ และที่ใกล้หมดอายุ",
+        "operationId": "ExternalSupportController_listEntitlements",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "customer_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 50
+            }
+          },
+          {
+            "name": "state",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "active",
+                "upcoming",
+                "expired",
+                "cancelled",
+                "all"
+              ],
+              "maxLength": 20
+            }
+          },
+          {
+            "name": "expiring_days",
+            "required": false,
+            "in": "query",
+            "description": "ภายในกี่วันจะหมด (เตือนต่ออายุ)",
+            "schema": {
+              "type": "string",
+              "maxLength": 4
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "สิทธิ์บริการ (ประกัน / สัญญาบริการ MA)",
+        "tags": [
+          "support"
+        ],
+        "x-permission": [
+          "integration.support.read"
+        ],
+        "x-acting-permission": [
+          "service.asset.read"
+        ]
+      }
+    },
+    "/api/v1/support/entitlements/{id}": {
+      "get": {
+        "operationId": "ExternalSupportController_entitlement",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "รายละเอียดสิทธิ์ และอุปกรณ์ที่ครอบคลุม",
+        "tags": [
+          "support"
+        ],
+        "x-permission": [
+          "integration.support.read"
+        ],
+        "x-acting-permission": [
+          "service.asset.read"
+        ]
+      }
+    },
+    "/api/v1/support/work-orders": {
+      "get": {
+        "operationId": "ExternalSupportController_listWorkOrders",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "customer_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 50
+            }
+          },
+          {
+            "name": "asset_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 50
+            }
+          },
+          {
+            "name": "state",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "open",
+                "all"
+              ],
+              "maxLength": 10
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ใบสั่งงานบริการ — ที่ยังเปิด หรือทั้งหมด",
+        "tags": [
+          "support"
+        ],
+        "x-permission": [
+          "integration.support.read"
+        ],
+        "x-acting-permission": [
+          "service.asset.read"
+        ]
+      },
+      "post": {
+        "description": "สร้างเคสตามประเภทใบสั่งงานบริการที่ตั้งในหน้าตั้งค่า CRM แล้วยื่นทันที — นาฬิกา SLA เริ่ม และคำตอบบอกว่าอยู่ในสิทธิ์บริการหรือต้องเก็บเงิน · ติดตามต่อด้วย `GET request/requests/{requestNo}` · ยังไม่ได้ตั้งประเภท = `409 CONFLICT`",
+        "operationId": "ExternalSupportController_openWorkOrder",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "ควรส่งทุกครั้ง — หนึ่งค่าต่อหนึ่งเจตนา ยิงซ้ำด้วยค่าเดิมและ body เดิมจะได้ผลลัพธ์เดิมกลับไป ไม่เกิดรายการที่สอง",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "6f6bd3a7-7308-4d2e-a4de-75e1f89b6871"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenWorkOrderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เปิดใบสั่งงานบริการ (CD-239)",
+        "tags": [
+          "support"
+        ],
+        "x-permission": [
+          "integration.support.manage"
+        ],
+        "x-acting-permission": [
+          "service.asset.manage"
+        ]
+      }
+    },
+    "/api/v1/support/work-orders/by-request/{requestId}": {
+      "get": {
+        "description": "`null` ถ้าคำขอนี้ไม่ใช่ใบสั่งงานบริการ",
+        "operationId": "ExternalSupportController_ofRequest",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "requestId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ข้อมูลบริการของคำขอ",
+        "tags": [
+          "support"
+        ],
+        "x-permission": [
+          "integration.support.read"
+        ],
+        "x-acting-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/support/work-orders/{id}": {
+      "get": {
+        "operationId": "ExternalSupportController_workOrder",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "รายละเอียด + สิทธิ์ที่ครอบคลุมอุปกรณ์วันนี้",
+        "tags": [
+          "support"
+        ],
+        "x-permission": [
+          "integration.support.read"
+        ],
+        "x-acting-permission": [
+          "service.asset.read"
+        ]
+      }
+    },
+    "/api/v1/flow/opportunities/{id}": {
+      "get": {
+        "description": "`stage` = ขั้นที่ไปถึงไกลที่สุด · `next_steps` = endpoint ที่ใช้เดินต่อ · ส่วนที่ผู้ใช้ไม่มีสิทธิ์เห็นตอบ `visible: false` พร้อมเหตุผล แทนการล้มทั้งคำตอบ · ดีลที่มองไม่เห็นตอบ 404",
+        "operationId": "ExternalFlowController_track",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ติดตามดีลทั้งสาย — ดีล → Pre-Sales → ใบเสนอราคา → ใบสั่งขาย → สัญญา → โครงการ",
+        "tags": [
+          "flow"
+        ],
+        "x-permission": [
+          "integration.flow.read"
+        ],
+        "x-acting-permission": [
+          "crm.sales.read"
+        ]
+      }
+    },
     "/api/v1/mcp": {
       "post": {
         "description": "Endpoint เดียวสำหรับทุก tool — ชื่อ tool อยู่ใน body ไม่ใช่ใน path รายการ tool ทั้งหมดอยู่ที่ docs/openapi/external-tools.json ดูวิธีใช้ที่ docs/EXTERNAL_API.md",
@@ -12745,6 +14669,103 @@
         "required": [
           "subject_id",
           "subject_type"
+        ]
+      },
+      "ProjectMemberDto": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "role": {
+            "type": "string",
+            "example": "วิศวกรติดตั้ง",
+            "maxLength": 100
+          }
+        },
+        "required": [
+          "user_id"
+        ]
+      },
+      "OpenProjectDto": {
+        "type": "object",
+        "properties": {
+          "contract_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "manager_user_id": {
+            "type": "string",
+            "description": "ผู้จัดการโครงการ",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "description": "ชื่อโครงการ — ว่างไว้ใช้ชื่อสัญญา",
+            "maxLength": 255
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectMemberDto"
+            },
+            "maxItems": 100
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "contract_id",
+          "manager_user_id"
+        ]
+      },
+      "OpenWorkOrderDto": {
+        "type": "object",
+        "properties": {
+          "customer_id": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "asset_id": {
+            "type": "string",
+            "description": "อุปกรณ์ในทะเบียน (CD-236)",
+            "maxLength": 50
+          },
+          "work_kind": {
+            "type": "string",
+            "enum": [
+              "corrective",
+              "preventive"
+            ]
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "critical",
+              "high",
+              "medium",
+              "low"
+            ]
+          },
+          "subject": {
+            "type": "string",
+            "example": "กล้องชั้น 2 ภาพไม่ขึ้น",
+            "maxLength": 255,
+            "minLength": 1
+          },
+          "detail": {
+            "type": "string",
+            "maxLength": 4000
+          }
+        },
+        "required": [
+          "customer_id",
+          "severity",
+          "subject",
+          "work_kind"
         ]
       },
       "ImportCustomerRowDto": {

@@ -69,12 +69,28 @@ export default () => ({
   slaSweepIntervalMs: 0,
   /** CD-91 — BiModule is not imported here today; zero keeps it so if it ever is. */
   martRefreshIntervalMs: 0,
-  /** CD-241 — SupportModule is not imported here; zero keeps it so if it ever is. */
+  /** CD-241 — SupportModule is imported since 6 Oct 2026 (`support/*`); its sweeps stay off. */
   service: {
     onCallSweepIntervalMs: 0,
     pmSweepIntervalMs: 0,
     claimSweepIntervalMs: 0,
   },
+  /**
+   * The post-deal modules (6 Oct 2026) import PM, Delivery, HR and e-sign's
+   * domain halves, and with them their sweeps. Same rule as above: zero here,
+   * the clocks are core-service's.
+   */
+  pm: { statusReportIntervalMs: 0, costSweepIntervalMs: 0 },
+  delivery: {
+    readinessIntervalMs: 0,
+    retentionIntervalMs: 0,
+    handoverIntervalMs: 0,
+    receivableIntervalMs: 0,
+  },
+  hr: { mandayVarianceIntervalMs: 0 },
+  esign: { sweepIntervalMs: 0 },
+  kb: { reviewIntervalMs: 0 },
+  notificationDigestIntervalMs: 0,
   /** CD-90 — likewise: the lake is fed by core-service only. */
   lake: { databaseUrl: '', extractIntervalMs: 0, sapIntervalMs: 0 },
   /** CD-78 — Reserve-phone (the phone number inventory); only `mock` exists yet. */

@@ -427,6 +427,26 @@
             }
           },
           {
+            "name": "ref_type",
+            "required": false,
+            "in": "query",
+            "description": "คำขอที่ผูกกับเอกสารชนิดนี้ — ใช้คู่กับ ref_id",
+            "schema": {
+              "example": "opportunity",
+              "type": "string"
+            }
+          },
+          {
+            "name": "ref_id",
+            "required": false,
+            "in": "query",
+            "description": "เลขที่เอกสารที่คำขอผูกอยู่ เช่นเลขดีล",
+            "schema": {
+              "example": "D-501",
+              "type": "string"
+            }
+          },
+          {
             "name": "q",
             "required": false,
             "in": "query",
@@ -567,6 +587,26 @@
             "required": false,
             "in": "query",
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ref_type",
+            "required": false,
+            "in": "query",
+            "description": "คำขอที่ผูกกับเอกสารชนิดนี้ — ใช้คู่กับ ref_id",
+            "schema": {
+              "example": "opportunity",
+              "type": "string"
+            }
+          },
+          {
+            "name": "ref_id",
+            "required": false,
+            "in": "query",
+            "description": "เลขที่เอกสารที่คำขอผูกอยู่ เช่นเลขดีล",
+            "schema": {
+              "example": "D-501",
               "type": "string"
             }
           },

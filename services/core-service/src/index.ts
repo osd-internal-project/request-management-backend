@@ -3,7 +3,10 @@ export { RequestsModule } from './requests/requests.module';
 export { RequestsService } from './requests/requests.service';
 export { RequestRepository } from './requests/request.repository';
 export { toFormFields } from './requests/form-schema';
-export { CreateIntegrationRequestDto } from './requests/dto/request.dto';
+export {
+  CreateIntegrationRequestDto,
+  ListRequestsQueryDto,
+} from './requests/dto/request.dto';
 export { OPEN_STATUSES } from './requests/request-state-machine';
 export {
   ACTIONS,
@@ -79,6 +82,47 @@ export * from './crm/dto/sales.dto';
 export * from './crm/dto/quotation.dto';
 export * from './crm/dto/lead-intake.dto';
 export * from './crm/dto/lead-workflow.dto';
+
+// --- after the deal: Pre-Sales → Legal → PM → Delivery → Service ---------
+// What external-service's `presales|legal|pm|delivery|service` modules need
+// (6 Oct 2026). Every service here is the one the screen route delegates to.
+// Those that live in an `-http` module (they keep files) are declared again
+// as providers there beside their own `StorageModule` — never the `-http`
+// module itself, whose controllers would answer on the external port.
+export { PresalesModule } from './presales/presales.module';
+export { SolutionsService } from './presales/solutions.service';
+export { ProposalService } from './presales/proposal.service';
+export { SolutionQuotationService } from './presales/solution-quotation.service';
+export { HrModule } from './hr/hr.module';
+export { PricingModule } from './pricing/pricing.module';
+export { LegalContractsService } from './crm/legal-contracts.service';
+export { ContractTermsService } from './crm/contract-terms.service';
+export { ContractInstallmentsService } from './crm/contract-installments.service';
+export { ContractObligationsService } from './crm/contract-obligations.service';
+export {
+  ContractAccessRepository,
+  ContractDocumentRepository,
+  CustomerContractRepository,
+} from './crm/contract.repositories';
+export { ListContractsQueryDto } from './crm/dto/legal-contract.dto';
+export { PmModule } from './pm/pm.module';
+export { ProjectsService } from './pm/projects.service';
+export { MilestonesService } from './pm/milestones.service';
+export { ListProjectsQueryDto, OpenProjectDto } from './pm/dto/project.dto';
+export { DeliveryModule } from './delivery/delivery.module';
+export { DeliveriesService } from './delivery/deliveries.service';
+export { InstallmentBillingService } from './delivery/installment-billing.service';
+export { ServiceHandoversService } from './delivery/service-handovers.service';
+export { SupportModule } from './support/support.module';
+export { ServiceAssetsService } from './support/service-assets.service';
+export { EntitlementsService } from './support/entitlements.service';
+export { WorkOrdersService } from './support/work-orders.service';
+export {
+  ListAssetsQueryDto,
+  ListEntitlementsQueryDto,
+  ListWorkOrdersQueryDto,
+  OpenWorkOrderDto,
+} from './support/support.dto';
 
 // ERP config parsing — external-service builds the same `erp.b1` block.
 export { parseCompanyDbs } from './erp/sap-b1.config';

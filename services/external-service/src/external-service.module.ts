@@ -21,6 +21,12 @@ import { RequestModule } from './request/request.module';
 import { CrmModule } from './crm/crm.module';
 import { ApprovalModule } from './approval/approval.module';
 import { McpModule } from './mcp/mcp.module';
+import { PresalesModule } from './presales/presales.module';
+import { LegalModule } from './legal/legal.module';
+import { PmModule } from './pm/pm.module';
+import { DeliveryModule } from './delivery/delivery.module';
+import { SupportApiModule } from './support/support.module';
+import { FlowModule } from './flow/flow.module';
 import configs from './configs';
 
 /**
@@ -62,6 +68,13 @@ import configs from './configs';
     RequestModule,
     CrmModule,
     ApprovalModule,
+    // After the deal (6 Oct 2026) — docs/EXTERNAL_API_GUIDE.md walks them in order.
+    PresalesModule,
+    LegalModule,
+    PmModule,
+    DeliveryModule,
+    SupportApiModule,
+    FlowModule,
     McpModule,
   ],
   providers: [

@@ -1,0 +1,317 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/v1/presales/opportunities/{id}/solutions": {
+      "get": {
+        "description": "แต่ละใบพร้อมเวอร์ชัน สถานะอนุมัติ และจำนวนความต้องการ/ประเด็นที่ค้าง — ดีลที่มองไม่เห็นตอบ 404",
+        "operationId": "ExternalSolutionsController_forDeal",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Solution ทั้งหมดของดีล",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "integration.presales.read"
+        ],
+        "x-acting-permission": [
+          "crm.sales.read"
+        ]
+      }
+    },
+    "/api/v1/presales/solutions/{id}": {
+      "get": {
+        "description": "ความต้องการ ประเด็นชี้แจง ความเสี่ยง Demo/POC TOR และเวอร์ชันปัจจุบัน (ขอบเขต สมมติฐาน BOQ) — อัตราค่าแรงเห็นเฉพาะผู้ถือ hr.rate.read",
+        "operationId": "ExternalSolutionsController_findOne",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Solution พร้อมเวอร์ชันล่าสุด",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "integration.presales.read"
+        ],
+        "x-acting-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/presales/solutions/{id}/versions/{no}": {
+      "get": {
+        "operationId": "ExternalSolutionsController_version",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "no",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Solution ที่เวอร์ชันที่ระบุ",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "integration.presales.read"
+        ],
+        "x-acting-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/presales/solutions/{id}/versions/{no}/proposal": {
+      "get": {
+        "description": "เฉพาะเวอร์ชันที่อนุมัติแล้ว ไม่มีต้นทุน — ฉบับที่ส่งให้ลูกค้าได้",
+        "operationId": "ExternalSolutionsController_proposal",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "no",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ข้อเสนอทางเทคนิค (CD-137)",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "integration.presales.read"
+        ],
+        "x-acting-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/presales/solutions/{id}/quotations": {
+      "get": {
+        "description": "เลขที่ เวอร์ชัน สถานะ และยอดสุทธิ — รายละเอียดเต็มที่ `GET crm/quotations/{id}`",
+        "operationId": "ExternalSolutionsController_quotationsOf",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ใบเสนอราคาที่สร้างจาก Solution นี้ (CD-198)",
+        "tags": [
+          "presales"
+        ],
+        "x-permission": [
+          "integration.presales.read"
+        ],
+        "x-acting-permission": [
+          "notification.read"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "Request Form — External API · Pre-Sales",
+    "description": "Solution ของดีล — อ่านอย่างเดียว\n\n**ทุก route มีสองประตู** และ Swagger ของแต่ละ route บอกไว้ทั้งคู่: bearer ต้องถือสิทธิ์ `integration.*` ของ route นั้น (ประตูของเครื่อง) และคนที่ระบุใน header `X-Acting-User` ต้องถือสิทธิ์ของงานนั้นเอง (ประตูของคน) — ระบบทำงานในนามคนนั้น timeline จึงบันทึกชื่อคนจริง ไม่ใช่ชื่อบัญชีบริการ\n\n**bearer รับได้สองแบบ**\n\n1. access token ของ service account จาก Keycloak (client_credentials) อายุสั้น ต้องขอใหม่เมื่อหมดอายุ\n2. **API key** ที่ขึ้นต้นด้วย `rfk_` — ไม่มีวันหมดอายุ ไม่ต้องต่ออายุ ระบบแลกเป็น token ให้เองตอนใช้ ออกด้วย `yarn apikey:issue` และเพิกถอนด้วย `yarn apikey:revoke` (มีผลทันที)\n\nทั้งสองแบบส่งเหมือนกัน: `Authorization: Bearer <ค่า>` และได้สิทธิ์ชุดเดียวกัน — key ตัดสินว่า *เข้าได้ไหม* token บอกว่า *ทำอะไรได้*\n\n**เริ่ม Pre-Sales ไม่ได้อยู่ที่นี่** — ยื่นคำขอประเภท `solutionRequestTypeCode` ของดีล (จาก `GET /crm/opportunities/{id}`) ผ่าน `POST /request/requests` พร้อม `ref_type=opportunity` และ `ref_id=<เลขดีล>` การออกแบบ Solution ทำบนหน้าจอของทีม Pre-Sales",
+    "version": "1.0"
+  },
+  "tags": [
+    {
+      "name": "presales",
+      "description": "Solution ของ Pre-Sales"
+    }
+  ],
+  "servers": [
+    {
+      "url": "http://192.168.31.52:3503",
+      "description": "เครื่องภายใน OSD"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
+    "schemas": {}
+  }
+}

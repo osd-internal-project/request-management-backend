@@ -277,6 +277,25 @@ export const PERMISSIONS = {
      * กุญแจที่ถือตัวนี้จึงยังทำอะไรไม่ได้ ถ้าคนที่มันทำแทนไม่ใช่ผู้ดูแล CRM.
      */
     'integration.crm.admin.manage',
+    /**
+     * สายงานหลังดีลที่เปิดให้ระบบภายนอกเรียก (6 ต.ค. 2569) — ติดตามดีลทั้งสาย
+     * (`flow`), Solution ของ Pre-Sales, คลังสัญญา, โครงการ, การส่งมอบ และงาน
+     * บริการ. เป็นประตูของเครื่องอย่างเดียวเหมือนชุด CRM: คนใน `X-Acting-User`
+     * ยังถูกตรวจด้วยสิทธิ์ตัวเดิมของหน้าจอ (`presales.*`, `legal.*`, `pm.*`,
+     * `service.*`) ที่ `@ActingPermissions`.
+     *
+     * อ่านแยกจากเขียน และเขียนเปิดเฉพาะจุดเริ่มของแต่ละช่วงที่ระบบอื่นมีเหตุ
+     * ต้องสั่ง — เปิดโครงการจากสัญญาที่ลงนามแล้ว และเปิดใบสั่งงานบริการ.
+     * การออกแบบ Solution ร่างสัญญา และวางแผนโครงการยังเป็นงานบนหน้าจอ.
+     */
+    'integration.flow.read',
+    'integration.presales.read',
+    'integration.legal.read',
+    'integration.pm.read',
+    'integration.pm.manage',
+    'integration.delivery.read',
+    'integration.support.read',
+    'integration.support.manage',
   ],
 } as const;
 

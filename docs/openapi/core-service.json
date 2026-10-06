@@ -8892,6 +8892,15 @@
             }
           },
           {
+            "name": "opportunity_id",
+            "required": false,
+            "in": "query",
+            "description": "id โอกาสการขายที่สัญญานี้มาจาก",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "ends_from",
             "required": false,
             "in": "query",
@@ -24166,6 +24175,15 @@
               "enum": [
                 "mine"
               ]
+            }
+          },
+          {
+            "name": "opportunity_id",
+            "required": false,
+            "in": "query",
+            "description": "id โอกาสการขายที่โครงการนี้มาจาก",
+            "schema": {
+              "type": "string"
             }
           },
           {

@@ -2344,7 +2344,15 @@
                 "integration.crm.customer.manage",
                 "integration.crm.sales.read",
                 "integration.crm.sales.manage",
-                "integration.crm.admin.manage"
+                "integration.crm.admin.manage",
+                "integration.flow.read",
+                "integration.presales.read",
+                "integration.legal.read",
+                "integration.pm.read",
+                "integration.pm.manage",
+                "integration.delivery.read",
+                "integration.support.read",
+                "integration.support.manage"
               ],
               "type": "string"
             }
@@ -2450,7 +2458,15 @@
                 "integration.crm.customer.manage",
                 "integration.crm.sales.read",
                 "integration.crm.sales.manage",
-                "integration.crm.admin.manage"
+                "integration.crm.admin.manage",
+                "integration.flow.read",
+                "integration.presales.read",
+                "integration.legal.read",
+                "integration.pm.read",
+                "integration.pm.manage",
+                "integration.delivery.read",
+                "integration.support.read",
+                "integration.support.manage"
               ],
               "type": "string"
             }
@@ -2740,7 +2756,15 @@
               "integration.crm.customer.manage",
               "integration.crm.sales.read",
               "integration.crm.sales.manage",
-              "integration.crm.admin.manage"
+              "integration.crm.admin.manage",
+              "integration.flow.read",
+              "integration.presales.read",
+              "integration.legal.read",
+              "integration.pm.read",
+              "integration.pm.manage",
+              "integration.delivery.read",
+              "integration.support.read",
+              "integration.support.manage"
             ],
             "type": "string"
           }
