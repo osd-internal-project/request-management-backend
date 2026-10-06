@@ -15,7 +15,8 @@ import {
 class DealViewDto {
   @ApiPropertyOptional({
     enum: ['mine', 'all'],
-    description: '`mine` = ดีลที่ผู้ถามเป็นเจ้าของ · `all` (ค่าเริ่มต้น) = ทุกดีลที่มองเห็น',
+    description:
+      '`mine` = ดีลที่ผู้ถามเป็นเจ้าของ · `all` (ค่าเริ่มต้น) = ทุกดีลที่มองเห็น',
   })
   @IsOptional()
   @IsIn(['mine', 'all'])
@@ -26,7 +27,8 @@ export class ClosingDealsQueryDto extends DealViewDto {
   @ApiPropertyOptional({
     example: 30,
     default: 30,
-    description: 'คาดปิดภายในกี่วันนับจากวันนี้ (รวมดีลที่เลยวันคาดปิดแล้วแต่ยังเปิด)',
+    description:
+      'คาดปิดภายในกี่วันนับจากวันนี้ (รวมดีลที่เลยวันคาดปิดแล้วแต่ยังเปิด)',
   })
   @IsOptional()
   @Type(() => Number)

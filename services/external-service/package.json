@@ -15,6 +15,7 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:e2e": "jest --config ./test/jest-e2e.json",
+    "test:scope": "jest --config ./test/jest-scope.json --runInBand",
     "docker:build": "cd ../.. && docker build -t request-management/external-service -f services/external-service/Dockerfile ."
   },
   "dependencies": {

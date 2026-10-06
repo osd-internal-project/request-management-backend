@@ -1,11 +1,16 @@
-import type { Principal } from '@request-management/share';
+import {
+  SensitiveFieldMasker,
+  type Principal,
+} from '@request-management/share';
 import { AssistantService } from './assistant.service';
 
-const person = (permissions: string[]) =>
+const person = (permissions: string[], hidden: string[] = []) =>
   ({
     userId: 'u-1',
     activeCompanyId: 'osd',
     permissions,
+    sensitiveFieldsAll: hidden,
+    sensitiveFieldsVisible: [],
   }) as unknown as Principal;
 
 const dealRow = (overrides: Record<string, unknown> = {}) => ({
@@ -62,9 +67,21 @@ function harness() {
       Promise.resolve({
         counts: { red: 1, amber: 1, green: 1, unreported: 0 },
         projects: [
-          { projectNo: 'P1', name: 'แดง', health: { level: 'red', factors: [] } },
-          { projectNo: 'P2', name: 'เหลือง', health: { level: 'amber', factors: [] } },
-          { projectNo: 'P3', name: 'เขียว', health: { level: 'green', factors: [] } },
+          {
+            projectNo: 'P1',
+            name: 'แดง',
+            health: { level: 'red', factors: [] },
+          },
+          {
+            projectNo: 'P2',
+            name: 'เหลือง',
+            health: { level: 'amber', factors: [] },
+          },
+          {
+            projectNo: 'P3',
+            name: 'เขียว',
+            health: { level: 'green', factors: [] },
+          },
         ],
       }),
     ),
@@ -72,8 +89,16 @@ function harness() {
   const workOrders = {
     list: jest.fn(() =>
       Promise.resolve([
-        { requestId: 'r-1', request: { requestNo: 'SR-1' }, workKind: 'corrective' },
-        { requestId: 'r-2', request: { requestNo: 'SR-2' }, workKind: 'preventive' },
+        {
+          requestId: 'r-1',
+          request: { requestNo: 'SR-1' },
+          workKind: 'corrective',
+        },
+        {
+          requestId: 'r-2',
+          request: { requestNo: 'SR-2' },
+          workKind: 'preventive',
+        },
       ]),
     ),
   };
@@ -106,7 +131,14 @@ function harness() {
     findMany: jest.fn((args: { select: Record<string, boolean> }) =>
       Promise.resolve(
         args.select.requestNo
-          ? [{ id: 'r-1', requestNo: 'REQ-1', typeCode: 'IT', formData: { subject: 'ขอเครื่อง' } }]
+          ? [
+              {
+                id: 'r-1',
+                requestNo: 'REQ-1',
+                typeCode: 'IT',
+                formData: { subject: 'ขอเครื่อง' },
+              },
+            ]
           : [{ id: 'r-2' }],
       ),
     ),
@@ -120,6 +152,7 @@ function harness() {
     crmDashboard as never,
     requestApi as never,
     requestRows as never,
+    new SensitiveFieldMasker(),
   );
   return { service, opportunities, approvals, statusReports, kb, requestApi };
 }
@@ -144,7 +177,8 @@ describe('CD-276 assistant', () => {
     const { service, opportunities } = harness();
     await service.silentDeals(person(['crm.sales.read']), {});
     const asked = opportunities.list.mock.calls.map(
-      (call) => (call as unknown as [unknown, { follow_up: string }])[1].follow_up,
+      (call) =>
+        (call as unknown as [unknown, { follow_up: string }])[1].follow_up,
     );
     expect(asked.sort()).toEqual(['overdue', 'stale']);
   });
@@ -158,6 +192,14 @@ describe('CD-276 assistant', () => {
       subject: 'ขอเครื่อง',
       waiting_days: 3,
     });
+  });
+
+  it('CD-277: a subject the request type masks never reaches the answer', async () => {
+    const answer = await harness().service.myApprovals(
+      person(['approval.decide'], ['request:IT.subject']),
+    );
+    expect(answer.items[0].subject).toBeNull();
+    expect(answer.items[0].request_no).toBe('REQ-1');
   });
 
   it('projects at risk are red and amber unless asked for red only', async () => {

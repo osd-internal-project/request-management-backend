@@ -1,11 +1,17 @@
 import { Module } from '@nestjs/common';
 import {
+  AuditModule,
+  SENSITIVE_READ_RECORDER,
+  SensitiveFieldMasker,
+} from '@request-management/share';
+import {
   ApprovalsModule,
   CrmModule as CoreCrmModule,
   KbService,
   PaymentsService,
   PlanService,
   ProgressService,
+  SensitiveReadAuditRecorder,
   StatusReportsService,
   SupportModule,
 } from '@request-management/core-service';
@@ -33,6 +39,7 @@ import { AssistantService } from './assistant.service';
     ApprovalsModule,
     RequestModule,
     AuthModule,
+    AuditModule,
   ],
   controllers: [AssistantController],
   providers: [
@@ -43,6 +50,18 @@ import { AssistantService } from './assistant.service';
     PaymentsService,
     KbService,
     NoFileStorage,
+    /*
+      CD-277 — a request's answers are masked per type (SCOPE-04) wherever
+      they appear. These routes carry no `@SensitiveResource` (a subject is
+      one field of many rows of many types), so the service masks each row
+      itself, recording unmasked reads like every other door (SCOPE-05).
+    */
+    SensitiveFieldMasker,
+    SensitiveReadAuditRecorder,
+    {
+      provide: SENSITIVE_READ_RECORDER,
+      useExisting: SensitiveReadAuditRecorder,
+    },
   ],
   // McpModule serves the same answers as tools
   exports: [AssistantService],

@@ -394,6 +394,16 @@ reports already sent to it, and knowledge articles published to customers
 company's configured portal user, as a CD-66 channel's requester is. A
 fourth is a decision to state here.
 
+**An MCP tool answers only what the asker's screens would (CD-277).** Every
+tool runs as the person — their own token, or `X-Acting-User` — through the
+screen's own service, so SCOPE-02's rows, SCOPE-03's 404 and SCOPE-04's masking
+come with it. A tool never reads `mart.*`, the lake or a Metabase embed: those
+carry no per-person rows. `mcp-permission-gates.spec.ts` holds every catalogue
+tool to its gate and to calling as that person (and scans for mart access);
+`test/mcp-scope.e2e-spec.ts`, run by `make smoke`, seeds two companies and
+fails if any read tool's answer carries the other company's or a colleague's
+rows. A new tool needs no new test — both read the generated catalogue.
+
 `crm/leads/intake` earned its suffix on 21 Sep 2026: it used to be `POST
 crm/leads`, which `ExternalLeadsController.create` also bound. That controller
 registers first, so the intake route was unreachable and every web form calling

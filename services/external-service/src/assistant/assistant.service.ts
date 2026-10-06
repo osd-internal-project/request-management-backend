@@ -1,5 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import type { Principal } from '@request-management/share';
+import {
+  SensitiveFieldMasker,
+  type Principal,
+} from '@request-management/share';
 import {
   ApprovalsService,
   CrmDashboardService,
@@ -80,6 +83,7 @@ export class AssistantService {
     private readonly crmDashboard: CrmDashboardService,
     private readonly requestApi: RequestApiService,
     private readonly requestRows: RequestRepository,
+    private readonly masker: SensitiveFieldMasker,
   ) {}
 
   /** Open deals expected to close within `days` — late ones first. */
@@ -90,7 +94,7 @@ export class AssistantService {
       page_size: MAX_ROWS,
       closing_within_days: days,
       view: query.view,
-    } as never)) as { data: DealRow[]; total: number };
+    })) as { data: DealRow[]; total: number };
     const today = new Date().toISOString().slice(0, 10);
     const items = page.data
       .map(deal)
@@ -116,11 +120,14 @@ export class AssistantService {
         page_size: MAX_ROWS,
         follow_up,
         view: query.view,
-      } as never) as Promise<{ data: DealRow[]; total: number }>;
+      }) as Promise<{ data: DealRow[]; total: number }>;
     const [stale, overdue] = await Promise.all([ask('stale'), ask('overdue')]);
     return {
       silent: { total: stale.total, items: stale.data.map(deal) },
-      follow_up_overdue: { total: overdue.total, items: overdue.data.map(deal) },
+      follow_up_overdue: {
+        total: overdue.total,
+        items: overdue.data.map(deal),
+      },
     };
   }
 
@@ -129,7 +136,7 @@ export class AssistantService {
     const page = (await this.approvals.inbox(actor, {
       page: 1,
       page_size: MAX_ROWS,
-    } as never)) as {
+    })) as {
       data: {
         id: string;
         subjectType: string;
@@ -164,13 +171,20 @@ export class AssistantService {
       total: page.total,
       items: page.data.map((row) => {
         const request = row.requestId ? byId.get(row.requestId) : undefined;
-        const form = (request?.formData ?? {}) as { subject?: unknown };
+        const subject = request
+          ? this.subjectOf(
+              actor,
+              request.id,
+              request.typeCode,
+              request.formData,
+            )
+          : null;
         return {
           case_id: row.id,
           kind: row.subjectType,
           request_no: request?.requestNo ?? null,
           request_type: request?.typeCode ?? null,
-          subject: typeof form.subject === 'string' ? form.subject : null,
+          subject,
           amount: row.amount === null ? null : Number(row.amount),
           currency: row.currency,
           step: row.currentStep,
@@ -206,12 +220,23 @@ export class AssistantService {
   async serviceJobs(actor: Principal, query: ServiceJobsQueryDto) {
     const jobs = await this.workOrders.list(actor, {
       customer_id: query.customer_id,
-    } as never);
-    const late = await this.lateRequests(jobs.map((row) => row.requestId));
+    });
+    const ids = jobs.map((row) => row.requestId);
+    const [late, types] = await Promise.all([
+      this.lateRequests(ids),
+      this.typesOf(ids),
+    ]);
     const rows = jobs
       .map((row) => ({
         request_no: row.request?.requestNo ?? null,
-        subject: row.request?.subject ?? null,
+        subject: this.subjectOf(
+          actor,
+          row.requestId,
+          types.get(row.requestId),
+          {
+            subject: row.request?.subject ?? null,
+          },
+        ),
         status: row.request?.status ?? null,
         severity: row.request?.severity ?? null,
         customer: row.customer?.name ?? null,
@@ -252,12 +277,10 @@ export class AssistantService {
   async summary(actor: Principal) {
     const [requests, approvals, sales, closing, projects, service] =
       await Promise.all([
-        has(actor, 'request.read')
-          ? this.requestApi.summary(actor, {} as never)
-          : null,
+        has(actor, 'request.read') ? this.requestApi.summary(actor, {}) : null,
         has(actor, 'approval.decide')
           ? this.approvals
-              .inbox(actor, { page: 1, page_size: 1 } as never)
+              .inbox(actor, { page: 1, page_size: 1 })
               .then((page) => ({ waiting: page.total }))
           : null,
         has(actor, 'crm.sales.read')
@@ -293,6 +316,37 @@ export class AssistantService {
       projects,
       service,
     };
+  }
+
+  /**
+   * A request's subject as this person may see it: through the request
+   * type's masking rules (SCOPE-04), as the request screens show it. A type
+   * that marks `subject` sensitive gets null, never the text.
+   */
+  private subjectOf(
+    actor: Principal,
+    id: string,
+    typeCode: string | undefined,
+    formData: unknown,
+  ): string | null {
+    const form = (formData ?? {}) as { subject?: unknown };
+    if (typeof form.subject !== 'string') return null;
+    const masked = this.masker.mask(
+      'request:{typeCode}',
+      { id, typeCode, form_data: { subject: form.subject } },
+      actor,
+    ) as { form_data?: { subject?: unknown } };
+    const subject = masked.form_data?.subject;
+    return typeof subject === 'string' ? subject : null;
+  }
+
+  private async typesOf(ids: string[]): Promise<Map<string, string>> {
+    if (!ids.length) return new Map();
+    const rows = (await this.requestRows.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, typeCode: true },
+    })) as { id: string; typeCode: string }[];
+    return new Map(rows.map((row) => [row.id, row.typeCode]));
   }
 
   private async lateRequests(ids: string[]): Promise<Set<string>> {
