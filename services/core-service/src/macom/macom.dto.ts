@@ -3,6 +3,7 @@ import {
   ArrayMaxSize,
   IsArray,
   IsBoolean,
+  Matches,
   IsDateString,
   IsIn,
   IsNotEmpty,
@@ -310,4 +311,31 @@ export class RetireBrandAssetDto {
   @IsNotEmpty()
   @MaxLength(500)
   reason!: string;
+}
+
+// --- CD-274 วัดผลแคมเปญถึงรายได้จริง ---------------------------------------------
+
+export class CampaignResultsQueryDto {
+  @ApiPropertyOptional({
+    example: '2026-01',
+    description: 'เดือนเริ่ม (YYYY-MM) ของกราฟรายเดือน',
+  })
+  @IsOptional()
+  @Matches(/^\d{4}-(0[1-9]|1[0-2])$/)
+  from?: string;
+
+  @ApiPropertyOptional({ example: '2026-12' })
+  @IsOptional()
+  @Matches(/^\d{4}-(0[1-9]|1[0-2])$/)
+  to?: string;
+
+  @ApiPropertyOptional({ enum: ['campaign', 'event'] })
+  @IsOptional()
+  @IsIn(['campaign', 'event'])
+  kind?: string;
+
+  @ApiPropertyOptional({ enum: ['getter', 'government', 'partner', 'keeper'] })
+  @IsOptional()
+  @IsIn(['getter', 'government', 'partner', 'keeper'])
+  sales_axis?: string;
 }

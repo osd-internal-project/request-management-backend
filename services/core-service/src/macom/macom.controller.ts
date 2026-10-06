@@ -34,6 +34,7 @@ import { CampaignEventsService } from '../crm/campaign-events.service';
 import { ContentService } from './content.service';
 import { ContentApprovalService } from './content-approval.service';
 import { BrandService } from './brand.service';
+import { CampaignResultsService } from './campaign-results.service';
 import { BrandFilesService } from './brand-files.service';
 import { MAX_BRAND_FILE_BYTES, inlineSafe } from './brand-rules';
 import {
@@ -55,6 +56,7 @@ import {
   SaveContentDto,
   WithdrawContentDto,
   BrandVersionNoteDto,
+  CampaignResultsQueryDto,
   CreateBrandAssetDto,
   ListBrandAssetsQueryDto,
   RetireBrandAssetDto,
@@ -77,7 +79,34 @@ export class MacomController {
     private readonly contentApproval: ContentApprovalService,
     private readonly brand: BrandService,
     private readonly brandFiles: BrandFilesService,
+    private readonly results: CampaignResultsService,
   ) {}
+
+  // --- CD-274 วัดผลแคมเปญถึงรายได้จริง -----------------------------------------
+  // Company-wide money from the Data Mart: MACOM and the executives.
+
+  @ApiOperation({
+    summary:
+      'CD-274 ผลแคมเปญถึงรายได้: ต้นทุนจริง Lead ดีล ยอดจอง/ออกบิล/รับเงิน (จาก Data Mart)',
+  })
+  @Get('results')
+  @AnyPermission('crm.campaign.manage', 'report.dashboard.read')
+  campaignResults(
+    @Query() query: CampaignResultsQueryDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.results.overview(principal, query);
+  }
+
+  @ApiOperation({ summary: 'CD-274 ผลรายเดือนของแคมเปญหนึ่ง' })
+  @Get('results/:campaignId')
+  @AnyPermission('crm.campaign.manage', 'report.dashboard.read')
+  campaignResult(
+    @Param('campaignId') campaignId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.results.campaign(principal, campaignId);
+  }
 
   // --- CD-273 คลังแบรนด์และเทมเพลต --------------------------------------------
   // Every member of staff browses the current versions; MACOM manages.

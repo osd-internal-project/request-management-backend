@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService, type TQueryClient } from '@request-management/share';
 import { CONTACT_TYPES } from '../crm/prospecting-rules';
 import { martTableName, PRICING_MART_TABLES } from './pricing-mart';
+import { CAMPAIGN_MART_TABLES } from './campaign-mart';
 import { HOURS_PER_MANDAY } from '../hr/timesheet-rules';
 import { DEFAULT_CREDIT_DAYS } from '../pm/payment-rules';
 import { SLA_STATUS_SQL } from '../sla/sla-status';
@@ -481,6 +482,8 @@ export const MART_TABLES: readonly { table: string; sql: string[] }[] = [
        WHERE b."invoicedOn" IS NOT NULL`,
     ],
   },
+  // CD-274 — campaign results to revenue
+  ...CAMPAIGN_MART_TABLES,
 ];
 
 /**
