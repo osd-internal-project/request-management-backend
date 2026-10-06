@@ -154,6 +154,12 @@ export class OpportunitiesService {
       filters.staleAlertedAt = { not: null };
       filters.stage = { in: OPEN_STAGES };
     }
+    if (query.closing_within_days) {
+      filters.expectedCloseAt = {
+        lte: new Date(Date.now() + query.closing_within_days * 86_400_000),
+      };
+      filters.stage = { in: OPEN_STAGES };
+    }
     if (query.search) {
       const q = query.search.trim();
       filters.OR = [

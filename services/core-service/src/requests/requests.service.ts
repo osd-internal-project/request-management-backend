@@ -3425,7 +3425,7 @@ function snapshotOf(request: RequestWithType): Record<string, unknown> {
  * somebody else's. That the sweeper never marks such a clock at all is a
  * separate defect, recorded in the gap analysis rather than papered over here.
  */
-function overdueClockWhere(): Prisma.SlaClockWhereInput {
+export function overdueClockWhere(): Prisma.SlaClockWhereInput {
   return {
     OR: [
       { breachedAt: { not: null } },

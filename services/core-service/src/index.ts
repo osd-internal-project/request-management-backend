@@ -1,6 +1,10 @@
 // --- requests -------------------------------------------------------------
 export { RequestsModule } from './requests/requests.module';
-export { RequestsService } from './requests/requests.service';
+export {
+  RequestsService,
+  // CD-276 — the assistant flags late service jobs by the same SLA rule
+  overdueClockWhere,
+} from './requests/requests.service';
 export { RequestRepository } from './requests/request.repository';
 export { toFormFields } from './requests/form-schema';
 export {
@@ -110,6 +114,11 @@ export { ListContractsQueryDto } from './crm/dto/legal-contract.dto';
 export { PmModule } from './pm/pm.module';
 export { ProjectsService } from './pm/projects.service';
 export { MilestonesService } from './pm/milestones.service';
+// CD-276 — the portfolio's health, for the assistant (timers off in external)
+export { StatusReportsService } from './pm/status-reports.service';
+export { PlanService } from './pm/plan.service';
+export { ProgressService } from './pm/progress.service';
+export { PaymentsService } from './pm/payments.service';
 export { ListProjectsQueryDto, OpenProjectDto } from './pm/dto/project.dto';
 export { DeliveryModule } from './delivery/delivery.module';
 export { DeliveriesService } from './delivery/deliveries.service';
@@ -120,6 +129,8 @@ export { SupportModule } from './support/support.module';
 export { KbAiModule } from './kb/kb-ai.module';
 export { KbAiService, AI_CHANNELS } from './kb/kb-ai.service';
 export { KbAiSearchDto, KbAiAnswerDto } from './kb/kb-ai.dto';
+// CD-276 — staff search for the assistant, declared by external without KbModule's controller
+export { KbService } from './kb/kb.service';
 export { ServiceAssetsService } from './support/service-assets.service';
 export { EntitlementsService } from './support/entitlements.service';
 export { WorkOrdersService } from './support/work-orders.service';

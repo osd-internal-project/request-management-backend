@@ -2354,7 +2354,8 @@
                 "integration.delivery.read",
                 "integration.support.read",
                 "integration.support.manage",
-                "integration.kb.read"
+                "integration.kb.read",
+                "integration.assistant.read"
               ],
               "type": "string"
             }
@@ -2470,7 +2471,8 @@
                 "integration.delivery.read",
                 "integration.support.read",
                 "integration.support.manage",
-                "integration.kb.read"
+                "integration.kb.read",
+                "integration.assistant.read"
               ],
               "type": "string"
             }
@@ -2770,7 +2772,8 @@
               "integration.delivery.read",
               "integration.support.read",
               "integration.support.manage",
-              "integration.kb.read"
+              "integration.kb.read",
+              "integration.assistant.read"
             ],
             "type": "string"
           }

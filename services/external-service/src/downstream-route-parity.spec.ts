@@ -32,6 +32,7 @@ const CONTROLLERS = [
   'delivery/delivery.controller.ts',
   'support/support.controller.ts',
   'flow/flow.controller.ts',
+  'assistant/assistant.controller.ts',
 ];
 
 /** [external route, core file, core route] — routes as `METHOD path`. */
@@ -170,6 +171,14 @@ const PAIRS: readonly (readonly [string, string, string])[] = [
  */
 const OWN: Readonly<Record<string, string[]>> = {
   'GET flow/opportunities/:id': ['crm.sales.read'],
+  // CD-276 — the assistant's questions, each behind its screen's permission
+  'GET assistant/summary': ['notification.read'],
+  'GET assistant/deals/closing': ['crm.sales.read'],
+  'GET assistant/deals/silent': ['crm.sales.read'],
+  'GET assistant/approvals': ['approval.decide'],
+  'GET assistant/projects/at-risk': ['notification.read'],
+  'GET assistant/service-jobs': ['service.asset.read'],
+  'GET assistant/kb/articles': ['notification.read'],
 };
 
 interface Route {

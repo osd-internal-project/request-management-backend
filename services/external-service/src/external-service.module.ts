@@ -28,6 +28,7 @@ import { DeliveryModule } from './delivery/delivery.module';
 import { SupportApiModule } from './support/support.module';
 import { FlowModule } from './flow/flow.module';
 import { KbApiModule } from './kb/kb.module';
+import { AssistantModule } from './assistant/assistant.module';
 import configs from './configs';
 
 /**
@@ -77,6 +78,8 @@ import configs from './configs';
     SupportApiModule,
     FlowModule,
     KbApiModule,
+    // CD-276 — the personal assistant's questions
+    AssistantModule,
     McpModule,
   ],
   providers: [

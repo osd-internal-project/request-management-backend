@@ -5171,6 +5171,18 @@
             }
           },
           {
+            "name": "closing_within_days",
+            "required": false,
+            "in": "query",
+            "description": "ดีลที่ยังเปิดและคาดปิดภายใน N วัน (รวมที่เลยวันคาดปิดแล้ว)",
+            "schema": {
+              "example": 30,
+              "type": "integer",
+              "maximum": 365,
+              "minimum": 1
+            }
+          },
+          {
             "name": "X-Company-Id",
             "in": "header",
             "required": false,
@@ -5372,6 +5384,18 @@
                 "overdue",
                 "stale"
               ]
+            }
+          },
+          {
+            "name": "closing_within_days",
+            "required": false,
+            "in": "query",
+            "description": "ดีลที่ยังเปิดและคาดปิดภายใน N วัน (รวมที่เลยวันคาดปิดแล้ว)",
+            "schema": {
+              "example": 30,
+              "type": "integer",
+              "maximum": 365,
+              "minimum": 1
             }
           },
           {

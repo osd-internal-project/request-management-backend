@@ -5,6 +5,7 @@ import {
   SensitiveFieldMasker,
 } from '@request-management/share';
 import { RequestModule } from '../request/request.module';
+import { AssistantModule } from '../assistant/assistant.module';
 import {
   CrmModule as CoreCrmModule,
   PrincipalModule,
@@ -26,7 +27,14 @@ import { OAuthMetadataController } from './oauth-metadata.controller';
  * exactly what it was: nothing here can change how `/external/*` behaves.
  */
 @Module({
-  imports: [RequestModule, PrincipalModule, CoreCrmModule, AuditModule],
+  imports: [
+    RequestModule,
+    PrincipalModule,
+    CoreCrmModule,
+    AuditModule,
+    // CD-276 — the assistant's questions
+    AssistantModule,
+  ],
   controllers: [McpController, OAuthMetadataController],
   providers: [
     McpService,

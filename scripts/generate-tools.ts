@@ -18,6 +18,10 @@ const TARGET = join('docs', 'openapi', 'external-tools.json');
  */
 const ROBOT_ONLY = [
   '/request/intake',
+  // CD-66 — a customer's channel under `integration.request.intake`, no acting person
+  '/request/intake/web-forms/{slug}',
+  '/request/intake/channels/{channel}',
+  '/request/intake/status/{token}',
   '/crm/leads/intake',
   '/crm/leads/{id}/facts',
   '/crm/leads/{id}/stage',
@@ -63,6 +67,8 @@ interface Source {
 const SOURCES: readonly Source[] = [
   { file: 'external-request.json' },
   { file: 'external-crm.json', only: CRM_IN_CHAT },
+  // CD-276 — every assistant route is a chat question by design
+  { file: 'external-assistant.json' },
 ];
 
 interface JsonSchema {

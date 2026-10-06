@@ -308,6 +308,14 @@ export const PERMISSIONS = {
      * it answered with. Robot-only: no acting person, never internal articles.
      */
     'integration.kb.read',
+    /**
+     * CD-276 (CD-24) — the personal assistant (LibreChat over MCP) asks the
+     * questions people ask in a chat: deals closing or gone quiet, my
+     * approvals, projects in trouble, open service jobs, articles, my figures.
+     * Read-only; each route still asks the person for the screen's own
+     * permission through `@ActingPermissions`.
+     */
+    'integration.assistant.read',
   ],
 } as const;
 

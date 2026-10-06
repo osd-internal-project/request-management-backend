@@ -218,6 +218,15 @@ const MODULE_DOCS: Readonly<Record<string, ModuleDoc>> = {
       'ลูกค้าแจ้งเองใช้ช่องทาง `request/intake/*` หรือ Customer Portal ไม่ใช่ที่นี่',
     tags: [{ name: 'support', description: 'งานบริการหลังการขาย' }],
   },
+  assistant: {
+    title: 'Request Form — External API · Assistant',
+    summary:
+      'คำถามของผู้ช่วยส่วนตัว — ดีลใกล้ปิด/เงียบ งานรออนุมัติ โครงการมีปัญหา งานบริการค้าง บทความ และตัวเลขสรุป',
+    notes:
+      'อ่านอย่างเดียว · ทุกคำตอบเรียก service ตัวเดียวกับหน้าจอในนามของผู้ถาม ' +
+      'จึงไม่เห็นเกินกว่าที่หน้าจอของคนนั้นแสดง · ใช้ผ่าน MCP เป็นหลัก (`assistant_*`)',
+    tags: [{ name: 'assistant', description: 'ผู้ช่วยส่วนตัว (CD-276)' }],
+  },
   mcp: {
     title: 'Request Form — External API · MCP',
     summary: 'ช่องทาง JSON-RPC สำหรับ tool-caller (LibreChat, MCP client)',

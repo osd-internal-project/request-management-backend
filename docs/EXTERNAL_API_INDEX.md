@@ -11,6 +11,18 @@
 |---|---|---|---|---|
 | POST | `/approval/cases` | เปิดเคสอนุมัติจากโมดูลอื่น — ไม่ผูกกับคำขอในระบบ (APV-07) | integration.approval.create |  |
 
+## assistant — คำถามของผู้ช่วยส่วนตัว — ดีลใกล้ปิด/เงียบ งานรออนุมัติ โครงการมีปัญหา งานบริการค้าง บทความ และตัวเลขสรุป
+
+| Method | Path | ทำอะไร | สิทธิ์กุญแจ | สิทธิ์คน |
+|---|---|---|---|---|
+| GET | `/assistant/summary` | ตัวเลขสรุปของฉัน | integration.assistant.read | notification.read |
+| GET | `/assistant/deals/closing` | ดีลที่ใกล้ปิด | integration.assistant.read | crm.sales.read |
+| GET | `/assistant/deals/silent` | ดีลที่เงียบหรือเลยนัดติดตาม | integration.assistant.read | crm.sales.read |
+| GET | `/assistant/approvals` | งานที่รอฉันอนุมัติ | integration.assistant.read | approval.decide |
+| GET | `/assistant/projects/at-risk` | โครงการที่มีปัญหา | integration.assistant.read | notification.read |
+| GET | `/assistant/service-jobs` | งานบริการที่ยังค้าง | integration.assistant.read | service.asset.read |
+| GET | `/assistant/kb/articles` | ค้นบทความในคลังความรู้ | integration.assistant.read | notification.read |
+
 ## crm — ทะเบียนลูกค้า, Lead, โอกาสการขาย, ใบเสนอราคา, ใบสั่งขาย และหน้าตั้งค่า CRM
 
 | Method | Path | ทำอะไร | สิทธิ์กุญแจ | สิทธิ์คน |

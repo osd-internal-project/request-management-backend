@@ -887,6 +887,21 @@ export class ListOpportunitiesQueryDto extends PageQueryDto {
   @IsOptional()
   @IsIn(['overdue', 'stale'])
   follow_up?: 'overdue' | 'stale';
+
+  /**
+   * CD-276 — ดีลที่ยังเปิดและคาดว่าจะปิดภายใน N วันนับจากวันนี้ รวมดีลที่เลยวัน
+   * คาดปิดไปแล้วแต่ยังไม่ปิด (คำถาม "ดีลไหนใกล้ปิด" ของผู้ช่วย).
+   */
+  @ApiPropertyOptional({
+    example: 30,
+    description: 'ดีลที่ยังเปิดและคาดปิดภายใน N วัน (รวมที่เลยวันคาดปิดแล้ว)',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(365)
+  closing_within_days?: number;
 }
 
 // --- ใบสั่งขาย (Sale Order, CD-77 โครงระยะ 1) ---------------------------------
