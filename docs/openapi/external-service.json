@@ -12188,6 +12188,42 @@
           "note": {
             "type": "string",
             "maxLength": 2000
+          },
+          "sales_axis": {
+            "type": "string",
+            "enum": [
+              "getter",
+              "government",
+              "partner",
+              "keeper"
+            ],
+            "description": "CD-268 — แกนขายที่แคมเปญป้อน · ว่าง = ล้าง"
+          },
+          "receiving_org_unit_id": {
+            "type": "string",
+            "description": "CD-268 — ทีมที่รับ Lead ของแคมเปญ (id หน่วยงาน) · ว่าง = ล้าง",
+            "maxLength": 64
+          },
+          "target_leads": {
+            "type": "integer",
+            "nullable": true,
+            "description": "CD-268 — เป้าจำนวน Lead · null = ล้าง",
+            "maximum": 1000000,
+            "minimum": 0
+          },
+          "target_deals": {
+            "type": "integer",
+            "nullable": true,
+            "description": "CD-268 — เป้าดีลที่ปิดได้ · null = ล้าง",
+            "maximum": 1000000,
+            "minimum": 0
+          },
+          "target_sales": {
+            "type": "number",
+            "nullable": true,
+            "description": "CD-268 — เป้ายอดขาย (บาท) · null = ล้าง",
+            "maximum": 999999999999,
+            "minimum": 0
           }
         },
         "required": [
@@ -12201,6 +12237,42 @@
           "active": {
             "type": "boolean",
             "description": "false = ปิด (ผูก Lead ใหม่ไม่ได้)"
+          },
+          "sales_axis": {
+            "type": "string",
+            "enum": [
+              "getter",
+              "government",
+              "partner",
+              "keeper"
+            ],
+            "description": "CD-268 — แกนขายที่แคมเปญป้อน · ว่าง = ล้าง"
+          },
+          "receiving_org_unit_id": {
+            "type": "string",
+            "description": "CD-268 — ทีมที่รับ Lead ของแคมเปญ (id หน่วยงาน) · ว่าง = ล้าง",
+            "maxLength": 64
+          },
+          "target_leads": {
+            "type": "integer",
+            "nullable": true,
+            "description": "CD-268 — เป้าจำนวน Lead · null = ล้าง",
+            "maximum": 1000000,
+            "minimum": 0
+          },
+          "target_deals": {
+            "type": "integer",
+            "nullable": true,
+            "description": "CD-268 — เป้าดีลที่ปิดได้ · null = ล้าง",
+            "maximum": 1000000,
+            "minimum": 0
+          },
+          "target_sales": {
+            "type": "number",
+            "nullable": true,
+            "description": "CD-268 — เป้ายอดขาย (บาท) · null = ล้าง",
+            "maximum": 999999999999,
+            "minimum": 0
           },
           "name": {
             "maxLength": 255,

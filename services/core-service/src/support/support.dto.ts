@@ -1209,3 +1209,19 @@ export class PortalCaseDto {
   @IsIn(['critical', 'high', 'medium', 'low'])
   severity!: string;
 }
+
+/** CD-249 — searching the knowledge articles open to the customer (CD-261). */
+export class PortalArticlesQueryDto {
+  @ApiPropertyOptional({ example: 'กล้องภาพไม่ขึ้น' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  q?: string;
+}
+
+/** CD-249 — was this article any help. */
+export class PortalArticleVoteDto {
+  @ApiProperty()
+  @IsBoolean()
+  helpful!: boolean;
+}

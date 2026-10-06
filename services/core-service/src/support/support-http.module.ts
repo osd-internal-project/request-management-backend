@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { KbModule } from '../kb/kb.module';
 import { StorageModule, type StorageOptions } from '@request-management/share';
 import { ContractTermsRepository } from '../crm/contract-terms.service';
 import { CustomerContractRepository } from '../crm/contract.repositories';
@@ -43,6 +44,8 @@ import { SupportModule } from './support.module';
 @Module({
   imports: [
     SupportModule,
+    // CD-261 — knowledge articles shown in the customer portal
+    KbModule,
     // CD-247 — the report PDFs; storage for the HTTP half only
     StorageModule.forRootAsync({
       inject: [ConfigService],

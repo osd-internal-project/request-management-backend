@@ -388,8 +388,9 @@ revoked or reissued at will) opens an 8-hour session whose token (also stored
 only as a hash) the web app keeps in an httpOnly cookie and passes as
 `x-portal-session` from its server routes (`/api/public/portal/*`,
 rate-limited by address). Every read is pinned to the session's customer: its
-installed assets, covers, service jobs (plain status words), and service
-reports already sent to it; a case it raises is a service job under the
+installed assets, covers, service jobs (plain status words), service
+reports already sent to it, and knowledge articles published to customers
+(all, or that customer) through `KbPortalService` (CD-261); a case it raises is a service job under the
 company's configured portal user, as a CD-66 channel's requester is. A
 fourth is a decision to state here.
 
