@@ -3500,6 +3500,12 @@ model Campaign {
   targetLeads        Int?
   targetDeals        Int?
   targetSales        Decimal? @db.Decimal(14, 2)
+  /// CD-269 — ฟอร์มสาธารณะของแคมเปญ (/f/lead/<formToken>) · token สุ่ม เดาไม่ได้.
+  formEnabled        Boolean  @default(false)
+  formToken          String?  @unique
+  formIntro          String?
+  /// CD-269 — id ฟอร์ม Lead Ads (Facebook/TikTok) ที่ส่ง Lead เข้าแคมเปญนี้.
+  adFormIds          String[] @default([])
 
   createdAt DateTime @default(now())
   createdBy String?

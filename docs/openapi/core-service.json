@@ -39443,6 +39443,24 @@
             "description": "CD-268 — เป้ายอดขาย (บาท) · null = ล้าง",
             "maximum": 999999999999,
             "minimum": 0
+          },
+          "form_enabled": {
+            "type": "boolean",
+            "description": "CD-269 — เปิดฟอร์มสาธารณะของแคมเปญ (/f/lead/<token>) · เปิดครั้งแรกระบบออก token ให้"
+          },
+          "form_intro": {
+            "type": "string",
+            "description": "CD-269 — ข้อความบนหัวฟอร์ม",
+            "maxLength": 2000
+          },
+          "ad_form_ids": {
+            "description": "CD-269 — id ฟอร์ม Lead Ads (Facebook/TikTok) ที่ส่งเข้าแคมเปญนี้",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 100
+            },
+            "maxItems": 20
           }
         },
         "required": [
@@ -39492,6 +39510,24 @@
             "description": "CD-268 — เป้ายอดขาย (บาท) · null = ล้าง",
             "maximum": 999999999999,
             "minimum": 0
+          },
+          "form_enabled": {
+            "type": "boolean",
+            "description": "CD-269 — เปิดฟอร์มสาธารณะของแคมเปญ (/f/lead/<token>) · เปิดครั้งแรกระบบออก token ให้"
+          },
+          "form_intro": {
+            "type": "string",
+            "description": "CD-269 — ข้อความบนหัวฟอร์ม",
+            "maxLength": 2000
+          },
+          "ad_form_ids": {
+            "description": "CD-269 — id ฟอร์ม Lead Ads (Facebook/TikTok) ที่ส่งเข้าแคมเปญนี้",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 100
+            },
+            "maxItems": 20
           },
           "name": {
             "maxLength": 255,

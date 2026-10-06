@@ -483,6 +483,39 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
     },
   },
   {
+    eventType: 'crm.campaign_lead.routed',
+    label: 'Lead ใหม่จากแคมเปญเข้ากองของทีม (ถึงหัวหน้าทีมที่รับ)',
+    title: 'Lead ใหม่จาก {{campaign}}',
+    body: '{{name}} เข้ามาทาง {{source}} — รอคนในทีมรับไปดูแล',
+    variables: {
+      name: { label: 'Lead', sample: 'บจก. ตัวอย่าง เทคโนโลยี' },
+      campaign: { label: 'แคมเปญ', sample: 'งาน ICT Expo 2026' },
+      source: { label: 'ช่องทาง', sample: 'web_form' },
+    },
+  },
+  {
+    eventType: 'crm.campaign_lead.customer',
+    label: 'ลูกค้าเดิมลงทะเบียนผ่านแคมเปญ (ถึงผู้ดูแลลูกค้า)',
+    title: 'ลูกค้าของคุณสนใจ: {{name}}',
+    body: 'ลงทะเบียนผ่าน {{campaign}} ({{source}}) — Lead อยู่กับคุณแล้ว',
+    variables: {
+      name: { label: 'Lead', sample: 'บจก. ตัวอย่าง เทคโนโลยี' },
+      campaign: { label: 'แคมเปญ', sample: 'งาน ICT Expo 2026' },
+      source: { label: 'ช่องทาง', sample: 'web_form' },
+    },
+  },
+  {
+    eventType: 'crm.campaign_lead.repeat',
+    label: 'ลงทะเบียนซ้ำบน Lead ที่ยังเปิด (ถึงเจ้าของ Lead)',
+    title: 'ลงทะเบียนซ้ำ: {{name}}',
+    body: 'คนเดิมลงทะเบียนอีกครั้งผ่าน {{campaign}} ({{source}}) — บันทึกไว้ในกิจกรรมของ Lead',
+    variables: {
+      name: { label: 'Lead', sample: 'บจก. ตัวอย่าง เทคโนโลยี' },
+      campaign: { label: 'แคมเปญ', sample: 'งาน ICT Expo 2026' },
+      source: { label: 'ช่องทาง', sample: 'web_form' },
+    },
+  },
+  {
     eventType: 'crm.ma_offer.opened',
     label: 'เปิดดีลเสนอสัญญาบริการก่อนประกัน/สิทธิ์หมด (ถึงเจ้าของลูกค้า)',
     title: 'เสนอสัญญาบริการ: {{customer}}',

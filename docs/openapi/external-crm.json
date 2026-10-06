@@ -7237,6 +7237,169 @@
         ]
       }
     },
+    "/api/v1/crm/leads/forms/{token}": {
+      "get": {
+        "operationId": "ExternalLeadIntakeController_form",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "ควรส่งทุกครั้ง — หนึ่งค่าต่อหนึ่งใบ ยิงซ้ำด้วยค่าเดิมและ body เดิมจะได้ใบเดิมกลับไป ไม่เกิดใบที่สอง ไม่ส่งก็ทำงานได้ แต่ response ที่หายกลางทางแล้ว retry จะกลายเป็น Lead สองใบ",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "6f6bd3a7-7308-4d2e-a4de-75e1f89b6871"
+            }
+          },
+          {
+            "name": "token",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-269 หัวฟอร์มสาธารณะของแคมเปญ (ชื่อแคมเปญ + ข้อความแนะนำ)",
+        "tags": [
+          "crm-intake"
+        ],
+        "x-permission": [
+          "integration.crm.lead.create"
+        ]
+      },
+      "post": {
+        "description": "คนเดิมภายใน 30 วันไปต่อท้าย Lead ที่ยังเปิด · ลูกค้าเดิมส่งถึงผู้ดูแลลูกค้า · ใบใหม่เข้ากองของทีมที่รับของแคมเปญ. ตอบแค่ว่ารับแล้ว ไม่เปิดข้อมูล Lead",
+        "operationId": "ExternalLeadIntakeController_submitForm",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "ควรส่งทุกครั้ง — หนึ่งค่าต่อหนึ่งใบ ยิงซ้ำด้วยค่าเดิมและ body เดิมจะได้ใบเดิมกลับไป ไม่เกิดใบที่สอง ไม่ส่งก็ทำงานได้ แต่ response ที่หายกลางทางแล้ว retry จะกลายเป็น Lead สองใบ",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "6f6bd3a7-7308-4d2e-a4de-75e1f89b6871"
+            }
+          },
+          {
+            "name": "token",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IntakeLeadDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-269 ส่งฟอร์มสาธารณะของแคมเปญ — คัดกรองเหมือน intake",
+        "tags": [
+          "crm-intake"
+        ],
+        "x-permission": [
+          "integration.crm.lead.create"
+        ]
+      }
+    },
+    "/api/v1/crm/leads/ads/{platform}": {
+      "post": {
+        "description": "รับคำตอบหนึ่งชุดในรูปแบบของแพลตฟอร์ม (Facebook `field_data`, TikTok `user_info`/`answers`) พร้อม `form_id` — form_id เลือกแคมเปญจาก `ad_form_ids` ของแคมเปญ. ยังเป็นโหมด mock: ผู้ส่งต้องดึงข้อมูล Lead มาเอง (เช่น ตัวเชื่อม/Zapier) ส่วนการรับ webhook ตรงจากแพลตฟอร์มรอบัญชีโฆษณาและ app review",
+        "operationId": "ExternalLeadIntakeController_receiveAd",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "ควรส่งทุกครั้ง — หนึ่งค่าต่อหนึ่งใบ ยิงซ้ำด้วยค่าเดิมและ body เดิมจะได้ใบเดิมกลับไป ไม่เกิดใบที่สอง ไม่ส่งก็ทำงานได้ แต่ response ที่หายกลางทางแล้ว retry จะกลายเป็น Lead สองใบ",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "6f6bd3a7-7308-4d2e-a4de-75e1f89b6871"
+            }
+          },
+          {
+            "name": "platform",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-269 Lead Ads (facebook | tiktok) — ตัวแปลงข้อมูลฟอร์มโฆษณา",
+        "tags": [
+          "crm-intake"
+        ],
+        "x-permission": [
+          "integration.crm.lead.create"
+        ]
+      }
+    },
     "/api/v1/crm/leads/{id}/facts": {
       "get": {
         "operationId": "ExternalLeadWorkflowController_facts",
@@ -7587,6 +7750,24 @@
             "description": "CD-268 — เป้ายอดขาย (บาท) · null = ล้าง",
             "maximum": 999999999999,
             "minimum": 0
+          },
+          "form_enabled": {
+            "type": "boolean",
+            "description": "CD-269 — เปิดฟอร์มสาธารณะของแคมเปญ (/f/lead/<token>) · เปิดครั้งแรกระบบออก token ให้"
+          },
+          "form_intro": {
+            "type": "string",
+            "description": "CD-269 — ข้อความบนหัวฟอร์ม",
+            "maxLength": 2000
+          },
+          "ad_form_ids": {
+            "description": "CD-269 — id ฟอร์ม Lead Ads (Facebook/TikTok) ที่ส่งเข้าแคมเปญนี้",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 100
+            },
+            "maxItems": 20
           }
         },
         "required": [
@@ -8747,13 +8928,23 @@
           },
           "owner_user_id": {
             "type": "object",
-            "description": "เจ้าของใบ — เป็น null เสมอตอนสร้าง: ใบเข้ากองกลางรอพนักงานขายรับ",
+            "description": "เจ้าของใบ — null = ยังไม่มีคนรับ (กองกลาง หรือกองของทีมที่รับของแคมเปญ); ลูกค้าเดิม = ผู้ดูแลลูกค้า",
             "nullable": true,
             "example": null
           },
           "created_at": {
             "type": "string",
             "example": "2026-09-14T09:30:00.000Z"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "created",
+              "customer",
+              "repeat"
+            ],
+            "description": "CD-269 — `created` ใบใหม่ (เข้าทีมที่รับของแคมเปญถ้ามี) · `customer` ตรงกับลูกค้าเดิม ส่งถึงผู้ดูแลลูกค้า · `repeat` คนเดิมลงทะเบียนซ้ำภายใน 30 วัน — ได้ใบเดิมกลับ ไม่สร้างใหม่",
+            "example": "created"
           }
         },
         "required": [
@@ -8762,7 +8953,8 @@
           "status",
           "source_code",
           "owner_user_id",
-          "created_at"
+          "created_at",
+          "outcome"
         ]
       },
       "KycWatchlistEntryDto": {
@@ -9274,6 +9466,24 @@
             "description": "CD-268 — เป้ายอดขาย (บาท) · null = ล้าง",
             "maximum": 999999999999,
             "minimum": 0
+          },
+          "form_enabled": {
+            "type": "boolean",
+            "description": "CD-269 — เปิดฟอร์มสาธารณะของแคมเปญ (/f/lead/<token>) · เปิดครั้งแรกระบบออก token ให้"
+          },
+          "form_intro": {
+            "type": "string",
+            "description": "CD-269 — ข้อความบนหัวฟอร์ม",
+            "maxLength": 2000
+          },
+          "ad_form_ids": {
+            "description": "CD-269 — id ฟอร์ม Lead Ads (Facebook/TikTok) ที่ส่งเข้าแคมเปญนี้",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 100
+            },
+            "maxItems": 20
           },
           "name": {
             "maxLength": 255,

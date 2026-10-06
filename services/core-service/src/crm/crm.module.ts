@@ -173,6 +173,7 @@ import { OpportunityStaleMonitorService } from './opportunity-stale-monitor.serv
 import { SaleOrdersService } from './sale-orders.service';
 import { LeadImportService } from './lead-import.service';
 import { LeadIntakeService } from './lead-intake.service';
+import { CampaignLeadIntakeService } from './campaign-lead-intake.service';
 import { LeadWorkflowService } from './lead-workflow.service';
 import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
 
@@ -260,6 +261,8 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     LeadStatusService,
     LeadImportService,
     LeadIntakeService,
+    // CD-269 — one screening for every Lead from outside
+    CampaignLeadIntakeService,
     LeadWorkflowService,
     LeadWorkflowSyncService,
     OpportunitiesService,
@@ -355,6 +358,7 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     LeadsService,
     LeadImportService,
     LeadIntakeService,
+    CampaignLeadIntakeService,
     LeadWorkflowService,
     OpportunitiesService,
     OpportunityActivitiesService,

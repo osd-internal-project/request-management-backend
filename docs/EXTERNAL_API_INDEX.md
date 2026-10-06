@@ -128,6 +128,9 @@
 | POST | `/crm/quotations/{id}/revise` | ออกใบเสนอราคาเวอร์ชันใหม่ | integration.crm.sales.manage | crm.sales.manage |
 | POST | `/crm/quotations/{id}/cancel` | ยกเลิกใบเสนอราคาพร้อมเหตุผล | integration.crm.sales.manage | crm.sales.manage |
 | POST | `/crm/leads/intake` | รับ Lead จากระบบภายนอก — เข้ากองกลาง รอพนักงานขายรับ | integration.crm.lead.create |  |
+| GET | `/crm/leads/forms/{token}` | CD-269 หัวฟอร์มสาธารณะของแคมเปญ (ชื่อแคมเปญ + ข้อความแนะนำ) | integration.crm.lead.create |  |
+| POST | `/crm/leads/forms/{token}` | CD-269 ส่งฟอร์มสาธารณะของแคมเปญ — คัดกรองเหมือน intake | integration.crm.lead.create |  |
+| POST | `/crm/leads/ads/{platform}` | CD-269 Lead Ads (facebook \| tiktok) — ตัวแปลงข้อมูลฟอร์มโฆษณา | integration.crm.lead.create |  |
 | GET | `/crm/leads/{id}/facts` | ข้อเท็จจริงของ Lead สำหรับ Decision node — สถานะ + จำนวนกิจกรรม | integration.crm.lead.read |  |
 | POST | `/crm/leads/{id}/stage` | บันทึกขั้นที่ workflow ตัดสินใจแล้ว — core ไม่ตัดสินว่าเลื่อนได้ไหม | integration.crm.lead.stage |  |
 

@@ -1,4 +1,4 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
@@ -13,6 +13,7 @@ import {
 } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import {
+  CampaignLeadIntakeService,
   LeadIntakeService,
   type ApiKeyContext,
   CurrentApiKey,
@@ -64,7 +65,11 @@ import {
 @Controller('crm/leads')
 @ServiceAccountOnly()
 export class ExternalLeadIntakeController {
-  constructor(private readonly intake: LeadIntakeService) {}
+  constructor(
+    private readonly intake: LeadIntakeService,
+    // CD-269 — a campaign's public form and Lead Ads
+    private readonly campaignIntake: CampaignLeadIntakeService,
+  ) {}
 
   /*
     `intake` ต่อท้าย ไม่ใช่ `POST crm/leads` เปล่า ๆ (21 ก.ย. 2569).
@@ -100,5 +105,59 @@ export class ExternalLeadIntakeController {
     @CurrentApiKey() key: ApiKeyContext | undefined,
   ) {
     return this.intake.receive(dto, principal, key);
+  }
+
+  /*
+    CD-269 — a campaign's public form (/f/lead/<token>). The web app's server
+    calls these with its own intake key; the person filling the form never
+    holds a key. The token picks the campaign (and so the company): a key bound
+    to another company is answered 404, as is a form switched off.
+  */
+  @Get('forms/:token')
+  @Permissions('integration.crm.lead.create')
+  @ApiOperation({
+    summary: 'CD-269 หัวฟอร์มสาธารณะของแคมเปญ (ชื่อแคมเปญ + ข้อความแนะนำ)',
+  })
+  form(
+    @Param('token') token: string,
+    @CurrentApiKey() key: ApiKeyContext | undefined,
+  ) {
+    return this.campaignIntake.formOf(token, key);
+  }
+
+  @Post('forms/:token')
+  @Permissions('integration.crm.lead.create')
+  @ApiOperation({
+    summary: 'CD-269 ส่งฟอร์มสาธารณะของแคมเปญ — คัดกรองเหมือน intake',
+    description:
+      'คนเดิมภายใน 30 วันไปต่อท้าย Lead ที่ยังเปิด · ลูกค้าเดิมส่งถึงผู้ดูแลลูกค้า · ' +
+      'ใบใหม่เข้ากองของทีมที่รับของแคมเปญ. ตอบแค่ว่ารับแล้ว ไม่เปิดข้อมูล Lead',
+  })
+  submitForm(
+    @Param('token') token: string,
+    @Body() dto: IntakeLeadDto,
+    @CurrentPrincipal() principal: Principal,
+    @CurrentApiKey() key: ApiKeyContext | undefined,
+  ) {
+    return this.campaignIntake.submitForm(token, dto, principal, key);
+  }
+
+  @Post('ads/:platform')
+  @Permissions('integration.crm.lead.create')
+  @ApiOperation({
+    summary: 'CD-269 Lead Ads (facebook | tiktok) — ตัวแปลงข้อมูลฟอร์มโฆษณา',
+    description:
+      'รับคำตอบหนึ่งชุดในรูปแบบของแพลตฟอร์ม (Facebook `field_data`, TikTok `user_info`/`answers`) ' +
+      'พร้อม `form_id` — form_id เลือกแคมเปญจาก `ad_form_ids` ของแคมเปญ. ' +
+      'ยังเป็นโหมด mock: ผู้ส่งต้องดึงข้อมูล Lead มาเอง (เช่น ตัวเชื่อม/Zapier) ' +
+      'ส่วนการรับ webhook ตรงจากแพลตฟอร์มรอบัญชีโฆษณาและ app review',
+  })
+  receiveAd(
+    @Param('platform') platform: string,
+    @Body() payload: Record<string, unknown>,
+    @CurrentPrincipal() principal: Principal,
+    @CurrentApiKey() key: ApiKeyContext | undefined,
+  ) {
+    return this.campaignIntake.receiveAd(platform, payload, principal, key);
   }
 }

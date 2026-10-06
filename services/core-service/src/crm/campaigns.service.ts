@@ -22,6 +22,7 @@ import {
   SaleOrderRepository,
 } from './sales.repositories';
 import { OrgUnitRepository } from '../access/org-unit.repository';
+import { newFormToken } from './campaign-lead-rules';
 import { overBudget, progress, spentTotal } from '../macom/campaign-plan-rules';
 
 interface CampaignRow {
@@ -39,6 +40,10 @@ interface CampaignRow {
   targetLeads: number | null;
   targetDeals: number | null;
   targetSales: Prisma.Decimal | null;
+  formEnabled: boolean;
+  formToken: string | null;
+  formIntro: string | null;
+  adFormIds: string[];
   createdAt: Date;
 }
 
@@ -64,6 +69,13 @@ export interface CampaignView {
     leads: number | null;
     deals: number | null;
     sales: number | null;
+  };
+  /** CD-269 — ฟอร์มสาธารณะ (/f/lead/<token>) และฟอร์ม Lead Ads ที่ผูกไว้. */
+  form: {
+    enabled: boolean;
+    token: string | null;
+    intro: string | null;
+    ad_form_ids: string[];
   };
   /** สัดส่วนที่ถึงเป้า (1 = ถึงเป้า) — null เมื่อไม่ตั้งเป้า. */
   progress: {
@@ -239,6 +251,12 @@ export class CampaignsService {
             }
           : null,
         has_budget_lines: lines.some((line) => line.campaignId === row.id),
+        form: {
+          enabled: row.formEnabled,
+          token: row.formToken,
+          intro: row.formIntro,
+          ad_form_ids: row.adFormIds,
+        },
         spent,
         over_budget: overBudget(budget, spent),
         targets: {
@@ -336,7 +354,7 @@ export class CampaignsService {
         [{ field: 'budget', reason: 'from_budget_lines' }],
       );
     }
-    const plan = await this.planFields(dto, actor.activeCompanyId);
+    const plan = await this.planFields(dto, actor.activeCompanyId, found);
 
     const updated = await this.campaigns.update({
       where: { id },
@@ -382,7 +400,27 @@ export class CampaignsService {
   private async planFields(
     dto: CreateCampaignDto | UpdateCampaignDto,
     companyId: string,
+    existing: { id: string; formToken: string | null } | null = null,
   ) {
+    const existingToken = existing?.formToken ?? null;
+    if (dto.ad_form_ids?.length) {
+      // one ad form feeds one campaign — otherwise its Leads have no home
+      const taken = (await this.campaigns.findFirst({
+        where: {
+          companyId,
+          adFormIds: { hasSome: dto.ad_form_ids.map((id) => id.trim()) },
+          ...(existing ? { id: { not: existing.id } } : {}),
+        },
+        select: { code: true },
+      })) as { code: string } | null;
+      if (taken) {
+        throw new AppError(
+          'VALIDATION_FAILED',
+          `ฟอร์มโฆษณานี้ผูกกับแคมเปญ ${taken.code} อยู่แล้ว`,
+          [{ field: 'ad_form_ids', reason: 'taken' }],
+        );
+      }
+    }
     const unitId =
       dto.receiving_org_unit_id === undefined
         ? undefined
@@ -413,6 +451,28 @@ export class CampaignsService {
         : {}),
       ...(dto.target_sales !== undefined
         ? { targetSales: dto.target_sales }
+        : {}),
+      // CD-269 — the form's link is issued once, on first switching it on, and
+      // survives switching off and on again (printed QR codes keep working)
+      ...(dto.form_enabled !== undefined
+        ? {
+            formEnabled: dto.form_enabled,
+            ...(dto.form_enabled && !existingToken
+              ? { formToken: newFormToken() }
+              : {}),
+          }
+        : {}),
+      ...(dto.form_intro !== undefined
+        ? { formIntro: dto.form_intro.trim() || null }
+        : {}),
+      ...(dto.ad_form_ids !== undefined
+        ? {
+            adFormIds: [
+              ...new Set(
+                dto.ad_form_ids.map((id) => id.trim()).filter(Boolean),
+              ),
+            ],
+          }
         : {}),
     };
   }

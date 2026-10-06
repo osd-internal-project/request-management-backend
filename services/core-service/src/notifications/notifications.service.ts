@@ -1253,6 +1253,37 @@ export class NotificationsService {
   }
 
   /**
+   * CD-269 — a Lead from a campaign channel: a new one in the receiving
+   * team's pool (`routed`, to the team head), one that matched an existing
+   * customer (`customer`, to the account owner), or the same person
+   * registering again on an open Lead (`repeat`, to its owner).
+   */
+  async campaignLead(
+    userId: string,
+    companyId: string,
+    input: {
+      kind: 'routed' | 'customer' | 'repeat';
+      leadId: string;
+      name: string;
+      campaign: string;
+      source: string;
+    },
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: `crm.campaign_lead.${input.kind}`,
+      values: {
+        name: input.name,
+        campaign: input.campaign,
+        source: input.source,
+      },
+      resourceType: 'lead',
+      resourceId: input.leadId,
+    });
+  }
+
+  /**
    * CD-244 — a cover with no contract nearing its end: a service-contract
    * offer was opened (`opened`) or is still open at a reminder step (`due`).
    */

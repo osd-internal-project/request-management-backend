@@ -1259,6 +1259,32 @@ export class CreateCampaignDto {
   @Min(0)
   @Max(999_999_999_999)
   target_sales?: number | null;
+
+  @ApiPropertyOptional({
+    description:
+      'CD-269 — เปิดฟอร์มสาธารณะของแคมเปญ (/f/lead/<token>) · เปิดครั้งแรกระบบออก token ให้',
+  })
+  @IsOptional()
+  @IsBoolean()
+  form_enabled?: boolean;
+
+  @ApiPropertyOptional({ description: 'CD-269 — ข้อความบนหัวฟอร์ม' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  form_intro?: string;
+
+  @ApiPropertyOptional({
+    type: [String],
+    description:
+      'CD-269 — id ฟอร์ม Lead Ads (Facebook/TikTok) ที่ส่งเข้าแคมเปญนี้',
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsString({ each: true })
+  @MaxLength(100, { each: true })
+  ad_form_ids?: string[];
 }
 
 /** แก้ได้ทุกอย่างยกเว้นรหัส — Lead เก่าและเว็บฟอร์มอ้างรหัสนั้นอยู่. */
@@ -1347,6 +1373,32 @@ export class UpdateCampaignDto {
   @Min(0)
   @Max(999_999_999_999)
   target_sales?: number | null;
+
+  @ApiPropertyOptional({
+    description:
+      'CD-269 — เปิดฟอร์มสาธารณะของแคมเปญ (/f/lead/<token>) · เปิดครั้งแรกระบบออก token ให้',
+  })
+  @IsOptional()
+  @IsBoolean()
+  form_enabled?: boolean;
+
+  @ApiPropertyOptional({ description: 'CD-269 — ข้อความบนหัวฟอร์ม' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  form_intro?: string;
+
+  @ApiPropertyOptional({
+    type: [String],
+    description:
+      'CD-269 — id ฟอร์ม Lead Ads (Facebook/TikTok) ที่ส่งเข้าแคมเปญนี้',
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsString({ each: true })
+  @MaxLength(100, { each: true })
+  ad_form_ids?: string[];
 }
 
 export class ListCampaignsQueryDto {
