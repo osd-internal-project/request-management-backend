@@ -7,6 +7,7 @@ import {
 import { RequestModule } from '../request/request.module';
 import {
   CrmModule as CoreCrmModule,
+  DisbursementModule as CoreDisbursementModule,
   PrincipalModule,
   SensitiveReadAuditRecorder,
 } from '@request-management/core-service';
@@ -26,7 +27,13 @@ import { OAuthMetadataController } from './oauth-metadata.controller';
  * exactly what it was: nothing here can change how `/external/*` behaves.
  */
 @Module({
-  imports: [RequestModule, PrincipalModule, CoreCrmModule, AuditModule],
+  imports: [
+    RequestModule,
+    PrincipalModule,
+    CoreCrmModule,
+    CoreDisbursementModule,
+    AuditModule,
+  ],
   controllers: [McpController, OAuthMetadataController],
   providers: [
     McpService,

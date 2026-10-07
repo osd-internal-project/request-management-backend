@@ -80,6 +80,9 @@ export const MASTER_TOKENS: Readonly<
   SALE_ORDER: [],
   QUOTATION: [],
   PROJECT: [],
+  ADVANCE: [],
+  PETTY_CASH: [],
+  PETTY_REPLENISH: [],
 };
 
 /** token ทั้งหมดที่ชนิดเอกสารนี้อ้างได้ — หน้าตั้งค่าแสดงรายการนี้. */

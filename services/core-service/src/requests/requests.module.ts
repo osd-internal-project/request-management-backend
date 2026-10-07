@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { FormBindingRegistry } from './form-binding.registry';
+import { FormOptionSources } from './form-option-sources';
 import { PrismaTransactionService } from '@request-management/share';
 import { RequestsService } from './requests.service';
 import { RequestFlowAdminService } from './request-flow-admin.service';
@@ -28,6 +30,8 @@ import { RequestFlowModule } from '../request-flow/request-flow.module';
   providers: [
     RequestsService,
     RequestFlowAdminService,
+    FormBindingRegistry,
+    FormOptionSources,
     BottleneckService,
     SlaComplianceService,
     RequestRepository,
@@ -43,6 +47,8 @@ import { RequestFlowModule } from '../request-flow/request-flow.module';
   */
   exports: [
     RequestsService,
+    FormBindingRegistry,
+    FormOptionSources,
     RequestFlowAdminService,
     RequestRepository,
     BottleneckService,

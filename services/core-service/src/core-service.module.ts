@@ -33,6 +33,8 @@ import { PricingHttpModule } from './pricing/pricing-http.module';
 import { HrHttpModule } from './hr/hr-http.module';
 import { SupportHttpModule } from './support/support-http.module';
 import { DeliveryHttpModule } from './delivery/delivery-http.module';
+import { DisbursementHttpModule } from './disbursement/disbursement-http.module';
+import { CostCentersHttpModule } from './cost-centers/cost-centers-http.module';
 import { SensitiveReadAuditRecorder } from './policy/sensitive-read.recorder';
 import configs from './configs';
 
@@ -73,6 +75,9 @@ import configs from './configs';
     SupportHttpModule,
     // CD-20 Delivery
     DeliveryHttpModule,
+    // การเบิก — advances and petty cash (docs/disbursement.md)
+    DisbursementHttpModule,
+    CostCentersHttpModule,
     // CD-18 PM — projects opened from signed contracts
     PmHttpModule,
     // CD-14 — the central signing service (screens + the public signing link)

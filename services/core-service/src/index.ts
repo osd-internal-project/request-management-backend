@@ -82,3 +82,9 @@ export * from './crm/dto/lead-workflow.dto';
 
 // ERP config parsing — external-service builds the same `erp.b1` block.
 export { parseCompanyDbs } from './erp/sap-b1.config';
+
+// การเบิก — external-service exposes it beside the screens (docs/disbursement.md).
+export { DisbursementModule } from './disbursement/disbursement.module';
+export { DisbursementsService } from './disbursement/disbursements.service';
+export { PettyCashService } from './disbursement/petty-cash.service';
+export * from './disbursement/disbursement.dto';

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { createHash, randomBytes } from 'crypto';
 import {
   AppError,
@@ -14,6 +14,8 @@ import {
   paginated,
   toSkipTake,
 } from '@request-management/share';
+import { FormBindingRegistry } from './form-binding.registry';
+import { FormOptionSources } from './form-option-sources';
 import type { Principal } from '@request-management/share';
 import { Prisma } from '@prisma/client';
 import type { RequestSeverity, RequestStatus } from '@prisma/client';
@@ -117,12 +119,13 @@ const REQUEST_TREE_SELECT = {
   receiver: { select: { displayName: true } },
 } as const;
 
-/** The moves another module may hold a request at (CD-239). */
-export type GuardedAction = 'receive' | 'complete';
-export type RequestGuard = (request: {
-  id: string;
-  companyId: string;
-}) => Promise<void>;
+/** The moves another module may hold a request at (CD-239; `cancel`, `advance` — disbursement). */
+export type GuardedAction = 'receive' | 'complete' | 'cancel' | 'advance';
+export type RequestGuard = (
+  request: { id: string; companyId: string },
+  /** `advance` only: the v2 step being left and where it goes (`END` = closing). */
+  move?: { from: string; to: string; backward: boolean },
+) => Promise<void>;
 
 @Injectable()
 export class RequestsService {
@@ -141,9 +144,10 @@ export class RequestsService {
   private async runGuards(
     action: GuardedAction,
     request: { id: string; companyId: string },
+    move?: Parameters<RequestGuard>[1],
   ): Promise<void> {
     for (const guard of this.guards.get(action) ?? []) {
-      await guard(request);
+      await guard(request, move);
     }
   }
 
@@ -161,6 +165,8 @@ export class RequestsService {
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
     private readonly flows: RequestFlowService,
+    @Optional() private readonly bindings?: FormBindingRegistry,
+    @Optional() private readonly optionSources?: FormOptionSources,
   ) {}
 
   // --- REQ-01: types are configuration -----------------------------------
@@ -392,6 +398,10 @@ export class RequestsService {
 
     if (dto.receiver_form_schema) {
       assertUsableFormSchema(dto.receiver_form_schema);
+    }
+
+    if (dto.form_schema) {
+      await this.bindings?.assertBound(code, dto.form_schema);
     }
 
     await this.assertSubRequestTypes(code, dto.sub_request_types);
@@ -1915,6 +1925,11 @@ export class RequestsService {
         .filter((attachment) => !attachment.deletedAt)
         .map((attachment) => attachment.docCode ?? ''),
     });
+    await this.optionSources?.assertValid(
+      before.companyId,
+      before.requestType.formSchema,
+      before.formData,
+    );
 
     // CD-67 — a case type must carry a severity before its clocks start.
     if (!before.severity) {
@@ -2171,6 +2186,7 @@ export class RequestsService {
       call to make.
     */
     this.assertMayAct(before, actor, 'cancel', 'ยกเลิกคำขอ');
+    await this.runGuards('cancel', before);
 
     // The requester, or anyone senior enough to see it — scope already
     // answered that by letting them load it.
@@ -2472,6 +2488,11 @@ export class RequestsService {
       ]);
     }
     if (!backward) await this.assertStepDoneV2(before, flow, current);
+    await this.runGuards('advance', before, {
+      from: current.code,
+      to: next ?? END_STEP,
+      backward,
+    });
 
     const target = next ? stepOf(flow, next) : null;
     const submitting =
@@ -2562,6 +2583,11 @@ export class RequestsService {
         .filter((attachment) => !attachment.deletedAt)
         .map((attachment) => attachment.docCode ?? ''),
     });
+    await this.optionSources?.assertValid(
+      request.companyId,
+      step.formSchema,
+      isFirst ? request.formData : asRecord(request.stepFormData)[step.code],
+    );
   }
 
   /** The number, snapshot and clock a submit writes, inside the move's transaction. */

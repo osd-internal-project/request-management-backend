@@ -8965,6 +8965,674 @@
         ]
       }
     },
+    "/api/v1/disbursement/disbursements/from-request/{requestNo}": {
+      "post": {
+        "operationId": "ExternalDisbursementsController_fromRequest",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "requestNo",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "สร้างใบเบิกจากคำขอที่อนุมัติแล้ว — ใช้เมื่อระบบสร้างให้อัตโนมัติไม่สำเร็จ; มีอยู่แล้วตอบใบเดิม",
+        "tags": [
+          "disbursement"
+        ],
+        "x-permission": [
+          "integration.disbursement.manage"
+        ],
+        "x-acting-permission": [
+          "disbursement.pay"
+        ]
+      }
+    },
+    "/api/v1/disbursement/disbursements/{docNo}/payments/{movementId}/void": {
+      "post": {
+        "operationId": "ExternalDisbursementsController_voidPayment",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "docNo",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "movementId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VoidPaymentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ยกเลิกงวดจ่าย — ต้องเป็นเจ้าหน้าที่คนอื่น ไม่ใช่ผู้จ่ายงวดนั้น",
+        "tags": [
+          "disbursement"
+        ],
+        "x-permission": [
+          "integration.disbursement.manage"
+        ],
+        "x-acting-permission": [
+          "disbursement.pay"
+        ]
+      }
+    },
+    "/api/v1/disbursement/disbursements": {
+      "get": {
+        "operationId": "ExternalDisbursementsController_list",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "เลขหน้าที่ต้องการ เริ่มที่ 1",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page_size",
+            "required": false,
+            "in": "query",
+            "description": "จำนวนรายการต่อหน้า",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "`sort=field` เรียงขึ้น, `sort=-field` เรียงลง",
+            "schema": {
+              "example": "-createdAt",
+              "type": "string",
+              "pattern": "^-?[a-zA-Z_][a-zA-Z0-9_]*$"
+            }
+          },
+          {
+            "name": "kind",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ADVANCE",
+                "PETTY_CASH"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "หนึ่งสถานะ หรือหลายสถานะคั่นด้วย ,",
+            "schema": {
+              "example": "PAID,CLEARING",
+              "type": "string",
+              "maxLength": 120
+            }
+          },
+          {
+            "name": "scope",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "mine",
+                "all"
+              ]
+            }
+          },
+          {
+            "name": "overdue",
+            "required": false,
+            "in": "query",
+            "description": "true = เฉพาะที่เลยกำหนดส่งเคลียร์และยังไม่ปิด",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "รายการใบเบิกที่ผู้ใช้เห็นได้ — กรองหลายสถานะ, ของฉัน, เลยกำหนดเคลียร์",
+        "tags": [
+          "disbursement"
+        ],
+        "x-permission": [
+          "integration.disbursement.read"
+        ],
+        "x-acting-permission": [
+          "request.read"
+        ]
+      }
+    },
+    "/api/v1/disbursement/disbursements/by-request/{requestNo}": {
+      "get": {
+        "operationId": "ExternalDisbursementsController_byRequest",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "requestNo",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ใบเบิกของคำขอ",
+        "tags": [
+          "disbursement"
+        ],
+        "x-permission": [
+          "integration.disbursement.read"
+        ],
+        "x-acting-permission": [
+          "request.read"
+        ]
+      }
+    },
+    "/api/v1/disbursement/disbursements/{docNo}": {
+      "get": {
+        "operationId": "ExternalDisbursementsController_detail",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "docNo",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "รายละเอียดใบเบิก รายการประมาณการ/ใช้จริง และ movement เงิน",
+        "tags": [
+          "disbursement"
+        ],
+        "x-permission": [
+          "integration.disbursement.read"
+        ],
+        "x-acting-permission": [
+          "request.read"
+        ]
+      }
+    },
+    "/api/v1/disbursement/disbursements/{docNo}/verify": {
+      "post": {
+        "operationId": "ExternalDisbursementsController_verify",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "docNo",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyDisbursementDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "บัญชีตรวจสอบ — เปิดเคสอนุมัติผู้บริหาร (ถ้ามี matrix) หรืออนุมัติทันที",
+        "tags": [
+          "disbursement"
+        ],
+        "x-permission": [
+          "integration.disbursement.manage"
+        ],
+        "x-acting-permission": [
+          "disbursement.verify"
+        ]
+      }
+    },
+    "/api/v1/disbursement/disbursements/{docNo}/pay": {
+      "post": {
+        "operationId": "ExternalDisbursementsController_pay",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "docNo",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PayDisbursementDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "จ่ายเงิน — เงินทดรองรอเคลียร์ / เงินสดย่อยปิดทันที",
+        "tags": [
+          "disbursement"
+        ],
+        "x-permission": [
+          "integration.disbursement.manage"
+        ],
+        "x-acting-permission": [
+          "disbursement.pay"
+        ]
+      }
+    },
+    "/api/v1/disbursement/disbursements/{docNo}/clearing": {
+      "post": {
+        "operationId": "ExternalDisbursementsController_submitClearing",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "docNo",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitClearingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ผู้ขอส่งเคลียร์ค่าใช้จ่ายจริง",
+        "tags": [
+          "disbursement"
+        ],
+        "x-permission": [
+          "integration.disbursement.manage"
+        ],
+        "x-acting-permission": [
+          "request.create"
+        ]
+      }
+    },
+    "/api/v1/disbursement/disbursements/{docNo}/clearing/return": {
+      "post": {
+        "operationId": "ExternalDisbursementsController_returnClearing",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "docNo",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReturnClearingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "บัญชีตีกลับเอกสารเคลียร์ให้ผู้ขอแก้",
+        "tags": [
+          "disbursement"
+        ],
+        "x-permission": [
+          "integration.disbursement.manage"
+        ],
+        "x-acting-permission": [
+          "disbursement.verify"
+        ]
+      }
+    },
+    "/api/v1/disbursement/disbursements/{docNo}/close": {
+      "post": {
+        "operationId": "ExternalDisbursementsController_close",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "docNo",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CloseDisbursementDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ปิดเงินทดรอง — คิดส่วนต่าง (คืน/เบิกเพิ่ม) แล้วจบคำขอ",
+        "tags": [
+          "disbursement"
+        ],
+        "x-permission": [
+          "integration.disbursement.manage"
+        ],
+        "x-acting-permission": [
+          "disbursement.pay"
+        ]
+      }
+    },
     "/api/v1/mcp": {
       "post": {
         "description": "Endpoint เดียวสำหรับทุก tool — ชื่อ tool อยู่ใน body ไม่ใช่ใน path รายการ tool ทั้งหมดอยู่ที่ docs/openapi/external-tools.json ดูวิธีใช้ที่ docs/EXTERNAL_API.md",
@@ -12674,6 +13342,166 @@
           "subject_id",
           "subject_type"
         ]
+      },
+      "VoidPaymentDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "description": "เหตุผลที่ยกเลิกงวดนี้",
+            "maxLength": 500,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "VerifyDisbursementDto": {
+        "type": "object",
+        "properties": {
+          "checked_cost_center": {
+            "type": "boolean"
+          },
+          "checked_documents": {
+            "type": "boolean"
+          },
+          "checked_authority": {
+            "type": "boolean"
+          },
+          "note": {
+            "type": "string",
+            "description": "ความเห็นของบัญชี",
+            "maxLength": 2000,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "checked_authority",
+          "checked_cost_center",
+          "checked_documents",
+          "note"
+        ]
+      },
+      "PayDisbursementDto": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "number",
+            "description": "ยอดงวดนี้ (บาท) — รวมทุกงวดต้องไม่เกินยอดอนุมัติ",
+            "example": 5000,
+            "minimum": 0.01
+          },
+          "paid_at": {
+            "type": "string",
+            "description": "วันที่จ่ายจริง (YYYY-MM-DD) — ว่าง = วันนี้",
+            "format": "date-time"
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "transfer",
+              "cash",
+              "cheque"
+            ]
+          },
+          "reference": {
+            "type": "string",
+            "description": "เลขที่อ้างอิงการโอน / เลขเช็ค",
+            "maxLength": 120
+          }
+        },
+        "required": [
+          "amount",
+          "method"
+        ]
+      },
+      "DisbursementLineDto": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1
+          },
+          "cost_center": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "amount": {
+            "type": "number",
+            "example": 4400,
+            "minimum": 0.01
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "receipt_date": {
+            "type": "string",
+            "example": "2026-09-16",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          }
+        },
+        "required": [
+          "amount",
+          "description"
+        ]
+      },
+      "SubmitClearingDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DisbursementLineDto"
+            },
+            "maxItems": 50,
+            "minItems": 1
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "ReturnClearingDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "CloseDisbursementDto": {
+        "type": "object",
+        "properties": {
+          "occurred_at": {
+            "type": "string",
+            "description": "วันที่คืนเงิน / จ่ายเพิ่มจริง (YYYY-MM-DD)",
+            "format": "date-time"
+          },
+          "counterparty_user_id": {
+            "type": "string",
+            "description": "ผู้คืนเงิน (คืนเงิน) หรือผู้รับเงินเพิ่ม (จ่ายเพิ่ม) — ว่าง = ผู้ขอ"
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "transfer",
+              "cash",
+              "cheque"
+            ]
+          },
+          "reference": {
+            "type": "string",
+            "maxLength": 120
+          }
+        }
       },
       "ImportCustomerRowDto": {
         "type": "object",

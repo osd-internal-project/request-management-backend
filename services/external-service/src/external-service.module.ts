@@ -20,6 +20,7 @@ import { HealthModule } from './health/health.module';
 import { RequestModule } from './request/request.module';
 import { CrmModule } from './crm/crm.module';
 import { ApprovalModule } from './approval/approval.module';
+import { DisbursementModule } from './disbursement/disbursement.module';
 import { McpModule } from './mcp/mcp.module';
 import configs from './configs';
 
@@ -62,6 +63,7 @@ import configs from './configs';
     RequestModule,
     CrmModule,
     ApprovalModule,
+    DisbursementModule,
     McpModule,
   ],
   providers: [

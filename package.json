@@ -58,6 +58,8 @@
     "kc:migrate": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/migrate-keycloak-users.ts dotenv_config_path=../.backend-env",
     "kc:relink": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/relink-keycloak-ids.ts dotenv_config_path=../.backend-env",
     "petty:seed": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/seed-petty-cash-type.ts",
+    "petty-claim:seed": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/seed-petty-cash-claim-type.ts",
+    "disbursement-flow:seed": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/seed-disbursement-flows.ts",
     "sop:seed": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/seed-sop-docreq-type.ts",
     "uat:users": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/seed-uat-users.ts",
     "keycloak:provision": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/keycloak-provision.ts",

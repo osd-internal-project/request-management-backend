@@ -46,6 +46,7 @@ export function categoryOf(eventType: string): NotificationCategory {
   if (eventType.startsWith('approval.')) return 'my_requests';
   if (eventType.startsWith('sla.')) return 'sla';
   if (eventType.startsWith('crm.')) return 'crm';
+  if (eventType.startsWith('disbursement.')) return 'my_requests';
   return 'other';
 }
 

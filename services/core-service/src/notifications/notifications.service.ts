@@ -620,6 +620,31 @@ export class NotificationsService {
     });
   }
 
+  /** การเบิก — a step of a disbursement, to whoever acts next. */
+  async disbursementNotice(
+    userIds: readonly (string | null)[],
+    companyId: string,
+    eventType:
+      | 'disbursement.approved'
+      | 'disbursement.paid'
+      | 'disbursement.clearing_submitted'
+      | 'disbursement.clearing_returned'
+      | 'disbursement.closed'
+      | 'disbursement.payment_voided'
+      | 'disbursement.clearing_due'
+      | 'disbursement.clearing_overdue',
+    disbursementId: string,
+    values: Record<string, string>,
+  ): Promise<void> {
+    await this.emitTo(userIds, {
+      companyId,
+      eventType,
+      values,
+      resourceType: 'disbursement',
+      resourceId: disbursementId,
+    });
+  }
+
   /** CD-232 — a leave was approved or rejected. */
   async leaveDecided(
     userId: string,

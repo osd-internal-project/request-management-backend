@@ -18,6 +18,10 @@ const TARGET = join('docs', 'openapi', 'external-tools.json');
  */
 const ROBOT_ONLY = [
   '/request/intake',
+  // CD-66 customer intake — scope `integration.request.intake`, no acting user (AGENTS.md).
+  '/request/intake/web-forms/{slug}',
+  '/request/intake/channels/{channel}',
+  '/request/intake/status/{token}',
   '/crm/leads/intake',
   '/crm/leads/{id}/facts',
   '/crm/leads/{id}/stage',
@@ -60,9 +64,16 @@ interface Source {
   readonly only?: readonly string[];
 }
 
+/** การเบิก in chat: read only — paying and closing stay with accounting on the screen. */
+const DISBURSEMENT_IN_CHAT = [
+  'GET /disbursement/disbursements',
+  'GET /disbursement/disbursements/{docNo}',
+];
+
 const SOURCES: readonly Source[] = [
   { file: 'external-request.json' },
   { file: 'external-crm.json', only: CRM_IN_CHAT },
+  { file: 'external-disbursement.json', only: DISBURSEMENT_IN_CHAT },
 ];
 
 interface JsonSchema {

@@ -585,6 +585,93 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
     },
   },
   {
+    eventType: 'disbursement.approved',
+    label: 'ใบเบิกอนุมัติแล้ว รอจ่ายเงิน (ถึงบัญชี)',
+    title: 'ใบเบิก {{doc_no}} อนุมัติแล้ว',
+    body: 'ยอด {{amount}} บาท — บันทึกการจ่ายเงินที่หน้าใบเบิก',
+    variables: {
+      doc_no: { label: 'เลขที่ใบเบิก', sample: 'ADV-OSD-2026-00007' },
+      amount: { label: 'จำนวนเงิน', sample: '15,000.00' },
+    },
+  },
+  {
+    eventType: 'disbursement.paid',
+    label: 'จ่ายเงินเบิกแล้ว (ถึงผู้ขอ)',
+    title: 'ได้รับเงินตามใบเบิก {{doc_no}}',
+    body: 'ยอด {{amount}} บาท{{clear_note}}',
+    variables: {
+      doc_no: { label: 'เลขที่ใบเบิก', sample: 'ADV-OSD-2026-00007' },
+      amount: { label: 'จำนวนเงิน', sample: '15,000.00' },
+      clear_note: {
+        label: 'กำหนดเคลียร์',
+        sample: ' — ส่งเคลียร์ค่าใช้จ่ายภายใน 15/09/2569',
+      },
+    },
+  },
+  {
+    eventType: 'disbursement.clearing_submitted',
+    label: 'ผู้ขอส่งเคลียร์ค่าใช้จ่าย (ถึงบัญชี)',
+    title: '{{doc_no}} ส่งเคลียร์ค่าใช้จ่ายแล้ว',
+    body: 'ใช้จริง {{amount}} บาท — ตรวจเอกสารแล้วปิดรายการ',
+    variables: {
+      doc_no: { label: 'เลขที่ใบเบิก', sample: 'ADV-OSD-2026-00007' },
+      amount: { label: 'ยอดใช้จริง', sample: '12,350.00' },
+    },
+  },
+  {
+    eventType: 'disbursement.clearing_returned',
+    label: 'เอกสารเคลียร์ถูกตีกลับ (ถึงผู้ขอ)',
+    title: '{{doc_no}} ต้องแก้เอกสารเคลียร์',
+    body: '{{reason}}',
+    variables: {
+      doc_no: { label: 'เลขที่ใบเบิก', sample: 'ADV-OSD-2026-00007' },
+      reason: { label: 'เหตุผล', sample: 'ใบเสร็จค่าที่พักไม่ชัด' },
+    },
+  },
+  {
+    eventType: 'disbursement.closed',
+    label: 'ปิดใบเบิกแล้ว (ถึงผู้ขอ)',
+    title: 'ปิดใบเบิก {{doc_no}} แล้ว',
+    body: '{{settlement}}',
+    variables: {
+      doc_no: { label: 'เลขที่ใบเบิก', sample: 'ADV-OSD-2026-00007' },
+      settlement: { label: 'ผลการเคลียร์', sample: 'คืนเงิน 2,650.00 บาท' },
+    },
+  },
+  {
+    eventType: 'disbursement.payment_voided',
+    label: 'ยกเลิกงวดจ่ายเงินเบิก (ถึงผู้ขอ)',
+    title: 'ยกเลิกการจ่าย {{amount}} บาท ของใบเบิก {{doc_no}}',
+    body: '{{reason}}',
+    variables: {
+      doc_no: { label: 'เลขที่ใบเบิก', sample: 'ADV-OSD-2026-00007' },
+      amount: { label: 'ยอดที่ยกเลิก', sample: '5,000.00' },
+      reason: { label: 'เหตุผล', sample: 'โอนผิดบัญชี' },
+    },
+  },
+  {
+    eventType: 'disbursement.clearing_due',
+    label: 'ใกล้กำหนดส่งเคลียร์ (ถึงผู้ขอ)',
+    title: '{{doc_no}} ต้องส่งเคลียร์ภายใน {{clear_by}}',
+    body: 'ยอดเบิก {{amount}} บาท — แนบใบเสร็จและกรอกยอดใช้จริงที่หน้าใบเบิก',
+    variables: {
+      doc_no: { label: 'เลขที่ใบเบิก', sample: 'ADV-OSD-2026-00007' },
+      clear_by: { label: 'กำหนดเคลียร์', sample: '15/09/2569' },
+      amount: { label: 'ยอดเบิก', sample: '15,000.00' },
+    },
+  },
+  {
+    eventType: 'disbursement.clearing_overdue',
+    label: 'เลยกำหนดส่งเคลียร์ (ถึงผู้ขอ)',
+    title: '{{doc_no}} เลยกำหนดส่งเคลียร์ ({{clear_by}})',
+    body: 'ยอดเบิก {{amount}} บาท — ส่งเคลียร์ค่าใช้จ่ายโดยเร็ว',
+    variables: {
+      doc_no: { label: 'เลขที่ใบเบิก', sample: 'ADV-OSD-2026-00007' },
+      clear_by: { label: 'กำหนดเคลียร์', sample: '15/09/2569' },
+      amount: { label: 'ยอดเบิก', sample: '15,000.00' },
+    },
+  },
+  {
     eventType: 'hr.leave.requested',
     label: 'คำขอลารออนุมัติ (ถึงหัวหน้า)',
     title: '{{name}} ขอ{{type}} {{period}}',

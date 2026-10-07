@@ -7662,3 +7662,219 @@ model ProjectDeliveryDocument {
   @@index([projectId, milestoneId])
   @@map("project_delivery_documents")
 }
+
+/// การเบิก — which request type raises which kind of disbursement, per company
+/// (config over code). docs/disbursement.md
+model DisbursementSettings {
+  id                String   @id @default(uuid())
+  companyId         String   @unique
+  advanceTypeCode   String?
+  pettyCashTypeCode String?
+  /// flow-v2 step codes the disbursement screen works (same codes in FI05 and FI06)
+  verifyStep        String?
+  execStep          String?
+  payStep           String?
+  clearStep         String?
+  doneStep          String?
+  /// days before `clearBy` the requester is reminded; null = no reminder
+  clearReminderDays Int?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  updatedBy         String?
+
+  @@map("disbursement_settings")
+}
+
+/// Cost Center master — forms pick from it (`x-options-source: cost_centers`); never deleted, only deactivated.
+model CostCenter {
+  id        String   @id @default(uuid())
+  companyId String
+  code      String
+  name      String
+  orgUnitId String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  createdBy String
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  @@unique([companyId, code])
+  @@index([companyId, active])
+  @@map("cost_centers")
+}
+
+/// การเบิก — one per request (FI05 advance / FI06 petty cash), created once the request is approved.
+/// docs/disbursement.md
+///   kind: ADVANCE · PETTY_CASH
+///   status: APPROVED · PARTIALLY_PAID · PAID · CLEARING · CLOSED · CANCELLED
+///           (rows from the old flow may also hold PENDING_HEAD · RETURNED · PENDING_VERIFY · PENDING_EXEC · REJECTED)
+model Disbursement {
+  id              String    @id @default(uuid())
+  companyId       String
+  docNo           String
+  kind            String
+  requestId       String    @unique
+  requestNo       String?
+  requesterId     String
+  orgUnitId       String?
+  payee           String?
+  costCenter      String?
+  purpose         String?
+  neededBy        DateTime? @db.Date
+  clearBy         DateTime? @db.Date
+  soNo            String?
+  soSubject       String?
+  ticketNo        String?
+  projectCode     String?
+  fundId          String?
+  status          String
+  currency        String    @default("THB")
+  /// the sum of the ESTIMATE lines, computed on the server
+  requestedAmount Decimal   @db.Decimal(14, 2)
+  paidAmount      Decimal   @default(0) @db.Decimal(14, 2)
+  /// the sum of the ACTUAL lines once clearing is submitted
+  actualAmount    Decimal?  @db.Decimal(14, 2)
+  refundAmount    Decimal   @default(0) @db.Decimal(14, 2)
+  extraPaidAmount Decimal   @default(0) @db.Decimal(14, 2)
+  verifyChecks    Json?
+  verifyNote      String?
+  verifiedBy      String?
+  verifiedAt      DateTime?
+  execCaseId      String?
+  approvedAt      DateTime?
+  paidBy          String?
+  paidAt          DateTime?
+  clearingAt      DateTime?
+  closedBy        String?
+  closedAt        DateTime?
+  cancelledAt     DateTime?
+  cancelReason    String?
+  replenishmentId String?
+  /// the approved request as it stood when this row was created; never re-read afterwards
+  sourceSnapshot  Json?
+  /// last clearing reminder sent, so the sweep notifies once per day
+  clearRemindedAt DateTime?
+  createdAt       DateTime  @default(now())
+  createdBy       String
+  updatedAt       DateTime  @updatedAt
+  updatedBy       String?
+
+  lines DisbursementLine[]
+
+  @@unique([companyId, docNo])
+  @@index([companyId, kind, status])
+  @@index([companyId, requesterId])
+  @@index([fundId, replenishmentId])
+  @@map("disbursements")
+}
+
+/// phase: ESTIMATE (asked for) · ACTUAL (spent, at clearing)
+model DisbursementLine {
+  id             String    @id @default(uuid())
+  disbursementId String
+  phase          String
+  lineNo         Int
+  description    String
+  costCenter     String?
+  amount         Decimal   @db.Decimal(14, 2)
+  note           String?
+  receiptDate    DateTime? @db.Date
+  receiptFileKey String?
+
+  disbursement Disbursement @relation(fields: [disbursementId], references: [id], onDelete: Cascade)
+
+  @@unique([disbursementId, phase, lineNo])
+  @@map("disbursement_lines")
+}
+
+/// Append-only money ledger. A fund's cash on hand is the sum of its rows.
+///   type: PAYOUT · REFUND · EXTRA_PAY · REPLENISH · FUND_OPEN · FUND_ADJUST
+model DisbursementMovement {
+  id              String   @id @default(uuid())
+  companyId       String
+  disbursementId  String?
+  fundId          String?
+  replenishmentId String?
+  type            String
+  /// signed from the fund's side: money out of the fund is negative
+  amount          Decimal  @db.Decimal(14, 2)
+  method          String?
+  reference       String?
+  evidenceFileKey String?
+  note            String?
+  /// when the money moved (a payment dated by accounting), as opposed to when it was recorded
+  occurredAt      DateTime?
+  /// PAYOUT_VOID → the PAYOUT it cancels
+  reversesId      String?
+  /// the other person in the movement: who refunded, who received the extra pay
+  counterpartyUserId String?
+  actedBy         String
+  actedAt         DateTime @default(now())
+
+  @@index([fundId])
+  @@index([disbursementId])
+  @@map("disbursement_movements")
+}
+
+/// เงินสดย่อย — an imprest fund held by one custodian.
+model PettyCashFund {
+  id              String   @id @default(uuid())
+  companyId       String
+  code            String
+  name            String
+  custodianUserId String
+  orgUnitId       String?
+  imprestAmount   Decimal  @db.Decimal(14, 2)
+  perClaimLimit   Decimal  @db.Decimal(14, 2)
+  currency        String   @default("THB")
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  createdBy       String
+  updatedAt       DateTime @updatedAt
+  updatedBy       String?
+
+  @@unique([companyId, code])
+  @@map("petty_cash_funds")
+}
+
+/// Tops a fund back up to its imprest by the claims it paid.
+///   status: PENDING_APPROVAL · APPROVED · PAID · REJECTED
+model PettyCashReplenishment {
+  id             String    @id @default(uuid())
+  companyId      String
+  docNo          String
+  fundId         String
+  status         String
+  totalAmount    Decimal   @db.Decimal(14, 2)
+  approvalCaseId String?
+  approvedAt     DateTime?
+  paidBy         String?
+  paidAt         DateTime?
+  paymentRef     String?
+  createdAt      DateTime  @default(now())
+  createdBy      String
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([companyId, docNo])
+  @@index([fundId, status])
+  @@map("petty_cash_replenishments")
+}
+
+/// การเบิก — evidence: payment slip, receipts at clearing, refund proof. Deleted = deletedAt.
+///   kind: PAYMENT_SLIP · RECEIPT · REFUND_PROOF · OTHER
+model DisbursementFile {
+  id             String    @id @default(uuid())
+  disbursementId String
+  kind           String
+  fileName       String
+  mimeType       String
+  sizeBytes      Int
+  storageKey     String
+  uploadedBy     String
+  uploadedAt     DateTime  @default(now())
+  deletedAt      DateTime?
+  deletedBy      String?
+
+  @@index([disbursementId])
+  @@map("disbursement_files")
+}

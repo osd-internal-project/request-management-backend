@@ -20,6 +20,7 @@ import type { Principal } from '@request-management/share';
 import { AppError, SensitiveFieldMasker } from '@request-management/share';
 import {
   CustomersService,
+  DisbursementsService,
   LeadStatusService,
   LeadsService,
   OpportunitiesService,
@@ -171,6 +172,7 @@ export class McpToolRegistry implements OnModuleInit {
     private readonly leadStatuses: LeadStatusService,
     private readonly opportunities: OpportunitiesService,
     private readonly quotations: QuotationsService,
+    private readonly disbursements: DisbursementsService,
   ) {}
 
   /**
@@ -206,6 +208,13 @@ export class McpToolRegistry implements OnModuleInit {
 
     request_get_requests_ref_tree: (args, { actor }) =>
       this.external.treeOf(requireString(args, 'ref'), actor),
+
+    // การเบิก in chat is read only; the same visibility as the screens (`visibleWhere`).
+    disbursement_get_disbursements: (args, { actor }) =>
+      this.disbursements.list(actor, args as never),
+
+    disbursement_get_disbursements_docno: (args, { actor }) =>
+      this.disbursements.detail(actor, requireString(args, 'docNo')),
 
     request_get_users: (args, { actor }) =>
       this.external.searchUsers(actor, args as never),

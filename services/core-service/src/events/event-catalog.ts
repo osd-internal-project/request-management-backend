@@ -46,6 +46,8 @@ export const DOMAIN_EVENTS = {
    * sent it (Legal: the contract repository) keeps the signed copy.
    */
   esignCompleted: 'esign.completed',
+  /** A flow-v2 request now stands on `step_code` — modules that work a step follow it (การเบิก). */
+  requestStepEntered: 'request.step.entered',
 } as const;
 
 export type DomainEventName =
@@ -54,6 +56,14 @@ export type DomainEventName =
 /** Every payload carries the company, because every consumer is per-company. */
 interface BasePayload {
   company_id: string;
+}
+
+export interface StepEventPayload extends BasePayload {
+  request_id: string;
+  request_no: string | null;
+  type_code: string;
+  step_code: string;
+  status: string;
 }
 
 export interface RequestEventPayload extends BasePayload {
@@ -102,4 +112,5 @@ export type DomainEvent =
   | { name: 'approval.voided'; payload: ApprovalEventPayload }
   | { name: 'sla.warning'; payload: SlaEventPayload }
   | { name: 'sla.breached'; payload: SlaEventPayload }
-  | { name: 'esign.completed'; payload: EsignEventPayload };
+  | { name: 'esign.completed'; payload: EsignEventPayload }
+  | { name: 'request.step.entered'; payload: StepEventPayload };

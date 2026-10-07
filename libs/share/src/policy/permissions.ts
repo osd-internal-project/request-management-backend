@@ -101,6 +101,17 @@ export const PERMISSIONS = {
    */
   esign: ['esign.manage'],
   /**
+   * การเบิก (docs/disbursement.md) — advances and petty cash. The requester
+   * reads and clears their own without any of these; accounting verifies,
+   * pays and closes; `fund.manage` keeps the petty-cash funds.
+   */
+  disbursement: [
+    'disbursement.read.any',
+    'disbursement.verify',
+    'disbursement.pay',
+    'disbursement.fund.manage',
+  ],
+  /**
    * CD-18 PM — `pm.project.read` sees every project of the company;
    * `pm.project.manage` opens projects from signed contracts and names their
    * manager and team. A project's manager and members see it without either.
@@ -205,6 +216,8 @@ export const PERMISSIONS = {
      * คำขอไม่ใช่การตั้งค่า CRM.
      */
     'admin.notification.manage',
+    /** Cost Center master — the list forms pick from (`x-options-source: cost_centers`). */
+    'admin.cost-center.manage',
   ],
   /**
    * AUTH-06: สิทธิ์ของบัญชีบริการ — ออกให้กุญแจ API ที่หน้าจอ API key ไม่ใช่
@@ -224,6 +237,8 @@ export const PERMISSIONS = {
      */
     'integration.request.intake',
     'integration.approval.create',
+    'integration.disbursement.read',
+    'integration.disbursement.manage',
     /**
      * The workflow engine reading the facts its Decision nodes test
      * ("Workflow owns Process, Core owns Data", PO 10 ก.ย. 2569). Read-only and

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import {
   AppError,
   AuditWriter,
@@ -28,6 +28,7 @@ import {
   assertUsableSubRequestTypes,
 } from './submit-rules';
 import type { PublishFlowDto } from './dto/request.dto';
+import { FormBindingRegistry } from './form-binding.registry';
 
 /** Screen A2's "ขั้นตอน" tab: reads and publishes a type's flow versions. */
 @Injectable()
@@ -40,6 +41,7 @@ export class RequestFlowAdminService {
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
     private readonly access: AccessService,
+    @Optional() private readonly bindings?: FormBindingRegistry,
   ) {}
 
   async list(code: string, actor: Principal, companyId?: string) {
@@ -65,6 +67,11 @@ export class RequestFlowAdminService {
       assertPublishable(flow, knownFields(type.formSchema, dto));
     }
     await this.assertStepsUsable(type.code, companyId, dto);
+    await this.bindings?.assertBound(
+      type.code,
+      dto.steps.find((step) => step.scope_status === 'draft')?.form_schema ?? type.formSchema,
+      companyId,
+    );
 
     const published = await this.transactions.execute(async (prisma) => {
       const latest = await prisma.requestFlowVersion.findFirst({

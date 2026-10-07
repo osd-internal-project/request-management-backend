@@ -386,6 +386,21 @@ export class RequestFlowService {
     const request = await this.flows.findRequestFacts(requestId);
     if (!request) return;
 
+    // Every move lands on a step; consumers key on the code, so a repeat is harmless.
+    if (request.currentStepCode && request.status !== 'closed') {
+      await this.domainEvents.emit({
+        name: DOMAIN_EVENTS.requestStepEntered,
+        payload: {
+          company_id: request.companyId,
+          request_id: request.id,
+          request_no: request.requestNo,
+          type_code: request.typeCode,
+          step_code: request.currentStepCode,
+          status: request.status,
+        },
+      });
+    }
+
     for (const milestone of v2Milestones(from, request)) {
       await this.domainEvents.emit({
         name: MILESTONE_EVENTS[milestone],

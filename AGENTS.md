@@ -52,6 +52,25 @@ merge passed 954/954. Before calling a change done:
 needs. Anything else is named, with the reason, before the commit — not found
 afterwards.
 
+**A gap in `source/` is reported, never filled.** The petty-cash fund and top-ups were invented from
+general accounting and shipped as if specified. Label every requirement `source` or `proposed` before
+asking or building on it.
+
+**A seed that publishes configuration checks what is there first.** `disbursement-flow:seed`
+published FI05 flow v2 over an existing v1 nobody had mentioned. List the current versions, show
+them, and ask before publishing over one.
+
+**A module fed by a request starts after the request is approved.** The request owns asking and
+every approval. The module's record is created on `request.approved` and linked by `requestId`; its
+work (pay, clear, close) is never added as steps of the request. Disbursement v1 got this backwards.
+
+**A plan for a request-linked module states the system, not the user's words.** Before proposing,
+audit the gaps: rights, visibility, money, timers, notifications, external/MCP, live data, and the
+dynamic form (read `formData` through `x-bind`, never fixed keys). Then show a "now → new" table.
+
+**Never run `prisma format` on `schema.prisma`.** It realigns every model in the
+file (a 160-line addition became 773 changed lines). Format only the block you add.
+
 ## Non-negotiables
 
 These come from the spec, not from taste. Breaking one is a spec violation, so

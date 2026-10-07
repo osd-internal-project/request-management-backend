@@ -96,6 +96,24 @@ interface ModuleDoc {
  * document and nowhere else.
  */
 const MODULE_DOCS: Readonly<Record<string, ModuleDoc>> = {
+  disbursement: {
+    title: 'Request Form — External API · Disbursement',
+    summary:
+      'การเบิก — หน้าทำงานเรื่องเงินของคำขอ FI05 (เงินทดรองจ่าย) และ FI06 (เงินสดย่อย): ตรวจ จ่าย เคลียร์ ปิด',
+    notes:
+      '**การขอเบิกคือคำขอ** — เปิดด้วย request API (`type_code` FI05/FI06) ใบเบิกถูกสร้างเอง' +
+      'เมื่อคำขอถูกส่ง หาได้ที่ `disbursements/by-request/{requestNo}`\n\n' +
+      '**คำขอคือ ticket** — อนุมัติหัวหน้า/ผู้บริหารอยู่บนคำขอ (approval API เดิม) ' +
+      'action ที่นี่บันทึกเงินแล้วเลื่อนขั้นของคำขอให้ ผลการเลื่อนอยู่ใน `ticketMove`\n\n' +
+      'ลำดับเงินทดรอง: `verify` → (ผู้บริหารอนุมัติบนคำขอ) → `pay` → `clearing` → `close` ' +
+      '(คิดส่วนต่างคืน/เบิกเพิ่ม) — เงินสดย่อยปิดทันทีที่ `pay`; ไฟล์หลักฐานแนบได้จากหน้าจอเท่านั้น',
+    tags: [
+      {
+        name: 'disbursement',
+        description: 'ใบเบิก — ตรวจ จ่าย เคลียร์ ปิด',
+      },
+    ],
+  },
   request: {
     title: 'Request Form — External API · Request',
     summary:

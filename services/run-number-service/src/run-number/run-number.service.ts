@@ -56,6 +56,24 @@ const FALLBACK: Readonly<Record<RunNumberDocType, RunNumberFormat>> = {
     startNumber: 1,
     resetPeriod: 'none',
   },
+  ADVANCE: {
+    pattern: 'ADV-{COMPANY_PREFIX}-{YYYY}-{SEQ}',
+    seqPadding: 5,
+    startNumber: 1,
+    resetPeriod: 'yearly',
+  },
+  PETTY_CASH: {
+    pattern: 'PC-{COMPANY_PREFIX}-{YYYY}-{SEQ}',
+    seqPadding: 5,
+    startNumber: 1,
+    resetPeriod: 'yearly',
+  },
+  PETTY_REPLENISH: {
+    pattern: 'PCR-{COMPANY_PREFIX}-{YYYY}-{SEQ}',
+    seqPadding: 5,
+    startNumber: 1,
+    resetPeriod: 'yearly',
+  },
 };
 
 export interface IssueResult {

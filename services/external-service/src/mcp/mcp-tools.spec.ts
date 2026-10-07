@@ -36,6 +36,7 @@ function bareRegistry(): McpToolRegistry {
     {} as never,
     {} as never,
     {} as never,
+    {} as never,
   );
 }
 

@@ -19,6 +19,7 @@
 | [`openapi/external-request.json`](./openapi/external-request.json) | 10 | คำขอตั้งแต่เปิดจนปิด |
 | [`openapi/external-crm.json`](./openapi/external-crm.json) | 62 | ลูกค้า, Lead, โอกาสการขาย, ใบเสนอราคา |
 | [`openapi/external-approval.json`](./openapi/external-approval.json) | 1 | เปิดเคสอนุมัติจากโมดูลอื่น |
+| [`openapi/external-disbursement.json`](./openapi/external-disbursement.json) | 8 | การเบิก — หน้าทำงานของคำขอ FI05/FI06 ([`disbursement.md`](./disbursement.md)) |
 | [`openapi/external-mcp.json`](./openapi/external-mcp.json) | 1 | คำอธิบาย JSON-RPC — ไม่ใช่ REST |
 | [`openapi/external-tools.json`](./openapi/external-tools.json) | 26 tools | tool-caller (`yarn tools`) |
 
@@ -41,9 +42,10 @@ Postman ทันที** ไม่ต้องเขียน `@ApiProperty({ e
 | `api/v1/request/*` | 11 | คำขอ — เปิด, ติดตาม, ดำเนินการ, ปิด |
 | `api/v1/crm/*` | 79 | ทะเบียนลูกค้า, Lead, โอกาสการขาย, ใบเสนอราคา, ใบสั่งขาย, ตั้งค่า CRM |
 | `api/v1/approval/*` | 1 | เปิดเคสอนุมัติจากโมดูลอื่น (APV-07) |
+| `api/v1/disbursement/*` | 8 | ใบเบิก — ตรวจ จ่าย เคลียร์ ปิด (ไฟล์หลักฐานเฉพาะหน้าจอ) |
 | `api/v1/mcp` | 1 | tool-caller — ทุก tool ผ่าน endpoint เดียว |
 
-โค้ดวางตามนี้ตรง ๆ: `services/external-service/src/{request,crm,approval,mcp}/`
+โค้ดวางตามนี้ตรง ๆ: `services/external-service/src/{request,crm,approval,disbursement,mcp}/`
 และ `auth/` ที่รวมเรื่อง credential ของเครื่องไว้ที่เดียว **คำถามว่า
 "เครื่องจักรแตะอะไรได้บ้าง" จึงตอบได้ด้วยการอ่านไดเรกทอรีเดียว**
 

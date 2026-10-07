@@ -63,6 +63,7 @@ export class RequestFlowRepository extends BaseRepository<
         requesterId: true,
         status: true,
         completedAt: true,
+        currentStepCode: true,
       },
     });
   }
