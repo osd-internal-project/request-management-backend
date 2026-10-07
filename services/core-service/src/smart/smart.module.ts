@@ -7,6 +7,10 @@ import { WorkCalendarRepository } from '../pm/project.repositories';
 import { SmartCallsService } from './smart-calls.service';
 import { DCallcenterModule } from '../integrations/dcallcenter/dcallcenter.module';
 import { SmartDialerService } from './smart-dialer.service';
+import { SmartHandoffService } from './smart-handoff.service';
+import { AccessModule } from '../access/access.module';
+import { RequestsModule } from '../requests/requests.module';
+import { CrmConfigRepository } from '../crm/segment.repositories';
 import { LeadRepository } from '../crm/sales.repositories';
 import { LlmModule } from '../llm/llm.module';
 import { SmartScreeningService } from './smart-screening.service';
@@ -34,7 +38,15 @@ import { SmartService } from './smart.service';
  */
 @Module({
   // CD-290 — screening matches CRM and sends through the campaign screening
-  imports: [CrmModule, LlmModule, ContactPreferencesModule, DCallcenterModule],
+  imports: [
+    CrmModule,
+    LlmModule,
+    ContactPreferencesModule,
+    DCallcenterModule,
+    // CD-293 — the handoff request, and who raises it
+    RequestsModule,
+    AccessModule,
+  ],
   providers: [
     {
       provide: SMART_CONNECTORS,
@@ -71,8 +83,12 @@ import { SmartService } from './smart.service';
     // CD-292 — dialling through D-Callcenter
     SmartCallRepository,
     SmartDialerService,
+    // CD-293 — to the sales axis
+    SmartHandoffService,
+    CrmConfigRepository,
   ],
   exports: [
+    SmartHandoffService,
     SmartDialerService,
     SmartCallsService,
     SmartScreeningService,

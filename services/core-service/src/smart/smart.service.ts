@@ -9,6 +9,7 @@ import {
   toSkipTake,
 } from '@request-management/share';
 import type { Principal } from '@request-management/share';
+import { RequestRepository } from '../requests/request.repository';
 import { SmartIngestService, type SourceRow } from './smart-ingest.service';
 import type { FoundProspect } from './smart-rules';
 import { isConnectorKind } from './smart-rules';
@@ -73,6 +74,10 @@ interface ProspectRow {
   sentAt: Date | null;
   interestedAt: Date | null;
   lastCallId: string | null;
+  handoffAxis: string | null;
+  handoffRequestId: string | null;
+  handedOffAt: Date | null;
+  handoffError: string | null;
 }
 
 /**
@@ -90,6 +95,7 @@ export class SmartService {
     private readonly sweep: SmartSweepService,
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
+    private readonly requestRows: RequestRepository,
   ) {}
 
   // --- sources -----------------------------------------------------------------
@@ -311,15 +317,32 @@ export class SmartService {
       }) as Promise<ProspectRow[]>,
       this.prospects.count({ where }),
     ]);
+    const handoffs = await this.handoffRequests(rows);
     return paginated(
-      rows.map((row) => this.prospectView(row)),
+      rows.map((row) => this.prospectView(row, handoffs)),
       query,
       total,
     );
   }
 
   async prospect(actor: Principal, id: string) {
-    return this.prospectView(await this.prospectRow(actor, id));
+    const row = await this.prospectRow(actor, id);
+    return this.prospectView(row, await this.handoffRequests([row]));
+  }
+
+  /**
+   * CD-293 — the handoff requests' live state: whether the axis team took
+   * the prospect up is the request's own status, read, never copied.
+   */
+  private async handoffRequests(rows: ProspectRow[]) {
+    const ids = rows.flatMap((row) => row.handoffRequestId ?? []);
+    const found = ids.length
+      ? ((await this.requestRows.findMany({
+          where: { id: { in: ids } },
+          select: { id: true, requestNo: true, status: true },
+        })) as { id: string; requestNo: string | null; status: string }[])
+      : [];
+    return new Map(found.map((row) => [row.id, row]));
   }
 
   async discard(actor: Principal, id: string, dto: DiscardProspectDto) {
@@ -409,7 +432,13 @@ export class SmartService {
     };
   }
 
-  private prospectView(row: ProspectRow) {
+  private prospectView(
+    row: ProspectRow,
+    handoffs = new Map<string, { requestNo: string | null; status: string }>(),
+  ) {
+    const request = row.handoffRequestId
+      ? (handoffs.get(row.handoffRequestId) ?? null)
+      : null;
     return {
       id: row.id,
       source_id: row.sourceId,
@@ -444,6 +473,17 @@ export class SmartService {
       // CD-292
       interested_at: row.interestedAt,
       last_call_id: row.lastCallId,
+      // CD-293
+      handoff_axis: row.handoffAxis,
+      handed_off_at: row.handedOffAt,
+      handoff_error: row.handoffError,
+      handoff_request: request
+        ? {
+            id: row.handoffRequestId,
+            request_no: request.requestNo,
+            status: request.status,
+          }
+        : null,
     };
   }
 }

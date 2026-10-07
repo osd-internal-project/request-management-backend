@@ -64,6 +64,7 @@ function harness(
     ),
     refuse: jest.fn(() => Promise.resolve({ blocked: true })),
   };
+  const handoff = { afterInterest: jest.fn(() => Promise.resolve()) };
   const llm = {
     chat: jest.fn(() => Promise.resolve({ text: 'สนใจระบบกล้อง' })),
   };
@@ -73,6 +74,7 @@ function harness(
     calls as never,
     prospects as never,
     callLists as never,
+    handoff as never,
     llm as never,
     { execute: jest.fn((fn: (p: unknown) => unknown) => fn({})) } as never,
     {
@@ -85,7 +87,7 @@ function harness(
     } as never,
     options.callcenter ?? new MockDCallcenterClient(),
   );
-  return { service, calls, targets, prospects, callLists, llm };
+  return { service, calls, targets, prospects, callLists, llm, handoff };
 }
 
 const dataOf = (mock: jest.Mock, n: number) =>
@@ -127,6 +129,8 @@ describe('CD-292 dialling through D-Callcenter', () => {
     });
     expect(dataOf(h.targets.update, 0)).toMatchObject({ status: 'done' });
     expect(dataOf(h.prospects.update, 0)).toHaveProperty('interestedAt');
+    // CD-293 — and goes to its sales axis at once
+    expect(h.handoff.afterInterest).toHaveBeenCalledWith('osd', 'p-a', 'l-1');
     // mock LLM mode — no summary call
     expect(h.llm.chat).not.toHaveBeenCalled();
   });

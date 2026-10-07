@@ -18,6 +18,7 @@ import {
 import { LlmService } from '../llm/llm.service';
 import { STALE_CALL_MINUTES, targetAfterCall } from './call-rules';
 import { SmartCallsService } from './smart-calls.service';
+import { SmartHandoffService } from './smart-handoff.service';
 import {
   SmartCallListRepository,
   SmartCallRepository,
@@ -69,6 +70,7 @@ export class SmartDialerService implements OnModuleInit, OnModuleDestroy {
     private readonly calls: SmartCallRepository,
     private readonly prospects: SmartProspectRepository,
     private readonly callLists: SmartCallsService,
+    private readonly handoff: SmartHandoffService,
     private readonly llm: LlmService,
     private readonly transactions: PrismaTransactionService,
     private readonly config: ConfigService,
@@ -210,6 +212,11 @@ export class SmartDialerService implements OnModuleInit, OnModuleDestroy {
       this.config.get<string>('llm.mode') === 'gateway'
     ) {
       await this.summarise(companyId, updated, result.transcript);
+    }
+    // CD-293 — real interest goes to its sales axis at once (after the
+    // summary, so the handoff carries it)
+    if (result.outcome === 'interested') {
+      await this.handoff.afterInterest(companyId, call.prospectId, call.listId);
     }
     return this.view(updated);
   }

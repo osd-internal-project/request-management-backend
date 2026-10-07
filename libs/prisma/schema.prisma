@@ -2448,6 +2448,14 @@ model CrmCompanyConfig {
   contentApprovalAll      Boolean @default(false)
   /// CD-273 — ประเภทคำขออนุมัติไฟล์คลังแบรนด์ · ว่าง = อัปโหลดเวอร์ชันใหม่ไม่ได้
   brandApprovalTypeCode   String?
+  /// CD-293 — AI SMART hands an interested prospect to its sales axis through
+  /// a request of this type (receiver and SLA come from the type). null = Lead only.
+  smartHandoffTypeCode     String?
+  /// CD-293 — the team each sales axis's Leads go to (org units). Keeper goes
+  /// to the account owner instead (CD-294).
+  smartGetterOrgUnitId     String?
+  smartGovernmentOrgUnitId String?
+  smartPartnerOrgUnitId    String?
   /// CD-190 — actual cost as % of the reference budget: warn at, alert over.
   projectCostWarnPct               Int      @default(90)
   projectCostAlertPct              Int      @default(100)
@@ -8648,6 +8656,11 @@ model SmartProspect {
   /// CD-292 — a call found real interest (CD-293 sends it to its sales axis).
   interestedAt      DateTime?
   lastCallId        String?
+  /// CD-293 — handed to a sales axis: which, the handoff request, when; or why not.
+  handoffAxis       String?
+  handoffRequestId  String?
+  handedOffAt       DateTime?
+  handoffError      String?
   decidedBy         String?
   decidedAt         DateTime?
   createdAt         DateTime  @default(now())

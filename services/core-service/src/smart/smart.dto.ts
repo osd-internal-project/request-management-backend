@@ -262,3 +262,18 @@ export class SendProspectsDto {
   @IsString({ each: true })
   ids!: string[];
 }
+
+/** CD-293 — rows to hand to a sales axis; `axis` overrides each row's own. */
+export class HandoffProspectsDto {
+  @ApiProperty({ type: [String] })
+  @IsArray()
+  @ArrayNotEmpty()
+  @ArrayMaxSize(100)
+  @IsString({ each: true })
+  ids!: string[];
+
+  @ApiPropertyOptional({ enum: ['getter', 'government', 'partner'] })
+  @IsOptional()
+  @IsIn(['getter', 'government', 'partner'])
+  axis?: 'getter' | 'government' | 'partner';
+}

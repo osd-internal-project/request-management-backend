@@ -9780,6 +9780,22 @@
             "pattern": "^([A-Z0-9_-]{1,20})?$",
             "type": "string"
           },
+          "smart_handoff_type_code": {
+            "pattern": "^([A-Z0-9_-]{1,20})?$",
+            "type": "string"
+          },
+          "smart_getter_org_unit_id": {
+            "maxLength": 50,
+            "type": "string"
+          },
+          "smart_government_org_unit_id": {
+            "maxLength": 50,
+            "type": "string"
+          },
+          "smart_partner_org_unit_id": {
+            "maxLength": 50,
+            "type": "string"
+          },
           "project_close_documents": {
             "type": "array",
             "items": {

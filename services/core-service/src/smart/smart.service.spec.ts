@@ -87,6 +87,7 @@ function harness(
     sweep,
     audit as never,
     { execute: jest.fn((fn: (p: unknown) => unknown) => fn({})) } as never,
+    { findMany: jest.fn(() => Promise.resolve([])) } as never,
   );
   return { ingest, sweep, service, sources, runs, prospects, audit, screening };
 }

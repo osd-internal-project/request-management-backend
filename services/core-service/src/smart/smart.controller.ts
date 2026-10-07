@@ -9,7 +9,9 @@ import {
   SaveSmartSourceDto,
   ScreenProspectsDto,
   SendProspectsDto,
+  HandoffProspectsDto,
 } from './smart.dto';
+import { SmartHandoffService } from './smart-handoff.service';
 import { SmartScreeningService } from './smart-screening.service';
 import { SmartService } from './smart.service';
 
@@ -21,7 +23,21 @@ export class SmartController {
   constructor(
     private readonly smart: SmartService,
     private readonly screening: SmartScreeningService,
+    private readonly handoff: SmartHandoffService,
   ) {}
+
+  @ApiOperation({
+    summary:
+      'CD-293 ส่งเข้าแกนขาย — สร้าง Lead ให้ทีมของแกน + คำขอส่งต่อโอกาสการขาย (มีเจ้าของและ SLA)',
+  })
+  @Post('prospects/handoff')
+  @Permissions('smart.prospect.manage')
+  handOff(
+    @Body() dto: HandoffProspectsDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.handoff.handOff(principal, dto.ids, dto.axis);
+  }
 
   @ApiOperation({
     summary:
