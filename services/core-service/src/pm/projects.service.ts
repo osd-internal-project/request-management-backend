@@ -333,6 +333,9 @@ export class ProjectsService {
       AND: [
         this.visibleWhere(actor, query.scope === 'mine'),
         ...(query.status ? [{ status: query.status as never }] : []),
+        ...(query.opportunity_id
+          ? [{ opportunityId: query.opportunity_id }]
+          : []),
         ...(q
           ? [
               {

@@ -733,6 +733,9 @@ export class LegalContractsService {
     if (query.kind) and.push({ kind: query.kind });
     if (query.status) and.push({ status: query.status });
     if (query.customer_id) and.push({ customerId: query.customer_id });
+    if (query.opportunity_id) {
+      and.push({ opportunityId: query.opportunity_id });
+    }
     if (query.confidential) {
       and.push({ confidential: query.confidential === 'true' });
     }

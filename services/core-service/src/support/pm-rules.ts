@@ -36,13 +36,17 @@ export function daysBetween(from: string, to: string): number {
 /**
  * Each round's due date: one interval after the cover starts, then every
  * interval, while still inside the cover — and no more rounds than its
- * preventive quota (null = no cap).
+ * preventive quota (null = no cap). Dates before `from` (a plan set up part
+ * way through the cover) or not after `after` (the last round that already
+ * happened) are left out and do not use the quota.
  */
 export function pmSchedule(input: {
   startOn: string;
   endOn: string;
   interval: PmInterval;
   quota: number | null;
+  from?: string;
+  after?: string;
 }): string[] {
   const step = PM_INTERVALS[input.interval];
   const due: string[] = [];
@@ -50,6 +54,8 @@ export function pmSchedule(input: {
     const day = addMonths(input.startOn, k * step);
     if (day > input.endOn) break;
     if (input.quota !== null && due.length >= input.quota) break;
+    if (input.from && day < input.from) continue;
+    if (input.after && day <= input.after) continue;
     due.push(day);
   }
   return due;

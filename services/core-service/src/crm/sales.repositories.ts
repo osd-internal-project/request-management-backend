@@ -478,6 +478,48 @@ export class CampaignRepository extends BaseRepository<
   }
 }
 
+/** CD-270 ผู้ลงทะเบียนอีเวนต์. */
+@Injectable()
+export class CampaignRegistrationRepository extends BaseRepository<
+  PrismaService['campaignRegistration']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.campaignRegistration;
+  }
+}
+
+/** CD-268 งบแคมเปญรายช่องทาง. */
+@Injectable()
+export class CampaignBudgetLineRepository extends BaseRepository<
+  PrismaService['campaignBudgetLine']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.campaignBudgetLine;
+  }
+}
+
+/** CD-268 ค่าใช้จ่ายจริงของแคมเปญ. */
+@Injectable()
+export class CampaignSpendRepository extends BaseRepository<
+  PrismaService['campaignSpend']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.campaignSpend;
+  }
+}
+
 /** CD-205 — ทะเบียนข้อยกเว้นด้านราคา. */
 @Injectable()
 export class PricingExceptionRepository extends BaseRepository<

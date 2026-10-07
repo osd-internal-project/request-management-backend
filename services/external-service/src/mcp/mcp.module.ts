@@ -5,9 +5,11 @@ import {
   SensitiveFieldMasker,
 } from '@request-management/share';
 import { RequestModule } from '../request/request.module';
+import { AssistantModule } from '../assistant/assistant.module';
 import {
   CrmModule as CoreCrmModule,
   DisbursementModule as CoreDisbursementModule,
+  LlmModule,
   PrincipalModule,
   SensitiveReadAuditRecorder,
 } from '@request-management/core-service';
@@ -33,6 +35,10 @@ import { OAuthMetadataController } from './oauth-metadata.controller';
     CoreCrmModule,
     CoreDisbursementModule,
     AuditModule,
+    // CD-276 — the assistant's questions
+    AssistantModule,
+    // CD-279 — each tool call goes into the AI audit log
+    LlmModule,
   ],
   controllers: [McpController, OAuthMetadataController],
   providers: [

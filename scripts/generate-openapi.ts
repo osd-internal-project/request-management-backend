@@ -177,6 +177,103 @@ const MODULE_DOCS: Readonly<Record<string, ModuleDoc>> = {
       },
     ],
   },
+  flow: {
+    title: 'Request Form — External API · Flow',
+    summary:
+      'ติดตามดีลหนึ่งใบทั้งสาย — ดีล → Pre-Sales → ใบเสนอราคา → ใบสั่งขาย → สัญญา → โครงการ',
+    notes:
+      '`stage` คือขั้นที่ไปถึง**ไกลที่สุด** อ่านจากสิ่งที่มีอยู่ ไม่ได้เก็บไว้ · ' +
+      '`next_steps` บอก endpoint ที่ใช้เดินต่อ (เป็นคำแนะนำ — route ปลายทางยังตัดสินเอง)\n\n' +
+      'แต่ละส่วนอ่านผ่าน service เดียวกับหน้าจอในนามคนใน `X-Acting-User` ' +
+      'ส่วนที่คนนั้นไม่มีสิทธิ์เห็นตอบ `{ visible: false, reason }` แทนการล้มทั้งคำตอบ ' +
+      'ดีลที่มองไม่เห็นตอบ 404',
+    tags: [{ name: 'flow', description: 'ติดตามดีลทั้งสาย' }],
+  },
+  presales: {
+    title: 'Request Form — External API · Pre-Sales',
+    summary: 'Solution ของดีล — อ่านอย่างเดียว',
+    notes:
+      '**เริ่ม Pre-Sales ไม่ได้อยู่ที่นี่** — ยื่นคำขอประเภท `solutionRequestTypeCode` ' +
+      'ของดีล (จาก `GET /crm/opportunities/{id}`) ผ่าน `POST /request/requests` ' +
+      'พร้อม `ref_type=opportunity` และ `ref_id=<เลขดีล>` ' +
+      'การออกแบบ Solution ทำบนหน้าจอของทีม Pre-Sales',
+    tags: [{ name: 'presales', description: 'Solution ของ Pre-Sales' }],
+  },
+  legal: {
+    title: 'Request Form — External API · Legal',
+    summary: 'คลังสัญญา — อ่านอย่างเดียว',
+    notes:
+      '**ขอทำสัญญา** = ยื่นคำขอประเภท `contractRequestTypeCode` ของดีลผ่าน ' +
+      '`POST /request/requests` พร้อม `ref_type=opportunity` · ' +
+      'ร่าง ตรวจ อนุมัติ และลงนามทำบนหน้าจอฝ่ายกฎหมาย · ' +
+      'ผู้ใช้ใน `X-Acting-User` ต้องถือ `legal.contract.read` และสัญญาลับพิเศษเห็นเฉพาะผู้มีสิทธิ์',
+    tags: [{ name: 'legal', description: 'คลังสัญญา' }],
+  },
+  pm: {
+    title: 'Request Form — External API · PM',
+    summary: 'โครงการ — ค้น อ่าน และเปิดโครงการจากสัญญาที่ลงนามแล้ว',
+    notes:
+      'เปิดโครงการ: `GET /pm/projects/openable-contracts` → ' +
+      '`GET /pm/projects/preview/{contractId}` (ดู `problems`) → `POST /pm/projects` ' +
+      'ส่ง `Idempotency-Key` ทุกครั้ง · ต้องถือ `pm.project.manage`',
+    tags: [{ name: 'pm', description: 'โครงการ' }],
+  },
+  delivery: {
+    title: 'Request Form — External API · Delivery',
+    summary: 'การส่งมอบของโครงการ — แผนส่งมอบ งวดวางบิล และการส่งต่อทีมบริการ',
+    notes:
+      'อ่านอย่างเดียว — ยืนยันติดตั้ง ใบรับรองการตรวจรับ และส่งวางบิลเข้า SAP ' +
+      'ทำบนหน้าจอ เพราะลงนามเอกสารและสร้างรายการใน SAP',
+    tags: [{ name: 'delivery', description: 'การส่งมอบและวางบิล' }],
+  },
+  support: {
+    title: 'Request Form — External API · Support',
+    summary:
+      'งานบริการหลังการขาย — ทะเบียนอุปกรณ์ สิทธิ์บริการ และเปิดใบสั่งงานบริการ',
+    notes:
+      '`POST /support/work-orders` สร้างเคสตามประเภทที่ตั้งในหน้าตั้งค่า CRM แล้วยื่นทันที ' +
+      '(นาฬิกา SLA เริ่ม) ติดตามต่อด้วย `GET /request/requests/{requestNo}` · ' +
+      'ลูกค้าแจ้งเองใช้ช่องทาง `request/intake/*` หรือ Customer Portal ไม่ใช่ที่นี่',
+    tags: [{ name: 'support', description: 'งานบริการหลังการขาย' }],
+  },
+  kb: {
+    title: 'Request Form — External API · KBMS',
+    summary:
+      'คลังความรู้สำหรับช่องทาง AI ที่คุยกับลูกค้า (AI CARE, AI SMART) — ค้นบทความแล้วรายงานคำตอบและบทความที่อ้างอิง',
+    notes:
+      'หุ่นยนต์เท่านั้น (key ที่มี `integration.kb.read`) · ได้เฉพาะบทความที่เผยแพร่ให้ลูกค้า ' +
+      '(ทุกราย หรือรายที่ระบุด้วย customer_code) ไม่มีบทความภายใน · ค้นทั้งคำและความหมาย (CD-267) · ทุกการค้นถูกบันทึก',
+    tags: [{ name: 'kb', description: 'คลังความรู้สำหรับ AI (CD-265)' }],
+  },
+  care: {
+    title: 'Request Form — External API · AI CARE',
+    summary:
+      'บทสนทนากับลูกค้าเดิมทุกช่องทาง (LINE, Facebook, Instagram, TikTok, อีเมล, เว็บแชต, D-Callcenter) สำหรับตัวเชื่อมช่องทางและ AI CARE',
+    notes:
+      'หุ่นยนต์เท่านั้น (key ที่มี `integration.care.manage`) บริษัทมาจาก key · ' +
+      'ข้อความของผู้ส่งเดียวกันต่อบทสนทนาเดิม (เงียบ 24 ชม. เริ่มใหม่) · ' +
+      'ข้อมูลลูกค้า อุปกรณ์ และสิทธิ์บริการส่งกลับเฉพาะผู้ส่งที่ยืนยันตัวตนแล้ว ' +
+      '(ตัวตนจากช่องทางตรงผู้ติดต่อ หรือทีมบริการยืนยัน) · สิ่งที่ลูกค้าพิมพ์แจ้งเป็นแค่ "อ้างว่าเป็น"',
+    tags: [{ name: 'care', description: 'AI CARE — บทสนทนา (CD-280)' }],
+  },
+  assistant: {
+    title: 'Request Form — External API · Assistant',
+    summary:
+      'คำถามของผู้ช่วยส่วนตัว — ดีลใกล้ปิด/เงียบ งานรออนุมัติ โครงการมีปัญหา งานบริการค้าง บทความ และตัวเลขสรุป',
+    notes:
+      'อ่านอย่างเดียว · ทุกคำตอบเรียก service ตัวเดียวกับหน้าจอในนามของผู้ถาม ' +
+      'จึงไม่เห็นเกินกว่าที่หน้าจอของคนนั้นแสดง · ใช้ผ่าน MCP เป็นหลัก (`assistant_*`)',
+    tags: [{ name: 'assistant', description: 'ผู้ช่วยส่วนตัว (CD-276)' }],
+  },
+  smart: {
+    title: 'Request Form — External API · AI SMART',
+    summary: 'ส่งรายชื่อธุรกิจที่กวาดได้ (crawler/ผู้ให้บริการข้อมูล) เข้าคิวของ AI SMART',
+    notes:
+      'ไม่มี `X-Acting-User` — ระบบภายนอกส่งในนามตัวเอง (`integration.smart.ingest`) · ' +
+      'ต้องมีแหล่งชนิด push ที่ตั้งไว้ในหน้า AI SMART ของบริษัทเดียวกับกุญแจ · ' +
+      'ส่งซ้ำได้ รายการที่มีอยู่แล้วนับเป็นซ้ำ · ยังไม่เข้า CRM จนกว่าจะผ่านการคัดกรอง',
+    tags: [{ name: 'smart', description: 'AI SMART — รับรายชื่อที่กวาดได้' }],
+  },
   mcp: {
     title: 'Request Form — External API · MCP',
     summary: 'ช่องทาง JSON-RPC สำหรับ tool-caller (LibreChat, MCP client)',
@@ -308,6 +405,64 @@ function writeExternalDocuments(document: OpenAPIObject, prefix: string): void {
         `${operations} operations · ${used.size} schemas → ${file}`,
     );
   }
+
+  writeEndpointIndex(byModule, prefix);
+}
+
+/** HTTP verbs as they appear as keys of an OpenAPI path item. */
+const VERBS = ['get', 'post', 'put', 'patch', 'delete'] as const;
+
+/**
+ * `docs/EXTERNAL_API_INDEX.md` — every external route on one page, with both
+ * gates, for the integration guide to point at (6 Oct 2026).
+ *
+ * Generated here, never typed: `EXTERNAL_API.md` forbids a hand-kept copy of
+ * the endpoint list because two lists stop agreeing the day one is edited.
+ * This one is rewritten from the same document on every `yarn openapi`.
+ */
+function writeEndpointIndex(
+  byModule: Map<string, Record<string, unknown>>,
+  prefix: string,
+): void {
+  const cell = (value: unknown): string =>
+    (Array.isArray(value) ? value.join(', ') : String(value ?? ''))
+      .replace(/\|/g, '\\|')
+      .replace(/\s+/g, ' ')
+      .trim();
+  const lines = [
+    '# External API — ดัชนี endpoint ทั้งหมด',
+    '',
+    '> **ไฟล์นี้สร้างโดย `yarn openapi` — อย่าแก้มือ** แก้ที่ controller แล้วรันใหม่',
+    '> ลำดับการเรียกตามสายงานอยู่ที่ [`EXTERNAL_API_GUIDE.md`](./EXTERNAL_API_GUIDE.md)',
+    '',
+    `ทุก path นำหน้าด้วย \`/${prefix}\` · **สิทธิ์กุญแจ** = ต้องอยู่ใน \`scopes\` ของ API key · ` +
+      '**สิทธิ์คน** = คนใน `X-Acting-User` ต้องถือ (ว่าง = route ที่ไม่มีคน หรือ service ตรวจเอง)',
+    '',
+  ];
+
+  for (const [module, paths] of [...byModule].sort()) {
+    const doc = MODULE_DOCS[module];
+    lines.push(`## ${module}${doc ? ` — ${doc.summary}` : ''}`, '');
+    lines.push('| Method | Path | ทำอะไร | สิทธิ์กุญแจ | สิทธิ์คน |');
+    lines.push('|---|---|---|---|---|');
+    for (const [path, item] of Object.entries(paths)) {
+      for (const verb of VERBS) {
+        const operation = (item as Record<string, Record<string, unknown>>)[
+          verb
+        ];
+        if (!operation) continue;
+        lines.push(
+          `| ${verb.toUpperCase()} | \`${path.slice(prefix.length + 1)}\` | ` +
+            `${cell(operation.summary)} | ${cell(operation['x-permission'])} | ` +
+            `${cell(operation['x-acting-permission'])} |`,
+        );
+      }
+    }
+    lines.push('');
+  }
+
+  writeFileSync('docs/EXTERNAL_API_INDEX.md', lines.join('\n'));
+  console.log('external index → docs/EXTERNAL_API_INDEX.md');
 }
 
 async function generate(

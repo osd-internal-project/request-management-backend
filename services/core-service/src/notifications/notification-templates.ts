@@ -483,6 +483,106 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
     },
   },
   {
+    eventType: 'macom.brand.approved',
+    label: 'ไฟล์คลังแบรนด์ฉบับใหม่ผ่านการอนุมัติ (ถึงผู้อัปโหลด)',
+    title: 'อนุมัติแล้ว: {{name}} ฉบับที่ {{version_no}}',
+    body: 'เป็นฉบับปัจจุบันในคลังแบรนด์แล้ว',
+    variables: {
+      name: { label: 'ไฟล์', sample: 'โลโก้บริษัท (แนวนอน)' },
+      version_no: { label: 'ฉบับที่', sample: '3' },
+      reason: { label: 'เหตุผล', sample: '' },
+    },
+  },
+  {
+    eventType: 'macom.brand.rejected',
+    label: 'ไฟล์คลังแบรนด์ฉบับใหม่ไม่ผ่านการอนุมัติ (ถึงผู้อัปโหลด)',
+    title: 'ไม่อนุมัติ: {{name}} ฉบับที่ {{version_no}}',
+    body: '{{reason}}',
+    variables: {
+      name: { label: 'ไฟล์', sample: 'โลโก้บริษัท (แนวนอน)' },
+      version_no: { label: 'ฉบับที่', sample: '3' },
+      reason: { label: 'เหตุผล', sample: '' },
+    },
+  },
+  {
+    eventType: 'macom.content.approved',
+    label: 'คอนเทนต์ผ่านการอนุมัติ (ถึงผู้รับผิดชอบ)',
+    title: 'อนุมัติแล้ว: {{title}}',
+    body: 'พร้อมเผยแพร่ตามกำหนด',
+    variables: {
+      title: { label: 'คอนเทนต์', sample: 'โพสต์โปรโมชันกล้อง' },
+      reason: { label: 'หมายเหตุ', sample: '' },
+    },
+  },
+  {
+    eventType: 'macom.content.rejected',
+    label: 'คอนเทนต์ไม่ผ่านการอนุมัติ (ถึงผู้รับผิดชอบ)',
+    title: 'ไม่อนุมัติ: {{title}}',
+    body: '{{reason}} — กลับเป็นร่างให้แก้แล้วส่งใหม่',
+    variables: {
+      title: { label: 'คอนเทนต์', sample: 'โพสต์โปรโมชันกล้อง' },
+      reason: {
+        label: 'เหตุผล',
+        sample: 'ไม่อนุมัติ — ดูเหตุผลในคำขอ REQ-OSD-000123',
+      },
+    },
+  },
+  {
+    eventType: 'macom.content.due',
+    label: 'คอนเทนต์ถึงกำหนดเผยแพร่พรุ่งนี้ (ถึงผู้รับผิดชอบ)',
+    title: 'พรุ่งนี้เผยแพร่: {{title}}',
+    body: '{{channel}} · กำหนด {{planned_at}}',
+    variables: {
+      title: { label: 'คอนเทนต์', sample: 'โพสต์เปิดตัวสัมมนา Smart Building' },
+      channel: { label: 'ช่องทาง', sample: 'Facebook' },
+      planned_at: { label: 'กำหนดเผยแพร่', sample: '10/10/2026 10:00' },
+    },
+  },
+  {
+    eventType: 'macom.content.overdue',
+    label: 'คอนเทนต์เลยกำหนดแต่ยังไม่บันทึกว่าเผยแพร่ (ถึงผู้รับผิดชอบ)',
+    title: 'เลยกำหนดเผยแพร่: {{title}}',
+    body: '{{channel}} · กำหนด {{planned_at}} — ถ้าโพสต์แล้วให้ใส่ลิงก์, ถ้าเลื่อนให้แก้วันที่',
+    variables: {
+      title: { label: 'คอนเทนต์', sample: 'โพสต์เปิดตัวสัมมนา Smart Building' },
+      channel: { label: 'ช่องทาง', sample: 'Facebook' },
+      planned_at: { label: 'กำหนดเผยแพร่', sample: '10/10/2026 10:00' },
+    },
+  },
+  {
+    eventType: 'crm.campaign_lead.routed',
+    label: 'Lead ใหม่จากแคมเปญเข้ากองของทีม (ถึงหัวหน้าทีมที่รับ)',
+    title: 'Lead ใหม่จาก {{campaign}}',
+    body: '{{name}} เข้ามาทาง {{source}} — รอคนในทีมรับไปดูแล',
+    variables: {
+      name: { label: 'Lead', sample: 'บจก. ตัวอย่าง เทคโนโลยี' },
+      campaign: { label: 'แคมเปญ', sample: 'งาน ICT Expo 2026' },
+      source: { label: 'ช่องทาง', sample: 'web_form' },
+    },
+  },
+  {
+    eventType: 'crm.campaign_lead.customer',
+    label: 'ลูกค้าเดิมลงทะเบียนผ่านแคมเปญ (ถึงผู้ดูแลลูกค้า)',
+    title: 'ลูกค้าของคุณสนใจ: {{name}}',
+    body: 'ลงทะเบียนผ่าน {{campaign}} ({{source}}) — Lead อยู่กับคุณแล้ว',
+    variables: {
+      name: { label: 'Lead', sample: 'บจก. ตัวอย่าง เทคโนโลยี' },
+      campaign: { label: 'แคมเปญ', sample: 'งาน ICT Expo 2026' },
+      source: { label: 'ช่องทาง', sample: 'web_form' },
+    },
+  },
+  {
+    eventType: 'crm.campaign_lead.repeat',
+    label: 'ลงทะเบียนซ้ำบน Lead ที่ยังเปิด (ถึงเจ้าของ Lead)',
+    title: 'ลงทะเบียนซ้ำ: {{name}}',
+    body: 'คนเดิมลงทะเบียนอีกครั้งผ่าน {{campaign}} ({{source}}) — บันทึกไว้ในกิจกรรมของ Lead',
+    variables: {
+      name: { label: 'Lead', sample: 'บจก. ตัวอย่าง เทคโนโลยี' },
+      campaign: { label: 'แคมเปญ', sample: 'งาน ICT Expo 2026' },
+      source: { label: 'ช่องทาง', sample: 'web_form' },
+    },
+  },
+  {
     eventType: 'crm.ma_offer.opened',
     label: 'เปิดดีลเสนอสัญญาบริการก่อนประกัน/สิทธิ์หมด (ถึงเจ้าของลูกค้า)',
     title: 'เสนอสัญญาบริการ: {{customer}}',
@@ -741,6 +841,78 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
       project: { label: 'โครงการ', sample: 'PRJ-2026-0001 · ระบบเครือข่าย' },
       installment: { label: 'งวด', sample: '4. คืนเงินประกันผลงาน 5%' },
       date: { label: 'วันสิ้นสุดประกัน', sample: '30/9/2570' },
+    },
+  },
+  {
+    eventType: 'kb.gap_assigned',
+    label: 'ได้รับมอบหมายให้เติมช่องว่างความรู้ (ถึงผู้เติม)',
+    title: 'ช่วยเติมความรู้: {{gap}}',
+    body: 'กำหนดส่ง {{date}} — เขียนบทความใหม่หรือผูกบทความที่มีอยู่ แล้วส่งตรวจ',
+    variables: {
+      gap: { label: 'ช่องว่าง', sample: 'VPN หลุดเมื่อเปลี่ยนเครือข่าย' },
+      date: { label: 'กำหนดส่ง', sample: '20/10/2569' },
+    },
+  },
+  {
+    eventType: 'kb.gap_overdue',
+    label: 'ช่องว่างความรู้เลยกำหนด (ถึงผู้เติม)',
+    title: 'เลยกำหนดเติมความรู้: {{gap}}',
+    body: 'กำหนดส่ง {{date}} — เขียนบทความหรือแจ้งผู้ดูแลคลังความรู้',
+    variables: {
+      gap: { label: 'ช่องว่าง', sample: 'VPN หลุดเมื่อเปลี่ยนเครือข่าย' },
+      date: { label: 'กำหนดส่ง', sample: '20/10/2569' },
+    },
+  },
+  {
+    eventType: 'kb.lessons_drafted',
+    label: 'บทเรียนโครงการเข้าคลังความรู้แล้ว (ถึงผู้จัดการโครงการ)',
+    title:
+      'บทเรียน {{count}} ข้อของโครงการ {{project}} อยู่ในฉบับร่าง {{article}}',
+    body: 'เกลาเนื้อหา ตัดชื่อลูกค้าและราคาออก แล้วกดส่งตรวจ',
+    variables: {
+      article: { label: 'บทความ', sample: 'KB-00031' },
+      project: { label: 'โครงการ', sample: 'PRJ-2026-0001 · ระบบเครือข่าย' },
+      count: { label: 'จำนวนบทเรียน', sample: '6' },
+    },
+  },
+  {
+    eventType: 'kb.review_requested',
+    label: 'บทความรอตรวจ (ถึงผู้ดูแลคลังความรู้)',
+    title: 'บทความ {{article}} รอตรวจ',
+    body: 'ตรวจ แก้ แล้วอนุมัติเผยแพร่ หรือตีกลับพร้อมสิ่งที่ต้องแก้',
+    variables: {
+      article: { label: 'บทความ', sample: 'KB-00012 · VPN เชื่อมต่อไม่ได้' },
+      note: { label: 'หมายเหตุ', sample: '-' },
+    },
+  },
+  {
+    eventType: 'kb.review_approved',
+    label: 'บทความได้รับอนุมัติเผยแพร่ (ถึงผู้เขียน)',
+    title: 'บทความ {{article}} เผยแพร่แล้ว',
+    body: '{{note}}',
+    variables: {
+      article: { label: 'บทความ', sample: 'KB-00012 · VPN เชื่อมต่อไม่ได้' },
+      note: { label: 'หมายเหตุผู้ตรวจ', sample: 'ขอบคุณครับ' },
+    },
+  },
+  {
+    eventType: 'kb.review_returned',
+    label: 'บทความถูกตีกลับให้แก้ (ถึงผู้เขียน)',
+    title: 'บทความ {{article}} ถูกตีกลับให้แก้',
+    body: '{{note}}',
+    variables: {
+      article: { label: 'บทความ', sample: 'KB-00012 · VPN เชื่อมต่อไม่ได้' },
+      note: { label: 'สิ่งที่ต้องแก้', sample: 'เพิ่มขั้นตอนตรวจสอบหลังแก้' },
+    },
+  },
+  {
+    eventType: 'kb.review_due',
+    label: 'บทความใกล้รอบทบทวน (ถึงเจ้าของบทความ)',
+    title: 'บทความ {{article}} ครบรอบทบทวน {{date}}',
+    body: 'ตรวจว่าเนื้อหายังถูกต้อง — กด "ทบทวนแล้ว" หรือเปิดฉบับปรับปรุง',
+    variables: {
+      article: { label: 'บทความ', sample: 'KB-00012 · VPN เชื่อมต่อไม่ได้' },
+      date: { label: 'วันครบรอบทบทวน', sample: '5/10/2570' },
     },
   },
   {

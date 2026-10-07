@@ -27,6 +27,8 @@ import {
   QuotationsService,
 } from '@request-management/core-service';
 import { RequestApiService } from '../request/request.service';
+import { AssistantService } from '../assistant/assistant.service';
+import { SourceLinks } from '../common/source-links';
 
 /** One entry of `external-tools.json`. */
 interface ToolSpec {
@@ -173,6 +175,8 @@ export class McpToolRegistry implements OnModuleInit {
     private readonly opportunities: OpportunitiesService,
     private readonly quotations: QuotationsService,
     private readonly disbursements: DisbursementsService,
+    private readonly assistant: AssistantService,
+    private readonly links: SourceLinks,
   ) {}
 
   /**
@@ -294,6 +298,30 @@ export class McpToolRegistry implements OnModuleInit {
 
     crm_get_quotations_id: (args, { actor }) =>
       this.quotations.findOne(requireString(args, 'id'), actor),
+
+    // CD-276 — the personal assistant's questions, read-only
+    assistant_get_summary: (_args, { actor }) => this.assistant.summary(actor),
+
+    assistant_get_deals_closing: (args, { actor }) =>
+      this.assistant.closingDeals(actor, args),
+
+    assistant_get_deals_silent: (args, { actor }) =>
+      this.assistant.silentDeals(actor, args),
+
+    assistant_get_approvals: (_args, { actor }) =>
+      this.assistant.myApprovals(actor),
+
+    assistant_get_projects_at_risk: (args, { actor }) =>
+      this.assistant.projectsAtRisk(actor, args),
+
+    assistant_get_service_jobs: (args, { actor }) =>
+      this.assistant.serviceJobs(actor, args),
+
+    assistant_get_kb_articles: (args, { actor }) =>
+      this.assistant.articles(actor, {
+        q: requireString(args, 'q'),
+        limit: typeof args.limit === 'number' ? args.limit : undefined,
+      }),
   };
 
   /**
@@ -434,10 +462,12 @@ export class McpToolRegistry implements OnModuleInit {
 
     const value = await this.handlers[name](args, context);
     const resource = this.sensitiveResources.get(name);
+    const masked = resource
+      ? this.masker.mask(resource, value, context.actor)
+      : value;
 
-    if (!resource) return value;
-
-    return this.masker.mask(resource, value, context.actor);
+    // CD-278 — every row cites its page, after masking decided what is shown
+    return this.links.attach(name, masked);
   }
 
   /**

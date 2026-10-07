@@ -199,6 +199,23 @@ export default () => ({
     ),
   },
 
+  kb: {
+    /** CD-260 — review-day reminders of knowledge articles (ms); 0 = off. */
+    reviewIntervalMs: Number(process.env.KB_REVIEW_INTERVAL_MS ?? 21600000),
+    /** CD-262 — known errors into articles, and closed jobs missed (ms); 0 = off. */
+    ingestIntervalMs: Number(process.env.KB_INGEST_INTERVAL_MS ?? 3600000),
+    /** CD-265 — clearing AI question/answer texts past retention (ms); 0 = off. */
+    aiPurgeIntervalMs: Number(process.env.KB_AI_PURGE_INTERVAL_MS ?? 21600000),
+    /** CD-265 — days AI question/answer texts are kept. */
+    aiRetentionDays: Number(process.env.KB_AI_RETENTION_DAYS ?? 180),
+    /** CD-267 — embedding new/changed published articles (ms); 0 = off. */
+    embedIntervalMs: Number(process.env.KB_EMBED_INTERVAL_MS ?? 300000),
+    /** CD-267 — cosine a passage needs to count as a match by meaning. */
+    semanticMinSimilarity: Number(
+      process.env.KB_SEMANTIC_MIN_SIMILARITY ?? 0.35,
+    ),
+  },
+
   crm: {
     /** CD-162 — expiry reminders for contracts without a renewal deal (ms); 0 = off. */
     contractExpiryIntervalMs: Number(
@@ -270,6 +287,49 @@ export default () => ({
    * CD-90 — the Data Lake: a separate PostgreSQL warehouse database. Unset =
    * no lake, nothing runs. Changed rows every hour, SAP invoices daily.
    */
+  /** CD-23 AI CARE */
+  care: {
+    /** CD-280 — idle conversations closed and old texts cleared (ms); 0 = off. */
+    sweepIntervalMs: Number(process.env.CARE_SWEEP_INTERVAL_MS ?? 900000),
+    /** CD-280 — hours of silence after which a sender's next message starts anew. */
+    idleHours: Number(process.env.CARE_IDLE_HOURS ?? 24),
+    /** CD-280 — days message texts are kept once a conversation is closed. */
+    retentionDays: Number(process.env.CARE_RETENTION_DAYS ?? 180),
+    /** CD-281 — AI CARE answers from the knowledge base itself; off = the connector's own AI does. */
+    autoReply: (process.env.CARE_AUTO_REPLY ?? 'on') !== 'off',
+    /** CD-281 — the web app, for Customer Portal links to the articles cited. */
+    publicWebUrl: process.env.PUBLIC_WEB_URL,
+  },
+  /** CD-275 — the company LLM Gateway (OpenAI-compatible). */
+  llm: {
+    /** mock (default, no network) | gateway */
+    mode: process.env.LLM_MODE ?? 'mock',
+    defaultChatModel: process.env.LLM_DEFAULT_CHAT_MODEL ?? 'default-chat',
+    defaultEmbedModel: process.env.LLM_DEFAULT_EMBED_MODEL ?? 'default-embed',
+    gateway: {
+      url: process.env.LLM_GATEWAY_URL,
+      apiKey: process.env.LLM_GATEWAY_API_KEY,
+      timeoutMs: Number(process.env.LLM_GATEWAY_TIMEOUT_MS ?? 60000),
+    },
+    /** CD-279 — how often old AI log rows are removed (ms); 0 = off. */
+    auditSweepIntervalMs: Number(
+      process.env.AI_AUDIT_SWEEP_INTERVAL_MS ?? 86_400_000,
+    ),
+  },
+  /** CD-16 AI SMART */
+  smart: {
+    /** mock (default) | off — real connectors arrive with their providers. */
+    connectorMode: process.env.SMART_CONNECTOR_MODE ?? 'mock',
+    /** How often due sources are swept (ms); 0 = off. */
+    sweepIntervalMs: Number(process.env.SMART_SWEEP_INTERVAL_MS ?? 900_000),
+  },
+  /** CD-15 MACOM */
+  macom: {
+    /** CD-271 — content due tomorrow / an hour late (ms); 0 = off. */
+    contentSweepIntervalMs: Number(
+      process.env.MACOM_CONTENT_SWEEP_INTERVAL_MS ?? 900000,
+    ),
+  },
   lake: {
     databaseUrl: process.env.LAKE_DATABASE_URL ?? '',
     extractIntervalMs: Number(process.env.LAKE_EXTRACT_INTERVAL_MS ?? 3600000),

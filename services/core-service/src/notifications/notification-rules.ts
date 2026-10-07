@@ -16,7 +16,11 @@ export type RuleParamKind =
   /** Several, each sent once — e.g. reminders at 60 and 30 days. */
   | 'days_list'
   /** CD-233 — several percentages, each sent once (e.g. 80, 100, 120 % of plan). */
-  | 'percent_list';
+  | 'percent_list'
+  /** CD-266 — one whole number of things (votes, searches). */
+  | 'count'
+  /** CD-266 — one percentage. */
+  | 'percent';
 
 export interface RuleParamDefinition {
   key: string;
@@ -31,7 +35,7 @@ export interface RuleParamDefinition {
 export interface RuleDefinition {
   code: string;
   /** The screen groups rules by this. */
-  module: 'crm' | 'finance' | 'pm';
+  module: 'crm' | 'finance' | 'pm' | 'kb';
   label: string;
   description: string;
   /** Who receives it — shown on the screen, decided by the rule's code. */
@@ -347,6 +351,71 @@ export const NOTIFICATION_RULES: readonly RuleDefinition[] = [
     ],
     defaults: { days: 7 },
   },
+  {
+    code: 'kb.review',
+    module: 'kb',
+    label: 'บทความความรู้ใกล้รอบทบทวน',
+    description:
+      'บทความที่เผยแพร่อยู่ใกล้วันครบรอบทบทวน (ตามหมวด ค่าตั้งต้น 12 เดือน) — เตือนเจ้าของบทความก่อนถึงวันตามจำนวนวันที่กำหนด ครั้งเดียวต่อรอบ',
+    recipients:
+      'เจ้าของบทความ (ถ้าไม่อยู่บริษัทแล้ว ส่งผู้ดูแลคลังความรู้ kb.article.manage)',
+    eventTypes: ['kb.review_due'],
+    params: [
+      {
+        key: 'days',
+        label: 'เตือนก่อนครบรอบ (วัน)',
+        kind: 'days',
+        min: 1,
+        max: 90,
+      },
+    ],
+    defaults: { days: 14 },
+  },
+  {
+    code: 'kb.gap',
+    module: 'kb',
+    label: 'ช่องว่างความรู้',
+    description:
+      'รวบรวมช่องว่างของคลังความรู้: คำถามที่ AI ตอบไม่ได้ บทความที่ผู้อ่านให้คะแนนต่ำ (ตามเกณฑ์ข้างล่าง) และคำค้นของพนักงานที่ไม่เจอบทความซ้ำหลายครั้ง · แจ้งผู้ที่ได้รับมอบหมายให้เติม และเตือนซ้ำเมื่อเลยกำหนด',
+    recipients: 'ผู้ที่ได้รับมอบหมายให้เติมช่องว่าง',
+    eventTypes: ['kb.gap_assigned', 'kb.gap_overdue'],
+    params: [
+      {
+        key: 'min_votes',
+        label: 'บทความคะแนนต่ำ: ผู้ให้คะแนนอย่างน้อย',
+        kind: 'count',
+        min: 1,
+        max: 100,
+      },
+      {
+        key: 'helpful_percent',
+        label: 'บทความคะแนนต่ำ: ช่วยได้ต่ำกว่า',
+        kind: 'percent',
+        min: 1,
+        max: 99,
+      },
+      {
+        key: 'search_misses',
+        label: 'คำค้นที่ไม่เจอบทความ: ซ้ำอย่างน้อย',
+        kind: 'count',
+        min: 1,
+        max: 50,
+      },
+      {
+        key: 'overdue_days',
+        label: 'เตือนผู้เติมซ้ำทุก (หลังเลยกำหนด)',
+        kind: 'days',
+        min: 1,
+        max: 30,
+      },
+    ],
+    defaults: {
+      min_votes: 5,
+      helpful_percent: 50,
+      search_misses: 3,
+      overdue_days: 3,
+    },
+  },
 ];
 
 const BY_CODE = new Map(NOTIFICATION_RULES.map((rule) => [rule.code, rule]));
@@ -430,7 +499,11 @@ function normalizeParam(
   param: RuleParamDefinition,
   raw: unknown,
 ): number | number[] | null {
-  if (param.kind === 'days') {
+  if (
+    param.kind === 'days' ||
+    param.kind === 'count' ||
+    param.kind === 'percent'
+  ) {
     return typeof raw === 'number' && Number.isInteger(raw) ? raw : null;
   }
   if (!Array.isArray(raw)) return null;

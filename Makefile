@@ -78,7 +78,7 @@ test:
 SMOKE_DB_URL := postgresql://postgres:smoke@localhost:55432/postgres
 SMOKE_LAKE_URL := postgresql://postgres:smoke@localhost:55432/lake
 
-## smoke       — ยิงทุก GET ของ core-service บน DB ทิ้งใน Docker (ไม่แตะ DB ใน .env)
+## smoke       — ยิงทุก GET ของ core-service + ขอบเขตคำตอบของ MCP tool (CD-277) บน DB ทิ้งใน Docker (ไม่แตะ DB ใน .env)
 smoke:
 	docker rm -f rm-smoke-db >/dev/null 2>&1 || true
 	docker run --rm -d --name rm-smoke-db -p 55432:5432 -e POSTGRES_PASSWORD=smoke postgres:16
@@ -86,7 +86,8 @@ smoke:
 	docker exec rm-smoke-db createdb -U postgres lake
 	DATABASE_URL=$(SMOKE_DB_URL) yarn prisma:migrate:deploy
 	DATABASE_URL=$(SMOKE_DB_URL) yarn prisma:seed
-	CORE_SMOKE_DB_URL=$(SMOKE_DB_URL) CORE_SMOKE_LAKE_URL=$(SMOKE_LAKE_URL) yarn workspace @request-management/core-service test:smoke; \
+	CORE_SMOKE_DB_URL=$(SMOKE_DB_URL) CORE_SMOKE_LAKE_URL=$(SMOKE_LAKE_URL) yarn workspace @request-management/core-service test:smoke && \
+	  EXTERNAL_SMOKE_DB_URL=$(SMOKE_DB_URL) yarn workspace @request-management/external-service test:scope; \
 	  status=$$?; docker rm -f rm-smoke-db >/dev/null; exit $$status
 
 ## clean       — ลบ build output ทั้งหมด

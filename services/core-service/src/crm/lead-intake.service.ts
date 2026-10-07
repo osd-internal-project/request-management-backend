@@ -3,7 +3,7 @@ import { AppError } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import type { ApiKeyContext } from '../principal/api-key.service';
 import { IntakeLeadDto, IntakeLeadResultDto } from './dto/lead-intake.dto';
-import { LeadsService } from './leads.service';
+import { CampaignLeadIntakeService } from './campaign-lead-intake.service';
 
 /**
  * รับ Lead จากระบบภายนอก — เว็บฟอร์ม, LINE OA, งานอีเวนต์, ระบบพาร์ตเนอร์
@@ -20,33 +20,31 @@ import { LeadsService } from './leads.service';
  */
 @Injectable()
 export class LeadIntakeService {
-  constructor(private readonly leads: LeadsService) {}
+  constructor(private readonly screening: CampaignLeadIntakeService) {}
 
+  /**
+   * CD-269 — through the same screening as a campaign's form and the Lead Ads
+   * webhook: the same person again joins their open Lead, an existing
+   * customer goes to its account owner, a new one to the campaign's team.
+   */
   async receive(
     dto: IntakeLeadDto,
     actor: Principal,
     key: ApiKeyContext | undefined,
   ): Promise<IntakeLeadResultDto> {
-    const row = (await this.leads.create(
+    const { outcome, lead } = await this.screening.receive(
       { ...dto, source_code: sourceOf(dto, key) },
       actor,
-      { unowned: true },
-    )) as unknown as {
-      id: string;
-      name: string;
-      status: string;
-      sourceCode: string | null;
-      ownerUserId: string | null;
-      createdAt: Date;
-    };
+    );
 
     return {
-      id: row.id,
-      name: row.name,
-      status: row.status,
-      source_code: row.sourceCode ?? '',
-      owner_user_id: row.ownerUserId,
-      created_at: row.createdAt.toISOString(),
+      id: lead.id,
+      name: lead.name,
+      status: lead.status,
+      source_code: lead.sourceCode ?? '',
+      owner_user_id: lead.ownerUserId,
+      created_at: lead.createdAt.toISOString(),
+      outcome,
     };
   }
 }

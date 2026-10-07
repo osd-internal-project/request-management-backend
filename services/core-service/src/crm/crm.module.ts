@@ -72,6 +72,9 @@ import {
   SalesTargetRepository,
   SalesTargetRevisionRepository,
   CampaignRepository,
+  CampaignBudgetLineRepository,
+  CampaignSpendRepository,
+  CampaignRegistrationRepository,
 } from './sales.repositories';
 import { CampaignsService } from './campaigns.service';
 import { TargetAccountsService } from './target-accounts.service';
@@ -171,6 +174,9 @@ import { OpportunityStaleMonitorService } from './opportunity-stale-monitor.serv
 import { SaleOrdersService } from './sale-orders.service';
 import { LeadImportService } from './lead-import.service';
 import { LeadIntakeService } from './lead-intake.service';
+import { CampaignLeadIntakeService } from './campaign-lead-intake.service';
+import { CampaignEventsService } from './campaign-events.service';
+import { CampaignRegistrationWriter } from './campaign-registration.writer';
 import { LeadWorkflowService } from './lead-workflow.service';
 import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
 
@@ -258,6 +264,12 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     LeadStatusService,
     LeadImportService,
     LeadIntakeService,
+    // CD-269 — one screening for every Lead from outside
+    CampaignLeadIntakeService,
+    // CD-270 — events
+    CampaignRegistrationRepository,
+    CampaignRegistrationWriter,
+    CampaignEventsService,
     LeadWorkflowService,
     LeadWorkflowSyncService,
     OpportunitiesService,
@@ -315,6 +327,8 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     SalesTargetRepository,
     SalesTargetRevisionRepository,
     CampaignRepository,
+    CampaignBudgetLineRepository,
+    CampaignSpendRepository,
     CampaignsService,
     TargetAccountsService,
     TargetAccountRepository,
@@ -351,6 +365,8 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     LeadsService,
     LeadImportService,
     LeadIntakeService,
+    CampaignLeadIntakeService,
+    CampaignEventsService,
     LeadWorkflowService,
     OpportunitiesService,
     OpportunityActivitiesService,
@@ -376,6 +392,10 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     CrmDashboardService,
     SalesTargetsService,
     CampaignsService,
+    // CD-268 — the MACOM campaign plan works on these
+    CampaignRepository,
+    CampaignBudgetLineRepository,
+    CampaignSpendRepository,
     TargetAccountsService,
     KeeperService,
     CustomerIntakeService,

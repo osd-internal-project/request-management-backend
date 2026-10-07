@@ -71,6 +71,15 @@ const ROBOT_ONLY = ['lead-intake.controller.ts', 'lead-workflow.controller.ts'];
  *
  * `customer-intake-admin` (CD-66) — configuring the customer channels; the
  * channels themselves are external-service's own `request/intake/*` routes.
+ *
+ * `legal-contracts` — not generated into CRM: its reads are served by hand
+ * under `legal/contracts` (6 Oct 2026), and `downstream-route-parity.spec.ts`
+ * holds those pairs instead.
+ *
+ * `quotation-discount` (CD-203), `pricing-exceptions` (CD-205) and
+ * `vendor-cost` (CD-206) — pricing work done by the approvers and the Pricing
+ * team on their own screens; each controller says so, and they were missing
+ * from this list since they landed (2 Oct 2026), which failed this spec.
  */
 const SCREEN_ONLY = [
   'activity-photos.controller.ts',
@@ -82,6 +91,9 @@ const SCREEN_ONLY = [
   'legal-contracts.controller.ts',
   'contract-obligations.controller.ts',
   'contract-drafts.controller.ts',
+  'quotation-discount.controller.ts',
+  'pricing-exceptions.controller.ts',
+  'vendor-cost.controller.ts',
 ];
 
 interface Route {

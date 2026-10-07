@@ -5171,6 +5171,18 @@
             }
           },
           {
+            "name": "closing_within_days",
+            "required": false,
+            "in": "query",
+            "description": "ดีลที่ยังเปิดและคาดปิดภายใน N วัน (รวมที่เลยวันคาดปิดแล้ว)",
+            "schema": {
+              "example": 30,
+              "type": "integer",
+              "maximum": 365,
+              "minimum": 1
+            }
+          },
+          {
             "name": "X-Company-Id",
             "in": "header",
             "required": false,
@@ -5372,6 +5384,18 @@
                 "overdue",
                 "stale"
               ]
+            }
+          },
+          {
+            "name": "closing_within_days",
+            "required": false,
+            "in": "query",
+            "description": "ดีลที่ยังเปิดและคาดปิดภายใน N วัน (รวมที่เลยวันคาดปิดแล้ว)",
+            "schema": {
+              "example": 30,
+              "type": "integer",
+              "maximum": 365,
+              "minimum": 1
             }
           },
           {
@@ -8887,6 +8911,15 @@
             "name": "customer_id",
             "required": false,
             "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "opportunity_id",
+            "required": false,
+            "in": "query",
+            "description": "id โอกาสการขายที่สัญญานี้มาจาก",
             "schema": {
               "type": "string"
             }
@@ -21070,6 +21103,2588 @@
         ]
       }
     },
+    "/api/v1/service-portal/public/articles": {
+      "get": {
+        "operationId": "ServicePortalPublicController_articleList",
+        "parameters": [
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "กล้องภาพไม่ขึ้น",
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "บทความช่วยเหลือที่เปิดให้ลูกค้ารายนี้ (ตรงอุปกรณ์ขึ้นก่อน)",
+        "tags": [
+          "service"
+        ]
+      }
+    },
+    "/api/v1/service-portal/public/articles/{id}": {
+      "get": {
+        "operationId": "ServicePortalPublicController_article",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "อ่านบทความช่วยเหลือ",
+        "tags": [
+          "service"
+        ]
+      }
+    },
+    "/api/v1/service-portal/public/articles/{id}/files/{fileId}": {
+      "get": {
+        "operationId": "ServicePortalPublicController_articleFile",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fileId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "รูป/ไฟล์ในบทความช่วยเหลือ",
+        "tags": [
+          "service"
+        ]
+      }
+    },
+    "/api/v1/service-portal/public/articles/{id}/vote": {
+      "post": {
+        "operationId": "ServicePortalPublicController_voteArticle",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PortalArticleVoteDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "บทความนี้ช่วยได้หรือไม่",
+        "tags": [
+          "service"
+        ]
+      }
+    },
+    "/api/v1/kb/semantic": {
+      "get": {
+        "operationId": "KbController_semanticStatus",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-267 สถานะดัชนีค้นหาเชิงความหมาย (บทความที่เผยแพร่ / ทำดัชนีแล้ว / โมเดล) — ผู้ดูแลคลังความรู้",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/semantic/index": {
+      "post": {
+        "operationId": "KbController_semanticIndex",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-267 ทำดัชนีบทความที่ยังไม่มีหรือเปลี่ยนแล้วทันที (ครั้งละไม่เกิน 100 บทความ) — ผู้ดูแลคลังความรู้",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/gaps": {
+      "get": {
+        "operationId": "KbController_gapList",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "open",
+                "assigned",
+                "resolved",
+                "dismissed"
+              ]
+            }
+          },
+          {
+            "name": "kind",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ai_unanswered",
+                "low_rated",
+                "search_miss"
+              ]
+            }
+          },
+          {
+            "name": "mine",
+            "required": false,
+            "in": "query",
+            "description": "เฉพาะที่มอบให้ฉัน",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-266 ช่องว่างความรู้ (AI ตอบไม่ได้ · คะแนนต่ำ · ค้นไม่เจอ) — ผู้ดูแลเห็นทั้งหมด คนอื่นเห็นที่มอบให้ตัวเอง",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/gaps/monthly": {
+      "get": {
+        "operationId": "KbController_gapMonthly",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-266 อัตราตอบได้เองของ AI และช่องว่างเปิด/ปิด รายเดือน (12 เดือน)",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/gaps/{id}/assign": {
+      "post": {
+        "operationId": "KbController_gapAssign",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KbGapAssignDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-266 มอบหมายผู้เติมพร้อมกำหนดส่ง — ผู้ดูแลคลังความรู้",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/gaps/{id}/article": {
+      "post": {
+        "operationId": "KbController_gapArticle",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-266 เริ่มเขียนบทความจากช่องว่าง (ฉบับร่างของผู้เติม)",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/gaps/{id}/link": {
+      "post": {
+        "operationId": "KbController_gapLink",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KbGapLinkDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-266 เติมด้วยบทความที่มีอยู่ (ปิดเมื่อบทความเผยแพร่)",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/gaps/{id}/dismiss": {
+      "post": {
+        "operationId": "KbController_gapDismiss",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KbGapDismissDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-266 ปิดทิ้งพร้อมเหตุผล — ผู้ดูแลคลังความรู้",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/ai-log": {
+      "get": {
+        "operationId": "KbController_aiLog",
+        "parameters": [
+          {
+            "name": "outcome",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "answered",
+                "unanswered"
+              ]
+            }
+          },
+          {
+            "name": "channel",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ai_care",
+                "ai_smart"
+              ]
+            }
+          },
+          {
+            "name": "article_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-265 บันทึกคำถามที่ AI ค้นคลังความรู้ บทความที่ได้ และคำตอบที่อ้างอิง — ผู้ดูแลคลังความรู้",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/projects/{projectId}/lessons/send": {
+      "post": {
+        "operationId": "KbController_sendLessons",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-263 ส่งบทเรียนของโครงการเข้าคลังความรู้ (เป็นฉบับร่างของผู้จัดการโครงการ) — ไม่ต้องรอปิดโครงการ",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/field-inbox": {
+      "get": {
+        "operationId": "KbController_fieldInbox",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "drafted",
+                "skipped"
+              ]
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-262 กล่องความรู้จากหน้างาน (ใบงานบริการที่ปิด) — ทีมบริการ/ผู้ดูแลคลังความรู้",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/field-inbox/draft": {
+      "post": {
+        "operationId": "KbController_draftFromJobs",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KbDraftFromJobsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-262 รวมใบงานที่เลือกเป็นฉบับร่างบทความ",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/field-inbox/skip": {
+      "post": {
+        "operationId": "KbController_skipJobs",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KbSkipJobsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-262 ข้ามใบงานที่ไม่ควรเป็นบทความ",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/work-orders/{workOrderId}/suggestions": {
+      "get": {
+        "operationId": "KbController_suggestions",
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-262 บทความแนะนำสำหรับใบงานบริการ และที่ใช้แก้แล้ว",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/work-orders/{workOrderId}/uses": {
+      "post": {
+        "operationId": "KbController_markUsed",
+        "parameters": [
+          {
+            "name": "workOrderId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KbArticleUseDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-262 บันทึกว่าใช้บทความนี้แก้ใบงาน (หรือเอาออก)",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/articles/{id}/provenance": {
+      "get": {
+        "operationId": "KbController_provenance",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-262 ที่มาของบทความ (ใบงาน/ปัญหาราก) และจำนวนครั้งที่ใช้แก้งาน",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/review-queue": {
+      "get": {
+        "operationId": "KbController_reviewQueue",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-260 งานรอตรวจ (ผู้ดูแล) และบทความที่ใกล้/เลยรอบทบทวน",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/articles/{id}/submit": {
+      "post": {
+        "operationId": "KbController_submit",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-260 ส่งฉบับร่างแรกให้ตรวจ",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/articles/{id}/withdraw": {
+      "post": {
+        "operationId": "KbController_withdraw",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KbReviewDecisionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-260 ดึงกลับจากการรอตรวจเพื่อแก้ (ฉบับร่าง หรือฉบับปรับปรุง)",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/articles/{id}/approve": {
+      "post": {
+        "operationId": "KbController_approve",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KbReviewDecisionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-260 อนุมัติเผยแพร่ (ฉบับร่างแรก หรือฉบับปรับปรุง) — ผู้ดูแลคลังความรู้",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/articles/{id}/send-back": {
+      "post": {
+        "operationId": "KbController_sendBack",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KbReviewDecisionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-260 ตีกลับพร้อมสิ่งที่ต้องแก้ — ผู้ดูแลคลังความรู้",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/articles/{id}/revisions": {
+      "post": {
+        "operationId": "KbController_openRevision",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-260 เปิดฉบับปรับปรุงของบทความที่เผยแพร่อยู่",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/articles/{id}/revisions/{revisionId}": {
+      "get": {
+        "operationId": "KbController_revision",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "revisionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-260 ฉบับปรับปรุง",
+        "tags": [
+          "kb"
+        ]
+      },
+      "put": {
+        "operationId": "KbController_updateRevision",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "revisionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveKbRevisionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-260 แก้ฉบับปรับปรุง",
+        "tags": [
+          "kb"
+        ]
+      },
+      "delete": {
+        "operationId": "KbController_discardRevision",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "revisionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-260 ทิ้งฉบับปรับปรุง",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/articles/{id}/revisions/{revisionId}/submit": {
+      "post": {
+        "operationId": "KbController_submitRevision",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "revisionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-260 ส่งฉบับปรับปรุงให้ตรวจ",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/articles/{id}/versions": {
+      "get": {
+        "operationId": "KbController_versions",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-260 ประวัติเวอร์ชันที่เผยแพร่",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/articles/{id}/versions/{version}": {
+      "get": {
+        "operationId": "KbController_version",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-260 เนื้อหาของเวอร์ชันหนึ่ง (ไว้เทียบ)",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/articles/{id}/owner": {
+      "put": {
+        "operationId": "KbController_setOwner",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KbOwnerDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-260 เปลี่ยนเจ้าของบทความ",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/articles/{id}/reviewed": {
+      "post": {
+        "operationId": "KbController_confirmReview",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KbConfirmReviewDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-260 ทบทวนแล้ว เนื้อหายังถูกต้อง (เจ้าของ/ผู้ดูแล)",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/articles/{id}/withdraw-from-customers": {
+      "post": {
+        "operationId": "KbController_withdrawFromCustomers",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KbWithdrawFromCustomersDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-261 ถอนบทความออกจาก Portal ลูกค้าทันที (เป็นภายใน) — ผู้ดูแลคลังความรู้",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/articles/{id}/merge": {
+      "post": {
+        "operationId": "KbController_merge",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KbMergeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-260 รวมบทความซ้ำเข้าบทความหลัก — ผู้ดูแลคลังความรู้",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/articles": {
+      "get": {
+        "operationId": "KbController_search",
+        "parameters": [
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "คำค้น (เว้นวรรคระหว่างคำ — ต้องเจอทุกคำ)",
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "published",
+                "draft",
+                "in_review",
+                "archived",
+                "mine"
+              ]
+            }
+          },
+          {
+            "name": "category_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "product_code",
+            "required": false,
+            "in": "query",
+            "description": "รหัสสินค้า SAP (รวมบทความของกลุ่มสินค้านั้น)",
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            }
+          },
+          {
+            "name": "tag",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            }
+          },
+          {
+            "name": "audience",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "internal",
+                "customers",
+                "selected"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-259 ค้นบทความ (คำค้น หมวด สินค้า แท็ก สถานะ)",
+        "tags": [
+          "kb"
+        ]
+      },
+      "post": {
+        "operationId": "KbController_create",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveKbArticleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-259 เขียนบทความใหม่ (ฉบับร่าง)",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/tags": {
+      "get": {
+        "operationId": "KbController_tags",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-259 แท็กที่ใช้อยู่ (มากไปน้อย)",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/products": {
+      "get": {
+        "operationId": "KbController_products",
+        "parameters": [
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-259 สินค้าและกลุ่มสินค้า SAP ให้ผูกกับบทความ",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/categories": {
+      "get": {
+        "operationId": "KbController_categories",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-259 หมวดกระบวนการ",
+        "tags": [
+          "kb"
+        ]
+      },
+      "post": {
+        "operationId": "KbController_createCategory",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveKbCategoryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-259 เพิ่มหมวด (ผู้ดูแลคลังความรู้)",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/categories/{id}": {
+      "put": {
+        "operationId": "KbController_updateCategory",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveKbCategoryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-259 แก้หมวด (ผู้ดูแลคลังความรู้)",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/articles/{id}": {
+      "get": {
+        "operationId": "KbController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-259 อ่านบทความ",
+        "tags": [
+          "kb"
+        ]
+      },
+      "put": {
+        "operationId": "KbController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveKbArticleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-259 แก้บทความ (ผู้เขียนขณะร่าง / ผู้ดูแลคลังความรู้)",
+        "tags": [
+          "kb"
+        ]
+      },
+      "delete": {
+        "operationId": "KbController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-259 ลบฉบับร่างที่ไม่เคยเผยแพร่",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/articles/{id}/archive": {
+      "post": {
+        "operationId": "KbController_archive",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArchiveKbArticleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-259 เลิกใช้ (ผู้ดูแลคลังความรู้)",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/articles/{id}/reopen": {
+      "post": {
+        "operationId": "KbController_reopen",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-259/260 นำบทความที่เลิกใช้กลับเป็นฉบับร่าง (ผู้ดูแลคลังความรู้)",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/articles/{id}/rate": {
+      "post": {
+        "operationId": "KbController_rate",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RateKbArticleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-259 ให้คะแนนว่ามีประโยชน์หรือไม่",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/articles/{id}/ratings": {
+      "get": {
+        "operationId": "KbController_ratings",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-259 ความเห็นของผู้อ่าน (ผู้เขียน/ผู้ดูแล)",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/articles/{id}/files": {
+      "post": {
+        "operationId": "KbController_attach",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-259 แนบรูป/ไฟล์ในบทความ",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/kb/articles/{id}/files/{fileId}": {
+      "get": {
+        "operationId": "KbController_file",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fileId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-259 ไฟล์ในบทความ",
+        "tags": [
+          "kb"
+        ]
+      },
+      "delete": {
+        "operationId": "KbController_removeFile",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fileId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-259 ลบไฟล์ในบทความ",
+        "tags": [
+          "kb"
+        ]
+      }
+    },
+    "/api/v1/care/conversations": {
+      "get": {
+        "operationId": "CareController_list",
+        "parameters": [
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "live",
+                "open",
+                "waiting_human",
+                "with_agent",
+                "closed"
+              ]
+            }
+          },
+          {
+            "name": "channel",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "line",
+                "facebook",
+                "instagram",
+                "tiktok",
+                "email",
+                "web",
+                "callcenter",
+                "api"
+              ]
+            }
+          },
+          {
+            "name": "identification",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "unknown",
+                "claimed",
+                "verified"
+              ]
+            }
+          },
+          {
+            "name": "customer_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-280 บทสนทนา AI CARE (ล่าสุดก่อน, 200 รายการ)",
+        "tags": [
+          "care"
+        ]
+      }
+    },
+    "/api/v1/care/conversations/{id}": {
+      "get": {
+        "operationId": "CareController_detail",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-280 บทสนทนาเดียว — ข้อความทั้งหมด ลูกค้า อุปกรณ์และสิทธิ์บริการ",
+        "tags": [
+          "care"
+        ]
+      }
+    },
+    "/api/v1/care/customers/{customerId}/contacts": {
+      "get": {
+        "operationId": "CareController_contacts",
+        "parameters": [
+          {
+            "name": "customerId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-280 ผู้ติดต่อของลูกค้า สำหรับยืนยันตัวผู้ส่ง",
+        "tags": [
+          "care"
+        ]
+      }
+    },
+    "/api/v1/care/conversations/{id}/verify": {
+      "post": {
+        "operationId": "CareController_verify",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CareVerifyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-280 ยืนยันว่าผู้ส่งคือผู้ติดต่อของลูกค้า — จำไว้ ครั้งหน้าช่องทางนี้ยืนยันอัตโนมัติ",
+        "tags": [
+          "care"
+        ]
+      }
+    },
+    "/api/v1/care/conversations/{id}/close": {
+      "post": {
+        "operationId": "CareController_close",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CareCloseDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-280 ปิดบทสนทนาพร้อมผล",
+        "tags": [
+          "care"
+        ]
+      }
+    },
     "/api/v1/delivery/report/phases": {
       "get": {
         "operationId": "DeliveryController_reportPhases",
@@ -22530,6 +25145,15 @@
               "enum": [
                 "mine"
               ]
+            }
+          },
+          {
+            "name": "opportunity_id",
+            "required": false,
+            "in": "query",
+            "description": "id โอกาสการขายที่โครงการนี้มาจาก",
+            "schema": {
+              "type": "string"
             }
           },
           {
@@ -32056,6 +34680,2908 @@
         ]
       }
     },
+    "/api/v1/macom/results": {
+      "get": {
+        "operationId": "MacomController_campaignResults",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "เดือนเริ่ม (YYYY-MM) ของกราฟรายเดือน",
+            "schema": {
+              "example": "2026-01",
+              "type": "string",
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "2026-12",
+              "type": "string",
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+            }
+          },
+          {
+            "name": "kind",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "campaign",
+                "event"
+              ]
+            }
+          },
+          {
+            "name": "sales_axis",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "getter",
+                "government",
+                "partner",
+                "keeper"
+              ]
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-274 ผลแคมเปญถึงรายได้: ต้นทุนจริง Lead ดีล ยอดจอง/ออกบิล/รับเงิน (จาก Data Mart)",
+        "tags": [
+          "macom"
+        ]
+      }
+    },
+    "/api/v1/macom/results/{campaignId}": {
+      "get": {
+        "operationId": "MacomController_campaignResult",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-274 ผลรายเดือนของแคมเปญหนึ่ง",
+        "tags": [
+          "macom"
+        ]
+      }
+    },
+    "/api/v1/macom/brand": {
+      "get": {
+        "operationId": "MacomController_brandList",
+        "parameters": [
+          {
+            "name": "category",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "logo",
+                "proposal_template",
+                "presentation",
+                "guideline",
+                "graphic",
+                "other"
+              ]
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "ค้นชื่อ คำอธิบาย แท็ก",
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "include_retired",
+            "required": false,
+            "in": "query",
+            "description": "`true` = รวมที่เลิกใช้ (MACOM)",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true"
+              ]
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-273 คลังแบรนด์ — ไฟล์ฉบับปัจจุบัน (หมวด ค้นหา)",
+        "tags": [
+          "macom"
+        ]
+      },
+      "post": {
+        "operationId": "MacomController_createBrandAsset",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBrandAssetDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-273 เพิ่มไฟล์ใหม่ + ฉบับแรก (รออนุมัติ — ยื่นคำขอตามตั้งค่า CRM)",
+        "tags": [
+          "macom"
+        ],
+        "x-permission": [
+          "crm.campaign.manage"
+        ]
+      }
+    },
+    "/api/v1/macom/brand/{id}": {
+      "get": {
+        "operationId": "MacomController_brandOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-273 ไฟล์แบรนด์หนึ่งรายการ (MACOM เห็นประวัติฉบับ)",
+        "tags": [
+          "macom"
+        ]
+      },
+      "patch": {
+        "operationId": "MacomController_updateBrandAsset",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateBrandAssetDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-273 แก้ชื่อ หมวด คำอธิบาย แท็ก",
+        "tags": [
+          "macom"
+        ],
+        "x-permission": [
+          "crm.campaign.manage"
+        ]
+      }
+    },
+    "/api/v1/macom/brand/{id}/file": {
+      "get": {
+        "operationId": "MacomController_brandFile",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-273 ดาวน์โหลดฉบับปัจจุบัน",
+        "tags": [
+          "macom"
+        ]
+      }
+    },
+    "/api/v1/macom/brand/{id}/versions/{versionId}/file": {
+      "get": {
+        "operationId": "MacomController_brandVersionFile",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "versionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-273 ดาวน์โหลดฉบับใดก็ได้ (MACOM)",
+        "tags": [
+          "macom"
+        ],
+        "x-permission": [
+          "crm.campaign.manage"
+        ]
+      }
+    },
+    "/api/v1/macom/brand/{id}/versions": {
+      "post": {
+        "operationId": "MacomController_addBrandVersion",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/BrandVersionNoteDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-273 อัปโหลดฉบับใหม่ (รออนุมัติ)",
+        "tags": [
+          "macom"
+        ],
+        "x-permission": [
+          "crm.campaign.manage"
+        ]
+      }
+    },
+    "/api/v1/macom/brand/{id}/retire": {
+      "post": {
+        "operationId": "MacomController_retireBrandAsset",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RetireBrandAssetDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-273 เลิกใช้ไฟล์ (ซ่อนจากทุกคน เก็บประวัติไว้)",
+        "tags": [
+          "macom"
+        ],
+        "x-permission": [
+          "crm.campaign.manage"
+        ]
+      }
+    },
+    "/api/v1/macom/brand/{id}/restore": {
+      "post": {
+        "operationId": "MacomController_restoreBrandAsset",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-273 เปิดใช้ไฟล์ที่เลิกใช้กลับมา",
+        "tags": [
+          "macom"
+        ],
+        "x-permission": [
+          "crm.campaign.manage"
+        ]
+      }
+    },
+    "/api/v1/macom/brand-versions/{versionId}/withdraw": {
+      "post": {
+        "operationId": "MacomController_withdrawBrandVersion",
+        "parameters": [
+          {
+            "name": "versionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-273 ถอนฉบับที่รออนุมัติ (ยกเลิกคำขอ)",
+        "tags": [
+          "macom"
+        ],
+        "x-permission": [
+          "crm.campaign.manage"
+        ]
+      }
+    },
+    "/api/v1/macom/content/{id}/approval": {
+      "post": {
+        "operationId": "MacomController_sendForApproval",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-272 ส่งอนุมัติคอนเทนต์ (ยื่นคำขอตามประเภทในตั้งค่า CRM)",
+        "tags": [
+          "macom"
+        ],
+        "x-permission": [
+          "crm.campaign.manage"
+        ]
+      }
+    },
+    "/api/v1/macom/content/{id}/approval/withdraw": {
+      "post": {
+        "operationId": "MacomController_withdrawApproval",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WithdrawContentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-272 ถอนออกจากการรออนุมัติ (ยกเลิกคำขอ) กลับเป็นร่าง",
+        "tags": [
+          "macom"
+        ],
+        "x-permission": [
+          "crm.campaign.manage"
+        ]
+      }
+    },
+    "/api/v1/macom/content": {
+      "get": {
+        "operationId": "MacomController_contentList",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "ตั้งแต่ (วันที่วางแผน)",
+            "schema": {
+              "example": "2026-10-01",
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "ถึง (รวมวันนี้)",
+            "schema": {
+              "example": "2026-10-31",
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "channel",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "line_oa",
+                "facebook",
+                "tiktok",
+                "instagram",
+                "website",
+                "email"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "draft",
+                "pending_approval",
+                "ready",
+                "published",
+                "cancelled"
+              ]
+            }
+          },
+          {
+            "name": "campaign_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-271 ปฏิทินคอนเทนต์ (ช่วงวันที่ ช่องทาง สถานะ แคมเปญ)",
+        "tags": [
+          "macom"
+        ]
+      },
+      "post": {
+        "operationId": "MacomController_createContent",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveContentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-271 สร้างคอนเทนต์ (ร่าง)",
+        "tags": [
+          "macom"
+        ],
+        "x-permission": [
+          "crm.campaign.manage"
+        ]
+      }
+    },
+    "/api/v1/macom/content/{id}": {
+      "get": {
+        "operationId": "MacomController_contentOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-271 คอนเทนต์หนึ่งชิ้นพร้อมไฟล์",
+        "tags": [
+          "macom"
+        ]
+      },
+      "put": {
+        "operationId": "MacomController_updateContent",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveContentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-271 แก้คอนเทนต์ (ก่อนเผยแพร่)",
+        "tags": [
+          "macom"
+        ],
+        "x-permission": [
+          "crm.campaign.manage"
+        ]
+      }
+    },
+    "/api/v1/macom/content/{id}/move": {
+      "post": {
+        "operationId": "MacomController_moveContent",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MoveContentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-271 เปลี่ยนสถานะ: พร้อม / เผยแพร่แล้ว (ลิงก์) / ยกเลิก (เหตุผล) / กลับเป็นร่าง",
+        "tags": [
+          "macom"
+        ],
+        "x-permission": [
+          "crm.campaign.manage"
+        ]
+      }
+    },
+    "/api/v1/macom/content/{id}/copy": {
+      "post": {
+        "operationId": "MacomController_copyContent",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CopyContentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-271 คัดลอกไปอีกช่องทาง (ร่างใหม่ ไฟล์เดิม)",
+        "tags": [
+          "macom"
+        ],
+        "x-permission": [
+          "crm.campaign.manage"
+        ]
+      }
+    },
+    "/api/v1/macom/content/{id}/files": {
+      "post": {
+        "operationId": "MacomController_attachContentFile",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-271 แนบสื่อ (รูป/วิดีโอ MP4/PDF)",
+        "tags": [
+          "macom"
+        ],
+        "x-permission": [
+          "crm.campaign.manage"
+        ]
+      }
+    },
+    "/api/v1/macom/content/{id}/files/{fileId}": {
+      "delete": {
+        "operationId": "MacomController_removeContentFile",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fileId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-271 เอาไฟล์ออกจากคอนเทนต์",
+        "tags": [
+          "macom"
+        ],
+        "x-permission": [
+          "crm.campaign.manage"
+        ]
+      },
+      "get": {
+        "operationId": "MacomController_contentFile",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fileId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-271 ไฟล์สื่อของคอนเทนต์",
+        "tags": [
+          "macom"
+        ]
+      }
+    },
+    "/api/v1/macom/events/{campaignId}/registrations": {
+      "get": {
+        "operationId": "MacomController_registrations",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-270 รายชื่อผู้ลงทะเบียนอีเวนต์ + ตัวเลขสรุป (เช็กอินหน้างาน)",
+        "tags": [
+          "macom"
+        ],
+        "x-permission": [
+          "crm.campaign.manage"
+        ]
+      }
+    },
+    "/api/v1/macom/events/{campaignId}/walk-ins": {
+      "post": {
+        "operationId": "MacomController_walkIn",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WalkInDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-270 เพิ่ม walk-in หน้างาน (นับว่ามาแล้ว)",
+        "tags": [
+          "macom"
+        ],
+        "x-permission": [
+          "crm.campaign.manage"
+        ]
+      }
+    },
+    "/api/v1/macom/events/{campaignId}/convert": {
+      "post": {
+        "operationId": "MacomController_convert",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConvertRegistrationsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-270 แปลงผู้เข้าร่วมที่สนใจเป็น Lead (ผ่านการคัดกรอง CD-269)",
+        "tags": [
+          "macom"
+        ],
+        "x-permission": [
+          "crm.campaign.manage"
+        ]
+      }
+    },
+    "/api/v1/macom/event-registrations/{id}/check-in": {
+      "post": {
+        "operationId": "MacomController_checkIn",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckInDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-270 เช็กอิน / ยกเลิกเช็กอิน",
+        "tags": [
+          "macom"
+        ],
+        "x-permission": [
+          "crm.campaign.manage"
+        ]
+      }
+    },
+    "/api/v1/macom/event-registrations/{id}/status": {
+      "post": {
+        "operationId": "MacomController_setStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegistrationStatusDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-270 ให้ที่นั่งจากรายชื่อสำรอง หรือยกเลิก",
+        "tags": [
+          "macom"
+        ],
+        "x-permission": [
+          "crm.campaign.manage"
+        ]
+      }
+    },
+    "/api/v1/macom/event-registrations/{id}/follow": {
+      "patch": {
+        "operationId": "MacomController_follow",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FollowRegistrationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-270 ความสนใจและหมายเหตุหลังงาน",
+        "tags": [
+          "macom"
+        ],
+        "x-permission": [
+          "crm.campaign.manage"
+        ]
+      }
+    },
+    "/api/v1/macom/campaigns/{id}/plan": {
+      "get": {
+        "operationId": "MacomController_plan",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-268 แผนงบของแคมเปญ: งบรายช่องทางและค่าใช้จ่ายจริง",
+        "tags": [
+          "macom"
+        ]
+      }
+    },
+    "/api/v1/macom/campaigns/{id}/budget-lines": {
+      "put": {
+        "operationId": "MacomController_saveLines",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveBudgetLinesDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-268 บันทึกงบรายช่องทาง (ทั้งชุด) — งบรวมแคมเปญ = ผลรวม",
+        "tags": [
+          "macom"
+        ],
+        "x-permission": [
+          "crm.campaign.manage"
+        ]
+      }
+    },
+    "/api/v1/macom/campaigns/{id}/spends": {
+      "post": {
+        "operationId": "MacomController_addSpend",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddCampaignSpendDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-268 บันทึกค่าใช้จ่ายจริงของแคมเปญ",
+        "tags": [
+          "macom"
+        ],
+        "x-permission": [
+          "crm.campaign.manage"
+        ]
+      }
+    },
+    "/api/v1/macom/campaign-spends/{spendId}/void": {
+      "post": {
+        "operationId": "MacomController_voidSpend",
+        "parameters": [
+          {
+            "name": "spendId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VoidCampaignSpendDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-268 ยกเลิกค่าใช้จ่าย (ไม่ลบ — เก็บเหตุผล)",
+        "tags": [
+          "macom"
+        ],
+        "x-permission": [
+          "crm.campaign.manage"
+        ]
+      }
+    },
+    "/api/v1/macom/campaign-spends/{spendId}/receipt": {
+      "post": {
+        "operationId": "MacomController_attachReceipt",
+        "parameters": [
+          {
+            "name": "spendId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-268 แนบ/เปลี่ยนใบเสร็จของค่าใช้จ่าย",
+        "tags": [
+          "macom"
+        ],
+        "x-permission": [
+          "crm.campaign.manage"
+        ]
+      },
+      "get": {
+        "operationId": "MacomController_receipt",
+        "parameters": [
+          {
+            "name": "spendId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-268 ไฟล์ใบเสร็จของค่าใช้จ่าย",
+        "tags": [
+          "macom"
+        ]
+      }
+    },
+    "/api/v1/smart/prospects/screen": {
+      "post": {
+        "operationId": "SmartController_screen",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScreenProspectsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-290 คัดกรองใหม่ — ตรวจซ้ำกับ CRM และให้คะแนน (ว่าง = ทุกรายการที่รออยู่)",
+        "tags": [
+          "smart"
+        ],
+        "x-permission": [
+          "smart.prospect.manage"
+        ]
+      }
+    },
+    "/api/v1/smart/prospects/send": {
+      "post": {
+        "operationId": "SmartController_send",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendProspectsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-290 ส่งเข้า CRM เป็น Lead — ผ่านการคัดกรองเดียวกับ Lead จากแคมเปญ",
+        "tags": [
+          "smart"
+        ],
+        "x-permission": [
+          "smart.prospect.manage"
+        ]
+      }
+    },
+    "/api/v1/smart/sources": {
+      "get": {
+        "operationId": "SmartController_sources",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-289 แหล่งกวาด Lead ทั้งหมด พร้อมจำนวนที่ได้",
+        "tags": [
+          "smart"
+        ],
+        "x-permission": [
+          "smart.prospect.read"
+        ]
+      },
+      "post": {
+        "operationId": "SmartController_createSource",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveSmartSourceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-289 เพิ่มแหล่งกวาด Lead",
+        "tags": [
+          "smart"
+        ],
+        "x-permission": [
+          "smart.prospect.manage"
+        ]
+      }
+    },
+    "/api/v1/smart/sources/{id}": {
+      "put": {
+        "operationId": "SmartController_updateSource",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveSmartSourceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-289 แก้แหล่งกวาด Lead (เงื่อนไข รอบ เปิด/ปิด)",
+        "tags": [
+          "smart"
+        ],
+        "x-permission": [
+          "smart.prospect.manage"
+        ]
+      }
+    },
+    "/api/v1/smart/sources/{id}/run": {
+      "post": {
+        "operationId": "SmartController_run",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-289 กวาดแหล่งนี้เดี๋ยวนี้ (dbd/web/social)",
+        "tags": [
+          "smart"
+        ],
+        "x-permission": [
+          "smart.prospect.manage"
+        ]
+      }
+    },
+    "/api/v1/smart/sources/{id}/import": {
+      "post": {
+        "operationId": "SmartController_import",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportProspectsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-289 นำเข้ารายชื่อจากไฟล์ (แหล่งชนิด file)",
+        "tags": [
+          "smart"
+        ],
+        "x-permission": [
+          "smart.prospect.manage"
+        ]
+      }
+    },
+    "/api/v1/smart/runs": {
+      "get": {
+        "operationId": "SmartController_runs",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-289 ประวัติการกวาด (100 รอบล่าสุด)",
+        "tags": [
+          "smart"
+        ],
+        "x-permission": [
+          "smart.prospect.read"
+        ]
+      }
+    },
+    "/api/v1/smart/prospects": {
+      "get": {
+        "operationId": "SmartController_prospects",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "เลขหน้าที่ต้องการ เริ่มที่ 1",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page_size",
+            "required": false,
+            "in": "query",
+            "description": "จำนวนรายการต่อหน้า",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "`sort=field` เรียงขึ้น, `sort=-field` เรียงลง",
+            "schema": {
+              "example": "-createdAt",
+              "type": "string",
+              "pattern": "^-?[a-zA-Z_][a-zA-Z0-9_]*$"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "new",
+                "screened",
+                "sent",
+                "discarded"
+              ]
+            }
+          },
+          {
+            "name": "source_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sales_axis",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "getter",
+                "government",
+                "partner",
+                "keeper"
+              ]
+            }
+          },
+          {
+            "name": "min_score",
+            "required": false,
+            "in": "query",
+            "description": "CD-290 — คะแนนความพร้อมขั้นต่ำ",
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 0
+            }
+          },
+          {
+            "name": "match_kind",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "customer",
+                "lead",
+                "none"
+              ]
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "ชื่อ เลขนิติบุคคล เบอร์ หรือจังหวัด",
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-289 รายชื่อที่กวาดได้ (ยังไม่เข้า CRM)",
+        "tags": [
+          "smart"
+        ],
+        "x-permission": [
+          "smart.prospect.read"
+        ]
+      }
+    },
+    "/api/v1/smart/prospects/{id}": {
+      "get": {
+        "operationId": "SmartController_prospect",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-289 รายชื่อที่กวาดได้ หนึ่งรายการ พร้อมหลักฐาน",
+        "tags": [
+          "smart"
+        ],
+        "x-permission": [
+          "smart.prospect.read"
+        ]
+      }
+    },
+    "/api/v1/smart/prospects/{id}/discard": {
+      "post": {
+        "operationId": "SmartController_discard",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DiscardProspectDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-289 ทิ้งรายชื่อ พร้อมเหตุผล",
+        "tags": [
+          "smart"
+        ],
+        "x-permission": [
+          "smart.prospect.manage"
+        ]
+      }
+    },
+    "/api/v1/smart/prospects/{id}/reopen": {
+      "post": {
+        "operationId": "SmartController_reopen",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-289 เปิดรายชื่อที่ทิ้งไปแล้วกลับมา",
+        "tags": [
+          "smart"
+        ],
+        "x-permission": [
+          "smart.prospect.manage"
+        ]
+      }
+    },
+    "/api/v1/llm/settings": {
+      "get": {
+        "operationId": "LlmController_settings",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-275 งาน AI ทุกงาน: โมเดล โควตา การใช้เดือนนี้ + ราคาโมเดล",
+        "tags": [
+          "llm"
+        ],
+        "x-permission": [
+          "admin.llm.manage"
+        ]
+      }
+    },
+    "/api/v1/llm/tasks/{task}": {
+      "put": {
+        "operationId": "LlmController_updateTask",
+        "parameters": [
+          {
+            "name": "task",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateLlmTaskDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-275 ตั้งโมเดล/โควตา/เปิดปิด ของงาน AI หนึ่งงาน",
+        "tags": [
+          "llm"
+        ],
+        "x-permission": [
+          "admin.llm.manage"
+        ]
+      }
+    },
+    "/api/v1/llm/prices": {
+      "put": {
+        "operationId": "LlmController_savePrices",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveLlmPricesDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-275 ราคาโมเดล (ทั้งชุด) สำหรับประมาณค่าใช้จ่าย",
+        "tags": [
+          "llm"
+        ],
+        "x-permission": [
+          "admin.llm.manage"
+        ]
+      }
+    },
+    "/api/v1/llm/usage": {
+      "get": {
+        "operationId": "LlmController_usage",
+        "parameters": [
+          {
+            "name": "month",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "2026-10",
+              "type": "string",
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-275 การใช้งานรายเดือน: รวม รายงาน รายโมเดล รายคน ล่าสุด",
+        "tags": [
+          "llm"
+        ],
+        "x-permission": [
+          "admin.llm.manage"
+        ]
+      }
+    },
+    "/api/v1/llm/test": {
+      "post": {
+        "operationId": "LlmController_test",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LlmTestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-275 ทดลองเรียกโมเดลผ่าน Gateway (นับโควตาของงาน admin.test)",
+        "tags": [
+          "llm"
+        ],
+        "x-permission": [
+          "admin.llm.manage"
+        ]
+      }
+    },
+    "/api/v1/ai-audit/mcp-calls": {
+      "get": {
+        "operationId": "AiAuditController_mcp",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "เลขหน้าที่ต้องการ เริ่มที่ 1",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page_size",
+            "required": false,
+            "in": "query",
+            "description": "จำนวนรายการต่อหน้า",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "`sort=field` เรียงขึ้น, `sort=-field` เรียงลง",
+            "schema": {
+              "example": "-createdAt",
+              "type": "string",
+              "pattern": "^-?[a-zA-Z_][a-zA-Z0-9_]*$"
+            }
+          },
+          {
+            "name": "user_id",
+            "required": false,
+            "in": "query",
+            "description": "ผู้ถาม (user id)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "ตั้งแต่วันที่",
+            "schema": {
+              "example": "2026-10-01",
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "ถึงวันที่ (รวม)",
+            "schema": {
+              "example": "2026-10-31",
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "name",
+            "required": false,
+            "in": "query",
+            "description": "MCP: ชื่อ tool · โมเดล: งาน AI (task)",
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ok",
+                "error",
+                "quota",
+                "disabled"
+              ]
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-279 การเรียก MCP tool — ใคร เมื่อไร tool ไหน ตัวกรอง และรายการที่ตอบกลับ (id)",
+        "tags": [
+          "ai-audit"
+        ],
+        "x-permission": [
+          "admin.ai.audit"
+        ]
+      }
+    },
+    "/api/v1/ai-audit/llm-calls": {
+      "get": {
+        "operationId": "AiAuditController_llm",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "เลขหน้าที่ต้องการ เริ่มที่ 1",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page_size",
+            "required": false,
+            "in": "query",
+            "description": "จำนวนรายการต่อหน้า",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "`sort=field` เรียงขึ้น, `sort=-field` เรียงลง",
+            "schema": {
+              "example": "-createdAt",
+              "type": "string",
+              "pattern": "^-?[a-zA-Z_][a-zA-Z0-9_]*$"
+            }
+          },
+          {
+            "name": "user_id",
+            "required": false,
+            "in": "query",
+            "description": "ผู้ถาม (user id)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "ตั้งแต่วันที่",
+            "schema": {
+              "example": "2026-10-01",
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "ถึงวันที่ (รวม)",
+            "schema": {
+              "example": "2026-10-31",
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "name",
+            "required": false,
+            "in": "query",
+            "description": "MCP: ชื่อ tool · โมเดล: งาน AI (task)",
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ok",
+                "error",
+                "quota",
+                "disabled"
+              ]
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-279 การเรียกโมเดลผ่าน LLM Gateway — งาน โมเดล token ค่าใช้จ่าย",
+        "tags": [
+          "ai-audit"
+        ],
+        "x-permission": [
+          "admin.ai.audit"
+        ]
+      }
+    },
+    "/api/v1/ai-audit/filters": {
+      "get": {
+        "operationId": "AiAuditController_filters",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-279 ตัวเลือกค้นหา: tool งาน AI และคนที่มีบันทึก",
+        "tags": [
+          "ai-audit"
+        ],
+        "x-permission": [
+          "admin.ai.audit"
+        ]
+      }
+    },
+    "/api/v1/ai-audit/policy": {
+      "get": {
+        "operationId": "AiAuditController_policy",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-279 อายุการเก็บบันทึก AI ของบริษัท",
+        "tags": [
+          "ai-audit"
+        ],
+        "x-permission": [
+          "admin.ai.audit"
+        ]
+      },
+      "put": {
+        "operationId": "AiAuditController_savePolicy",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveAiAuditPolicyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-279 ตั้งอายุการเก็บบันทึก AI (วัน)",
+        "tags": [
+          "ai-audit"
+        ],
+        "x-permission": [
+          "admin.ai.audit"
+        ]
+      }
+    },
     "/api/v1/esign/authorities": {
       "get": {
         "operationId": "EsignController_listAuthorities",
@@ -36960,6 +42486,17 @@
             "maxLength": 50,
             "type": "string"
           },
+          "content_approval_type_code": {
+            "pattern": "^([A-Z0-9_-]{1,20})?$",
+            "type": "string"
+          },
+          "content_approval_all": {
+            "type": "boolean"
+          },
+          "brand_approval_type_code": {
+            "pattern": "^([A-Z0-9_-]{1,20})?$",
+            "type": "string"
+          },
           "project_close_documents": {
             "type": "array",
             "items": {
@@ -38099,6 +43636,95 @@
           "note": {
             "type": "string",
             "maxLength": 2000
+          },
+          "sales_axis": {
+            "type": "string",
+            "enum": [
+              "getter",
+              "government",
+              "partner",
+              "keeper"
+            ],
+            "description": "CD-268 — แกนขายที่แคมเปญป้อน · ว่าง = ล้าง"
+          },
+          "receiving_org_unit_id": {
+            "type": "string",
+            "description": "CD-268 — ทีมที่รับ Lead ของแคมเปญ (id หน่วยงาน) · ว่าง = ล้าง",
+            "maxLength": 64
+          },
+          "target_leads": {
+            "type": "integer",
+            "nullable": true,
+            "description": "CD-268 — เป้าจำนวน Lead · null = ล้าง",
+            "maximum": 1000000,
+            "minimum": 0
+          },
+          "target_deals": {
+            "type": "integer",
+            "nullable": true,
+            "description": "CD-268 — เป้าดีลที่ปิดได้ · null = ล้าง",
+            "maximum": 1000000,
+            "minimum": 0
+          },
+          "target_sales": {
+            "type": "number",
+            "nullable": true,
+            "description": "CD-268 — เป้ายอดขาย (บาท) · null = ล้าง",
+            "maximum": 999999999999,
+            "minimum": 0
+          },
+          "form_enabled": {
+            "type": "boolean",
+            "description": "CD-269 — เปิดฟอร์มสาธารณะของแคมเปญ (/f/lead/<token>) · เปิดครั้งแรกระบบออก token ให้"
+          },
+          "form_intro": {
+            "type": "string",
+            "description": "CD-269 — ข้อความบนหัวฟอร์ม",
+            "maxLength": 2000
+          },
+          "ad_form_ids": {
+            "description": "CD-269 — id ฟอร์ม Lead Ads (Facebook/TikTok) ที่ส่งเข้าแคมเปญนี้",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 100
+            },
+            "maxItems": 20
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "campaign",
+              "event"
+            ],
+            "description": "CD-270 — อีเวนต์: ฟอร์มรับลงทะเบียน แล้วหลังงานแปลงผู้เข้าร่วมที่สนใจเป็น Lead"
+          },
+          "event_starts_at": {
+            "type": "string",
+            "example": "2026-10-20T02:00:00.000Z",
+            "format": "date-time"
+          },
+          "event_ends_at": {
+            "type": "string",
+            "example": "2026-10-20T08:00:00.000Z",
+            "format": "date-time"
+          },
+          "event_venue": {
+            "type": "string",
+            "example": "ห้อง Ballroom โรงแรม …",
+            "maxLength": 500
+          },
+          "event_online_url": {
+            "type": "string",
+            "description": "ลิงก์ออนไลน์ — แสดงเฉพาะผู้ที่ได้ที่นั่ง",
+            "maxLength": 500
+          },
+          "event_capacity": {
+            "type": "integer",
+            "nullable": true,
+            "description": "ที่นั่ง — เต็มแล้วเข้ารายชื่อสำรอง · null = ไม่จำกัด",
+            "maximum": 100000,
+            "minimum": 1
           }
         },
         "required": [
@@ -38112,6 +43738,95 @@
           "active": {
             "type": "boolean",
             "description": "false = ปิด (ผูก Lead ใหม่ไม่ได้)"
+          },
+          "sales_axis": {
+            "type": "string",
+            "enum": [
+              "getter",
+              "government",
+              "partner",
+              "keeper"
+            ],
+            "description": "CD-268 — แกนขายที่แคมเปญป้อน · ว่าง = ล้าง"
+          },
+          "receiving_org_unit_id": {
+            "type": "string",
+            "description": "CD-268 — ทีมที่รับ Lead ของแคมเปญ (id หน่วยงาน) · ว่าง = ล้าง",
+            "maxLength": 64
+          },
+          "target_leads": {
+            "type": "integer",
+            "nullable": true,
+            "description": "CD-268 — เป้าจำนวน Lead · null = ล้าง",
+            "maximum": 1000000,
+            "minimum": 0
+          },
+          "target_deals": {
+            "type": "integer",
+            "nullable": true,
+            "description": "CD-268 — เป้าดีลที่ปิดได้ · null = ล้าง",
+            "maximum": 1000000,
+            "minimum": 0
+          },
+          "target_sales": {
+            "type": "number",
+            "nullable": true,
+            "description": "CD-268 — เป้ายอดขาย (บาท) · null = ล้าง",
+            "maximum": 999999999999,
+            "minimum": 0
+          },
+          "form_enabled": {
+            "type": "boolean",
+            "description": "CD-269 — เปิดฟอร์มสาธารณะของแคมเปญ (/f/lead/<token>) · เปิดครั้งแรกระบบออก token ให้"
+          },
+          "form_intro": {
+            "type": "string",
+            "description": "CD-269 — ข้อความบนหัวฟอร์ม",
+            "maxLength": 2000
+          },
+          "ad_form_ids": {
+            "description": "CD-269 — id ฟอร์ม Lead Ads (Facebook/TikTok) ที่ส่งเข้าแคมเปญนี้",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 100
+            },
+            "maxItems": 20
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "campaign",
+              "event"
+            ],
+            "description": "CD-270 — อีเวนต์: ฟอร์มรับลงทะเบียน แล้วหลังงานแปลงผู้เข้าร่วมที่สนใจเป็น Lead"
+          },
+          "event_starts_at": {
+            "type": "string",
+            "example": "2026-10-20T02:00:00.000Z",
+            "format": "date-time"
+          },
+          "event_ends_at": {
+            "type": "string",
+            "example": "2026-10-20T08:00:00.000Z",
+            "format": "date-time"
+          },
+          "event_venue": {
+            "type": "string",
+            "example": "ห้อง Ballroom โรงแรม …",
+            "maxLength": 500
+          },
+          "event_online_url": {
+            "type": "string",
+            "description": "ลิงก์ออนไลน์ — แสดงเฉพาะผู้ที่ได้ที่นั่ง",
+            "maxLength": 500
+          },
+          "event_capacity": {
+            "type": "integer",
+            "nullable": true,
+            "description": "ที่นั่ง — เต็มแล้วเข้ารายชื่อสำรอง · null = ไม่จำกัด",
+            "maximum": 100000,
+            "minimum": 1
           },
           "name": {
             "maxLength": 255,
@@ -41990,6 +47705,403 @@
           "subject"
         ]
       },
+      "PortalArticleVoteDto": {
+        "type": "object",
+        "properties": {
+          "helpful": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "helpful"
+        ]
+      },
+      "KbGapAssignDto": {
+        "type": "object",
+        "properties": {
+          "assignee_id": {
+            "type": "string"
+          },
+          "due_on": {
+            "type": "string",
+            "example": "2026-10-20",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          }
+        },
+        "required": [
+          "assignee_id",
+          "due_on"
+        ]
+      },
+      "KbGapLinkDto": {
+        "type": "object",
+        "properties": {
+          "article_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "article_id"
+        ]
+      },
+      "KbGapDismissDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "KbDraftFromJobsDto": {
+        "type": "object",
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20
+          },
+          "title": {
+            "type": "string",
+            "description": "ชื่อบทความ (ว่าง = อาการของใบแรก)",
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "ids"
+        ]
+      },
+      "KbSkipJobsDto": {
+        "type": "object",
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 100
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "ids",
+          "reason"
+        ]
+      },
+      "KbArticleUseDto": {
+        "type": "object",
+        "properties": {
+          "article_id": {
+            "type": "string"
+          },
+          "used": {
+            "type": "boolean",
+            "description": "true = ใช้บทความนี้แก้, false = เอาออก"
+          }
+        },
+        "required": [
+          "article_id",
+          "used"
+        ]
+      },
+      "KbReviewDecisionDto": {
+        "type": "object",
+        "properties": {
+          "revision_id": {
+            "type": "string",
+            "description": "ฉบับปรับปรุง (ว่าง = ฉบับร่างแรก)"
+          },
+          "note": {
+            "type": "string",
+            "description": "หมายเหตุ (บังคับเมื่อตีกลับ)",
+            "maxLength": 1000
+          }
+        }
+      },
+      "SaveKbRevisionDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "example": "VPN เชื่อมต่อไม่ได้หลังเปลี่ยนรหัสผ่าน",
+            "maxLength": 200
+          },
+          "summary": {
+            "type": "object",
+            "maxLength": 500
+          },
+          "body": {
+            "type": "string",
+            "description": "Markdown",
+            "maxLength": 100000
+          },
+          "category_id": {
+            "type": "object",
+            "description": "หมวดกระบวนการ"
+          },
+          "tags": {
+            "description": "แท็กอาการ",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "maxItems": 20
+          },
+          "product_codes": {
+            "description": "รหัสสินค้า SAP",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "maxItems": 50
+          },
+          "product_groups": {
+            "description": "กลุ่มสินค้า SAP",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "maxItems": 50
+          },
+          "audience": {
+            "type": "string",
+            "enum": [
+              "internal",
+              "customers",
+              "selected"
+            ],
+            "description": "CD-261 ชั้นการเผยแพร่ (ค่าตั้งต้น internal)"
+          },
+          "customer_ids": {
+            "description": "ลูกค้า (เมื่อ audience = selected)",
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 50
+          },
+          "change_note": {
+            "type": "string",
+            "description": "แก้อะไร (บังคับก่อนส่งตรวจ)",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "body",
+          "title"
+        ]
+      },
+      "KbOwnerDto": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "maxLength": 60
+          }
+        },
+        "required": [
+          "user_id"
+        ]
+      },
+      "KbConfirmReviewDto": {
+        "type": "object",
+        "properties": {
+          "note": {
+            "type": "string",
+            "maxLength": 500
+          }
+        }
+      },
+      "KbWithdrawFromCustomersDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "KbMergeDto": {
+        "type": "object",
+        "properties": {
+          "into_id": {
+            "type": "string",
+            "description": "บทความหลักที่จะรวมเข้า"
+          }
+        },
+        "required": [
+          "into_id"
+        ]
+      },
+      "SaveKbArticleDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "example": "VPN เชื่อมต่อไม่ได้หลังเปลี่ยนรหัสผ่าน",
+            "maxLength": 200
+          },
+          "summary": {
+            "type": "object",
+            "maxLength": 500
+          },
+          "body": {
+            "type": "string",
+            "description": "Markdown",
+            "maxLength": 100000
+          },
+          "category_id": {
+            "type": "object",
+            "description": "หมวดกระบวนการ"
+          },
+          "tags": {
+            "description": "แท็กอาการ",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "maxItems": 20
+          },
+          "product_codes": {
+            "description": "รหัสสินค้า SAP",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "maxItems": 50
+          },
+          "product_groups": {
+            "description": "กลุ่มสินค้า SAP",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "maxItems": 50
+          },
+          "audience": {
+            "type": "string",
+            "enum": [
+              "internal",
+              "customers",
+              "selected"
+            ],
+            "description": "CD-261 ชั้นการเผยแพร่ (ค่าตั้งต้น internal)"
+          },
+          "customer_ids": {
+            "description": "ลูกค้า (เมื่อ audience = selected)",
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 50
+          }
+        },
+        "required": [
+          "body",
+          "title"
+        ]
+      },
+      "SaveKbCategoryDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "parent_id": {
+            "type": "object"
+          },
+          "sort_order": {
+            "type": "integer",
+            "maximum": 9999,
+            "minimum": 0
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "review_months": {
+            "type": "object",
+            "description": "CD-260 รอบทบทวนบทความ (เดือน) ว่าง = ตามหมวดแม่ / 12",
+            "maximum": 60,
+            "minimum": 1
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "ArchiveKbArticleDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "RateKbArticleDto": {
+        "type": "object",
+        "properties": {
+          "helpful": {
+            "type": "boolean"
+          },
+          "comment": {
+            "type": "string",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "helpful"
+        ]
+      },
+      "CareVerifyDto": {
+        "type": "object",
+        "properties": {
+          "contact_id": {
+            "type": "string",
+            "description": "ผู้ติดต่อของลูกค้าที่ยืนยันว่าเป็นผู้ส่ง"
+          }
+        },
+        "required": [
+          "contact_id"
+        ]
+      },
+      "CareCloseDto": {
+        "type": "object",
+        "properties": {
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "resolved",
+              "no_reply",
+              "spam"
+            ]
+          }
+        },
+        "required": [
+          "outcome"
+        ]
+      },
       "SendHandoverDto": {
         "type": "object",
         "properties": {
@@ -42450,11 +48562,31 @@
           "unit_cost": {
             "type": "object",
             "nullable": true
+          },
+          "id": {
+            "maxLength": 64,
+            "type": "string"
+          },
+          "channel": {
+            "maxLength": 100,
+            "type": "string",
+            "minLength": 1
+          },
+          "planned": {
+            "maximum": 999999999999,
+            "minimum": 0,
+            "type": "number"
+          },
+          "note": {
+            "maxLength": 500,
+            "type": "string"
           }
         },
         "required": [
           "category",
+          "channel",
           "description",
+          "planned",
           "quantity"
         ]
       },
@@ -43702,6 +49834,682 @@
             "type": "boolean"
           }
         }
+      },
+      "CreateBrandAssetDto": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "type": "string",
+            "enum": [
+              "logo",
+              "proposal_template",
+              "presentation",
+              "guideline",
+              "graphic",
+              "other"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "example": "โลโก้บริษัท (แนวนอน)",
+            "maxLength": 255,
+            "minLength": 1
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "tags": {
+            "type": "string",
+            "description": "คั่นด้วยจุลภาค",
+            "maxLength": 500
+          },
+          "note": {
+            "type": "string",
+            "description": "หมายเหตุของฉบับนี้",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "category",
+          "name"
+        ]
+      },
+      "BrandVersionNoteDto": {
+        "type": "object",
+        "properties": {
+          "note": {
+            "type": "string",
+            "maxLength": 1000
+          }
+        }
+      },
+      "UpdateBrandAssetDto": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "type": "string",
+            "enum": [
+              "logo",
+              "proposal_template",
+              "presentation",
+              "guideline",
+              "graphic",
+              "other"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 50
+            },
+            "maxItems": 20
+          }
+        }
+      },
+      "RetireBrandAssetDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "example": "เปลี่ยนโลโก้ใหม่แล้ว",
+            "maxLength": 500,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "WithdrawContentDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "example": "ขอแก้ราคาในโพสต์",
+            "maxLength": 500
+          }
+        }
+      },
+      "SaveContentDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "example": "โพสต์เปิดตัวสัมมนา Smart Building",
+            "maxLength": 255,
+            "minLength": 1
+          },
+          "channel": {
+            "type": "string",
+            "enum": [
+              "line_oa",
+              "facebook",
+              "tiktok",
+              "instagram",
+              "website",
+              "email"
+            ]
+          },
+          "planned_at": {
+            "type": "string",
+            "example": "2026-10-10T03:00:00.000Z",
+            "format": "date-time"
+          },
+          "caption": {
+            "type": "string",
+            "description": "ข้อความโพสต์",
+            "maxLength": 10000
+          },
+          "owner_user_id": {
+            "type": "string",
+            "description": "ผู้รับผิดชอบ · ไม่ส่ง = ผู้สร้าง",
+            "maxLength": 64
+          },
+          "mentions_customer": {
+            "type": "boolean",
+            "description": "CD-272 — พาดพิงลูกค้า"
+          },
+          "mentions_price": {
+            "type": "boolean",
+            "description": "CD-272 — พาดพิงราคา"
+          },
+          "mentions_partner": {
+            "type": "boolean",
+            "description": "CD-272 — พาดพิงคู่ค้า"
+          },
+          "campaign_id": {
+            "type": "string",
+            "description": "แคมเปญ · ว่าง = ไม่ผูก",
+            "maxLength": 64
+          }
+        },
+        "required": [
+          "channel",
+          "planned_at",
+          "title"
+        ]
+      },
+      "MoveContentDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "pending_approval",
+              "ready",
+              "published",
+              "cancelled"
+            ]
+          },
+          "published_url": {
+            "type": "string",
+            "description": "ลิงก์โพสต์จริง — บังคับเมื่อ published",
+            "maxLength": 1000
+          },
+          "reason": {
+            "type": "string",
+            "description": "เหตุผล — บังคับเมื่อ cancelled",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "CopyContentDto": {
+        "type": "object",
+        "properties": {
+          "channel": {
+            "type": "string",
+            "enum": [
+              "line_oa",
+              "facebook",
+              "tiktok",
+              "instagram",
+              "website",
+              "email"
+            ]
+          }
+        },
+        "required": [
+          "channel"
+        ]
+      },
+      "WalkInDto": {
+        "type": "object",
+        "properties": {
+          "contact_name": {
+            "type": "string",
+            "example": "สมชาย ใจดี",
+            "maxLength": 255,
+            "minLength": 1
+          },
+          "company": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "position": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "phone": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "email": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "need": {
+            "type": "string",
+            "maxLength": 1500
+          }
+        },
+        "required": [
+          "contact_name"
+        ]
+      },
+      "ConvertRegistrationsDto": {
+        "type": "object",
+        "properties": {
+          "registration_ids": {
+            "description": "ว่าง = ทุกคนที่มาและสนใจและยังไม่เป็น Lead",
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 500
+          }
+        }
+      },
+      "CheckInDto": {
+        "type": "object",
+        "properties": {
+          "attended": {
+            "type": "boolean",
+            "description": "true = มาแล้ว · false = ยกเลิกการติ๊ก"
+          }
+        },
+        "required": [
+          "attended"
+        ]
+      },
+      "RegistrationStatusDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "registered",
+              "cancelled"
+            ],
+            "description": "registered = ให้ที่นั่ง (จากรายชื่อสำรอง) · cancelled = ยกเลิก"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "FollowRegistrationDto": {
+        "type": "object",
+        "properties": {
+          "interest": {
+            "type": "string",
+            "enum": [
+              "interested",
+              "later",
+              "not_interested",
+              ""
+            ],
+            "description": "ความสนใจหลังงาน · ว่าง = ล้าง"
+          },
+          "follow_note": {
+            "type": "string",
+            "maxLength": 1500
+          }
+        }
+      },
+      "SaveBudgetLinesDto": {
+        "type": "object",
+        "properties": {
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BudgetLineDto"
+            },
+            "maxItems": 50
+          }
+        },
+        "required": [
+          "lines"
+        ]
+      },
+      "AddCampaignSpendDto": {
+        "type": "object",
+        "properties": {
+          "spent_on": {
+            "type": "string",
+            "example": "2026-10-05",
+            "format": "date-time"
+          },
+          "amount": {
+            "type": "number",
+            "example": 12500,
+            "maximum": 999999999999,
+            "minimum": 0.01
+          },
+          "budget_line_id": {
+            "type": "string",
+            "description": "บรรทัดงบที่ใช้ · ว่าง = ไม่ระบุช่องทาง",
+            "maxLength": 64
+          },
+          "vendor": {
+            "type": "string",
+            "example": "Meta Platforms",
+            "maxLength": 255
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "amount",
+          "spent_on"
+        ]
+      },
+      "VoidCampaignSpendDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "example": "บันทึกซ้ำ",
+            "maxLength": 500,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "ScreenProspectsDto": {
+        "type": "object",
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 1000
+          }
+        }
+      },
+      "SendProspectsDto": {
+        "type": "object",
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 100
+          }
+        },
+        "required": [
+          "ids"
+        ]
+      },
+      "SmartCriteriaDto": {
+        "type": "object",
+        "properties": {
+          "keywords": {
+            "example": [
+              "โรงงาน",
+              "คลังสินค้า"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "industries": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "provinces": {
+            "example": [
+              "ชลบุรี",
+              "ระยอง"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "minCapital": {
+            "type": "number",
+            "example": 5000000,
+            "description": "ทุนจดทะเบียนขั้นต่ำ (บาท)"
+          },
+          "maxResults": {
+            "type": "number",
+            "example": 20,
+            "description": "จำนวนสูงสุดต่อคำค้นต่อรอบ"
+          }
+        }
+      },
+      "SaveSmartSourceDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "DBD-EAST",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$"
+          },
+          "name": {
+            "type": "string",
+            "example": "DBD — โรงงานภาคตะวันออก",
+            "maxLength": 200,
+            "minLength": 1
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "dbd",
+              "web",
+              "social",
+              "push",
+              "file"
+            ]
+          },
+          "sales_axis": {
+            "type": "string",
+            "enum": [
+              "getter",
+              "government",
+              "partner",
+              "keeper"
+            ],
+            "nullable": true
+          },
+          "criteria": {
+            "$ref": "#/components/schemas/SmartCriteriaDto"
+          },
+          "interval_hours": {
+            "type": "object",
+            "nullable": true,
+            "example": 24,
+            "description": "กวาดทุกกี่ชั่วโมง (เฉพาะ dbd/web/social) · ว่าง = กดเองเท่านั้น",
+            "maximum": 2160,
+            "minimum": 1
+          },
+          "active": {
+            "type": "boolean",
+            "default": true
+          }
+        },
+        "required": [
+          "code",
+          "kind",
+          "name"
+        ]
+      },
+      "FoundProspectDto": {
+        "type": "object",
+        "properties": {
+          "external_ref": {
+            "type": "string",
+            "description": "รหัสของรายการที่แหล่ง (เลขทะเบียน DBD, URL หน้า …)",
+            "maxLength": 200
+          },
+          "name": {
+            "type": "string",
+            "example": "บริษัท ตัวอย่าง จำกัด",
+            "maxLength": 200
+          },
+          "tax_id": {
+            "type": "string",
+            "example": "0105551234567",
+            "maxLength": 30
+          },
+          "phone": {
+            "type": "string",
+            "maxLength": 30
+          },
+          "email": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "website": {
+            "type": "string",
+            "maxLength": 300
+          },
+          "industry": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "province": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "registered_capital": {
+            "type": "object",
+            "example": 5000000
+          },
+          "sales_axis": {
+            "type": "string",
+            "enum": [
+              "getter",
+              "government",
+              "partner",
+              "keeper"
+            ]
+          },
+          "evidence": {
+            "type": "object",
+            "description": "หลักฐานว่าเห็นที่ไหน: url, snippet, fetched_at และข้อมูลดิบ"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "ImportProspectsDto": {
+        "type": "object",
+        "properties": {
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FoundProspectDto"
+            },
+            "maxItems": 1000
+          }
+        },
+        "required": [
+          "rows"
+        ]
+      },
+      "DiscardProspectDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "example": "ไม่ใช่กลุ่มเป้าหมาย",
+            "maxLength": 500,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "UpdateLlmTaskDto": {
+        "type": "object",
+        "properties": {
+          "model": {
+            "type": "string",
+            "description": "ชื่อโมเดลที่ Gateway รู้จัก · ว่าง = ใช้ค่าตั้งต้น",
+            "maxLength": 200
+          },
+          "monthly_token_quota": {
+            "type": "integer",
+            "nullable": true,
+            "description": "token ต่อเดือน · null = ไม่จำกัด",
+            "maximum": 2000000000,
+            "minimum": 0
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        }
+      },
+      "LlmPriceDto": {
+        "type": "object",
+        "properties": {
+          "model": {
+            "type": "string",
+            "example": "gpt-4o-mini",
+            "maxLength": 200,
+            "minLength": 1
+          },
+          "input_per_1k": {
+            "type": "number",
+            "example": 0.006,
+            "description": "บาทต่อ 1,000 token ขาเข้า",
+            "maximum": 100000,
+            "minimum": 0
+          },
+          "output_per_1k": {
+            "type": "number",
+            "example": 0.024,
+            "description": "บาทต่อ 1,000 token ขาออก",
+            "maximum": 100000,
+            "minimum": 0
+          }
+        },
+        "required": [
+          "input_per_1k",
+          "model",
+          "output_per_1k"
+        ]
+      },
+      "SaveLlmPricesDto": {
+        "type": "object",
+        "properties": {
+          "prices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LlmPriceDto"
+            },
+            "maxItems": 100
+          }
+        },
+        "required": [
+          "prices"
+        ]
+      },
+      "LlmTestDto": {
+        "type": "object",
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "example": "สรุปสั้น ๆ ว่าระบบ CTD คืออะไร",
+            "maxLength": 2000,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "prompt"
+        ]
+      },
+      "SaveAiAuditPolicyDto": {
+        "type": "object",
+        "properties": {
+          "retention_days": {
+            "type": "integer",
+            "example": 365,
+            "minimum": 30,
+            "maximum": 3650,
+            "description": "เก็บบันทึกกี่วัน — เก่ากว่านี้ระบบลบทิ้งวันละครั้ง"
+          }
+        },
+        "required": [
+          "retention_days"
+        ]
       },
       "SaveEsignAuthorityDto": {
         "type": "object",

@@ -22,6 +22,16 @@ import { CrmModule } from './crm/crm.module';
 import { ApprovalModule } from './approval/approval.module';
 import { DisbursementModule } from './disbursement/disbursement.module';
 import { McpModule } from './mcp/mcp.module';
+import { PresalesModule } from './presales/presales.module';
+import { LegalModule } from './legal/legal.module';
+import { PmModule } from './pm/pm.module';
+import { DeliveryModule } from './delivery/delivery.module';
+import { SupportApiModule } from './support/support.module';
+import { FlowModule } from './flow/flow.module';
+import { KbApiModule } from './kb/kb.module';
+import { CareApiModule } from './care/care.module';
+import { AssistantModule } from './assistant/assistant.module';
+import { SmartApiModule } from './smart/smart.module';
 import configs from './configs';
 
 /**
@@ -64,6 +74,19 @@ import configs from './configs';
     CrmModule,
     ApprovalModule,
     DisbursementModule,
+    // After the deal (6 Oct 2026) — docs/EXTERNAL_API_GUIDE.md walks them in order.
+    PresalesModule,
+    LegalModule,
+    PmModule,
+    DeliveryModule,
+    SupportApiModule,
+    FlowModule,
+    KbApiModule,
+    CareApiModule,
+    // CD-276 — the personal assistant's questions
+    AssistantModule,
+    // CD-289 — a vendor pushes swept leads into AI SMART
+    SmartApiModule,
     McpModule,
   ],
   providers: [

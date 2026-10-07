@@ -69,11 +69,63 @@ export default () => ({
   slaSweepIntervalMs: 0,
   /** CD-91 — BiModule is not imported here today; zero keeps it so if it ever is. */
   martRefreshIntervalMs: 0,
-  /** CD-241 — SupportModule is not imported here; zero keeps it so if it ever is. */
+  /** CD-271 — the content calendar's reminders run on core-service only. */
+  macom: { contentSweepIntervalMs: 0 },
+  /** CD-289 — sweeps run in core-service only. */
+  smart: { connectorMode: 'off', sweepIntervalMs: 0 },
+  /** CD-241 — SupportModule is imported since 6 Oct 2026 (`support/*`); its sweeps stay off. */
   service: {
     onCallSweepIntervalMs: 0,
     pmSweepIntervalMs: 0,
     claimSweepIntervalMs: 0,
+  },
+  /**
+   * The post-deal modules (6 Oct 2026) import PM, Delivery, HR and e-sign's
+   * domain halves, and with them their sweeps. Same rule as above: zero here,
+   * the clocks are core-service's.
+   */
+  pm: { statusReportIntervalMs: 0, costSweepIntervalMs: 0 },
+  delivery: {
+    readinessIntervalMs: 0,
+    retentionIntervalMs: 0,
+    handoverIntervalMs: 0,
+    receivableIntervalMs: 0,
+  },
+  hr: { mandayVarianceIntervalMs: 0 },
+  esign: { sweepIntervalMs: 0 },
+  // CD-262/263 sweeps and CD-265's text purge run in core-service only
+  kb: {
+    reviewIntervalMs: 0,
+    ingestIntervalMs: 0,
+    aiPurgeIntervalMs: 0,
+    aiRetentionDays: Number(process.env.KB_AI_RETENTION_DAYS ?? 180),
+    // CD-267 — articles are embedded by core-service; AI search here reads them
+    embedIntervalMs: 0,
+    semanticMinSimilarity: Number(
+      process.env.KB_SEMANTIC_MIN_SIMILARITY ?? 0.35,
+    ),
+  },
+  /** CD-275 — the LLM Gateway, for CD-267's AI search by meaning. */
+  llm: {
+    mode: process.env.LLM_MODE ?? 'mock',
+    defaultChatModel: process.env.LLM_DEFAULT_CHAT_MODEL ?? 'default-chat',
+    defaultEmbedModel: process.env.LLM_DEFAULT_EMBED_MODEL ?? 'default-embed',
+    gateway: {
+      url: process.env.LLM_GATEWAY_URL,
+      apiKey: process.env.LLM_GATEWAY_API_KEY,
+      timeoutMs: Number(process.env.LLM_GATEWAY_TIMEOUT_MS ?? 60000),
+    },
+  },
+  notificationDigestIntervalMs: 0,
+  /** CD-280 — idle-close and text clearing run in core-service only. */
+  care: {
+    sweepIntervalMs: 0,
+    idleHours: Number(process.env.CARE_IDLE_HOURS ?? 24),
+    retentionDays: Number(process.env.CARE_RETENTION_DAYS ?? 180),
+    /** CD-281 — AI CARE answers from the knowledge base itself; off = the connector's own AI does. */
+    autoReply: (process.env.CARE_AUTO_REPLY ?? 'on') !== 'off',
+    /** CD-281 — the web app, for Customer Portal links to the articles cited. */
+    publicWebUrl: process.env.PUBLIC_WEB_URL,
   },
   /** CD-90 — likewise: the lake is fed by core-service only. */
   lake: { databaseUrl: '', extractIntervalMs: 0, sapIntervalMs: 0 },
@@ -88,6 +140,11 @@ export default () => ({
    * CD-51 — Microsoft Teams notifications (a bot's 1:1 chat per person).
    * off (default) = no Teams channel · mock = log only · botframework = real.
    */
+  /**
+   * CD-278 — the web app's address, for the source link on every MCP answer
+   * (`<PUBLIC_WEB_URL>/pages/opportunities/<id>`). Unset = paths only.
+   */
+  publicWebUrl: process.env.PUBLIC_WEB_URL,
   teams: {
     mode: process.env.TEAMS_MODE ?? 'off',
     bot: {

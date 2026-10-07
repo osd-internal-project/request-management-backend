@@ -32,9 +32,14 @@ import { PmHttpModule } from './pm/pm-http.module';
 import { PricingHttpModule } from './pricing/pricing-http.module';
 import { HrHttpModule } from './hr/hr-http.module';
 import { SupportHttpModule } from './support/support-http.module';
+import { CareHttpModule } from './care/care-http.module';
 import { DeliveryHttpModule } from './delivery/delivery-http.module';
 import { DisbursementHttpModule } from './disbursement/disbursement-http.module';
 import { CostCentersHttpModule } from './cost-centers/cost-centers-http.module';
+import { KbModule } from './kb/kb.module';
+import { MacomHttpModule } from './macom/macom-http.module';
+import { SmartHttpModule } from './smart/smart-http.module';
+import { LlmHttpModule } from './llm/llm-http.module';
 import { SensitiveReadAuditRecorder } from './policy/sensitive-read.recorder';
 import configs from './configs';
 
@@ -73,11 +78,21 @@ import configs from './configs';
     HrHttpModule,
     // CD-21 Service & Support
     SupportHttpModule,
+    // CD-23 AI CARE
+    CareHttpModule,
     // CD-20 Delivery
     DeliveryHttpModule,
     // การเบิก — advances and petty cash (docs/disbursement.md)
     DisbursementHttpModule,
     CostCentersHttpModule,
+    // CD-22 KBMS
+    KbModule,
+    // CD-15 MACOM
+    MacomHttpModule,
+    // CD-16 AI SMART
+    SmartHttpModule,
+    // CD-24 — the LLM Gateway
+    LlmHttpModule,
     // CD-18 PM — projects opened from signed contracts
     PmHttpModule,
     // CD-14 — the central signing service (screens + the public signing link)

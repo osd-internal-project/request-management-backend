@@ -74,6 +74,8 @@ const SOURCES: readonly Source[] = [
   { file: 'external-request.json' },
   { file: 'external-crm.json', only: CRM_IN_CHAT },
   { file: 'external-disbursement.json', only: DISBURSEMENT_IN_CHAT },
+  // CD-276 — every assistant route is a chat question by design
+  { file: 'external-assistant.json' },
 ];
 
 interface JsonSchema {

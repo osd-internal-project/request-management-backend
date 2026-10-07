@@ -69,6 +69,13 @@ export const PERMISSIONS = {
     'crm.target.manage',
     /** CD-71: สร้าง/แก้/ปิดแคมเปญการตลาด — ดูผลแคมเปญใช้ `crm.sales.read`. */
     'crm.campaign.manage',
+    /**
+     * CD-16 AI SMART — swept outside leads before they reach CRM: the sources
+     * and their sweeps, and the raw list (CD-289). Apart from `crm.sales.*` so
+     * a sales rep's screens never carry unscreened data.
+     */
+    'smart.prospect.read',
+    'smart.prospect.manage',
   ],
   /**
    * CD-11 Pre-Sales. `presales.solution.read` sees every Solution in the
@@ -150,8 +157,16 @@ export const PERMISSIONS = {
    * (CD-236 — what each customer has, where, which serial and version);
    * `service.asset.manage` adds and corrects it, and imports the base that
    * predates the system.
+   *
+   * CD-280 (CD-23 AI CARE) — `service.care.manage` reads the conversations
+   * AI CARE holds with customers on every channel and confirms who a sender
+   * is (linking the channel identity to a customer contact).
    */
-  service: ['service.asset.read', 'service.asset.manage'],
+  service: [
+    'service.asset.read',
+    'service.asset.manage',
+    'service.care.manage',
+  ],
   /**
    * CD-20 Delivery — the delivery team's plans of what goes where and when
    * (CD-250). A project's manager and `pm.project.manage` change their own
@@ -166,6 +181,12 @@ export const PERMISSIONS = {
      */
     'delivery.receivable.read',
   ],
+  /**
+   * CD-22 KBMS (CD-259) — every member of staff reads published articles,
+   * rates them and writes drafts; `kb.article.manage` (knowledge owners)
+   * edits anyone's, publishes, archives and keeps the categories.
+   */
+  kb: ['kb.article.manage'],
   admin: [
     'admin.role.manage',
     'admin.org.manage',
@@ -218,6 +239,18 @@ export const PERMISSIONS = {
     'admin.notification.manage',
     /** Cost Center master — the list forms pick from (`x-options-source: cost_centers`). */
     'admin.cost-center.manage',
+    /**
+     * CD-275 — the LLM Gateway: which model each AI task uses, token quotas,
+     * model prices for the cost estimate, and the usage log. Apart from
+     * `admin.integration.manage`: this spends money per call.
+     */
+    'admin.llm.manage',
+    /**
+     * CD-279 — reading the AI audit log (every MCP tool call and model call:
+     * who asked what, which rows answered) and setting how long it is kept.
+     * Apart from `admin.llm.manage` so reviewing is not the configurer's job.
+     */
+    'admin.ai.audit',
   ],
   /**
    * AUTH-06: สิทธิ์ของบัญชีบริการ — ออกให้กุญแจ API ที่หน้าจอ API key ไม่ใช่
@@ -286,6 +319,52 @@ export const PERMISSIONS = {
      * กุญแจที่ถือตัวนี้จึงยังทำอะไรไม่ได้ ถ้าคนที่มันทำแทนไม่ใช่ผู้ดูแล CRM.
      */
     'integration.crm.admin.manage',
+    /**
+     * สายงานหลังดีลที่เปิดให้ระบบภายนอกเรียก (6 ต.ค. 2569) — ติดตามดีลทั้งสาย
+     * (`flow`), Solution ของ Pre-Sales, คลังสัญญา, โครงการ, การส่งมอบ และงาน
+     * บริการ. เป็นประตูของเครื่องอย่างเดียวเหมือนชุด CRM: คนใน `X-Acting-User`
+     * ยังถูกตรวจด้วยสิทธิ์ตัวเดิมของหน้าจอ (`presales.*`, `legal.*`, `pm.*`,
+     * `service.*`) ที่ `@ActingPermissions`.
+     *
+     * อ่านแยกจากเขียน และเขียนเปิดเฉพาะจุดเริ่มของแต่ละช่วงที่ระบบอื่นมีเหตุ
+     * ต้องสั่ง — เปิดโครงการจากสัญญาที่ลงนามแล้ว และเปิดใบสั่งงานบริการ.
+     * การออกแบบ Solution ร่างสัญญา และวางแผนโครงการยังเป็นงานบนหน้าจอ.
+     */
+    'integration.flow.read',
+    'integration.presales.read',
+    'integration.legal.read',
+    'integration.pm.read',
+    'integration.pm.manage',
+    'integration.delivery.read',
+    'integration.support.read',
+    'integration.support.manage',
+    /**
+     * CD-265 (CD-22 KBMS) — an AI channel that talks to customers (AI CARE,
+     * AI SMART) reads published customer-facing articles and reports which
+     * it answered with. Robot-only: no acting person, never internal articles.
+     */
+    'integration.kb.read',
+    /**
+     * CD-280 (CD-23 AI CARE) — a channel connector or AI CARE posts what a
+     * customer wrote and what was answered, and reads the conversation with
+     * the customer it is (assets and coverage only once the sender is
+     * verified). Robot-only.
+     */
+    'integration.care.manage',
+    /**
+     * CD-276 (CD-24) — the personal assistant (LibreChat over MCP) asks the
+     * questions people ask in a chat: deals closing or gone quiet, my
+     * approvals, projects in trouble, open service jobs, articles, my figures.
+     * Read-only; each route still asks the person for the screen's own
+     * permission through `@ActingPermissions`.
+     */
+    'integration.assistant.read',
+    /**
+     * CD-289 — a licensed crawler or data vendor pushes what it found into
+     * AI SMART's staging list (`smart/prospects/ingest`). Robot-only: there is
+     * no acting person, and nothing reaches CRM until screening.
+     */
+    'integration.smart.ingest',
   ],
 } as const;
 

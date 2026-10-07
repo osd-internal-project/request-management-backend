@@ -1,0 +1,86 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/v1/flow/opportunities/{id}": {
+      "get": {
+        "description": "`stage` = ขั้นที่ไปถึงไกลที่สุด · `next_steps` = endpoint ที่ใช้เดินต่อ · ส่วนที่ผู้ใช้ไม่มีสิทธิ์เห็นตอบ `visible: false` พร้อมเหตุผล แทนการล้มทั้งคำตอบ · ดีลที่มองไม่เห็นตอบ 404",
+        "operationId": "ExternalFlowController_track",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ติดตามดีลทั้งสาย — ดีล → Pre-Sales → ใบเสนอราคา → ใบสั่งขาย → สัญญา → โครงการ",
+        "tags": [
+          "flow"
+        ],
+        "x-permission": [
+          "integration.flow.read"
+        ],
+        "x-acting-permission": [
+          "crm.sales.read"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "Request Form — External API · Flow",
+    "description": "ติดตามดีลหนึ่งใบทั้งสาย — ดีล → Pre-Sales → ใบเสนอราคา → ใบสั่งขาย → สัญญา → โครงการ\n\n**ทุก route มีสองประตู** และ Swagger ของแต่ละ route บอกไว้ทั้งคู่: bearer ต้องถือสิทธิ์ `integration.*` ของ route นั้น (ประตูของเครื่อง) และคนที่ระบุใน header `X-Acting-User` ต้องถือสิทธิ์ของงานนั้นเอง (ประตูของคน) — ระบบทำงานในนามคนนั้น timeline จึงบันทึกชื่อคนจริง ไม่ใช่ชื่อบัญชีบริการ\n\n**bearer รับได้สองแบบ**\n\n1. access token ของ service account จาก Keycloak (client_credentials) อายุสั้น ต้องขอใหม่เมื่อหมดอายุ\n2. **API key** ที่ขึ้นต้นด้วย `rfk_` — ไม่มีวันหมดอายุ ไม่ต้องต่ออายุ ระบบแลกเป็น token ให้เองตอนใช้ ออกด้วย `yarn apikey:issue` และเพิกถอนด้วย `yarn apikey:revoke` (มีผลทันที)\n\nทั้งสองแบบส่งเหมือนกัน: `Authorization: Bearer <ค่า>` และได้สิทธิ์ชุดเดียวกัน — key ตัดสินว่า *เข้าได้ไหม* token บอกว่า *ทำอะไรได้*\n\n`stage` คือขั้นที่ไปถึง**ไกลที่สุด** อ่านจากสิ่งที่มีอยู่ ไม่ได้เก็บไว้ · `next_steps` บอก endpoint ที่ใช้เดินต่อ (เป็นคำแนะนำ — route ปลายทางยังตัดสินเอง)\n\nแต่ละส่วนอ่านผ่าน service เดียวกับหน้าจอในนามคนใน `X-Acting-User` ส่วนที่คนนั้นไม่มีสิทธิ์เห็นตอบ `{ visible: false, reason }` แทนการล้มทั้งคำตอบ ดีลที่มองไม่เห็นตอบ 404",
+    "version": "1.0"
+  },
+  "tags": [
+    {
+      "name": "flow",
+      "description": "ติดตามดีลทั้งสาย"
+    }
+  ],
+  "servers": [
+    {
+      "url": "http://192.168.31.52:3503",
+      "description": "เครื่องภายใน OSD"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
+    "schemas": {}
+  }
+}

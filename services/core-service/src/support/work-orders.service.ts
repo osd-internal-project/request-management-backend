@@ -170,7 +170,22 @@ export class WorkOrdersService implements OnModuleInit {
       },
       actor,
     )) as { id: string };
-    await this.requests.submit(created.id, actor, authorization);
+    try {
+      await this.requests.submit(created.id, actor, authorization);
+    } catch (error) {
+      // a case that could not go out is withdrawn, not left as a stray draft
+      // under whoever opened it (the portal user retries pile them up)
+      await this.requests
+        .cancel(
+          created.id,
+          {
+            reason: `ส่งเคสไม่สำเร็จ: ${error instanceof Error ? error.message : 'ไม่ทราบสาเหตุ'}`,
+          },
+          actor,
+        )
+        .catch(() => undefined);
+      throw error;
+    }
     const id = await this.make(
       actor,
       created.id,

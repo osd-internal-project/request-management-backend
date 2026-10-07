@@ -1,0 +1,341 @@
+import { Type } from 'class-transformer';
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsBoolean,
+  Matches,
+  IsDateString,
+  IsIn,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+  ValidateNested,
+} from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { CONTENT_CHANNELS, CONTENT_STATUSES } from './content-rules';
+import { BRAND_CATEGORIES } from './brand-rules';
+
+// --- CD-268 แผนงบแคมเปญ ------------------------------------------------------
+
+export class BudgetLineDto {
+  @ApiPropertyOptional({
+    description: 'มี = แก้บรรทัดเดิม · ไม่มี = บรรทัดใหม่',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  id?: string;
+
+  @ApiProperty({ example: 'Facebook Ads' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(100)
+  channel!: string;
+
+  @ApiProperty({ example: 80000, description: 'งบที่วางไว้ (บาท)' })
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(999_999_999_999)
+  planned!: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  note?: string;
+}
+
+/** The whole set of lines — lines left out are removed. */
+export class SaveBudgetLinesDto {
+  @ApiProperty({ type: [BudgetLineDto] })
+  @IsArray()
+  @ArrayMaxSize(50)
+  @ValidateNested({ each: true })
+  @Type(() => BudgetLineDto)
+  lines!: BudgetLineDto[];
+}
+
+export class AddCampaignSpendDto {
+  @ApiProperty({ example: '2026-10-05' })
+  @IsDateString()
+  spent_on!: string;
+
+  @ApiProperty({ example: 12500 })
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0.01)
+  @Max(999_999_999_999)
+  amount!: number;
+
+  @ApiPropertyOptional({
+    description: 'บรรทัดงบที่ใช้ · ว่าง = ไม่ระบุช่องทาง',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  budget_line_id?: string;
+
+  @ApiPropertyOptional({ example: 'Meta Platforms' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  vendor?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  note?: string;
+}
+
+export class VoidCampaignSpendDto {
+  @ApiProperty({ example: 'บันทึกซ้ำ' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(500)
+  reason!: string;
+}
+
+// --- CD-271 ปฏิทินคอนเทนต์ -----------------------------------------------------
+
+export class ListContentQueryDto {
+  @ApiPropertyOptional({
+    example: '2026-10-01',
+    description: 'ตั้งแต่ (วันที่วางแผน)',
+  })
+  @IsOptional()
+  @IsDateString()
+  from?: string;
+
+  @ApiPropertyOptional({
+    example: '2026-10-31',
+    description: 'ถึง (รวมวันนี้)',
+  })
+  @IsOptional()
+  @IsDateString()
+  to?: string;
+
+  @ApiPropertyOptional({ enum: CONTENT_CHANNELS })
+  @IsOptional()
+  @IsIn(CONTENT_CHANNELS)
+  channel?: string;
+
+  @ApiPropertyOptional({ enum: CONTENT_STATUSES })
+  @IsOptional()
+  @IsIn(CONTENT_STATUSES)
+  status?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  campaign_id?: string;
+}
+
+export class SaveContentDto {
+  @ApiProperty({ example: 'โพสต์เปิดตัวสัมมนา Smart Building' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  title!: string;
+
+  @ApiProperty({ enum: CONTENT_CHANNELS })
+  @IsIn(CONTENT_CHANNELS)
+  channel!: string;
+
+  @ApiProperty({ example: '2026-10-10T03:00:00.000Z' })
+  @IsDateString()
+  planned_at!: string;
+
+  @ApiPropertyOptional({ description: 'ข้อความโพสต์' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(10000)
+  caption?: string;
+
+  @ApiPropertyOptional({ description: 'ผู้รับผิดชอบ · ไม่ส่ง = ผู้สร้าง' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  owner_user_id?: string;
+
+  @ApiPropertyOptional({ description: 'CD-272 — พาดพิงลูกค้า' })
+  @IsOptional()
+  @IsBoolean()
+  mentions_customer?: boolean;
+
+  @ApiPropertyOptional({ description: 'CD-272 — พาดพิงราคา' })
+  @IsOptional()
+  @IsBoolean()
+  mentions_price?: boolean;
+
+  @ApiPropertyOptional({ description: 'CD-272 — พาดพิงคู่ค้า' })
+  @IsOptional()
+  @IsBoolean()
+  mentions_partner?: boolean;
+
+  @ApiPropertyOptional({ description: 'แคมเปญ · ว่าง = ไม่ผูก' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  campaign_id?: string;
+}
+
+export class MoveContentDto {
+  @ApiProperty({ enum: CONTENT_STATUSES })
+  @IsIn(CONTENT_STATUSES)
+  status!: string;
+
+  @ApiPropertyOptional({
+    description: 'ลิงก์โพสต์จริง — บังคับเมื่อ published',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  published_url?: string;
+
+  @ApiPropertyOptional({ description: 'เหตุผล — บังคับเมื่อ cancelled' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  reason?: string;
+}
+
+export class CopyContentDto {
+  @ApiProperty({ enum: CONTENT_CHANNELS })
+  @IsIn(CONTENT_CHANNELS)
+  channel!: string;
+}
+
+export class WithdrawContentDto {
+  @ApiPropertyOptional({ example: 'ขอแก้ราคาในโพสต์' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  reason?: string;
+}
+
+// --- CD-273 คลังแบรนด์และเทมเพลต ------------------------------------------------
+
+export class ListBrandAssetsQueryDto {
+  @ApiPropertyOptional({ enum: BRAND_CATEGORIES })
+  @IsOptional()
+  @IsIn(BRAND_CATEGORIES)
+  category?: string;
+
+  @ApiPropertyOptional({ description: 'ค้นชื่อ คำอธิบาย แท็ก' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  q?: string;
+
+  @ApiPropertyOptional({ description: '`true` = รวมที่เลิกใช้ (MACOM)' })
+  @IsOptional()
+  @IsIn(['true'])
+  include_retired?: string;
+}
+
+/** Sent as multipart fields with the first file. */
+export class CreateBrandAssetDto {
+  @ApiProperty({ enum: BRAND_CATEGORIES })
+  @IsIn(BRAND_CATEGORIES)
+  category!: string;
+
+  @ApiProperty({ example: 'โลโก้บริษัท (แนวนอน)' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  name!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  description?: string;
+
+  @ApiPropertyOptional({ description: 'คั่นด้วยจุลภาค' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  tags?: string;
+
+  @ApiPropertyOptional({ description: 'หมายเหตุของฉบับนี้' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  note?: string;
+}
+
+export class UpdateBrandAssetDto {
+  @ApiPropertyOptional({ enum: BRAND_CATEGORIES })
+  @IsOptional()
+  @IsIn(BRAND_CATEGORIES)
+  category?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
+  name?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  description?: string;
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsString({ each: true })
+  @MaxLength(50, { each: true })
+  tags?: string[];
+}
+
+export class BrandVersionNoteDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  note?: string;
+}
+
+export class RetireBrandAssetDto {
+  @ApiProperty({ example: 'เปลี่ยนโลโก้ใหม่แล้ว' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(500)
+  reason!: string;
+}
+
+// --- CD-274 วัดผลแคมเปญถึงรายได้จริง ---------------------------------------------
+
+export class CampaignResultsQueryDto {
+  @ApiPropertyOptional({
+    example: '2026-01',
+    description: 'เดือนเริ่ม (YYYY-MM) ของกราฟรายเดือน',
+  })
+  @IsOptional()
+  @Matches(/^\d{4}-(0[1-9]|1[0-2])$/)
+  from?: string;
+
+  @ApiPropertyOptional({ example: '2026-12' })
+  @IsOptional()
+  @Matches(/^\d{4}-(0[1-9]|1[0-2])$/)
+  to?: string;
+
+  @ApiPropertyOptional({ enum: ['campaign', 'event'] })
+  @IsOptional()
+  @IsIn(['campaign', 'event'])
+  kind?: string;
+
+  @ApiPropertyOptional({ enum: ['getter', 'government', 'partner', 'keeper'] })
+  @IsOptional()
+  @IsIn(['getter', 'government', 'partner', 'keeper'])
+  sales_axis?: string;
+}

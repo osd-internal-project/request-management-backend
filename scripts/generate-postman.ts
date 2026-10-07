@@ -51,6 +51,12 @@ const MODULES = [
   { module: 'request', name: 'Request' },
   { module: 'crm', name: 'CRM' },
   { module: 'approval', name: 'Approval' },
+  { module: 'flow', name: 'Flow' },
+  { module: 'presales', name: 'PreSales' },
+  { module: 'legal', name: 'Legal' },
+  { module: 'pm', name: 'PM' },
+  { module: 'delivery', name: 'Delivery' },
+  { module: 'support', name: 'Support' },
 ] as const;
 
 const METHODS = ['get', 'post', 'patch', 'put', 'delete'] as const;

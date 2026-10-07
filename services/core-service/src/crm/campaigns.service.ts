@@ -4,6 +4,7 @@ import {
   AppError,
   AuditWriter,
   auditActor,
+  hasPermission,
   salesAccessSubject,
   visibleLeadsWhere,
 } from '@request-management/share';
@@ -14,10 +15,15 @@ import {
   UpdateCampaignDto,
 } from './dto/sales.dto';
 import {
+  CampaignBudgetLineRepository,
   CampaignRepository,
+  CampaignSpendRepository,
   LeadRepository,
   SaleOrderRepository,
 } from './sales.repositories';
+import { OrgUnitRepository } from '../access/org-unit.repository';
+import { newFormToken } from './campaign-lead-rules';
+import { overBudget, progress, spentTotal } from '../macom/campaign-plan-rules';
 
 interface CampaignRow {
   id: string;
@@ -29,6 +35,21 @@ interface CampaignRow {
   budget: Prisma.Decimal | null;
   note: string | null;
   active: boolean;
+  salesAxis: string | null;
+  receivingOrgUnitId: string | null;
+  targetLeads: number | null;
+  targetDeals: number | null;
+  targetSales: Prisma.Decimal | null;
+  formEnabled: boolean;
+  formToken: string | null;
+  formIntro: string | null;
+  adFormIds: string[];
+  kind: string;
+  eventStartsAt: Date | null;
+  eventEndsAt: Date | null;
+  eventVenue: string | null;
+  eventOnlineUrl: string | null;
+  eventCapacity: number | null;
   createdAt: Date;
 }
 
@@ -42,7 +63,45 @@ export interface CampaignView {
   budget: number | null;
   note: string | null;
   active: boolean;
-  /** ผลของแคมเปญ — นับเฉพาะ Lead ที่ผู้เรียกมองเห็น (SCOPE-02). */
+  /** CD-268 — แกนขายที่ป้อน และทีมที่รับ Lead. */
+  sales_axis: string | null;
+  receiving_org_unit: { id: string; name: string } | null;
+  /** CD-268 — งบมาจากบรรทัดงบรายช่องทาง (แก้งบรวมตรง ๆ ไม่ได้). */
+  has_budget_lines: boolean;
+  /** CD-268 — ค่าใช้จ่ายจริง (ไม่นับที่ยกเลิก) และเกินงบหรือไม่. */
+  spent: number;
+  over_budget: boolean;
+  targets: {
+    leads: number | null;
+    deals: number | null;
+    sales: number | null;
+  };
+  /** CD-269 — ฟอร์มสาธารณะ (/f/lead/<token>) และฟอร์ม Lead Ads ที่ผูกไว้. */
+  form: {
+    enabled: boolean;
+    token: string | null;
+    intro: string | null;
+    ad_form_ids: string[];
+  };
+  /** CD-270 — `campaign` | `event`, and the event's day, place and seats. */
+  kind: string;
+  event: {
+    starts_at: string | null;
+    ends_at: string | null;
+    venue: string | null;
+    online_url: string | null;
+    capacity: number | null;
+  } | null;
+  /** สัดส่วนที่ถึงเป้า (1 = ถึงเป้า) — null เมื่อไม่ตั้งเป้า. */
+  progress: {
+    leads: number | null;
+    deals: number | null;
+    sales: number | null;
+  };
+  /**
+   * ผลของแคมเปญ — ผู้ดูแลแคมเปญ (`crm.campaign.manage`) เห็นตัวเลขรวมทั้งบริษัท
+   * (นับอย่างเดียว ไม่เปิดตัว Lead); คนอื่นนับเฉพาะ Lead ที่ตัวเองมองเห็น (SCOPE-02).
+   */
   stats: {
     leads: number;
     converted: number;
@@ -78,6 +137,9 @@ export class CampaignsService {
     private readonly leads: LeadRepository,
     private readonly saleOrders: SaleOrderRepository,
     private readonly audit: AuditWriter,
+    private readonly orgUnits: OrgUnitRepository,
+    private readonly budgetLines: CampaignBudgetLineRepository,
+    private readonly spends: CampaignSpendRepository,
   ) {}
 
   async list(
@@ -97,7 +159,9 @@ export class CampaignsService {
     const leads = (await this.leads.findMany({
       where: {
         AND: [
-          visibleLeadsWhere(salesAccessSubject(actor)),
+          hasPermission(actor, 'crm.campaign.manage')
+            ? { companyId: actor.activeCompanyId }
+            : visibleLeadsWhere(salesAccessSubject(actor)),
           { campaignId: { in: ids } },
         ],
       },
@@ -129,6 +193,39 @@ export class CampaignsService {
           select: { opportunityId: true, amount: true },
         })) as { opportunityId: string; amount: Prisma.Decimal | null }[])
       : [];
+    const [lines, spends, units] = await Promise.all([
+      this.budgetLines.findMany({
+        where: { campaignId: { in: ids } },
+        select: { campaignId: true },
+      }) as Promise<{ campaignId: string }[]>,
+      this.spends.findMany({
+        where: { campaignId: { in: ids } },
+        select: {
+          campaignId: true,
+          budgetLineId: true,
+          amount: true,
+          voidedAt: true,
+        },
+      }) as Promise<
+        {
+          campaignId: string;
+          budgetLineId: string | null;
+          amount: Prisma.Decimal;
+          voidedAt: Date | null;
+        }[]
+      >,
+      this.orgUnits.findMany({
+        where: {
+          id: {
+            in: rows.flatMap((row) =>
+              row.receivingOrgUnitId ? [row.receivingOrgUnitId] : [],
+            ),
+          },
+        },
+        select: { id: true, name: true },
+      }) as Promise<{ id: string; name: string }[]>,
+    ]);
+    const unitName = new Map(units.map((unit) => [unit.id, unit.name]));
 
     return rows.map((row) => {
       const mine = leads.filter((lead) => lead.campaignId === row.id);
@@ -136,6 +233,20 @@ export class CampaignsService {
         .filter((order) => campaignOf.get(order.opportunityId) === row.id)
         .reduce((sum, order) => sum + Number(order.amount ?? 0), 0);
       const budget = row.budget === null ? null : Number(row.budget);
+      const spent = spentTotal(
+        spends
+          .filter((spend) => spend.campaignId === row.id)
+          .map((spend) => ({
+            budgetLineId: spend.budgetLineId,
+            amount: Number(spend.amount),
+            voided: spend.voidedAt !== null,
+          })),
+      );
+      const won = mine.filter(
+        (lead) => lead.convertedOpportunity?.stage === 'won',
+      ).length;
+      const targetSales =
+        row.targetSales === null ? null : Number(row.targetSales);
 
       return {
         id: row.id,
@@ -147,11 +258,47 @@ export class CampaignsService {
         budget,
         note: row.note,
         active: row.active,
+        sales_axis: row.salesAxis,
+        receiving_org_unit: row.receivingOrgUnitId
+          ? {
+              id: row.receivingOrgUnitId,
+              name: unitName.get(row.receivingOrgUnitId) ?? '—',
+            }
+          : null,
+        has_budget_lines: lines.some((line) => line.campaignId === row.id),
+        kind: row.kind,
+        event:
+          row.kind === 'event'
+            ? {
+                starts_at: row.eventStartsAt?.toISOString() ?? null,
+                ends_at: row.eventEndsAt?.toISOString() ?? null,
+                venue: row.eventVenue,
+                online_url: row.eventOnlineUrl,
+                capacity: row.eventCapacity,
+              }
+            : null,
+        form: {
+          enabled: row.formEnabled,
+          token: row.formToken,
+          intro: row.formIntro,
+          ad_form_ids: row.adFormIds,
+        },
+        spent,
+        over_budget: overBudget(budget, spent),
+        targets: {
+          leads: row.targetLeads,
+          deals: row.targetDeals,
+          sales: targetSales,
+        },
+        progress: {
+          leads: progress(row.targetLeads, mine.length),
+          deals: progress(row.targetDeals, won),
+          sales: progress(targetSales, round2(salesAmount)),
+        },
         stats: {
           leads: mine.length,
           converted: mine.filter((lead) => lead.convertedOpportunityId).length,
-          won: mine.filter((lead) => lead.convertedOpportunity?.stage === 'won')
-            .length,
+          won,
           sales_amount: round2(salesAmount),
           cost_per_lead:
             budget !== null && mine.length
@@ -166,6 +313,7 @@ export class CampaignsService {
   async create(dto: CreateCampaignDto, actor: Principal) {
     assertDates(dto.start_date, dto.end_date);
     const code = dto.code.trim().toUpperCase();
+    const plan = await this.planFields(dto, actor.activeCompanyId);
 
     try {
       const row = (await this.campaigns.create({
@@ -178,6 +326,7 @@ export class CampaignsService {
           endDate: toDate(dto.end_date) ?? null,
           budget: dto.budget ?? null,
           note: dto.note?.trim() || null,
+          ...plan,
           createdBy: actor.userId,
           updatedBy: actor.userId,
         },
@@ -218,6 +367,20 @@ export class CampaignsService {
       dto.start_date ?? date(found.startDate) ?? undefined,
       dto.end_date ?? date(found.endDate) ?? undefined,
     );
+    if (
+      dto.budget !== undefined &&
+      (await this.budgetLines.findFirst({
+        where: { campaignId: id },
+        select: { id: true },
+      }))
+    ) {
+      throw new AppError(
+        'VALIDATION_FAILED',
+        'งบของแคมเปญนี้มาจากบรรทัดงบรายช่องทาง — แก้ที่แผนงบ',
+        [{ field: 'budget', reason: 'from_budget_lines' }],
+      );
+    }
+    const plan = await this.planFields(dto, actor.activeCompanyId, found);
 
     const updated = await this.campaigns.update({
       where: { id },
@@ -235,6 +398,7 @@ export class CampaignsService {
         ...(dto.budget !== undefined ? { budget: dto.budget } : {}),
         ...(dto.note !== undefined ? { note: dto.note.trim() || null } : {}),
         ...(dto.active !== undefined ? { active: dto.active } : {}),
+        ...plan,
         updatedBy: actor.userId,
       },
     });
@@ -253,6 +417,116 @@ export class CampaignsService {
       after: dto as unknown as Prisma.InputJsonValue,
     });
     return updated;
+  }
+
+  /**
+   * CD-268 — the axis, receiving team and targets as columns; only the fields
+   * the caller sent. The team must be an active unit of this company.
+   */
+  private async planFields(
+    dto: CreateCampaignDto | UpdateCampaignDto,
+    companyId: string,
+    existing: { id: string; formToken: string | null } | null = null,
+  ) {
+    const existingToken = existing?.formToken ?? null;
+    if (
+      dto.event_starts_at &&
+      dto.event_ends_at &&
+      dto.event_ends_at < dto.event_starts_at
+    ) {
+      throw new AppError('VALIDATION_FAILED', 'เวลาจบงานต้องหลังเวลาเริ่ม', [
+        { field: 'event_ends_at', reason: 'before_start' },
+      ]);
+    }
+    if (dto.ad_form_ids?.length) {
+      // one ad form feeds one campaign — otherwise its Leads have no home
+      const taken = (await this.campaigns.findFirst({
+        where: {
+          companyId,
+          adFormIds: { hasSome: dto.ad_form_ids.map((id) => id.trim()) },
+          ...(existing ? { id: { not: existing.id } } : {}),
+        },
+        select: { code: true },
+      })) as { code: string } | null;
+      if (taken) {
+        throw new AppError(
+          'VALIDATION_FAILED',
+          `ฟอร์มโฆษณานี้ผูกกับแคมเปญ ${taken.code} อยู่แล้ว`,
+          [{ field: 'ad_form_ids', reason: 'taken' }],
+        );
+      }
+    }
+    const unitId =
+      dto.receiving_org_unit_id === undefined
+        ? undefined
+        : dto.receiving_org_unit_id.trim() || null;
+    if (unitId) {
+      const unit = await this.orgUnits.findFirst({
+        where: { id: unitId, companyId, active: true },
+        select: { id: true },
+      });
+      if (!unit) {
+        throw new AppError(
+          'VALIDATION_FAILED',
+          'ไม่พบทีมที่รับ Lead ในบริษัทนี้',
+          [{ field: 'receiving_org_unit_id', reason: 'not_found' }],
+        );
+      }
+    }
+    return {
+      ...(dto.sales_axis !== undefined
+        ? { salesAxis: dto.sales_axis || null }
+        : {}),
+      ...(unitId !== undefined ? { receivingOrgUnitId: unitId } : {}),
+      ...(dto.target_leads !== undefined
+        ? { targetLeads: dto.target_leads }
+        : {}),
+      ...(dto.target_deals !== undefined
+        ? { targetDeals: dto.target_deals }
+        : {}),
+      ...(dto.target_sales !== undefined
+        ? { targetSales: dto.target_sales }
+        : {}),
+      // CD-269 — the form's link is issued once, on first switching it on, and
+      // survives switching off and on again (printed QR codes keep working)
+      ...(dto.form_enabled !== undefined
+        ? {
+            formEnabled: dto.form_enabled,
+            ...(dto.form_enabled && !existingToken
+              ? { formToken: newFormToken() }
+              : {}),
+          }
+        : {}),
+      // CD-270 — the event's day, place and seats
+      ...(dto.kind !== undefined ? { kind: dto.kind } : {}),
+      ...(dto.event_starts_at !== undefined
+        ? { eventStartsAt: new Date(dto.event_starts_at) }
+        : {}),
+      ...(dto.event_ends_at !== undefined
+        ? { eventEndsAt: new Date(dto.event_ends_at) }
+        : {}),
+      ...(dto.event_venue !== undefined
+        ? { eventVenue: dto.event_venue.trim() || null }
+        : {}),
+      ...(dto.event_online_url !== undefined
+        ? { eventOnlineUrl: dto.event_online_url.trim() || null }
+        : {}),
+      ...(dto.event_capacity !== undefined
+        ? { eventCapacity: dto.event_capacity }
+        : {}),
+      ...(dto.form_intro !== undefined
+        ? { formIntro: dto.form_intro.trim() || null }
+        : {}),
+      ...(dto.ad_form_ids !== undefined
+        ? {
+            adFormIds: [
+              ...new Set(
+                dto.ad_form_ids.map((id) => id.trim()).filter(Boolean),
+              ),
+            ],
+          }
+        : {}),
+    };
   }
 
   /**

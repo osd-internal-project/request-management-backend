@@ -1,0 +1,192 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/v1/delivery/projects/{projectId}": {
+      "get": {
+        "description": "รอบส่ง หมุดหมาย และ BOQ ที่วางแผนแล้ว",
+        "operationId": "ExternalDeliveryController_project",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แผนส่งมอบของโครงการ (CD-250)",
+        "tags": [
+          "delivery"
+        ],
+        "x-permission": [
+          "integration.delivery.read"
+        ],
+        "x-acting-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/delivery/projects/{projectId}/billing": {
+      "get": {
+        "operationId": "ExternalDeliveryController_billingView",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "งวดของสัญญา: สถานะวางบิล/SAP และสิ่งที่ยังขวาง (CD-253)",
+        "tags": [
+          "delivery"
+        ],
+        "x-permission": [
+          "integration.delivery.read"
+        ],
+        "x-acting-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/delivery/projects/{projectId}/handovers": {
+      "get": {
+        "operationId": "ExternalDeliveryController_handoversOfProject",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "รอบตรวจรับที่ส่งต่อให้ทีมบริการ และสถานะการรับทราบ (CD-255)",
+        "tags": [
+          "delivery"
+        ],
+        "x-permission": [
+          "integration.delivery.read"
+        ],
+        "x-acting-permission": [
+          "notification.read"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "Request Form — External API · Delivery",
+    "description": "การส่งมอบของโครงการ — แผนส่งมอบ งวดวางบิล และการส่งต่อทีมบริการ\n\n**ทุก route มีสองประตู** และ Swagger ของแต่ละ route บอกไว้ทั้งคู่: bearer ต้องถือสิทธิ์ `integration.*` ของ route นั้น (ประตูของเครื่อง) และคนที่ระบุใน header `X-Acting-User` ต้องถือสิทธิ์ของงานนั้นเอง (ประตูของคน) — ระบบทำงานในนามคนนั้น timeline จึงบันทึกชื่อคนจริง ไม่ใช่ชื่อบัญชีบริการ\n\n**bearer รับได้สองแบบ**\n\n1. access token ของ service account จาก Keycloak (client_credentials) อายุสั้น ต้องขอใหม่เมื่อหมดอายุ\n2. **API key** ที่ขึ้นต้นด้วย `rfk_` — ไม่มีวันหมดอายุ ไม่ต้องต่ออายุ ระบบแลกเป็น token ให้เองตอนใช้ ออกด้วย `yarn apikey:issue` และเพิกถอนด้วย `yarn apikey:revoke` (มีผลทันที)\n\nทั้งสองแบบส่งเหมือนกัน: `Authorization: Bearer <ค่า>` และได้สิทธิ์ชุดเดียวกัน — key ตัดสินว่า *เข้าได้ไหม* token บอกว่า *ทำอะไรได้*\n\nอ่านอย่างเดียว — ยืนยันติดตั้ง ใบรับรองการตรวจรับ และส่งวางบิลเข้า SAP ทำบนหน้าจอ เพราะลงนามเอกสารและสร้างรายการใน SAP",
+    "version": "1.0"
+  },
+  "tags": [
+    {
+      "name": "delivery",
+      "description": "การส่งมอบและวางบิล"
+    }
+  ],
+  "servers": [
+    {
+      "url": "http://192.168.31.52:3503",
+      "description": "เครื่องภายใน OSD"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
+    "schemas": {}
+  }
+}

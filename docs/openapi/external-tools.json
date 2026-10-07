@@ -1,5 +1,182 @@
 [
   {
+    "name": "assistant_get_approvals",
+    "description": "งานที่รอฉันอนุมัติ — รายการที่รอการตัดสินใจของผู้ถาม รวมงานที่รับมอบหมายแทนคนอื่น · `waiting_days` = รอมากี่วันแล้ว · อนุมัติ/ตีกลับทำบนหน้าจอหรือผ่าน action ของคำขอ",
+    "input_schema": {
+      "type": "object",
+      "properties": {}
+    },
+    "x-request": {
+      "method": "GET",
+      "path": "/api/v1/assistant/approvals"
+    },
+    "x-acting-permission": [
+      "approval.decide"
+    ],
+    "x-sensitive-resource": ""
+  },
+  {
+    "name": "assistant_get_deals_closing",
+    "description": "ดีลที่ใกล้ปิด — ดีลที่ยังเปิดและคาดว่าจะปิดภายใน `days` วัน (ค่าเริ่มต้น 30) เรียงวันคาดปิดก่อน-หลัง · `past_expected_close` = เลยวันคาดปิดแล้วแต่ยังไม่ปิด · `view=mine` เฉพาะดีลของผู้ถาม",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "view": {
+          "type": "string",
+          "enum": [
+            "mine",
+            "all"
+          ],
+          "description": "`mine` = ดีลที่ผู้ถามเป็นเจ้าของ · `all` (ค่าเริ่มต้น) = ทุกดีลที่มองเห็น"
+        },
+        "days": {
+          "default": 30,
+          "example": 30,
+          "type": "integer",
+          "maximum": 365,
+          "minimum": 1,
+          "description": "คาดปิดภายในกี่วันนับจากวันนี้ (รวมดีลที่เลยวันคาดปิดแล้วแต่ยังเปิด)"
+        }
+      }
+    },
+    "x-request": {
+      "method": "GET",
+      "path": "/api/v1/assistant/deals/closing"
+    },
+    "x-acting-permission": [
+      "crm.sales.read"
+    ],
+    "x-sensitive-resource": ""
+  },
+  {
+    "name": "assistant_get_deals_silent",
+    "description": "ดีลที่เงียบหรือเลยนัดติดตาม — `silent` = ดีลที่ไม่มีกิจกรรมเกินเกณฑ์ของบริษัท · `follow_up_overdue` = เลยวันนัดติดตามแล้ว · `view=mine` เฉพาะดีลของผู้ถาม",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "view": {
+          "type": "string",
+          "enum": [
+            "mine",
+            "all"
+          ],
+          "description": "`mine` = ดีลที่ผู้ถามเป็นเจ้าของ · `all` (ค่าเริ่มต้น) = ทุกดีลที่มองเห็น"
+        }
+      }
+    },
+    "x-request": {
+      "method": "GET",
+      "path": "/api/v1/assistant/deals/silent"
+    },
+    "x-acting-permission": [
+      "crm.sales.read"
+    ],
+    "x-sensitive-resource": ""
+  },
+  {
+    "name": "assistant_get_kb_articles",
+    "description": "ค้นบทความในคลังความรู้ — บทความที่เผยแพร่แล้วซึ่งตอบคำถามได้ เรียงตามความเกี่ยวข้อง · ใช้ก่อนตอบคำถามวิธีทำ/แก้ปัญหา แล้วอ้าง `article_no` ในคำตอบ",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "q": {
+          "example": "ตั้งค่า VPN",
+          "type": "string",
+          "maxLength": 200,
+          "minLength": 1,
+          "description": "คำค้นภาษาธรรมดา — หัวเรื่อง เนื้อหา แท็ก หรือรหัสสินค้า"
+        },
+        "limit": {
+          "maximum": 20,
+          "default": 5,
+          "example": 5,
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "q"
+      ]
+    },
+    "x-request": {
+      "method": "GET",
+      "path": "/api/v1/assistant/kb/articles"
+    },
+    "x-acting-permission": [
+      "notification.read"
+    ],
+    "x-sensitive-resource": ""
+  },
+  {
+    "name": "assistant_get_projects_at_risk",
+    "description": "โครงการที่มีปัญหา — โครงการที่กำลังดำเนินอยู่ที่สุขภาพแดงหรือเหลือง แย่สุดก่อน · `why` บอกสาเหตุ (ต้นทุนโตเกินงบ `costGrowthPct`, งานล่าช้า, ความเสี่ยงสูง, ประเด็นเลยกำหนด, งวดเงินค้าง) · เห็นเฉพาะโครงการที่ผู้ถามมองเห็นบนหน้าจอ",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "level": {
+          "type": "string",
+          "enum": [
+            "red",
+            "amber"
+          ],
+          "description": "`red` = เฉพาะสุขภาพแดง · ไม่ระบุ = แดงและเหลือง"
+        }
+      }
+    },
+    "x-request": {
+      "method": "GET",
+      "path": "/api/v1/assistant/projects/at-risk"
+    },
+    "x-acting-permission": [
+      "notification.read"
+    ],
+    "x-sensitive-resource": ""
+  },
+  {
+    "name": "assistant_get_service_jobs",
+    "description": "งานบริการที่ยังค้าง — ใบสั่งงานบริการที่ยังไม่ปิด พร้อม `overdue` เมื่อเลย SLA แล้ว · `overdue=true` เฉพาะที่เลย SLA",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "overdue": {
+          "type": "string",
+          "enum": [
+            "true"
+          ],
+          "description": "`true` = เฉพาะงานที่เลย SLA แล้ว"
+        },
+        "customer_id": {
+          "type": "string",
+          "description": "เฉพาะลูกค้ารายนี้ (id)"
+        }
+      }
+    },
+    "x-request": {
+      "method": "GET",
+      "path": "/api/v1/assistant/service-jobs"
+    },
+    "x-acting-permission": [
+      "service.asset.read"
+    ],
+    "x-sensitive-resource": ""
+  },
+  {
+    "name": "assistant_get_summary",
+    "description": "ตัวเลขสรุปของฉัน — ภาพรวมของผู้ถามในคำตอบเดียว — คำขอค้าง/เลย SLA, งานรออนุมัติ, Lead/ดีล/กิจกรรมของฉัน, ดีลคาดปิดใน 30 วัน, สุขภาพโครงการ (แดง/เหลือง/เขียว), งานบริการเปิดอยู่/เลย SLA · หมวดที่ผู้ถามไม่มีสิทธิ์ดูบนหน้าจอจะเป็น null · ใช้ตอบคำถามกว้าง ๆ ว่า \"วันนี้มีอะไรต้องทำ\"",
+    "input_schema": {
+      "type": "object",
+      "properties": {}
+    },
+    "x-request": {
+      "method": "GET",
+      "path": "/api/v1/assistant/summary"
+    },
+    "x-acting-permission": [
+      "notification.read"
+    ],
+    "x-sensitive-resource": ""
+  },
+  {
     "name": "crm_get_customers",
     "description": "ค้นทะเบียนลูกค้า — status: draft · active · suspended · inactive",
     "input_schema": {
@@ -303,6 +480,13 @@
             "stale"
           ],
           "description": "`overdue` เลยนัดติดตามแล้ว · `stale` ถูกเตือนว่าเงียบเกินเกณฑ์"
+        },
+        "closing_within_days": {
+          "example": 30,
+          "type": "integer",
+          "maximum": 365,
+          "minimum": 1,
+          "description": "ดีลที่ยังเปิดและคาดปิดภายใน N วัน (รวมที่เลยวันคาดปิดแล้ว)"
         }
       }
     },
@@ -1054,6 +1238,16 @@
         "type_code": {
           "type": "string"
         },
+        "ref_type": {
+          "example": "opportunity",
+          "type": "string",
+          "description": "คำขอที่ผูกกับเอกสารชนิดนี้ — ใช้คู่กับ ref_id"
+        },
+        "ref_id": {
+          "example": "D-501",
+          "type": "string",
+          "description": "เลขที่เอกสารที่คำขอผูกอยู่ เช่นเลขดีล"
+        },
         "q": {
           "type": "string",
           "description": "ค้นหาเลขที่ / อ้างอิง"
@@ -1183,6 +1377,16 @@
         },
         "type_code": {
           "type": "string"
+        },
+        "ref_type": {
+          "example": "opportunity",
+          "type": "string",
+          "description": "คำขอที่ผูกกับเอกสารชนิดนี้ — ใช้คู่กับ ref_id"
+        },
+        "ref_id": {
+          "example": "D-501",
+          "type": "string",
+          "description": "เลขที่เอกสารที่คำขอผูกอยู่ เช่นเลขดีล"
         },
         "q": {
           "type": "string",

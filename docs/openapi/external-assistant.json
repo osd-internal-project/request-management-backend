@@ -1,0 +1,451 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/v1/assistant/summary": {
+      "get": {
+        "description": "ภาพรวมของผู้ถามในคำตอบเดียว — คำขอค้าง/เลย SLA, งานรออนุมัติ, Lead/ดีล/กิจกรรมของฉัน, ดีลคาดปิดใน 30 วัน, สุขภาพโครงการ (แดง/เหลือง/เขียว), งานบริการเปิดอยู่/เลย SLA · หมวดที่ผู้ถามไม่มีสิทธิ์ดูบนหน้าจอจะเป็น null · ใช้ตอบคำถามกว้าง ๆ ว่า \"วันนี้มีอะไรต้องทำ\"",
+        "operationId": "AssistantController_summary",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ตัวเลขสรุปของฉัน",
+        "tags": [
+          "assistant"
+        ],
+        "x-permission": [
+          "integration.assistant.read"
+        ],
+        "x-acting-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/assistant/deals/closing": {
+      "get": {
+        "description": "ดีลที่ยังเปิดและคาดว่าจะปิดภายใน `days` วัน (ค่าเริ่มต้น 30) เรียงวันคาดปิดก่อน-หลัง · `past_expected_close` = เลยวันคาดปิดแล้วแต่ยังไม่ปิด · `view=mine` เฉพาะดีลของผู้ถาม",
+        "operationId": "AssistantController_closingDeals",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "view",
+            "required": false,
+            "in": "query",
+            "description": "`mine` = ดีลที่ผู้ถามเป็นเจ้าของ · `all` (ค่าเริ่มต้น) = ทุกดีลที่มองเห็น",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "mine",
+                "all"
+              ]
+            }
+          },
+          {
+            "name": "days",
+            "required": false,
+            "in": "query",
+            "description": "คาดปิดภายในกี่วันนับจากวันนี้ (รวมดีลที่เลยวันคาดปิดแล้วแต่ยังเปิด)",
+            "schema": {
+              "default": 30,
+              "example": 30,
+              "type": "integer",
+              "maximum": 365,
+              "minimum": 1
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ดีลที่ใกล้ปิด",
+        "tags": [
+          "assistant"
+        ],
+        "x-permission": [
+          "integration.assistant.read"
+        ],
+        "x-acting-permission": [
+          "crm.sales.read"
+        ]
+      }
+    },
+    "/api/v1/assistant/deals/silent": {
+      "get": {
+        "description": "`silent` = ดีลที่ไม่มีกิจกรรมเกินเกณฑ์ของบริษัท · `follow_up_overdue` = เลยวันนัดติดตามแล้ว · `view=mine` เฉพาะดีลของผู้ถาม",
+        "operationId": "AssistantController_silentDeals",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "view",
+            "required": false,
+            "in": "query",
+            "description": "`mine` = ดีลที่ผู้ถามเป็นเจ้าของ · `all` (ค่าเริ่มต้น) = ทุกดีลที่มองเห็น",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "mine",
+                "all"
+              ]
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ดีลที่เงียบหรือเลยนัดติดตาม",
+        "tags": [
+          "assistant"
+        ],
+        "x-permission": [
+          "integration.assistant.read"
+        ],
+        "x-acting-permission": [
+          "crm.sales.read"
+        ]
+      }
+    },
+    "/api/v1/assistant/approvals": {
+      "get": {
+        "description": "รายการที่รอการตัดสินใจของผู้ถาม รวมงานที่รับมอบหมายแทนคนอื่น · `waiting_days` = รอมากี่วันแล้ว · อนุมัติ/ตีกลับทำบนหน้าจอหรือผ่าน action ของคำขอ",
+        "operationId": "AssistantController_myApprovals",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "งานที่รอฉันอนุมัติ",
+        "tags": [
+          "assistant"
+        ],
+        "x-permission": [
+          "integration.assistant.read"
+        ],
+        "x-acting-permission": [
+          "approval.decide"
+        ]
+      }
+    },
+    "/api/v1/assistant/projects/at-risk": {
+      "get": {
+        "description": "โครงการที่กำลังดำเนินอยู่ที่สุขภาพแดงหรือเหลือง แย่สุดก่อน · `why` บอกสาเหตุ (ต้นทุนโตเกินงบ `costGrowthPct`, งานล่าช้า, ความเสี่ยงสูง, ประเด็นเลยกำหนด, งวดเงินค้าง) · เห็นเฉพาะโครงการที่ผู้ถามมองเห็นบนหน้าจอ",
+        "operationId": "AssistantController_projectsAtRisk",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "level",
+            "required": false,
+            "in": "query",
+            "description": "`red` = เฉพาะสุขภาพแดง · ไม่ระบุ = แดงและเหลือง",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "red",
+                "amber"
+              ]
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "โครงการที่มีปัญหา",
+        "tags": [
+          "assistant"
+        ],
+        "x-permission": [
+          "integration.assistant.read"
+        ],
+        "x-acting-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/assistant/service-jobs": {
+      "get": {
+        "description": "ใบสั่งงานบริการที่ยังไม่ปิด พร้อม `overdue` เมื่อเลย SLA แล้ว · `overdue=true` เฉพาะที่เลย SLA",
+        "operationId": "AssistantController_serviceJobs",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "overdue",
+            "required": false,
+            "in": "query",
+            "description": "`true` = เฉพาะงานที่เลย SLA แล้ว",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true"
+              ]
+            }
+          },
+          {
+            "name": "customer_id",
+            "required": false,
+            "in": "query",
+            "description": "เฉพาะลูกค้ารายนี้ (id)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "งานบริการที่ยังค้าง",
+        "tags": [
+          "assistant"
+        ],
+        "x-permission": [
+          "integration.assistant.read"
+        ],
+        "x-acting-permission": [
+          "service.asset.read"
+        ]
+      }
+    },
+    "/api/v1/assistant/kb/articles": {
+      "get": {
+        "description": "บทความที่เผยแพร่แล้วซึ่งตอบคำถามได้ เรียงตามความเกี่ยวข้อง · ใช้ก่อนตอบคำถามวิธีทำ/แก้ปัญหา แล้วอ้าง `article_no` ในคำตอบ",
+        "operationId": "AssistantController_articles",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "required": true,
+            "in": "query",
+            "description": "คำค้นภาษาธรรมดา — หัวเรื่อง เนื้อหา แท็ก หรือรหัสสินค้า",
+            "schema": {
+              "example": "ตั้งค่า VPN",
+              "type": "string",
+              "maxLength": 200,
+              "minLength": 1
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maximum": 20,
+              "default": 5,
+              "example": 5,
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ค้นบทความในคลังความรู้",
+        "tags": [
+          "assistant"
+        ],
+        "x-permission": [
+          "integration.assistant.read"
+        ],
+        "x-acting-permission": [
+          "notification.read"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "Request Form — External API · Assistant",
+    "description": "คำถามของผู้ช่วยส่วนตัว — ดีลใกล้ปิด/เงียบ งานรออนุมัติ โครงการมีปัญหา งานบริการค้าง บทความ และตัวเลขสรุป\n\n**ทุก route มีสองประตู** และ Swagger ของแต่ละ route บอกไว้ทั้งคู่: bearer ต้องถือสิทธิ์ `integration.*` ของ route นั้น (ประตูของเครื่อง) และคนที่ระบุใน header `X-Acting-User` ต้องถือสิทธิ์ของงานนั้นเอง (ประตูของคน) — ระบบทำงานในนามคนนั้น timeline จึงบันทึกชื่อคนจริง ไม่ใช่ชื่อบัญชีบริการ\n\n**bearer รับได้สองแบบ**\n\n1. access token ของ service account จาก Keycloak (client_credentials) อายุสั้น ต้องขอใหม่เมื่อหมดอายุ\n2. **API key** ที่ขึ้นต้นด้วย `rfk_` — ไม่มีวันหมดอายุ ไม่ต้องต่ออายุ ระบบแลกเป็น token ให้เองตอนใช้ ออกด้วย `yarn apikey:issue` และเพิกถอนด้วย `yarn apikey:revoke` (มีผลทันที)\n\nทั้งสองแบบส่งเหมือนกัน: `Authorization: Bearer <ค่า>` และได้สิทธิ์ชุดเดียวกัน — key ตัดสินว่า *เข้าได้ไหม* token บอกว่า *ทำอะไรได้*\n\nอ่านอย่างเดียว · ทุกคำตอบเรียก service ตัวเดียวกับหน้าจอในนามของผู้ถาม จึงไม่เห็นเกินกว่าที่หน้าจอของคนนั้นแสดง · ใช้ผ่าน MCP เป็นหลัก (`assistant_*`)",
+    "version": "1.0"
+  },
+  "tags": [
+    {
+      "name": "assistant",
+      "description": "ผู้ช่วยส่วนตัว (CD-276)"
+    }
+  ],
+  "servers": [
+    {
+      "url": "http://192.168.31.52:3503",
+      "description": "เครื่องภายใน OSD"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
+    "schemas": {}
+  }
+}

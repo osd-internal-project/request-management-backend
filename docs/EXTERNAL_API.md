@@ -19,14 +19,23 @@
 | [`openapi/external-request.json`](./openapi/external-request.json) | 10 | คำขอตั้งแต่เปิดจนปิด |
 | [`openapi/external-crm.json`](./openapi/external-crm.json) | 62 | ลูกค้า, Lead, โอกาสการขาย, ใบเสนอราคา |
 | [`openapi/external-approval.json`](./openapi/external-approval.json) | 1 | เปิดเคสอนุมัติจากโมดูลอื่น |
-| [`openapi/external-disbursement.json`](./openapi/external-disbursement.json) | 8 | การเบิก — หน้าทำงานของคำขอ FI05/FI06 ([`disbursement.md`](./disbursement.md)) |
+| [`openapi/external-flow.json`](./openapi/external-flow.json) | 1 | ติดตามดีลทั้งสายในครั้งเดียว |
+| [`openapi/external-presales.json`](./openapi/external-presales.json) | 5 | Solution ของดีล (อ่าน) |
+| [`openapi/external-legal.json`](./openapi/external-legal.json) | 5 | คลังสัญญา (อ่าน) |
+| [`openapi/external-pm.json`](./openapi/external-pm.json) | 6 | โครงการ — อ่าน และเปิดจากสัญญาที่ลงนามแล้ว |
+| [`openapi/external-delivery.json`](./openapi/external-delivery.json) | 3 | แผนส่งมอบ งวดวางบิล การส่งต่อทีมบริการ (อ่าน) |
+| [`openapi/external-support.json`](./openapi/external-support.json) | 7 | งานบริการ — ทะเบียนอุปกรณ์ สิทธิ์บริการ เปิดใบสั่งงาน |
+| [`openapi/external-disbursement.json`](./openapi/external-disbursement.json) | 10 | การเบิก — หน้าทำงานของคำขอ FI05/FI06 ([`disbursement.md`](./disbursement.md)) |
 | [`openapi/external-mcp.json`](./openapi/external-mcp.json) | 1 | คำอธิบาย JSON-RPC — ไม่ใช่ REST |
-| [`openapi/external-tools.json`](./openapi/external-tools.json) | 26 tools | tool-caller (`yarn tools`) |
+| [`openapi/external-tools.json`](./openapi/external-tools.json) | 35 tools | tool-caller (`yarn tools`) |
 
 Postman collection สร้างจากสามไฟล์แรกด้วย `yarn postman` เขียนลง
 `../docs/postman/Request-Form-External-{Request,CRM,Approval}.postman_collection.json`
 
 **อย่าลอกรายการ endpoint มาไว้ที่นี่อีกชุด** — สองชุดจะเริ่มไม่ตรงกันทันทีที่แก้อันเดียว
+รายการรวมทุกเส้นพร้อมสิทธิ์ทั้งสองประตูคือ [`EXTERNAL_API_INDEX.md`](./EXTERNAL_API_INDEX.md)
+ซึ่ง `yarn openapi` เขียนใหม่ทุกครั้ง และลำดับการเรียกตามสายงานตั้งแต่ Lead จนถึงงานบริการอยู่ที่
+[`EXTERNAL_API_GUIDE.md`](./EXTERNAL_API_GUIDE.md) — **ส่งไฟล์นั้นให้ทีมที่มาเชื่อมต่อเป็นไฟล์แรก**
 
 **enum ขอบเขต และฟิลด์บังคับในสเปกมาจาก class-validator** ไม่ใช่จาก `@ApiProperty`
 อย่างเดียว — Swagger อ่านแค่ `@ApiProperty` จึงเคยทิ้งฟิลด์ของ CRM ไป 177 ตัวและ query ของหน้า
@@ -42,10 +51,16 @@ Postman ทันที** ไม่ต้องเขียน `@ApiProperty({ e
 | `api/v1/request/*` | 11 | คำขอ — เปิด, ติดตาม, ดำเนินการ, ปิด |
 | `api/v1/crm/*` | 79 | ทะเบียนลูกค้า, Lead, โอกาสการขาย, ใบเสนอราคา, ใบสั่งขาย, ตั้งค่า CRM |
 | `api/v1/approval/*` | 1 | เปิดเคสอนุมัติจากโมดูลอื่น (APV-07) |
-| `api/v1/disbursement/*` | 8 | ใบเบิก — ตรวจ จ่าย เคลียร์ ปิด (ไฟล์หลักฐานเฉพาะหน้าจอ) |
+| `api/v1/flow/*` | 1 | ติดตามดีลทั้งสาย ดีล → โครงการ (6 ต.ค. 2569) |
+| `api/v1/presales/*` | 5 | Solution ของดีล — อ่านอย่างเดียว |
+| `api/v1/legal/*` | 5 | คลังสัญญา — อ่านอย่างเดียว |
+| `api/v1/pm/*` | 7 | โครงการ — อ่าน + เปิดจากสัญญา |
+| `api/v1/delivery/*` | 3 | การส่งมอบของโครงการ — อ่านอย่างเดียว |
+| `api/v1/support/*` | 8 | งานบริการ — อ่าน + เปิดใบสั่งงานบริการ |
+| `api/v1/disbursement/*` | 10 | ใบเบิก — ตรวจ จ่าย เคลียร์ ปิด (ไฟล์หลักฐานเฉพาะหน้าจอ) |
 | `api/v1/mcp` | 1 | tool-caller — ทุก tool ผ่าน endpoint เดียว |
 
-โค้ดวางตามนี้ตรง ๆ: `services/external-service/src/{request,crm,approval,disbursement,mcp}/`
+โค้ดวางตามนี้ตรง ๆ: `services/external-service/src/{request,crm,approval,flow,presales,legal,pm,delivery,support,disbursement,mcp}/`
 และ `auth/` ที่รวมเรื่อง credential ของเครื่องไว้ที่เดียว **คำถามว่า
 "เครื่องจักรแตะอะไรได้บ้าง" จึงตอบได้ด้วยการอ่านไดเรกทอรีเดียว**
 
@@ -354,6 +369,27 @@ client ที่ถือสิทธิ์ Keycloak Admin API และ redirec
 
 **เมื่อ login ผ่านแล้ว `X-Acting-User` ห้ามส่ง** — token บอกอยู่แล้วว่าเป็นใคร
 ถ้าส่งมาจะถูกปฏิเสธ เพราะถ้ายอมรับ ใครที่ login แล้วก็สวมเป็นคนอื่นได้
+
+#### ลิงก์แหล่งที่มาและคำแนะนำของผู้ช่วย (CD-278)
+
+ทุกคำตอบของ tool มีลิงก์กลับไปหน้าจอต้นทาง — `link` บนแต่ละรายการ (คำขอ ดีล
+ลูกค้า Lead ใบเสนอราคา โครงการ บทความ) และ `source_link` บนทั้งคำตอบ
+สร้างจาก `PUBLIC_WEB_URL` ของ external-service (ตัวเดียวกับปุ่มบนการ์ด Teams)
+ถ้าไม่ตั้ง ลิงก์จะเป็น path อย่างเดียว (`/pages/opportunities/<id>`) และ log เตือนตอน boot
+
+คำแนะนำให้ผู้ช่วยอ้างลิงก์ทุกครั้ง และบอกว่าไม่พบเมื่อ tool ไม่คืนข้อมูล ส่งมากับ
+`initialize` ในฟิลด์ `instructions` (ข้อความอยู่ที่ `SERVER_INSTRUCTIONS` ใน
+`mcp-protocol.ts`) — ใน `librechat.yaml` ให้เปิดรับ:
+
+```yaml
+mcpServers:
+  osd-rm-mcp:
+    type: streamable-http
+    url: http://<host>:3503/api/v1/mcp
+    serverInstructions: true   # ใช้คำแนะนำจากเซิร์ฟเวอร์เป็น system prompt
+```
+
+อย่าคัดลอกคำแนะนำไปวางใน agent ของ LibreChat แทน — สองสำเนาจะเพี้ยนจากกัน
 
 #### `PUBLIC_BASE_URL` ต้องเป็น URL ที่ LibreChat มองเห็น
 

@@ -3994,6 +3994,18 @@
             }
           },
           {
+            "name": "closing_within_days",
+            "required": false,
+            "in": "query",
+            "description": "ดีลที่ยังเปิดและคาดปิดภายใน N วัน (รวมที่เลยวันคาดปิดแล้ว)",
+            "schema": {
+              "example": 30,
+              "type": "integer",
+              "maximum": 365,
+              "minimum": 1
+            }
+          },
+          {
             "name": "X-Company-Id",
             "in": "header",
             "required": false,
@@ -4219,6 +4231,18 @@
                 "overdue",
                 "stale"
               ]
+            }
+          },
+          {
+            "name": "closing_within_days",
+            "required": false,
+            "in": "query",
+            "description": "ดีลที่ยังเปิดและคาดปิดภายใน N วัน (รวมที่เลยวันคาดปิดแล้ว)",
+            "schema": {
+              "example": 30,
+              "type": "integer",
+              "maximum": 365,
+              "minimum": 1
             }
           },
           {
@@ -7237,6 +7261,169 @@
         ]
       }
     },
+    "/api/v1/crm/leads/forms/{token}": {
+      "get": {
+        "operationId": "ExternalLeadIntakeController_form",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "ควรส่งทุกครั้ง — หนึ่งค่าต่อหนึ่งใบ ยิงซ้ำด้วยค่าเดิมและ body เดิมจะได้ใบเดิมกลับไป ไม่เกิดใบที่สอง ไม่ส่งก็ทำงานได้ แต่ response ที่หายกลางทางแล้ว retry จะกลายเป็น Lead สองใบ",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "6f6bd3a7-7308-4d2e-a4de-75e1f89b6871"
+            }
+          },
+          {
+            "name": "token",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-269 หัวฟอร์มสาธารณะของแคมเปญ (ชื่อแคมเปญ + ข้อความแนะนำ)",
+        "tags": [
+          "crm-intake"
+        ],
+        "x-permission": [
+          "integration.crm.lead.create"
+        ]
+      },
+      "post": {
+        "description": "คนเดิมภายใน 30 วันไปต่อท้าย Lead ที่ยังเปิด · ลูกค้าเดิมส่งถึงผู้ดูแลลูกค้า · ใบใหม่เข้ากองของทีมที่รับของแคมเปญ. ตอบแค่ว่ารับแล้ว ไม่เปิดข้อมูล Lead",
+        "operationId": "ExternalLeadIntakeController_submitForm",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "ควรส่งทุกครั้ง — หนึ่งค่าต่อหนึ่งใบ ยิงซ้ำด้วยค่าเดิมและ body เดิมจะได้ใบเดิมกลับไป ไม่เกิดใบที่สอง ไม่ส่งก็ทำงานได้ แต่ response ที่หายกลางทางแล้ว retry จะกลายเป็น Lead สองใบ",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "6f6bd3a7-7308-4d2e-a4de-75e1f89b6871"
+            }
+          },
+          {
+            "name": "token",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IntakeLeadDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-269 ส่งฟอร์มสาธารณะของแคมเปญ — คัดกรองเหมือน intake",
+        "tags": [
+          "crm-intake"
+        ],
+        "x-permission": [
+          "integration.crm.lead.create"
+        ]
+      }
+    },
+    "/api/v1/crm/leads/ads/{platform}": {
+      "post": {
+        "description": "รับคำตอบหนึ่งชุดในรูปแบบของแพลตฟอร์ม (Facebook `field_data`, TikTok `user_info`/`answers`) พร้อม `form_id` — form_id เลือกแคมเปญจาก `ad_form_ids` ของแคมเปญ. ยังเป็นโหมด mock: ผู้ส่งต้องดึงข้อมูล Lead มาเอง (เช่น ตัวเชื่อม/Zapier) ส่วนการรับ webhook ตรงจากแพลตฟอร์มรอบัญชีโฆษณาและ app review",
+        "operationId": "ExternalLeadIntakeController_receiveAd",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "ควรส่งทุกครั้ง — หนึ่งค่าต่อหนึ่งใบ ยิงซ้ำด้วยค่าเดิมและ body เดิมจะได้ใบเดิมกลับไป ไม่เกิดใบที่สอง ไม่ส่งก็ทำงานได้ แต่ response ที่หายกลางทางแล้ว retry จะกลายเป็น Lead สองใบ",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "6f6bd3a7-7308-4d2e-a4de-75e1f89b6871"
+            }
+          },
+          {
+            "name": "platform",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-269 Lead Ads (facebook | tiktok) — ตัวแปลงข้อมูลฟอร์มโฆษณา",
+        "tags": [
+          "crm-intake"
+        ],
+        "x-permission": [
+          "integration.crm.lead.create"
+        ]
+      }
+    },
     "/api/v1/crm/leads/{id}/facts": {
       "get": {
         "operationId": "ExternalLeadWorkflowController_facts",
@@ -7551,6 +7738,95 @@
           "note": {
             "type": "string",
             "maxLength": 2000
+          },
+          "sales_axis": {
+            "type": "string",
+            "enum": [
+              "getter",
+              "government",
+              "partner",
+              "keeper"
+            ],
+            "description": "CD-268 — แกนขายที่แคมเปญป้อน · ว่าง = ล้าง"
+          },
+          "receiving_org_unit_id": {
+            "type": "string",
+            "description": "CD-268 — ทีมที่รับ Lead ของแคมเปญ (id หน่วยงาน) · ว่าง = ล้าง",
+            "maxLength": 64
+          },
+          "target_leads": {
+            "type": "integer",
+            "nullable": true,
+            "description": "CD-268 — เป้าจำนวน Lead · null = ล้าง",
+            "maximum": 1000000,
+            "minimum": 0
+          },
+          "target_deals": {
+            "type": "integer",
+            "nullable": true,
+            "description": "CD-268 — เป้าดีลที่ปิดได้ · null = ล้าง",
+            "maximum": 1000000,
+            "minimum": 0
+          },
+          "target_sales": {
+            "type": "number",
+            "nullable": true,
+            "description": "CD-268 — เป้ายอดขาย (บาท) · null = ล้าง",
+            "maximum": 999999999999,
+            "minimum": 0
+          },
+          "form_enabled": {
+            "type": "boolean",
+            "description": "CD-269 — เปิดฟอร์มสาธารณะของแคมเปญ (/f/lead/<token>) · เปิดครั้งแรกระบบออก token ให้"
+          },
+          "form_intro": {
+            "type": "string",
+            "description": "CD-269 — ข้อความบนหัวฟอร์ม",
+            "maxLength": 2000
+          },
+          "ad_form_ids": {
+            "description": "CD-269 — id ฟอร์ม Lead Ads (Facebook/TikTok) ที่ส่งเข้าแคมเปญนี้",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 100
+            },
+            "maxItems": 20
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "campaign",
+              "event"
+            ],
+            "description": "CD-270 — อีเวนต์: ฟอร์มรับลงทะเบียน แล้วหลังงานแปลงผู้เข้าร่วมที่สนใจเป็น Lead"
+          },
+          "event_starts_at": {
+            "type": "string",
+            "example": "2026-10-20T02:00:00.000Z",
+            "format": "date-time"
+          },
+          "event_ends_at": {
+            "type": "string",
+            "example": "2026-10-20T08:00:00.000Z",
+            "format": "date-time"
+          },
+          "event_venue": {
+            "type": "string",
+            "example": "ห้อง Ballroom โรงแรม …",
+            "maxLength": 500
+          },
+          "event_online_url": {
+            "type": "string",
+            "description": "ลิงก์ออนไลน์ — แสดงเฉพาะผู้ที่ได้ที่นั่ง",
+            "maxLength": 500
+          },
+          "event_capacity": {
+            "type": "integer",
+            "nullable": true,
+            "description": "ที่นั่ง — เต็มแล้วเข้ารายชื่อสำรอง · null = ไม่จำกัด",
+            "maximum": 100000,
+            "minimum": 1
           }
         },
         "required": [
@@ -8711,13 +8987,23 @@
           },
           "owner_user_id": {
             "type": "object",
-            "description": "เจ้าของใบ — เป็น null เสมอตอนสร้าง: ใบเข้ากองกลางรอพนักงานขายรับ",
+            "description": "เจ้าของใบ — null = ยังไม่มีคนรับ (กองกลาง หรือกองของทีมที่รับของแคมเปญ); ลูกค้าเดิม = ผู้ดูแลลูกค้า",
             "nullable": true,
             "example": null
           },
           "created_at": {
             "type": "string",
             "example": "2026-09-14T09:30:00.000Z"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "created",
+              "customer",
+              "repeat"
+            ],
+            "description": "CD-269 — `created` ใบใหม่ (เข้าทีมที่รับของแคมเปญถ้ามี) · `customer` ตรงกับลูกค้าเดิม ส่งถึงผู้ดูแลลูกค้า · `repeat` คนเดิมลงทะเบียนซ้ำภายใน 30 วัน — ได้ใบเดิมกลับ ไม่สร้างใหม่",
+            "example": "created"
           }
         },
         "required": [
@@ -8726,7 +9012,8 @@
           "status",
           "source_code",
           "owner_user_id",
-          "created_at"
+          "created_at",
+          "outcome"
         ]
       },
       "KycWatchlistEntryDto": {
@@ -9203,6 +9490,95 @@
             "type": "boolean",
             "description": "false = ปิด (ผูก Lead ใหม่ไม่ได้)"
           },
+          "sales_axis": {
+            "type": "string",
+            "enum": [
+              "getter",
+              "government",
+              "partner",
+              "keeper"
+            ],
+            "description": "CD-268 — แกนขายที่แคมเปญป้อน · ว่าง = ล้าง"
+          },
+          "receiving_org_unit_id": {
+            "type": "string",
+            "description": "CD-268 — ทีมที่รับ Lead ของแคมเปญ (id หน่วยงาน) · ว่าง = ล้าง",
+            "maxLength": 64
+          },
+          "target_leads": {
+            "type": "integer",
+            "nullable": true,
+            "description": "CD-268 — เป้าจำนวน Lead · null = ล้าง",
+            "maximum": 1000000,
+            "minimum": 0
+          },
+          "target_deals": {
+            "type": "integer",
+            "nullable": true,
+            "description": "CD-268 — เป้าดีลที่ปิดได้ · null = ล้าง",
+            "maximum": 1000000,
+            "minimum": 0
+          },
+          "target_sales": {
+            "type": "number",
+            "nullable": true,
+            "description": "CD-268 — เป้ายอดขาย (บาท) · null = ล้าง",
+            "maximum": 999999999999,
+            "minimum": 0
+          },
+          "form_enabled": {
+            "type": "boolean",
+            "description": "CD-269 — เปิดฟอร์มสาธารณะของแคมเปญ (/f/lead/<token>) · เปิดครั้งแรกระบบออก token ให้"
+          },
+          "form_intro": {
+            "type": "string",
+            "description": "CD-269 — ข้อความบนหัวฟอร์ม",
+            "maxLength": 2000
+          },
+          "ad_form_ids": {
+            "description": "CD-269 — id ฟอร์ม Lead Ads (Facebook/TikTok) ที่ส่งเข้าแคมเปญนี้",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 100
+            },
+            "maxItems": 20
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "campaign",
+              "event"
+            ],
+            "description": "CD-270 — อีเวนต์: ฟอร์มรับลงทะเบียน แล้วหลังงานแปลงผู้เข้าร่วมที่สนใจเป็น Lead"
+          },
+          "event_starts_at": {
+            "type": "string",
+            "example": "2026-10-20T02:00:00.000Z",
+            "format": "date-time"
+          },
+          "event_ends_at": {
+            "type": "string",
+            "example": "2026-10-20T08:00:00.000Z",
+            "format": "date-time"
+          },
+          "event_venue": {
+            "type": "string",
+            "example": "ห้อง Ballroom โรงแรม …",
+            "maxLength": 500
+          },
+          "event_online_url": {
+            "type": "string",
+            "description": "ลิงก์ออนไลน์ — แสดงเฉพาะผู้ที่ได้ที่นั่ง",
+            "maxLength": 500
+          },
+          "event_capacity": {
+            "type": "integer",
+            "nullable": true,
+            "description": "ที่นั่ง — เต็มแล้วเข้ารายชื่อสำรอง · null = ไม่จำกัด",
+            "maximum": 100000,
+            "minimum": 1
+          },
           "name": {
             "maxLength": 255,
             "type": "string",
@@ -9391,6 +9767,17 @@
           },
           "service_portal_user_id": {
             "maxLength": 50,
+            "type": "string"
+          },
+          "content_approval_type_code": {
+            "pattern": "^([A-Z0-9_-]{1,20})?$",
+            "type": "string"
+          },
+          "content_approval_all": {
+            "type": "boolean"
+          },
+          "brand_approval_type_code": {
+            "pattern": "^([A-Z0-9_-]{1,20})?$",
             "type": "string"
           },
           "project_close_documents": {

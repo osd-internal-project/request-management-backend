@@ -833,6 +833,23 @@ export class UpdateCrmConfigDto {
   @MaxLength(50)
   service_portal_user_id?: string;
 
+  /** CD-272: ประเภทคำขออนุมัติคอนเทนต์ (MACOM). "" = ส่งอนุมัติไม่ได้. */
+  @IsOptional()
+  @IsString()
+  @Matches(/^([A-Z0-9_-]{1,20})?$/)
+  content_approval_type_code?: string;
+
+  /** CD-272: true = ทุกคอนเทนต์ต้องอนุมัติ ไม่ใช่เฉพาะที่พาดพิงลูกค้า/ราคา/คู่ค้า. */
+  @IsOptional()
+  @IsBoolean()
+  content_approval_all?: boolean;
+
+  /** CD-273: ประเภทคำขออนุมัติไฟล์คลังแบรนด์ (MACOM). "" = อัปโหลดฉบับใหม่ไม่ได้. */
+  @IsOptional()
+  @IsString()
+  @Matches(/^([A-Z0-9_-]{1,20})?$/)
+  brand_approval_type_code?: string;
+
   /** CD-191: ชื่อเอกสารที่ทุกโครงการต้องแนบก่อนขอปิด. */
   @IsOptional()
   @IsArray()

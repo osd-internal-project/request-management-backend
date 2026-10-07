@@ -134,6 +134,12 @@ export class ListProjectsQueryDto extends PageQueryDto {
   @IsOptional()
   @IsIn(['mine'])
   scope?: 'mine';
+
+  /** โครงการของดีลนี้ — ใช้ติดตามดีลทั้งสายจาก External API. */
+  @ApiPropertyOptional({ description: 'id โอกาสการขายที่โครงการนี้มาจาก' })
+  @IsOptional()
+  @IsString()
+  opportunity_id?: string;
 }
 
 /** CD-182 — a milestone: name, how it is measured, due, the installment. */

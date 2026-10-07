@@ -29,6 +29,7 @@ import { ProblemsService } from './problems.service';
 import { ServiceReportsService } from './service-reports.service';
 import { SurveysService } from './surveys.service';
 import { PortalService } from './portal.service';
+import { KbPortalService } from '../kb/kb-portal.service';
 import {
   AssetStatusDto,
   AttachWorkOrderDto,
@@ -72,6 +73,8 @@ import {
   ListSurveysQueryDto,
   SurveyAnswerDto,
   InvitePortalContactDto,
+  PortalArticleVoteDto,
+  PortalArticlesQueryDto,
   PortalCaseDto,
   PortalContactsQueryDto,
   PortalSessionDto,
@@ -1019,7 +1022,11 @@ export class ServicePortalController {
 @ApiTags('service')
 @Controller('service-portal/public')
 export class ServicePortalPublicController {
-  constructor(private readonly portal: PortalService) {}
+  constructor(
+    private readonly portal: PortalService,
+    // CD-261 — the knowledge articles open to this customer
+    private readonly articles: KbPortalService,
+  ) {}
 
   @ApiOperation({ summary: 'เปิด session จากลิงก์เชิญ' })
   @Post('session')
@@ -1095,5 +1102,64 @@ export class ServicePortalPublicController {
       type: 'application/pdf',
       disposition: `inline; filename*=UTF-8''${encodeURIComponent(file.fileName)}`,
     });
+  }
+  @ApiOperation({
+    summary: 'บทความช่วยเหลือที่เปิดให้ลูกค้ารายนี้ (ตรงอุปกรณ์ขึ้นก่อน)',
+  })
+  @Get('articles')
+  @Public()
+  async articleList(
+    @Headers('x-portal-session') session: string | undefined,
+    @Query() query: PortalArticlesQueryDto,
+  ) {
+    const viewer = await this.portal.viewer(session);
+    return this.articles.listForCustomer(viewer, query.q?.trim() || undefined);
+  }
+
+  @ApiOperation({ summary: 'อ่านบทความช่วยเหลือ' })
+  @Get('articles/:id')
+  @Public()
+  async article(
+    @Headers('x-portal-session') session: string | undefined,
+    @Param('id') id: string,
+  ) {
+    return this.articles.articleForCustomer(
+      await this.portal.viewer(session),
+      id,
+    );
+  }
+
+  @ApiOperation({ summary: 'รูป/ไฟล์ในบทความช่วยเหลือ' })
+  @Get('articles/:id/files/:fileId')
+  @Public()
+  async articleFile(
+    @Headers('x-portal-session') session: string | undefined,
+    @Param('id') id: string,
+    @Param('fileId') fileId: string,
+  ): Promise<StreamableFile> {
+    const file = await this.articles.fileForCustomer(
+      await this.portal.viewer(session),
+      id,
+      fileId,
+    );
+    return new StreamableFile(file.stream, {
+      type: file.mimeType,
+      disposition: `inline; filename*=UTF-8''${encodeURIComponent(file.fileName)}`,
+    });
+  }
+
+  @ApiOperation({ summary: 'บทความนี้ช่วยได้หรือไม่' })
+  @Post('articles/:id/vote')
+  @Public()
+  async voteArticle(
+    @Headers('x-portal-session') session: string | undefined,
+    @Param('id') id: string,
+    @Body() dto: PortalArticleVoteDto,
+  ) {
+    return this.articles.rateForCustomer(
+      await this.portal.viewer(session),
+      id,
+      dto.helpful,
+    );
   }
 }

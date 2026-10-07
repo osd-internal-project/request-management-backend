@@ -1,0 +1,606 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/v1/support/assets": {
+      "get": {
+        "description": "`q` = serial / ชื่อ / รุ่น / สถานที่ · กรองตามลูกค้าได้",
+        "operationId": "ExternalSupportController_listAssets",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "serial / ชื่อ / รุ่น / สถานที่ / รหัสสินค้า",
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "customer_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 50
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "active",
+                "replaced",
+                "removed",
+                "all"
+              ],
+              "maxLength": 20
+            }
+          },
+          {
+            "name": "kind",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "equipment",
+                "software"
+              ],
+              "maxLength": 20
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ค้นทะเบียนอุปกรณ์ที่ติดตั้ง",
+        "tags": [
+          "support"
+        ],
+        "x-permission": [
+          "integration.support.read"
+        ],
+        "x-acting-permission": [
+          "service.asset.read"
+        ]
+      }
+    },
+    "/api/v1/support/assets/{id}": {
+      "get": {
+        "operationId": "ExternalSupportController_asset",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "รายละเอียดและประวัติของอุปกรณ์",
+        "tags": [
+          "support"
+        ],
+        "x-permission": [
+          "integration.support.read"
+        ],
+        "x-acting-permission": [
+          "service.asset.read"
+        ]
+      }
+    },
+    "/api/v1/support/entitlements": {
+      "get": {
+        "description": "กรองลูกค้า สถานะ และที่ใกล้หมดอายุ",
+        "operationId": "ExternalSupportController_listEntitlements",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "customer_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 50
+            }
+          },
+          {
+            "name": "state",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "active",
+                "upcoming",
+                "expired",
+                "cancelled",
+                "all"
+              ],
+              "maxLength": 20
+            }
+          },
+          {
+            "name": "expiring_days",
+            "required": false,
+            "in": "query",
+            "description": "ภายในกี่วันจะหมด (เตือนต่ออายุ)",
+            "schema": {
+              "type": "string",
+              "maxLength": 4
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "สิทธิ์บริการ (ประกัน / สัญญาบริการ MA)",
+        "tags": [
+          "support"
+        ],
+        "x-permission": [
+          "integration.support.read"
+        ],
+        "x-acting-permission": [
+          "service.asset.read"
+        ]
+      }
+    },
+    "/api/v1/support/entitlements/{id}": {
+      "get": {
+        "operationId": "ExternalSupportController_entitlement",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "รายละเอียดสิทธิ์ และอุปกรณ์ที่ครอบคลุม",
+        "tags": [
+          "support"
+        ],
+        "x-permission": [
+          "integration.support.read"
+        ],
+        "x-acting-permission": [
+          "service.asset.read"
+        ]
+      }
+    },
+    "/api/v1/support/work-orders": {
+      "get": {
+        "operationId": "ExternalSupportController_listWorkOrders",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "customer_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 50
+            }
+          },
+          {
+            "name": "asset_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 50
+            }
+          },
+          {
+            "name": "state",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "open",
+                "all"
+              ],
+              "maxLength": 10
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ใบสั่งงานบริการ — ที่ยังเปิด หรือทั้งหมด",
+        "tags": [
+          "support"
+        ],
+        "x-permission": [
+          "integration.support.read"
+        ],
+        "x-acting-permission": [
+          "service.asset.read"
+        ]
+      },
+      "post": {
+        "description": "สร้างเคสตามประเภทใบสั่งงานบริการที่ตั้งในหน้าตั้งค่า CRM แล้วยื่นทันที — นาฬิกา SLA เริ่ม และคำตอบบอกว่าอยู่ในสิทธิ์บริการหรือต้องเก็บเงิน · ติดตามต่อด้วย `GET request/requests/{requestNo}` · ยังไม่ได้ตั้งประเภท = `409 CONFLICT`",
+        "operationId": "ExternalSupportController_openWorkOrder",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "ควรส่งทุกครั้ง — หนึ่งค่าต่อหนึ่งเจตนา ยิงซ้ำด้วยค่าเดิมและ body เดิมจะได้ผลลัพธ์เดิมกลับไป ไม่เกิดรายการที่สอง",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "6f6bd3a7-7308-4d2e-a4de-75e1f89b6871"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenWorkOrderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เปิดใบสั่งงานบริการ (CD-239)",
+        "tags": [
+          "support"
+        ],
+        "x-permission": [
+          "integration.support.manage"
+        ],
+        "x-acting-permission": [
+          "service.asset.manage"
+        ]
+      }
+    },
+    "/api/v1/support/work-orders/by-request/{requestId}": {
+      "get": {
+        "description": "`null` ถ้าคำขอนี้ไม่ใช่ใบสั่งงานบริการ",
+        "operationId": "ExternalSupportController_ofRequest",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "requestId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ข้อมูลบริการของคำขอ",
+        "tags": [
+          "support"
+        ],
+        "x-permission": [
+          "integration.support.read"
+        ],
+        "x-acting-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/support/work-orders/{id}": {
+      "get": {
+        "operationId": "ExternalSupportController_workOrder",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "รายละเอียด + สิทธิ์ที่ครอบคลุมอุปกรณ์วันนี้",
+        "tags": [
+          "support"
+        ],
+        "x-permission": [
+          "integration.support.read"
+        ],
+        "x-acting-permission": [
+          "service.asset.read"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "Request Form — External API · Support",
+    "description": "งานบริการหลังการขาย — ทะเบียนอุปกรณ์ สิทธิ์บริการ และเปิดใบสั่งงานบริการ\n\n**ทุก route มีสองประตู** และ Swagger ของแต่ละ route บอกไว้ทั้งคู่: bearer ต้องถือสิทธิ์ `integration.*` ของ route นั้น (ประตูของเครื่อง) และคนที่ระบุใน header `X-Acting-User` ต้องถือสิทธิ์ของงานนั้นเอง (ประตูของคน) — ระบบทำงานในนามคนนั้น timeline จึงบันทึกชื่อคนจริง ไม่ใช่ชื่อบัญชีบริการ\n\n**bearer รับได้สองแบบ**\n\n1. access token ของ service account จาก Keycloak (client_credentials) อายุสั้น ต้องขอใหม่เมื่อหมดอายุ\n2. **API key** ที่ขึ้นต้นด้วย `rfk_` — ไม่มีวันหมดอายุ ไม่ต้องต่ออายุ ระบบแลกเป็น token ให้เองตอนใช้ ออกด้วย `yarn apikey:issue` และเพิกถอนด้วย `yarn apikey:revoke` (มีผลทันที)\n\nทั้งสองแบบส่งเหมือนกัน: `Authorization: Bearer <ค่า>` และได้สิทธิ์ชุดเดียวกัน — key ตัดสินว่า *เข้าได้ไหม* token บอกว่า *ทำอะไรได้*\n\n`POST /support/work-orders` สร้างเคสตามประเภทที่ตั้งในหน้าตั้งค่า CRM แล้วยื่นทันที (นาฬิกา SLA เริ่ม) ติดตามต่อด้วย `GET /request/requests/{requestNo}` · ลูกค้าแจ้งเองใช้ช่องทาง `request/intake/*` หรือ Customer Portal ไม่ใช่ที่นี่",
+    "version": "1.0"
+  },
+  "tags": [
+    {
+      "name": "support",
+      "description": "งานบริการหลังการขาย"
+    }
+  ],
+  "servers": [
+    {
+      "url": "http://192.168.31.52:3503",
+      "description": "เครื่องภายใน OSD"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
+    "schemas": {
+      "OpenWorkOrderDto": {
+        "type": "object",
+        "properties": {
+          "customer_id": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "asset_id": {
+            "type": "string",
+            "description": "อุปกรณ์ในทะเบียน (CD-236)",
+            "maxLength": 50
+          },
+          "work_kind": {
+            "type": "string",
+            "enum": [
+              "corrective",
+              "preventive"
+            ]
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "critical",
+              "high",
+              "medium",
+              "low"
+            ]
+          },
+          "subject": {
+            "type": "string",
+            "example": "กล้องชั้น 2 ภาพไม่ขึ้น",
+            "maxLength": 255,
+            "minLength": 1
+          },
+          "detail": {
+            "type": "string",
+            "maxLength": 4000
+          }
+        },
+        "required": [
+          "customer_id",
+          "severity",
+          "subject",
+          "work_kind"
+        ]
+      }
+    }
+  }
+}

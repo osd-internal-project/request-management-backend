@@ -1,0 +1,533 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/v1/pm/projects": {
+      "get": {
+        "description": "`opportunity_id` = โครงการของดีลนั้น · `scope=mine` = ที่ผู้ใช้เป็นผู้จัดการหรืออยู่ในทีม",
+        "operationId": "ExternalProjectsController_list",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "เลขหน้าที่ต้องการ เริ่มที่ 1",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page_size",
+            "required": false,
+            "in": "query",
+            "description": "จำนวนรายการต่อหน้า",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "`sort=field` เรียงขึ้น, `sort=-field` เรียงลง",
+            "schema": {
+              "example": "-createdAt",
+              "type": "string",
+              "pattern": "^-?[a-zA-Z_][a-zA-Z0-9_]*$"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "เลขที่ ชื่อโครงการ หรือเลขที่สัญญา",
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "active",
+                "on_hold",
+                "closed",
+                "cancelled"
+              ]
+            }
+          },
+          {
+            "name": "scope",
+            "required": false,
+            "in": "query",
+            "description": "mine = ที่ฉันเป็นผู้จัดการหรืออยู่ในทีม",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "mine"
+              ]
+            }
+          },
+          {
+            "name": "opportunity_id",
+            "required": false,
+            "in": "query",
+            "description": "id โอกาสการขายที่โครงการนี้มาจาก",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ค้นโครงการ",
+        "tags": [
+          "pm"
+        ],
+        "x-permission": [
+          "integration.pm.read"
+        ],
+        "x-acting-permission": [
+          "notification.read"
+        ]
+      },
+      "post": {
+        "description": "ออกเลขที่โครงการ ดึงหมุดหมาย/งวดจากสัญญา แจ้งผู้จัดการและทีม · สัญญายังไม่ลงนาม หรือเปิดโครงการไปแล้ว = `409 CONFLICT` พร้อมเหตุผล · `manager_user_id` เป็น uuid หาได้จาก `GET request/users`",
+        "operationId": "ExternalProjectsController_open",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "ควรส่งทุกครั้ง — หนึ่งค่าต่อหนึ่งเจตนา ยิงซ้ำด้วยค่าเดิมและ body เดิมจะได้ผลลัพธ์เดิมกลับไป ไม่เกิดรายการที่สอง",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "6f6bd3a7-7308-4d2e-a4de-75e1f89b6871"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenProjectDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เปิดโครงการจากสัญญาที่ลงนามแล้ว (CD-175)",
+        "tags": [
+          "pm"
+        ],
+        "x-permission": [
+          "integration.pm.manage"
+        ],
+        "x-acting-permission": [
+          "pm.project.manage"
+        ]
+      }
+    },
+    "/api/v1/pm/projects/openable-contracts": {
+      "get": {
+        "description": "ตัวเลือกของ `contract_id` สำหรับ `POST pm/projects`",
+        "operationId": "ExternalProjectsController_openable",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "สัญญาที่ลงนามแล้วและยังไม่ได้เปิดโครงการ",
+        "tags": [
+          "pm"
+        ],
+        "x-permission": [
+          "integration.pm.manage"
+        ],
+        "x-acting-permission": [
+          "pm.project.manage"
+        ]
+      }
+    },
+    "/api/v1/pm/projects/preview/{contractId}": {
+      "get": {
+        "description": "ดึงจากสัญญา ขอบเขตงาน (SOW) และ BOQ ของ Solution ที่อนุมัติ · `problems` ไม่ว่าง = เปิดไม่ได้จนกว่าจะแก้",
+        "operationId": "ExternalProjectsController_preview",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "contractId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ตรวจก่อนเปิดโครงการ — ข้อมูลที่จะดึงมา และสิ่งที่ยังขาด",
+        "tags": [
+          "pm"
+        ],
+        "x-permission": [
+          "integration.pm.manage"
+        ],
+        "x-acting-permission": [
+          "pm.project.manage"
+        ]
+      }
+    },
+    "/api/v1/pm/projects/by-contract/{contractId}": {
+      "get": {
+        "description": "`null` = สัญญานี้ยังไม่ได้เปิดโครงการ",
+        "operationId": "ExternalProjectsController_forContract",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "contractId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "โครงการที่เปิดจากสัญญานี้",
+        "tags": [
+          "pm"
+        ],
+        "x-permission": [
+          "integration.pm.read"
+        ],
+        "x-acting-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/pm/projects/{id}": {
+      "get": {
+        "operationId": "ExternalProjectsController_detail",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "รายละเอียดโครงการ",
+        "tags": [
+          "pm"
+        ],
+        "x-permission": [
+          "integration.pm.read"
+        ],
+        "x-acting-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/pm/projects/{id}/milestones": {
+      "get": {
+        "operationId": "ExternalProjectsController_listMilestones",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "หมุดหมายของโครงการ และงวดชำระของสัญญา (CD-182)",
+        "tags": [
+          "pm"
+        ],
+        "x-permission": [
+          "integration.pm.read"
+        ],
+        "x-acting-permission": [
+          "notification.read"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "Request Form — External API · PM",
+    "description": "โครงการ — ค้น อ่าน และเปิดโครงการจากสัญญาที่ลงนามแล้ว\n\n**ทุก route มีสองประตู** และ Swagger ของแต่ละ route บอกไว้ทั้งคู่: bearer ต้องถือสิทธิ์ `integration.*` ของ route นั้น (ประตูของเครื่อง) และคนที่ระบุใน header `X-Acting-User` ต้องถือสิทธิ์ของงานนั้นเอง (ประตูของคน) — ระบบทำงานในนามคนนั้น timeline จึงบันทึกชื่อคนจริง ไม่ใช่ชื่อบัญชีบริการ\n\n**bearer รับได้สองแบบ**\n\n1. access token ของ service account จาก Keycloak (client_credentials) อายุสั้น ต้องขอใหม่เมื่อหมดอายุ\n2. **API key** ที่ขึ้นต้นด้วย `rfk_` — ไม่มีวันหมดอายุ ไม่ต้องต่ออายุ ระบบแลกเป็น token ให้เองตอนใช้ ออกด้วย `yarn apikey:issue` และเพิกถอนด้วย `yarn apikey:revoke` (มีผลทันที)\n\nทั้งสองแบบส่งเหมือนกัน: `Authorization: Bearer <ค่า>` และได้สิทธิ์ชุดเดียวกัน — key ตัดสินว่า *เข้าได้ไหม* token บอกว่า *ทำอะไรได้*\n\nเปิดโครงการ: `GET /pm/projects/openable-contracts` → `GET /pm/projects/preview/{contractId}` (ดู `problems`) → `POST /pm/projects` ส่ง `Idempotency-Key` ทุกครั้ง · ต้องถือ `pm.project.manage`",
+    "version": "1.0"
+  },
+  "tags": [
+    {
+      "name": "pm",
+      "description": "โครงการ"
+    }
+  ],
+  "servers": [
+    {
+      "url": "http://192.168.31.52:3503",
+      "description": "เครื่องภายใน OSD"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
+    "schemas": {
+      "OpenProjectDto": {
+        "type": "object",
+        "properties": {
+          "contract_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "manager_user_id": {
+            "type": "string",
+            "description": "ผู้จัดการโครงการ",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "description": "ชื่อโครงการ — ว่างไว้ใช้ชื่อสัญญา",
+            "maxLength": 255
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProjectMemberDto"
+            },
+            "maxItems": 100
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "contract_id",
+          "manager_user_id"
+        ]
+      },
+      "ProjectMemberDto": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "role": {
+            "type": "string",
+            "example": "วิศวกรติดตั้ง",
+            "maxLength": 100
+          }
+        },
+        "required": [
+          "user_id"
+        ]
+      }
+    }
+  }
+}

@@ -60,6 +60,12 @@ export class ListContractsQueryDto extends PageQueryDto {
   @IsString()
   customer_id?: string;
 
+  /** สัญญาที่เกิดจากดีลนี้ — ใช้ติดตามดีลทั้งสายจาก External API. */
+  @ApiPropertyOptional({ description: 'id โอกาสการขายที่สัญญานี้มาจาก' })
+  @IsOptional()
+  @IsString()
+  opportunity_id?: string;
+
   @ApiPropertyOptional({ description: 'หมดอายุตั้งแต่ (YYYY-MM-DD)' })
   @IsOptional()
   @IsDateString()

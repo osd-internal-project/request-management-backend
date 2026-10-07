@@ -221,7 +221,8 @@ export class IntakeLeadResultDto {
 
   @ApiProperty({
     description:
-      'เจ้าของใบ — เป็น null เสมอตอนสร้าง: ใบเข้ากองกลางรอพนักงานขายรับ',
+      'เจ้าของใบ — null = ยังไม่มีคนรับ (กองกลาง หรือกองของทีมที่รับของแคมเปญ); ' +
+      'ลูกค้าเดิม = ผู้ดูแลลูกค้า',
     nullable: true,
     example: null,
   })
@@ -229,4 +230,13 @@ export class IntakeLeadResultDto {
 
   @ApiProperty({ example: '2026-09-14T09:30:00.000Z' })
   created_at!: string;
+
+  @ApiProperty({
+    enum: ['created', 'customer', 'repeat'],
+    description:
+      'CD-269 — `created` ใบใหม่ (เข้าทีมที่รับของแคมเปญถ้ามี) · `customer` ตรงกับลูกค้าเดิม ' +
+      'ส่งถึงผู้ดูแลลูกค้า · `repeat` คนเดิมลงทะเบียนซ้ำภายใน 30 วัน — ได้ใบเดิมกลับ ไม่สร้างใหม่',
+    example: 'created',
+  })
+  outcome!: 'created' | 'customer' | 'repeat';
 }

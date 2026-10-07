@@ -2442,6 +2442,12 @@ model CrmCompanyConfig {
   /// CD-249 — the staff user a case raised in the Customer Portal is raised
   /// under (as a CD-66 channel's). NULL = the portal cannot open cases.
   servicePortalUserId              String?
+  /// CD-272 — ประเภทคำขออนุมัติคอนเทนต์ · ว่าง = ส่งอนุมัติไม่ได้
+  contentApprovalTypeCode String?
+  /// CD-272 — true = ทุกคอนเทนต์ต้องอนุมัติ (ไม่ใช่เฉพาะที่พาดพิงลูกค้า/ราคา/คู่ค้า)
+  contentApprovalAll      Boolean @default(false)
+  /// CD-273 — ประเภทคำขออนุมัติไฟล์คลังแบรนด์ · ว่าง = อัปโหลดเวอร์ชันใหม่ไม่ได้
+  brandApprovalTypeCode   String?
   /// CD-190 — actual cost as % of the reference budget: warn at, alert over.
   projectCostWarnPct               Int      @default(90)
   projectCostAlertPct              Int      @default(100)
@@ -3492,16 +3498,343 @@ model Campaign {
   /// ปิดแล้ว = ผูก Lead ใหม่ไม่ได้ แต่ผลเดิมยังดูได้.
   active    Boolean   @default(true)
 
+  /// CD-268 — แกนขายที่แคมเปญป้อน: getter | government | partner | keeper.
+  salesAxis          String?
+  /// CD-268 — ทีมที่รับ Lead ของแคมเปญ (CD-269 ใช้ส่ง Lead เข้าทีมนี้).
+  receivingOrgUnitId String?
+  /// CD-268 — เป้าหมาย: จำนวน Lead, ดีลที่ปิดได้, ยอดขาย.
+  targetLeads        Int?
+  targetDeals        Int?
+  targetSales        Decimal?  @db.Decimal(14, 2)
+  /// CD-269 — ฟอร์มสาธารณะของแคมเปญ (/f/lead/<formToken>) · token สุ่ม เดาไม่ได้.
+  formEnabled        Boolean   @default(false)
+  formToken          String?   @unique
+  formIntro          String?
+  /// CD-269 — id ฟอร์ม Lead Ads (Facebook/TikTok) ที่ส่ง Lead เข้าแคมเปญนี้.
+  adFormIds          String[]  @default([])
+  /// CD-270 — `campaign` | `event`. อีเวนต์: ฟอร์มสาธารณะรับลงทะเบียน (ไม่ใช่ Lead)
+  /// แล้วหลังงานแปลงเฉพาะผู้เข้าร่วมที่สนใจเป็น Lead.
+  kind               String    @default("campaign")
+  eventStartsAt      DateTime?
+  eventEndsAt        DateTime?
+  eventVenue         String?
+  eventOnlineUrl     String?
+  /// ที่นั่ง — เต็มแล้วผู้ลงทะเบียนต่อไปเข้ารายชื่อสำรอง. null = ไม่จำกัด.
+  eventCapacity      Int?
+
   createdAt DateTime @default(now())
   createdBy String?
   updatedAt DateTime @updatedAt
   updatedBy String?
 
-  company Company @relation(fields: [companyId], references: [id])
-  leads   Lead[]
+  company       Company                @relation(fields: [companyId], references: [id])
+  leads         Lead[]
+  budgetLines   CampaignBudgetLine[]
+  spends        CampaignSpend[]
+  registrations CampaignRegistration[]
+  contents      ContentItem[]
 
   @@unique([companyId, code])
   @@map("campaigns")
+}
+
+/// CD-275 — โมเดลที่งาน AI หนึ่งใช้ และโควตา token รายเดือน (ต่อบริษัท).
+/// ไม่มีแถว = ใช้ค่าตั้งต้นจากแคตตาล็อกงานในโค้ด (`llm-tasks.ts`).
+model LlmTaskSetting {
+  id                String   @id @default(uuid())
+  companyId         String
+  task              String
+  model             String?
+  /// token ต่อเดือน · null = ไม่จำกัด
+  monthlyTokenQuota Int?
+  enabled           Boolean  @default(true)
+  updatedAt         DateTime @updatedAt
+  updatedBy         String?
+
+  @@unique([companyId, task])
+  @@map("llm_task_settings")
+}
+
+/// CD-275 — ราคาโมเดล (บาทต่อ 1,000 token) ใช้ประมาณค่าใช้จ่ายในบันทึกการเรียก.
+model LlmModelPrice {
+  id               String   @id @default(uuid())
+  companyId        String
+  model            String
+  inputPer1k       Decimal  @db.Decimal(12, 4)
+  outputPer1k      Decimal  @db.Decimal(12, 4)
+  updatedAt        DateTime @updatedAt
+  updatedBy        String?
+
+  @@unique([companyId, model])
+  @@map("llm_model_prices")
+}
+
+/// CD-275 — ทุกการเรียกโมเดลผ่าน Gateway (ไม่เก็บข้อความ prompt/คำตอบ).
+model LlmCall {
+  id               String   @id @default(uuid())
+  companyId        String
+  userId           String?
+  task             String
+  kind             String
+  model            String
+  promptTokens     Int      @default(0)
+  completionTokens Int      @default(0)
+  totalTokens      Int      @default(0)
+  costEstimate     Decimal? @db.Decimal(12, 4)
+  durationMs       Int      @default(0)
+  /// ok | error | quota | disabled
+  status           String
+  error            String?
+  createdAt        DateTime @default(now())
+
+  @@index([companyId, createdAt])
+  @@index([companyId, task, createdAt])
+  @@index([companyId, userId, createdAt])
+  @@map("llm_calls")
+}
+
+/// CD-279 — one MCP tool call: who asked, what was asked, which rows answered.
+/// Never the rows' values; the chat's text lives in LibreChat.
+model McpCall {
+  id                String   @id @default(uuid())
+  companyId         String
+  /// The person the call was done as; null when they could not be resolved.
+  userId            String?
+  /// Called with a service account's key on the person's behalf (X-Acting-User).
+  viaServiceAccount Boolean  @default(false)
+  tool              String
+  isWrite           Boolean  @default(false)
+  /// Read tools: the filters (values cut to 200 chars) · write tools: field names only.
+  args              Json     @default("{}")
+  /// Ids of the rows the answer carried (at most 100).
+  resultIds         String[] @default([])
+  resultCount       Int      @default(0)
+  /// ok | error
+  status            String
+  errorCode         String?
+  durationMs        Int      @default(0)
+  createdAt         DateTime @default(now())
+
+  @@index([companyId, createdAt])
+  @@index([companyId, userId, createdAt])
+  @@index([companyId, tool, createdAt])
+  @@map("mcp_calls")
+}
+
+/// CD-279 — how long a company keeps its AI logs (MCP calls and model calls).
+model AiAuditPolicy {
+  id            String   @id @default(uuid())
+  companyId     String   @unique
+  retentionDays Int      @default(365)
+  updatedBy     String?
+  updatedAt     DateTime @updatedAt
+
+  @@map("ai_audit_policies")
+}
+
+/// CD-273 — ไฟล์ในคลังแบรนด์ (โลโก้ เทมเพลตข้อเสนอ เอกสารนำเสนอ …) ·
+/// ทุกคนเห็นเฉพาะฉบับปัจจุบัน (`currentVersionId`), ฉบับเก่าเก็บไว้ให้ MACOM.
+model BrandAsset {
+  id               String    @id @default(uuid())
+  companyId        String
+  /// logo | proposal_template | presentation | guideline | graphic | other
+  category         String
+  name             String
+  description      String?
+  tags             String[]  @default([])
+  currentVersionId String?
+  retiredAt        DateTime?
+  retiredBy        String?
+  retireReason     String?
+
+  createdAt DateTime @default(now())
+  createdBy String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  versions BrandAssetVersion[]
+
+  @@index([companyId, category])
+  @@map("brand_assets")
+}
+
+/// CD-273 — ฉบับหนึ่งของไฟล์แบรนด์ · ขึ้นเป็นฉบับปัจจุบันเมื่ออนุมัติ (คำขอตามประเภทในตั้งค่า CRM).
+model BrandAssetVersion {
+  id                String    @id @default(uuid())
+  companyId         String
+  assetId           String
+  versionNo         Int
+  fileName          String
+  mimeType          String
+  sizeBytes         Int
+  storageKey        String
+  note              String?
+  /// pending | approved | rejected | cancelled
+  status            String    @default("pending")
+  approvalRequestId String?
+  decidedAt         DateTime?
+  decisionNote      String?
+  uploadedBy        String?
+  createdAt         DateTime  @default(now())
+
+  asset BrandAsset @relation(fields: [assetId], references: [id])
+
+  @@unique([assetId, versionNo])
+  @@index([approvalRequestId])
+  @@map("brand_asset_versions")
+}
+
+/// CD-271 — คอนเทนต์หนึ่งชิ้น = โพสต์หนึ่งครั้งบนช่องทางเดียว (ปฏิทินคอนเทนต์).
+/// draft → ready → published | cancelled (CD-272 แทรกขั้นรออนุมัติ).
+model ContentItem {
+  id            String    @id @default(uuid())
+  companyId     String
+  campaignId    String?
+  /// line_oa | facebook | tiktok | instagram | website | email
+  channel       String
+  title         String
+  caption       String    @default("")
+  ownerUserId   String
+  plannedAt     DateTime
+  status        String    @default("draft")
+  publishedAt   DateTime?
+  publishedUrl  String?
+  cancelReason  String?
+  /// ทุกครั้งที่แก้เนื้อหา +1 — CD-272 ผูกการอนุมัติกับเวอร์ชันนี้
+  version       Int       @default(1)
+  remindedAt    DateTime?
+  overdueAt     DateTime?
+  copiedFromId  String?
+  /// CD-272 — พาดพิงลูกค้า / ราคา / คู่ค้า → ต้องอนุมัติก่อนพร้อมเผยแพร่
+  mentionsCustomer  Boolean @default(false)
+  mentionsPrice     Boolean @default(false)
+  mentionsPartner   Boolean @default(false)
+  /// none | pending | approved | rejected | cancelled
+  approvalStatus    String  @default("none")
+  approvalRequestId String?
+  /// เวอร์ชันที่อนุมัติ — แก้เนื้อหาหลังอนุมัติ (version เปลี่ยน) ต้องขอใหม่
+  approvedVersion   Int?
+  approvalNote      String?
+
+  createdAt DateTime @default(now())
+  createdBy String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  campaign Campaign?     @relation(fields: [campaignId], references: [id])
+  files    ContentFile[]
+
+  @@index([companyId, plannedAt])
+  @@index([companyId, status])
+  @@map("content_items")
+}
+
+/// CD-271 — สื่อของคอนเทนต์ (รูป/วิดีโอ/PDF) บน MinIO · ไม่ลบไฟล์จริง.
+model ContentFile {
+  id         String    @id @default(uuid())
+  companyId  String
+  contentId  String
+  fileName   String
+  mimeType   String
+  sizeBytes  Int
+  storageKey String
+  uploadedBy String?
+  createdAt  DateTime  @default(now())
+  removedAt  DateTime?
+
+  content ContentItem @relation(fields: [contentId], references: [id])
+
+  @@index([contentId])
+  @@map("content_files")
+}
+
+/// CD-270 — ผู้ลงทะเบียนอีเวนต์ (จากฟอร์มสาธารณะ หรือ walk-in หน้างาน).
+/// ไม่ใช่ Lead — หลังงานแปลงเฉพาะคนที่มาและสนใจ (`leadId`).
+model CampaignRegistration {
+  id          String    @id @default(uuid())
+  companyId   String
+  campaignId  String
+  company     String?
+  contactName String
+  position    String?
+  phone       String?
+  email       String?
+  need        String?
+  consentAt   DateTime?
+  /// registered | waitlisted | cancelled
+  status      String    @default("registered")
+  walkIn      Boolean   @default(false)
+  attendedAt  DateTime?
+  attendedBy  String?
+  /// interested | later | not_interested — ตั้งหลังงาน
+  interest    String?
+  followNote  String?
+  leadId      String?
+  leadOutcome String?
+  convertedAt DateTime?
+  convertedBy String?
+
+  createdAt DateTime @default(now())
+  createdBy String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  campaign Campaign @relation(fields: [campaignId], references: [id])
+
+  @@index([campaignId, status])
+  @@map("campaign_registrations")
+}
+
+/// CD-268 — งบแคมเปญรายช่องทาง. งบรวมของแคมเปญ (`campaigns.budget`) = ผลรวม
+/// บรรทัดเมื่อมีบรรทัด.
+model CampaignBudgetLine {
+  id         String  @id @default(uuid())
+  companyId  String
+  campaignId String
+  channel    String
+  planned    Decimal @db.Decimal(14, 2)
+  note       String?
+  sortOrder  Int     @default(0)
+
+  createdAt DateTime @default(now())
+  createdBy String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  campaign Campaign        @relation(fields: [campaignId], references: [id])
+  spends   CampaignSpend[]
+
+  @@index([campaignId])
+  @@map("campaign_budget_lines")
+}
+
+/// CD-268 — ค่าใช้จ่ายจริงของแคมเปญ พร้อมใบเสร็จ · ไม่ลบ — ยกเลิกพร้อมเหตุผล.
+model CampaignSpend {
+  id           String    @id @default(uuid())
+  companyId    String
+  campaignId   String
+  budgetLineId String?
+  spentOn      DateTime  @db.Date
+  amount       Decimal   @db.Decimal(14, 2)
+  vendor       String?
+  note         String?
+  receiptKey   String?
+  receiptName  String?
+  receiptType  String?
+  voidedAt     DateTime?
+  voidedBy     String?
+  voidReason   String?
+
+  createdAt DateTime @default(now())
+  createdBy String?
+  updatedAt DateTime @updatedAt
+
+  campaign   Campaign            @relation(fields: [campaignId], references: [id])
+  budgetLine CampaignBudgetLine? @relation(fields: [budgetLineId], references: [id])
+
+  @@index([campaignId])
+  @@index([budgetLineId])
+  @@map("campaign_spends")
 }
 
 /// CD-61 — ระดับความเสี่ยงลูกค้า.
@@ -7164,6 +7497,353 @@ model ReceivableReminder {
   @@map("receivable_reminders")
 }
 
+/// CD-259 (part of CD-22 KBMS) — a process category of the knowledge base,
+/// kept by its owners (`kb.article.manage`); one level under another at most.
+model KbCategory {
+  id           String   @id @default(uuid())
+  companyId    String
+  name         String
+  parentId     String?
+  sortOrder    Int      @default(0)
+  active       Boolean  @default(true)
+  /// CD-260 — months between reviews of its articles (null = 12; a
+  /// sub-category without its own takes its parent's).
+  reviewMonths Int?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([companyId, parentId, name])
+  @@index([companyId])
+  @@map("kb_categories")
+}
+
+/// CD-259 — a knowledge article: Markdown, by product (SAP item codes and
+/// item groups), process category and free symptom tags. draft · published
+/// · archived. `source` is where it came from (manual now; closed service
+/// jobs, project lessons and Pre-Sales answers later — CD-262..264).
+model KbArticle {
+  id               String    @id @default(uuid())
+  companyId        String
+  articleNo        String
+  title            String
+  summary          String?
+  body             String    @default("")
+  status           String    @default("draft")
+  categoryId       String?
+  tags             String[]  @default([])
+  productCodes     String[]  @default([])
+  productGroups    String[]  @default([])
+  source           String    @default("manual")
+  sourceRef        String?
+  authorId         String
+  publishedAt      DateTime?
+  publishedBy      String?
+  archivedAt       DateTime?
+  archivedBy       String?
+  views            Int       @default(0)
+  helpfulYes       Int       @default(0)
+  helpfulNo        Int       @default(0)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  updatedBy        String?
+  /// CD-260 — who answers for it (reviews it); the author at first.
+  ownerId          String?
+  /// CD-260 — the published version's number (0 = never published).
+  version          Int       @default(0)
+  /// CD-260 — a first draft sent for review (in_review) and sent back.
+  submittedAt      DateTime?
+  reviewNote       String?
+  reviewedBy       String?
+  reviewedAt       DateTime?
+  nextReviewOn     DateTime? @db.Date
+  lastReviewedAt   DateTime?
+  lastReviewedBy   String?
+  reviewRemindedOn DateTime? @db.Date
+  /// CD-260 — merged into another article (archived, readers sent on).
+  mergedIntoId     String?
+  /// CD-261 — who it is for: internal (staff only) · customers (every
+  /// customer, in the Portal too) · selected (only `customerIds`, and staff
+  /// who can see one of them in CRM).
+  audience         String    @default("internal")
+  customerIds      String[]  @default([])
+  /// CD-261 — Portal readers' views and votes, apart from staff's.
+  portalViews      Int       @default(0)
+  portalHelpfulYes Int       @default(0)
+  portalHelpfulNo  Int       @default(0)
+
+  @@unique([companyId, articleNo])
+  @@index([companyId, status])
+  @@index([categoryId])
+  @@map("kb_articles")
+}
+
+/// CD-259 — one reader's say on whether an article helped (latest wins).
+model KbArticleRating {
+  articleId String
+  userId    String
+  helpful   Boolean
+  comment   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([articleId, userId])
+  @@map("kb_article_ratings")
+}
+
+/// CD-259 — an image or file an article shows or links (MinIO).
+model KbArticleFile {
+  id         String    @id @default(uuid())
+  articleId  String
+  fileName   String
+  mimeType   String
+  sizeBytes  Int
+  storageKey String
+  uploadedBy String
+  uploadedAt DateTime  @default(now())
+  deletedAt  DateTime?
+
+  @@index([articleId])
+  @@map("kb_article_files")
+}
+
+/// CD-260 — a reworking of a published article: the published one stays
+/// up while this is written and reviewed. draft · in_review · returned ·
+/// approved · discarded; one open at a time per article.
+model KbArticleRevision {
+  id            String    @id @default(uuid())
+  articleId     String
+  status        String    @default("draft")
+  title         String
+  summary       String?
+  body          String
+  categoryId    String?
+  tags          String[]  @default([])
+  productCodes  String[]  @default([])
+  productGroups String[]  @default([])
+  changeNote    String    @default("")
+  createdBy     String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  submittedAt   DateTime?
+  reviewedBy    String?
+  reviewedAt    DateTime?
+  reviewNote    String?
+  /// CD-261
+  audience      String    @default("internal")
+  customerIds   String[]  @default([])
+
+  @@index([articleId, status])
+  @@map("kb_article_revisions")
+}
+
+/// CD-260 — what was published, each time: the text, who approved it, when.
+model KbArticleVersion {
+  id            String   @id @default(uuid())
+  articleId     String
+  version       Int
+  title         String
+  summary       String?
+  body          String
+  categoryId    String?
+  tags          String[] @default([])
+  productCodes  String[] @default([])
+  productGroups String[] @default([])
+  changeNote    String   @default("")
+  writtenBy     String
+  approvedBy    String
+  approvedAt    DateTime @default(now())
+  /// CD-261
+  audience      String   @default("internal")
+  customerIds   String[] @default([])
+
+  @@unique([articleId, version])
+  @@map("kb_article_versions")
+}
+
+/// CD-261 — a Portal contact's say on whether an article helped (latest wins).
+model KbPortalRating {
+  articleId String
+  contactId String
+  helpful   Boolean
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([articleId, contactId])
+  @@map("kb_portal_ratings")
+}
+
+/// CD-262 — a closed service job waiting to become knowledge: its symptom,
+/// cause and fix, picked by the service team or a knowledge owner into a
+/// draft (several jobs into one), or skipped. pending · drafted · skipped.
+model KbCandidate {
+  id          String    @id @default(uuid())
+  companyId   String
+  /// work_order (CD-262) · presales (CD-264, a Solution's answered question)
+  source      String    @default("work_order")
+  /// the row it came from: the work order, or the clarification
+  sourceId    String
+  workOrderId String?
+  requestId   String?
+  /// what to show for where it came from: the job's request number, or the
+  /// Solution's title (CD-264)
+  requestNo   String?
+  /// CD-264 — the Solution, to open it from the inbox
+  solutionId  String?
+  /// the symptom / the question
+  title       String
+  /// the cause (empty for a question)
+  cause       String
+  /// the fix / the answer
+  resolution  String
+  productCode String?
+  groupCode   String?
+  customerId  String?
+  closedAt    DateTime
+  status      String    @default("pending")
+  articleId   String?
+  decidedBy   String?
+  decidedAt   DateTime?
+  skipReason  String?
+  createdAt   DateTime  @default(now())
+
+  @@unique([source, sourceId])
+  @@index([companyId, status])
+  @@index([workOrderId])
+  @@map("kb_candidates")
+}
+
+/// CD-262 — an article a technician used to fix a service job.
+model KbArticleUse {
+  articleId   String
+  workOrderId String
+  usedBy      String
+  usedAt      DateTime @default(now())
+
+  @@id([articleId, workOrderId])
+  @@index([workOrderId])
+  @@map("kb_article_uses")
+}
+
+/// CD-262 — the article kept in step with a root-cause problem (CD-246):
+/// `syncedAt` is the problem's `updatedAt` its text was last taken from.
+model KbProblemLink {
+  problemId String   @id
+  articleId String
+  syncedAt  DateTime
+  createdAt DateTime @default(now())
+
+  @@index([articleId])
+  @@map("kb_problem_links")
+}
+
+/// CD-265 — one search an AI channel (AI CARE, AI SMART) made of the
+/// knowledge base, what it got back, and what it answered with. The
+/// question and answer texts are cleared after the retention period
+/// (`textPurgedAt`); which articles were cited and whether it could answer
+/// stay for the figures. pending · answered · unanswered
+model KbAiQuery {
+  id              String    @id @default(uuid())
+  companyId       String
+  channel         String
+  conversationRef String?
+  customerId      String?
+  question        String?
+  /// [{ articleId, version }] in the order returned
+  results         Json      @default("[]")
+  outcome         String    @default("pending")
+  answer          String?
+  answeredAt      DateTime?
+  textPurgedAt    DateTime?
+  /// CD-266 — the knowledge gap an unanswered question was counted into
+  gapId           String?
+  createdAt       DateTime  @default(now())
+
+  @@index([companyId, createdAt])
+  @@index([companyId, outcome])
+  @@map("kb_ai_queries")
+}
+
+/// CD-265 — an article an AI answer cited, at the version it read.
+model KbAiCitation {
+  queryId   String
+  articleId String
+  version   Int
+  createdAt DateTime @default(now())
+
+  @@id([queryId, articleId])
+  @@index([articleId])
+  @@map("kb_ai_citations")
+}
+
+/// CD-266 — a gap in the knowledge base, for the team to fill:
+/// ai_unanswered (a question an AI channel could not answer; the same
+/// question counted once), low_rated (a published article readers found
+/// unhelpful) or search_miss (a staff search that found nothing, counted).
+/// open · assigned · resolved · dismissed. Closed by an article once it is
+/// published (or, for a low-rated one, by its next version).
+model KbGap {
+  id                  String    @id @default(uuid())
+  companyId           String
+  kind                String
+  /// what makes it the same gap: the question or search words normalised, or the article id
+  key                 String
+  title               String
+  /// the latest wording seen (cleared with the AI texts past retention)
+  detail              String?
+  occurrences         Int       @default(1)
+  /// low_rated — the article, and its version when the gap opened
+  articleId           String?
+  articleVersion      Int?
+  /// low_rated — the article's votes (staff + Portal) when the gap last
+  /// closed: only votes after count, so a fixed article starts afresh
+  baseYes             Int       @default(0)
+  baseNo              Int       @default(0)
+  status              String    @default("open")
+  assigneeId          String?
+  dueOn               DateTime? @db.Date
+  assignedBy          String?
+  assignedAt          DateTime?
+  /// the article that fills it (closes when published)
+  resolutionArticleId String?
+  resolvedAt          DateTime?
+  resolvedBy          String?
+  dismissReason       String?
+  remindedOn          DateTime? @db.Date
+  firstSeenAt         DateTime  @default(now())
+  lastSeenAt          DateTime  @default(now())
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@unique([companyId, kind, key])
+  @@index([companyId, status])
+  @@index([assigneeId, status])
+  @@map("kb_gaps")
+}
+
+/// CD-267 — a passage of a published knowledge article and its embedding,
+/// for searching by meaning. Cut by heading; `hash` is of the embedded text,
+/// so an unchanged passage keeps its vector when the article is republished.
+/// Vectors from different models never compare: search uses the passages of
+/// the model the company's `kb.embed` task uses now. No fixed dimension
+/// (pgvector is not on the servers; cosine is worked out in the app).
+model KbChunk {
+  id             String   @id @default(uuid())
+  companyId      String
+  articleId      String
+  articleVersion Int
+  seq            Int
+  heading        String?
+  text           String
+  hash           String
+  model          String
+  vector         Float[]  @db.Real
+  createdAt      DateTime @default(now())
+
+  @@unique([articleId, seq])
+  @@index([companyId, model])
+  @@map("kb_chunks")
+}
+
 /// CD-239 ใบสั่งงานบริการ — the service side of a case (a request, CD-67):
 /// which asset, corrective or preventive, and from the start whether it is
 /// covered or billed — the system suggests from the asset's entitlements
@@ -7877,4 +8557,177 @@ model DisbursementFile {
 
   @@index([disbursementId])
   @@map("disbursement_files")
+}
+
+/// CD-289 (CD-16 AI SMART) — where outside leads are swept from, and what to look for.
+/// `kind`: dbd | web | social (a connector searches on a schedule) · push (a
+/// licensed crawler/vendor pushes through the external API) · file (the team
+/// imports a downloaded file).
+model SmartSource {
+  id            String    @id @default(uuid())
+  companyId     String
+  code          String
+  name          String
+  kind          String
+  /// The sales axis its finds feed (getter | government | partner | keeper); null = decided per row.
+  salesAxis     String?
+  /// Search terms for a connector: keywords, industries, provinces, capital range.
+  criteria      Json      @default("{}")
+  /// How often a connector source is swept (hours); null = by hand only.
+  intervalHours Int?
+  active        Boolean   @default(true)
+  lastRunAt     DateTime?
+  createdBy     String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([companyId, code])
+  @@map("smart_sources")
+}
+
+/// CD-289 — one sweep of one source: what it found and what was new.
+model SmartSweepRun {
+  id          String    @id @default(uuid())
+  companyId   String
+  sourceId    String
+  /// schedule | manual | push | file
+  trigger     String
+  /// running | ok | error
+  status      String    @default("running")
+  found       Int       @default(0)
+  added       Int       @default(0)
+  duplicates  Int       @default(0)
+  rejected    Int       @default(0)
+  error       String?
+  startedBy   String?
+  startedAt   DateTime  @default(now())
+  finishedAt  DateTime?
+
+  @@index([companyId, sourceId, startedAt])
+  @@map("smart_sweep_runs")
+}
+
+/// CD-289 — a business found outside, held here (not in CRM) until screening
+/// (CD-290) sends it on or discards it. Keeps where it came from and the evidence.
+model SmartProspect {
+  id                String    @id @default(uuid())
+  companyId         String
+  sourceId          String
+  runId             String?
+  /// The record's id at the source (DBD registration no., page URL …) — one row per source and ref.
+  externalRef       String
+  name              String
+  taxId             String?
+  phone             String?
+  email             String?
+  website           String?
+  industry          String?
+  province          String?
+  registeredCapital Decimal?  @db.Decimal(16, 2)
+  salesAxis         String?
+  /// Where and when it was seen: url, snippet, fetchedAt, and the source's raw fields.
+  evidence          Json      @default("{}")
+  /// new | screened | sent | discarded
+  status            String    @default("new")
+  discardReason     String?
+  /// CD-290 — readiness 0–100 from the rules, and each rule's points.
+  score             Int?
+  scoreReasons      Json      @default("[]")
+  /// CD-290 — the model's short take (smart.score), when a real gateway is on.
+  aiSummary         String?
+  /// CD-290 — what CRM already holds: customer | lead | none.
+  matchKind         String?
+  matchCustomerId   String?
+  matchLeadId       String?
+  screenedAt        DateTime?
+  /// CD-290 — the Lead it became (or joined) when sent to CRM.
+  leadId            String?
+  sentOutcome       String?
+  sentBy            String?
+  sentAt            DateTime?
+  decidedBy         String?
+  decidedAt         DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@unique([companyId, sourceId, externalRef])
+  @@index([companyId, status, createdAt])
+  @@index([companyId, taxId])
+  @@index([companyId, status, score])
+  @@map("smart_prospects")
+}
+
+/// CD-280 (CD-23 AI CARE) — one conversation with a customer on one channel:
+/// a sender's messages join the open one; a conversation AI is handling
+/// closes after `care.idleHours` of silence (one waiting for or with a person
+/// never closes by itself). `identification`: unknown · claimed (the sender
+/// typed a phone / email / customer code that matches a contact — general
+/// answers only) · verified (the channel's own identity matched a contact,
+/// or a staff member confirmed it — assets and coverage may be used).
+/// status: open · waiting_human · with_agent · closed.
+model CareConversation {
+  id             String    @id @default(uuid())
+  companyId      String
+  channel        String
+  senderRef      String
+  senderName     String?
+  identification String    @default("unknown")
+  customerId     String?
+  contactId      String?
+  verifiedAt     DateTime?
+  verifiedBy     String?
+  verifyMethod   String?
+  status         String    @default("open")
+  outcome        String?
+  messages       Int       @default(0)
+  openedAt       DateTime  @default(now())
+  lastMessageAt  DateTime  @default(now())
+  closedAt       DateTime?
+  closedBy       String?
+  textPurgedAt   DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([companyId, channel, senderRef, status])
+  @@index([companyId, status, lastMessageAt])
+  @@index([customerId])
+  @@map("care_conversations")
+}
+
+/// CD-280 — a message in a conversation. direction in (from the customer) ·
+/// out (to them); author customer · ai · agent · system. `text` is cleared
+/// after `care.retentionDays` (attachments' names stay, files are the
+/// channel's).
+model CareMessage {
+  id             String   @id @default(uuid())
+  conversationId String
+  direction      String
+  author         String
+  authorUserId   String?
+  text           String?
+  attachments    Json     @default("[]")
+  /// CD-265 — the knowledge search an AI answer came from
+  kbQueryId      String?
+  createdAt      DateTime @default(now())
+
+  @@index([conversationId, createdAt])
+  @@map("care_messages")
+}
+
+/// CD-280 — a channel identity confirmed to be a customer's contact, so the
+/// next conversation from it starts verified.
+model CareIdentity {
+  id         String   @id @default(uuid())
+  companyId  String
+  channel    String
+  senderRef  String
+  customerId String
+  contactId  String
+  method     String
+  verifiedBy String?
+  createdAt  DateTime @default(now())
+
+  @@unique([companyId, channel, senderRef])
+  @@index([contactId])
+  @@map("care_identities")
 }

@@ -389,6 +389,38 @@ const SEED_ROLES: {
       'crm.customer.read',
       'service.asset.read',
       'service.asset.manage',
+      // CD-280 — AI CARE conversations
+      'service.care.manage',
+    ],
+  },
+  {
+    // CD-15 — ทีม MACOM: campaigns, their budget and spend (CD-268).
+    code: 'marketing',
+    name: 'ทีมการตลาด (MACOM)',
+    description: 'วางแคมเปญ งบ และค่าใช้จ่าย · ดูผลแคมเปญถึงยอดขาย',
+    permissions: [
+      'request.create',
+      'request.read',
+      'notification.read',
+      'user.read',
+      'crm.sales.read',
+      'crm.campaign.manage',
+    ],
+  },
+  {
+    // CD-16 AI SMART — the team that runs the lead sweeps (CD-289): sources,
+    // file imports, and the raw list before screening.
+    code: 'ai_smart',
+    name: 'ทีม AI SMART (กวาด Lead)',
+    description: 'ตั้งแหล่งกวาด Lead นำเข้าไฟล์ และคัดรายชื่อก่อนส่งเข้า CRM',
+    permissions: [
+      'request.create',
+      'request.read',
+      'notification.read',
+      'user.read',
+      'crm.sales.read',
+      'smart.prospect.read',
+      'smart.prospect.manage',
     ],
   },
   {
@@ -419,6 +451,19 @@ const SEED_ROLES: {
       'pm.project.read',
       'delivery.read',
       'delivery.receivable.read',
+    ],
+  },
+  {
+    // CD-259 (CD-22 KBMS) — owners of the knowledge base.
+    code: 'knowledge',
+    name: 'ผู้ดูแลคลังความรู้',
+    description: 'ตรวจ แก้ เผยแพร่ และเลิกใช้บทความความรู้ จัดหมวดหมู่',
+    permissions: [
+      'request.create',
+      'request.read',
+      'notification.read',
+      'user.read',
+      'kb.article.manage',
     ],
   },
   {

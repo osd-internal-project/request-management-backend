@@ -377,6 +377,26 @@ end of those — a customer's web form, a workflow engine, another module. Addin
 a fifth is a decision to state out loud here, not a default and not a paragraph
 in the controller.
 
+**The fifth: `smart/prospects/ingest` (CD-289, 6 Oct 2026, user decision).** A
+licensed crawler or data vendor pushes businesses it found into AI SMART's
+staging list, under its own scope `integration.smart.ingest`. Nobody at the
+other end is a user, and nothing it sends reaches CRM — rows wait in
+`smart_prospects` for screening (CD-290). It writes only to a source the
+company set up as kind `push`. A sixth is again a decision to state here.
+
+**The sixth: AI channels that talk to customers — `kb/ai/*` (CD-265, 5 Oct
+2026) and `care/*` (CD-280, 6 Oct 2026, user decision).** A channel connector
+(LINE, Facebook, Instagram, TikTok, email, web chat, D-Callcenter) or AI CARE
+itself posts what a customer wrote and what was answered, under
+`integration.care.manage`; AI CARE and AI SMART read customer-facing articles
+under `integration.kb.read`. The person at the other end is a customer, never
+one of our users. `kb/ai` returns only articles published to customers (all,
+or the one named). `care` returns a customer's name, assets and coverage only
+once the sender is *verified* — the platform's own identity (LINE id, email
+sender, caller number) matched one contact, or the service team confirmed it;
+what a sender types only *claims* a customer. A seventh is again a decision to
+state here.
+
 **core-service's one public business surface: e-signature (CD-14, 30 Sep
 2026).** `EsignPublicController` — `esign/public/:token/*` (a signer's link:
 view, one-time code, document, sign, decline) and `esign/verify/:code*` (the
@@ -407,10 +427,30 @@ revoked or reissued at will) opens an 8-hour session whose token (also stored
 only as a hash) the web app keeps in an httpOnly cookie and passes as
 `x-portal-session` from its server routes (`/api/public/portal/*`,
 rate-limited by address). Every read is pinned to the session's customer: its
-installed assets, covers, service jobs (plain status words), and service
-reports already sent to it; a case it raises is a service job under the
+installed assets, covers, service jobs (plain status words), service
+reports already sent to it, and knowledge articles published to customers
+(all, or that customer) through `KbPortalService` (CD-261); a case it raises is a service job under the
 company's configured portal user, as a CD-66 channel's requester is. A
 fourth is a decision to state here.
+
+**An MCP tool answers only what the asker's screens would (CD-277).** Every
+tool runs as the person — their own token, or `X-Acting-User` — through the
+screen's own service, so SCOPE-02's rows, SCOPE-03's 404 and SCOPE-04's masking
+come with it. A tool never reads `mart.*`, the lake or a Metabase embed: those
+carry no per-person rows. `mcp-permission-gates.spec.ts` holds every catalogue
+tool to its gate and to calling as that person (and scans for mart access);
+`test/mcp-scope.e2e-spec.ts`, run by `make smoke`, seeds two companies and
+fails if any read tool's answer carries the other company's or a colleague's
+rows. A new tool needs no new test — both read the generated catalogue.
+
+**Every MCP tool call is logged (CD-279), and the log is the one place rows
+are deleted by policy.** `McpService` writes `mcp_calls` (person, tool, a
+read's filters or a write's field names, the answer's row ids and count —
+never values); `LlmService` writes `llm_calls`. Both are kept for the
+company's `ai_audit_policies.retentionDays` (default 365) and the daily
+sweep in `AiAuditService` deletes older rows — a declared exception to "no
+hard deletes": these are access logs, and keeping them only as long as the
+policy says is what the policy is for. `audit_logs` stays append-only.
 
 `crm/leads/intake` earned its suffix on 21 Sep 2026: it used to be `POST
 crm/leads`, which `ExternalLeadsController.create` also bound. That controller

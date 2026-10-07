@@ -1,6 +1,7 @@
 import { Principal, visibleLeadsWhere } from '@request-management/share';
 import { LeadIntakeService } from './lead-intake.service';
 import { LeadsService } from './leads.service';
+import { CampaignLeadIntakeService } from './campaign-lead-intake.service';
 import {
   DEFAULT_LEAD_STATUSES,
   type LeadStatusRow,
@@ -51,6 +52,8 @@ function harness(
           id: 'lead-1',
           name: 'บจก. ตัวอย่าง เทคโนโลยี',
           status: 'new',
+          sourceCode: 'website',
+          createdAt: new Date('2026-09-14T09:30:00.000Z'),
           ownerUserId: null,
           customerId: null,
           taxId: null,
@@ -152,7 +155,21 @@ function harness(
 
   return {
     service,
-    intake: new LeadIntakeService(service),
+    intake: new LeadIntakeService(
+      new CampaignLeadIntakeService(
+        service,
+        leads as never,
+        { create: jest.fn() } as never,
+        { findFirst: jest.fn(() => Promise.resolve(null)) } as never,
+        { findFirst: jest.fn(() => Promise.resolve(null)) } as never,
+        { findMany: jest.fn(() => Promise.resolve([])) } as never,
+        { listAll: jest.fn(() => Promise.resolve(rows)) } as never,
+        { findFirst: jest.fn(() => Promise.resolve(null)) } as never,
+        { campaignLead: jest.fn(() => Promise.resolve()) } as never,
+        { register: jest.fn() } as never,
+        { count: jest.fn(() => Promise.resolve(0)) } as never,
+      ),
+    ),
     leads,
     members,
     audits,
@@ -202,6 +219,7 @@ describe('รับ Lead จากระบบภายนอก — POST integr
       source_code: 'website',
       owner_user_id: null,
       created_at: '2026-09-14T09:30:00.000Z',
+      outcome: 'created',
     });
   });
 
