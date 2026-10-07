@@ -72,6 +72,7 @@ API ของหน้าเว็บ
 | การส่งมอบ | `integration.delivery.read` | `delivery/*` |
 | งานบริการ | `integration.support.read`, `integration.support.manage` | `support/*` (manage = เปิดใบสั่งงาน) |
 | เปิดเคสอนุมัติจากโมดูลอื่น | `integration.approval.create` | `approval/cases` (ไม่มีคน) |
+| เอกสารบริษัท (ตั้งค่า → เอกสารบริษัท) | `integration.document.read` | `documents/*` (ไม่มีคน) |
 
 ---
 
@@ -323,6 +324,7 @@ curl -s "${H[@]}" "$B/flow/opportunities/$OPP"
 | `POST request/intake` | ระบบยื่นคำขอในนามตัวเอง (`source: "system"`) |
 | `request/intake/web-forms/*` · `channels/*` · `status/*` | ช่องทางที่ลูกค้าแจ้งเรื่องเอง (กุญแจ `integration.request.intake`) |
 | `POST approval/cases` | โมดูลอื่นเปิดเคสอนุมัติ |
+| `GET documents` · `documents/{id}` · `documents/{id}/file` | ดึงเอกสารบริษัทและวันที่ออกเอกสาร (ดู §8) |
 
 ---
 
@@ -331,5 +333,57 @@ curl -s "${H[@]}" "$B/flow/opportunities/$OPP"
 ทำบนหน้าจอเท่านั้น เพราะต้องใช้ไฟล์ ลายมือชื่อ หรือการตัดสินของคนในทีม:
 การออกแบบ Solution (ขอบเขต BOQ ต้นทุน), ร่าง/ตรวจ/อนุมัติ/ลงนามสัญญา, การวางแผนโครงการ
 (WBS งบประมาณ ทีม), ยืนยันติดตั้ง ใบรับรองการตรวจรับ ส่งวางบิลเข้า SAP, การดาวน์โหลดไฟล์แนบทุกชนิด
+(ยกเว้นเอกสารบริษัทใน §8 ที่อัปโหลดมาเพื่อให้ระบบอื่นดึงไปใช้โดยเฉพาะ)
 ถ้าระบบของคุณต้องการขั้นใดในนี้ แจ้งทีมเพื่อพิจารณาเปิดเพิ่ม — แต่ละเส้นใหม่ต้องมีคู่บนหน้าจอและสิทธิ์
 ที่ตรงกัน (`downstream-route-parity.spec.ts`)
+
+---
+
+## 8. เอกสารบริษัท — ดึงไฟล์และวันที่ออกเอกสาร
+
+อัปโหลดที่หน้า **ผู้ดูแลระบบ → เอกสารบริษัท** (สิทธิ์ `admin.document.manage`) มีสองประเภท:
+
+| `kind` | ความหมาย | `issue_date` |
+|---|---|---|
+| `dated` | เอกสารที่มีวันที่ออกเอกสาร (หนังสือรับรอง ใบอนุญาต ภ.พ.20 …) | `YYYY-MM-DD` เสมอ — บังคับกรอกตอนอัปโหลด |
+| `general` | เอกสารทั่วไป (โบรชัวร์ แบบฟอร์ม …) | `null` |
+
+กุญแจต้องมี `integration.document.read` · ไม่ส่ง `X-Acting-User` · บริษัทมาจากกุญแจ
+(กุญแจที่ไม่ผูกบริษัทส่ง `X-Company-Id`)
+
+```bash
+# รายการ (กรองได้: kind, q, issued_from, issued_to, page, page_size)
+curl -H "Authorization: Bearer rfk_..." \
+  "https://<host>:3503/api/v1/documents?kind=dated&issued_from=2026-01-01"
+
+# รายละเอียดเอกสารเดียว
+curl -H "Authorization: Bearer rfk_..." https://<host>:3503/api/v1/documents/<id>
+
+# ดาวน์โหลดไฟล์ (ชื่อไฟล์อยู่ใน Content-Disposition)
+curl -OJ -H "Authorization: Bearer rfk_..." https://<host>:3503/api/v1/documents/<id>/file
+```
+
+คำตอบของรายการ/รายละเอียด:
+
+```json
+{
+  "id": "6f1c…",
+  "kind": "dated",
+  "title": "หนังสือรับรองบริษัท",
+  "description": null,
+  "issue_date": "2026-09-01",
+  "file_name": "cert.pdf",
+  "mime_type": "application/pdf",
+  "size_bytes": 182344,
+  "uploaded_by": { "id": "…", "name": "…" },
+  "uploaded_at": "2026-10-07T03:00:00.000Z",
+  "updated_at": "2026-10-07T03:00:00.000Z",
+  "archived_at": null
+}
+```
+
+- เรียงตาม `issue_date` ใหม่สุดก่อน (เอกสารทั่วไปอยู่ท้าย) แล้วตามวันที่อัปโหลด
+- เอกสารที่ถูก "เลิกใช้" ในหน้าตั้งค่าจะไม่อยู่ในรายการ และ `GET documents/{id}` ตอบ 404
+- ทุกการดาวน์โหลดผ่าน External API บันทึก audit (`document.downloaded`)
+- external-service ต้องได้ค่า `MINIO_*` ชุดเดียวกับ core-service — ถ้าไม่มี ดาวน์โหลดตอบ `STORAGE_UNAVAILABLE`
+

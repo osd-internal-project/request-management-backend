@@ -262,6 +262,11 @@ export const PERMISSIONS = {
      * Apart from `admin.llm.manage` so reviewing is not the configurer's job.
      */
     'admin.ai.audit',
+    /**
+     * Company documents (settings) — upload dated and general documents that
+     * other systems download through `integration.document.read`.
+     */
+    'admin.document.manage',
   ],
   /**
    * AUTH-06: สิทธิ์ของบัญชีบริการ — ออกให้กุญแจ API ที่หน้าจอ API key ไม่ใช่
@@ -355,6 +360,11 @@ export const PERMISSIONS = {
      * it answered with. Robot-only: no acting person, never internal articles.
      */
     'integration.kb.read',
+    /**
+     * Company documents — list, read the issue date of, and download the
+     * documents uploaded in settings. Robot-only: no acting person.
+     */
+    'integration.document.read',
     /**
      * CD-280 (CD-23 AI CARE) — a channel connector or AI CARE posts what a
      * customer wrote and what was answered, and reads the conversation with

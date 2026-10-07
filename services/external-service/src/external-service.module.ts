@@ -32,6 +32,7 @@ import { KbApiModule } from './kb/kb.module';
 import { CareApiModule } from './care/care.module';
 import { AssistantModule } from './assistant/assistant.module';
 import { SmartApiModule } from './smart/smart.module';
+import { DocumentsApiModule } from './documents/documents.module';
 import configs from './configs';
 
 /**
@@ -87,6 +88,8 @@ import configs from './configs';
     AssistantModule,
     // CD-289 — a vendor pushes swept leads into AI SMART
     SmartApiModule,
+    // Company documents uploaded in settings — list, issue date, download
+    DocumentsApiModule,
     McpModule,
   ],
   providers: [

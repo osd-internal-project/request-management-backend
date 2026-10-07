@@ -173,3 +173,9 @@ export { CareInboundDto, CareOpenCaseDto, CareReplyDto } from './care/care.dto';
 // CD-291 — the do-not-contact register, for AI CARE and any channel that reaches people
 export { ContactPreferencesModule } from './contact-preferences/contact-preferences.module';
 export { DoNotContactService } from './contact-preferences/do-not-contact.service';
+// Company documents (settings) — external systems list and download them
+export { DocumentsModule } from './documents/documents.module';
+export { DocumentsService } from './documents/documents.service';
+export { DocumentFilesService } from './documents/document-files.service';
+export { DocumentsQueryDto } from './documents/documents.dto';
+export { documentStream } from './documents/document-stream';

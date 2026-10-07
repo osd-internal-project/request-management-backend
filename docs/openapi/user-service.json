@@ -2346,6 +2346,7 @@
                 "admin.cost-center.manage",
                 "admin.llm.manage",
                 "admin.ai.audit",
+                "admin.document.manage",
                 "integration.request.create",
                 "integration.request.intake",
                 "integration.approval.create",
@@ -2368,6 +2369,7 @@
                 "integration.support.read",
                 "integration.support.manage",
                 "integration.kb.read",
+                "integration.document.read",
                 "integration.care.manage",
                 "integration.assistant.read",
                 "integration.smart.ingest"
@@ -2478,6 +2480,7 @@
                 "admin.cost-center.manage",
                 "admin.llm.manage",
                 "admin.ai.audit",
+                "admin.document.manage",
                 "integration.request.create",
                 "integration.request.intake",
                 "integration.approval.create",
@@ -2500,6 +2503,7 @@
                 "integration.support.read",
                 "integration.support.manage",
                 "integration.kb.read",
+                "integration.document.read",
                 "integration.care.manage",
                 "integration.assistant.read",
                 "integration.smart.ingest"
@@ -2794,6 +2798,7 @@
               "admin.cost-center.manage",
               "admin.llm.manage",
               "admin.ai.audit",
+              "admin.document.manage",
               "integration.request.create",
               "integration.request.intake",
               "integration.approval.create",
@@ -2816,6 +2821,7 @@
               "integration.support.read",
               "integration.support.manage",
               "integration.kb.read",
+              "integration.document.read",
               "integration.care.manage",
               "integration.assistant.read",
               "integration.smart.ingest"

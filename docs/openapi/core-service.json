@@ -38301,6 +38301,384 @@
         ]
       }
     },
+    "/api/v1/admin/documents": {
+      "get": {
+        "operationId": "DocumentsController_list",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "เลขหน้าที่ต้องการ เริ่มที่ 1",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page_size",
+            "required": false,
+            "in": "query",
+            "description": "จำนวนรายการต่อหน้า",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "`sort=field` เรียงขึ้น, `sort=-field` เรียงลง",
+            "schema": {
+              "example": "-createdAt",
+              "type": "string",
+              "pattern": "^-?[a-zA-Z_][a-zA-Z0-9_]*$"
+            }
+          },
+          {
+            "name": "kind",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "dated",
+                "general"
+              ]
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "ค้นในชื่อเอกสาร คำอธิบาย และชื่อไฟล์",
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "issued_from",
+            "required": false,
+            "in": "query",
+            "description": "วันที่ออกเอกสาร ตั้งแต่ (รวม) — เฉพาะเอกสารที่มีวันที่ออก",
+            "schema": {
+              "example": "2026-01-01",
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "issued_to",
+            "required": false,
+            "in": "query",
+            "description": "วันที่ออกเอกสาร ถึง (รวม)",
+            "schema": {
+              "example": "2026-12-31",
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "include_archived",
+            "required": false,
+            "in": "query",
+            "description": "หน้าตั้งค่าเท่านั้น: true = รวมที่เลิกใช้แล้ว",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เอกสารบริษัท — รายการ (รวมที่เลิกใช้ได้)",
+        "tags": [
+          "admin-documents"
+        ],
+        "x-permission": [
+          "admin.document.manage"
+        ]
+      },
+      "post": {
+        "operationId": "DocumentsController_upload",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDocumentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "อัปโหลดเอกสาร — kind = dated ต้องมี issue_date (YYYY-MM-DD) · general ไม่มี",
+        "tags": [
+          "admin-documents"
+        ],
+        "x-permission": [
+          "admin.document.manage"
+        ]
+      }
+    },
+    "/api/v1/admin/documents/{id}": {
+      "get": {
+        "operationId": "DocumentsController_one",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เอกสารบริษัท — รายละเอียด",
+        "tags": [
+          "admin-documents"
+        ],
+        "x-permission": [
+          "admin.document.manage"
+        ]
+      },
+      "patch": {
+        "operationId": "DocumentsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDocumentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แก้ชื่อ คำอธิบาย วันที่ออกเอกสาร",
+        "tags": [
+          "admin-documents"
+        ],
+        "x-permission": [
+          "admin.document.manage"
+        ]
+      }
+    },
+    "/api/v1/admin/documents/{id}/archive": {
+      "post": {
+        "operationId": "DocumentsController_archive",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เลิกใช้เอกสาร (ไม่แสดงใน External API เก็บประวัติไว้)",
+        "tags": [
+          "admin-documents"
+        ],
+        "x-permission": [
+          "admin.document.manage"
+        ]
+      }
+    },
+    "/api/v1/admin/documents/{id}/restore": {
+      "post": {
+        "operationId": "DocumentsController_restore",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เปิดใช้เอกสารที่เลิกใช้กลับมา",
+        "tags": [
+          "admin-documents"
+        ],
+        "x-permission": [
+          "admin.document.manage"
+        ]
+      }
+    },
+    "/api/v1/admin/documents/{id}/file": {
+      "get": {
+        "operationId": "DocumentsController_file",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เปิด/ดาวน์โหลดไฟล์",
+        "tags": [
+          "admin-documents"
+        ],
+        "x-permission": [
+          "admin.document.manage"
+        ]
+      }
+    },
     "/api/v1/esign/authorities": {
       "get": {
         "operationId": "EsignController_listAuthorities",
@@ -51451,6 +51829,58 @@
         "required": [
           "retention_days"
         ]
+      },
+      "CreateDocumentDto": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "dated",
+              "general"
+            ],
+            "description": "dated = มีวันที่ออกเอกสาร · general = เอกสารทั่วไป"
+          },
+          "title": {
+            "type": "string",
+            "example": "หนังสือรับรองบริษัท",
+            "maxLength": 255,
+            "minLength": 1
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "issue_date": {
+            "type": "string",
+            "example": "2026-10-07",
+            "description": "วันที่ออกเอกสาร — บังคับเมื่อ kind = dated, ห้ามใส่เมื่อ general"
+          }
+        },
+        "required": [
+          "kind",
+          "title"
+        ]
+      },
+      "UpdateDocumentDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1
+          },
+          "description": {
+            "type": "object",
+            "nullable": true,
+            "maxLength": 2000
+          },
+          "issue_date": {
+            "type": "string",
+            "example": "2026-10-07",
+            "description": "เฉพาะเอกสารที่มีวันที่ออก"
+          }
+        }
       },
       "SaveEsignAuthorityDto": {
         "type": "object",

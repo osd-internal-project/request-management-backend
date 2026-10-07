@@ -12491,6 +12491,201 @@
         ]
       }
     },
+    "/api/v1/documents": {
+      "get": {
+        "description": "kind = dated (มีวันที่ออกเอกสาร) | general (ทั่วไป) · กรองวันที่ออกด้วย issued_from / issued_to (YYYY-MM-DD) · q ค้นชื่อ/คำอธิบาย/ชื่อไฟล์ · issue_date เป็น YYYY-MM-DD หรือ null สำหรับเอกสารทั่วไป · ดาวน์โหลดที่ GET documents/:id/file",
+        "operationId": "DocumentsApiController_list",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "เลขหน้าที่ต้องการ เริ่มที่ 1",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page_size",
+            "required": false,
+            "in": "query",
+            "description": "จำนวนรายการต่อหน้า",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "`sort=field` เรียงขึ้น, `sort=-field` เรียงลง",
+            "schema": {
+              "example": "-createdAt",
+              "type": "string",
+              "pattern": "^-?[a-zA-Z_][a-zA-Z0-9_]*$"
+            }
+          },
+          {
+            "name": "kind",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "dated",
+                "general"
+              ]
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "ค้นในชื่อเอกสาร คำอธิบาย และชื่อไฟล์",
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "issued_from",
+            "required": false,
+            "in": "query",
+            "description": "วันที่ออกเอกสาร ตั้งแต่ (รวม) — เฉพาะเอกสารที่มีวันที่ออก",
+            "schema": {
+              "example": "2026-01-01",
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "issued_to",
+            "required": false,
+            "in": "query",
+            "description": "วันที่ออกเอกสาร ถึง (รวม)",
+            "schema": {
+              "example": "2026-12-31",
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "รายการเอกสารบริษัท พร้อมวันที่ออกเอกสาร",
+        "tags": [
+          "documents"
+        ],
+        "x-permission": [
+          "integration.document.read"
+        ]
+      }
+    },
+    "/api/v1/documents/{id}": {
+      "get": {
+        "operationId": "DocumentsApiController_one",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "รายละเอียดเอกสาร — วันที่ออกเอกสาร ชื่อไฟล์ ขนาด",
+        "tags": [
+          "documents"
+        ],
+        "x-permission": [
+          "integration.document.read"
+        ]
+      }
+    },
+    "/api/v1/documents/{id}/file": {
+      "get": {
+        "description": "ตอบเป็นไฟล์ (Content-Type ตามชนิดไฟล์, Content-Disposition มีชื่อไฟล์แบบ UTF-8) · บันทึก audit ทุกครั้ง",
+        "operationId": "DocumentsApiController_file",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ดาวน์โหลดไฟล์เอกสาร",
+        "tags": [
+          "documents"
+        ],
+        "x-permission": [
+          "integration.document.read"
+        ]
+      }
+    },
     "/api/v1/mcp": {
       "post": {
         "description": "Endpoint เดียวสำหรับทุก tool — ชื่อ tool อยู่ใน body ไม่ใช่ใน path รายการ tool ทั้งหมดอยู่ที่ docs/openapi/external-tools.json ดูวิธีใช้ที่ docs/EXTERNAL_API.md",
