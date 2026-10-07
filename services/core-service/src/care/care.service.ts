@@ -31,7 +31,18 @@ import {
   type Claims,
   type Identification,
 } from './care-rules';
-import { CareAnswerService } from './care-answer.service';
+import { CareAnswerService, type CareAnswer } from './care-answer.service';
+import {
+  CASE_FAILED_TEXT,
+  acceptsCase,
+  type Severity,
+} from './care-case-rules';
+import { CareCaseService, type CareCase } from './care-case.service';
+
+/** What the customer is sent back: an answer, or (CD-282) the case notice. */
+type CareReply =
+  | CareAnswer
+  | (Omit<CareAnswer, 'kind'> & { kind: 'case_opened'; case: CareCase });
 import {
   CareContactLookupRepository,
   CareConversationRepository,
@@ -65,6 +76,9 @@ export interface ConversationRow {
   closedAt: Date | null;
   closedBy: string | null;
   textPurgedAt: Date | null;
+  caseOfferedAt: Date | null;
+  caseRequestId: string | null;
+  caseOpenedAt: Date | null;
 }
 
 interface MessageRow {
@@ -121,6 +135,7 @@ export class CareService implements OnModuleInit, OnModuleDestroy {
     private readonly audit: AuditWriter,
     private readonly config: ConfigService,
     private readonly answers: CareAnswerService,
+    private readonly cases: CareCaseService,
   ) {}
 
   onModuleInit(): void {
@@ -212,16 +227,31 @@ export class CareService implements OnModuleInit, OnModuleDestroy {
     });
     const context = await this.context(conversation);
     // CD-281 — AI CARE answers while it is handling the conversation
-    const reply =
-      conversation.status === 'open' && text && this.autoReply()
+    const handling = conversation.status === 'open' && !!text;
+    // CD-282 — "yes" to the offer AI CARE made: open the case
+    const accepted =
+      handling &&
+      !!conversation.caseOfferedAt &&
+      !conversation.caseRequestId &&
+      acceptsCase(text);
+    const reply: CareReply | null = accepted
+      ? await this.caseReply(conversation, { by: 'customer' })
+      : handling && this.autoReply()
         ? await this.answerFor(conversation, context)
         : null;
+    if (reply?.kind === 'unanswered' && !conversation.caseRequestId) {
+      // no article answered it: the next "yes" opens a case
+      await this.conversations.update({
+        where: { id: conversation.id },
+        data: { caseOfferedAt: new Date() },
+      });
+    }
     if (reply) {
       const sent = (await this.messages.create({
         data: {
           conversationId: conversation.id,
           direction: 'out',
-          author: 'ai',
+          author: reply.kind === 'case_opened' ? 'system' : 'ai',
           text: reply.text,
           kbQueryId: reply.kbQueryId,
         },
@@ -233,7 +263,13 @@ export class CareService implements OnModuleInit, OnModuleDestroy {
       context.history.push(this.message(sent));
       context.conversation.messages += 1;
     }
-    return { isNew, ...context, reply };
+    const fresh = await this.mine(companyId, conversation.id);
+    return {
+      isNew,
+      ...context,
+      conversation: { ...context.conversation, ...this.caseView(fresh) },
+      reply,
+    };
   }
 
   /** CARE_AUTO_REPLY=off — a connector with its own AI answers (and posts replies). */
@@ -410,6 +446,36 @@ export class CareService implements OnModuleInit, OnModuleDestroy {
     return this.detail(actor, id);
   }
 
+  /** CD-282 — a channel (quick reply) or the service team opens the case. */
+  async openCase(
+    companyId: string,
+    id: string,
+    input: { severity?: Severity; subject?: string },
+    actor: Principal | null,
+  ) {
+    if (actor) this.manage(actor);
+    const conversation = await this.mine(companyId, id);
+    const opened = await this.cases.open(conversation, {
+      by: actor ? 'staff' : 'channel',
+      actorId: actor?.userId ?? null,
+      severity: input.severity,
+      subject: input.subject,
+    });
+    await this.messages.create({
+      data: {
+        conversationId: id,
+        direction: 'out',
+        author: 'system',
+        text: opened.notice,
+      },
+    });
+    await this.conversations.update({
+      where: { id },
+      data: { messages: { increment: 1 }, lastMessageAt: new Date() },
+    });
+    return opened;
+  }
+
   async close(actor: Principal, id: string, outcome: string) {
     this.manage(actor);
     const conversation = await this.mine(actor.activeCompanyId, id);
@@ -565,10 +631,52 @@ export class CareService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async end(id: string, outcome: string, by: string | null, at: Date) {
+    const row = (await this.conversations.findFirst({
+      where: { id },
+      select: { caseRequestId: true },
+    })) as { caseRequestId: string | null } | null;
+    // a conversation that became a case went quiet because the case took over
+    const final =
+      outcome === 'idle' && row?.caseRequestId ? 'case_opened' : outcome;
     await this.conversations.update({
       where: { id },
-      data: { status: 'closed', outcome, closedAt: at, closedBy: by },
+      data: { status: 'closed', outcome: final, closedAt: at, closedBy: by },
     });
+  }
+
+  /** The case reply to a customer's "yes" — or a notice when it cannot open. */
+  private async caseReply(
+    conversation: ConversationRow,
+    input: { by: 'customer' },
+  ): Promise<CareReply> {
+    try {
+      const opened = await this.cases.open(conversation, input);
+      return {
+        text: opened.notice,
+        kind: 'case_opened',
+        answered: false,
+        articles: [],
+        kbQueryId: null,
+        case: opened,
+      };
+    } catch (error) {
+      this.logger.warn(`care case not opened: ${String(error)}`);
+      return {
+        text: CASE_FAILED_TEXT,
+        kind: 'unavailable',
+        answered: false,
+        articles: [],
+        kbQueryId: null,
+      };
+    }
+  }
+
+  private caseView(r: ConversationRow) {
+    return {
+      caseOffered: !!r.caseOfferedAt && !r.caseRequestId,
+      caseRequestId: r.caseRequestId,
+      caseOpenedAt: r.caseOpenedAt,
+    };
   }
 
   /** The conversation as a channel, AI or staff member gets it. */
@@ -705,6 +813,7 @@ export class CareService implements OnModuleInit, OnModuleDestroy {
       lastMessageAt: r.lastMessageAt,
       closedAt: r.closedAt,
       textPurged: !!r.textPurgedAt,
+      ...this.caseView(r),
     };
   }
 

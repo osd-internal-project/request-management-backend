@@ -126,6 +126,10 @@ export default () => ({
     autoReply: (process.env.CARE_AUTO_REPLY ?? 'on') !== 'off',
     /** CD-281 — the web app, for Customer Portal links to the articles cited. */
     publicWebUrl: process.env.PUBLIC_WEB_URL,
+    /** CD-282 — words that make an AI CARE case critical / high / low ("a,b,c"). */
+    severityCritical: process.env.CARE_SEVERITY_CRITICAL,
+    severityHigh: process.env.CARE_SEVERITY_HIGH,
+    severityLow: process.env.CARE_SEVERITY_LOW,
   },
   /** CD-90 — likewise: the lake is fed by core-service only. */
   lake: { databaseUrl: '', extractIntervalMs: 0, sapIntervalMs: 0 },

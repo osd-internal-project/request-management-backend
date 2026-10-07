@@ -122,6 +122,13 @@ export class CareContactLookupRepository {
     });
   }
 
+  contactDetail(id: string) {
+    return this.prisma.customerContact.findFirst({
+      where: { id },
+      select: { id: true, name: true, phone: true, email: true },
+    });
+  }
+
   contacts(customerId: string) {
     return this.prisma.customerContact.findMany({
       where: { customerId, active: true },

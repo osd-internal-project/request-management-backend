@@ -29,6 +29,7 @@
 |---|---|---|---|---|
 | POST | `/care/messages` | ข้อความจากลูกค้า เข้าบทสนทนา (CD-280) | integration.care.manage |  |
 | POST | `/care/conversations/{id}/replies` | สิ่งที่ตอบลูกค้าไป (AI หรือข้อความระบบ) บันทึกในบทสนทนา (CD-280) | integration.care.manage |  |
+| POST | `/care/conversations/{id}/case` | เปิดเคสบริการจากบทสนทนา เช่น ลูกค้ากดปุ่ม "เปิดเรื่อง" (CD-282) | integration.care.manage |  |
 | GET | `/care/conversations/{id}` | บทสนทนาและบริบทลูกค้า (CD-280) | integration.care.manage |  |
 
 ## crm — ทะเบียนลูกค้า, Lead, โอกาสการขาย, ใบเสนอราคา, ใบสั่งขาย และหน้าตั้งค่า CRM

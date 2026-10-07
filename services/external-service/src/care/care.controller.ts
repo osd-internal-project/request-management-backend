@@ -8,6 +8,7 @@ import {
 import type { Principal } from '@request-management/share';
 import {
   CareInboundDto,
+  CareOpenCaseDto,
   CareReplyDto,
   CareService,
 } from '@request-management/core-service';
@@ -76,6 +77,23 @@ export class CareApiController {
       author: dto.author,
       kbQueryId: dto.kb_query_id,
     });
+  }
+
+  @Post('conversations/:id/case')
+  @Permissions('integration.care.manage')
+  @ServiceAccountOnly()
+  @ApiOperation({
+    summary: 'เปิดเคสบริการจากบทสนทนา เช่น ลูกค้ากดปุ่ม "เปิดเรื่อง" (CD-282)',
+    description:
+      'ตอบเลขเคส ความเร่งด่วน ลิงก์ติดตามสถานะของลูกค้า และข้อความที่ส่งให้ลูกค้า (notice) · ' +
+      'SLA นับจากที่ AI CARE รับเรื่อง · ลูกค้าตอบรับข้อเสนอ ("เปิดเรื่องเลย") ใน care/messages ก็เปิดให้เองเช่นกัน',
+  })
+  openCase(
+    @Param('id') id: string,
+    @Body() dto: CareOpenCaseDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.care.openCase(principal.activeCompanyId, id, dto, null);
   }
 
   @Get('conversations/:id')

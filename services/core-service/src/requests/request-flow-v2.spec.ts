@@ -370,6 +370,20 @@ describe('flow v2 service: submit is leaving the first step', () => {
     expect(approvals.routeForApproval).not.toHaveBeenCalled();
   });
 
+  it('CD-282: a matter AI CARE took earlier is submitted, and timed, from then', async () => {
+    const { service, writes, sla } = serviceWith(onStep('REQUEST', 'draft'));
+    const receivedAt = new Date(Date.now() - 30 * 60_000);
+    await service.submit('req-1', principal(REQUESTER), 'Bearer t', {
+      receivedAt,
+    });
+    expect(writes[0]).toMatchObject({ submittedAt: receivedAt });
+    expect(sla.start).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      receivedAt,
+    );
+  });
+
   it('refuses when the first step’s form is incomplete, before any number', async () => {
     const { service, runNumbers, flows } = serviceWith(
       onStep('REQUEST', 'draft', { formData: {} }),

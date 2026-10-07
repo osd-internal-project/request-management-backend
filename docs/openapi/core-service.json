@@ -23637,6 +23637,54 @@
         ]
       }
     },
+    "/api/v1/care/conversations/{id}/case": {
+      "post": {
+        "operationId": "CareController_openCase",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CareOpenCaseDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-282 เปิดเคสบริการจากบทสนทนา (SLA นับจากที่ AI รับเรื่อง; ผู้ส่งยืนยันแล้ว → ใบสั่งงานบริการทันที)",
+        "tags": [
+          "care"
+        ]
+      }
+    },
     "/api/v1/care/conversations/{id}/close": {
       "post": {
         "operationId": "CareController_close",
@@ -48756,6 +48804,26 @@
         "required": [
           "contact_id"
         ]
+      },
+      "CareOpenCaseDto": {
+        "type": "object",
+        "properties": {
+          "severity": {
+            "type": "string",
+            "enum": [
+              "critical",
+              "high",
+              "medium",
+              "low"
+            ],
+            "description": "ไม่ระบุ = ตามคำในบทสนทนา (ค่าเริ่ม medium)"
+          },
+          "subject": {
+            "type": "string",
+            "description": "หัวเรื่อง — ไม่ระบุ = ข้อความแรกของลูกค้าที่มีเนื้อหา",
+            "maxLength": 200
+          }
+        }
       },
       "CareCloseDto": {
         "type": "object",

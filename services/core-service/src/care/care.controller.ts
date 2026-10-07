@@ -5,7 +5,12 @@ import {
   CurrentPrincipal,
   type Principal,
 } from '@request-management/share';
-import { CareCloseDto, CareListQueryDto, CareVerifyDto } from './care.dto';
+import {
+  CareCloseDto,
+  CareListQueryDto,
+  CareOpenCaseDto,
+  CareVerifyDto,
+} from './care.dto';
 import { CareService } from './care.service';
 
 /** CD-280 — the service team's view of AI CARE conversations. */
@@ -59,6 +64,20 @@ export class CareController {
     @CurrentPrincipal() actor: Principal,
   ) {
     return this.care.verify(actor, id, dto.contact_id);
+  }
+
+  @ApiOperation({
+    summary:
+      'CD-282 เปิดเคสบริการจากบทสนทนา (SLA นับจากที่ AI รับเรื่อง; ผู้ส่งยืนยันแล้ว → ใบสั่งงานบริการทันที)',
+  })
+  @Post('conversations/:id/case')
+  @AnyPermission('service.care.manage')
+  openCase(
+    @Param('id') id: string,
+    @Body() dto: CareOpenCaseDto,
+    @CurrentPrincipal() actor: Principal,
+  ) {
+    return this.care.openCase(actor.activeCompanyId, id, dto, actor);
   }
 
   @ApiOperation({ summary: 'CD-280 ปิดบทสนทนาพร้อมผล' })

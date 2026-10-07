@@ -8685,6 +8685,12 @@ model CareConversation {
   closedAt       DateTime?
   closedBy       String?
   textPurgedAt   DateTime?
+  /// CD-282 — AI CARE offered to open a case (it could not answer); a yes
+  /// from the customer opens it
+  caseOfferedAt  DateTime?
+  /// CD-282 — the service case opened from this conversation
+  caseRequestId  String?
+  caseOpenedAt   DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
