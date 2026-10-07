@@ -290,7 +290,7 @@ export default () => ({
   /** CD-23 AI CARE */
   care: {
     /** CD-280 — idle conversations closed and old texts cleared (ms); 0 = off. */
-    sweepIntervalMs: Number(process.env.CARE_SWEEP_INTERVAL_MS ?? 900000),
+    sweepIntervalMs: Number(process.env.CARE_SWEEP_INTERVAL_MS ?? 300000),
     /** CD-280 — hours of silence after which a sender's next message starts anew. */
     idleHours: Number(process.env.CARE_IDLE_HOURS ?? 24),
     /** CD-280 — days message texts are kept once a conversation is closed. */
@@ -303,6 +303,15 @@ export default () => ({
     severityCritical: process.env.CARE_SEVERITY_CRITICAL,
     severityHigh: process.env.CARE_SEVERITY_HIGH,
     severityLow: process.env.CARE_SEVERITY_LOW,
+    /** CD-283 — words that hand a conversation to a person ("a,b,c"; unset = standard). */
+    handoverWords: process.env.CARE_HANDOVER_WORDS,
+    displeasedWords: process.env.CARE_DISPLEASED_WORDS,
+    /** CD-283 — questions in a row AI CARE could not answer before a person (0 = off). */
+    handoverUnanswered: process.env.CARE_HANDOVER_UNANSWERED,
+    /** CD-283 — minutes before the team is told again that a customer still waits. */
+    handoverRemindMinutes: Number(
+      process.env.CARE_HANDOVER_REMIND_MINUTES ?? 30,
+    ),
   },
   /** CD-275 — the company LLM Gateway (OpenAI-compatible). */
   llm: {

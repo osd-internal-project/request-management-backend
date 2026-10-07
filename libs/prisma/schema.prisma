@@ -8707,6 +8707,14 @@ model CareConversation {
   /// CD-282 — the service case opened from this conversation
   caseRequestId  String?
   caseOpenedAt   DateTime?
+  /// CD-283 — answers AI CARE could not give in a row (reset by an answer)
+  unansweredStreak   Int       @default(0)
+  /// CD-283 — handed to a person: asked · severe · displeased · unanswered ·
+  /// channel · staff; AI CARE stops answering until it is given back
+  handoverReason     String?
+  handoverAt         DateTime?
+  /// CD-283 — when the team (or whoever is on call) was last told
+  handoverNotifiedAt DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 

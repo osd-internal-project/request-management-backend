@@ -609,6 +609,29 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
     },
   },
   {
+    eventType: 'care.handover',
+    label: 'บทสนทนา AI CARE ส่งต่อถึงคน (ถึงทีมบริการ หรือเวรเมื่อนอกเวลา)',
+    title: 'ลูกค้ารอเจ้าหน้าที่: {{sender}} ({{channel}})',
+    body: '{{reason}} — เปิดบทสนทนาเพื่อรับเรื่องและตอบลูกค้า',
+    variables: {
+      sender: { label: 'ผู้ส่ง', sample: 'คุณสมชาย · บริษัท กขค' },
+      channel: { label: 'ช่องทาง', sample: 'LINE' },
+      reason: { label: 'เหตุที่ส่งต่อ', sample: 'ลูกค้าขอคุยกับเจ้าหน้าที่' },
+    },
+  },
+  {
+    eventType: 'care.handover_waiting',
+    label: 'บทสนทนา AI CARE ยังไม่มีคนรับ (เตือนซ้ำ)',
+    title: 'ลูกค้ายังรอเจ้าหน้าที่ {{minutes}} นาที: {{sender}}',
+    body: '{{reason}} ({{channel}}) — ยังไม่มีใครรับเรื่อง',
+    variables: {
+      sender: { label: 'ผู้ส่ง', sample: 'คุณสมชาย · บริษัท กขค' },
+      channel: { label: 'ช่องทาง', sample: 'LINE' },
+      reason: { label: 'เหตุที่ส่งต่อ', sample: 'ลูกค้าไม่พอใจ' },
+      minutes: { label: 'รอมาแล้ว (นาที)', sample: '30' },
+    },
+  },
+  {
     eventType: 'service.oncall.dispatched',
     label: 'เคสนอกเวลาส่งถึงเวร (ถึงเวรหลัก/สำรอง)',
     title: 'เวรนอกเวลา: {{request_no}} {{subject}}',

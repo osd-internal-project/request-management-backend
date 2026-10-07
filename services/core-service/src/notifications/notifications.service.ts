@@ -764,6 +764,30 @@ export class NotificationsService {
   }
 
   /** CD-266 — a knowledge gap to fill (assigned), or past its due day. */
+  /** CD-283 — a customer waits for a person (first notice, or still waiting). */
+  async careHandover(
+    userId: string,
+    companyId: string,
+    conversation: { id: string; sender: string; channel: string },
+    reason: string,
+    waitingMinutes: number | null,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType:
+        waitingMinutes === null ? 'care.handover' : 'care.handover_waiting',
+      values: {
+        sender: conversation.sender.slice(0, 120),
+        channel: conversation.channel,
+        reason,
+        ...(waitingMinutes === null ? {} : { minutes: String(waitingMinutes) }),
+      },
+      resourceType: 'care_conversation',
+      resourceId: conversation.id,
+    });
+  }
+
   async kbGap(
     userId: string,
     companyId: string,
