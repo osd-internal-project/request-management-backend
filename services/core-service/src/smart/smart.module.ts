@@ -1,5 +1,10 @@
 import { Module } from '@nestjs/common';
+import { ContactPreferencesModule } from '../contact-preferences/contact-preferences.module';
 import { CrmModule } from '../crm/crm.module';
+import { CompanyRepository } from '../crm/product.repositories';
+import { KbArticleRepository } from '../kb/kb.repositories';
+import { WorkCalendarRepository } from '../pm/project.repositories';
+import { SmartCallsService } from './smart-calls.service';
 import { LeadRepository } from '../crm/sales.repositories';
 import { LlmModule } from '../llm/llm.module';
 import { SmartScreeningService } from './smart-screening.service';
@@ -9,6 +14,9 @@ import { SmartIngestService } from './smart-ingest.service';
 import { CONNECTOR_KINDS } from './smart-rules';
 import { SmartSweepService } from './smart-sweep.service';
 import {
+  SmartCallListRepository,
+  SmartCallPolicyRepository,
+  SmartCallTargetRepository,
   SmartProspectRepository,
   SmartSourceRepository,
   SmartSweepRunRepository,
@@ -23,7 +31,7 @@ import { SmartService } from './smart.service';
  */
 @Module({
   // CD-290 — screening matches CRM and sends through the campaign screening
-  imports: [CrmModule, LlmModule],
+  imports: [CrmModule, LlmModule, ContactPreferencesModule],
   providers: [
     {
       provide: SMART_CONNECTORS,
@@ -49,8 +57,17 @@ import { SmartService } from './smart.service';
     SmartService,
     SmartScreeningService,
     LeadRepository,
+    // CD-291 — call lists and the checks before every call
+    SmartCallPolicyRepository,
+    SmartCallListRepository,
+    SmartCallTargetRepository,
+    SmartCallsService,
+    KbArticleRepository,
+    CompanyRepository,
+    WorkCalendarRepository,
   ],
   exports: [
+    SmartCallsService,
     SmartScreeningService,
     SmartIngestService,
     SmartService,

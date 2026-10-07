@@ -8731,3 +8731,95 @@ model CareIdentity {
   @@index([contactId])
   @@map("care_identities")
 }
+
+/// CD-291 — people who said "don't contact me". Shared by AI SMART and AI CARE
+/// until the PDPA central system takes it over (then synced in, source pdpa).
+/// A removal keeps the row (removedAt) — who asked and who lifted it stays findable.
+model DoNotContact {
+  id           String    @id @default(uuid())
+  companyId    String
+  /// phone | email
+  kind         String
+  /// Normalized: digits for a phone (0-prefixed), lowercase for an email.
+  value        String
+  /// call (phone calls only) | all (every channel)
+  channel      String    @default("all")
+  reason       String?
+  /// call_refusal | manual | import | pdpa
+  source       String
+  /// Where it came from — a call target, a conversation, a request.
+  sourceRef    String?
+  createdBy    String?
+  createdAt    DateTime  @default(now())
+  removedAt    DateTime?
+  removedBy    String?
+  removeReason String?
+
+  @@index([companyId, kind, value])
+  @@map("do_not_contact")
+}
+
+/// CD-291 — how a company's AI may call: when, how often, what it must say
+/// first. No list calls until someone holding legal.contract.manage certifies
+/// it; any change clears the certification.
+model SmartCallPolicy {
+  id            String    @id @default(uuid())
+  companyId     String    @unique
+  /// [{ day: 1..7 (Mon..Sun), from: "09:00", to: "18:00" }]
+  windows       Json
+  maxAttempts   Int       @default(3)
+  minGapDays    Int       @default(3)
+  /// Said before anything else: who is calling, for which company, why.
+  openingScript String
+  /// How to refuse — said in the opening; saying it ends the call and blocks the number.
+  optOutScript  String
+  certifiedBy   String?
+  certifiedAt   DateTime?
+  certifiedNote String?
+  updatedBy     String?
+  updatedAt     DateTime  @updatedAt
+
+  @@map("smart_call_policies")
+}
+
+/// CD-291 — a set of screened businesses to call, with what to say.
+model SmartCallList {
+  id           String   @id @default(uuid())
+  companyId    String
+  name         String
+  /// What the AI says after the policy's opening.
+  script       String
+  /// Approved KBMS articles the script may draw on.
+  kbArticleIds String[] @default([])
+  /// draft | active | paused | closed
+  status       String   @default("draft")
+  createdBy    String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([companyId, status])
+  @@map("smart_call_lists")
+}
+
+/// CD-291 — one business on one call list.
+model SmartCallTarget {
+  id            String    @id @default(uuid())
+  companyId     String
+  listId        String
+  prospectId    String
+  name          String
+  phone         String
+  /// pending | done | blocked | exhausted
+  status        String    @default("pending")
+  attempts      Int       @default(0)
+  lastAttemptAt DateTime?
+  lastOutcome   String?
+  /// Why it may not be called (do_not_contact, …).
+  blockReason   String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([listId, prospectId])
+  @@index([companyId, listId, status])
+  @@map("smart_call_targets")
+}

@@ -170,3 +170,6 @@ export { toFound } from './smart/smart.service';
 export { CareModule } from './care/care.module';
 export { CareService } from './care/care.service';
 export { CareInboundDto, CareReplyDto } from './care/care.dto';
+// CD-291 — the do-not-contact register, for AI CARE and any channel that reaches people
+export { ContactPreferencesModule } from './contact-preferences/contact-preferences.module';
+export { DoNotContactService } from './contact-preferences/do-not-contact.service';

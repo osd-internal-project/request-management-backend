@@ -76,6 +76,17 @@ export const PERMISSIONS = {
      */
     'smart.prospect.read',
     'smart.prospect.manage',
+    /**
+     * CD-291 — call lists and what the AI says on them. Certifying the
+     * company's calling policy is legal's (`legal.contract.manage`), not this.
+     */
+    'smart.call.manage',
+    /**
+     * CD-291 — the do-not-contact register (people who refused contact),
+     * shared by AI SMART and AI CARE: add or lift an entry by hand. A refusal
+     * on a call is recorded by the system without this.
+     */
+    'crm.contact.optout.manage',
   ],
   /**
    * CD-11 Pre-Sales. `presales.solution.read` sees every Solution in the

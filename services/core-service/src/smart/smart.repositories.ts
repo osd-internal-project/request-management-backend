@@ -60,3 +60,59 @@ export class SmartProspectRepository extends BaseRepository<
     }));
   }
 }
+
+/** CD-291 — a company's calling policy and its certification. */
+@Injectable()
+export class SmartCallPolicyRepository extends BaseRepository<
+  PrismaService['smartCallPolicy']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.smartCallPolicy;
+  }
+}
+
+/** CD-291 — a call list. */
+@Injectable()
+export class SmartCallListRepository extends BaseRepository<
+  PrismaService['smartCallList']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.smartCallList;
+  }
+}
+
+/** CD-291 — one business on one call list. */
+@Injectable()
+export class SmartCallTargetRepository extends BaseRepository<
+  PrismaService['smartCallTarget']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.smartCallTarget;
+  }
+
+  /** How many targets each list holds, by status. */
+  async countsByList(companyId: string) {
+    const rows = await this.prisma.smartCallTarget.groupBy({
+      by: ['listId', 'status'],
+      where: { companyId },
+      _count: { _all: true },
+    });
+    return rows.map((row) => ({
+      listId: row.listId,
+      status: row.status,
+      count: row._count._all,
+    }));
+  }
+}
