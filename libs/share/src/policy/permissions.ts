@@ -376,6 +376,11 @@ export const PERMISSIONS = {
      * no acting person, and nothing reaches CRM until screening.
      */
     'integration.smart.ingest',
+    /**
+     * CD-292 — D-Callcenter reports how an AI call went (outcome, transcript,
+     * recording) to `smart/calls/callback`. Robot-only, no acting person.
+     */
+    'integration.smart.callcenter',
   ],
 } as const;
 

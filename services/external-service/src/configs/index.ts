@@ -72,7 +72,9 @@ export default () => ({
   /** CD-271 — the content calendar's reminders run on core-service only. */
   macom: { contentSweepIntervalMs: 0 },
   /** CD-289 — sweeps run in core-service only. */
-  smart: { connectorMode: 'off', sweepIntervalMs: 0 },
+  smart: { connectorMode: 'off', sweepIntervalMs: 0, dialIntervalMs: 0 },
+  /** CD-292 — results arrive here; nothing is dialled from this service. */
+  dcallcenter: { mode: 'off' },
   /** CD-241 — SupportModule is imported since 6 Oct 2026 (`support/*`); its sweeps stay off. */
   service: {
     onCallSweepIntervalMs: 0,

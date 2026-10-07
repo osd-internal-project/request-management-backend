@@ -8645,6 +8645,9 @@ model SmartProspect {
   sentOutcome       String?
   sentBy            String?
   sentAt            DateTime?
+  /// CD-292 — a call found real interest (CD-293 sends it to its sales axis).
+  interestedAt      DateTime?
+  lastCallId        String?
   decidedBy         String?
   decidedAt         DateTime?
   createdAt         DateTime  @default(now())
@@ -8828,4 +8831,34 @@ model SmartCallTarget {
   @@unique([listId, prospectId])
   @@index([companyId, listId, status])
   @@map("smart_call_targets")
+}
+
+/// CD-292 — one AI call through D-Callcenter: dialled, then its result.
+model SmartCall {
+  id             String    @id @default(uuid())
+  companyId      String
+  listId         String
+  targetId       String
+  prospectId     String
+  phone          String
+  /// D-Callcenter's id for the call; results come back under it.
+  externalCallId String?   @unique
+  /// dialling | completed | failed
+  status         String    @default("dialling")
+  /// interested | not_interested | no_answer | busy | refused | failed
+  outcome        String?
+  durationSec    Int?
+  /// What was said, as D-Callcenter transcribed it.
+  transcript     String?
+  /// Where D-Callcenter keeps the recording.
+  recordingRef   String?
+  /// The model's 2–3 lines for sales (smart.call), when a real gateway is on.
+  summary        String?
+  error          String?
+  startedAt      DateTime  @default(now())
+  endedAt        DateTime?
+
+  @@index([companyId, listId, startedAt])
+  @@index([companyId, status])
+  @@map("smart_calls")
 }

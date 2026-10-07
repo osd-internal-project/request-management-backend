@@ -71,6 +71,8 @@ interface ProspectRow {
   leadId: string | null;
   sentOutcome: string | null;
   sentAt: Date | null;
+  interestedAt: Date | null;
+  lastCallId: string | null;
 }
 
 /**
@@ -439,6 +441,9 @@ export class SmartService {
       lead_id: row.leadId,
       sent_outcome: row.sentOutcome,
       sent_at: row.sentAt,
+      // CD-292
+      interested_at: row.interestedAt,
+      last_call_id: row.lastCallId,
     };
   }
 }

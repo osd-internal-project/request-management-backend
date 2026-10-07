@@ -326,6 +326,14 @@ export default () => ({
     connectorMode: process.env.SMART_CONNECTOR_MODE ?? 'mock',
     /** How often due sources are swept (ms); 0 = off. */
     sweepIntervalMs: Number(process.env.SMART_SWEEP_INTERVAL_MS ?? 900_000),
+    /** CD-292 — how often active call lists are dialled (ms); 0 = off. */
+    dialIntervalMs: Number(process.env.SMART_DIAL_INTERVAL_MS ?? 60_000),
+    /** CD-292 — calls in progress at once, per company. */
+    maxConcurrentCalls: Number(process.env.SMART_MAX_CONCURRENT_CALLS ?? 5),
+  },
+  /** CD-292 — D-Callcenter: mock (default) | off; a real client waits for its spec. */
+  dcallcenter: {
+    mode: process.env.DCALLCENTER_MODE ?? 'mock',
   },
   /** CD-15 MACOM */
   macom: {

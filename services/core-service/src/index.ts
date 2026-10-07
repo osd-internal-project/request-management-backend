@@ -173,3 +173,6 @@ export { CareInboundDto, CareOpenCaseDto, CareReplyDto } from './care/care.dto';
 // CD-291 — the do-not-contact register, for AI CARE and any channel that reaches people
 export { ContactPreferencesModule } from './contact-preferences/contact-preferences.module';
 export { DoNotContactService } from './contact-preferences/do-not-contact.service';
+// CD-292 — D-Callcenter reports call results through external-service
+export { SmartDialerService } from './smart/smart-dialer.service';
+export { CallResultDto } from './smart/smart-calls.dto';

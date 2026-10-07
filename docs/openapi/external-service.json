@@ -12491,6 +12491,50 @@
         ]
       }
     },
+    "/api/v1/smart/calls/callback": {
+      "post": {
+        "description": "call_id = รหัสที่ D-Callcenter ให้ตอนสั่งโทร · outcome: interested | not_interested | no_answer | busy | refused | failed · refused = ลูกค้าขอไม่ให้ติดต่อ — เบอร์เข้าทะเบียนห้ามติดต่อทันที",
+        "operationId": "ExternalSmartCallbackController_callback",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CallResultDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "D-Callcenter ส่งผลการโทรของ AI SMART",
+        "tags": [
+          "smart"
+        ],
+        "x-permission": [
+          "integration.smart.callcenter"
+        ]
+      }
+    },
     "/api/v1/mcp": {
       "post": {
         "description": "Endpoint เดียวสำหรับทุก tool — ชื่อ tool อยู่ใน body ไม่ใช่ใน path รายการ tool ทั้งหมดอยู่ที่ docs/openapi/external-tools.json ดูวิธีใช้ที่ docs/EXTERNAL_API.md",
@@ -16945,6 +16989,48 @@
         "required": [
           "rows",
           "source_code"
+        ]
+      },
+      "CallResultDto": {
+        "type": "object",
+        "properties": {
+          "call_id": {
+            "type": "string",
+            "description": "รหัสสายของ D-Callcenter (ที่ได้ตอนสั่งโทร)",
+            "maxLength": 200,
+            "minLength": 1
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "interested",
+              "not_interested",
+              "no_answer",
+              "busy",
+              "refused",
+              "failed"
+            ]
+          },
+          "duration_sec": {
+            "type": "integer",
+            "example": 95,
+            "maximum": 86400,
+            "minimum": 0
+          },
+          "transcript": {
+            "type": "string",
+            "description": "บทสนทนาที่ถอดความแล้ว",
+            "maxLength": 50000
+          },
+          "recording_ref": {
+            "type": "string",
+            "description": "อ้างอิงไฟล์เสียงในระบบ D-Callcenter",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "call_id",
+          "outcome"
         ]
       },
       "ImportCustomerRowDto": {

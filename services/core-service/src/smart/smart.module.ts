@@ -5,6 +5,8 @@ import { CompanyRepository } from '../crm/product.repositories';
 import { KbArticleRepository } from '../kb/kb.repositories';
 import { WorkCalendarRepository } from '../pm/project.repositories';
 import { SmartCallsService } from './smart-calls.service';
+import { DCallcenterModule } from '../integrations/dcallcenter/dcallcenter.module';
+import { SmartDialerService } from './smart-dialer.service';
 import { LeadRepository } from '../crm/sales.repositories';
 import { LlmModule } from '../llm/llm.module';
 import { SmartScreeningService } from './smart-screening.service';
@@ -15,6 +17,7 @@ import { CONNECTOR_KINDS } from './smart-rules';
 import { SmartSweepService } from './smart-sweep.service';
 import {
   SmartCallListRepository,
+  SmartCallRepository,
   SmartCallPolicyRepository,
   SmartCallTargetRepository,
   SmartProspectRepository,
@@ -31,7 +34,7 @@ import { SmartService } from './smart.service';
  */
 @Module({
   // CD-290 — screening matches CRM and sends through the campaign screening
-  imports: [CrmModule, LlmModule, ContactPreferencesModule],
+  imports: [CrmModule, LlmModule, ContactPreferencesModule, DCallcenterModule],
   providers: [
     {
       provide: SMART_CONNECTORS,
@@ -65,8 +68,12 @@ import { SmartService } from './smart.service';
     KbArticleRepository,
     CompanyRepository,
     WorkCalendarRepository,
+    // CD-292 — dialling through D-Callcenter
+    SmartCallRepository,
+    SmartDialerService,
   ],
   exports: [
+    SmartDialerService,
     SmartCallsService,
     SmartScreeningService,
     SmartIngestService,

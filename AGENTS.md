@@ -397,6 +397,15 @@ sender, caller number) matched one contact, or the service team confirmed it;
 what a sender types only *claims* a customer. A seventh is again a decision to
 state here.
 
+**The seventh: `smart/calls/callback` (CD-292, 7 Oct 2026, user decision).**
+D-Callcenter, the company's own call centre, reports how an AI SMART call ended
+(outcome, transcript, recording reference) under `integration.smart.callcenter`.
+The person at the other end of the call is a prospect, never one of our users,
+and the caller is a machine. The key's company is the call's company; another
+company's call id answers 404, and a finished call is not re-recorded. A
+`refused` outcome puts the number on the do-not-contact register at once. An
+eighth is again a decision to state here.
+
 **core-service's one public business surface: e-signature (CD-14, 30 Sep
 2026).** `EsignPublicController` — `esign/public/:token/*` (a signer's link:
 view, one-time code, document, sign, decline) and `esign/verify/:code*` (the

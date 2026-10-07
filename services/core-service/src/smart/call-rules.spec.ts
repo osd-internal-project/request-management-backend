@@ -1,4 +1,5 @@
 import {
+  targetAfterCall,
   bangkokClock,
   checkBeforeCall,
   DEFAULT_WINDOWS,
@@ -91,7 +92,9 @@ describe('CD-291 calling rules', () => {
     expect(checkBeforeCall({ ...ready, targetStatus: 'blocked' })).toBe(
       'do_not_contact',
     );
-    expect(checkBeforeCall({ ...ready, targetStatus: 'done' })).toBe('finished');
+    expect(checkBeforeCall({ ...ready, targetStatus: 'done' })).toBe(
+      'finished',
+    );
   });
 
   it('the opening names the company and always ends with how to refuse', () => {
@@ -103,5 +106,17 @@ describe('CD-291 calling rules', () => {
       'OSD',
     );
     expect(said).toBe('โทรจาก OSD ค่ะ พูดว่า ไม่ต้องติดต่ออีก');
+  });
+
+  it('CD-292: an answer finishes a target, a refusal blocks it, no answer tries again', () => {
+    expect(targetAfterCall('interested', 1, 3)).toEqual({ status: 'done' });
+    expect(targetAfterCall('not_interested', 1, 3)).toEqual({ status: 'done' });
+    expect(targetAfterCall('refused', 1, 3)).toEqual({
+      status: 'blocked',
+      blockReason: 'do_not_contact',
+    });
+    expect(targetAfterCall('no_answer', 1, 3)).toEqual({ status: 'pending' });
+    expect(targetAfterCall('busy', 3, 3)).toEqual({ status: 'exhausted' });
+    expect(targetAfterCall('failed', 2, 3)).toEqual({ status: 'pending' });
   });
 });

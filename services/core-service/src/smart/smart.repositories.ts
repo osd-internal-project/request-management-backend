@@ -116,3 +116,17 @@ export class SmartCallTargetRepository extends BaseRepository<
     }));
   }
 }
+
+/** CD-292 — one AI call through D-Callcenter. */
+@Injectable()
+export class SmartCallRepository extends BaseRepository<
+  PrismaService['smartCall']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.smartCall;
+  }
+}

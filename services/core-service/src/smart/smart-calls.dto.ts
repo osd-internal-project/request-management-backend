@@ -132,3 +132,57 @@ export class RefuseCallDto {
   @MaxLength(500)
   reason?: string;
 }
+
+/** CD-292 — how a call went, as D-Callcenter reports it. */
+export class CallResultDto {
+  @ApiProperty({ description: 'รหัสสายของ D-Callcenter (ที่ได้ตอนสั่งโทร)' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(200)
+  call_id!: string;
+
+  @ApiProperty({
+    enum: [
+      'interested',
+      'not_interested',
+      'no_answer',
+      'busy',
+      'refused',
+      'failed',
+    ],
+  })
+  @IsIn([
+    'interested',
+    'not_interested',
+    'no_answer',
+    'busy',
+    'refused',
+    'failed',
+  ])
+  outcome!:
+    | 'interested'
+    | 'not_interested'
+    | 'no_answer'
+    | 'busy'
+    | 'refused'
+    | 'failed';
+
+  @ApiPropertyOptional({ example: 95 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(86400)
+  duration_sec?: number;
+
+  @ApiPropertyOptional({ description: 'บทสนทนาที่ถอดความแล้ว' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50000)
+  transcript?: string;
+
+  @ApiPropertyOptional({ description: 'อ้างอิงไฟล์เสียงในระบบ D-Callcenter' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  recording_ref?: string;
+}

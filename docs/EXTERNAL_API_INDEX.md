@@ -254,6 +254,7 @@
 | Method | Path | ทำอะไร | สิทธิ์กุญแจ | สิทธิ์คน |
 |---|---|---|---|---|
 | POST | `/smart/prospects/ingest` | ส่งรายชื่อธุรกิจที่กวาดได้เข้าคิวของ AI SMART | integration.smart.ingest |  |
+| POST | `/smart/calls/callback` | D-Callcenter ส่งผลการโทรของ AI SMART | integration.smart.callcenter |  |
 
 ## support — งานบริการหลังการขาย — ทะเบียนอุปกรณ์ สิทธิ์บริการ และเปิดใบสั่งงานบริการ
 

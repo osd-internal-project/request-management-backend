@@ -37066,6 +37066,88 @@
         ]
       }
     },
+    "/api/v1/smart/call-lists/{id}/calls": {
+      "get": {
+        "operationId": "SmartCallsController_history",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-292 ประวัติการโทรของรายการ (200 สายล่าสุด)",
+        "tags": [
+          "smart"
+        ],
+        "x-permission": [
+          "smart.prospect.read"
+        ]
+      }
+    },
+    "/api/v1/smart/calls/{id}": {
+      "get": {
+        "operationId": "SmartCallsController_call",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-292 สายหนึ่งสาย: ผล บทสนทนา และสรุป",
+        "tags": [
+          "smart"
+        ],
+        "x-permission": [
+          "smart.prospect.read"
+        ]
+      }
+    },
     "/api/v1/smart/call-policy": {
       "get": {
         "operationId": "SmartCallsController_policy",

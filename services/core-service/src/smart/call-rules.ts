@@ -129,3 +129,31 @@ export function openingFor(
 ): string {
   return `${policy.openingScript.split('{company}').join(companyName)} ${policy.optOutScript}`;
 }
+
+/** CD-292 — a dialling call with no result after this long is given up. */
+export const STALE_CALL_MINUTES = 30;
+
+/**
+ * CD-292 — where a target stands after a call. A conversation that reached
+ * an answer (interested or not) finishes it; a refusal blocks it (and the
+ * number, through the register); a call that did not connect leaves it to
+ * be tried again — until its attempts are used.
+ */
+export function targetAfterCall(
+  outcome: string,
+  attempts: number,
+  maxAttempts: number,
+): {
+  status: 'pending' | 'done' | 'blocked' | 'exhausted';
+  blockReason?: string;
+} {
+  if (outcome === 'interested' || outcome === 'not_interested') {
+    return { status: 'done' };
+  }
+  if (outcome === 'refused') {
+    return { status: 'blocked', blockReason: 'do_not_contact' };
+  }
+  return attempts >= maxAttempts
+    ? { status: 'exhausted' }
+    : { status: 'pending' };
+}

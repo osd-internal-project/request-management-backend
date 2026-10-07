@@ -11,13 +11,31 @@ import {
   SaveCallPolicyDto,
 } from './smart-calls.dto';
 import { SmartCallsService } from './smart-calls.service';
+import { SmartDialerService } from './smart-dialer.service';
 
 /** CD-291 (CD-16 AI SMART) — the calling policy, call lists and their targets. */
 @ApiTags('smart')
 @ApiBearerAuth()
 @Controller('smart')
 export class SmartCallsController {
-  constructor(private readonly calls: SmartCallsService) {}
+  constructor(
+    private readonly calls: SmartCallsService,
+    private readonly dialer: SmartDialerService,
+  ) {}
+
+  @ApiOperation({ summary: 'CD-292 ประวัติการโทรของรายการ (200 สายล่าสุด)' })
+  @Get('call-lists/:id/calls')
+  @Permissions('smart.prospect.read')
+  history(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.dialer.history(principal, id);
+  }
+
+  @ApiOperation({ summary: 'CD-292 สายหนึ่งสาย: ผล บทสนทนา และสรุป' })
+  @Get('calls/:id')
+  @Permissions('smart.prospect.read')
+  call(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.dialer.call(principal, id);
+  }
 
   @ApiOperation({ summary: 'CD-291 นโยบายการโทรของบริษัท และสถานะการรับรอง' })
   @Get('call-policy')

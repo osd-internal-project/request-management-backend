@@ -453,6 +453,24 @@ export class SmartCallsService {
     };
   }
 
+  /** CD-292 — what the AI says on a list, and the policy's attempt limit. */
+  async dialPlan(companyId: string, listId: string) {
+    const [list, policy, company] = await Promise.all([
+      this.lists.findFirst({
+        where: { id: listId, companyId },
+      }) as Promise<ListRow | null>,
+      this.policyRow(companyId),
+      this.companyName(companyId),
+    ]);
+    if (!list) return null;
+    const settings = policy ?? DEFAULT_POLICY;
+    return {
+      opening: openingFor(settings, company),
+      script: list.script,
+      maxAttempts: settings.maxAttempts,
+    };
+  }
+
   /** CD-292 — the targets that may be dialled right now. */
   async callable(companyId: string, listId: string, now = new Date()) {
     const list = (await this.lists.findFirst({

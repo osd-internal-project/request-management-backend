@@ -2370,7 +2370,8 @@
                 "integration.kb.read",
                 "integration.care.manage",
                 "integration.assistant.read",
-                "integration.smart.ingest"
+                "integration.smart.ingest",
+                "integration.smart.callcenter"
               ],
               "type": "string"
             }
@@ -2502,7 +2503,8 @@
                 "integration.kb.read",
                 "integration.care.manage",
                 "integration.assistant.read",
-                "integration.smart.ingest"
+                "integration.smart.ingest",
+                "integration.smart.callcenter"
               ],
               "type": "string"
             }
@@ -2818,7 +2820,8 @@
               "integration.kb.read",
               "integration.care.manage",
               "integration.assistant.read",
-              "integration.smart.ingest"
+              "integration.smart.ingest",
+              "integration.smart.callcenter"
             ],
             "type": "string"
           }
