@@ -6,9 +6,11 @@ import {
   type Principal,
 } from '@request-management/share';
 import {
+  CareAgentReplyDto,
   CareCloseDto,
   CareListQueryDto,
   CareOpenCaseDto,
+  CareTransferDto,
   CareVerifyDto,
 } from './care.dto';
 import { CareService } from './care.service';
@@ -29,6 +31,7 @@ export class CareController {
       channel: query.channel,
       identification: query.identification,
       customerId: query.customer_id,
+      queue: query.queue,
     });
   }
 
@@ -78,6 +81,54 @@ export class CareController {
     @CurrentPrincipal() actor: Principal,
   ) {
     return this.care.openCase(actor.activeCompanyId, id, dto, actor);
+  }
+
+  @ApiOperation({
+    summary: 'CD-284 รับช่วงบทสนทนา (จากคิวรอเจ้าหน้าที่หรือจาก AI)',
+  })
+  @Post('conversations/:id/take')
+  @AnyPermission('service.care.manage')
+  take(@Param('id') id: string, @CurrentPrincipal() actor: Principal) {
+    return this.care.take(actor, id);
+  }
+
+  @ApiOperation({
+    summary:
+      'CD-284 ตอบลูกค้า — ส่งทางช่องทางเดิม (LINE ส่งทันที ช่องทางอื่นผ่านกล่องขาออก) · ยังไม่มีใครถือ = รับช่วงด้วย',
+  })
+  @Post('conversations/:id/reply')
+  @AnyPermission('service.care.manage')
+  reply(
+    @Param('id') id: string,
+    @Body() dto: CareAgentReplyDto,
+    @CurrentPrincipal() actor: Principal,
+  ) {
+    return this.care.agentReply(actor, id, dto.text);
+  }
+
+  @ApiOperation({ summary: 'CD-284 ส่งต่อบทสนทนาให้เพื่อนในทีม' })
+  @Post('conversations/:id/transfer')
+  @AnyPermission('service.care.manage')
+  transfer(
+    @Param('id') id: string,
+    @Body() dto: CareTransferDto,
+    @CurrentPrincipal() actor: Principal,
+  ) {
+    return this.care.transfer(actor, id, dto.user_id);
+  }
+
+  @ApiOperation({ summary: 'CD-284 คืนบทสนทนาให้ AI CARE ดูแลต่อ' })
+  @Post('conversations/:id/release')
+  @AnyPermission('service.care.manage')
+  release(@Param('id') id: string, @CurrentPrincipal() actor: Principal) {
+    return this.care.release(actor, id);
+  }
+
+  @ApiOperation({ summary: 'CD-284 คนในทีมที่ส่งต่อบทสนทนาให้ได้' })
+  @Get('team')
+  @AnyPermission('service.care.manage')
+  team(@CurrentPrincipal() actor: Principal) {
+    return this.care.team(actor);
   }
 
   @ApiOperation({ summary: 'CD-280 ปิดบทสนทนาพร้อมผล' })

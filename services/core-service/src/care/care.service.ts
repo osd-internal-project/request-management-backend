@@ -49,6 +49,11 @@ import {
   type HandoverWords,
 } from './care-handover-rules';
 import { CareHandoverService } from './care-handover.service';
+import { CareDeliveryService } from './care-delivery.service';
+import { NotificationsService } from '../notifications/notifications.service';
+
+const RELEASED_TEXT =
+  'เจ้าหน้าที่ส่งเรื่องคืนให้ AI CARE ดูแลต่อ — หากต้องการคุยกับเจ้าหน้าที่อีก แจ้งได้เลย';
 
 const UNANSWERED_PREFIX = 'ขออภัยที่ยังตอบเรื่องนี้ไม่ได้ — ';
 import { CareCaseService, type CareCase } from './care-case.service';
@@ -66,6 +71,7 @@ import {
   CareConversationRepository,
   CareIdentityRepository,
   CareMessageRepository,
+  CareStaffRepository,
   type ContactMatch,
 } from './care.repositories';
 
@@ -101,6 +107,8 @@ export interface ConversationRow {
   handoverReason: string | null;
   handoverAt: Date | null;
   handoverNotifiedAt: Date | null;
+  agentUserId: string | null;
+  agentSince: Date | null;
 }
 
 interface MessageRow {
@@ -111,6 +119,8 @@ interface MessageRow {
   text: string | null;
   attachments: unknown;
   kbQueryId: string | null;
+  delivery: string | null;
+  deliveryError: string | null;
   createdAt: Date;
 }
 
@@ -159,6 +169,9 @@ export class CareService implements OnModuleInit, OnModuleDestroy {
     private readonly answers: CareAnswerService,
     private readonly cases: CareCaseService,
     private readonly handover: CareHandoverService,
+    private readonly delivery: CareDeliveryService,
+    private readonly staff: CareStaffRepository,
+    private readonly notifications: NotificationsService,
   ) {}
 
   onModuleInit(): void {
@@ -470,6 +483,8 @@ export class CareService implements OnModuleInit, OnModuleDestroy {
       channel?: string;
       customerId?: string;
       identification?: string;
+      /** CD-284 — waiting: for a person · mine: held by me */
+      queue?: 'waiting' | 'mine';
     },
   ) {
     this.manage(actor);
@@ -483,16 +498,28 @@ export class CareService implements OnModuleInit, OnModuleDestroy {
     const rows = (await this.conversations.findMany({
       where: {
         companyId: actor.activeCompanyId,
-        ...(statuses ? { status: { in: statuses } } : {}),
+        ...(filter.queue === 'waiting'
+          ? { status: 'waiting_human' }
+          : filter.queue === 'mine'
+            ? { status: 'with_agent', agentUserId: actor.userId }
+            : statuses
+              ? { status: { in: statuses } }
+              : {}),
         ...(filter.channel ? { channel: filter.channel } : {}),
         ...(filter.customerId ? { customerId: filter.customerId } : {}),
         ...(filter.identification
           ? { identification: filter.identification }
           : {}),
       },
-      orderBy: [{ lastMessageAt: 'desc' }],
+      // the longest waiting first in the queue, the latest first elsewhere
+      orderBy: [
+        filter.queue === 'waiting'
+          ? { handoverAt: 'asc' }
+          : { lastMessageAt: 'desc' },
+      ],
       take: 200,
     })) as ConversationRow[];
+    const agents = await this.lookup.userNames(rows.map((r) => r.agentUserId));
     const customers = new Map<string, { code: string; name: string }>();
     for (const id of new Set(rows.map((r) => r.customerId).filter(Boolean))) {
       const c = await this.lookup.customer(id!);
@@ -503,6 +530,7 @@ export class CareService implements OnModuleInit, OnModuleDestroy {
       ...this.view(r),
       customer: r.customerId ? (customers.get(r.customerId) ?? null) : null,
       lastText: last.get(r.id) ?? null,
+      agentName: r.agentUserId ? (agents.get(r.agentUserId) ?? null) : null,
     }));
   }
 
@@ -520,12 +548,189 @@ export class CareService implements OnModuleInit, OnModuleDestroy {
         ? this.lookup.contacts(conversation.customerId)
         : Promise.resolve([]),
     ]);
+    const names = await this.lookup.userNames([
+      conversation.agentUserId,
+      ...messages.map((m) => m.authorUserId),
+    ]);
     return {
       ...context,
-      messages: messages.map((m) => this.message(m)),
+      agent: conversation.agentUserId
+        ? {
+            id: conversation.agentUserId,
+            name: names.get(conversation.agentUserId) ?? null,
+            mine: conversation.agentUserId === actor.userId,
+          }
+        : null,
+      messages: messages.map((m) => ({
+        ...this.message(m),
+        authorName: m.authorUserId ? (names.get(m.authorUserId) ?? null) : null,
+        delivery: m.delivery,
+        deliveryError: m.deliveryError,
+      })),
       // whom a staff member may confirm the sender as
       contacts,
     };
+  }
+
+  // --- CD-284 a person takes over --------------------------------------------------
+
+  /** Whom a conversation may be handed to. */
+  async team(actor: Principal) {
+    this.manage(actor);
+    const ids = await this.staff.holdersOf(actor.activeCompanyId, MANAGE);
+    const names = await this.lookup.userNames(ids);
+    return ids
+      .map((id) => ({ id, name: names.get(id) ?? id, me: id === actor.userId }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'th'));
+  }
+
+  // --- CD-284 the outbox for channel connectors ------------------------------------
+
+  outbox(companyId: string, channel: string, limit?: number) {
+    return this.delivery.outbox(companyId, channel, limit);
+  }
+
+  delivered(
+    companyId: string,
+    messageId: string,
+    result: { ok: boolean; error?: string },
+  ) {
+    return this.delivery.acknowledge(companyId, messageId, result);
+  }
+
+  /** Take the conversation (from the queue, or from AI CARE). */
+  async take(actor: Principal, id: string) {
+    this.manage(actor);
+    const conversation = await this.mine(actor.activeCompanyId, id);
+    await this.takeOver(actor, conversation);
+    return this.detail(actor, id);
+  }
+
+  /** Answer the customer — taking the conversation if nobody holds it. */
+  async agentReply(actor: Principal, id: string, text: string) {
+    this.manage(actor);
+    const conversation = await this.mine(actor.activeCompanyId, id);
+    if (conversation.agentUserId !== actor.userId)
+      await this.takeOver(actor, conversation);
+    await this.delivery.send({
+      conversationId: id,
+      text,
+      author: 'agent',
+      authorUserId: actor.userId,
+    });
+    return this.detail(actor, id);
+  }
+
+  /** Hand it to a colleague on the service team. */
+  async transfer(actor: Principal, id: string, toUserId: string) {
+    this.manage(actor);
+    const conversation = await this.mine(actor.activeCompanyId, id);
+    if (conversation.status === 'closed')
+      throw new AppError('CONFLICT', 'บทสนทนานี้ปิดแล้ว');
+    const team = await this.staff.holdersOf(actor.activeCompanyId, MANAGE);
+    if (!team.includes(toUserId))
+      throw new AppError(
+        'VALIDATION_FAILED',
+        'ส่งต่อได้เฉพาะคนในทีมที่ดูแลบทสนทนาได้',
+      );
+    await this.conversations.update({
+      where: { id },
+      data: {
+        status: 'with_agent',
+        agentUserId: toUserId,
+        agentSince: new Date(),
+      },
+    });
+    await this.notifications
+      .careHandover(
+        toUserId,
+        actor.activeCompanyId,
+        {
+          id,
+          sender: conversation.senderName ?? conversation.senderRef,
+          channel: conversation.channel,
+        },
+        `ส่งต่อจาก ${actor.displayName || actor.username}`,
+        null,
+      )
+      .catch(() => undefined);
+    await this.record(actor, id, 'care.transferred', { to: toUserId });
+    return this.detail(actor, id);
+  }
+
+  /** Give it back to AI CARE: it answers again from the next message. */
+  async release(actor: Principal, id: string) {
+    this.manage(actor);
+    const conversation = await this.mine(actor.activeCompanyId, id);
+    if (conversation.status === 'closed' || conversation.status === 'open')
+      throw new AppError('CONFLICT', 'บทสนทนานี้ไม่ได้อยู่กับเจ้าหน้าที่');
+    await this.conversations.update({
+      where: { id },
+      data: {
+        status: 'open',
+        agentUserId: null,
+        agentSince: null,
+        handoverReason: null,
+        handoverAt: null,
+        handoverNotifiedAt: null,
+        unansweredStreak: 0,
+      },
+    });
+    await this.delivery.send({
+      conversationId: id,
+      text: RELEASED_TEXT,
+      author: 'system',
+    });
+    await this.record(actor, id, 'care.released', {});
+    return this.detail(actor, id);
+  }
+
+  private async takeOver(actor: Principal, conversation: ConversationRow) {
+    if (conversation.status === 'closed')
+      throw new AppError('CONFLICT', 'บทสนทนานี้ปิดแล้ว');
+    if (
+      conversation.status === 'with_agent' &&
+      conversation.agentUserId &&
+      conversation.agentUserId !== actor.userId
+    ) {
+      const holder = (
+        await this.lookup.userNames([conversation.agentUserId])
+      ).get(conversation.agentUserId);
+      throw new AppError(
+        'CONFLICT',
+        `${holder ?? 'เจ้าหน้าที่คนอื่น'} ดูแลบทสนทนานี้อยู่ — ให้ส่งต่อมาก่อน`,
+      );
+    }
+    if (conversation.agentUserId === actor.userId) return;
+    await this.conversations.update({
+      where: { id: conversation.id },
+      data: {
+        status: 'with_agent',
+        agentUserId: actor.userId,
+        agentSince: new Date(),
+        caseOfferedAt: null,
+      },
+    });
+    await this.record(actor, conversation.id, 'care.taken', {
+      from: conversation.status,
+    });
+  }
+
+  private record(
+    actor: Principal,
+    id: string,
+    eventType: string,
+    after: Record<string, string>,
+  ) {
+    return this.audit.record({
+      eventType,
+      companyId: actor.activeCompanyId,
+      actorId: actor.userId,
+      actorUsername: actor.username,
+      resourceType: 'care_conversation',
+      resourceId: id,
+      after,
+    });
   }
 
   /** The contacts of a customer, to confirm a sender against. */
@@ -581,18 +786,28 @@ export class CareService implements OnModuleInit, OnModuleDestroy {
       severity: input.severity,
       subject: input.subject,
     });
-    await this.messages.create({
-      data: {
+    if (actor) {
+      // the team opened it: the notice still has to reach the customer
+      await this.delivery.send({
         conversationId: id,
-        direction: 'out',
-        author: 'system',
         text: opened.notice,
-      },
-    });
-    await this.conversations.update({
-      where: { id },
-      data: { messages: { increment: 1 }, lastMessageAt: new Date() },
-    });
+        author: 'system',
+      });
+    } else {
+      // the channel asked: the notice goes back in its own call
+      await this.messages.create({
+        data: {
+          conversationId: id,
+          direction: 'out',
+          author: 'system',
+          text: opened.notice,
+        },
+      });
+      await this.conversations.update({
+        where: { id },
+        data: { messages: { increment: 1 }, lastMessageAt: new Date() },
+      });
+    }
     return opened;
   }
 
@@ -622,7 +837,9 @@ export class CareService implements OnModuleInit, OnModuleDestroy {
     const purged = await this.messages.purge(purgeBefore);
     // CD-283 — still waiting for a person: tell them again
     const reminded = await this.handover.remind(now);
-    return { closed: idle.length, purged, reminded };
+    // CD-284 — LINE messages not through yet
+    const delivered = await this.delivery.retry();
+    return { closed: idle.length, purged, reminded, delivered };
   }
 
   // --- inside -----------------------------------------------------------------------
@@ -937,6 +1154,8 @@ export class CareService implements OnModuleInit, OnModuleDestroy {
       lastMessageAt: r.lastMessageAt,
       closedAt: r.closedAt,
       textPurged: !!r.textPurgedAt,
+      agentUserId: r.agentUserId,
+      agentSince: r.agentSince,
       ...this.caseView(r),
     };
   }

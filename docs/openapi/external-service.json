@@ -12030,6 +12030,120 @@
         ]
       }
     },
+    "/api/v1/care/outbox": {
+      "get": {
+        "description": "คำตอบของเจ้าหน้าที่และข้อความแจ้งที่ทีมสั่ง (ไม่ใช่คำตอบ AI ซึ่งได้ไปแล้วใน care/messages) · เก่าสุดก่อน · ส่งแล้วรายงานที่ care/outbox/:messageId/delivered · LINE ระบบส่งเองเมื่อมี token ของบริษัท",
+        "operationId": "CareApiController_outbox",
+        "parameters": [
+          {
+            "name": "channel",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "line",
+                "facebook",
+                "instagram",
+                "tiktok",
+                "email",
+                "web",
+                "callcenter",
+                "api"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maximum": 200,
+              "default": 50,
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ข้อความที่ต้องส่งถึงลูกค้าในช่องทางนี้ (CD-284)",
+        "tags": [
+          "care"
+        ],
+        "x-permission": [
+          "integration.care.manage"
+        ]
+      }
+    },
+    "/api/v1/care/outbox/{messageId}/delivered": {
+      "post": {
+        "operationId": "CareApiController_delivered",
+        "parameters": [
+          {
+            "name": "messageId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CareDeliveredDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "รายงานว่าส่งข้อความจากกล่องขาออกแล้วหรือไม่ (CD-284)",
+        "tags": [
+          "care"
+        ],
+        "x-permission": [
+          "integration.care.manage"
+        ]
+      }
+    },
     "/api/v1/care/conversations/{id}": {
       "get": {
         "operationId": "CareApiController_conversation",
@@ -16971,6 +17085,22 @@
             "maxLength": 200
           }
         }
+      },
+      "CareDeliveredDto": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "error": {
+            "type": "string",
+            "description": "เหตุที่ส่งไม่สำเร็จ",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "ok"
+        ]
       },
       "FoundProspectDto": {
         "type": "object",

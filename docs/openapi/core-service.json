@@ -23488,6 +23488,19 @@
             }
           },
           {
+            "name": "queue",
+            "required": false,
+            "in": "query",
+            "description": "CD-284 — waiting = รอเจ้าหน้าที่ (รอนานสุดก่อน) · mine = ที่ฉันดูแล",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "waiting",
+                "mine"
+              ]
+            }
+          },
+          {
             "name": "X-Company-Id",
             "in": "header",
             "required": false,
@@ -23680,6 +23693,208 @@
           }
         ],
         "summary": "CD-282 เปิดเคสบริการจากบทสนทนา (SLA นับจากที่ AI รับเรื่อง; ผู้ส่งยืนยันแล้ว → ใบสั่งงานบริการทันที)",
+        "tags": [
+          "care"
+        ]
+      }
+    },
+    "/api/v1/care/conversations/{id}/take": {
+      "post": {
+        "operationId": "CareController_take",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-284 รับช่วงบทสนทนา (จากคิวรอเจ้าหน้าที่หรือจาก AI)",
+        "tags": [
+          "care"
+        ]
+      }
+    },
+    "/api/v1/care/conversations/{id}/reply": {
+      "post": {
+        "operationId": "CareController_reply",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CareAgentReplyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-284 ตอบลูกค้า — ส่งทางช่องทางเดิม (LINE ส่งทันที ช่องทางอื่นผ่านกล่องขาออก) · ยังไม่มีใครถือ = รับช่วงด้วย",
+        "tags": [
+          "care"
+        ]
+      }
+    },
+    "/api/v1/care/conversations/{id}/transfer": {
+      "post": {
+        "operationId": "CareController_transfer",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CareTransferDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-284 ส่งต่อบทสนทนาให้เพื่อนในทีม",
+        "tags": [
+          "care"
+        ]
+      }
+    },
+    "/api/v1/care/conversations/{id}/release": {
+      "post": {
+        "operationId": "CareController_release",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-284 คืนบทสนทนาให้ AI CARE ดูแลต่อ",
+        "tags": [
+          "care"
+        ]
+      }
+    },
+    "/api/v1/care/team": {
+      "get": {
+        "operationId": "CareController_team",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-284 คนในทีมที่ส่งต่อบทสนทนาให้ได้",
         "tags": [
           "care"
         ]
@@ -49093,6 +49308,30 @@
             "maxLength": 200
           }
         }
+      },
+      "CareAgentReplyDto": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 4000
+          }
+        },
+        "required": [
+          "text"
+        ]
+      },
+      "CareTransferDto": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "คนในทีมที่มีสิทธิ์ดูแลบทสนทนา"
+          }
+        },
+        "required": [
+          "user_id"
+        ]
       },
       "CareCloseDto": {
         "type": "object",
