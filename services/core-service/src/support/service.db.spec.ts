@@ -633,6 +633,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         { chargeLines: () => Promise.resolve([]) } as never,
         audit,
         transactions,
+        { agreedOf: () => Promise.resolve([]) } as never,
       );
       const manager = {
         userId: staff,
@@ -972,6 +973,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         timeMaterials,
         audit,
         transactions,
+        { agreedOf: () => Promise.resolve([]) } as never,
       );
       const draft = await billings.prepare(manager, order.id);
       expect(draft.netTotal).toBe(3300);

@@ -44,9 +44,11 @@ export function billingReference(requestNo: string | null, id: string) {
 export function prepareBlocker(
   order: { billing: string | null },
   requestStatus: string,
+  /** CD-228 — out-of-contract items the customer agreed to. */
+  agreedExtras = 0,
 ): string | null {
-  if (order.billing !== 'billable') {
-    return 'เรียกเก็บได้เฉพาะงานที่ยืนยันว่าเก็บเงินเพิ่ม';
+  if (order.billing !== 'billable' && !agreedExtras) {
+    return 'เรียกเก็บได้เฉพาะงานที่ยืนยันว่าเก็บเงินเพิ่ม หรือมีงานนอกสัญญาที่ลูกค้ายินยอม';
   }
   if (!BILLABLE_DONE.includes(requestStatus)) {
     return 'เรียกเก็บได้เมื่องานเสร็จแล้ว';

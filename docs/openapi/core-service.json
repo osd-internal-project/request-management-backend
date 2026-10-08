@@ -18362,6 +18362,188 @@
         ]
       }
     },
+    "/api/v1/service-work-orders/{id}/extras": {
+      "get": {
+        "operationId": "ServiceWorkOrdersController_extras",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-228 งานนอกสัญญาที่พบระหว่างทำงาน",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.read"
+        ]
+      },
+      "post": {
+        "operationId": "ServiceWorkOrdersController_proposeExtra",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProposeExtraWorkDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-228 เสนองานนอกสัญญา พร้อมเหตุผลและประมาณการ (ผู้รับผิดชอบงาน/ทีมบริการ ระหว่างทำงาน)",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/service-work-orders/extras/{extraId}/decide": {
+      "post": {
+        "operationId": "ServiceWorkOrdersController_decideExtra",
+        "parameters": [
+          {
+            "name": "extraId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecideExtraWorkDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-228 ลูกค้ายินยอม (ผู้ยินยอม วันที่) หรือปฏิเสธงานนอกสัญญา",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/service-work-orders/extras/{extraId}/cancel": {
+      "post": {
+        "operationId": "ServiceWorkOrdersController_cancelExtra",
+        "parameters": [
+          {
+            "name": "extraId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-228 ถอนรายการที่เสนอผิด (ก่อนลูกค้าตอบ)",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      }
+    },
     "/api/v1/service-on-call": {
       "get": {
         "operationId": "ServiceOnCallController_list",
@@ -48643,6 +48825,60 @@
             "maxLength": 4000
           }
         }
+      },
+      "ProposeExtraWorkDto": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string",
+            "example": "เปลี่ยนสายไฟที่ถูกหนูกัด",
+            "maxLength": 2000
+          },
+          "reason": {
+            "type": "string",
+            "example": "ความเสียหายจากสัตว์ ไม่อยู่ในสัญญา MA",
+            "maxLength": 2000
+          },
+          "estimate": {
+            "type": "number",
+            "description": "ประมาณการค่าใช้จ่าย (บาท)"
+          }
+        },
+        "required": [
+          "description",
+          "estimate",
+          "reason"
+        ]
+      },
+      "DecideExtraWorkDto": {
+        "type": "object",
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": [
+              "agreed",
+              "declined"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "description": "ผู้ยินยอมฝั่งลูกค้า (บังคับเมื่อยินยอม)",
+            "maxLength": 200
+          },
+          "on": {
+            "type": "string",
+            "description": "YYYY-MM-DD (บังคับเมื่อยินยอม)",
+            "maxLength": 10
+          },
+          "note": {
+            "type": "string",
+            "description": "หมายเหตุเมื่อปฏิเสธ",
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "decision"
+        ]
       },
       "SaveOnCallShiftDto": {
         "type": "object",

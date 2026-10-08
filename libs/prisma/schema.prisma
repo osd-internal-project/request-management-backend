@@ -7934,6 +7934,37 @@ model KbChunk {
 /// (CD-237), a person confirms, a different answer needs its reason, and a
 /// billed job needs the customer's acknowledgement before work starts. Closed
 /// with its cause and fix.
+/// CD-228 — work found outside the contract after a job started (misuse,
+/// extra equipment): proposed by whoever works it with an estimate, agreed or
+/// declined by the customer. Agreed items are charged on the job's service
+/// billing (CD-242) even when the job itself is in contract.
+model ServiceExtraWork {
+  id          String    @id @default(uuid())
+  companyId   String
+  workOrderId String
+  /// X-n within the job
+  seq         Int
+  description String
+  /// why it is outside the contract
+  reason      String
+  estimate    Decimal   @db.Decimal(14, 2)
+  /// proposed · agreed · declined · cancelled
+  status      String    @default("proposed")
+  ackName     String?
+  ackOn       DateTime? @db.Date
+  decidedBy   String?
+  decidedAt   DateTime?
+  declineNote String?
+  createdAt   DateTime  @default(now())
+  createdBy   String
+  updatedAt   DateTime  @updatedAt
+  updatedBy   String?
+
+  @@unique([workOrderId, seq])
+  @@index([companyId, status])
+  @@map("service_extra_works")
+}
+
 model ServiceWorkOrder {
   id                     String    @id @default(uuid())
   companyId              String

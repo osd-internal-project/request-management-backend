@@ -24,6 +24,8 @@ import {
 import { ServiceBillingErpSyncService } from './service-billing-erp-sync.service';
 import { TimeMaterialsService } from './time-materials.service';
 import { rebuildLines, type ChargeLine } from './time-material-rules';
+import { extraLines } from './extra-work-rules';
+import { ExtraWorksService } from './extra-works.service';
 import {
   CancelServiceBillingDto,
   ListServiceBillingsQueryDto,
@@ -124,6 +126,8 @@ export class ServiceBillingService {
     private readonly timeMaterials: TimeMaterialsService,
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
+    // CD-228 — out-of-contract work the customer agreed to
+    private readonly extraWorks: ExtraWorksService,
   ) {}
 
   async list(actor: Principal, query: ListServiceBillingsQueryDto) {
@@ -167,7 +171,8 @@ export class ServiceBillingService {
     })) as OrderRow | null;
     if (!order) throw new AppError('NOT_FOUND', 'ไม่พบใบสั่งงานบริการ');
     const request = await this.caseOf(order.requestId);
-    const blocker = prepareBlocker(order, request.status);
+    const extras = await this.extraLinesOf(workOrderId);
+    const blocker = prepareBlocker(order, request.status, extras.length);
     if (blocker) throw new AppError('CONFLICT', blocker);
     if (!order.customerId) {
       throw new AppError('CONFLICT', 'ใบสั่งงานนี้ไม่ได้ระบุลูกค้า');
@@ -177,13 +182,22 @@ export class ServiceBillingService {
     }
     // CD-243 — the actual time and materials when there are any, else the
     // estimate the customer agreed to
-    const actual = await this.timeMaterials.chargeLines(companyId, workOrderId);
-    const first = estimateLine(subjectOf(request), num(order.ackEstimate));
-    const lines: ChargeLine[] = actual.length
-      ? actual
-      : first
-        ? [{ ...first, source: 'estimate' }]
-        : [];
+    // CD-228 — an in-contract job charges only what was agreed beyond it
+    const billable = order.billing === 'billable';
+    const actual = billable
+      ? await this.timeMaterials.chargeLines(companyId, workOrderId)
+      : [];
+    const first = billable
+      ? estimateLine(subjectOf(request), num(order.ackEstimate))
+      : null;
+    const lines: ChargeLine[] = [
+      ...(actual.length
+        ? actual
+        : first
+          ? [{ ...first, source: 'estimate' as const }]
+          : []),
+      ...extras,
+    ];
     const created = await this.transactions.execute(async (prisma) => {
       const row = await prisma.serviceBilling.create({
         data: {
@@ -297,10 +311,19 @@ export class ServiceBillingService {
         'ดึงเวลาและวัสดุได้เฉพาะใบที่ยังไม่ยืนยันส่ง',
       );
     }
-    const fresh = await this.timeMaterials.chargeLines(
-      before.companyId,
-      before.workOrderId,
-    );
+    const order = (await this.orders.findFirst({
+      where: { id: before.workOrderId },
+      select: { billing: true },
+    })) as { billing: string | null } | null;
+    const fresh = [
+      ...(order?.billing === 'billable'
+        ? await this.timeMaterials.chargeLines(
+            before.companyId,
+            before.workOrderId,
+          )
+        : []),
+      ...(await this.extraLinesOf(before.workOrderId)),
+    ];
     const lines = rebuildLines(
       before.lines.map((line) => ({
         ...lineInput(line),
@@ -525,6 +548,13 @@ export class ServiceBillingService {
         createdAt: row.createdAt.toISOString(),
       };
     });
+  }
+
+  /** CD-228 — the agreed out-of-contract items as charge lines. */
+  private async extraLinesOf(workOrderId: string): Promise<ChargeLine[]> {
+    return extraLines(await this.extraWorks.agreedOf(workOrderId)).map(
+      (line) => ({ ...line, source: 'extra' as const }),
+    );
   }
 
   private async caseOf(requestId: string) {
