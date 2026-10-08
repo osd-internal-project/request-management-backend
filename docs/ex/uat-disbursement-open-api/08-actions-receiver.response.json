@@ -1,0 +1,54 @@
+{
+  "status": 200,
+  "body": {
+    "request_id": "<uuid:request>",
+    "request_no": "<requestNo>",
+    "status": "submitted",
+    "actions": [
+      {
+        "action": "receive",
+        "fields": []
+      },
+      {
+        "action": "assign",
+        "fields": [
+          {
+            "name": "assignee_user_id",
+            "required": true
+          }
+        ]
+      },
+      {
+        "action": "advance",
+        "fields": [
+          {
+            "name": "to_step",
+            "required": true
+          }
+        ],
+        "_note": "ถอยกลับเท่านั้น — ไปข้างหน้าด้วย receive"
+      },
+      {
+        "action": "comment",
+        "fields": [
+          {
+            "name": "body",
+            "required": true
+          }
+        ]
+      }
+    ],
+    "flow_moves": {
+      "schema_version": 2,
+      "scope": "submitted",
+      "holder_user_id": "<uuid:waranyas>",
+      "current": "RECEIVE",
+      "forward": "DISBURSE",
+      "backward": [],
+      "is_last": false,
+      "requires_approval": false,
+      "checklist": []
+    },
+    "can_create_child": false
+  }
+}

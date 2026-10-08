@@ -1,0 +1,9 @@
+{
+  "status": 201,
+  "_note": "คืนเคสอนุมัติ",
+  "body": {
+    "id": "<uuid:case-exec>",
+    "status": "approved"
+  },
+  "_then": "GET request/requests/{no} → status submitted; actions → flow_moves.current = RECEIVE"
+}

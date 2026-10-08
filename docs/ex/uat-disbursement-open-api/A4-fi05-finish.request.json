@@ -1,0 +1,13 @@
+{
+  "method": "POST",
+  "path": "/api/v1/request/requests/<requestNo:FI05>/actions/advance",
+  "headers": {
+    "Authorization": "Bearer <rfk_key>",
+    "X-Acting-User": "<email:taksapongk>",
+    "Content-Type": "application/json",
+    "Idempotency-Key": "uat-fi05-20261007-finish"
+  },
+  "body": {
+    "to_step": "END"
+  }
+}

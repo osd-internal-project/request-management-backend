@@ -1,0 +1,41 @@
+{
+  "status": 200,
+  "body": {
+    "request_id": "<uuid:request>",
+    "request_no": "<requestNo>",
+    "status": "pending_approval",
+    "actions": [
+      {
+        "action": "cancel",
+        "fields": [
+          {
+            "name": "reason",
+            "required": true
+          }
+        ]
+      },
+      {
+        "action": "comment",
+        "fields": [
+          {
+            "name": "body",
+            "required": true
+          }
+        ]
+      }
+    ],
+    "flow_moves": {
+      "schema_version": 2,
+      "scope": "pending_approval",
+      "holder_user_id": null,
+      "current": "HEAD",
+      "forward": "EXEC",
+      "backward": [],
+      "is_last": false,
+      "requires_approval": false,
+      "checklist": []
+    },
+    "can_create_child": false
+  },
+  "_check": "forward = 'EXEC' = flow v3 · 'RECEIVE' = legacy → หยุดถามผู้ใช้ (forward เป็น string)"
+}

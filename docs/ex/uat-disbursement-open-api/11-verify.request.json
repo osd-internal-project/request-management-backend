@@ -1,0 +1,16 @@
+{
+  "method": "POST",
+  "path": "/api/v1/disbursement/disbursements/<docNo>/verify",
+  "headers": {
+    "Authorization": "Bearer <rfk_key>",
+    "X-Acting-User": "<email:waranyas>",
+    "Content-Type": "application/json",
+    "Idempotency-Key": "uat-fi06-20261007-verify"
+  },
+  "body": {
+    "checked_cost_center": true,
+    "checked_documents": true,
+    "checked_authority": true,
+    "note": "ใบเสร็จครบ ยอดตรง"
+  }
+}

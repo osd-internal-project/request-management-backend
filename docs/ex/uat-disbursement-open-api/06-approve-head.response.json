@@ -1,0 +1,19 @@
+{
+  "status": 201,
+  "_note": "คืนเคสอนุมัติ ไม่ใช่คำขอ (§8)",
+  "body": {
+    "id": "<uuid:case-head>",
+    "subjectType": "request:FI06:step:HEAD",
+    "subjectId": "<requestNo>",
+    "status": "approved",
+    "currentStep": 1,
+    "steps": [
+      {
+        "stepNo": 1,
+        "status": "approved",
+        "approverUserId": "<uuid:head>"
+      }
+    ]
+  },
+  "_then": "GET …/actions → flow_moves.current = EXEC, status pending_approval"
+}

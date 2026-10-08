@@ -1,0 +1,17 @@
+{
+  "status": 200,
+  "body": {
+    "data": [
+      {
+        "id": "<uuid:waranyas>",
+        "displayName": "<ชื่อ waranyas>",
+        "username": "waranyas",
+        "email": "<email:waranyas>",
+        "orgUnitName": "FAC"
+      }
+    ],
+    "total": 1,
+    "page": 1,
+    "page_size": 20
+  }
+}

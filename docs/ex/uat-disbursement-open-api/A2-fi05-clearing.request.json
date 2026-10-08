@@ -1,0 +1,24 @@
+{
+  "method": "POST",
+  "path": "/api/v1/disbursement/disbursements/<docNo:ADV-…>/clearing",
+  "headers": {
+    "Authorization": "Bearer <rfk_key>",
+    "X-Acting-User": "<email:taksapongk>",
+    "Content-Type": "application/json",
+    "Idempotency-Key": "uat-fi05-20261007-clearing"
+  },
+  "body": {
+    "items": [
+      {
+        "description": "ค่าที่พัก",
+        "amount": 3200,
+        "receipt_date": "2026-10-08"
+      },
+      {
+        "description": "ค่าเดินทาง",
+        "amount": 1300,
+        "receipt_date": "2026-10-08"
+      }
+    ]
+  }
+}

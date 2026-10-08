@@ -1,0 +1,10 @@
+{
+  "method": "GET",
+  "path": "/api/v1/request/requests/<requestNo>/actions",
+  "headers": {
+    "Authorization": "Bearer <rfk_key>",
+    "X-Acting-User": "<email:taksapongk>",
+    "Content-Type": "application/json"
+  },
+  "_when": "คำขอ in_progress ที่ DISBURSE (ระหว่างข้อ 09–13)"
+}

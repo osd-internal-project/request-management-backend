@@ -1,0 +1,16 @@
+{
+  "method": "POST",
+  "path": "/api/v1/disbursement/disbursements/<docNo:ADV-…>/pay",
+  "headers": {
+    "Authorization": "Bearer <rfk_key>",
+    "X-Acting-User": "<email:waranyas>",
+    "Content-Type": "application/json",
+    "Idempotency-Key": "uat-fi05-20261007-pay"
+  },
+  "body": {
+    "amount": 5000,
+    "method": "transfer",
+    "reference": "TRF-0001",
+    "paid_at": "2026-10-07"
+  }
+}

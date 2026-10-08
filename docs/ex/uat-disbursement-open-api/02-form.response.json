@@ -1,0 +1,40 @@
+{
+  "status": 200,
+  "body": {
+    "code": "FI06",
+    "ref_required": false,
+    "form_schema": {
+      "required": [
+        "cost_center",
+        "purpose",
+        "expense_items"
+      ],
+      "properties.expense_items.items.required": [
+        "receipt_date",
+        "description",
+        "amount"
+      ]
+    },
+    "receiver_candidates": [
+      {
+        "id": "<uuid:waranyas>",
+        "displayName": "<ชื่อ waranyas>",
+        "email": "<email:waranyas>"
+      }
+    ],
+    "return_reason_codes": [
+      {
+        "code": "RECEIPT_MISSING"
+      },
+      {
+        "code": "OVER_LIMIT"
+      },
+      {
+        "code": "COST_CENTER_INVALID"
+      },
+      {
+        "code": "OTHER"
+      }
+    ]
+  }
+}

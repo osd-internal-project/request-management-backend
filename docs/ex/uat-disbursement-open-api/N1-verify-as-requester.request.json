@@ -1,0 +1,16 @@
+{
+  "method": "POST",
+  "path": "/api/v1/disbursement/disbursements/<docNo>/verify",
+  "headers": {
+    "Authorization": "Bearer <rfk_key>",
+    "X-Acting-User": "<email:taksapongk>",
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "checked_cost_center": true,
+    "checked_documents": true,
+    "checked_authority": true,
+    "note": "x"
+  },
+  "_when": "ใบเบิก PENDING_VERIFY (หลังข้อ 10)"
+}

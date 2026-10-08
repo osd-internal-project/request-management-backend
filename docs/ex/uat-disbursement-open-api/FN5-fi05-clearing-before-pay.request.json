@@ -1,0 +1,18 @@
+{
+  "method": "POST",
+  "path": "/api/v1/disbursement/disbursements/<docNo:ADV-…>/clearing",
+  "headers": {
+    "Authorization": "Bearer <rfk_key>",
+    "X-Acting-User": "<email:taksapongk>",
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "items": [
+      {
+        "description": "x",
+        "amount": 1
+      }
+    ]
+  },
+  "_when": "ใบเบิก PENDING_VERIFY"
+}

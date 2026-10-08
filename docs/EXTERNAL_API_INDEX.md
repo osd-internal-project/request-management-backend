@@ -175,7 +175,7 @@
 | POST | `/disbursement/disbursements/{docNo}/pay` | จ่ายเงิน — เงินทดรองรอเคลียร์ / เงินสดย่อยปิดทันที | integration.disbursement.manage | disbursement.pay |
 | POST | `/disbursement/disbursements/{docNo}/clearing` | ผู้ขอส่งเคลียร์ค่าใช้จ่ายจริง | integration.disbursement.manage | request.create |
 | POST | `/disbursement/disbursements/{docNo}/clearing/return` | บัญชีตีกลับเอกสารเคลียร์ให้ผู้ขอแก้ | integration.disbursement.manage | disbursement.verify |
-| POST | `/disbursement/disbursements/{docNo}/close` | ปิดเงินทดรอง — คิดส่วนต่าง (คืน/เบิกเพิ่ม) แล้วจบคำขอ | integration.disbursement.manage | disbursement.pay |
+| POST | `/disbursement/disbursements/{docNo}/close` | บัญชีเคลียร์เอกสาร (complete) — คิดส่วนต่าง (คืน/เบิกเพิ่ม) แล้วจบคำขอ | integration.disbursement.manage | disbursement.pay |
 
 ## flow — ติดตามดีลหนึ่งใบทั้งสาย — ดีล → Pre-Sales → ใบเสนอราคา → ใบสั่งขาย → สัญญา → โครงการ
 

@@ -1,0 +1,14 @@
+{
+  "method": "POST",
+  "path": "/api/v1/disbursement/disbursements/<docNo>/pay",
+  "headers": {
+    "Authorization": "Bearer <rfk_key>",
+    "X-Acting-User": "<email:waranyas>",
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "amount": 850,
+    "method": "cash"
+  },
+  "_when": "ใบเบิก PENDING_VERIFY (หลังข้อ 10)"
+}

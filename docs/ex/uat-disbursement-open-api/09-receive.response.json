@@ -1,0 +1,36 @@
+{
+  "status": 201,
+  "body": {
+    "id": "<uuid:request>",
+    "requestNo": "<requestNo>",
+    "typeCode": "FI06",
+    "status": "in_progress",
+    "requesterId": "<uuid:taksapongk>",
+    "receiverUserId": "<uuid:waranyas>",
+    "assigneeUserId": "<uuid:waranyas>",
+    "formData": {
+      "cost_center": "<cost_center จาก options>",
+      "purpose": "UAT เบิกเงินสดย่อย ค่าเดินทางพบลูกค้า",
+      "remark": "ทดสอบผ่าน Open API",
+      "expense_items": [
+        {
+          "receipt_date": "2026-10-06",
+          "description": "ค่าแท็กซี่",
+          "cost_center": "<cost_center>",
+          "amount": 350
+        },
+        {
+          "receipt_date": "2026-10-06",
+          "description": "ค่าทางด่วน",
+          "cost_center": "<cost_center>",
+          "amount": 500
+        }
+      ]
+    },
+    "approvalCases": [],
+    "_expect": {
+      "flow_moves.current (จาก GET …/actions)": "DISBURSE"
+    }
+  },
+  "_check": "ไม่ต้องยิง advance — receive เลื่อน RECEIVE → DISBURSE และสร้างใบเบิกเอง"
+}

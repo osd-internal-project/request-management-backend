@@ -287,6 +287,14 @@ fails the whole transaction.
 core-service as well as user-service, and masks nested containers (`payload`,
 `form_data`) — a sensitive field is almost never at the top level.
 
+**A test or UAT script is written from the module's doc, checked against the code.** Every action needs
+who · accepted status/step · permission · who is refused · resulting status · whether the ticket moves ·
+error code; a gap the code reveals goes into the doc first (disbursement UAT, 7 Oct 2026).
+
+**UAT runs on the real people's real roles — never a role made for the test.** A permission the
+real role lacks is a finding to report and fix in that role (seed or admin screen), not to bypass:
+a stand-in `DISBURSEMENT_UAT` role hid that no seeded role held `disbursement.*` (7 Oct 2026).
+
 ## Build traps (each of these has bitten once)
 
 **yarn only — never npm.** `yarn.lock` is the lockfile and `packageManager` is

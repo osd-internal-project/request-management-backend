@@ -1,0 +1,59 @@
+{
+  "status": 200,
+  "body": {
+    "request_id": "<uuid:request>",
+    "request_no": "<requestNo>",
+    "status": "approved",
+    "actions": [
+      {
+        "action": "assign",
+        "fields": [
+          {
+            "name": "assignee_user_id",
+            "required": true
+          }
+        ]
+      },
+      {
+        "action": "advance",
+        "fields": [
+          {
+            "name": "to_step",
+            "required": true
+          }
+        ]
+      },
+      {
+        "action": "cancel",
+        "fields": [
+          {
+            "name": "reason",
+            "required": true
+          }
+        ]
+      },
+      {
+        "action": "comment",
+        "fields": [
+          {
+            "name": "body",
+            "required": true
+          }
+        ]
+      }
+    ],
+    "flow_moves": {
+      "schema_version": 2,
+      "scope": "approved",
+      "holder_user_id": "<uuid:taksapongk>",
+      "current": "DONE",
+      "forward": null,
+      "backward": [],
+      "is_last": true,
+      "requires_approval": false,
+      "checklist": []
+    },
+    "can_create_child": false
+  },
+  "_check": "flow v2 ไม่มี 'close' — is_last: true → ปิดด้วย advance to_step END (ข้อ 15); cancel ถูก guard 409 เพราะเงินออกแล้ว"
+}

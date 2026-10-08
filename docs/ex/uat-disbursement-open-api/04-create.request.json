@@ -1,0 +1,33 @@
+{
+  "method": "POST",
+  "path": "/api/v1/request/requests",
+  "headers": {
+    "Authorization": "Bearer <rfk_key>",
+    "X-Acting-User": "<email:taksapongk>",
+    "Content-Type": "application/json",
+    "Idempotency-Key": "uat-fi06-20261007-create"
+  },
+  "body": {
+    "type_code": "FI06",
+    "receiver_user_id": "<uuid:waranyas>",
+    "form_data": {
+      "cost_center": "<cost_center จาก options>",
+      "purpose": "UAT เบิกเงินสดย่อย ค่าเดินทางพบลูกค้า",
+      "remark": "ทดสอบผ่าน Open API",
+      "expense_items": [
+        {
+          "receipt_date": "2026-10-06",
+          "description": "ค่าแท็กซี่",
+          "cost_center": "<cost_center>",
+          "amount": 350
+        },
+        {
+          "receipt_date": "2026-10-06",
+          "description": "ค่าทางด่วน",
+          "cost_center": "<cost_center>",
+          "amount": 500
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "status": 201,
+  "body": {
+    "docNo": "<docNo:ADV-…>",
+    "kind": "ADVANCE",
+    "status": "CLEARING",
+    "requestNo": "<requestNo:FI05>",
+    "requestedAmount": "5000",
+    "paidAmount": "5000",
+    "actualAmount": "4500",
+    "clearBy": "2026-10-20T00:00:00.000Z",
+    "refundAmount": "0",
+    "extraPaidAmount": "0",
+    "pending": {
+      "refund": "500.00",
+      "extraPay": "0.00"
+    },
+    "legacy": false,
+    "actual": [
+      {
+        "lineNo": 1,
+        "description": "ค่าที่พัก",
+        "amount": "3200"
+      },
+      {
+        "lineNo": 2,
+        "description": "ค่าเดินทาง",
+        "amount": "1300"
+      }
+    ]
+  }
+}

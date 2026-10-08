@@ -1,0 +1,44 @@
+{
+  "status": 201,
+  "body": {
+    "docNo": "<docNo:ADV-…>",
+    "kind": "ADVANCE",
+    "status": "CLOSED",
+    "requestNo": "<requestNo:FI05>",
+    "requestedAmount": "5000",
+    "paidAmount": "5000",
+    "actualAmount": "4500",
+    "clearBy": "2026-10-20T00:00:00.000Z",
+    "refundAmount": "500",
+    "extraPaidAmount": "0",
+    "pending": null,
+    "legacy": false,
+    "movements": [
+      {
+        "type": "PAYOUT",
+        "amount": "-5000",
+        "method": "transfer",
+        "reference": "TRF-0001",
+        "occurredAt": "2026-10-07T00:00:00.000Z"
+      },
+      {
+        "type": "REFUND",
+        "amount": "500",
+        "method": "cash",
+        "counterpartyUserId": "<uuid:taksapongk>",
+        "occurredAt": "2026-10-09T00:00:00.000Z",
+        "evidenceFileKey": "<storageKey ของ REFUND_PROOF>"
+      }
+    ],
+    "ticketMove": {
+      "moved": true,
+      "message": null
+    },
+    "ticket": {
+      "requestId": "<uuid:request>",
+      "status": "approved",
+      "stepCode": "DONE",
+      "assigneeUserId": "<uuid:waranyas>"
+    }
+  }
+}

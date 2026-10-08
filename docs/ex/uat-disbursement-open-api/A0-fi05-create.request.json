@@ -1,0 +1,35 @@
+{
+  "method": "POST",
+  "path": "/api/v1/request/requests",
+  "headers": {
+    "Authorization": "Bearer <rfk_key>",
+    "X-Acting-User": "<email:taksapongk>",
+    "Content-Type": "application/json",
+    "Idempotency-Key": "uat-fi05-20261007-create"
+  },
+  "body": {
+    "type_code": "FI05",
+    "receiver_user_id": "<uuid:waranyas>",
+    "ref_type": "<ref_type>",
+    "ref_id": "<ref_id>",
+    "form_data": {
+      "needed_by": "2026-10-08",
+      "clear_by": "2026-10-20",
+      "purpose": "UAT เบิกเงินทดรอง เดินทางติดตั้งระบบลูกค้า",
+      "account": "<เลขที่บัญชี>",
+      "backname": "<ชื่อธนาคาร>",
+      "remark": "ทดสอบผ่าน Open API",
+      "expense_items": [
+        {
+          "description": "ค่าที่พัก",
+          "amount": 3200
+        },
+        {
+          "description": "ค่าเดินทาง",
+          "amount": 1800
+        }
+      ]
+    }
+  },
+  "_when": "อ่าน required จาก GET request-types/FI05/form ก่อน (ฟอร์มแก้ได้ทางหน้าจอ) — ref_required: true"
+}

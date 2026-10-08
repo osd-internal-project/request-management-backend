@@ -1,0 +1,14 @@
+{
+  "method": "POST",
+  "path": "/api/v1/disbursement/disbursements/<docNo:ADV-…>/clearing/return",
+  "headers": {
+    "Authorization": "Bearer <rfk_key>",
+    "X-Acting-User": "<email:waranyas>",
+    "Content-Type": "application/json",
+    "Idempotency-Key": "uat-fi05-20261007-clearing-return"
+  },
+  "body": {
+    "reason": "ใบเสร็จค่าเดินทางไม่ชัด"
+  },
+  "_when": "ทางเลือก — ตีกลับแล้วผู้ขอส่ง A2 ใหม่ (แทนที่ ACTUAL ทั้งชุด)"
+}

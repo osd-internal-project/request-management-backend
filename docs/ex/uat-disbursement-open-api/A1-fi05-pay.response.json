@@ -1,0 +1,27 @@
+{
+  "status": 201,
+  "body": {
+    "docNo": "<docNo:ADV-…>",
+    "kind": "ADVANCE",
+    "status": "PAID",
+    "requestNo": "<requestNo:FI05>",
+    "requestedAmount": "5000",
+    "paidAmount": "5000",
+    "actualAmount": null,
+    "clearBy": "2026-10-20T00:00:00.000Z",
+    "refundAmount": "0",
+    "extraPaidAmount": "0",
+    "pending": null,
+    "legacy": false,
+    "movements": [
+      {
+        "type": "PAYOUT",
+        "amount": "-5000",
+        "method": "transfer",
+        "reference": "TRF-0001",
+        "occurredAt": "2026-10-07T00:00:00.000Z"
+      }
+    ],
+    "ticketMove": null
+  }
+}

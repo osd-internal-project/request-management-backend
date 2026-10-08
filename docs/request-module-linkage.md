@@ -109,6 +109,9 @@ request เดินขั้นของตัวเอง (อนุมัต�
 แล้วเรียก `RequestsService.advance` ให้ ticket ไปขั้นถัดไป, ฟัง `request.step.entered` เพื่อรู้ว่า ticket อยู่ขั้นไหน, และ
 `addGuard('advance')` กันไม่ให้ใครเลื่อน ticket ข้ามขั้นที่งานของ module ยังไม่เสร็จ — รหัสขั้นเก็บใน config ของ module
 
+การเบิก v3 ใช้ขั้นงานเดียว `DISBURSE`: `receive` ที่ `RECEIVE` เลื่อน ticket เข้า `DISBURSE` → `request.step.entered` สร้างใบเบิก;
+`verify`/`pay` ไม่เลื่อน ticket; `close` ของการเบิกเลื่อนไป `DONE` — ลำดับเต็มและ guard ดู [`disbursement.md`](./disbursement.md) §2–4, §7
+
 ## 3. Event ที่ใช้ได้ (`events/event-catalog.ts`)
 
 | Event | ความหมาย | ผู้ฟังตอนนี้ |

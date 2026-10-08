@@ -1,0 +1,9 @@
+{
+  "status": 201,
+  "body": {
+    "requestNo": "<requestNo:FI05>",
+    "status": "closed",
+    "currentStepCode": "DONE",
+    "closedAt": "<datetime>"
+  }
+}

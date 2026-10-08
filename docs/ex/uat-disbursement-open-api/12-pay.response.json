@@ -1,0 +1,74 @@
+{
+  "status": 201,
+  "body": {
+    "docNo": "<docNo>",
+    "kind": "PETTY_CASH",
+    "status": "PAID",
+    "requestNo": "<requestNo>",
+    "requesterId": "<uuid:taksapongk>",
+    "purpose": "UAT เบิกเงินสดย่อย ค่าเดินทางพบลูกค้า",
+    "requestedAmount": "850",
+    "paidAmount": "850",
+    "actualAmount": null,
+    "clearBy": null,
+    "requestId": "<uuid:request>",
+    "costCenter": "<cost_center>",
+    "currency": "THB",
+    "refundAmount": "0",
+    "extraPaidAmount": "0",
+    "pending": null,
+    "verify": {
+      "checks": {
+        "checked_cost_center": true,
+        "checked_documents": true,
+        "checked_authority": true
+      },
+      "note": "ใบเสร็จครบ ยอดตรง",
+      "by": "<uuid:waranyas>",
+      "at": "<datetime>"
+    },
+    "approvedAt": "<datetime>",
+    "paidBy": "<uuid:waranyas>",
+    "closedBy": null,
+    "estimate": [
+      {
+        "lineNo": 1,
+        "description": "ค่าแท็กซี่",
+        "costCenter": "<cost_center>",
+        "amount": "350",
+        "note": null,
+        "receiptDate": "2026-10-06T00:00:00.000Z"
+      },
+      {
+        "lineNo": 2,
+        "description": "ค่าทางด่วน",
+        "costCenter": "<cost_center>",
+        "amount": "500",
+        "note": null,
+        "receiptDate": "2026-10-06T00:00:00.000Z"
+      }
+    ],
+    "actual": [],
+    "legacy": false,
+    "movements": [
+      {
+        "id": "<uuid:movement>",
+        "type": "PAYOUT",
+        "amount": "-850",
+        "method": "cash",
+        "reference": null,
+        "occurredAt": "2026-10-07T00:00:00.000Z",
+        "actedBy": "<uuid:waranyas>"
+      }
+    ],
+    "files": [],
+    "ticket": {
+      "requestId": "<uuid:request>",
+      "status": "in_progress",
+      "stepCode": "DISBURSE",
+      "assigneeUserId": "<uuid:waranyas>"
+    },
+    "ticketMove": null
+  },
+  "_check": "v3 เงินสดย่อยจ่ายครบ = PAID ไม่ใช่ CLOSED; paid_at ส่ง YYYY-MM-DD เท่านั้น (§8)"
+}

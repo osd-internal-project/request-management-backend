@@ -1,0 +1,13 @@
+{
+  "status": 400,
+  "body": {
+    "code": "VALIDATION_FAILED",
+    "message": "มีส่วนต่าง ต้องระบุวิธีรับคืน/จ่ายเพิ่ม",
+    "details": [
+      {
+        "field": "method",
+        "reason": "required"
+      }
+    ]
+  }
+}

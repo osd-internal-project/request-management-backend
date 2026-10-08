@@ -1,0 +1,11 @@
+{
+  "method": "POST",
+  "path": "/api/v1/disbursement/disbursements/<docNo:ADV-…>/close",
+  "headers": {
+    "Authorization": "Bearer <rfk_key>",
+    "X-Acting-User": "<email:waranyas>",
+    "Content-Type": "application/json"
+  },
+  "body": {},
+  "_when": "ใบเบิก CLEARING มีส่วนต่าง"
+}

@@ -1,0 +1,15 @@
+{
+  "method": "POST",
+  "path": "/api/v1/disbursement/disbursements/<docNo:ADV-…>/close",
+  "headers": {
+    "Authorization": "Bearer <rfk_key>",
+    "X-Acting-User": "<email:waranyas>",
+    "Content-Type": "application/json",
+    "Idempotency-Key": "uat-fi05-20261007-close"
+  },
+  "body": {
+    "method": "cash",
+    "occurred_at": "2026-10-09"
+  },
+  "_when": "แนบ REFUND_PROOF ที่หน้าเว็บหลังผู้ขอส่งเคลียร์ครั้งล่าสุดแล้ว (ใช้เกิน = PAYMENT_SLIP)"
+}

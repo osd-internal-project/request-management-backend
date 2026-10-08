@@ -1,0 +1,27 @@
+{
+  "status": 200,
+  "_check": "ผู้ขอปิดเองไม่ได้ — มีแค่ cancel, comment",
+  "body": {
+    "status": "in_progress",
+    "actions": [
+      {
+        "action": "cancel",
+        "fields": [
+          {
+            "name": "reason",
+            "required": true
+          }
+        ]
+      },
+      {
+        "action": "comment",
+        "fields": [
+          {
+            "name": "body",
+            "required": true
+          }
+        ]
+      }
+    ]
+  }
+}

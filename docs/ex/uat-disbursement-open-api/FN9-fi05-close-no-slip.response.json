@@ -1,0 +1,13 @@
+{
+  "status": 400,
+  "body": {
+    "code": "VALIDATION_FAILED",
+    "message": "แนบหลักฐานรับเงินคืนก่อน (แนบได้ที่หน้าเว็บ)",
+    "details": [
+      {
+        "field": "files",
+        "reason": "REFUND_PROOF"
+      }
+    ]
+  }
+}

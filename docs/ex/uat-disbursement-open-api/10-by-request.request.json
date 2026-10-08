@@ -1,0 +1,9 @@
+{
+  "method": "GET",
+  "path": "/api/v1/disbursement/disbursements/by-request/<requestNo>",
+  "headers": {
+    "Authorization": "Bearer <rfk_key>",
+    "X-Acting-User": "<email:waranyas>",
+    "Content-Type": "application/json"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "status": 201,
+  "body": {
+    "requestNo": "<requestNo:FI05>",
+    "typeCode": "FI05",
+    "status": "pending_approval",
+    "currentStepCode": "HEAD",
+    "refType": "<ref_type>",
+    "refId": "<ref_id>"
+  },
+  "_then": "ข้อ 05–11 เหมือน FI06; ข้อ 10 ได้ kind ADVANCE, clearBy จาก clear_by"
+}

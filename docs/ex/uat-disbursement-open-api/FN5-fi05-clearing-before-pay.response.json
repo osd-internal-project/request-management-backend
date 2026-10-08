@@ -1,0 +1,7 @@
+{
+  "status": 409,
+  "body": {
+    "code": "CONFLICT",
+    "message": "ใบเบิกสถานะ PENDING_VERIFY ทำรายการนี้ไม่ได้"
+  }
+}

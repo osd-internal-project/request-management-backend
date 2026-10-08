@@ -1,0 +1,15 @@
+{
+  "status": 200,
+  "body": [
+    {
+      "code": "FI06",
+      "name": "ขอเบิกเงินสดย่อย (Petty Cash)",
+      "sla_hours": 48,
+      "receiver_org_unit": {
+        "id": "<uuid:FAC>",
+        "name": "FAC"
+      },
+      "ref_required": false
+    }
+  ]
+}
