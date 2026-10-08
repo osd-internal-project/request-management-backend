@@ -277,3 +277,13 @@ export class HandoffProspectsDto {
   @IsIn(['getter', 'government', 'partner'])
   axis?: 'getter' | 'government' | 'partner';
 }
+
+/** CD-294 — existing customers' rows to send to their account owners. */
+export class KeeperProspectsDto {
+  @ApiProperty({ type: [String] })
+  @IsArray()
+  @ArrayNotEmpty()
+  @ArrayMaxSize(100)
+  @IsString({ each: true })
+  ids!: string[];
+}

@@ -9796,6 +9796,10 @@
             "maxLength": 50,
             "type": "string"
           },
+          "smart_keeper_org_unit_id": {
+            "maxLength": 50,
+            "type": "string"
+          },
           "project_close_documents": {
             "type": "array",
             "items": {

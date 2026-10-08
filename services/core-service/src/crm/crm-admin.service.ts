@@ -236,6 +236,7 @@ export class CrmAdminService {
         smartGetterOrgUnitId: null,
         smartGovernmentOrgUnitId: null,
         smartPartnerOrgUnitId: null,
+        smartKeeperOrgUnitId: null,
         projectHealthAmber: 20,
         projectHealthRed: 40,
         projectCostWarnPct: 90,
@@ -423,6 +424,7 @@ export class CrmAdminService {
               smartGovernmentOrgUnitId:
                 dto.smart_government_org_unit_id || null,
               smartPartnerOrgUnitId: dto.smart_partner_org_unit_id || null,
+              smartKeeperOrgUnitId: dto.smart_keeper_org_unit_id || null,
               projectHealthAmber: dto.project_health_amber ?? 20,
               projectHealthRed: dto.project_health_red ?? 40,
               projectCostWarnPct: dto.project_cost_warn_pct ?? 90,
@@ -547,6 +549,10 @@ export class CrmAdminService {
                 dto.smart_partner_org_unit_id === undefined
                   ? undefined
                   : dto.smart_partner_org_unit_id || null,
+              smartKeeperOrgUnitId:
+                dto.smart_keeper_org_unit_id === undefined
+                  ? undefined
+                  : dto.smart_keeper_org_unit_id || null,
               projectCloseDocuments: closeDocuments,
               projectHealthAmber: dto.project_health_amber,
               projectHealthRed: dto.project_health_red,

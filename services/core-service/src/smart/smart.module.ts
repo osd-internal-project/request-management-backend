@@ -8,6 +8,10 @@ import { SmartCallsService } from './smart-calls.service';
 import { DCallcenterModule } from '../integrations/dcallcenter/dcallcenter.module';
 import { SmartDialerService } from './smart-dialer.service';
 import { SmartHandoffService } from './smart-handoff.service';
+import { SmartKeeperService } from './smart-keeper.service';
+import { CustomerTouchpointRepository } from '../crm/keeper.repositories';
+import { OpportunityRepository } from '../crm/sales.repositories';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { AccessModule } from '../access/access.module';
 import { RequestsModule } from '../requests/requests.module';
 import { CrmConfigRepository } from '../crm/segment.repositories';
@@ -46,6 +50,8 @@ import { SmartService } from './smart.service';
     // CD-293 — the handoff request, and who raises it
     RequestsModule,
     AccessModule,
+    // CD-294 — the account owner hears of it
+    NotificationsModule,
   ],
   providers: [
     {
@@ -86,8 +92,13 @@ import { SmartService } from './smart.service';
     // CD-293 — to the sales axis
     SmartHandoffService,
     CrmConfigRepository,
+    // CD-294 — an existing customer to its account owner
+    SmartKeeperService,
+    CustomerTouchpointRepository,
+    OpportunityRepository,
   ],
   exports: [
+    SmartKeeperService,
     SmartHandoffService,
     SmartDialerService,
     SmartCallsService,

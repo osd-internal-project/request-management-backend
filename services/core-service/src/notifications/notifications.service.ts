@@ -1445,6 +1445,34 @@ export class NotificationsService {
   }
 
   /**
+   * CD-294 — an existing customer showed interest on an AI SMART call: an
+   * upsell deal was opened for the account owner (or the team head).
+   */
+  async smartKeeperInterest(
+    userId: string,
+    companyId: string,
+    input: {
+      opportunityId: string;
+      opportunityCode: string;
+      customer: string;
+      summary: string;
+    },
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'crm.smart.keeper_interest',
+      values: {
+        customer: input.customer,
+        opportunity_code: input.opportunityCode,
+        summary: input.summary,
+      },
+      resourceType: 'opportunity',
+      resourceId: input.opportunityId,
+    });
+  }
+
+  /**
    * CD-244 — a cover with no contract nearing its end: a service-contract
    * offer was opened (`opened`) or is still open at a reminder step (`due`).
    */

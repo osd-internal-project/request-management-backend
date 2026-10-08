@@ -78,6 +78,7 @@ interface ProspectRow {
   handoffRequestId: string | null;
   handedOffAt: Date | null;
   handoffError: string | null;
+  keeperOpportunityId: string | null;
 }
 
 /**
@@ -477,6 +478,8 @@ export class SmartService {
       handoff_axis: row.handoffAxis,
       handed_off_at: row.handedOffAt,
       handoff_error: row.handoffError,
+      // CD-294
+      keeper_opportunity_id: row.keeperOpportunityId,
       handoff_request: request
         ? {
             id: row.handoffRequestId,

@@ -10,7 +10,9 @@ import {
   ScreenProspectsDto,
   SendProspectsDto,
   HandoffProspectsDto,
+  KeeperProspectsDto,
 } from './smart.dto';
+import { SmartKeeperService } from './smart-keeper.service';
 import { SmartHandoffService } from './smart-handoff.service';
 import { SmartScreeningService } from './smart-screening.service';
 import { SmartService } from './smart.service';
@@ -24,7 +26,21 @@ export class SmartController {
     private readonly smart: SmartService,
     private readonly screening: SmartScreeningService,
     private readonly handoff: SmartHandoffService,
+    private readonly keeper: SmartKeeperService,
   ) {}
+
+  @ApiOperation({
+    summary:
+      'CD-294 ลูกค้าเดิมสนใจเพิ่ม → บันทึกการติดต่อ + เปิดดีลขยายให้ผู้ดูแลบัญชี + แจ้งเตือน',
+  })
+  @Post('prospects/keeper')
+  @Permissions('smart.prospect.manage')
+  toKeeper(
+    @Body() dto: KeeperProspectsDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.keeper.send(principal, dto.ids);
+  }
 
   @ApiOperation({
     summary:

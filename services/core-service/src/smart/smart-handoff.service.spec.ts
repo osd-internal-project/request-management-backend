@@ -100,6 +100,16 @@ function harness(
     cancel: jest.fn(() => Promise.resolve({})),
   };
   const audit = { record: jest.fn(() => Promise.resolve()) };
+  const keeper = {
+    one: jest.fn(() =>
+      Promise.resolve({
+        id: 'p-1',
+        name: 'x',
+        outcome: 'sent',
+        opportunity_id: 'opp-1',
+      }),
+    ),
+  };
   const service = new SmartHandoffService(
     prospects as never,
     lists as never,
@@ -110,8 +120,9 @@ function harness(
     screening as never,
     requests as never,
     audit as never,
+    keeper as never,
   );
-  return { service, prospects, leads, screening, requests, audit };
+  return { service, prospects, leads, screening, requests, audit, keeper };
 }
 
 describe('CD-293 an interested prospect to its sales axis', () => {
@@ -168,11 +179,13 @@ describe('CD-293 an interested prospect to its sales axis', () => {
     expect(h.requests.create).not.toHaveBeenCalled();
   });
 
-  it('an existing customer is not handed to an axis (Keeper is CD-294)', async () => {
+  it('an existing customer goes to its account owner (CD-294), not an axis', async () => {
     const matched = harness({ row: prospect({ matchKind: 'customer' }) });
     await expect(matched.service.handOff(ops, ['p-1'])).resolves.toEqual([
-      expect.objectContaining({ outcome: 'skipped' }),
+      expect.objectContaining({ outcome: 'customer', axis: 'keeper' }),
     ]);
+    expect(matched.keeper.one).toHaveBeenCalledWith(ops, 'p-1');
+    expect(matched.screening.send).not.toHaveBeenCalled();
     const viaScreening = harness({ sendOutcome: 'customer' });
     await expect(viaScreening.service.handOff(ops, ['p-1'])).resolves.toEqual([
       expect.objectContaining({ outcome: 'customer', axis: 'keeper' }),
@@ -191,6 +204,15 @@ describe('CD-293 an interested prospect to its sales axis', () => {
       expect(result.outcome).toBe('skipped');
       expect(h.screening.send).not.toHaveBeenCalled();
     }
+  });
+
+  it('CD-294: an existing customer found interested on a call reaches its owner automatically', async () => {
+    const h = harness({ row: prospect({ matchKind: 'customer' }) });
+    await h.service.afterInterest('osd', 'p-1', 'l-1');
+    expect(h.keeper.one).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: 'u-author' }),
+      'p-1',
+    );
   });
 
   it('a Lead-only handoff is redone only to raise the request, once a type is set', async () => {

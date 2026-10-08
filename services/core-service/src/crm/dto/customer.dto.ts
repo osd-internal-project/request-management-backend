@@ -872,6 +872,12 @@ export class UpdateCrmConfigDto {
   @MaxLength(50)
   smart_partner_org_unit_id?: string;
 
+  /** CD-294: ทีม Keeper — หัวหน้ารับลูกค้าเดิมที่สนใจเพิ่มแต่ไม่มีผู้ดูแลและทีมไม่มีหัวหน้า. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  smart_keeper_org_unit_id?: string;
+
   /** CD-191: ชื่อเอกสารที่ทุกโครงการต้องแนบก่อนขอปิด. */
   @IsOptional()
   @IsArray()

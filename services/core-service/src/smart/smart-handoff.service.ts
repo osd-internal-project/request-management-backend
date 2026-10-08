@@ -5,6 +5,7 @@ import { CompanyMemberRepository } from '../access/company-member.repository';
 import { LeadRepository } from '../crm/sales.repositories';
 import { CrmConfigRepository } from '../crm/segment.repositories';
 import { RequestsService } from '../requests/requests.service';
+import { SmartKeeperService } from './smart-keeper.service';
 import { SmartScreeningService } from './smart-screening.service';
 import {
   SmartCallListRepository,
@@ -84,6 +85,7 @@ export class SmartHandoffService {
     private readonly screening: SmartScreeningService,
     private readonly requests: RequestsService,
     private readonly audit: AuditWriter,
+    private readonly keeper: SmartKeeperService,
   ) {}
 
   /** From the queue: these prospects, optionally to another axis. */
@@ -148,6 +150,22 @@ export class SmartHandoffService {
       reason,
     });
 
+    // CD-294 — an existing customer goes to its account owner, not an axis team.
+    if (
+      row.matchKind === 'customer' ||
+      (override === undefined && row.salesAxis === 'keeper')
+    ) {
+      const kept = await this.keeper.one(actor, row.id);
+      return {
+        ...base,
+        outcome: kept.outcome === 'sent' ? 'customer' : 'skipped',
+        axis: 'keeper',
+        lead_id: row.leadId,
+        request_id: null,
+        ...(kept.reason ? { reason: kept.reason } : {}),
+      };
+    }
+
     const settings = (await this.configs.findFirst({
       where: { companyId },
       select: {
@@ -166,9 +184,6 @@ export class SmartHandoffService {
     if (row.status === 'discarded') return skip('ถูกทิ้งไปแล้ว');
     if (row.status === 'new') return skip('ยังไม่ได้คัดกรอง');
     const axis = override ?? row.salesAxis ?? 'getter';
-    if (row.matchKind === 'customer' || axis === 'keeper') {
-      return skip('ลูกค้าเดิม — ส่งถึงผู้ดูแลบัญชี (Keeper) แทน');
-    }
     if (!(HANDOFF_AXES as readonly string[]).includes(axis)) {
       return skip(`แกนขายไม่รู้จัก: ${axis}`);
     }

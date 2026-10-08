@@ -583,6 +583,17 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
     },
   },
   {
+    eventType: 'crm.smart.keeper_interest',
+    label: 'ลูกค้าเดิมสนใจเพิ่มจากการโทรของ AI SMART (ถึงผู้ดูแลบัญชี)',
+    title: 'ลูกค้าของคุณสนใจเพิ่ม: {{customer}}',
+    body: 'AI SMART โทรแล้วลูกค้าสนใจ — เปิดดีลขยาย {{opportunity_code}} ให้แล้ว · {{summary}}',
+    variables: {
+      customer: { label: 'ลูกค้า', sample: 'บจก. ตัวอย่าง เทคโนโลยี' },
+      opportunity_code: { label: 'รหัสดีล', sample: 'OPP-2026-0042' },
+      summary: { label: 'สรุปการโทร', sample: 'สนใจขยายระบบกล้องอีก 2 สาขา' },
+    },
+  },
+  {
     eventType: 'crm.ma_offer.opened',
     label: 'เปิดดีลเสนอสัญญาบริการก่อนประกัน/สิทธิ์หมด (ถึงเจ้าของลูกค้า)',
     title: 'เสนอสัญญาบริการ: {{customer}}',

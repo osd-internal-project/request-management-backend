@@ -36460,6 +36460,49 @@
         ]
       }
     },
+    "/api/v1/smart/prospects/keeper": {
+      "post": {
+        "operationId": "SmartController_toKeeper",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KeeperProspectsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-294 ลูกค้าเดิมสนใจเพิ่ม → บันทึกการติดต่อ + เปิดดีลขยายให้ผู้ดูแลบัญชี + แจ้งเตือน",
+        "tags": [
+          "smart"
+        ],
+        "x-permission": [
+          "smart.prospect.manage"
+        ]
+      }
+    },
     "/api/v1/smart/prospects/handoff": {
       "post": {
         "operationId": "SmartController_handOff",
@@ -43354,6 +43397,10 @@
             "type": "string"
           },
           "smart_partner_org_unit_id": {
+            "maxLength": 50,
+            "type": "string"
+          },
+          "smart_keeper_org_unit_id": {
             "maxLength": 50,
             "type": "string"
           },
@@ -51082,6 +51129,21 @@
         },
         "required": [
           "reason"
+        ]
+      },
+      "KeeperProspectsDto": {
+        "type": "object",
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 100
+          }
+        },
+        "required": [
+          "ids"
         ]
       },
       "HandoffProspectsDto": {

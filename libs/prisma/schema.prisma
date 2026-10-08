@@ -2456,6 +2456,9 @@ model CrmCompanyConfig {
   smartGetterOrgUnitId     String?
   smartGovernmentOrgUnitId String?
   smartPartnerOrgUnitId    String?
+  /// CD-294 — whose head gets an interested existing customer that has no
+  /// account owner and whose own team has no head.
+  smartKeeperOrgUnitId     String?
   /// CD-190 — actual cost as % of the reference budget: warn at, alert over.
   projectCostWarnPct               Int      @default(90)
   projectCostAlertPct              Int      @default(100)
@@ -8661,6 +8664,8 @@ model SmartProspect {
   handoffRequestId  String?
   handedOffAt       DateTime?
   handoffError      String?
+  /// CD-294 — an existing customer's interest: the upsell deal opened for its owner.
+  keeperOpportunityId String?
   decidedBy         String?
   decidedAt         DateTime?
   createdAt         DateTime  @default(now())
