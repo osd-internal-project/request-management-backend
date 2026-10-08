@@ -25617,6 +25617,47 @@
         ]
       }
     },
+    "/api/v1/projects/by-customer/{customerId}": {
+      "get": {
+        "operationId": "ProjectsController_ofCustomer",
+        "parameters": [
+          {
+            "name": "customerId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-68 โครงการของลูกค้ารายนี้ (เฉพาะที่ผู้ใช้เห็น) พร้อมสุขภาพและสถานะรับมอบงาน",
+        "tags": [
+          "projects"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      }
+    },
     "/api/v1/projects/by-contract/{contractId}": {
       "get": {
         "operationId": "ProjectsController_forContract",

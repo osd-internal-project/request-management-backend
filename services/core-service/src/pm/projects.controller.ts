@@ -202,6 +202,19 @@ export class ProjectsController {
     return this.projects.preview(contractId, principal);
   }
 
+  @ApiOperation({
+    summary:
+      'CD-68 โครงการของลูกค้ารายนี้ (เฉพาะที่ผู้ใช้เห็น) พร้อมสุขภาพและสถานะรับมอบงาน',
+  })
+  @Get('by-customer/:customerId')
+  @Permissions('notification.read')
+  ofCustomer(
+    @Param('customerId') customerId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.statusReports.ofCustomer(customerId, principal);
+  }
+
   @ApiOperation({ summary: 'โครงการที่เปิดจากสัญญานี้' })
   @Get('by-contract/:contractId')
   @Permissions('notification.read')

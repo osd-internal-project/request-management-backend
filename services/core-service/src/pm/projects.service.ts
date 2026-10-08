@@ -587,6 +587,46 @@ export class ProjectsService {
   }
 
   /** CD-192 — every running project the caller may see: the portfolio. */
+  /**
+   * CD-68 — a customer's projects that this person may see: its own, or
+   * opened from a contract of its. Any status, the newest first.
+   */
+  async ofCustomer(actor: Principal, customerId: string) {
+    return (await this.projects.findMany({
+      where: {
+        companyId: actor.activeCompanyId,
+        OR: [{ customerId }, { contract: { customerId } }],
+        AND: [this.visibleWhere(actor, false)],
+      },
+      select: {
+        id: true,
+        projectNo: true,
+        name: true,
+        status: true,
+        managerUserId: true,
+        startOn: true,
+        endOn: true,
+        contractValue: true,
+        currency: true,
+        contract: { select: { id: true, contractNo: true } },
+        intake: { select: { status: true } },
+      },
+      orderBy: { openedAt: 'desc' },
+    })) as unknown as {
+      id: string;
+      projectNo: string;
+      name: string;
+      status: string;
+      managerUserId: string;
+      startOn: Date | null;
+      endOn: Date;
+      contractValue: Prisma.Decimal | null;
+      currency: string;
+      contract: { id: string; contractNo: string };
+      intake: { status: string } | null;
+    }[];
+  }
+
   async runningVisible(actor: Principal) {
     return (await this.projects.findMany({
       where: {

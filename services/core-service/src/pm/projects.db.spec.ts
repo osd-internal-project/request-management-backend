@@ -6257,6 +6257,33 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         live.live.health.factors.reduce((sum, f) => sum + f.points, 0),
       );
 
+      // CD-68 — the customer's 360° projects tab: the same health, and the
+      // work's receipt; someone outside the project sees none of it
+      const customerOf = randomUUID();
+      const before = await prisma.project.findUniqueOrThrow({
+        where: { id: projectId },
+        select: { customerId: true },
+      });
+      await prisma.project.update({
+        where: { id: projectId },
+        data: { customerId: customerOf },
+      });
+      try {
+        const tab = await reports.ofCustomer(customerOf, crew, monday);
+        expect(tab.map((item) => item.id)).toEqual([projectId]);
+        expect(tab[0].health?.score).toBe(live.live.health.score);
+        expect(tab[0].intakeStatus).toBe('accepted');
+        const stranger = as(randomUUID(), ['notification.read']);
+        await expect(
+          reports.ofCustomer(customerOf, stranger, monday),
+        ).resolves.toEqual([]);
+      } finally {
+        await prisma.project.update({
+          where: { id: projectId },
+          data: { customerId: before.customerId },
+        });
+      }
+
       // Monday's sweep drafts the week for the manager, once
       await reports.sweep(monday);
       await reports.sweep(monday);

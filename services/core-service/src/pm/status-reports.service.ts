@@ -481,6 +481,61 @@ export class StatusReportsService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
+  /**
+   * CD-68 — the projects tab of the customer's 360° page: every project of
+   * the customer the viewer may see, running ones first with their health
+   * (as the portfolio computes it), and whether the work was received
+   * (CD-176). A closed or cancelled project has no health.
+   */
+  async ofCustomer(customerId: string, actor: Principal, now = new Date()) {
+    const projects = await this.projects.ofCustomer(actor, customerId);
+    const names = await this.displayNames(
+      projects.map((row) => row.managerUserId),
+    );
+    const running = (status: string) =>
+      status === 'active' || status === 'on_hold';
+    const health = new Map<string, Health>();
+    const live = projects.filter((row) => running(row.status));
+    for (let at = 0; at < live.length; at += PORTFOLIO_BATCH) {
+      const batch = live.slice(at, at + PORTFOLIO_BATCH);
+      const computed = await Promise.all(
+        batch.map(async (project) => {
+          const access = await this.projects.access(project.id, actor);
+          return (await this.snapshot(access, actor, now)).health;
+        }),
+      );
+      batch.forEach((project, index) =>
+        health.set(project.id, computed[index]),
+      );
+    }
+    const rows = projects.map((project) => ({
+      id: project.id,
+      projectNo: project.projectNo,
+      name: project.name,
+      status: project.status,
+      contractId: project.contract.id,
+      contractNo: project.contract.contractNo,
+      managerName: names.get(project.managerUserId) ?? null,
+      startOn: project.startOn ? day(project.startOn) : null,
+      endOn: day(project.endOn),
+      contractValue:
+        project.contractValue === null ? null : Number(project.contractValue),
+      currency: project.currency,
+      health: health.get(project.id) ?? null,
+      intakeStatus: project.intake?.status ?? null,
+    }));
+    // running first, the riskiest of them first; then the rest as opened
+    return [
+      ...byRisk(
+        rows.filter(
+          (row): row is (typeof rows)[number] & { health: Health } =>
+            row.health !== null,
+        ),
+      ),
+      ...rows.filter((row) => row.health === null),
+    ];
+  }
+
   // --- the weekly drafts -------------------------------------------------------------
 
   /**
