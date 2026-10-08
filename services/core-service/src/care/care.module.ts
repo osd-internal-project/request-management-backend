@@ -18,6 +18,7 @@ import {
 import { CareAnswerService } from './care-answer.service';
 import { CareCaseService } from './care-case.service';
 import { CareHandoverService } from './care-handover.service';
+import { CareDeliveryService } from './care-delivery.service';
 import { CareService } from './care.service';
 
 /**
@@ -42,6 +43,8 @@ import { CareService } from './care.service';
     CareCaseService,
     // CD-283 — a person takes over
     CareHandoverService,
+    // CD-284 — what a person says reaches the customer
+    CareDeliveryService,
     CareStaffRepository,
     RequestIntakeChannelRepository,
     CrmConfigRepository,

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   CurrentPrincipal,
@@ -7,8 +7,10 @@ import {
 } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import {
+  CareDeliveredDto,
   CareInboundDto,
   CareOpenCaseDto,
+  CareOutboxQueryDto,
   CareReplyDto,
   CareService,
 } from '@request-management/core-service';
@@ -108,6 +110,43 @@ export class CareApiController {
   })
   handover(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
     return this.care.handOverFromChannel(principal.activeCompanyId, id);
+  }
+
+  @Get('outbox')
+  @Permissions('integration.care.manage')
+  @ServiceAccountOnly()
+  @ApiOperation({
+    summary: 'ข้อความที่ต้องส่งถึงลูกค้าในช่องทางนี้ (CD-284)',
+    description:
+      'คำตอบของเจ้าหน้าที่และข้อความแจ้งที่ทีมสั่ง (ไม่ใช่คำตอบ AI ซึ่งได้ไปแล้วใน care/messages) · เก่าสุดก่อน · ' +
+      'ส่งแล้วรายงานที่ care/outbox/:messageId/delivered · LINE ระบบส่งเองเมื่อมี token ของบริษัท',
+  })
+  outbox(
+    @Query() query: CareOutboxQueryDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.care.outbox(
+      principal.activeCompanyId,
+      query.channel,
+      query.limit,
+    );
+  }
+
+  @Post('outbox/:messageId/delivered')
+  @Permissions('integration.care.manage')
+  @ServiceAccountOnly()
+  @ApiOperation({
+    summary: 'รายงานว่าส่งข้อความจากกล่องขาออกแล้วหรือไม่ (CD-284)',
+  })
+  delivered(
+    @Param('messageId') messageId: string,
+    @Body() dto: CareDeliveredDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.care.delivered(principal.activeCompanyId, messageId, {
+      ok: dto.ok,
+      error: dto.error,
+    });
   }
 
   @Get('conversations/:id')

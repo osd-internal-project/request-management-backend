@@ -8720,6 +8720,9 @@ model CareConversation {
   handoverAt         DateTime?
   /// CD-283 — when the team (or whoever is on call) was last told
   handoverNotifiedAt DateTime?
+  /// CD-284 — the service team member holding it (status with_agent)
+  agentUserId        String?
+  agentSince         DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -8743,9 +8746,17 @@ model CareMessage {
   attachments    Json     @default("[]")
   /// CD-265 — the knowledge search an AI answer came from
   kbQueryId      String?
+  /// CD-284 — a message that must still reach the customer (an agent's, or
+  /// a notice not sent back in a channel's own call): pending · sent · failed;
+  /// null = nothing to deliver
+  delivery         String?
+  deliveryAttempts Int       @default(0)
+  deliveredAt      DateTime?
+  deliveryError    String?
   createdAt      DateTime @default(now())
 
   @@index([conversationId, createdAt])
+  @@index([delivery, createdAt])
   @@map("care_messages")
 }
 

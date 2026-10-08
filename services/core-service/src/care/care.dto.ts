@@ -3,12 +3,16 @@ import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   IsArray,
-  IsIn,
+  IsBoolean,
   IsISO8601,
+  IsIn,
+  IsInt,
   IsOptional,
   IsString,
   IsUUID,
+  Max,
   MaxLength,
+  Min,
   ValidateNested,
 } from 'class-validator';
 import { CARE_CHANNELS, CARE_STATUSES } from './care-rules';
@@ -141,6 +145,15 @@ export class CareListQueryDto {
   @IsOptional()
   @IsUUID()
   customer_id?: string;
+
+  @ApiPropertyOptional({
+    enum: ['waiting', 'mine'],
+    description:
+      'CD-284 — waiting = รอเจ้าหน้าที่ (รอนานสุดก่อน) · mine = ที่ฉันดูแล',
+  })
+  @IsOptional()
+  @IsIn(['waiting', 'mine'])
+  queue?: 'waiting' | 'mine';
 }
 
 export class CareVerifyDto {
@@ -172,4 +185,47 @@ export class CareOpenCaseDto {
   @IsString()
   @MaxLength(200)
   subject?: string;
+}
+
+/** CD-284 — what an agent says to the customer. */
+export class CareAgentReplyDto {
+  @ApiProperty()
+  @IsString()
+  @MaxLength(4000)
+  text!: string;
+}
+
+/** CD-284 — hand the conversation to a colleague. */
+export class CareTransferDto {
+  @ApiProperty({ description: 'คนในทีมที่มีสิทธิ์ดูแลบทสนทนา' })
+  @IsUUID()
+  user_id!: string;
+}
+
+/** CD-284 — what a channel connector still has to send. */
+export class CareOutboxQueryDto {
+  @ApiProperty({ enum: CARE_CHANNELS })
+  @IsIn(CARE_CHANNELS)
+  channel!: string;
+
+  @ApiPropertyOptional({ default: 50, maximum: 200 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(200)
+  limit?: number;
+}
+
+/** CD-284 — whether a message from the outbox reached the customer. */
+export class CareDeliveredDto {
+  @ApiProperty()
+  @IsBoolean()
+  ok!: boolean;
+
+  @ApiPropertyOptional({ description: 'เหตุที่ส่งไม่สำเร็จ' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  error?: string;
 }

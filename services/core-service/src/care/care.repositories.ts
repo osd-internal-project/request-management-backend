@@ -32,6 +32,61 @@ export class CareMessageRepository extends BaseRepository<
     return client.careMessage;
   }
 
+  /** CD-284 — messages still to reach customers on a channel, with whom to. */
+  outbox(companyId: string, channel: string, limit: number) {
+    return this.prisma.$queryRawUnsafe<
+      {
+        id: string;
+        conversationId: string;
+        channel: string;
+        senderRef: string;
+        text: string | null;
+        createdAt: Date;
+      }[]
+    >(
+      `SELECT m.id, m."conversationId", c.channel, c."senderRef", m.text, m."createdAt"
+       FROM care_messages m JOIN care_conversations c ON c.id = m."conversationId"
+       WHERE m.delivery = 'pending' AND c."companyId" = $1 AND c.channel = $2
+       ORDER BY m."createdAt"
+       LIMIT ${Math.min(Math.max(Math.trunc(limit), 1), 200)}`,
+      companyId,
+      channel,
+    );
+  }
+
+  /** CD-284 — a message with the conversation it belongs to. */
+  async withConversation(id: string) {
+    const [row] = await this.prisma.$queryRawUnsafe<
+      {
+        id: string;
+        text: string | null;
+        delivery: string | null;
+        companyId: string;
+        channel: string;
+        senderRef: string;
+      }[]
+    >(
+      `SELECT m.id, m.text, m.delivery, c."companyId", c.channel, c."senderRef"
+       FROM care_messages m JOIN care_conversations c ON c.id = m."conversationId"
+       WHERE m.id = $1`,
+      id,
+    );
+    return row ?? null;
+  }
+
+  /** CD-284 — LINE messages not through yet, under the attempt limit. */
+  async lineToRetry(maxAttempts: number) {
+    const rows = await this.prisma.$queryRawUnsafe<{ id: string }[]>(
+      `SELECT m.id FROM care_messages m
+       JOIN care_conversations c ON c.id = m."conversationId"
+       WHERE m.delivery IN ('pending', 'failed') AND m."deliveryAttempts" < $1
+         AND c.channel = 'line'
+       ORDER BY m."createdAt" LIMIT 200`,
+      maxAttempts,
+    );
+    return rows.map((r) => r.id);
+  }
+
   /** Clear texts older than `before` in closed conversations. */
   async purge(before: Date) {
     const cleared = await this.prisma.$executeRawUnsafe(
@@ -120,6 +175,26 @@ export class CareContactLookupRepository {
       where: { id, active: true },
       select: { id: true, customerId: true, name: true },
     });
+  }
+
+  /** CD-284 — a company's code (LINE tokens are per company code). */
+  async companyCode(id: string) {
+    const row = await this.prisma.company.findUnique({
+      where: { id },
+      select: { code: true },
+    });
+    return row?.code ?? null;
+  }
+
+  /** CD-284 — display names of staff. */
+  async userNames(ids: (string | null | undefined)[]) {
+    const wanted = [...new Set(ids.filter((x): x is string => !!x))];
+    if (!wanted.length) return new Map<string, string>();
+    const rows = await this.prisma.user.findMany({
+      where: { id: { in: wanted } },
+      select: { id: true, displayName: true },
+    });
+    return new Map(rows.map((r) => [r.id, r.displayName]));
   }
 
   contactDetail(id: string) {
