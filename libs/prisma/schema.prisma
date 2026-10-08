@@ -8794,10 +8794,14 @@ model CareMessage {
   deliveryAttempts Int       @default(0)
   deliveredAt      DateTime?
   deliveryError    String?
+  /// CD-285 — files a channel only lends (LINE) still to be copied into our
+  /// storage; each attachment then carries its storage `key`
+  attachmentsPending Boolean @default(false)
   createdAt      DateTime @default(now())
 
   @@index([conversationId, createdAt])
   @@index([delivery, createdAt])
+  @@index([attachmentsPending])
   @@map("care_messages")
 }
 

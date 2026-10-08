@@ -23429,6 +23429,60 @@
         ]
       }
     },
+    "/api/v1/care/conversations/{id}/messages/{messageId}/attachments/{index}": {
+      "get": {
+        "operationId": "CareController_attachment",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "messageId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "index",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-285 ไฟล์ที่ลูกค้าส่งมา (รูป/ไฟล์/เสียง/วิดีโอจาก LINE ที่คัดลอกเก็บแล้ว)",
+        "tags": [
+          "care"
+        ]
+      }
+    },
     "/api/v1/care/conversations": {
       "get": {
         "operationId": "CareController_list",

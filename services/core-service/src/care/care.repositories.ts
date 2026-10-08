@@ -87,6 +87,16 @@ export class CareMessageRepository extends BaseRepository<
     return rows.map((r) => r.id);
   }
 
+  /** CD-285 — stored files of conversations whose texts were cleared. */
+  filesToClear() {
+    return this.prisma.$queryRawUnsafe<{ id: string; attachments: unknown }[]>(
+      `SELECT m.id, m.attachments FROM care_messages m
+       JOIN care_conversations c ON c.id = m."conversationId"
+       WHERE c."textPurgedAt" IS NOT NULL AND m.attachments::text LIKE '%"key"%'
+       LIMIT 200`,
+    );
+  }
+
   /** Clear texts older than `before` in closed conversations. */
   async purge(before: Date) {
     const cleared = await this.prisma.$executeRawUnsafe(

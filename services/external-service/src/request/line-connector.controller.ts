@@ -15,10 +15,12 @@ import { AppError, Public } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import {
   ApiKeyService,
+  CareService,
   CustomerIntakeService,
   RequestsService,
 } from '@request-management/core-service';
 import {
+  careMessages,
   lineSignatureValid,
   messageField,
   textMessages,
@@ -38,8 +40,13 @@ import {
  * `line` channel is not set up — the route discloses nothing.
  *
  * Off until configured: see docs/customer-intake.md for the LINE side
- * (webhook URL, secrets) and what is not handled yet (images, stickers,
- * follow-ups on the same request).
+ * (webhook URL, secrets).
+ *
+ * CD-285 — once the company's AI CARE channel is on, LINE is a conversation
+ * instead: every message (text, image, file, voice, video, sticker,
+ * location) joins the sender's AI CARE conversation, and AI CARE's answer
+ * goes back with the reply token (free) — or a push when the token has run
+ * out. Images and files are copied in by core-service (LINE lends them).
  */
 @Controller('request/intake/line')
 export class LineConnectorController {
@@ -50,6 +57,7 @@ export class LineConnectorController {
     private readonly requests: RequestsService,
     private readonly keys: ApiKeyService,
     private readonly config: ConfigService,
+    private readonly care: CareService,
   ) {}
 
   @Post(':companyCode')
@@ -70,10 +78,18 @@ export class LineConnectorController {
     ) {
       throw new AppError('NOT_FOUND', 'Not found');
     }
+    const body = req.body as { events?: LineEvent[] };
+
+    // CD-285 — AI CARE on: LINE is a conversation
+    const careCompany = await this.intake.companyIdOfCode(code, 'ai_care');
+    if (careCompany && (await this.care.takesLine(careCompany))) {
+      await this.toCare(code, careCompany, body.events ?? []);
+      return { ok: true };
+    }
+
     const companyId = await this.intake.companyIdOfCode(code, 'line');
     if (!companyId) throw new AppError('NOT_FOUND', 'Not found');
 
-    const body = req.body as { events?: LineEvent[] };
     const messages = textMessages(body.events ?? []);
     if (!messages.length) return { ok: true };
 
@@ -110,6 +126,74 @@ export class LineConnectorController {
       if (message.replyToken) await this.reply(code, message.replyToken, reply);
     }
     return { ok: true };
+  }
+
+  /** CD-285 — each message into the sender's AI CARE conversation, answered. */
+  private async toCare(code: string, companyId: string, events: LineEvent[]) {
+    const names = new Map<string, string>();
+    for (const message of careMessages(events)) {
+      try {
+        if (!names.has(message.userId))
+          names.set(
+            message.userId,
+            await this.displayName(code, message.userId),
+          );
+        const result = await this.care.receive(companyId, {
+          channel: 'line',
+          senderRef: message.userId,
+          senderName: names.get(message.userId),
+          text: message.text ?? undefined,
+          attachments: message.attachment ? [message.attachment] : [],
+          at: message.at,
+        });
+        if (result.reply?.text)
+          await this.replyOrPush(
+            code,
+            message.replyToken,
+            message.userId,
+            result.reply.text,
+          );
+      } catch (error) {
+        this.logger.warn(
+          `LINE ${code}: AI CARE message not taken — ${(error as Error).message}`,
+        );
+      }
+    }
+  }
+
+  /** The reply token first (it costs nothing); a push when it has run out. */
+  private async replyOrPush(
+    code: string,
+    replyToken: string | null,
+    userId: string,
+    text: string,
+  ) {
+    const token = this.config.get<string>(`LINE_CHANNEL_ACCESS_TOKEN_${code}`);
+    if (!token) return;
+    const send = (url: string, body: Record<string, unknown>) =>
+      fetch(url, {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${token}`,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...body,
+          messages: [{ type: 'text', text: text.slice(0, 5000) }],
+        }),
+      }).then(
+        (response) => response.ok,
+        () => false,
+      );
+    if (
+      replyToken &&
+      (await send('https://api.line.me/v2/bot/message/reply', { replyToken }))
+    )
+      return;
+    if (
+      !(await send('https://api.line.me/v2/bot/message/push', { to: userId }))
+    )
+      this.logger.warn(`LINE ${code}: answer not delivered to ${userId}`);
   }
 
   /** The line channel's first request type, and the field a message goes into. */

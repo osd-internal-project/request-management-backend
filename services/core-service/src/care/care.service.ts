@@ -51,6 +51,7 @@ import {
 import { CareHandoverService } from './care-handover.service';
 import { CareDeliveryService } from './care-delivery.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { RequestIntakeChannelRepository } from '../crm/customer-intake.repository';
 
 const RELEASED_TEXT =
   'เจ้าหน้าที่ส่งเรื่องคืนให้ AI CARE ดูแลต่อ — หากต้องการคุยกับเจ้าหน้าที่อีก แจ้งได้เลย';
@@ -128,6 +129,15 @@ export interface Attachment {
   name: string;
   type?: string;
   url?: string;
+  /** CD-285 — content a channel only lends, copied into our storage later */
+  source?: 'line';
+  lineMessageId?: string;
+  /** CD-285 — where the copy lives, once made */
+  key?: string;
+  contentType?: string;
+  size?: number;
+  tries?: number;
+  error?: string;
 }
 
 export interface InboundMessage {
@@ -172,6 +182,7 @@ export class CareService implements OnModuleInit, OnModuleDestroy {
     private readonly delivery: CareDeliveryService,
     private readonly staff: CareStaffRepository,
     private readonly notifications: NotificationsService,
+    private readonly channels: RequestIntakeChannelRepository,
   ) {}
 
   onModuleInit(): void {
@@ -248,6 +259,10 @@ export class CareService implements OnModuleInit, OnModuleDestroy {
         author: 'customer',
         text,
         attachments: attachments as object[],
+        // CD-285 — LINE lends files for a while: copy them in
+        attachmentsPending: attachments.some(
+          (a) => a.source === 'line' && !!a.lineMessageId,
+        ),
         createdAt: at,
       },
     });
@@ -332,6 +347,15 @@ export class CareService implements OnModuleInit, OnModuleDestroy {
       conversation: this.view(fresh),
       reply,
     };
+  }
+
+  /** CD-285 — whether a company's LINE OA goes to AI CARE (its intake channel is on). */
+  async takesLine(companyId: string) {
+    return (
+      (await this.channels.count({
+        where: { companyId, channel: 'ai_care', enabled: true },
+      })) > 0
+    );
   }
 
   /** CD-283 — the customer pressed "talk to a person" on the channel. */
@@ -1166,7 +1190,19 @@ export class CareService implements OnModuleInit, OnModuleDestroy {
       direction: m.direction,
       author: m.author,
       text: m.text,
-      attachments: Array.isArray(m.attachments) ? m.attachments : [],
+      // CD-285 — whether each file is here, coming, or lost; never the storage key
+      attachments: (Array.isArray(m.attachments)
+        ? (m.attachments as Attachment[])
+        : []
+      ).map((a) => ({
+        name: a.name,
+        type: a.type ?? null,
+        url: a.url ?? null,
+        size: a.size ?? null,
+        stored: !!a.key,
+        pending: a.source === 'line' && !a.key && !a.error,
+        error: a.error ?? null,
+      })),
       kbQueryId: m.kbQueryId,
       at: m.createdAt,
     };
