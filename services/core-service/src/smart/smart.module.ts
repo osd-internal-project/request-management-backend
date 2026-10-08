@@ -9,6 +9,8 @@ import { DCallcenterModule } from '../integrations/dcallcenter/dcallcenter.modul
 import { SmartDialerService } from './smart-dialer.service';
 import { SmartHandoffService } from './smart-handoff.service';
 import { SmartKeeperService } from './smart-keeper.service';
+import { SmartResultsRepository } from './smart-results.repository';
+import { SmartResultsService } from './smart-results.service';
 import { CustomerTouchpointRepository } from '../crm/keeper.repositories';
 import { OpportunityRepository } from '../crm/sales.repositories';
 import { NotificationsModule } from '../notifications/notifications.module';
@@ -96,8 +98,12 @@ import { SmartService } from './smart.service';
     SmartKeeperService,
     CustomerTouchpointRepository,
     OpportunityRepository,
+    // CD-295 — results from the Data Mart
+    SmartResultsRepository,
+    SmartResultsService,
   ],
   exports: [
+    SmartResultsService,
     SmartKeeperService,
     SmartHandoffService,
     SmartDialerService,

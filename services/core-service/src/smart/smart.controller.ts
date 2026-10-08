@@ -1,6 +1,10 @@
 import { Body, Controller, Get, Param, Post, Put, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { CurrentPrincipal, Permissions } from '@request-management/share';
+import {
+  AnyPermission,
+  CurrentPrincipal,
+  Permissions,
+} from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import {
   DiscardProspectDto,
@@ -11,7 +15,9 @@ import {
   SendProspectsDto,
   HandoffProspectsDto,
   KeeperProspectsDto,
+  SmartResultsQueryDto,
 } from './smart.dto';
+import { SmartResultsService } from './smart-results.service';
 import { SmartKeeperService } from './smart-keeper.service';
 import { SmartHandoffService } from './smart-handoff.service';
 import { SmartScreeningService } from './smart-screening.service';
@@ -27,7 +33,21 @@ export class SmartController {
     private readonly screening: SmartScreeningService,
     private readonly handoff: SmartHandoffService,
     private readonly keeper: SmartKeeperService,
+    private readonly results: SmartResultsService,
   ) {}
+
+  @ApiOperation({
+    summary:
+      'CD-295 ผลงาน AI SMART: กวาด → คัดกรอง → โทร → ติดต่อได้ → สนใจ → ส่งเข้าแกน → ดีล → ชนะ (จาก Data Mart)',
+  })
+  @Get('results')
+  @AnyPermission('smart.prospect.read', 'report.dashboard.read')
+  overview(
+    @Query() query: SmartResultsQueryDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.results.overview(principal, query);
+  }
 
   @ApiOperation({
     summary:

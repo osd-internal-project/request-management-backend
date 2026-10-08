@@ -61,6 +61,9 @@ describe('CD-91 Data Mart', () => {
       'fact_campaign_monthly',
       'fact_kb_ai_monthly',
       'fact_kb_gaps_monthly',
+      // CD-295
+      'fact_smart_prospects',
+      'fact_smart_calls',
     ]);
     // CD-92 — then the tables the application computes, trend after source
     expect([...COMPUTED_TABLES]).toEqual([

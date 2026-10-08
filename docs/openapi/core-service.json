@@ -36461,6 +36461,86 @@
         ]
       }
     },
+    "/api/v1/smart/results": {
+      "get": {
+        "operationId": "SmartController_overview",
+        "parameters": [
+          {
+            "name": "source_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sales_axis",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "getter",
+                "government",
+                "partner",
+                "keeper"
+              ]
+            }
+          },
+          {
+            "name": "call_list_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "2026-10",
+              "type": "string",
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "2026-12",
+              "type": "string",
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-295 ผลงาน AI SMART: กวาด → คัดกรอง → โทร → ติดต่อได้ → สนใจ → ส่งเข้าแกน → ดีล → ชนะ (จาก Data Mart)",
+        "tags": [
+          "smart"
+        ]
+      }
+    },
     "/api/v1/smart/prospects/keeper": {
       "post": {
         "operationId": "SmartController_toKeeper",

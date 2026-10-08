@@ -4,6 +4,7 @@ import { CONTACT_TYPES } from '../crm/prospecting-rules';
 import { martTableName, PRICING_MART_TABLES } from './pricing-mart';
 import { CAMPAIGN_MART_TABLES } from './campaign-mart';
 import { KB_MART_TABLES } from './kb-mart';
+import { SMART_MART_TABLES } from './smart-mart';
 import { HOURS_PER_MANDAY } from '../hr/timesheet-rules';
 import { DEFAULT_CREDIT_DAYS } from '../pm/payment-rules';
 import { SLA_STATUS_SQL } from '../sla/sla-status';
@@ -487,6 +488,8 @@ export const MART_TABLES: readonly { table: string; sql: string[] }[] = [
   ...CAMPAIGN_MART_TABLES,
   // CD-266 — the knowledge base: AI self-answer rate, gaps
   ...KB_MART_TABLES,
+  // CD-295 — AI SMART: sweep to sale
+  ...SMART_MART_TABLES,
 ];
 
 /**
