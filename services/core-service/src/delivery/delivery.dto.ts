@@ -208,6 +208,16 @@ export class SendHandoverDto {
   note?: string;
 }
 
+/** CD-227 — the project team's cautions for the service team. */
+export class SaveCautionsDto {
+  @ApiProperty({
+    description: 'ข้อควรระวัง: จุดที่ห้ามแตะ อาการที่ต้องเฝ้าระวัง ฯลฯ',
+  })
+  @IsString()
+  @MaxLength(4000)
+  cautions!: string;
+}
+
 /** CD-255 — the service team acknowledges, or sends a question back. */
 export class AnswerHandoverDto {
   @ApiProperty({ enum: ['acknowledge', 'question'] })

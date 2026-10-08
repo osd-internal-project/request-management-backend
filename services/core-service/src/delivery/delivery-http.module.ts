@@ -9,6 +9,7 @@ import { EsignModule } from '../esign/esign.module';
 import { DeliveryModule } from './delivery.module';
 import { DeliveryController } from './delivery.controller';
 import { DeliveryDocsService } from './delivery-docs.service';
+import { TechPackageService } from './tech-package.service';
 
 /** The screen-facing routes of {@link DeliveryModule}. */
 @Module({
@@ -32,6 +33,8 @@ import { DeliveryDocsService } from './delivery-docs.service';
     DeliveryDocsService,
     InstallConfirmationsService,
     AcceptanceCertificatesService,
+    // CD-227 — reads the as-built through PmHttpModule
+    TechPackageService,
   ],
 })
 export class DeliveryHttpModule {}

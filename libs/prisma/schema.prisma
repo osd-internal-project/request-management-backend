@@ -5282,6 +5282,24 @@ model EsignAuthority {
 }
 
 /// CD-18 PM — where a project stands.
+/// CD-227 — what the project team tells the service team beyond the
+/// documents: known quirks, what not to touch, what to watch. Required before
+/// a handover to service (CD-255) can be sent.
+model ProjectServiceBrief {
+  id        String   @id @default(uuid())
+  companyId String
+  projectId String   @unique
+  cautions  String
+  createdAt DateTime @default(now())
+  createdBy String
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
+
+  @@map("project_service_briefs")
+}
+
 /// CD-176 — the manager's receipt of the work: waiting, sent back, received.
 enum ProjectIntakeStatus {
   pending
@@ -5386,6 +5404,8 @@ model Project {
   readinessItems  ProjectReadinessItem[]
   /// CD-176 — การรับมอบงานจากทีมขายและทีมเทคนิค.
   intake          ProjectIntake?
+  /// CD-227 — ข้อควรระวังที่ทีมโครงการส่งถึงทีมบริการ.
+  serviceBrief    ProjectServiceBrief?
   /// CD-226 — เอกสารสภาพจริง และจุดที่ต่างจากที่ขาย.
   asBuiltDocuments  ProjectAsBuiltDocument[]
   asBuiltDeviations ProjectAsBuiltDeviation[]

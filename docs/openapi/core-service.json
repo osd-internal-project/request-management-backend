@@ -24207,6 +24207,92 @@
         ]
       }
     },
+    "/api/v1/delivery/projects/{projectId}/tech-package": {
+      "get": {
+        "operationId": "DeliveryController_techPackageOf",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-227 ชุดข้อมูลเทคนิคถึงทีมบริการ: As-built ค่าตั้งค่า จุดเชื่อมต่อ ข้อควรระวัง และสิ่งที่ยังขาด",
+        "tags": [
+          "delivery"
+        ]
+      }
+    },
+    "/api/v1/delivery/projects/{projectId}/tech-package/cautions": {
+      "put": {
+        "operationId": "DeliveryController_saveCautions",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveCautionsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-227 บันทึกข้อควรระวังถึงทีมบริการ (ผู้จัดการ/ทีมโครงการ)",
+        "tags": [
+          "delivery"
+        ]
+      }
+    },
     "/api/v1/delivery/handovers": {
       "get": {
         "operationId": "DeliveryController_handoverInbox",
@@ -49717,6 +49803,19 @@
             "maxLength": 2000
           }
         }
+      },
+      "SaveCautionsDto": {
+        "type": "object",
+        "properties": {
+          "cautions": {
+            "type": "string",
+            "description": "ข้อควรระวัง: จุดที่ห้ามแตะ อาการที่ต้องเฝ้าระวัง ฯลฯ",
+            "maxLength": 4000
+          }
+        },
+        "required": [
+          "cautions"
+        ]
       },
       "AnswerHandoverDto": {
         "type": "object",

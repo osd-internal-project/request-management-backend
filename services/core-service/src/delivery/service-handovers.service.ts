@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client';
 import {
   Injectable,
   Logger,
@@ -47,6 +48,8 @@ interface HandoverRow {
   acknowledgedAt: Date | null;
   ackNote: string | null;
   remindedAt: Date | null;
+  /** CD-227 — `technical` holds the engineers' package as sent. */
+  snapshot?: unknown;
 }
 
 /**
@@ -185,6 +188,8 @@ export class ServiceHandoversService implements OnModuleInit, OnModuleDestroy {
     projectId: string,
     acceptanceId: string,
     note: string,
+    /** CD-227 — the technical package; throws when it is not complete. */
+    technical?: (companyId: string) => Promise<Prisma.InputJsonObject>,
   ) {
     const { project, canEdit } = await this.deliveries.access(actor, projectId);
     if (!canEdit) {
@@ -212,6 +217,7 @@ export class ServiceHandoversService implements OnModuleInit, OnModuleDestroy {
       throw new AppError('CONFLICT', 'ส่งต่อแล้ว รอทีมบริการรับทราบ');
     }
     const pack = await this.packageOf(projectId, round);
+    const tech = technical ? await technical(project.companyId) : null;
     const snapshot = {
       assetIds: pack.assets.map((a) => a.id),
       entitlementIds: pack.warranties.map((w) => w.id),
@@ -219,6 +225,7 @@ export class ServiceHandoversService implements OnModuleInit, OnModuleDestroy {
       certificateId: pack.certificate?.id ?? null,
       contactIds: pack.contacts.map((c: { id: string }) => c.id),
       openPoints: pack.openPoints.length,
+      ...(tech ? { technical: tech } : {}),
     };
     const data = {
       status: 'sent',
@@ -589,6 +596,9 @@ export class ServiceHandoversService implements OnModuleInit, OnModuleDestroy {
         : null,
       acknowledgedAt: row.acknowledgedAt,
       ackNote: row.ackNote,
+      // CD-227 — the technical package as it was sent
+      technical:
+        ((row.snapshot ?? {}) as { technical?: unknown }).technical ?? null,
     };
   }
 }

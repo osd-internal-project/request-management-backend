@@ -678,3 +678,17 @@ export class ProjectIntakeRepository extends BaseRepository<
     return client.projectIntake;
   }
 }
+
+/** CD-227 ข้อควรระวังถึงทีมบริการ — one per project. */
+@Injectable()
+export class ProjectServiceBriefRepository extends BaseRepository<
+  PrismaService['projectServiceBrief']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.projectServiceBrief;
+  }
+}

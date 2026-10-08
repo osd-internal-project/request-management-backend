@@ -67,7 +67,8 @@ import { TechPlanService } from './tech-plan.service';
     }),
   ],
   // CD-254 — Delivery confirms installation against the readiness check
-  exports: [ReadinessService],
+  // CD-227 — the as-built state, for the technical package to service
+  exports: [ReadinessService, AsBuiltService],
   controllers: [
     ProjectsController,
     ProjectTasksController,
