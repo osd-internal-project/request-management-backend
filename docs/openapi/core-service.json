@@ -31852,6 +31852,231 @@
         ]
       }
     },
+    "/api/v1/projects/{id}/intake": {
+      "get": {
+        "operationId": "ProjectsController_viewIntake",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "รับมอบงาน: รายการจากงานส่งมอบทีมขาย Solution/ขอบเขต/BOQ สัญญา และของบริษัท",
+        "tags": [
+          "projects"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/projects/{id}/intake/answer": {
+      "post": {
+        "operationId": "ProjectsController_answerIntake",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnswerIntakeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ตรวจรายการรับมอบทีละข้อ: ถูกต้อง หรือไม่ครบพร้อมเหตุผล",
+        "tags": [
+          "projects"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/projects/{id}/intake/refresh": {
+      "post": {
+        "operationId": "ProjectsController_refreshIntake",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ดึงข้อมูลตั้งต้นใหม่ (หลังทีมขาย/เทคนิคแก้) — ข้อที่ข้อมูลเปลี่ยนต้องตรวจใหม่",
+        "tags": [
+          "projects"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/projects/{id}/intake/accept": {
+      "post": {
+        "operationId": "ProjectsController_acceptIntake",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "รับมอบงาน (ทุกข้อถูกต้อง)",
+        "tags": [
+          "projects"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/projects/{id}/intake/return": {
+      "post": {
+        "operationId": "ProjectsController_returnIntake",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReturnIntakeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ตีกลับงาน — แต่ละฝ่ายได้รับเฉพาะข้อที่ไม่ครบของตัวเอง",
+        "tags": [
+          "projects"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      }
+    },
     "/api/v1/projects/{id}/readiness": {
       "get": {
         "operationId": "ProjectsController_viewReadiness",
@@ -43761,6 +43986,14 @@
             },
             "maxItems": 50
           },
+          "project_intake_checklist": {
+            "type": "array",
+            "items": {
+              "maxLength": 1000,
+              "type": "string"
+            },
+            "maxItems": 50
+          },
           "project_as_built_documents": {
             "type": "array",
             "items": {
@@ -50581,6 +50814,42 @@
           "change_request_id": {
             "type": "string",
             "description": "คำขอเปลี่ยนแปลง (ผู้จัดการโครงการ); \"\" = ไม่ผูก"
+          }
+        }
+      },
+      "AnswerIntakeDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "technical.boq",
+            "maxLength": 1100
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "incomplete"
+            ]
+          },
+          "note": {
+            "type": "string",
+            "description": "บังคับเมื่อ incomplete — ไม่ครบอย่างไร",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "code",
+          "result"
+        ]
+      },
+      "ReturnIntakeDto": {
+        "type": "object",
+        "properties": {
+          "note": {
+            "type": "string",
+            "description": "ข้อความถึงทุกฝ่าย",
+            "maxLength": 1000
           }
         }
       },

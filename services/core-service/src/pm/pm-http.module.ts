@@ -26,6 +26,8 @@ import { CloseoutService } from './closeout.service';
 import { StatusReportsService } from './status-reports.service';
 import { TestsService } from './tests.service';
 import { ReadinessService } from './readiness.service';
+import { IntakeService } from './intake.service';
+import { SalesHandoverRepository } from '../crm/handover.repositories';
 import { AsBuiltService } from './as-built.service';
 import { AcceptanceService } from './acceptance.service';
 import { UatService } from './uat.service';
@@ -92,6 +94,9 @@ import { TechPlanService } from './tech-plan.service';
     // CD-251 — the delivery pack, for the readiness check (no module cycle)
     DeliveryDocsState,
     ReadinessService,
+    // CD-176 — receiving the work; the CD-84 handover read where it lies
+    IntakeService,
+    SalesHandoverRepository,
     AsBuiltService,
     AcceptanceService,
     UatService,

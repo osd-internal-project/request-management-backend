@@ -19,6 +19,7 @@ import {
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PageQueryDto } from '@request-management/share';
 import { MAX_MEMBERS, PROJECT_STATUSES } from '../project-rules';
+import { INTAKE_RESULTS, MAX_INTAKE_NOTE } from '../intake-rules';
 import { MAX_CRITERIA, MAX_CRITERION_LENGTH } from '../milestone-rules';
 import { MAX_DURATION_DAYS } from '../plan-rules';
 import { MAX_NOTE_LENGTH, WORK_STATUSES } from '../task-rules';
@@ -1717,4 +1718,33 @@ export class WorkloadQueryDto {
   @IsString()
   @MaxLength(50)
   skill_id?: string;
+}
+
+/** CD-176 — the manager's verdict on one line of the receipt. */
+export class AnswerIntakeDto {
+  @ApiProperty({ example: 'technical.boq' })
+  @IsString()
+  @MaxLength(1100)
+  code!: string;
+
+  @ApiProperty({ enum: INTAKE_RESULTS })
+  @IsIn(INTAKE_RESULTS)
+  result!: 'ok' | 'incomplete';
+
+  @ApiPropertyOptional({
+    description: 'บังคับเมื่อ incomplete — ไม่ครบอย่างไร',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(MAX_INTAKE_NOTE)
+  note?: string;
+}
+
+/** CD-176 — sending the work back; the gaps are the lines marked incomplete. */
+export class ReturnIntakeDto {
+  @ApiPropertyOptional({ description: 'ข้อความถึงทุกฝ่าย' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(MAX_INTAKE_NOTE)
+  note?: string;
 }

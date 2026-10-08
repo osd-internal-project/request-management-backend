@@ -2471,6 +2471,8 @@ model CrmCompanyConfig {
   /// CD-225 — the readiness checklist every project starts its check from;
   /// the manager adds to or removes from it per project.
   projectReadinessChecklist        String[] @default(["หน้างานสะอาดเรียบร้อย", "ติดป้ายและฉลากอุปกรณ์ครบ", "อบรมผู้ใช้งานแล้ว", "สำรองค่าตั้งค่าระบบแล้ว"])
+  /// CD-176 — ข้อที่บริษัทเพิ่มเองในรายการรับมอบงานของผู้จัดการโครงการ.
+  projectIntakeChecklist           String[] @default(["ผู้ติดต่อฝั่งลูกค้าและช่องทางติดต่อชัดเจน", "ทราบสถานที่และเงื่อนไขการเข้าหน้างาน"])
   /// CD-226 — the as-built documents every project must leave, by name.
   projectAsBuiltDocuments          String[] @default(["แบบติดตั้งจริง", "รายการอุปกรณ์และหมายเลขเครื่อง", "ผังการเชื่อมต่อระบบ"])
   /// CD-215 — the software documents a software project must leave, per version.
@@ -5280,6 +5282,43 @@ model EsignAuthority {
 }
 
 /// CD-18 PM — where a project stands.
+/// CD-176 — the manager's receipt of the work: waiting, sent back, received.
+enum ProjectIntakeStatus {
+  pending
+  returned
+  accepted
+}
+
+/// CD-176 — receiving the work from Sales and the technical team. The lines
+/// are composed each time from what the project holds (the sales handover,
+/// the baseline's Solution, scope and BOQ, the contract) plus the company's
+/// own lines; `answers` keeps the manager's verdict on each, with the detail
+/// it was given on — a line whose detail has changed since asks again.
+model ProjectIntake {
+  id         String              @id @default(uuid())
+  companyId  String
+  projectId  String              @unique
+  status     ProjectIntakeStatus @default(pending)
+  /// [{code, detail, result: ok|incomplete, note, by, at}]
+  answers    Json                @default("[]")
+  /// Times sent back (+1 on each return).
+  round      Int                 @default(0)
+  /// [{action: returned|accepted|refreshed, at, by, byName, round, lines}]
+  history    Json                @default("[]")
+  /// The lines as they were accepted — the record of what was received.
+  accepted   Json?
+  acceptedBy String?
+  acceptedAt DateTime?
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+  updatedBy  String?
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, status])
+  @@map("project_intakes")
+}
+
 enum ProjectStatus {
   active
   on_hold
@@ -5345,6 +5384,8 @@ model Project {
   testItems       ProjectTestItem[]
   /// CD-225 — รายการตรวจความพร้อมก่อนส่งมอบ.
   readinessItems  ProjectReadinessItem[]
+  /// CD-176 — การรับมอบงานจากทีมขายและทีมเทคนิค.
+  intake          ProjectIntake?
   /// CD-226 — เอกสารสภาพจริง และจุดที่ต่างจากที่ขาย.
   asBuiltDocuments  ProjectAsBuiltDocument[]
   asBuiltDeviations ProjectAsBuiltDeviation[]

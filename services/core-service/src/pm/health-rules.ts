@@ -25,6 +25,8 @@ export interface HealthFacts {
   /** The budget in force over the first one confirmed, in %; null = no budget. */
   costGrowthPct: number | null;
   paymentsOverdue: number;
+  /** CD-176 — the work not yet received from Sales and Pre-Sales; null = received. */
+  intake?: 'pending' | 'returned' | null;
 }
 
 export interface HealthFactor {
@@ -97,6 +99,17 @@ export function healthFactors(facts: HealthFacts): HealthFactor[] {
       label: 'งวดชำระเลยกำหนด',
       points: capped(10, facts.paymentsOverdue, 20),
       detail: `${facts.paymentsOverdue} งวด`,
+    });
+  }
+  if (facts.intake) {
+    factors.push({
+      key: 'intake',
+      label: 'ยังไม่ได้รับมอบงาน',
+      points: 10,
+      detail:
+        facts.intake === 'returned'
+          ? 'ตีกลับแล้ว รอทีมขาย/เทคนิคแก้'
+          : 'รอผู้จัดการโครงการตรวจรายการรับมอบ',
     });
   }
   return factors.sort((a, b) => b.points - a.points);

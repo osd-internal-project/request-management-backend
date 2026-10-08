@@ -17,6 +17,7 @@ import {
   SolutionVersionRepository,
 } from '../presales/solution.repositories';
 import {
+  ProjectIntakeRepository,
   ProjectMemberRepository,
   ProjectRepository,
   ProjectBudgetRepository,
@@ -207,6 +208,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         } as never,
         audit,
         transactions,
+        new ProjectIntakeRepository(client),
       );
       milestones = new MilestonesService(
         projects,
@@ -309,6 +311,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         where: { projectId },
         data: { parentId: null },
       });
+      await prisma.projectIntake.deleteMany({ where: { projectId } });
       await prisma.projectTask.deleteMany({ where: { projectId } });
       await prisma.projectMilestone.deleteMany({ where: { projectId } });
       await prisma.serviceEntitlementAsset.deleteMany({
@@ -1195,6 +1198,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
           execute: (work: (tx: unknown) => Promise<unknown>) =>
             prisma.$transaction((tx) => work(tx)),
         } as never,
+        new ProjectIntakeRepository(client),
       );
       const managerNow = as(engineer, ['notification.read']);
       expect((await budget.view(projectId, managerNow)).current).toBeNull();
@@ -1209,6 +1213,17 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       });
       await expect(budget.start(projectId, managerNow)).rejects.toMatchObject({
         code: 'CONFLICT',
+      });
+      // CD-176 — the work not yet received: the first budget waits
+      expect((await budget.view(projectId, managerNow)).awaitingIntake).toBe(
+        true,
+      );
+      await expect(budget.lock(projectId, managerNow)).rejects.toMatchObject({
+        code: 'CONFLICT',
+      });
+      await prisma.projectIntake.updateMany({
+        where: { projectId },
+        data: { status: 'accepted' },
       });
       await expect(budget.lock(projectId, managerNow)).rejects.toMatchObject({
         code: 'VALIDATION_FAILED',
@@ -6225,6 +6240,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         { get: () => 0 } as never,
         audit,
         transactions,
+        new ProjectIntakeRepository(client),
       );
       const managerNow = as(engineer, ['notification.read']);
       const crew = as(outsider, ['notification.read']);

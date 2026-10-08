@@ -42,7 +42,9 @@ import {
   SaveTestItemDto,
   RecordTestDto,
   SaveReadinessItemDto,
+  AnswerIntakeDto,
   CheckReadinessDto,
+  ReturnIntakeDto,
   SaveDeviationDto,
   BookAcceptanceDto,
   RecordAcceptanceDto,
@@ -103,6 +105,7 @@ import { CloseoutService } from './closeout.service';
 import { StatusReportsService } from './status-reports.service';
 import { TestsService } from './tests.service';
 import { ReadinessService } from './readiness.service';
+import { IntakeService } from './intake.service';
 import { AsBuiltService } from './as-built.service';
 import { AcceptanceService } from './acceptance.service';
 import { UatService } from './uat.service';
@@ -151,6 +154,7 @@ export class ProjectsController {
     private readonly statusReports: StatusReportsService,
     private readonly tests: TestsService,
     private readonly readiness: ReadinessService,
+    private readonly intake: IntakeService,
     private readonly asBuilt: AsBuiltService,
     private readonly acceptance: AcceptanceService,
     private readonly uat: UatService,
@@ -1908,6 +1912,70 @@ export class ProjectsController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.asBuilt.removeDeviation(id, deviationId, principal);
+  }
+
+  // --- CD-176 receiving the work ---------------------------------------------------
+
+  @ApiOperation({
+    summary:
+      'รับมอบงาน: รายการจากงานส่งมอบทีมขาย Solution/ขอบเขต/BOQ สัญญา และของบริษัท',
+  })
+  @Get(':id/intake')
+  @Permissions('notification.read')
+  viewIntake(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.intake.view(id, principal);
+  }
+
+  @ApiOperation({
+    summary: 'ตรวจรายการรับมอบทีละข้อ: ถูกต้อง หรือไม่ครบพร้อมเหตุผล',
+  })
+  @Post(':id/intake/answer')
+  @Permissions('notification.read')
+  answerIntake(
+    @Param('id') id: string,
+    @Body() dto: AnswerIntakeDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.intake.answer(id, dto, principal);
+  }
+
+  @ApiOperation({
+    summary:
+      'ดึงข้อมูลตั้งต้นใหม่ (หลังทีมขาย/เทคนิคแก้) — ข้อที่ข้อมูลเปลี่ยนต้องตรวจใหม่',
+  })
+  @Post(':id/intake/refresh')
+  @Permissions('notification.read')
+  refreshIntake(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.intake.refresh(id, principal);
+  }
+
+  @ApiOperation({ summary: 'รับมอบงาน (ทุกข้อถูกต้อง)' })
+  @Post(':id/intake/accept')
+  @Permissions('notification.read')
+  acceptIntake(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.intake.accept(id, principal);
+  }
+
+  @ApiOperation({
+    summary: 'ตีกลับงาน — แต่ละฝ่ายได้รับเฉพาะข้อที่ไม่ครบของตัวเอง',
+  })
+  @Post(':id/intake/return')
+  @Permissions('notification.read')
+  returnIntake(
+    @Param('id') id: string,
+    @Body() dto: ReturnIntakeDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.intake.returnWork(id, dto, principal);
   }
 
   // --- CD-225 readiness before handover ---------------------------------------------

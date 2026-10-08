@@ -263,6 +263,10 @@ export class CrmAdminService {
           'อบรมผู้ใช้งานแล้ว',
           'สำรองค่าตั้งค่าระบบแล้ว',
         ],
+        projectIntakeChecklist: [
+          'ผู้ติดต่อฝั่งลูกค้าและช่องทางติดต่อชัดเจน',
+          'ทราบสถานที่และเงื่อนไขการเข้าหน้างาน',
+        ],
         projectCloseDocuments: ['ใบตรวจรับงาน', 'เอกสารส่งมอบงาน'],
         solutionRequestTypeCode: null,
         solutionApprovalTypeCode: null,
@@ -362,6 +366,17 @@ export class CrmAdminService {
                 .filter(Boolean),
             ),
           ];
+    // CD-176 — the company's own receipt lines: blank dropped, each once
+    const intakeChecklist =
+      dto.project_intake_checklist === undefined
+        ? undefined
+        : [
+            ...new Set(
+              dto.project_intake_checklist
+                .map((line) => line.trim())
+                .filter(Boolean),
+            ),
+          ];
     // CD-191 — blank names dropped, each name once
     const closeDocuments =
       dto.project_close_documents === undefined
@@ -444,6 +459,9 @@ export class CrmAdminService {
                 : {}),
               ...(readinessChecklist
                 ? { projectReadinessChecklist: readinessChecklist }
+                : {}),
+              ...(intakeChecklist
+                ? { projectIntakeChecklist: intakeChecklist }
                 : {}),
               ...(closeDocuments
                 ? { projectCloseDocuments: closeDocuments }
@@ -565,6 +583,7 @@ export class CrmAdminService {
               serviceRepeatModel: dto.service_repeat_model,
               serviceRepeatCustomerModel: dto.service_repeat_customer_model,
               projectReadinessChecklist: readinessChecklist,
+              projectIntakeChecklist: intakeChecklist,
               projectAsBuiltDocuments: asBuiltDocuments,
               projectSoftwareDocuments: softwareDocuments,
               solutionRequestTypeCode:

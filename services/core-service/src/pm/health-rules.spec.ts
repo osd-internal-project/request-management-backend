@@ -92,3 +92,16 @@ describe('CD-192 project health', () => {
     expect(weekStart('2026-10-04')).toBe('2026-09-28'); // Sunday
   });
 });
+
+describe('CD-176 work not yet received', () => {
+  it('counts against health until the manager receives it', () => {
+    expect(healthFactors({ ...calm, intake: 'returned' })).toEqual([
+      expect.objectContaining({
+        key: 'intake',
+        points: 10,
+        detail: 'ตีกลับแล้ว รอทีมขาย/เทคนิคแก้',
+      }),
+    ]);
+    expect(healthFactors({ ...calm, intake: null })).toEqual([]);
+  });
+});

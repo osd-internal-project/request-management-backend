@@ -33,6 +33,7 @@ import { ProgressService } from './progress.service';
 import { levelOf } from './project-risk-rules';
 import {
   ProjectBudgetRepository,
+  ProjectIntakeRepository,
   ProjectIssueRepository,
   ProjectRiskRepository,
   ProjectStatusReportRepository,
@@ -128,6 +129,8 @@ export class StatusReportsService implements OnModuleInit, OnModuleDestroy {
     private readonly config: ConfigService,
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
+    // CD-176 — work not yet received counts against health
+    private readonly intakes: ProjectIntakeRepository,
   ) {}
 
   onModuleInit(): void {
@@ -154,28 +157,42 @@ export class StatusReportsService implements OnModuleInit, OnModuleDestroy {
   ): Promise<StatusSnapshot> {
     const projectId = access.project.id;
     const today = bangkokDay(now);
-    const [progress, planned, risks, issues, budgets, payments, thresholds] =
-      await Promise.all([
-        this.progress.view(projectId, actor, now),
-        this.plan.view(projectId, actor),
-        this.risks.findMany({
-          where: { projectId, status: 'open' },
-          select: { likelihood: true, impact: true },
-        }) as Promise<{ likelihood: number; impact: number }[]>,
-        this.issues.findMany({
-          where: { projectId, status: 'open' },
-          select: { status: true, dueOn: true },
-        }) as Promise<{ status: string; dueOn: Date }[]>,
-        this.budgets.findMany({
-          where: { projectId, status: { in: ['locked', 'superseded'] } },
-          orderBy: { versionNo: 'asc' },
-          select: { versionNo: true, status: true, total: true },
-        }) as Promise<
-          { versionNo: number; status: string; total: Prisma.Decimal }[]
-        >,
-        this.payments.view(projectId, actor, now),
-        this.thresholds(access.project.companyId),
-      ]);
+    const [
+      progress,
+      planned,
+      risks,
+      issues,
+      budgets,
+      payments,
+      thresholds,
+      intake,
+    ] = await Promise.all([
+      this.progress.view(projectId, actor, now),
+      this.plan.view(projectId, actor),
+      this.risks.findMany({
+        where: { projectId, status: 'open' },
+        select: { likelihood: true, impact: true },
+      }) as Promise<{ likelihood: number; impact: number }[]>,
+      this.issues.findMany({
+        where: { projectId, status: 'open' },
+        select: { status: true, dueOn: true },
+      }) as Promise<{ status: string; dueOn: Date }[]>,
+      this.budgets.findMany({
+        where: { projectId, status: { in: ['locked', 'superseded'] } },
+        orderBy: { versionNo: 'asc' },
+        select: { versionNo: true, status: true, total: true },
+      }) as Promise<
+        { versionNo: number; status: string; total: Prisma.Decimal }[]
+      >,
+      this.payments.view(projectId, actor, now),
+      this.thresholds(access.project.companyId),
+      this.intakes.findFirst({
+        where: { projectId },
+        select: { status: true },
+      }) as Promise<{
+        status: 'pending' | 'returned' | 'accepted';
+      } | null>,
+    ]);
     const late = planned.milestones.filter(
       (row) =>
         row.status === 'planned' &&
@@ -200,6 +217,10 @@ export class StatusReportsService implements OnModuleInit, OnModuleDestroy {
       ).length,
       costGrowthPct: growthPct,
       paymentsOverdue: overdueRows.length,
+      intake:
+        intake?.status === 'pending' || intake?.status === 'returned'
+          ? intake.status
+          : null,
     };
     return {
       today,

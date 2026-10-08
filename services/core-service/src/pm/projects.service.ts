@@ -30,6 +30,7 @@ import {
   UpdateProjectDto,
 } from './dto/project.dto';
 import {
+  ProjectIntakeRepository,
   ProjectMemberRepository,
   ProjectRepository,
 } from './project.repositories';
@@ -168,6 +169,8 @@ export class ProjectsService {
     private readonly notifications: NotificationsService,
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
+    // CD-176 — every new project waits to be received
+    private readonly intakes: ProjectIntakeRepository,
   ) {}
 
   // --- opening -------------------------------------------------------------------
@@ -291,6 +294,11 @@ export class ProjectsService {
         },
         { prisma },
       )) as { id: string; projectNo: string; name: string };
+      // CD-176 — the manager receives the work line by line before the budget
+      await this.intakes.create(
+        { data: { companyId: contract.companyId, projectId: row.id } },
+        { prisma },
+      );
       await this.audit.record(
         {
           eventType: 'pm.project.opened',
@@ -642,6 +650,42 @@ export class ProjectsService {
         (hasPermission(actor, 'pm.project.manage') ||
           project.managerUserId === actor.userId),
     };
+  }
+
+  /**
+   * CD-176 — the baseline taken again from the contract, the approved
+   * Solution and the installments as they stand now: while the work is not
+   * yet received, after Sales or Pre-Sales fixed what was sent back.
+   */
+  async rebuildBaseline(
+    projectId: string,
+    companyId: string,
+    now = new Date(),
+  ) {
+    const project = (await this.projects.findFirst({
+      where: { id: projectId, companyId },
+      select: { contractId: true },
+    })) as { contractId: string } | null;
+    if (!project) throw new AppError('NOT_FOUND', 'ไม่พบโครงการที่ระบุ');
+    const contract = (await this.contracts.findFirst({
+      where: { id: project.contractId, companyId },
+      select: CONTRACT_SELECT,
+    })) as ContractRow | null;
+    if (!contract) throw new AppError('NOT_FOUND', 'ไม่พบสัญญาของโครงการ');
+    const { baseline, missing, versionId } = await this.baselineOf(
+      contract,
+      now,
+    );
+    await this.projects.update({
+      where: { id: projectId },
+      data: {
+        baseline: baseline as Prisma.InputJsonValue,
+        missing,
+        solutionVersionId: versionId,
+        contractValue: contract.value,
+      },
+    });
+    return { missing, versionId };
   }
 
   // --- helpers -------------------------------------------------------------------

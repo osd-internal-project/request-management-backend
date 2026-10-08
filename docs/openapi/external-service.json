@@ -14868,6 +14868,14 @@
             },
             "maxItems": 50
           },
+          "project_intake_checklist": {
+            "type": "array",
+            "items": {
+              "maxLength": 1000,
+              "type": "string"
+            },
+            "maxItems": 50
+          },
           "project_as_built_documents": {
             "type": "array",
             "items": {
