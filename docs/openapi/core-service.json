@@ -39312,7 +39312,7 @@
     },
     "/api/v1/ai-audit/policy": {
       "get": {
-        "operationId": "AiAuditController_policy",
+        "operationId": "AiRetentionController_policy",
         "parameters": [
           {
             "name": "X-Company-Id",
@@ -39343,7 +39343,7 @@
         ]
       },
       "put": {
-        "operationId": "AiAuditController_savePolicy",
+        "operationId": "AiRetentionController_savePolicy",
         "parameters": [
           {
             "name": "X-Company-Id",
