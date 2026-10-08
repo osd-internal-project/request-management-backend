@@ -287,3 +287,31 @@ export class KeeperProspectsDto {
   @IsString({ each: true })
   ids!: string[];
 }
+
+/** CD-295 — what the results page narrows to; months are YYYY-MM (Bangkok). */
+export class SmartResultsQueryDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  source_id?: string;
+
+  @ApiPropertyOptional({ enum: SALES_AXES })
+  @IsOptional()
+  @IsIn(SALES_AXES)
+  sales_axis?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  call_list_id?: string;
+
+  @ApiPropertyOptional({ example: '2026-10' })
+  @IsOptional()
+  @Matches(/^\d{4}-(0[1-9]|1[0-2])$/)
+  from?: string;
+
+  @ApiPropertyOptional({ example: '2026-12' })
+  @IsOptional()
+  @Matches(/^\d{4}-(0[1-9]|1[0-2])$/)
+  to?: string;
+}
