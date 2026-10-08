@@ -23,6 +23,8 @@ import {
   moveBlocker,
   payBlocker,
   settlement,
+  settlementEvidence,
+  type EvidenceFile,
   statusForPaid,
   thaiDate,
   totalSatang,
@@ -449,6 +451,24 @@ export class DisbursementsService {
         [{ field: 'method', reason: 'required' }],
       );
     }
+    const evidence = settlementEvidence(
+      { refundSatang, extraPaySatang },
+      // BaseRepository's return type drops Prisma's `select` generics.
+      (await this.files.findMany({
+        where: { disbursementId: row.id, deletedAt: null },
+        select: { kind: true, storageKey: true, uploadedAt: true, deletedAt: true },
+      })) as EvidenceFile[],
+      row.clearingAt,
+    );
+    if (evidence.kind && !evidence.file) {
+      throw new AppError(
+        'VALIDATION_FAILED',
+        evidence.kind === 'REFUND_PROOF'
+          ? 'แนบหลักฐานรับเงินคืนก่อน (แนบได้ที่หน้าเว็บ)'
+          : 'แนบสลิปโอนส่วนต่างที่จ่ายเพิ่มก่อน (แนบได้ที่หน้าเว็บ)',
+        [{ field: 'files', reason: evidence.kind }],
+      );
+    }
     const now = new Date();
     await this.move(
       actor,
@@ -475,6 +495,7 @@ export class DisbursementsService {
             reference: dto.reference ?? null,
             occurredAt: dto.occurred_at ? new Date(`${dto.occurred_at}T00:00:00Z`) : now,
             counterpartyUserId: dto.counterparty_user_id ?? row.requesterId,
+            evidenceFileKey: evidence.file?.storageKey ?? null,
             actedBy: actor.userId,
           },
         });

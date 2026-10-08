@@ -159,7 +159,10 @@ export class ExternalDisbursementsController {
   }
 
   @ApiOperation({
-    summary: 'ปิดเงินทดรอง — คิดส่วนต่าง (คืน/เบิกเพิ่ม) แล้วจบคำขอ',
+    summary: 'บัญชีเคลียร์เอกสาร (complete) — คิดส่วนต่าง (คืน/เบิกเพิ่ม) แล้วจบคำขอ',
+    description:
+      'มีส่วนต่างต้องส่ง `method` และต้องมีสลิปที่แนบหลังส่งเคลียร์ครั้งล่าสุด: คืนเงิน = `REFUND_PROOF`, ' +
+      'จ่ายเพิ่ม = `PAYMENT_SLIP` — ไม่มีได้ `400 VALIDATION_FAILED` field `files` (แนบไฟล์ได้ที่หน้าเว็บเท่านั้น)',
   })
   @Post(':docNo/close')
   @Permissions('integration.disbursement.manage')

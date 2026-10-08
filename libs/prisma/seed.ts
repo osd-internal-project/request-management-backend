@@ -451,6 +451,10 @@ const SEED_ROLES: {
       'pm.project.read',
       'delivery.read',
       'delivery.receivable.read',
+      // การเบิก (docs/disbursement.md) — accounting checks, pays and clears FI05/FI06; receiving the
+      // request itself is `request.complete`, from `receiver`.
+      'disbursement.verify',
+      'disbursement.pay',
     ],
   },
   {

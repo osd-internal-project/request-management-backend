@@ -60,6 +60,7 @@ function harness(
   ticket: Record<string, unknown> = {},
   legacy = true,
   payouts: Record<string, unknown>[] = [],
+  evidence: Record<string, unknown>[] = [],
 ) {
   const tx = {
     disbursement: { updateMany: jest.fn(() => Promise.resolve({ count: 1 })) },
@@ -109,7 +110,7 @@ function harness(
   const service = new DisbursementsService(
     disbursements as never,
     movements as never,
-    { findMany: jest.fn(() => Promise.resolve([])) } as never,
+    { findMany: jest.fn(() => Promise.resolve(evidence)) } as never,
     requestRows as never,
     requests as never,
     sync as never,
@@ -119,6 +120,16 @@ function harness(
   );
   return { service, tx, requestRows, requests, notifications };
 }
+
+const CLEARED = new Date('2026-10-08T03:00:00Z');
+const BEFORE = new Date('2026-10-08T02:00:00Z');
+const AFTER = new Date('2026-10-08T04:00:00Z');
+const slip = (kind: string, uploadedAt: Date) => ({
+  kind,
+  storageKey: `key-${kind}`,
+  uploadedAt,
+  deletedAt: null,
+});
 
 const moveData = (tx: ReturnType<typeof harness>['tx']) =>
   (tx.disbursement.updateMany.mock.calls[0] as unknown as [
@@ -275,8 +286,12 @@ describe('disbursement — pay, clear, close', () => {
         status: 'CLEARING',
         paidAmount: d('15000.00'),
         actualAmount: d('12350.00'),
+        clearingAt: CLEARED,
       }),
       { currentStepCode: 'CLEAR' },
+      true,
+      [],
+      [slip('REFUND_PROOF', AFTER)],
     );
     const result = await service.close(
       accountant,
@@ -290,7 +305,11 @@ describe('disbursement — pay, clear, close', () => {
       extraPaidAmount: '0.00',
     });
     expect(tx.disbursementMovement.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({ type: 'REFUND', amount: '2650.00' }) as unknown,
+      data: expect.objectContaining({
+        type: 'REFUND',
+        amount: '2650.00',
+        evidenceFileKey: 'key-REFUND_PROOF',
+      }) as unknown,
     });
     expect(requests.advance).toHaveBeenCalledWith(
       'req-1',
@@ -333,6 +352,52 @@ describe('disbursement — pay, clear, close', () => {
     await expect(
       service.close(accountant, 'ADV-OSD-2026-00007', {}, 't'),
     ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+  });
+
+  it('a refund cannot complete before its proof is attached', async () => {
+    const { service, tx } = harness(
+      row({
+        status: 'CLEARING',
+        paidAmount: d('15000.00'),
+        actualAmount: d('12350.00'),
+        clearingAt: CLEARED,
+      }),
+      {},
+      true,
+      [],
+      // Attached before the latest clearing: it belongs to the clearing that was sent back.
+      [slip('REFUND_PROOF', BEFORE)],
+    );
+    await expect(
+      service.close(accountant, 'ADV-OSD-2026-00007', { method: 'transfer' }, 't'),
+    ).rejects.toMatchObject({
+      code: 'VALIDATION_FAILED',
+      details: [{ field: 'files', reason: 'REFUND_PROOF' }],
+    });
+    expect(tx.disbursement.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('an overspend needs the slip of the extra payment, not the refund proof', async () => {
+    const overspent = row({
+      status: 'CLEARING',
+      paidAmount: d('15000.00'),
+      actualAmount: d('16000.00'),
+      clearingAt: CLEARED,
+    });
+    const refused = harness(overspent, {}, true, [], [slip('REFUND_PROOF', AFTER)]);
+    await expect(
+      refused.service.close(accountant, 'ADV-OSD-2026-00007', { method: 'transfer' }, 't'),
+    ).rejects.toMatchObject({ details: [{ field: 'files', reason: 'PAYMENT_SLIP' }] });
+
+    const paid = harness(overspent, {}, true, [], [slip('PAYMENT_SLIP', AFTER)]);
+    await paid.service.close(accountant, 'ADV-OSD-2026-00007', { method: 'transfer' }, 't');
+    expect(paid.tx.disbursementMovement.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        type: 'EXTRA_PAY',
+        amount: '-1000.00',
+        evidenceFileKey: 'key-PAYMENT_SLIP',
+      }) as unknown,
+    });
   });
 
   it('out of scope reads answer 404', async () => {
@@ -430,9 +495,11 @@ describe('disbursement v3 — instalments, voids and separation of duties', () =
 
   it('records who refunded and when on the refund movement', async () => {
     const { service, tx } = harness(
-      row({ status: 'CLEARING', paidAmount: d('15000.00'), actualAmount: d('12350.00') }),
+      row({ status: 'CLEARING', paidAmount: d('15000.00'), actualAmount: d('12350.00'), clearingAt: CLEARED }),
       {},
       false,
+      [],
+      [slip('REFUND_PROOF', AFTER)],
     );
     await service.close(
       accountant,

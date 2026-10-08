@@ -6,6 +6,7 @@ import {
   linesFromItems,
   moveBlocker,
   settlement,
+  settlementEvidence,
   startStatus,
   statusOnRequestEvent,
   toSatang,
@@ -95,6 +96,57 @@ describe('disbursement rules — lines and money', () => {
     expect(settlement(1500000, 1500000)).toEqual({
       refundSatang: 0,
       extraPaySatang: 0,
+    });
+  });
+
+  describe('the slip a settlement needs', () => {
+    const cleared = new Date('2026-10-08T03:00:00Z');
+    const file = (kind: string, at: string, deletedAt: Date | null = null) => ({
+      kind,
+      storageKey: `${kind}@${at}`,
+      uploadedAt: new Date(at),
+      deletedAt,
+    });
+    const refund = { refundSatang: 50000, extraPaySatang: 0 };
+
+    it('an exact spend needs none', () => {
+      expect(settlementEvidence({ refundSatang: 0, extraPaySatang: 0 }, [], cleared)).toEqual({
+        kind: null,
+        file: null,
+      });
+    });
+
+    it('a refund needs a proof attached since the latest clearing', () => {
+      expect(settlementEvidence(refund, [], cleared)).toEqual({ kind: 'REFUND_PROOF', file: null });
+      expect(
+        settlementEvidence(refund, [file('REFUND_PROOF', '2026-10-08T02:00:00Z')], cleared).file,
+      ).toBeNull();
+      expect(
+        settlementEvidence(
+          refund,
+          [file('REFUND_PROOF', '2026-10-08T04:00:00Z', new Date('2026-10-08T05:00:00Z'))],
+          cleared,
+        ).file,
+      ).toBeNull();
+    });
+
+    it('takes the newest matching file', () => {
+      const result = settlementEvidence(
+        refund,
+        [
+          file('REFUND_PROOF', '2026-10-08T04:00:00Z'),
+          file('REFUND_PROOF', '2026-10-08T06:00:00Z'),
+          file('PAYMENT_SLIP', '2026-10-08T07:00:00Z'),
+        ],
+        cleared,
+      );
+      expect(result.file?.storageKey).toBe('REFUND_PROOF@2026-10-08T06:00:00Z');
+    });
+
+    it('an overspend needs the payment slip', () => {
+      expect(
+        settlementEvidence({ refundSatang: 0, extraPaySatang: 100000 }, [], cleared).kind,
+      ).toBe('PAYMENT_SLIP');
     });
   });
 });

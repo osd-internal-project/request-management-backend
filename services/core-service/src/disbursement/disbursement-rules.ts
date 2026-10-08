@@ -255,6 +255,36 @@ export function settlement(paidSatang: number, actualSatang: number) {
   };
 }
 
+export interface EvidenceFile {
+  readonly kind: string;
+  readonly storageKey: string;
+  readonly uploadedAt: Date;
+  readonly deletedAt: Date | null;
+}
+
+/**
+ * The slip a settlement needs before accounting completes: the refund received, or the overspend
+ * paid. Only a file attached since the latest clearing counts — a re-sent clearing starts over.
+ */
+export function settlementEvidence(
+  amounts: { refundSatang: number; extraPaySatang: number },
+  files: readonly EvidenceFile[],
+  clearingAt: Date | null,
+): { kind: 'REFUND_PROOF' | 'PAYMENT_SLIP' | null; file: EvidenceFile | null } {
+  const kind = amounts.refundSatang
+    ? 'REFUND_PROOF'
+    : amounts.extraPaySatang
+      ? 'PAYMENT_SLIP'
+      : null;
+  if (!kind) return { kind, file: null };
+  const since = clearingAt?.getTime() ?? 0;
+  const file =
+    [...files]
+      .filter((f) => f.kind === kind && !f.deletedAt && f.uploadedAt.getTime() >= since)
+      .sort((a, b) => b.uploadedAt.getTime() - a.uploadedAt.getTime())[0] ?? null;
+  return { kind, file };
+}
+
 export interface FundFacts {
   readonly custodianUserId: string;
   readonly perClaimLimitSatang: number;
