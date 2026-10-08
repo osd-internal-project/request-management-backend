@@ -86,6 +86,17 @@ Webhook URL ใน LINE Developers: `https://<external-service>/api/v1/request/i
 AI CARE (CD-23) เรียก `POST /api/v1/request/intake/channels/ai_care` ด้วย key ผูกบริษัท ส่ง
 `type_code`, `form_data` และ `contact` แบบเดียวกับแบบฟอร์ม · เปิดช่องทาง AI CARE ในหน้าตั้งค่าก่อน
 
+### ผล AI CARE และไทม์ไลน์ 360° (CD-288)
+
+- บทสนทนาที่ปิดแล้วและรู้ว่าเป็นลูกค้ารายใด → ไทม์ไลน์ 360° ของลูกค้า (รอบตรวจของ AI CARE) หนึ่งรายการต่อบทสนทนา:
+  ช่องทาง · จำนวนข้อความ · จบอย่างไร — ไม่มีข้อความบทสนทนา · เห็นเฉพาะผู้ที่มีสิทธิ์ `service.care.manage` · กดเปิดบทสนทนาได้
+- ผลของแต่ละบทสนทนา (`care/care-results.ts` ใช้ร่วมกันทั้ง mart / หน้าผล / ไทม์ไลน์):
+  เปิดเคส > ส่งต่อเจ้าหน้าที่ (มีคนร่วมแม้คืนให้ AI แล้ว) > AI ตอบจบเอง (ปิดแล้ว AI ตอบอย่างน้อยหนึ่งครั้ง) · ไม่ได้ถามเรื่องใด · ยังคุยอยู่
+- อัตรา AI ปิดเอง = AI ตอบจบเอง ÷ (AI ตอบจบเอง + เปิดเคส + ส่งต่อเจ้าหน้าที่) — หน้าบทสนทนา AI CARE (`GET care/results`) ·
+  Data Mart `mart.fact_care_conversations` · แดชบอร์ด `infra/metabase/build_care_dashboard.py`
+- KBMS: คำตอบของ AI ที่ตามด้วยการส่งต่อคน (`kb_ai_queries.handedOffAt`) ไม่นับเป็น "ตอบได้เอง" และเปิดเป็นช่องว่างความรู้ชนิด
+  `ai_handed_off` · `mart.fact_kb_ai_monthly` เพิ่ม `handed_off`, `self_answered` — รันสคริปต์แดชบอร์ด KB ใหม่ถ้าต้องการตัวเลขแบบใหม่
+
 ## แก้ไขระหว่างทำ (29 ก.ย. 2569)
 
 - `POST request/intake` (REQ-10) **ยื่นไม่ผ่านทุกครั้ง** — `submit` ตรวจว่าผู้เรียกคือผู้ยื่น ซึ่งบัญชีบริการ

@@ -15,6 +15,7 @@ import {
   Min,
 } from 'class-validator';
 import { MAX_BODY, MAX_SUMMARY, MAX_TAGS, MAX_TITLE } from './kb-rules';
+import { GAP_KINDS } from './kb-gap-rules';
 
 /** CD-259 — an article's fields (Markdown body). */
 export class SaveKbArticleDto {
@@ -295,9 +296,9 @@ export class KbGapsQueryDto {
   @IsIn(['open', 'assigned', 'resolved', 'dismissed'])
   status?: string;
 
-  @ApiPropertyOptional({ enum: ['ai_unanswered', 'low_rated', 'search_miss'] })
+  @ApiPropertyOptional({ enum: GAP_KINDS })
   @IsOptional()
-  @IsIn(['ai_unanswered', 'low_rated', 'search_miss'])
+  @IsIn(GAP_KINDS)
   kind?: string;
 
   @ApiPropertyOptional({ description: 'เฉพาะที่มอบให้ฉัน' })

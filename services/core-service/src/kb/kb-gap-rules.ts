@@ -3,7 +3,13 @@
  * apart from the database.
  */
 
-export const GAP_KINDS = ['ai_unanswered', 'low_rated', 'search_miss'] as const;
+/** CD-288 — ai_handed_off: AI answered, yet the conversation went to a person. */
+export const GAP_KINDS = [
+  'ai_unanswered',
+  'ai_handed_off',
+  'low_rated',
+  'search_miss',
+] as const;
 export type GapKind = (typeof GAP_KINDS)[number];
 export const GAP_STATUSES = [
   'open',

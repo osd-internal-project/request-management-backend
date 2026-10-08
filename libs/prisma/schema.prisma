@@ -7816,9 +7816,13 @@ model KbAiQuery {
   textPurgedAt    DateTime?
   /// CD-266 — the knowledge gap an unanswered question was counted into
   gapId           String?
+  /// CD-288 — the conversation went to a person after this answer: not
+  /// answered by AI alone, and a knowledge gap (ai_handed_off)
+  handedOffAt     DateTime?
   createdAt       DateTime  @default(now())
 
   @@index([companyId, createdAt])
+  @@index([handedOffAt, gapId])
   @@index([companyId, outcome])
   @@map("kb_ai_queries")
 }
@@ -8772,12 +8776,18 @@ model CareConversation {
   /// CD-284 — the service team member holding it (status with_agent)
   agentUserId        String?
   agentSince         DateTime?
+  /// CD-288 — when a person first took part (handed over or taken); never
+  /// cleared, so a conversation given back to AI still counts as handed over
+  humanAt            DateTime?
+  /// CD-288 — put on the customer's 360° timeline (closed, customer known)
+  timelineAt         DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
   @@index([companyId, channel, senderRef, status])
   @@index([companyId, status, lastMessageAt])
   @@index([customerId])
+  @@index([status, timelineAt])
   @@map("care_conversations")
 }
 

@@ -5,6 +5,7 @@ import { martTableName, PRICING_MART_TABLES } from './pricing-mart';
 import { CAMPAIGN_MART_TABLES } from './campaign-mart';
 import { KB_MART_TABLES } from './kb-mart';
 import { SMART_MART_TABLES } from './smart-mart';
+import { CARE_MART_TABLES } from './care-mart';
 import { HOURS_PER_MANDAY } from '../hr/timesheet-rules';
 import { DEFAULT_CREDIT_DAYS } from '../pm/payment-rules';
 import { SLA_STATUS_SQL } from '../sla/sla-status';
@@ -490,6 +491,8 @@ export const MART_TABLES: readonly { table: string; sql: string[] }[] = [
   ...KB_MART_TABLES,
   // CD-295 — AI SMART: sweep to sale
   ...SMART_MART_TABLES,
+  // CD-288 — AI CARE: closed by AI, case opened, handed to a person
+  ...CARE_MART_TABLES,
 ];
 
 /**

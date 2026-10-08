@@ -156,6 +156,16 @@ export class CareController {
     return this.care.release(actor, id);
   }
 
+  @ApiOperation({
+    summary:
+      'CD-288 ผล AI CARE 12 เดือน — AI ตอบจบเอง / เปิดเคส / ส่งต่อเจ้าหน้าที่ ตามเดือนและช่องทาง',
+  })
+  @Get('results')
+  @AnyPermission('service.care.manage')
+  results(@CurrentPrincipal() actor: Principal) {
+    return this.care.results(actor);
+  }
+
   @ApiOperation({ summary: 'CD-284 คนในทีมที่ส่งต่อบทสนทนาให้ได้' })
   @Get('team')
   @AnyPermission('service.care.manage')

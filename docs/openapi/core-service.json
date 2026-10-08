@@ -21341,6 +21341,7 @@
               "type": "string",
               "enum": [
                 "ai_unanswered",
+                "ai_handed_off",
                 "low_rated",
                 "search_miss"
               ]
@@ -23919,6 +23920,36 @@
           }
         ],
         "summary": "CD-284 คืนบทสนทนาให้ AI CARE ดูแลต่อ",
+        "tags": [
+          "care"
+        ]
+      }
+    },
+    "/api/v1/care/results": {
+      "get": {
+        "operationId": "CareController_results",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-288 ผล AI CARE 12 เดือน — AI ตอบจบเอง / เปิดเคส / ส่งต่อเจ้าหน้าที่ ตามเดือนและช่องทาง",
         "tags": [
           "care"
         ]

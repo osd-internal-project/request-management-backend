@@ -116,9 +116,11 @@ def dashboard(name, description, cards):
 
 
 # A rate over a group is a ratio of counts, not an average of percentages.
-SELF = "round(100.0 * sum(answered) / NULLIF(sum(answered) + sum(unanswered), 0), 1)"
+# CD-288 — an answer a person took over after is not answered by AI alone.
+SELF = "round(100.0 * sum(self_answered) / NULLIF(sum(answered) + sum(unanswered), 0), 1)"
 YEAR_AGO = "to_char((now() AT TIME ZONE 'Asia/Bangkok') - interval '12 months', 'YYYY-MM')"
 KIND = """CASE kind WHEN 'ai_unanswered' THEN 'AI ตอบไม่ได้'
+         WHEN 'ai_handed_off' THEN 'AI ตอบแล้วยังส่งต่อคน'
          WHEN 'low_rated' THEN 'คะแนนต่ำ' WHEN 'search_miss' THEN 'ค้นไม่เจอ' END"""
 
 print("== KBMS · ช่องว่างความรู้และ AI (Data Mart) ==")
@@ -145,16 +147,17 @@ FROM mart.fact_kb_gaps_monthly WHERE month = {THIS_MONTH} {CO}""", "scalar")
 
 trend = card("อัตรา AI ตอบได้เองรายเดือน", f"""
 SELECT month AS "เดือน", {SELF} AS "รวม %",
-       round(100.0 * sum(answered) FILTER (WHERE channel = 'ai_care')
+       round(100.0 * sum(self_answered) FILTER (WHERE channel = 'ai_care')
              / NULLIF(sum(answered + unanswered) FILTER (WHERE channel = 'ai_care'), 0), 1) AS "AI CARE %",
-       round(100.0 * sum(answered) FILTER (WHERE channel = 'ai_smart')
+       round(100.0 * sum(self_answered) FILTER (WHERE channel = 'ai_smart')
              / NULLIF(sum(answered + unanswered) FILTER (WHERE channel = 'ai_smart'), 0), 1) AS "AI SMART %"
 FROM mart.fact_kb_ai_monthly
 WHERE month > {YEAR_AGO} {CO}
 GROUP BY 1 ORDER BY 1""", "line")
 
 volume = card("คำถามที่ AI ค้นรายเดือน", f"""
-SELECT month AS "เดือน", sum(answered) AS "ตอบได้", sum(unanswered) AS "ตอบไม่ได้",
+SELECT month AS "เดือน", sum(self_answered) AS "ตอบได้เอง",
+       sum(answered - self_answered) AS "ตอบแล้วส่งต่อคน", sum(unanswered) AS "ตอบไม่ได้",
        sum(pending) AS "ไม่ได้บันทึกผล"
 FROM mart.fact_kb_ai_monthly
 WHERE month > {YEAR_AGO} {CO}
@@ -176,7 +179,7 @@ GROUP BY 1 ORDER BY 2 DESC""", "bar")
 
 dashboard(
     "KBMS · ช่องว่างความรู้และ AI",
-    "CD-266 — อัตราที่ AI CARE / AI SMART ตอบได้เองจากคลังความรู้ (ตอบได้ ÷ ตอบได้ + ตอบไม่ได้) รายเดือนและรายช่องทาง และช่องว่างความรู้ที่เปิด/เติม/ปิดทิ้งแต่ละเดือนตามแหล่ง — ตัวเลขล้วน ไม่มีข้อความคำถาม",
+    "CD-266 — อัตราที่ AI CARE / AI SMART ตอบได้เองจากคลังความรู้ (ตอบได้โดยไม่ต้องส่งต่อคน ÷ ตอบได้ + ตอบไม่ได้ — CD-288) รายเดือนและรายช่องทาง และช่องว่างความรู้ที่เปิด/เติม/ปิดทิ้งแต่ละเดือนตามแหล่ง — ตัวเลขล้วน ไม่มีข้อความคำถาม",
     [
         (asof, 0, 0, 4, 2), (self_this, 0, 4, 5, 2), (self_last, 0, 9, 5, 2),
         (opened_this, 0, 14, 5, 2), (resolved_this, 0, 19, 5, 2),

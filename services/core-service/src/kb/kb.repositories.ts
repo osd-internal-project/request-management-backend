@@ -60,13 +60,20 @@ export class KbGapStatsRepository {
 
   aiMonthly(companyId: string, since: Date) {
     return this.prisma.$queryRawUnsafe<
-      { month: string; channel: string; outcome: string; n: number }[]
+      {
+        month: string;
+        channel: string;
+        outcome: string;
+        handedOff: boolean;
+        n: number;
+      }[]
     >(
       `SELECT to_char(("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Bangkok', 'YYYY-MM') AS month,
-              channel, outcome, count(*)::int AS n
+              channel, outcome, ("handedOffAt" IS NOT NULL) AS "handedOff",
+              count(*)::int AS n
        FROM kb_ai_queries
        WHERE "companyId" = $1 AND "createdAt" >= $2
-       GROUP BY 1, 2, 3 ORDER BY 1`,
+       GROUP BY 1, 2, 3, 4 ORDER BY 1`,
       companyId,
       since,
     );

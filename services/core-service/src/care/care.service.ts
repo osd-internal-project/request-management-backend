@@ -52,6 +52,14 @@ import { CareHandoverService } from './care-handover.service';
 import { CareDeliveryService } from './care-delivery.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { RequestIntakeChannelRepository } from '../crm/customer-intake.repository';
+import { CustomerTimelineService } from '../crm/customer-timeline.service';
+import { thaiToday } from '../crm/vendor-costs';
+import {
+  aiClosedPct,
+  CARE_RESULTS,
+  timelineSummary,
+  type CareResult,
+} from './care-results';
 
 const RELEASED_TEXT =
   'เจ้าหน้าที่ส่งเรื่องคืนให้ AI CARE ดูแลต่อ — หากต้องการคุยกับเจ้าหน้าที่อีก แจ้งได้เลย';
@@ -183,6 +191,7 @@ export class CareService implements OnModuleInit, OnModuleDestroy {
     private readonly staff: CareStaffRepository,
     private readonly notifications: NotificationsService,
     private readonly channels: RequestIntakeChannelRepository,
+    private readonly timeline: CustomerTimelineService,
   ) {}
 
   onModuleInit(): void {
@@ -665,6 +674,7 @@ export class CareService implements OnModuleInit, OnModuleDestroy {
         agentSince: new Date(),
       },
     });
+    await this.handover.reachedPerson(conversation);
     await this.notifications
       .careHandover(
         toUserId,
@@ -735,6 +745,7 @@ export class CareService implements OnModuleInit, OnModuleDestroy {
         caseOfferedAt: null,
       },
     });
+    await this.handover.reachedPerson(conversation);
     await this.record(actor, conversation.id, 'care.taken', {
       from: conversation.status,
     });
@@ -863,7 +874,75 @@ export class CareService implements OnModuleInit, OnModuleDestroy {
     const reminded = await this.handover.remind(now);
     // CD-284 — LINE messages not through yet
     const delivered = await this.delivery.retry();
-    return { closed: idle.length, purged, reminded, delivered };
+    // CD-288 — closed conversations onto the customer's 360° timeline
+    const timeline = await this.toTimeline();
+    return { closed: idle.length, purged, reminded, delivered, timeline };
+  }
+
+  /**
+   * CD-288 — each closed conversation of a known customer goes on their 360°
+   * timeline once: channel, how many messages, how it ended — never the text.
+   * Seen by those who can open AI CARE conversations (the source module).
+   */
+  async toTimeline(limit = 200) {
+    const rows = await this.messages.toTimeline(limit);
+    for (const row of rows) {
+      await this.timeline.publish({
+        companyId: row.companyId,
+        customerId: row.customerId,
+        refType: 'care_conversation',
+        refId: row.id,
+        eventType: 'care.conversation',
+        summary: timelineSummary(row),
+        actorName: 'AI CARE',
+        requiredPermission: MANAGE,
+        occurredAt: row.closedAt,
+      });
+      await this.conversations.update({
+        where: { id: row.id },
+        data: { timelineAt: new Date() },
+      });
+    }
+    return rows.length;
+  }
+
+  /**
+   * CD-288 — the last 12 Bangkok months: conversations by how they ended, and
+   * the share AI closed by itself (ai_resolved ÷ ai_resolved + case_opened +
+   * handed_over), overall and per channel.
+   */
+  async results(actor: Principal) {
+    this.manage(actor);
+    const [y, mo] = thaiToday().split('-').map(Number);
+    const months: string[] = [];
+    for (let i = 11; i >= 0; i--)
+      months.push(
+        new Date(Date.UTC(y, mo - 1 - i, 1)).toISOString().slice(0, 7),
+      );
+    // a day early so the first Bangkok month is whole
+    const since = new Date(`${months[0]}-01T00:00:00Z`);
+    since.setUTCDate(since.getUTCDate() - 1);
+    const rows = await this.messages.results(actor.activeCompanyId, since);
+    const tally = (keep: (r: (typeof rows)[number]) => boolean) => {
+      const counts = Object.fromEntries(
+        CARE_RESULTS.map((k) => [k, 0]),
+      ) as Record<CareResult, number>;
+      for (const r of rows.filter(keep)) counts[r.result] += r.n;
+      const total = CARE_RESULTS.reduce((s, k) => s + counts[k], 0);
+      return { total, ...counts, aiClosedPct: aiClosedPct(counts) };
+    };
+    const channels = [...new Set(rows.map((r) => r.channel))].sort();
+    return {
+      months: months.map((month) => ({
+        month,
+        ...tally((r) => r.month === month),
+      })),
+      channels: channels.map((channel) => ({
+        channel,
+        ...tally((r) => r.channel === channel && r.month >= months[0]),
+      })),
+      total: tally((r) => r.month >= months[0]),
+    };
   }
 
   // --- inside -----------------------------------------------------------------------

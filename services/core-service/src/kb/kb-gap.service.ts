@@ -76,6 +76,13 @@ interface GapRow {
  * with a reason. The monthly self-answer rate of the AI channels and the
  * gaps opened and closed show beside the list (and in the Data Mart).
  */
+/** What a gap of each AI kind came from, for the draft article. */
+const GAP_ORIGIN: Record<string, string> = {
+  ai_unanswered: 'คำถามที่ AI ตอบไม่ได้',
+  ai_handed_off: 'คำถามที่ AI ตอบแล้ว แต่ลูกค้ายังต้องคุยกับเจ้าหน้าที่',
+  search_miss: 'คำค้นที่ไม่เจอบทความ',
+};
+
 @Injectable()
 export class KbGapService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(KbGapService.name);
@@ -237,15 +244,29 @@ export class KbGapService implements OnModuleInit, OnModuleDestroy {
       const m = new Date(Date.UTC(y, mo - 1 - i, 1));
       months.push(m.toISOString().slice(0, 7));
     }
-    const count = (month: string, channel: string | null, outcome: string) =>
+    const count = (
+      month: string,
+      channel: string | null,
+      outcome: string | null,
+      handedOff?: boolean,
+    ) =>
       ai
         .filter(
           (r) =>
             r.month === month &&
-            r.outcome === outcome &&
+            (!outcome || r.outcome === outcome) &&
+            (handedOff === undefined || r.handedOff === handedOff) &&
             (!channel || r.channel === channel),
         )
         .reduce((s, r) => s + r.n, 0);
+    // CD-288 — an answer the customer went past to a person is not answered
+    // by AI alone
+    const self = (month: string, channel: string | null) => {
+      const alone = count(month, channel, 'answered', false);
+      const all =
+        count(month, channel, 'answered') + count(month, channel, 'unanswered');
+      return selfAnswerPct(alone, all - alone);
+    };
     return months.map((month) => {
       const answered = count(month, null, 'answered');
       const unanswered = count(month, null, 'unanswered');
@@ -255,13 +276,11 @@ export class KbGapService implements OnModuleInit, OnModuleDestroy {
         searches: answered + unanswered + count(month, null, 'pending'),
         answered,
         unanswered,
-        selfAnswerPct: selfAnswerPct(answered, unanswered),
+        handedOff: count(month, null, null, true),
+        selfAnswerPct: self(month, null),
         byChannel: ['ai_care', 'ai_smart'].map((channel) => ({
           channel,
-          selfAnswerPct: selfAnswerPct(
-            count(month, channel, 'answered'),
-            count(month, channel, 'unanswered'),
-          ),
+          selfAnswerPct: self(month, channel),
         })),
         gapsOpened: g?.opened ?? 0,
         gapsResolved: g?.resolved ?? 0,
@@ -322,7 +341,7 @@ export class KbGapService implements OnModuleInit, OnModuleDestroy {
             '',
           ]
         : [
-            `> ช่องว่าง: ${gap.kind === 'ai_unanswered' ? 'คำถามที่ AI ตอบไม่ได้' : 'คำค้นที่ไม่เจอบทความ'} (${gap.occurrences} ครั้ง)`,
+            `> ช่องว่าง: ${GAP_ORIGIN[gap.kind] ?? 'คำค้นที่ไม่เจอบทความ'} (${gap.occurrences} ครั้ง)`,
             '',
             '## คำถาม',
             gap.detail ?? gap.title,
@@ -406,7 +425,13 @@ export class KbGapService implements OnModuleInit, OnModuleDestroy {
   // --- the sweep --------------------------------------------------------------
 
   async sweep(now: Date = new Date()) {
-    const result = { unanswered: 0, lowRated: 0, resolved: 0, reminded: 0 };
+    const result = {
+      unanswered: 0,
+      handedOff: 0,
+      lowRated: 0,
+      resolved: 0,
+      reminded: 0,
+    };
     const rule = await this.rules.across(RULE);
     const today = thaiToday(now);
 
@@ -428,6 +453,30 @@ export class KbGapService implements OnModuleInit, OnModuleDestroy {
       );
       await this.aiQueries.update({ where: { id: q.id }, data: { gapId } });
       result.unanswered += 1;
+    }
+
+    // 1b. CD-288 — answered, yet the customer went on to a person
+    const handed = (await this.aiQueries.findMany({
+      where: {
+        handedOffAt: { not: null },
+        gapId: null,
+        question: { not: null },
+      },
+      select: { id: true, companyId: true, question: true },
+      take: 500,
+    })) as { id: string; companyId: string; question: string }[];
+    for (const q of handed) {
+      const key = gapKey(q.question);
+      if (!key) continue;
+      const gapId = await this.bump(
+        q.companyId,
+        'ai_handed_off',
+        key,
+        q.question.slice(0, 200),
+        q.question,
+      );
+      await this.aiQueries.update({ where: { id: q.id }, data: { gapId } });
+      result.handedOff += 1;
     }
 
     // 2. articles readers found unhelpful
@@ -552,7 +601,7 @@ export class KbGapService implements OnModuleInit, OnModuleDestroy {
       this.config.get<number>('kb.aiRetentionDays') ?? DEFAULT_RETENTION_DAYS;
     await this.gaps.updateMany({
       where: {
-        kind: 'ai_unanswered',
+        kind: { in: ['ai_unanswered', 'ai_handed_off'] },
         status: { in: ['resolved', 'dismissed'] },
         lastSeenAt: { lt: new Date(now.getTime() - retention * 86_400_000) },
         detail: { not: null },

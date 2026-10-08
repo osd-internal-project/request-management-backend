@@ -151,6 +151,25 @@ export class KbAiService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
+  /**
+   * CD-288 — the conversation went to a person: the AI's last search in it
+   * before `at` did not settle it. Counted apart from "answered" and opened
+   * as a knowledge gap (ai_handed_off) by the gap sweep. Once per conversation.
+   */
+  async handedOff(companyId: string, conversationRef: string, at: Date) {
+    const last = (await this.queries.findFirst({
+      where: { companyId, conversationRef, createdAt: { lte: at } },
+      orderBy: [{ createdAt: 'desc' }],
+      select: { id: true, handedOffAt: true },
+    })) as { id: string; handedOffAt: Date | null } | null;
+    if (!last || last.handedOffAt) return null;
+    await this.queries.update({
+      where: { id: last.id },
+      data: { handedOffAt: at },
+    });
+    return last.id;
+  }
+
   /** What the AI answered and which of the returned articles it cites. */
   async answer(
     companyId: string,
