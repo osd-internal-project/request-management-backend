@@ -190,7 +190,12 @@ export class PmPlanService implements OnModuleInit, OnModuleDestroy {
   }
 
   /** Set (or change) the plan; its planned rounds are laid out again. */
-  async savePlan(actor: Principal, entitlementId: string, dto: SavePmPlanDto) {
+  async savePlan(
+    actor: Principal,
+    entitlementId: string,
+    dto: SavePmPlanDto,
+    now = new Date(),
+  ) {
     const companyId = actor.activeCompanyId;
     const entitlement = await this.requireEntitlement(companyId, entitlementId);
     if (entitlement.kind !== 'service_contract') {
@@ -211,7 +216,7 @@ export class PmPlanService implements OnModuleInit, OnModuleDestroy {
       ]);
     }
     const active = dto.active ?? true;
-    const today = thaiToday();
+    const today = thaiToday(now);
     let rounds = 0;
     await this.transactions.execute(async (prisma) => {
       await prisma.servicePmPlan.upsert({
