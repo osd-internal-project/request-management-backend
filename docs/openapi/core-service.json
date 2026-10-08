@@ -51117,6 +51117,19 @@
               "critical"
             ]
           },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "general",
+              "technical"
+            ],
+            "description": "CD-223 technical = แก้ปัญหาทางเทคนิค ส่งเข้า KBMS เมื่อปิด"
+          },
+          "cause": {
+            "type": "string",
+            "description": "CD-223 สาเหตุ (ถ้าทราบแล้ว)",
+            "maxLength": 4000
+          },
           "schedule_impact_days": {
             "type": "integer",
             "description": "วันทำงานที่ล่าช้าเพราะปัญหานี้",
@@ -51147,6 +51160,11 @@
         "properties": {
           "resolution": {
             "type": "string",
+            "maxLength": 4000
+          },
+          "cause": {
+            "type": "string",
+            "description": "CD-223 สาเหตุ (บังคับสำหรับปัญหาทางเทคนิค)",
             "maxLength": 4000
           }
         },

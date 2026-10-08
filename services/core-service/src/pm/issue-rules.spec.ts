@@ -1,4 +1,9 @@
-import { changeFromIssue, issueOverdue, issueProblems } from './issue-rules';
+import {
+  changeFromIssue,
+  issueOverdue,
+  issueProblems,
+  resolveProblems,
+} from './issue-rules';
 
 describe('CD-184 an issue', () => {
   const ok = {
@@ -53,5 +58,30 @@ describe('CD-184 an issue', () => {
         },
       ],
     });
+  });
+});
+
+describe('CD-223 resolving a technical issue', () => {
+  it('every issue says how; a technical one also its symptom and cause', () => {
+    expect(
+      resolveProblems({
+        kind: 'general',
+        description: null,
+        cause: null,
+        resolution: 'ok',
+      }),
+    ).toEqual([]);
+    expect(
+      resolveProblems({
+        kind: 'technical',
+        description: ' ',
+        cause: null,
+        resolution: '',
+      }),
+    ).toEqual([
+      'ต้องบันทึกวิธีแก้ไข',
+      'ต้องบันทึกอาการที่พบ',
+      'ต้องบันทึกสาเหตุของปัญหา',
+    ]);
   });
 });

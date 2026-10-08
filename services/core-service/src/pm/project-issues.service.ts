@@ -12,7 +12,13 @@ import { bangkokDay } from '../crm/kyc-rules';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ChangeRequestsService } from './change-requests.service';
 import { ResolveIssueDto, SaveIssueDto } from './dto/project.dto';
-import { changeFromIssue, issueOverdue, issueProblems } from './issue-rules';
+import {
+  changeFromIssue,
+  issueOverdue,
+  issueProblems,
+  resolveProblems,
+} from './issue-rules';
+import { IssueResolvedHooks } from './issue-hooks';
 import {
   ProjectIssueRepository,
   ProjectTaskRepository,
@@ -37,6 +43,10 @@ interface IssueRow {
   resolvedAt: Date | null;
   resolvedBy: string | null;
   changeRequestId: string | null;
+  kind: string;
+  cause: string | null;
+  kbmsStatus: string | null;
+  kbmsRef: string | null;
   createdAt: Date;
 }
 
@@ -66,6 +76,8 @@ export class ProjectIssuesService {
     private readonly notifications: NotificationsService,
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
+    // CD-223 — a resolved technical issue goes to the knowledge base
+    private readonly resolved: IssueResolvedHooks,
   ) {}
 
   async list(projectId: string, actor: Principal, now = new Date()) {
@@ -104,6 +116,10 @@ export class ProjectIssuesService {
         title: row.title,
         description: row.description,
         severity: row.severity,
+        kind: row.kind,
+        cause: row.cause,
+        kbmsStatus: row.kbmsStatus,
+        kbmsRef: row.kbmsRef,
         scheduleImpactDays: row.scheduleImpactDays,
         costImpact: Number(row.costImpact),
         ownerUserId: row.ownerUserId,
@@ -256,11 +272,22 @@ export class ProjectIssuesService {
     if (current.status !== 'open') {
       throw new AppError('CONFLICT', 'ปัญหานี้แก้ไขเสร็จแล้ว');
     }
-    if (!dto.resolution?.trim()) {
-      throw new AppError('VALIDATION_FAILED', 'ต้องบันทึกวิธีแก้ไข', [
-        { field: 'resolution', reason: 'required' },
-      ]);
+    const cause =
+      dto.cause !== undefined ? dto.cause.trim() || null : current.cause;
+    const problems = resolveProblems({
+      kind: current.kind,
+      description: current.description,
+      cause,
+      resolution: dto.resolution,
+    });
+    if (problems.length) {
+      throw new AppError(
+        'VALIDATION_FAILED',
+        problems[0],
+        problems.map((reason) => ({ field: 'resolution', reason })),
+      );
     }
+    const technical = current.kind === 'technical';
     await this.transactions.execute(async (prisma) => {
       await this.issues.update(
         {
@@ -268,8 +295,11 @@ export class ProjectIssuesService {
           data: {
             status: 'resolved',
             resolution: dto.resolution.trim(),
+            cause,
             resolvedAt: now,
             resolvedBy: actor.userId,
+            // CD-223 — the knowledge base takes it from here
+            ...(technical ? { kbmsStatus: 'pending' } : {}),
           },
         },
         { prisma },
@@ -281,11 +311,12 @@ export class ProjectIssuesService {
           ...auditActor(actor),
           resourceType: 'project_issue',
           resourceId: issueId,
-          after: { resolution: dto.resolution.trim() },
+          after: { resolution: dto.resolution.trim(), cause },
         },
         { prisma },
       );
     });
+    if (technical) await this.resolved.fire(issueId);
     return this.list(projectId, actor, now);
   }
 
@@ -327,6 +358,11 @@ export class ProjectIssuesService {
           ? dto.description.trim() || null
           : (current?.description ?? null),
       severity: dto.severity ?? current?.severity ?? 'medium',
+      kind: dto.kind ?? current?.kind ?? 'general',
+      cause:
+        dto.cause !== undefined
+          ? dto.cause.trim() || null
+          : (current?.cause ?? null),
       scheduleImpactDays:
         dto.schedule_impact_days ?? current?.scheduleImpactDays ?? 0,
       costImpact: dto.cost_impact ?? Number(current?.costImpact ?? 0),

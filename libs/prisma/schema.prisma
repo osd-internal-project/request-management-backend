@@ -5838,6 +5838,13 @@ model ProjectIssue {
   resolvedBy         String?
   /// The change request it became (CD-185).
   changeRequestId    String?
+  /// CD-223 — general · technical. A technical issue records its symptom
+  /// (description), root cause and fix, and becomes a KBMS draft when resolved.
+  kind               String    @default("general")
+  cause              String?
+  /// CD-223 — null (not for KBMS) · pending · sent; the article number once sent.
+  kbmsStatus         String?
+  kbmsRef            String?
   createdAt          DateTime  @default(now())
   createdBy          String
   updatedAt          DateTime  @updatedAt
@@ -5847,6 +5854,7 @@ model ProjectIssue {
 
   @@unique([projectId, seq])
   @@index([companyId, status, dueOn])
+  @@index([kbmsStatus])
   @@map("project_issues")
 }
 

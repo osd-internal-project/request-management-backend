@@ -11,6 +11,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { PresalesModule } from '../presales/presales.module';
 import { RunNumberClientModule } from '../run-number/run-number-client.module';
 import { ProjectsService } from './projects.service';
+import { IssueResolvedHooks } from './issue-hooks';
 import {
   ProjectMemberRepository,
   ProjectMilestoneRepository,
@@ -77,6 +78,8 @@ import { ContractRiskAssessmentRepository } from '../crm/contract-risk.service';
     RunNumberClientModule,
   ],
   providers: [
+    // CD-223 — resolved technical issues, for the knowledge base
+    IssueResolvedHooks,
     ProjectRepository,
     ProjectMemberRepository,
     ProjectMilestoneRepository,
@@ -138,6 +141,7 @@ import { ContractRiskAssessmentRepository } from '../crm/contract-risk.service';
     ProjectsService,
   ],
   exports: [
+    IssueResolvedHooks,
     AccessModule,
     // CD-185 — requests, request rows and the CRM settings, for change requests
     PresalesModule,

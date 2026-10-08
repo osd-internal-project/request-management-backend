@@ -25,7 +25,7 @@ import { MAX_DURATION_DAYS } from '../plan-rules';
 import { MAX_NOTE_LENGTH, WORK_STATUSES } from '../task-rules';
 import { BUDGET_CATEGORIES, MAX_BUDGET_LINES } from '../budget-rules';
 import { MAX_CHANGE_LINES } from '../change-rules';
-import { ISSUE_SEVERITIES } from '../issue-rules';
+import { ISSUE_KINDS, ISSUE_SEVERITIES } from '../issue-rules';
 import { CONTACT_KINDS } from '../customer-log-rules';
 import {
   MAX_REVIEW_DAYS,
@@ -542,6 +542,20 @@ export class SaveIssueDto {
   @IsIn([...ISSUE_SEVERITIES])
   severity?: string;
 
+  @ApiPropertyOptional({
+    enum: ISSUE_KINDS,
+    description: 'CD-223 technical = แก้ปัญหาทางเทคนิค ส่งเข้า KBMS เมื่อปิด',
+  })
+  @IsOptional()
+  @IsIn([...ISSUE_KINDS])
+  kind?: string;
+
+  @ApiPropertyOptional({ description: 'CD-223 สาเหตุ (ถ้าทราบแล้ว)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  cause?: string;
+
   @ApiPropertyOptional({ description: 'วันทำงานที่ล่าช้าเพราะปัญหานี้' })
   @IsOptional()
   @IsInt()
@@ -577,6 +591,14 @@ export class ResolveIssueDto {
   @IsString()
   @MaxLength(4000)
   resolution!: string;
+
+  @ApiPropertyOptional({
+    description: 'CD-223 สาเหตุ (บังคับสำหรับปัญหาทางเทคนิค)',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  cause?: string;
 }
 
 /** CD-186 — a contact with the customer; everything optional on edit. */

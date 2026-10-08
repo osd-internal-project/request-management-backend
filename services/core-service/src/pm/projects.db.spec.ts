@@ -73,6 +73,7 @@ import { ProgressService } from './progress.service';
 import { BudgetService } from './budget.service';
 import { ChangeRequestsService } from './change-requests.service';
 import { ProjectRisksService } from './project-risks.service';
+import { IssueResolvedHooks } from './issue-hooks';
 import { ProjectIssuesService } from './project-issues.service';
 import { CustomerLogsService } from './customer-logs.service';
 import { PaymentsService } from './payments.service';
@@ -1609,6 +1610,12 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         audit,
         transactions,
       );
+      const resolvedHooks = new IssueResolvedHooks();
+      const fired: string[] = [];
+      resolvedHooks.on((issueId) => {
+        fired.push(issueId);
+        return Promise.resolve();
+      });
       const issues = new ProjectIssuesService(
         projects,
         new ProjectIssueRepository(client),
@@ -1623,6 +1630,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         } as never,
         audit,
         transactions,
+        resolvedHooks,
       );
       const managerNow = as(engineer, ['notification.read']);
       const crew = as(outsider, ['notification.read']);
@@ -1703,6 +1711,60 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       await expect(
         issues.update(projectId, issue.id, { title: 'แก้' }, managerNow),
       ).rejects.toMatchObject({ code: 'CONFLICT' });
+      // a general issue is not for the knowledge base
+      expect(resolved.issues[0].kbmsStatus).toBeNull();
+      expect(fired).toEqual([]);
+
+      // CD-223 — a technical one needs its symptom and cause, then goes to KBMS
+      await issues.create(
+        projectId,
+        {
+          title: 'กล้องหลุดจาก NVR เป็นระยะ',
+          kind: 'technical',
+          owner_user_id: outsider,
+          due_on: '2026-10-06',
+        },
+        managerNow,
+      );
+      const tech = (await issues.list(projectId, crew)).issues[0];
+      expect(tech).toMatchObject({ kind: 'technical', kbmsStatus: null });
+      await expect(
+        issues.resolve(
+          projectId,
+          tech.id,
+          { resolution: 'ตั้ง IP คงที่', cause: 'DHCP lease หมด' },
+          crew,
+        ),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' }); // no symptom
+      await issues.update(
+        projectId,
+        tech.id,
+        { description: 'ภาพดับทุก 2 ชั่วโมง' },
+        managerNow,
+      );
+      await expect(
+        issues.resolve(
+          projectId,
+          tech.id,
+          { resolution: 'ตั้ง IP คงที่' },
+          crew,
+        ),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' }); // no cause
+      const fixed = await issues.resolve(
+        projectId,
+        tech.id,
+        {
+          resolution: 'ตั้ง IP คงที่ให้กล้องทุกตัว',
+          cause: 'DHCP lease หมดอายุ',
+        },
+        crew,
+      );
+      expect(fixed.issues[0]).toMatchObject({
+        status: 'resolved',
+        cause: 'DHCP lease หมดอายุ',
+        kbmsStatus: 'pending',
+      });
+      expect(fired).toEqual([tech.id]);
     });
 
     it('CD-186: the team logs contacts with the customer; a decision on the scope is flagged until it becomes a change request', async () => {
