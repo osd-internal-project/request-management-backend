@@ -31,7 +31,36 @@ import {
   type Claims,
   type Identification,
 } from './care-rules';
-import { CareAnswerService } from './care-answer.service';
+import { CareAnswerService, type CareAnswer } from './care-answer.service';
+import {
+  CASE_FAILED_TEXT,
+  DEFAULT_SEVERITY_WORDS,
+  acceptsCase,
+  wordsFrom,
+  type Severity,
+} from './care-case-rules';
+import {
+  DEFAULT_ASK_WORDS,
+  DEFAULT_DISPLEASED_WORDS,
+  DEFAULT_UNANSWERED_LIMIT,
+  handoverReason,
+  tooManyUnanswered,
+  type HandoverReason,
+  type HandoverWords,
+} from './care-handover-rules';
+import { CareHandoverService } from './care-handover.service';
+
+const UNANSWERED_PREFIX = 'ขออภัยที่ยังตอบเรื่องนี้ไม่ได้ — ';
+import { CareCaseService, type CareCase } from './care-case.service';
+
+/** What the customer is sent back: an answer, or (CD-282) the case notice. */
+type CareReply =
+  | CareAnswer
+  | (Omit<CareAnswer, 'kind'> & { kind: 'case_opened'; case: CareCase })
+  | (Omit<CareAnswer, 'kind'> & {
+      kind: 'handed_over';
+      reason: HandoverReason;
+    });
 import {
   CareContactLookupRepository,
   CareConversationRepository,
@@ -65,6 +94,13 @@ export interface ConversationRow {
   closedAt: Date | null;
   closedBy: string | null;
   textPurgedAt: Date | null;
+  caseOfferedAt: Date | null;
+  caseRequestId: string | null;
+  caseOpenedAt: Date | null;
+  unansweredStreak: number;
+  handoverReason: string | null;
+  handoverAt: Date | null;
+  handoverNotifiedAt: Date | null;
 }
 
 interface MessageRow {
@@ -121,6 +157,8 @@ export class CareService implements OnModuleInit, OnModuleDestroy {
     private readonly audit: AuditWriter,
     private readonly config: ConfigService,
     private readonly answers: CareAnswerService,
+    private readonly cases: CareCaseService,
+    private readonly handover: CareHandoverService,
   ) {}
 
   onModuleInit(): void {
@@ -212,16 +250,56 @@ export class CareService implements OnModuleInit, OnModuleDestroy {
     });
     const context = await this.context(conversation);
     // CD-281 — AI CARE answers while it is handling the conversation
-    const reply =
-      conversation.status === 'open' && text && this.autoReply()
-        ? await this.answerFor(conversation, context)
-        : null;
+    const handling = conversation.status === 'open' && !!text;
+    // CD-282 — "yes" to the offer AI CARE made: open the case
+    const accepted =
+      handling &&
+      !!conversation.caseOfferedAt &&
+      !conversation.caseRequestId &&
+      acceptsCase(text);
+    // CD-283 — asks for a person, severe, or unhappy: a person takes over
+    const handReason =
+      handling && !accepted ? handoverReason(text, this.handoverWords()) : null;
+    let reply: CareReply | null = null;
+    if (accepted) {
+      reply = await this.caseReply(conversation, { by: 'customer' });
+    } else if (handReason) {
+      reply = await this.handoverReply(conversation, handReason);
+    } else if (handling && this.autoReply()) {
+      reply = await this.answerFor(conversation, context);
+      if (reply?.kind === 'unanswered') {
+        const streak = conversation.unansweredStreak + 1;
+        if (tooManyUnanswered(streak, this.unansweredLimit())) {
+          // asked again and again with no answer: a person, not another offer
+          reply = await this.handoverReply(conversation, 'unanswered');
+        } else {
+          // no article answered it: the next "yes" opens a case
+          await this.conversations.update({
+            where: { id: conversation.id },
+            data: {
+              unansweredStreak: streak,
+              ...(conversation.caseRequestId
+                ? {}
+                : { caseOfferedAt: new Date() }),
+            },
+          });
+        }
+      } else if (reply?.kind === 'answered' && conversation.unansweredStreak) {
+        await this.conversations.update({
+          where: { id: conversation.id },
+          data: { unansweredStreak: 0 },
+        });
+      }
+    }
     if (reply) {
       const sent = (await this.messages.create({
         data: {
           conversationId: conversation.id,
           direction: 'out',
-          author: 'ai',
+          author:
+            reply.kind === 'case_opened' || reply.kind === 'handed_over'
+              ? 'system'
+              : 'ai',
           text: reply.text,
           kbQueryId: reply.kbQueryId,
         },
@@ -233,7 +311,85 @@ export class CareService implements OnModuleInit, OnModuleDestroy {
       context.history.push(this.message(sent));
       context.conversation.messages += 1;
     }
-    return { isNew, ...context, reply };
+    const fresh = await this.mine(companyId, conversation.id);
+    return {
+      isNew,
+      ...context,
+      // as it stands after the reply (handed over, case opened)
+      conversation: this.view(fresh),
+      reply,
+    };
+  }
+
+  /** CD-283 — the customer pressed "talk to a person" on the channel. */
+  async handOverFromChannel(companyId: string, id: string) {
+    const conversation = await this.mine(companyId, id);
+    if (conversation.status !== 'open')
+      throw new AppError(
+        'CONFLICT',
+        conversation.status === 'closed'
+          ? 'บทสนทนานี้ปิดแล้ว'
+          : 'บทสนทนานี้อยู่กับเจ้าหน้าที่แล้ว',
+      );
+    const reply = await this.handoverReply(conversation, 'channel');
+    await this.messages.create({
+      data: {
+        conversationId: id,
+        direction: 'out',
+        author: 'system',
+        text: reply.text,
+      },
+    });
+    await this.conversations.update({
+      where: { id },
+      data: { messages: { increment: 1 }, lastMessageAt: new Date() },
+    });
+    return { notice: reply.text };
+  }
+
+  private async handoverReply(
+    conversation: ConversationRow,
+    reason: HandoverReason,
+  ): Promise<CareReply> {
+    const notice = await this.handover.handOver(conversation, reason);
+    return {
+      text: reason === 'unanswered' ? `${UNANSWERED_PREFIX}${notice}` : notice,
+      kind: 'handed_over',
+      reason,
+      answered: false,
+      articles: [],
+      kbQueryId: null,
+    };
+  }
+
+  private handoverWords(): HandoverWords {
+    return {
+      ask: wordsFrom(
+        this.config.get<string>('care.handoverWords'),
+        DEFAULT_ASK_WORDS,
+      ),
+      displeased: wordsFrom(
+        this.config.get<string>('care.displeasedWords'),
+        DEFAULT_DISPLEASED_WORDS,
+      ),
+      severity: {
+        critical: wordsFrom(
+          this.config.get<string>('care.severityCritical'),
+          DEFAULT_SEVERITY_WORDS.critical,
+        ),
+        high: [],
+        low: [],
+      },
+    };
+  }
+
+  /** CARE_HANDOVER_UNANSWERED — 0 turns the count off. */
+  private unansweredLimit() {
+    const raw = this.config.get<number | string>('care.handoverUnanswered');
+    const n = Number(raw);
+    return raw !== undefined && raw !== '' && Number.isFinite(n) && n >= 0
+      ? n
+      : DEFAULT_UNANSWERED_LIMIT;
   }
 
   /** CARE_AUTO_REPLY=off — a connector with its own AI answers (and posts replies). */
@@ -410,6 +566,36 @@ export class CareService implements OnModuleInit, OnModuleDestroy {
     return this.detail(actor, id);
   }
 
+  /** CD-282 — a channel (quick reply) or the service team opens the case. */
+  async openCase(
+    companyId: string,
+    id: string,
+    input: { severity?: Severity; subject?: string },
+    actor: Principal | null,
+  ) {
+    if (actor) this.manage(actor);
+    const conversation = await this.mine(companyId, id);
+    const opened = await this.cases.open(conversation, {
+      by: actor ? 'staff' : 'channel',
+      actorId: actor?.userId ?? null,
+      severity: input.severity,
+      subject: input.subject,
+    });
+    await this.messages.create({
+      data: {
+        conversationId: id,
+        direction: 'out',
+        author: 'system',
+        text: opened.notice,
+      },
+    });
+    await this.conversations.update({
+      where: { id },
+      data: { messages: { increment: 1 }, lastMessageAt: new Date() },
+    });
+    return opened;
+  }
+
   async close(actor: Principal, id: string, outcome: string) {
     this.manage(actor);
     const conversation = await this.mine(actor.activeCompanyId, id);
@@ -434,7 +620,9 @@ export class CareService implements OnModuleInit, OnModuleDestroy {
       now.getTime() - this.retentionDays() * 86_400_000,
     );
     const purged = await this.messages.purge(purgeBefore);
-    return { closed: idle.length, purged };
+    // CD-283 — still waiting for a person: tell them again
+    const reminded = await this.handover.remind(now);
+    return { closed: idle.length, purged, reminded };
   }
 
   // --- inside -----------------------------------------------------------------------
@@ -565,10 +753,54 @@ export class CareService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async end(id: string, outcome: string, by: string | null, at: Date) {
+    const row = (await this.conversations.findFirst({
+      where: { id },
+      select: { caseRequestId: true },
+    })) as { caseRequestId: string | null } | null;
+    // a conversation that became a case went quiet because the case took over
+    const final =
+      outcome === 'idle' && row?.caseRequestId ? 'case_opened' : outcome;
     await this.conversations.update({
       where: { id },
-      data: { status: 'closed', outcome, closedAt: at, closedBy: by },
+      data: { status: 'closed', outcome: final, closedAt: at, closedBy: by },
     });
+  }
+
+  /** The case reply to a customer's "yes" — or a notice when it cannot open. */
+  private async caseReply(
+    conversation: ConversationRow,
+    input: { by: 'customer' },
+  ): Promise<CareReply> {
+    try {
+      const opened = await this.cases.open(conversation, input);
+      return {
+        text: opened.notice,
+        kind: 'case_opened',
+        answered: false,
+        articles: [],
+        kbQueryId: null,
+        case: opened,
+      };
+    } catch (error) {
+      this.logger.warn(`care case not opened: ${String(error)}`);
+      return {
+        text: CASE_FAILED_TEXT,
+        kind: 'unavailable',
+        answered: false,
+        articles: [],
+        kbQueryId: null,
+      };
+    }
+  }
+
+  private caseView(r: ConversationRow) {
+    return {
+      handoverReason: r.handoverReason,
+      handoverAt: r.handoverAt,
+      caseOffered: !!r.caseOfferedAt && !r.caseRequestId,
+      caseRequestId: r.caseRequestId,
+      caseOpenedAt: r.caseOpenedAt,
+    };
   }
 
   /** The conversation as a channel, AI or staff member gets it. */
@@ -705,6 +937,7 @@ export class CareService implements OnModuleInit, OnModuleDestroy {
       lastMessageAt: r.lastMessageAt,
       closedAt: r.closedAt,
       textPurged: !!r.textPurgedAt,
+      ...this.caseView(r),
     };
   }
 

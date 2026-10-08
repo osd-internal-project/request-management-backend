@@ -764,6 +764,30 @@ export class NotificationsService {
   }
 
   /** CD-266 — a knowledge gap to fill (assigned), or past its due day. */
+  /** CD-283 — a customer waits for a person (first notice, or still waiting). */
+  async careHandover(
+    userId: string,
+    companyId: string,
+    conversation: { id: string; sender: string; channel: string },
+    reason: string,
+    waitingMinutes: number | null,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType:
+        waitingMinutes === null ? 'care.handover' : 'care.handover_waiting',
+      values: {
+        sender: conversation.sender.slice(0, 120),
+        channel: conversation.channel,
+        reason,
+        ...(waitingMinutes === null ? {} : { minutes: String(waitingMinutes) }),
+      },
+      resourceType: 'care_conversation',
+      resourceId: conversation.id,
+    });
+  }
+
   async kbGap(
     userId: string,
     companyId: string,
@@ -1417,6 +1441,34 @@ export class NotificationsService {
       },
       resourceType: 'lead',
       resourceId: input.leadId,
+    });
+  }
+
+  /**
+   * CD-294 — an existing customer showed interest on an AI SMART call: an
+   * upsell deal was opened for the account owner (or the team head).
+   */
+  async smartKeeperInterest(
+    userId: string,
+    companyId: string,
+    input: {
+      opportunityId: string;
+      opportunityCode: string;
+      customer: string;
+      summary: string;
+    },
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'crm.smart.keeper_interest',
+      values: {
+        customer: input.customer,
+        opportunity_code: input.opportunityCode,
+        summary: input.summary,
+      },
+      resourceType: 'opportunity',
+      resourceId: input.opportunityId,
     });
   }
 

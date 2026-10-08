@@ -76,6 +76,17 @@ export const PERMISSIONS = {
      */
     'smart.prospect.read',
     'smart.prospect.manage',
+    /**
+     * CD-291 — call lists and what the AI says on them. Certifying the
+     * company's calling policy is legal's (`legal.contract.manage`), not this.
+     */
+    'smart.call.manage',
+    /**
+     * CD-291 — the do-not-contact register (people who refused contact),
+     * shared by AI SMART and AI CARE: add or lift an entry by hand. A refusal
+     * on a call is recorded by the system without this.
+     */
+    'crm.contact.optout.manage',
   ],
   /**
    * CD-11 Pre-Sales. `presales.solution.read` sees every Solution in the
@@ -365,6 +376,11 @@ export const PERMISSIONS = {
      * no acting person, and nothing reaches CRM until screening.
      */
     'integration.smart.ingest',
+    /**
+     * CD-292 — D-Callcenter reports how an AI call went (outcome, transcript,
+     * recording) to `smart/calls/callback`. Robot-only, no acting person.
+     */
+    'integration.smart.callcenter',
   ],
 } as const;
 

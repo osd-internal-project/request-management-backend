@@ -39,6 +39,7 @@ import { CostCentersHttpModule } from './cost-centers/cost-centers-http.module';
 import { KbModule } from './kb/kb.module';
 import { MacomHttpModule } from './macom/macom-http.module';
 import { SmartHttpModule } from './smart/smart-http.module';
+import { ContactPreferencesHttpModule } from './contact-preferences/contact-preferences-http.module';
 import { LlmHttpModule } from './llm/llm-http.module';
 import { SensitiveReadAuditRecorder } from './policy/sensitive-read.recorder';
 import configs from './configs';
@@ -91,6 +92,8 @@ import configs from './configs';
     MacomHttpModule,
     // CD-16 AI SMART
     SmartHttpModule,
+    // CD-291 — the do-not-contact register (AI SMART + AI CARE)
+    ContactPreferencesHttpModule,
     // CD-24 — the LLM Gateway
     LlmHttpModule,
     // CD-18 PM — projects opened from signed contracts

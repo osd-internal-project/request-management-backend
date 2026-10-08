@@ -583,6 +583,17 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
     },
   },
   {
+    eventType: 'crm.smart.keeper_interest',
+    label: 'ลูกค้าเดิมสนใจเพิ่มจากการโทรของ AI SMART (ถึงผู้ดูแลบัญชี)',
+    title: 'ลูกค้าของคุณสนใจเพิ่ม: {{customer}}',
+    body: 'AI SMART โทรแล้วลูกค้าสนใจ — เปิดดีลขยาย {{opportunity_code}} ให้แล้ว · {{summary}}',
+    variables: {
+      customer: { label: 'ลูกค้า', sample: 'บจก. ตัวอย่าง เทคโนโลยี' },
+      opportunity_code: { label: 'รหัสดีล', sample: 'OPP-2026-0042' },
+      summary: { label: 'สรุปการโทร', sample: 'สนใจขยายระบบกล้องอีก 2 สาขา' },
+    },
+  },
+  {
     eventType: 'crm.ma_offer.opened',
     label: 'เปิดดีลเสนอสัญญาบริการก่อนประกัน/สิทธิ์หมด (ถึงเจ้าของลูกค้า)',
     title: 'เสนอสัญญาบริการ: {{customer}}',
@@ -606,6 +617,29 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
       end_on: { label: 'วันหมด', sample: '2026-12-31' },
       days_left: { label: 'เหลือ (วัน)', sample: '30' },
       opportunity_code: { label: 'เลขดีล', sample: 'OPP-OSD-000120' },
+    },
+  },
+  {
+    eventType: 'care.handover',
+    label: 'บทสนทนา AI CARE ส่งต่อถึงคน (ถึงทีมบริการ หรือเวรเมื่อนอกเวลา)',
+    title: 'ลูกค้ารอเจ้าหน้าที่: {{sender}} ({{channel}})',
+    body: '{{reason}} — เปิดบทสนทนาเพื่อรับเรื่องและตอบลูกค้า',
+    variables: {
+      sender: { label: 'ผู้ส่ง', sample: 'คุณสมชาย · บริษัท กขค' },
+      channel: { label: 'ช่องทาง', sample: 'LINE' },
+      reason: { label: 'เหตุที่ส่งต่อ', sample: 'ลูกค้าขอคุยกับเจ้าหน้าที่' },
+    },
+  },
+  {
+    eventType: 'care.handover_waiting',
+    label: 'บทสนทนา AI CARE ยังไม่มีคนรับ (เตือนซ้ำ)',
+    title: 'ลูกค้ายังรอเจ้าหน้าที่ {{minutes}} นาที: {{sender}}',
+    body: '{{reason}} ({{channel}}) — ยังไม่มีใครรับเรื่อง',
+    variables: {
+      sender: { label: 'ผู้ส่ง', sample: 'คุณสมชาย · บริษัท กขค' },
+      channel: { label: 'ช่องทาง', sample: 'LINE' },
+      reason: { label: 'เหตุที่ส่งต่อ', sample: 'ลูกค้าไม่พอใจ' },
+      minutes: { label: 'รอมาแล้ว (นาที)', sample: '30' },
     },
   },
   {

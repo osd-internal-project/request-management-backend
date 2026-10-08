@@ -3,6 +3,11 @@
  * decided without a database.
  */
 
+import { normalizePhone } from '../contact-preferences/contact-rules';
+
+// CD-291 — one phone form for the staging list and the do-not-contact register
+export { normalizePhone };
+
 /** Sources a connector searches on a schedule. */
 export const CONNECTOR_KINDS = ['dbd', 'web', 'social'] as const;
 /** Sources fed from outside the scheduler: a vendor's push, a downloaded file. */
@@ -72,14 +77,6 @@ const text = (value: unknown, max = 300): string | null => {
 export function normalizeTaxId(value: unknown): string | null {
   const digits = (text(value) ?? '').replace(/[\s-]/g, '');
   return /^\d{13}$/.test(digits) ? digits : null;
-}
-
-/** Digits only, +66 → 0; too short to dial is no phone at all. */
-export function normalizePhone(value: unknown): string | null {
-  let digits = (text(value) ?? '').replace(/[^\d+]/g, '');
-  if (digits.startsWith('+66')) digits = `0${digits.slice(3)}`;
-  digits = digits.replace(/\D/g, '');
-  return digits.length >= 9 && digits.length <= 10 ? digits : null;
 }
 
 const GOVERNMENT_NAME =

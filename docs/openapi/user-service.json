@@ -2299,6 +2299,8 @@
                 "crm.campaign.manage",
                 "smart.prospect.read",
                 "smart.prospect.manage",
+                "smart.call.manage",
+                "crm.contact.optout.manage",
                 "presales.solution.read",
                 "presales.solution.manage",
                 "report.request.read",
@@ -2368,7 +2370,8 @@
                 "integration.kb.read",
                 "integration.care.manage",
                 "integration.assistant.read",
-                "integration.smart.ingest"
+                "integration.smart.ingest",
+                "integration.smart.callcenter"
               ],
               "type": "string"
             }
@@ -2429,6 +2432,8 @@
                 "crm.campaign.manage",
                 "smart.prospect.read",
                 "smart.prospect.manage",
+                "smart.call.manage",
+                "crm.contact.optout.manage",
                 "presales.solution.read",
                 "presales.solution.manage",
                 "report.request.read",
@@ -2498,7 +2503,8 @@
                 "integration.kb.read",
                 "integration.care.manage",
                 "integration.assistant.read",
-                "integration.smart.ingest"
+                "integration.smart.ingest",
+                "integration.smart.callcenter"
               ],
               "type": "string"
             }
@@ -2743,6 +2749,8 @@
               "crm.campaign.manage",
               "smart.prospect.read",
               "smart.prospect.manage",
+              "smart.call.manage",
+              "crm.contact.optout.manage",
               "presales.solution.read",
               "presales.solution.manage",
               "report.request.read",
@@ -2812,7 +2820,8 @@
               "integration.kb.read",
               "integration.care.manage",
               "integration.assistant.read",
-              "integration.smart.ingest"
+              "integration.smart.ingest",
+              "integration.smart.callcenter"
             ],
             "type": "string"
           }

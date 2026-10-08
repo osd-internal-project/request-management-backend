@@ -11936,6 +11936,100 @@
         ]
       }
     },
+    "/api/v1/care/conversations/{id}/case": {
+      "post": {
+        "description": "ตอบเลขเคส ความเร่งด่วน ลิงก์ติดตามสถานะของลูกค้า และข้อความที่ส่งให้ลูกค้า (notice) · SLA นับจากที่ AI CARE รับเรื่อง · ลูกค้าตอบรับข้อเสนอ (\"เปิดเรื่องเลย\") ใน care/messages ก็เปิดให้เองเช่นกัน",
+        "operationId": "CareApiController_openCase",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CareOpenCaseDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เปิดเคสบริการจากบทสนทนา เช่น ลูกค้ากดปุ่ม \"เปิดเรื่อง\" (CD-282)",
+        "tags": [
+          "care"
+        ],
+        "x-permission": [
+          "integration.care.manage"
+        ]
+      }
+    },
+    "/api/v1/care/conversations/{id}/handover": {
+      "post": {
+        "description": "AI CARE หยุดตอบ บทสนทนารอเจ้าหน้าที่ · ในเวลาทำการแจ้งทีมบริการ นอกเวลาแจ้งเวร · ตอบ notice = ข้อความที่ส่งให้ลูกค้า · care/messages ส่งต่อให้เองเมื่อลูกค้าขอคุยกับคน เหตุรุนแรง ลูกค้าไม่พอใจ หรือ AI ตอบไม่ได้ซ้ำ (reply.kind = handed_over)",
+        "operationId": "CareApiController_handover",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ส่งต่อถึงเจ้าหน้าที่ เช่น ลูกค้ากดปุ่ม \"คุยกับเจ้าหน้าที่\" (CD-283)",
+        "tags": [
+          "care"
+        ],
+        "x-permission": [
+          "integration.care.manage"
+        ]
+      }
+    },
     "/api/v1/care/conversations/{id}": {
       "get": {
         "operationId": "CareApiController_conversation",
@@ -12437,6 +12531,50 @@
         ],
         "x-permission": [
           "integration.smart.ingest"
+        ]
+      }
+    },
+    "/api/v1/smart/calls/callback": {
+      "post": {
+        "description": "call_id = รหัสที่ D-Callcenter ให้ตอนสั่งโทร · outcome: interested | not_interested | no_answer | busy | refused | failed · refused = ลูกค้าขอไม่ให้ติดต่อ — เบอร์เข้าทะเบียนห้ามติดต่อทันที",
+        "operationId": "ExternalSmartCallbackController_callback",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CallResultDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "D-Callcenter ส่งผลการโทรของ AI SMART",
+        "tags": [
+          "smart"
+        ],
+        "x-permission": [
+          "integration.smart.callcenter"
         ]
       }
     },
@@ -14533,6 +14671,26 @@
           },
           "brand_approval_type_code": {
             "pattern": "^([A-Z0-9_-]{1,20})?$",
+            "type": "string"
+          },
+          "smart_handoff_type_code": {
+            "pattern": "^([A-Z0-9_-]{1,20})?$",
+            "type": "string"
+          },
+          "smart_getter_org_unit_id": {
+            "maxLength": 50,
+            "type": "string"
+          },
+          "smart_government_org_unit_id": {
+            "maxLength": 50,
+            "type": "string"
+          },
+          "smart_partner_org_unit_id": {
+            "maxLength": 50,
+            "type": "string"
+          },
+          "smart_keeper_org_unit_id": {
+            "maxLength": 50,
             "type": "string"
           },
           "project_close_documents": {
@@ -16794,6 +16952,26 @@
           "text"
         ]
       },
+      "CareOpenCaseDto": {
+        "type": "object",
+        "properties": {
+          "severity": {
+            "type": "string",
+            "enum": [
+              "critical",
+              "high",
+              "medium",
+              "low"
+            ],
+            "description": "ไม่ระบุ = ตามคำในบทสนทนา (ค่าเริ่ม medium)"
+          },
+          "subject": {
+            "type": "string",
+            "description": "หัวเรื่อง — ไม่ระบุ = ข้อความแรกของลูกค้าที่มีเนื้อหา",
+            "maxLength": 200
+          }
+        }
+      },
       "FoundProspectDto": {
         "type": "object",
         "properties": {
@@ -16874,6 +17052,48 @@
         "required": [
           "rows",
           "source_code"
+        ]
+      },
+      "CallResultDto": {
+        "type": "object",
+        "properties": {
+          "call_id": {
+            "type": "string",
+            "description": "รหัสสายของ D-Callcenter (ที่ได้ตอนสั่งโทร)",
+            "maxLength": 200,
+            "minLength": 1
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "interested",
+              "not_interested",
+              "no_answer",
+              "busy",
+              "refused",
+              "failed"
+            ]
+          },
+          "duration_sec": {
+            "type": "integer",
+            "example": 95,
+            "maximum": 86400,
+            "minimum": 0
+          },
+          "transcript": {
+            "type": "string",
+            "description": "บทสนทนาที่ถอดความแล้ว",
+            "maxLength": 50000
+          },
+          "recording_ref": {
+            "type": "string",
+            "description": "อ้างอิงไฟล์เสียงในระบบ D-Callcenter",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "call_id",
+          "outcome"
         ]
       },
       "ImportCustomerRowDto": {

@@ -850,6 +850,34 @@ export class UpdateCrmConfigDto {
   @Matches(/^([A-Z0-9_-]{1,20})?$/)
   brand_approval_type_code?: string;
 
+  /** CD-293: ประเภทคำขอส่งต่อโอกาสการขายของ AI SMART. "" = สร้าง Lead อย่างเดียว ไม่มีคำขอ. */
+  @IsOptional()
+  @IsString()
+  @Matches(/^([A-Z0-9_-]{1,20})?$/)
+  smart_handoff_type_code?: string;
+
+  /** CD-293: ทีมที่รับ Lead ของแกน Getter / Government / Partner. "" = ไม่กำหนด (กองกลาง). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  smart_getter_org_unit_id?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  smart_government_org_unit_id?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  smart_partner_org_unit_id?: string;
+
+  /** CD-294: ทีม Keeper — หัวหน้ารับลูกค้าเดิมที่สนใจเพิ่มแต่ไม่มีผู้ดูแลและทีมไม่มีหัวหน้า. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  smart_keeper_org_unit_id?: string;
+
   /** CD-191: ชื่อเอกสารที่ทุกโครงการต้องแนบก่อนขอปิด. */
   @IsOptional()
   @IsArray()

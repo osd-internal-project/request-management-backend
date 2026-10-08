@@ -9,7 +9,11 @@ import {
   SaveSmartSourceDto,
   ScreenProspectsDto,
   SendProspectsDto,
+  HandoffProspectsDto,
+  KeeperProspectsDto,
 } from './smart.dto';
+import { SmartKeeperService } from './smart-keeper.service';
+import { SmartHandoffService } from './smart-handoff.service';
 import { SmartScreeningService } from './smart-screening.service';
 import { SmartService } from './smart.service';
 
@@ -21,7 +25,35 @@ export class SmartController {
   constructor(
     private readonly smart: SmartService,
     private readonly screening: SmartScreeningService,
+    private readonly handoff: SmartHandoffService,
+    private readonly keeper: SmartKeeperService,
   ) {}
+
+  @ApiOperation({
+    summary:
+      'CD-294 ลูกค้าเดิมสนใจเพิ่ม → บันทึกการติดต่อ + เปิดดีลขยายให้ผู้ดูแลบัญชี + แจ้งเตือน',
+  })
+  @Post('prospects/keeper')
+  @Permissions('smart.prospect.manage')
+  toKeeper(
+    @Body() dto: KeeperProspectsDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.keeper.send(principal, dto.ids);
+  }
+
+  @ApiOperation({
+    summary:
+      'CD-293 ส่งเข้าแกนขาย — สร้าง Lead ให้ทีมของแกน + คำขอส่งต่อโอกาสการขาย (มีเจ้าของและ SLA)',
+  })
+  @Post('prospects/handoff')
+  @Permissions('smart.prospect.manage')
+  handOff(
+    @Body() dto: HandoffProspectsDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.handoff.handOff(principal, dto.ids, dto.axis);
+  }
 
   @ApiOperation({
     summary:

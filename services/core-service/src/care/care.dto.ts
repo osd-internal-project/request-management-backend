@@ -154,3 +154,22 @@ export class CareCloseDto {
   @IsIn(['resolved', 'no_reply', 'spam'])
   outcome!: string;
 }
+
+/** CD-282 — open a service case from the conversation. */
+export class CareOpenCaseDto {
+  @ApiPropertyOptional({
+    enum: ['critical', 'high', 'medium', 'low'],
+    description: 'ไม่ระบุ = ตามคำในบทสนทนา (ค่าเริ่ม medium)',
+  })
+  @IsOptional()
+  @IsIn(['critical', 'high', 'medium', 'low'])
+  severity?: 'critical' | 'high' | 'medium' | 'low';
+
+  @ApiPropertyOptional({
+    description: 'หัวเรื่อง — ไม่ระบุ = ข้อความแรกของลูกค้าที่มีเนื้อหา',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  subject?: string;
+}

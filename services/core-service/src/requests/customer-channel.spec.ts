@@ -1,5 +1,9 @@
 import type { Principal } from '@request-management/share';
-import { hashStatusToken, RequestsService } from './requests.service';
+import {
+  hashStatusToken,
+  receivedWithin,
+  RequestsService,
+} from './requests.service';
 
 const robot = {
   userId: 'svc-1',
@@ -96,6 +100,43 @@ describe('CD-66 requests from customer channels', () => {
       expect.objectContaining({ activeCompanyId: 'osd' }),
       'Bearer t',
       { forRequester: true },
+    );
+  });
+
+  it('CD-282: a channel raising a matter taken earlier passes when it was received', async () => {
+    const h = harness();
+    const receivedAt = new Date('2026-10-07T01:00:00Z');
+    await h.service.createFromChannel(
+      {
+        companyId: 'osd',
+        channel: 'ai_care',
+        typeCode: 'IT',
+        requesterUserId: 'desk-1',
+        formData: {},
+        contact: { name: 'คุณเอ' },
+        receivedAt,
+      },
+      robot,
+      '',
+    );
+    expect(h.submitted).toHaveBeenCalledWith('req-1', expect.anything(), '', {
+      forRequester: true,
+      receivedAt,
+    });
+  });
+
+  it('CD-282: a received time is used only when past, and at most 7 days back', () => {
+    const now = new Date('2026-10-07T12:00:00Z');
+    const hourAgo = new Date('2026-10-07T11:00:00Z');
+    expect(receivedWithin(hourAgo, now)).toEqual(hourAgo);
+    expect(
+      receivedWithin(new Date('2026-10-07T13:00:00Z'), now),
+    ).toBeUndefined();
+    expect(receivedWithin(now, now)).toBeUndefined();
+    expect(receivedWithin(undefined, now)).toBeUndefined();
+    expect(receivedWithin(new Date('invalid'), now)).toBeUndefined();
+    expect(receivedWithin(new Date('2026-09-01T00:00:00Z'), now)).toEqual(
+      new Date('2026-09-30T12:00:00Z'),
     );
   });
 

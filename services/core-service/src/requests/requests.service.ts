@@ -1008,6 +1008,8 @@ export class RequestsService {
         lineUserId?: string | null;
       };
       ref?: { type: string; id: string } | null;
+      /** CD-282 — when the matter reached us (see `submit`). */
+      receivedAt?: Date;
     },
     actor: Principal,
     authorization: string,
@@ -1048,7 +1050,7 @@ export class RequestsService {
       created.id,
       { ...actor, activeCompanyId: input.companyId },
       authorization,
-      { forRequester: true },
+      { forRequester: true, receivedAt: input.receivedAt },
     );
     return { detail, statusToken };
   }
@@ -1891,9 +1893,19 @@ export class RequestsService {
      * the submit still applies. Before this existed the integration path
      * failed here every time: a service account is never the requester.
      */
-    options: { forRequester?: boolean } = {},
+    options: {
+      forRequester?: boolean;
+      /**
+       * CD-282 — when the matter actually reached us, if before this submit:
+       * AI CARE takes a customer's report and only later opens the case, and
+       * the service level counts from the report. `submittedAt` and the SLA
+       * clock start then; never in the future, at most 7 days back.
+       */
+      receivedAt?: Date;
+    } = {},
   ) {
     const before = await this.require(id, actor);
+    const receivedAt = receivedWithin(options.receivedAt);
 
     // v2: submitting is advancing off the requester's step.
     const flowV2 = await this.flowV2Of(before);
@@ -1904,6 +1916,7 @@ export class RequestsService {
         null,
         actor,
         options.forRequester === true,
+        receivedAt,
       );
     }
 
@@ -1969,7 +1982,7 @@ export class RequestsService {
     const flow = latest?.schemaVersion === 1 ? latest : null;
 
     const submitted = await this.transactions.execute(async (prisma) => {
-      const now = new Date();
+      const now = receivedAt ?? new Date();
 
       const updated = await prisma.request.update({
         where: { id },
@@ -2455,6 +2468,8 @@ export class RequestsService {
     actor: Principal,
     /** Submitting a machine-created draft for its requester (see `submit`). */
     forRequester = false,
+    /** CD-282 — when the matter reached us (see `submit`). */
+    receivedAt?: Date,
   ): Promise<RequestDetail> {
     if (!ADVANCEABLE_V2.includes(before.status)) {
       throw new AppError('REQ_STEP_INVALID', stuckReasonV2(before.status), [
@@ -2523,6 +2538,7 @@ export class RequestsService {
           requestNo,
           typeSnapshot,
           actor,
+          receivedAt,
         );
       }
 
@@ -2597,8 +2613,9 @@ export class RequestsService {
     requestNo: string,
     typeSnapshot: Prisma.InputJsonValue | null,
     actor: Principal,
+    receivedAt?: Date,
   ): Promise<V2Request> {
-    const now = new Date();
+    const now = receivedAt ?? new Date();
     const updated = await prisma.request.update({
       where: { id: before.id },
       data: {
@@ -3540,6 +3557,17 @@ function assertNotFlowV2(request: RequestWithType): void {
       'คำขอนี้เดินตามขั้นตอน — ใช้ "ไปขั้นถัดไป"',
     );
   }
+}
+
+/** CD-282 — a `receivedAt` worth using: past, and at most 7 days back. */
+export function receivedWithin(
+  at: Date | undefined,
+  now = new Date(),
+): Date | undefined {
+  if (!at || Number.isNaN(at.getTime())) return undefined;
+  if (at.getTime() >= now.getTime()) return undefined;
+  const floor = now.getTime() - 7 * 24 * 3600_000;
+  return at.getTime() < floor ? new Date(floor) : at;
 }
 
 /** CD-66 — the status token is stored only as this hash. */

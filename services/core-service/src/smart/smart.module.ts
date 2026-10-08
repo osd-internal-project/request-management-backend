@@ -1,5 +1,20 @@
 import { Module } from '@nestjs/common';
+import { ContactPreferencesModule } from '../contact-preferences/contact-preferences.module';
 import { CrmModule } from '../crm/crm.module';
+import { CompanyRepository } from '../crm/product.repositories';
+import { KbArticleRepository } from '../kb/kb.repositories';
+import { WorkCalendarRepository } from '../pm/project.repositories';
+import { SmartCallsService } from './smart-calls.service';
+import { DCallcenterModule } from '../integrations/dcallcenter/dcallcenter.module';
+import { SmartDialerService } from './smart-dialer.service';
+import { SmartHandoffService } from './smart-handoff.service';
+import { SmartKeeperService } from './smart-keeper.service';
+import { CustomerTouchpointRepository } from '../crm/keeper.repositories';
+import { OpportunityRepository } from '../crm/sales.repositories';
+import { NotificationsModule } from '../notifications/notifications.module';
+import { AccessModule } from '../access/access.module';
+import { RequestsModule } from '../requests/requests.module';
+import { CrmConfigRepository } from '../crm/segment.repositories';
 import { LeadRepository } from '../crm/sales.repositories';
 import { LlmModule } from '../llm/llm.module';
 import { SmartScreeningService } from './smart-screening.service';
@@ -9,6 +24,10 @@ import { SmartIngestService } from './smart-ingest.service';
 import { CONNECTOR_KINDS } from './smart-rules';
 import { SmartSweepService } from './smart-sweep.service';
 import {
+  SmartCallListRepository,
+  SmartCallRepository,
+  SmartCallPolicyRepository,
+  SmartCallTargetRepository,
   SmartProspectRepository,
   SmartSourceRepository,
   SmartSweepRunRepository,
@@ -23,7 +42,17 @@ import { SmartService } from './smart.service';
  */
 @Module({
   // CD-290 — screening matches CRM and sends through the campaign screening
-  imports: [CrmModule, LlmModule],
+  imports: [
+    CrmModule,
+    LlmModule,
+    ContactPreferencesModule,
+    DCallcenterModule,
+    // CD-293 — the handoff request, and who raises it
+    RequestsModule,
+    AccessModule,
+    // CD-294 — the account owner hears of it
+    NotificationsModule,
+  ],
   providers: [
     {
       provide: SMART_CONNECTORS,
@@ -49,8 +78,30 @@ import { SmartService } from './smart.service';
     SmartService,
     SmartScreeningService,
     LeadRepository,
+    // CD-291 — call lists and the checks before every call
+    SmartCallPolicyRepository,
+    SmartCallListRepository,
+    SmartCallTargetRepository,
+    SmartCallsService,
+    KbArticleRepository,
+    CompanyRepository,
+    WorkCalendarRepository,
+    // CD-292 — dialling through D-Callcenter
+    SmartCallRepository,
+    SmartDialerService,
+    // CD-293 — to the sales axis
+    SmartHandoffService,
+    CrmConfigRepository,
+    // CD-294 — an existing customer to its account owner
+    SmartKeeperService,
+    CustomerTouchpointRepository,
+    OpportunityRepository,
   ],
   exports: [
+    SmartKeeperService,
+    SmartHandoffService,
+    SmartDialerService,
+    SmartCallsService,
     SmartScreeningService,
     SmartIngestService,
     SmartService,

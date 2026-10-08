@@ -1,6 +1,11 @@
 import { Module } from '@nestjs/common';
+import { CrmModule } from '../crm/crm.module';
+import { RequestIntakeChannelRepository } from '../crm/customer-intake.repository';
+import { CrmConfigRepository } from '../crm/segment.repositories';
 import { KbAiModule } from '../kb/kb-ai.module';
+import { RequestsModule } from '../requests/requests.module';
 import { LlmModule } from '../llm/llm.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { SupportModule } from '../support/support.module';
 import { ServiceAssetRepository } from '../support/support.repositories';
 import {
@@ -8,8 +13,11 @@ import {
   CareConversationRepository,
   CareIdentityRepository,
   CareMessageRepository,
+  CareStaffRepository,
 } from './care.repositories';
 import { CareAnswerService } from './care-answer.service';
+import { CareCaseService } from './care-case.service';
+import { CareHandoverService } from './care-handover.service';
 import { CareService } from './care.service';
 
 /**
@@ -19,10 +27,24 @@ import { CareService } from './care.service';
  */
 @Module({
   // CD-281 — answers from the knowledge base through the LLM Gateway
-  imports: [SupportModule, KbAiModule, LlmModule],
+  // CD-282 — cases through the AI CARE intake channel, made service jobs
+  imports: [
+    SupportModule,
+    KbAiModule,
+    LlmModule,
+    RequestsModule,
+    CrmModule,
+    NotificationsModule,
+  ],
   providers: [
     CareService,
     CareAnswerService,
+    CareCaseService,
+    // CD-283 — a person takes over
+    CareHandoverService,
+    CareStaffRepository,
+    RequestIntakeChannelRepository,
+    CrmConfigRepository,
     CareConversationRepository,
     CareMessageRepository,
     CareIdentityRepository,

@@ -122,6 +122,13 @@ export class CareContactLookupRepository {
     });
   }
 
+  contactDetail(id: string) {
+    return this.prisma.customerContact.findFirst({
+      where: { id },
+      select: { id: true, name: true, phone: true, email: true },
+    });
+  }
+
   contacts(customerId: string) {
     return this.prisma.customerContact.findMany({
       where: { customerId, active: true },
@@ -135,5 +142,27 @@ export class CareContactLookupRepository {
         isPrimary: true,
       },
     });
+  }
+}
+
+/** CD-283 — who in a company may take a conversation over. */
+@Injectable()
+export class CareStaffRepository {
+  constructor(private readonly prisma: PrismaService) {}
+
+  holdersOf(companyId: string, permission: string) {
+    return this.prisma.userRole
+      .findMany({
+        where: {
+          companyId,
+          role: {
+            active: true,
+            permissions: { some: { permissionCode: permission } },
+          },
+          user: { status: 'ACTIVE' },
+        },
+        select: { userId: true },
+      })
+      .then((rows) => [...new Set(rows.map((row) => row.userId))]);
   }
 }

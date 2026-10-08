@@ -23637,6 +23637,54 @@
         ]
       }
     },
+    "/api/v1/care/conversations/{id}/case": {
+      "post": {
+        "operationId": "CareController_openCase",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CareOpenCaseDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-282 เปิดเคสบริการจากบทสนทนา (SLA นับจากที่ AI รับเรื่อง; ผู้ส่งยืนยันแล้ว → ใบสั่งงานบริการทันที)",
+        "tags": [
+          "care"
+        ]
+      }
+    },
     "/api/v1/care/conversations/{id}/close": {
       "post": {
         "operationId": "CareController_close",
@@ -36413,6 +36461,92 @@
         ]
       }
     },
+    "/api/v1/smart/prospects/keeper": {
+      "post": {
+        "operationId": "SmartController_toKeeper",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KeeperProspectsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-294 ลูกค้าเดิมสนใจเพิ่ม → บันทึกการติดต่อ + เปิดดีลขยายให้ผู้ดูแลบัญชี + แจ้งเตือน",
+        "tags": [
+          "smart"
+        ],
+        "x-permission": [
+          "smart.prospect.manage"
+        ]
+      }
+    },
+    "/api/v1/smart/prospects/handoff": {
+      "post": {
+        "operationId": "SmartController_handOff",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HandoffProspectsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-293 ส่งเข้าแกนขาย — สร้าง Lead ให้ทีมของแกน + คำขอส่งต่อโอกาสการขาย (มีเจ้าของและ SLA)",
+        "tags": [
+          "smart"
+        ],
+        "x-permission": [
+          "smart.prospect.manage"
+        ]
+      }
+    },
     "/api/v1/smart/prospects/screen": {
       "post": {
         "operationId": "SmartController_screen",
@@ -37016,6 +37150,759 @@
         ],
         "x-permission": [
           "smart.prospect.manage"
+        ]
+      }
+    },
+    "/api/v1/smart/call-lists/{id}/calls": {
+      "get": {
+        "operationId": "SmartCallsController_history",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-292 ประวัติการโทรของรายการ (200 สายล่าสุด)",
+        "tags": [
+          "smart"
+        ],
+        "x-permission": [
+          "smart.prospect.read"
+        ]
+      }
+    },
+    "/api/v1/smart/calls/{id}": {
+      "get": {
+        "operationId": "SmartCallsController_call",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-292 สายหนึ่งสาย: ผล บทสนทนา และสรุป",
+        "tags": [
+          "smart"
+        ],
+        "x-permission": [
+          "smart.prospect.read"
+        ]
+      }
+    },
+    "/api/v1/smart/call-policy": {
+      "get": {
+        "operationId": "SmartCallsController_policy",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-291 นโยบายการโทรของบริษัท และสถานะการรับรอง",
+        "tags": [
+          "smart"
+        ],
+        "x-permission": [
+          "smart.prospect.read"
+        ]
+      },
+      "put": {
+        "operationId": "SmartCallsController_savePolicy",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveCallPolicyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-291 บันทึกนโยบายการโทร — แก้แล้วการรับรองเดิมถูกยกเลิก",
+        "tags": [
+          "smart"
+        ],
+        "x-permission": [
+          "smart.call.manage"
+        ]
+      }
+    },
+    "/api/v1/smart/call-policy/certify": {
+      "post": {
+        "operationId": "SmartCallsController_certify",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CertifyCallPolicyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-291 ฝ่ายกฎหมายรับรองนโยบายการโทรที่ใช้อยู่",
+        "tags": [
+          "smart"
+        ],
+        "x-permission": [
+          "legal.contract.manage"
+        ]
+      }
+    },
+    "/api/v1/smart/call-lists": {
+      "get": {
+        "operationId": "SmartCallsController_lists",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-291 รายการโทรทั้งหมด พร้อมจำนวนตามสถานะ",
+        "tags": [
+          "smart"
+        ],
+        "x-permission": [
+          "smart.prospect.read"
+        ]
+      },
+      "post": {
+        "operationId": "SmartCallsController_create",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveCallListDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-291 สร้างรายการโทร (บทพูด + บทความ KBMS ที่อ้าง)",
+        "tags": [
+          "smart"
+        ],
+        "x-permission": [
+          "smart.call.manage"
+        ]
+      }
+    },
+    "/api/v1/smart/call-lists/{id}": {
+      "put": {
+        "operationId": "SmartCallsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveCallListDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-291 แก้รายการโทร",
+        "tags": [
+          "smart"
+        ],
+        "x-permission": [
+          "smart.call.manage"
+        ]
+      }
+    },
+    "/api/v1/smart/call-lists/{id}/status": {
+      "post": {
+        "operationId": "SmartCallsController_status",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CallListStatusDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-291 เปิด/พัก/ปิดรายการโทร — เปิดได้เมื่อนโยบายได้รับรองแล้ว",
+        "tags": [
+          "smart"
+        ],
+        "x-permission": [
+          "smart.call.manage"
+        ]
+      }
+    },
+    "/api/v1/smart/call-lists/{id}/targets": {
+      "post": {
+        "operationId": "SmartCallsController_addTargets",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddCallTargetsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-291 เพิ่มรายชื่อที่คัดกรองแล้วเข้ารายการโทร",
+        "tags": [
+          "smart"
+        ],
+        "x-permission": [
+          "smart.call.manage"
+        ]
+      },
+      "get": {
+        "operationId": "SmartCallsController_targets",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-291 รายชื่อในรายการโทร พร้อมเหตุที่ยังโทรไม่ได้",
+        "tags": [
+          "smart"
+        ],
+        "x-permission": [
+          "smart.prospect.read"
+        ]
+      }
+    },
+    "/api/v1/smart/call-lists/{id}/script": {
+      "get": {
+        "operationId": "SmartCallsController_script",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-291 บทที่ AI จะพูด: บทเปิด บทพูด บทความที่อ้าง",
+        "tags": [
+          "smart"
+        ],
+        "x-permission": [
+          "smart.prospect.read"
+        ]
+      }
+    },
+    "/api/v1/smart/call-targets/{id}/refuse": {
+      "post": {
+        "operationId": "SmartCallsController_refuse",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefuseCallDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-291 ลูกค้าขอไม่ให้โทร — เข้าทะเบียนห้ามติดต่อทันที",
+        "tags": [
+          "smart"
+        ],
+        "x-permission": [
+          "smart.call.manage"
+        ]
+      }
+    },
+    "/api/v1/contact-optouts": {
+      "get": {
+        "operationId": "ContactPreferencesController_list",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "เลขหน้าที่ต้องการ เริ่มที่ 1",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page_size",
+            "required": false,
+            "in": "query",
+            "description": "จำนวนรายการต่อหน้า",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "`sort=field` เรียงขึ้น, `sort=-field` เรียงลง",
+            "schema": {
+              "example": "-createdAt",
+              "type": "string",
+              "pattern": "^-?[a-zA-Z_][a-zA-Z0-9_]*$"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "เบอร์โทรหรืออีเมล",
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "source",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "call_refusal",
+                "manual",
+                "import",
+                "pdpa"
+              ]
+            }
+          },
+          {
+            "name": "active",
+            "required": false,
+            "in": "query",
+            "description": "`false` = รวมรายการที่ยกเลิกแล้ว",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-291 ทะเบียนห้ามติดต่อ",
+        "tags": [
+          "contact-preferences"
+        ],
+        "x-permission": [
+          "crm.contact.optout.manage"
+        ]
+      },
+      "post": {
+        "operationId": "ContactPreferencesController_add",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddOptOutDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-291 เพิ่มเบอร์/อีเมลเข้าทะเบียนห้ามติดต่อ",
+        "tags": [
+          "contact-preferences"
+        ],
+        "x-permission": [
+          "crm.contact.optout.manage"
+        ]
+      }
+    },
+    "/api/v1/contact-optouts/{id}/remove": {
+      "post": {
+        "operationId": "ContactPreferencesController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemoveOptOutDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-291 ยกเลิกรายการในทะเบียน (เก็บประวัติไว้)",
+        "tags": [
+          "contact-preferences"
+        ],
+        "x-permission": [
+          "crm.contact.optout.manage"
         ]
       }
     },
@@ -42496,6 +43383,26 @@
           },
           "brand_approval_type_code": {
             "pattern": "^([A-Z0-9_-]{1,20})?$",
+            "type": "string"
+          },
+          "smart_handoff_type_code": {
+            "pattern": "^([A-Z0-9_-]{1,20})?$",
+            "type": "string"
+          },
+          "smart_getter_org_unit_id": {
+            "maxLength": 50,
+            "type": "string"
+          },
+          "smart_government_org_unit_id": {
+            "maxLength": 50,
+            "type": "string"
+          },
+          "smart_partner_org_unit_id": {
+            "maxLength": 50,
+            "type": "string"
+          },
+          "smart_keeper_org_unit_id": {
+            "maxLength": 50,
             "type": "string"
           },
           "project_close_documents": {
@@ -48087,6 +48994,26 @@
           "contact_id"
         ]
       },
+      "CareOpenCaseDto": {
+        "type": "object",
+        "properties": {
+          "severity": {
+            "type": "string",
+            "enum": [
+              "critical",
+              "high",
+              "medium",
+              "low"
+            ],
+            "description": "ไม่ระบุ = ตามคำในบทสนทนา (ค่าเริ่ม medium)"
+          },
+          "subject": {
+            "type": "string",
+            "description": "หัวเรื่อง — ไม่ระบุ = ข้อความแรกของลูกค้าที่มีเนื้อหา",
+            "maxLength": 200
+          }
+        }
+      },
       "CareCloseDto": {
         "type": "object",
         "properties": {
@@ -50205,6 +51132,44 @@
           "reason"
         ]
       },
+      "KeeperProspectsDto": {
+        "type": "object",
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 100
+          }
+        },
+        "required": [
+          "ids"
+        ]
+      },
+      "HandoffProspectsDto": {
+        "type": "object",
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 100
+          },
+          "axis": {
+            "type": "string",
+            "enum": [
+              "getter",
+              "government",
+              "partner"
+            ]
+          }
+        },
+        "required": [
+          "ids"
+        ]
+      },
       "ScreenProspectsDto": {
         "type": "object",
         "properties": {
@@ -50410,6 +51375,208 @@
           "reason": {
             "type": "string",
             "example": "ไม่ใช่กลุ่มเป้าหมาย",
+            "maxLength": 500,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "CallWindowDto": {
+        "type": "object",
+        "properties": {
+          "day": {
+            "type": "integer",
+            "example": 1,
+            "description": "1 = จันทร์ … 7 = อาทิตย์",
+            "maximum": 7,
+            "minimum": 1
+          },
+          "from": {
+            "type": "string",
+            "example": "09:00",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+          },
+          "to": {
+            "type": "string",
+            "example": "18:00",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+          }
+        },
+        "required": [
+          "day",
+          "from",
+          "to"
+        ]
+      },
+      "SaveCallPolicyDto": {
+        "type": "object",
+        "properties": {
+          "windows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CallWindowDto"
+            },
+            "maxItems": 21
+          },
+          "max_attempts": {
+            "type": "integer",
+            "example": 3,
+            "description": "โทรได้สูงสุดกี่ครั้งต่อเบอร์ต่อรายการ",
+            "maximum": 10,
+            "minimum": 1
+          },
+          "min_gap_days": {
+            "type": "integer",
+            "example": 3,
+            "description": "เว้นระยะอย่างน้อยกี่วันระหว่างครั้ง",
+            "maximum": 60,
+            "minimum": 1
+          },
+          "opening_script": {
+            "type": "string",
+            "description": "บทเปิดบังคับ: แจ้งว่าเป็น AI โทรจากบริษัทใด เพื่ออะไร ({company} = ชื่อบริษัท)",
+            "maxLength": 1000,
+            "minLength": 1
+          },
+          "optout_script": {
+            "type": "string",
+            "description": "วิธีปฏิเสธการติดต่อ — พูดต่อจากบทเปิดเสมอ",
+            "maxLength": 500,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "max_attempts",
+          "min_gap_days",
+          "opening_script",
+          "optout_script",
+          "windows"
+        ]
+      },
+      "CertifyCallPolicyDto": {
+        "type": "object",
+        "properties": {
+          "note": {
+            "type": "string",
+            "example": "ตรวจตาม พ.ร.บ.คุ้มครองข้อมูลส่วนบุคคล และแนวปฏิบัติการตลาดทางโทรศัพท์",
+            "maxLength": 1000
+          }
+        }
+      },
+      "SaveCallListDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "โรงงานภาคตะวันออก — ต.ค. 2569",
+            "maxLength": 200,
+            "minLength": 1
+          },
+          "script": {
+            "type": "string",
+            "description": "สิ่งที่ AI พูดต่อจากบทเปิด",
+            "maxLength": 4000,
+            "minLength": 1
+          },
+          "kb_article_ids": {
+            "description": "บทความ KBMS ที่เผยแพร่แล้วที่บทพูดอ้างได้",
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20
+          }
+        },
+        "required": [
+          "name",
+          "script"
+        ]
+      },
+      "CallListStatusDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "paused",
+              "closed"
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "AddCallTargetsDto": {
+        "type": "object",
+        "properties": {
+          "prospect_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 1000
+          }
+        },
+        "required": [
+          "prospect_ids"
+        ]
+      },
+      "RefuseCallDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "example": "ลูกค้าโทรกลับมาขอไม่ให้ติดต่อ",
+            "maxLength": 500
+          }
+        }
+      },
+      "AddOptOutDto": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "phone",
+              "email"
+            ]
+          },
+          "value": {
+            "type": "string",
+            "example": "0812345678",
+            "maxLength": 200,
+            "minLength": 1
+          },
+          "channel": {
+            "type": "string",
+            "enum": [
+              "call",
+              "all"
+            ],
+            "description": "`call` = ห้ามโทร · `all` = ห้ามติดต่อทุกช่องทาง"
+          },
+          "reason": {
+            "type": "string",
+            "example": "ลูกค้าแจ้งทางอีเมลว่าไม่ต้องการให้ติดต่อ",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "channel",
+          "kind",
+          "value"
+        ]
+      },
+      "RemoveOptOutDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "example": "ลูกค้ากลับมาขอให้ติดต่อได้ (มีหลักฐานอีเมล)",
             "maxLength": 500,
             "minLength": 1
           }

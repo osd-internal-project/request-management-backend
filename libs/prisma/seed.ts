@@ -421,6 +421,8 @@ const SEED_ROLES: {
       'crm.sales.read',
       'smart.prospect.read',
       'smart.prospect.manage',
+      'smart.call.manage',
+      'crm.contact.optout.manage',
     ],
   },
   {
