@@ -55,6 +55,14 @@ interface MeResponse {
    */
   leads_units: boolean;
   sensitive_fields_visible: string[];
+  /**
+   * Every field declared sensitive, as `resource.field`. The request page
+   * needs it to tell a withheld answer (••••••) from one never filled in —
+   * the masker deletes a withheld field, so absence alone cannot say which.
+   * Naming a field as sensitive reveals no value: a declared field the caller
+   * cannot see prints masked whether or not it was answered.
+   */
+  sensitive_fields_all: string[];
 }
 
 function present(principal: Principal): MeResponse {
@@ -79,6 +87,7 @@ function present(principal: Principal): MeResponse {
     permissions: [...principal.permissions],
     leads_units: principal.ledUnitIds.length > 0,
     sensitive_fields_visible: [...principal.sensitiveFieldsVisible],
+    sensitive_fields_all: [...principal.sensitiveFieldsAll],
   };
 }
 
