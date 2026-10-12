@@ -295,6 +295,8 @@ export class RequestFlowService {
     });
     await this.recordStepEvent(prisma, request.id, 'request.step.left', actor, {
       step: step.code,
+      // The timeline prints "จบขั้น: <name>" — the code alone means nothing to a reader.
+      name: step.name,
       outcome,
     });
   }

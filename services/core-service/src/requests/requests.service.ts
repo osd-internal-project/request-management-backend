@@ -2545,6 +2545,27 @@ export class RequestsService {
       if (!target) {
         await this.flows.finishV2(prisma, request, current, actor);
         await this.sla.stop(prisma, before.id, 'met');
+        // The fixed lifecycle's close writes both; a v2 close wrote neither, so
+        // the timeline ended on "จบขั้น" and the audit log never saw it close.
+        await this.recordEvent(prisma, {
+          requestId: before.id,
+          type: 'request.closed',
+          actor,
+          fromStatus: before.status,
+          toStatus: 'closed',
+        });
+        await this.audit.record(
+          {
+            eventType: 'request.closed',
+            companyId: before.companyId,
+            ...auditActor(actor),
+            resourceType: 'request',
+            resourceId: before.id,
+            before: { status: before.status },
+            after: { status: 'closed' },
+          },
+          { prisma },
+        );
         return null;
       }
 

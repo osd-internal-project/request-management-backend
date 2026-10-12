@@ -312,6 +312,7 @@ function serviceWith(request: Record<string, unknown>, caseType = false) {
   const runNumbers = {
     issueUnused: jest.fn(() => Promise.resolve('OSD-IT-202609-0002')),
   };
+  const audit = { record: jest.fn(() => Promise.resolve()) };
 
   const service = new RequestsService(
     {
@@ -329,7 +330,7 @@ function serviceWith(request: Record<string, unknown>, caseType = false) {
     sla as never,
     {} as never,
     { emit: jest.fn(() => Promise.resolve()) } as never,
-    { record: jest.fn(() => Promise.resolve()) } as never,
+    audit as never,
     {
       execute: jest.fn((work: (client: unknown) => unknown) => work(prisma)),
     } as never,
@@ -344,7 +345,7 @@ function serviceWith(request: Record<string, unknown>, caseType = false) {
     )
     .mockResolvedValue([]);
 
-  return { service, writes, flows, sla, approvals, runNumbers };
+  return { service, writes, flows, sla, approvals, runNumbers, prisma, audit };
 }
 
 describe('flow v2 service: submit is leaving the first step', () => {
@@ -491,6 +492,35 @@ describe('flow v2 service: moving through the steps', () => {
 
     expect(flows.finishV2).toHaveBeenCalledTimes(1);
     expect(sla.stop).toHaveBeenCalledWith(expect.anything(), 'req-1', 'met');
+  });
+
+  it('closing through the last step is recorded like any other close', async () => {
+    const { service, prisma, audit } = serviceWith(
+      onStep('CONFIRM', 'approved'),
+    );
+
+    await service.advance(
+      'req-1',
+      { to_step: 'END' },
+      principal(REQUESTER),
+      'Bearer t',
+    );
+
+    // The timeline ended on "จบขั้น" and the audit log never saw the close.
+    expect(prisma.requestEvent.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        type: 'request.closed',
+        fromStatus: 'approved',
+        toStatus: 'closed',
+      }),
+    });
+    expect(audit.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: 'request.closed',
+        after: { status: 'closed' },
+      }),
+      expect.anything(),
+    );
   });
 
   it('does not pause the clock on the way into an approval step (D7)', async () => {
