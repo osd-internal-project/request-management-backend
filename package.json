@@ -68,6 +68,7 @@
     "types:delete-inactive": "ts-node --project scripts/tsconfig.openapi.json -r tsconfig-paths/register -r dotenv/config scripts/delete-inactive-types.ts",
     "spec:extract": "ts-node --compiler-options '{\"module\":\"commonjs\"}' scripts/extract-spec.ts",
     "spec:check": "ts-node --compiler-options '{\"module\":\"commonjs\"}' scripts/spec-check.ts",
+    "uat:disbursement": "ts-node --compiler-options '{\"module\":\"commonjs\"}' scripts/uat-disbursement.ts",
     "loadtest:seed": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config scripts/seed-load-test.ts",
     "loadtest:clean": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config scripts/clean-load-test.ts",
     "data:extract": "python3 scripts/extract-request-log.py",

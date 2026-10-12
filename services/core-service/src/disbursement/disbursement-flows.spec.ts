@@ -58,10 +58,15 @@ describe.each(['ADVANCE', 'PETTY_CASH'] as const)('%s ticket flow', (kind) => {
     expect(() => assertUsableFormSchema(VERIFY_FORM)).not.toThrow();
   });
 
-  it('head and executive approve before accounting receives, then the work step, then DONE', () => {
+  it('head (and for an advance the executive) approve before accounting receives, then the work step, then DONE', () => {
     expect(nextForward(flow, 'REQUEST', {})).toBe('HEAD');
-    expect(nextForward(flow, 'HEAD', {})).toBe('EXEC');
-    expect(nextForward(flow, 'EXEC', {})).toBe('RECEIVE');
+    if (kind === 'ADVANCE') {
+      expect(nextForward(flow, 'HEAD', {})).toBe('EXEC');
+      expect(nextForward(flow, 'EXEC', {})).toBe('RECEIVE');
+    } else {
+      expect(nextForward(flow, 'HEAD', {})).toBe('RECEIVE');
+      expect(dto.steps.map((step) => step.code)).not.toContain('EXEC');
+    }
     expect(nextForward(flow, 'RECEIVE', {})).toBe('DISBURSE');
     expect(nextForward(flow, 'DISBURSE', {})).toBe('DONE');
     expect(nextForward(flow, 'DONE', {})).toBeNull();
@@ -100,5 +105,30 @@ describe('withDisbursementBindings — the FI05 form as seeded', () => {
       purpose: 'ออกบูธ',
       lines: [{ description: 'ค่ารถ', amount: 600 }],
     });
+  });
+});
+
+describe('withDisbursementBindings — the FI06 header fields', () => {
+  const PETTY = {
+    ...FORM,
+    properties: {
+      ...FORM.properties,
+      payee: { type: 'string', title: 'ผู้รับเงิน' },
+      so_no: { type: 'string', title: 'เลขที่ SO' },
+      so_subject: { type: 'string', title: 'Subject SO' },
+      ticket_no: { type: 'string', title: 'Ticket No.' },
+      project_code: { type: 'string', title: 'Project' },
+    },
+  };
+
+  it('carries the payee and the SO, ticket and project references onto the disbursement', () => {
+    const data = {
+      payee: 'เมย์',
+      so_no: 'SO-2026-00045',
+      so_subject: 'วัสดุสำนักงาน',
+      ticket_no: 'TKT-2026-00032',
+      project_code: 'PRJ-2026-0015',
+    };
+    expect(readBound(withDisbursementBindings(PETTY), data, 'disbursement', DISBURSEMENT_BINDINGS)).toMatchObject(data);
   });
 });

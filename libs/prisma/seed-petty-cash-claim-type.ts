@@ -16,13 +16,19 @@ const MATRIX_SUBJECT = `request:${CODE}:pre`;
 // The money was already spent: every row is a receipt, and accounting pays it back.
 const FORM_SCHEMA = {
   type: 'object',
-  required: ['cost_center', 'purpose', 'expense_items'],
+  required: ['cost_center', 'payee', 'purpose', 'expense_items'],
   properties: {
     cost_center: {
       type: 'string',
       title: 'Cost Center',
       maxLength: 60,
       'x-order': 20,
+    },
+    payee: {
+      type: 'string',
+      title: 'ผู้รับเงิน',
+      maxLength: 120,
+      'x-order': 25,
     },
     purpose: {
       type: 'string',
@@ -37,6 +43,26 @@ const FORM_SCHEMA = {
       maxLength: 2000,
       'x-multiline': true,
       'x-order': 40,
+    },
+    // Optional and always shown: the form cannot hide them behind a "has SO" choice.
+    so_no: { type: 'string', title: 'เลขที่ SO', maxLength: 60, 'x-order': 41 },
+    so_subject: {
+      type: 'string',
+      title: 'Subject SO',
+      maxLength: 200,
+      'x-order': 42,
+    },
+    ticket_no: {
+      type: 'string',
+      title: 'Ticket No.',
+      maxLength: 60,
+      'x-order': 43,
+    },
+    project_code: {
+      type: 'string',
+      title: 'Project',
+      maxLength: 60,
+      'x-order': 44,
     },
     expense_items: {
       type: 'array',

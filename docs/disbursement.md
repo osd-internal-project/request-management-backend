@@ -15,13 +15,15 @@ FI05 (`libs/prisma/seed-petty-cash-type.ts`) เดิมเก็บเงิ�
 |---|---|
 | source | ลำดับขั้น (`Flow_Advance.png`), ฟอร์มตรวจของบัญชี (ภาพ 4), จ่าย (5), เคลียร์ (6), ปิด/คืนเงิน (7) |
 | ผู้ใช้ | request = ticket; FI06 = เบิกเงินสดย่อย จ่ายโดยบัญชีไม่มีเคลียร์; ไฟล์หลักฐานเก็บที่การเบิก |
+| ผู้ใช้ (9 ต.ค. 2569) | FI06 = **จ่ายก่อน เบิกทีหลัง** (ใช้เงินแล้ว ใบเสร็จอยู่ในฟอร์มตอนสร้าง) · หัวหน้าตามสายอนุมัติขั้นเดียว (**ไม่มี `EXEC`**) · บัญชี verify → pay → close · ฟอร์มเพิ่ม `payee` (บังคับ), `so_no`, `so_subject`, `ticket_no`, `project_code` |
+| ภาพ FI06 ที่**ไม่ทำตาม** (ผู้ใช้ 9 ต.ค.: ภาพผิด) | `source/request type docs/expense/Petty Cash/LINE_NOTE_261008_1–5.jpg`: "วันที่คาดว่าจะใช้จ่าย", ขั้น 3 "พร้อมใช้งาน", ขั้น 4 เคลียร์/แนบใบเสร็จ, ขั้น 5 "จ่ายคืน/รับคืน" — "เลขที่ Request" ในภาพ = เลขคำขอของตัวเอง ไม่ใช่ช่องกรอก |
 | ผมเสนอ (แก้ได้) | ผู้อนุมัติขั้นผู้บริหาร = หัวหน้าหน่วย FAC (ภาพ 4b ระบุแค่ CFO); ขั้น `RECEIVE`/`DONE` ตามกลไก flow v2 |
 | **ไม่อยู่ในรอบนี้** | กองทุนเงินสดย่อย/ใบเติมเงิน — ไม่มีใน source; ตาราง `petty_cash_*` และ `petty-cash.service.ts` เก็บไว้แต่ไม่มี route |
 
 ## 2. ticket (flow v3) — `libs/prisma/disbursement-flows.ts` `disbursementFlow()`
 
 ```
-REQUEST(ร่าง) → HEAD(หัวหน้าอนุมัติ) → EXEC(ผู้บริหารอนุมัติ) → RECEIVE(บัญชีรับเรื่อง)
+REQUEST(ร่าง) → HEAD(หัวหน้าอนุมัติ) → EXEC(ผู้บริหารอนุมัติ — FI05 เท่านั้น) → RECEIVE(บัญชีรับเรื่อง)
   → DISBURSE(ดำเนินการเบิก: ตรวจ · จ่าย · เคลียร์ · ปิด) → DONE(ปิดรายการ — ผู้ขอกดปิด)
 ```
 
@@ -29,7 +31,7 @@ REQUEST(ร่าง) → HEAD(หัวหน้าอนุมัติ) → E
 |---|---|---|---|---|
 | `REQUEST` | `draft` | ผู้ขอ | `POST request/requests` (สร้าง+ยื่นในครั้งเดียว) | ยื่น |
 | `HEAD` | `pending_approval` | หัวหน้าตามสายบังคับบัญชาของผู้ขอ (`supervisor up:1`) | `approve` / `reject` / `send_back` (`note` บังคับทุกตัว) | อนุมัติ |
-| `EXEC` | `pending_approval` | ผู้อยู่ในหน่วย FAC (`org` = `financeUnitId` ที่ seed ใส่ — แก้ได้ใน flow builder) | เหมือน `HEAD` | อนุมัติ |
+| `EXEC` (FI05 เท่านั้น — FI06 v4 ขึ้นไป `HEAD` → `RECEIVE`) | `pending_approval` | ผู้อยู่ในหน่วย FAC (`org` = `financeUnitId` ที่ seed ใส่ — แก้ได้ใน flow builder) | เหมือน `HEAD` | อนุมัติ |
 | `RECEIVE` | `submitted` | ผู้รับ (`receiverUserId` ที่ผู้ขอเลือก) เท่านั้น | `receive` | **`receive` เลื่อนไป `DISBURSE` เอง** — `advance` ที่ขั้น `submitted` ถูกปฏิเสธ `REQ_STEP_INVALID` |
 | `DISBURSE` | `in_progress` | บัญชี (ผู้รับ/ผู้ได้มอบหมาย) | งานทำบนการเบิก §7: `verify` → `pay` → (FI05: `clearing`) → `close` | `close` ของการเบิกเรียก `advance` → `DONE` เอง; `advance` เองถูกกันจนใบเบิก `CLOSED` |
 | `DONE` | `approved` | ผู้ขอ (ผู้ถือขั้น) | `advance` `{to_step: "END"}` — flow v2 **ไม่มี** `close` (`REPLACED_BY_FLOW_V2`) | ขั้นสุดท้าย → `finishV2` → คำขอ `closed` |
@@ -39,7 +41,7 @@ action ฝั่ง request ที่ใช้ในวงจรนี้ (key s
 | action | คน (สิทธิ์) | ใครทำ / ห้ามใคร | สถานะที่รับ | ผลสถานะ | ticket | error |
 |---|---|---|---|---|---|---|
 | `POST request/requests` | `request.create` | ผู้ขอ | — | `pending_approval` ที่ `HEAD` | สร้าง | 400/422 `REQ_FIELD_MISSING` ฟอร์มขาด · 404 `receiver_user_id` ไม่พบ · 400 ผู้รับนอก `receiver_candidates` |
-| `approve` `{note}` | `approval.decide` | ผู้อยู่ใน `candidateUserIds` ของชั้นปัจจุบัน | `pending_approval` | `HEAD`→`EXEC` ยัง `pending_approval`; `EXEC`→`RECEIVE` = `submitted` | เลื่อน | 403 ไม่มีสิทธิ์ · `APV_NOT_YOUR_TURN` ไม่ใช่ผู้อนุมัติชั้นนี้ · `REQ_STATE_INVALID` ไม่ได้รออนุมัติ · 400 ไม่มี `note` |
+| `approve` `{note}` | `approval.decide` | ผู้อยู่ใน `candidateUserIds` ของชั้นปัจจุบัน | `pending_approval` | FI05: `HEAD`→`EXEC` ยัง `pending_approval`, `EXEC`→`RECEIVE` = `submitted` · FI06: `HEAD`→`RECEIVE` = `submitted` | เลื่อน | 403 ไม่มีสิทธิ์ · `APV_NOT_YOUR_TURN` ไม่ใช่ผู้อนุมัติชั้นนี้ · `REQ_STATE_INVALID` ไม่ได้รออนุมัติ · 400 ไม่มี `note` |
 | `receive` `{}` | `request.complete` | `receiverUserId` เท่านั้น (ไม่มี grant แทน) | `submitted` ที่ `RECEIVE` | `in_progress` ที่ `DISBURSE` + สร้างใบเบิก | เลื่อน | 403 ไม่ใช่ผู้รับ · `REQ_STATE_INVALID` |
 | `advance` `{to_step}` | `request.complete` | ผู้ถือขั้น (หรือ scope grant) | ขั้นปัจจุบัน | ขั้นที่ระบุ; ขั้นสุดท้ายส่ง `"END"` = ปิดคำขอ (`closed`) | เลื่อน/จบ | 409 guard §3 · `REQ_STEP_INVALID` ขั้นผิด/ที่ `submitted` (ไปข้างหน้า) |
 | `close` `{note?}` | `request.create` | ผู้ยื่นเท่านั้น | `approved` — **เฉพาะคำขอไม่มี flow / flow v1**; flow v2 ไม่เสนอ | `closed` | จบ | 403 `ปิดคำขอได้เฉพาะผู้ยื่นคำขอ` · `REQ_STATE_INVALID` |
@@ -172,8 +174,21 @@ REJECTED / CANCELLED จากฝั่ง request · PETTY_CASH: APPROVED ─pa
 - action `approve`/`reject`/`send_back` ของ Open API คืน**เคสอนุมัติ** (`ApprovalsService.decide` → `CaseWithSteps`) ไม่ใช่คำขอ
   ต่างจากที่ `external-request.json` บอก — อ่านสถานะคำขอต่อด้วย `GET request/requests/{ref}`
 - `close` เลื่อน ticket ในนามผู้กด — ถ้าผู้กดไม่ใช่ผู้ถือ ticket ที่ `DISBURSE` ได้ `ticketMove.moved:false` ให้ผู้ถือกด `advance` เอง
+- ช่อง `cost_center` ในฟอร์มขั้น `REQUEST` (FI06; FI05 เมื่อฟอร์มมีช่องนี้) ต้องเป็นค่าใน master `cost_centers` — master ว่าง = ยื่นไม่ได้ทุกช่องทาง (`.55` ว่างจนถึง 9 ต.ค. 2569);
+  `GET request-types/{code}/form` ของ Open API ไม่ส่งตัวเลือกนี้ (อ่านฟอร์มของ type ไม่ใช่ขั้น `REQUEST`)
+- `POST request/requests` ที่ตอบ `422` (ฟอร์มไม่ครบ, ไม่มี `ref_id`) ทิ้งคำขอ `draft` ที่ไม่มี `requestNo` ไว้ และคำตอบไม่บอก id (ยังไม่แก้)
 
 ## 9. UAT ผ่าน Open API — ครบวงจร
+
+**รันทั้งหมดด้วยสคริปต์** (`scripts/uat-disbursement.ts` — ข้อ 01–16, A1–A4 และเคสลบด้านล่าง ตรวจ status, `code`, ขั้น, สถานะใบเบิก, movement):
+
+```
+API_KEY=rfk_… REQUESTER=<ผู้ขอ> HEAD=<หัวหน้าของผู้ขอ> EXEC=<คนใน FAC> ACCOUNTING=<บัญชี: receiver + finance> \
+COST_CENTER=<รหัสใน master> [ONLY=FI06|FI05] [BASE_URL=http://localhost:3003/api/v1] yarn uat:disbursement
+```
+
+สร้างคำขอจริง 4 ใบและไม่ลบ; ชุด "FI05 มีส่วนต่าง" ตั้งใจค้าง `CLEARING` ให้แนบ `REFUND_PROOF` ที่หน้าเว็บแล้วปิดเอง.
+ผล 9 ต.ค. 2569 (localhost → `.55`): FI05 ทุกข้อผ่าน, FI06 57/57 — หลังเพิ่ม cost center `RND` (master ว่าง)
 
 ตัวอย่าง request/response ทุก call: [`ex/uat-disbursement-open-api/`](./ex/uat-disbursement-open-api/) (`NN-<step>.request.json` / `.response.json`)
 ค่าในตัวอย่างเป็น placeholder (`<requestNo>`, `<docNo>`, `<uuid:waranyas>`) — ตอนรันเทียบรูปร่างและสถานะ ไม่เทียบค่า
@@ -188,7 +203,10 @@ REJECTED / CANCELLED จากฝั่ง request · PETTY_CASH: APPROVED ─pa
 - **บัญชีผู้รับต้องถือ `receiver` (รับเรื่อง: `request.complete`) + `finance` (`disbursement.verify` + `disbursement.pay`)** —
   ขาด `finance` ข้อ 11 ได้ `403 FORBIDDEN` `details: [{field: permission, reason: disbursement.verify}]`. seed เพิ่มสิทธิ์การเบิกให้ `finance`
   เมื่อ 7 ต.ค. 2569; DB ที่สร้าง role ด้วยมือต้องมี role `finance` เอง (บน .55 สร้างแล้ว 7 ต.ค. 2569) — UAT ใช้ role จริงเท่านั้น ห้ามสร้าง role ทดสอบ
-- **รู้เวอร์ชัน flow ได้หลังสร้างคำขอเท่านั้น**: ข้อ 5 `flow_moves` ที่ขั้น `HEAD` — `forward` (string ไม่ใช่ array) = `EXEC` คือ v3, `RECEIVE` คือ legacy
+- **รู้เวอร์ชัน flow ได้หลังสร้างคำขอเท่านั้น**: ข้อ 5 `flow_moves` ที่ขั้น `HEAD` — `forward` (string ไม่ใช่ array):
+  FI05 `EXEC` = v3, `RECEIVE` = legacy · FI06 `RECEIVE` ทั้งคู่ (v4 ตัด `EXEC`) → ดูที่ข้อ 10 แทน: `legacy: false` และขั้น `DISBURSE`
+- **Cost Center ต้องอยู่ใน master** (`x-options-source: cost_centers` บนฟอร์มขั้น `REQUEST`) แต่ `GET request-types/{code}/form` คืนฟอร์มของ type
+  ที่ไม่มีตัวเลือก — ผู้เรียกต้องรู้รหัสเอง (§8)
 - เงินที่อ่านจาก DB เป็น string ไม่เติมศูนย์ (`"850"`, `"-850"`); ค่าที่คำนวณสด (`pending`, ข้อความ error) เป็น 2 ตำแหน่ง
 - ที่ `RECEIVE` ผู้รับเห็น `receive`, `assign`, `advance` — `advance` ใช้ถอยกลับ `REQUEST` เท่านั้น ไปข้างหน้าด้วย `receive`
   (Open API ไม่มีเส้นอ่าน flow ของประเภทคำขอ)
@@ -199,15 +217,14 @@ REJECTED / CANCELLED จากฝั่ง request · PETTY_CASH: APPROVED ─pa
 | # | ในนาม | call | คาดหวัง |
 |---|---|---|---|
 | 01 | ผู้ขอ | `GET request/request-types?q=FI06` | มี `FI06` |
-| 02 | ผู้ขอ | `GET request/request-types/FI06/form` | `form_schema.required` = `cost_center, purpose, expense_items`; แถวต้องมี `receipt_date, description, amount`; `receiver_candidates` มีบัญชี (หน่วย FAC) |
+| 02 | ผู้ขอ | `GET request/request-types/FI06/form` | `form_schema.required` = `cost_center, payee, purpose, expense_items` (+ ไม่บังคับ `so_no, so_subject, ticket_no, project_code`); แถวต้องมี `receipt_date, description, amount`; `receiver_candidates` มีบัญชี (หน่วย FAC) |
 | 03 | ผู้ขอ | `GET request/users?q=<บัญชี>` | `data[0].id` = uuid ผู้รับ (หรือใช้ `receiver_candidates[].id` จากข้อ 02) |
 | 04 | ผู้ขอ | `POST request/requests` `{type_code, receiver_user_id, form_data}` | 201 `status: pending_approval`, ได้ `requestNo` |
 | 05 | ผู้ขอ | `GET request/requests/{no}` + `GET …/actions` | `approvalCases[0].steps[currentStep].candidateUserIds` = หัวหน้า; `flow_moves.current = HEAD` |
-| 06 | หัวหน้า | `POST …/actions/approve` `{note}` | ขั้น `EXEC`, ยัง `pending_approval` |
-| 07 | ผู้บริหาร FAC | `POST …/actions/approve` `{note}` | `status: submitted`, ขั้น `RECEIVE` |
+| 06 | หัวหน้า | `POST …/actions/approve` `{note}` | `status: submitted`, ขั้น `RECEIVE` — ไม่มี `EXEC` (flow FI06 v4, 9 ต.ค. 2569; ตัวอย่าง `07-approve-exec` ใช้กับ FI05 เท่านั้น) |
 | 08 | บัญชี | `GET …/actions` | มี `receive` (ผู้รับเท่านั้น) |
 | 09 | บัญชี | `POST …/actions/receive` `{}` | `status: in_progress`, ขั้น `DISBURSE` **เอง** — ไม่ยิง `advance` |
-| 10 | บัญชี | `GET disbursement/disbursements/by-request/{no}` | ใบเบิกเกิดเองแล้ว: `kind: PETTY_CASH`, `status: PENDING_VERIFY`, `requestedAmount` = ผลรวมแถว, `legacy: false` — 404 = handler ล้ม (§3 ทางสำรอง) |
+| 10 | บัญชี | `GET disbursement/disbursements/by-request/{no}` | ใบเบิกเกิดเองแล้ว: `kind: PETTY_CASH`, `status: PENDING_VERIFY`, `requestedAmount` = ผลรวมแถว, `legacy: false`, `payee` / `references` ตามฟอร์ม — 404 = handler ล้ม (§3 ทางสำรอง) |
 | 11 | บัญชี | `POST …/{docNo}/verify` | `APPROVED`, `ticketMove: null` |
 | 12 | บัญชี | `POST …/{docNo}/pay` `{amount: ยอดเต็ม, method: "cash"}` | `PAID` (ไม่ใช่ `CLOSED`), movement `PAYOUT` ยอดติดลบ, `ticketMove: null` |
 | 13 | บัญชี | `POST …/{docNo}/close` `{}` | `CLOSED`, `ticketMove.moved: true` — คำขอไปขั้น `DONE` (`approved`) |
@@ -216,7 +233,9 @@ REJECTED / CANCELLED จากฝั่ง request · PETTY_CASH: APPROVED ─pa
 | 16 | ผู้ขอ | `GET disbursement/disbursements/{docNo}` | `CLOSED`, movement 1 รายการ, `ticket.status: closed` |
 
 เคสลบ (ไม่เปลี่ยนสถานะ): N1 `verify` ในนามผู้ขอ → `403 FORBIDDEN` · N2 `pay` ขณะ `PENDING_VERIFY` → `409 CONFLICT` ·
-N3 `pay` เกินยอด → `400 VALIDATION_FAILED` (`field: amount`) · N4 ผู้ขอที่ขั้น `DISBURSE` → actions มีแค่ `cancel`, `comment` (ปิดเองไม่ได้; `cancel` หลังเงินออกถูก guard 409)
+N3 `pay` เกินยอด → `400 VALIDATION_FAILED` (`field: amount`) · N4 ผู้ขอที่ขั้น `DISBURSE` → actions มีแค่ `cancel`, `comment` (ปิดเองไม่ได้; `cancel` หลังเงินออกถูก guard 409) ·
+N5 `close` ที่ `APPROVED` → `409` · N6 ผู้ขอส่ง `clearing` → `409` "เงินสดย่อยไม่มีขั้นเคลียร์ค่าใช้จ่าย" · N7 บัญชี `advance` ไป `DONE` ก่อนใบเบิก `CLOSED` → `409` ·
+N8 หัวหน้า `reject` → คำขอ `rejected`, `by-request` → `404` (ใบเบิกไม่เกิด)
 
 ### FI05 เงินทดรอง (v3) — ข้อ 01–11 เหมือน FI06 แล้วต่างจากนี้
 

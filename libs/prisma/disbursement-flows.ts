@@ -110,18 +110,20 @@ export const VERIFY_FORM = {
 /**
  * `financeUnitId` heads the executive step — proposed, not in the source
  * (screen 4b only names the CFO); change it in the flow builder.
+ * PETTY_CASH has no executive step: its head approves alone (user, 9 Oct 2026).
  */
 export function disbursementFlow(
   kind: 'ADVANCE' | 'PETTY_CASH',
   requestForm: unknown,
   financeUnitId: string,
 ) {
+  const advance = kind === 'ADVANCE';
   return {
     schema_version: 2 as const,
     steps: [
       {
         code: 'REQUEST',
-        name: kind === 'ADVANCE' ? 'ขอเบิกเงินทดรอง' : 'ขอเบิกเงินสดย่อย',
+        name: advance ? 'ขอเบิกเงินทดรอง' : 'ขอเบิกเงินสดย่อย',
         scope_status: 'draft' as const,
         form_schema: withDisbursementBindings(requestForm),
       },
@@ -134,15 +136,19 @@ export function disbursementFlow(
         ],
         return_to_step: 'REQUEST',
       },
-      {
-        code: WORK_STEPS.execStep,
-        name: 'ผู้บริหารอนุมัติ',
-        scope_status: 'pending_approval' as const,
-        approval_levels: [
-          { type: 'org' as const, orgUnitIds: [financeUnitId] },
-        ],
-        return_to_step: 'REQUEST',
-      },
+      ...(advance
+        ? [
+            {
+              code: WORK_STEPS.execStep,
+              name: 'ผู้บริหารอนุมัติ',
+              scope_status: 'pending_approval' as const,
+              approval_levels: [
+                { type: 'org' as const, orgUnitIds: [financeUnitId] },
+              ],
+              return_to_step: 'REQUEST',
+            },
+          ]
+        : []),
       {
         code: 'RECEIVE',
         name: 'บัญชีรับเรื่อง',
@@ -151,7 +157,9 @@ export function disbursementFlow(
       // Entering it creates the disbursement; accounting checks, pays and closes there.
       {
         code: WORK_STEP,
-        name: 'ดำเนินการเบิก (ตรวจ · จ่าย · เคลียร์ · ปิด)',
+        name: advance
+          ? 'ดำเนินการเบิก (ตรวจ · จ่าย · เคลียร์ · ปิด)'
+          : 'ดำเนินการเบิก (ตรวจ · จ่าย · ปิด)',
         scope_status: 'in_progress' as const,
       },
       {
@@ -162,8 +170,12 @@ export function disbursementFlow(
     ],
     transitions: [
       { from_step: 'REQUEST', to_step: 'HEAD' },
-      { from_step: 'HEAD', to_step: WORK_STEPS.execStep },
-      { from_step: WORK_STEPS.execStep, to_step: 'RECEIVE' },
+      ...(advance
+        ? [
+            { from_step: 'HEAD', to_step: WORK_STEPS.execStep },
+            { from_step: WORK_STEPS.execStep, to_step: 'RECEIVE' },
+          ]
+        : [{ from_step: 'HEAD', to_step: 'RECEIVE' }]),
       { from_step: 'RECEIVE', to_step: WORK_STEP },
       { from_step: 'RECEIVE', to_step: 'REQUEST', backward: true },
       { from_step: WORK_STEP, to_step: WORK_STEPS.doneStep },
