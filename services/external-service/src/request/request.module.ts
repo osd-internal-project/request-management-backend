@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import {
   AccessModule,
   ApprovalsModule,
+  CareModule,
   CrmModule,
   PrincipalModule,
   RequestsModule,
@@ -39,6 +40,8 @@ import { RequestApiService } from './request.service';
     AuthModule,
     // CD-66 — CustomerIntakeService (customer channels)
     CrmModule,
+    // CD-285 — LINE into AI CARE conversations
+    CareModule,
   ],
   controllers: [
     RequestController,

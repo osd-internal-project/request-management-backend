@@ -20,6 +20,7 @@ import type { Principal } from '@request-management/share';
 import { ServiceAssetsService } from './service-assets.service';
 import { EntitlementsService } from './entitlements.service';
 import { WorkOrdersService } from './work-orders.service';
+import { ExtraWorksService } from './extra-works.service';
 import { OnCallService } from './on-call.service';
 import { ServiceBillingService } from './service-billing.service';
 import { TimeMaterialsService } from './time-materials.service';
@@ -35,6 +36,8 @@ import {
   AttachWorkOrderDto,
   ConfirmBillingDto,
   CustomerAckDto,
+  DecideExtraWorkDto,
+  ProposeExtraWorkDto,
   ListWorkOrdersQueryDto,
   OpenWorkOrderDto,
   WorkOrderOutcomeDto,
@@ -234,7 +237,10 @@ export class ServiceEntitlementsController {
 @ApiBearerAuth()
 @Controller('service-work-orders')
 export class ServiceWorkOrdersController {
-  constructor(private readonly orders: WorkOrdersService) {}
+  constructor(
+    private readonly orders: WorkOrdersService,
+    private readonly extraWorks: ExtraWorksService,
+  ) {}
 
   @ApiOperation({ summary: 'ใบสั่งงานบริการ — ที่ยังเปิด หรือทั้งหมด' })
   @Get()
@@ -328,6 +334,52 @@ export class ServiceWorkOrdersController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.orders.outcome(principal, id, dto);
+  }
+
+  // --- CD-228 out-of-contract work found on the job ---------------------------------
+
+  @ApiOperation({ summary: 'CD-228 งานนอกสัญญาที่พบระหว่างทำงาน' })
+  @Get(':id/extras')
+  @Permissions('service.asset.read')
+  extras(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.extraWorks.list(principal, id);
+  }
+
+  @ApiOperation({
+    summary:
+      'CD-228 เสนองานนอกสัญญา พร้อมเหตุผลและประมาณการ (ผู้รับผิดชอบงาน/ทีมบริการ ระหว่างทำงาน)',
+  })
+  @Post(':id/extras')
+  @Permissions('notification.read')
+  proposeExtra(
+    @Param('id') id: string,
+    @Body() dto: ProposeExtraWorkDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.extraWorks.propose(principal, id, dto);
+  }
+
+  @ApiOperation({
+    summary: 'CD-228 ลูกค้ายินยอม (ผู้ยินยอม วันที่) หรือปฏิเสธงานนอกสัญญา',
+  })
+  @Post('extras/:extraId/decide')
+  @Permissions('notification.read')
+  decideExtra(
+    @Param('extraId') extraId: string,
+    @Body() dto: DecideExtraWorkDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.extraWorks.decide(principal, extraId, dto);
+  }
+
+  @ApiOperation({ summary: 'CD-228 ถอนรายการที่เสนอผิด (ก่อนลูกค้าตอบ)' })
+  @Post('extras/:extraId/cancel')
+  @Permissions('notification.read')
+  cancelExtra(
+    @Param('extraId') extraId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.extraWorks.cancel(principal, extraId);
   }
 }
 

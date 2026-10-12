@@ -633,6 +633,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         { chargeLines: () => Promise.resolve([]) } as never,
         audit,
         transactions,
+        { agreedOf: () => Promise.resolve([]) } as never,
       );
       const manager = {
         userId: staff,
@@ -972,6 +973,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         timeMaterials,
         audit,
         transactions,
+        { agreedOf: () => Promise.resolve([]) } as never,
       );
       const draft = await billings.prepare(manager, order.id);
       expect(draft.netTotal).toBe(3300);
@@ -1143,11 +1145,13 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       } as unknown as Principal;
 
       // the contract cover from beforeAll: 1 Jan 2026 → 31 Dec next year
-      const planned = await pm.savePlan(manager, entitlementId, {
-        interval: 'quarterly',
-        lead_days: 14,
-        owner_user_id: staff,
-      });
+      // planned as on 1 Jan 2026, so the rounds do not depend on today's date
+      const planned = await pm.savePlan(
+        manager,
+        entitlementId,
+        { interval: 'quarterly', lead_days: 14, owner_user_id: staff },
+        new Date('2026-01-01T03:00:00Z'),
+      );
       expect(planned.plan).toMatchObject({
         interval: 'quarterly',
         leadDays: 14,

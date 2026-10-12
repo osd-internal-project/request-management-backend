@@ -199,3 +199,46 @@ export function boqProductCode(boq: unknown): string | null {
   const first = coded.find((l) => l.kind === 'equipment') ?? coded[0];
   return first?.productCode?.trim() ?? null;
 }
+
+// --- CD-223 แก้ปัญหาทางเทคนิคในโครงการ ----------------------------------------------
+
+export interface IssueFacts {
+  projectNo: string;
+  seq: number;
+  title: string;
+  description: string | null;
+  cause: string | null;
+  resolution: string | null;
+}
+
+/**
+ * A resolved technical issue as a draft: symptom, cause, fix. The customer
+ * is not named — the reviewer adds what may be shared — only the project it
+ * came from, so a reader can ask its team.
+ */
+export function articleFromIssue(issue: IssueFacts) {
+  const section = (heading: string, text: string | null) =>
+    text?.trim() ? [`## ${heading}`, text.trim(), ''] : [];
+  const sourceRef = `${issue.projectNo}/I-${issue.seq}`;
+  const body = [
+    `> แก้ปัญหาทางเทคนิคระหว่างโครงการ ${sourceRef}`,
+    '',
+    ...section('อาการที่พบ', issue.description),
+    ...section('สาเหตุ', issue.cause),
+    ...section('วิธีแก้', issue.resolution),
+  ]
+    .join('\n')
+    .trim();
+  return { title: issue.title.trim(), body, sourceRef };
+}
+
+/** The products a project sold (its baseline BOQ), each once, for tagging. */
+export function productCodesOf(baseline: unknown, max = 10): string[] {
+  const boq = (baseline as { boq?: unknown } | null)?.boq;
+  if (!Array.isArray(boq)) return [];
+  const codes = boq
+    .map((line) => (line as { productCode?: unknown })?.productCode)
+    .filter((code): code is string => typeof code === 'string' && !!code.trim())
+    .map((code) => code.trim());
+  return [...new Set(codes)].slice(0, max);
+}

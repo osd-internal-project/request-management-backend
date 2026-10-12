@@ -17,6 +17,7 @@ import {
   SolutionVersionRepository,
 } from '../presales/solution.repositories';
 import {
+  ProjectIntakeRepository,
   ProjectMemberRepository,
   ProjectRepository,
   ProjectBudgetRepository,
@@ -72,6 +73,7 @@ import { ProgressService } from './progress.service';
 import { BudgetService } from './budget.service';
 import { ChangeRequestsService } from './change-requests.service';
 import { ProjectRisksService } from './project-risks.service';
+import { IssueResolvedHooks } from './issue-hooks';
 import { ProjectIssuesService } from './project-issues.service';
 import { CustomerLogsService } from './customer-logs.service';
 import { PaymentsService } from './payments.service';
@@ -207,6 +209,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         } as never,
         audit,
         transactions,
+        new ProjectIntakeRepository(client),
       );
       milestones = new MilestonesService(
         projects,
@@ -309,6 +312,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         where: { projectId },
         data: { parentId: null },
       });
+      await prisma.projectIntake.deleteMany({ where: { projectId } });
       await prisma.projectTask.deleteMany({ where: { projectId } });
       await prisma.projectMilestone.deleteMany({ where: { projectId } });
       await prisma.serviceEntitlementAsset.deleteMany({
@@ -1195,6 +1199,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
           execute: (work: (tx: unknown) => Promise<unknown>) =>
             prisma.$transaction((tx) => work(tx)),
         } as never,
+        new ProjectIntakeRepository(client),
       );
       const managerNow = as(engineer, ['notification.read']);
       expect((await budget.view(projectId, managerNow)).current).toBeNull();
@@ -1209,6 +1214,17 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       });
       await expect(budget.start(projectId, managerNow)).rejects.toMatchObject({
         code: 'CONFLICT',
+      });
+      // CD-176 — the work not yet received: the first budget waits
+      expect((await budget.view(projectId, managerNow)).awaitingIntake).toBe(
+        true,
+      );
+      await expect(budget.lock(projectId, managerNow)).rejects.toMatchObject({
+        code: 'CONFLICT',
+      });
+      await prisma.projectIntake.updateMany({
+        where: { projectId },
+        data: { status: 'accepted' },
       });
       await expect(budget.lock(projectId, managerNow)).rejects.toMatchObject({
         code: 'VALIDATION_FAILED',
@@ -1594,6 +1610,12 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         audit,
         transactions,
       );
+      const resolvedHooks = new IssueResolvedHooks();
+      const fired: string[] = [];
+      resolvedHooks.on((issueId) => {
+        fired.push(issueId);
+        return Promise.resolve();
+      });
       const issues = new ProjectIssuesService(
         projects,
         new ProjectIssueRepository(client),
@@ -1608,6 +1630,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         } as never,
         audit,
         transactions,
+        resolvedHooks,
       );
       const managerNow = as(engineer, ['notification.read']);
       const crew = as(outsider, ['notification.read']);
@@ -1688,6 +1711,60 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       await expect(
         issues.update(projectId, issue.id, { title: 'แก้' }, managerNow),
       ).rejects.toMatchObject({ code: 'CONFLICT' });
+      // a general issue is not for the knowledge base
+      expect(resolved.issues[0].kbmsStatus).toBeNull();
+      expect(fired).toEqual([]);
+
+      // CD-223 — a technical one needs its symptom and cause, then goes to KBMS
+      await issues.create(
+        projectId,
+        {
+          title: 'กล้องหลุดจาก NVR เป็นระยะ',
+          kind: 'technical',
+          owner_user_id: outsider,
+          due_on: '2026-10-06',
+        },
+        managerNow,
+      );
+      const tech = (await issues.list(projectId, crew)).issues[0];
+      expect(tech).toMatchObject({ kind: 'technical', kbmsStatus: null });
+      await expect(
+        issues.resolve(
+          projectId,
+          tech.id,
+          { resolution: 'ตั้ง IP คงที่', cause: 'DHCP lease หมด' },
+          crew,
+        ),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' }); // no symptom
+      await issues.update(
+        projectId,
+        tech.id,
+        { description: 'ภาพดับทุก 2 ชั่วโมง' },
+        managerNow,
+      );
+      await expect(
+        issues.resolve(
+          projectId,
+          tech.id,
+          { resolution: 'ตั้ง IP คงที่' },
+          crew,
+        ),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' }); // no cause
+      const fixed = await issues.resolve(
+        projectId,
+        tech.id,
+        {
+          resolution: 'ตั้ง IP คงที่ให้กล้องทุกตัว',
+          cause: 'DHCP lease หมดอายุ',
+        },
+        crew,
+      );
+      expect(fixed.issues[0]).toMatchObject({
+        status: 'resolved',
+        cause: 'DHCP lease หมดอายุ',
+        kbmsStatus: 'pending',
+      });
+      expect(fired).toEqual([tech.id]);
     });
 
     it('CD-186: the team logs contacts with the customer; a decision on the scope is flagged until it becomes a change request', async () => {
@@ -6225,6 +6302,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         { get: () => 0 } as never,
         audit,
         transactions,
+        new ProjectIntakeRepository(client),
       );
       const managerNow = as(engineer, ['notification.read']);
       const crew = as(outsider, ['notification.read']);
@@ -6240,6 +6318,33 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       expect(live.live.health.score).toBe(
         live.live.health.factors.reduce((sum, f) => sum + f.points, 0),
       );
+
+      // CD-68 — the customer's 360° projects tab: the same health, and the
+      // work's receipt; someone outside the project sees none of it
+      const customerOf = randomUUID();
+      const before = await prisma.project.findUniqueOrThrow({
+        where: { id: projectId },
+        select: { customerId: true },
+      });
+      await prisma.project.update({
+        where: { id: projectId },
+        data: { customerId: customerOf },
+      });
+      try {
+        const tab = await reports.ofCustomer(customerOf, crew, monday);
+        expect(tab.map((item) => item.id)).toEqual([projectId]);
+        expect(tab[0].health?.score).toBe(live.live.health.score);
+        expect(tab[0].intakeStatus).toBe('accepted');
+        const stranger = as(randomUUID(), ['notification.read']);
+        await expect(
+          reports.ofCustomer(customerOf, stranger, monday),
+        ).resolves.toEqual([]);
+      } finally {
+        await prisma.project.update({
+          where: { id: projectId },
+          data: { customerId: before.customerId },
+        });
+      }
 
       // Monday's sweep drafts the week for the manager, once
       await reports.sweep(monday);

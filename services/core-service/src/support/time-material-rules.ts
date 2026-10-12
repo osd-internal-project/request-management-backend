@@ -32,7 +32,8 @@ export interface MaterialUse {
 }
 
 export type ChargeLine = BillingLineInput & {
-  source: 'estimate' | 'manual' | 'labour' | 'material';
+  /** CD-228 — `extra`: out-of-contract work the customer agreed to. */
+  source: 'estimate' | 'manual' | 'labour' | 'material' | 'extra';
 };
 
 const round = (value: number, places: number) =>
@@ -129,9 +130,13 @@ export function rebuildLines(
   existing: readonly ChargeLine[],
   fresh: readonly ChargeLine[],
 ): ChargeLine[] {
+  // CD-228 — agreed extras are rebuilt too, but do not replace the estimate
+  const actual = fresh.some(
+    (line) => line.source === 'labour' || line.source === 'material',
+  );
   const kept = existing.filter(
     (line) =>
-      line.source === 'manual' || (line.source === 'estimate' && !fresh.length),
+      line.source === 'manual' || (line.source === 'estimate' && !actual),
   );
   return [...kept, ...fresh];
 }

@@ -4,6 +4,11 @@ import {
   PrismaService,
   type TQueryClient,
 } from '@request-management/share';
+import {
+  careAnsweredSql,
+  careResultSql,
+  type CareResult,
+} from './care-results';
 
 /** CD-280 — conversations with customers. */
 @Injectable()
@@ -85,6 +90,59 @@ export class CareMessageRepository extends BaseRepository<
       maxAttempts,
     );
     return rows.map((r) => r.id);
+  }
+
+  /** CD-288 — closed conversations of a known customer not on the 360° timeline yet. */
+  toTimeline(limit: number) {
+    return this.prisma.$queryRawUnsafe<
+      {
+        id: string;
+        companyId: string;
+        customerId: string;
+        channel: string;
+        messages: number;
+        result: CareResult;
+        caseNo: string | null;
+        closedAt: Date;
+      }[]
+    >(
+      `SELECT c.id, c."companyId", c."customerId", c.channel, c.messages,
+              ${careResultSql('c', 'a.n')} AS result,
+              r."requestNo" AS "caseNo", c."closedAt"
+       FROM care_conversations c
+       LEFT JOIN LATERAL ${careAnsweredSql('c')} a ON true
+       LEFT JOIN requests r ON r.id = c."caseRequestId"
+       WHERE c.status = 'closed' AND c."customerId" IS NOT NULL
+         AND c."timelineAt" IS NULL AND c."closedAt" IS NOT NULL
+       ORDER BY c."closedAt" LIMIT $1`,
+      limit,
+    );
+  }
+
+  /** CD-288 — conversations by Bangkok month (opened), channel and result. */
+  results(companyId: string, since: Date) {
+    return this.prisma.$queryRawUnsafe<
+      { month: string; channel: string; result: CareResult; n: number }[]
+    >(
+      `SELECT to_char((c."openedAt" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Bangkok', 'YYYY-MM') AS month,
+              c.channel, ${careResultSql('c', 'a.n')} AS result, count(*)::int AS n
+       FROM care_conversations c
+       LEFT JOIN LATERAL ${careAnsweredSql('c')} a ON true
+       WHERE c."companyId" = $1 AND c."openedAt" >= $2
+       GROUP BY 1, 2, 3 ORDER BY 1`,
+      companyId,
+      since,
+    );
+  }
+
+  /** CD-285 — stored files of conversations whose texts were cleared. */
+  filesToClear() {
+    return this.prisma.$queryRawUnsafe<{ id: string; attachments: unknown }[]>(
+      `SELECT m.id, m.attachments FROM care_messages m
+       JOIN care_conversations c ON c.id = m."conversationId"
+       WHERE c."textPurgedAt" IS NOT NULL AND m.attachments::text LIKE '%"key"%'
+       LIMIT 200`,
+    );
   }
 
   /** Clear texts older than `before` in closed conversations. */

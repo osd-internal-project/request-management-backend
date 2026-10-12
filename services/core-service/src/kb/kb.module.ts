@@ -9,6 +9,7 @@ import { KbSemanticModule } from './kb-semantic.module';
 import { KbController } from './kb.controller';
 import { KbFieldService } from './kb-field.service';
 import { KbLessonService } from './kb-lesson.service';
+import { KbIssueService } from './kb-issue.service';
 import {
   KbArticleRepository,
   KbCandidateRepository,
@@ -46,6 +47,8 @@ import { KbService } from './kb.service';
     KbPortalService,
     KbFieldService,
     KbLessonService,
+    // CD-223 — technical issues resolved on projects
+    KbIssueService,
     KbArticleRepository,
     KbCandidateRepository,
     KbPresalesService,

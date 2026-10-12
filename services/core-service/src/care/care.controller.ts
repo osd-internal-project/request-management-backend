@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseIntPipe,
+  Post,
+  Query,
+  StreamableFile,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   AnyPermission,
@@ -13,6 +22,7 @@ import {
   CareTransferDto,
   CareVerifyDto,
 } from './care.dto';
+import { CareAttachmentsService } from './care-attachments.service';
 import { CareService } from './care.service';
 
 /** CD-280 — the service team's view of AI CARE conversations. */
@@ -20,7 +30,29 @@ import { CareService } from './care.service';
 @ApiBearerAuth()
 @Controller('care')
 export class CareController {
-  constructor(private readonly care: CareService) {}
+  constructor(
+    private readonly care: CareService,
+    private readonly files: CareAttachmentsService,
+  ) {}
+
+  @ApiOperation({
+    summary:
+      'CD-285 ไฟล์ที่ลูกค้าส่งมา (รูป/ไฟล์/เสียง/วิดีโอจาก LINE ที่คัดลอกเก็บแล้ว)',
+  })
+  @Get('conversations/:id/messages/:messageId/attachments/:index')
+  @AnyPermission('service.care.manage')
+  async attachment(
+    @Param('id') id: string,
+    @Param('messageId') messageId: string,
+    @Param('index', ParseIntPipe) index: number,
+    @CurrentPrincipal() actor: Principal,
+  ): Promise<StreamableFile> {
+    const file = await this.files.open(actor, id, messageId, index);
+    return new StreamableFile(file.stream, {
+      type: file.contentType,
+      disposition: `inline; filename*=UTF-8''${encodeURIComponent(file.fileName)}`,
+    });
+  }
 
   @ApiOperation({ summary: 'CD-280 บทสนทนา AI CARE (ล่าสุดก่อน, 200 รายการ)' })
   @Get('conversations')
@@ -122,6 +154,16 @@ export class CareController {
   @AnyPermission('service.care.manage')
   release(@Param('id') id: string, @CurrentPrincipal() actor: Principal) {
     return this.care.release(actor, id);
+  }
+
+  @ApiOperation({
+    summary:
+      'CD-288 ผล AI CARE 12 เดือน — AI ตอบจบเอง / เปิดเคส / ส่งต่อเจ้าหน้าที่ ตามเดือนและช่องทาง',
+  })
+  @Get('results')
+  @AnyPermission('service.care.manage')
+  results(@CurrentPrincipal() actor: Principal) {
+    return this.care.results(actor);
   }
 
   @ApiOperation({ summary: 'CD-284 คนในทีมที่ส่งต่อบทสนทนาให้ได้' })

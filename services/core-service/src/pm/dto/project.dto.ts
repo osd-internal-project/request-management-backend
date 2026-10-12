@@ -19,12 +19,13 @@ import {
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PageQueryDto } from '@request-management/share';
 import { MAX_MEMBERS, PROJECT_STATUSES } from '../project-rules';
+import { INTAKE_RESULTS, MAX_INTAKE_NOTE } from '../intake-rules';
 import { MAX_CRITERIA, MAX_CRITERION_LENGTH } from '../milestone-rules';
 import { MAX_DURATION_DAYS } from '../plan-rules';
 import { MAX_NOTE_LENGTH, WORK_STATUSES } from '../task-rules';
 import { BUDGET_CATEGORIES, MAX_BUDGET_LINES } from '../budget-rules';
 import { MAX_CHANGE_LINES } from '../change-rules';
-import { ISSUE_SEVERITIES } from '../issue-rules';
+import { ISSUE_KINDS, ISSUE_SEVERITIES } from '../issue-rules';
 import { CONTACT_KINDS } from '../customer-log-rules';
 import {
   MAX_REVIEW_DAYS,
@@ -541,6 +542,20 @@ export class SaveIssueDto {
   @IsIn([...ISSUE_SEVERITIES])
   severity?: string;
 
+  @ApiPropertyOptional({
+    enum: ISSUE_KINDS,
+    description: 'CD-223 technical = แก้ปัญหาทางเทคนิค ส่งเข้า KBMS เมื่อปิด',
+  })
+  @IsOptional()
+  @IsIn([...ISSUE_KINDS])
+  kind?: string;
+
+  @ApiPropertyOptional({ description: 'CD-223 สาเหตุ (ถ้าทราบแล้ว)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  cause?: string;
+
   @ApiPropertyOptional({ description: 'วันทำงานที่ล่าช้าเพราะปัญหานี้' })
   @IsOptional()
   @IsInt()
@@ -576,6 +591,14 @@ export class ResolveIssueDto {
   @IsString()
   @MaxLength(4000)
   resolution!: string;
+
+  @ApiPropertyOptional({
+    description: 'CD-223 สาเหตุ (บังคับสำหรับปัญหาทางเทคนิค)',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  cause?: string;
 }
 
 /** CD-186 — a contact with the customer; everything optional on edit. */
@@ -1717,4 +1740,33 @@ export class WorkloadQueryDto {
   @IsString()
   @MaxLength(50)
   skill_id?: string;
+}
+
+/** CD-176 — the manager's verdict on one line of the receipt. */
+export class AnswerIntakeDto {
+  @ApiProperty({ example: 'technical.boq' })
+  @IsString()
+  @MaxLength(1100)
+  code!: string;
+
+  @ApiProperty({ enum: INTAKE_RESULTS })
+  @IsIn(INTAKE_RESULTS)
+  result!: 'ok' | 'incomplete';
+
+  @ApiPropertyOptional({
+    description: 'บังคับเมื่อ incomplete — ไม่ครบอย่างไร',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(MAX_INTAKE_NOTE)
+  note?: string;
+}
+
+/** CD-176 — sending the work back; the gaps are the lines marked incomplete. */
+export class ReturnIntakeDto {
+  @ApiPropertyOptional({ description: 'ข้อความถึงทุกฝ่าย' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(MAX_INTAKE_NOTE)
+  note?: string;
 }

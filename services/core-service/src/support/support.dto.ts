@@ -422,6 +422,50 @@ export class CustomerAckDto {
   estimate?: number | null;
 }
 
+/** CD-228 — work found outside the contract once the job started. */
+export class ProposeExtraWorkDto {
+  @ApiProperty({ example: 'เปลี่ยนสายไฟที่ถูกหนูกัด' })
+  @IsString()
+  @MaxLength(2000)
+  description!: string;
+
+  @ApiProperty({ example: 'ความเสียหายจากสัตว์ ไม่อยู่ในสัญญา MA' })
+  @IsString()
+  @MaxLength(2000)
+  reason!: string;
+
+  @ApiProperty({ description: 'ประมาณการค่าใช้จ่าย (บาท)' })
+  @IsNumber({ maxDecimalPlaces: 2 })
+  estimate!: number;
+}
+
+/** CD-228 — the customer's answer to an out-of-contract item. */
+export class DecideExtraWorkDto {
+  @ApiProperty({ enum: ['agreed', 'declined'] })
+  @IsIn(['agreed', 'declined'])
+  decision!: 'agreed' | 'declined';
+
+  @ApiPropertyOptional({
+    description: 'ผู้ยินยอมฝั่งลูกค้า (บังคับเมื่อยินยอม)',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  name?: string;
+
+  @ApiPropertyOptional({ description: 'YYYY-MM-DD (บังคับเมื่อยินยอม)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  on?: string;
+
+  @ApiPropertyOptional({ description: 'หมายเหตุเมื่อปฏิเสธ' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  note?: string;
+}
+
 /** CD-239 — why it failed and how it was fixed. */
 export class WorkOrderOutcomeDto {
   @ApiPropertyOptional()

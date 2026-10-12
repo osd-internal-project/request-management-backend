@@ -340,3 +340,17 @@ export class ServicePortalSessionRepository extends BaseRepository<
     return client.servicePortalSession;
   }
 }
+
+/** CD-228 — work found outside the contract after a job started. */
+@Injectable()
+export class ServiceExtraWorkRepository extends BaseRepository<
+  PrismaService['serviceExtraWork']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.serviceExtraWork;
+  }
+}

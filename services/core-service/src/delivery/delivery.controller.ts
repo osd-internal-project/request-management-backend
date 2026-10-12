@@ -29,6 +29,7 @@ import { InstallConfirmationsService } from './install-confirmations.service';
 import { AcceptanceCertificatesService } from './acceptance-certificates.service';
 import { InstallmentBillingService } from './installment-billing.service';
 import { ServiceHandoversService } from './service-handovers.service';
+import { TechPackageService } from './tech-package.service';
 import { DeliveryReportService } from './delivery-report.service';
 import { metaOf } from '../esign/esign.controller';
 import {
@@ -42,6 +43,7 @@ import {
   DeliveryReportQueryDto,
   AttachDeliveryDocumentDto,
   ListHandoversQueryDto,
+  SaveCautionsDto,
   SendHandoverDto,
   CancelDeliveryDto,
   ConfirmInstallDto,
@@ -66,6 +68,8 @@ export class DeliveryController {
     private readonly billing: InstallmentBillingService,
     private readonly handovers: ServiceHandoversService,
     private readonly report: DeliveryReportService,
+    // CD-227 — the engineers' part of the handover to service
+    private readonly techPackage: TechPackageService,
   ) {}
 
   // --- CD-256 รายงานการส่งมอบ ---------------------------------------------------
@@ -130,7 +134,35 @@ export class DeliveryController {
       projectId,
       acceptanceId,
       dto.note ?? '',
+      // CD-227 — nothing goes to service without the technical package
+      (companyId) => this.techPackage.snapshotFor(projectId, companyId),
     );
+  }
+
+  @ApiOperation({
+    summary:
+      'CD-227 ชุดข้อมูลเทคนิคถึงทีมบริการ: As-built ค่าตั้งค่า จุดเชื่อมต่อ ข้อควรระวัง และสิ่งที่ยังขาด',
+  })
+  @Get('projects/:projectId/tech-package')
+  @Authenticated()
+  techPackageOf(
+    @Param('projectId') projectId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.techPackage.view(principal, projectId);
+  }
+
+  @ApiOperation({
+    summary: 'CD-227 บันทึกข้อควรระวังถึงทีมบริการ (ผู้จัดการ/ทีมโครงการ)',
+  })
+  @Put('projects/:projectId/tech-package/cautions')
+  @Authenticated()
+  saveCautions(
+    @Param('projectId') projectId: string,
+    @Body() dto: SaveCautionsDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.techPackage.saveCautions(principal, projectId, dto.cautions);
   }
 
   @ApiOperation({ summary: 'CD-255 กล่องงานส่งมอบของทีมบริการ' })

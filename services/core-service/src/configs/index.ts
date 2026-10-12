@@ -308,6 +308,10 @@ export default () => ({
     displeasedWords: process.env.CARE_DISPLEASED_WORDS,
     /** CD-283 — questions in a row AI CARE could not answer before a person (0 = off). */
     handoverUnanswered: process.env.CARE_HANDOVER_UNANSWERED,
+    /** CD-285 — copying files customers sent on LINE into our storage (ms); 0 = off. */
+    attachmentIntervalMs: Number(
+      process.env.CARE_ATTACHMENT_INTERVAL_MS ?? 60000,
+    ),
     /** CD-283 — minutes before the team is told again that a customer still waits. */
     handoverRemindMinutes: Number(
       process.env.CARE_HANDOVER_REMIND_MINUTES ?? 30,

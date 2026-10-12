@@ -664,3 +664,31 @@ export class ProjectResourceRequestRepository extends BaseRepository<
     return client.projectResourceRequest;
   }
 }
+
+/** CD-176 การรับมอบงานของโครงการ. */
+@Injectable()
+export class ProjectIntakeRepository extends BaseRepository<
+  PrismaService['projectIntake']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.projectIntake;
+  }
+}
+
+/** CD-227 ข้อควรระวังถึงทีมบริการ — one per project. */
+@Injectable()
+export class ProjectServiceBriefRepository extends BaseRepository<
+  PrismaService['projectServiceBrief']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.projectServiceBrief;
+  }
+}

@@ -5,6 +5,7 @@ import { ContractTermsRepository } from '../crm/contract-terms.service';
 import { CustomerContractRepository } from '../crm/contract.repositories';
 import { EntitlementsService } from './entitlements.service';
 import { WorkOrdersService } from './work-orders.service';
+import { ExtraWorksService } from './extra-works.service';
 import { OnCallService } from './on-call.service';
 import { ServiceBillingService } from './service-billing.service';
 import { ServiceBillingErpSyncService } from './service-billing-erp-sync.service';
@@ -40,6 +41,7 @@ import {
   ServiceEntitlementAssetRepository,
   ServiceEntitlementRepository,
   ServiceWorkOrderRepository,
+  ServiceExtraWorkRepository,
   ServiceOnCallDispatchRepository,
   ServiceOnCallShiftRepository,
   ServiceCalendarRepository,
@@ -80,6 +82,8 @@ import {
     ServiceAssetsService,
     EntitlementsService,
     WorkOrdersService,
+    // CD-228 — out-of-contract work found on a job
+    ExtraWorksService,
     OnCallService,
     ServiceBillingService,
     ServiceBillingErpSyncService,
@@ -110,6 +114,7 @@ import {
     ServiceOnCallDispatchRepository,
     ServiceCalendarRepository,
     ServiceWorkOrderRepository,
+    ServiceExtraWorkRepository,
     CrmConfigRepository,
     ServiceAssetRepository,
     ServiceEntitlementRepository,
@@ -127,6 +132,7 @@ import {
     ServiceAssetsService,
     EntitlementsService,
     WorkOrdersService,
+    ExtraWorksService,
     OnCallService,
     ServiceBillingService,
     TimeMaterialsService,

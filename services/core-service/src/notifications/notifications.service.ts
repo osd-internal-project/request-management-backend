@@ -974,6 +974,52 @@ export class NotificationsService {
     });
   }
 
+  /** CD-176 — the project manager sent the work back with this side's gaps. */
+  async projectIntakeReturned(
+    userId: string,
+    companyId: string,
+    input: {
+      project: { id: string; projectNo: string; name: string };
+      side: string;
+      gaps: string;
+      note: string | null;
+    },
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'pm.intake.returned',
+      values: {
+        project_no: input.project.projectNo,
+        project_name: input.project.name,
+        side: input.side,
+        gaps: input.gaps,
+        note: input.note ?? '',
+      },
+      resourceType: 'project',
+      resourceId: input.project.id,
+    });
+  }
+
+  /** CD-176 — the project manager received the work. */
+  async projectIntakeAccepted(
+    userId: string,
+    companyId: string,
+    input: { project: { id: string; projectNo: string; name: string } },
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'pm.intake.accepted',
+      values: {
+        project_no: input.project.projectNo,
+        project_name: input.project.name,
+      },
+      resourceType: 'project',
+      resourceId: input.project.id,
+    });
+  }
+
   /** CD-185 — the change board decided a change request. */
   async changeDecided(
     userId: string,

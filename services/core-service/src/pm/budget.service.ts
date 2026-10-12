@@ -18,6 +18,7 @@ import {
 import { SaveBudgetDto } from './dto/project.dto';
 import {
   ProjectBudgetRepository,
+  ProjectIntakeRepository,
   ProjectRepository,
 } from './project.repositories';
 import { ProjectsService } from './projects.service';
@@ -62,6 +63,8 @@ export class BudgetService {
     private readonly people: CompanyMemberRepository,
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
+    // CD-176 — the first budget waits until the work is received
+    private readonly intakes: ProjectIntakeRepository,
   ) {}
 
   async view(projectId: string, actor: Principal) {
@@ -76,6 +79,8 @@ export class BudgetService {
     );
     return {
       canEdit,
+      // CD-176 — the work not yet received: the first budget cannot be confirmed
+      awaitingIntake: await this.awaitingIntake(projectId),
       current: current ? this.present(current, names) : null,
       versions: rows.map((row) => ({
         id: row.id,
@@ -184,6 +189,12 @@ export class BudgetService {
   async lock(projectId: string, actor: Principal, now = new Date()) {
     const { project } = await this.editable(projectId, actor);
     const draft = await this.requireDraft(projectId);
+    if (await this.awaitingIntake(projectId)) {
+      throw new AppError(
+        'CONFLICT',
+        'ยังไม่ได้รับมอบงาน — ตรวจรายการรับมอบงานให้ครบแล้วกดรับมอบก่อนยืนยันงบ',
+      );
+    }
     const problems = lockProblems(readLines(draft.lines));
     if (problems.length) {
       throw new AppError(
@@ -221,6 +232,23 @@ export class BudgetService {
   }
 
   // --- helpers -------------------------------------------------------------------
+
+  /**
+   * CD-176 — the first budget is confirmed only once the work is received.
+   * A budget confirmed before (a change request's new version) is not held
+   * back; nor a project from before receipt existed (no intake).
+   */
+  private async awaitingIntake(projectId: string) {
+    const confirmed = await this.budgets.count({
+      where: { projectId, status: { in: ['locked', 'superseded'] } },
+    });
+    if (confirmed) return false;
+    const intake = (await this.intakes.findFirst({
+      where: { projectId },
+      select: { status: true },
+    })) as { status: string } | null;
+    return Boolean(intake && intake.status !== 'accepted');
+  }
 
   private present(row: BudgetRow, names: Map<string, string>) {
     const lines = readLines(row.lines);

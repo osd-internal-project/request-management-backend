@@ -1045,6 +1045,38 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
     },
   },
   {
+    eventType: 'pm.intake.returned',
+    label: 'ผู้จัดการโครงการตีกลับงาน (ถึงฝ่ายที่ต้องแก้)',
+    title: 'โครงการ {{project_no}}: ตีกลับงานถึง{{side}}',
+    body: '{{project_name}} — ข้อที่ยังไม่ครบ: {{gaps}} {{note}}',
+    variables: {
+      project_no: { label: 'เลขที่โครงการ', sample: 'PRJ-OSD-000012' },
+      project_name: {
+        label: 'ชื่อโครงการ',
+        sample: 'ติดตั้งระบบกล้อง อาคาร A',
+      },
+      side: { label: 'ฝ่าย', sample: 'ทีมขาย' },
+      gaps: {
+        label: 'ข้อที่ไม่ครบ',
+        sample: 'BOQ และต้นทุน — ยังไม่มีต้นทุนกล้อง 2 รายการ',
+      },
+      note: { label: 'ข้อความเพิ่มเติม', sample: 'ขอภายในวันศุกร์' },
+    },
+  },
+  {
+    eventType: 'pm.intake.accepted',
+    label: 'ผู้จัดการโครงการรับมอบงานแล้ว (ถึงเจ้าของดีล)',
+    title: 'โครงการ {{project_no}}: รับมอบงานแล้ว',
+    body: '{{project_name}} — ผู้จัดการโครงการตรวจรายการรับมอบครบแล้ว',
+    variables: {
+      project_no: { label: 'เลขที่โครงการ', sample: 'PRJ-OSD-000012' },
+      project_name: {
+        label: 'ชื่อโครงการ',
+        sample: 'ติดตั้งระบบกล้อง อาคาร A',
+      },
+    },
+  },
+  {
     eventType: 'legal.msa.changed',
     label: 'ข้อตกลงหลัก (MSA) ถูกแก้ไข (ถึงผู้รับผิดชอบสัญญาย่อย)',
     title: 'ข้อตกลงหลัก {{master_no}} ถูกแก้ไข',

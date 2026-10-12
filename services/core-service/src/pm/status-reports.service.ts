@@ -33,6 +33,7 @@ import { ProgressService } from './progress.service';
 import { levelOf } from './project-risk-rules';
 import {
   ProjectBudgetRepository,
+  ProjectIntakeRepository,
   ProjectIssueRepository,
   ProjectRiskRepository,
   ProjectStatusReportRepository,
@@ -128,6 +129,8 @@ export class StatusReportsService implements OnModuleInit, OnModuleDestroy {
     private readonly config: ConfigService,
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
+    // CD-176 — work not yet received counts against health
+    private readonly intakes: ProjectIntakeRepository,
   ) {}
 
   onModuleInit(): void {
@@ -154,28 +157,42 @@ export class StatusReportsService implements OnModuleInit, OnModuleDestroy {
   ): Promise<StatusSnapshot> {
     const projectId = access.project.id;
     const today = bangkokDay(now);
-    const [progress, planned, risks, issues, budgets, payments, thresholds] =
-      await Promise.all([
-        this.progress.view(projectId, actor, now),
-        this.plan.view(projectId, actor),
-        this.risks.findMany({
-          where: { projectId, status: 'open' },
-          select: { likelihood: true, impact: true },
-        }) as Promise<{ likelihood: number; impact: number }[]>,
-        this.issues.findMany({
-          where: { projectId, status: 'open' },
-          select: { status: true, dueOn: true },
-        }) as Promise<{ status: string; dueOn: Date }[]>,
-        this.budgets.findMany({
-          where: { projectId, status: { in: ['locked', 'superseded'] } },
-          orderBy: { versionNo: 'asc' },
-          select: { versionNo: true, status: true, total: true },
-        }) as Promise<
-          { versionNo: number; status: string; total: Prisma.Decimal }[]
-        >,
-        this.payments.view(projectId, actor, now),
-        this.thresholds(access.project.companyId),
-      ]);
+    const [
+      progress,
+      planned,
+      risks,
+      issues,
+      budgets,
+      payments,
+      thresholds,
+      intake,
+    ] = await Promise.all([
+      this.progress.view(projectId, actor, now),
+      this.plan.view(projectId, actor),
+      this.risks.findMany({
+        where: { projectId, status: 'open' },
+        select: { likelihood: true, impact: true },
+      }) as Promise<{ likelihood: number; impact: number }[]>,
+      this.issues.findMany({
+        where: { projectId, status: 'open' },
+        select: { status: true, dueOn: true },
+      }) as Promise<{ status: string; dueOn: Date }[]>,
+      this.budgets.findMany({
+        where: { projectId, status: { in: ['locked', 'superseded'] } },
+        orderBy: { versionNo: 'asc' },
+        select: { versionNo: true, status: true, total: true },
+      }) as Promise<
+        { versionNo: number; status: string; total: Prisma.Decimal }[]
+      >,
+      this.payments.view(projectId, actor, now),
+      this.thresholds(access.project.companyId),
+      this.intakes.findFirst({
+        where: { projectId },
+        select: { status: true },
+      }) as Promise<{
+        status: 'pending' | 'returned' | 'accepted';
+      } | null>,
+    ]);
     const late = planned.milestones.filter(
       (row) =>
         row.status === 'planned' &&
@@ -200,6 +217,10 @@ export class StatusReportsService implements OnModuleInit, OnModuleDestroy {
       ).length,
       costGrowthPct: growthPct,
       paymentsOverdue: overdueRows.length,
+      intake:
+        intake?.status === 'pending' || intake?.status === 'returned'
+          ? intake.status
+          : null,
     };
     return {
       today,
@@ -458,6 +479,61 @@ export class StatusReportsService implements OnModuleInit, OnModuleDestroy {
       },
       projects: sorted,
     };
+  }
+
+  /**
+   * CD-68 — the projects tab of the customer's 360° page: every project of
+   * the customer the viewer may see, running ones first with their health
+   * (as the portfolio computes it), and whether the work was received
+   * (CD-176). A closed or cancelled project has no health.
+   */
+  async ofCustomer(customerId: string, actor: Principal, now = new Date()) {
+    const projects = await this.projects.ofCustomer(actor, customerId);
+    const names = await this.displayNames(
+      projects.map((row) => row.managerUserId),
+    );
+    const running = (status: string) =>
+      status === 'active' || status === 'on_hold';
+    const health = new Map<string, Health>();
+    const live = projects.filter((row) => running(row.status));
+    for (let at = 0; at < live.length; at += PORTFOLIO_BATCH) {
+      const batch = live.slice(at, at + PORTFOLIO_BATCH);
+      const computed = await Promise.all(
+        batch.map(async (project) => {
+          const access = await this.projects.access(project.id, actor);
+          return (await this.snapshot(access, actor, now)).health;
+        }),
+      );
+      batch.forEach((project, index) =>
+        health.set(project.id, computed[index]),
+      );
+    }
+    const rows = projects.map((project) => ({
+      id: project.id,
+      projectNo: project.projectNo,
+      name: project.name,
+      status: project.status,
+      contractId: project.contract.id,
+      contractNo: project.contract.contractNo,
+      managerName: names.get(project.managerUserId) ?? null,
+      startOn: project.startOn ? day(project.startOn) : null,
+      endOn: day(project.endOn),
+      contractValue:
+        project.contractValue === null ? null : Number(project.contractValue),
+      currency: project.currency,
+      health: health.get(project.id) ?? null,
+      intakeStatus: project.intake?.status ?? null,
+    }));
+    // running first, the riskiest of them first; then the rest as opened
+    return [
+      ...byRisk(
+        rows.filter(
+          (row): row is (typeof rows)[number] & { health: Health } =>
+            row.health !== null,
+        ),
+      ),
+      ...rows.filter((row) => row.health === null),
+    ];
   }
 
   // --- the weekly drafts -------------------------------------------------------------

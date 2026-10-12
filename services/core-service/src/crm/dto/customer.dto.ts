@@ -957,6 +957,14 @@ export class UpdateCrmConfigDto {
   @MaxLength(1000, { each: true })
   project_readiness_checklist?: string[];
 
+  /** CD-176: ข้อที่บริษัทเพิ่มเองในรายการรับมอบงานของผู้จัดการโครงการ. */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50)
+  @IsString({ each: true })
+  @MaxLength(1000, { each: true })
+  project_intake_checklist?: string[];
+
   /** CD-226: ชื่อเอกสารสภาพจริง (As-built) ที่ทุกโครงการต้องมี. */
   @IsOptional()
   @IsArray()

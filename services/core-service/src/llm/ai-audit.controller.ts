@@ -1,11 +1,14 @@
-import { Body, Controller, Get, Put, Query } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentPrincipal, Permissions } from '@request-management/share';
 import type { Principal } from '@request-management/share';
-import { AiAuditSearchDto, SaveAiAuditPolicyDto } from './ai-audit.dto';
+import { AiAuditSearchDto } from './ai-audit.dto';
 import { AiAuditService } from './ai-audit.service';
 
-/** CD-279 — the AI audit log and its retention (reviewers). */
+/**
+ * CD-279 — the AI audit log, read-only (SUP-04: no route here writes it).
+ * Its retention setting is {@link AiRetentionController}.
+ */
 @ApiTags('ai-audit')
 @ApiBearerAuth()
 @Controller('ai-audit')
@@ -45,22 +48,5 @@ export class AiAuditController {
   @Permissions('admin.ai.audit')
   filters(@CurrentPrincipal() principal: Principal) {
     return this.audit.filters(principal);
-  }
-
-  @ApiOperation({ summary: 'CD-279 อายุการเก็บบันทึก AI ของบริษัท' })
-  @Get('policy')
-  @Permissions('admin.ai.audit')
-  policy(@CurrentPrincipal() principal: Principal) {
-    return this.audit.policy(principal);
-  }
-
-  @ApiOperation({ summary: 'CD-279 ตั้งอายุการเก็บบันทึก AI (วัน)' })
-  @Put('policy')
-  @Permissions('admin.ai.audit')
-  savePolicy(
-    @Body() dto: SaveAiAuditPolicyDto,
-    @CurrentPrincipal() principal: Principal,
-  ) {
-    return this.audit.savePolicy(principal, dto);
   }
 }

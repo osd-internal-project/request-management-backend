@@ -5,6 +5,10 @@
 
 export const ISSUE_SEVERITIES = ['low', 'medium', 'high', 'critical'] as const;
 
+/** CD-223 — a technical issue is troubleshooting: symptom, cause, fix → KBMS. */
+export const ISSUE_KINDS = ['general', 'technical'] as const;
+export type IssueKind = (typeof ISSUE_KINDS)[number];
+
 /** What stops an issue from being saved, in Thai. */
 export function issueProblems(input: {
   title: string;
@@ -24,6 +28,26 @@ export function issueProblems(input: {
   }
   if (!Number.isFinite(input.costImpact) || input.costImpact < 0) {
     problems.push('ผลกระทบต่อต้นทุนต้องไม่ติดลบ');
+  }
+  return problems;
+}
+
+/**
+ * CD-223 — what a resolution must say. Every issue says how it was fixed; a
+ * technical one also its symptom and its root cause, because that is what
+ * the knowledge base keeps.
+ */
+export function resolveProblems(input: {
+  kind: string;
+  description: string | null;
+  cause: string | null;
+  resolution: string | null;
+}): string[] {
+  const problems: string[] = [];
+  if (!input.resolution?.trim()) problems.push('ต้องบันทึกวิธีแก้ไข');
+  if (input.kind === 'technical') {
+    if (!input.description?.trim()) problems.push('ต้องบันทึกอาการที่พบ');
+    if (!input.cause?.trim()) problems.push('ต้องบันทึกสาเหตุของปัญหา');
   }
   return problems;
 }

@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AuditWriter } from '@request-management/share';
+import { KbAiService } from '../kb/kb-ai.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { OnCallService } from '../support/on-call.service';
 import {
@@ -48,7 +49,29 @@ export class CareHandoverService {
     private readonly notifications: NotificationsService,
     private readonly audit: AuditWriter,
     private readonly config: ConfigService,
+    private readonly kb: KbAiService,
   ) {}
+
+  /**
+   * CD-288 — a person takes part (handed over, or taken from AI) for the
+   * first time: kept for good (the AI-closed rate) and the AI's last answer
+   * fed back to KBMS as handed off.
+   */
+  async reachedPerson(
+    conversation: { id: string; companyId: string },
+    at = new Date(),
+  ) {
+    const first = await this.conversations.updateMany({
+      where: { id: conversation.id, humanAt: null },
+      data: { humanAt: at },
+    });
+    if (!first.count) return;
+    await this.kb
+      .handedOff(conversation.companyId, conversation.id, at)
+      .catch((error: unknown) =>
+        this.logger.warn(`KB handed-off not recorded: ${String(error)}`),
+      );
+  }
 
   /** Hand it over; returns what the customer is told. */
   async handOver(
@@ -70,6 +93,7 @@ export class CareHandoverService {
         caseOfferedAt: null,
       },
     });
+    await this.reachedPerson(conversation, now);
     await this.tell(conversation, reason, when, null);
     await this.audit.record({
       eventType: 'care.handover',

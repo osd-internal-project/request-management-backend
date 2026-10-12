@@ -2471,6 +2471,8 @@ model CrmCompanyConfig {
   /// CD-225 — the readiness checklist every project starts its check from;
   /// the manager adds to or removes from it per project.
   projectReadinessChecklist        String[] @default(["หน้างานสะอาดเรียบร้อย", "ติดป้ายและฉลากอุปกรณ์ครบ", "อบรมผู้ใช้งานแล้ว", "สำรองค่าตั้งค่าระบบแล้ว"])
+  /// CD-176 — ข้อที่บริษัทเพิ่มเองในรายการรับมอบงานของผู้จัดการโครงการ.
+  projectIntakeChecklist           String[] @default(["ผู้ติดต่อฝั่งลูกค้าและช่องทางติดต่อชัดเจน", "ทราบสถานที่และเงื่อนไขการเข้าหน้างาน"])
   /// CD-226 — the as-built documents every project must leave, by name.
   projectAsBuiltDocuments          String[] @default(["แบบติดตั้งจริง", "รายการอุปกรณ์และหมายเลขเครื่อง", "ผังการเชื่อมต่อระบบ"])
   /// CD-215 — the software documents a software project must leave, per version.
@@ -5280,6 +5282,61 @@ model EsignAuthority {
 }
 
 /// CD-18 PM — where a project stands.
+/// CD-227 — what the project team tells the service team beyond the
+/// documents: known quirks, what not to touch, what to watch. Required before
+/// a handover to service (CD-255) can be sent.
+model ProjectServiceBrief {
+  id        String   @id @default(uuid())
+  companyId String
+  projectId String   @unique
+  cautions  String
+  createdAt DateTime @default(now())
+  createdBy String
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
+
+  @@map("project_service_briefs")
+}
+
+/// CD-176 — the manager's receipt of the work: waiting, sent back, received.
+enum ProjectIntakeStatus {
+  pending
+  returned
+  accepted
+}
+
+/// CD-176 — receiving the work from Sales and the technical team. The lines
+/// are composed each time from what the project holds (the sales handover,
+/// the baseline's Solution, scope and BOQ, the contract) plus the company's
+/// own lines; `answers` keeps the manager's verdict on each, with the detail
+/// it was given on — a line whose detail has changed since asks again.
+model ProjectIntake {
+  id         String              @id @default(uuid())
+  companyId  String
+  projectId  String              @unique
+  status     ProjectIntakeStatus @default(pending)
+  /// [{code, detail, result: ok|incomplete, note, by, at}]
+  answers    Json                @default("[]")
+  /// Times sent back (+1 on each return).
+  round      Int                 @default(0)
+  /// [{action: returned|accepted|refreshed, at, by, byName, round, lines}]
+  history    Json                @default("[]")
+  /// The lines as they were accepted — the record of what was received.
+  accepted   Json?
+  acceptedBy String?
+  acceptedAt DateTime?
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+  updatedBy  String?
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, status])
+  @@map("project_intakes")
+}
+
 enum ProjectStatus {
   active
   on_hold
@@ -5345,6 +5402,10 @@ model Project {
   testItems       ProjectTestItem[]
   /// CD-225 — รายการตรวจความพร้อมก่อนส่งมอบ.
   readinessItems  ProjectReadinessItem[]
+  /// CD-176 — การรับมอบงานจากทีมขายและทีมเทคนิค.
+  intake          ProjectIntake?
+  /// CD-227 — ข้อควรระวังที่ทีมโครงการส่งถึงทีมบริการ.
+  serviceBrief    ProjectServiceBrief?
   /// CD-226 — เอกสารสภาพจริง และจุดที่ต่างจากที่ขาย.
   asBuiltDocuments  ProjectAsBuiltDocument[]
   asBuiltDeviations ProjectAsBuiltDeviation[]
@@ -5797,6 +5858,13 @@ model ProjectIssue {
   resolvedBy         String?
   /// The change request it became (CD-185).
   changeRequestId    String?
+  /// CD-223 — general · technical. A technical issue records its symptom
+  /// (description), root cause and fix, and becomes a KBMS draft when resolved.
+  kind               String    @default("general")
+  cause              String?
+  /// CD-223 — null (not for KBMS) · pending · sent; the article number once sent.
+  kbmsStatus         String?
+  kbmsRef            String?
   createdAt          DateTime  @default(now())
   createdBy          String
   updatedAt          DateTime  @updatedAt
@@ -5806,6 +5874,7 @@ model ProjectIssue {
 
   @@unique([projectId, seq])
   @@index([companyId, status, dueOn])
+  @@index([kbmsStatus])
   @@map("project_issues")
 }
 
@@ -7767,9 +7836,13 @@ model KbAiQuery {
   textPurgedAt    DateTime?
   /// CD-266 — the knowledge gap an unanswered question was counted into
   gapId           String?
+  /// CD-288 — the conversation went to a person after this answer: not
+  /// answered by AI alone, and a knowledge gap (ai_handed_off)
+  handedOffAt     DateTime?
   createdAt       DateTime  @default(now())
 
   @@index([companyId, createdAt])
+  @@index([handedOffAt, gapId])
   @@index([companyId, outcome])
   @@map("kb_ai_queries")
 }
@@ -7861,6 +7934,37 @@ model KbChunk {
 /// (CD-237), a person confirms, a different answer needs its reason, and a
 /// billed job needs the customer's acknowledgement before work starts. Closed
 /// with its cause and fix.
+/// CD-228 — work found outside the contract after a job started (misuse,
+/// extra equipment): proposed by whoever works it with an estimate, agreed or
+/// declined by the customer. Agreed items are charged on the job's service
+/// billing (CD-242) even when the job itself is in contract.
+model ServiceExtraWork {
+  id          String    @id @default(uuid())
+  companyId   String
+  workOrderId String
+  /// X-n within the job
+  seq         Int
+  description String
+  /// why it is outside the contract
+  reason      String
+  estimate    Decimal   @db.Decimal(14, 2)
+  /// proposed · agreed · declined · cancelled
+  status      String    @default("proposed")
+  ackName     String?
+  ackOn       DateTime? @db.Date
+  decidedBy   String?
+  decidedAt   DateTime?
+  declineNote String?
+  createdAt   DateTime  @default(now())
+  createdBy   String
+  updatedAt   DateTime  @updatedAt
+  updatedBy   String?
+
+  @@unique([workOrderId, seq])
+  @@index([companyId, status])
+  @@map("service_extra_works")
+}
+
 model ServiceWorkOrder {
   id                     String    @id @default(uuid())
   companyId              String
@@ -8723,12 +8827,18 @@ model CareConversation {
   /// CD-284 — the service team member holding it (status with_agent)
   agentUserId        String?
   agentSince         DateTime?
+  /// CD-288 — when a person first took part (handed over or taken); never
+  /// cleared, so a conversation given back to AI still counts as handed over
+  humanAt            DateTime?
+  /// CD-288 — put on the customer's 360° timeline (closed, customer known)
+  timelineAt         DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
   @@index([companyId, channel, senderRef, status])
   @@index([companyId, status, lastMessageAt])
   @@index([customerId])
+  @@index([status, timelineAt])
   @@map("care_conversations")
 }
 
@@ -8753,10 +8863,14 @@ model CareMessage {
   deliveryAttempts Int       @default(0)
   deliveredAt      DateTime?
   deliveryError    String?
+  /// CD-285 — files a channel only lends (LINE) still to be copied into our
+  /// storage; each attachment then carries its storage `key`
+  attachmentsPending Boolean @default(false)
   createdAt      DateTime @default(now())
 
   @@index([conversationId, createdAt])
   @@index([delivery, createdAt])
+  @@index([attachmentsPending])
   @@map("care_messages")
 }
 

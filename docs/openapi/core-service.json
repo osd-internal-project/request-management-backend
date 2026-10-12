@@ -18362,6 +18362,188 @@
         ]
       }
     },
+    "/api/v1/service-work-orders/{id}/extras": {
+      "get": {
+        "operationId": "ServiceWorkOrdersController_extras",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-228 งานนอกสัญญาที่พบระหว่างทำงาน",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "service.asset.read"
+        ]
+      },
+      "post": {
+        "operationId": "ServiceWorkOrdersController_proposeExtra",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProposeExtraWorkDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-228 เสนองานนอกสัญญา พร้อมเหตุผลและประมาณการ (ผู้รับผิดชอบงาน/ทีมบริการ ระหว่างทำงาน)",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/service-work-orders/extras/{extraId}/decide": {
+      "post": {
+        "operationId": "ServiceWorkOrdersController_decideExtra",
+        "parameters": [
+          {
+            "name": "extraId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecideExtraWorkDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-228 ลูกค้ายินยอม (ผู้ยินยอม วันที่) หรือปฏิเสธงานนอกสัญญา",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/service-work-orders/extras/{extraId}/cancel": {
+      "post": {
+        "operationId": "ServiceWorkOrdersController_cancelExtra",
+        "parameters": [
+          {
+            "name": "extraId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-228 ถอนรายการที่เสนอผิด (ก่อนลูกค้าตอบ)",
+        "tags": [
+          "service"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      }
+    },
     "/api/v1/service-on-call": {
       "get": {
         "operationId": "ServiceOnCallController_list",
@@ -21341,6 +21523,7 @@
               "type": "string",
               "enum": [
                 "ai_unanswered",
+                "ai_handed_off",
                 "low_rated",
                 "search_miss"
               ]
@@ -23429,6 +23612,60 @@
         ]
       }
     },
+    "/api/v1/care/conversations/{id}/messages/{messageId}/attachments/{index}": {
+      "get": {
+        "operationId": "CareController_attachment",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "messageId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "index",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-285 ไฟล์ที่ลูกค้าส่งมา (รูป/ไฟล์/เสียง/วิดีโอจาก LINE ที่คัดลอกเก็บแล้ว)",
+        "tags": [
+          "care"
+        ]
+      }
+    },
     "/api/v1/care/conversations": {
       "get": {
         "operationId": "CareController_list",
@@ -23870,6 +24107,36 @@
         ]
       }
     },
+    "/api/v1/care/results": {
+      "get": {
+        "operationId": "CareController_results",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-288 ผล AI CARE 12 เดือน — AI ตอบจบเอง / เปิดเคส / ส่งต่อเจ้าหน้าที่ ตามเดือนและช่องทาง",
+        "tags": [
+          "care"
+        ]
+      }
+    },
     "/api/v1/care/team": {
       "get": {
         "operationId": "CareController_team",
@@ -24117,6 +24384,92 @@
           }
         ],
         "summary": "CD-255 ส่งต่อรอบตรวจรับให้ทีมบริการ (ทีม Delivery / ผู้จัดการโครงการ — ส่งซ้ำเพื่อตอบคำถาม)",
+        "tags": [
+          "delivery"
+        ]
+      }
+    },
+    "/api/v1/delivery/projects/{projectId}/tech-package": {
+      "get": {
+        "operationId": "DeliveryController_techPackageOf",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-227 ชุดข้อมูลเทคนิคถึงทีมบริการ: As-built ค่าตั้งค่า จุดเชื่อมต่อ ข้อควรระวัง และสิ่งที่ยังขาด",
+        "tags": [
+          "delivery"
+        ]
+      }
+    },
+    "/api/v1/delivery/projects/{projectId}/tech-package/cautions": {
+      "put": {
+        "operationId": "DeliveryController_saveCautions",
+        "parameters": [
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveCautionsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-227 บันทึกข้อควรระวังถึงทีมบริการ (ผู้จัดการ/ทีมโครงการ)",
         "tags": [
           "delivery"
         ]
@@ -25560,6 +25913,47 @@
         ],
         "x-permission": [
           "pm.project.manage"
+        ]
+      }
+    },
+    "/api/v1/projects/by-customer/{customerId}": {
+      "get": {
+        "operationId": "ProjectsController_ofCustomer",
+        "parameters": [
+          {
+            "name": "customerId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-68 โครงการของลูกค้ารายนี้ (เฉพาะที่ผู้ใช้เห็น) พร้อมสุขภาพและสถานะรับมอบงาน",
+        "tags": [
+          "projects"
+        ],
+        "x-permission": [
+          "notification.read"
         ]
       }
     },
@@ -31844,6 +32238,231 @@
           }
         ],
         "summary": "ลบจุดที่ต่าง (ผู้บันทึกหรือผู้จัดการโครงการ)",
+        "tags": [
+          "projects"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/projects/{id}/intake": {
+      "get": {
+        "operationId": "ProjectsController_viewIntake",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "รับมอบงาน: รายการจากงานส่งมอบทีมขาย Solution/ขอบเขต/BOQ สัญญา และของบริษัท",
+        "tags": [
+          "projects"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/projects/{id}/intake/answer": {
+      "post": {
+        "operationId": "ProjectsController_answerIntake",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnswerIntakeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ตรวจรายการรับมอบทีละข้อ: ถูกต้อง หรือไม่ครบพร้อมเหตุผล",
+        "tags": [
+          "projects"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/projects/{id}/intake/refresh": {
+      "post": {
+        "operationId": "ProjectsController_refreshIntake",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ดึงข้อมูลตั้งต้นใหม่ (หลังทีมขาย/เทคนิคแก้) — ข้อที่ข้อมูลเปลี่ยนต้องตรวจใหม่",
+        "tags": [
+          "projects"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/projects/{id}/intake/accept": {
+      "post": {
+        "operationId": "ProjectsController_acceptIntake",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "รับมอบงาน (ทุกข้อถูกต้อง)",
+        "tags": [
+          "projects"
+        ],
+        "x-permission": [
+          "notification.read"
+        ]
+      }
+    },
+    "/api/v1/projects/{id}/intake/return": {
+      "post": {
+        "operationId": "ProjectsController_returnIntake",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReturnIntakeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ตีกลับงาน — แต่ละฝ่ายได้รับเฉพาะข้อที่ไม่ครบของตัวเอง",
         "tags": [
           "projects"
         ],
@@ -38693,7 +39312,7 @@
     },
     "/api/v1/ai-audit/policy": {
       "get": {
-        "operationId": "AiAuditController_policy",
+        "operationId": "AiRetentionController_policy",
         "parameters": [
           {
             "name": "X-Company-Id",
@@ -38724,7 +39343,7 @@
         ]
       },
       "put": {
-        "operationId": "AiAuditController_savePolicy",
+        "operationId": "AiRetentionController_savePolicy",
         "parameters": [
           {
             "name": "X-Company-Id",
@@ -43761,6 +44380,14 @@
             },
             "maxItems": 50
           },
+          "project_intake_checklist": {
+            "type": "array",
+            "items": {
+              "maxLength": 1000,
+              "type": "string"
+            },
+            "maxItems": 50
+          },
           "project_as_built_documents": {
             "type": "array",
             "items": {
@@ -48199,6 +48826,60 @@
           }
         }
       },
+      "ProposeExtraWorkDto": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string",
+            "example": "เปลี่ยนสายไฟที่ถูกหนูกัด",
+            "maxLength": 2000
+          },
+          "reason": {
+            "type": "string",
+            "example": "ความเสียหายจากสัตว์ ไม่อยู่ในสัญญา MA",
+            "maxLength": 2000
+          },
+          "estimate": {
+            "type": "number",
+            "description": "ประมาณการค่าใช้จ่าย (บาท)"
+          }
+        },
+        "required": [
+          "description",
+          "estimate",
+          "reason"
+        ]
+      },
+      "DecideExtraWorkDto": {
+        "type": "object",
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": [
+              "agreed",
+              "declined"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "description": "ผู้ยินยอมฝั่งลูกค้า (บังคับเมื่อยินยอม)",
+            "maxLength": 200
+          },
+          "on": {
+            "type": "string",
+            "description": "YYYY-MM-DD (บังคับเมื่อยินยอม)",
+            "maxLength": 10
+          },
+          "note": {
+            "type": "string",
+            "description": "หมายเหตุเมื่อปฏิเสธ",
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "decision"
+        ]
+      },
       "SaveOnCallShiftDto": {
         "type": "object",
         "properties": {
@@ -49358,6 +50039,19 @@
             "maxLength": 2000
           }
         }
+      },
+      "SaveCautionsDto": {
+        "type": "object",
+        "properties": {
+          "cautions": {
+            "type": "string",
+            "description": "ข้อควรระวัง: จุดที่ห้ามแตะ อาการที่ต้องเฝ้าระวัง ฯลฯ",
+            "maxLength": 4000
+          }
+        },
+        "required": [
+          "cautions"
+        ]
       },
       "AnswerHandoverDto": {
         "type": "object",
@@ -50584,6 +51278,42 @@
           }
         }
       },
+      "AnswerIntakeDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "technical.boq",
+            "maxLength": 1100
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "incomplete"
+            ]
+          },
+          "note": {
+            "type": "string",
+            "description": "บังคับเมื่อ incomplete — ไม่ครบอย่างไร",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "code",
+          "result"
+        ]
+      },
+      "ReturnIntakeDto": {
+        "type": "object",
+        "properties": {
+          "note": {
+            "type": "string",
+            "description": "ข้อความถึงทุกฝ่าย",
+            "maxLength": 1000
+          }
+        }
+      },
       "SaveReadinessItemDto": {
         "type": "object",
         "properties": {
@@ -50753,6 +51483,19 @@
               "critical"
             ]
           },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "general",
+              "technical"
+            ],
+            "description": "CD-223 technical = แก้ปัญหาทางเทคนิค ส่งเข้า KBMS เมื่อปิด"
+          },
+          "cause": {
+            "type": "string",
+            "description": "CD-223 สาเหตุ (ถ้าทราบแล้ว)",
+            "maxLength": 4000
+          },
           "schedule_impact_days": {
             "type": "integer",
             "description": "วันทำงานที่ล่าช้าเพราะปัญหานี้",
@@ -50783,6 +51526,11 @@
         "properties": {
           "resolution": {
             "type": "string",
+            "maxLength": 4000
+          },
+          "cause": {
+            "type": "string",
+            "description": "CD-223 สาเหตุ (บังคับสำหรับปัญหาทางเทคนิค)",
             "maxLength": 4000
           }
         },
