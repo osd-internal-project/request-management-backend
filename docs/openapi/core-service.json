@@ -39408,15 +39408,15 @@
             "bearer": []
           }
         ],
-        "summary": "LibreChat widget ที่แผงผู้ช่วย AI โหลด (ทุกคน)",
+        "summary": "chat ที่ผู้ใช้เปิดได้ (org + group ของตน) และตัวเริ่มต้น",
         "tags": [
           "chat-widget"
         ]
       }
     },
-    "/api/v1/chat-widget/settings": {
+    "/api/v1/chat-widget/widgets": {
       "get": {
-        "operationId": "ChatWidgetController_settings",
+        "operationId": "ChatWidgetController_list",
         "parameters": [
           {
             "name": "X-Company-Id",
@@ -39438,7 +39438,7 @@
             "bearer": []
           }
         ],
-        "summary": "ค่าตั้ง LibreChat widget ของบริษัท",
+        "summary": "chat ทั้งหมดของบริษัท (รวมที่ปิดอยู่)",
         "tags": [
           "chat-widget"
         ],
@@ -39446,8 +39446,8 @@
           "admin.chat-widget.manage"
         ]
       },
-      "put": {
-        "operationId": "ChatWidgetController_save",
+      "post": {
+        "operationId": "ChatWidgetController_create",
         "parameters": [
           {
             "name": "X-Company-Id",
@@ -39464,7 +39464,58 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/SaveChatWidgetSettingsDto"
+                "$ref": "#/components/schemas/SaveChatWidgetDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เพิ่ม chat",
+        "tags": [
+          "chat-widget"
+        ],
+        "x-permission": [
+          "admin.chat-widget.manage"
+        ]
+      }
+    },
+    "/api/v1/chat-widget/widgets/{id}": {
+      "put": {
+        "operationId": "ChatWidgetController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveChatWidgetDto"
               }
             }
           }
@@ -39479,7 +39530,169 @@
             "bearer": []
           }
         ],
-        "summary": "ตั้ง LibreChat widget (http / https / public id)",
+        "summary": "แก้ chat (active, ทั้งองค์กร, default ของ org)",
+        "tags": [
+          "chat-widget"
+        ],
+        "x-permission": [
+          "admin.chat-widget.manage"
+        ]
+      },
+      "delete": {
+        "operationId": "ChatWidgetController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ลบ chat (group ที่ add ไว้หายไปด้วย)",
+        "tags": [
+          "chat-widget"
+        ],
+        "x-permission": [
+          "admin.chat-widget.manage"
+        ]
+      }
+    },
+    "/api/v1/chat-widget/org-units": {
+      "get": {
+        "operationId": "ChatWidgetController_orgUnits",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "หน่วยงานของบริษัท พร้อมจำนวน chat ที่ add ไว้",
+        "tags": [
+          "chat-widget"
+        ],
+        "x-permission": [
+          "admin.chat-widget.manage"
+        ]
+      }
+    },
+    "/api/v1/chat-widget/groups/{orgUnitId}": {
+      "get": {
+        "operationId": "ChatWidgetController_group",
+        "parameters": [
+          {
+            "name": "orgUnitId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "chat ที่ add ให้หน่วยงานนี้ และ default ของมัน",
+        "tags": [
+          "chat-widget"
+        ],
+        "x-permission": [
+          "admin.chat-widget.manage"
+        ]
+      },
+      "put": {
+        "operationId": "ChatWidgetController_saveGroup",
+        "parameters": [
+          {
+            "name": "orgUnitId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveChatWidgetGroupDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ตั้ง chat ของหน่วยงาน (แทนที่ทั้งชุด)",
         "tags": [
           "chat-widget"
         ],
@@ -52850,9 +53063,14 @@
           "retention_days"
         ]
       },
-      "SaveChatWidgetSettingsDto": {
+      "SaveChatWidgetDto": {
         "type": "object",
         "properties": {
+          "name": {
+            "type": "string",
+            "example": "ผู้ช่วย AI",
+            "maxLength": 100
+          },
           "http_url": {
             "type": "object",
             "example": "http://192.168.31.52",
@@ -52861,16 +53079,56 @@
           },
           "https_url": {
             "type": "object",
-            "example": "https://aiyara-dev.osd.co.th",
+            "example": "https://aiyara.osd.co.th",
             "description": "LibreChat ที่หน้า https ใช้ (origin เท่านั้น)",
             "maxLength": 255
           },
           "public_id": {
-            "type": "object",
+            "type": "string",
             "description": "public id ของ widget ใน LibreChat",
             "maxLength": 100
+          },
+          "active": {
+            "type": "boolean",
+            "default": true
+          },
+          "org_wide": {
+            "type": "boolean",
+            "default": true,
+            "description": "เห็นทั้งองค์กร · false = เห็นเฉพาะ group ที่ add ไว้"
+          },
+          "is_default": {
+            "type": "boolean",
+            "description": "default ของ org (ตัวเดียวต่อบริษัท)"
+          },
+          "sort_order": {
+            "type": "integer",
+            "default": 0,
+            "minimum": 0
           }
-        }
+        },
+        "required": [
+          "name",
+          "public_id"
+        ]
+      },
+      "SaveChatWidgetGroupDto": {
+        "type": "object",
+        "properties": {
+          "widget_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "default_id": {
+            "type": "object",
+            "description": "default ของ group — ต้องอยู่ใน widget_ids"
+          }
+        },
+        "required": [
+          "widget_ids"
+        ]
       },
       "SaveEsignAuthorityDto": {
         "type": "object",

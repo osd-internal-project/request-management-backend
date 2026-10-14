@@ -597,6 +597,7 @@ model OrgUnit {
   receivedTypes RequestType[]         @relation("ReceiverUnit")
   eligibleTypes RequestTypeOrgUnit[]
   biAudiences   BiDashboardAudience[]
+  chatWidgets   ChatWidgetGroup[]
   scopesGranted OrgUnitScope[]        @relation("ScopeViewer")
   scopesOn      OrgUnitScope[]        @relation("ScopeTarget")
 
@@ -3645,19 +3646,47 @@ model AiAuditPolicy {
   @@map("ai_audit_policies")
 }
 
-/// LibreChat (aiyara) chat widget ของบริษัท · ว่าง = ใช้ env `LIBRECHAT_WIDGET_*`
-/// ของ frontend. แยก http / https เพราะหน้า https โหลด script จาก http ไม่ได้.
+/// LibreChat (aiyara) chat widget ของบริษัท — มีได้หลายตัว ผู้ใช้เลือกบนหัวแผง
+/// ผู้ช่วย AI. แยก http / https เพราะหน้า https โหลด script จาก http ไม่ได้.
+/// เห็นได้เมื่อ active และ (`orgWide` หรือถูก add ให้ unit ของผู้ใช้ / unit แม่).
 model ChatWidgetSetting {
   id        String   @id @default(uuid())
-  companyId String   @unique
+  companyId String
+  name      String   @default("ผู้ช่วย AI")
   /// origin เท่านั้น เช่น http://192.168.31.52
   httpUrl   String?
   httpsUrl  String?
   publicId  String?
+  active    Boolean  @default(true)
+  /// เห็นทั้งองค์กร · false = เห็นเฉพาะ group ที่ add ไว้
+  orgWide   Boolean  @default(true)
+  /// default ของ org — มีได้ตัวเดียวต่อบริษัท (บังคับใน service)
+  isDefault Boolean  @default(false)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  createdBy String?
   updatedBy String?
   updatedAt DateTime @updatedAt
 
+  groups ChatWidgetGroup[]
+
+  @@index([companyId])
   @@map("chat_widget_settings")
+}
+
+/// chat ที่ add ให้ org unit (group) — ครอบทั้ง subtree ผ่าน `OrgClosure`.
+/// `isDefault` = default ของ group นั้น; group ที่ใกล้ผู้ใช้ที่สุดชนะ.
+model ChatWidgetGroup {
+  widgetId  String
+  orgUnitId String
+  isDefault Boolean @default(false)
+
+  widget  ChatWidgetSetting @relation(fields: [widgetId], references: [id], onDelete: Cascade)
+  orgUnit OrgUnit           @relation(fields: [orgUnitId], references: [id], onDelete: Cascade)
+
+  @@id([widgetId, orgUnitId])
+  @@index([orgUnitId])
+  @@map("chat_widget_groups")
 }
 
 /// CD-273 — ไฟล์ในคลังแบรนด์ (โลโก้ เทมเพลตข้อเสนอ เอกสารนำเสนอ …) ·
