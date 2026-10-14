@@ -1,6 +1,6 @@
 {
   "name": "request-management-backend",
-  "version": "1.3.12",
+  "version": "1.3.13",
   "description": "npm workspaces monorepo: user-service and core-service, versioned independently.",
   "private": true,
   "license": "UNLICENSED",
