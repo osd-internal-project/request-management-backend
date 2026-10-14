@@ -3645,6 +3645,21 @@ model AiAuditPolicy {
   @@map("ai_audit_policies")
 }
 
+/// LibreChat (aiyara) chat widget ของบริษัท · ว่าง = ใช้ env `LIBRECHAT_WIDGET_*`
+/// ของ frontend. แยก http / https เพราะหน้า https โหลด script จาก http ไม่ได้.
+model ChatWidgetSetting {
+  id        String   @id @default(uuid())
+  companyId String   @unique
+  /// origin เท่านั้น เช่น http://192.168.31.52
+  httpUrl   String?
+  httpsUrl  String?
+  publicId  String?
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+
+  @@map("chat_widget_settings")
+}
+
 /// CD-273 — ไฟล์ในคลังแบรนด์ (โลโก้ เทมเพลตข้อเสนอ เอกสารนำเสนอ …) ·
 /// ทุกคนเห็นเฉพาะฉบับปัจจุบัน (`currentVersionId`), ฉบับเก่าเก็บไว้ให้ MACOM.
 model BrandAsset {

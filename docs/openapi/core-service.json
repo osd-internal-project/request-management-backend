@@ -39384,6 +39384,110 @@
         ]
       }
     },
+    "/api/v1/chat-widget/runtime": {
+      "get": {
+        "operationId": "ChatWidgetController_runtime",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "LibreChat widget ที่แผงผู้ช่วย AI โหลด (ทุกคน)",
+        "tags": [
+          "chat-widget"
+        ]
+      }
+    },
+    "/api/v1/chat-widget/settings": {
+      "get": {
+        "operationId": "ChatWidgetController_settings",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ค่าตั้ง LibreChat widget ของบริษัท",
+        "tags": [
+          "chat-widget"
+        ],
+        "x-permission": [
+          "admin.chat-widget.manage"
+        ]
+      },
+      "put": {
+        "operationId": "ChatWidgetController_save",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveChatWidgetSettingsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ตั้ง LibreChat widget (http / https / public id)",
+        "tags": [
+          "chat-widget"
+        ],
+        "x-permission": [
+          "admin.chat-widget.manage"
+        ]
+      }
+    },
     "/api/v1/esign/authorities": {
       "get": {
         "operationId": "EsignController_listAuthorities",
@@ -52745,6 +52849,28 @@
         "required": [
           "retention_days"
         ]
+      },
+      "SaveChatWidgetSettingsDto": {
+        "type": "object",
+        "properties": {
+          "http_url": {
+            "type": "object",
+            "example": "http://192.168.31.52",
+            "description": "LibreChat ที่หน้า http ใช้ (origin เท่านั้น)",
+            "maxLength": 255
+          },
+          "https_url": {
+            "type": "object",
+            "example": "https://aiyara-dev.osd.co.th",
+            "description": "LibreChat ที่หน้า https ใช้ (origin เท่านั้น)",
+            "maxLength": 255
+          },
+          "public_id": {
+            "type": "object",
+            "description": "public id ของ widget ใน LibreChat",
+            "maxLength": 100
+          }
+        }
       },
       "SaveEsignAuthorityDto": {
         "type": "object",

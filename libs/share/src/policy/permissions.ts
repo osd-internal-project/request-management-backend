@@ -262,6 +262,12 @@ export const PERMISSIONS = {
      * Apart from `admin.llm.manage` so reviewing is not the configurer's job.
      */
     'admin.ai.audit',
+    /**
+     * Which LibreChat host and widget the ผู้ช่วย AI panel loads. Apart from
+     * `admin.llm.manage`: it points every user's browser at an outside host,
+     * it does not spend per call.
+     */
+    'admin.chat-widget.manage',
   ],
   /**
    * AUTH-06: สิทธิ์ของบัญชีบริการ — ออกให้กุญแจ API ที่หน้าจอ API key ไม่ใช่
