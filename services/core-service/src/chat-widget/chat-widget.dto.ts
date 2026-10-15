@@ -7,6 +7,7 @@ import {
   IsString,
   MaxLength,
   Min,
+  ValidateNested,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -79,4 +80,28 @@ export class SaveChatWidgetGroupDto {
   @IsOptional()
   @IsString()
   default_id?: string | null;
+}
+
+/** One org unit's row of the matrix. */
+export class ChatWidgetGroupEntryDto extends SaveChatWidgetGroupDto {
+  @ApiProperty()
+  @IsString()
+  org_unit_id!: string;
+}
+
+/** The matrix's changed rows, saved together. */
+export class SaveChatWidgetGroupsDto {
+  @ApiProperty({ type: [ChatWidgetGroupEntryDto] })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ChatWidgetGroupEntryDto)
+  groups!: ChatWidgetGroupEntryDto[];
+}
+
+/** Every widget id of the company, in the order the panel should list them. */
+export class ReorderChatWidgetsDto {
+  @ApiProperty({ type: [String] })
+  @IsArray()
+  @IsString({ each: true })
+  ids!: string[];
 }

@@ -104,6 +104,33 @@ export class ChatWidgetSettingRepository extends BaseRepository<
     });
   }
 
+  /** Every unit's rows whose widget is active — the whole matrix in one read. */
+  companyGroupRows(companyId: string) {
+    return this.prisma.chatWidgetGroup.findMany({
+      where: { widget: { companyId, active: true } },
+      select: { orgUnitId: true, widgetId: true, isDefault: true },
+    });
+  }
+
+  /** Which of these units are the company's active ones. */
+  findUnits(companyId: string, orgUnitIds: readonly string[]) {
+    return this.prisma.orgUnit.findMany({
+      where: { id: { in: [...orgUnitIds] }, companyId, active: true },
+      select: { id: true },
+    });
+  }
+
+  /** Writes `sortOrder` = position in `ids`. Call inside the reorder's transaction. */
+  async setOrder(ids: readonly string[], option: TxOption): Promise<void> {
+    const client = option.prisma ?? this.prisma;
+    for (const [index, id] of ids.entries()) {
+      await client.chatWidgetSetting.update({
+        where: { id },
+        data: { sortOrder: index },
+      });
+    }
+  }
+
   /** The unit's rows whose widget is active — what the group screen edits. */
   activeGroupRows(orgUnitId: string, option?: TxOption) {
     const client = option?.prisma ?? this.prisma;

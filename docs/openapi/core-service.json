@@ -39578,6 +39578,123 @@
         ]
       }
     },
+    "/api/v1/chat-widget/order": {
+      "put": {
+        "operationId": "ChatWidgetController_reorder",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReorderChatWidgetsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "จัดลำดับ chat (ส่ง id ครบทุกตัวตามลำดับใหม่)",
+        "tags": [
+          "chat-widget"
+        ],
+        "x-permission": [
+          "admin.chat-widget.manage"
+        ]
+      }
+    },
+    "/api/v1/chat-widget/groups": {
+      "get": {
+        "operationId": "ChatWidgetController_groups",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "chat ที่ add ให้ทุกหน่วยงาน (ทั้ง matrix)",
+        "tags": [
+          "chat-widget"
+        ],
+        "x-permission": [
+          "admin.chat-widget.manage"
+        ]
+      },
+      "put": {
+        "operationId": "ChatWidgetController_saveGroups",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveChatWidgetGroupsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "บันทึกหลายหน่วยงานพร้อมกัน (transaction เดียว)",
+        "tags": [
+          "chat-widget"
+        ],
+        "x-permission": [
+          "admin.chat-widget.manage"
+        ]
+      }
+    },
     "/api/v1/chat-widget/org-units": {
       "get": {
         "operationId": "ChatWidgetController_orgUnits",
@@ -53110,6 +53227,56 @@
         "required": [
           "name",
           "public_id"
+        ]
+      },
+      "ReorderChatWidgetsDto": {
+        "type": "object",
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "ids"
+        ]
+      },
+      "ChatWidgetGroupEntryDto": {
+        "type": "object",
+        "properties": {
+          "widget_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "default_id": {
+            "type": "object",
+            "description": "default ของ group — ต้องอยู่ใน widget_ids"
+          },
+          "org_unit_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "org_unit_id",
+          "widget_ids"
+        ]
+      },
+      "SaveChatWidgetGroupsDto": {
+        "type": "object",
+        "properties": {
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatWidgetGroupEntryDto"
+            }
+          }
+        },
+        "required": [
+          "groups"
         ]
       },
       "SaveChatWidgetGroupDto": {

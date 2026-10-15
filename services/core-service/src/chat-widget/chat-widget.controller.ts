@@ -15,7 +15,12 @@ import {
   Permissions,
 } from '@request-management/share';
 import type { Principal } from '@request-management/share';
-import { SaveChatWidgetDto, SaveChatWidgetGroupDto } from './chat-widget.dto';
+import {
+  ReorderChatWidgetsDto,
+  SaveChatWidgetDto,
+  SaveChatWidgetGroupDto,
+  SaveChatWidgetGroupsDto,
+} from './chat-widget.dto';
 import { ChatWidgetService } from './chat-widget.service';
 
 @ApiTags('chat-widget')
@@ -70,6 +75,33 @@ export class ChatWidgetController {
     @CurrentPrincipal() principal: Principal,
   ) {
     await this.widget.remove(principal, id);
+  }
+
+  @ApiOperation({ summary: 'จัดลำดับ chat (ส่ง id ครบทุกตัวตามลำดับใหม่)' })
+  @Put('order')
+  @Permissions('admin.chat-widget.manage')
+  reorder(
+    @Body() dto: ReorderChatWidgetsDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.widget.reorder(principal, dto);
+  }
+
+  @ApiOperation({ summary: 'chat ที่ add ให้ทุกหน่วยงาน (ทั้ง matrix)' })
+  @Get('groups')
+  @Permissions('admin.chat-widget.manage')
+  groups(@CurrentPrincipal() principal: Principal) {
+    return this.widget.groups(principal);
+  }
+
+  @ApiOperation({ summary: 'บันทึกหลายหน่วยงานพร้อมกัน (transaction เดียว)' })
+  @Put('groups')
+  @Permissions('admin.chat-widget.manage')
+  saveGroups(
+    @Body() dto: SaveChatWidgetGroupsDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.widget.saveGroups(principal, dto);
   }
 
   @ApiOperation({ summary: 'หน่วยงานของบริษัท พร้อมจำนวน chat ที่ add ไว้' })

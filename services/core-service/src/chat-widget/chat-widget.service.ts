@@ -8,7 +8,12 @@ import {
 } from '@request-management/share';
 import type { Principal, TxOption } from '@request-management/share';
 import { chooseDefault, widgetOrigin } from './chat-widget-rules';
-import { SaveChatWidgetDto, SaveChatWidgetGroupDto } from './chat-widget.dto';
+import {
+  ReorderChatWidgetsDto,
+  SaveChatWidgetDto,
+  SaveChatWidgetGroupDto,
+  SaveChatWidgetGroupsDto,
+} from './chat-widget.dto';
 import { ChatWidgetSettingRepository } from './chat-widget.repository';
 
 function toOption(row: ChatWidgetSetting) {
@@ -149,45 +154,133 @@ export class ChatWidgetService {
     orgUnitId: string,
     dto: SaveChatWidgetGroupDto,
   ) {
-    const companyId = actor.activeCompanyId;
-    await this.requireUnit(companyId, orgUnitId);
-    const widgetIds = [...new Set(dto.widget_ids)];
-    const defaultId = dto.default_id || null;
-    if (defaultId && !widgetIds.includes(defaultId)) {
-      throw new AppError(
-        'VALIDATION_FAILED',
-        'default ของ group ต้องเป็น chat ที่ add ให้ group นี้',
-      );
+    await this.saveGroups(actor, {
+      groups: [{ ...dto, org_unit_id: orgUnitId }],
+    });
+    return this.groupView(orgUnitId);
+  }
+
+  /** Every unit that was given chats: `{ org_unit_id, widget_ids, default_id }`. */
+  async groups(actor: Principal) {
+    const rows = await this.widgets.companyGroupRows(actor.activeCompanyId);
+    const byUnit = new Map<
+      string,
+      { widget_ids: string[]; default_id: string | null }
+    >();
+    for (const row of rows) {
+      const entry = byUnit.get(row.orgUnitId) ?? {
+        widget_ids: [],
+        default_id: null,
+      };
+      entry.widget_ids.push(row.widgetId);
+      if (row.isDefault) entry.default_id = row.widgetId;
+      byUnit.set(row.orgUnitId, entry);
     }
+    return [...byUnit].map(([orgUnitId, entry]) => ({
+      org_unit_id: orgUnitId,
+      ...entry,
+    }));
+  }
+
+  /**
+   * The matrix's changed rows. Every row is checked before anything is written,
+   * then all are written in one transaction — a bad row saves none of them.
+   */
+  async saveGroups(actor: Principal, dto: SaveChatWidgetGroupsDto) {
+    const companyId = actor.activeCompanyId;
+    const entries = dto.groups.map((entry) => ({
+      orgUnitId: entry.org_unit_id,
+      widgetIds: [...new Set(entry.widget_ids)],
+      defaultId: entry.default_id || null,
+    }));
+    const unitIds = [...new Set(entries.map((entry) => entry.orgUnitId))];
+    if (unitIds.length !== entries.length) {
+      throw new AppError('VALIDATION_FAILED', 'มีหน่วยงานซ้ำในรายการ');
+    }
+    const units = await this.widgets.findUnits(companyId, unitIds);
+    if (units.length !== unitIds.length) {
+      throw new AppError('NOT_FOUND', 'ไม่พบหน่วยงานนี้');
+    }
+    for (const entry of entries) {
+      if (entry.defaultId && !entry.widgetIds.includes(entry.defaultId)) {
+        throw new AppError(
+          'VALIDATION_FAILED',
+          'default ของ group ต้องเป็น chat ที่ add ให้ group นี้',
+        );
+      }
+    }
+    const allIds = [...new Set(entries.flatMap((entry) => entry.widgetIds))];
     const active = await this.widgets.findMany({
-      where: { companyId, active: true, id: { in: widgetIds } },
+      where: { companyId, active: true, id: { in: allIds } },
       select: { id: true },
     });
-    if (active.length !== widgetIds.length) {
+    if (active.length !== allIds.length) {
       throw new AppError(
         'VALIDATION_FAILED',
         'add ได้เฉพาะ chat ที่ active ของบริษัทนี้',
       );
     }
-    const before = await this.groupView(orgUnitId);
+    const before = new Map(
+      await Promise.all(
+        entries.map(
+          async (entry) =>
+            [entry.orgUnitId, await this.groupView(entry.orgUnitId)] as const,
+        ),
+      ),
+    );
     await this.transactions.execute(async (prisma) => {
-      await this.widgets.replaceGroup(orgUnitId, widgetIds, defaultId, {
-        prisma,
-      });
+      for (const entry of entries) {
+        await this.widgets.replaceGroup(
+          entry.orgUnitId,
+          entry.widgetIds,
+          entry.defaultId,
+          { prisma },
+        );
+        await this.audit.record(
+          {
+            eventType: 'chat_widget.group.updated',
+            companyId,
+            ...auditActor(actor),
+            resourceType: 'org_unit',
+            resourceId: entry.orgUnitId,
+            before: before.get(entry.orgUnitId),
+            after: { widget_ids: entry.widgetIds, default_id: entry.defaultId },
+          },
+          { prisma },
+        );
+      }
+    });
+    return this.groups(actor);
+  }
+
+  /** The panel's order: `ids` must be exactly the company's widgets. */
+  async reorder(actor: Principal, dto: ReorderChatWidgetsDto) {
+    const companyId = actor.activeCompanyId;
+    const ids = [...new Set(dto.ids)];
+    const rows = await this.widgets.findForCompany(companyId);
+    const known = new Set(rows.map((row) => row.id));
+    if (ids.length !== rows.length || ids.some((id) => !known.has(id))) {
+      throw new AppError(
+        'VALIDATION_FAILED',
+        'ลำดับต้องมี chat ของบริษัทครบทุกตัว',
+      );
+    }
+    await this.transactions.execute(async (prisma) => {
+      await this.widgets.setOrder(ids, { prisma });
       await this.audit.record(
         {
-          eventType: 'chat_widget.group.updated',
+          eventType: 'chat_widget.reordered',
           companyId,
           ...auditActor(actor),
-          resourceType: 'org_unit',
-          resourceId: orgUnitId,
-          before,
-          after: { widget_ids: widgetIds, default_id: defaultId },
+          resourceType: 'chat_widget',
+          resourceId: companyId,
+          before: { ids: rows.map((row) => row.id) },
+          after: { ids },
         },
         { prisma },
       );
     });
-    return this.groupView(orgUnitId);
+    return this.list(actor);
   }
 
   private async groupView(orgUnitId: string) {

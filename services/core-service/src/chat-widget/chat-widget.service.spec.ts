@@ -47,6 +47,18 @@ function harness(existing: ReturnType<typeof row> | null = row()) {
     findUnit: jest.fn(() => Promise.resolve({ id: 'team', name: 'Team' })),
     activeGroupRows: jest.fn(() => Promise.resolve([])),
     replaceGroup: jest.fn(() => Promise.resolve()),
+    companyGroupRows: jest.fn(() =>
+      Promise.resolve(
+        [] as { orgUnitId: string; widgetId: string; isDefault: boolean }[],
+      ),
+    ),
+    findUnits: jest.fn((_company: string, ids: string[]) =>
+      Promise.resolve(ids.map((id) => ({ id }))),
+    ),
+    findForCompany: jest.fn(() =>
+      Promise.resolve([row({ id: 'a' }), row({ id: 'b' })]),
+    ),
+    setOrder: jest.fn(() => Promise.resolve()),
   };
   const audit = { record: jest.fn(() => Promise.resolve()) };
   const transactions = {
@@ -189,4 +201,80 @@ describe('ChatWidgetService — group', () => {
       code: 'NOT_FOUND',
     });
   });
+});
+
+describe('ChatWidgetService — matrix and order', () => {
+  it('lists every unit with its chats and default', async () => {
+    const { service, widgets } = harness();
+    widgets.companyGroupRows.mockResolvedValue([
+      { orgUnitId: 'sales', widgetId: 'w1', isDefault: false },
+      { orgUnitId: 'sales', widgetId: 'w2', isDefault: true },
+      { orgUnitId: 'care', widgetId: 'w1', isDefault: false },
+    ]);
+    await expect(service.groups(admin)).resolves.toEqual([
+      { org_unit_id: 'sales', widget_ids: ['w1', 'w2'], default_id: 'w2' },
+      { org_unit_id: 'care', widget_ids: ['w1'], default_id: null },
+    ]);
+  });
+
+  it('saves several units in one transaction, one audit row each', async () => {
+    const { service, widgets, audit } = harness();
+    widgets.findMany.mockResolvedValue([{ id: 'w1' }, { id: 'w2' }]);
+    await service.saveGroups(admin, {
+      groups: [
+        { org_unit_id: 'sales', widget_ids: ['w1'], default_id: 'w1' },
+        { org_unit_id: 'care', widget_ids: ['w2'] },
+      ],
+    });
+    expect(widgets.replaceGroup).toHaveBeenCalledTimes(2);
+    expect(audit.record).toHaveBeenCalledTimes(2);
+  });
+
+  it('a bad row saves none of them', async () => {
+    const { service, widgets } = harness();
+    widgets.findMany.mockResolvedValue([{ id: 'w1' }]);
+    await expect(
+      service.saveGroups(admin, {
+        groups: [
+          { org_unit_id: 'sales', widget_ids: ['w1'] },
+          { org_unit_id: 'care', widget_ids: ['w1'], default_id: 'w9' },
+        ],
+      }),
+    ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+    expect(widgets.replaceGroup).not.toHaveBeenCalled();
+  });
+
+  it("another company's unit in the matrix answers 404", async () => {
+    const { service, widgets } = harness();
+    widgets.findUnits.mockResolvedValue([{ id: 'sales' }]);
+    await expect(
+      service.saveGroups(admin, {
+        groups: [
+          { org_unit_id: 'sales', widget_ids: [] },
+          { org_unit_id: 'foreign', widget_ids: [] },
+        ],
+      }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+
+  it('reorders when given every widget of the company', async () => {
+    const { service, widgets, audit } = harness();
+    await service.reorder(admin, { ids: ['b', 'a'] });
+    expect(widgets.setOrder).toHaveBeenCalledWith(['b', 'a'], { prisma: {} });
+    expect(audit.record).toHaveBeenCalledWith(
+      expect.objectContaining({ eventType: 'chat_widget.reordered' }),
+      { prisma: {} },
+    );
+  });
+
+  it.each([[['a']], [['a', 'b', 'x']], [['a', 'x']]])(
+    'refuses an order that is not the exact set: %j',
+    async (ids) => {
+      const { service, widgets } = harness();
+      await expect(service.reorder(admin, { ids })).rejects.toMatchObject({
+        code: 'VALIDATION_FAILED',
+      });
+      expect(widgets.setOrder).not.toHaveBeenCalled();
+    },
+  );
 });
