@@ -27,6 +27,7 @@
 | [`openapi/external-support.json`](./openapi/external-support.json) | 7 | งานบริการ — ทะเบียนอุปกรณ์ สิทธิ์บริการ เปิดใบสั่งงาน |
 | [`openapi/external-disbursement.json`](./openapi/external-disbursement.json) | 10 | การเบิก — หน้าทำงานของคำขอ FI05/FI06 ([`disbursement.md`](./disbursement.md)) |
 | [`openapi/external-mcp.json`](./openapi/external-mcp.json) | 1 | คำอธิบาย JSON-RPC — ไม่ใช่ REST |
+| [`openapi/external-webhook.json`](./openapi/external-webhook.json) | 17 events | ระบบเรียกออกไปหาคุณ (OpenAPI 3.1 `webhooks`) — ดู [GUIDE §8](./EXTERNAL_API_GUIDE.md#8-รับแจ้งเหตุการณ์-webhook--ไม่ต้อง-poll) |
 | [`openapi/external-tools.json`](./openapi/external-tools.json) | 35 tools | tool-caller (`yarn tools`) |
 
 Postman collection สร้างจากสามไฟล์แรกด้วย `yarn postman` เขียนลง

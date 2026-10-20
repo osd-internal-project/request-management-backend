@@ -1,0 +1,1668 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Request Form — Webhooks (ระบบส่งออก)",
+    "description": "ระบบส่ง `POST` ไปยัง URL ที่ผู้ดูแลตั้งไว้ในหน้า **ผู้ดูแล → Webhook** ทุกครั้งที่เกิด event ที่เลือกไว้ของบริษัทนั้น\n\n**payload บาง** — มีแค่ id กับชนิด event ถ้าต้องการรายละเอียด ให้เรียก External API ด้วย API key ตามปกติ สิทธิ์จึงยังตรวจที่ API และข้อมูลส่วนบุคคลไม่ออกไปกับ webhook\n\n**ตรวจลายเซ็นก่อนเชื่อทุกครั้ง** ด้วย `HMAC-SHA256(secret, timestamp + \".\" + raw body)` ให้เทียบกับ `X-Webhook-Signature` แบบ constant-time และใช้ body ดิบก่อน parse JSON\n\n**ตอบ 2xx ภายใน 10 วินาที** แล้วค่อยทำงานต่อเบื้องหลัง ถ้าตอบอย่างอื่นหรือหมดเวลา ระบบจะส่งซ้ำหลัง 1 นาที, 5 นาที, 30 นาที, 2 ชั่วโมง และ 6 ชั่วโมง รวม 6 ครั้ง จากนั้นจะเลิกส่ง ระบบไม่ตาม redirect\n\n**ส่งอย่างน้อยหนึ่งครั้ง แบบ best-effort** — event อาจมาซ้ำหรือสลับลำดับ ให้ตัดรายการซ้ำด้วย `X-Webhook-Id` ถ้าบริการเคยล่ม ให้ตรวจสอบย้อนหลังด้วย GET ของ API เดิม",
+    "version": "1.0"
+  },
+  "webhooks": {
+    "request.submitted": {
+      "post": {
+        "summary": "ส่งคำขอแล้ว",
+        "operationId": "webhook_request_submitted",
+        "parameters": [
+          {
+            "name": "X-Webhook-Id",
+            "in": "header",
+            "required": true,
+            "description": "id ของ event — ส่งซ้ำได้ ใช้ตัดรายการซ้ำ (ค่าเดียวกับ body.id)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Event",
+            "in": "header",
+            "required": true,
+            "description": "ชื่อ event",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Timestamp",
+            "in": "header",
+            "required": true,
+            "description": "วินาที unix ตอนส่ง — ปฏิเสธถ้าห่างจากเวลาปัจจุบันเกิน 5 นาที",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Signature",
+            "in": "header",
+            "required": true,
+            "description": "`sha256=` + hex(HMAC-SHA256(secret, `{X-Webhook-Timestamp}.{raw body}`))",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "event",
+                  "created_at",
+                  "data"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "event": {
+                    "type": "string",
+                    "const": "request.submitted"
+                  },
+                  "created_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "data": {
+                    "$ref": "#/components/schemas/RequestEventData"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "2XX": {
+            "description": "รับแล้ว — ไม่ส่งซ้ำ"
+          },
+          "default": {
+            "description": "อย่างอื่นทั้งหมด — ส่งซ้ำตามรอบ"
+          }
+        }
+      }
+    },
+    "request.returned": {
+      "post": {
+        "summary": "คำขอถูกส่งกลับให้แก้",
+        "operationId": "webhook_request_returned",
+        "parameters": [
+          {
+            "name": "X-Webhook-Id",
+            "in": "header",
+            "required": true,
+            "description": "id ของ event — ส่งซ้ำได้ ใช้ตัดรายการซ้ำ (ค่าเดียวกับ body.id)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Event",
+            "in": "header",
+            "required": true,
+            "description": "ชื่อ event",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Timestamp",
+            "in": "header",
+            "required": true,
+            "description": "วินาที unix ตอนส่ง — ปฏิเสธถ้าห่างจากเวลาปัจจุบันเกิน 5 นาที",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Signature",
+            "in": "header",
+            "required": true,
+            "description": "`sha256=` + hex(HMAC-SHA256(secret, `{X-Webhook-Timestamp}.{raw body}`))",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "event",
+                  "created_at",
+                  "data"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "event": {
+                    "type": "string",
+                    "const": "request.returned"
+                  },
+                  "created_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "data": {
+                    "$ref": "#/components/schemas/RequestEventData"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "2XX": {
+            "description": "รับแล้ว — ไม่ส่งซ้ำ"
+          },
+          "default": {
+            "description": "อย่างอื่นทั้งหมด — ส่งซ้ำตามรอบ"
+          }
+        }
+      }
+    },
+    "request.resubmitted": {
+      "post": {
+        "summary": "ส่งคำขอที่แก้แล้วอีกครั้ง",
+        "operationId": "webhook_request_resubmitted",
+        "parameters": [
+          {
+            "name": "X-Webhook-Id",
+            "in": "header",
+            "required": true,
+            "description": "id ของ event — ส่งซ้ำได้ ใช้ตัดรายการซ้ำ (ค่าเดียวกับ body.id)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Event",
+            "in": "header",
+            "required": true,
+            "description": "ชื่อ event",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Timestamp",
+            "in": "header",
+            "required": true,
+            "description": "วินาที unix ตอนส่ง — ปฏิเสธถ้าห่างจากเวลาปัจจุบันเกิน 5 นาที",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Signature",
+            "in": "header",
+            "required": true,
+            "description": "`sha256=` + hex(HMAC-SHA256(secret, `{X-Webhook-Timestamp}.{raw body}`))",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "event",
+                  "created_at",
+                  "data"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "event": {
+                    "type": "string",
+                    "const": "request.resubmitted"
+                  },
+                  "created_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "data": {
+                    "$ref": "#/components/schemas/RequestEventData"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "2XX": {
+            "description": "รับแล้ว — ไม่ส่งซ้ำ"
+          },
+          "default": {
+            "description": "อย่างอื่นทั้งหมด — ส่งซ้ำตามรอบ"
+          }
+        }
+      }
+    },
+    "request.cancelled": {
+      "post": {
+        "summary": "ยกเลิกคำขอ",
+        "operationId": "webhook_request_cancelled",
+        "parameters": [
+          {
+            "name": "X-Webhook-Id",
+            "in": "header",
+            "required": true,
+            "description": "id ของ event — ส่งซ้ำได้ ใช้ตัดรายการซ้ำ (ค่าเดียวกับ body.id)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Event",
+            "in": "header",
+            "required": true,
+            "description": "ชื่อ event",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Timestamp",
+            "in": "header",
+            "required": true,
+            "description": "วินาที unix ตอนส่ง — ปฏิเสธถ้าห่างจากเวลาปัจจุบันเกิน 5 นาที",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Signature",
+            "in": "header",
+            "required": true,
+            "description": "`sha256=` + hex(HMAC-SHA256(secret, `{X-Webhook-Timestamp}.{raw body}`))",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "event",
+                  "created_at",
+                  "data"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "event": {
+                    "type": "string",
+                    "const": "request.cancelled"
+                  },
+                  "created_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "data": {
+                    "$ref": "#/components/schemas/RequestEventData"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "2XX": {
+            "description": "รับแล้ว — ไม่ส่งซ้ำ"
+          },
+          "default": {
+            "description": "อย่างอื่นทั้งหมด — ส่งซ้ำตามรอบ"
+          }
+        }
+      }
+    },
+    "request.completed": {
+      "post": {
+        "summary": "ปิดคำขอแล้ว",
+        "operationId": "webhook_request_completed",
+        "parameters": [
+          {
+            "name": "X-Webhook-Id",
+            "in": "header",
+            "required": true,
+            "description": "id ของ event — ส่งซ้ำได้ ใช้ตัดรายการซ้ำ (ค่าเดียวกับ body.id)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Event",
+            "in": "header",
+            "required": true,
+            "description": "ชื่อ event",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Timestamp",
+            "in": "header",
+            "required": true,
+            "description": "วินาที unix ตอนส่ง — ปฏิเสธถ้าห่างจากเวลาปัจจุบันเกิน 5 นาที",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Signature",
+            "in": "header",
+            "required": true,
+            "description": "`sha256=` + hex(HMAC-SHA256(secret, `{X-Webhook-Timestamp}.{raw body}`))",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "event",
+                  "created_at",
+                  "data"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "event": {
+                    "type": "string",
+                    "const": "request.completed"
+                  },
+                  "created_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "data": {
+                    "$ref": "#/components/schemas/RequestEventData"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "2XX": {
+            "description": "รับแล้ว — ไม่ส่งซ้ำ"
+          },
+          "default": {
+            "description": "อย่างอื่นทั้งหมด — ส่งซ้ำตามรอบ"
+          }
+        }
+      }
+    },
+    "request.approved": {
+      "post": {
+        "summary": "ผลอนุมัติขั้นสุดท้าย — งานเสร็จและผ่าน",
+        "operationId": "webhook_request_approved",
+        "parameters": [
+          {
+            "name": "X-Webhook-Id",
+            "in": "header",
+            "required": true,
+            "description": "id ของ event — ส่งซ้ำได้ ใช้ตัดรายการซ้ำ (ค่าเดียวกับ body.id)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Event",
+            "in": "header",
+            "required": true,
+            "description": "ชื่อ event",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Timestamp",
+            "in": "header",
+            "required": true,
+            "description": "วินาที unix ตอนส่ง — ปฏิเสธถ้าห่างจากเวลาปัจจุบันเกิน 5 นาที",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Signature",
+            "in": "header",
+            "required": true,
+            "description": "`sha256=` + hex(HMAC-SHA256(secret, `{X-Webhook-Timestamp}.{raw body}`))",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "event",
+                  "created_at",
+                  "data"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "event": {
+                    "type": "string",
+                    "const": "request.approved"
+                  },
+                  "created_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "data": {
+                    "$ref": "#/components/schemas/RequestEventData"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "2XX": {
+            "description": "รับแล้ว — ไม่ส่งซ้ำ"
+          },
+          "default": {
+            "description": "อย่างอื่นทั้งหมด — ส่งซ้ำตามรอบ"
+          }
+        }
+      }
+    },
+    "request.pre_approved": {
+      "post": {
+        "summary": "อนุมัติก่อนเริ่มงาน — ส่งต่อผู้รับงาน",
+        "operationId": "webhook_request_pre_approved",
+        "parameters": [
+          {
+            "name": "X-Webhook-Id",
+            "in": "header",
+            "required": true,
+            "description": "id ของ event — ส่งซ้ำได้ ใช้ตัดรายการซ้ำ (ค่าเดียวกับ body.id)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Event",
+            "in": "header",
+            "required": true,
+            "description": "ชื่อ event",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Timestamp",
+            "in": "header",
+            "required": true,
+            "description": "วินาที unix ตอนส่ง — ปฏิเสธถ้าห่างจากเวลาปัจจุบันเกิน 5 นาที",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Signature",
+            "in": "header",
+            "required": true,
+            "description": "`sha256=` + hex(HMAC-SHA256(secret, `{X-Webhook-Timestamp}.{raw body}`))",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "event",
+                  "created_at",
+                  "data"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "event": {
+                    "type": "string",
+                    "const": "request.pre_approved"
+                  },
+                  "created_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "data": {
+                    "$ref": "#/components/schemas/RequestEventData"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "2XX": {
+            "description": "รับแล้ว — ไม่ส่งซ้ำ"
+          },
+          "default": {
+            "description": "อย่างอื่นทั้งหมด — ส่งซ้ำตามรอบ"
+          }
+        }
+      }
+    },
+    "request.rejected": {
+      "post": {
+        "summary": "ไม่อนุมัติ (จบ)",
+        "operationId": "webhook_request_rejected",
+        "parameters": [
+          {
+            "name": "X-Webhook-Id",
+            "in": "header",
+            "required": true,
+            "description": "id ของ event — ส่งซ้ำได้ ใช้ตัดรายการซ้ำ (ค่าเดียวกับ body.id)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Event",
+            "in": "header",
+            "required": true,
+            "description": "ชื่อ event",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Timestamp",
+            "in": "header",
+            "required": true,
+            "description": "วินาที unix ตอนส่ง — ปฏิเสธถ้าห่างจากเวลาปัจจุบันเกิน 5 นาที",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Signature",
+            "in": "header",
+            "required": true,
+            "description": "`sha256=` + hex(HMAC-SHA256(secret, `{X-Webhook-Timestamp}.{raw body}`))",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "event",
+                  "created_at",
+                  "data"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "event": {
+                    "type": "string",
+                    "const": "request.rejected"
+                  },
+                  "created_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "data": {
+                    "$ref": "#/components/schemas/RequestEventData"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "2XX": {
+            "description": "รับแล้ว — ไม่ส่งซ้ำ"
+          },
+          "default": {
+            "description": "อย่างอื่นทั้งหมด — ส่งซ้ำตามรอบ"
+          }
+        }
+      }
+    },
+    "request.step.entered": {
+      "post": {
+        "summary": "คำขอ (flow v2) เข้าขั้นใหม่",
+        "operationId": "webhook_request_step_entered",
+        "parameters": [
+          {
+            "name": "X-Webhook-Id",
+            "in": "header",
+            "required": true,
+            "description": "id ของ event — ส่งซ้ำได้ ใช้ตัดรายการซ้ำ (ค่าเดียวกับ body.id)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Event",
+            "in": "header",
+            "required": true,
+            "description": "ชื่อ event",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Timestamp",
+            "in": "header",
+            "required": true,
+            "description": "วินาที unix ตอนส่ง — ปฏิเสธถ้าห่างจากเวลาปัจจุบันเกิน 5 นาที",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Signature",
+            "in": "header",
+            "required": true,
+            "description": "`sha256=` + hex(HMAC-SHA256(secret, `{X-Webhook-Timestamp}.{raw body}`))",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "event",
+                  "created_at",
+                  "data"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "event": {
+                    "type": "string",
+                    "const": "request.step.entered"
+                  },
+                  "created_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "data": {
+                    "$ref": "#/components/schemas/StepEventData"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "2XX": {
+            "description": "รับแล้ว — ไม่ส่งซ้ำ"
+          },
+          "default": {
+            "description": "อย่างอื่นทั้งหมด — ส่งซ้ำตามรอบ"
+          }
+        }
+      }
+    },
+    "approval.step.pending": {
+      "post": {
+        "summary": "มีงานรออนุมัติ",
+        "operationId": "webhook_approval_step_pending",
+        "parameters": [
+          {
+            "name": "X-Webhook-Id",
+            "in": "header",
+            "required": true,
+            "description": "id ของ event — ส่งซ้ำได้ ใช้ตัดรายการซ้ำ (ค่าเดียวกับ body.id)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Event",
+            "in": "header",
+            "required": true,
+            "description": "ชื่อ event",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Timestamp",
+            "in": "header",
+            "required": true,
+            "description": "วินาที unix ตอนส่ง — ปฏิเสธถ้าห่างจากเวลาปัจจุบันเกิน 5 นาที",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Signature",
+            "in": "header",
+            "required": true,
+            "description": "`sha256=` + hex(HMAC-SHA256(secret, `{X-Webhook-Timestamp}.{raw body}`))",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "event",
+                  "created_at",
+                  "data"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "event": {
+                    "type": "string",
+                    "const": "approval.step.pending"
+                  },
+                  "created_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "data": {
+                    "$ref": "#/components/schemas/ApprovalEventData"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "2XX": {
+            "description": "รับแล้ว — ไม่ส่งซ้ำ"
+          },
+          "default": {
+            "description": "อย่างอื่นทั้งหมด — ส่งซ้ำตามรอบ"
+          }
+        }
+      }
+    },
+    "approval.completed": {
+      "post": {
+        "summary": "เคสอนุมัติครบทุกขั้น",
+        "operationId": "webhook_approval_completed",
+        "parameters": [
+          {
+            "name": "X-Webhook-Id",
+            "in": "header",
+            "required": true,
+            "description": "id ของ event — ส่งซ้ำได้ ใช้ตัดรายการซ้ำ (ค่าเดียวกับ body.id)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Event",
+            "in": "header",
+            "required": true,
+            "description": "ชื่อ event",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Timestamp",
+            "in": "header",
+            "required": true,
+            "description": "วินาที unix ตอนส่ง — ปฏิเสธถ้าห่างจากเวลาปัจจุบันเกิน 5 นาที",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Signature",
+            "in": "header",
+            "required": true,
+            "description": "`sha256=` + hex(HMAC-SHA256(secret, `{X-Webhook-Timestamp}.{raw body}`))",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "event",
+                  "created_at",
+                  "data"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "event": {
+                    "type": "string",
+                    "const": "approval.completed"
+                  },
+                  "created_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "data": {
+                    "$ref": "#/components/schemas/ApprovalEventData"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "2XX": {
+            "description": "รับแล้ว — ไม่ส่งซ้ำ"
+          },
+          "default": {
+            "description": "อย่างอื่นทั้งหมด — ส่งซ้ำตามรอบ"
+          }
+        }
+      }
+    },
+    "approval.rejected": {
+      "post": {
+        "summary": "เคสอนุมัติถูกปฏิเสธ",
+        "operationId": "webhook_approval_rejected",
+        "parameters": [
+          {
+            "name": "X-Webhook-Id",
+            "in": "header",
+            "required": true,
+            "description": "id ของ event — ส่งซ้ำได้ ใช้ตัดรายการซ้ำ (ค่าเดียวกับ body.id)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Event",
+            "in": "header",
+            "required": true,
+            "description": "ชื่อ event",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Timestamp",
+            "in": "header",
+            "required": true,
+            "description": "วินาที unix ตอนส่ง — ปฏิเสธถ้าห่างจากเวลาปัจจุบันเกิน 5 นาที",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Signature",
+            "in": "header",
+            "required": true,
+            "description": "`sha256=` + hex(HMAC-SHA256(secret, `{X-Webhook-Timestamp}.{raw body}`))",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "event",
+                  "created_at",
+                  "data"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "event": {
+                    "type": "string",
+                    "const": "approval.rejected"
+                  },
+                  "created_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "data": {
+                    "$ref": "#/components/schemas/ApprovalEventData"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "2XX": {
+            "description": "รับแล้ว — ไม่ส่งซ้ำ"
+          },
+          "default": {
+            "description": "อย่างอื่นทั้งหมด — ส่งซ้ำตามรอบ"
+          }
+        }
+      }
+    },
+    "approval.voided": {
+      "post": {
+        "summary": "ข้อมูลเปลี่ยนหลังอนุมัติ — ผลอนุมัติเดิมใช้ไม่ได้",
+        "operationId": "webhook_approval_voided",
+        "parameters": [
+          {
+            "name": "X-Webhook-Id",
+            "in": "header",
+            "required": true,
+            "description": "id ของ event — ส่งซ้ำได้ ใช้ตัดรายการซ้ำ (ค่าเดียวกับ body.id)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Event",
+            "in": "header",
+            "required": true,
+            "description": "ชื่อ event",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Timestamp",
+            "in": "header",
+            "required": true,
+            "description": "วินาที unix ตอนส่ง — ปฏิเสธถ้าห่างจากเวลาปัจจุบันเกิน 5 นาที",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Signature",
+            "in": "header",
+            "required": true,
+            "description": "`sha256=` + hex(HMAC-SHA256(secret, `{X-Webhook-Timestamp}.{raw body}`))",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "event",
+                  "created_at",
+                  "data"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "event": {
+                    "type": "string",
+                    "const": "approval.voided"
+                  },
+                  "created_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "data": {
+                    "$ref": "#/components/schemas/ApprovalEventData"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "2XX": {
+            "description": "รับแล้ว — ไม่ส่งซ้ำ"
+          },
+          "default": {
+            "description": "อย่างอื่นทั้งหมด — ส่งซ้ำตามรอบ"
+          }
+        }
+      }
+    },
+    "sla.warning": {
+      "post": {
+        "summary": "ใกล้เกินกำหนด",
+        "operationId": "webhook_sla_warning",
+        "parameters": [
+          {
+            "name": "X-Webhook-Id",
+            "in": "header",
+            "required": true,
+            "description": "id ของ event — ส่งซ้ำได้ ใช้ตัดรายการซ้ำ (ค่าเดียวกับ body.id)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Event",
+            "in": "header",
+            "required": true,
+            "description": "ชื่อ event",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Timestamp",
+            "in": "header",
+            "required": true,
+            "description": "วินาที unix ตอนส่ง — ปฏิเสธถ้าห่างจากเวลาปัจจุบันเกิน 5 นาที",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Signature",
+            "in": "header",
+            "required": true,
+            "description": "`sha256=` + hex(HMAC-SHA256(secret, `{X-Webhook-Timestamp}.{raw body}`))",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "event",
+                  "created_at",
+                  "data"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "event": {
+                    "type": "string",
+                    "const": "sla.warning"
+                  },
+                  "created_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "data": {
+                    "$ref": "#/components/schemas/SlaEventData"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "2XX": {
+            "description": "รับแล้ว — ไม่ส่งซ้ำ"
+          },
+          "default": {
+            "description": "อย่างอื่นทั้งหมด — ส่งซ้ำตามรอบ"
+          }
+        }
+      }
+    },
+    "sla.breached": {
+      "post": {
+        "summary": "เกินกำหนดแล้ว",
+        "operationId": "webhook_sla_breached",
+        "parameters": [
+          {
+            "name": "X-Webhook-Id",
+            "in": "header",
+            "required": true,
+            "description": "id ของ event — ส่งซ้ำได้ ใช้ตัดรายการซ้ำ (ค่าเดียวกับ body.id)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Event",
+            "in": "header",
+            "required": true,
+            "description": "ชื่อ event",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Timestamp",
+            "in": "header",
+            "required": true,
+            "description": "วินาที unix ตอนส่ง — ปฏิเสธถ้าห่างจากเวลาปัจจุบันเกิน 5 นาที",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Signature",
+            "in": "header",
+            "required": true,
+            "description": "`sha256=` + hex(HMAC-SHA256(secret, `{X-Webhook-Timestamp}.{raw body}`))",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "event",
+                  "created_at",
+                  "data"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "event": {
+                    "type": "string",
+                    "const": "sla.breached"
+                  },
+                  "created_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "data": {
+                    "$ref": "#/components/schemas/SlaEventData"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "2XX": {
+            "description": "รับแล้ว — ไม่ส่งซ้ำ"
+          },
+          "default": {
+            "description": "อย่างอื่นทั้งหมด — ส่งซ้ำตามรอบ"
+          }
+        }
+      }
+    },
+    "esign.completed": {
+      "post": {
+        "summary": "ลงนามครบทุกคน",
+        "operationId": "webhook_esign_completed",
+        "parameters": [
+          {
+            "name": "X-Webhook-Id",
+            "in": "header",
+            "required": true,
+            "description": "id ของ event — ส่งซ้ำได้ ใช้ตัดรายการซ้ำ (ค่าเดียวกับ body.id)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Event",
+            "in": "header",
+            "required": true,
+            "description": "ชื่อ event",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Timestamp",
+            "in": "header",
+            "required": true,
+            "description": "วินาที unix ตอนส่ง — ปฏิเสธถ้าห่างจากเวลาปัจจุบันเกิน 5 นาที",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Signature",
+            "in": "header",
+            "required": true,
+            "description": "`sha256=` + hex(HMAC-SHA256(secret, `{X-Webhook-Timestamp}.{raw body}`))",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "event",
+                  "created_at",
+                  "data"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "event": {
+                    "type": "string",
+                    "const": "esign.completed"
+                  },
+                  "created_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "data": {
+                    "$ref": "#/components/schemas/EsignEventData"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "2XX": {
+            "description": "รับแล้ว — ไม่ส่งซ้ำ"
+          },
+          "default": {
+            "description": "อย่างอื่นทั้งหมด — ส่งซ้ำตามรอบ"
+          }
+        }
+      }
+    },
+    "webhook.ping": {
+      "post": {
+        "summary": "ปุ่ม \"ทดสอบ\" ในหน้าตั้งค่า webhook",
+        "operationId": "webhook_webhook_ping",
+        "parameters": [
+          {
+            "name": "X-Webhook-Id",
+            "in": "header",
+            "required": true,
+            "description": "id ของ event — ส่งซ้ำได้ ใช้ตัดรายการซ้ำ (ค่าเดียวกับ body.id)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Event",
+            "in": "header",
+            "required": true,
+            "description": "ชื่อ event",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Timestamp",
+            "in": "header",
+            "required": true,
+            "description": "วินาที unix ตอนส่ง — ปฏิเสธถ้าห่างจากเวลาปัจจุบันเกิน 5 นาที",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Signature",
+            "in": "header",
+            "required": true,
+            "description": "`sha256=` + hex(HMAC-SHA256(secret, `{X-Webhook-Timestamp}.{raw body}`))",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "event",
+                  "created_at",
+                  "data"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "event": {
+                    "type": "string",
+                    "const": "webhook.ping"
+                  },
+                  "created_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "data": {
+                    "$ref": "#/components/schemas/PingEventData"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "2XX": {
+            "description": "รับแล้ว — ไม่ส่งซ้ำ"
+          },
+          "default": {
+            "description": "อย่างอื่นทั้งหมด — ส่งซ้ำตามรอบ"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "RequestEventData": {
+        "title": "RequestEventData",
+        "type": "object",
+        "required": [
+          "company_id",
+          "request_id",
+          "request_no",
+          "type_code",
+          "requester_id"
+        ],
+        "properties": {
+          "company_id": {
+            "type": "string",
+            "description": "บริษัทที่เกิดเหตุการณ์"
+          },
+          "request_id": {
+            "type": "string",
+            "description": "อ่านรายละเอียดด้วย GET /api/v1/request/requests/{request_id}"
+          },
+          "request_no": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "เลขที่คำขอ"
+          },
+          "type_code": {
+            "type": "string",
+            "description": "ชนิดคำขอ"
+          },
+          "requester_id": {
+            "type": "string",
+            "description": "ผู้ขอ"
+          },
+          "reason_codes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "มีเฉพาะ request.returned"
+          }
+        }
+      },
+      "ApprovalEventData": {
+        "title": "ApprovalEventData",
+        "type": "object",
+        "required": [
+          "company_id",
+          "case_id",
+          "request_id"
+        ],
+        "properties": {
+          "company_id": {
+            "type": "string",
+            "description": "บริษัทที่เกิดเหตุการณ์"
+          },
+          "case_id": {
+            "type": "string",
+            "description": "เคสอนุมัติ"
+          },
+          "request_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "คำขอที่เคสนี้ผูกอยู่ (ถ้ามี)"
+          },
+          "step": {
+            "type": "integer",
+            "description": "ลำดับขั้นอนุมัติ"
+          },
+          "approver_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "ผู้อนุมัติของขั้นนี้"
+          }
+        }
+      },
+      "SlaEventData": {
+        "title": "SlaEventData",
+        "type": "object",
+        "required": [
+          "company_id",
+          "request_id",
+          "request_no",
+          "due_at"
+        ],
+        "properties": {
+          "company_id": {
+            "type": "string",
+            "description": "บริษัทที่เกิดเหตุการณ์"
+          },
+          "request_id": {
+            "type": "string",
+            "description": "คำขอ"
+          },
+          "request_no": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "เลขที่คำขอ"
+          },
+          "due_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "กำหนดเสร็จ"
+          }
+        }
+      },
+      "EsignEventData": {
+        "title": "EsignEventData",
+        "type": "object",
+        "required": [
+          "company_id",
+          "envelope_id",
+          "source_type",
+          "source_id",
+          "ref_type",
+          "ref_id"
+        ],
+        "properties": {
+          "company_id": {
+            "type": "string",
+            "description": "บริษัทที่เกิดเหตุการณ์"
+          },
+          "envelope_id": {
+            "type": "string",
+            "description": "ชุดเอกสารลงนาม"
+          },
+          "source_type": {
+            "type": "string",
+            "description": "โมดูลที่ส่งลงนาม"
+          },
+          "source_id": {
+            "type": "string",
+            "description": "รายการต้นทาง"
+          },
+          "ref_type": {
+            "type": "string",
+            "description": "ชนิดอ้างอิง"
+          },
+          "ref_id": {
+            "type": "string",
+            "description": "id อ้างอิง"
+          }
+        }
+      },
+      "StepEventData": {
+        "title": "StepEventData",
+        "type": "object",
+        "required": [
+          "company_id",
+          "request_id",
+          "request_no",
+          "type_code",
+          "step_code",
+          "status"
+        ],
+        "properties": {
+          "company_id": {
+            "type": "string",
+            "description": "บริษัทที่เกิดเหตุการณ์"
+          },
+          "request_id": {
+            "type": "string",
+            "description": "คำขอ"
+          },
+          "request_no": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "เลขที่คำขอ"
+          },
+          "type_code": {
+            "type": "string",
+            "description": "ชนิดคำขอ"
+          },
+          "step_code": {
+            "type": "string",
+            "description": "ขั้นที่คำขอเพิ่งเข้า"
+          },
+          "status": {
+            "type": "string",
+            "description": "สถานะของคำขอ"
+          }
+        }
+      },
+      "PingEventData": {
+        "title": "PingEventData",
+        "type": "object",
+        "required": [
+          "company_id",
+          "webhook_id"
+        ],
+        "properties": {
+          "company_id": {
+            "type": "string",
+            "description": "บริษัทที่เกิดเหตุการณ์"
+          },
+          "webhook_id": {
+            "type": "string",
+            "description": "webhook ที่ถูกทดสอบ"
+          }
+        }
+      }
+    }
+  }
+}

@@ -12,6 +12,7 @@ import { CoreServiceModule } from '../services/core-service/src/core-service.mod
 import { UserServiceModule } from '../services/user-service/src/user-service.module';
 import { ExternalServiceModule } from '../services/external-service/src/external-service.module';
 import { enrichFromValidators, routesOf } from './openapi-validators';
+import { writeWebhookDocument } from './openapi-webhooks';
 
 /**
  * §14 — the OpenAPI document is **generated from the code**, never hand-written.
@@ -625,6 +626,7 @@ async function main(): Promise<void> {
   await generate('core-service', CoreServiceModule, 'api/v1');
   await generate('user-service', UserServiceModule, 'api/v1');
   await generate('external-service', ExternalServiceModule, 'api/v1');
+  writeWebhookDocument('1.0');
 }
 
 main().catch((error) => {

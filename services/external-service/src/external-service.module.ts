@@ -15,6 +15,7 @@ import {
   PrincipalModule,
   RemotePrincipalGuard,
   SensitiveReadAuditRecorder,
+  WebhookModule,
 } from '@request-management/core-service';
 import { HealthModule } from './health/health.module';
 import { RequestModule } from './request/request.module';
@@ -88,6 +89,7 @@ import configs from './configs';
     // CD-289 — a vendor pushes swept leads into AI SMART
     SmartApiModule,
     McpModule,
+    WebhookModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: RemotePrincipalGuard },

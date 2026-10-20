@@ -333,3 +333,32 @@ curl -s "${H[@]}" "$B/flow/opportunities/$OPP"
 (WBS งบประมาณ ทีม), ยืนยันติดตั้ง ใบรับรองการตรวจรับ ส่งวางบิลเข้า SAP, การดาวน์โหลดไฟล์แนบทุกชนิด
 ถ้าระบบของคุณต้องการขั้นใดในนี้ แจ้งทีมเพื่อพิจารณาเปิดเพิ่ม — แต่ละเส้นใหม่ต้องมีคู่บนหน้าจอและสิทธิ์
 ที่ตรงกัน (`downstream-route-parity.spec.ts`)
+
+## 8. รับแจ้งเหตุการณ์ (Webhook) — ไม่ต้อง poll
+
+ระบบเรียกเว็บของคุณเองเมื่อเกิดเหตุการณ์ เช่น คำขอถูกอนุมัติ มีงานรออนุมัติ หรือ SLA ใกล้หรือเกินกำหนด
+รายการ event และรูปแบบ body อยู่ใน [`openapi/external-webhook.json`](./openapi/external-webhook.json) (OpenAPI 3.1 `webhooks`)
+
+1. ขอให้ผู้ดูแลของบริษัทเพิ่มปลายทางในหน้า **ผู้ดูแล → Webhook** (สิทธิ์ `admin.integration.manage`)
+   โดยระบุ URL ซึ่งต้องเป็น https และเลือก event ที่ต้องการ แล้วรับ **secret** ที่แสดงเพียงครั้งเดียว
+2. ปลายทางต้อง**ตรวจลายเซ็นก่อนเชื่อทุกครั้ง** และตอบ 2xx ภายใน 10 วินาที
+3. body มีแค่ id ถ้าต้องการรายละเอียด ให้เรียก GET ด้วย API key ตามปกติ เช่น `request_id` ใช้กับ `GET /api/v1/request/requests/{ref}`
+
+```js
+// Node — ใช้ body ดิบ ก่อน JSON.parse
+const crypto = require('node:crypto');
+function verify(rawBody, headers, secret) {
+  const ts = headers['x-webhook-timestamp'];
+  if (Math.abs(Date.now() / 1000 - Number(ts)) > 300) return false; // กันการยิงซ้ำของเก่า
+  const expected = 'sha256=' +
+    crypto.createHmac('sha256', secret).update(`${ts}.${rawBody}`).digest('hex');
+  const got = String(headers['x-webhook-signature'] ?? '');
+  return got.length === expected.length &&
+    crypto.timingSafeEqual(Buffer.from(got), Buffer.from(expected));
+}
+```
+
+- **ส่งซ้ำได้ และลำดับอาจสลับกัน** ให้ตัดรายการซ้ำด้วย `X-Webhook-Id` ถ้าตอบไม่เป็น 2xx ระบบจะส่งใหม่หลัง
+  1 นาที, 5 นาที, 30 นาที, 2 ชั่วโมง และ 6 ชั่วโมง จากนั้นจะเลิกส่ง ระบบไม่ตาม redirect
+- **best-effort** event ที่เกิดตรงจังหวะที่ระบบล่มอาจหายได้ ถ้าบริการของคุณเคยล่ม ให้ตรวจสอบย้อนหลังด้วย GET ของ API เดิม
+- ปุ่ม **ทดสอบ** ในหน้าตั้งค่าจะส่ง `webhook.ping` และดูผลการส่ง 50 ครั้งล่าสุดได้จากปุ่ม **ประวัติการส่ง**

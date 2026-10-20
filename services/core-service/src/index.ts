@@ -182,3 +182,5 @@ export { DoNotContactService } from './contact-preferences/do-not-contact.servic
 // CD-292 — D-Callcenter reports call results through external-service
 export { SmartDialerService } from './smart/smart-dialer.service';
 export { CallResultDto } from './smart/smart-calls.dto';
+// G-07 — events raised through the external API queue webhooks too
+export { WebhookModule } from './webhook/webhook.module';

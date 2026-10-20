@@ -9057,3 +9057,49 @@ model SmartCall {
   @@index([companyId, status])
   @@map("smart_calls")
 }
+
+/// G-07 — เว็บภายนอกที่รับ event ของบริษัท (admin ตั้งในหน้าเว็บ).
+/// payload บาง (id + ชนิด event) — ปลายทางเรียก GET ผ่าน API key เอง สิทธิ์จึงยังถูกตรวจที่ API.
+model WebhookSubscription {
+  id        String   @id @default(uuid())
+  companyId String
+  name      String
+  url       String
+  /// ชื่อ event จาก `DOMAIN_EVENTS`
+  events    String[] @default([])
+  /// HMAC ต้องใช้ secret ตัวจริง จึงเก็บแบบเข้ารหัส (AES-GCM) ไม่ใช่ hash
+  secretEnc String
+  active    Boolean  @default(true)
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  deliveries WebhookDelivery[]
+
+  @@index([companyId, active])
+  @@map("webhook_subscriptions")
+}
+
+/// outbox — หนึ่งแถวต่อ event ต่อปลายทาง; worker ยิงและ retry จากตารางนี้.
+model WebhookDelivery {
+  id             String    @id @default(uuid())
+  subscriptionId String
+  eventName      String
+  /// ส่งเป็น `X-Webhook-Id` — ปลายทางใช้ dedupe เพราะส่งซ้ำได้
+  eventId        String    @default(uuid())
+  payload        Json
+  /// pending | sending | sent | dead
+  status         String    @default("pending")
+  attempts       Int       @default(0)
+  nextAttemptAt  DateTime  @default(now())
+  lastStatusCode Int?
+  lastError      String?
+  sentAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  subscription WebhookSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([status, nextAttemptAt])
+  @@index([subscriptionId, createdAt])
+  @@map("webhook_deliveries")
+}

@@ -199,6 +199,17 @@ export default () => ({
     ),
   },
 
+  /** G-07 — outbound webhooks. */
+  webhook: {
+    /** how often due deliveries are sent (ms); 0 = off. */
+    intervalMs: Number(process.env.WEBHOOK_INTERVAL_MS ?? 15000),
+    /** hosts a webhook may reach inside the network (and over http), comma-separated. */
+    privateHosts: (process.env.WEBHOOK_PRIVATE_HOSTS ?? '')
+      .split(',')
+      .map((host) => host.trim().toLowerCase())
+      .filter(Boolean),
+  },
+
   kb: {
     /** CD-260 — review-day reminders of knowledge articles (ms); 0 = off. */
     reviewIntervalMs: Number(process.env.KB_REVIEW_INTERVAL_MS ?? 21600000),

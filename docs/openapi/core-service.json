@@ -1,6 +1,328 @@
 {
   "openapi": "3.0.0",
   "paths": {
+    "/api/v1/admin/webhooks/events": {
+      "get": {
+        "operationId": "WebhookAdminController_events",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "event ที่สมัครรับได้ — มาจาก event catalog",
+        "tags": [
+          "admin/webhooks"
+        ],
+        "x-permission": [
+          "admin.integration.manage"
+        ]
+      }
+    },
+    "/api/v1/admin/webhooks": {
+      "get": {
+        "operationId": "WebhookAdminController_list",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WebhookRowDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "webhook ของบริษัทนี้ — ไม่มี secret ในคำตอบ",
+        "tags": [
+          "admin/webhooks"
+        ],
+        "x-permission": [
+          "admin.integration.manage"
+        ]
+      },
+      "post": {
+        "operationId": "WebhookAdminController_create",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateWebhookDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookWithSecretDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เพิ่มปลายทาง — `secret` อยู่ในคำตอบนี้ครั้งเดียว",
+        "tags": [
+          "admin/webhooks"
+        ],
+        "x-permission": [
+          "admin.integration.manage"
+        ]
+      }
+    },
+    "/api/v1/admin/webhooks/{id}": {
+      "patch": {
+        "operationId": "WebhookAdminController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateWebhookDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookRowDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แก้ชื่อ URL event หรือเปิด/ปิด",
+        "tags": [
+          "admin/webhooks"
+        ],
+        "x-permission": [
+          "admin.integration.manage"
+        ]
+      }
+    },
+    "/api/v1/admin/webhooks/{id}/rotate-secret": {
+      "post": {
+        "operationId": "WebhookAdminController_rotateSecret",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookWithSecretDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ออก secret ใหม่ — secret เดิมใช้ไม่ได้ทันที",
+        "tags": [
+          "admin/webhooks"
+        ],
+        "x-permission": [
+          "admin.integration.manage"
+        ]
+      }
+    },
+    "/api/v1/admin/webhooks/{id}/deliveries": {
+      "get": {
+        "operationId": "WebhookAdminController_deliveries",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WebhookDeliveryRowDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "การส่ง 50 รายการล่าสุด",
+        "tags": [
+          "admin/webhooks"
+        ],
+        "x-permission": [
+          "admin.integration.manage"
+        ]
+      }
+    },
+    "/api/v1/admin/webhooks/{id}/test": {
+      "post": {
+        "operationId": "WebhookAdminController_test",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ส่ง `webhook.ping` ในรอบถัดไปของ worker",
+        "tags": [
+          "admin/webhooks"
+        ],
+        "x-permission": [
+          "admin.integration.manage"
+        ]
+      }
+    },
     "/api/v1/admin/api-keys/scopes": {
       "get": {
         "operationId": "ApiKeyAdminController_scopes",
@@ -43083,6 +43405,202 @@
       }
     },
     "schemas": {
+      "WebhookRowDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "created_by": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "url",
+          "events",
+          "active",
+          "created_at",
+          "created_by"
+        ]
+      },
+      "CreateWebhookDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "ERP ฝ่ายบัญชี (production)",
+            "maxLength": 120,
+            "minLength": 1
+          },
+          "url": {
+            "type": "string",
+            "description": "https ที่ใดก็ได้ — http หรือ host ในเครือข่ายภายในได้เฉพาะที่อยู่ใน WEBHOOK_PRIVATE_HOSTS",
+            "example": "https://erp.example.com/hooks/request-management",
+            "maxLength": 2000
+          },
+          "events": {
+            "description": "ชื่อ event จาก `GET admin/webhooks/events`",
+            "example": [
+              "request.approved",
+              "sla.breached"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 50
+          }
+        },
+        "required": [
+          "events",
+          "name",
+          "url"
+        ]
+      },
+      "WebhookWithSecretDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "secret": {
+            "type": "string",
+            "description": "ใช้ตรวจ `X-Webhook-Signature` — แสดงครั้งเดียว ทำหาย = กด \"ออก secret ใหม่\""
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "url",
+          "events",
+          "active",
+          "created_at",
+          "created_by",
+          "secret"
+        ]
+      },
+      "UpdateWebhookDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1
+          },
+          "url": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 50
+          },
+          "active": {
+            "type": "boolean",
+            "description": "false = หยุดส่ง (ไม่ลบ ประวัติยังอยู่)"
+          }
+        }
+      },
+      "WebhookDeliveryRowDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "event_id": {
+            "type": "string"
+          },
+          "event": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "sending",
+              "sent",
+              "dead"
+            ]
+          },
+          "attempts": {
+            "type": "number"
+          },
+          "last_status_code": {
+            "type": "number",
+            "nullable": true
+          },
+          "last_error": {
+            "type": "string",
+            "nullable": true
+          },
+          "next_attempt_at": {
+            "type": "string"
+          },
+          "sent_at": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "event_id",
+          "event",
+          "status",
+          "attempts",
+          "last_status_code",
+          "last_error",
+          "next_attempt_at",
+          "sent_at",
+          "created_at"
+        ]
+      },
       "ApiKeyScopeDto": {
         "type": "object",
         "properties": {

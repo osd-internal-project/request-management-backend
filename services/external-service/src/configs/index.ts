@@ -95,6 +95,8 @@ export default () => ({
   },
   hr: { mandayVarianceIntervalMs: 0 },
   esign: { sweepIntervalMs: 0 },
+  // G-07 — events are queued here too; core-service sends them
+  webhook: { intervalMs: 0, privateHosts: [] },
   // CD-262/263 sweeps and CD-265's text purge run in core-service only
   kb: {
     reviewIntervalMs: 0,
