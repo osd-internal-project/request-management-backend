@@ -18,10 +18,14 @@ import { PROCESS_LOG_STATUSES, PROCESS_STAGES } from '../process-stages';
 /**
  * A workflow template whose variable was never set renders `""`, not nothing —
  * read that as "not sent" so an optional field never fails `@IsEmail` on it.
+ * A lone `-` means the same: OSD Workflow drops `""` on the way into a child
+ * workflow, so the shared log workflow is handed `-` for "none".
  */
 const Blank = () =>
   Transform(({ value }: { value: unknown }) =>
-    typeof value === 'string' && value.trim() === '' ? undefined : value,
+    typeof value === 'string' && ['', '-'].includes(value.trim())
+      ? undefined
+      : value,
   );
 
 export class CreateProcessLogDto {

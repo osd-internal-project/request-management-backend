@@ -69,11 +69,13 @@ describe('CreateProcessLogDto', () => {
       ...dto,
       actor_email: '',
       ref_no: '  ',
+      comment: '-',
       occurred_at: '',
     });
     expect(await validate(body)).toEqual([]);
     expect(body.actor_email).toBeUndefined();
     expect(body.ref_no).toBeUndefined();
+    expect(body.comment).toBeUndefined();
   });
 });
 
