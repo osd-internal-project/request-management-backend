@@ -12722,6 +12722,181 @@
           "mcp"
         ]
       }
+    },
+    "/api/v1/process/logs": {
+      "post": {
+        "description": "ไม่ต้องส่ง `X-Acting-User` — บริษัทมาจาก API key (หรือ `X-Company-Id` ถ้ากุญแจไม่ได้ผูกบริษัท) · ส่ง `event_id` เพื่อให้ยิงซ้ำได้แถวเดิม",
+        "operationId": "ExternalProcessLogController_create",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProcessLogDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProcessLogRowDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "บันทึกหนึ่งเหตุการณ์ของกระบวนการ 7 ขั้น",
+        "tags": [
+          "process"
+        ],
+        "x-permission": [
+          "integration.process.log"
+        ]
+      },
+      "get": {
+        "operationId": "ExternalProcessLogController_list",
+        "parameters": [
+          {
+            "name": "instance_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "stage_no",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 7,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "ref_no",
+            "required": false,
+            "in": "query",
+            "description": "ค้นจากเลขเอกสารอ้างอิง (บางส่วน)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "started",
+                "completed",
+                "approved",
+                "rejected",
+                "returned",
+                "skipped",
+                "failed",
+                "info"
+              ]
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "ตั้งแต่ (ISO 8601)",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "ถึง (ISO 8601)",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": 1,
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maximum": 200,
+              "default": 50,
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProcessLogPageDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "อ่านบันทึกย้อนหลัง เช่น ทั้งหมดของ instance หนึ่ง",
+        "tags": [
+          "process"
+        ],
+        "x-permission": [
+          "integration.process.log"
+        ]
+      }
     }
   },
   "info": {
@@ -17232,6 +17407,230 @@
         "required": [
           "call_id",
           "outcome"
+        ]
+      },
+      "CreateProcessLogDto": {
+        "type": "object",
+        "properties": {
+          "event_id": {
+            "type": "string",
+            "description": "ค่ากันซ้ำ — ยิงซ้ำด้วยค่าเดิมได้แถวเดิม ไม่เกิดแถวที่สอง (แนะนำ `<instance_id>:<step_code>:<status>`)",
+            "example": "b3c1…:qualification:completed",
+            "maxLength": 200
+          },
+          "instance_id": {
+            "type": "string",
+            "description": "instance id บน OSD Workflow",
+            "maxLength": 100,
+            "minLength": 1
+          },
+          "workflow_key": {
+            "type": "string",
+            "example": "ctd-s1-market-to-lead",
+            "maxLength": 100,
+            "minLength": 1
+          },
+          "stage_no": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 7,
+            "example": 1
+          },
+          "step_code": {
+            "type": "string",
+            "example": "qualification",
+            "maxLength": 80,
+            "minLength": 1
+          },
+          "step_name": {
+            "type": "string",
+            "example": "คัดกรองเบื้องต้น",
+            "maxLength": 200
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "started",
+              "completed",
+              "approved",
+              "rejected",
+              "returned",
+              "skipped",
+              "failed",
+              "info"
+            ],
+            "example": "completed"
+          },
+          "decision": {
+            "type": "string",
+            "example": "ต้องทำ NDA",
+            "maxLength": 120
+          },
+          "ref_type": {
+            "type": "string",
+            "example": "lead",
+            "maxLength": 60
+          },
+          "ref_no": {
+            "type": "string",
+            "example": "LEAD-OSDD-000123",
+            "maxLength": 100
+          },
+          "actor_email": {
+            "type": "string",
+            "example": "somchai@osd.co.th",
+            "maxLength": 200,
+            "format": "email"
+          },
+          "actor_name": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "comment": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "payload": {
+            "type": "object",
+            "description": "ข้อมูลอื่นของขั้นนี้ (JSON) — ไม่เกิน 16 KB",
+            "additionalProperties": true
+          },
+          "occurred_at": {
+            "type": "string",
+            "description": "เวลาที่เกิดจริง (ISO 8601) — ว่าง = เวลาที่รับ",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "instance_id",
+          "stage_no",
+          "status",
+          "step_code",
+          "workflow_key"
+        ]
+      },
+      "ProcessLogRowDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "event_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "instance_id": {
+            "type": "string"
+          },
+          "workflow_key": {
+            "type": "string"
+          },
+          "stage_no": {
+            "type": "number"
+          },
+          "stage_code": {
+            "type": "string"
+          },
+          "stage_name": {
+            "type": "string"
+          },
+          "team_code": {
+            "type": "string",
+            "nullable": true
+          },
+          "step_code": {
+            "type": "string"
+          },
+          "step_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string"
+          },
+          "decision": {
+            "type": "string",
+            "nullable": true
+          },
+          "ref_type": {
+            "type": "string",
+            "nullable": true
+          },
+          "ref_no": {
+            "type": "string",
+            "nullable": true
+          },
+          "actor_email": {
+            "type": "string",
+            "nullable": true
+          },
+          "actor_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "comment": {
+            "type": "string",
+            "nullable": true
+          },
+          "payload": {
+            "type": "object",
+            "nullable": true,
+            "additionalProperties": true
+          },
+          "occurred_at": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "event_id",
+          "instance_id",
+          "workflow_key",
+          "stage_no",
+          "stage_code",
+          "stage_name",
+          "team_code",
+          "step_code",
+          "step_name",
+          "status",
+          "decision",
+          "ref_type",
+          "ref_no",
+          "actor_email",
+          "actor_name",
+          "comment",
+          "payload",
+          "occurred_at",
+          "created_at"
+        ]
+      },
+      "ProcessLogPageDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProcessLogRowDto"
+            }
+          },
+          "total": {
+            "type": "number"
+          },
+          "page": {
+            "type": "number"
+          },
+          "page_size": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "data",
+          "total",
+          "page",
+          "page_size"
         ]
       },
       "ImportCustomerRowDto": {

@@ -29,6 +29,7 @@ import { PmModule } from './pm/pm.module';
 import { DeliveryModule } from './delivery/delivery.module';
 import { SupportApiModule } from './support/support.module';
 import { FlowModule } from './flow/flow.module';
+import { ProcessApiModule } from './process/process.module';
 import { KbApiModule } from './kb/kb.module';
 import { CareApiModule } from './care/care.module';
 import { AssistantModule } from './assistant/assistant.module';
@@ -90,6 +91,8 @@ import configs from './configs';
     SmartApiModule,
     McpModule,
     WebhookModule,
+    // End-to-End process log — OSD Workflow writes a row per step
+    ProcessApiModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: RemotePrincipalGuard },

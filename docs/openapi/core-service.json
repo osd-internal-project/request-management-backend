@@ -323,6 +323,165 @@
         ]
       }
     },
+    "/api/v1/process-logs/stages": {
+      "get": {
+        "operationId": "ProcessLogController_stages",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ขั้นทั้ง 7 ของกระบวนการ End-to-End",
+        "tags": [
+          "process-logs"
+        ],
+        "x-permission": [
+          "audit.read"
+        ]
+      }
+    },
+    "/api/v1/process-logs": {
+      "get": {
+        "operationId": "ProcessLogController_list",
+        "parameters": [
+          {
+            "name": "instance_id",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "stage_no",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 7,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "ref_no",
+            "required": false,
+            "in": "query",
+            "description": "ค้นจากเลขเอกสารอ้างอิง (บางส่วน)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "started",
+                "completed",
+                "approved",
+                "rejected",
+                "returned",
+                "skipped",
+                "failed",
+                "info"
+              ]
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "ตั้งแต่ (ISO 8601)",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "ถึง (ISO 8601)",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": 1,
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maximum": 200,
+              "default": 50,
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProcessLogPageDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "บันทึกการเดินของกระบวนการ — ใหม่สุดก่อน",
+        "tags": [
+          "process-logs"
+        ],
+        "x-permission": [
+          "audit.read"
+        ]
+      }
+    },
     "/api/v1/admin/api-keys/scopes": {
       "get": {
         "operationId": "ApiKeyAdminController_scopes",
@@ -43599,6 +43758,130 @@
           "next_attempt_at",
           "sent_at",
           "created_at"
+        ]
+      },
+      "ProcessLogRowDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "event_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "instance_id": {
+            "type": "string"
+          },
+          "workflow_key": {
+            "type": "string"
+          },
+          "stage_no": {
+            "type": "number"
+          },
+          "stage_code": {
+            "type": "string"
+          },
+          "stage_name": {
+            "type": "string"
+          },
+          "team_code": {
+            "type": "string",
+            "nullable": true
+          },
+          "step_code": {
+            "type": "string"
+          },
+          "step_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string"
+          },
+          "decision": {
+            "type": "string",
+            "nullable": true
+          },
+          "ref_type": {
+            "type": "string",
+            "nullable": true
+          },
+          "ref_no": {
+            "type": "string",
+            "nullable": true
+          },
+          "actor_email": {
+            "type": "string",
+            "nullable": true
+          },
+          "actor_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "comment": {
+            "type": "string",
+            "nullable": true
+          },
+          "payload": {
+            "type": "object",
+            "nullable": true,
+            "additionalProperties": true
+          },
+          "occurred_at": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "event_id",
+          "instance_id",
+          "workflow_key",
+          "stage_no",
+          "stage_code",
+          "stage_name",
+          "team_code",
+          "step_code",
+          "step_name",
+          "status",
+          "decision",
+          "ref_type",
+          "ref_no",
+          "actor_email",
+          "actor_name",
+          "comment",
+          "payload",
+          "occurred_at",
+          "created_at"
+        ]
+      },
+      "ProcessLogPageDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProcessLogRowDto"
+            }
+          },
+          "total": {
+            "type": "number"
+          },
+          "page": {
+            "type": "number"
+          },
+          "page_size": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "data",
+          "total",
+          "page",
+          "page_size"
         ]
       },
       "ApiKeyScopeDto": {

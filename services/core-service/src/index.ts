@@ -184,3 +184,12 @@ export { SmartDialerService } from './smart/smart-dialer.service';
 export { CallResultDto } from './smart/smart-calls.dto';
 // G-07 — events raised through the external API queue webhooks too
 export { WebhookModule } from './webhook/webhook.module';
+// End-to-End process log — OSD Workflow writes it through external-service
+export { ProcessLogModule } from './process-log/process-log.module';
+export { ProcessLogService } from './process-log/process-log.service';
+export {
+  CreateProcessLogDto,
+  ProcessLogPageDto,
+  ProcessLogQueryDto,
+  ProcessLogRowDto,
+} from './process-log/dto/process-log.dto';

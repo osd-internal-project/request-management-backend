@@ -9103,3 +9103,44 @@ model WebhookDelivery {
   @@index([subscriptionId, createdAt])
   @@map("webhook_deliveries")
 }
+
+/// บันทึกการเดินของกระบวนการ End-to-End 7 ขั้น (21 ต.ค. 2569) — OSD Workflow
+/// เขียนหนึ่งแถวต่อหนึ่งเหตุการณ์ผ่าน `POST api/v1/process/logs`.
+/// append-only: ไม่มีเส้นแก้หรือลบ เหมือน audit log.
+model ProcessFlowLog {
+  id          String   @id @default(uuid())
+  companyId   String
+  /// ค่าที่ผู้เรียกส่งมาเพื่อกันซ้ำตอน retry — ซ้ำในบริษัทเดียวกัน = คืนแถวเดิม
+  eventId     String?
+  /// instance ของ workflow บน OSD Workflow
+  instanceId  String
+  workflowKey String
+  /// 1..7 ตาม `PROCESS_STAGES`
+  stageNo     Int
+  stageCode   String
+  teamCode    String?
+  stepCode    String
+  stepName    String?
+  /// started | completed | approved | rejected | returned | skipped | failed | info
+  status      String
+  /// ทางที่ Decision เลือก เช่น "ต้อง" / "ไม่ต้อง"
+  decision    String?
+  /// เอกสารที่ขั้นนี้อ้างถึง เช่น lead / opportunity / sales_order
+  refType     String?
+  refNo       String?
+  actorEmail  String?
+  actorName   String?
+  comment     String?
+  payload     Json?
+  occurredAt  DateTime @default(now())
+  /// กุญแจ API ที่เขียนแถวนี้ (prefix) — ใช้ไล่ว่าใครยิงเข้ามา
+  apiKeyPrefix String?
+  createdAt   DateTime @default(now())
+
+  @@unique([companyId, eventId])
+  @@index([companyId, occurredAt])
+  @@index([companyId, instanceId])
+  @@index([companyId, stageNo])
+  @@index([companyId, refNo])
+  @@map("process_flow_logs")
+}

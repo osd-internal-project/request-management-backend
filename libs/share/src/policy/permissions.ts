@@ -348,6 +348,13 @@ export const PERMISSIONS = {
      * การออกแบบ Solution ร่างสัญญา และวางแผนโครงการยังเป็นงานบนหน้าจอ.
      */
     'integration.flow.read',
+    /**
+     * OSD Workflow writing (and reading back) the End-to-End process log, one
+     * row per step of the seven stages (21 ต.ค. 2569). A machine gate with no
+     * acting person: the person who finished a task is recorded as data
+     * (`actor_email`), not authenticated.
+     */
+    'integration.process.log',
     'integration.presales.read',
     'integration.legal.read',
     'integration.pm.read',
