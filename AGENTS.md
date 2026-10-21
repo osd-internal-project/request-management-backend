@@ -414,6 +414,16 @@ company's call id answers 404, and a finished call is not re-recorded. A
 `refused` outcome puts the number on the do-not-contact register at once. An
 eighth is again a decision to state here.
 
+**The eighth: `process/logs` and `process/refs` (21 Oct 2026, user decision).**
+OSD Workflow runs the seven-stage End-to-End process (`ctd-flow-s1…`) under
+`integration.process.log`. `logs` appends one `process_flow_logs` row per step;
+`refs` reads one deal's document numbers, states and CTD screen links (lead →
+OPP → SOL → QT → SO → contract → PRJ → acceptance) so tasks link to the screen
+and nobody retypes a number — no amounts, no contacts, the key's company only.
+The caller is the engine; whoever completed a human task travels as
+`actor_email`, recorded, never authenticated. A ninth is again a decision to
+state here.
+
 **core-service's one public business surface: e-signature (CD-14, 30 Sep
 2026).** `EsignPublicController` — `esign/public/:token/*` (a signer's link:
 view, one-time code, document, sign, decline) and `esign/verify/:code*` (the

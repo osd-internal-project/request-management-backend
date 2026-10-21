@@ -19,6 +19,9 @@ import {
   ProcessLogQueryDto,
   ProcessLogRowDto,
   ProcessLogService,
+  ProcessRefsDto,
+  ProcessRefsQueryDto,
+  ProcessRefsService,
   type ApiKeyContext,
 } from '@request-management/core-service';
 
@@ -68,5 +71,42 @@ export class ExternalProcessLogController {
     @CurrentApiKey() key: ApiKeyContext | undefined,
   ) {
     return this.logs.list(query, key?.companyId ?? principal.activeCompanyId);
+  }
+}
+
+/**
+ * `api/v1/process/refs` — the deal's document numbers and CTD screens, so the
+ * workflow fills OPP / QT / SO / PRJ from CTD instead of asking people to
+ * retype them, and links each task to the screen where the work is done.
+ *
+ * Same machine-only gate as the log: the workflow's key already holds
+ * `integration.process.log`, and what comes back is numbers and states of the
+ * key's own company — no amounts, no contacts.
+ */
+@ApiTags('process')
+@ApiBearerAuth()
+@Controller('process/refs')
+@ServiceAccountOnly()
+export class ExternalProcessRefsController {
+  constructor(private readonly refs: ProcessRefsService) {}
+
+  @Get()
+  @Permissions('integration.process.log')
+  @ApiOperation({
+    summary: 'เลขเอกสารและลิงก์หน้าจอ CTD ของดีลทั้งสาย (Lead → โครงการ)',
+    description:
+      'ส่ง `lead_id` (หรือ `opportunity_no`) · ทุกช่องเป็นข้อความ ไม่มี = `-` · ' +
+      '`*_url` เปิดหน้าที่ทำงานนั้น หรือหน้าที่ใช้สร้างเมื่อยังไม่มี',
+  })
+  @ApiOkResponse({ type: ProcessRefsDto })
+  resolve(
+    @Query() query: ProcessRefsQueryDto,
+    @CurrentPrincipal() principal: Principal,
+    @CurrentApiKey() key: ApiKeyContext | undefined,
+  ) {
+    return this.refs.resolve(
+      query,
+      key?.companyId ?? principal.activeCompanyId,
+    );
   }
 }

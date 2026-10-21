@@ -187,6 +187,11 @@ export { WebhookModule } from './webhook/webhook.module';
 // End-to-End process log — OSD Workflow writes it through external-service
 export { ProcessLogModule } from './process-log/process-log.module';
 export { ProcessLogService } from './process-log/process-log.service';
+export { ProcessRefsService } from './process-log/process-refs.service';
+export {
+  ProcessRefsDto,
+  ProcessRefsQueryDto,
+} from './process-log/dto/process-refs.dto';
 export {
   CreateProcessLogDto,
   ProcessLogPageDto,
