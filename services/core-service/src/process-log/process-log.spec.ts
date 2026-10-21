@@ -1,7 +1,9 @@
 import { Prisma } from '@prisma/client';
 import type { Principal } from '@request-management/share';
 import type { ApiKeyContext } from '../principal/api-key.service';
-import type { CreateProcessLogDto } from './dto/process-log.dto';
+import { plainToInstance } from 'class-transformer';
+import { validate } from 'class-validator';
+import { CreateProcessLogDto } from './dto/process-log.dto';
 import type { ProcessFlowLogRepository } from './process-log.repository';
 import { ProcessLogService } from './process-log.service';
 
@@ -61,6 +63,22 @@ function setup(existing: unknown = null) {
   return { repo, service };
 }
 
+describe('CreateProcessLogDto', () => {
+  it('reads blank template output as not sent', async () => {
+    const body = plainToInstance(CreateProcessLogDto, {
+      ...dto,
+      actor_email: '',
+      ref_no: '  ',
+      comment: '-',
+      occurred_at: '',
+    });
+    expect(await validate(body)).toEqual([]);
+    expect(body.actor_email).toBeUndefined();
+    expect(body.ref_no).toBeUndefined();
+    expect(body.comment).toBeUndefined();
+  });
+});
+
 describe('End-to-End process log', () => {
   it("stamps the stage's code and team and the key's company", async () => {
     const { repo, service } = setup();
@@ -110,22 +128,20 @@ describe('End-to-End process log', () => {
         clientVersion: 'test',
       }),
     );
-    repo.findFirst
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce(
-        stored({
-          eventId: dto.event_id,
-          companyId: 'osd',
-          instanceId: 'i-1',
-          workflowKey: 'w',
-          stageNo: 1,
-          stageCode: 'market_to_lead',
-          teamCode: 'T01',
-          stepCode: 'qualification',
-          status: 'completed',
-          refNo: null,
-        }),
-      );
+    repo.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce(
+      stored({
+        eventId: dto.event_id,
+        companyId: 'osd',
+        instanceId: 'i-1',
+        workflowKey: 'w',
+        stageNo: 1,
+        stageCode: 'market_to_lead',
+        teamCode: 'T01',
+        stepCode: 'qualification',
+        status: 'completed',
+        refNo: null,
+      }),
+    );
     const row = await service.record(dto, principal, key);
     expect(row.event_id).toBe(dto.event_id);
   });

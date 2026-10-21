@@ -12897,6 +12897,68 @@
           "integration.process.log"
         ]
       }
+    },
+    "/api/v1/process/refs": {
+      "get": {
+        "description": "ส่ง `lead_id` (หรือ `opportunity_no`) · ทุกช่องเป็นข้อความ ไม่มี = `-` · `*_url` เปิดหน้าที่ทำงานนั้น หรือหน้าที่ใช้สร้างเมื่อยังไม่มี",
+        "operationId": "ExternalProcessRefsController_resolve",
+        "parameters": [
+          {
+            "name": "lead_id",
+            "required": false,
+            "in": "query",
+            "description": "Lead ที่เริ่มกระบวนการ (ctd-flow-s1 รับมาจาก CTD)",
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "opportunity_no",
+            "required": false,
+            "in": "query",
+            "description": "ใช้เมื่อไม่มี lead_id — เลขโอกาสการขาย",
+            "schema": {
+              "example": "OPP-OSD-0001",
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProcessRefsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เลขเอกสารและลิงก์หน้าจอ CTD ของดีลทั้งสาย (Lead → โครงการ)",
+        "tags": [
+          "process"
+        ],
+        "x-permission": [
+          "integration.process.log"
+        ]
+      }
     }
   },
   "info": {
@@ -17631,6 +17693,150 @@
           "total",
           "page",
           "page_size"
+        ]
+      },
+      "ProcessRefsDto": {
+        "type": "object",
+        "properties": {
+          "lead_id": {
+            "type": "string"
+          },
+          "lead_name": {
+            "type": "string"
+          },
+          "lead_status": {
+            "type": "string"
+          },
+          "lead_url": {
+            "type": "string"
+          },
+          "opportunity_id": {
+            "type": "string"
+          },
+          "opportunity_no": {
+            "type": "string",
+            "example": "OPP-OSD-0001"
+          },
+          "opportunity_stage": {
+            "type": "string"
+          },
+          "opportunity_url": {
+            "type": "string"
+          },
+          "solution_request_no": {
+            "type": "string",
+            "description": "คำขอ Solution (ประเภทตามตั้งค่า CRM)"
+          },
+          "solution_request_status": {
+            "type": "string"
+          },
+          "solution_request_url": {
+            "type": "string"
+          },
+          "solution_url": {
+            "type": "string"
+          },
+          "quotation_no": {
+            "type": "string",
+            "example": "QT-OSD-0001"
+          },
+          "quotation_version": {
+            "type": "string"
+          },
+          "quotation_status": {
+            "type": "string"
+          },
+          "quotation_url": {
+            "type": "string"
+          },
+          "sale_order_no": {
+            "type": "string",
+            "example": "SO-OSD-0001"
+          },
+          "sale_order_status": {
+            "type": "string"
+          },
+          "sale_order_erp_no": {
+            "type": "string",
+            "description": "เลขเอกสารใน SAP เมื่อส่งสำเร็จ"
+          },
+          "sale_order_url": {
+            "type": "string"
+          },
+          "contract_request_no": {
+            "type": "string",
+            "description": "คำขอจัดทำสัญญา (ประเภทตามตั้งค่า CRM)"
+          },
+          "contract_request_url": {
+            "type": "string"
+          },
+          "contract_no": {
+            "type": "string",
+            "description": "สัญญาหลัก (ไม่นับ NDA)"
+          },
+          "contract_status": {
+            "type": "string"
+          },
+          "contract_url": {
+            "type": "string"
+          },
+          "nda_no": {
+            "type": "string"
+          },
+          "nda_url": {
+            "type": "string"
+          },
+          "project_no": {
+            "type": "string",
+            "example": "PRJ-OSD-0001"
+          },
+          "project_status": {
+            "type": "string"
+          },
+          "project_url": {
+            "type": "string"
+          },
+          "acceptance_no": {
+            "type": "string",
+            "example": "AC-PRJ-OSD-0001-01"
+          },
+          "acceptance_status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "lead_id",
+          "lead_name",
+          "lead_status",
+          "lead_url",
+          "opportunity_id",
+          "opportunity_no",
+          "opportunity_stage",
+          "opportunity_url",
+          "solution_request_no",
+          "solution_request_status",
+          "solution_request_url",
+          "solution_url",
+          "quotation_no",
+          "quotation_version",
+          "quotation_status",
+          "quotation_url",
+          "sale_order_no",
+          "sale_order_status",
+          "sale_order_erp_no",
+          "sale_order_url",
+          "contract_request_no",
+          "contract_request_url",
+          "contract_no",
+          "contract_status",
+          "contract_url",
+          "nda_no",
+          "nda_url",
+          "project_no",
+          "project_status",
+          "project_url",
+          "acceptance_no",
+          "acceptance_status"
         ]
       },
       "ImportCustomerRowDto": {

@@ -5,6 +5,20 @@ import {
   TQueryClient,
 } from '@request-management/share';
 
+/** CD-252 — a project's acceptance certificates (read by the process refs). */
+@Injectable()
+export class AcceptanceCertificateRepository extends BaseRepository<
+  PrismaService['acceptanceCertificate']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.acceptanceCertificate;
+  }
+}
+
 /** CD-250 — a project's delivery trips. */
 @Injectable()
 export class ProjectDeliveryRepository extends BaseRepository<

@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsDateString,
   IsEmail,
@@ -15,6 +15,19 @@ import {
 } from 'class-validator';
 import { PROCESS_LOG_STATUSES, PROCESS_STAGES } from '../process-stages';
 
+/**
+ * A workflow template whose variable was never set renders `""`, not nothing —
+ * read that as "not sent" so an optional field never fails `@IsEmail` on it.
+ * A lone `-` means the same: OSD Workflow drops `""` on the way into a child
+ * workflow, so the shared log workflow is handed `-` for "none".
+ */
+const Blank = () =>
+  Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' && ['', '-'].includes(value.trim())
+      ? undefined
+      : value,
+  );
+
 export class CreateProcessLogDto {
   @ApiPropertyOptional({
     description:
@@ -22,6 +35,7 @@ export class CreateProcessLogDto {
     example: 'b3c1…:qualification:completed',
     maxLength: 200,
   })
+  @Blank()
   @IsOptional()
   @IsString()
   @MaxLength(200)
@@ -53,6 +67,7 @@ export class CreateProcessLogDto {
   step_code!: string;
 
   @ApiPropertyOptional({ example: 'คัดกรองเบื้องต้น', maxLength: 200 })
+  @Blank()
   @IsOptional()
   @IsString()
   @MaxLength(200)
@@ -63,36 +78,42 @@ export class CreateProcessLogDto {
   status!: (typeof PROCESS_LOG_STATUSES)[number];
 
   @ApiPropertyOptional({ example: 'ต้องทำ NDA', maxLength: 120 })
+  @Blank()
   @IsOptional()
   @IsString()
   @MaxLength(120)
   decision?: string;
 
   @ApiPropertyOptional({ example: 'lead', maxLength: 60 })
+  @Blank()
   @IsOptional()
   @IsString()
   @MaxLength(60)
   ref_type?: string;
 
   @ApiPropertyOptional({ example: 'LEAD-OSDD-000123', maxLength: 100 })
+  @Blank()
   @IsOptional()
   @IsString()
   @MaxLength(100)
   ref_no?: string;
 
   @ApiPropertyOptional({ example: 'somchai@osd.co.th' })
+  @Blank()
   @IsOptional()
   @IsEmail()
   @MaxLength(200)
   actor_email?: string;
 
   @ApiPropertyOptional({ maxLength: 200 })
+  @Blank()
   @IsOptional()
   @IsString()
   @MaxLength(200)
   actor_name?: string;
 
   @ApiPropertyOptional({ maxLength: 2000 })
+  @Blank()
   @IsOptional()
   @IsString()
   @MaxLength(2000)
@@ -103,6 +124,7 @@ export class CreateProcessLogDto {
     type: 'object',
     additionalProperties: true,
   })
+  @Blank()
   @IsOptional()
   @IsObject()
   payload?: Record<string, unknown>;
@@ -110,6 +132,7 @@ export class CreateProcessLogDto {
   @ApiPropertyOptional({
     description: 'เวลาที่เกิดจริง (ISO 8601) — ว่าง = เวลาที่รับ',
   })
+  @Blank()
   @IsOptional()
   @IsDateString()
   occurred_at?: string;

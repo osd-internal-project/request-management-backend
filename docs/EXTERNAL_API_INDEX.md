@@ -238,6 +238,7 @@
 |---|---|---|---|---|
 | GET | `/process/logs` | อ่านบันทึกย้อนหลัง เช่น ทั้งหมดของ instance หนึ่ง | integration.process.log |  |
 | POST | `/process/logs` | บันทึกหนึ่งเหตุการณ์ของกระบวนการ 7 ขั้น | integration.process.log |  |
+| GET | `/process/refs` | เลขเอกสารและลิงก์หน้าจอ CTD ของดีลทั้งสาย (Lead → โครงการ) | integration.process.log |  |
 
 ## request — คำขอ (Platform Request) ตั้งแต่เปิดจนปิด สำหรับระบบภายนอก เช่น chatbot
 
