@@ -100,6 +100,7 @@
 | PATCH | `/crm/leads/{id}` | แก้ข้อมูล Lead | integration.crm.sales.manage | crm.sales.manage |
 | PATCH | `/crm/leads/{id}/owner` | รับ Lead หรือแจกให้คนอื่น | integration.crm.sales.manage | crm.sales.manage |
 | PATCH | `/crm/leads/{id}/status` | เลื่อนขั้น Lead ในไปป์ไลน์ | integration.crm.sales.manage | crm.sales.manage |
+| PATCH | `/crm/leads/{id}/intake-data` | แก้ข้อมูล intake (JSON) ของ Lead | integration.crm.sales.manage | crm.sales.manage |
 | POST | `/crm/leads/{id}/activities` | ลงกิจกรรมของ Lead | integration.crm.sales.manage | crm.sales.manage |
 | PATCH | `/crm/leads/{id}/activities/{activityId}` | แก้กิจกรรม หรือติ๊กเสร็จ | integration.crm.sales.manage | crm.sales.manage |
 | POST | `/crm/leads/{id}/disqualify` | คัด Lead ออกพร้อมเหตุผล | integration.crm.sales.manage | crm.sales.manage |
@@ -157,6 +158,10 @@
 | POST | `/crm/leads/ads/{platform}` | CD-269 Lead Ads (facebook \| tiktok) — ตัวแปลงข้อมูลฟอร์มโฆษณา | integration.crm.lead.create |  |
 | GET | `/crm/leads/{id}/facts` | ข้อเท็จจริงของ Lead สำหรับ Decision node — สถานะ + จำนวนกิจกรรม | integration.crm.lead.read |  |
 | POST | `/crm/leads/{id}/stage` | บันทึกขั้นที่ workflow ตัดสินใจแล้ว — core ไม่ตัดสินว่าเลื่อนได้ไหม | integration.crm.lead.stage |  |
+| GET | `/crm/ai/leads/{id}` | อ่าน Lead (ทั้งบริษัทของ key) — อีเมล/เบอร์ ต้องมี contact.read | integration.crm.lead.read |  |
+| PATCH | `/crm/ai/leads/{id}` | แก้ข้อมูล Lead — ส่งเฉพาะ field ที่เปลี่ยน | integration.crm.lead.update |  |
+| PATCH | `/crm/ai/leads/{id}/intake-data` | แก้ข้อมูล intake (JSON) — merge ทีละ key, null = ลบ key | integration.crm.lead.update |  |
+| POST | `/crm/ai/leads/{id}/convert` | แปลง Lead เป็นโอกาสการขาย — ไปอยู่กับเจ้าของ Lead | integration.crm.lead.convert |  |
 
 ## delivery — การส่งมอบของโครงการ — แผนส่งมอบ งวดวางบิล และการส่งต่อทีมบริการ
 

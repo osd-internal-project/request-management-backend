@@ -13,6 +13,12 @@ export interface SalesAccessSubject {
   readonly ledUnitIds: readonly string[];
   readonly scopedUnitIds: readonly string[];
   readonly readsAllSales: boolean;
+  /**
+   * A machine holding `integration.crm.lead.read` (workflow engine, AI agent)
+   * reads every lead of its key's company: it acts for the company, not for a
+   * person, so there is no person's scope to borrow (22 ต.ค. 2569). Leads only.
+   */
+  readonly readsAllLeads?: boolean;
 }
 
 export function salesAccessSubject(principal: {
@@ -28,6 +34,7 @@ export function salesAccessSubject(principal: {
     ledUnitIds: principal.ledUnitIds,
     scopedUnitIds: principal.scopedUnitIds,
     readsAllSales: principal.permissions.includes('crm.sales.read.all'),
+    readsAllLeads: principal.permissions.includes('integration.crm.lead.read'),
   };
 }
 
@@ -61,6 +68,7 @@ export function visibleSalesWhere(subject: SalesAccessSubject): AccessWhere {
  * ทั้ง query ถ้าส่ง null ไป.
  */
 export function visibleLeadsWhere(subject: SalesAccessSubject): AccessWhere {
+  if (subject.readsAllLeads) return { companyId: subject.activeCompanyId };
   const where = visibleSalesWhere(subject);
   const branches = where.OR as AccessWhere[] | undefined;
 

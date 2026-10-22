@@ -94,6 +94,18 @@ describe('SCOPE-02 visibleLeadsWhere', () => {
       companyId: OSD,
     });
   });
+
+  it('a lead-reading machine (AI, workflow) sees the whole company, still pinned to it', () => {
+    expect(visibleLeadsWhere(subject({ readsAllLeads: true }))).toEqual({
+      companyId: OSD,
+    });
+  });
+
+  it('readsAllLeads leaves opportunities to the person rules', () => {
+    expect(visibleSalesWhere(subject({ readsAllLeads: true }))).toHaveProperty(
+      'OR',
+    );
+  });
 });
 
 describe('salesAccessSubject', () => {
@@ -112,6 +124,16 @@ describe('salesAccessSubject', () => {
         ...principal,
         permissions: ['crm.sales.read.all'] as Permission[],
       }).readsAllSales,
+    ).toBe(true);
+  });
+
+  it('integration.crm.lead.read → readsAllLeads; a person never holds it', () => {
+    expect(salesAccessSubject(principal).readsAllLeads).toBe(false);
+    expect(
+      salesAccessSubject({
+        ...principal,
+        permissions: ['integration.crm.lead.read'] as Permission[],
+      }).readsAllLeads,
     ).toBe(true);
   });
 });

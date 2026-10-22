@@ -159,6 +159,7 @@ describe('CD-85 Prospecting on leads', () => {
         ),
       } as never,
       targets as never,
+      { emit: jest.fn(() => Promise.resolve()) } as never,
     );
     return { service, leads, activities, targets };
   }

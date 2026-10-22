@@ -241,6 +241,22 @@ describe('CRM โอกาสการขาย — ปิดชนะ/แพ้
     expect(types).toEqual(['cross_sell', 'new_business']);
   });
 
+  it('options.owner: a machine-made deal is owned by the named person, not the caller', async () => {
+    const { service, opportunities } = opportunityHarness();
+
+    await service.create({ customer_id: 'cust-1', title: 'x' }, principal(), {
+      owner: { userId: 'seller-1', orgUnitId: null },
+    });
+
+    const [[args]] = opportunities.create.mock.calls as unknown as [
+      [{ data: { ownerUserId: string; ownerOrgUnitId: string | null } }],
+    ];
+    expect(args.data).toMatchObject({
+      ownerUserId: 'seller-1',
+      ownerOrgUnitId: null,
+    });
+  });
+
   it('SCOPE-03 โอกาสการขายนอกขอบเขต = 404', async () => {
     const { service } = opportunityHarness({ found: null });
 
@@ -253,13 +269,17 @@ describe('CRM โอกาสการขาย — ปิดชนะ/แพ้
 });
 
 describe('CRM Lead — แปลงเป็นโอกาสการขายโดยข้อมูลไหลต่อ', () => {
-  function leadHarness(options: { status?: string } = {}) {
+  function leadHarness(
+    options: { status?: string; ownerUserId?: string | null } = {},
+  ) {
     const audits: { eventType: string }[] = [];
     const lead = {
       id: 'lead-1',
       name: 'บริษัท มุ่งหวัง จำกัด',
       status: options.status ?? 'qualified',
-      ownerUserId: 'me',
+      ownerUserId:
+        options.ownerUserId === undefined ? 'me' : options.ownerUserId,
+      ownerOrgUnitId: 'unit-sales',
       activities: [
         {
           id: 'act-1',
@@ -277,6 +297,14 @@ describe('CRM Lead — แปลงเป็นโอกาสการขาย
       count: jest.fn(() => Promise.resolve(0)),
       create: jest.fn(() => Promise.resolve({ id: 'lead-1' })),
       update: jest.fn(() => Promise.resolve({})),
+      mergeIntakeData: jest.fn(() =>
+        Promise.resolve({
+          id: 'lead-1',
+          name: 'lead',
+          status: 'new',
+          sourceCode: null,
+        }),
+      ),
     };
     const customers = {
       findFirst: jest.fn(() => Promise.resolve({ id: 'cust-1' })),
@@ -338,6 +366,7 @@ describe('CRM Lead — แปลงเป็นโอกาสการขาย
 
     // Lead ใบใหม่เปิด instance ของ `lwf-0001` — ยิงแบบไม่รอผล ที่นี่แค่ดักว่าถูกเรียก.
     const workflowSync = { kickLead: jest.fn() };
+    const events = { emit: jest.fn(() => Promise.resolve()) };
 
     const service = new LeadsService(
       leads as never,
@@ -352,9 +381,18 @@ describe('CRM Lead — แปลงเป็นโอกาสการขาย
       { resolveCode: jest.fn(() => Promise.resolve(undefined)) } as never,
       { findFirst: jest.fn(() => Promise.resolve(null)) } as never,
       { updateMany: jest.fn(() => Promise.resolve({ count: 0 })) } as never,
+      events as never,
     );
 
-    return { service, leads, opportunities, activities, audits, workflowSync };
+    return {
+      service,
+      leads,
+      opportunities,
+      activities,
+      audits,
+      workflowSync,
+      events,
+    };
   }
 
   it('หน้ารายละเอียด: findOne คืนชื่อผู้รับผิดชอบและชื่อผู้ลงกิจกรรม ไม่ใช่แค่ user id', async () => {
@@ -384,6 +422,32 @@ describe('CRM Lead — แปลงเป็นโอกาสการขาย
       }),
     );
     expect(audits.map((a) => a.eventType)).toContain('crm.lead.status_changed');
+  });
+
+  it('webhook: เลื่อนขั้นส่ง lead.status_changed ไม่มีข้อมูลติดต่อ; ขั้นเดิมไม่ส่ง', async () => {
+    const moved = leadHarness({ status: 'new' });
+    await moved.service.setStatus(
+      'lead-1',
+      { status: 'cannot_contact' },
+      principal(),
+    );
+    expect(moved.events.emit).toHaveBeenCalledWith({
+      name: 'lead.status_changed',
+      payload: expect.objectContaining({
+        lead_id: 'lead-1',
+        status: 'cannot_contact',
+        previous_status: 'new',
+      }),
+    });
+    const [[event]] = moved.events.emit.mock.calls as unknown as [
+      [{ payload: Record<string, unknown> }],
+    ];
+    expect(event.payload).not.toHaveProperty('email');
+    expect(event.payload).not.toHaveProperty('phone');
+
+    const same = leadHarness({ status: 'new' });
+    await same.service.setStatus('lead-1', { status: 'new' }, principal());
+    expect(same.events.emit).not.toHaveBeenCalled();
   });
 
   it('ลงกิจกรรมโดยไม่มีกำหนด = บันทึกสิ่งที่ทำแล้ว (ปิดทันที); มีกำหนด = ยังเปิดอยู่', async () => {
@@ -456,6 +520,120 @@ describe('CRM Lead — แปลงเป็นโอกาสการขาย
         }),
       }),
     );
+  });
+
+  it('webhook: convert ส่ง lead.converted พร้อมโอกาสการขายที่เกิด', async () => {
+    const { service, events } = leadHarness();
+
+    await service.convert('lead-1', { customer_id: 'cust-1' }, principal());
+
+    expect(events.emit).toHaveBeenCalledWith({
+      name: 'lead.converted',
+      payload: expect.objectContaining({
+        lead_id: 'lead-1',
+        status: 'converted',
+        opportunity_id: 'opportunity-9',
+        opportunity_code: 'OPP-OSD-000009',
+      }),
+    });
+  });
+
+  it('intake data: merge แยก key ที่เขียนกับ key ที่เป็น null (ลบ) — audit เก็บแค่ชื่อ key', async () => {
+    const { service, leads, audits, events } = leadHarness({ status: 'new' });
+
+    await service.updateIntakeData(
+      'lead-1',
+      { data: { budget: '3M', old: null } },
+      principal(),
+    );
+
+    expect(leads.mergeIntakeData).toHaveBeenCalledWith(
+      'lead-1',
+      { budget: '3M' },
+      ['old'],
+      expect.any(String),
+    );
+    const audit = audits.find(
+      (a) => a.eventType === 'crm.lead.intake_updated',
+    ) as unknown as { after: unknown };
+    expect(audit.after).toEqual({ keys: ['budget', 'old'], replace: false });
+    expect(events.emit).toHaveBeenCalledWith({
+      name: 'lead.intake_updated',
+      payload: expect.objectContaining({ changed_fields: ['budget', 'old'] }),
+    });
+  });
+
+  it('intake data: replace เขียนทับทั้งก้อน ไม่ผ่าน merge', async () => {
+    const { service, leads } = leadHarness({ status: 'new' });
+
+    await service.updateIntakeData(
+      'lead-1',
+      { data: { a: 1 }, replace: true },
+      principal(),
+    );
+
+    expect(leads.mergeIntakeData).not.toHaveBeenCalled();
+    expect(leads.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ intakeData: { a: 1 } }),
+      }),
+    );
+  });
+
+  it('intake data: เกิน 16 KB = 422, Lead ปิดแล้ว = 409, PATCH :id ส่ง intake_data = 422', async () => {
+    const open = leadHarness({ status: 'new' });
+    await expect(
+      open.service.updateIntakeData(
+        'lead-1',
+        { data: { blob: 'x'.repeat(17 * 1024) } },
+        principal(),
+      ),
+    ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+    await expect(
+      open.service.update(
+        'lead-1',
+        { intake_data: { a: 1 } } as never,
+        principal(),
+      ),
+    ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+
+    const closed = leadHarness({ status: 'converted' });
+    await expect(
+      closed.service.updateIntakeData(
+        'lead-1',
+        { data: { a: 1 } },
+        principal(),
+      ),
+    ).rejects.toMatchObject({ code: 'CONFLICT' });
+  });
+
+  it('AI (service account) convert: โอกาสการขายไปอยู่กับเจ้าของ Lead; ใบกองกลาง = 409', async () => {
+    const robot = {
+      ...principal([
+        'integration.crm.lead.read',
+        'integration.crm.lead.convert',
+      ]),
+      userId: 'svc-ai',
+      orgUnitId: null,
+      isServiceAccount: true,
+    } as unknown as Principal;
+
+    const owned = leadHarness({ ownerUserId: 'seller-1' });
+    await owned.service.convert('lead-1', { customer_id: 'cust-1' }, robot);
+    expect(owned.opportunities.create).toHaveBeenCalledWith(
+      expect.anything(),
+      robot,
+      {
+        fromLeadId: 'lead-1',
+        owner: { userId: 'seller-1', orgUnitId: 'unit-sales' },
+      },
+    );
+
+    const pool = leadHarness({ ownerUserId: null });
+    await expect(
+      pool.service.convert('lead-1', { customer_id: 'cust-1' }, robot),
+    ).rejects.toMatchObject({ code: 'CONFLICT' });
+    expect(pool.opportunities.create).not.toHaveBeenCalled();
   });
 
   it('Lead ที่ปิดแล้ว convert ซ้ำไม่ได้', async () => {

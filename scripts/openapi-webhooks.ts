@@ -3,6 +3,7 @@ import type {
   ApprovalEventPayload,
   DomainEventName,
   EsignEventPayload,
+  LeadEventPayload,
   RequestEventPayload,
   SlaEventPayload,
   StepEventPayload,
@@ -63,12 +64,39 @@ const STEP: Record<keyof StepEventPayload, Schema> = {
   step_code: str('ขั้นที่คำขอเพิ่งเข้า'),
   status: str('สถานะของคำขอ'),
 };
+const LEAD: Record<keyof LeadEventPayload, Schema> = {
+  company_id: COMPANY,
+  lead_id: str(
+    'อ่านรายละเอียด (รวมอีเมล ถ้า key มี integration.crm.lead.contact.read) ด้วย GET /api/v1/crm/ai/leads/{lead_id}',
+  ),
+  name: str('ชื่อ Lead (บริษัท/ลูกค้าเป้าหมาย)'),
+  status: str('รหัสสถานะหลังเหตุการณ์ — lead_statuses.code ของบริษัท'),
+  source_code: nullableStr('ช่องทางที่ Lead เข้ามา'),
+  previous_status: str('สถานะก่อนเปลี่ยน — lead.status_changed / lead.converted'),
+  changed_fields: {
+    type: 'array',
+    items: { type: 'string' },
+    description: 'ชื่อ field หรือ key ที่เปลี่ยน (ไม่มีค่า) — lead.updated / lead.intake_updated',
+  },
+  opportunity_id: str('โอกาสการขายที่เกิด — lead.converted'),
+  opportunity_code: str('เลขที่โอกาสการขาย — lead.converted'),
+  reason: str('เหตุผลที่คัดออก — lead.status_changed จากการคัดออก'),
+};
 const PING = {
   company_id: COMPANY,
   webhook_id: str('webhook ที่ถูกทดสอบ'),
 };
 
-const OPTIONAL = new Set(['reason_codes', 'step', 'approver_id']);
+const OPTIONAL = new Set([
+  'reason_codes',
+  'step',
+  'approver_id',
+  'previous_status',
+  'changed_fields',
+  'opportunity_id',
+  'opportunity_code',
+  'reason',
+]);
 
 function object(name: string, fields: Record<string, Schema>): Schema {
   return {
@@ -85,6 +113,7 @@ const SCHEMAS = {
   SlaEventData: object('SlaEventData', SLA),
   EsignEventData: object('EsignEventData', ESIGN),
   StepEventData: object('StepEventData', STEP),
+  LeadEventData: object('LeadEventData', LEAD),
   PingEventData: object('PingEventData', PING),
 };
 
@@ -109,6 +138,11 @@ const EVENTS: Record<
   'sla.warning': ['SlaEventData', 'ใกล้เกินกำหนด'],
   'sla.breached': ['SlaEventData', 'เกินกำหนดแล้ว'],
   'esign.completed': ['EsignEventData', 'ลงนามครบทุกคน'],
+  'lead.created': ['LeadEventData', 'มี Lead ใหม่ (หน้าจอ, intake, ฟอร์มแคมเปญ)'],
+  'lead.updated': ['LeadEventData', 'แก้ข้อมูล Lead'],
+  'lead.status_changed': ['LeadEventData', 'Lead เปลี่ยนสถานะ (รวมการคัดออก)'],
+  'lead.intake_updated': ['LeadEventData', 'แก้ข้อมูล intake (JSON) ของ Lead'],
+  'lead.converted': ['LeadEventData', 'Lead ถูกแปลงเป็นโอกาสการขาย'],
   'webhook.ping': ['PingEventData', 'ปุ่ม "ทดสอบ" ในหน้าตั้งค่า webhook'],
 };
 

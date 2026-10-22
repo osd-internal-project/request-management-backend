@@ -12,6 +12,8 @@ import {
   visibleLeadsWhere,
 } from '@request-management/share';
 import { CompanyMemberRepository } from '../access/company-member.repository';
+import { DomainEventsService } from '../events/domain-events.service';
+import type { LeadEventPayload } from '../events/event-catalog';
 import { LeadStatusService } from './lead-status.service';
 import { LeadActivityRepository, LeadRepository } from './sales.repositories';
 import { CampaignsService } from './campaigns.service';
@@ -34,6 +36,7 @@ import {
   ListLeadsQueryDto,
   UpdateLeadActivityDto,
   UpdateLeadDto,
+  UpdateLeadIntakeDataDto,
   UpdateLeadStatusDto,
 } from './dto/sales.dto';
 
@@ -106,6 +109,50 @@ function leadColumns(
   return data;
 }
 
+const MAX_INTAKE_BYTES = 16 * 1024;
+
+/**
+ * An intake object split into the keys to write and the keys to drop (`null`).
+ * The sender's own data, so only its size is ours to police.
+ */
+function intakePatch(data: Record<string, unknown>) {
+  if (Buffer.byteLength(JSON.stringify(data)) > MAX_INTAKE_BYTES) {
+    throw new AppError('VALIDATION_FAILED', 'intake data ใหญ่เกิน 16 KB', [
+      { field: 'intake_data', reason: 'too_large' },
+    ]);
+  }
+  const set: Record<string, unknown> = {};
+  const remove: string[] = [];
+  for (const [key, value] of Object.entries(data)) {
+    if (value === null) remove.push(key);
+    else set[key] = value;
+  }
+  return { set, remove };
+}
+
+export interface LeadEventRow {
+  id: string;
+  name: string;
+  status: string;
+  sourceCode?: string | null;
+}
+
+/** The webhook payload of a lead event — identity and state only, no contact data. */
+function leadEvent(
+  companyId: string,
+  row: LeadEventRow,
+  extra: Partial<LeadEventPayload> = {},
+): LeadEventPayload {
+  return {
+    company_id: companyId,
+    lead_id: row.id,
+    name: row.name,
+    status: row.status,
+    source_code: row.sourceCode ?? null,
+    ...extra,
+  };
+}
+
 /** CD-85 — completed contacts only: a planned call is not an attempt yet. */
 const CONTACT_WHERE = {
   type: { in: [...CONTACT_TYPES] },
@@ -150,6 +197,7 @@ export class LeadsService {
     private readonly campaigns: CampaignsService,
     private readonly configs: CrmConfigRepository,
     private readonly targets: TargetAccountRepository,
+    private readonly events: DomainEventsService,
   ) {}
 
   async list(actor: Principal, query: ListLeadsQueryDto) {
@@ -343,6 +391,12 @@ export class LeadsService {
         companyId: actor.activeCompanyId,
         name: dto.name.trim(),
         ...leadColumns(dto, false),
+        ...(dto.intake_data
+          ? {
+              intakeData: intakePatch(dto.intake_data)
+                .set as Prisma.InputJsonValue,
+            }
+          : {}),
         campaignId: campaignId ?? null,
         // ขั้นตั้งต้นมาจากหน้าตั้งค่า ไม่ใช่ค่า default ของคอลัมน์ — ผู้ดูแลที่ย้ายธง
         // "สถานะตั้งต้น" ไปขั้นอื่นต้องเห็นผลกับ Lead ใบถัดไปทันที.
@@ -351,7 +405,7 @@ export class LeadsService {
         ownerOrgUnitId: options.unowned ? null : actor.orgUnitId,
         createdBy: actor.userId,
       },
-    })) as { id: string };
+    })) as LeadEventRow;
 
     await this.audit.record({
       eventType: 'crm.lead.created',
@@ -378,10 +432,23 @@ export class LeadsService {
     */
     this.workflowSync.kickLead(row.id);
 
+    await this.events.emit({
+      name: 'lead.created',
+      payload: leadEvent(actor.activeCompanyId, row),
+    });
+
     return row;
   }
 
   async update(id: string, dto: UpdateLeadDto, actor: Principal) {
+    // a whole-object write here would undo another channel's keys; merge has its own route
+    if (dto.intake_data !== undefined) {
+      throw new AppError(
+        'VALIDATION_FAILED',
+        'แก้ intake data ผ่าน PATCH …/leads/{id}/intake-data',
+        [{ field: 'intake_data', reason: 'use_intake_data_route' }],
+      );
+    }
     await this.requireOpen(id, actor);
     if (dto.customer_id) await this.assertCustomer(dto.customer_id, actor);
     const campaignId = await this.campaigns.resolveCode(
@@ -389,7 +456,7 @@ export class LeadsService {
       actor.activeCompanyId,
     );
 
-    return this.leads.update({
+    const row = (await this.leads.update({
       where: { id },
       data: {
         ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
@@ -397,6 +464,58 @@ export class LeadsService {
         ...(campaignId !== undefined ? { campaignId } : {}),
         updatedBy: actor.userId,
       },
+    })) as LeadEventRow;
+
+    await this.events.emit({
+      name: 'lead.updated',
+      payload: leadEvent(actor.activeCompanyId, row, {
+        changed_fields: Object.keys(dto).filter(
+          (field) => dto[field as keyof UpdateLeadDto] !== undefined,
+        ),
+      }),
+    });
+
+    return row;
+  }
+
+  /** Merge (default) or replace `intakeData` on an open lead. */
+  async updateIntakeData(
+    id: string,
+    dto: UpdateLeadIntakeDataDto,
+    actor: Principal,
+  ) {
+    await this.requireOpen(id, actor);
+    const { set, remove } = intakePatch(dto.data);
+
+    const row = dto.replace
+      ? ((await this.leads.update({
+          where: { id },
+          data: {
+            intakeData: set as Prisma.InputJsonValue,
+            updatedBy: actor.userId,
+          },
+        })) as LeadEventRow)
+      : await this.leads.mergeIntakeData(id, set, remove, actor.userId);
+
+    const keys = Object.keys(dto.data);
+    await this.audit.record({
+      eventType: 'crm.lead.intake_updated',
+      companyId: actor.activeCompanyId,
+      ...auditActor(actor),
+      resourceType: 'lead',
+      resourceId: id,
+      // key names only — the values are the sender's and may hold anything
+      after: { keys, replace: dto.replace ?? false },
+    });
+
+    await this.events.emit({
+      name: 'lead.intake_updated',
+      payload: leadEvent(actor.activeCompanyId, row, { changed_fields: keys }),
+    });
+
+    return this.leads.findFirst({
+      where: { id },
+      select: { id: true, intakeData: true, updatedAt: true },
     });
   }
 
@@ -520,6 +639,15 @@ export class LeadsService {
         before: { status: found.status },
         after: { status: target.code },
       });
+
+      await this.events.emit({
+        name: 'lead.status_changed',
+        payload: leadEvent(
+          actor.activeCompanyId,
+          { ...found, status: target.code },
+          { previous_status: found.status },
+        ),
+      });
     }
 
     return this.findOne(id, actor);
@@ -605,10 +733,14 @@ export class LeadsService {
   async disqualify(id: string, dto: DisqualifyLeadDto, actor: Principal) {
     const found = await this.requireOpen(id, actor);
 
+    const status = await this.statuses.closingCode(
+      actor.activeCompanyId,
+      'lost',
+    );
     await this.leads.update({
       where: { id },
       data: {
-        status: await this.statuses.closingCode(actor.activeCompanyId, 'lost'),
+        status,
         disqualifyReason: dto.reason.trim(),
         updatedBy: actor.userId,
       },
@@ -622,6 +754,18 @@ export class LeadsService {
       resourceId: id,
       before: { status: found.status },
       after: { status: 'disqualified', reason: dto.reason },
+    });
+
+    await this.events.emit({
+      name: 'lead.status_changed',
+      payload: leadEvent(
+        actor.activeCompanyId,
+        { ...found, status },
+        {
+          previous_status: found.status,
+          reason: dto.reason.trim(),
+        },
+      ),
     });
 
     return this.leads.findFirst({ where: { id } });
@@ -638,6 +782,15 @@ export class LeadsService {
    */
   async convert(id: string, dto: ConvertLeadDto, actor: Principal) {
     const lead = await this.requireOpen(id, actor);
+
+    // opportunity.ownerUserId is a person; a service account has no User row
+    if (actor.isServiceAccount && !lead.ownerUserId) {
+      throw new AppError(
+        'CONFLICT',
+        'Lead นี้ยังอยู่ในกองกลาง — มอบหมายเจ้าของก่อนแปลงเป็นโอกาสการขาย',
+        [{ field: 'owner_user_id', reason: 'unowned' }],
+      );
+    }
 
     // PO 10 ก.ย. 2569: ไม่ต้องมีลูกค้าในทะเบียนก่อน — ว่างไว้ = ผู้มุ่งหวัง ข้อมูล
     // ระบุตัวจาก Lead ไหลไปอยู่บนโอกาสการขาย และลูกค้าจะเกิดตอนเปิดใบสั่งขาย.
@@ -661,13 +814,22 @@ export class LeadsService {
             amount: dto.amount,
           },
       actor,
-      { fromLeadId: id },
+      actor.isServiceAccount && lead.ownerUserId
+        ? {
+            fromLeadId: id,
+            owner: { userId: lead.ownerUserId, orgUnitId: lead.ownerOrgUnitId },
+          }
+        : { fromLeadId: id },
     );
 
+    const status = await this.statuses.closingCode(
+      actor.activeCompanyId,
+      'won',
+    );
     await this.leads.update({
       where: { id },
       data: {
-        status: await this.statuses.closingCode(actor.activeCompanyId, 'won'),
+        status,
         convertedOpportunityId: opportunity.id,
         customerId: customerId ?? null,
         updatedBy: actor.userId,
@@ -692,6 +854,19 @@ export class LeadsService {
       },
     });
 
+    await this.events.emit({
+      name: 'lead.converted',
+      payload: leadEvent(
+        actor.activeCompanyId,
+        { ...lead, status },
+        {
+          previous_status: lead.status,
+          opportunity_id: opportunity.id,
+          opportunity_code: opportunity.opportunityCode,
+        },
+      ),
+    });
+
     return opportunity;
   }
 
@@ -707,6 +882,8 @@ export class LeadsService {
       name: string;
       status: string;
       ownerUserId: string | null;
+      ownerOrgUnitId: string | null;
+      sourceCode: string | null;
       customerId: string | null;
       taxId: string | null;
       contactName: string | null;

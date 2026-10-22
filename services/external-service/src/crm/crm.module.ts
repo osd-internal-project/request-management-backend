@@ -14,6 +14,7 @@ import {
 } from './sales.controller';
 import { ExternalLeadIntakeController } from './lead-intake.controller';
 import { ExternalLeadWorkflowController } from './lead-workflow.controller';
+import { ExternalLeadAiController } from './lead-ai.controller';
 
 /**
  * `api/v1/crm/*` — CRM as an external system sees it.
@@ -31,8 +32,8 @@ import { ExternalLeadWorkflowController } from './lead-workflow.controller';
  * `ActingPolicyGuard`, so the machine's `integration.crm.*` gate and the
  * person's `crm.*` gate both apply. The generated files say so route by route.
  *
- * `ExternalLeadIntakeController` and `ExternalLeadWorkflowController` are the
- * two that do not, and must not start to. A customer filling in a web form is
+ * `ExternalLeadIntakeController`, `ExternalLeadWorkflowController` and
+ * `ExternalLeadAiController` are the three that do not, and must not start to. A customer filling in a web form is
  * not an employee, and the workflow engine applying a stage is not a person at
  * all — there is nobody to name in `X-Acting-User`. Their leads arrive with no
  * owner and wait in the pool until somebody claims one, which is the whole
@@ -54,6 +55,7 @@ import { ExternalLeadWorkflowController } from './lead-workflow.controller';
     ExternalQuotationsController,
     ExternalLeadIntakeController,
     ExternalLeadWorkflowController,
+    ExternalLeadAiController,
   ],
 })
 export class CrmModule {}

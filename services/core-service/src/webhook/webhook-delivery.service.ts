@@ -25,6 +25,15 @@ const BATCH = 20;
 const LEASE_MS = 5 * 60_000;
 const MAX_ERROR = 500;
 
+/** What the admin reads in `last_error` — a redirect says where, since it is never followed. */
+function failureOf(response: Response): string {
+  const location = response.headers.get('location');
+  if (response.status >= 300 && response.status < 400) {
+    return `HTTP ${response.status} — ปลายทาง redirect ไป ${location ?? '(ไม่ระบุ)'} ระบบไม่ตาม redirect เพื่อกัน SSRF ให้แก้ URL เป็นปลายทางจริง`;
+  }
+  return `HTTP ${response.status}`;
+}
+
 /**
  * G-07 — outbound webhooks.
  *
@@ -153,14 +162,12 @@ export class WebhookDeliveryService implements OnModuleInit, OnModuleDestroy {
         },
         body,
       });
+      // an unread body keeps the socket out of the pool until GC
+      await response.body?.cancel().catch(() => undefined);
       if (response.ok) {
         await this.finish(delivery.id, 'sent', response.status, null);
       } else {
-        await this.retryOrDie(
-          delivery,
-          response.status,
-          `HTTP ${response.status}`,
-        );
+        await this.retryOrDie(delivery, response.status, failureOf(response));
       }
     } catch (error) {
       await this.retryOrDie(

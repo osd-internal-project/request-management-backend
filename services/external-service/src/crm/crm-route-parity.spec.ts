@@ -43,14 +43,19 @@ const ROBOT: Readonly<Record<string, string>> = {
 };
 
 /**
- * The two robot-only routes, excluded by name.
+ * The robot-only routes, excluded by name.
  *
  * `integrations/crm/leads` has no person at the other end — a customer's web
  * form, and a workflow engine applying a stage it already decided. They moved
  * here wholesale rather than being generated, so they have no screen route to
- * correspond to.
+ * correspond to. `crm/ai/leads` (22 ต.ค. 2569) is an AI agent acting for the
+ * company: same LeadsService, its own `integration.crm.lead.*` gates.
  */
-const ROBOT_ONLY = ['lead-intake.controller.ts', 'lead-workflow.controller.ts'];
+const ROBOT_ONLY = [
+  'lead-intake.controller.ts',
+  'lead-workflow.controller.ts',
+  'lead-ai.controller.ts',
+];
 
 /**
  * The mirror case: screen routes deliberately not on the external port,

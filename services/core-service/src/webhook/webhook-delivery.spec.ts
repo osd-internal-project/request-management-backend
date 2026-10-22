@@ -164,6 +164,36 @@ describe('G-07 webhook delivery', () => {
     );
   });
 
+  it('the response body is released, so the socket returns to the pool', async () => {
+    const { service, deliveries } = setup();
+    deliveries.claimDue.mockResolvedValue([claimed(1)]);
+    const response = new Response('a body nobody reads', { status: 200 });
+    const cancel = jest.spyOn(response.body!, 'cancel');
+    fetchSpy.mockResolvedValue(response);
+
+    await service.sweep();
+
+    expect(cancel).toHaveBeenCalled();
+    expect(updateData(deliveries).status).toBe('sent');
+  });
+
+  it('a redirect is not followed and last_error says where it pointed', async () => {
+    const { service, deliveries } = setup();
+    deliveries.claimDue.mockResolvedValue([claimed(1)]);
+    fetchSpy.mockResolvedValue(
+      new Response(null, {
+        status: 302,
+        headers: { location: 'http://10.0.0.5/admin' },
+      }),
+    );
+
+    await service.sweep();
+
+    const data = updateData(deliveries);
+    expect(data).toMatchObject({ status: 'pending', lastStatusCode: 302 });
+    expect(data.lastError).toContain('http://10.0.0.5/admin');
+  });
+
   it('a network error on the sixth attempt → dead', async () => {
     const { service, deliveries } = setup();
     deliveries.claimDue.mockResolvedValue([claimed(6)]);

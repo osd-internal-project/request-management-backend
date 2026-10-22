@@ -10,6 +10,7 @@ import {
   IsInt,
   IsNotEmpty,
   IsNumber,
+  IsObject,
   IsOptional,
   IsString,
   Matches,
@@ -257,6 +258,18 @@ export class CreateLeadDto {
   @IsOptional()
   @IsDateString()
   discovery_timeframe?: string | null;
+
+  @ApiPropertyOptional({
+    description:
+      'ข้อมูลที่ช่องทางเก็บมาแต่ไม่มีช่องใน Lead — JSON object ใดก็ได้ ไม่เกิน 16 KB. ' +
+      'แก้ภายหลังด้วย `PATCH …/leads/{id}/intake-data`',
+    example: { budget_range: '1-3M', interested_in: ['CCTV', 'Network'] },
+    type: 'object',
+    additionalProperties: true,
+  })
+  @IsOptional()
+  @IsObject()
+  intake_data?: Record<string, unknown>;
 }
 
 export class UpdateLeadDto extends CreateLeadDto {
@@ -265,6 +278,29 @@ export class UpdateLeadDto extends CreateLeadDto {
   @IsNotEmpty()
   @MaxLength(255)
   declare name: string;
+}
+
+/**
+ * แก้ `intakeData` — merge ทีละ key (ค่า `null` = ลบ key นั้น) เพื่อให้สองระบบที่
+ * เขียนคนละ key ไม่ทับกัน; `replace: true` = เขียนทั้งก้อนใหม่.
+ */
+export class UpdateLeadIntakeDataDto {
+  @ApiProperty({
+    description: 'key ที่จะเขียน — ค่า null ลบ key นั้นออก',
+    example: { budget_range: '3-5M', old_key: null },
+    type: 'object',
+    additionalProperties: true,
+  })
+  @IsObject()
+  data!: Record<string, unknown>;
+
+  @ApiPropertyOptional({
+    description: 'true = แทนทั้งก้อน (key ที่ไม่ส่งมาหายไป), ค่าเริ่มต้น merge',
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  replace?: boolean;
 }
 
 /**

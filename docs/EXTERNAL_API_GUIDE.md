@@ -343,6 +343,8 @@ curl -s "${H[@]}" "$B/flow/opportunities/$OPP"
    โดยระบุ URL ซึ่งต้องเป็น https และเลือก event ที่ต้องการ แล้วรับ **secret** ที่แสดงเพียงครั้งเดียว
 2. ปลายทางต้อง**ตรวจลายเซ็นก่อนเชื่อทุกครั้ง** และตอบ 2xx ภายใน 10 วินาที
 3. body มีแค่ id ถ้าต้องการรายละเอียด ให้เรียก GET ด้วย API key ตามปกติ เช่น `request_id` ใช้กับ `GET /api/v1/request/requests/{ref}`
+   ส่วน event `lead.*` ไม่มี email หรือเบอร์โทรใน body ให้อ่านจาก `GET /api/v1/crm/ai/leads/{lead_id}`
+   ตัวอย่างครบทั้งการตั้ง key, webhook และ use case ของ Lead สำหรับ AI agent อยู่ใน [`ex/lead-webhook.md`](./ex/lead-webhook.md)
 
 ```js
 // Node — ใช้ body ดิบ ก่อน JSON.parse
