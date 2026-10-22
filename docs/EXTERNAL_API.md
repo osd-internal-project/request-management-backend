@@ -74,7 +74,7 @@ Postman ทันที** ไม่ต้องเขียน `@ApiProperty({ e
 | | ถามว่าอะไร | ประกาศด้วย | ตรวจโดย | ตรวจเมื่อไร |
 |---|---|---|---|---|
 | ประตูของเครื่อง | integration ตัวนี้เรียก endpoint นี้ได้ไหม | `@Permissions('integration.…')` | `PolicyGuard` (global) | **ก่อน** สลับตัวตน |
-| ประตูของคน | คนใน `X-Acting-User` ทำสิ่งนี้ได้ไหม | `@ActingPermissions('crm.…')` | `ActingPolicyGuard` | **หลัง** สลับตัวตน |
+| ประตูของคน | คนที่ทำแทน (`X-User-Token` / `X-Acting-User`) ทำสิ่งนี้ได้ไหม | `@ActingPermissions('crm.…')` | `ActingPolicyGuard` | **หลัง** สลับตัวตน |
 
 ลำดับนี้จงใจ และเปลี่ยนไม่ได้ — `ActingUserGuard` เป็น route guard จึงทำงานหลัง
 global guard ทุกตัว ถ้าสลับตัวตนก่อน `PolicyGuard` คนที่ถือ `request.create`
@@ -109,16 +109,55 @@ global guard ทุกตัว ถ้าสลับตัวตนก่อน
 
 ---
 
-## 1. ทุก request ต้องมีสองอย่าง
+## 1. วิธีเรียก 3 แบบ
 
-```
-Authorization: Bearer <ค่า>
-X-Acting-User: <อีเมลของคนที่ระบบกำลังทำแทน>
+ระบบภายนอกหนึ่งระบบ = หนึ่งแถวในหน้า **ผู้ดูแล → ระบบภายนอก** (`/pages/admin/integrations`)
+ซึ่งถือกุญแจ (`rfk_…`) และ webhook ของตัวเอง และกำหนดว่าเรียกได้แบบไหน
+ทุกคำขอถูกบันทึกในแท็บ **ประวัติการเรียก** (route, แบบที่เรียก, ผล, เวลา — ไม่เก็บ body หรือ header)
+
+| แบบ | ใช้เมื่อ | header | ต้องเปิดในหน้าระบบภายนอก |
+|---|---|---|---|
+| **ในนามบริษัท** | ไม่มีคนปลายทาง — เว็บฟอร์ม, workflow, AI agent ของบริษัท | `Authorization` อย่างเดียว | "ในนามบริษัท" |
+| **ในนามผู้ใช้ (token)** — แบบหลัก | ผู้ใช้ login กับระบบนั้นด้วย Keycloak แล้ว | `Authorization` + `X-User-Token` | "ในนามผู้ใช้" และใส่ Keycloak client id ของระบบนั้น |
+| **ในนามผู้ใช้ (อีเมล)** — แบบเดิม | ระบบเก่าที่ยังไม่มี login ของผู้ใช้ | `Authorization` + `X-Acting-User` | "ระบุผู้ใช้ด้วยอีเมล" (เปิดให้กุญแจที่ออกก่อน 22 ต.ค. 2569 เท่านั้น) |
+
+route แต่ละตัวรับแบบเดียว: route ที่ทำแทนคน (เกือบทั้งหมด) ต้องมีผู้ใช้ ส่วน route ที่ไม่มีคนปลายทาง
+(ข้อ 0 "route ที่ไม่มีประตูของคน") ไม่รับ header ของผู้ใช้
+
+**ในนามบริษัท**
+
+```bash
+curl -s -X POST http://<host>:3503/api/v1/crm/leads/intake \
+  -H "Authorization: Bearer rfk_..." \
+  -H "Content-Type: application/json" \
+  -d '{"name":"บจก. ตัวอย่าง","contact_name":"คุณสมชาย","phone":"0812345678"}'
 ```
 
-`X-Acting-User` ไม่ใช่ของเสริม — `ActingUserGuard` สลับ principal เป็นคนนั้นก่อน
-handler ทำงาน ผลคือขอบเขตการมองเห็น, `assertMayAct`, นาฬิกา SLA และ timeline
-บันทึกเป็น **ชื่อคนจริง** ไม่ใช่ชื่อบัญชีบริการ ขาด header นี้แล้วยิงไม่ผ่าน
+**ในนามผู้ใช้ด้วย token ของผู้ใช้**
+
+```bash
+curl -s http://<host>:3503/api/v1/request/requests \
+  -H "Authorization: Bearer rfk_..." \
+  -H "X-User-Token: <access token ของผู้ใช้จาก Keycloak>"
+```
+
+- token ต้องออกให้ client ที่ใส่ไว้ในหน้าระบบภายนอก (`azp`) — token ของเว็บเราเองใช้แทนไม่ได้ ได้ `FORBIDDEN`
+- สิทธิ์ = ส่วนที่ทั้งกุญแจ (`integration.<สิทธิ์>`) และผู้ใช้มี
+- กุญแจที่ผูกบริษัท ใช้ได้กับผู้ใช้ในบริษัทนั้นเท่านั้น คนนอกได้ `NOT_FOUND`
+
+**ในนามผู้ใช้ด้วยอีเมล (แบบเดิม)**
+
+```bash
+curl -s http://<host>:3503/api/v1/request/requests \
+  -H "Authorization: Bearer rfk_..." \
+  -H "X-Acting-User: somchai@example.com"
+```
+
+ระบบภายนอกทำแทนใครก็ได้โดยผู้ใช้ไม่ได้ยินยอม — ย้ายไป `X-User-Token` แล้วปิดตัวเลือกนี้
+ส่ง `X-User-Token` กับ `X-Acting-User` พร้อมกันได้ `VALIDATION_FAILED`
+
+ทั้งสองแบบที่ทำแทนคน `ActingUserGuard` สลับ principal เป็นคนนั้นก่อน handler ทำงาน ผลคือขอบเขตการมองเห็น,
+`assertMayAct`, นาฬิกา SLA และ timeline บันทึกเป็น **ชื่อคนจริง** ไม่ใช่ชื่อบัญชีบริการ
 
 `X-Company-Id` ใส่เพิ่มได้เมื่อคนนั้นอยู่หลายบริษัท เว้นว่าง = บริษัทหลักของเขา
 
@@ -320,12 +359,16 @@ CRM มี 62 path การยื่นทั้งหมดทำให้โ�
 
 **ตัวตนผู้ใช้ทำงานสองแบบ ต่างจาก `/request/*` ตรงนี้ที่เดียว**
 
-| credential ที่ส่ง | ระบบรู้จักใครจาก | `X-Acting-User` |
+| credential ที่ส่ง | ระบบรู้จักใครจาก | `X-User-Token` / `X-Acting-User` |
 |---|---|---|
 | token ของ **คน** (เช่น LibreChat หลัง login) | ตัว token | **ห้ามส่ง** — ส่งแล้วถูกปฏิเสธ |
-| `rfk_` key หรือ token บัญชีบริการ | header | **ต้องส่ง** เหมือนเดิม |
+| `rfk_` key | header | **ต้องส่งตัวใดตัวหนึ่ง** ตามข้อ 1 |
 
 ที่ห้ามส่งเมื่อใช้ token ของคน เพราะถ้ายอมรับ ใครที่ login แล้วก็สวมเป็นคนอื่นได้ทันที
+
+**protocol** — `initialize` ตอบ `2025-06-18` เมื่อ client ขอ นอกนั้น `2024-11-05`;
+header `MCP-Protocol-Version` ที่ไม่รู้จักได้ 400. ถ้าตั้ง `MCP_TOKEN_AUDIENCE` token ของคนต้องมีค่านั้นใน
+`aud` (ไม่มี = 401) — ตั้งหลังเพิ่ม audience mapper ใน Keycloak แล้วเท่านั้น ไม่อย่างนั้น LibreChat ใช้ไม่ได้ทันที
 
 #### ตั้งใน LibreChat
 
@@ -341,8 +384,9 @@ CRM มี 62 path การยื่นทั้งหมดทำให้โ�
 **ถ้าเลือก "คีย์ API"** — ใช้ได้ทันที ไม่ต้องตั้งอะไรเพิ่มใน Keycloak
 
 - ใส่ `rfk_…` เป็นคีย์
-- ต้องส่ง header `X-Acting-User` ด้วย เพราะคีย์ผูกกับบัญชีบริการ ไม่ใช่คน
-- ทุกคนใน LibreChat จะกลายเป็นคนคนเดียวกันตามอีเมลใน header นั้น
+- ต้องส่ง header `X-Acting-User` ด้วย เพราะคีย์ผูกกับบัญชีบริการ ไม่ใช่คน — ระบบภายนอกของคีย์ต้องเปิด
+  "ระบุผู้ใช้ด้วยอีเมล" (ระบบที่สร้างใหม่ปิดไว้)
+- ทุกคนใน LibreChat จะกลายเป็นคนคนเดียวกันตามอีเมลใน header นั้น — ถ้าต้องแยกคน ใช้ OAuth
 
 **ถ้าเลือก "OAuth"** — แยกคนได้ แต่ต้องตั้ง client ใน Keycloak ก่อน
 

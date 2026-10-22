@@ -343,7 +343,11 @@ the Prisma failure went unnoticed.
    `ISSUABLE_SCOPES` derives from `permissionType`, and a key's `scopes` are
    what the caller may do (`RemotePrincipalGuard.permissionsOfKey`). There is
    no realm role to create — Keycloak authenticates the machine and grants it
-   nothing.
+   nothing. **A key's scope is the person's permission with `integration.` in
+   front, one to one** (22 Oct 2026): a route whose person needs `request.read`
+   asks the key for `integration.request.read`, and `scope-rule.spec.ts` fails
+   otherwise. Never add a scope named after a use case — a use case is a preset
+   in `integration-presets.ts` that ticks existing scopes, not a new right.
 2. Filter every read through `buildScopeWhere`.
 3. If it changes state, make it transactional and accept `Idempotency-Key`.
 4. Write the audit entry inside the same transaction as the change.
@@ -356,11 +360,29 @@ the Prisma failure went unnoticed.
 An endpoint on the external port declares **both**:
 
 ```ts
+@ActsForPerson()                                  // key + the person's credential, swap, then the person's gate
 @Permissions('integration.crm.customer.manage')   // may this machine call it
-@ServiceAccountOnly()
 @ActingPermissions('crm.customer.manage')         // may this person do it
-@UseGuards(ActingUserGuard, ActingPolicyGuard)
 ```
+
+`@ActsForPerson()` is `@ServiceAccountOnly()` plus
+`@UseGuards(ActingUserGuard, ActingPolicyGuard)` in that order. A route with
+nobody at the other end declares `@ActsAsCompany()` instead, which also refuses
+a key whose integration has `app` mode off.
+
+**The person arrives in one of two credentials** (`auth/resolve-caller.ts`, the
+one rule for Open API and MCP):
+
+- `X-User-Token` — the person's own Keycloak access token from a login at the
+  partner system. The integration must have `delegated` mode, the token's `azp`
+  must be in `keycloakClientIds`, and a key bound to a company only gets people
+  in that company (404). This is the default for new integrations.
+- `X-Acting-User` — an email the partner asserts without the person's consent.
+  Kept only for integrations with `allowActingUser` (the backfill set it for
+  keys issued before 22 Oct 2026); sending both headers is 400.
+
+A person's own bearer (LibreChat on MCP) may send neither — the token already
+names them.
 
 `PolicyGuard` is global, so it runs before any route guard and always judges
 the credential that arrived — the service account. The acting-user swap happens
