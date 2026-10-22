@@ -47,7 +47,7 @@
           "disbursement"
         ],
         "x-permission": [
-          "integration.disbursement.manage"
+          "integration.disbursement.pay"
         ],
         "x-acting-permission": [
           "disbursement.pay"
@@ -118,7 +118,7 @@
           "disbursement"
         ],
         "x-permission": [
-          "integration.disbursement.manage"
+          "integration.disbursement.pay"
         ],
         "x-acting-permission": [
           "disbursement.pay"
@@ -241,7 +241,7 @@
           "disbursement"
         ],
         "x-permission": [
-          "integration.disbursement.read"
+          "integration.request.read"
         ],
         "x-acting-permission": [
           "request.read"
@@ -294,7 +294,7 @@
           "disbursement"
         ],
         "x-permission": [
-          "integration.disbursement.read"
+          "integration.request.read"
         ],
         "x-acting-permission": [
           "request.read"
@@ -347,7 +347,7 @@
           "disbursement"
         ],
         "x-permission": [
-          "integration.disbursement.read"
+          "integration.request.read"
         ],
         "x-acting-permission": [
           "request.read"
@@ -410,7 +410,7 @@
           "disbursement"
         ],
         "x-permission": [
-          "integration.disbursement.manage"
+          "integration.disbursement.verify"
         ],
         "x-acting-permission": [
           "disbursement.verify"
@@ -473,7 +473,7 @@
           "disbursement"
         ],
         "x-permission": [
-          "integration.disbursement.manage"
+          "integration.disbursement.pay"
         ],
         "x-acting-permission": [
           "disbursement.pay"
@@ -536,7 +536,7 @@
           "disbursement"
         ],
         "x-permission": [
-          "integration.disbursement.manage"
+          "integration.request.create"
         ],
         "x-acting-permission": [
           "request.create"
@@ -599,7 +599,7 @@
           "disbursement"
         ],
         "x-permission": [
-          "integration.disbursement.manage"
+          "integration.disbursement.verify"
         ],
         "x-acting-permission": [
           "disbursement.verify"
@@ -663,7 +663,7 @@
           "disbursement"
         ],
         "x-permission": [
-          "integration.disbursement.manage"
+          "integration.disbursement.pay"
         ],
         "x-acting-permission": [
           "disbursement.pay"

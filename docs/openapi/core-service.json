@@ -724,6 +724,155 @@
         ]
       }
     },
+    "/api/v1/admin/integrations": {
+      "get": {
+        "operationId": "IntegrationAdminController_list",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/IntegrationRowDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ระบบภายนอกของบริษัทนี้",
+        "tags": [
+          "admin/integrations"
+        ],
+        "x-permission": [
+          "admin.integration.manage"
+        ]
+      },
+      "post": {
+        "operationId": "IntegrationAdminController_create",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateIntegrationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntegrationRowDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เพิ่มระบบภายนอก — แล้วออก key / ตั้ง webhook ให้มัน",
+        "tags": [
+          "admin/integrations"
+        ],
+        "x-permission": [
+          "admin.integration.manage"
+        ]
+      }
+    },
+    "/api/v1/admin/integrations/{id}": {
+      "patch": {
+        "operationId": "IntegrationAdminController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateIntegrationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntegrationRowDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แก้วิธีเรียก / ปิดการเชื่อมต่อ — มีผลกับคำขอถัดไปทันที",
+        "tags": [
+          "admin/integrations"
+        ],
+        "x-permission": [
+          "admin.integration.manage"
+        ]
+      }
+    },
     "/api/v1/health": {
       "get": {
         "operationId": "HealthController_check",
@@ -43637,6 +43786,10 @@
           "active": {
             "type": "boolean"
           },
+          "integration_id": {
+            "type": "object",
+            "nullable": true
+          },
           "created_at": {
             "type": "string"
           },
@@ -43650,6 +43803,7 @@
           "url",
           "events",
           "active",
+          "integration_id",
           "created_at",
           "created_by"
         ]
@@ -43680,6 +43834,10 @@
               "type": "string"
             },
             "maxItems": 50
+          },
+          "integration_id": {
+            "type": "string",
+            "description": "ระบบภายนอกเจ้าของ webhook นี้"
           }
         },
         "required": [
@@ -43709,6 +43867,10 @@
           "active": {
             "type": "boolean"
           },
+          "integration_id": {
+            "type": "object",
+            "nullable": true
+          },
           "created_at": {
             "type": "string"
           },
@@ -43726,6 +43888,7 @@
           "url",
           "events",
           "active",
+          "integration_id",
           "created_at",
           "created_by",
           "secret"
@@ -43753,6 +43916,10 @@
           "active": {
             "type": "boolean",
             "description": "false = หยุดส่ง (ไม่ลบ ประวัติยังอยู่)"
+          },
+          "integration_id": {
+            "type": "string",
+            "description": "ระบบภายนอกเจ้าของ webhook นี้ (บริษัทเดียวกัน)"
           }
         }
       },
@@ -43967,6 +44134,10 @@
             "type": "object",
             "example": "website"
           },
+          "integration_id": {
+            "type": "object",
+            "nullable": true
+          },
           "scopes": {
             "example": [
               "integration.crm.lead.create"
@@ -44005,6 +44176,7 @@
           "prefix",
           "name",
           "source_code",
+          "integration_id",
           "scopes",
           "status",
           "expires_at",
@@ -44046,6 +44218,10 @@
             "minimum": 1,
             "maximum": 3650,
             "example": 365
+          },
+          "integration_id": {
+            "type": "string",
+            "description": "ระบบภายนอกที่ถือกุญแจใบนี้ — ไม่ระบุ = สร้างระบบใหม่ชื่อเดียวกับกุญแจให้"
           }
         },
         "required": [
@@ -44072,6 +44248,10 @@
           "source_code": {
             "type": "object",
             "example": "website"
+          },
+          "integration_id": {
+            "type": "object",
+            "nullable": true
           },
           "scopes": {
             "example": [
@@ -44116,6 +44296,7 @@
           "prefix",
           "name",
           "source_code",
+          "integration_id",
           "scopes",
           "status",
           "expires_at",
@@ -44144,6 +44325,158 @@
         "required": [
           "scopes"
         ]
+      },
+      "IntegrationRowDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "object",
+            "nullable": true
+          },
+          "modes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "app",
+                "delegated"
+              ]
+            }
+          },
+          "allow_acting_user": {
+            "type": "boolean"
+          },
+          "keycloak_client_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "api_key_count": {
+            "type": "number"
+          },
+          "webhook_count": {
+            "type": "number"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "created_by": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "modes",
+          "allow_acting_user",
+          "keycloak_client_ids",
+          "active",
+          "api_key_count",
+          "webhook_count",
+          "created_at",
+          "created_by"
+        ]
+      },
+      "CreateIntegrationDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Aiyara chatbot (production)",
+            "maxLength": 120,
+            "minLength": 1
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "modes": {
+            "type": "array",
+            "description": "วิธีเรียกที่ยอมรับ — `app` ในนามบริษัท, `delegated` ในนามผู้ใช้",
+            "example": [
+              "delegated"
+            ],
+            "items": {
+              "type": "string",
+              "enum": [
+                "app",
+                "delegated"
+              ]
+            }
+          },
+          "allow_acting_user": {
+            "type": "boolean",
+            "description": "ยอมให้ระบุผู้ใช้ด้วยอีเมลใน `X-Acting-User` โดยผู้ใช้ไม่ได้ยืนยันตัวเอง — โหมดเดิม ไม่แนะนำ",
+            "default": false
+          },
+          "keycloak_client_ids": {
+            "description": "Keycloak client ที่ token ใน `X-User-Token` ต้องออกให้ (`azp`)",
+            "example": [
+              "aiyara-web"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9._-]{1,255}$"
+            },
+            "maxItems": 20
+          }
+        },
+        "required": [
+          "modes",
+          "name"
+        ]
+      },
+      "UpdateIntegrationDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500,
+            "nullable": true
+          },
+          "modes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "app",
+                "delegated"
+              ]
+            }
+          },
+          "allow_acting_user": {
+            "type": "boolean"
+          },
+          "keycloak_client_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9._-]{1,255}$"
+            },
+            "maxItems": 20
+          },
+          "active": {
+            "type": "boolean",
+            "description": "false = ปิดการเชื่อมต่อ — key ทุกใบของระบบนี้ถูกปฏิเสธทันที"
+          }
+        }
       },
       "CreateRequestDto": {
         "type": "object",

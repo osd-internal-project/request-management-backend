@@ -92,14 +92,14 @@ export class ExternalCrmAdminController {
 
   /** ทั้งชุดรวมที่ปิดใช้งาน — หน้า admin ต้องเห็นของที่ปิดไว้ด้วย. */
   @Get('lead-statuses')
-  @Permissions('integration.crm.admin.manage')
+  @Permissions('integration.admin.crm.manage')
   @ActingPermissions('admin.crm.manage')
   listLeadStatuses(@CurrentPrincipal() principal: Principal) {
     return this.leadStatuses.list(principal);
   }
 
   @Post('lead-statuses')
-  @Permissions('integration.crm.admin.manage')
+  @Permissions('integration.admin.crm.manage')
   @ActingPermissions('admin.crm.manage')
   createLeadStatus(
     @Body() dto: CreateLeadStatusDto,
@@ -110,7 +110,7 @@ export class ExternalCrmAdminController {
 
   /** ลำดับใหม่ทั้งชุด — ประกาศก่อน `:id` ไม่งั้น `reorder` จะถูกอ่านเป็น id. */
   @Patch('lead-statuses/reorder')
-  @Permissions('integration.crm.admin.manage')
+  @Permissions('integration.admin.crm.manage')
   @ActingPermissions('admin.crm.manage')
   reorderLeadStatuses(
     @Body() dto: ReorderLeadStatusesDto,
@@ -120,7 +120,7 @@ export class ExternalCrmAdminController {
   }
 
   @Patch('lead-statuses/:id')
-  @Permissions('integration.crm.admin.manage')
+  @Permissions('integration.admin.crm.manage')
   @ActingPermissions('admin.crm.manage')
   updateLeadStatus(
     @Param('id') id: string,
@@ -132,7 +132,7 @@ export class ExternalCrmAdminController {
 
   /** Refused with `CRM_LEAD_STATUS_IN_USE` once Lead ใช้สถานะนี้อยู่. */
   @Delete('lead-statuses/:id')
-  @Permissions('integration.crm.admin.manage')
+  @Permissions('integration.admin.crm.manage')
   @ActingPermissions('admin.crm.manage')
   @HttpCode(HttpStatus.NO_CONTENT)
   async deleteLeadStatus(
@@ -145,14 +145,14 @@ export class ExternalCrmAdminController {
   // --- CM-04 ชุดงาน B: product ที่ต้องยืนยันตัวตน (KYC) --------------------
 
   @Get('kyc-products')
-  @Permissions('integration.crm.admin.manage')
+  @Permissions('integration.admin.crm.manage')
   @ActingPermissions('admin.crm.manage')
   listKycProducts(@CurrentPrincipal() principal: Principal) {
     return this.admin.listKycProducts(principal);
   }
 
   @Post('kyc-products')
-  @Permissions('integration.crm.admin.manage')
+  @Permissions('integration.admin.crm.manage')
   @ActingPermissions('admin.crm.manage')
   createKycProduct(
     @Body() dto: CreateKycProductDto,
@@ -162,7 +162,7 @@ export class ExternalCrmAdminController {
   }
 
   @Patch('kyc-products/:id')
-  @Permissions('integration.crm.admin.manage')
+  @Permissions('integration.admin.crm.manage')
   @ActingPermissions('admin.crm.manage')
   updateKycProduct(
     @Param('id') id: string,
@@ -173,14 +173,14 @@ export class ExternalCrmAdminController {
   }
 
   @Get('segment-dimensions')
-  @Permissions('integration.crm.admin.manage')
+  @Permissions('integration.admin.crm.manage')
   @ActingPermissions('admin.crm.manage')
   listDimensions(@CurrentPrincipal() principal: Principal) {
     return this.admin.listDimensions(principal);
   }
 
   @Post('segment-dimensions')
-  @Permissions('integration.crm.admin.manage')
+  @Permissions('integration.admin.crm.manage')
   @ActingPermissions('admin.crm.manage')
   createDimension(
     @Body() dto: CreateSegmentDimensionDto,
@@ -190,7 +190,7 @@ export class ExternalCrmAdminController {
   }
 
   @Patch('segment-dimensions/:id')
-  @Permissions('integration.crm.admin.manage')
+  @Permissions('integration.admin.crm.manage')
   @ActingPermissions('admin.crm.manage')
   updateDimension(
     @Param('id') id: string,
@@ -201,7 +201,7 @@ export class ExternalCrmAdminController {
   }
 
   @Post('segment-dimensions/:id/values')
-  @Permissions('integration.crm.admin.manage')
+  @Permissions('integration.admin.crm.manage')
   @ActingPermissions('admin.crm.manage')
   createValue(
     @Param('id') id: string,
@@ -212,7 +212,7 @@ export class ExternalCrmAdminController {
   }
 
   @Patch('segment-values/:id')
-  @Permissions('integration.crm.admin.manage')
+  @Permissions('integration.admin.crm.manage')
   @ActingPermissions('admin.crm.manage')
   updateValue(
     @Param('id') id: string,
@@ -224,7 +224,7 @@ export class ExternalCrmAdminController {
 
   /** Refused with `CRM_SEGMENT_IN_USE` once customers are assigned. */
   @Delete('segment-values/:id')
-  @Permissions('integration.crm.admin.manage')
+  @Permissions('integration.admin.crm.manage')
   @ActingPermissions('admin.crm.manage')
   @HttpCode(HttpStatus.NO_CONTENT)
   async deleteValue(
@@ -235,14 +235,14 @@ export class ExternalCrmAdminController {
   }
 
   @Get('config')
-  @Permissions('integration.crm.admin.manage')
+  @Permissions('integration.admin.crm.manage')
   @ActingPermissions('admin.crm.manage')
   getConfig(@CurrentPrincipal() principal: Principal) {
     return this.admin.getConfig(principal);
   }
 
   @Patch('config')
-  @Permissions('integration.crm.admin.manage')
+  @Permissions('integration.admin.crm.manage')
   @ActingPermissions('admin.crm.manage')
   updateConfig(
     @Body() dto: UpdateCrmConfigDto,
@@ -254,7 +254,7 @@ export class ExternalCrmAdminController {
   // --- CD-61 รายชื่อต้องห้าม ------------------------------------------------
 
   @Get('kyc-watchlist')
-  @Permissions('integration.crm.admin.manage')
+  @Permissions('integration.admin.crm.manage')
   @ActingPermissions('admin.crm.manage')
   listKycWatchlist(
     @CurrentPrincipal() principal: Principal,
@@ -265,7 +265,7 @@ export class ExternalCrmAdminController {
 
   /** เพิ่มทีละรายการหรือทั้งชุด (วางจาก Excel). */
   @Post('kyc-watchlist')
-  @Permissions('integration.crm.admin.manage')
+  @Permissions('integration.admin.crm.manage')
   @ActingPermissions('admin.crm.manage')
   addKycWatchlist(
     @Body() dto: AddKycWatchlistDto,
@@ -276,7 +276,7 @@ export class ExternalCrmAdminController {
 
   /** ปิดใช้ — ไม่ลบ ผล KYC เก่ายังอ้างรายการนี้ได้. */
   @Patch('kyc-watchlist/:id/deactivate')
-  @Permissions('integration.crm.admin.manage')
+  @Permissions('integration.admin.crm.manage')
   @ActingPermissions('admin.crm.manage')
   deactivateKycWatchlist(
     @Param('id') id: string,
@@ -288,7 +288,7 @@ export class ExternalCrmAdminController {
   // --- CD-79 เงื่อนไขการค้ามาตรฐาน -----------------------------------------
 
   @Get('trade-terms')
-  @Permissions('integration.crm.admin.manage')
+  @Permissions('integration.admin.crm.manage')
   @ActingPermissions('admin.crm.manage')
   listTradeTerms(@CurrentPrincipal() principal: Principal) {
     return this.negotiations.listStandards(principal);
@@ -296,7 +296,7 @@ export class ExternalCrmAdminController {
 
   /** แทนที่ทั้งชุด — รหัสที่ไม่ส่งมาถูกปิดใช้ ไม่ถูกลบ. */
   @Put('trade-terms')
-  @Permissions('integration.crm.admin.manage')
+  @Permissions('integration.admin.crm.manage')
   @ActingPermissions('admin.crm.manage')
   replaceTradeTerms(
     @Body() dto: ReplaceTradeTermsDto,
@@ -308,7 +308,7 @@ export class ExternalCrmAdminController {
   // --- CD-84 รายการตรวจก่อนส่งมอบงาน ---------------------------------------
 
   @Get('handover-items')
-  @Permissions('integration.crm.admin.manage')
+  @Permissions('integration.admin.crm.manage')
   @ActingPermissions('admin.crm.manage')
   listHandoverItems(@CurrentPrincipal() principal: Principal) {
     return this.handovers.listItems(principal);
@@ -316,7 +316,7 @@ export class ExternalCrmAdminController {
 
   /** แทนที่ทั้งชุด — รหัสที่ไม่ส่งมาถูกปิดใช้ ไม่ถูกลบ. */
   @Put('handover-items')
-  @Permissions('integration.crm.admin.manage')
+  @Permissions('integration.admin.crm.manage')
   @ActingPermissions('admin.crm.manage')
   replaceHandoverItems(
     @Body() dto: ReplaceHandoverItemsDto,

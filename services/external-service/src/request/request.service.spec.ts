@@ -273,6 +273,7 @@ describe('the action dispatcher checks the acting user per verb', () => {
         { reason: 'รอของ' },
         principal(),
         'Bearer token',
+        undefined,
       )
       .catch((error: unknown) => error);
 
@@ -308,6 +309,43 @@ describe('the action dispatcher checks the acting user per verb', () => {
       { reason: 'รอของ' },
       principal({ permissions: ['request.hold'] }),
       'Bearer token',
+      undefined,
+    );
+
+    expect(hold).toHaveBeenCalled();
+  });
+
+  it('refuses a verb the key has no scope for, even when the person may', async () => {
+    const { service, requests } = build();
+    const hold = jest.fn();
+    (requests as unknown as { hold: typeof hold }).hold = hold;
+
+    await expect(
+      service.perform(
+        '11111111-2222-3333-4444-555555555555',
+        'hold',
+        { reason: 'รอของ' },
+        principal({ permissions: ['request.hold'] }),
+        'Bearer token',
+        ['integration.request.create', 'integration.request.read'],
+      ),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    expect(hold).not.toHaveBeenCalled();
+  });
+
+  it('admits the verb when both the key and the person hold it', async () => {
+    const { service, requests } = build();
+    const hold = jest.fn<Promise<{ id: string }>, []>();
+    hold.mockResolvedValue({ id: 'req-1' });
+    (requests as unknown as { hold: typeof hold }).hold = hold;
+
+    await service.perform(
+      '11111111-2222-3333-4444-555555555555',
+      'hold',
+      { reason: 'รอของ' },
+      principal({ permissions: ['request.hold'] }),
+      'Bearer token',
+      ['integration.request.hold'],
     );
 
     expect(hold).toHaveBeenCalled();
@@ -317,7 +355,14 @@ describe('the action dispatcher checks the acting user per verb', () => {
     const { service } = build();
 
     await expect(
-      service.perform('ref', 'teleport', {}, principal(), 'Bearer token'),
+      service.perform(
+        'ref',
+        'teleport',
+        {},
+        principal(),
+        'Bearer token',
+        undefined,
+      ),
     ).rejects.toEqual(expect.objectContaining({ code: 'VALIDATION_FAILED' }));
   });
 });
@@ -337,6 +382,7 @@ describe('step flow — advance through the external API', () => {
       { to_step: 'INSTALL' },
       principal({ permissions: ['request.complete'] }),
       'Bearer token',
+      undefined,
     );
 
     expect(advance).toHaveBeenCalledWith(
@@ -357,6 +403,7 @@ describe('step flow — advance through the external API', () => {
         {},
         principal({ permissions: ['request.complete'] }),
         'Bearer token',
+        undefined,
       ),
     ).rejects.toEqual(expect.objectContaining({ code: 'VALIDATION_FAILED' }));
   });
@@ -371,6 +418,7 @@ describe('step flow — advance through the external API', () => {
         { to_step: 'INSTALL' },
         principal(),
         'Bearer token',
+        undefined,
       ),
     ).rejects.toEqual(expect.objectContaining({ code: 'FORBIDDEN' }));
   });

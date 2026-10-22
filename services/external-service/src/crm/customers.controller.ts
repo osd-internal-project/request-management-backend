@@ -166,7 +166,7 @@ export class ExternalCustomersController {
     description: 'งานของผู้ดูแล — dry_run ตอบรายงานรายบรรทัดโดยไม่เขียน',
   })
   @Post('import')
-  @Permissions('integration.crm.admin.manage')
+  @Permissions('integration.admin.crm.manage')
   @ActingPermissions('admin.crm.manage')
   @HttpCode(HttpStatus.OK)
   import(
@@ -217,7 +217,7 @@ export class ExternalCustomersController {
       'ERP_MODE=mock = ไม่แสดงตัวเลข',
   })
   @Get(':id/invoices')
-  @Permissions('integration.crm.customer.read')
+  @Permissions('integration.crm.customer.financial.read')
   @ActingPermissions('crm.customer.financial.read')
   invoices(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
     return this.invoiceReader.list(id, principal);
@@ -525,7 +525,7 @@ export class ExternalCustomersController {
     description: 'SAP และระบบสายบัญชี — งานของผู้ดูแล',
   })
   @Get(':id/external-codes')
-  @Permissions('integration.crm.admin.manage')
+  @Permissions('integration.admin.crm.manage')
   @ActingPermissions('admin.crm.manage')
   externalCodes(
     @Param('id') id: string,
@@ -539,7 +539,7 @@ export class ExternalCustomersController {
     description: 'หนึ่งรหัสต่อหนึ่งระบบต่อหนึ่งลูกค้า',
   })
   @Put(':id/external-codes')
-  @Permissions('integration.crm.admin.manage')
+  @Permissions('integration.admin.crm.manage')
   @ActingPermissions('admin.crm.manage')
   upsertExternalCode(
     @Param('id') id: string,

@@ -2005,17 +2005,16 @@ model ApiKey {
   /// ซึ่งพิมพ์ผิดได้ พิมพ์ปลอมได้ และพอตัวเลขการตลาดผิดก็ไล่ไม่ได้ว่าใบไหนมาจากไหน.
   sourceCode String?
 
-  /// สิทธิ์ที่ key ใบนี้ใช้ได้ — ตัดจากสิทธิ์ที่บัญชีบริการถืออยู่ ไม่ใช่เพิ่มให้.
+  /// สิทธิ์ทั้งหมดที่ key ใบนี้มี — แหล่งเดียว (`RemotePrincipalGuard.permissionsOfKey`).
   ///
-  /// ว่าง = ไม่จำกัด คือ key เดิมทุกใบก่อน 14 ก.ย. 2569 ซึ่งได้สิทธิ์เต็มชุดของ
-  /// integration client ตามเดิม. ใส่ค่า = key ใบนั้นทำได้เท่าที่ระบุ เช่น key ของ
-  /// เว็บฟอร์มถือแค่ `integration.crm.lead.create` — หลุดออกไปก็เปิด Lead ได้
-  /// อย่างเดียว อ่านคำขอของบริษัทไม่ได้.
-  ///
-  /// **ตัดอย่างเดียว ไม่เคยเพิ่ม** — คำตอบว่า "ทำอะไรได้" ยังมาจาก role ของ
-  /// บัญชีบริการที่เดียวเหมือนเดิม (ดู `ApiKeyService`); คอลัมน์นี้เป็น intersect
-  /// ไม่ใช่แหล่งสิทธิ์ที่สอง จึงไม่มีทางที่สองที่จะขัดกัน.
+  /// **ว่าง = ไม่มีสิทธิ์เลย** ไม่ใช่ "ไม่จำกัด". เช่น key ของเว็บฟอร์มถือแค่
+  /// `integration.crm.lead.create` — หลุดออกไปก็เปิด Lead ได้อย่างเดียว.
+  /// realm role ของบัญชีบริการไม่ให้สิทธิ์อะไร (Keycloak = login only).
   scopes String[] @default([])
+
+  /// ระบบภายนอกที่ถือ key ใบนี้ — NULL เฉพาะ key ที่ออกก่อนมีตาราง integrations.
+  integrationId String?
+  integration   Integration? @relation(fields: [integrationId], references: [id])
 
   /// Written at most once a minute, not on every call: an audit trail worth
   /// having, not a write amplifier on the hot path.
@@ -2028,7 +2027,34 @@ model ApiKey {
   createdAt DateTime @default(now())
 
   @@index([active])
+  @@index([integrationId])
   @@map("api_keys")
+}
+
+/// ระบบภายนอกหนึ่งระบบ (Aiyara, เว็บฟอร์ม, D-Callcenter …) — ถือ key กับ webhook
+/// ของตัวเอง และกำหนดว่าเรียกได้ในนามใคร. สิทธิ์ยังอยู่ที่ `ApiKey.scopes`.
+model Integration {
+  id          String  @id @default(uuid())
+  /// NULL = ทำงานข้ามบริษัท (chatbot) เหมือน `ApiKey.companyId`
+  companyId   String?
+  name        String
+  description String?
+  /// `app` = ในนามบริษัท, `delegated` = ในนามผู้ใช้ (X-User-Token)
+  modes             String[] @default(["app", "delegated"])
+  /// `X-Acting-User` — ระบุผู้ใช้ด้วยอีเมลโดยผู้ใช้ไม่ได้ยินยอม; เปิดให้ของเดิมเท่านั้น
+  allowActingUser   Boolean  @default(false)
+  /// `azp` ของ Keycloak token ที่ยอมรับใน X-User-Token
+  keycloakClientIds String[] @default([])
+  active            Boolean  @default(true)
+  createdBy         String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  apiKeys  ApiKey[]
+  webhooks WebhookSubscription[]
+
+  @@index([companyId, active])
+  @@map("integrations")
 }
 
 // ---------------------------------------------------------------------------
@@ -9077,10 +9103,14 @@ model WebhookSubscription {
   createdBy String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  /// ระบบภายนอกเจ้าของ webhook นี้ — NULL = ตั้งก่อนมี integrations ยังไม่ได้ผูก
+  integrationId String?
+  integration   Integration? @relation(fields: [integrationId], references: [id])
 
   deliveries WebhookDelivery[]
 
   @@index([companyId, active])
+  @@index([integrationId])
   @@map("webhook_subscriptions")
 }
 

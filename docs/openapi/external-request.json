@@ -536,7 +536,7 @@
           "external"
         ],
         "x-permission": [
-          "integration.request.create"
+          "integration.request.read"
         ],
         "x-acting-permission": [
           "request.read"
@@ -700,7 +700,7 @@
           "external"
         ],
         "x-permission": [
-          "integration.request.create"
+          "integration.request.read"
         ],
         "x-acting-permission": [
           "request.read"
@@ -961,7 +961,7 @@
           "external"
         ],
         "x-permission": [
-          "integration.request.create"
+          "integration.request.read"
         ],
         "x-acting-permission": [
           "request.read"
@@ -1065,7 +1065,7 @@
           "external"
         ],
         "x-permission": [
-          "integration.request.create"
+          "integration.request.read"
         ],
         "x-acting-permission": [
           "request.read"
@@ -1239,9 +1239,6 @@
         "summary": "สั่งทำหนึ่ง action กับคำขอใบนี้",
         "tags": [
           "external"
-        ],
-        "x-permission": [
-          "integration.request.create"
         ]
       }
     },
@@ -1340,7 +1337,7 @@
           "external"
         ],
         "x-permission": [
-          "integration.request.create"
+          "integration.request.read"
         ],
         "x-acting-permission": [
           "request.read"

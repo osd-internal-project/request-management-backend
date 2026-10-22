@@ -112,7 +112,7 @@
           "assistant"
         ],
         "x-permission": [
-          "integration.assistant.read"
+          "integration.crm.sales.read"
         ],
         "x-acting-permission": [
           "crm.sales.read"
@@ -171,7 +171,7 @@
           "assistant"
         ],
         "x-permission": [
-          "integration.assistant.read"
+          "integration.crm.sales.read"
         ],
         "x-acting-permission": [
           "crm.sales.read"
@@ -217,7 +217,7 @@
           "assistant"
         ],
         "x-permission": [
-          "integration.assistant.read"
+          "integration.approval.decide"
         ],
         "x-acting-permission": [
           "approval.decide"
@@ -343,7 +343,7 @@
           "assistant"
         ],
         "x-permission": [
-          "integration.assistant.read"
+          "integration.service.asset.read"
         ],
         "x-acting-permission": [
           "service.asset.read"

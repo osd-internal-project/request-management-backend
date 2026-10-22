@@ -7,6 +7,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsUUID,
   MaxLength,
 } from 'class-validator';
 
@@ -37,6 +38,11 @@ export class CreateWebhookDto {
   @ArrayMaxSize(50)
   @IsString({ each: true })
   events!: string[];
+
+  @ApiPropertyOptional({ description: 'ระบบภายนอกเจ้าของ webhook นี้' })
+  @IsOptional()
+  @IsUUID()
+  integration_id?: string;
 }
 
 export class UpdateWebhookDto {
@@ -67,6 +73,13 @@ export class UpdateWebhookDto {
   @IsOptional()
   @IsBoolean()
   active?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'ระบบภายนอกเจ้าของ webhook นี้ (บริษัทเดียวกัน)',
+  })
+  @IsOptional()
+  @IsUUID()
+  integration_id?: string;
 }
 
 export class WebhookRowDto {
@@ -75,6 +88,7 @@ export class WebhookRowDto {
   @ApiProperty() url!: string;
   @ApiProperty({ type: [String] }) events!: string[];
   @ApiProperty() active!: boolean;
+  @ApiProperty({ nullable: true }) integration_id!: string | null;
   @ApiProperty() created_at!: string;
   @ApiProperty() created_by!: string;
 }

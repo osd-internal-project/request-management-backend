@@ -5,6 +5,7 @@ import {
   RemotePrincipalService,
 } from '@request-management/core-service';
 import {
+  ACTING_SCOPES,
   ActingPolicyGuard,
   API_KEY_SCOPES_HEADER,
   CompanyGuard,
@@ -62,7 +63,7 @@ describe('X-Acting-User through the real guard chain (Open API + MCP)', () => {
         if (url.includes('internal/policy/resolve')) return json(200, MACHINE);
 
         forwardedScopes = decodeKeyScopes(headers.get(API_KEY_SCOPES_HEADER));
-        if (!forwardedScopes.includes('integration.request.create')) {
+        if (!forwardedScopes.some((s) => ACTING_SCOPES.includes(s as never))) {
           return json(403, {
             code: 'FORBIDDEN',
             message: 'ไม่มีสิทธิ์ใช้งานส่วนนี้',
@@ -163,11 +164,11 @@ describe('X-Acting-User through the real guard chain (Open API + MCP)', () => {
     return new McpActorService(principals).resolve(request, caller);
   }
 
-  it('Open API: a key holding integration.request.create acts as the named person', async () => {
-    const request = await openApiList(['integration.request.create']);
+  it('Open API: a key holding integration.request.read acts as the named person', async () => {
+    const request = await openApiList(['integration.request.read']);
 
     expect(getPrincipal(request)).toEqual(PERSON);
-    expect(forwardedScopes).toEqual(['integration.request.create']);
+    expect(forwardedScopes).toEqual(['integration.request.read']);
   });
 
   it('Open API: a key without the scope stops at the external gate', async () => {

@@ -17,7 +17,7 @@ import {
 
 /**
  * CD-280 (CD-23 AI CARE) — channel connectors and AI CARE, with a key
- * holding `integration.care.manage`. Robot-only: the company is the key's.
+ * holding `integration.service.care.manage`. Robot-only: the company is the key's.
  *
  * Post every customer message to `care/messages`: it joins the sender's open
  * conversation (a new one after 24 hours of silence) and comes back with the
@@ -35,7 +35,7 @@ export class CareApiController {
   constructor(private readonly care: CareService) {}
 
   @Post('messages')
-  @Permissions('integration.care.manage')
+  @Permissions('integration.service.care.manage')
   @ServiceAccountOnly()
   @ApiOperation({
     summary: 'ข้อความจากลูกค้า เข้าบทสนทนา (CD-280)',
@@ -64,7 +64,7 @@ export class CareApiController {
   }
 
   @Post('conversations/:id/replies')
-  @Permissions('integration.care.manage')
+  @Permissions('integration.service.care.manage')
   @ServiceAccountOnly()
   @ApiOperation({
     summary: 'สิ่งที่ตอบลูกค้าไป (AI หรือข้อความระบบ) บันทึกในบทสนทนา (CD-280)',
@@ -82,7 +82,7 @@ export class CareApiController {
   }
 
   @Post('conversations/:id/case')
-  @Permissions('integration.care.manage')
+  @Permissions('integration.service.care.manage')
   @ServiceAccountOnly()
   @ApiOperation({
     summary: 'เปิดเคสบริการจากบทสนทนา เช่น ลูกค้ากดปุ่ม "เปิดเรื่อง" (CD-282)',
@@ -99,7 +99,7 @@ export class CareApiController {
   }
 
   @Post('conversations/:id/handover')
-  @Permissions('integration.care.manage')
+  @Permissions('integration.service.care.manage')
   @ServiceAccountOnly()
   @ApiOperation({
     summary:
@@ -113,7 +113,7 @@ export class CareApiController {
   }
 
   @Get('outbox')
-  @Permissions('integration.care.manage')
+  @Permissions('integration.service.care.manage')
   @ServiceAccountOnly()
   @ApiOperation({
     summary: 'ข้อความที่ต้องส่งถึงลูกค้าในช่องทางนี้ (CD-284)',
@@ -133,7 +133,7 @@ export class CareApiController {
   }
 
   @Post('outbox/:messageId/delivered')
-  @Permissions('integration.care.manage')
+  @Permissions('integration.service.care.manage')
   @ServiceAccountOnly()
   @ApiOperation({
     summary: 'รายงานว่าส่งข้อความจากกล่องขาออกแล้วหรือไม่ (CD-284)',
@@ -150,7 +150,7 @@ export class CareApiController {
   }
 
   @Get('conversations/:id')
-  @Permissions('integration.care.manage')
+  @Permissions('integration.service.care.manage')
   @ServiceAccountOnly()
   @ApiOperation({ summary: 'บทสนทนาและบริบทลูกค้า (CD-280)' })
   conversation(

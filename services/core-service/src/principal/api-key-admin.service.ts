@@ -9,6 +9,7 @@ import {
   Principal,
 } from '@request-management/share';
 import { ApiKeyRepository } from './api-key.repository';
+import { IntegrationAdminService } from './integration-admin.service';
 import { API_KEY_PREFIX } from './api-key.service';
 import {
   ApiKeyRowDto,
@@ -57,6 +58,7 @@ export class ApiKeyAdminService {
   constructor(
     private readonly keys: ApiKeyRepository,
     private readonly audit: AuditWriter,
+    private readonly integrations: IntegrationAdminService,
   ) {}
 
   /** ตัวเลือกสิทธิ์ที่หน้าจอเอาไปวาด checkbox. */
@@ -82,6 +84,9 @@ export class ApiKeyAdminService {
 
   async issue(dto: IssueApiKeyDto, actor: Principal): Promise<IssuedApiKeyDto> {
     const scopes = assertIssuable(dto.scopes);
+    const integrationId = dto.integration_id
+      ? (await this.integrations.owned(dto.integration_id, actor)).id
+      : await this.integrations.createForKey(dto.name.trim(), actor);
 
     const key = API_KEY_PREFIX + randomBytes(32).toString('base64url');
     const prefix = key.slice(0, DISPLAY_LENGTH);
@@ -98,6 +103,7 @@ export class ApiKeyAdminService {
         sourceCode: dto.source_code,
         scopes,
         expiresAt,
+        integrationId,
         createdBy: actor.userId,
       },
     })) as ApiKeyRow;
@@ -119,6 +125,7 @@ export class ApiKeyAdminService {
         sourceCode: row.sourceCode,
         scopes,
         expiresAt: expiresAt?.toISOString() ?? null,
+        integrationId,
       },
     });
 
@@ -222,6 +229,7 @@ interface ApiKeyRow {
   prefix: string;
   name: string;
   sourceCode: string | null;
+  integrationId: string | null;
   scopes: string[];
   active: boolean;
   expiresAt: Date | null;
@@ -241,6 +249,7 @@ function toRow(row: ApiKeyRow): ApiKeyRowDto {
     prefix: row.prefix,
     name: row.name,
     source_code: row.sourceCode,
+    integration_id: row.integrationId,
     scopes: row.scopes,
     status: statusOf(row),
     expires_at: row.expiresAt?.toISOString() ?? null,

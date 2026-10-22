@@ -16,24 +16,24 @@
 | Method | Path | ทำอะไร | สิทธิ์กุญแจ | สิทธิ์คน |
 |---|---|---|---|---|
 | GET | `/assistant/summary` | ตัวเลขสรุปของฉัน | integration.assistant.read | notification.read |
-| GET | `/assistant/deals/closing` | ดีลที่ใกล้ปิด | integration.assistant.read | crm.sales.read |
-| GET | `/assistant/deals/silent` | ดีลที่เงียบหรือเลยนัดติดตาม | integration.assistant.read | crm.sales.read |
-| GET | `/assistant/approvals` | งานที่รอฉันอนุมัติ | integration.assistant.read | approval.decide |
+| GET | `/assistant/deals/closing` | ดีลที่ใกล้ปิด | integration.crm.sales.read | crm.sales.read |
+| GET | `/assistant/deals/silent` | ดีลที่เงียบหรือเลยนัดติดตาม | integration.crm.sales.read | crm.sales.read |
+| GET | `/assistant/approvals` | งานที่รอฉันอนุมัติ | integration.approval.decide | approval.decide |
 | GET | `/assistant/projects/at-risk` | โครงการที่มีปัญหา | integration.assistant.read | notification.read |
-| GET | `/assistant/service-jobs` | งานบริการที่ยังค้าง | integration.assistant.read | service.asset.read |
+| GET | `/assistant/service-jobs` | งานบริการที่ยังค้าง | integration.service.asset.read | service.asset.read |
 | GET | `/assistant/kb/articles` | ค้นบทความในคลังความรู้ | integration.assistant.read | notification.read |
 
 ## care — บทสนทนากับลูกค้าเดิมทุกช่องทาง (LINE, Facebook, Instagram, TikTok, อีเมล, เว็บแชต, D-Callcenter) สำหรับตัวเชื่อมช่องทางและ AI CARE
 
 | Method | Path | ทำอะไร | สิทธิ์กุญแจ | สิทธิ์คน |
 |---|---|---|---|---|
-| POST | `/care/messages` | ข้อความจากลูกค้า เข้าบทสนทนา (CD-280) | integration.care.manage |  |
-| POST | `/care/conversations/{id}/replies` | สิ่งที่ตอบลูกค้าไป (AI หรือข้อความระบบ) บันทึกในบทสนทนา (CD-280) | integration.care.manage |  |
-| POST | `/care/conversations/{id}/case` | เปิดเคสบริการจากบทสนทนา เช่น ลูกค้ากดปุ่ม "เปิดเรื่อง" (CD-282) | integration.care.manage |  |
-| POST | `/care/conversations/{id}/handover` | ส่งต่อถึงเจ้าหน้าที่ เช่น ลูกค้ากดปุ่ม "คุยกับเจ้าหน้าที่" (CD-283) | integration.care.manage |  |
-| GET | `/care/outbox` | ข้อความที่ต้องส่งถึงลูกค้าในช่องทางนี้ (CD-284) | integration.care.manage |  |
-| POST | `/care/outbox/{messageId}/delivered` | รายงานว่าส่งข้อความจากกล่องขาออกแล้วหรือไม่ (CD-284) | integration.care.manage |  |
-| GET | `/care/conversations/{id}` | บทสนทนาและบริบทลูกค้า (CD-280) | integration.care.manage |  |
+| POST | `/care/messages` | ข้อความจากลูกค้า เข้าบทสนทนา (CD-280) | integration.service.care.manage |  |
+| POST | `/care/conversations/{id}/replies` | สิ่งที่ตอบลูกค้าไป (AI หรือข้อความระบบ) บันทึกในบทสนทนา (CD-280) | integration.service.care.manage |  |
+| POST | `/care/conversations/{id}/case` | เปิดเคสบริการจากบทสนทนา เช่น ลูกค้ากดปุ่ม "เปิดเรื่อง" (CD-282) | integration.service.care.manage |  |
+| POST | `/care/conversations/{id}/handover` | ส่งต่อถึงเจ้าหน้าที่ เช่น ลูกค้ากดปุ่ม "คุยกับเจ้าหน้าที่" (CD-283) | integration.service.care.manage |  |
+| GET | `/care/outbox` | ข้อความที่ต้องส่งถึงลูกค้าในช่องทางนี้ (CD-284) | integration.service.care.manage |  |
+| POST | `/care/outbox/{messageId}/delivered` | รายงานว่าส่งข้อความจากกล่องขาออกแล้วหรือไม่ (CD-284) | integration.service.care.manage |  |
+| GET | `/care/conversations/{id}` | บทสนทนาและบริบทลูกค้า (CD-280) | integration.service.care.manage |  |
 
 ## crm — ทะเบียนลูกค้า, Lead, โอกาสการขาย, ใบเสนอราคา, ใบสั่งขาย และหน้าตั้งค่า CRM
 
@@ -44,10 +44,10 @@
 | GET | `/crm/customers/segment-options` | มิติและค่าการแบ่งกลุ่มที่ยังใช้งาน | integration.crm.customer.read | crm.customer.read |
 | GET | `/crm/customers/kyc-products` | สินค้าที่บังคับทำ KYC | integration.crm.customer.read | crm.customer.read |
 | POST | `/crm/customers/check-duplicate` | ตรวจลูกค้าซ้ำก่อนบันทึก | integration.crm.customer.read | crm.customer.read |
-| POST | `/crm/customers/import` | นำเข้าลูกค้าเดิมจาก Excel | integration.crm.admin.manage | admin.crm.manage |
+| POST | `/crm/customers/import` | นำเข้าลูกค้าเดิมจาก Excel | integration.admin.crm.manage | admin.crm.manage |
 | GET | `/crm/customers/{id}` | รายละเอียดลูกค้า | integration.crm.customer.read | crm.customer.read |
 | PATCH | `/crm/customers/{id}` | แก้ข้อมูลลูกค้า | integration.crm.customer.manage | crm.customer.manage |
-| GET | `/crm/customers/{id}/invoices` | ใบแจ้งหนี้และการรับชำระของลูกค้าจาก SAP | integration.crm.customer.read | crm.customer.financial.read |
+| GET | `/crm/customers/{id}/invoices` | ใบแจ้งหนี้และการรับชำระของลูกค้าจาก SAP | integration.crm.customer.financial.read | crm.customer.financial.read |
 | GET | `/crm/customers/{id}/contacts/consents` | สถานะความยินยอมของผู้ติดต่อ | integration.crm.customer.read | crm.customer.read |
 | GET | `/crm/customers/{id}/summary` | ตัวเลขสรุปหน้าลูกค้า 360° | integration.crm.customer.read | crm.customer.read |
 | GET | `/crm/customers/{id}/contracts` | สัญญาของลูกค้า (ทะเบียนสัญญา) | integration.crm.customer.read | crm.customer.read |
@@ -67,31 +67,31 @@
 | PUT | `/crm/customers/{id}/segments` | ตั้งกลุ่มของลูกค้าทั้งชุด | integration.crm.customer.manage | crm.customer.manage |
 | GET | `/crm/customers/{id}/history` | ประวัติการแก้ไขรายฟิลด์ | integration.crm.customer.read | crm.customer.read |
 | GET | `/crm/customers/{id}/timeline` | ไทม์ไลน์เหตุการณ์ของลูกค้า | integration.crm.customer.read | crm.customer.read |
-| GET | `/crm/customers/{id}/external-codes` | รหัสลูกค้าในระบบภายนอก | integration.crm.admin.manage | admin.crm.manage |
-| PUT | `/crm/customers/{id}/external-codes` | ตั้งหรือแก้รหัสในระบบภายนอก | integration.crm.admin.manage | admin.crm.manage |
-| GET | `/crm/admin/lead-statuses` |  | integration.crm.admin.manage | admin.crm.manage |
-| POST | `/crm/admin/lead-statuses` |  | integration.crm.admin.manage | admin.crm.manage |
-| PATCH | `/crm/admin/lead-statuses/reorder` |  | integration.crm.admin.manage | admin.crm.manage |
-| PATCH | `/crm/admin/lead-statuses/{id}` |  | integration.crm.admin.manage | admin.crm.manage |
-| DELETE | `/crm/admin/lead-statuses/{id}` |  | integration.crm.admin.manage | admin.crm.manage |
-| GET | `/crm/admin/kyc-products` |  | integration.crm.admin.manage | admin.crm.manage |
-| POST | `/crm/admin/kyc-products` |  | integration.crm.admin.manage | admin.crm.manage |
-| PATCH | `/crm/admin/kyc-products/{id}` |  | integration.crm.admin.manage | admin.crm.manage |
-| GET | `/crm/admin/segment-dimensions` |  | integration.crm.admin.manage | admin.crm.manage |
-| POST | `/crm/admin/segment-dimensions` |  | integration.crm.admin.manage | admin.crm.manage |
-| PATCH | `/crm/admin/segment-dimensions/{id}` |  | integration.crm.admin.manage | admin.crm.manage |
-| POST | `/crm/admin/segment-dimensions/{id}/values` |  | integration.crm.admin.manage | admin.crm.manage |
-| PATCH | `/crm/admin/segment-values/{id}` |  | integration.crm.admin.manage | admin.crm.manage |
-| DELETE | `/crm/admin/segment-values/{id}` |  | integration.crm.admin.manage | admin.crm.manage |
-| GET | `/crm/admin/config` |  | integration.crm.admin.manage | admin.crm.manage |
-| PATCH | `/crm/admin/config` |  | integration.crm.admin.manage | admin.crm.manage |
-| GET | `/crm/admin/kyc-watchlist` |  | integration.crm.admin.manage | admin.crm.manage |
-| POST | `/crm/admin/kyc-watchlist` |  | integration.crm.admin.manage | admin.crm.manage |
-| PATCH | `/crm/admin/kyc-watchlist/{id}/deactivate` |  | integration.crm.admin.manage | admin.crm.manage |
-| GET | `/crm/admin/trade-terms` |  | integration.crm.admin.manage | admin.crm.manage |
-| PUT | `/crm/admin/trade-terms` |  | integration.crm.admin.manage | admin.crm.manage |
-| GET | `/crm/admin/handover-items` |  | integration.crm.admin.manage | admin.crm.manage |
-| PUT | `/crm/admin/handover-items` |  | integration.crm.admin.manage | admin.crm.manage |
+| GET | `/crm/customers/{id}/external-codes` | รหัสลูกค้าในระบบภายนอก | integration.admin.crm.manage | admin.crm.manage |
+| PUT | `/crm/customers/{id}/external-codes` | ตั้งหรือแก้รหัสในระบบภายนอก | integration.admin.crm.manage | admin.crm.manage |
+| GET | `/crm/admin/lead-statuses` |  | integration.admin.crm.manage | admin.crm.manage |
+| POST | `/crm/admin/lead-statuses` |  | integration.admin.crm.manage | admin.crm.manage |
+| PATCH | `/crm/admin/lead-statuses/reorder` |  | integration.admin.crm.manage | admin.crm.manage |
+| PATCH | `/crm/admin/lead-statuses/{id}` |  | integration.admin.crm.manage | admin.crm.manage |
+| DELETE | `/crm/admin/lead-statuses/{id}` |  | integration.admin.crm.manage | admin.crm.manage |
+| GET | `/crm/admin/kyc-products` |  | integration.admin.crm.manage | admin.crm.manage |
+| POST | `/crm/admin/kyc-products` |  | integration.admin.crm.manage | admin.crm.manage |
+| PATCH | `/crm/admin/kyc-products/{id}` |  | integration.admin.crm.manage | admin.crm.manage |
+| GET | `/crm/admin/segment-dimensions` |  | integration.admin.crm.manage | admin.crm.manage |
+| POST | `/crm/admin/segment-dimensions` |  | integration.admin.crm.manage | admin.crm.manage |
+| PATCH | `/crm/admin/segment-dimensions/{id}` |  | integration.admin.crm.manage | admin.crm.manage |
+| POST | `/crm/admin/segment-dimensions/{id}/values` |  | integration.admin.crm.manage | admin.crm.manage |
+| PATCH | `/crm/admin/segment-values/{id}` |  | integration.admin.crm.manage | admin.crm.manage |
+| DELETE | `/crm/admin/segment-values/{id}` |  | integration.admin.crm.manage | admin.crm.manage |
+| GET | `/crm/admin/config` |  | integration.admin.crm.manage | admin.crm.manage |
+| PATCH | `/crm/admin/config` |  | integration.admin.crm.manage | admin.crm.manage |
+| GET | `/crm/admin/kyc-watchlist` |  | integration.admin.crm.manage | admin.crm.manage |
+| POST | `/crm/admin/kyc-watchlist` |  | integration.admin.crm.manage | admin.crm.manage |
+| PATCH | `/crm/admin/kyc-watchlist/{id}/deactivate` |  | integration.admin.crm.manage | admin.crm.manage |
+| GET | `/crm/admin/trade-terms` |  | integration.admin.crm.manage | admin.crm.manage |
+| PUT | `/crm/admin/trade-terms` |  | integration.admin.crm.manage | admin.crm.manage |
+| GET | `/crm/admin/handover-items` |  | integration.admin.crm.manage | admin.crm.manage |
+| PUT | `/crm/admin/handover-items` |  | integration.admin.crm.manage | admin.crm.manage |
 | GET | `/crm/leads/statuses` | ขั้นของ Lead ทั้งชุด | integration.crm.sales.read | crm.sales.read |
 | GET | `/crm/leads` | ค้นรายชื่อ Lead | integration.crm.sales.read | crm.sales.read |
 | POST | `/crm/leads` | สร้าง Lead | integration.crm.sales.manage | crm.sales.manage |
@@ -131,11 +131,11 @@
 | GET | `/crm/sale-orders/{id}` | รายละเอียดใบสั่งขาย | integration.crm.sales.read | crm.sales.read |
 | POST | `/crm/sale-orders/{id}/cancel` | ยกเลิกใบสั่งขายพร้อมเหตุผล | integration.crm.sales.manage | crm.sales.manage |
 | GET | `/crm/sales-targets` | เป้าและพยากรณ์ของเดือน | integration.crm.sales.read | crm.sales.read |
-| POST | `/crm/sales-targets` | ตั้งหรือปรับเป้า | integration.crm.sales.manage | crm.target.manage |
+| POST | `/crm/sales-targets` | ตั้งหรือปรับเป้า | integration.crm.target.manage | crm.target.manage |
 | GET | `/crm/sales-targets/{id}/revisions` | ประวัติการเปลี่ยนเป้า | integration.crm.sales.read | crm.sales.read |
 | GET | `/crm/campaigns` | แคมเปญพร้อมผล | integration.crm.sales.read | crm.sales.read |
-| POST | `/crm/campaigns` | สร้างแคมเปญ | integration.crm.sales.manage | crm.campaign.manage |
-| PATCH | `/crm/campaigns/{id}` | แก้ไข / ปิดแคมเปญ | integration.crm.sales.manage | crm.campaign.manage |
+| POST | `/crm/campaigns` | สร้างแคมเปญ | integration.crm.campaign.manage | crm.campaign.manage |
+| PATCH | `/crm/campaigns/{id}` | แก้ไข / ปิดแคมเปญ | integration.crm.campaign.manage | crm.campaign.manage |
 | GET | `/crm/target-accounts` | บริษัทเป้าหมาย | integration.crm.sales.read | crm.sales.read |
 | POST | `/crm/target-accounts` | เพิ่มบริษัทเป้าหมาย | integration.crm.sales.manage | crm.sales.manage |
 | PATCH | `/crm/target-accounts/{id}` | แก้ไขบริษัทเป้าหมาย / ลำดับ / ผู้รับผิดชอบ | integration.crm.sales.manage | crm.sales.manage |
@@ -175,22 +175,22 @@
 
 | Method | Path | ทำอะไร | สิทธิ์กุญแจ | สิทธิ์คน |
 |---|---|---|---|---|
-| POST | `/disbursement/disbursements/from-request/{requestNo}` | สร้างใบเบิกจากคำขอที่อนุมัติแล้ว — ใช้เมื่อระบบสร้างให้อัตโนมัติไม่สำเร็จ; มีอยู่แล้วตอบใบเดิม | integration.disbursement.manage | disbursement.pay |
-| POST | `/disbursement/disbursements/{docNo}/payments/{movementId}/void` | ยกเลิกงวดจ่าย — ต้องเป็นเจ้าหน้าที่คนอื่น ไม่ใช่ผู้จ่ายงวดนั้น | integration.disbursement.manage | disbursement.pay |
-| GET | `/disbursement/disbursements` | รายการใบเบิกที่ผู้ใช้เห็นได้ — กรองหลายสถานะ, ของฉัน, เลยกำหนดเคลียร์ | integration.disbursement.read | request.read |
-| GET | `/disbursement/disbursements/by-request/{requestNo}` | ใบเบิกของคำขอ | integration.disbursement.read | request.read |
-| GET | `/disbursement/disbursements/{docNo}` | รายละเอียดใบเบิก รายการประมาณการ/ใช้จริง และ movement เงิน | integration.disbursement.read | request.read |
-| POST | `/disbursement/disbursements/{docNo}/verify` | บัญชีตรวจสอบ — เปิดเคสอนุมัติผู้บริหาร (ถ้ามี matrix) หรืออนุมัติทันที | integration.disbursement.manage | disbursement.verify |
-| POST | `/disbursement/disbursements/{docNo}/pay` | จ่ายเงิน — เงินทดรองรอเคลียร์ / เงินสดย่อยปิดทันที | integration.disbursement.manage | disbursement.pay |
-| POST | `/disbursement/disbursements/{docNo}/clearing` | ผู้ขอส่งเคลียร์ค่าใช้จ่ายจริง | integration.disbursement.manage | request.create |
-| POST | `/disbursement/disbursements/{docNo}/clearing/return` | บัญชีตีกลับเอกสารเคลียร์ให้ผู้ขอแก้ | integration.disbursement.manage | disbursement.verify |
-| POST | `/disbursement/disbursements/{docNo}/close` | บัญชีเคลียร์เอกสาร (complete) — คิดส่วนต่าง (คืน/เบิกเพิ่ม) แล้วจบคำขอ | integration.disbursement.manage | disbursement.pay |
+| POST | `/disbursement/disbursements/from-request/{requestNo}` | สร้างใบเบิกจากคำขอที่อนุมัติแล้ว — ใช้เมื่อระบบสร้างให้อัตโนมัติไม่สำเร็จ; มีอยู่แล้วตอบใบเดิม | integration.disbursement.pay | disbursement.pay |
+| POST | `/disbursement/disbursements/{docNo}/payments/{movementId}/void` | ยกเลิกงวดจ่าย — ต้องเป็นเจ้าหน้าที่คนอื่น ไม่ใช่ผู้จ่ายงวดนั้น | integration.disbursement.pay | disbursement.pay |
+| GET | `/disbursement/disbursements` | รายการใบเบิกที่ผู้ใช้เห็นได้ — กรองหลายสถานะ, ของฉัน, เลยกำหนดเคลียร์ | integration.request.read | request.read |
+| GET | `/disbursement/disbursements/by-request/{requestNo}` | ใบเบิกของคำขอ | integration.request.read | request.read |
+| GET | `/disbursement/disbursements/{docNo}` | รายละเอียดใบเบิก รายการประมาณการ/ใช้จริง และ movement เงิน | integration.request.read | request.read |
+| POST | `/disbursement/disbursements/{docNo}/verify` | บัญชีตรวจสอบ — เปิดเคสอนุมัติผู้บริหาร (ถ้ามี matrix) หรืออนุมัติทันที | integration.disbursement.verify | disbursement.verify |
+| POST | `/disbursement/disbursements/{docNo}/pay` | จ่ายเงิน — เงินทดรองรอเคลียร์ / เงินสดย่อยปิดทันที | integration.disbursement.pay | disbursement.pay |
+| POST | `/disbursement/disbursements/{docNo}/clearing` | ผู้ขอส่งเคลียร์ค่าใช้จ่ายจริง | integration.request.create | request.create |
+| POST | `/disbursement/disbursements/{docNo}/clearing/return` | บัญชีตีกลับเอกสารเคลียร์ให้ผู้ขอแก้ | integration.disbursement.verify | disbursement.verify |
+| POST | `/disbursement/disbursements/{docNo}/close` | บัญชีเคลียร์เอกสาร (complete) — คิดส่วนต่าง (คืน/เบิกเพิ่ม) แล้วจบคำขอ | integration.disbursement.pay | disbursement.pay |
 
 ## flow — ติดตามดีลหนึ่งใบทั้งสาย — ดีล → Pre-Sales → ใบเสนอราคา → ใบสั่งขาย → สัญญา → โครงการ
 
 | Method | Path | ทำอะไร | สิทธิ์กุญแจ | สิทธิ์คน |
 |---|---|---|---|---|
-| GET | `/flow/opportunities/{id}` | ติดตามดีลทั้งสาย — ดีล → Pre-Sales → ใบเสนอราคา → ใบสั่งขาย → สัญญา → โครงการ | integration.flow.read | crm.sales.read |
+| GET | `/flow/opportunities/{id}` | ติดตามดีลทั้งสาย — ดีล → Pre-Sales → ใบเสนอราคา → ใบสั่งขาย → สัญญา → โครงการ | integration.crm.sales.read | crm.sales.read |
 
 ## kb — คลังความรู้สำหรับช่องทาง AI ที่คุยกับลูกค้า (AI CARE, AI SMART) — ค้นบทความแล้วรายงานคำตอบและบทความที่อ้างอิง
 
@@ -203,11 +203,11 @@
 
 | Method | Path | ทำอะไร | สิทธิ์กุญแจ | สิทธิ์คน |
 |---|---|---|---|---|
-| GET | `/legal/contracts` | ค้นคลังสัญญา | integration.legal.read | legal.contract.read |
-| GET | `/legal/contracts/{id}` | รายละเอียดสัญญา | integration.legal.read | legal.contract.read |
-| GET | `/legal/contracts/{id}/terms` | ข้อกำหนดของสัญญา — ความรับผิด ค่าปรับ การรับประกัน ระดับบริการ | integration.legal.read | legal.contract.read |
-| GET | `/legal/contracts/{id}/installments` | แผนการวางบิลตามงวด (CD-164) | integration.legal.read | legal.contract.read |
-| GET | `/legal/contracts/{id}/obligations` | ข้อผูกพันของสัญญา (CD-163) | integration.legal.read | legal.contract.read |
+| GET | `/legal/contracts` | ค้นคลังสัญญา | integration.legal.contract.read | legal.contract.read |
+| GET | `/legal/contracts/{id}` | รายละเอียดสัญญา | integration.legal.contract.read | legal.contract.read |
+| GET | `/legal/contracts/{id}/terms` | ข้อกำหนดของสัญญา — ความรับผิด ค่าปรับ การรับประกัน ระดับบริการ | integration.legal.contract.read | legal.contract.read |
+| GET | `/legal/contracts/{id}/installments` | แผนการวางบิลตามงวด (CD-164) | integration.legal.contract.read | legal.contract.read |
+| GET | `/legal/contracts/{id}/obligations` | ข้อผูกพันของสัญญา (CD-163) | integration.legal.contract.read | legal.contract.read |
 
 ## mcp — ช่องทาง JSON-RPC สำหรับ tool-caller (LibreChat, MCP client)
 
@@ -219,23 +219,23 @@
 
 | Method | Path | ทำอะไร | สิทธิ์กุญแจ | สิทธิ์คน |
 |---|---|---|---|---|
-| GET | `/pm/projects` | ค้นโครงการ | integration.pm.read | notification.read |
-| POST | `/pm/projects` | เปิดโครงการจากสัญญาที่ลงนามแล้ว (CD-175) | integration.pm.manage | pm.project.manage |
-| GET | `/pm/projects/openable-contracts` | สัญญาที่ลงนามแล้วและยังไม่ได้เปิดโครงการ | integration.pm.manage | pm.project.manage |
-| GET | `/pm/projects/preview/{contractId}` | ตรวจก่อนเปิดโครงการ — ข้อมูลที่จะดึงมา และสิ่งที่ยังขาด | integration.pm.manage | pm.project.manage |
-| GET | `/pm/projects/by-contract/{contractId}` | โครงการที่เปิดจากสัญญานี้ | integration.pm.read | notification.read |
-| GET | `/pm/projects/{id}` | รายละเอียดโครงการ | integration.pm.read | notification.read |
-| GET | `/pm/projects/{id}/milestones` | หมุดหมายของโครงการ และงวดชำระของสัญญา (CD-182) | integration.pm.read | notification.read |
+| GET | `/pm/projects` | ค้นโครงการ | integration.pm.project.read | notification.read |
+| POST | `/pm/projects` | เปิดโครงการจากสัญญาที่ลงนามแล้ว (CD-175) | integration.pm.project.manage | pm.project.manage |
+| GET | `/pm/projects/openable-contracts` | สัญญาที่ลงนามแล้วและยังไม่ได้เปิดโครงการ | integration.pm.project.manage | pm.project.manage |
+| GET | `/pm/projects/preview/{contractId}` | ตรวจก่อนเปิดโครงการ — ข้อมูลที่จะดึงมา และสิ่งที่ยังขาด | integration.pm.project.manage | pm.project.manage |
+| GET | `/pm/projects/by-contract/{contractId}` | โครงการที่เปิดจากสัญญานี้ | integration.pm.project.read | notification.read |
+| GET | `/pm/projects/{id}` | รายละเอียดโครงการ | integration.pm.project.read | notification.read |
+| GET | `/pm/projects/{id}/milestones` | หมุดหมายของโครงการ และงวดชำระของสัญญา (CD-182) | integration.pm.project.read | notification.read |
 
 ## presales — Solution ของดีล — อ่านอย่างเดียว
 
 | Method | Path | ทำอะไร | สิทธิ์กุญแจ | สิทธิ์คน |
 |---|---|---|---|---|
-| GET | `/presales/opportunities/{id}/solutions` | Solution ทั้งหมดของดีล | integration.presales.read | crm.sales.read |
-| GET | `/presales/solutions/{id}` | Solution พร้อมเวอร์ชันล่าสุด | integration.presales.read | notification.read |
-| GET | `/presales/solutions/{id}/versions/{no}` | Solution ที่เวอร์ชันที่ระบุ | integration.presales.read | notification.read |
-| GET | `/presales/solutions/{id}/versions/{no}/proposal` | ข้อเสนอทางเทคนิค (CD-137) | integration.presales.read | notification.read |
-| GET | `/presales/solutions/{id}/quotations` | ใบเสนอราคาที่สร้างจาก Solution นี้ (CD-198) | integration.presales.read | notification.read |
+| GET | `/presales/opportunities/{id}/solutions` | Solution ทั้งหมดของดีล | integration.crm.sales.read | crm.sales.read |
+| GET | `/presales/solutions/{id}` | Solution พร้อมเวอร์ชันล่าสุด | integration.presales.solution.read | notification.read |
+| GET | `/presales/solutions/{id}/versions/{no}` | Solution ที่เวอร์ชันที่ระบุ | integration.presales.solution.read | notification.read |
+| GET | `/presales/solutions/{id}/versions/{no}/proposal` | ข้อเสนอทางเทคนิค (CD-137) | integration.presales.solution.read | notification.read |
+| GET | `/presales/solutions/{id}/quotations` | ใบเสนอราคาที่สร้างจาก Solution นี้ (CD-198) | integration.presales.solution.read | notification.read |
 
 ## process
 
@@ -251,14 +251,14 @@
 |---|---|---|---|---|
 | GET | `/request/request-types` | ประเภทคำขอที่ผู้ใช้รายนี้เปิดได้ ณ ตอนนี้ | integration.request.create | request.create |
 | GET | `/request/request-types/{code}/form` | ฟอร์ม ตัวเลือก ผู้รับที่เลือกได้ และกติกาของประเภทคำขอนี้ | integration.request.create | request.create |
-| GET | `/request/requests` | คิวงานของผู้ใช้รายนี้ แบ่งตามมุมมองที่เลือก | integration.request.create | request.read |
+| GET | `/request/requests` | คิวงานของผู้ใช้รายนี้ แบ่งตามมุมมองที่เลือก | integration.request.read | request.read |
 | POST | `/request/requests` | สร้างคำขอและยื่นในครั้งเดียว | integration.request.create | request.create |
-| GET | `/request/requests/summary` | จำนวนคำขอแยกตามสถานะ — ตอบคำถาม "งานค้างกี่ใบ" ในครั้งเดียว | integration.request.create | request.read |
+| GET | `/request/requests/summary` | จำนวนคำขอแยกตามสถานะ — ตอบคำถาม "งานค้างกี่ใบ" ในครั้งเดียว | integration.request.read | request.read |
 | GET | `/request/users` | ค้นหาคนในบริษัท — แปลงชื่อหรืออีเมลเป็น id ที่ API รับ | integration.request.create | request.create |
-| GET | `/request/requests/{ref}` | อ่านคำขอหนึ่งใบ ด้วยเลขที่เอกสารหรือ uuid | integration.request.create | request.read |
-| GET | `/request/requests/{ref}/actions` | ตอนนี้ผู้ใช้รายนี้ทำอะไรกับคำขอใบนี้ได้บ้าง | integration.request.create | request.read |
-| POST | `/request/requests/{ref}/actions/{action}` | สั่งทำหนึ่ง action กับคำขอใบนี้ | integration.request.create |  |
-| GET | `/request/requests/{ref}/tree` | ใบนี้ ใบพ่อ และทุกใบลูกที่แตกออกไป | integration.request.create | request.read |
+| GET | `/request/requests/{ref}` | อ่านคำขอหนึ่งใบ ด้วยเลขที่เอกสารหรือ uuid | integration.request.read | request.read |
+| GET | `/request/requests/{ref}/actions` | ตอนนี้ผู้ใช้รายนี้ทำอะไรกับคำขอใบนี้ได้บ้าง | integration.request.read | request.read |
+| POST | `/request/requests/{ref}/actions/{action}` | สั่งทำหนึ่ง action กับคำขอใบนี้ |  |  |
+| GET | `/request/requests/{ref}/tree` | ใบนี้ ใบพ่อ และทุกใบลูกที่แตกออกไป | integration.request.read | request.read |
 | POST | `/request/intake` | ระบบภายนอกยื่นคำขอในนามตัวเอง — ไม่มีคนเป็นผู้ยื่น (REQ-10) | integration.request.create |  |
 | GET | `/request/intake/web-forms/{slug}` | แบบฟอร์มสาธารณะ: ข้อความและประเภทคำขอที่เปิดรับ (CD-66) | integration.request.intake |  |
 | POST | `/request/intake/web-forms/{slug}` | ลูกค้ายื่นคำขอผ่านแบบฟอร์มสาธารณะ (CD-66) | integration.request.intake |  |
@@ -269,18 +269,18 @@
 
 | Method | Path | ทำอะไร | สิทธิ์กุญแจ | สิทธิ์คน |
 |---|---|---|---|---|
-| POST | `/smart/prospects/ingest` | ส่งรายชื่อธุรกิจที่กวาดได้เข้าคิวของ AI SMART | integration.smart.ingest |  |
-| POST | `/smart/calls/callback` | D-Callcenter ส่งผลการโทรของ AI SMART | integration.smart.callcenter |  |
+| POST | `/smart/prospects/ingest` | ส่งรายชื่อธุรกิจที่กวาดได้เข้าคิวของ AI SMART | integration.smart.prospect.create |  |
+| POST | `/smart/calls/callback` | D-Callcenter ส่งผลการโทรของ AI SMART | integration.smart.call.update |  |
 
 ## support — งานบริการหลังการขาย — ทะเบียนอุปกรณ์ สิทธิ์บริการ และเปิดใบสั่งงานบริการ
 
 | Method | Path | ทำอะไร | สิทธิ์กุญแจ | สิทธิ์คน |
 |---|---|---|---|---|
-| GET | `/support/assets` | ค้นทะเบียนอุปกรณ์ที่ติดตั้ง | integration.support.read | service.asset.read |
-| GET | `/support/assets/{id}` | รายละเอียดและประวัติของอุปกรณ์ | integration.support.read | service.asset.read |
-| GET | `/support/entitlements` | สิทธิ์บริการ (ประกัน / สัญญาบริการ MA) | integration.support.read | service.asset.read |
-| GET | `/support/entitlements/{id}` | รายละเอียดสิทธิ์ และอุปกรณ์ที่ครอบคลุม | integration.support.read | service.asset.read |
-| GET | `/support/work-orders` | ใบสั่งงานบริการ — ที่ยังเปิด หรือทั้งหมด | integration.support.read | service.asset.read |
-| POST | `/support/work-orders` | เปิดใบสั่งงานบริการ (CD-239) | integration.support.manage | service.asset.manage |
-| GET | `/support/work-orders/by-request/{requestId}` | ข้อมูลบริการของคำขอ | integration.support.read | notification.read |
-| GET | `/support/work-orders/{id}` | รายละเอียด + สิทธิ์ที่ครอบคลุมอุปกรณ์วันนี้ | integration.support.read | service.asset.read |
+| GET | `/support/assets` | ค้นทะเบียนอุปกรณ์ที่ติดตั้ง | integration.service.asset.read | service.asset.read |
+| GET | `/support/assets/{id}` | รายละเอียดและประวัติของอุปกรณ์ | integration.service.asset.read | service.asset.read |
+| GET | `/support/entitlements` | สิทธิ์บริการ (ประกัน / สัญญาบริการ MA) | integration.service.asset.read | service.asset.read |
+| GET | `/support/entitlements/{id}` | รายละเอียดสิทธิ์ และอุปกรณ์ที่ครอบคลุม | integration.service.asset.read | service.asset.read |
+| GET | `/support/work-orders` | ใบสั่งงานบริการ — ที่ยังเปิด หรือทั้งหมด | integration.service.asset.read | service.asset.read |
+| POST | `/support/work-orders` | เปิดใบสั่งงานบริการ (CD-239) | integration.service.asset.manage | service.asset.manage |
+| GET | `/support/work-orders/by-request/{requestId}` | ข้อมูลบริการของคำขอ | integration.service.asset.read | notification.read |
+| GET | `/support/work-orders/{id}` | รายละเอียด + สิทธิ์ที่ครอบคลุมอุปกรณ์วันนี้ | integration.service.asset.read | service.asset.read |

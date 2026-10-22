@@ -141,16 +141,10 @@ describe('ROLE-01 — no endpoint is open by default', () => {
     Named here so that a controller acquiring one is a visible edit rather
     than a quiet way past the check above.
 
-    Both are on external-service, and both are the same case: one permission
-    genuinely covers every route in the file.
-
-    - `request.controller.ts` — all nine routes need
-      `integration.request.create`, so the machine gate is declared once on
-      the class. Each route still names the *person's* permission
-      individually with `@ActingPermissions`, which is the check that differs
-      between them.
-    - `mcp.controller.ts` — one route, and its `@AnyPermission` sits on the
-      class because the tool name is in the body rather than the path.
+    Only `mcp.controller.ts` (one route; its `@AnyPermission` sits on the
+    class because the tool name is in the body rather than the path).
+    `request.controller.ts` left this list on 22 Oct 2026: its key scope now
+    follows each route's acting permission (`integration.request.read` …).
 
     The generated CRM controllers are deliberately *not* here: their routes
     differ in whether they read or write, so each declares its own gate.
@@ -163,7 +157,6 @@ describe('ROLE-01 — no endpoint is open by default', () => {
         .sort(),
     ).toEqual([
       'external-service/src/mcp/mcp.controller.ts',
-      'external-service/src/request/request.controller.ts',
     ]);
   });
 });

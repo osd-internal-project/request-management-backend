@@ -119,7 +119,7 @@
           "pm"
         ],
         "x-permission": [
-          "integration.pm.read"
+          "integration.pm.project.read"
         ],
         "x-acting-permission": [
           "notification.read"
@@ -183,7 +183,7 @@
           "pm"
         ],
         "x-permission": [
-          "integration.pm.manage"
+          "integration.pm.project.manage"
         ],
         "x-acting-permission": [
           "pm.project.manage"
@@ -229,7 +229,7 @@
           "pm"
         ],
         "x-permission": [
-          "integration.pm.manage"
+          "integration.pm.project.manage"
         ],
         "x-acting-permission": [
           "pm.project.manage"
@@ -283,7 +283,7 @@
           "pm"
         ],
         "x-permission": [
-          "integration.pm.manage"
+          "integration.pm.project.manage"
         ],
         "x-acting-permission": [
           "pm.project.manage"
@@ -337,7 +337,7 @@
           "pm"
         ],
         "x-permission": [
-          "integration.pm.read"
+          "integration.pm.project.read"
         ],
         "x-acting-permission": [
           "notification.read"
@@ -390,7 +390,7 @@
           "pm"
         ],
         "x-permission": [
-          "integration.pm.read"
+          "integration.pm.project.read"
         ],
         "x-acting-permission": [
           "notification.read"
@@ -443,7 +443,7 @@
           "pm"
         ],
         "x-permission": [
-          "integration.pm.read"
+          "integration.pm.project.read"
         ],
         "x-acting-permission": [
           "notification.read"

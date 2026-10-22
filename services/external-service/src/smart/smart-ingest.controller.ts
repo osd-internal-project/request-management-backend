@@ -37,7 +37,7 @@ export class ExternalSmartIngestController {
       'ยังไม่เข้า CRM จนกว่าจะผ่านการคัดกรอง',
   })
   @Post('ingest')
-  @Permissions('integration.smart.ingest')
+  @Permissions('integration.smart.prospect.create')
   push(
     @Body() dto: PushProspectsDto,
     @CurrentPrincipal() principal: Principal,

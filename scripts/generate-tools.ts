@@ -103,6 +103,8 @@ interface Operation {
   description?: string;
   /** ประตูที่สอง — สิทธิ์ของคนใน `X-Acting-User` (ประทับโดย `yarn openapi`). */
   'x-acting-permission'?: string[];
+  /** ประตูแรก — scope ของ key (ประทับโดย `yarn openapi`). */
+  'x-permission'?: string[];
   /** ชุดกฎปกปิดของคำตอบ route นี้ (ประทับโดย `yarn openapi`). */
   'x-sensitive-resource'?: string;
   parameters?: Parameter[];
@@ -128,6 +130,8 @@ interface Tool {
    * ที่หนึ่ง route ทำสิบสี่กริยาและอ่าน `ACTION_PERMISSIONS` ใน `perform`
    */
   'x-acting-permission': string[];
+  /** scope ของ key ที่ route ถาม — MCP ตรวจกับ key เหมือน `PolicyGuard`. */
+  'x-permission': string[];
   /**
    * ชุดกฎปกปิด SCOPE-04 ที่ต้องใช้กับคำตอบของ tool นี้ — ว่าง = ไม่มีฟิลด์อ่อนไหว.
    *
@@ -279,6 +283,7 @@ for (const source of SOURCES) {
         },
         'x-request': { method: method.toUpperCase(), path },
         'x-acting-permission': operation['x-acting-permission'] ?? [],
+        'x-permission': operation['x-permission'] ?? [],
         'x-sensitive-resource': operation['x-sensitive-resource'] ?? '',
       });
     }

@@ -51,7 +51,7 @@ export class ExternalDisbursementsController {
     summary: 'สร้างใบเบิกจากคำขอที่อนุมัติแล้ว — ใช้เมื่อระบบสร้างให้อัตโนมัติไม่สำเร็จ; มีอยู่แล้วตอบใบเดิม',
   })
   @Post('from-request/:requestNo')
-  @Permissions('integration.disbursement.manage')
+  @Permissions('integration.disbursement.pay')
   @ActingPermissions('disbursement.pay')
   fromRequest(
     @Param('requestNo') requestNo: string,
@@ -62,7 +62,7 @@ export class ExternalDisbursementsController {
 
   @ApiOperation({ summary: 'ยกเลิกงวดจ่าย — ต้องเป็นเจ้าหน้าที่คนอื่น ไม่ใช่ผู้จ่ายงวดนั้น' })
   @Post(':docNo/payments/:movementId/void')
-  @Permissions('integration.disbursement.manage')
+  @Permissions('integration.disbursement.pay')
   @ActingPermissions('disbursement.pay')
   voidPayment(
     @Param('docNo') docNo: string,
@@ -75,7 +75,7 @@ export class ExternalDisbursementsController {
 
   @ApiOperation({ summary: 'รายการใบเบิกที่ผู้ใช้เห็นได้ — กรองหลายสถานะ, ของฉัน, เลยกำหนดเคลียร์' })
   @Get()
-  @Permissions('integration.disbursement.read')
+  @Permissions('integration.request.read')
   @ActingPermissions('request.read')
   list(
     @Query() query: ListDisbursementsQueryDto,
@@ -86,7 +86,7 @@ export class ExternalDisbursementsController {
 
   @ApiOperation({ summary: 'ใบเบิกของคำขอ' })
   @Get('by-request/:requestNo')
-  @Permissions('integration.disbursement.read')
+  @Permissions('integration.request.read')
   @ActingPermissions('request.read')
   byRequest(
     @Param('requestNo') requestNo: string,
@@ -97,7 +97,7 @@ export class ExternalDisbursementsController {
 
   @ApiOperation({ summary: 'รายละเอียดใบเบิก รายการประมาณการ/ใช้จริง และ movement เงิน' })
   @Get(':docNo')
-  @Permissions('integration.disbursement.read')
+  @Permissions('integration.request.read')
   @ActingPermissions('request.read')
   detail(
     @Param('docNo') docNo: string,
@@ -110,7 +110,7 @@ export class ExternalDisbursementsController {
     summary: 'บัญชีตรวจสอบ — เปิดเคสอนุมัติผู้บริหาร (ถ้ามี matrix) หรืออนุมัติทันที',
   })
   @Post(':docNo/verify')
-  @Permissions('integration.disbursement.manage')
+  @Permissions('integration.disbursement.verify')
   @ActingPermissions('disbursement.verify')
   verify(
     @Param('docNo') docNo: string,
@@ -123,7 +123,7 @@ export class ExternalDisbursementsController {
 
   @ApiOperation({ summary: 'จ่ายเงิน — เงินทดรองรอเคลียร์ / เงินสดย่อยปิดทันที' })
   @Post(':docNo/pay')
-  @Permissions('integration.disbursement.manage')
+  @Permissions('integration.disbursement.pay')
   @ActingPermissions('disbursement.pay')
   pay(
     @Param('docNo') docNo: string,
@@ -136,7 +136,7 @@ export class ExternalDisbursementsController {
 
   @ApiOperation({ summary: 'ผู้ขอส่งเคลียร์ค่าใช้จ่ายจริง' })
   @Post(':docNo/clearing')
-  @Permissions('integration.disbursement.manage')
+  @Permissions('integration.request.create')
   @ActingPermissions('request.create')
   submitClearing(
     @Param('docNo') docNo: string,
@@ -148,7 +148,7 @@ export class ExternalDisbursementsController {
 
   @ApiOperation({ summary: 'บัญชีตีกลับเอกสารเคลียร์ให้ผู้ขอแก้' })
   @Post(':docNo/clearing/return')
-  @Permissions('integration.disbursement.manage')
+  @Permissions('integration.disbursement.verify')
   @ActingPermissions('disbursement.verify')
   returnClearing(
     @Param('docNo') docNo: string,
@@ -165,7 +165,7 @@ export class ExternalDisbursementsController {
       'จ่ายเพิ่ม = `PAYMENT_SLIP` — ไม่มีได้ `400 VALIDATION_FAILED` field `files` (แนบไฟล์ได้ที่หน้าเว็บเท่านั้น)',
   })
   @Post(':docNo/close')
-  @Permissions('integration.disbursement.manage')
+  @Permissions('integration.disbursement.pay')
   @ActingPermissions('disbursement.pay')
   close(
     @Param('docNo') docNo: string,

@@ -43,7 +43,7 @@ export class ExternalProjectsController {
       '`opportunity_id` = โครงการของดีลนั้น · `scope=mine` = ที่ผู้ใช้เป็นผู้จัดการหรืออยู่ในทีม',
   })
   @Get()
-  @Permissions('integration.pm.read')
+  @Permissions('integration.pm.project.read')
   @ActingPermissions('notification.read')
   list(
     @Query() query: ListProjectsQueryDto,
@@ -57,7 +57,7 @@ export class ExternalProjectsController {
     description: 'ตัวเลือกของ `contract_id` สำหรับ `POST pm/projects`',
   })
   @Get('openable-contracts')
-  @Permissions('integration.pm.manage')
+  @Permissions('integration.pm.project.manage')
   @ActingPermissions('pm.project.manage')
   openable(@CurrentPrincipal() principal: Principal) {
     return this.projects.openable(principal);
@@ -70,7 +70,7 @@ export class ExternalProjectsController {
       '`problems` ไม่ว่าง = เปิดไม่ได้จนกว่าจะแก้',
   })
   @Get('preview/:contractId')
-  @Permissions('integration.pm.manage')
+  @Permissions('integration.pm.project.manage')
   @ActingPermissions('pm.project.manage')
   preview(
     @Param('contractId') contractId: string,
@@ -84,7 +84,7 @@ export class ExternalProjectsController {
     description: '`null` = สัญญานี้ยังไม่ได้เปิดโครงการ',
   })
   @Get('by-contract/:contractId')
-  @Permissions('integration.pm.read')
+  @Permissions('integration.pm.project.read')
   @ActingPermissions('notification.read')
   forContract(
     @Param('contractId') contractId: string,
@@ -102,7 +102,7 @@ export class ExternalProjectsController {
   })
   @ApiHeader(IDEMPOTENCY_KEY_HEADER)
   @Post()
-  @Permissions('integration.pm.manage')
+  @Permissions('integration.pm.project.manage')
   @ActingPermissions('pm.project.manage')
   open(@Body() dto: OpenProjectDto, @CurrentPrincipal() principal: Principal) {
     return this.projects.open(dto, principal);
@@ -110,7 +110,7 @@ export class ExternalProjectsController {
 
   @ApiOperation({ summary: 'รายละเอียดโครงการ' })
   @Get(':id')
-  @Permissions('integration.pm.read')
+  @Permissions('integration.pm.project.read')
   @ActingPermissions('notification.read')
   detail(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
     return this.projects.detail(id, principal);
@@ -120,7 +120,7 @@ export class ExternalProjectsController {
     summary: 'หมุดหมายของโครงการ และงวดชำระของสัญญา (CD-182)',
   })
   @Get(':id/milestones')
-  @Permissions('integration.pm.read')
+  @Permissions('integration.pm.project.read')
   @ActingPermissions('notification.read')
   listMilestones(
     @Param('id') id: string,

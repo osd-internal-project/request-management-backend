@@ -87,7 +87,7 @@
           "support"
         ],
         "x-permission": [
-          "integration.support.read"
+          "integration.service.asset.read"
         ],
         "x-acting-permission": [
           "service.asset.read"
@@ -140,7 +140,7 @@
           "support"
         ],
         "x-permission": [
-          "integration.support.read"
+          "integration.service.asset.read"
         ],
         "x-acting-permission": [
           "service.asset.read"
@@ -221,7 +221,7 @@
           "support"
         ],
         "x-permission": [
-          "integration.support.read"
+          "integration.service.asset.read"
         ],
         "x-acting-permission": [
           "service.asset.read"
@@ -274,7 +274,7 @@
           "support"
         ],
         "x-permission": [
-          "integration.support.read"
+          "integration.service.asset.read"
         ],
         "x-acting-permission": [
           "service.asset.read"
@@ -350,7 +350,7 @@
           "support"
         ],
         "x-permission": [
-          "integration.support.read"
+          "integration.service.asset.read"
         ],
         "x-acting-permission": [
           "service.asset.read"
@@ -414,7 +414,7 @@
           "support"
         ],
         "x-permission": [
-          "integration.support.manage"
+          "integration.service.asset.manage"
         ],
         "x-acting-permission": [
           "service.asset.manage"
@@ -468,7 +468,7 @@
           "support"
         ],
         "x-permission": [
-          "integration.support.read"
+          "integration.service.asset.read"
         ],
         "x-acting-permission": [
           "notification.read"
@@ -521,7 +521,7 @@
           "support"
         ],
         "x-permission": [
-          "integration.support.read"
+          "integration.service.asset.read"
         ],
         "x-acting-permission": [
           "service.asset.read"

@@ -110,6 +110,12 @@ function harness(existing: Record<string, unknown> | null = null) {
     deliveries as unknown as WebhookDeliveryRepository,
     audit as unknown as AuditWriter,
     { get: (key: string) => values[key] } as ConfigService,
+    {
+      owned: (id: string, actor: { activeCompanyId: string }) =>
+        actor.activeCompanyId === 'osd' && id === 'int-osd'
+          ? Promise.resolve({ id })
+          : Promise.reject(new Error('NOT_FOUND')),
+    } as never,
   );
   return { service, subscriptions, deliveries, audit };
 }
@@ -201,5 +207,22 @@ describe('G-07 WebhookAdminService', () => {
       subscriptions.update.mock.calls[0] as [{ data: { secretEnc: string } }]
     )[0].data;
     expect(openSecret(data.secretEnc, KEY)).toBe(out.secret);
+  });
+
+  it('links a webhook only to an integration of the same company', async () => {
+    const { service, subscriptions } = harness({});
+
+    await service.update('wh-1', { integration_id: 'int-osd' }, admin());
+    expect(
+      (
+        subscriptions.update.mock.calls[0] as [
+          { data: Record<string, unknown> },
+        ]
+      )[0].data.integrationId,
+    ).toBe('int-osd');
+
+    await expect(
+      service.update('wh-1', { integration_id: 'int-other' }, admin()),
+    ).rejects.toThrow('NOT_FOUND');
   });
 });

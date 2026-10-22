@@ -60,9 +60,23 @@ describe('ApiKeyAdminService — ออกกุญแจช่องทาง�
       }),
     };
 
+    const integrations = {
+      owned: jest.fn((id: string, actor: Principal) =>
+        actor.activeCompanyId === 'osd' && id === 'int-osd'
+          ? Promise.resolve({ id })
+          : Promise.reject(new Error('NOT_FOUND')),
+      ),
+      createForKey: jest.fn().mockResolvedValue('int-new'),
+    };
+
     return {
-      service: new ApiKeyAdminService(keys as never, audit as never),
+      service: new ApiKeyAdminService(
+        keys as never,
+        audit as never,
+        integrations as never,
+      ),
       keys,
+      integrations,
       created,
       audits,
     };
@@ -366,5 +380,30 @@ describe('ApiKeyAdminService — ออกกุญแจช่องทาง�
 
     expect(codes).toContain('integration.crm.lead.create');
     expect(codes.every((code) => code.startsWith('integration.'))).toBe(true);
+  });
+
+  it('กุญแจที่ไม่ระบุระบบภายนอกได้ระบบของตัวเอง ชื่อเดียวกับกุญแจ', async () => {
+    const { service, created, integrations } = harness();
+
+    const issued = await service.issue(request, admin());
+
+    expect(integrations.createForKey).toHaveBeenCalledWith(
+      'เว็บไซต์ osd.co.th',
+      expect.anything(),
+    );
+    expect(created[0].integrationId).toBe('int-new');
+    expect(issued.integration_id).toBe('int-new');
+  });
+
+  it('ผูกกับระบบภายนอกของบริษัทอื่นไม่ได้ และไม่ออกกุญแจ', async () => {
+    const { service, keys } = harness();
+
+    await expect(
+      service.issue(
+        { ...request, integration_id: 'int-osd' },
+        admin('osd-demo'),
+      ),
+    ).rejects.toThrow('NOT_FOUND');
+    expect(keys.create).not.toHaveBeenCalled();
   });
 });

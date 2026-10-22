@@ -30,17 +30,8 @@ const CORE_CRM = join(
 );
 const EXTERNAL_CRM = __dirname;
 
-/** The machine gate that fronts each screen permission. */
-const ROBOT: Readonly<Record<string, string>> = {
-  'crm.customer.read': 'integration.crm.customer.read',
-  'crm.customer.manage': 'integration.crm.customer.manage',
-  'crm.customer.financial.read': 'integration.crm.customer.read',
-  'crm.sales.read': 'integration.crm.sales.read',
-  'crm.sales.manage': 'integration.crm.sales.manage',
-  'crm.target.manage': 'integration.crm.sales.manage',
-  'crm.campaign.manage': 'integration.crm.sales.manage',
-  'admin.crm.manage': 'integration.crm.admin.manage',
-};
+/** The machine gate that fronts each screen permission — `integration.` + it (22 ต.ค. 2569). */
+const robotFor = (permission: string) => `integration.${permission}`;
 
 /**
  * The robot-only routes, excluded by name.
@@ -197,7 +188,7 @@ describe('the external CRM surface corresponds to the screens', () => {
       expect(robot.length).toBe(acting.length);
 
       robot.forEach((route, i) => {
-        expect(route.permission).toBe(ROBOT[acting[i].permission]);
+        expect(route.permission).toBe(robotFor(acting[i].permission));
       });
     }
   });

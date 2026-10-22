@@ -46,7 +46,7 @@ export class ExternalSolutionsController {
       'ดีลที่มองไม่เห็นตอบ 404',
   })
   @Get('opportunities/:id/solutions')
-  @Permissions('integration.presales.read')
+  @Permissions('integration.crm.sales.read')
   @ActingPermissions('crm.sales.read')
   forDeal(@Param('id') id: string, @CurrentPrincipal() actor: Principal) {
     return this.solutions.forDeal(id, actor);
@@ -59,7 +59,7 @@ export class ExternalSolutionsController {
       '(ขอบเขต สมมติฐาน BOQ) — อัตราค่าแรงเห็นเฉพาะผู้ถือ hr.rate.read',
   })
   @Get('solutions/:id')
-  @Permissions('integration.presales.read')
+  @Permissions('integration.presales.solution.read')
   @ActingPermissions('notification.read')
   findOne(@Param('id') id: string, @CurrentPrincipal() actor: Principal) {
     return this.solutions.findOne(id, actor);
@@ -67,7 +67,7 @@ export class ExternalSolutionsController {
 
   @ApiOperation({ summary: 'Solution ที่เวอร์ชันที่ระบุ' })
   @Get('solutions/:id/versions/:no')
-  @Permissions('integration.presales.read')
+  @Permissions('integration.presales.solution.read')
   @ActingPermissions('notification.read')
   version(
     @Param('id') id: string,
@@ -83,7 +83,7 @@ export class ExternalSolutionsController {
       'เฉพาะเวอร์ชันที่อนุมัติแล้ว ไม่มีต้นทุน — ฉบับที่ส่งให้ลูกค้าได้',
   })
   @Get('solutions/:id/versions/:no/proposal')
-  @Permissions('integration.presales.read')
+  @Permissions('integration.presales.solution.read')
   @ActingPermissions('notification.read')
   proposal(
     @Param('id') id: string,
@@ -100,7 +100,7 @@ export class ExternalSolutionsController {
       '`GET crm/quotations/{id}`',
   })
   @Get('solutions/:id/quotations')
-  @Permissions('integration.presales.read')
+  @Permissions('integration.presales.solution.read')
   @ActingPermissions('notification.read')
   quotationsOf(@Param('id') id: string, @CurrentPrincipal() actor: Principal) {
     return this.quotations.forSolution(id, actor);

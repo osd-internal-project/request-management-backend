@@ -43,7 +43,7 @@ export interface ApiKeyContext {
   readonly companyId: string | null;
   /** ช่องทางที่ key นี้เป็นตัวแทน — ประทับลง Lead ทุกใบที่เข้ามาด้วย key นี้. */
   readonly sourceCode: string | null;
-  /** สิทธิ์ที่ key นี้ใช้ได้ — ว่าง = เต็มชุดของบัญชีบริการ. */
+  /** สิทธิ์ทั้งหมดของ key นี้ — ว่าง = ไม่มีสิทธิ์. */
   readonly scopes: readonly string[];
 }
 

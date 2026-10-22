@@ -1,6 +1,10 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { Permissions, ServiceAccountOnly } from '@request-management/share';
+import {
+  ACTING_SCOPES,
+  AnyPermission,
+  ServiceAccountOnly,
+} from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import { PrincipalService } from './principal.service';
 
@@ -36,7 +40,8 @@ export class InternalPrincipalController {
    */
   @Get('resolve-by-email')
   @ServiceAccountOnly()
-  @Permissions('integration.request.create')
+  // key ที่ถือ scope ของ route ในนามผู้ใช้สักตัว — ไม่ใช่แค่ request (22 ต.ค. 2569)
+  @AnyPermission(...ACTING_SCOPES)
   @ApiQuery({ name: 'email', required: true })
   @ApiQuery({ name: 'company_id', required: false })
   resolveByEmail(

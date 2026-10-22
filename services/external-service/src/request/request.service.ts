@@ -347,6 +347,7 @@ export class RequestApiService {
     dto: ExternalActionDto,
     actor: Principal,
     authorization: string,
+    keyScopes: readonly string[] | undefined,
   ) {
     const known = toRequestAction(action);
 
@@ -366,7 +367,7 @@ export class RequestApiService {
       about whether the reference exists — SCOPE-03's reasoning applied to a
       permission failure rather than a company boundary.
     */
-    this.assertMayPerform(known, actor);
+    this.assertMayPerform(known, actor, keyScopes);
 
     const id = await this.idOf(ref, actor);
 
@@ -463,8 +464,20 @@ export class RequestApiService {
    * an approver *on this request*. Neither check replaces the other: holding
    * `request.complete` does not make somebody the carrier of every ticket.
    */
-  private assertMayPerform(action: RequestAction, actor: Principal) {
+  private assertMayPerform(
+    action: RequestAction,
+    actor: Principal,
+    keyScopes: readonly string[] | undefined,
+  ) {
     const required = ACTION_PERMISSIONS[action];
+
+    // key ∩ คน: key ต้องถือ `integration.<สิทธิ์ของกริยานี้>` — ไม่มี key (token ของคนเอง) ข้าม
+    if (keyScopes && !keyScopes.includes(`integration.${required}`)) {
+      throw new AppError('FORBIDDEN', 'API key นี้ไม่มีสิทธิ์ทำ action นี้', [
+        { field: 'action', reason: action },
+        { field: 'scope', reason: `integration.${required}` },
+      ]);
+    }
 
     if (!actor.permissions.includes(required)) {
       throw new AppError(

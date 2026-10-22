@@ -30,7 +30,7 @@ import {
   SERVER_INSTRUCTIONS,
   toolResult,
 } from './mcp-protocol';
-import { McpCallLogService } from '@request-management/core-service';
+import { getApiKey, McpCallLogService } from '@request-management/core-service';
 import { McpToolRegistry } from './mcp-tools';
 import { McpActorService } from './mcp-actor';
 
@@ -150,6 +150,7 @@ export class McpService {
       const value = await this.tools.call(name, args, {
         actor,
         authorization: request.headers.authorization ?? '',
+        keyScopes: getApiKey(request)?.scopes,
       });
 
       this.log(caller, actor, name, args, started, { result: value });

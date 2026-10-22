@@ -389,7 +389,7 @@
           "crm"
         ],
         "x-permission": [
-          "integration.crm.admin.manage"
+          "integration.admin.crm.manage"
         ],
         "x-acting-permission": [
           "admin.crm.manage"
@@ -561,7 +561,7 @@
           "crm"
         ],
         "x-permission": [
-          "integration.crm.customer.read"
+          "integration.crm.customer.financial.read"
         ],
         "x-acting-permission": [
           "crm.customer.financial.read"
@@ -1787,7 +1787,7 @@
           "crm"
         ],
         "x-permission": [
-          "integration.crm.admin.manage"
+          "integration.admin.crm.manage"
         ],
         "x-acting-permission": [
           "admin.crm.manage"
@@ -1849,7 +1849,7 @@
           "crm"
         ],
         "x-permission": [
-          "integration.crm.admin.manage"
+          "integration.admin.crm.manage"
         ],
         "x-acting-permission": [
           "admin.crm.manage"
@@ -1893,7 +1893,7 @@
           "crm"
         ],
         "x-permission": [
-          "integration.crm.admin.manage"
+          "integration.admin.crm.manage"
         ],
         "x-acting-permission": [
           "admin.crm.manage"
@@ -1945,7 +1945,7 @@
           "crm"
         ],
         "x-permission": [
-          "integration.crm.admin.manage"
+          "integration.admin.crm.manage"
         ],
         "x-acting-permission": [
           "admin.crm.manage"
@@ -1999,7 +1999,7 @@
           "crm"
         ],
         "x-permission": [
-          "integration.crm.admin.manage"
+          "integration.admin.crm.manage"
         ],
         "x-acting-permission": [
           "admin.crm.manage"
@@ -2061,7 +2061,7 @@
           "crm"
         ],
         "x-permission": [
-          "integration.crm.admin.manage"
+          "integration.admin.crm.manage"
         ],
         "x-acting-permission": [
           "admin.crm.manage"
@@ -2111,7 +2111,7 @@
           "crm"
         ],
         "x-permission": [
-          "integration.crm.admin.manage"
+          "integration.admin.crm.manage"
         ],
         "x-acting-permission": [
           "admin.crm.manage"
@@ -2155,7 +2155,7 @@
           "crm"
         ],
         "x-permission": [
-          "integration.crm.admin.manage"
+          "integration.admin.crm.manage"
         ],
         "x-acting-permission": [
           "admin.crm.manage"
@@ -2207,7 +2207,7 @@
           "crm"
         ],
         "x-permission": [
-          "integration.crm.admin.manage"
+          "integration.admin.crm.manage"
         ],
         "x-acting-permission": [
           "admin.crm.manage"
@@ -2269,7 +2269,7 @@
           "crm"
         ],
         "x-permission": [
-          "integration.crm.admin.manage"
+          "integration.admin.crm.manage"
         ],
         "x-acting-permission": [
           "admin.crm.manage"
@@ -2313,7 +2313,7 @@
           "crm"
         ],
         "x-permission": [
-          "integration.crm.admin.manage"
+          "integration.admin.crm.manage"
         ],
         "x-acting-permission": [
           "admin.crm.manage"
@@ -2365,7 +2365,7 @@
           "crm"
         ],
         "x-permission": [
-          "integration.crm.admin.manage"
+          "integration.admin.crm.manage"
         ],
         "x-acting-permission": [
           "admin.crm.manage"
@@ -2427,7 +2427,7 @@
           "crm"
         ],
         "x-permission": [
-          "integration.crm.admin.manage"
+          "integration.admin.crm.manage"
         ],
         "x-acting-permission": [
           "admin.crm.manage"
@@ -2489,7 +2489,7 @@
           "crm"
         ],
         "x-permission": [
-          "integration.crm.admin.manage"
+          "integration.admin.crm.manage"
         ],
         "x-acting-permission": [
           "admin.crm.manage"
@@ -2551,7 +2551,7 @@
           "crm"
         ],
         "x-permission": [
-          "integration.crm.admin.manage"
+          "integration.admin.crm.manage"
         ],
         "x-acting-permission": [
           "admin.crm.manage"
@@ -2601,7 +2601,7 @@
           "crm"
         ],
         "x-permission": [
-          "integration.crm.admin.manage"
+          "integration.admin.crm.manage"
         ],
         "x-acting-permission": [
           "admin.crm.manage"
@@ -2645,7 +2645,7 @@
           "crm"
         ],
         "x-permission": [
-          "integration.crm.admin.manage"
+          "integration.admin.crm.manage"
         ],
         "x-acting-permission": [
           "admin.crm.manage"
@@ -2697,7 +2697,7 @@
           "crm"
         ],
         "x-permission": [
-          "integration.crm.admin.manage"
+          "integration.admin.crm.manage"
         ],
         "x-acting-permission": [
           "admin.crm.manage"
@@ -2749,7 +2749,7 @@
           "crm"
         ],
         "x-permission": [
-          "integration.crm.admin.manage"
+          "integration.admin.crm.manage"
         ],
         "x-acting-permission": [
           "admin.crm.manage"
@@ -2801,7 +2801,7 @@
           "crm"
         ],
         "x-permission": [
-          "integration.crm.admin.manage"
+          "integration.admin.crm.manage"
         ],
         "x-acting-permission": [
           "admin.crm.manage"
@@ -2853,7 +2853,7 @@
           "crm"
         ],
         "x-permission": [
-          "integration.crm.admin.manage"
+          "integration.admin.crm.manage"
         ],
         "x-acting-permission": [
           "admin.crm.manage"
@@ -2897,7 +2897,7 @@
           "crm"
         ],
         "x-permission": [
-          "integration.crm.admin.manage"
+          "integration.admin.crm.manage"
         ],
         "x-acting-permission": [
           "admin.crm.manage"
@@ -2949,7 +2949,7 @@
           "crm"
         ],
         "x-permission": [
-          "integration.crm.admin.manage"
+          "integration.admin.crm.manage"
         ],
         "x-acting-permission": [
           "admin.crm.manage"
@@ -2993,7 +2993,7 @@
           "crm"
         ],
         "x-permission": [
-          "integration.crm.admin.manage"
+          "integration.admin.crm.manage"
         ],
         "x-acting-permission": [
           "admin.crm.manage"
@@ -3045,7 +3045,7 @@
           "crm"
         ],
         "x-permission": [
-          "integration.crm.admin.manage"
+          "integration.admin.crm.manage"
         ],
         "x-acting-permission": [
           "admin.crm.manage"
@@ -5892,7 +5892,7 @@
           "crm"
         ],
         "x-permission": [
-          "integration.crm.sales.manage"
+          "integration.crm.target.manage"
         ],
         "x-acting-permission": [
           "crm.target.manage"
@@ -6058,7 +6058,7 @@
           "crm"
         ],
         "x-permission": [
-          "integration.crm.sales.manage"
+          "integration.crm.campaign.manage"
         ],
         "x-acting-permission": [
           "crm.campaign.manage"
@@ -6122,7 +6122,7 @@
           "crm"
         ],
         "x-permission": [
-          "integration.crm.sales.manage"
+          "integration.crm.campaign.manage"
         ],
         "x-acting-permission": [
           "crm.campaign.manage"

@@ -34,7 +34,7 @@ export class ExternalFlowController {
       'ดีลที่มองไม่เห็นตอบ 404',
   })
   @Get('opportunities/:id')
-  @Permissions('integration.flow.read')
+  @Permissions('integration.crm.sales.read')
   @ActingPermissions('crm.sales.read')
   track(@Param('id') id: string, @CurrentPrincipal() actor: Principal) {
     return this.flow.track(id, actor);

@@ -18,8 +18,8 @@ import { join } from 'node:path';
  *   3. The acting person is asked for exactly what the screen asks. A screen
  *      route that is `@Authenticated()` (the service judges the row) maps to
  *      `notification.read` — the permission every role holds.
- *   4. The machine gate is the area's own `integration.<area>.read|manage`:
- *      `manage` exactly when the person is asked for a `.manage` permission.
+ *   4. The machine gate follows the scope rule — `auth/scope-rule.spec.ts`
+ *      (22 Oct 2026) checks it for every controller, these included.
  *   5. Every one of these controllers carries the swap and the second gate.
  */
 const SRC = __dirname;
@@ -279,19 +279,6 @@ describe('the post-deal external surface corresponds to the screens', () => {
       expect(external.get(key)?.acting).toEqual(wanted);
     },
   );
-
-  it("fronts each route with its area's machine gate", () => {
-    for (const route of external.values()) {
-      const area = route.key.split(' ')[1].split('/')[0];
-      const writes = (route.acting ?? []).some((p) => p.endsWith('.manage'));
-      const gate = `integration.${area}.${writes ? 'manage' : 'read'}`;
-
-      expect({ route: route.key, gate: route.permissions }).toEqual({
-        route: route.key,
-        gate: [gate],
-      });
-    }
-  });
 
   it('applies the swap and the second gate to every controller', () => {
     for (const file of CONTROLLERS) {

@@ -48,7 +48,7 @@
           "presales"
         ],
         "x-permission": [
-          "integration.presales.read"
+          "integration.crm.sales.read"
         ],
         "x-acting-permission": [
           "crm.sales.read"
@@ -102,7 +102,7 @@
           "presales"
         ],
         "x-permission": [
-          "integration.presales.read"
+          "integration.presales.solution.read"
         ],
         "x-acting-permission": [
           "notification.read"
@@ -163,7 +163,7 @@
           "presales"
         ],
         "x-permission": [
-          "integration.presales.read"
+          "integration.presales.solution.read"
         ],
         "x-acting-permission": [
           "notification.read"
@@ -225,7 +225,7 @@
           "presales"
         ],
         "x-permission": [
-          "integration.presales.read"
+          "integration.presales.solution.read"
         ],
         "x-acting-permission": [
           "notification.read"
@@ -279,7 +279,7 @@
           "presales"
         ],
         "x-permission": [
-          "integration.presales.read"
+          "integration.presales.solution.read"
         ],
         "x-acting-permission": [
           "notification.read"

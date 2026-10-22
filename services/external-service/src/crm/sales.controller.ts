@@ -799,7 +799,7 @@ export class ExternalSalesTargetsController {
       '= สร้างร่างคำขออนุมัติ (ประเภทตั้งที่ ตั้งค่า CRM) ค่าใหม่มีผลเมื่ออนุมัติ',
   })
   @Post()
-  @Permissions('integration.crm.sales.manage')
+  @Permissions('integration.crm.target.manage')
   @ActingPermissions('crm.target.manage')
   set(
     @Body() dto: SetSalesTargetDto,
@@ -851,7 +851,7 @@ export class ExternalCampaignsController {
 
   @ApiOperation({ summary: 'สร้างแคมเปญ' })
   @Post()
-  @Permissions('integration.crm.sales.manage')
+  @Permissions('integration.crm.campaign.manage')
   @ActingPermissions('crm.campaign.manage')
   create(
     @Body() dto: CreateCampaignDto,
@@ -866,7 +866,7 @@ export class ExternalCampaignsController {
       'แก้ได้ทุกอย่างยกเว้นรหัส · active=false = ผูก Lead ใหม่ไม่ได้',
   })
   @Patch(':id')
-  @Permissions('integration.crm.sales.manage')
+  @Permissions('integration.crm.campaign.manage')
   @ActingPermissions('crm.campaign.manage')
   update(
     @Param('id') id: string,
