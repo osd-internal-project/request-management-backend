@@ -13,12 +13,27 @@
  */
 
 /**
- * The revision this server speaks.
+ * The revisions this server speaks, newest first.
  *
  * Echoing back whatever the client asks for is the other option and it is
  * worse: it would claim to speak a revision this code has never seen.
  */
-export const PROTOCOL_VERSION = '2024-11-05';
+export const PROTOCOL_VERSIONS = ['2025-06-18', '2024-11-05'] as const;
+
+/** A client asking for a revision not listed gets the one LibreChat has always used. */
+export const FALLBACK_PROTOCOL_VERSION = '2024-11-05';
+
+/** `initialize`'s answer: the client's revision when this server speaks it. */
+export function negotiateProtocol(requested: unknown): string {
+  return isKnownProtocol(requested) ? requested : FALLBACK_PROTOCOL_VERSION;
+}
+
+export function isKnownProtocol(version: unknown): version is string {
+  return (PROTOCOL_VERSIONS as readonly unknown[]).includes(version);
+}
+
+/** Sent on every HTTP request after `initialize` (2025-06-18 §Transports). */
+export const PROTOCOL_VERSION_HEADER = 'mcp-protocol-version';
 
 export const SERVER_INFO = {
   name: 'osd-request-management',

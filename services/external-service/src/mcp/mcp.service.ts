@@ -19,7 +19,7 @@ import {
   isNotification,
   type JsonRpcRequest,
   type JsonRpcResponse,
-  PROTOCOL_VERSION,
+  negotiateProtocol,
   RPC_INTERNAL_ERROR,
   RPC_INVALID_PARAMS,
   RPC_INVALID_REQUEST,
@@ -66,7 +66,7 @@ export class McpService {
     switch (rpc.method) {
       case 'initialize':
         return rpcResult(rpc.id, {
-          protocolVersion: PROTOCOL_VERSION,
+          protocolVersion: negotiateProtocol(rpc.params?.protocolVersion),
           capabilities: { tools: {} },
           serverInfo: SERVER_INFO,
           instructions: SERVER_INSTRUCTIONS,

@@ -183,6 +183,28 @@ describe('MCP — the protocol', () => {
     expect(instructions).toContain('ไม่พบข้อมูล');
   });
 
+  it('initialize answers 2025-06-18 when asked; an unknown revision gets 2024-11-05', async () => {
+    const { service } = serviceWith(() => Promise.resolve({}));
+    const ask = (protocolVersion: string) =>
+      service.handle(
+        {
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'initialize',
+          params: { protocolVersion },
+        },
+        httpRequest(),
+        principal(),
+      );
+
+    await expect(ask('2025-06-18')).resolves.toMatchObject({
+      result: { protocolVersion: '2025-06-18' },
+    });
+    await expect(ask('2099-01-01')).resolves.toMatchObject({
+      result: { protocolVersion: '2024-11-05' },
+    });
+  });
+
   /** A notification has no `id`; JSON-RPC forbids answering one. */
   it('says nothing back to a notification', async () => {
     const { service } = serviceWith(() => Promise.resolve({}));

@@ -51,6 +51,13 @@ export default () => ({
   publicBaseUrl: process.env.PUBLIC_BASE_URL ?? 'http://192.168.31.52:3503',
 
   /**
+   * `aud` ที่ token ของคนต้องมีเมื่อเรียก MCP (2025-06-18 — token ที่ออกให้ระบบอื่น
+   * ใช้แทนไม่ได้). ว่าง = ไม่ตรวจ: เปิดหลังตั้ง audience mapper บน id24 แล้วเท่านั้น
+   * ไม่อย่างนั้น LibreChat ใช้ไม่ได้ทันที.
+   */
+  mcpTokenAudience: process.env.MCP_TOKEN_AUDIENCE || undefined,
+
+  /**
    * Every background timer in the imported domain, off.
    *
    * This service runs core-service's providers in its own process against the

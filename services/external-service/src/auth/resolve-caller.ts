@@ -175,18 +175,30 @@ function headerOf(request: RequestWithPrincipal, name: string): string {
 
 /** `azp` ของ JWT — อ่านเฉยๆ ไม่ verify; เรียกหลัง user-service verify token เดียวกันแล้ว. */
 export function tokenClientId(token: string): string | null {
+  const azp = jwtClaims(token).azp;
+  return typeof azp === 'string' ? azp : null;
+}
+
+/** `aud` ของ JWT เป็น array เสมอ — อ่านเฉยๆ ไม่ verify เหมือน `tokenClientId`. */
+export function tokenAudiences(token: string): string[] {
+  const aud = jwtClaims(token).aud;
+  if (typeof aud === 'string') return [aud];
+  return Array.isArray(aud)
+    ? aud.filter((value): value is string => typeof value === 'string')
+    : [];
+}
+
+function jwtClaims(token: string): Record<string, unknown> {
   const payload = token.split('.')[1];
-  if (!payload) return null;
+  if (!payload) return {};
   try {
     const claims: unknown = JSON.parse(
       Buffer.from(payload, 'base64url').toString('utf8'),
     );
-    const azp =
-      typeof claims === 'object' && claims !== null && 'azp' in claims
-        ? claims.azp
-        : null;
-    return typeof azp === 'string' ? azp : null;
+    return typeof claims === 'object' && claims !== null
+      ? (claims as Record<string, unknown>) // object ที่ parse จาก JSON มีแต่ key แบบ string
+      : {};
   } catch {
-    return null;
+    return {};
   }
 }
