@@ -22,6 +22,9 @@ them was broken in this repo in a single sprint:
 - Phase 6 was built before Phase 1 — and the screens that stalled were exactly the ones
   Phase 1 was supposed to supply.
 - "Done" without a count is how 9 of 11 items got reported as 11.
+- Every closing report ends with two headed sections — **งานต่อไป** (the next phase's steps)
+  and **ที่เหลือ** (a table of every later phase and open item, with who acts) — never a
+  one-line "next is Phase N" (user corrected this repeatedly, 22 Oct 2026).
 - A screen check that only looked for a marker comment passed A1, A2 and A4 while all
   three were half-built. Check content, not the presence of a label.
 
