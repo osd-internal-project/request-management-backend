@@ -11,6 +11,7 @@ import { WORKFLOW_CLIENT } from '../workflow/workflow-client';
 import type { WorkflowClient } from '../workflow/workflow-client';
 import { IntegrationSyncJobRepository } from './integration-job.repository';
 import { LeadRepository } from './sales.repositories';
+import { WorkflowTriggerRepository } from '../workflow-trigger/workflow-trigger.repository';
 import { backgroundTick } from '../common/background-tick';
 
 const SYSTEM = 'workflow';
@@ -53,6 +54,7 @@ export class LeadWorkflowSyncService implements OnModuleInit, OnModuleDestroy {
     @Inject(WORKFLOW_CLIENT) private readonly workflow: WorkflowClient,
     private readonly audit: AuditWriter,
     private readonly config: ConfigService,
+    private readonly triggers: WorkflowTriggerRepository,
   ) {}
 
   onModuleInit(): void {
@@ -104,6 +106,21 @@ export class LeadWorkflowSyncService implements OnModuleInit, OnModuleDestroy {
 
     if (!lead) return null;
     if (lead.workflowInstanceId) return lead.workflowInstanceId;
+
+    /*
+      ช่วงเปลี่ยนผ่าน (22 ต.ค. 2569): บริษัทที่ตั้ง "สร้าง Lead" ไว้ในหน้า
+      admin/workflow-triggers แล้ว ให้ทางนั้นเริ่มเอง (WorkflowTriggerDispatchService
+      เก็บ instance ลง lead ให้ด้วย) — env WORKFLOW_CHANNEL_* หยุดสำหรับบริษัทนั้น.
+    */
+    const moved = await this.triggers.findFirst({
+      where: {
+        companyId: lead.companyId,
+        eventKey: 'lead.created',
+        active: true,
+      },
+      select: { id: true },
+    });
+    if (moved) return null;
 
     const started = await this.workflow.startLead(lead.id, {
       companyId: lead.companyId,

@@ -323,6 +323,353 @@
         ]
       }
     },
+    "/api/v1/admin/workflow-triggers/events": {
+      "get": {
+        "operationId": "WorkflowTriggerAdminController_events",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WorkflowTriggerEventDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เหตุการณ์ที่เริ่ม workflow ได้ และตัวแปรที่แต่ละเหตุการณ์ส่ง",
+        "tags": [
+          "admin/workflow-triggers"
+        ],
+        "x-permission": [
+          "admin.integration.manage"
+        ]
+      }
+    },
+    "/api/v1/admin/workflow-triggers": {
+      "get": {
+        "operationId": "WorkflowTriggerAdminController_list",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WorkflowTriggerRowDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "รายการของบริษัทนี้ — ไม่มี channel key ในคำตอบ",
+        "tags": [
+          "admin/workflow-triggers"
+        ],
+        "x-permission": [
+          "admin.integration.manage"
+        ]
+      },
+      "post": {
+        "operationId": "WorkflowTriggerAdminController_create",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateWorkflowTriggerDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowTriggerRowDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เพิ่ม: เหตุการณ์ → channel ของ workflow",
+        "tags": [
+          "admin/workflow-triggers"
+        ],
+        "x-permission": [
+          "admin.integration.manage"
+        ]
+      }
+    },
+    "/api/v1/admin/workflow-triggers/{id}": {
+      "patch": {
+        "operationId": "WorkflowTriggerAdminController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateWorkflowTriggerDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowTriggerRowDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แก้ เปิด/ปิด หรือเปลี่ยน channel key",
+        "tags": [
+          "admin/workflow-triggers"
+        ],
+        "x-permission": [
+          "admin.integration.manage"
+        ]
+      }
+    },
+    "/api/v1/admin/workflow-triggers/{id}/starts": {
+      "get": {
+        "operationId": "WorkflowTriggerAdminController_starts",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WorkflowStartRowDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "การเริ่ม workflow 50 รายการล่าสุด",
+        "tags": [
+          "admin/workflow-triggers"
+        ],
+        "x-permission": [
+          "admin.integration.manage"
+        ]
+      }
+    },
+    "/api/v1/admin/workflow-triggers/{id}/starts/{startId}/retry": {
+      "post": {
+        "operationId": "WorkflowTriggerAdminController_retry",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "startId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowStartRowDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "นำรายการที่ล้ม (dead) กลับเข้าคิว",
+        "tags": [
+          "admin/workflow-triggers"
+        ],
+        "x-permission": [
+          "admin.integration.manage"
+        ]
+      }
+    },
+    "/api/v1/admin/workflow-triggers/{id}/test": {
+      "post": {
+        "operationId": "WorkflowTriggerAdminController_test",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowStartRowDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เริ่ม workflow จริง 1 ครั้งด้วยตัวแปรตัวอย่าง (OSD Workflow ไม่มี dry run)",
+        "tags": [
+          "admin/workflow-triggers"
+        ],
+        "x-permission": [
+          "admin.integration.manage"
+        ]
+      }
+    },
     "/api/v1/process-logs/stages": {
       "get": {
         "operationId": "ProcessLogController_stages",
@@ -43809,6 +44156,314 @@
           "last_error",
           "next_attempt_at",
           "sent_at",
+          "created_at"
+        ]
+      },
+      "WorkflowTriggerEventDto": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "example": "lead.created"
+          },
+          "label": {
+            "type": "string",
+            "example": "สร้าง Lead"
+          },
+          "variables": {
+            "example": [
+              "leadId",
+              "leadName",
+              "companyId"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "filters_by_type": {
+            "type": "boolean",
+            "description": "กรองตามประเภทคำขอได้"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "variables",
+          "filters_by_type"
+        ]
+      },
+      "WorkflowTriggerLastStartDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "sending",
+              "started",
+              "dead"
+            ]
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "last_error": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "status",
+          "created_at",
+          "last_error"
+        ]
+      },
+      "WorkflowTriggerRowDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "event_key": {
+            "type": "string"
+          },
+          "type_codes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "channel_id": {
+            "type": "string"
+          },
+          "organization_id": {
+            "type": "string"
+          },
+          "workspace_id": {
+            "type": "string"
+          },
+          "has_channel_key": {
+            "type": "boolean",
+            "description": "มี key เก็บไว้แล้ว — ตัว key ไม่ออกจากระบบ"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "last_start": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WorkflowTriggerLastStartDto"
+              }
+            ]
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "created_by": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "event_key",
+          "type_codes",
+          "channel_id",
+          "organization_id",
+          "workspace_id",
+          "has_channel_key",
+          "active",
+          "last_start",
+          "created_at",
+          "created_by"
+        ]
+      },
+      "CreateWorkflowTriggerDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Lead ใหม่ → ขั้นที่ 1 (ctd-flow-s1)",
+            "maxLength": 120,
+            "minLength": 1
+          },
+          "event_key": {
+            "type": "string",
+            "description": "เหตุการณ์จาก `GET admin/workflow-triggers/events`",
+            "example": "lead.created",
+            "minLength": 1
+          },
+          "type_codes": {
+            "description": "เฉพาะเหตุการณ์ของคำขอ — ประเภทคำขอที่นับ ว่าง = ทุกประเภท",
+            "example": [
+              "SOL"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 50
+          },
+          "channel_id": {
+            "type": "string",
+            "description": "Channel ID ของ Application API (หน้า Delivery channels ของ workflow)",
+            "example": "cmvhx4s5c05cl97016ttnrkj3",
+            "maxLength": 64,
+            "minLength": 1
+          },
+          "channel_key": {
+            "type": "string",
+            "description": "Access key ของ channel — เก็บแบบเข้ารหัส ไม่แสดงกลับ",
+            "writeOnly": true,
+            "maxLength": 500,
+            "minLength": 1
+          },
+          "organization_id": {
+            "type": "string",
+            "example": "osd",
+            "description": "ไม่ส่ง = ค่าจาก WORKFLOW_ORGANIZATION_ID",
+            "maxLength": 100,
+            "minLength": 1
+          },
+          "workspace_id": {
+            "type": "string",
+            "example": "default",
+            "description": "ไม่ส่ง = ค่าจาก WORKFLOW_WORKSPACE_ID",
+            "maxLength": 100,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "channel_id",
+          "channel_key",
+          "event_key",
+          "name"
+        ]
+      },
+      "UpdateWorkflowTriggerDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1
+          },
+          "event_key": {
+            "type": "string",
+            "minLength": 1
+          },
+          "type_codes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 50
+          },
+          "channel_id": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1
+          },
+          "channel_key": {
+            "type": "string",
+            "description": "ส่งเมื่อต้องการเปลี่ยน key (หมุน key ที่ OSD Workflow แล้ว) — ไม่ส่ง = ใช้ key เดิม",
+            "writeOnly": true,
+            "maxLength": 500,
+            "minLength": 1
+          },
+          "organization_id": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1
+          },
+          "workspace_id": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1
+          },
+          "active": {
+            "type": "boolean",
+            "description": "false = หยุดเริ่ม workflow (ไม่ลบ ประวัติยังอยู่)"
+          }
+        }
+      },
+      "WorkflowStartRowDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "event_key": {
+            "type": "string"
+          },
+          "resource_type": {
+            "type": "string"
+          },
+          "resource_id": {
+            "type": "string"
+          },
+          "variables": {
+            "type": "object"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "sending",
+              "started",
+              "dead"
+            ]
+          },
+          "attempts": {
+            "type": "number"
+          },
+          "last_status_code": {
+            "type": "number",
+            "nullable": true
+          },
+          "last_error": {
+            "type": "string",
+            "nullable": true
+          },
+          "instance_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "workflow_key": {
+            "type": "string",
+            "nullable": true
+          },
+          "next_attempt_at": {
+            "type": "string"
+          },
+          "started_at": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "event_key",
+          "resource_type",
+          "resource_id",
+          "variables",
+          "status",
+          "attempts",
+          "last_status_code",
+          "last_error",
+          "instance_id",
+          "workflow_key",
+          "next_attempt_at",
+          "started_at",
           "created_at"
         ]
       },

@@ -1,6 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import type { WorkflowClient, WorkflowStarted } from './workflow-client';
+import type {
+  WorkflowChannel,
+  WorkflowClient,
+  WorkflowStarted,
+} from './workflow-client';
 
 /**
  * สแตนด์อินในหน่วยความจำ (WORKFLOW_MODE=mock, ค่าตั้งต้น) — ทุกสภาพแวดล้อม
@@ -20,6 +24,21 @@ export class MockWorkflowClient implements WorkflowClient {
     return Promise.resolve({
       instanceId,
       workflowKey: 'lwf-0001',
+      status: 'ACTIVE',
+    });
+  }
+
+  start(
+    channel: WorkflowChannel,
+    variables: Record<string, unknown>,
+  ): Promise<WorkflowStarted> {
+    const instanceId = randomUUID();
+    this.logger.log(
+      `mock start channel ${channel.channelId} (${Object.keys(variables).join(', ')}) → ${instanceId}`,
+    );
+    return Promise.resolve({
+      instanceId,
+      workflowKey: 'mock',
       status: 'ACTIVE',
     });
   }

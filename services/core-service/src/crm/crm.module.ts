@@ -8,6 +8,7 @@ import { ReservePhoneModule } from '../reserve-phone/reserve-phone.module';
 import { PdpaModule } from '../pdpa/pdpa.module';
 import { EventsModule } from '../events/events.module';
 import { WorkflowModule } from '../workflow/workflow.module';
+import { WorkflowTriggerModule } from '../workflow-trigger/workflow-trigger.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { CustomersService } from './customers.service';
 import { CrmAdminService } from './crm-admin.service';
@@ -200,6 +201,8 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     PdpaModule,
     EventsModule,
     WorkflowModule,
+    // a company that moved lead.created to admin/workflow-triggers stops the env path
+    WorkflowTriggerModule,
     NotificationsModule,
   ],
   providers: [
