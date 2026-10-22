@@ -154,6 +154,12 @@ const HEADERS = [
     'X-Webhook-Signature',
     '`sha256=` + hex(HMAC-SHA256(secret, `{X-Webhook-Timestamp}.{raw body}`))',
   ],
+  ['webhook-id', 'Standard Webhooks — ค่าเดียวกับ X-Webhook-Id'],
+  ['webhook-timestamp', 'Standard Webhooks — ค่าเดียวกับ X-Webhook-Timestamp'],
+  [
+    'webhook-signature',
+    'Standard Webhooks — `v1,` + base64(HMAC-SHA256(base64-decode(secret หลัง `whsec_`), `{webhook-id}.{webhook-timestamp}.{raw body}`))',
+  ],
 ].map(([name, description]) => ({
   name,
   in: 'header',
@@ -166,7 +172,7 @@ const DESCRIPTION = `ระบบส่ง \`POST\` ไปยัง URL ที�
 
 **payload บาง** — มีแค่ id กับชนิด event ถ้าต้องการรายละเอียด ให้เรียก External API ด้วย API key ตามปกติ สิทธิ์จึงยังตรวจที่ API และข้อมูลส่วนบุคคลไม่ออกไปกับ webhook
 
-**ตรวจลายเซ็นก่อนเชื่อทุกครั้ง** ด้วย \`HMAC-SHA256(secret, timestamp + "." + raw body)\` ให้เทียบกับ \`X-Webhook-Signature\` แบบ constant-time และใช้ body ดิบก่อน parse JSON
+**ตรวจลายเซ็นก่อนเชื่อทุกครั้ง** ด้วย \`HMAC-SHA256(secret, timestamp + "." + raw body)\` ให้เทียบกับ \`X-Webhook-Signature\` แบบ constant-time และใช้ body ดิบก่อน parse JSON — หรือตรวจ \`webhook-signature\` ด้วย library \`standardwebhooks\` (secret ที่ออกก่อน 22 ต.ค. 2569 ต้องออกใหม่ก่อน)
 
 **ตอบ 2xx ภายใน 10 วินาที** แล้วค่อยทำงานต่อเบื้องหลัง ถ้าตอบอย่างอื่นหรือหมดเวลา ระบบจะส่งซ้ำหลัง 1 นาที, 5 นาที, 30 นาที, 2 ชั่วโมง และ 6 ชั่วโมง รวม 6 ครั้ง จากนั้นจะเลิกส่ง ระบบไม่ตาม redirect
 

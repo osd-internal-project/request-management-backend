@@ -33,8 +33,9 @@ export function nextAttemptDelayMs(attempts: number): number | null {
   return RETRY_DELAYS_MS[attempts - 1] ?? null;
 }
 
+/** base64 มาตรฐาน (ไม่ใช่ base64url) — library `standardwebhooks` decode ได้เฉพาะแบบนี้. */
 export function newWebhookSecret(): string {
-  return `whsec_${randomBytes(24).toString('base64url')}`;
+  return `whsec_${randomBytes(24).toString('base64')}`;
 }
 
 /** `X-Webhook-Signature` — timestamp is signed too, so a captured call cannot be replayed later. */
@@ -47,6 +48,23 @@ export function signWebhook(
     .update(`${timestamp}.${body}`)
     .digest('hex');
   return `sha256=${mac}`;
+}
+
+/**
+ * `webhook-signature` ตาม Standard Webhooks — key คือ bytes ของ secret หลัง `whsec_`.
+ * Node decode `base64` รับตัวอักษร base64url ด้วย secret เดิมจึงเซ็นได้เหมือนกัน.
+ */
+export function standardSignature(
+  secret: string,
+  id: string,
+  timestamp: string,
+  body: string,
+): string {
+  const key = Buffer.from(secret.replace(/^whsec_/, ''), 'base64');
+  const mac = createHmac('sha256', key)
+    .update(`${id}.${timestamp}.${body}`)
+    .digest('base64');
+  return `v1,${mac}`;
 }
 
 export function eventProblems(events: readonly string[]): string[] {
