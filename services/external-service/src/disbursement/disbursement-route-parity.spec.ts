@@ -18,13 +18,8 @@ const CORE = join(
 );
 const EXTERNAL = join(__dirname, 'disbursement.controller.ts');
 
-/** The machine gate that fronts each screen permission. */
-const ROBOT: Readonly<Record<string, string>> = {
-  'request.read': 'integration.disbursement.read',
-  'request.create': 'integration.disbursement.manage',
-  'disbursement.verify': 'integration.disbursement.manage',
-  'disbursement.pay': 'integration.disbursement.manage',
-};
+/** The machine gate that fronts each screen permission — `integration.` + it (22 ต.ค. 2569). */
+const robotFor = (permission: string) => `integration.${permission}`;
 
 interface Route {
   readonly controller: string;
@@ -83,7 +78,7 @@ describe('the external disbursement surface corresponds to the screens', () => {
   it('fronts every screen permission with its own machine gate', () => {
     expect(robot.length).toBe(acting.length);
     robot.forEach((route, i) => {
-      expect(route.permission).toBe(ROBOT[acting[i].permission]);
+      expect(route.permission).toBe(robotFor(acting[i].permission));
     });
   });
 

@@ -1,10 +1,7 @@
+import { ActsAsCompany } from '../auth/acts-as-company.decorator';
 import { Body, Controller, Headers, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import {
-  CurrentPrincipal,
-  Permissions,
-  ServiceAccountOnly,
-} from '@request-management/share';
+import { CurrentPrincipal, Permissions } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import {
   ApprovalsService,
@@ -39,7 +36,7 @@ export class ExternalApprovalController {
 
   @Post('cases')
   @Permissions('integration.approval.create')
-  @ServiceAccountOnly()
+  @ActsAsCompany()
   @ApiOperation({
     summary: 'เปิดเคสอนุมัติจากโมดูลอื่น — ไม่ผูกกับคำขอในระบบ (APV-07)',
     description:

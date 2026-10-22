@@ -1,10 +1,7 @@
+import { ActsAsCompany } from '../auth/acts-as-company.decorator';
 import { Body, Controller, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import {
-  CurrentPrincipal,
-  Permissions,
-  ServiceAccountOnly,
-} from '@request-management/share';
+import { CurrentPrincipal, Permissions } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import {
   CallResultDto,
@@ -22,7 +19,7 @@ import {
 @ApiTags('smart')
 @ApiBearerAuth()
 @Controller('smart/calls')
-@ServiceAccountOnly()
+@ActsAsCompany()
 export class ExternalSmartCallbackController {
   constructor(private readonly dialer: SmartDialerService) {}
 
@@ -33,7 +30,7 @@ export class ExternalSmartCallbackController {
       'no_answer | busy | refused | failed · refused = ลูกค้าขอไม่ให้ติดต่อ — เบอร์เข้าทะเบียนห้ามติดต่อทันที',
   })
   @Post('callback')
-  @Permissions('integration.smart.callcenter')
+  @Permissions('integration.smart.call.update')
   callback(
     @Body() dto: CallResultDto,
     @CurrentPrincipal() principal: Principal,

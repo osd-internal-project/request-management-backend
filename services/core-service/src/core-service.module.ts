@@ -33,6 +33,7 @@ import { PricingHttpModule } from './pricing/pricing-http.module';
 import { HrHttpModule } from './hr/hr-http.module';
 import { SupportHttpModule } from './support/support-http.module';
 import { WebhookHttpModule } from './webhook/webhook-http.module';
+import { WorkflowTriggerHttpModule } from './workflow-trigger/workflow-trigger-http.module';
 import { ProcessLogHttpModule } from './process-log/process-log-http.module';
 import { CareHttpModule } from './care/care-http.module';
 import { DeliveryHttpModule } from './delivery/delivery-http.module';
@@ -59,6 +60,8 @@ import configs from './configs';
   imports: [
     EventsModule,
     WebhookHttpModule,
+    // เหตุการณ์ใน CTD → เริ่ม workflow บน OSD Workflow (หน้า admin/workflow-triggers)
+    WorkflowTriggerHttpModule,
     ProcessLogHttpModule,
     ConfigModule.forRoot({
       isGlobal: true,

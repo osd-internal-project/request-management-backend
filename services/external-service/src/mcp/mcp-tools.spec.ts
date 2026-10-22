@@ -62,6 +62,16 @@ function registryWith(
   );
   Reflect.set(
     registry,
+    'keyPermissions',
+    new Map(
+      specs.map((spec) => [
+        spec.name as string,
+        (spec['x-permission'] as string[] | undefined) ?? [],
+      ]),
+    ),
+  );
+  Reflect.set(
+    registry,
     'sensitiveResources',
     new Map(
       specs.map((spec) => [
@@ -89,6 +99,59 @@ function assertCatalogue(
 function contextOf(principal: Principal): ToolContext {
   return { actor: principal, authorization: 'Bearer x' };
 }
+
+describe('McpToolRegistry — scope ของ key ต่อ tool (key ∩ คน)', () => {
+  const SPECS = [
+    {
+      name: 'tool_one',
+      'x-permission': ['integration.request.read'],
+      'x-acting-permission': ['request.read'],
+    },
+  ];
+  const person = actor(['request.read']);
+
+  it('key ที่ไม่มี scope ของ tool ถูกปฏิเสธ แม้คนจะมีสิทธิ์ และ handler ไม่ถูกเรียก', async () => {
+    const handler = jest.fn();
+    const registry = registryWith(SPECS, handler);
+
+    await expect(
+      registry.call(
+        'tool_one',
+        {},
+        {
+          ...contextOf(person),
+          keyScopes: ['integration.request.create'],
+        },
+      ),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('key ที่มี scope ผ่าน', async () => {
+    const handler = jest.fn().mockResolvedValue({ ok: true });
+    const registry = registryWith(SPECS, handler);
+
+    await expect(
+      registry.call(
+        'tool_one',
+        {},
+        {
+          ...contextOf(person),
+          keyScopes: ['integration.request.read'],
+        },
+      ),
+    ).resolves.toEqual({ ok: true });
+  });
+
+  it('token ของคนเองที่ไม่มี key (LibreChat) ตรวจแค่ฝั่งคน', async () => {
+    const handler = jest.fn().mockResolvedValue({ ok: true });
+    const registry = registryWith(SPECS, handler);
+
+    await expect(
+      registry.call('tool_one', {}, contextOf(person)),
+    ).resolves.toEqual({ ok: true });
+  });
+});
 
 describe('McpToolRegistry — ประตูที่สอง', () => {
   const SPECS = [{ name: 'tool_one', 'x-acting-permission': ['request.read'] }];
@@ -143,6 +206,21 @@ describe('McpToolRegistry — ประตูที่สอง', () => {
         { name: 'tool_one', 'x-acting-permission': [] },
       ]),
     ).toThrow(/x-sensitive-resource/);
+  });
+
+  it('catalogue ที่ไม่ประกาศ x-permission ทำให้ boot ไม่ผ่าน', () => {
+    const registry = bareRegistry();
+    Reflect.set(registry, 'handlers', { tool_one: jest.fn() });
+
+    expect(() =>
+      assertCatalogue(registry, [
+        {
+          name: 'tool_one',
+          'x-acting-permission': [],
+          'x-sensitive-resource': '',
+        },
+      ]),
+    ).toThrow(/x-permission/);
   });
 });
 

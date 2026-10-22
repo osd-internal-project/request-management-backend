@@ -43,8 +43,13 @@ export {
 } from './principal/api-key.service';
 export type {
   ApiKeyContext,
+  IntegrationPolicy,
   ResolvedApiKey,
 } from './principal/api-key.service';
+export {
+  IntegrationCallLogService,
+  type IntegrationCallMode,
+} from './principal/integration-call-log.service';
 
 // --- SCOPE-04 masking (registered in every service, or it is not masking) --
 export { SensitiveReadAuditRecorder } from './policy/sensitive-read.recorder';
@@ -184,6 +189,8 @@ export { SmartDialerService } from './smart/smart-dialer.service';
 export { CallResultDto } from './smart/smart-calls.dto';
 // G-07 — events raised through the external API queue webhooks too
 export { WebhookModule } from './webhook/webhook.module';
+// events raised through the external API start configured workflows too
+export { WorkflowTriggerModule } from './workflow-trigger/workflow-trigger.module';
 // End-to-End process log — OSD Workflow writes it through external-service
 export { ProcessLogModule } from './process-log/process-log.module';
 export { ProcessLogService } from './process-log/process-log.service';

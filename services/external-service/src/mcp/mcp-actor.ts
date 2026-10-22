@@ -9,10 +9,9 @@
  *     `X-Acting-User` has no job. Sending it anyway is refused rather than
  *     ignored: honouring it would turn every signed-in user into an
  *     impersonation endpoint.
- *   - **a service account** (`rfk_` key or a client-credentials token, the way
- *     Aiyara has always called) — the credential belongs to a robot, so the
- *     header is the only thing that can say which human, and it stays
- *     mandatory exactly as `ActingUserGuard` makes it on `/external/*`.
+ *   - **an API key** — the person comes from `X-User-Token` (their own
+ *     Keycloak token) or, where the integration allows it, `X-Acting-User`;
+ *     the same rule `ActingUserGuard` applies on REST (`resolve-caller.ts`).
  *
  * Written as a function rather than a guard on purpose. `ActingUserGuard`
  * demands the header on **every** request to its controller, which for MCP
@@ -22,16 +21,11 @@
  */
 import { Injectable } from '@nestjs/common';
 import {
-  AppError,
-  COMPANY_HEADER,
   type Principal,
   type RequestWithPrincipal,
 } from '@request-management/share';
-import {
-  getApiKey,
-  RemotePrincipalService,
-} from '@request-management/core-service';
-import { ACTING_USER_HEADER } from '../auth/acting-user.guard';
+import { RemotePrincipalService } from '@request-management/core-service';
+import { resolveCaller } from '../auth/resolve-caller';
 
 @Injectable()
 export class McpActorService {
@@ -46,61 +40,7 @@ export class McpActorService {
     request: RequestWithPrincipal,
     caller: Principal,
   ): Promise<Principal> {
-    const header = request.headers[ACTING_USER_HEADER];
-    const email = typeof header === 'string' ? header.trim() : '';
-
-    if (!caller.isServiceAccount) {
-      /*
-        A person's token already names a person. Refusing the header rather
-        than dropping it keeps the rule legible from the outside: nobody can
-        send it, wonder whether it worked, and be wrong.
-      */
-      if (email) {
-        throw new AppError(
-          'VALIDATION_FAILED',
-          `ห้ามส่ง ${ACTING_USER_HEADER} เมื่อเข้าสู่ระบบด้วยบัญชีของตนเอง — ระบบทราบอยู่แล้วว่าเป็นใคร`,
-          [
-            {
-              field: ACTING_USER_HEADER,
-              reason: 'not allowed for a user token',
-            },
-          ],
-        );
-      }
-
-      return caller;
-    }
-
-    // A robot's credential. The same rule `/external/*` has always enforced.
-    if (!email) {
-      throw new AppError(
-        'VALIDATION_FAILED',
-        `ต้องระบุ header ${ACTING_USER_HEADER} เป็นอีเมลของผู้ใช้ที่ทำรายการ`,
-        [{ field: ACTING_USER_HEADER, reason: 'required' }],
-      );
-    }
-
-    const requestedCompany = request.headers[COMPANY_HEADER];
-
-    /*
-      The caller's own bearer travels with the lookup: user-service decides
-      whether this credential may ask the question at all, and it is the only
-      service that verifies tokens (§03).
-    */
-    const actingUser = await this.principals.resolveActingUser(
-      request.headers.authorization ?? '',
-      email,
-      typeof requestedCompany === 'string' ? requestedCompany : undefined,
-      getApiKey(request)?.scopes ?? [],
-    );
-
-    if (actingUser.pendingOrgAssignment) {
-      throw new AppError(
-        'FORBIDDEN',
-        'ผู้ใช้รายนี้ยังไม่ถูกจัดเข้าผังทีม จึงยังทำรายการแทนไม่ได้',
-      );
-    }
-
-    return actingUser;
+    // กฎเดียวกับ REST — X-User-Token / X-Acting-User / token ของคนเอง
+    return resolveCaller(request, caller, this.principals);
   }
 }

@@ -53,7 +53,7 @@ export class AssistantController {
       '`past_expected_close` = เลยวันคาดปิดแล้วแต่ยังไม่ปิด · `view=mine` เฉพาะดีลของผู้ถาม',
   })
   @Get('deals/closing')
-  @Permissions('integration.assistant.read')
+  @Permissions('integration.crm.sales.read')
   @ActingPermissions('crm.sales.read')
   closingDeals(
     @Query() query: ClosingDealsQueryDto,
@@ -69,7 +69,7 @@ export class AssistantController {
       '`view=mine` เฉพาะดีลของผู้ถาม',
   })
   @Get('deals/silent')
-  @Permissions('integration.assistant.read')
+  @Permissions('integration.crm.sales.read')
   @ActingPermissions('crm.sales.read')
   silentDeals(
     @Query() query: SilentDealsQueryDto,
@@ -85,7 +85,7 @@ export class AssistantController {
       '`waiting_days` = รอมากี่วันแล้ว · อนุมัติ/ตีกลับทำบนหน้าจอหรือผ่าน action ของคำขอ',
   })
   @Get('approvals')
-  @Permissions('integration.assistant.read')
+  @Permissions('integration.approval.decide')
   @ActingPermissions('approval.decide')
   myApprovals(@CurrentPrincipal() principal: Principal) {
     return this.assistant.myApprovals(principal);
@@ -114,7 +114,7 @@ export class AssistantController {
       'ใบสั่งงานบริการที่ยังไม่ปิด พร้อม `overdue` เมื่อเลย SLA แล้ว · `overdue=true` เฉพาะที่เลย SLA',
   })
   @Get('service-jobs')
-  @Permissions('integration.assistant.read')
+  @Permissions('integration.service.asset.read')
   @ActingPermissions('service.asset.read')
   serviceJobs(
     @Query() query: ServiceJobsQueryDto,

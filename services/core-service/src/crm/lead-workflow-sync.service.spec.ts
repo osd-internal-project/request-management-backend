@@ -14,6 +14,8 @@ function harness(
     lead?: Record<string, unknown> | null;
     startFails?: string;
     queue?: Job[];
+    /** the company set "สร้าง Lead" up in admin/workflow-triggers */
+    movedToTriggers?: boolean;
   } = {},
 ) {
   const audits: { eventType: string; after?: Record<string, unknown> }[] = [];
@@ -73,18 +75,49 @@ function harness(
   // retryIntervalMs = 0 → ไม่มี timer เดินอยู่ข้างล่างเทสต์
   const config = { get: jest.fn(() => 0) };
 
+  const triggers = {
+    findFirst: jest.fn(() =>
+      Promise.resolve(options.movedToTriggers ? { id: 'trg-1' } : null),
+    ),
+  };
+
   const service = new LeadWorkflowSyncService(
     leads as never,
     jobs as never,
-    workflow,
+    workflow as never,
     audit as never,
     config as never,
+    triggers as never,
   );
 
-  return { service, leads, jobs, workflow, audits, created, jobUpdates };
+  return {
+    service,
+    leads,
+    jobs,
+    workflow,
+    audits,
+    created,
+    jobUpdates,
+    triggers,
+  };
 }
 
 describe('LeadWorkflowSyncService — Lead ใบใหม่เปิด instance ของ lwf-0001', () => {
+  it('บริษัทที่ตั้ง "สร้าง Lead" ในหน้า admin/workflow-triggers แล้ว → ทาง env หยุด ไม่เริ่มซ้ำ', async () => {
+    const { service, workflow, leads, triggers } = harness({
+      movedToTriggers: true,
+    });
+
+    await expect(service.startLead('lead-1')).resolves.toBeNull();
+
+    expect(triggers.findFirst).toHaveBeenCalledWith({
+      where: { companyId: 'osd', eventKey: 'lead.created', active: true },
+      select: { id: true },
+    });
+    expect(workflow.startLead).not.toHaveBeenCalled();
+    expect(leads.update).not.toHaveBeenCalled();
+  });
+
   it('start สำเร็จ → เก็บ workflowInstanceId + audit integration.workflow.lead_started', async () => {
     const { service, leads, audits } = harness();
 

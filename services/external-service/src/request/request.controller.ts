@@ -1,3 +1,4 @@
+import { ApiActingHeaders } from '../auth/acts-for-person.decorator';
 import {
   Body,
   Controller,
@@ -20,17 +21,19 @@ import {
 import {
   ActingPermissions,
   ActingPolicyGuard,
+  AnyPermission,
   Permissions,
   ServiceAccountOnly,
   SensitiveResource,
 } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import { CurrentPrincipal } from '@request-management/share';
-import { ACTIONS } from '@request-management/core-service';
 import {
-  ACTING_USER_HEADER_LABEL,
-  ActingUserGuard,
-} from '../auth/acting-user.guard';
+  ACTIONS,
+  CurrentApiKey,
+  type ApiKeyContext,
+} from '@request-management/core-service';
+import { ActingUserGuard } from '../auth/acting-user.guard';
 import { BearerToken } from '../auth/bearer-token.decorator';
 import { RequestApiService } from './request.service';
 import {
@@ -133,14 +136,9 @@ const IDEMPOTENCY_KEY_HEADER = {
 @ApiTags('external')
 @ApiExtraModels(ExternalCommentDto)
 @ApiBearerAuth()
-@ApiHeader({
-  name: ACTING_USER_HEADER_LABEL,
-  required: true,
-  description: 'อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้',
-})
+@ApiActingHeaders()
 @Controller('request')
 @ServiceAccountOnly()
-@Permissions('integration.request.create')
 @UseGuards(ActingUserGuard, ActingPolicyGuard)
 export class RequestController {
   constructor(private readonly requests: RequestApiService) {}
@@ -153,6 +151,7 @@ export class RequestController {
   })
   @ApiExternalReadErrors()
   @Get('request-types')
+  @Permissions('integration.request.create')
   @ActingPermissions('request.create')
   listTypes(
     @Query() query: ExternalTypeQueryDto,
@@ -177,6 +176,7 @@ export class RequestController {
     example: 'PS01',
   })
   @Get('request-types/:code/form')
+  @Permissions('integration.request.create')
   @ActingPermissions('request.create')
   formOf(
     @Param('code') code: string,
@@ -215,6 +215,7 @@ export class RequestController {
   })
   @ApiExternalWriteErrors()
   @Post('requests')
+  @Permissions('integration.request.create')
   @ActingPermissions('request.create')
   create(
     @Body() dto: ExternalCreateRequestDto,
@@ -232,6 +233,7 @@ export class RequestController {
   })
   @ApiExternalReadErrors()
   @Get('requests')
+  @Permissions('integration.request.read')
   @SensitiveResource('request:{typeCode}')
   @ActingPermissions('request.read')
   list(
@@ -260,6 +262,7 @@ export class RequestController {
   })
   @ApiExternalReadErrors()
   @Get('requests/summary')
+  @Permissions('integration.request.read')
   @ActingPermissions('request.read')
   summary(
     @Query() query: ExternalSummaryQueryDto,
@@ -287,6 +290,7 @@ export class RequestController {
   })
   @ApiExternalReadErrors()
   @Get('users')
+  @Permissions('integration.request.create')
   @ActingPermissions('request.create')
   searchUsers(
     @Query() query: ExternalUsersQueryDto,
@@ -303,6 +307,7 @@ export class RequestController {
   @ApiExternalReadErrors()
   @ApiParam(REF_PARAM)
   @Get('requests/:ref')
+  @Permissions('integration.request.read')
   @SensitiveResource('request:{typeCode}')
   @ActingPermissions('request.read')
   findOne(@Param('ref') ref: string, @CurrentPrincipal() principal: Principal) {
@@ -329,6 +334,7 @@ export class RequestController {
   @ApiExternalReadErrors()
   @ApiParam(REF_PARAM)
   @Get('requests/:ref/actions')
+  @Permissions('integration.request.read')
   @ActingPermissions('request.read')
   actions(@Param('ref') ref: string, @CurrentPrincipal() principal: Principal) {
     return this.requests.actionsFor(ref, principal);
@@ -396,14 +402,32 @@ export class RequestController {
     same table `available-actions.ts` builds the offered list from.
   */
   @Post('requests/:ref/actions/:action')
+  // the key's scope for this verb is checked in `perform` — here, any of them
+  @AnyPermission(
+    'integration.request.create',
+    'integration.request.read',
+    'integration.request.complete',
+    'integration.request.hold',
+    'integration.request.return',
+    'integration.request.cancel.own',
+    'integration.approval.decide',
+  )
   perform(
     @Param('ref') ref: string,
     @Param('action') action: string,
     @Body() dto: ExternalActionDto,
     @CurrentPrincipal() principal: Principal,
     @BearerToken() authorization: string,
+    @CurrentApiKey() key: ApiKeyContext | undefined,
   ) {
-    return this.requests.perform(ref, action, dto, principal, authorization);
+    return this.requests.perform(
+      ref,
+      action,
+      dto,
+      principal,
+      authorization,
+      key?.scopes,
+    );
   }
 
   /** Step 14 — this request, its parent, and everything spawned under it. */
@@ -415,6 +439,7 @@ export class RequestController {
   @ApiExternalReadErrors()
   @ApiParam(REF_PARAM)
   @Get('requests/:ref/tree')
+  @Permissions('integration.request.read')
   @ActingPermissions('request.read')
   tree(@Param('ref') ref: string, @CurrentPrincipal() principal: Principal) {
     return this.requests.treeOf(ref, principal);

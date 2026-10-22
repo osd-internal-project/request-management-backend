@@ -53,8 +53,16 @@ node docs/ex/lead-webhook-receiver.mjs --self-test   # ทดสอบการ�
 
 ### body ที่ agent ได้รับ
 
-header ที่มากับทุกครั้ง: `X-Webhook-Id`, `X-Webhook-Event`, `X-Webhook-Timestamp`, `X-Webhook-Signature: sha256=<hex>`
-ลายเซ็นคือ `HMAC-SHA256(secret, "<timestamp>.<body ดิบ>")`
+ทุกครั้งมี header สองชุด ตรวจชุดใดชุดหนึ่งก็พอ:
+
+| ชุด | header | ลายเซ็น |
+|---|---|---|
+| [Standard Webhooks](https://www.standardwebhooks.com/) (แนะนำ, ตั้งแต่ 22 ต.ค. 2569) | `webhook-id`, `webhook-timestamp` (วินาที), `webhook-signature: v1,<base64>` | `HMAC-SHA256(bytes ของ secret หลัง whsec_ ที่ decode base64, "<id>.<timestamp>.<body ดิบ>")` — ใช้ library `standardwebhooks` ได้เลย |
+| เดิม | `X-Webhook-Id`, `X-Webhook-Event`, `X-Webhook-Timestamp`, `X-Webhook-Signature: sha256=<hex>` | `HMAC-SHA256(secret ทั้งสตริง, "<timestamp>.<body ดิบ>")` |
+
+`webhook-id` = `X-Webhook-Id` = `id` ใน body ใช้กันรับซ้ำได้ (ส่งซ้ำเมื่อ retry)
+
+**secret ที่ออกก่อน 22 ต.ค. 2569** เป็น base64url — ตัวอย่างข้างบนตรวจได้ แต่ library `standardwebhooks` อาจ decode ไม่ได้ (ตอบว่าลายเซ็นผิด) ให้กด **ออก secret ใหม่** ที่หน้า Webhook ก่อนเปลี่ยนไปใช้ library
 
 ```json
 {

@@ -5,7 +5,9 @@ import {
   eventProblems,
   isPrivateAddress,
   nextAttemptDelayMs,
+  newWebhookSecret,
   signWebhook,
+  standardSignature,
   urlProblems,
 } from './webhook-rules';
 
@@ -21,6 +23,23 @@ describe('G-07 webhook rules', () => {
     expect(signWebhook('whsec_x', '1700000001', '{"a":1}')).not.toBe(
       `sha256=${expected}`,
     );
+  });
+
+  it('webhook-signature matches the Standard Webhooks reference vector', () => {
+    expect(
+      standardSignature(
+        'whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw',
+        'msg_p5jXN8AQM9LWM0D4loKWxJek',
+        '1614265330',
+        '{"test": 2432232314}',
+      ),
+    ).toBe('v1,g0hM9SsE+OTPJTGt/tmIKtSyZlE3uFJELVlNIOLJ1OE=');
+  });
+
+  it('a new secret is standard base64, so the standardwebhooks library can decode it', () => {
+    const body = newWebhookSecret().replace(/^whsec_/, '');
+    expect(body).toMatch(/^[A-Za-z0-9+/]{32}$/);
+    expect(Buffer.from(body, 'base64')).toHaveLength(24);
   });
 
   it('retries five times with growing delays, then gives up', () => {

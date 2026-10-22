@@ -7,10 +7,19 @@
         "operationId": "ExternalSupportController_listAssets",
         "parameters": [
           {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "X-Acting-User",
             "in": "header",
-            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
-            "required": true,
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -87,7 +96,7 @@
           "support"
         ],
         "x-permission": [
-          "integration.support.read"
+          "integration.service.asset.read"
         ],
         "x-acting-permission": [
           "service.asset.read"
@@ -99,10 +108,19 @@
         "operationId": "ExternalSupportController_asset",
         "parameters": [
           {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "X-Acting-User",
             "in": "header",
-            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
-            "required": true,
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -140,7 +158,7 @@
           "support"
         ],
         "x-permission": [
-          "integration.support.read"
+          "integration.service.asset.read"
         ],
         "x-acting-permission": [
           "service.asset.read"
@@ -153,10 +171,19 @@
         "operationId": "ExternalSupportController_listEntitlements",
         "parameters": [
           {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "X-Acting-User",
             "in": "header",
-            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
-            "required": true,
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -221,7 +248,7 @@
           "support"
         ],
         "x-permission": [
-          "integration.support.read"
+          "integration.service.asset.read"
         ],
         "x-acting-permission": [
           "service.asset.read"
@@ -233,10 +260,19 @@
         "operationId": "ExternalSupportController_entitlement",
         "parameters": [
           {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "X-Acting-User",
             "in": "header",
-            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
-            "required": true,
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -274,7 +310,7 @@
           "support"
         ],
         "x-permission": [
-          "integration.support.read"
+          "integration.service.asset.read"
         ],
         "x-acting-permission": [
           "service.asset.read"
@@ -286,10 +322,19 @@
         "operationId": "ExternalSupportController_listWorkOrders",
         "parameters": [
           {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "X-Acting-User",
             "in": "header",
-            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
-            "required": true,
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -350,7 +395,7 @@
           "support"
         ],
         "x-permission": [
-          "integration.support.read"
+          "integration.service.asset.read"
         ],
         "x-acting-permission": [
           "service.asset.read"
@@ -361,10 +406,19 @@
         "operationId": "ExternalSupportController_openWorkOrder",
         "parameters": [
           {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "X-Acting-User",
             "in": "header",
-            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
-            "required": true,
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -414,7 +468,7 @@
           "support"
         ],
         "x-permission": [
-          "integration.support.manage"
+          "integration.service.asset.manage"
         ],
         "x-acting-permission": [
           "service.asset.manage"
@@ -427,10 +481,19 @@
         "operationId": "ExternalSupportController_ofRequest",
         "parameters": [
           {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "X-Acting-User",
             "in": "header",
-            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
-            "required": true,
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -468,7 +531,7 @@
           "support"
         ],
         "x-permission": [
-          "integration.support.read"
+          "integration.service.asset.read"
         ],
         "x-acting-permission": [
           "notification.read"
@@ -480,10 +543,19 @@
         "operationId": "ExternalSupportController_workOrder",
         "parameters": [
           {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "X-Acting-User",
             "in": "header",
-            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
-            "required": true,
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -521,7 +593,7 @@
           "support"
         ],
         "x-permission": [
-          "integration.support.read"
+          "integration.service.asset.read"
         ],
         "x-acting-permission": [
           "service.asset.read"

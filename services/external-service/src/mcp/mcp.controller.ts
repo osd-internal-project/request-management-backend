@@ -7,15 +7,24 @@ import {
   Req,
   Res,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import {
+  ACTING_SCOPES,
   AnyPermission,
+  AppError,
   CurrentPrincipal,
   type Principal,
   type RequestWithPrincipal,
   ServiceAccountAllowed,
 } from '@request-management/share';
+import { tokenAudiences } from '../auth/resolve-caller';
+import {
+  isKnownProtocol,
+  PROTOCOL_VERSION_HEADER,
+  PROTOCOL_VERSIONS,
+} from './mcp-protocol';
 import { McpService } from './mcp.service';
 
 /**
@@ -30,9 +39,10 @@ import { McpService } from './mcp.service';
  * `@ServiceAccountAllowed()` rather than `@ServiceAccountOnly()`: the whole
  * point of this door is that a *person's* token may come through it, which the
  * `Only` variant refuses. And `@AnyPermission` rather than `@Permissions`,
- * because the two callers hold different grants for the same work — a service
- * account has `integration.request.create`, a human has `request.create`.
- * Demanding either one alone would lock out the other.
+ * because the two callers hold different grants for the same work — a key
+ * holds any scope that acts for a person (`ACTING_SCOPES`), a human has
+ * `request.create`. Which tool a key may call is then judged per tool
+ * against its `x-permission` (22 ต.ค. 2569).
  *
  * Neither weakens anything: whichever principal arrives, the tools run through
  * `ExternalService` with that principal, so row visibility, `assertMayAct` and
@@ -42,9 +52,12 @@ import { McpService } from './mcp.service';
 @ApiBearerAuth()
 @Controller('mcp')
 @ServiceAccountAllowed()
-@AnyPermission('integration.request.create', 'request.create')
+@AnyPermission(...ACTING_SCOPES, 'request.create')
 export class McpController {
-  constructor(private readonly mcp: McpService) {}
+  constructor(
+    private readonly mcp: McpService,
+    private readonly config: ConfigService,
+  ) {}
 
   /**
    * `@Body() body: unknown` and not a DTO, deliberately.
@@ -69,6 +82,8 @@ export class McpController {
     @CurrentPrincipal() principal: Principal,
     @Res({ passthrough: true }) response: Response,
   ): Promise<unknown> {
+    this.assertProtocolHeader(request);
+    this.assertAudience(request, principal);
     const answer = await this.mcp.handle(body, request, principal);
 
     // A notification carries no `id`, and JSON-RPC forbids replying to one.
@@ -78,5 +93,36 @@ export class McpController {
     }
 
     return answer;
+  }
+
+  /** ไม่ส่ง header = client ก่อน 2025-06-18 ยอมรับ; ส่งเวอร์ชันที่ไม่รู้จัก = 400 ตามสเปก. */
+  private assertProtocolHeader(request: RequestWithPrincipal): void {
+    const version = request.headers[PROTOCOL_VERSION_HEADER];
+    if (version === undefined || isKnownProtocol(version)) return;
+    throw new AppError(
+      'VALIDATION_FAILED',
+      `ไม่รองรับ MCP protocol เวอร์ชันนี้ — รองรับ ${PROTOCOL_VERSIONS.join(', ')}`,
+      [{ field: PROTOCOL_VERSION_HEADER, reason: String(version) }],
+    );
+  }
+
+  /**
+   * token ของคนต้องออกให้ MCP นี้ (`aud`) เมื่อตั้ง `MCP_TOKEN_AUDIENCE` —
+   * key ไม่ใช่ JWT จึงไม่ตรวจ; user-service verify ลายเซ็นไปแล้วก่อนถึงตรงนี้.
+   */
+  private assertAudience(
+    request: RequestWithPrincipal,
+    principal: Principal,
+  ): void {
+    const audience = this.config.get<string>('mcpTokenAudience');
+    if (!audience || principal.isServiceAccount) return;
+    const token = (request.headers.authorization ?? '').replace(
+      /^Bearer\s+/i,
+      '',
+    );
+    if (tokenAudiences(token).includes(audience)) return;
+    throw new AppError('UNAUTHORIZED', 'token นี้ไม่ได้ออกให้ MCP ของระบบนี้', [
+      { field: 'aud', reason: `ต้องมี ${audience}` },
+    ]);
   }
 }

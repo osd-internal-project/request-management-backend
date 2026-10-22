@@ -1,3 +1,4 @@
+import { ActsAsCompany } from '../auth/acts-as-company.decorator';
 import { Body, Controller, Get, Post, Query } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -6,11 +7,7 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import {
-  CurrentPrincipal,
-  Permissions,
-  ServiceAccountOnly,
-} from '@request-management/share';
+import { CurrentPrincipal, Permissions } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import {
   CreateProcessLogDto,
@@ -38,7 +35,7 @@ import {
 @ApiTags('process')
 @ApiBearerAuth()
 @Controller('process/logs')
-@ServiceAccountOnly()
+@ActsAsCompany()
 export class ExternalProcessLogController {
   constructor(private readonly logs: ProcessLogService) {}
 
@@ -86,7 +83,7 @@ export class ExternalProcessLogController {
 @ApiTags('process')
 @ApiBearerAuth()
 @Controller('process/refs')
-@ServiceAccountOnly()
+@ActsAsCompany()
 export class ExternalProcessRefsController {
   constructor(private readonly refs: ProcessRefsService) {}
 

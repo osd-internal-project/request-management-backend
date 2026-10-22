@@ -19,7 +19,7 @@ import {
   isNotification,
   type JsonRpcRequest,
   type JsonRpcResponse,
-  PROTOCOL_VERSION,
+  negotiateProtocol,
   RPC_INTERNAL_ERROR,
   RPC_INVALID_PARAMS,
   RPC_INVALID_REQUEST,
@@ -30,7 +30,7 @@ import {
   SERVER_INSTRUCTIONS,
   toolResult,
 } from './mcp-protocol';
-import { McpCallLogService } from '@request-management/core-service';
+import { getApiKey, McpCallLogService } from '@request-management/core-service';
 import { McpToolRegistry } from './mcp-tools';
 import { McpActorService } from './mcp-actor';
 
@@ -66,7 +66,7 @@ export class McpService {
     switch (rpc.method) {
       case 'initialize':
         return rpcResult(rpc.id, {
-          protocolVersion: PROTOCOL_VERSION,
+          protocolVersion: negotiateProtocol(rpc.params?.protocolVersion),
           capabilities: { tools: {} },
           serverInfo: SERVER_INFO,
           instructions: SERVER_INSTRUCTIONS,
@@ -150,6 +150,7 @@ export class McpService {
       const value = await this.tools.call(name, args, {
         actor,
         authorization: request.headers.authorization ?? '',
+        keyScopes: getApiKey(request)?.scopes,
       });
 
       this.log(caller, actor, name, args, started, { result: value });

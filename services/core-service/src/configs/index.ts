@@ -210,6 +210,11 @@ export default () => ({
       .filter(Boolean),
   },
 
+  /** เหตุการณ์ → workflow (admin/workflow-triggers) — how often due starts are sent (ms); 0 = off. */
+  workflowTrigger: {
+    intervalMs: Number(process.env.WORKFLOW_TRIGGER_INTERVAL_MS ?? 15000),
+  },
+
   kb: {
     /** CD-260 — review-day reminders of knowledge articles (ms); 0 = off. */
     reviewIntervalMs: Number(process.env.KB_REVIEW_INTERVAL_MS ?? 21600000),

@@ -48,7 +48,7 @@ export class ExternalSupportController {
     description: '`q` = serial / ชื่อ / รุ่น / สถานที่ · กรองตามลูกค้าได้',
   })
   @Get('assets')
-  @Permissions('integration.support.read')
+  @Permissions('integration.service.asset.read')
   @ActingPermissions('service.asset.read')
   listAssets(
     @Query() query: ListAssetsQueryDto,
@@ -59,7 +59,7 @@ export class ExternalSupportController {
 
   @ApiOperation({ summary: 'รายละเอียดและประวัติของอุปกรณ์' })
   @Get('assets/:id')
-  @Permissions('integration.support.read')
+  @Permissions('integration.service.asset.read')
   @ActingPermissions('service.asset.read')
   asset(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
     return this.assets.detail(principal, id);
@@ -72,7 +72,7 @@ export class ExternalSupportController {
     description: 'กรองลูกค้า สถานะ และที่ใกล้หมดอายุ',
   })
   @Get('entitlements')
-  @Permissions('integration.support.read')
+  @Permissions('integration.service.asset.read')
   @ActingPermissions('service.asset.read')
   listEntitlements(
     @Query() query: ListEntitlementsQueryDto,
@@ -83,7 +83,7 @@ export class ExternalSupportController {
 
   @ApiOperation({ summary: 'รายละเอียดสิทธิ์ และอุปกรณ์ที่ครอบคลุม' })
   @Get('entitlements/:id')
-  @Permissions('integration.support.read')
+  @Permissions('integration.service.asset.read')
   @ActingPermissions('service.asset.read')
   entitlement(
     @Param('id') id: string,
@@ -96,7 +96,7 @@ export class ExternalSupportController {
 
   @ApiOperation({ summary: 'ใบสั่งงานบริการ — ที่ยังเปิด หรือทั้งหมด' })
   @Get('work-orders')
-  @Permissions('integration.support.read')
+  @Permissions('integration.service.asset.read')
   @ActingPermissions('service.asset.read')
   listWorkOrders(
     @Query() query: ListWorkOrdersQueryDto,
@@ -115,7 +115,7 @@ export class ExternalSupportController {
   })
   @ApiHeader(IDEMPOTENCY_KEY_HEADER)
   @Post('work-orders')
-  @Permissions('integration.support.manage')
+  @Permissions('integration.service.asset.manage')
   @ActingPermissions('service.asset.manage')
   openWorkOrder(
     @Body() dto: OpenWorkOrderDto,
@@ -131,7 +131,7 @@ export class ExternalSupportController {
     description: '`null` ถ้าคำขอนี้ไม่ใช่ใบสั่งงานบริการ',
   })
   @Get('work-orders/by-request/:requestId')
-  @Permissions('integration.support.read')
+  @Permissions('integration.service.asset.read')
   @ActingPermissions('notification.read')
   ofRequest(
     @Param('requestId') requestId: string,
@@ -142,7 +142,7 @@ export class ExternalSupportController {
 
   @ApiOperation({ summary: 'รายละเอียด + สิทธิ์ที่ครอบคลุมอุปกรณ์วันนี้' })
   @Get('work-orders/:id')
-  @Permissions('integration.support.read')
+  @Permissions('integration.service.asset.read')
   @ActingPermissions('service.asset.read')
   workOrder(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
     return this.orders.detail(principal, id);

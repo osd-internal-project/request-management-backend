@@ -4,11 +4,32 @@ import {
   ActingPolicyGuard,
   ServiceAccountOnly,
 } from '@request-management/share';
-import { ACTING_USER_HEADER_LABEL, ActingUserGuard } from './acting-user.guard';
+import {
+  ACTING_USER_HEADER_LABEL,
+  ActingUserGuard,
+  USER_TOKEN_HEADER_LABEL,
+} from './acting-user.guard';
+
+/** ผู้ใช้ที่ทำแทน — ส่ง header ตัวใดตัวหนึ่ง (`resolve-caller.ts`). เอกสารเท่านั้น. */
+export const ApiActingHeaders = () =>
+  applyDecorators(
+    ApiHeader({
+      name: USER_TOKEN_HEADER_LABEL,
+      required: false,
+      description:
+        'Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก',
+    }),
+    ApiHeader({
+      name: ACTING_USER_HEADER_LABEL,
+      required: false,
+      description:
+        'อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้',
+    }),
+  );
 
 /**
  * The class-level half of the two-gate model, for controllers whose every
- * route acts for the person in `X-Acting-User`.
+ * route acts for a person (`X-User-Token`, or `X-Acting-User` where allowed).
  *
  * It is exactly what the generated CRM controllers spell out by hand: a
  * service-account credential, the acting-user swap, then the person's own
@@ -21,11 +42,7 @@ import { ACTING_USER_HEADER_LABEL, ActingUserGuard } from './acting-user.guard';
 export const ActsForPerson = () =>
   applyDecorators(
     ApiBearerAuth(),
-    ApiHeader({
-      name: ACTING_USER_HEADER_LABEL,
-      required: true,
-      description: 'อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้',
-    }),
+    ApiActingHeaders(),
     ServiceAccountOnly(),
     UseGuards(ActingUserGuard, ActingPolicyGuard),
   );

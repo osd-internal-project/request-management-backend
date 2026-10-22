@@ -19,6 +19,7 @@ import {
   DELIVERY_TIMEOUT_MS,
   nextAttemptDelayMs,
   signWebhook,
+  standardSignature,
 } from './webhook-rules';
 
 const BATCH = 20;
@@ -159,6 +160,15 @@ export class WebhookDeliveryService implements OnModuleInit, OnModuleDestroy {
           'X-Webhook-Event': delivery.eventName,
           'X-Webhook-Timestamp': timestamp,
           'X-Webhook-Signature': signWebhook(secret, timestamp, body),
+          // Standard Webhooks — ผู้รับใช้ library มาตรฐาน verify ได้; header เดิมคงไว้
+          'webhook-id': delivery.eventId,
+          'webhook-timestamp': timestamp,
+          'webhook-signature': standardSignature(
+            secret,
+            delivery.eventId,
+            timestamp,
+            body,
+          ),
         },
         body,
       });

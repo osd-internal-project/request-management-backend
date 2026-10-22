@@ -137,6 +137,13 @@ describe('G-07 webhook delivery', () => {
       .update(`${headers['X-Webhook-Timestamp']}.${body}`)
       .digest('hex');
     expect(headers['X-Webhook-Signature']).toBe(`sha256=${mac}`);
+    // Standard Webhooks: same id and timestamp, key = bytes after `whsec_`
+    expect(headers['webhook-id']).toBe('evt-1');
+    expect(headers['webhook-timestamp']).toBe(headers['X-Webhook-Timestamp']);
+    const standard = createHmac('sha256', Buffer.from('test', 'base64'))
+      .update(`evt-1.${headers['webhook-timestamp']}.${body}`)
+      .digest('base64');
+    expect(headers['webhook-signature']).toBe(`v1,${standard}`);
     expect(JSON.parse(body)).toEqual({
       id: 'evt-1',
       event: 'request.approved',

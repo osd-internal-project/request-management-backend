@@ -13,6 +13,9 @@
     "x-acting-permission": [
       "approval.decide"
     ],
+    "x-permission": [
+      "integration.approval.decide"
+    ],
     "x-sensitive-resource": ""
   },
   {
@@ -46,6 +49,9 @@
     "x-acting-permission": [
       "crm.sales.read"
     ],
+    "x-permission": [
+      "integration.crm.sales.read"
+    ],
     "x-sensitive-resource": ""
   },
   {
@@ -70,6 +76,9 @@
     },
     "x-acting-permission": [
       "crm.sales.read"
+    ],
+    "x-permission": [
+      "integration.crm.sales.read"
     ],
     "x-sensitive-resource": ""
   },
@@ -105,6 +114,9 @@
     "x-acting-permission": [
       "notification.read"
     ],
+    "x-permission": [
+      "integration.assistant.read"
+    ],
     "x-sensitive-resource": ""
   },
   {
@@ -129,6 +141,9 @@
     },
     "x-acting-permission": [
       "notification.read"
+    ],
+    "x-permission": [
+      "integration.assistant.read"
     ],
     "x-sensitive-resource": ""
   },
@@ -158,6 +173,9 @@
     "x-acting-permission": [
       "service.asset.read"
     ],
+    "x-permission": [
+      "integration.service.asset.read"
+    ],
     "x-sensitive-resource": ""
   },
   {
@@ -173,6 +191,9 @@
     },
     "x-acting-permission": [
       "notification.read"
+    ],
+    "x-permission": [
+      "integration.assistant.read"
     ],
     "x-sensitive-resource": ""
   },
@@ -242,6 +263,9 @@
     "x-acting-permission": [
       "crm.customer.read"
     ],
+    "x-permission": [
+      "integration.crm.customer.read"
+    ],
     "x-sensitive-resource": "customer"
   },
   {
@@ -265,6 +289,9 @@
     "x-acting-permission": [
       "crm.customer.read"
     ],
+    "x-permission": [
+      "integration.crm.customer.read"
+    ],
     "x-sensitive-resource": "customer"
   },
   {
@@ -287,6 +314,9 @@
     },
     "x-acting-permission": [
       "crm.customer.read"
+    ],
+    "x-permission": [
+      "integration.crm.customer.read"
     ],
     "x-sensitive-resource": ""
   },
@@ -356,6 +386,9 @@
     "x-acting-permission": [
       "crm.sales.read"
     ],
+    "x-permission": [
+      "integration.crm.sales.read"
+    ],
     "x-sensitive-resource": ""
   },
   {
@@ -379,6 +412,9 @@
     "x-acting-permission": [
       "crm.sales.read"
     ],
+    "x-permission": [
+      "integration.crm.sales.read"
+    ],
     "x-sensitive-resource": ""
   },
   {
@@ -394,6 +430,9 @@
     },
     "x-acting-permission": [
       "crm.sales.read"
+    ],
+    "x-permission": [
+      "integration.crm.sales.read"
     ],
     "x-sensitive-resource": ""
   },
@@ -497,6 +536,9 @@
     "x-acting-permission": [
       "crm.sales.read"
     ],
+    "x-permission": [
+      "integration.crm.sales.read"
+    ],
     "x-sensitive-resource": ""
   },
   {
@@ -519,6 +561,9 @@
     },
     "x-acting-permission": [
       "crm.sales.read"
+    ],
+    "x-permission": [
+      "integration.crm.sales.read"
     ],
     "x-sensitive-resource": ""
   },
@@ -604,6 +649,9 @@
     "x-acting-permission": [
       "crm.sales.read"
     ],
+    "x-permission": [
+      "integration.crm.sales.read"
+    ],
     "x-sensitive-resource": "quotation"
   },
   {
@@ -626,6 +674,9 @@
     },
     "x-acting-permission": [
       "crm.sales.read"
+    ],
+    "x-permission": [
+      "integration.crm.sales.read"
     ],
     "x-sensitive-resource": "quotation"
   },
@@ -654,6 +705,9 @@
     },
     "x-acting-permission": [
       "crm.sales.manage"
+    ],
+    "x-permission": [
+      "integration.crm.sales.manage"
     ],
     "x-sensitive-resource": ""
   },
@@ -684,6 +738,9 @@
     },
     "x-acting-permission": [
       "crm.sales.manage"
+    ],
+    "x-permission": [
+      "integration.crm.sales.manage"
     ],
     "x-sensitive-resource": ""
   },
@@ -837,6 +894,18 @@
           "example": "2026-12-31",
           "description": "คาดว่าจะตัดสินใจภายใน (วันที่)",
           "format": "date-time"
+        },
+        "intake_data": {
+          "type": "object",
+          "description": "ข้อมูลที่ช่องทางเก็บมาแต่ไม่มีช่องใน Lead — JSON object ใดก็ได้ ไม่เกิน 16 KB. แก้ภายหลังด้วย `PATCH …/leads/{id}/intake-data`",
+          "example": {
+            "budget_range": "1-3M",
+            "interested_in": [
+              "CCTV",
+              "Network"
+            ]
+          },
+          "additionalProperties": true
         }
       },
       "required": [
@@ -849,6 +918,9 @@
     },
     "x-acting-permission": [
       "crm.sales.manage"
+    ],
+    "x-permission": [
+      "integration.crm.sales.manage"
     ],
     "x-sensitive-resource": ""
   },
@@ -915,6 +987,9 @@
     "x-acting-permission": [
       "crm.sales.manage"
     ],
+    "x-permission": [
+      "integration.crm.sales.manage"
+    ],
     "x-sensitive-resource": ""
   },
   {
@@ -953,6 +1028,9 @@
     },
     "x-acting-permission": [
       "crm.sales.manage"
+    ],
+    "x-permission": [
+      "integration.crm.sales.manage"
     ],
     "x-sensitive-resource": ""
   },
@@ -1048,6 +1126,9 @@
     "x-acting-permission": [
       "crm.sales.manage"
     ],
+    "x-permission": [
+      "integration.crm.sales.manage"
+    ],
     "x-sensitive-resource": ""
   },
   {
@@ -1108,6 +1189,9 @@
     "x-acting-permission": [
       "request.read"
     ],
+    "x-permission": [
+      "integration.request.read"
+    ],
     "x-sensitive-resource": ""
   },
   {
@@ -1130,6 +1214,9 @@
     },
     "x-acting-permission": [
       "request.read"
+    ],
+    "x-permission": [
+      "integration.request.read"
     ],
     "x-sensitive-resource": ""
   },
@@ -1156,6 +1243,9 @@
     "x-acting-permission": [
       "request.create"
     ],
+    "x-permission": [
+      "integration.request.create"
+    ],
     "x-sensitive-resource": ""
   },
   {
@@ -1180,6 +1270,9 @@
     },
     "x-acting-permission": [
       "request.create"
+    ],
+    "x-permission": [
+      "integration.request.create"
     ],
     "x-sensitive-resource": ""
   },
@@ -1265,6 +1358,9 @@
     "x-acting-permission": [
       "request.read"
     ],
+    "x-permission": [
+      "integration.request.read"
+    ],
     "x-sensitive-resource": "request:{typeCode}"
   },
   {
@@ -1289,6 +1385,9 @@
     },
     "x-acting-permission": [
       "request.read"
+    ],
+    "x-permission": [
+      "integration.request.read"
     ],
     "x-sensitive-resource": "request:{typeCode}"
   },
@@ -1315,6 +1414,9 @@
     "x-acting-permission": [
       "request.read"
     ],
+    "x-permission": [
+      "integration.request.read"
+    ],
     "x-sensitive-resource": ""
   },
   {
@@ -1339,6 +1441,9 @@
     },
     "x-acting-permission": [
       "request.read"
+    ],
+    "x-permission": [
+      "integration.request.read"
     ],
     "x-sensitive-resource": ""
   },
@@ -1405,6 +1510,9 @@
     "x-acting-permission": [
       "request.read"
     ],
+    "x-permission": [
+      "integration.request.read"
+    ],
     "x-sensitive-resource": ""
   },
   {
@@ -1457,6 +1565,9 @@
     },
     "x-acting-permission": [
       "request.create"
+    ],
+    "x-permission": [
+      "integration.request.create"
     ],
     "x-sensitive-resource": ""
   },
@@ -1521,6 +1632,9 @@
     },
     "x-acting-permission": [
       "request.create"
+    ],
+    "x-permission": [
+      "integration.request.create"
     ],
     "x-sensitive-resource": ""
   },
@@ -1614,6 +1728,7 @@
       "path": "/api/v1/request/requests/{ref}/actions/{action}"
     },
     "x-acting-permission": [],
+    "x-permission": [],
     "x-sensitive-resource": ""
   }
 ]

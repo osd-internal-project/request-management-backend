@@ -17,6 +17,7 @@
  * `crm-route-parity.spec.ts` fails if a route exists on one side and not the
  * other, or if a pair's permissions stop corresponding.
  */
+import { ApiActingHeaders } from '../auth/acts-for-person.decorator';
 import {
   Body,
   Controller,
@@ -31,12 +32,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiHeader,
-  ApiOperation,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   ActingPermissions,
   ActingPolicyGuard,
@@ -66,10 +62,7 @@ import {
   UpdateCustomerDto,
   UpsertExternalCodeDto,
 } from '@request-management/core-service';
-import {
-  ACTING_USER_HEADER_LABEL,
-  ActingUserGuard,
-} from '../auth/acting-user.guard';
+import { ActingUserGuard } from '../auth/acting-user.guard';
 
 /**
  * Customer Master (CM-01…08) — spec artifact 856c08fd.
@@ -81,11 +74,7 @@ import {
  */
 @ApiTags('crm')
 @ApiBearerAuth()
-@ApiHeader({
-  name: ACTING_USER_HEADER_LABEL,
-  required: true,
-  description: 'อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้',
-})
+@ApiActingHeaders()
 @Controller('crm/customers')
 @ServiceAccountOnly()
 @UseGuards(ActingUserGuard, ActingPolicyGuard)
@@ -166,7 +155,7 @@ export class ExternalCustomersController {
     description: 'งานของผู้ดูแล — dry_run ตอบรายงานรายบรรทัดโดยไม่เขียน',
   })
   @Post('import')
-  @Permissions('integration.crm.admin.manage')
+  @Permissions('integration.admin.crm.manage')
   @ActingPermissions('admin.crm.manage')
   @HttpCode(HttpStatus.OK)
   import(
@@ -217,7 +206,7 @@ export class ExternalCustomersController {
       'ERP_MODE=mock = ไม่แสดงตัวเลข',
   })
   @Get(':id/invoices')
-  @Permissions('integration.crm.customer.read')
+  @Permissions('integration.crm.customer.financial.read')
   @ActingPermissions('crm.customer.financial.read')
   invoices(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
     return this.invoiceReader.list(id, principal);
@@ -525,7 +514,7 @@ export class ExternalCustomersController {
     description: 'SAP และระบบสายบัญชี — งานของผู้ดูแล',
   })
   @Get(':id/external-codes')
-  @Permissions('integration.crm.admin.manage')
+  @Permissions('integration.admin.crm.manage')
   @ActingPermissions('admin.crm.manage')
   externalCodes(
     @Param('id') id: string,
@@ -539,7 +528,7 @@ export class ExternalCustomersController {
     description: 'หนึ่งรหัสต่อหนึ่งระบบต่อหนึ่งลูกค้า',
   })
   @Put(':id/external-codes')
-  @Permissions('integration.crm.admin.manage')
+  @Permissions('integration.admin.crm.manage')
   @ActingPermissions('admin.crm.manage')
   upsertExternalCode(
     @Param('id') id: string,

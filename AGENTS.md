@@ -22,6 +22,9 @@ them was broken in this repo in a single sprint:
 - Phase 6 was built before Phase 1 — and the screens that stalled were exactly the ones
   Phase 1 was supposed to supply.
 - "Done" without a count is how 9 of 11 items got reported as 11.
+- Every closing report ends with two headed sections — **งานต่อไป** (the next phase's steps)
+  and **ที่เหลือ** (a table of every later phase and open item, with who acts) — never a
+  one-line "next is Phase N" (user corrected this repeatedly, 22 Oct 2026).
 - A screen check that only looked for a marker comment passed A1, A2 and A4 while all
   three were half-built. Check content, not the presence of a label.
 
@@ -428,7 +431,10 @@ state here.
 leads for the company, not for a person, so there is no person's scope to borrow.
 Its rows are every lead of the key's company: `integration.crm.lead.read` sets
 `readsAllLeads` in `visibleLeadsWhere` (leads only, the workflow engine's key too),
-and these routes refuse a key bound to no company. Its abilities are one scope per
+and these routes refuse a key bound to no company. Only the machine's own
+principal reads all: a person it acts for through `X-Acting-User` or MCP keeps
+their own rows, even with the scope in their list — `mcp-scope.e2e-spec.ts`
+caught that leak on 22 Oct 2026. Its abilities are one scope per
 use case — `lead.update` (detail + intake data), `lead.convert` (the deal goes to the
 lead's owner; a pool lead answers 409), `lead.contact.read` (email/phone, never in a
 webhook payload). Create and status stay on `crm/leads/intake` and `:id/stage`. A
@@ -488,6 +494,9 @@ company's `ai_audit_policies.retentionDays` (default 365) and the daily
 sweep in `AiAuditService` deletes older rows — a declared exception to "no
 hard deletes": these are access logs, and keeping them only as long as the
 policy says is what the policy is for. `audit_logs` stays append-only.
+`integration_calls` (22 Oct 2026) is the same exception: `IntegrationCallMiddleware`
+writes one row per external-service request (route template, mode, status — never
+body or headers) and the same sweep deletes it on the same retention.
 
 `crm/leads/intake` earned its suffix on 21 Sep 2026: it used to be `POST
 crm/leads`, which `ExternalLeadsController.create` also bound. That controller

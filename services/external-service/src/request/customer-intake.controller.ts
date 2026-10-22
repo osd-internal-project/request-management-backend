@@ -1,10 +1,7 @@
+import { ActsAsCompany } from '../auth/acts-as-company.decorator';
 import { Body, Controller, Get, Headers, Param, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import {
-  CurrentPrincipal,
-  Permissions,
-  ServiceAccountOnly,
-} from '@request-management/share';
+import { CurrentPrincipal, Permissions } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import {
   type ApiKeyContext,
@@ -38,7 +35,7 @@ export class CustomerIntakeController {
 
   @Get('web-forms/:slug')
   @Permissions('integration.request.intake')
-  @ServiceAccountOnly()
+  @ActsAsCompany()
   @ApiOperation({
     summary: 'แบบฟอร์มสาธารณะ: ข้อความและประเภทคำขอที่เปิดรับ (CD-66)',
     description:
@@ -53,7 +50,7 @@ export class CustomerIntakeController {
 
   @Post('web-forms/:slug')
   @Permissions('integration.request.intake')
-  @ServiceAccountOnly()
+  @ActsAsCompany()
   @ApiOperation({
     summary: 'ลูกค้ายื่นคำขอผ่านแบบฟอร์มสาธารณะ (CD-66)',
     description:
@@ -77,7 +74,7 @@ export class CustomerIntakeController {
 
   @Post('channels/:channel')
   @Permissions('integration.request.intake')
-  @ServiceAccountOnly()
+  @ActsAsCompany()
   @ApiOperation({
     summary: 'ช่องทางอื่น (เช่น AI CARE) ยื่นคำขอแทนลูกค้า (CD-66)',
     description:
@@ -103,7 +100,7 @@ export class CustomerIntakeController {
 
   @Get('status/:token')
   @Permissions('integration.request.intake')
-  @ServiceAccountOnly()
+  @ActsAsCompany()
   @ApiOperation({
     summary: 'สถานะคำขอตามลิงก์ติดตามของลูกค้า (CD-66)',
     description:

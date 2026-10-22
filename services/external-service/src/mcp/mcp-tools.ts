@@ -47,6 +47,8 @@ interface ToolSpec {
    * `POST requests/:ref/actions/:action` ที่อ่าน `ACTION_PERMISSIONS` ใน `perform`
    */
   'x-acting-permission'?: string[];
+  /** scope ของ key ที่ route นั้นถาม (`@Permissions`) — ตรวจเมื่อเรียกมาด้วย API key. */
+  'x-permission'?: string[];
   /**
    * ชุดกฎปกปิด SCOPE-04 ของคำตอบ route นี้ — ว่าง = ไม่มีฟิลด์อ่อนไหว.
    *
@@ -71,6 +73,8 @@ export interface ToolContext {
   readonly actor: Principal;
   /** Forwarded to user-service by the calls that resolve an approval chain. */
   readonly authorization: string;
+  /** scope ของ API key ที่เรียกมา — `undefined` = token ของคนเอง ไม่มี key. */
+  readonly keyScopes?: readonly string[];
 }
 
 type ToolArgs = Record<string, unknown>;
@@ -161,6 +165,8 @@ export class McpToolRegistry implements OnModuleInit {
 
   /** ชื่อ tool → สิทธิ์ที่คนใน `X-Acting-User` ต้องถือ. */
   private actingPermissions = new Map<string, string[]>();
+  /** ชื่อ tool → scope ที่ API key ต้องถือ (key ∩ คน เหมือน REST). */
+  private keyPermissions = new Map<string, string[]>();
   /** ชื่อ tool → ชุดกฎปกปิดของคำตอบ (ว่าง = ไม่ต้องปกปิด). */
   private sensitiveResources = new Map<string, string>();
   /** Why MCP has no tools, when that is a fault rather than a catalogue. */
@@ -228,7 +234,7 @@ export class McpToolRegistry implements OnModuleInit {
 
     request_post_requests_ref_actions_action: (
       args,
-      { actor, authorization },
+      { actor, authorization, keyScopes },
     ) =>
       this.external.perform(
         requireString(args, 'ref'),
@@ -236,6 +242,7 @@ export class McpToolRegistry implements OnModuleInit {
         rest(args, 'ref', 'action'),
         actor,
         authorization,
+        keyScopes,
       ),
 
     /*
@@ -380,6 +387,10 @@ export class McpToolRegistry implements OnModuleInit {
       specs.map((spec) => [spec.name, spec['x-acting-permission'] ?? []]),
     );
 
+    this.keyPermissions = new Map(
+      specs.map((spec) => [spec.name, spec['x-permission'] ?? []]),
+    );
+
     this.sensitiveResources = new Map(
       specs.map((spec) => [spec.name, spec['x-sensitive-resource'] ?? '']),
     );
@@ -410,6 +421,17 @@ export class McpToolRegistry implements OnModuleInit {
       throw new Error(
         'external-tools.json มาจากก่อนที่ MCP จะปกปิดฟิลด์อ่อนไหว — ' +
           `${unmasked.length} tool ไม่มี x-sensitive-resource\n` +
+          '  รัน `yarn openapi && yarn tools` ใหม่',
+      );
+    }
+
+    // tool ที่ไม่ประกาศ scope ของ key จะเปิดให้ทุก key ที่ผ่านทางเข้า MCP
+    const keyless = specs.filter((spec) => !('x-permission' in spec));
+
+    if (keyless.length) {
+      throw new Error(
+        'external-tools.json มาจากก่อนที่ MCP จะตรวจ scope ของ key — ' +
+          `${keyless.length} tool ไม่มี x-permission\n` +
           '  รัน `yarn openapi && yarn tools` ใหม่',
       );
     }
@@ -458,6 +480,7 @@ export class McpToolRegistry implements OnModuleInit {
     args: ToolArgs,
     context: ToolContext,
   ): Promise<unknown> {
+    this.assertKeyMay(name, context.keyScopes);
     this.assertActorMay(name, context.actor);
 
     const value = await this.handlers[name](args, context);
@@ -476,6 +499,24 @@ export class McpToolRegistry implements OnModuleInit {
    * ข้อความเดียวกับ `ActingPolicyGuard` โดยตั้งใจ — คนที่ debug อยู่ไม่ควรต้องรู้ว่า
    * คำขอเดินมาทาง REST หรือ MCP ถึงจะอ่าน error ออก
    */
+  /** ประตูแรกของ REST (`PolicyGuard`) ต่อ tool — token ของคนที่ไม่มี key ข้าม. */
+  private assertKeyMay(
+    name: string,
+    keyScopes: readonly string[] | undefined,
+  ): void {
+    if (!keyScopes) return;
+    const missing = (this.keyPermissions.get(name) ?? []).filter(
+      (scope) => !keyScopes.includes(scope),
+    );
+    if (!missing.length) return;
+
+    throw new AppError(
+      'FORBIDDEN',
+      'API key นี้ไม่มีสิทธิ์เรียก tool นี้',
+      missing.map((scope) => ({ field: 'scope', reason: scope })),
+    );
+  }
+
   private assertActorMay(name: string, actor: Principal): void {
     const required = this.actingPermissions.get(name) ?? [];
     const held = new Set<string>(actor.permissions);

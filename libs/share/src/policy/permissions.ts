@@ -276,140 +276,74 @@ export const PERMISSIONS = {
    * กำลังให้สิทธิ์ของเครื่องกับคน.
    */
   integration: [
+    /*
+      กฎ (22 ต.ค. 2569): scope ของ key = `integration.` + สิทธิ์ผู้ใช้ที่ route ใช้
+      (`ExternalPermission` ด้านล่างคำนวณจากรายการนี้) — key กับคนตัดกันตรง ๆ
+      และ use case เป็นแค่ชุดที่ติ๊กไว้ให้ ไม่ใช่สิทธิ์ใหม่.
+      `crm-route-parity.spec.ts` ตรวจทุก route ของ external-service.
+    */
     'integration.request.create',
+    'integration.request.read',
+    'integration.request.complete',
+    'integration.request.hold',
+    'integration.request.return',
+    'integration.request.cancel.own',
+    'integration.approval.decide',
+    'integration.crm.customer.read',
+    'integration.crm.customer.manage',
+    'integration.crm.customer.financial.read',
+    'integration.crm.sales.read',
+    'integration.crm.sales.manage',
+    'integration.crm.campaign.manage',
+    'integration.crm.target.manage',
+    'integration.admin.crm.manage',
+    'integration.disbursement.pay',
+    'integration.disbursement.verify',
+    'integration.legal.contract.read',
+    'integration.pm.project.read',
+    'integration.pm.project.manage',
+    'integration.presales.solution.read',
+    'integration.delivery.read',
+    'integration.service.asset.read',
+    'integration.service.asset.manage',
     /**
-     * CD-66: a customer channel (the public web form's server side, AI CARE,
-     * the LINE connector) raising a request through a company's intake
-     * channel, and reading its status by the private token. Deliberately not
-     * `integration.request.create`: that scope also opens the routes that act
-     * as any user through `X-Acting-User`, which a key sitting behind a public
-     * form must never be able to do.
+     * CD-276 — ผู้ช่วยส่วนตัว (LibreChat ผ่าน MCP). route ที่ฝั่งคนแค่ต้อง login
+     * (`notification.read`) ไม่มีสิทธิ์ของคนให้จับคู่ จึงใช้ชื่อ module นี้แทน.
+     */
+    'integration.assistant.read',
+    /*
+      ในนามบริษัท — ไม่มีคนปลายทาง จึงตั้งชื่อเป็น resource.action.
+    */
+    /**
+     * CD-66: ช่องทางลูกค้า (เว็บฟอร์มสาธารณะ, AI CARE, LINE) เปิดคำขอผ่าน intake
+     * ของบริษัท และอ่านสถานะด้วย token ส่วนตัว — ไปถึง route `X-Acting-User` ไม่ได้.
      */
     'integration.request.intake',
     'integration.approval.create',
-    'integration.disbursement.read',
-    'integration.disbursement.manage',
     /**
-     * The workflow engine reading the facts its Decision nodes test
-     * ("Workflow owns Process, Core owns Data", PO 10 ก.ย. 2569). Read-only and
-     * separate from `crm.sales.read` so a human role can never pick it up.
-     * Its holder reads every lead of the key's company (`readsAllLeads`) —
-     * the AI agent's `GET crm/ai/leads/{id}` too, without contact data.
+     * workflow engine อ่านข้อเท็จจริงของ Lead ทุกใบในบริษัทของ key
+     * (`readsAllLeads`) — รวม `GET crm/ai/leads/{id}` ที่ไม่มีข้อมูลติดต่อ.
      */
     'integration.crm.lead.read',
-    /**
-     * The workflow engine applying a stage it has already decided. Whether the
-     * move is *allowed* is settled on `lwf-0001`; this permission only says
-     * which caller may hand the answer back.
-     */
+    /** workflow engine ส่งผลการเลื่อนขั้นที่ตัดสินแล้วกลับมา (`lwf-0001`). */
     'integration.crm.lead.stage',
-    /**
-     * ระบบภายนอกยิง Lead เข้ามาเอง — เว็บฟอร์ม, LINE OA, งานอีเวนต์
-     * (14 ก.ย. 2569). แยกจาก `crm.sales.manage` ด้วยเหตุผลเดียวกับสองตัวบน:
-     * ผู้ถือคือบัญชีบริการที่ *เพิ่ม* ใบเข้ากองกลางได้อย่างเดียว อ่านทะเบียนที่
-     * มีอยู่ไม่ได้ เลื่อนขั้นไม่ได้ แปลงไม่ได้ — ประตูเปิดกว้างเท่าที่การรับ
-     * ข้อมูลเข้าต้องใช้ ไม่ใช่เท่าที่พนักงานขายหนึ่งคนทำได้.
-     */
+    /** ระบบภายนอกยิง Lead เข้ากองกลาง — เพิ่มได้อย่างเดียว อ่าน/แปลงไม่ได้. */
     'integration.crm.lead.create',
-    /**
-     * AI agent acting for the company, not for a person (22 ต.ค. 2569) —
-     * `crm/ai/leads/*`, no `X-Acting-User`. One scope per use case so a key
-     * gets exactly what its agent does: `update` = detail + intake data,
-     * `convert` = open the opportunity (owned by the lead's owner).
-     */
+    /** AI agent ในนามบริษัท: `update` = รายละเอียด + intake data, `convert` = เปิดดีล. */
     'integration.crm.lead.update',
     'integration.crm.lead.convert',
-    /**
-     * Email, phone and contact name of a lead on `GET crm/ai/leads/{id}`.
-     * Apart from `lead.read` because it is personal data: an agent that only
-     * routes leads should never hold it, and webhooks never carry it.
-     */
+    /** อีเมล/โทรศัพท์ของ Lead — ข้อมูลส่วนบุคคล แยกจาก `lead.read` และไม่อยู่ใน webhook. */
     'integration.crm.lead.contact.read',
-    /**
-     * CRM ทั้งชุดที่เปิดให้ระบบภายนอกเรียกผ่าน external-service
-     * (`api/v1/crm/*`). สี่ตัวนี้เป็น **ประตูของเครื่อง** อย่างเดียว — ตอบแค่ว่า
-     * integration ตัวนี้ได้รับอนุญาตให้แตะ CRM ไหม ไม่ได้ตอบว่าใครทำอะไรได้.
-     *
-     * สิทธิ์ของคนที่ integration ทำแทนถูกตรวจแยกด้วย `@ActingPermissions`
-     * ซึ่งประกาศ `crm.customer.*` / `crm.sales.*` ตัวเดิมที่ route ของหน้าเว็บ
-     * ประกาศ — สองประตู คนละคำถาม ดู `ActingPolicyGuard`.
-     *
-     * แยก read กับ manage เพื่อให้กุญแจของ chatbot ที่ต้องอ่านอย่างเดียวออกได้
-     * โดยไม่พ่วงสิทธิ์เขียน และแยก customer กับ sales ตามแนวเดียวกับ
-     * `crm.customer.*` / `crm.sales.*` ที่มีอยู่แล้ว.
-     */
-    'integration.crm.customer.read',
-    'integration.crm.customer.manage',
-    'integration.crm.sales.read',
-    'integration.crm.sales.manage',
-    /**
-     * หน้าตั้งค่า CRM (สถานะ Lead, กฎ KYC, มิติ segment, ค่าคอนฟิกบริษัท)
-     * ที่เปิดให้ระบบภายนอกอ่าน/แก้ผ่าน `api/v1/crm/admin/*`.
-     *
-     * แยกจาก `admin.crm.manage` ไม่ใช่ใช้ตัวเดียวกัน เพราะสองคำถามต่างกัน:
-     * ตัวนี้ตอบว่า integration ตัวไหนแตะหน้าตั้งค่าได้ ส่วน `admin.crm.manage`
-     * ยังถูกตรวจกับ *คน* ใน `X-Acting-User` ต่อไปด้วย `@ActingPermissions`.
-     * กุญแจที่ถือตัวนี้จึงยังทำอะไรไม่ได้ ถ้าคนที่มันทำแทนไม่ใช่ผู้ดูแล CRM.
-     */
-    'integration.crm.admin.manage',
-    /**
-     * สายงานหลังดีลที่เปิดให้ระบบภายนอกเรียก (6 ต.ค. 2569) — ติดตามดีลทั้งสาย
-     * (`flow`), Solution ของ Pre-Sales, คลังสัญญา, โครงการ, การส่งมอบ และงาน
-     * บริการ. เป็นประตูของเครื่องอย่างเดียวเหมือนชุด CRM: คนใน `X-Acting-User`
-     * ยังถูกตรวจด้วยสิทธิ์ตัวเดิมของหน้าจอ (`presales.*`, `legal.*`, `pm.*`,
-     * `service.*`) ที่ `@ActingPermissions`.
-     *
-     * อ่านแยกจากเขียน และเขียนเปิดเฉพาะจุดเริ่มของแต่ละช่วงที่ระบบอื่นมีเหตุ
-     * ต้องสั่ง — เปิดโครงการจากสัญญาที่ลงนามแล้ว และเปิดใบสั่งงานบริการ.
-     * การออกแบบ Solution ร่างสัญญา และวางแผนโครงการยังเป็นงานบนหน้าจอ.
-     */
-    'integration.flow.read',
-    /**
-     * OSD Workflow writing (and reading back) the End-to-End process log, one
-     * row per step of the seven stages (21 ต.ค. 2569). A machine gate with no
-     * acting person: the person who finished a task is recorded as data
-     * (`actor_email`), not authenticated.
-     */
+    /** OSD Workflow เขียน/อ่าน process log ทีละขั้น; ผู้ทำงานเป็นข้อมูล ไม่ได้ยืนยันตัว. */
     'integration.process.log',
-    'integration.presales.read',
-    'integration.legal.read',
-    'integration.pm.read',
-    'integration.pm.manage',
-    'integration.delivery.read',
-    'integration.support.read',
-    'integration.support.manage',
-    /**
-     * CD-265 (CD-22 KBMS) — an AI channel that talks to customers (AI CARE,
-     * AI SMART) reads published customer-facing articles and reports which
-     * it answered with. Robot-only: no acting person, never internal articles.
-     */
+    /** CD-265 — AI CARE / AI SMART อ่านบทความที่เผยแพร่ให้ลูกค้า. */
     'integration.kb.read',
-    /**
-     * CD-280 (CD-23 AI CARE) — a channel connector or AI CARE posts what a
-     * customer wrote and what was answered, and reads the conversation with
-     * the customer it is (assets and coverage only once the sender is
-     * verified). Robot-only.
-     */
-    'integration.care.manage',
-    /**
-     * CD-276 (CD-24) — the personal assistant (LibreChat over MCP) asks the
-     * questions people ask in a chat: deals closing or gone quiet, my
-     * approvals, projects in trouble, open service jobs, articles, my figures.
-     * Read-only; each route still asks the person for the screen's own
-     * permission through `@ActingPermissions`.
-     */
-    'integration.assistant.read',
-    /**
-     * CD-289 — a licensed crawler or data vendor pushes what it found into
-     * AI SMART's staging list (`smart/prospects/ingest`). Robot-only: there is
-     * no acting person, and nothing reaches CRM until screening.
-     */
-    'integration.smart.ingest',
-    /**
-     * CD-292 — D-Callcenter reports how an AI call went (outcome, transcript,
-     * recording) to `smart/calls/callback`. Robot-only, no acting person.
-     */
-    'integration.smart.callcenter',
+    /** CD-280 — channel connector / AI CARE คุยกับลูกค้า (เดิม `integration.care.manage`). */
+    'integration.service.care.manage',
+    /** CD-289 — crawler / ผู้ขายข้อมูลส่ง prospect เข้า staging (เดิม `integration.smart.ingest`). */
+    'integration.smart.prospect.create',
+    /** CD-292 — D-Callcenter รายงานผลการโทร (เดิม `integration.smart.callcenter`). */
+    'integration.smart.call.update',
   ],
 } as const;
 
@@ -489,6 +423,21 @@ export function permissionModule(permission: Permission): PermissionModule {
  * หายไปทั้งกลุ่มโดยไม่มีใครเห็น.
  */
 export type PermissionType = 'human' | 'service';
+
+/**
+ * สิทธิ์ผู้ใช้ที่มีคู่ `integration.<สิทธิ์>` ใน catalog — ทำแทนผู้ใช้ผ่าน API ภายนอกได้.
+ * คำนวณจาก catalog ไม่ได้เขียนแยก: เพิ่ม scope = route ใช้สิทธิ์นั้นได้ทันที.
+ */
+export type ExternalPermission = {
+  [P in Permission]: `integration.${P}` extends Permission ? P : never;
+}[Permission];
+
+/** scope ของ key ที่ทำแทนผู้ใช้ได้ (`integration.<ExternalPermission>`) — ค่า runtime ของ type ข้างบน. */
+export const ACTING_SCOPES: readonly Permission[] = ALL_PERMISSIONS.filter(
+  (code) =>
+    code.startsWith('integration.') &&
+    isPermission(code.slice('integration.'.length)),
+);
 
 export function permissionType(permission: Permission): PermissionType {
   return permissionModule(permission) === 'integration' ? 'service' : 'human';

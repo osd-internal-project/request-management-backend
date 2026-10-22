@@ -7,6 +7,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsUUID,
   Matches,
   Max,
   MaxLength,
@@ -57,7 +58,7 @@ export class IssueApiKeyDto {
   })
   @IsArray()
   @ArrayNotEmpty()
-  @ArrayMaxSize(20)
+  @ArrayMaxSize(80)
   @IsString({ each: true })
   scopes!: string[];
 
@@ -72,6 +73,14 @@ export class IssueApiKeyDto {
   @Min(1)
   @Max(3650)
   expires_in_days?: number;
+
+  @ApiPropertyOptional({
+    description:
+      'ระบบภายนอกที่ถือกุญแจใบนี้ — ไม่ระบุ = สร้างระบบใหม่ชื่อเดียวกับกุญแจให้',
+  })
+  @IsOptional()
+  @IsUUID()
+  integration_id?: string;
 }
 
 /**
@@ -89,7 +98,7 @@ export class UpdateApiKeyScopesDto {
   })
   @IsArray()
   @ArrayNotEmpty()
-  @ArrayMaxSize(20)
+  @ArrayMaxSize(80)
   @IsString({ each: true })
   scopes!: string[];
 }
@@ -109,6 +118,8 @@ export class ApiKeyRowDto {
 
   @ApiProperty({ example: 'website' })
   source_code!: string | null;
+
+  @ApiProperty({ nullable: true }) integration_id!: string | null;
 
   @ApiProperty({ type: [String], example: ['integration.crm.lead.create'] })
   scopes!: string[];

@@ -1,10 +1,7 @@
+import { ActsAsCompany } from '../auth/acts-as-company.decorator';
 import { Body, Controller, Headers, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import {
-  CurrentPrincipal,
-  Permissions,
-  ServiceAccountOnly,
-} from '@request-management/share';
+import { CurrentPrincipal, Permissions } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import {
   type ApiKeyContext,
@@ -32,7 +29,7 @@ import {
  * `crm/lead-intake.controller.ts` and `approval/approval.controller.ts` — the
  * three robot-only routes on this service, and the only three.
  *
- * `@ServiceAccountOnly()` is what keeps a person from posting as an
+ * `@ActsAsCompany()` is what keeps a person from posting as an
  * integration, which the decorator's own comment explains is as important as
  * the other direction.
  */
@@ -44,7 +41,7 @@ export class RequestIntakeController {
 
   @Post('intake')
   @Permissions('integration.request.create')
-  @ServiceAccountOnly()
+  @ActsAsCompany()
   @ApiOperation({
     summary: 'ระบบภายนอกยื่นคำขอในนามตัวเอง — ไม่มีคนเป็นผู้ยื่น (REQ-10)',
     description:

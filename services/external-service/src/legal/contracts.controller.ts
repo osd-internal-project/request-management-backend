@@ -46,7 +46,7 @@ export class ExternalContractsController {
       'สัญญาลับพิเศษเห็นเฉพาะผู้มีสิทธิ์',
   })
   @Get()
-  @Permissions('integration.legal.read')
+  @Permissions('integration.legal.contract.read')
   @ActingPermissions('legal.contract.read')
   list(
     @Query() query: ListContractsQueryDto,
@@ -62,7 +62,7 @@ export class ExternalContractsController {
       '(ตัวไฟล์ดาวน์โหลดจากหน้าเว็บ)',
   })
   @Get(':id')
-  @Permissions('integration.legal.read')
+  @Permissions('integration.legal.contract.read')
   @ActingPermissions('legal.contract.read')
   detail(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
     return this.contracts.detail(id, principal);
@@ -72,7 +72,7 @@ export class ExternalContractsController {
     summary: 'ข้อกำหนดของสัญญา — ความรับผิด ค่าปรับ การรับประกัน ระดับบริการ',
   })
   @Get(':id/terms')
-  @Permissions('integration.legal.read')
+  @Permissions('integration.legal.contract.read')
   @ActingPermissions('legal.contract.read')
   viewTerms(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
     return this.terms.view(id, principal);
@@ -83,7 +83,7 @@ export class ExternalContractsController {
     description: 'ทุกงวด พร้อมสัดส่วนต่อมูลค่าสัญญา ผลรวม และส่วนต่าง',
   })
   @Get(':id/installments')
-  @Permissions('integration.legal.read')
+  @Permissions('integration.legal.contract.read')
   @ActingPermissions('legal.contract.read')
   viewInstallments(
     @Param('id') id: string,
@@ -94,7 +94,7 @@ export class ExternalContractsController {
 
   @ApiOperation({ summary: 'ข้อผูกพันของสัญญา (CD-163)' })
   @Get(':id/obligations')
-  @Permissions('integration.legal.read')
+  @Permissions('integration.legal.contract.read')
   @ActingPermissions('legal.contract.read')
   listObligations(
     @Param('id') id: string,

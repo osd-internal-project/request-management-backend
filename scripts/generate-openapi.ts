@@ -251,7 +251,7 @@ const MODULE_DOCS: Readonly<Record<string, ModuleDoc>> = {
     summary:
       'บทสนทนากับลูกค้าเดิมทุกช่องทาง (LINE, Facebook, Instagram, TikTok, อีเมล, เว็บแชต, D-Callcenter) สำหรับตัวเชื่อมช่องทางและ AI CARE',
     notes:
-      'หุ่นยนต์เท่านั้น (key ที่มี `integration.care.manage`) บริษัทมาจาก key · ' +
+      'หุ่นยนต์เท่านั้น (key ที่มี `integration.service.care.manage`) บริษัทมาจาก key · ' +
       'ข้อความของผู้ส่งเดียวกันต่อบทสนทนาเดิม (เงียบ 24 ชม. เริ่มใหม่) · ' +
       'ข้อมูลลูกค้า อุปกรณ์ และสิทธิ์บริการส่งกลับเฉพาะผู้ส่งที่ยืนยันตัวตนแล้ว ' +
       '(ตัวตนจากช่องทางตรงผู้ติดต่อ หรือทีมบริการยืนยัน) · สิ่งที่ลูกค้าพิมพ์แจ้งเป็นแค่ "อ้างว่าเป็น"',
@@ -270,7 +270,7 @@ const MODULE_DOCS: Readonly<Record<string, ModuleDoc>> = {
     title: 'Request Form — External API · AI SMART',
     summary: 'ส่งรายชื่อธุรกิจที่กวาดได้ (crawler/ผู้ให้บริการข้อมูล) เข้าคิวของ AI SMART',
     notes:
-      'ไม่มี `X-Acting-User` — ระบบภายนอกส่งในนามตัวเอง (`integration.smart.ingest`) · ' +
+      'ไม่มี `X-Acting-User` — ระบบภายนอกส่งในนามตัวเอง (`integration.smart.prospect.create`) · ' +
       'ต้องมีแหล่งชนิด push ที่ตั้งไว้ในหน้า AI SMART ของบริษัทเดียวกับกุญแจ · ' +
       'ส่งซ้ำได้ รายการที่มีอยู่แล้วนับเป็นซ้ำ · ยังไม่เข้า CRM จนกว่าจะผ่านการคัดกรอง',
     tags: [{ name: 'smart', description: 'AI SMART — รับรายชื่อที่กวาดได้' }],

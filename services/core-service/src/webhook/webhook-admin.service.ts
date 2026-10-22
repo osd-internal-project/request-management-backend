@@ -7,6 +7,7 @@ import {
   Principal,
 } from '@request-management/share';
 import { sealSecret } from '../pm/config-rules';
+import { IntegrationAdminService } from '../principal/integration-admin.service';
 import {
   WebhookDeliveryRepository,
   WebhookSubscriptionRepository,
@@ -36,6 +37,7 @@ interface SubscriptionRow {
   url: string;
   events: string[];
   active: boolean;
+  integrationId: string | null;
   createdAt: Date;
   createdBy: string;
 }
@@ -52,6 +54,7 @@ export class WebhookAdminService {
     private readonly deliveries: WebhookDeliveryRepository,
     private readonly audit: AuditWriter,
     private readonly config: ConfigService,
+    private readonly integrations: IntegrationAdminService,
   ) {}
 
   events() {
@@ -72,6 +75,7 @@ export class WebhookAdminService {
   ): Promise<WebhookWithSecretDto> {
     const events = [...new Set(dto.events)];
     await this.assertValid(dto.url, events);
+    const integrationId = await this.integrationOf(dto.integration_id, actor);
     const secret = newWebhookSecret();
     const row = (await this.subscriptions.create({
       data: {
@@ -80,6 +84,7 @@ export class WebhookAdminService {
         url: dto.url,
         events,
         secretEnc: this.seal(secret),
+        integrationId,
         createdBy: actor.userId,
       },
     })) as SubscriptionRow;
@@ -108,7 +113,13 @@ export class WebhookAdminService {
     }
     const row = (await this.subscriptions.update({
       where: { id },
-      data: { name: dto.name?.trim(), url, events, active: dto.active },
+      data: {
+        name: dto.name?.trim(),
+        url,
+        events,
+        active: dto.active,
+        integrationId: await this.integrationOf(dto.integration_id, actor),
+      },
     })) as SubscriptionRow;
 
     await this.audit.record({
@@ -196,6 +207,15 @@ export class WebhookAdminService {
     return found;
   }
 
+  /** integration ของบริษัทผู้เรียกเท่านั้น — ไม่ระบุ = ไม่แตะ (undefined). */
+  private async integrationOf(
+    id: string | undefined,
+    actor: Principal,
+  ): Promise<string | undefined> {
+    if (!id) return undefined;
+    return (await this.integrations.owned(id, actor)).id;
+  }
+
   private async assertValid(url: string, events: string[]): Promise<void> {
     const privateHosts =
       this.config.get<string[]>('webhook.privateHosts') ?? [];
@@ -233,6 +253,7 @@ function toRow(row: SubscriptionRow): WebhookRowDto {
     url: row.url,
     events: row.events,
     active: row.active,
+    integration_id: row.integrationId,
     created_at: row.createdAt.toISOString(),
     created_by: row.createdBy,
   };
@@ -244,5 +265,6 @@ function summary(row: SubscriptionRow) {
     url: row.url,
     events: row.events,
     active: row.active,
+    integrationId: row.integrationId,
   };
 }

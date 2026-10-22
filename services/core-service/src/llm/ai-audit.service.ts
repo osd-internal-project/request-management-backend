@@ -15,6 +15,7 @@ import {
 } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import { CompanyMemberRepository } from '../access/company-member.repository';
+import { IntegrationCallRepository } from '../principal/integration-call.repository';
 import { backgroundTick } from '../common/background-tick';
 import { DEFAULT_RETENTION_DAYS, retentionCutoff } from './ai-audit-rules';
 import { AiAuditSearchDto, SaveAiAuditPolicyDto } from './ai-audit.dto';
@@ -73,6 +74,7 @@ export class AiAuditService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly mcpCalls: McpCallRepository,
     private readonly llmCalls: LlmCallRepository,
+    private readonly integrationCalls: IntegrationCallRepository,
     private readonly policies: AiAuditPolicyRepository,
     private readonly people: CompanyMemberRepository,
     private readonly config: ConfigService,
@@ -257,17 +259,23 @@ export class AiAuditService implements OnModuleInit, OnModuleDestroy {
         row?.retentionDays ?? DEFAULT_RETENTION_DAYS,
         now,
       );
-      const [mcp, llm] = await Promise.all([
+      const [mcp, llm, api] = await Promise.all([
         this.mcpCalls.purgeBefore(companyId, cutoff),
         this.llmCalls.purgeBefore(companyId, cutoff),
+        this.integrationCalls.purgeBefore(companyId, cutoff),
       ]);
-      if (mcp + llm > 0) {
+      if (mcp + llm + api > 0) {
         this.logger.log(
-          `AI audit retention: ${companyId} removed ${mcp} MCP + ${llm} model calls before ${cutoff.toISOString()}`,
+          `AI audit retention: ${companyId} removed ${mcp} MCP + ${llm} model + ${api} integration calls before ${cutoff.toISOString()}`,
         );
       }
-      removed += mcp + llm;
+      removed += mcp + llm + api;
     }
+    // คำขอที่ไม่รู้บริษัท (key ข้ามบริษัทที่ถูกปัดก่อนเลือกบริษัท) ไม่มี policy ให้อ่าน
+    removed += await this.integrationCalls.purgeBefore(
+      null,
+      retentionCutoff(DEFAULT_RETENTION_DAYS, now),
+    );
     return { removed };
   }
 

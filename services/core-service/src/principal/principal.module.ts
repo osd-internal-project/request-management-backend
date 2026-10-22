@@ -5,6 +5,10 @@ import { ApiKeyService } from './api-key.service';
 import { RemotePrincipalGuard } from './remote-principal.guard';
 import { RemotePrincipalService } from './remote-principal.service';
 import { ApprovalContextClient } from './approval-context.client';
+import { IntegrationAdminService } from './integration-admin.service';
+import { IntegrationRepository } from './integration.repository';
+import { IntegrationCallRepository } from './integration-call.repository';
+import { IntegrationCallLogService } from './integration-call-log.service';
 
 @Global()
 @Module({
@@ -12,6 +16,10 @@ import { ApprovalContextClient } from './approval-context.client';
     ApiKeyRepository,
     ApiKeyService,
     ApiKeyAdminService,
+    IntegrationRepository,
+    IntegrationAdminService,
+    IntegrationCallRepository,
+    IntegrationCallLogService,
     RemotePrincipalService,
     ApprovalContextClient,
     RemotePrincipalGuard,
@@ -19,6 +27,11 @@ import { ApprovalContextClient } from './approval-context.client';
   exports: [
     /* For `PrincipalHttpModule`'s admin controller. */
     ApiKeyAdminService,
+    /* webhook admin ผูก webhook เข้ากับ integration ของบริษัทเดียวกัน */
+    IntegrationAdminService,
+    /* external-service เขียน log, AiAuditService ลบตาม retention */
+    IntegrationCallRepository,
+    IntegrationCallLogService,
     ApiKeyService,
     RemotePrincipalService,
     ApprovalContextClient,
