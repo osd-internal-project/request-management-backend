@@ -34,6 +34,7 @@ function robot(
     ledUnitIds: [],
     scopedUnitIds: [],
     permissions,
+    isServiceAccount: true,
   } as unknown as Principal;
 }
 

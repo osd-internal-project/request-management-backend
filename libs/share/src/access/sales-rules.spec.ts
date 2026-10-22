@@ -133,7 +133,28 @@ describe('salesAccessSubject', () => {
       salesAccessSubject({
         ...principal,
         permissions: ['integration.crm.lead.read'] as Permission[],
+        isServiceAccount: true,
       }).readsAllLeads,
     ).toBe(true);
+  });
+
+  it('SCOPE-02 a person acted for keeps their own leads even when listing the scope', () => {
+    // X-Acting-User / MCP: the principal is the person, not the machine
+    const acting = salesAccessSubject({
+      ...principal,
+      permissions: [
+        'crm.sales.read',
+        'integration.crm.lead.read',
+      ] as Permission[],
+      isServiceAccount: false,
+    });
+    expect(acting.readsAllLeads).toBe(false);
+    expect(visibleLeadsWhere(acting)).toHaveProperty('OR');
+    expect(
+      salesAccessSubject({
+        ...principal,
+        permissions: ['integration.crm.lead.read'] as Permission[],
+      }).readsAllLeads,
+    ).toBe(false);
   });
 });

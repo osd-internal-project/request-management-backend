@@ -428,7 +428,10 @@ state here.
 leads for the company, not for a person, so there is no person's scope to borrow.
 Its rows are every lead of the key's company: `integration.crm.lead.read` sets
 `readsAllLeads` in `visibleLeadsWhere` (leads only, the workflow engine's key too),
-and these routes refuse a key bound to no company. Its abilities are one scope per
+and these routes refuse a key bound to no company. Only the machine's own
+principal reads all: a person it acts for through `X-Acting-User` or MCP keeps
+their own rows, even with the scope in their list — `mcp-scope.e2e-spec.ts`
+caught that leak on 22 Oct 2026. Its abilities are one scope per
 use case — `lead.update` (detail + intake data), `lead.convert` (the deal goes to the
 lead's owner; a pool lead answers 409), `lead.contact.read` (email/phone, never in a
 webhook payload). Create and status stay on `crm/leads/intake` and `:id/stage`. A
