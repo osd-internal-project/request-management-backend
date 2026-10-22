@@ -20,6 +20,7 @@ import {
   RemotePrincipalGuard,
   SensitiveReadAuditRecorder,
   WebhookModule,
+  WorkflowTriggerModule,
 } from '@request-management/core-service';
 import { HealthModule } from './health/health.module';
 import { IntegrationCallMiddleware } from './auth/integration-call.middleware';
@@ -96,6 +97,8 @@ import configs from './configs';
     SmartApiModule,
     McpModule,
     WebhookModule,
+    // events raised here queue configured workflow starts; core-service sends them
+    WorkflowTriggerModule,
     // End-to-End process log — OSD Workflow writes a row per step
     ProcessApiModule,
   ],

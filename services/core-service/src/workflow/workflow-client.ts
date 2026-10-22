@@ -25,6 +25,35 @@ export interface WorkflowClient {
     leadId: string,
     variables?: Record<string, unknown>,
   ): Promise<WorkflowStarted>;
+
+  /**
+   * เปิด instance ของ workflow ที่ channel ใดก็ได้ (หน้า admin/workflow-triggers).
+   * `startLead` ยังอยู่สำหรับทางเดิมที่อ่าน channel จาก env.
+   */
+  start(
+    channel: WorkflowChannel,
+    variables: Record<string, unknown>,
+  ): Promise<WorkflowStarted>;
+}
+
+/** One Application API channel of OSD Workflow — from a `workflow_triggers` row. */
+export interface WorkflowChannel {
+  readonly channelId: string;
+  /** `x-api-key`, opened from `channelKeyEnc` just before the call. */
+  readonly channelKey: string;
+  readonly organizationId: string;
+  readonly workspaceId: string;
+}
+
+/** A start OSD Workflow refused (`statusCode`) or that never reached it (null). */
+export class WorkflowStartError extends Error {
+  constructor(
+    readonly statusCode: number | null,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'WorkflowStartError';
+  }
 }
 
 export const WORKFLOW_CLIENT = Symbol('WORKFLOW_CLIENT');

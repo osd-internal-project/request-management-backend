@@ -104,6 +104,8 @@ export default () => ({
   esign: { sweepIntervalMs: 0 },
   // G-07 — events are queued here too; core-service sends them
   webhook: { intervalMs: 0, privateHosts: [] },
+  // workflow trigger starts are sent by core-service only
+  workflowTrigger: { intervalMs: 0 },
   // CD-262/263 sweeps and CD-265's text purge run in core-service only
   kb: {
     reviewIntervalMs: 0,

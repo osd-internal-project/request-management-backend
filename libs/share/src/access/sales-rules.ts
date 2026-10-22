@@ -17,6 +17,9 @@ export interface SalesAccessSubject {
    * A machine holding `integration.crm.lead.read` (workflow engine, AI agent)
    * reads every lead of its key's company: it acts for the company, not for a
    * person, so there is no person's scope to borrow (22 ต.ค. 2569). Leads only.
+   *
+   * Only the machine itself: a person the machine acts for (`X-Acting-User`,
+   * MCP) keeps their own rows even when their permissions list the scope.
    */
   readonly readsAllLeads?: boolean;
 }
@@ -27,6 +30,7 @@ export function salesAccessSubject(principal: {
   readonly ledUnitIds: readonly string[];
   readonly scopedUnitIds: readonly string[];
   readonly permissions: readonly Permission[];
+  readonly isServiceAccount?: boolean;
 }): SalesAccessSubject {
   return {
     userId: principal.userId,
@@ -34,7 +38,9 @@ export function salesAccessSubject(principal: {
     ledUnitIds: principal.ledUnitIds,
     scopedUnitIds: principal.scopedUnitIds,
     readsAllSales: principal.permissions.includes('crm.sales.read.all'),
-    readsAllLeads: principal.permissions.includes('integration.crm.lead.read'),
+    readsAllLeads:
+      principal.isServiceAccount === true &&
+      principal.permissions.includes('integration.crm.lead.read'),
   };
 }
 

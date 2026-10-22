@@ -9201,3 +9201,62 @@ model ProcessFlowLog {
   @@index([companyId, refNo])
   @@map("process_flow_logs")
 }
+
+/// เหตุการณ์ใน CTD → เริ่ม workflow บน OSD Workflow (22 ต.ค. 2569) — ผู้ดูแลตั้งเอง
+/// ต่อบริษัท (หน้า admin/workflow-triggers) แทน env `WORKFLOW_CHANNEL_*` ตัวเดียว.
+/// ไม่ลบจริง ปิดด้วย `active=false`.
+model WorkflowTrigger {
+  id             String   @id @default(uuid())
+  companyId      String
+  name           String
+  /// key จาก `WORKFLOW_TRIGGER_EVENTS` (workflow-trigger-rules.ts)
+  eventKey       String
+  /// เฉพาะเหตุการณ์ของคำขอ: ประเภทคำขอที่นับ — ว่าง = ทุกประเภท
+  typeCodes      String[] @default([])
+  /// channel แบบ Application API ของ workflow ปลายทาง
+  channelId      String
+  /// `x-api-key` ของ channel — ต้องใช้ตัวจริงตอนเรียก จึงเก็บแบบเข้ารหัส (sealSecret) ไม่ใช่ hash
+  channelKeyEnc  String
+  organizationId String
+  workspaceId    String
+  active         Boolean  @default(true)
+  createdBy      String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  starts WorkflowStart[]
+
+  @@index([companyId, eventKey, active])
+  @@map("workflow_triggers")
+}
+
+/// คิว + ประวัติการเริ่ม workflow — หนึ่งแถวต่อ trigger ต่อเอกสาร.
+model WorkflowStart {
+  id             String    @id @default(uuid())
+  triggerId      String
+  companyId      String
+  eventKey       String
+  /// เอกสารที่ทำให้เกิด (lead / request / esign_envelope / test)
+  resourceType   String
+  resourceId     String
+  /// ตัวแปรที่ส่ง — เก็บตอนเกิดเหตุการณ์ ส่งซ้ำได้ค่าเดิม
+  variables      Json
+  /// pending | sending | started | dead
+  status         String    @default("pending")
+  attempts       Int       @default(0)
+  nextAttemptAt  DateTime  @default(now())
+  lastStatusCode Int?
+  lastError      String?
+  instanceId     String?
+  workflowKey    String?
+  startedAt      DateTime?
+  createdAt      DateTime  @default(now())
+
+  trigger WorkflowTrigger @relation(fields: [triggerId], references: [id], onDelete: Restrict)
+
+  /// เหตุการณ์ส่งซ้ำได้ (at-least-once) — เอกสารเดียวเริ่ม workflow ของ trigger หนึ่งได้ครั้งเดียว
+  @@unique([triggerId, resourceType, resourceId])
+  @@index([status, nextAttemptAt])
+  @@index([triggerId, createdAt])
+  @@map("workflow_starts")
+}
