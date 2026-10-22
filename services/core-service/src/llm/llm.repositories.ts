@@ -76,9 +76,9 @@ export class McpCallRepository extends BaseRepository<
     return count;
   }
 
-  /** Every company that has logged an MCP or model call. */
+  /** Every company that has logged an MCP, model or integration call. */
   async companiesWithLogs(): Promise<string[]> {
-    const [mcp, llm] = await Promise.all([
+    const [mcp, llm, integration] = await Promise.all([
       this.prisma.mcpCall.findMany({
         distinct: ['companyId'],
         select: { companyId: true },
@@ -87,8 +87,17 @@ export class McpCallRepository extends BaseRepository<
         distinct: ['companyId'],
         select: { companyId: true },
       }),
+      this.prisma.integrationCall.findMany({
+        where: { companyId: { not: null } },
+        distinct: ['companyId'],
+        select: { companyId: true },
+      }),
     ]);
-    return [...new Set([...mcp, ...llm].map((row) => row.companyId))];
+    return [
+      ...new Set(
+        [...mcp, ...llm, ...integration].flatMap((row) => row.companyId ?? []),
+      ),
+    ];
   }
 }
 

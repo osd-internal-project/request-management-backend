@@ -2057,6 +2057,29 @@ model Integration {
   @@map("integrations")
 }
 
+/// คำขอหนึ่งครั้งบน external-service — ไม่เก็บ body หรือ header; ลบตาม retention ของ AI audit
+model IntegrationCall {
+  id            String   @id @default(uuid())
+  /// NULL = เรียกด้วย token ของคนเอง หรือ key ก่อนมี integrations
+  integrationId String?
+  apiKeyId      String?
+  companyId     String?
+  method        String
+  /// template ของ route (`/api/v1/requests/:id`) ไม่ใช่ URL จริง
+  route         String
+  /// app | user_token | acting_user | person
+  mode          String
+  /// คนที่คำขอนี้ทำแทน — NULL ในโหมด app
+  actorUserId   String?
+  status        Int
+  durationMs    Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  @@index([integrationId, createdAt])
+  @@index([companyId, createdAt])
+  @@map("integration_calls")
+}
+
 // ---------------------------------------------------------------------------
 // CRM — Customer Master (CM-xx) + มุมมอง 360° (C360-xx)
 // Spec: artifact 856c08fd (8 ก.ย. 2569). One customer registry for every

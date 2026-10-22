@@ -129,3 +129,18 @@ export class IntegrationRowDto {
   @ApiProperty() created_at!: string;
   @ApiProperty() created_by!: string;
 }
+
+export class IntegrationCallRowDto {
+  @ApiProperty() id!: string;
+  @ApiProperty() at!: string;
+  @ApiProperty() method!: string;
+  @ApiProperty({ description: 'template ของ route ไม่ใช่ URL จริง' })
+  route!: string;
+  @ApiProperty({ enum: ['app', 'user_token', 'acting_user', 'person'] })
+  mode!: string;
+  @ApiProperty({ nullable: true }) api_key_id!: string | null;
+  @ApiProperty({ nullable: true, description: 'NULL ในโหมด app' })
+  actor_user_id!: string | null;
+  @ApiProperty() status!: number;
+  @ApiProperty() duration_ms!: number;
+}

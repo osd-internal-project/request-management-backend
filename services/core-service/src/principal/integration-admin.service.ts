@@ -3,11 +3,16 @@ import {
   AppError,
   AuditWriter,
   auditActor,
+  paginated,
+  PageQueryDto,
   Principal,
+  toSkipTake,
 } from '@request-management/share';
 import { IntegrationRepository } from './integration.repository';
+import { IntegrationCallRepository } from './integration-call.repository';
 import {
   CreateIntegrationDto,
+  IntegrationCallRowDto,
   IntegrationRowDto,
   UpdateIntegrationDto,
 } from './dto/integration.dto';
@@ -26,6 +31,18 @@ interface IntegrationRow {
   _count?: { apiKeys: number; webhooks: number };
 }
 
+interface IntegrationCallRow {
+  id: string;
+  apiKeyId: string | null;
+  method: string;
+  route: string;
+  mode: string;
+  actorUserId: string | null;
+  status: number;
+  durationMs: number;
+  createdAt: Date;
+}
+
 const WITH_COUNTS = {
   _count: { select: { apiKeys: true, webhooks: true } },
 } as const;
@@ -42,6 +59,7 @@ export class IntegrationAdminService {
   constructor(
     private readonly integrations: IntegrationRepository,
     private readonly audit: AuditWriter,
+    private readonly calls: IntegrationCallRepository,
   ) {}
 
   async list(actor: Principal): Promise<IntegrationRowDto[]> {
@@ -117,6 +135,23 @@ export class IntegrationAdminService {
     return toRow(row);
   }
 
+  /** คำขอล่าสุดของระบบภายนอกนี้ — ใหม่สุดก่อน, เก็บตาม retention ของ AI audit. */
+  async listCalls(id: string, query: PageQueryDto, actor: Principal) {
+    await this.owned(id, actor);
+    const where = { integrationId: id };
+    const { skip, take } = toSkipTake(query);
+    const [rows, total] = await Promise.all([
+      this.calls.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take,
+      }) as Promise<IntegrationCallRow[]>,
+      this.calls.count({ where }),
+    ]);
+    return paginated(rows.map(toCallRow), query, total);
+  }
+
   /**
    * integration ของบริษัทผู้เรียก — ของบริษัทอื่นตอบ 404 (SCOPE-03).
    * ใช้ตอนผูก key / webhook เข้ากับ integration ด้วย.
@@ -152,6 +187,20 @@ function toRow(row: IntegrationRow): IntegrationRowDto {
     webhook_count: row._count?.webhooks ?? 0,
     created_at: row.createdAt.toISOString(),
     created_by: row.createdBy,
+  };
+}
+
+function toCallRow(row: IntegrationCallRow): IntegrationCallRowDto {
+  return {
+    id: row.id,
+    at: row.createdAt.toISOString(),
+    method: row.method,
+    route: row.route,
+    mode: row.mode,
+    api_key_id: row.apiKeyId,
+    actor_user_id: row.actorUserId,
+    status: row.status,
+    duration_ms: row.durationMs,
   };
 }
 

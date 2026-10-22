@@ -1,4 +1,8 @@
-import { Module } from '@nestjs/common';
+import {
+  type MiddlewareConsumer,
+  Module,
+  type NestModule,
+} from '@nestjs/common';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import {
@@ -18,6 +22,7 @@ import {
   WebhookModule,
 } from '@request-management/core-service';
 import { HealthModule } from './health/health.module';
+import { IntegrationCallMiddleware } from './auth/integration-call.middleware';
 import { RequestModule } from './request/request.module';
 import { CrmModule } from './crm/crm.module';
 import { ApprovalModule } from './approval/approval.module';
@@ -113,4 +118,8 @@ import configs from './configs';
     },
   ],
 })
-export class ExternalServiceModule {}
+export class ExternalServiceModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(IntegrationCallMiddleware).forRoutes('{*splat}');
+  }
+}

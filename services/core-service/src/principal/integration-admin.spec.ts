@@ -42,13 +42,31 @@ describe('IntegrationAdminService', () => {
       ),
     };
     const audit = { record: jest.fn().mockResolvedValue(undefined) };
+    const calls = {
+      findMany: jest.fn().mockResolvedValue([
+        {
+          id: 'call-1',
+          apiKeyId: 'key-1',
+          method: 'GET',
+          route: '/api/v1/requests/:id',
+          mode: 'user_token',
+          actorUserId: 'u-1',
+          status: 200,
+          durationMs: 12,
+          createdAt: new Date('2026-10-22T10:00:00.000Z'),
+        },
+      ]),
+      count: jest.fn().mockResolvedValue(1),
+    };
     return {
       service: new IntegrationAdminService(
         integrations as never,
         audit as never,
+        calls as never,
       ),
       integrations,
       audit,
+      calls,
     };
   }
 
@@ -106,6 +124,45 @@ describe('IntegrationAdminService', () => {
       allowActingUser: true,
       keycloakClientIds: ['aiyara-web'],
     });
+  });
+
+  it('lists an integration’s calls, newest first, as route templates', async () => {
+    const { service, calls } = harness({ name: 'Aiyara' });
+
+    const out = await service.listCalls(
+      'int-1',
+      { page: 1, page_size: 20 },
+      admin(),
+    );
+
+    expect(calls.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { integrationId: 'int-1' },
+        orderBy: { createdAt: 'desc' },
+      }),
+    );
+    expect(out.data).toEqual([
+      {
+        id: 'call-1',
+        at: '2026-10-22T10:00:00.000Z',
+        method: 'GET',
+        route: '/api/v1/requests/:id',
+        mode: 'user_token',
+        api_key_id: 'key-1',
+        actor_user_id: 'u-1',
+        status: 200,
+        duration_ms: 12,
+      },
+    ]);
+  });
+
+  it('another company’s integration answers 404 and reads no calls (SCOPE-03)', async () => {
+    const { service, calls } = harness({ name: 'Aiyara' });
+
+    await expect(
+      service.listCalls('int-1', { page: 1, page_size: 20 }, admin('other')),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    expect(calls.findMany).not.toHaveBeenCalled();
   });
 });
 

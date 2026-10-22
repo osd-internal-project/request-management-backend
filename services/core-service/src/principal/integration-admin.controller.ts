@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
@@ -6,7 +14,11 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import { CurrentPrincipal, Permissions } from '@request-management/share';
+import {
+  CurrentPrincipal,
+  PageQueryDto,
+  Permissions,
+} from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import { IntegrationAdminService } from './integration-admin.service';
 import { INTEGRATION_PRESETS } from './integration-presets';
@@ -51,6 +63,19 @@ export class IntegrationAdminController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.integrations.create(dto, principal);
+  }
+
+  @Get(':id/calls')
+  @Permissions('admin.integration.manage')
+  @ApiOperation({
+    summary: 'คำขอล่าสุดของระบบภายนอกนี้ (แบ่งหน้า) — ไม่เก็บ body หรือ header',
+  })
+  calls(
+    @Param('id') id: string,
+    @Query() query: PageQueryDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.integrations.listCalls(id, query, principal);
   }
 
   @Patch(':id')

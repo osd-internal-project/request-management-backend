@@ -21,6 +21,9 @@ function harness(retentionDays: number | null = 90) {
     count: jest.fn(() => Promise.resolve(0)),
     purgeBefore: jest.fn(() => Promise.resolve(1)),
   };
+  const integrationCalls = {
+    purgeBefore: jest.fn(() => Promise.resolve(2)),
+  };
   const policies = {
     findFirst: jest.fn(() =>
       Promise.resolve(
@@ -39,13 +42,14 @@ function harness(retentionDays: number | null = 90) {
   const service = new AiAuditService(
     mcpCalls as never,
     llmCalls as never,
+    integrationCalls as never,
     policies as never,
     people as never,
     { get: () => 0 } as never,
     transactions as never,
     audit as never,
   );
-  return { service, mcpCalls, llmCalls, policies, audit };
+  return { service, mcpCalls, llmCalls, integrationCalls, policies, audit };
 }
 
 describe('CD-279 AI audit', () => {
@@ -91,10 +95,19 @@ describe('CD-279 AI audit', () => {
   it('the sweep removes each company’s logs older than its policy (365 when unset)', async () => {
     const now = new Date('2026-10-06T00:00:00Z');
     const set = harness(90);
-    await expect(set.service.sweep(now)).resolves.toEqual({ removed: 4 });
+    // osd: 3 MCP + 1 model + 2 integration; rows with no company: 2
+    await expect(set.service.sweep(now)).resolves.toEqual({ removed: 8 });
     expect(set.mcpCalls.purgeBefore).toHaveBeenCalledWith(
       'osd',
       new Date('2026-07-08T00:00:00Z'),
+    );
+    expect(set.integrationCalls.purgeBefore).toHaveBeenCalledWith(
+      'osd',
+      new Date('2026-07-08T00:00:00Z'),
+    );
+    expect(set.integrationCalls.purgeBefore).toHaveBeenCalledWith(
+      null,
+      new Date('2025-10-06T00:00:00Z'),
     );
     const unset = harness(null);
     await unset.service.sweep(now);

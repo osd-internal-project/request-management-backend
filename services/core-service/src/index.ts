@@ -46,6 +46,10 @@ export type {
   IntegrationPolicy,
   ResolvedApiKey,
 } from './principal/api-key.service';
+export {
+  IntegrationCallLogService,
+  type IntegrationCallMode,
+} from './principal/integration-call-log.service';
 
 // --- SCOPE-04 masking (registered in every service, or it is not masking) --
 export { SensitiveReadAuditRecorder } from './policy/sensitive-read.recorder';

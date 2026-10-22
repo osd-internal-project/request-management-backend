@@ -488,6 +488,9 @@ company's `ai_audit_policies.retentionDays` (default 365) and the daily
 sweep in `AiAuditService` deletes older rows — a declared exception to "no
 hard deletes": these are access logs, and keeping them only as long as the
 policy says is what the policy is for. `audit_logs` stays append-only.
+`integration_calls` (22 Oct 2026) is the same exception: `IntegrationCallMiddleware`
+writes one row per external-service request (route template, mode, status — never
+body or headers) and the same sweep deletes it on the same retention.
 
 `crm/leads/intake` earned its suffix on 21 Sep 2026: it used to be `POST
 crm/leads`, which `ExternalLeadsController.create` also bound. That controller
