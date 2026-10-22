@@ -145,6 +145,7 @@ function harness(
         ),
       ),
     } as never,
+    { emit: jest.fn(() => Promise.resolve()) } as never,
   );
 
   return {
@@ -343,12 +344,26 @@ describe('LeadWorkflowService — หน้าต่างที่ workflow eng
     expect(leads.update).not.toHaveBeenCalled();
   });
 
-  it('SCOPE-02: ผู้เรียกที่ไม่ได้ถือ crm.sales.read.all ถูกจำกัดด้วยตัวกรองเดียวกับหน้าจอ', async () => {
+  it('SCOPE-03: key ที่ถือ integration.crm.lead.read เห็นทั้งบริษัท แต่ไม่ข้ามบริษัท (22 ต.ค. 2569)', async () => {
     const { service, whereUsed } = harness();
 
     await service.facts('lead-1', robot(['integration.crm.lead.read']));
 
-    // ไม่มี read.all → ตัวกรองต้องแคบลงเป็นเจ้าของ/ผู้สร้าง ไม่ใช่ทั้งบริษัท
+    // เครื่องทำงานแทนบริษัท ไม่มีขอบเขตของคนให้ยืม — เดิมแคบเป็นเจ้าของ/ผู้สร้าง
+    // จนใบที่เซลล์รับไปแล้วตอบ 404
+    const where = whereUsed() as { AND: Record<string, unknown>[] };
+    expect(where.AND[0]).toEqual({ companyId: 'osd' });
+  });
+
+  it('SCOPE-02: ผู้เรียกที่ไม่ได้ถือ lead.read หรือ crm.sales.read.all ถูกจำกัดด้วยตัวกรองเดียวกับหน้าจอ', async () => {
+    const { service, whereUsed } = harness();
+
+    await service.applyStage(
+      'lead-1',
+      { stage: 'contacted' },
+      robot(['integration.crm.lead.stage']),
+    );
+
     const where = whereUsed() as { AND: Record<string, unknown>[] };
     expect(where.AND[0]).toMatchObject({
       companyId: 'osd',

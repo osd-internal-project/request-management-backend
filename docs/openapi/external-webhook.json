@@ -1366,6 +1366,431 @@
         }
       }
     },
+    "lead.created": {
+      "post": {
+        "summary": "มี Lead ใหม่ (หน้าจอ, intake, ฟอร์มแคมเปญ)",
+        "operationId": "webhook_lead_created",
+        "parameters": [
+          {
+            "name": "X-Webhook-Id",
+            "in": "header",
+            "required": true,
+            "description": "id ของ event — ส่งซ้ำได้ ใช้ตัดรายการซ้ำ (ค่าเดียวกับ body.id)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Event",
+            "in": "header",
+            "required": true,
+            "description": "ชื่อ event",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Timestamp",
+            "in": "header",
+            "required": true,
+            "description": "วินาที unix ตอนส่ง — ปฏิเสธถ้าห่างจากเวลาปัจจุบันเกิน 5 นาที",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Signature",
+            "in": "header",
+            "required": true,
+            "description": "`sha256=` + hex(HMAC-SHA256(secret, `{X-Webhook-Timestamp}.{raw body}`))",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "event",
+                  "created_at",
+                  "data"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "event": {
+                    "type": "string",
+                    "const": "lead.created"
+                  },
+                  "created_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "data": {
+                    "$ref": "#/components/schemas/LeadEventData"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "2XX": {
+            "description": "รับแล้ว — ไม่ส่งซ้ำ"
+          },
+          "default": {
+            "description": "อย่างอื่นทั้งหมด — ส่งซ้ำตามรอบ"
+          }
+        }
+      }
+    },
+    "lead.updated": {
+      "post": {
+        "summary": "แก้ข้อมูล Lead",
+        "operationId": "webhook_lead_updated",
+        "parameters": [
+          {
+            "name": "X-Webhook-Id",
+            "in": "header",
+            "required": true,
+            "description": "id ของ event — ส่งซ้ำได้ ใช้ตัดรายการซ้ำ (ค่าเดียวกับ body.id)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Event",
+            "in": "header",
+            "required": true,
+            "description": "ชื่อ event",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Timestamp",
+            "in": "header",
+            "required": true,
+            "description": "วินาที unix ตอนส่ง — ปฏิเสธถ้าห่างจากเวลาปัจจุบันเกิน 5 นาที",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Signature",
+            "in": "header",
+            "required": true,
+            "description": "`sha256=` + hex(HMAC-SHA256(secret, `{X-Webhook-Timestamp}.{raw body}`))",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "event",
+                  "created_at",
+                  "data"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "event": {
+                    "type": "string",
+                    "const": "lead.updated"
+                  },
+                  "created_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "data": {
+                    "$ref": "#/components/schemas/LeadEventData"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "2XX": {
+            "description": "รับแล้ว — ไม่ส่งซ้ำ"
+          },
+          "default": {
+            "description": "อย่างอื่นทั้งหมด — ส่งซ้ำตามรอบ"
+          }
+        }
+      }
+    },
+    "lead.status_changed": {
+      "post": {
+        "summary": "Lead เปลี่ยนสถานะ (รวมการคัดออก)",
+        "operationId": "webhook_lead_status_changed",
+        "parameters": [
+          {
+            "name": "X-Webhook-Id",
+            "in": "header",
+            "required": true,
+            "description": "id ของ event — ส่งซ้ำได้ ใช้ตัดรายการซ้ำ (ค่าเดียวกับ body.id)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Event",
+            "in": "header",
+            "required": true,
+            "description": "ชื่อ event",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Timestamp",
+            "in": "header",
+            "required": true,
+            "description": "วินาที unix ตอนส่ง — ปฏิเสธถ้าห่างจากเวลาปัจจุบันเกิน 5 นาที",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Signature",
+            "in": "header",
+            "required": true,
+            "description": "`sha256=` + hex(HMAC-SHA256(secret, `{X-Webhook-Timestamp}.{raw body}`))",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "event",
+                  "created_at",
+                  "data"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "event": {
+                    "type": "string",
+                    "const": "lead.status_changed"
+                  },
+                  "created_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "data": {
+                    "$ref": "#/components/schemas/LeadEventData"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "2XX": {
+            "description": "รับแล้ว — ไม่ส่งซ้ำ"
+          },
+          "default": {
+            "description": "อย่างอื่นทั้งหมด — ส่งซ้ำตามรอบ"
+          }
+        }
+      }
+    },
+    "lead.intake_updated": {
+      "post": {
+        "summary": "แก้ข้อมูล intake (JSON) ของ Lead",
+        "operationId": "webhook_lead_intake_updated",
+        "parameters": [
+          {
+            "name": "X-Webhook-Id",
+            "in": "header",
+            "required": true,
+            "description": "id ของ event — ส่งซ้ำได้ ใช้ตัดรายการซ้ำ (ค่าเดียวกับ body.id)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Event",
+            "in": "header",
+            "required": true,
+            "description": "ชื่อ event",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Timestamp",
+            "in": "header",
+            "required": true,
+            "description": "วินาที unix ตอนส่ง — ปฏิเสธถ้าห่างจากเวลาปัจจุบันเกิน 5 นาที",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Signature",
+            "in": "header",
+            "required": true,
+            "description": "`sha256=` + hex(HMAC-SHA256(secret, `{X-Webhook-Timestamp}.{raw body}`))",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "event",
+                  "created_at",
+                  "data"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "event": {
+                    "type": "string",
+                    "const": "lead.intake_updated"
+                  },
+                  "created_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "data": {
+                    "$ref": "#/components/schemas/LeadEventData"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "2XX": {
+            "description": "รับแล้ว — ไม่ส่งซ้ำ"
+          },
+          "default": {
+            "description": "อย่างอื่นทั้งหมด — ส่งซ้ำตามรอบ"
+          }
+        }
+      }
+    },
+    "lead.converted": {
+      "post": {
+        "summary": "Lead ถูกแปลงเป็นโอกาสการขาย",
+        "operationId": "webhook_lead_converted",
+        "parameters": [
+          {
+            "name": "X-Webhook-Id",
+            "in": "header",
+            "required": true,
+            "description": "id ของ event — ส่งซ้ำได้ ใช้ตัดรายการซ้ำ (ค่าเดียวกับ body.id)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Event",
+            "in": "header",
+            "required": true,
+            "description": "ชื่อ event",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Timestamp",
+            "in": "header",
+            "required": true,
+            "description": "วินาที unix ตอนส่ง — ปฏิเสธถ้าห่างจากเวลาปัจจุบันเกิน 5 นาที",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Signature",
+            "in": "header",
+            "required": true,
+            "description": "`sha256=` + hex(HMAC-SHA256(secret, `{X-Webhook-Timestamp}.{raw body}`))",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "event",
+                  "created_at",
+                  "data"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "event": {
+                    "type": "string",
+                    "const": "lead.converted"
+                  },
+                  "created_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "data": {
+                    "$ref": "#/components/schemas/LeadEventData"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "2XX": {
+            "description": "รับแล้ว — ไม่ส่งซ้ำ"
+          },
+          "default": {
+            "description": "อย่างอื่นทั้งหมด — ส่งซ้ำตามรอบ"
+          }
+        }
+      }
+    },
     "webhook.ping": {
       "post": {
         "summary": "ปุ่ม \"ทดสอบ\" ในหน้าตั้งค่า webhook",
@@ -1642,6 +2067,65 @@
           "status": {
             "type": "string",
             "description": "สถานะของคำขอ"
+          }
+        }
+      },
+      "LeadEventData": {
+        "title": "LeadEventData",
+        "type": "object",
+        "required": [
+          "company_id",
+          "lead_id",
+          "name",
+          "status",
+          "source_code"
+        ],
+        "properties": {
+          "company_id": {
+            "type": "string",
+            "description": "บริษัทที่เกิดเหตุการณ์"
+          },
+          "lead_id": {
+            "type": "string",
+            "description": "อ่านรายละเอียด (รวมอีเมล ถ้า key มี integration.crm.lead.contact.read) ด้วย GET /api/v1/crm/ai/leads/{lead_id}"
+          },
+          "name": {
+            "type": "string",
+            "description": "ชื่อ Lead (บริษัท/ลูกค้าเป้าหมาย)"
+          },
+          "status": {
+            "type": "string",
+            "description": "รหัสสถานะหลังเหตุการณ์ — lead_statuses.code ของบริษัท"
+          },
+          "source_code": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "ช่องทางที่ Lead เข้ามา"
+          },
+          "previous_status": {
+            "type": "string",
+            "description": "สถานะก่อนเปลี่ยน — lead.status_changed / lead.converted"
+          },
+          "changed_fields": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "ชื่อ field หรือ key ที่เปลี่ยน (ไม่มีค่า) — lead.updated / lead.intake_updated"
+          },
+          "opportunity_id": {
+            "type": "string",
+            "description": "โอกาสการขายที่เกิด — lead.converted"
+          },
+          "opportunity_code": {
+            "type": "string",
+            "description": "เลขที่โอกาสการขาย — lead.converted"
+          },
+          "reason": {
+            "type": "string",
+            "description": "เหตุผลที่คัดออก — lead.status_changed จากการคัดออก"
           }
         }
       },

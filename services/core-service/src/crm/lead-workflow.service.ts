@@ -7,6 +7,7 @@ import {
   salesAccessSubject,
   visibleLeadsWhere,
 } from '@request-management/share';
+import { DomainEventsService } from '../events/domain-events.service';
 import { ApplyLeadStageDto } from './dto/lead-workflow.dto';
 import { LeadStatusService } from './lead-status.service';
 import { LeadActivityRepository, LeadRepository } from './sales.repositories';
@@ -42,6 +43,7 @@ export class LeadWorkflowService {
     private readonly statuses: LeadStatusService,
     private readonly audit: AuditWriter,
     private readonly configs: CrmConfigRepository,
+    private readonly events: DomainEventsService,
   ) {}
 
   /**
@@ -174,13 +176,27 @@ export class LeadWorkflowService {
       },
     });
 
+    await this.events.emit({
+      name: 'lead.status_changed',
+      payload: {
+        company_id: actor.activeCompanyId,
+        lead_id: lead.id,
+        name: lead.name,
+        status: target.code,
+        source_code: lead.sourceCode,
+        previous_status: lead.status,
+        ...(dto.reason ? { reason: dto.reason } : {}),
+      },
+    });
+
     return { lead_id: lead.id, status: target.code, changed: true };
   }
 
   /**
    * SCOPE-02/03 — ผ่านตัวกรองเดียวกับทุกหน้าจอ (non-negotiable ข้อ 2) และ
-   * มองไม่เห็น = 404 ไม่ใช่ 403 (ข้อ 3). service account ของ workflow ถือ
-   * `crm.sales.read.all` จึงเห็นทั้งบริษัท โดยไม่ต้องมีสาขาพิเศษในตัวกรอง.
+   * มองไม่เห็น = 404 ไม่ใช่ 403 (ข้อ 3). key ของ workflow ถือ
+   * `integration.crm.lead.read` จึงเห็นทั้งบริษัท (`readsAllLeads`) — key ที่ออก
+   * จากหน้าจอถือ `crm.sales.read.all` ไม่ได้ เพราะเป็นสิทธิ์ของคน.
    */
   private async requireVisible(id: string, actor: Principal) {
     const found = (await this.leads.findFirst({
@@ -195,6 +211,7 @@ export class LeadWorkflowService {
       status: string;
       /** null = กองกลาง — ใบที่ระบบภายนอกยิงเข้ามาและยังไม่มีใครรับ. */
       ownerUserId: string | null;
+      sourceCode: string | null;
       convertedOpportunityId: string | null;
     } | null;
 

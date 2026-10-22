@@ -293,6 +293,8 @@ export const PERMISSIONS = {
      * The workflow engine reading the facts its Decision nodes test
      * ("Workflow owns Process, Core owns Data", PO 10 ก.ย. 2569). Read-only and
      * separate from `crm.sales.read` so a human role can never pick it up.
+     * Its holder reads every lead of the key's company (`readsAllLeads`) —
+     * the AI agent's `GET crm/ai/leads/{id}` too, without contact data.
      */
     'integration.crm.lead.read',
     /**
@@ -309,6 +311,20 @@ export const PERMISSIONS = {
      * ข้อมูลเข้าต้องใช้ ไม่ใช่เท่าที่พนักงานขายหนึ่งคนทำได้.
      */
     'integration.crm.lead.create',
+    /**
+     * AI agent acting for the company, not for a person (22 ต.ค. 2569) —
+     * `crm/ai/leads/*`, no `X-Acting-User`. One scope per use case so a key
+     * gets exactly what its agent does: `update` = detail + intake data,
+     * `convert` = open the opportunity (owned by the lead's owner).
+     */
+    'integration.crm.lead.update',
+    'integration.crm.lead.convert',
+    /**
+     * Email, phone and contact name of a lead on `GET crm/ai/leads/{id}`.
+     * Apart from `lead.read` because it is personal data: an agent that only
+     * routes leads should never hold it, and webhooks never carry it.
+     */
+    'integration.crm.lead.contact.read',
     /**
      * CRM ทั้งชุดที่เปิดให้ระบบภายนอกเรียกผ่าน external-service
      * (`api/v1/crm/*`). สี่ตัวนี้เป็น **ประตูของเครื่อง** อย่างเดียว — ตอบแค่ว่า

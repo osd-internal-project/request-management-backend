@@ -269,7 +269,11 @@ export class OpportunitiesService {
   async create(
     dto: CreateOpportunityDto,
     actor: Principal,
-    options?: { fromLeadId?: string },
+    options?: {
+      fromLeadId?: string;
+      /** A machine converting a lead: the deal goes to the lead's owner, never the service account. */
+      owner?: { userId: string; orgUnitId: string | null };
+    },
   ) {
     // PO 10 ก.ย. 2569: ลูกค้าเดิม หรือ ผู้มุ่งหวัง อย่างใดอย่างหนึ่ง — ไม่บังคับให้
     // มีทะเบียนลูกค้าก่อน (ลูกค้าเกิดตอนเปิดใบสั่งขาย).
@@ -329,8 +333,10 @@ export class OpportunitiesService {
             expectedCloseAt: dto.expected_close_at
               ? new Date(dto.expected_close_at)
               : null,
-            ownerUserId: actor.userId,
-            ownerOrgUnitId: actor.orgUnitId,
+            ownerUserId: options?.owner?.userId ?? actor.userId,
+            ownerOrgUnitId: options?.owner
+              ? options.owner.orgUnitId
+              : actor.orgUnitId,
             createdBy: actor.userId,
             products: {
               create: dedupe(dto.product_codes).map((code) => ({

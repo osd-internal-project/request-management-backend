@@ -4,6 +4,7 @@ import {
   IsInt,
   IsNotEmpty,
   IsNumber,
+  IsObject,
   IsOptional,
   IsString,
   MaxLength,
@@ -192,6 +193,18 @@ export class IntakeLeadDto {
   @IsString()
   @MaxLength(2)
   country?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'ข้อมูลที่ช่องทางเก็บมาแต่ไม่มีช่องใน Lead — JSON object ใดก็ได้ ไม่เกิน 16 KB. ' +
+      'แก้ภายหลังด้วย `PATCH …/leads/{id}/intake-data`',
+    example: { budget_range: '1-3M', interested_in: ['CCTV', 'Network'] },
+    type: 'object',
+    additionalProperties: true,
+  })
+  @IsOptional()
+  @IsObject()
+  intake_data?: Record<string, unknown>;
 }
 
 /** สิ่งที่ตอบกลับให้ระบบภายนอก — เท่าที่มันต้องใช้อ้างถึงใบนี้ต่อ. */

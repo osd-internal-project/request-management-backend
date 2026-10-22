@@ -37,6 +37,31 @@ export class LeadRepository extends BaseRepository<PrismaService['lead']> {
     });
     return rows.map((row) => ({ status: row.status, count: row._count._all }));
   }
+
+  /**
+   * Write `set` into `intakeData` and drop `remove`, in one statement — two
+   * channels writing different keys at once must not overwrite each other,
+   * which a read-modify-write in the app would. Times from the app clock (see
+   * `WebhookDeliveryRepository.claimDue`).
+   */
+  async mergeIntakeData(
+    id: string,
+    set: Record<string, unknown>,
+    remove: string[],
+    updatedBy: string,
+    now = new Date(),
+  ) {
+    const rows = await this.prisma.$queryRaw<
+      { id: string; name: string; status: string; sourceCode: string | null }[]
+    >`
+      UPDATE "leads"
+         SET "intakeData" = (COALESCE("intakeData", '{}'::jsonb) || ${JSON.stringify(set)}::jsonb) - ${remove}::text[],
+             "updatedBy" = ${updatedBy},
+             "updatedAt" = (${now.toISOString()}::timestamptz AT TIME ZONE 'UTC')
+       WHERE "id" = ${id}
+   RETURNING "id", "name", "status", "sourceCode"`;
+    return rows[0];
+  }
 }
 
 /** รายการสถานะ Lead ต่อบริษัท — ตั้งค่าได้จากหน้า admin, ไม่ใช่ enum ในโค้ด. */

@@ -5212,6 +5212,70 @@
         ]
       }
     },
+    "/api/v1/crm/leads/{id}/intake-data": {
+      "patch": {
+        "description": "merge ทีละ key — ค่า null ลบ key นั้น; `replace: true` แทนทั้งก้อน. ไม่เกิน 16 KB · Lead ที่ปิดแล้วตอบ 409",
+        "operationId": "ExternalLeadsController_updateIntakeData",
+        "parameters": [
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateLeadIntakeDataDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แก้ข้อมูล intake (JSON) ของ Lead",
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.manage"
+        ],
+        "x-acting-permission": [
+          "crm.sales.manage"
+        ]
+      }
+    },
     "/api/v1/crm/leads/{id}/activities": {
       "post": {
         "description": "type: call · email · meeting · task · note · visit · line · social — outcome (reached · no_answer · interested · not_interested) ใช้กับการติดต่อเท่านั้น",
@@ -9137,6 +9201,200 @@
         ],
         "x-permission": [
           "integration.crm.lead.stage"
+        ]
+      }
+    },
+    "/api/v1/crm/ai/leads/{id}": {
+      "get": {
+        "description": "`email` `phone` `contactName` `contactPosition` เป็น null ถ้า key ไม่มี `integration.crm.lead.contact.read`",
+        "operationId": "ExternalLeadAiController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "อ่าน Lead (ทั้งบริษัทของ key) — อีเมล/เบอร์ ต้องมี contact.read",
+        "tags": [
+          "crm-ai"
+        ],
+        "x-permission": [
+          "integration.crm.lead.read"
+        ]
+      },
+      "patch": {
+        "operationId": "ExternalLeadAiController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateLeadDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แก้ข้อมูล Lead — ส่งเฉพาะ field ที่เปลี่ยน",
+        "tags": [
+          "crm-ai"
+        ],
+        "x-permission": [
+          "integration.crm.lead.update"
+        ]
+      }
+    },
+    "/api/v1/crm/ai/leads/{id}/intake-data": {
+      "patch": {
+        "operationId": "ExternalLeadAiController_updateIntakeData",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateLeadIntakeDataDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แก้ข้อมูล intake (JSON) — merge ทีละ key, null = ลบ key",
+        "tags": [
+          "crm-ai"
+        ],
+        "x-permission": [
+          "integration.crm.lead.update"
+        ]
+      }
+    },
+    "/api/v1/crm/ai/leads/{id}/convert": {
+      "post": {
+        "description": "Lead ในกองกลาง (ยังไม่มีเจ้าของ) ตอบ 409 — มอบหมายก่อน",
+        "operationId": "ExternalLeadAiController_convert",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConvertLeadDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แปลง Lead เป็นโอกาสการขาย — ไปอยู่กับเจ้าของ Lead",
+        "tags": [
+          "crm-ai"
+        ],
+        "x-permission": [
+          "integration.crm.lead.convert"
         ]
       }
     },
@@ -15494,6 +15752,18 @@
             "example": "2026-12-31",
             "description": "คาดว่าจะตัดสินใจภายใน (วันที่)",
             "format": "date-time"
+          },
+          "intake_data": {
+            "type": "object",
+            "description": "ข้อมูลที่ช่องทางเก็บมาแต่ไม่มีช่องใน Lead — JSON object ใดก็ได้ ไม่เกิน 16 KB. แก้ภายหลังด้วย `PATCH …/leads/{id}/intake-data`",
+            "example": {
+              "budget_range": "1-3M",
+              "interested_in": [
+                "CCTV",
+                "Network"
+              ]
+            },
+            "additionalProperties": true
           }
         },
         "required": [
@@ -15647,6 +15917,18 @@
             "example": "2026-12-31",
             "description": "คาดว่าจะตัดสินใจภายใน (วันที่)",
             "format": "date-time"
+          },
+          "intake_data": {
+            "type": "object",
+            "description": "ข้อมูลที่ช่องทางเก็บมาแต่ไม่มีช่องใน Lead — JSON object ใดก็ได้ ไม่เกิน 16 KB. แก้ภายหลังด้วย `PATCH …/leads/{id}/intake-data`",
+            "example": {
+              "budget_range": "1-3M",
+              "interested_in": [
+                "CCTV",
+                "Network"
+              ]
+            },
+            "additionalProperties": true
           }
         }
       },
@@ -15672,6 +15954,28 @@
         },
         "required": [
           "status"
+        ]
+      },
+      "UpdateLeadIntakeDataDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "description": "key ที่จะเขียน — ค่า null ลบ key นั้นออก",
+            "example": {
+              "budget_range": "3-5M",
+              "old_key": null
+            },
+            "additionalProperties": true
+          },
+          "replace": {
+            "type": "boolean",
+            "description": "true = แทนทั้งก้อน (key ที่ไม่ส่งมาหายไป), ค่าเริ่มต้น merge",
+            "default": false
+          }
+        },
+        "required": [
+          "data"
         ]
       },
       "CreateLeadActivityDto": {
@@ -16744,6 +17048,18 @@
             "description": "รหัสประเทศ 2 ตัว — ไม่ส่งถือเป็น TH",
             "example": "TH",
             "maxLength": 2
+          },
+          "intake_data": {
+            "type": "object",
+            "description": "ข้อมูลที่ช่องทางเก็บมาแต่ไม่มีช่องใน Lead — JSON object ใดก็ได้ ไม่เกิน 16 KB. แก้ภายหลังด้วย `PATCH …/leads/{id}/intake-data`",
+            "example": {
+              "budget_range": "1-3M",
+              "interested_in": [
+                "CCTV",
+                "Network"
+              ]
+            },
+            "additionalProperties": true
           }
         },
         "required": [

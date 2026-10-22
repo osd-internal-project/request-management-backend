@@ -424,6 +424,16 @@ The caller is the engine; whoever completed a human task travels as
 `actor_email`, recorded, never authenticated. A ninth is again a decision to
 state here.
 
+**The ninth: `crm/ai/leads/*` (22 Oct 2026, user decision).** An AI agent works
+leads for the company, not for a person, so there is no person's scope to borrow.
+Its rows are every lead of the key's company: `integration.crm.lead.read` sets
+`readsAllLeads` in `visibleLeadsWhere` (leads only, the workflow engine's key too),
+and these routes refuse a key bound to no company. Its abilities are one scope per
+use case — `lead.update` (detail + intake data), `lead.convert` (the deal goes to the
+lead's owner; a pool lead answers 409), `lead.contact.read` (email/phone, never in a
+webhook payload). Create and status stay on `crm/leads/intake` and `:id/stage`. A
+tenth is again a decision to state here.
+
 **core-service's one public business surface: e-signature (CD-14, 30 Sep
 2026).** `EsignPublicController` — `esign/public/:token/*` (a signer's link:
 view, one-time code, document, sign, decline) and `esign/verify/:code*` (the

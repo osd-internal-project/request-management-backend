@@ -48,6 +48,17 @@ export const DOMAIN_EVENTS = {
   esignCompleted: 'esign.completed',
   /** A flow-v2 request now stands on `step_code` — modules that work a step follow it (การเบิก). */
   requestStepEntered: 'request.step.entered',
+  /**
+   * CRM Lead — for webhook receivers (an AI agent among them). The payload
+   * carries no contact data: email and phone are read through
+   * `GET crm/ai/leads/{id}`, behind `integration.crm.lead.contact.read`.
+   */
+  leadCreated: 'lead.created',
+  leadUpdated: 'lead.updated',
+  /** Any status move, including disqualify (with `reason`). Convert is `lead.converted`. */
+  leadStatusChanged: 'lead.status_changed',
+  leadIntakeUpdated: 'lead.intake_updated',
+  leadConverted: 'lead.converted',
 } as const;
 
 export type DomainEventName =
@@ -96,6 +107,22 @@ export interface EsignEventPayload extends BasePayload {
   ref_id: string;
 }
 
+export interface LeadEventPayload extends BasePayload {
+  lead_id: string;
+  name: string;
+  status: string;
+  source_code: string | null;
+  /** `lead.status_changed` */
+  previous_status?: string;
+  /** `lead.updated` / `lead.intake_updated` — field or key names, never values. */
+  changed_fields?: string[];
+  /** `lead.converted` */
+  opportunity_id?: string;
+  opportunity_code?: string;
+  /** `lead.status_changed` from a disqualify */
+  reason?: string;
+}
+
 /** Discriminated by name so a subscriber cannot read the wrong shape. */
 export type DomainEvent =
   | { name: 'request.submitted'; payload: RequestEventPayload }
@@ -113,4 +140,9 @@ export type DomainEvent =
   | { name: 'sla.warning'; payload: SlaEventPayload }
   | { name: 'sla.breached'; payload: SlaEventPayload }
   | { name: 'esign.completed'; payload: EsignEventPayload }
-  | { name: 'request.step.entered'; payload: StepEventPayload };
+  | { name: 'request.step.entered'; payload: StepEventPayload }
+  | { name: 'lead.created'; payload: LeadEventPayload }
+  | { name: 'lead.updated'; payload: LeadEventPayload }
+  | { name: 'lead.status_changed'; payload: LeadEventPayload }
+  | { name: 'lead.intake_updated'; payload: LeadEventPayload }
+  | { name: 'lead.converted'; payload: LeadEventPayload };

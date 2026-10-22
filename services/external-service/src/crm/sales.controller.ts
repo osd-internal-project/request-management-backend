@@ -89,6 +89,7 @@ import {
   UpdateCampaignDto,
   UpdateLeadActivityDto,
   UpdateLeadDto,
+  UpdateLeadIntakeDataDto,
   UpdateLeadStatusDto,
   UpdateOpportunityDto,
   UpdateTargetAccountDto,
@@ -244,6 +245,23 @@ export class ExternalLeadsController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.leads.setStatus(id, dto, principal);
+  }
+
+  @ApiOperation({
+    summary: 'แก้ข้อมูล intake (JSON) ของ Lead',
+    description:
+      'merge ทีละ key — ค่า null ลบ key นั้น; `replace: true` แทนทั้งก้อน. ' +
+      'ไม่เกิน 16 KB · Lead ที่ปิดแล้วตอบ 409',
+  })
+  @Patch(':id/intake-data')
+  @Permissions('integration.crm.sales.manage')
+  @ActingPermissions('crm.sales.manage')
+  updateIntakeData(
+    @Param('id') id: string,
+    @Body() dto: UpdateLeadIntakeDataDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.leads.updateIntakeData(id, dto, principal);
   }
 
   /** ลงกิจกรรม — โทร / อีเมล / นัดหมาย / งาน / บันทึก. */
