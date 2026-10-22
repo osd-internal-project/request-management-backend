@@ -15,8 +15,9 @@
 
 ## 1. ออก API key ให้ AI
 
-ไปที่หน้า **ผู้ดูแล → API key** (`/pages/admin/api-keys`) แล้วออก key ที่**ผูกบริษัท** (route ของ AI ไม่รับ key ที่ไม่ผูกบริษัท)
-จากนั้นติ๊กเฉพาะ scope ของ use case ที่ agent ต้องใช้:
+ไปที่หน้า **ผู้ดูแล → ระบบภายนอก** (`/pages/admin/integrations`) เพิ่มระบบ เลือก "AI ทำงาน Lead แทนบริษัท"
+(เรียกได้แบบ "ในนามบริษัท") แล้วออก key ในแท็บ **กุญแจ API** — key ที่ออกจากหน้านี้**ผูกบริษัท**เสมอ
+(route ของ AI ไม่รับ key ที่ไม่ผูกบริษัท) ชุดสำเร็จรูปติ๊ก scope ให้ แล้วเพิ่ม/เอาออกตาม use case ที่ agent ต้องใช้:
 
 | use case | route | scope |
 |---|---|---|
@@ -37,7 +38,7 @@ KEY=rfk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx   # key ที่ออกในข้�
 
 ## 2. ตั้ง webhook ให้ระบบเรียก agent เมื่อ Lead เปลี่ยน
 
-ไปที่หน้า **ผู้ดูแล → Webhook** (`/pages/admin/webhooks`, สิทธิ์ `admin.integration.manage`)
+ไปที่แท็บ **Webhook** ของระบบเดียวกันในหน้า **ผู้ดูแล → ระบบภายนอก** (สิทธิ์ `admin.integration.manage`)
 
 1. URL: ปลายทางของ agent ต้องเป็น `https://` (ถ้าเป็น http หรือ host ภายใน ต้องให้ ops ใส่ host ไว้ใน `WEBHOOK_PRIVATE_HOSTS`)
 2. event: เลือก `lead.created` `lead.updated` `lead.status_changed` `lead.intake_updated` `lead.converted`

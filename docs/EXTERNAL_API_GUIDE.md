@@ -339,9 +339,13 @@ curl -s "${H[@]}" "$B/flow/opportunities/$OPP"
 ระบบเรียกเว็บของคุณเองเมื่อเกิดเหตุการณ์ เช่น คำขอถูกอนุมัติ มีงานรออนุมัติ หรือ SLA ใกล้หรือเกินกำหนด
 รายการ event และรูปแบบ body อยู่ใน [`openapi/external-webhook.json`](./openapi/external-webhook.json) (OpenAPI 3.1 `webhooks`)
 
-1. ขอให้ผู้ดูแลของบริษัทเพิ่มปลายทางในหน้า **ผู้ดูแล → Webhook** (สิทธิ์ `admin.integration.manage`)
+1. ขอให้ผู้ดูแลของบริษัทเพิ่มปลายทางในหน้า **ผู้ดูแล → ระบบภายนอก** แท็บ Webhook ของระบบคุณ (สิทธิ์ `admin.integration.manage`)
    โดยระบุ URL ซึ่งต้องเป็น https และเลือก event ที่ต้องการ แล้วรับ **secret** ที่แสดงเพียงครั้งเดียว
-2. ปลายทางต้อง**ตรวจลายเซ็นก่อนเชื่อทุกครั้ง** และตอบ 2xx ภายใน 10 วินาที
+2. ปลายทางต้อง**ตรวจลายเซ็นก่อนเชื่อทุกครั้ง** และตอบ 2xx ภายใน 10 วินาที — ทุกครั้งมี header สองชุด
+   ตรวจชุดใดชุดหนึ่งก็พอ:
+   - [Standard Webhooks](https://www.standardwebhooks.com/) (แนะนำ) `webhook-id` / `webhook-timestamp` / `webhook-signature`
+     ใช้ library `standardwebhooks` ได้ทันที — secret ที่ออกก่อน 22 ต.ค. 2569 ให้กด **ออก secret ใหม่** ก่อน
+   - แบบเดิม `X-Webhook-Id` / `X-Webhook-Timestamp` / `X-Webhook-Signature` ตามตัวอย่างด้านล่าง
 3. body มีแค่ id ถ้าต้องการรายละเอียด ให้เรียก GET ด้วย API key ตามปกติ เช่น `request_id` ใช้กับ `GET /api/v1/request/requests/{ref}`
    ส่วน event `lead.*` ไม่มี email หรือเบอร์โทรใน body ให้อ่านจาก `GET /api/v1/crm/ai/leads/{lead_id}`
    ตัวอย่างครบทั้งการตั้ง key, webhook และ use case ของ Lead สำหรับ AI agent อยู่ใน [`ex/lead-webhook.md`](./ex/lead-webhook.md)
