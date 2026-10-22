@@ -1,10 +1,7 @@
+import { ActsAsCompany } from '../auth/acts-as-company.decorator';
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import {
-  CurrentPrincipal,
-  Permissions,
-  ServiceAccountOnly,
-} from '@request-management/share';
+import { CurrentPrincipal, Permissions } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import {
   CareDeliveredDto,
@@ -36,7 +33,7 @@ export class CareApiController {
 
   @Post('messages')
   @Permissions('integration.service.care.manage')
-  @ServiceAccountOnly()
+  @ActsAsCompany()
   @ApiOperation({
     summary: 'ข้อความจากลูกค้า เข้าบทสนทนา (CD-280)',
     description:
@@ -65,7 +62,7 @@ export class CareApiController {
 
   @Post('conversations/:id/replies')
   @Permissions('integration.service.care.manage')
-  @ServiceAccountOnly()
+  @ActsAsCompany()
   @ApiOperation({
     summary: 'สิ่งที่ตอบลูกค้าไป (AI หรือข้อความระบบ) บันทึกในบทสนทนา (CD-280)',
   })
@@ -83,7 +80,7 @@ export class CareApiController {
 
   @Post('conversations/:id/case')
   @Permissions('integration.service.care.manage')
-  @ServiceAccountOnly()
+  @ActsAsCompany()
   @ApiOperation({
     summary: 'เปิดเคสบริการจากบทสนทนา เช่น ลูกค้ากดปุ่ม "เปิดเรื่อง" (CD-282)',
     description:
@@ -100,7 +97,7 @@ export class CareApiController {
 
   @Post('conversations/:id/handover')
   @Permissions('integration.service.care.manage')
-  @ServiceAccountOnly()
+  @ActsAsCompany()
   @ApiOperation({
     summary:
       'ส่งต่อถึงเจ้าหน้าที่ เช่น ลูกค้ากดปุ่ม "คุยกับเจ้าหน้าที่" (CD-283)',
@@ -114,7 +111,7 @@ export class CareApiController {
 
   @Get('outbox')
   @Permissions('integration.service.care.manage')
-  @ServiceAccountOnly()
+  @ActsAsCompany()
   @ApiOperation({
     summary: 'ข้อความที่ต้องส่งถึงลูกค้าในช่องทางนี้ (CD-284)',
     description:
@@ -134,7 +131,7 @@ export class CareApiController {
 
   @Post('outbox/:messageId/delivered')
   @Permissions('integration.service.care.manage')
-  @ServiceAccountOnly()
+  @ActsAsCompany()
   @ApiOperation({
     summary: 'รายงานว่าส่งข้อความจากกล่องขาออกแล้วหรือไม่ (CD-284)',
   })
@@ -151,7 +148,7 @@ export class CareApiController {
 
   @Get('conversations/:id')
   @Permissions('integration.service.care.manage')
-  @ServiceAccountOnly()
+  @ActsAsCompany()
   @ApiOperation({ summary: 'บทสนทนาและบริบทลูกค้า (CD-280)' })
   conversation(
     @Param('id') id: string,

@@ -10,6 +10,7 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import {
+  ACTING_SCOPES,
   AnyPermission,
   CurrentPrincipal,
   type Principal,
@@ -30,9 +31,10 @@ import { McpService } from './mcp.service';
  * `@ServiceAccountAllowed()` rather than `@ServiceAccountOnly()`: the whole
  * point of this door is that a *person's* token may come through it, which the
  * `Only` variant refuses. And `@AnyPermission` rather than `@Permissions`,
- * because the two callers hold different grants for the same work — a service
- * account has `integration.request.create`, a human has `request.create`.
- * Demanding either one alone would lock out the other.
+ * because the two callers hold different grants for the same work — a key
+ * holds any scope that acts for a person (`ACTING_SCOPES`), a human has
+ * `request.create`. Which tool a key may call is then judged per tool
+ * against its `x-permission` (22 ต.ค. 2569).
  *
  * Neither weakens anything: whichever principal arrives, the tools run through
  * `ExternalService` with that principal, so row visibility, `assertMayAct` and
@@ -42,7 +44,7 @@ import { McpService } from './mcp.service';
 @ApiBearerAuth()
 @Controller('mcp')
 @ServiceAccountAllowed()
-@AnyPermission('integration.request.create', 'request.create')
+@AnyPermission(...ACTING_SCOPES, 'request.create')
 export class McpController {
   constructor(private readonly mcp: McpService) {}
 

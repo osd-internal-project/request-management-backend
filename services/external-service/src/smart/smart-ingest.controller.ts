@@ -1,10 +1,7 @@
+import { ActsAsCompany } from '../auth/acts-as-company.decorator';
 import { Body, Controller, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import {
-  CurrentPrincipal,
-  Permissions,
-  ServiceAccountOnly,
-} from '@request-management/share';
+import { CurrentPrincipal, Permissions } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import {
   PushProspectsDto,
@@ -25,7 +22,7 @@ import {
 @ApiTags('smart')
 @ApiBearerAuth()
 @Controller('smart/prospects')
-@ServiceAccountOnly()
+@ActsAsCompany()
 export class ExternalSmartIngestController {
   constructor(private readonly ingest: SmartIngestService) {}
 

@@ -17,6 +17,7 @@
  * `crm-route-parity.spec.ts` fails if a route exists on one side and not the
  * other, or if a pair's permissions stop corresponding.
  */
+import { ApiActingHeaders } from '../auth/acts-for-person.decorator';
 import {
   Body,
   Controller,
@@ -28,12 +29,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiHeader,
-  ApiOperation,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   ActingPermissions,
   ActingPolicyGuard,
@@ -53,10 +49,7 @@ import {
   SubmitQuotationDto,
   UpdateQuotationDto,
 } from '@request-management/core-service';
-import {
-  ACTING_USER_HEADER_LABEL,
-  ActingUserGuard,
-} from '../auth/acting-user.guard';
+import { ActingUserGuard } from '../auth/acting-user.guard';
 
 /**
  * CRM ใบเสนอราคา (CD-76). Creating one lives on the opportunity
@@ -68,11 +61,7 @@ import {
  */
 @ApiTags('crm')
 @ApiBearerAuth()
-@ApiHeader({
-  name: ACTING_USER_HEADER_LABEL,
-  required: true,
-  description: 'อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้',
-})
+@ApiActingHeaders()
 @SensitiveResource('quotation')
 @Controller('crm/quotations')
 @ServiceAccountOnly()

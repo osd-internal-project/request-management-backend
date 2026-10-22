@@ -17,6 +17,7 @@
  * `crm-route-parity.spec.ts` fails if a route exists on one side and not the
  * other, or if a pair's permissions stop corresponding.
  */
+import { ApiActingHeaders } from '../auth/acts-for-person.decorator';
 import {
   Body,
   Controller,
@@ -31,7 +32,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiHeader, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import {
   ActingPermissions,
   ActingPolicyGuard,
@@ -60,10 +61,7 @@ import {
   UpdateSegmentDimensionDto,
   UpdateSegmentValueDto,
 } from '@request-management/core-service';
-import {
-  ACTING_USER_HEADER_LABEL,
-  ActingUserGuard,
-} from '../auth/acting-user.guard';
+import { ActingUserGuard } from '../auth/acting-user.guard';
 
 /**
  * CRM configuration (admin.crm.manage) — CM-07 segmentation and the CM-02/03
@@ -71,11 +69,7 @@ import {
  */
 @ApiTags('crm')
 @ApiBearerAuth()
-@ApiHeader({
-  name: ACTING_USER_HEADER_LABEL,
-  required: true,
-  description: 'อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้',
-})
+@ApiActingHeaders()
 @Controller('crm/admin')
 @ServiceAccountOnly()
 @UseGuards(ActingUserGuard, ActingPolicyGuard)

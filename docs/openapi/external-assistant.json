@@ -7,10 +7,19 @@
         "operationId": "AssistantController_summary",
         "parameters": [
           {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "X-Acting-User",
             "in": "header",
-            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
-            "required": true,
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -53,10 +62,19 @@
         "operationId": "AssistantController_closingDeals",
         "parameters": [
           {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "X-Acting-User",
             "in": "header",
-            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
-            "required": true,
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -125,10 +143,19 @@
         "operationId": "AssistantController_silentDeals",
         "parameters": [
           {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "X-Acting-User",
             "in": "header",
-            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
-            "required": true,
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -184,10 +211,19 @@
         "operationId": "AssistantController_myApprovals",
         "parameters": [
           {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "X-Acting-User",
             "in": "header",
-            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
-            "required": true,
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -230,10 +266,19 @@
         "operationId": "AssistantController_projectsAtRisk",
         "parameters": [
           {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "X-Acting-User",
             "in": "header",
-            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
-            "required": true,
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -289,10 +334,19 @@
         "operationId": "AssistantController_serviceJobs",
         "parameters": [
           {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "X-Acting-User",
             "in": "header",
-            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
-            "required": true,
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -356,10 +410,19 @@
         "operationId": "AssistantController_articles",
         "parameters": [
           {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "X-Acting-User",
             "in": "header",
-            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
-            "required": true,
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
             "schema": {
               "type": "string"
             }

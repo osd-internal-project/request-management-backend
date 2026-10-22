@@ -17,6 +17,7 @@
  * `crm-route-parity.spec.ts` fails if a route exists on one side and not the
  * other, or if a pair's permissions stop corresponding.
  */
+import { ApiActingHeaders } from '../auth/acts-for-person.decorator';
 import {
   Body,
   Controller,
@@ -28,12 +29,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiHeader,
-  ApiOperation,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   ActingPermissions,
   ActingPolicyGuard,
@@ -94,19 +90,12 @@ import {
   UpdateOpportunityDto,
   UpdateTargetAccountDto,
 } from '@request-management/core-service';
-import {
-  ACTING_USER_HEADER_LABEL,
-  ActingUserGuard,
-} from '../auth/acting-user.guard';
+import { ActingUserGuard } from '../auth/acting-user.guard';
 
 /** CRM Lead — deny-by-default like every controller here. */
 @ApiTags('crm')
 @ApiBearerAuth()
-@ApiHeader({
-  name: ACTING_USER_HEADER_LABEL,
-  required: true,
-  description: 'อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้',
-})
+@ApiActingHeaders()
 @Controller('crm/leads')
 @ServiceAccountOnly()
 @UseGuards(ActingUserGuard, ActingPolicyGuard)
@@ -338,11 +327,7 @@ export class ExternalLeadsController {
 /** CRM โอกาสการขาย (Opportunity). */
 @ApiTags('crm')
 @ApiBearerAuth()
-@ApiHeader({
-  name: ACTING_USER_HEADER_LABEL,
-  required: true,
-  description: 'อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้',
-})
+@ApiActingHeaders()
 @Controller('crm/opportunities')
 @ServiceAccountOnly()
 @UseGuards(ActingUserGuard, ActingPolicyGuard)
@@ -710,11 +695,7 @@ export class ExternalOpportunitiesController {
 /** CRM ใบสั่งขาย (Sale Order) — โครงระยะ 1 (CD-77). */
 @ApiTags('crm')
 @ApiBearerAuth()
-@ApiHeader({
-  name: ACTING_USER_HEADER_LABEL,
-  required: true,
-  description: 'อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้',
-})
+@ApiActingHeaders()
 @Controller('crm/sale-orders')
 @ServiceAccountOnly()
 @UseGuards(ActingUserGuard, ActingPolicyGuard)
@@ -765,11 +746,7 @@ export class ExternalSaleOrdersController {
 /** CD-82 เป้าและพยากรณ์ — เป้ายอดขายรายเดือนของพนักงาน/กลุ่ม. */
 @ApiTags('crm')
 @ApiBearerAuth()
-@ApiHeader({
-  name: ACTING_USER_HEADER_LABEL,
-  required: true,
-  description: 'อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้',
-})
+@ApiActingHeaders()
 @Controller('crm/sales-targets')
 @ServiceAccountOnly()
 @UseGuards(ActingUserGuard, ActingPolicyGuard)
@@ -823,11 +800,7 @@ export class ExternalSalesTargetsController {
 /** CD-71 แคมเปญ — ผูก Lead กับกิจกรรมการตลาด และวัดผลถึงยอดขาย. */
 @ApiTags('crm')
 @ApiBearerAuth()
-@ApiHeader({
-  name: ACTING_USER_HEADER_LABEL,
-  required: true,
-  description: 'อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้',
-})
+@ApiActingHeaders()
 @Controller('crm/campaigns')
 @ServiceAccountOnly()
 @UseGuards(ActingUserGuard, ActingPolicyGuard)
@@ -883,11 +856,7 @@ export class ExternalCampaignsController {
  */
 @ApiTags('crm')
 @ApiBearerAuth()
-@ApiHeader({
-  name: ACTING_USER_HEADER_LABEL,
-  required: true,
-  description: 'อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้',
-})
+@ApiActingHeaders()
 @Controller('crm/target-accounts')
 @ServiceAccountOnly()
 @UseGuards(ActingUserGuard, ActingPolicyGuard)

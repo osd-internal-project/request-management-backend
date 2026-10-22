@@ -1,10 +1,7 @@
+import { ActsAsCompany } from '../auth/acts-as-company.decorator';
 import { Body, Controller, Param, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import {
-  CurrentPrincipal,
-  Permissions,
-  ServiceAccountOnly,
-} from '@request-management/share';
+import { CurrentPrincipal, Permissions } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import {
   KbAiAnswerDto,
@@ -34,7 +31,7 @@ export class KbAiController {
 
   @Post('search')
   @Permissions('integration.kb.read')
-  @ServiceAccountOnly()
+  @ActsAsCompany()
   @ApiOperation({
     summary: 'ค้นบทความที่เผยแพร่ให้ลูกค้าเพื่อใช้ตอบ (CD-265)',
     description:
@@ -52,7 +49,7 @@ export class KbAiController {
 
   @Post('queries/:queryId/answer')
   @Permissions('integration.kb.read')
-  @ServiceAccountOnly()
+  @ActsAsCompany()
   @ApiOperation({
     summary: 'บันทึกคำตอบและบทความที่อ้างอิง หรือว่าตอบไม่ได้ (CD-265)',
     description:

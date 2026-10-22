@@ -1927,9 +1927,6 @@
         ],
         "tags": [
           "internal"
-        ],
-        "x-permission": [
-          "integration.request.create"
         ]
       }
     },

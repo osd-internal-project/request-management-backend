@@ -45,6 +45,17 @@ export interface ApiKeyContext {
   readonly sourceCode: string | null;
   /** สิทธิ์ทั้งหมดของ key นี้ — ว่าง = ไม่มีสิทธิ์. */
   readonly scopes: readonly string[];
+  /** วิธีเรียกที่ระบบภายนอกเจ้าของ key ยอมรับ — ไม่มี = key ก่อนมี integrations (ทำได้ทุกแบบ). */
+  readonly integration?: IntegrationPolicy;
+}
+
+/** ส่วนของ `Integration` ที่ตัดสินว่าคำขอนี้เรียกในนามใครได้. */
+export interface IntegrationPolicy {
+  readonly id: string;
+  /** `app` = ในนามบริษัท, `delegated` = ในนามผู้ใช้ */
+  readonly modes: readonly string[];
+  readonly allowActingUser: boolean;
+  readonly keycloakClientIds: readonly string[];
 }
 
 /** The exchange's answer: a usable bearer, plus what the key it came from says. */
@@ -115,10 +126,17 @@ export class ApiKeyService {
           revokedAt: Date | null;
           expiresAt: Date | null;
           lastUsedAt: Date | null;
+          integration: (IntegrationPolicy & { active: boolean }) | null;
         })
       | null;
 
-    if (!key || !key.active || key.revokedAt) {
+    // ปิดการเชื่อมต่อทั้งระบบ = key ทุกใบของมันใช้ไม่ได้ ตอบเหมือน key ที่ถูกเพิกถอน
+    if (
+      !key ||
+      !key.active ||
+      key.revokedAt ||
+      key.integration?.active === false
+    ) {
       throw new AppError(
         'UNAUTHORIZED',
         'API key ไม่ถูกต้องหรือถูกเพิกถอนแล้ว',
@@ -151,6 +169,14 @@ export class ApiKeyService {
         companyId: key.companyId,
         sourceCode: key.sourceCode,
         scopes: key.scopes ?? [],
+        ...(key.integration && {
+          integration: {
+            id: key.integration.id,
+            modes: key.integration.modes,
+            allowActingUser: key.integration.allowActingUser,
+            keycloakClientIds: key.integration.keycloakClientIds,
+          },
+        }),
       },
     };
   }

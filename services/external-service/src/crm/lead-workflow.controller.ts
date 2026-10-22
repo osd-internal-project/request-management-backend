@@ -1,10 +1,7 @@
+import { ActsAsCompany } from '../auth/acts-as-company.decorator';
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import {
-  CurrentPrincipal,
-  Permissions,
-  ServiceAccountOnly,
-} from '@request-management/share';
+import { CurrentPrincipal, Permissions } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import {
   LeadWorkflowService,
@@ -12,7 +9,7 @@ import {
 } from '@request-management/core-service';
 
 /**
- * หน้าต่างที่ workflow engine เรียกเข้ามา — `@ServiceAccountOnly()` ปิดประตูนี้
+ * หน้าต่างที่ workflow engine เรียกเข้ามา — `@ActsAsCompany()` ปิดประตูนี้
  * ไม่ให้คนเข้าถึงเลย (AUTH-06) และ `integration.crm.lead.*` ไม่เคยถูกมอบให้ role
  * ของมนุษย์.
  *
@@ -23,7 +20,7 @@ import {
 @ApiTags('crm-workflow')
 @ApiBearerAuth()
 @Controller('crm/leads')
-@ServiceAccountOnly()
+@ActsAsCompany()
 export class ExternalLeadWorkflowController {
   constructor(private readonly workflow: LeadWorkflowService) {}
 

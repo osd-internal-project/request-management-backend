@@ -1,3 +1,4 @@
+import { ApiActingHeaders } from '../auth/acts-for-person.decorator';
 import {
   Body,
   Controller,
@@ -32,10 +33,7 @@ import {
   CurrentApiKey,
   type ApiKeyContext,
 } from '@request-management/core-service';
-import {
-  ACTING_USER_HEADER_LABEL,
-  ActingUserGuard,
-} from '../auth/acting-user.guard';
+import { ActingUserGuard } from '../auth/acting-user.guard';
 import { BearerToken } from '../auth/bearer-token.decorator';
 import { RequestApiService } from './request.service';
 import {
@@ -138,11 +136,7 @@ const IDEMPOTENCY_KEY_HEADER = {
 @ApiTags('external')
 @ApiExtraModels(ExternalCommentDto)
 @ApiBearerAuth()
-@ApiHeader({
-  name: ACTING_USER_HEADER_LABEL,
-  required: true,
-  description: 'อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้',
-})
+@ApiActingHeaders()
 @Controller('request')
 @ServiceAccountOnly()
 @UseGuards(ActingUserGuard, ActingPolicyGuard)

@@ -724,6 +724,39 @@
         ]
       }
     },
+    "/api/v1/admin/integrations/presets": {
+      "get": {
+        "operationId": "IntegrationAdminController_presets",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ชุด scope สำเร็จรูปต่อ use case — ใช้ติ๊กให้ตอนสร้าง",
+        "tags": [
+          "admin/integrations"
+        ],
+        "x-permission": [
+          "admin.integration.manage"
+        ]
+      }
+    },
     "/api/v1/admin/integrations": {
       "get": {
         "operationId": "IntegrationAdminController_list",
@@ -44210,7 +44243,7 @@
             "items": {
               "type": "string"
             },
-            "maxItems": 20
+            "maxItems": 80
           },
           "expires_in_days": {
             "type": "integer",
@@ -44319,7 +44352,7 @@
             "items": {
               "type": "string"
             },
-            "maxItems": 20
+            "maxItems": 80
           }
         },
         "required": [

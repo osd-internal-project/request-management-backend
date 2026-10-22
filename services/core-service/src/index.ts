@@ -43,6 +43,7 @@ export {
 } from './principal/api-key.service';
 export type {
   ApiKeyContext,
+  IntegrationPolicy,
   ResolvedApiKey,
 } from './principal/api-key.service';
 

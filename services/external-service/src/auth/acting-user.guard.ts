@@ -1,34 +1,19 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import {
   AppError,
-  COMPANY_HEADER,
   getPrincipal,
   RequestWithPrincipal,
   setPrincipal,
 } from '@request-management/share';
-import {
-  getApiKey,
-  RemotePrincipalService,
-} from '@request-management/core-service';
+import { RemotePrincipalService } from '@request-management/core-service';
+import { resolveCaller } from './resolve-caller';
 
-/**
- * The header naming the person the integration is acting for.
- *
- * Lower-case because that is how Node presents incoming header names, and this
- * constant is used to *read* one. Changing it breaks the guard silently — the
- * lookup below simply stops matching. For the spelling integrators should see
- * in the documentation, use {@link ACTING_USER_HEADER_LABEL}.
- */
-export const ACTING_USER_HEADER = 'x-acting-user';
-
-/**
- * The same header, spelled the way it is written by hand.
- *
- * Documentation only. HTTP header names are case-insensitive, so this changes
- * nothing at runtime — it exists so the OpenAPI document and the cURL examples
- * people copy out of it read `X-Acting-User`.
- */
-export const ACTING_USER_HEADER_LABEL = 'X-Acting-User';
+export {
+  ACTING_USER_HEADER,
+  ACTING_USER_HEADER_LABEL,
+  USER_TOKEN_HEADER,
+  USER_TOKEN_HEADER_LABEL,
+} from './resolve-caller';
 
 /**
  * Swaps the service account's principal for the principal of the person it
@@ -73,39 +58,7 @@ export class ActingUserGuard implements CanActivate {
       );
     }
 
-    const header = request.headers[ACTING_USER_HEADER];
-    const email = typeof header === 'string' ? header.trim() : '';
-
-    if (!email) {
-      throw new AppError(
-        'VALIDATION_FAILED',
-        `ต้องระบุ header ${ACTING_USER_HEADER} เป็นอีเมลของผู้ใช้ที่ทำรายการ`,
-        [{ field: ACTING_USER_HEADER, reason: 'required' }],
-      );
-    }
-
-    const requestedCompany = request.headers[COMPANY_HEADER];
-
-    /*
-      The caller's own bearer travels with the lookup: user-service decides
-      whether this credential may ask the question at all, and it is the only
-      service that verifies tokens (§03). An unknown or suspended address
-      answers 404 there and never reaches a handler here.
-    */
-    const actingUser = await this.principals.resolveActingUser(
-      request.headers.authorization ?? '',
-      email,
-      typeof requestedCompany === 'string' ? requestedCompany : undefined,
-      getApiKey(request)?.scopes ?? [],
-    );
-
-    if (actingUser.pendingOrgAssignment) {
-      throw new AppError(
-        'FORBIDDEN',
-        'ผู้ใช้รายนี้ยังไม่ถูกจัดสังกัดในผังองค์กร จึงยังทำรายการไม่ได้',
-        [{ field: ACTING_USER_HEADER, reason: email }],
-      );
-    }
+    const actingUser = await resolveCaller(request, caller, this.principals);
 
     setPrincipal(request, actingUser);
     return true;

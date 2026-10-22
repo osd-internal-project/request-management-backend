@@ -93,6 +93,28 @@ describe('external-service: scope ของ key ตามสิทธิ์ผ�
     expect(wrong).toEqual([]);
   });
 
+  /*
+    route ที่ไม่มีคนปลายทางต้องผ่าน `CompanyModeGuard` (integration เปิดโหมด `app`).
+    ข้อยกเว้นทุกตัวมีชื่อ: MCP ระบุคนต่อ tool, ที่เหลือไม่ใช้ API key.
+  */
+  const NO_KEY_OR_PER_CALL = [
+    'mcp/mcp.controller.ts',
+    'mcp/oauth-metadata.controller.ts',
+    'health/health.controller.ts',
+    'request/line-connector.controller.ts',
+  ];
+
+  it('a controller that acts for nobody declares @ActsAsCompany()', () => {
+    const missing = controllers(ROOT)
+      .filter((file) => !NO_KEY_OR_PER_CALL.includes(relative(ROOT, file)))
+      .map((file) => [file, stripComments(readFileSync(file, 'utf8'))])
+      .filter(([, source]) => !/ActsForPerson\(\)|ActingUserGuard/.test(source))
+      .filter(([, source]) => !source.includes('@ActsAsCompany()'))
+      .map(([file]) => relative(ROOT, file));
+
+    expect(missing).toEqual([]);
+  });
+
   it('every scope a route asks for is in the catalog', () => {
     const unknown = handlers
       .filter((h) => h.key?.startsWith('integration.'))

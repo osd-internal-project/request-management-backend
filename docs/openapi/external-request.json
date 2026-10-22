@@ -6,10 +6,19 @@
         "operationId": "RequestController_listTypes",
         "parameters": [
           {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "X-Acting-User",
             "in": "header",
-            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
-            "required": true,
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -119,10 +128,19 @@
         "operationId": "RequestController_formOf",
         "parameters": [
           {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "X-Acting-User",
             "in": "header",
-            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
-            "required": true,
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -222,10 +240,19 @@
         "operationId": "RequestController_create",
         "parameters": [
           {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "X-Acting-User",
             "in": "header",
-            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
-            "required": true,
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -352,10 +379,19 @@
         "operationId": "RequestController_list",
         "parameters": [
           {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "X-Acting-User",
             "in": "header",
-            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
-            "required": true,
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -550,10 +586,19 @@
         "operationId": "RequestController_summary",
         "parameters": [
           {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "X-Acting-User",
             "in": "header",
-            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
-            "required": true,
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -713,10 +758,19 @@
         "operationId": "RequestController_searchUsers",
         "parameters": [
           {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "X-Acting-User",
             "in": "header",
-            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
-            "required": true,
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -871,10 +925,19 @@
         "operationId": "RequestController_findOne",
         "parameters": [
           {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "X-Acting-User",
             "in": "header",
-            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
-            "required": true,
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -975,10 +1038,19 @@
         "operationId": "RequestController_actions",
         "parameters": [
           {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "X-Acting-User",
             "in": "header",
-            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
-            "required": true,
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -1078,10 +1150,19 @@
         "operationId": "RequestController_perform",
         "parameters": [
           {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "X-Acting-User",
             "in": "header",
-            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
-            "required": true,
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -1247,10 +1328,19 @@
         "operationId": "RequestController_tree",
         "parameters": [
           {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "X-Acting-User",
             "in": "header",
-            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
-            "required": true,
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
             "schema": {
               "type": "string"
             }

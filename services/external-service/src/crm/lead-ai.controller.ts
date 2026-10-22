@@ -1,10 +1,10 @@
+import { ActsAsCompany } from '../auth/acts-as-company.decorator';
 import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   AppError,
   CurrentPrincipal,
   Permissions,
-  ServiceAccountOnly,
 } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import {
@@ -40,7 +40,7 @@ const CONTACT_FIELDS = [
 @ApiTags('crm-ai')
 @ApiBearerAuth()
 @Controller('crm/ai/leads')
-@ServiceAccountOnly()
+@ActsAsCompany()
 export class ExternalLeadAiController {
   constructor(private readonly leads: LeadsService) {}
 

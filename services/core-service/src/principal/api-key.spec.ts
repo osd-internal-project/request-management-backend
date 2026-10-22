@@ -77,6 +77,31 @@ describe('ApiKeyService (AUTH-06)', () => {
     expect(findByHash).toHaveBeenCalledWith(HASH);
   });
 
+  it('carries the integration policy, and refuses a key whose integration is switched off', async () => {
+    const integration = {
+      id: 'int-1',
+      modes: ['delegated'],
+      allowActingUser: false,
+      keycloakClientIds: ['aiyara-web'],
+    };
+
+    const on = serviceWith({
+      ...usable,
+      integration: { ...integration, active: true },
+    });
+    await expect(on.service.resolve(`Bearer ${KEY}`)).resolves.toMatchObject({
+      key: { integration },
+    });
+
+    const off = serviceWith({
+      ...usable,
+      integration: { ...integration, active: false },
+    });
+    await expect(off.service.resolve(`Bearer ${KEY}`)).rejects.toMatchObject({
+      code: 'UNAUTHORIZED',
+    });
+  });
+
   it('accepts the key with no Bearer scheme, as Postman sends it', async () => {
     const { service } = serviceWith(usable);
 

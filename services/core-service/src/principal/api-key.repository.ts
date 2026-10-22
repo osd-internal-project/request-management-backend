@@ -24,7 +24,10 @@ export class ApiKeyRepository extends BaseRepository<PrismaService['apiKey']> {
    * caller but different lines in the log.
    */
   findByHash(keyHash: string) {
-    return this.findFirst({ where: { keyHash } });
+    return this.findFirst({
+      where: { keyHash },
+      include: { integration: true },
+    });
   }
 
   /**

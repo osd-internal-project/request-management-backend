@@ -1,3 +1,4 @@
+import { ActsAsCompany } from '../auth/acts-as-company.decorator';
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -6,11 +7,7 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import {
-  CurrentPrincipal,
-  Permissions,
-  ServiceAccountOnly,
-} from '@request-management/share';
+import { CurrentPrincipal, Permissions } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import {
   CampaignLeadIntakeService,
@@ -63,7 +60,7 @@ import {
   schema: { type: 'string', example: '6f6bd3a7-7308-4d2e-a4de-75e1f89b6871' },
 })
 @Controller('crm/leads')
-@ServiceAccountOnly()
+@ActsAsCompany()
 export class ExternalLeadIntakeController {
   constructor(
     private readonly intake: LeadIntakeService,

@@ -1,3 +1,4 @@
+import { ApiActingHeaders } from '../auth/acts-for-person.decorator';
 import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -24,7 +25,6 @@ import {
   VoidPaymentDto,
 } from '@request-management/core-service';
 import {
-  ACTING_USER_HEADER_LABEL,
   ActingUserGuard,
 } from '../auth/acting-user.guard';
 import { BearerToken } from '../auth/bearer-token.decorator';
@@ -36,11 +36,7 @@ import { BearerToken } from '../auth/bearer-token.decorator';
  */
 @ApiTags('disbursement')
 @ApiBearerAuth()
-@ApiHeader({
-  name: ACTING_USER_HEADER_LABEL,
-  required: true,
-  description: 'อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้',
-})
+@ApiActingHeaders()
 @Controller('disbursement/disbursements')
 @ServiceAccountOnly()
 @UseGuards(ActingUserGuard, ActingPolicyGuard)

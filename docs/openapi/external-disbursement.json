@@ -6,10 +6,19 @@
         "operationId": "ExternalDisbursementsController_fromRequest",
         "parameters": [
           {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "X-Acting-User",
             "in": "header",
-            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
-            "required": true,
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -59,10 +68,19 @@
         "operationId": "ExternalDisbursementsController_voidPayment",
         "parameters": [
           {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "X-Acting-User",
             "in": "header",
-            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
-            "required": true,
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -130,10 +148,19 @@
         "operationId": "ExternalDisbursementsController_list",
         "parameters": [
           {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "X-Acting-User",
             "in": "header",
-            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
-            "required": true,
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -253,10 +280,19 @@
         "operationId": "ExternalDisbursementsController_byRequest",
         "parameters": [
           {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "X-Acting-User",
             "in": "header",
-            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
-            "required": true,
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -306,10 +342,19 @@
         "operationId": "ExternalDisbursementsController_detail",
         "parameters": [
           {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "X-Acting-User",
             "in": "header",
-            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
-            "required": true,
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -359,10 +404,19 @@
         "operationId": "ExternalDisbursementsController_verify",
         "parameters": [
           {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "X-Acting-User",
             "in": "header",
-            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
-            "required": true,
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -422,10 +476,19 @@
         "operationId": "ExternalDisbursementsController_pay",
         "parameters": [
           {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "X-Acting-User",
             "in": "header",
-            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
-            "required": true,
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -485,10 +548,19 @@
         "operationId": "ExternalDisbursementsController_submitClearing",
         "parameters": [
           {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "X-Acting-User",
             "in": "header",
-            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
-            "required": true,
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -548,10 +620,19 @@
         "operationId": "ExternalDisbursementsController_returnClearing",
         "parameters": [
           {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "X-Acting-User",
             "in": "header",
-            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
-            "required": true,
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
             "schema": {
               "type": "string"
             }
@@ -612,10 +693,19 @@
         "operationId": "ExternalDisbursementsController_close",
         "parameters": [
           {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "X-Acting-User",
             "in": "header",
-            "description": "อีเมลของผู้ใช้ที่ทำรายการ — ระบบจะทำงานในนามของคนนี้",
-            "required": true,
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
             "schema": {
               "type": "string"
             }
