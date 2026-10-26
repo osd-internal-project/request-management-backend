@@ -8,7 +8,7 @@ import {
 } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 
-import { openSecret } from '../pm/config-rules';
+import { openSecret, sealSecret } from '../pm/config-rules';
 import { WebhookAdminController } from './webhook-admin.controller';
 import { WebhookAdminService } from './webhook-admin.service';
 import type {
@@ -46,7 +46,7 @@ function guard(name: Handler, permissions: string[]): () => boolean {
 
 describe('G-07 webhook admin routes need admin.integration.manage', () => {
   it('found the routes', () => {
-    expect(HANDLERS).toHaveLength(7);
+    expect(HANDLERS).toHaveLength(9);
   });
 
   it.each(HANDLERS)('%s', (name) => {
@@ -70,7 +70,10 @@ function admin(companyId = 'osd'): Principal {
   } as unknown as Principal;
 }
 
-function harness(existing: Record<string, unknown> | null = null) {
+function harness(
+  existing: Record<string, unknown> | null = null,
+  deliveryStatus = 'dead',
+) {
   const row = (data: Record<string, unknown>) => ({
     id: 'wh-1',
     companyId: 'osd',
@@ -97,8 +100,22 @@ function harness(existing: Record<string, unknown> | null = null) {
     ),
   };
   const deliveries = {
-    create: jest.fn().mockResolvedValue({}),
+    create: jest.fn().mockResolvedValue({ id: 'dl-2' }),
     findMany: jest.fn().mockResolvedValue([]),
+    findFirst: jest.fn(
+      (args: { where: { id: string; subscriptionId: string } }) =>
+        Promise.resolve(
+          args.where.id === 'dl-1' && args.where.subscriptionId === 'wh-1'
+            ? {
+                id: 'dl-1',
+                eventId: 'evt-1',
+                eventName: 'request.approved',
+                payload: { company_id: 'osd', request_id: 'r-1' },
+                status: deliveryStatus,
+              }
+            : null,
+        ),
+    ),
   };
   const audit = { record: jest.fn().mockResolvedValue(undefined) };
   const values: Record<string, unknown> = {
@@ -224,5 +241,70 @@ describe('G-07 WebhookAdminService', () => {
     await expect(
       service.update('wh-1', { integration_id: 'int-other' }, admin()),
     ).rejects.toThrow('NOT_FOUND');
+  });
+  it('reveals the current secret, audits the view without the secret', async () => {
+    const { service, audit } = harness({
+      secretEnc: sealSecret('whsec_abc', KEY),
+    });
+
+    const out = await service.revealSecret('wh-1', admin());
+
+    expect(out.secret).toBe('whsec_abc');
+    expect(audit.record).toHaveBeenCalledWith(
+      expect.objectContaining({ eventType: 'admin.webhook.secret_revealed' }),
+    );
+    expect(JSON.stringify(audit.record.mock.calls)).not.toContain('whsec_abc');
+  });
+
+  it("another company's webhook secret answers 404 (SCOPE-03)", async () => {
+    const { service } = harness({ secretEnc: sealSecret('whsec_abc', KEY) });
+
+    await expect(
+      service.revealSecret('wh-1', admin('osd-demo')),
+    ).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
+  });
+
+  it('redelivers as a new pending row with the same event id', async () => {
+    const { service, deliveries, audit } = harness({});
+
+    await expect(service.redeliver('wh-1', 'dl-1', admin())).resolves.toEqual({
+      queued: true,
+    });
+
+    expect(deliveries.create).toHaveBeenCalledWith({
+      data: {
+        subscriptionId: 'wh-1',
+        eventId: 'evt-1',
+        eventName: 'request.approved',
+        payload: { company_id: 'osd', request_id: 'r-1' },
+      },
+    });
+    expect(audit.record).toHaveBeenCalledWith(
+      expect.objectContaining({ eventType: 'admin.webhook.redelivered' }),
+    );
+  });
+
+  it('refuses to redeliver a row still waiting, or one of another webhook', async () => {
+    const pending = harness({}, 'pending');
+    await expect(
+      pending.service.redeliver('wh-1', 'dl-1', admin()),
+    ).rejects.toMatchObject({
+      code: 'UNPROCESSABLE',
+    });
+
+    const { service, deliveries } = harness({});
+    await expect(
+      service.redeliver('wh-1', 'dl-9', admin()),
+    ).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
+    await expect(
+      service.redeliver('wh-1', 'dl-1', admin('osd-demo')),
+    ).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
+    expect(deliveries.create).not.toHaveBeenCalled();
   });
 });

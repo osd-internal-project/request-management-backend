@@ -96,9 +96,13 @@ export class WebhookRowDto {
 export class WebhookWithSecretDto extends WebhookRowDto {
   @ApiProperty({
     description:
-      'ใช้ตรวจ `X-Webhook-Signature` — แสดงครั้งเดียว ทำหาย = กด "ออก secret ใหม่"',
+      'ใช้ตรวจ `X-Webhook-Signature` — ดูย้อนหลังได้ที่ `GET admin/webhooks/{id}/secret`',
   })
   secret!: string;
+}
+
+export class WebhookSecretDto {
+  @ApiProperty({ example: 'whsec_…' }) secret!: string;
 }
 
 export class WebhookDeliveryRowDto {

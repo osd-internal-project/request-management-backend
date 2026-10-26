@@ -12,6 +12,7 @@ import { ApiKeyAdminService } from './api-key-admin.service';
 import {
   ApiKeyRowDto,
   ApiKeyScopeDto,
+  ApiKeySecretDto,
   IssueApiKeyDto,
   IssuedApiKeyDto,
   UpdateApiKeyScopesDto,
@@ -64,13 +65,34 @@ export class ApiKeyAdminController {
   @ApiOperation({
     summary: 'ออกกุญแจใบใหม่ให้ช่องทางหนึ่ง',
     description:
-      'ค่าเต็มของกุญแจอยู่ใน `key` ของคำตอบนี้ **ครั้งเดียว** — ไม่มี endpoint ไหน ' +
-      'อ่านกลับได้อีก เพราะฐานข้อมูลเก็บแค่ sha256 ' +
-      'คัดลอกส่งให้ผู้ดูแลช่องทางทันที ทำหาย = ออกใบใหม่แล้วเพิกถอนใบเก่า',
+      'ค่าเต็มของกุญแจอยู่ใน `key` ของคำตอบนี้ ดูย้อนหลังได้ที่ ' +
+      '`GET {id}/secret` (ฐานข้อมูลหาด้วย sha256 และเก็บสำเนาแบบเข้ารหัส)',
   })
   @ApiCreatedResponse({ type: IssuedApiKeyDto })
   issue(@Body() dto: IssueApiKeyDto, @CurrentPrincipal() principal: Principal) {
     return this.keys.issue(dto, principal);
+  }
+
+  @Get(':id/secret')
+  @Permissions('admin.integration.manage')
+  @ApiOperation({
+    summary: 'ดูค่าเต็มของกุญแจ — ทุกครั้งที่ดูลง audit',
+    description:
+      'กุญแจที่ออกก่อน 26 ต.ค. 2569 เก็บแค่ sha256 ตอบ 422 — ให้ใช้ `POST {id}/rotate`',
+  })
+  @ApiOkResponse({ type: ApiKeySecretDto })
+  reveal(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.keys.reveal(id, principal);
+  }
+
+  @Post(':id/rotate')
+  @Permissions('admin.integration.manage')
+  @ApiOperation({
+    summary: 'ออกใบใหม่แทนใบเดิม — สิทธิ์เดิม ใบเดิมใช้ไม่ได้ตั้งแต่คำขอถัดไป',
+  })
+  @ApiCreatedResponse({ type: IssuedApiKeyDto })
+  rotate(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.keys.rotate(id, principal);
   }
 
   @Patch(':id/scopes')
