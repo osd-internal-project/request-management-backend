@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { ConfigService } from '@nestjs/config';
 import type { Principal } from '@request-management/share';
 import { ApiKeyAdminService } from './api-key-admin.service';
 import { API_KEY_PREFIX } from './api-key.service';
@@ -10,6 +11,8 @@ import { API_KEY_PREFIX } from './api-key.service';
  * ออกครั้งเดียว, ฐานข้อมูลเก็บแค่ hash, audit ไม่เคยเห็นตัวกุญแจ, และกุญแจผูก
  * กับบริษัทของคนออกเสมอ.
  */
+const SEAL_KEY = 'test-config-key';
+
 describe('ApiKeyAdminService — ออกกุญแจช่องทางจากหน้าจอผู้ดูแล', () => {
   function admin(companyId = 'osd'): Principal {
     return {
@@ -74,6 +77,8 @@ describe('ApiKeyAdminService — ออกกุญแจช่องทาง�
         keys as never,
         audit as never,
         integrations as never,
+        new ConfigService({ projectConfig: { secret: SEAL_KEY } }),
+        { execute: (work: (prisma: unknown) => unknown) => work({}) } as never,
       ),
       keys,
       integrations,
@@ -405,5 +410,96 @@ describe('ApiKeyAdminService — ออกกุญแจช่องทาง�
       ),
     ).rejects.toThrow('NOT_FOUND');
     expect(keys.create).not.toHaveBeenCalled();
+  });
+  describe('ดูย้อนหลังและออกใหม่ (26 ต.ค. 2569)', () => {
+    it('ดูค่าเต็มของกุญแจที่ออกจากหน้าจอได้ และ audit ไม่มีตัวกุญแจ', async () => {
+      const issuing = harness();
+      const issued = await issuing.service.issue(request, admin());
+      const sealed = issuing.created[0];
+
+      const { service, audits } = harness([
+        { id: 'key-1', prefix: issued.prefix, name: request.name, ...sealed },
+      ]);
+      const shown = await service.reveal('key-1', admin());
+
+      expect(shown.key).toBe(issued.key);
+      expect(audits.at(-1)?.eventType).toBe('admin.api_key.revealed');
+      expect(JSON.stringify(audits)).not.toContain(issued.key);
+    });
+
+    it('กุญแจที่ออกก่อนเก็บแบบเข้ารหัส (keyEnc = null) ตอบ 422 ให้ออกใหม่', async () => {
+      const { service, audits } = harness([
+        { id: 'key-1', prefix: 'rfk_old', name: 'เดิม', keyEnc: null },
+      ]);
+
+      await expect(service.reveal('key-1', admin())).rejects.toMatchObject({
+        code: 'UNPROCESSABLE',
+      });
+      expect(audits).toHaveLength(0);
+    });
+
+    it('SCOPE-03: กุญแจของบริษัทอื่นดูไม่ได้ — 404', async () => {
+      const { service, keys } = harness([]);
+
+      await expect(
+        service.reveal('key-1', admin('osd-demo')),
+      ).rejects.toMatchObject({
+        code: 'NOT_FOUND',
+      });
+      expect(keys.findFirst.mock.calls[0][0].where).toEqual({
+        id: 'key-1',
+        companyId: 'osd-demo',
+      });
+    });
+
+    it('ออกใหม่: ใบใหม่ได้สิทธิ์เดิม ใบเดิมถูกเพิกถอน และ audit ไม่มีตัวกุญแจ', async () => {
+      const original = {
+        id: 'key-1',
+        prefix: 'rfk_original',
+        name: 'เว็บไซต์',
+        sourceCode: 'website',
+        scopes: ['integration.crm.lead.create'],
+        integrationId: 'int-osd',
+        expiresAt: null,
+        active: true,
+        revokedAt: null,
+        keyEnc: null,
+      };
+      const { service, keys, created, audits } = harness([original]);
+
+      const issued = await service.rotate('key-1', admin());
+
+      expect(created[0]).toMatchObject({
+        name: 'เว็บไซต์',
+        sourceCode: 'website',
+        scopes: ['integration.crm.lead.create'],
+        integrationId: 'int-osd',
+        companyId: 'osd',
+      });
+      expect(issued.key).not.toContain('rfk_original');
+      expect(keys.update.mock.calls[0][0]).toMatchObject({
+        where: { id: 'key-1' },
+        data: { active: false },
+      });
+      expect(audits.at(-1)?.eventType).toBe('admin.api_key.rotated');
+      expect(JSON.stringify(audits)).not.toContain(issued.key);
+    });
+
+    it('กุญแจที่เพิกถอนแล้วออกใหม่ไม่ได้', async () => {
+      const { service, created } = harness([
+        {
+          id: 'key-1',
+          prefix: 'rfk_x',
+          name: 'x',
+          active: false,
+          revokedAt: new Date(),
+        },
+      ]);
+
+      await expect(service.rotate('key-1', admin())).rejects.toMatchObject({
+        code: 'UNPROCESSABLE',
+      });
+      expect(created).toHaveLength(0);
+    });
   });
 });

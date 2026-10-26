@@ -1,12 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Prisma } from '@prisma/client';
 import {
   AppError,
   AuditWriter,
   auditActor,
   Principal,
 } from '@request-management/share';
-import { sealSecret } from '../pm/config-rules';
+import { openSecret, sealSecret } from '../pm/config-rules';
 import { IntegrationAdminService } from '../principal/integration-admin.service';
 import {
   WebhookDeliveryRepository,
@@ -38,6 +39,7 @@ interface SubscriptionRow {
   events: string[];
   active: boolean;
   integrationId: string | null;
+  secretEnc: string;
   createdAt: Date;
   createdBy: string;
 }
@@ -45,7 +47,7 @@ interface SubscriptionRow {
 /**
  * G-07 — the admin screen for outbound webhooks. Every route is pinned to the
  * caller's active company; another company's webhook answers 404 (SCOPE-03).
- * The secret leaves only in the answer to create / rotate, never in audit.
+ * The secret leaves in the answer to create / rotate / reveal, never in audit.
  */
 @Injectable()
 export class WebhookAdminService {
@@ -156,6 +158,82 @@ export class WebhookAdminService {
     return { ...toRow(row), secret };
   }
 
+  /** secret ปัจจุบัน — ทุกครั้งที่ดูลง audit (ไม่มีตัว secret ในนั้น). */
+  async revealSecret(
+    id: string,
+    actor: Principal,
+  ): Promise<{ secret: string }> {
+    const found = await this.owned(id, actor);
+    const secret = openSecret(found.secretEnc, this.sealKey());
+    if (secret === null) {
+      throw new AppError(
+        'UNPROCESSABLE',
+        'ถอดรหัส secret ไม่ได้ — CONFIG_SECRET_KEY อาจถูกเปลี่ยน ให้กดออก secret ใหม่',
+      );
+    }
+    await this.audit.record({
+      eventType: 'admin.webhook.secret_revealed',
+      companyId: actor.activeCompanyId,
+      ...auditActor(actor),
+      resourceType: 'webhook',
+      resourceId: id,
+      after: { name: found.name },
+    });
+    return { secret };
+  }
+
+  /**
+   * ส่งการแจ้งเดิมซ้ำ — แถวใหม่ `pending` ที่ `eventId` เดิม ปลายทางจึงตัดซ้ำด้วย
+   * `X-Webhook-Id` ได้; แถวเดิมคงไว้เป็นประวัติ. แถวที่ยังรอส่งอยู่ส่งซ้ำไม่ได้.
+   */
+  async redeliver(
+    id: string,
+    deliveryId: string,
+    actor: Principal,
+  ): Promise<{ queued: true }> {
+    const found = await this.owned(id, actor);
+    if (!found.active) {
+      throw new AppError(
+        'UNPROCESSABLE',
+        'webhook นี้ปิดอยู่ — เปิดก่อนจึงส่งซ้ำได้',
+      );
+    }
+    const delivery = await this.deliveries.findFirst({
+      where: { id: deliveryId, subscriptionId: id },
+    });
+    if (!delivery) throw new AppError('NOT_FOUND', 'ไม่พบการส่งที่ระบุ');
+    if (delivery.status !== 'sent' && delivery.status !== 'dead') {
+      throw new AppError(
+        'UNPROCESSABLE',
+        'รายการนี้ยังอยู่ระหว่างส่ง — รอให้ส่งสำเร็จหรือล้มเหลวก่อน',
+      );
+    }
+
+    const queued = await this.deliveries.create({
+      data: {
+        subscriptionId: id,
+        eventId: delivery.eventId,
+        eventName: delivery.eventName,
+        // JSON ที่อ่านมาจากคอลัมน์เดียวกัน (NOT NULL) เขียนกลับได้ตามเดิม
+        payload: delivery.payload as Prisma.InputJsonValue,
+      },
+    });
+    await this.audit.record({
+      eventType: 'admin.webhook.redelivered',
+      companyId: actor.activeCompanyId,
+      ...auditActor(actor),
+      resourceType: 'webhook',
+      resourceId: id,
+      after: {
+        deliveryId: queued.id,
+        fromDeliveryId: deliveryId,
+        eventId: delivery.eventId,
+        event: delivery.eventName,
+      },
+    });
+    return { queued: true };
+  }
+
   async listDeliveries(
     id: string,
     actor: Principal,
@@ -240,9 +318,13 @@ export class WebhookAdminService {
   }
 
   private seal(secret: string): string {
+    return sealSecret(secret, this.sealKey());
+  }
+
+  private sealKey(): string {
     const key = this.config.get<string>('projectConfig.secret');
     if (!key) throw new Error('CONFIG_SECRET_KEY is not set');
-    return sealSecret(secret, key);
+    return key;
   }
 }
 

@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { createHash, randomBytes } from 'node:crypto';
 import {
   AppError,
@@ -7,7 +8,10 @@ import {
   ALL_PERMISSIONS,
   permissionType,
   Principal,
+  PrismaTransactionService,
+  TxOption,
 } from '@request-management/share';
+import { openSecret, sealSecret } from '../pm/config-rules';
 import { ApiKeyRepository } from './api-key.repository';
 import { IntegrationAdminService } from './integration-admin.service';
 import { API_KEY_PREFIX } from './api-key.service';
@@ -48,7 +52,8 @@ const ISSUABLE_SCOPES: readonly string[] = ALL_PERMISSIONS.filter(
  *
  * เหตุผลข้อที่สองไม่ได้หายไป จึงถูกกันไว้ตรงนี้แทน:
  *
- * - ค่าเต็มออกจาก `POST` **ครั้งเดียว** ไม่มี endpoint อ่านกลับ (เก็บแค่ sha256)
+ * - หาด้วย sha256 เท่านั้น ค่าเต็มเก็บแบบเข้ารหัส (`keyEnc`) ให้ผู้ดูแลกดดูได้
+ *   ทีละใบ ทุกครั้งที่ดูลง audit (26 ต.ค. 2569 — กลับจาก "แสดงครั้งเดียว")
  * - ไม่เคยลง audit, ไม่เคยลง log — สิ่งที่บันทึกคือ prefix กับใครเป็นคนออก
  * - ผูกกับบริษัทที่ผู้ออกกำลังทำงานอยู่เสมอ ไม่ใช่ค่าที่ส่งมาใน body
  * - ติ๊กสิทธิ์ได้เฉพาะ `integration.*` — หน้าจอนี้ออกกุญแจของแอดมินไม่ได้
@@ -59,6 +64,8 @@ export class ApiKeyAdminService {
     private readonly keys: ApiKeyRepository,
     private readonly audit: AuditWriter,
     private readonly integrations: IntegrationAdminService,
+    private readonly config: ConfigService,
+    private readonly transactions: PrismaTransactionService,
   ) {}
 
   /** ตัวเลือกสิทธิ์ที่หน้าจอเอาไปวาด checkbox. */
@@ -88,25 +95,21 @@ export class ApiKeyAdminService {
       ? (await this.integrations.owned(dto.integration_id, actor)).id
       : await this.integrations.createForKey(dto.name.trim(), actor);
 
-    const key = API_KEY_PREFIX + randomBytes(32).toString('base64url');
-    const prefix = key.slice(0, DISPLAY_LENGTH);
     const expiresAt = dto.expires_in_days
       ? new Date(Date.now() + dto.expires_in_days * 86_400_000)
       : null;
 
-    const row = (await this.keys.create({
-      data: {
+    const { key, row } = await this.mint(
+      {
         name: dto.name.trim(),
-        prefix,
-        keyHash: createHash('sha256').update(key).digest('hex'),
-        companyId: actor.activeCompanyId,
         sourceCode: dto.source_code,
         scopes,
         expiresAt,
         integrationId,
-        createdBy: actor.userId,
       },
-    })) as ApiKeyRow;
+      actor,
+    );
+    const prefix = row.prefix;
 
     /*
       บันทึกว่าใครออกกุญแจอะไรให้ช่องทางไหน — **ไม่เคยบันทึกตัวกุญแจ**. audit
@@ -133,6 +136,91 @@ export class ApiKeyAdminService {
   }
 
   /**
+   * ค่าเต็มของกุญแจ — ถอดจาก `keyEnc` ทุกครั้งที่ดูลง audit (ไม่มีตัวกุญแจในนั้น).
+   * ใบที่ออกก่อนมี `keyEnc` ดูไม่ได้ ต้องออกใหม่.
+   */
+  async reveal(id: string, actor: Principal): Promise<{ key: string }> {
+    const found = await this.owned(id, actor);
+    const key = found.keyEnc ? openSecret(found.keyEnc, this.sealKey()) : null;
+    if (!key) {
+      throw new AppError(
+        'UNPROCESSABLE',
+        found.keyEnc
+          ? 'ถอดรหัสกุญแจไม่ได้ — CONFIG_SECRET_KEY อาจถูกเปลี่ยน ให้กดออกใหม่'
+          : 'กุญแจนี้ออกก่อนระบบเก็บแบบเข้ารหัส จึงดูย้อนหลังไม่ได้ — ให้กดออกใหม่',
+      );
+    }
+
+    await this.audit.record({
+      eventType: 'admin.api_key.revealed',
+      companyId: actor.activeCompanyId,
+      ...auditActor(actor),
+      resourceType: 'api_key',
+      resourceId: id,
+      after: { prefix: found.prefix, name: found.name },
+    });
+    return { key };
+  }
+
+  /**
+   * ออกใบใหม่แทนใบเดิม — ชื่อ ช่องทาง สิทธิ์ อายุ ระบบภายนอกเหมือนเดิม และเพิกถอน
+   * ใบเดิมในรายการเดียวกัน: ใบเดิมใช้ไม่ได้ตั้งแต่คำขอถัดไป.
+   */
+  async rotate(id: string, actor: Principal): Promise<IssuedApiKeyDto> {
+    const found = await this.owned(id, actor);
+    if (statusOf(found) !== 'active') {
+      throw new AppError(
+        'UNPROCESSABLE',
+        'ออกใหม่ได้เฉพาะกุญแจที่ยังใช้งานอยู่ — ใบนี้เพิกถอนหรือหมดอายุแล้ว ให้ออกใบใหม่แทน',
+      );
+    }
+
+    const { key, row } = await this.transactions.execute(async (prisma) => {
+      const minted = await this.mint(
+        {
+          name: found.name,
+          sourceCode: found.sourceCode,
+          scopes: found.scopes,
+          expiresAt: found.expiresAt,
+          integrationId: found.integrationId,
+        },
+        actor,
+        { prisma },
+      );
+      await this.keys.update(
+        {
+          where: { id },
+          data: {
+            active: false,
+            revokedAt: new Date(),
+            revokedBy: actor.userId,
+          },
+        },
+        { prisma },
+      );
+      await this.audit.record(
+        {
+          eventType: 'admin.api_key.rotated',
+          companyId: actor.activeCompanyId,
+          ...auditActor(actor),
+          resourceType: 'api_key',
+          resourceId: minted.row.id,
+          before: { id, prefix: found.prefix, name: found.name },
+          after: {
+            id: minted.row.id,
+            prefix: minted.row.prefix,
+            name: found.name,
+          },
+        },
+        { prisma },
+      );
+      return minted;
+    });
+
+    return { ...toRow(row), key };
+  }
+
+  /**
    * แก้สิทธิ์ของกุญแจที่ออกไปแล้ว — มีผลกับคำขอถัดไปทันที.
    *
    * ทันทีจริง ๆ เพราะกุญแจถูกอ่านจากตารางนี้ทุกคำขอ (`ApiKeyService.resolve`
@@ -150,12 +238,7 @@ export class ApiKeyAdminService {
     dto: UpdateApiKeyScopesDto,
     actor: Principal,
   ): Promise<ApiKeyRowDto> {
-    const found = (await this.keys.findFirst({
-      where: { id, companyId: actor.activeCompanyId },
-    })) as ApiKeyRow | null;
-
-    // SCOPE-03: กุญแจของบริษัทอื่น = ไม่มีอยู่จริงสำหรับผู้เรียกคนนี้
-    if (!found) throw new AppError('NOT_FOUND', 'ไม่พบ API key ที่ระบุ');
+    const found = await this.owned(id, actor);
 
     if (found.revokedAt || !found.active) {
       throw new AppError(
@@ -192,12 +275,7 @@ export class ApiKeyAdminService {
    * เคยอยู่บนเว็บฟอร์มตัวเก่าถูกปิดไปเมื่อไหร่ ใครปิด" — ลบทิ้งแล้วไม่มีคำตอบ.
    */
   async revoke(id: string, actor: Principal): Promise<ApiKeyRowDto> {
-    const found = (await this.keys.findFirst({
-      where: { id, companyId: actor.activeCompanyId },
-    })) as ApiKeyRow | null;
-
-    // SCOPE-03: กุญแจของบริษัทอื่น = ไม่มีอยู่จริงสำหรับผู้เรียกคนนี้
-    if (!found) throw new AppError('NOT_FOUND', 'ไม่พบ API key ที่ระบุ');
+    const found = await this.owned(id, actor);
 
     if (found.revokedAt) return toRow(found);
 
@@ -222,6 +300,46 @@ export class ApiKeyAdminService {
 
     return toRow(row);
   }
+
+  /** SCOPE-03: กุญแจของบริษัทอื่น = ไม่มีอยู่จริงสำหรับผู้เรียกคนนี้. */
+  private async owned(id: string, actor: Principal): Promise<ApiKeyRow> {
+    const found = (await this.keys.findFirst({
+      where: { id, companyId: actor.activeCompanyId },
+    })) as ApiKeyRow | null;
+    if (!found) throw new AppError('NOT_FOUND', 'ไม่พบ API key ที่ระบุ');
+    return found;
+  }
+
+  private async mint(
+    data: Pick<
+      ApiKeyRow,
+      'name' | 'sourceCode' | 'scopes' | 'expiresAt' | 'integrationId'
+    >,
+    actor: Principal,
+    option?: TxOption,
+  ): Promise<{ key: string; row: ApiKeyRow }> {
+    const key = API_KEY_PREFIX + randomBytes(32).toString('base64url');
+    const row = (await this.keys.create(
+      {
+        data: {
+          ...data,
+          prefix: key.slice(0, DISPLAY_LENGTH),
+          keyHash: createHash('sha256').update(key).digest('hex'),
+          keyEnc: sealSecret(key, this.sealKey()),
+          companyId: actor.activeCompanyId,
+          createdBy: actor.userId,
+        },
+      },
+      option,
+    )) as ApiKeyRow;
+    return { key, row };
+  }
+
+  private sealKey(): string {
+    const secret = this.config.get<string>('projectConfig.secret');
+    if (!secret) throw new Error('CONFIG_SECRET_KEY is not set');
+    return secret;
+  }
 }
 
 interface ApiKeyRow {
@@ -231,6 +349,7 @@ interface ApiKeyRow {
   sourceCode: string | null;
   integrationId: string | null;
   scopes: string[];
+  keyEnc: string | null;
   active: boolean;
   expiresAt: Date | null;
   revokedAt: Date | null;

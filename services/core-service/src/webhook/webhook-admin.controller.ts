@@ -14,6 +14,7 @@ import {
   UpdateWebhookDto,
   WebhookDeliveryRowDto,
   WebhookRowDto,
+  WebhookSecretDto,
   WebhookWithSecretDto,
 } from './dto/webhook.dto';
 
@@ -42,7 +43,8 @@ export class WebhookAdminController {
   @Post()
   @Permissions('admin.integration.manage')
   @ApiOperation({
-    summary: 'เพิ่มปลายทาง — `secret` อยู่ในคำตอบนี้ครั้งเดียว',
+    summary:
+      'เพิ่มปลายทาง — `secret` อยู่ในคำตอบนี้ ดูย้อนหลังได้ที่ `GET {id}/secret`',
   })
   @ApiCreatedResponse({ type: WebhookWithSecretDto })
   create(
@@ -75,6 +77,30 @@ export class WebhookAdminController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.webhooks.rotateSecret(id, principal);
+  }
+
+  @Get(':id/secret')
+  @Permissions('admin.integration.manage')
+  @ApiOperation({ summary: 'ดู secret ปัจจุบัน — ทุกครั้งที่ดูลง audit' })
+  @ApiOkResponse({ type: WebhookSecretDto })
+  revealSecret(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.webhooks.revealSecret(id, principal);
+  }
+
+  @Post(':id/deliveries/:deliveryId/redeliver')
+  @Permissions('admin.integration.manage')
+  @ApiOperation({
+    summary: 'ส่งการแจ้งเดิมซ้ำ (X-Webhook-Id เดิม) ในรอบถัดไปของ worker',
+  })
+  redeliver(
+    @Param('id') id: string,
+    @Param('deliveryId') deliveryId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.webhooks.redeliver(id, deliveryId, principal);
   }
 
   @Get(':id/deliveries')

@@ -151,9 +151,15 @@ export class ApiKeyRowDto {
 export class IssuedApiKeyDto extends ApiKeyRowDto {
   @ApiProperty({
     description:
-      'ตัวกุญแจเต็ม — แสดงครั้งเดียว คัดลอกแล้วส่งให้ผู้ดูแลช่องทางทันที',
+      'ตัวกุญแจเต็ม — ดูย้อนหลังได้ที่ `GET admin/api-keys/{id}/secret`',
     example: 'rfk_cgM8rX2hoXGsT6uuAsU0vjwLNpO14dpkQrkBgoyELOY',
   })
+  key!: string;
+}
+
+/** ค่าเต็มของกุญแจที่ออกไปแล้ว — ทุกครั้งที่อ่านลง audit. */
+export class ApiKeySecretDto {
+  @ApiProperty({ example: 'rfk_cgM8rX2hoXGsT6uuAsU0vjwLNpO14dpkQrkBgoyELOY' })
   key!: string;
 }
 

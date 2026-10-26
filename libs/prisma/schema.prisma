@@ -1963,9 +1963,9 @@ model IdempotencyKey {
 /// so token verification stays in one place (§03) and every downstream rule is
 /// unchanged.
 ///
-/// Only the hash is stored. A key is shown once, at issue, and is
-/// unrecoverable afterwards — a database dump does not yield a working
-/// credential.
+/// Lookup is by hash only. `keyEnc` keeps a sealed copy so an admin can view
+/// the key again (user decision, 26 Oct 2026) — a database dump alone still
+/// yields nothing, but a dump plus `CONFIG_SECRET_KEY` does.
 model ApiKey {
   id      String @id @default(uuid())
   /// Who holds it, in words a person can act on: "Aiyara chatbot (prod)".
@@ -1975,6 +1975,9 @@ model ApiKey {
   prefix  String @unique
   /// sha256 of the whole key. Unique, and the only thing looked up.
   keyHash String @unique
+  /// The key sealed with `sealSecret` — read only by the admin "view" route.
+  /// NULL for keys issued before 26 Oct 2026; those can only be rotated.
+  keyEnc  String?
 
   active    Boolean   @default(true)
   /// Null means it never expires — the property this table exists to provide.
