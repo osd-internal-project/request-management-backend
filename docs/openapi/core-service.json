@@ -12909,6 +12909,425 @@
         "x-sensitive-resource": "quotation"
       }
     },
+    "/api/v1/agent-records": {
+      "get": {
+        "operationId": "AgentRecordsController_list",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "เลขหน้าที่ต้องการ เริ่มที่ 1",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page_size",
+            "required": false,
+            "in": "query",
+            "description": "จำนวนรายการต่อหน้า",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "`sort=field` เรียงขึ้น, `sort=-field` เรียงลง",
+            "schema": {
+              "example": "-createdAt",
+              "type": "string",
+              "pattern": "^-?[a-zA-Z_][a-zA-Z0-9_]*$"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "processing",
+                "done",
+                "failed"
+              ]
+            }
+          },
+          {
+            "name": "action",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "lead.find"
+              ]
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "รายการงานของ agent (เฉพาะ action ที่มีสิทธิ์ดู)",
+        "tags": [
+          "agent-records"
+        ]
+      }
+    },
+    "/api/v1/agent-records/stream": {
+      "get": {
+        "description": "event `record` เมื่อแถวเปลี่ยน, `ping` ทุก 15 วิ; ปิดเองเมื่อทุกแถวจบหรือครบ 15 นาที",
+        "operationId": "AgentRecordsController_stream",
+        "parameters": [
+          {
+            "name": "ids",
+            "required": true,
+            "in": "query",
+            "description": "id ของ record ที่จะเฝ้า คั่นด้วย comma — ไม่เกิน 50",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 50
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เฝ้าสถานะงานแบบ SSE",
+        "tags": [
+          "agent-records"
+        ]
+      }
+    },
+    "/api/v1/agent-records/{id}": {
+      "get": {
+        "operationId": "AgentRecordsController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "รายละเอียดงานของ agent พร้อมผลลัพธ์",
+        "tags": [
+          "agent-records"
+        ]
+      }
+    },
+    "/api/v1/leads/find": {
+      "post": {
+        "description": "สร้างงาน `lead.find` แล้วส่งให้ Vuvagent — ตอบ record ทันที",
+        "operationId": "LeadFindController_find",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FindLeadsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ให้ agent หา Lead ตามหัวข้อ",
+        "tags": [
+          "leads"
+        ],
+        "x-permission": [
+          "crm.sales.manage"
+        ]
+      }
+    },
+    "/api/v1/admin/integration-endpoints": {
+      "get": {
+        "operationId": "IntegrationEndpointsAdminController_list",
+        "parameters": [
+          {
+            "name": "integration_id",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/IntegrationEndpointRowDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "endpoint ของระบบภายนอกหนึ่งระบบ — ไม่มี key ในคำตอบ",
+        "tags": [
+          "admin/integration-endpoints"
+        ],
+        "x-permission": [
+          "admin.integration.manage"
+        ]
+      },
+      "post": {
+        "operationId": "IntegrationEndpointsAdminController_create",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateIntegrationEndpointDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntegrationEndpointRowDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เพิ่ม endpoint ของงานหนึ่ง — งานละหนึ่ง endpoint ต่อบริษัท",
+        "tags": [
+          "admin/integration-endpoints"
+        ],
+        "x-permission": [
+          "admin.integration.manage"
+        ]
+      }
+    },
+    "/api/v1/admin/integration-endpoints/{id}": {
+      "patch": {
+        "operationId": "IntegrationEndpointsAdminController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateIntegrationEndpointDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntegrationEndpointRowDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แก้ URL, endpoint id, key หรือเปิด/ปิด",
+        "tags": [
+          "admin/integration-endpoints"
+        ],
+        "x-permission": [
+          "admin.integration.manage"
+        ]
+      }
+    },
+    "/api/v1/admin/integration-endpoints/{id}/key": {
+      "get": {
+        "operationId": "IntegrationEndpointsAdminController_revealKey",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntegrationEndpointKeyDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ดู x-api-key ปัจจุบัน — ทุกครั้งที่ดูลง audit",
+        "tags": [
+          "admin/integration-endpoints"
+        ],
+        "x-permission": [
+          "admin.integration.manage"
+        ]
+      }
+    },
     "/api/v1/presales/solutions": {
       "post": {
         "operationId": "SolutionsController_start",
@@ -45358,6 +45777,9 @@
           "webhook_count": {
             "type": "number"
           },
+          "endpoint_count": {
+            "type": "number"
+          },
           "created_at": {
             "type": "string"
           },
@@ -45375,6 +45797,7 @@
           "active",
           "api_key_count",
           "webhook_count",
+          "endpoint_count",
           "created_at",
           "created_by"
         ]
@@ -49542,6 +49965,136 @@
         },
         "required": [
           "caps"
+        ]
+      },
+      "FindLeadsDto": {
+        "type": "object",
+        "properties": {
+          "topic": {
+            "type": "string",
+            "description": "ลูกค้าแบบไหนที่ต้องการให้ agent หา",
+            "example": "บริษัทโลจิสติกส์ในภาคตะวันออก",
+            "maxLength": 500,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "topic"
+        ]
+      },
+      "IntegrationEndpointRowDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "integration_id": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "base_url": {
+            "type": "string"
+          },
+          "endpoint_id": {
+            "type": "string"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "integration_id",
+          "action",
+          "base_url",
+          "endpoint_id",
+          "active",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "CreateIntegrationEndpointDto": {
+        "type": "object",
+        "properties": {
+          "integration_id": {
+            "type": "string",
+            "description": "ระบบภายนอกที่ endpoint นี้เป็นของ"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "lead.find"
+            ],
+            "example": "lead.find"
+          },
+          "base_url": {
+            "type": "string",
+            "example": "https://d80g4r2y4zcsb.cloudfront.net",
+            "maxLength": 500,
+            "minLength": 1
+          },
+          "endpoint_id": {
+            "type": "string",
+            "example": "ep_192af84bf2f9417cbf9f4097e050d264",
+            "maxLength": 200,
+            "pattern": "^[A-Za-z0-9_-]+$"
+          },
+          "api_key": {
+            "type": "string",
+            "description": "`x-api-key` ของปลายทาง — เก็บแบบเข้ารหัส",
+            "maxLength": 500,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "action",
+          "api_key",
+          "base_url",
+          "endpoint_id",
+          "integration_id"
+        ]
+      },
+      "UpdateIntegrationEndpointDto": {
+        "type": "object",
+        "properties": {
+          "base_url": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1
+          },
+          "endpoint_id": {
+            "type": "string",
+            "maxLength": 200,
+            "pattern": "^[A-Za-z0-9_-]+$"
+          },
+          "api_key": {
+            "type": "string",
+            "description": "ไม่ส่ง = ใช้ key เดิม",
+            "maxLength": 500,
+            "minLength": 1
+          },
+          "active": {
+            "type": "boolean"
+          }
+        }
+      },
+      "IntegrationEndpointKeyDto": {
+        "type": "object",
+        "properties": {
+          "api_key": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "api_key"
         ]
       },
       "StartSolutionDto": {

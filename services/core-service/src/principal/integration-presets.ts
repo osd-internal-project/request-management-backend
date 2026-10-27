@@ -27,6 +27,12 @@ export const INTEGRATION_PRESETS: readonly IntegrationPreset[] = [
     ],
   },
   {
+    code: 'ai-lead-finder',
+    name: 'Vuvagent หา Lead (Find leads)',
+    modes: ['app'],
+    scopes: ['integration.crm.lead.create', 'integration.agent.record.update'],
+  },
+  {
     code: 'chatbot',
     name: 'Chatbot ทำงานแทนผู้ใช้',
     modes: ['delegated'],

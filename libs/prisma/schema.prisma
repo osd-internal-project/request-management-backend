@@ -2053,8 +2053,10 @@ model Integration {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  apiKeys  ApiKey[]
-  webhooks WebhookSubscription[]
+  apiKeys   ApiKey[]
+  webhooks  WebhookSubscription[]
+  /// endpoint ที่ CTD เรียกระบบนี้ต่องาน (`agent_records`)
+  endpoints IntegrationEndpoint[]
 
   @@index([companyId, active])
   @@map("integrations")
@@ -9262,4 +9264,54 @@ model WorkflowStart {
   @@index([status, nextAttemptAt])
   @@index([triggerId, createdAt])
   @@map("workflow_starts")
+}
+
+/// งานหนึ่งครั้งที่ส่งให้ AI agent ภายนอก (Vuvagent) ทำในเบื้องหลัง (27 ต.ค. 2569).
+/// สร้างตอนผู้ใช้สั่ง → agent ยิง `PATCH agent-records/:id` ทาง external API ปิดงานเอง.
+/// สิทธิ์ดูผูกกับ `action` (`agent-actions.ts`) ไม่ใช่ทั้งตาราง.
+model AgentRecord {
+  id        String   @id @default(uuid())
+  companyId String
+  /// key จาก `AGENT_ACTIONS` เช่น `lead.find`
+  action    String
+  /// processing | done | failed
+  status    String   @default("processing")
+  /// สิ่งที่ส่งให้ agent เช่น `{ topic }`
+  input     Json
+  /// สิ่งที่ agent ส่งกลับตอนปิดงาน — JSON ของผู้ส่ง ไม่มี schema ฝั่งเรา
+  result    Json?
+  error     String?
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId, createdAt])
+  @@index([companyId, action, status])
+  @@map("agent_records")
+}
+
+/// endpoint ของระบบภายนอกที่ CTD เรียกเพื่อส่งงานของ agent (27 ต.ค. 2569) —
+/// ตั้งที่แท็บ "Endpoint ที่เราเรียก" ของหน้า Integrations แทน env. หนึ่งงานต่อบริษัท
+/// มีได้ endpoint เดียว; ไม่ลบจริง ปิดด้วย `active=false`.
+model IntegrationEndpoint {
+  id            String   @id @default(uuid())
+  companyId     String
+  integrationId String
+  /// key จาก `AGENT_ACTIONS` เช่น `lead.find`
+  action        String
+  /// เช่น https://d80g4r2y4zcsb.cloudfront.net — ยิง `POST {baseUrl}/v1/endpoints/{endpointId}`
+  baseUrl       String
+  endpointId    String
+  /// `x-api-key` — ต้องใช้ตัวจริงตอนเรียก จึงเก็บแบบเข้ารหัส (sealSecret) ไม่ใช่ hash
+  apiKeyEnc     String
+  active        Boolean  @default(true)
+  createdBy     String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  integration Integration @relation(fields: [integrationId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, action])
+  @@index([integrationId])
+  @@map("integration_endpoints")
 }

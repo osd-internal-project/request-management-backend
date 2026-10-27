@@ -23,6 +23,7 @@ import { RemotePrincipalGuard } from './principal/remote-principal.guard';
 import { EventsModule } from './events/events.module';
 import { EsignHttpModule } from './esign/esign-http.module';
 import { CrmHttpModule } from './crm/crm-http.module';
+import { AgentRecordsHttpModule } from './agent-records/agent-records-http.module';
 import { IntegrationHttpModule } from './integration/integration-http.module';
 import { ProductsHttpModule } from './products/products-http.module';
 import { RequestsHttpModule } from './requests/requests-http.module';
@@ -80,6 +81,8 @@ import configs from './configs';
     HealthModule,
     RequestsHttpModule,
     CrmHttpModule,
+    // งานของ AI agent ภายนอก (Find leads → Vuvagent)
+    AgentRecordsHttpModule,
     PresalesHttpModule,
     // CD-12 Pricing — standard prices, cost and margin
     PricingHttpModule,

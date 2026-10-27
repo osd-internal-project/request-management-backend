@@ -126,6 +126,7 @@ export class IntegrationRowDto {
   @ApiProperty() active!: boolean;
   @ApiProperty() api_key_count!: number;
   @ApiProperty() webhook_count!: number;
+  @ApiProperty() endpoint_count!: number;
   @ApiProperty() created_at!: string;
   @ApiProperty() created_by!: string;
 }

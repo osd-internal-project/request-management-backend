@@ -205,3 +205,7 @@ export {
   ProcessLogQueryDto,
   ProcessLogRowDto,
 } from './process-log/dto/process-log.dto';
+// agent records — Vuvagent closes the job it was handed through external-service
+export { AgentRecordsModule } from './agent-records/agent-records.module';
+export { AgentRecordsService } from './agent-records/agent-records.service';
+export { CompleteAgentRecordDto } from './agent-records/dto/agent-record.dto';

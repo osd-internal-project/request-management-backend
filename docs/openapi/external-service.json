@@ -14735,6 +14735,58 @@
           "integration.process.log"
         ]
       }
+    },
+    "/api/v1/agent-records/{id}": {
+      "patch": {
+        "description": "ไม่ต้องส่ง `X-Acting-User` · ปิดได้ครั้งเดียว ยิงซ้ำได้ 409 · lead ที่หาได้ส่งทาง `POST crm/leads/intake` พร้อม `intake_data.agent_record_id`",
+        "operationId": "ExternalAgentRecordsController_complete",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompleteAgentRecordDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ปิดงานที่ CTD ส่งให้ agent — done หรือ failed",
+        "tags": [
+          "agent-records"
+        ],
+        "x-permission": [
+          "integration.agent.record.update"
+        ]
+      }
     }
   },
   "info": {
@@ -19671,6 +19723,35 @@
           "project_url",
           "acceptance_no",
           "acceptance_status"
+        ]
+      },
+      "CompleteAgentRecordDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "done",
+              "failed"
+            ],
+            "example": "done"
+          },
+          "result": {
+            "type": "object",
+            "description": "ผลลัพธ์ของงาน — JSON object ใดก็ได้ เช่นจำนวน lead ที่สร้าง",
+            "example": {
+              "leads_created": 12
+            },
+            "additionalProperties": true
+          },
+          "error": {
+            "type": "string",
+            "description": "เหตุที่ล้มเหลว — แสดงให้ผู้ใช้เห็นตรง ๆ",
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "status"
         ]
       },
       "ImportCustomerRowDto": {

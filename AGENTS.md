@@ -462,6 +462,14 @@ lead's owner; a pool lead answers 409), `lead.contact.read` (email/phone, never 
 webhook payload). Create and status stay on `crm/leads/intake` and `:id/stage`. A
 tenth is again a decision to state here.
 
+**The tenth: `agent-records/:id` (27 Oct 2026, user decision).** CTD hands a job
+to Vuvagent (an external AI agent) and the agent closes it with `PATCH`, under its
+own scope `integration.agent.record.update`. Nobody at the other end is a user. It
+only moves a record of the key's company from `processing` to `done`/`failed`, once:
+another company's id answers 404, a finished one 409. The leads it finds arrive
+through `crm/leads/intake` with `intake_data.agent_record_id`, not through this route.
+An eleventh is again a decision to state here.
+
 **core-service's one public business surface: e-signature (CD-14, 30 Sep
 2026).** `EsignPublicController` — `esign/public/:token/*` (a signer's link:
 view, one-time code, document, sign, decline) and `esign/verify/:code*` (the
@@ -529,6 +537,11 @@ always that bug — `yarn openapi` now warns when it sees one.
 `POST requests/:ref/actions/:action` is the other exception: one route, fourteen
 verbs, a different permission each, so the check reads `ACTION_PERMISSIONS` in
 `available-actions.ts` inside `perform` instead of a decorator.
+
+The reads of `agent-records` (list, stream, detail) are the same shape: one table,
+a different right per `action`, so they are `@Authenticated()` and the service keeps
+only rows whose action's `read` right the caller holds (`AGENT_ACTIONS` in
+`agent-actions.ts`). A row outside that set answers 404, like another company's.
 
 ## Errors
 

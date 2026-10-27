@@ -1,0 +1,109 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/v1/agent-records/{id}": {
+      "patch": {
+        "description": "ไม่ต้องส่ง `X-Acting-User` · ปิดได้ครั้งเดียว ยิงซ้ำได้ 409 · lead ที่หาได้ส่งทาง `POST crm/leads/intake` พร้อม `intake_data.agent_record_id`",
+        "operationId": "ExternalAgentRecordsController_complete",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompleteAgentRecordDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ปิดงานที่ CTD ส่งให้ agent — done หรือ failed",
+        "tags": [
+          "agent-records"
+        ],
+        "x-permission": [
+          "integration.agent.record.update"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "Request Form — External API · agent-records",
+    "description": "**ทุก route มีสองประตู** และ Swagger ของแต่ละ route บอกไว้ทั้งคู่: bearer ต้องถือสิทธิ์ `integration.*` ของ route นั้น (ประตูของเครื่อง) และคนที่ระบุใน header `X-Acting-User` ต้องถือสิทธิ์ของงานนั้นเอง (ประตูของคน) — ระบบทำงานในนามคนนั้น timeline จึงบันทึกชื่อคนจริง ไม่ใช่ชื่อบัญชีบริการ\n\n**bearer รับได้สองแบบ**\n\n1. access token ของ service account จาก Keycloak (client_credentials) อายุสั้น ต้องขอใหม่เมื่อหมดอายุ\n2. **API key** ที่ขึ้นต้นด้วย `rfk_` — ไม่มีวันหมดอายุ ไม่ต้องต่ออายุ ระบบแลกเป็น token ให้เองตอนใช้ ออกด้วย `yarn apikey:issue` และเพิกถอนด้วย `yarn apikey:revoke` (มีผลทันที)\n\nทั้งสองแบบส่งเหมือนกัน: `Authorization: Bearer <ค่า>` และได้สิทธิ์ชุดเดียวกัน — key ตัดสินว่า *เข้าได้ไหม* token บอกว่า *ทำอะไรได้*",
+    "version": "1.0"
+  },
+  "tags": [],
+  "servers": [
+    {
+      "url": "http://192.168.31.52:3503",
+      "description": "เครื่องภายใน OSD"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
+    "schemas": {
+      "CompleteAgentRecordDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "done",
+              "failed"
+            ],
+            "example": "done"
+          },
+          "result": {
+            "type": "object",
+            "description": "ผลลัพธ์ของงาน — JSON object ใดก็ได้ เช่นจำนวน lead ที่สร้าง",
+            "example": {
+              "leads_created": 12
+            },
+            "additionalProperties": true
+          },
+          "error": {
+            "type": "string",
+            "description": "เหตุที่ล้มเหลว — แสดงให้ผู้ใช้เห็นตรง ๆ",
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "status"
+        ]
+      }
+    }
+  }
+}
