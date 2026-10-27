@@ -1,0 +1,13 @@
+{
+  "method": "POST",
+  "path": "/api/v1/request/requests/<requestNo>/actions/close",
+  "headers": {
+    "Authorization": "Bearer <rfk_key>",
+    "X-User-Token": "<token:tawankornw>",
+    "Content-Type": "application/json",
+    "Idempotency-Key": "uat-bs01-<วันที่>-close"
+  },
+  "body": {
+    "note": "ได้เลข SO แล้ว ปิดเรื่อง"
+  }
+}

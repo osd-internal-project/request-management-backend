@@ -1,0 +1,13 @@
+{
+  "method": "POST",
+  "path": "/api/v1/request/requests/<requestNo>/actions/assign",
+  "headers": {
+    "Authorization": "Bearer <rfk_key>",
+    "X-User-Token": "<token:nongnuchc>",
+    "Content-Type": "application/json",
+    "Idempotency-Key": "uat-bs01-<วันที่>-assign"
+  },
+  "body": {
+    "assignee_user_id": "ccfe9efa-1e13-4c49-a993-78546bb27ee3"
+  }
+}

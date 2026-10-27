@@ -15,6 +15,7 @@
 | [sub/request.md](sub/request.md) | `REQ-*` 18 ตัว ใช้กับคำขอทุกประเภท |
 | [sub/disbursement.md](sub/disbursement.md) | `DISB-*` 8 ตัว เป็นงานเงินบนใบเบิก ใช้กับ FI05 / FI06 |
 | [sub/docreq.md](sub/docreq.md) | `DOC-*` 6 ตัว เป็นงานของผู้ดูแลเอกสาร ใช้กับ SOP_DOCREQ |
+| [types/GENERAL.md](types/GENERAL.md) | คำขอทั่วไป (type ที่ไม่มี flow เช่น BS-01, PS01) = ยื่น → รับเรื่อง → ทำงาน → ส่งงาน → ผู้ขอปิด |
 | [types/FI05.md](types/FI05.md) | เงินทดรองจ่าย = REQ + DISB (มีเคลียร์) |
 | [types/FI06.md](types/FI06.md) | เงินสดย่อย = REQ + DISB (ไม่มีเคลียร์) |
 | [types/SOP_DOCREQ.md](types/SOP_DOCREQ.md) | ขอใช้เอกสารสำคัญ = REQ + DOC |
@@ -23,29 +24,30 @@
 
 `●` อยู่บนเส้นหลัก · `○` ใช้ได้เมื่อต้องการ / ทางออกนอกเส้นหลัก · `—` ไม่ใช้
 
-| sub-flow | FI05 | FI06 | SOP_DOCREQ |
-|---|---|---|---|
-| REQ-IDENTIFY | ● | ● | ● |
-| REQ-CREATE | ● | ● | ● |
-| REQ-SUBMIT | ● | ● | ● |
-| REQ-APPROVE | ● `HEAD`, `EXEC` | ● `HEAD` | ● `SUPERVISOR_APPROVAL` |
-| REQ-RECEIVE | ● `RECEIVE` | ● `RECEIVE` | ● `RECEIVE` |
-| REQ-ASSIGN | ○ | ○ | ○ |
-| REQ-STEP-FORM | — | — | ● `PREPARE` … `STAMP_DELIVER` |
-| REQ-ADVANCE | ● ระบบเรียกให้ตอน DISB-CLOSE · ผู้ขอที่ `DONE` | ● เหมือน FI05 | ● ทุกขั้นงาน |
-| REQ-RETURN | ○ `RECEIVE` → `REQUEST` | ○ เหมือน FI05 | ○ `RECEIVE` → `REQUEST`, `STAMP_DELIVER` → `PREPARE` |
-| REQ-HOLD | ○ | ○ | ○ |
-| REQ-CANCEL | ○ ก่อนเงินออก | ○ ก่อนเงินออก | ○ |
-| REQ-CLOSE | ● `DONE` | ● `DONE` | ● `SIGNED_CONFIRM` |
-| REQ-VIEW · REQ-SEARCH · REQ-COMMENT · REQ-NOTIFY | ○ | ○ | ○ |
-| REQ-ATTACH | ○ | ○ | ● `SIGNED_DOCUMENT` |
-| REQ-CHILD | ○ | ○ | ○ |
-| DISB-CREATE · VERIFY · PAY · CLOSE | ● | ● | — |
-| DISB-CLEAR | ● | — | — |
-| DISB-CANCEL · FILE · VIEW | ○ | ○ | — |
-| DOC-PREPARE · STAMP-DELIVER · SIGNED-CONFIRM | — | — | ● |
-| DOC-CERT-CHECK · CERT-REISSUE | — | — | ○ ตามทางแยก |
-| DOC-REGISTER | — | — | ○ นอก flow |
+| sub-flow | GENERAL | FI05 | FI06 | SOP_DOCREQ |
+|---|---|---|---|---|
+| REQ-IDENTIFY | ● | ● | ● | ● |
+| REQ-CREATE | ● | ● | ● | ● |
+| REQ-SUBMIT | ● | ● | ● | ● |
+| REQ-APPROVE | ○ เมื่อ type มี matrix | ● `HEAD`, `EXEC` | ● `HEAD` | ● `SUPERVISOR_APPROVAL` |
+| REQ-RECEIVE | ● `receive` | ● `RECEIVE` | ● `RECEIVE` | ● `RECEIVE` |
+| REQ-ASSIGN | ○ | ○ | ○ | ○ |
+| REQ-STEP-FORM | — | — | — | ● `PREPARE` … `STAMP_DELIVER` |
+| REQ-ADVANCE | — ใช้ `complete` แทน | ● ระบบเรียกให้ตอน DISB-CLOSE · ผู้ขอที่ `DONE` | ● เหมือน FI05 | ● ทุกขั้นงาน |
+| REQ-RETURN | ○ `return` · `resubmit` | ○ `RECEIVE` → `REQUEST` | ○ เหมือน FI05 | ○ `RECEIVE` → `REQUEST`, `STAMP_DELIVER` → `PREPARE` |
+| REQ-HOLD | ○ | ○ | ○ | ○ |
+| REQ-CANCEL | ○ | ○ ก่อนเงินออก | ○ ก่อนเงินออก | ○ |
+| REQ-CLOSE | ● `close` | ● `DONE` | ● `DONE` | ● `SIGNED_CONFIRM` |
+| REQ-VIEW · REQ-SEARCH | ● หางานก่อนทำ | ○ | ○ | ○ |
+| REQ-COMMENT · REQ-NOTIFY | ○ | ○ | ○ | ○ |
+| REQ-ATTACH | ○ | ○ | ○ | ● `SIGNED_DOCUMENT` |
+| REQ-CHILD | ○ | ○ | ○ | ○ |
+| DISB-CREATE · VERIFY · PAY · CLOSE | — | ● | ● | — |
+| DISB-CLEAR | — | ● | — | — |
+| DISB-CANCEL · FILE · VIEW | — | ○ | ○ | — |
+| DOC-PREPARE · STAMP-DELIVER · SIGNED-CONFIRM | — | — | — | ● |
+| DOC-CERT-CHECK · CERT-REISSUE | — | — | — | ○ ตามทางแยก |
+| DOC-REGISTER | — | — | — | ○ นอก flow |
 
 ## วิธีอ่าน
 

@@ -1,0 +1,8 @@
+{
+  "method": "GET",
+  "path": "/api/v1/request/request-types/BS-01/form",
+  "headers": {
+    "Authorization": "Bearer <rfk_key>",
+    "X-User-Token": "<token:tawankornw>"
+  }
+}

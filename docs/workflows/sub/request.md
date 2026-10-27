@@ -277,7 +277,7 @@ flowchart LR
 
 | ขั้น | API / MCP | เข้า | ออก |
 |---|---|---|---|
-| คิว / ค้นหา | `GET request/requests` · `request_get_requests` | `view` = `involved` / `created` / `incoming` / `approver` / `awaiting`, `status`, `type_code`, `ref_type`+`ref_id`, `q`, `overdue`, `page`, `page_size` | รายการคำขอ + `total` |
+| คิว / ค้นหา | `GET request/requests` · `request_get_requests` | `view` = `involved` / `created` / `incoming` / `approver` / `awaiting`, `status`, `type_code`, `ref_type`+`ref_id`, `q`, `overdue`, `page`, `page_size` | รายการคำขอ (ทุกแถวมี `available_actions` ของคนที่ถาม) + `total` |
 | นับตามสถานะ | `GET request/requests/summary` · `request_get_requests_summary` | ตัวกรองชุดเดียวกัน | จำนวนแยกตามสถานะ |
 | หาคน | `GET request/users` · `request_get_users` | `q` | ผู้ใช้ (ใช้เลือกผู้รับหรือคนที่จะมอบหมาย) |
 

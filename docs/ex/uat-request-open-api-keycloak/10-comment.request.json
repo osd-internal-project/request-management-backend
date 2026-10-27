@@ -1,0 +1,12 @@
+{
+  "method": "POST",
+  "path": "/api/v1/request/requests/<requestNo>/actions/comment",
+  "headers": {
+    "Authorization": "Bearer <rfk_key>",
+    "X-User-Token": "<token:wanatpornj>",
+    "Content-Type": "application/json"
+  },
+  "body": {
+    "body": "ตรวจใบเสนอราคาแล้ว กำลังเปิด SO ในระบบ"
+  }
+}
