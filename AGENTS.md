@@ -55,6 +55,8 @@ merge passed 954/954. Before calling a change done:
 needs. Anything else is named, with the reason, before the commit — not found
 afterwards.
 
+**Extending an existing artifact reuses its renderer and look, on the same page.** Adding sub-flows to Request Flow Map as a separate table/chip page behind a "next" button was rejected (27 Oct 2026); draw with `renderCanvas` and append below.
+
 **A gap in `source/` is reported, never filled.** The petty-cash fund and top-ups were invented from
 general accounting and shipped as if specified. Label every requirement `source` or `proposed` before
 asking or building on it.
