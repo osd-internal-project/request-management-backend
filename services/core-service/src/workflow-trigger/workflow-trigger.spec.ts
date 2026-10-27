@@ -3,6 +3,8 @@ import { WorkflowStartError } from '../workflow/workflow-client';
 import { WorkflowTriggerAdminService } from './workflow-trigger-admin.service';
 import { WorkflowTriggerDispatchService } from './workflow-trigger-dispatch.service';
 import {
+  LEAD_START_EVENT_KEYS,
+  matchesEvent,
   matchesTypes,
   sampleVariables,
   startOf,
@@ -81,6 +83,78 @@ describe('workflow trigger rules', () => {
     expect(matchesTypes([], { type_code: 'SOL' })).toBe(true);
     expect(matchesTypes(['SOL'], { type_code: 'SOL' })).toBe(true);
     expect(matchesTypes(['SOL'], { type_code: 'FI05' })).toBe(false);
+  });
+
+  it('lead.status_changed sends the status it moved to and from', () => {
+    expect(
+      startOf({
+        name: 'lead.status_changed',
+        payload: {
+          company_id: 'osd',
+          lead_id: 'l-1',
+          name: 'ACME',
+          status: 'qualified',
+          source_code: 'manual',
+          previous_status: 'contacted',
+        },
+      }),
+    ).toEqual({
+      resourceType: 'lead',
+      resourceId: 'l-1',
+      variables: {
+        leadId: 'l-1',
+        leadName: 'ACME',
+        status: 'qualified',
+        previousStatus: 'contacted',
+        companyId: 'osd',
+      },
+    });
+  });
+
+  it('a lead-status trigger counts only the statuses it names; none = every move', () => {
+    const moved = (status: string) => ({ lead_id: 'l-1', status });
+    expect(
+      matchesEvent('lead.status_changed', ['qualified'], moved('qualified')),
+    ).toBe(true);
+    expect(
+      matchesEvent('lead.status_changed', ['qualified'], moved('contacted')),
+    ).toBe(false);
+    expect(matchesEvent('lead.status_changed', [], moved('contacted'))).toBe(
+      true,
+    );
+    // a request filter still reads type_code
+    expect(
+      matchesEvent('request.submitted', ['SOL'], { type_code: 'SOL' }),
+    ).toBe(true);
+    // an event without a filter ignores stray codes
+    expect(matchesEvent('lead.created', ['X'], { lead_id: 'l-1' })).toBe(true);
+  });
+
+  it('lead status codes are the CRM settings rule (lowercase), request types uppercase', () => {
+    expect(
+      triggerProblems({
+        eventKey: 'lead.status_changed',
+        typeCodes: ['qualified'],
+      }),
+    ).toEqual([]);
+    expect(
+      triggerProblems({
+        eventKey: 'lead.status_changed',
+        typeCodes: ['QUALIFIED'],
+      })[0].field,
+    ).toBe('type_codes');
+    expect(
+      triggerProblems({ eventKey: 'request.submitted', typeCodes: ['sol'] })[0]
+        .field,
+    ).toBe('type_codes');
+  });
+
+  it('every lead event counts as moving the Lead start off the env path', () => {
+    expect([...LEAD_START_EVENT_KEYS].sort()).toEqual([
+      'lead.converted',
+      'lead.created',
+      'lead.status_changed',
+    ]);
   });
 
   it('refuses an unknown event, a type filter on a non-request event, a malformed channel', () => {
@@ -199,6 +273,29 @@ describe('WorkflowTriggerDispatchService', () => {
       ],
       skipDuplicates: true,
     });
+  });
+
+  it('a Lead moving to a status the trigger does not count queues nothing', async () => {
+    const { service, starts } = dispatch({
+      triggers: [{ id: 'trg-3', typeCodes: ['qualified'] }],
+    });
+    const moved = (status: string) => ({
+      name: 'lead.status_changed' as const,
+      payload: {
+        company_id: 'osd',
+        lead_id: 'l-1',
+        name: 'ACME',
+        status,
+        source_code: null,
+        previous_status: 'new',
+      },
+    });
+    await expect(service.enqueue(moved('contacted'))).resolves.toBe(0);
+    expect(starts.createMany).not.toHaveBeenCalled();
+    await expect(service.enqueue(moved('qualified'))).resolves.toBe(1);
+    expect(starts.createMany).toHaveBeenCalledWith(
+      expect.objectContaining({ skipDuplicates: true }),
+    );
   });
 
   it('a request of a type the trigger does not count queues nothing', async () => {
@@ -394,6 +491,48 @@ describe('WorkflowTriggerAdminService', () => {
         actor,
       ),
     ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+  });
+
+  it('the screen learns which events filter, and by what kind of code', () => {
+    const { service } = admin();
+    const byKey = new Map(service.events().map((event) => [event.key, event]));
+    expect(byKey.get('lead.status_changed')).toMatchObject({
+      label: 'Lead เปลี่ยนสถานะ',
+      filters_by_type: true,
+      filter_kind: 'lead_status',
+      variables: [
+        'leadId',
+        'leadName',
+        'status',
+        'previousStatus',
+        'companyId',
+      ],
+    });
+    expect(byKey.get('request.submitted')?.filter_kind).toBe('request_type');
+    expect(byKey.get('lead.created')).toMatchObject({
+      filters_by_type: false,
+      filter_kind: null,
+    });
+  });
+
+  it('a Lead-status trigger keeps lowercase status codes', async () => {
+    const { service, triggers } = admin();
+    await service.create(
+      {
+        name: 'Lead ผ่านคัดกรอง → ขั้นที่ 1',
+        event_key: 'lead.status_changed',
+        type_codes: ['qualified'],
+        channel_id: CHANNEL,
+        channel_key: 'k',
+      },
+      actor,
+    );
+    const data = (
+      triggers.create.mock.calls[0] as unknown as [
+        { data: Record<string, unknown> },
+      ]
+    )[0].data;
+    expect(data.typeCodes).toEqual(['qualified']);
   });
 
   it('a new key is audited as a rotation; no key keeps the old one', async () => {

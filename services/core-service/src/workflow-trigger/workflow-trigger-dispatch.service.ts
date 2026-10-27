@@ -24,7 +24,8 @@ import {
   WorkflowTriggerRepository,
 } from './workflow-trigger.repository';
 import {
-  matchesTypes,
+  LEAD_START_EVENT_KEYS,
+  matchesEvent,
   nextAttemptDelayMs,
   startOf,
   TRIGGER_EVENT_KEYS,
@@ -98,7 +99,7 @@ export class WorkflowTriggerDispatchService
     const companyId = String(payload.company_id);
     const listening = (
       await this.triggers.listeningTo(companyId, event.name)
-    ).filter((trigger) => matchesTypes(trigger.typeCodes, payload));
+    ).filter((trigger) => matchesEvent(event.name, trigger.typeCodes, payload));
     if (listening.length === 0) return 0;
     const { count } = await this.starts.createMany({
       data: listening.map((trigger) => ({
@@ -115,10 +116,14 @@ export class WorkflowTriggerDispatchService
     return count;
   }
 
-  /** Has the company moved `lead.created` to this screen? (then the env path stands down) */
-  async handlesLeadCreated(companyId: string): Promise<boolean> {
+  /** Has the company moved starting a Lead's workflow to this screen? (then the env path stands down) */
+  async handlesLeads(companyId: string): Promise<boolean> {
     const found = await this.triggers.findFirst({
-      where: { companyId, eventKey: 'lead.created', active: true },
+      where: {
+        companyId,
+        eventKey: { in: [...LEAD_START_EVENT_KEYS] },
+        active: true,
+      },
       select: { id: true },
     });
     return found !== null;

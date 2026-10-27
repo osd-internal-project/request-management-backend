@@ -23,11 +23,43 @@ interface TriggerEventSpec {
   resourceType: string;
   /** The workflow's Start inputs this event sends, in order. */
   variables: readonly string[];
-  /** Request events can be narrowed to some request types. */
-  filtersByType: boolean;
+  /**
+   * What a trigger may narrow the event on — the payload field whose value must
+   * be one of the trigger's `typeCodes`, and what those codes are; none = every
+   * occurrence starts the workflow.
+   */
+  filter: TriggerFilter | null;
   resourceIdOf(payload: Record<string, unknown>): string;
   variablesOf(payload: Record<string, unknown>): TriggerVariables;
 }
+
+/**
+ * `request_type`: request type codes (`SOL`, `FI05`). `lead_status`: a company's
+ * lead status codes from CRM settings (`qualified`) — configuration, so the
+ * screen offers whatever codes exist and nothing here names one.
+ */
+export type TriggerFilterKind = 'request_type' | 'lead_status';
+
+interface TriggerFilter {
+  kind: TriggerFilterKind;
+  field: string;
+  /** What a code must look like — the owning module's own rule. */
+  pattern: RegExp;
+}
+
+const REQUEST_TYPE_FILTER: TriggerFilter = {
+  kind: 'request_type',
+  field: 'type_code',
+  // as request.dto's request-type code
+  pattern: /^[A-Z0-9_]{1,40}$/,
+};
+
+/** Same as lead-status.service CODE_PATTERN. */
+const LEAD_STATUS_FILTER: TriggerFilter = {
+  kind: 'lead_status',
+  field: 'status',
+  pattern: /^[a-z][a-z0-9_]{0,29}$/,
+};
 
 /** `-` is what a workflow template reads as "none" (see process-refs.dto). */
 const NONE = '-';
@@ -38,7 +70,7 @@ const requestEvent = (label: string): TriggerEventSpec => ({
   label,
   resourceType: 'request',
   variables: ['requestId', 'requestNo', 'typeCode', 'companyId'],
-  filtersByType: true,
+  filter: REQUEST_TYPE_FILTER,
   resourceIdOf: (p) => String(p.request_id),
   variablesOf: (p) => ({
     requestId: text(p.request_id),
@@ -61,7 +93,7 @@ export const WORKFLOW_TRIGGER_EVENTS: Readonly<
     resourceType: 'lead',
     // the same three LeadWorkflowSyncService has always sent
     variables: ['leadId', 'leadName', 'companyId'],
-    filtersByType: false,
+    filter: null,
     resourceIdOf: (p) => String(p.lead_id),
     variablesOf: (p) => ({
       leadId: text(p.lead_id),
@@ -69,11 +101,31 @@ export const WORKFLOW_TRIGGER_EVENTS: Readonly<
       companyId: text(p.company_id),
     }),
   },
+  /*
+    27 ต.ค. 2569: the stage-1 workflow starts when the Lead passes screening in
+    CTD (status `qualified`), not when it is keyed in — CTD owns qualifying, the
+    workflow picks up from there. One start per lead per trigger (the
+    workflow_starts unique key), so a Lead that goes back and forth starts once.
+  */
+  [DOMAIN_EVENTS.leadStatusChanged]: {
+    label: 'Lead เปลี่ยนสถานะ',
+    resourceType: 'lead',
+    variables: ['leadId', 'leadName', 'status', 'previousStatus', 'companyId'],
+    filter: LEAD_STATUS_FILTER,
+    resourceIdOf: (p) => String(p.lead_id),
+    variablesOf: (p) => ({
+      leadId: text(p.lead_id),
+      leadName: text(p.name),
+      status: text(p.status),
+      previousStatus: text(p.previous_status),
+      companyId: text(p.company_id),
+    }),
+  },
   [DOMAIN_EVENTS.leadConverted]: {
     label: 'แปลง Lead เป็นโอกาสการขาย',
     resourceType: 'lead',
     variables: ['leadId', 'opportunityId', 'opportunityNo', 'companyId'],
-    filtersByType: false,
+    filter: null,
     resourceIdOf: (p) => String(p.lead_id),
     variablesOf: (p) => ({
       leadId: text(p.lead_id),
@@ -89,7 +141,7 @@ export const WORKFLOW_TRIGGER_EVENTS: Readonly<
     label: 'ลงนามอิเล็กทรอนิกส์ครบ',
     resourceType: 'esign_envelope',
     variables: ['envelopeId', 'refType', 'refId', 'companyId'],
-    filtersByType: false,
+    filter: null,
     resourceIdOf: (p) => String(p.envelope_id),
     variablesOf: (p) => ({
       envelopeId: text(p.envelope_id),
@@ -102,10 +154,19 @@ export const WORKFLOW_TRIGGER_EVENTS: Readonly<
 
 export const TRIGGER_EVENT_KEYS = Object.keys(WORKFLOW_TRIGGER_EVENTS);
 
+/**
+ * Events whose trigger starts a workflow for a Lead. While a company has an
+ * active one, the env path (LeadWorkflowSyncService) stays out — otherwise
+ * moving the start to `lead.status_changed` and switching `lead.created` off
+ * would hand every new Lead back to WORKFLOW_CHANNEL_*.
+ */
+export const LEAD_START_EVENT_KEYS: readonly string[] =
+  TRIGGER_EVENT_KEYS.filter(
+    (key) => WORKFLOW_TRIGGER_EVENTS[key].resourceType === 'lead',
+  );
+
 /** The start rows an event asks for — resource, and the variables snapshot. */
-export function startOf(
-  event: Pick<DomainEvent, 'name' | 'payload'>,
-): {
+export function startOf(event: Pick<DomainEvent, 'name' | 'payload'>): {
   resourceType: string;
   resourceId: string;
   variables: TriggerVariables;
@@ -120,16 +181,25 @@ export function startOf(
   };
 }
 
-/** A trigger narrowed to some request types counts only those; none = all. */
+/** A trigger narrowed to some codes counts only those; none = all. */
 export function matchesTypes(
   typeCodes: readonly string[],
   payload: Record<string, unknown>,
+  field = 'type_code',
 ): boolean {
   if (typeCodes.length === 0) return true;
-  return (
-    typeof payload.type_code === 'string' &&
-    typeCodes.includes(payload.type_code)
-  );
+  const value = payload[field];
+  return typeof value === 'string' && typeCodes.includes(value);
+}
+
+/** The trigger's codes against this event's filter field. */
+export function matchesEvent(
+  eventKey: string,
+  typeCodes: readonly string[],
+  payload: Record<string, unknown>,
+): boolean {
+  const filter = WORKFLOW_TRIGGER_EVENTS[eventKey]?.filter;
+  return filter ? matchesTypes(typeCodes, payload, filter.field) : true;
 }
 
 /** Sample values for the admin's "test" — one per variable the event sends. */
@@ -164,10 +234,22 @@ export function triggerProblems(input: {
       reason: `ไม่รู้จักเหตุการณ์ ${input.eventKey}`,
     });
   }
-  if (spec && !spec.filtersByType && (input.typeCodes?.length ?? 0) > 0) {
+  const codes = input.typeCodes ?? [];
+  if (spec && !spec.filter && codes.length > 0) {
     problems.push({
       field: 'type_codes',
-      reason: 'กรองประเภทคำขอได้เฉพาะเหตุการณ์ของคำขอ',
+      reason: 'เหตุการณ์นี้กรองไม่ได้ — กรองได้เฉพาะประเภทคำขอหรือสถานะ Lead',
+    });
+  }
+  const filter = spec?.filter;
+  const bad = filter ? codes.filter((code) => !filter.pattern.test(code)) : [];
+  if (filter && bad.length > 0) {
+    problems.push({
+      field: 'type_codes',
+      reason:
+        filter.kind === 'lead_status'
+          ? `รหัสสถานะ Lead ไม่ถูกต้อง: ${bad.join(', ')} (ตัวพิมพ์เล็ก เช่น qualified)`
+          : `รหัสประเภทคำขอไม่ถูกต้อง: ${bad.join(', ')}`,
     });
   }
   if (input.channelId !== undefined && !CHANNEL_ID.test(input.channelId)) {

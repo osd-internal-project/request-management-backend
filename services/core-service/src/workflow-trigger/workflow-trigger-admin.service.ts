@@ -79,7 +79,8 @@ export class WorkflowTriggerAdminService {
       key,
       label: spec.label,
       variables: [...spec.variables],
-      filters_by_type: spec.filtersByType,
+      filters_by_type: spec.filter !== null,
+      filter_kind: spec.filter?.kind ?? null,
     }));
   }
 

@@ -28,7 +28,8 @@ export class CreateWorkflowTriggerDto {
   event_key!: string;
 
   @ApiPropertyOptional({
-    description: 'เฉพาะเหตุการณ์ของคำขอ — ประเภทคำขอที่นับ ว่าง = ทุกประเภท',
+    description:
+      'รหัสที่นับ — ประเภทคำขอ (เหตุการณ์ของคำขอ) หรือสถานะ Lead (Lead เปลี่ยนสถานะ) ว่าง = ทั้งหมด',
     example: ['SOL'],
     type: [String],
   })
@@ -144,8 +145,18 @@ export class WorkflowTriggerEventDto {
   @ApiProperty({ example: 'สร้าง Lead' }) label!: string;
   @ApiProperty({ type: [String], example: ['leadId', 'leadName', 'companyId'] })
   variables!: string[];
-  @ApiProperty({ description: 'กรองตามประเภทคำขอได้' })
+  @ApiProperty({
+    description:
+      'กรองได้ (ใส่รหัสใน `type_codes`) — ชนิดของรหัสอยู่ที่ `filter_kind`',
+  })
   filters_by_type!: boolean;
+  @ApiProperty({
+    enum: ['request_type', 'lead_status'],
+    nullable: true,
+    description:
+      '`request_type` = รหัสประเภทคำขอ (ตัวพิมพ์ใหญ่ เช่น SOL) · `lead_status` = รหัสสถานะ Lead (ตัวพิมพ์เล็ก เช่น qualified) · null = กรองไม่ได้',
+  })
+  filter_kind!: 'request_type' | 'lead_status' | null;
 }
 
 export class WorkflowTriggerLastStartDto {
