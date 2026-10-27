@@ -28,7 +28,7 @@ interface IntegrationRow {
   active: boolean;
   createdAt: Date;
   createdBy: string;
-  _count?: { apiKeys: number; webhooks: number };
+  _count?: { apiKeys: number; webhooks: number; endpoints: number };
 }
 
 interface IntegrationCallRow {
@@ -44,7 +44,7 @@ interface IntegrationCallRow {
 }
 
 const WITH_COUNTS = {
-  _count: { select: { apiKeys: true, webhooks: true } },
+  _count: { select: { apiKeys: true, webhooks: true, endpoints: true } },
 } as const;
 
 /**
@@ -185,6 +185,7 @@ function toRow(row: IntegrationRow): IntegrationRowDto {
     active: row.active,
     api_key_count: row._count?.apiKeys ?? 0,
     webhook_count: row._count?.webhooks ?? 0,
+    endpoint_count: row._count?.endpoints ?? 0,
     created_at: row.createdAt.toISOString(),
     created_by: row.createdBy,
   };

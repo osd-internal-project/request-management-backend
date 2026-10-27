@@ -2381,7 +2381,8 @@
                 "integration.kb.read",
                 "integration.service.care.manage",
                 "integration.smart.prospect.create",
-                "integration.smart.call.update"
+                "integration.smart.call.update",
+                "integration.agent.record.update"
               ],
               "type": "string"
             }
@@ -2527,7 +2528,8 @@
                 "integration.kb.read",
                 "integration.service.care.manage",
                 "integration.smart.prospect.create",
-                "integration.smart.call.update"
+                "integration.smart.call.update",
+                "integration.agent.record.update"
               ],
               "type": "string"
             }
@@ -2857,7 +2859,8 @@
               "integration.kb.read",
               "integration.service.care.manage",
               "integration.smart.prospect.create",
-              "integration.smart.call.update"
+              "integration.smart.call.update",
+              "integration.agent.record.update"
             ],
             "type": "string"
           }

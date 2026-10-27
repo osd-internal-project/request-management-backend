@@ -5,6 +5,12 @@
 
 ทุก path นำหน้าด้วย `/api/v1` · **สิทธิ์กุญแจ** = ต้องอยู่ใน `scopes` ของ API key · **สิทธิ์คน** = คนใน `X-Acting-User` ต้องถือ (ว่าง = route ที่ไม่มีคน หรือ service ตรวจเอง)
 
+## agent-records
+
+| Method | Path | ทำอะไร | สิทธิ์กุญแจ | สิทธิ์คน |
+|---|---|---|---|---|
+| PATCH | `/agent-records/{id}` | ปิดงานที่ CTD ส่งให้ agent — done หรือ failed | integration.agent.record.update |  |
+
 ## approval — เปิดเคสอนุมัติจากโมดูลอื่นที่ไม่มีคำขอในระบบรองรับ (APV-07)
 
 | Method | Path | ทำอะไร | สิทธิ์กุญแจ | สิทธิ์คน |

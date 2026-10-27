@@ -344,6 +344,8 @@ export const PERMISSIONS = {
     'integration.smart.prospect.create',
     /** CD-292 — D-Callcenter รายงานผลการโทร (เดิม `integration.smart.callcenter`). */
     'integration.smart.call.update',
+    /** Vuvagent ปิดงานที่ส่งไป (`PATCH agent-records/:id`) — เฉพาะ record ของบริษัทใน key. */
+    'integration.agent.record.update',
   ],
 } as const;
 
