@@ -111,7 +111,13 @@ describe('LeadWorkflowSyncService — Lead ใบใหม่เปิด instan
     await expect(service.startLead('lead-1')).resolves.toBeNull();
 
     expect(triggers.findFirst).toHaveBeenCalledWith({
-      where: { companyId: 'osd', eventKey: 'lead.created', active: true },
+      where: {
+        companyId: 'osd',
+        eventKey: {
+          in: expect.arrayContaining(['lead.created', 'lead.status_changed']),
+        },
+        active: true,
+      },
       select: { id: true },
     });
     expect(workflow.startLead).not.toHaveBeenCalled();

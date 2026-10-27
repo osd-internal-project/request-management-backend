@@ -12,6 +12,7 @@ import type { WorkflowClient } from '../workflow/workflow-client';
 import { IntegrationSyncJobRepository } from './integration-job.repository';
 import { LeadRepository } from './sales.repositories';
 import { WorkflowTriggerRepository } from '../workflow-trigger/workflow-trigger.repository';
+import { LEAD_START_EVENT_KEYS } from '../workflow-trigger/workflow-trigger-rules';
 import { backgroundTick } from '../common/background-tick';
 
 const SYSTEM = 'workflow';
@@ -108,14 +109,15 @@ export class LeadWorkflowSyncService implements OnModuleInit, OnModuleDestroy {
     if (lead.workflowInstanceId) return lead.workflowInstanceId;
 
     /*
-      ช่วงเปลี่ยนผ่าน (22 ต.ค. 2569): บริษัทที่ตั้ง "สร้าง Lead" ไว้ในหน้า
+      ช่วงเปลี่ยนผ่าน (22 ต.ค. 2569): บริษัทที่ตั้งการเริ่มจากเหตุการณ์ของ Lead
+      ("สร้าง Lead" หรือ "Lead เปลี่ยนสถานะ", 27 ต.ค.) ไว้ในหน้า
       admin/workflow-triggers แล้ว ให้ทางนั้นเริ่มเอง (WorkflowTriggerDispatchService
       เก็บ instance ลง lead ให้ด้วย) — env WORKFLOW_CHANNEL_* หยุดสำหรับบริษัทนั้น.
     */
     const moved = await this.triggers.findFirst({
       where: {
         companyId: lead.companyId,
-        eventKey: 'lead.created',
+        eventKey: { in: [...LEAD_START_EVENT_KEYS] },
         active: true,
       },
       select: { id: true },

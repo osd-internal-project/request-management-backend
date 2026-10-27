@@ -116,7 +116,7 @@
             "bearer": []
           }
         ],
-        "summary": "เพิ่มปลายทาง — `secret` อยู่ในคำตอบนี้ครั้งเดียว",
+        "summary": "เพิ่มปลายทาง — `secret` อยู่ในคำตอบนี้ ดูย้อนหลังได้ที่ `GET {id}/secret`",
         "tags": [
           "admin/webhooks"
         ],
@@ -223,6 +223,103 @@
           }
         ],
         "summary": "ออก secret ใหม่ — secret เดิมใช้ไม่ได้ทันที",
+        "tags": [
+          "admin/webhooks"
+        ],
+        "x-permission": [
+          "admin.integration.manage"
+        ]
+      }
+    },
+    "/api/v1/admin/webhooks/{id}/secret": {
+      "get": {
+        "operationId": "WebhookAdminController_revealSecret",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookSecretDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ดู secret ปัจจุบัน — ทุกครั้งที่ดูลง audit",
+        "tags": [
+          "admin/webhooks"
+        ],
+        "x-permission": [
+          "admin.integration.manage"
+        ]
+      }
+    },
+    "/api/v1/admin/webhooks/{id}/deliveries/{deliveryId}/redeliver": {
+      "post": {
+        "operationId": "WebhookAdminController_redeliver",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "deliveryId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ส่งการแจ้งเดิมซ้ำ (X-Webhook-Id เดิม) ในรอบถัดไปของ worker",
         "tags": [
           "admin/webhooks"
         ],
@@ -915,7 +1012,7 @@
         ]
       },
       "post": {
-        "description": "ค่าเต็มของกุญแจอยู่ใน `key` ของคำตอบนี้ **ครั้งเดียว** — ไม่มี endpoint ไหน อ่านกลับได้อีก เพราะฐานข้อมูลเก็บแค่ sha256 คัดลอกส่งให้ผู้ดูแลช่องทางทันที ทำหาย = ออกใบใหม่แล้วเพิกถอนใบเก่า",
+        "description": "ค่าเต็มของกุญแจอยู่ใน `key` ของคำตอบนี้ ดูย้อนหลังได้ที่ `GET {id}/secret` (ฐานข้อมูลหาด้วย sha256 และเก็บสำเนาแบบเข้ารหัส)",
         "operationId": "ApiKeyAdminController_issue",
         "parameters": [
           {
@@ -956,6 +1053,103 @@
           }
         ],
         "summary": "ออกกุญแจใบใหม่ให้ช่องทางหนึ่ง",
+        "tags": [
+          "admin/api-keys"
+        ],
+        "x-permission": [
+          "admin.integration.manage"
+        ]
+      }
+    },
+    "/api/v1/admin/api-keys/{id}/secret": {
+      "get": {
+        "description": "กุญแจที่ออกก่อน 26 ต.ค. 2569 เก็บแค่ sha256 ตอบ 422 — ให้ใช้ `POST {id}/rotate`",
+        "operationId": "ApiKeyAdminController_reveal",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiKeySecretDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ดูค่าเต็มของกุญแจ — ทุกครั้งที่ดูลง audit",
+        "tags": [
+          "admin/api-keys"
+        ],
+        "x-permission": [
+          "admin.integration.manage"
+        ]
+      }
+    },
+    "/api/v1/admin/api-keys/{id}/rotate": {
+      "post": {
+        "operationId": "ApiKeyAdminController_rotate",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssuedApiKeyDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ออกใบใหม่แทนใบเดิม — สิทธิ์เดิม ใบเดิมใช้ไม่ได้ตั้งแต่คำขอถัดไป",
         "tags": [
           "admin/api-keys"
         ],
@@ -44334,7 +44528,7 @@
           },
           "secret": {
             "type": "string",
-            "description": "ใช้ตรวจ `X-Webhook-Signature` — แสดงครั้งเดียว ทำหาย = กด \"ออก secret ใหม่\""
+            "description": "ใช้ตรวจ `X-Webhook-Signature` — ดูย้อนหลังได้ที่ `GET admin/webhooks/{id}/secret`"
           }
         },
         "required": [
@@ -44377,6 +44571,18 @@
             "description": "ระบบภายนอกเจ้าของ webhook นี้ (บริษัทเดียวกัน)"
           }
         }
+      },
+      "WebhookSecretDto": {
+        "type": "object",
+        "properties": {
+          "secret": {
+            "type": "string",
+            "example": "whsec_…"
+          }
+        },
+        "required": [
+          "secret"
+        ]
       },
       "WebhookDeliveryRowDto": {
         "type": "object",
@@ -44458,14 +44664,24 @@
           },
           "filters_by_type": {
             "type": "boolean",
-            "description": "กรองตามประเภทคำขอได้"
+            "description": "กรองได้ (ใส่รหัสใน `type_codes`) — ชนิดของรหัสอยู่ที่ `filter_kind`"
+          },
+          "filter_kind": {
+            "type": "string",
+            "enum": [
+              "request_type",
+              "lead_status"
+            ],
+            "nullable": true,
+            "description": "`request_type` = รหัสประเภทคำขอ (ตัวพิมพ์ใหญ่ เช่น SOL) · `lead_status` = รหัสสถานะ Lead (ตัวพิมพ์เล็ก เช่น qualified) · null = กรองไม่ได้"
           }
         },
         "required": [
           "key",
           "label",
           "variables",
-          "filters_by_type"
+          "filters_by_type",
+          "filter_kind"
         ]
       },
       "WorkflowTriggerLastStartDto": {
@@ -44575,7 +44791,7 @@
             "minLength": 1
           },
           "type_codes": {
-            "description": "เฉพาะเหตุการณ์ของคำขอ — ประเภทคำขอที่นับ ว่าง = ทุกประเภท",
+            "description": "รหัสที่นับ — ประเภทคำขอ (เหตุการณ์ของคำขอ) หรือสถานะ Lead (Lead เปลี่ยนสถานะ) ว่าง = ทั้งหมด",
             "example": [
               "SOL"
             ],
@@ -45050,7 +45266,7 @@
           },
           "key": {
             "type": "string",
-            "description": "ตัวกุญแจเต็ม — แสดงครั้งเดียว คัดลอกแล้วส่งให้ผู้ดูแลช่องทางทันที",
+            "description": "ตัวกุญแจเต็ม — ดูย้อนหลังได้ที่ `GET admin/api-keys/{id}/secret`",
             "example": "rfk_cgM8rX2hoXGsT6uuAsU0vjwLNpO14dpkQrkBgoyELOY"
           }
         },
@@ -45066,6 +45282,18 @@
           "last_used_at",
           "created_at",
           "created_by",
+          "key"
+        ]
+      },
+      "ApiKeySecretDto": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "example": "rfk_cgM8rX2hoXGsT6uuAsU0vjwLNpO14dpkQrkBgoyELOY"
+          }
+        },
+        "required": [
           "key"
         ]
       },
