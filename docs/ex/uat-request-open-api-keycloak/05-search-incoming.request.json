@@ -1,0 +1,8 @@
+{
+  "method": "GET",
+  "path": "/api/v1/request/requests?view=incoming&status=submitted",
+  "headers": {
+    "Authorization": "Bearer <rfk_key>",
+    "X-User-Token": "<token:nongnuchc>"
+  }
+}

@@ -58,8 +58,9 @@ import { AppError } from '@request-management/share';
  * anyone could start was a ladder most requests did not have.
  *
  * So `completed` now branches: a type with an approval matrix goes to
- * `pending_approval` for a check, and a type without one goes straight to
- * `approved`. Sending back from that check returns the ticket to
+ * `pending_approval` for a check, and a type without one stays `completed`
+ * for the requester to close (28 ต.ค. 2569 — showing `approved` when nobody
+ * approved was reported as a bug). Sending back from that check returns the ticket to
  * `in_progress` — to the team that did the work, not to the requester.
  *
  * # And, since 1 ก.ย. 2569, both orders at once
@@ -105,9 +106,10 @@ export const REQUEST_TRANSITIONS: Readonly<
     'pending_approval',
   ],
   on_hold: ['in_progress', 'cancelled'],
-  // The branch: a type with an approval matrix is checked, one without is
-  // accepted as it stands. `complete` decides which, and nothing else may.
-  completed: ['pending_approval', 'approved'],
+  // The branch: a type with an approval matrix is checked; one without stays
+  // `completed` (nobody approved it) until the requester closes. `approved`
+  // remains for a ladder whose every level was skipped.
+  completed: ['pending_approval', 'approved', 'closed'],
   // Sending back goes to `in_progress` — the work returns to the team that did
   // it. `returned` means "back with the requester", which is a different place.
   /*

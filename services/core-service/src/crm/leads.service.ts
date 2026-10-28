@@ -729,14 +729,16 @@ export class LeadsService {
     return this.activities.update({ where: { id: activityId }, data });
   }
 
-  /** คัดออก — สถานะ + เหตุผล, ไม่มีการลบ. */
+  /**
+   * ปิดแบบไม่ได้ไปต่อ — สถานะชนิด `lost` + เหตุผล, ไม่มีการลบ. บริษัทมีปลายทาง
+   * แบบนี้ได้หลายขั้น (Lost / Disqualified) จึงเลือกได้ด้วย `dto.status`.
+   */
   async disqualify(id: string, dto: DisqualifyLeadDto, actor: Principal) {
     const found = await this.requireOpen(id, actor);
 
-    const status = await this.statuses.closingCode(
-      actor.activeCompanyId,
-      'lost',
-    );
+    const status = dto.status
+      ? await this.requireLostStatus(actor.activeCompanyId, dto.status)
+      : await this.statuses.closingCode(actor.activeCompanyId, 'lost');
     await this.leads.update({
       where: { id },
       data: {
@@ -753,7 +755,7 @@ export class LeadsService {
       resourceType: 'lead',
       resourceId: id,
       before: { status: found.status },
-      after: { status: 'disqualified', reason: dto.reason },
+      after: { status, reason: dto.reason },
     });
 
     await this.events.emit({
@@ -868,6 +870,28 @@ export class LeadsService {
     });
 
     return opportunity;
+  }
+
+  private async requireLostStatus(companyId: string, code: string) {
+    const target = await this.statuses.require(companyId, code);
+
+    if (target.kind !== 'lost') {
+      throw new AppError(
+        'VALIDATION_FAILED',
+        `สถานะ "${target.nameTh}" ไม่ใช่สถานะปิดแบบไม่ได้ไปต่อ`,
+        [{ field: 'status', reason: target.kind }],
+      );
+    }
+
+    if (!target.active) {
+      throw new AppError(
+        'CONFLICT',
+        `สถานะ "${target.nameTh}" ถูกปิดใช้งานอยู่`,
+        [{ field: 'status', reason: 'inactive' }],
+      );
+    }
+
+    return target.code;
   }
 
   /** Visible AND still workable (anything but converted/disqualified). SCOPE-03: unseen = 404. */

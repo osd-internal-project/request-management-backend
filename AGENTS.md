@@ -55,6 +55,10 @@ merge passed 954/954. Before calling a change done:
 needs. Anything else is named, with the reason, before the commit — not found
 afterwards.
 
+**Extending an existing artifact reuses its renderer and look, on the same page.** Adding sub-flows to Request Flow Map as a separate table/chip page behind a "next" button was rejected (27 Oct 2026); draw with `renderCanvas` and append below.
+
+**A "general request" diagram or example is the real flowless lifecycle (`REQUEST_TRANSITIONS`, e.g. BS-01), never an invented template.** A v2 template that no type uses, and FI05 curls offered for "curl แบบ uat-disbursement-open-api … ของ request ทั่วไป", were both rejected (27 Oct 2026): "แบบ X" means X's format, not X's content.
+
 **A gap in `source/` is reported, never filled.** The petty-cash fund and top-ups were invented from
 general accounting and shipped as if specified. Label every requirement `source` or `proposed` before
 asking or building on it.
@@ -230,7 +234,9 @@ be justified by citing §7.1 or §8.1:
 3. **A type with no approval matrix skips the check entirely.** The absence of a
    matrix is configuration, not a gap — `selectTier` throwing
    `APV_MATRIX_NOT_FOUND` is the wrong answer for those types, which is why
-   `complete` asks `hasPublishedMatrix` first.
+   `complete` asks `hasPublishedMatrix` first. Such a request stays `completed`
+   and the requester closes it from there — never `approved`, since nobody
+   approved it (REQ-OSD-BS-01-26100006, 28 Oct 2026).
 4. **A type may publish a step flow** (PO, 28 Sep 2026). Steps live inside
    `in_progress`; `advance` moves between them, and a step with an exit ladder
    (`request:<CODE>:step:<STEP>`) waits in `pending_approval`, which is why

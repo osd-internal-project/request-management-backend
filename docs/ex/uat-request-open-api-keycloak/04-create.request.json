@@ -1,0 +1,31 @@
+{
+  "method": "POST",
+  "path": "/api/v1/request/requests",
+  "headers": {
+    "Authorization": "Bearer <rfk_key>",
+    "X-User-Token": "<token:tawankornw>",
+    "Content-Type": "application/json",
+    "Idempotency-Key": "uat-bs01-<วันที่>-create"
+  },
+  "body": {
+    "type_code": "BS-01",
+    "receiver_user_id": "d320b28b-8e5c-4c9d-ac8b-f9b426e92798",
+    "ref_type": "opportunity",
+    "ref_id": "OPP-2026-0188",
+    "form_data": {
+      "subject": "ขอเปิด SO ระบบ CCTV อาคาร A — บจก. สยามรีเทล",
+      "objective": "ลูกค้ายืนยันใบเสนอราคา QT-2026-0451 แล้ว ขอเปิด SO เพื่อสั่งของและตั้งทีมติดตั้ง",
+      "requirement_detail": "กล้อง IP 48 ตัว, NVR 2 เครื่อง, ติดตั้งและเดินสายครบชุด",
+      "expected_outcome": "เลขที่ SO สำหรับอ้างอิงในการสั่งซื้อและวางบิล",
+      "customer_name": "บริษัท สยามรีเทล จำกัด",
+      "project_name": "CCTV Upgrade อาคาร A",
+      "cost_center": "BSD-1001",
+      "amount": 1850000,
+      "priority": "HIGH",
+      "source_channel": "EMAIL",
+      "needed_by_date": "2026-09-22",
+      "is_backfill": "N",
+      "remark": "ลูกค้าขอเริ่มติดตั้งต้นเดือนหน้า"
+    }
+  }
+}

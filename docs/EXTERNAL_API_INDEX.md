@@ -192,6 +192,14 @@
 | POST | `/disbursement/disbursements/{docNo}/clearing/return` | บัญชีตีกลับเอกสารเคลียร์ให้ผู้ขอแก้ | integration.disbursement.verify | disbursement.verify |
 | POST | `/disbursement/disbursements/{docNo}/close` | บัญชีเคลียร์เอกสาร (complete) — คิดส่วนต่าง (คืน/เบิกเพิ่ม) แล้วจบคำขอ | integration.disbursement.pay | disbursement.pay |
 
+## documents — เอกสารบริษัทที่อัปโหลดในหน้าตั้งค่า — รายการ วันที่ออกเอกสาร และดาวน์โหลดไฟล์
+
+| Method | Path | ทำอะไร | สิทธิ์กุญแจ | สิทธิ์คน |
+|---|---|---|---|---|
+| GET | `/documents` | รายการเอกสารบริษัท พร้อมวันที่ออกเอกสาร | integration.document.read |  |
+| GET | `/documents/{id}` | รายละเอียดเอกสาร — วันที่ออกเอกสาร ชื่อไฟล์ ขนาด | integration.document.read |  |
+| GET | `/documents/{id}/file` | ดาวน์โหลดไฟล์เอกสาร | integration.document.read |  |
+
 ## flow — ติดตามดีลหนึ่งใบทั้งสาย — ดีล → Pre-Sales → ใบเสนอราคา → ใบสั่งขาย → สัญญา → โครงการ
 
 | Method | Path | ทำอะไร | สิทธิ์กุญแจ | สิทธิ์คน |

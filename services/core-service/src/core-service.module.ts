@@ -46,6 +46,7 @@ import { SmartHttpModule } from './smart/smart-http.module';
 import { ContactPreferencesHttpModule } from './contact-preferences/contact-preferences-http.module';
 import { LlmHttpModule } from './llm/llm-http.module';
 import { ChatWidgetHttpModule } from './chat-widget/chat-widget-http.module';
+import { DocumentsHttpModule } from './documents/documents-http.module';
 import { SensitiveReadAuditRecorder } from './policy/sensitive-read.recorder';
 import configs from './configs';
 
@@ -109,6 +110,8 @@ import configs from './configs';
     LlmHttpModule,
     // the ผู้ช่วย AI panel's LibreChat widget host, per company
     ChatWidgetHttpModule,
+    // Company documents in settings (7 Oct 2026)
+    DocumentsHttpModule,
     // CD-18 PM — projects opened from signed contracts
     PmHttpModule,
     // CD-14 — the central signing service (screens + the public signing link)

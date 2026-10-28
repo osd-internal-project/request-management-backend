@@ -275,6 +275,17 @@ const MODULE_DOCS: Readonly<Record<string, ModuleDoc>> = {
       'ส่งซ้ำได้ รายการที่มีอยู่แล้วนับเป็นซ้ำ · ยังไม่เข้า CRM จนกว่าจะผ่านการคัดกรอง',
     tags: [{ name: 'smart', description: 'AI SMART — รับรายชื่อที่กวาดได้' }],
   },
+  documents: {
+    title: 'Request Form — External API · Documents',
+    summary:
+      'เอกสารบริษัทที่อัปโหลดในหน้าตั้งค่า — รายการ วันที่ออกเอกสาร และดาวน์โหลดไฟล์',
+    notes:
+      'หุ่นยนต์เท่านั้น (key ที่มี `integration.document.read`) บริษัทมาจาก key · ' +
+      '`kind`: `dated` = มีวันที่ออกเอกสาร (`issue_date` เป็น YYYY-MM-DD เสมอ) · ' +
+      '`general` = เอกสารทั่วไป (`issue_date` เป็น null) · ' +
+      'ไฟล์ที่ `GET /documents/{id}/file` (ทุกครั้งบันทึก audit) · เอกสารที่เลิกใช้ตอบ 404',
+    tags: [{ name: 'documents', description: 'เอกสารบริษัท' }],
+  },
   mcp: {
     title: 'Request Form — External API · MCP',
     summary: 'ช่องทาง JSON-RPC สำหรับ tool-caller (LibreChat, MCP client)',

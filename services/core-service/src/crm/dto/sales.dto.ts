@@ -389,6 +389,16 @@ export class DisqualifyLeadDto {
   @IsNotEmpty()
   @MaxLength(500)
   reason!: string;
+
+  /**
+   * ปลายทางชนิด `lost` ที่จะปิด เช่น `lost` (แพ้ / ลูกค้าไม่ไปต่อ) หรือ
+   * `disqualified` (ไม่ตรงกลุ่มเป้าหมาย). ว่าง = ปลายทางระบบของบริษัท.
+   */
+  @ApiPropertyOptional({ example: 'lost' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  status?: string;
 }
 
 /**

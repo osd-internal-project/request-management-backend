@@ -1,0 +1,2675 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/v1/crm/admin/lead-statuses": {
+      "get": {
+        "operationId": "ExternalCrmAdminController_listLeadStatuses",
+        "parameters": [
+          {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.admin.crm.manage"
+        ],
+        "x-acting-permission": [
+          "admin.crm.manage"
+        ]
+      },
+      "post": {
+        "operationId": "ExternalCrmAdminController_createLeadStatus",
+        "parameters": [
+          {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateLeadStatusDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.admin.crm.manage"
+        ],
+        "x-acting-permission": [
+          "admin.crm.manage"
+        ]
+      }
+    },
+    "/api/v1/crm/admin/lead-statuses/reorder": {
+      "patch": {
+        "operationId": "ExternalCrmAdminController_reorderLeadStatuses",
+        "parameters": [
+          {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReorderLeadStatusesDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.admin.crm.manage"
+        ],
+        "x-acting-permission": [
+          "admin.crm.manage"
+        ]
+      }
+    },
+    "/api/v1/crm/admin/lead-statuses/{id}": {
+      "patch": {
+        "operationId": "ExternalCrmAdminController_updateLeadStatus",
+        "parameters": [
+          {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateLeadStatusSettingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.admin.crm.manage"
+        ],
+        "x-acting-permission": [
+          "admin.crm.manage"
+        ]
+      },
+      "delete": {
+        "operationId": "ExternalCrmAdminController_deleteLeadStatus",
+        "parameters": [
+          {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.admin.crm.manage"
+        ],
+        "x-acting-permission": [
+          "admin.crm.manage"
+        ]
+      }
+    },
+    "/api/v1/crm/leads/statuses": {
+      "get": {
+        "description": "ส่งทั้งชุดรวมที่ปิดใช้งาน เพราะ Lead ที่ค้างบนขั้นที่เพิ่งปิดยังต้องมีชื่อและสีให้แสดง — หน้าจอเป็นคนกรอง active เอง. โค้ดตั้งได้ต่อบริษัท ไม่ใช่ enum",
+        "operationId": "ExternalLeadsController_listStatuses",
+        "parameters": [
+          {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ขั้นของ Lead ทั้งชุด",
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.read"
+        ],
+        "x-acting-permission": [
+          "crm.sales.read"
+        ]
+      }
+    },
+    "/api/v1/crm/leads": {
+      "get": {
+        "description": "view=mine|all|unassigned — unassigned คือกองกลางที่ยังไม่มีเจ้าของ",
+        "operationId": "ExternalLeadsController_list",
+        "parameters": [
+          {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "เลขหน้าที่ต้องการ เริ่มที่ 1",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page_size",
+            "required": false,
+            "in": "query",
+            "description": "จำนวนรายการต่อหน้า",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "integer"
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "description": "`sort=field` เรียงขึ้น, `sort=-field` เรียงลง",
+            "schema": {
+              "example": "-createdAt",
+              "type": "string",
+              "pattern": "^-?[a-zA-Z_][a-zA-Z0-9_]*$"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "ค้นจากชื่อ ชื่อผู้ติดต่อ อีเมล หรือเบอร์โทร",
+            "schema": {
+              "example": "ตัวอย่าง",
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "รหัสขั้นจาก `GET /crm/leads/statuses`",
+            "schema": {
+              "example": "new",
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{0,29}$"
+            }
+          },
+          {
+            "name": "view",
+            "required": false,
+            "in": "query",
+            "description": "`mine` ของฉัน · `all` ทั้งหมดที่เห็นได้ · `unassigned` กองกลางที่ยังไม่มีเจ้าของ",
+            "schema": {
+              "example": "unassigned",
+              "type": "string",
+              "enum": [
+                "mine",
+                "all",
+                "unassigned"
+              ]
+            }
+          },
+          {
+            "name": "campaign_id",
+            "required": false,
+            "in": "query",
+            "description": "id แคมเปญจาก `GET /crm/campaigns`",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "new_customer",
+            "required": false,
+            "in": "query",
+            "description": "true = เฉพาะ Lead ที่ยังไม่ผูกลูกค้าในทะเบียน (ลูกค้าใหม่)",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true"
+              ]
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ค้นรายชื่อ Lead",
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.read"
+        ],
+        "x-acting-permission": [
+          "crm.sales.read"
+        ]
+      },
+      "post": {
+        "operationId": "ExternalLeadsController_create",
+        "parameters": [
+          {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateLeadDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "สร้าง Lead",
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.manage"
+        ],
+        "x-acting-permission": [
+          "crm.sales.manage"
+        ]
+      }
+    },
+    "/api/v1/crm/leads/import": {
+      "post": {
+        "description": "mode=dry_run ตอบรายงานเต็มโดยไม่เขียนอะไรลงฐานข้อมูล",
+        "operationId": "ExternalLeadsController_import",
+        "parameters": [
+          {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportLeadsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "นำเข้า Lead จาก Excel",
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.manage"
+        ],
+        "x-acting-permission": [
+          "crm.sales.manage"
+        ]
+      }
+    },
+    "/api/v1/crm/leads/{id}": {
+      "get": {
+        "description": "นอกขอบเขตที่มองเห็นตอบ 404 ไม่ใช่ 403 (SCOPE-03)",
+        "operationId": "ExternalLeadsController_findOne",
+        "parameters": [
+          {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "รายละเอียด Lead พร้อมกิจกรรม",
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.read"
+        ],
+        "x-acting-permission": [
+          "crm.sales.read"
+        ]
+      },
+      "patch": {
+        "description": "Lead ที่ปิดแล้ว (kind won/lost) แก้ไม่ได้",
+        "operationId": "ExternalLeadsController_update",
+        "parameters": [
+          {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateLeadDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แก้ข้อมูล Lead",
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.manage"
+        ],
+        "x-acting-permission": [
+          "crm.sales.manage"
+        ]
+      }
+    },
+    "/api/v1/crm/leads/{id}/owner": {
+      "patch": {
+        "description": "owner_user_id ว่าง = รับเอง. ใบที่มีเจ้าของแล้วต้องระบุปลายทางว่าโอนให้ใคร",
+        "operationId": "ExternalLeadsController_assign",
+        "parameters": [
+          {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignLeadDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "รับ Lead หรือแจกให้คนอื่น",
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.manage"
+        ],
+        "x-acting-permission": [
+          "crm.sales.manage"
+        ]
+      }
+    },
+    "/api/v1/crm/leads/{id}/status": {
+      "patch": {
+        "description": "ปลายทางต้องเป็น kind open เท่านั้น — ขั้นที่เป็น won/lost ถูกปฏิเสธด้วย 409 ให้ใช้ convert หรือ disqualify แทน",
+        "operationId": "ExternalLeadsController_setStatus",
+        "parameters": [
+          {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateLeadStatusDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เลื่อนขั้น Lead ในไปป์ไลน์",
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.manage"
+        ],
+        "x-acting-permission": [
+          "crm.sales.manage"
+        ]
+      }
+    },
+    "/api/v1/crm/leads/{id}/intake-data": {
+      "patch": {
+        "description": "merge ทีละ key — ค่า null ลบ key นั้น; `replace: true` แทนทั้งก้อน. ไม่เกิน 16 KB · Lead ที่ปิดแล้วตอบ 409",
+        "operationId": "ExternalLeadsController_updateIntakeData",
+        "parameters": [
+          {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateLeadIntakeDataDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แก้ข้อมูล intake (JSON) ของ Lead",
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.manage"
+        ],
+        "x-acting-permission": [
+          "crm.sales.manage"
+        ]
+      }
+    },
+    "/api/v1/crm/leads/{id}/activities": {
+      "post": {
+        "description": "type: call · email · meeting · task · note · visit · line · social — outcome (reached · no_answer · interested · not_interested) ใช้กับการติดต่อเท่านั้น",
+        "operationId": "ExternalLeadsController_addActivity",
+        "parameters": [
+          {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateLeadActivityDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ลงกิจกรรมของ Lead",
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.manage"
+        ],
+        "x-acting-permission": [
+          "crm.sales.manage"
+        ]
+      }
+    },
+    "/api/v1/crm/leads/{id}/activities/{activityId}": {
+      "patch": {
+        "operationId": "ExternalLeadsController_updateActivity",
+        "parameters": [
+          {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "activityId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateLeadActivityDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แก้กิจกรรม หรือติ๊กเสร็จ",
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.manage"
+        ],
+        "x-acting-permission": [
+          "crm.sales.manage"
+        ]
+      }
+    },
+    "/api/v1/crm/leads/{id}/disqualify": {
+      "post": {
+        "description": "ปิดด้วยสถานะ kind lost — ไม่มี DELETE ในโมดูลนี้",
+        "operationId": "ExternalLeadsController_disqualify",
+        "parameters": [
+          {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DisqualifyLeadDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "คัด Lead ออกพร้อมเหตุผล",
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.manage"
+        ],
+        "x-acting-permission": [
+          "crm.sales.manage"
+        ]
+      }
+    },
+    "/api/v1/crm/leads/{id}/convert": {
+      "post": {
+        "description": "ปิด Lead ด้วยสถานะ kind won แล้วคืน **โอกาสการขาย** — ยังไม่สร้างทะเบียนลูกค้า ทะเบียนเกิดตอนเปิดใบสั่งขาย. ไม่ส่ง customer_id ก็ได้ ข้อมูลจาก Lead จะไปอยู่เป็น prospect บนโอกาสการขาย",
+        "operationId": "ExternalLeadsController_convert",
+        "parameters": [
+          {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConvertLeadDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แปลง Lead เป็นโอกาสการขาย",
+        "tags": [
+          "crm"
+        ],
+        "x-permission": [
+          "integration.crm.sales.manage"
+        ],
+        "x-acting-permission": [
+          "crm.sales.manage"
+        ]
+      }
+    },
+    "/api/v1/crm/leads/intake": {
+      "post": {
+        "description": "ต้องมีแค่ `Authorization: Bearer rfk_…` — บริษัทและช่องทางมาจากตัว API key ไม่ต้องส่ง `X-Company-Id` และไม่ต้องส่ง `source_code`\n\nใบที่สร้างจะไม่มีเจ้าของ (`owner_user_id: null`) และแสดงในหน้ารายการของ ทุกคนที่อ่าน Lead ได้ในบริษัทนั้น จนกว่าจะมีคนกด `PATCH /leads/{id}/owner` เพื่อรับไปดูแล ขั้นตั้งต้นและ workflow เดินเหมือนกับ Lead ที่พนักงานกรอกเองทุกประการ",
+        "operationId": "ExternalLeadIntakeController_receive",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "ควรส่งทุกครั้ง — หนึ่งค่าต่อหนึ่งใบ ยิงซ้ำด้วยค่าเดิมและ body เดิมจะได้ใบเดิมกลับไป ไม่เกิดใบที่สอง ไม่ส่งก็ทำงานได้ แต่ response ที่หายกลางทางแล้ว retry จะกลายเป็น Lead สองใบ",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "6f6bd3a7-7308-4d2e-a4de-75e1f89b6871"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IntakeLeadDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Lead ที่รับเข้ากองกลางแล้ว",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntakeLeadResultDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "รับ Lead จากระบบภายนอก — เข้ากองกลาง รอพนักงานขายรับ",
+        "tags": [
+          "crm-intake"
+        ],
+        "x-permission": [
+          "integration.crm.lead.create"
+        ]
+      }
+    },
+    "/api/v1/crm/leads/forms/{token}": {
+      "get": {
+        "operationId": "ExternalLeadIntakeController_form",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "ควรส่งทุกครั้ง — หนึ่งค่าต่อหนึ่งใบ ยิงซ้ำด้วยค่าเดิมและ body เดิมจะได้ใบเดิมกลับไป ไม่เกิดใบที่สอง ไม่ส่งก็ทำงานได้ แต่ response ที่หายกลางทางแล้ว retry จะกลายเป็น Lead สองใบ",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "6f6bd3a7-7308-4d2e-a4de-75e1f89b6871"
+            }
+          },
+          {
+            "name": "token",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-269 หัวฟอร์มสาธารณะของแคมเปญ (ชื่อแคมเปญ + ข้อความแนะนำ)",
+        "tags": [
+          "crm-intake"
+        ],
+        "x-permission": [
+          "integration.crm.lead.create"
+        ]
+      },
+      "post": {
+        "description": "คนเดิมภายใน 30 วันไปต่อท้าย Lead ที่ยังเปิด · ลูกค้าเดิมส่งถึงผู้ดูแลลูกค้า · ใบใหม่เข้ากองของทีมที่รับของแคมเปญ. ตอบแค่ว่ารับแล้ว ไม่เปิดข้อมูล Lead",
+        "operationId": "ExternalLeadIntakeController_submitForm",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "ควรส่งทุกครั้ง — หนึ่งค่าต่อหนึ่งใบ ยิงซ้ำด้วยค่าเดิมและ body เดิมจะได้ใบเดิมกลับไป ไม่เกิดใบที่สอง ไม่ส่งก็ทำงานได้ แต่ response ที่หายกลางทางแล้ว retry จะกลายเป็น Lead สองใบ",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "6f6bd3a7-7308-4d2e-a4de-75e1f89b6871"
+            }
+          },
+          {
+            "name": "token",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IntakeLeadDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-269 ส่งฟอร์มสาธารณะของแคมเปญ — คัดกรองเหมือน intake",
+        "tags": [
+          "crm-intake"
+        ],
+        "x-permission": [
+          "integration.crm.lead.create"
+        ]
+      }
+    },
+    "/api/v1/crm/leads/ads/{platform}": {
+      "post": {
+        "description": "รับคำตอบหนึ่งชุดในรูปแบบของแพลตฟอร์ม (Facebook `field_data`, TikTok `user_info`/`answers`) พร้อม `form_id` — form_id เลือกแคมเปญจาก `ad_form_ids` ของแคมเปญ. ยังเป็นโหมด mock: ผู้ส่งต้องดึงข้อมูล Lead มาเอง (เช่น ตัวเชื่อม/Zapier) ส่วนการรับ webhook ตรงจากแพลตฟอร์มรอบัญชีโฆษณาและ app review",
+        "operationId": "ExternalLeadIntakeController_receiveAd",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "ควรส่งทุกครั้ง — หนึ่งค่าต่อหนึ่งใบ ยิงซ้ำด้วยค่าเดิมและ body เดิมจะได้ใบเดิมกลับไป ไม่เกิดใบที่สอง ไม่ส่งก็ทำงานได้ แต่ response ที่หายกลางทางแล้ว retry จะกลายเป็น Lead สองใบ",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "6f6bd3a7-7308-4d2e-a4de-75e1f89b6871"
+            }
+          },
+          {
+            "name": "platform",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "CD-269 Lead Ads (facebook | tiktok) — ตัวแปลงข้อมูลฟอร์มโฆษณา",
+        "tags": [
+          "crm-intake"
+        ],
+        "x-permission": [
+          "integration.crm.lead.create"
+        ]
+      }
+    },
+    "/api/v1/crm/leads/{id}/facts": {
+      "get": {
+        "operationId": "ExternalLeadWorkflowController_facts",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ข้อเท็จจริงของ Lead สำหรับ Decision node — สถานะ + จำนวนกิจกรรม",
+        "tags": [
+          "crm-workflow"
+        ],
+        "x-permission": [
+          "integration.crm.lead.read"
+        ]
+      }
+    },
+    "/api/v1/crm/leads/{id}/stage": {
+      "post": {
+        "operationId": "ExternalLeadWorkflowController_applyStage",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplyLeadStageDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "บันทึกขั้นที่ workflow ตัดสินใจแล้ว — core ไม่ตัดสินว่าเลื่อนได้ไหม",
+        "tags": [
+          "crm-workflow"
+        ],
+        "x-permission": [
+          "integration.crm.lead.stage"
+        ]
+      }
+    },
+    "/api/v1/crm/ai/leads/{id}": {
+      "get": {
+        "description": "`email` `phone` `contactName` `contactPosition` เป็น null ถ้า key ไม่มี `integration.crm.lead.contact.read`",
+        "operationId": "ExternalLeadAiController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "อ่าน Lead (ทั้งบริษัทของ key) — อีเมล/เบอร์ ต้องมี contact.read",
+        "tags": [
+          "crm-ai"
+        ],
+        "x-permission": [
+          "integration.crm.lead.read"
+        ]
+      },
+      "patch": {
+        "operationId": "ExternalLeadAiController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateLeadDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แก้ข้อมูล Lead — ส่งเฉพาะ field ที่เปลี่ยน",
+        "tags": [
+          "crm-ai"
+        ],
+        "x-permission": [
+          "integration.crm.lead.update"
+        ]
+      }
+    },
+    "/api/v1/crm/ai/leads/{id}/intake-data": {
+      "patch": {
+        "operationId": "ExternalLeadAiController_updateIntakeData",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateLeadIntakeDataDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แก้ข้อมูล intake (JSON) — merge ทีละ key, null = ลบ key",
+        "tags": [
+          "crm-ai"
+        ],
+        "x-permission": [
+          "integration.crm.lead.update"
+        ]
+      }
+    },
+    "/api/v1/crm/ai/leads/{id}/convert": {
+      "post": {
+        "description": "Lead ในกองกลาง (ยังไม่มีเจ้าของ) ตอบ 409 — มอบหมายก่อน",
+        "operationId": "ExternalLeadAiController_convert",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConvertLeadDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แปลง Lead เป็นโอกาสการขาย — ไปอยู่กับเจ้าของ Lead",
+        "tags": [
+          "crm-ai"
+        ],
+        "x-permission": [
+          "integration.crm.lead.convert"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "Request Form — External API · CRM",
+    "description": "ทะเบียนลูกค้า, Lead, โอกาสการขาย, ใบเสนอราคา, ใบสั่งขาย และหน้าตั้งค่า CRM\n\n**ทุก route มีสองประตู** และ Swagger ของแต่ละ route บอกไว้ทั้งคู่: bearer ต้องถือสิทธิ์ `integration.*` ของ route นั้น (ประตูของเครื่อง) และคนที่ระบุใน header `X-Acting-User` ต้องถือสิทธิ์ของงานนั้นเอง (ประตูของคน) — ระบบทำงานในนามคนนั้น timeline จึงบันทึกชื่อคนจริง ไม่ใช่ชื่อบัญชีบริการ\n\n**bearer รับได้สองแบบ**\n\n1. access token ของ service account จาก Keycloak (client_credentials) อายุสั้น ต้องขอใหม่เมื่อหมดอายุ\n2. **API key** ที่ขึ้นต้นด้วย `rfk_` — ไม่มีวันหมดอายุ ไม่ต้องต่ออายุ ระบบแลกเป็น token ให้เองตอนใช้ ออกด้วย `yarn apikey:issue` และเพิกถอนด้วย `yarn apikey:revoke` (มีผลทันที)\n\nทั้งสองแบบส่งเหมือนกัน: `Authorization: Bearer <ค่า>` และได้สิทธิ์ชุดเดียวกัน — key ตัดสินว่า *เข้าได้ไหม* token บอกว่า *ทำอะไรได้*\n\nสาม route ที่ **ไม่มี** `X-Acting-User` เพราะไม่มีคนอยู่ปลายสาย: `POST /crm/leads/intake` (เว็บฟอร์มของลูกค้า — ใบที่เข้ามาไม่มีเจ้าของ รอพนักงานขายกดรับ) และ `GET|POST /crm/leads/{id}/facts|stage` (workflow engine อ่านและบันทึกขั้นที่ตัดสินใจแล้ว)\n\nการมองเห็นแถวยังเดินผ่านตัวกรองเดิมทุกเส้นทาง และการอ่านข้ามบริษัทตอบ **404 ไม่ใช่ 403** (SCOPE-03) — เปิด CRM ออกมาทางนี้ไม่ได้ให้สิทธิ์ใหม่แก่ใคร",
+    "version": "1.0"
+  },
+  "tags": [
+    {
+      "name": "crm",
+      "description": "ทะเบียนลูกค้าและงานขาย"
+    },
+    {
+      "name": "crm-intake",
+      "description": "ช่องทางรับ Lead จากระบบภายนอก"
+    },
+    {
+      "name": "crm-workflow",
+      "description": "workflow engine อ่านและเลื่อนขั้น Lead"
+    }
+  ],
+  "servers": [
+    {
+      "url": "http://192.168.31.52:3503",
+      "description": "เครื่องภายใน OSD"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
+    "schemas": {
+      "ApplyLeadStageDto": {
+        "type": "object",
+        "properties": {
+          "stage": {
+            "maxLength": 50,
+            "type": "string",
+            "minLength": 1
+          },
+          "instance_id": {
+            "maxLength": 120,
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 200,
+            "type": "string"
+          }
+        },
+        "required": [
+          "stage"
+        ]
+      },
+      "AssignLeadDto": {
+        "type": "object",
+        "properties": {
+          "owner_user_id": {
+            "type": "string",
+            "description": "id ผู้รับจาก `GET /request/users` — ว่าง = รับเอง · ใบที่มีเจ้าของแล้วต้องระบุ",
+            "minLength": 1
+          }
+        }
+      },
+      "ConvertLeadDto": {
+        "type": "object",
+        "properties": {
+          "customer_id": {
+            "type": "string",
+            "description": "id ลูกค้าเดิมจาก `GET /crm/customers` — ว่าง = ผู้มุ่งหวัง ลูกค้าเกิดตอนเปิดใบสั่งขาย"
+          },
+          "title": {
+            "type": "string",
+            "example": "ERP สำหรับบริษัท ตัวอย่าง จำกัด",
+            "description": "ชื่อโอกาสการขาย — ว่าง = ใช้ชื่อ Lead",
+            "maxLength": 255
+          },
+          "amount": {
+            "type": "number",
+            "example": 1500000,
+            "description": "มูลค่าที่คาด (บาท)",
+            "minimum": 0
+          }
+        }
+      },
+      "CreateLeadActivityDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "call",
+              "email",
+              "meeting",
+              "task",
+              "note",
+              "visit",
+              "line",
+              "social"
+            ],
+            "example": "call"
+          },
+          "subject": {
+            "type": "string",
+            "example": "โทรนัดเดโม",
+            "maxLength": 255,
+            "minLength": 1
+          },
+          "detail": {
+            "type": "string",
+            "example": "ลูกค้าขอดูโมดูลบัญชีก่อน",
+            "maxLength": 4000
+          },
+          "due_at": {
+            "type": "string",
+            "example": "2026-09-30T10:00:00+07:00",
+            "description": "ใส่ = นัดไว้ ยังไม่ทำ · ไม่ใส่ = ทำไปแล้ว ปิดทันที — ลงผิดช่องแล้วระบบนับความเคลื่อนไหวผิด",
+            "format": "date-time"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "reached",
+              "no_answer",
+              "interested",
+              "not_interested"
+            ]
+          }
+        },
+        "required": [
+          "subject",
+          "type"
+        ]
+      },
+      "CreateLeadDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "บริษัท ตัวอย่าง จำกัด",
+            "description": "ชื่อบริษัทหรือชื่อผู้มุ่งหวัง",
+            "maxLength": 255,
+            "minLength": 1
+          },
+          "contact_name": {
+            "type": "string",
+            "example": "สมชาย ใจดี",
+            "description": "ชื่อผู้ติดต่อ",
+            "maxLength": 255
+          },
+          "phone": {
+            "type": "string",
+            "example": "081-234-5678",
+            "maxLength": 50
+          },
+          "email": {
+            "type": "string",
+            "example": "somchai@example.com",
+            "format": "email"
+          },
+          "note": {
+            "type": "string",
+            "example": "สนใจระบบ ERP สำหรับ 50 ผู้ใช้",
+            "maxLength": 2000
+          },
+          "source_code": {
+            "type": "string",
+            "example": "website",
+            "description": "รหัสแหล่งที่มาตามที่บริษัทตั้งค่าไว้",
+            "maxLength": 64
+          },
+          "campaign_code": {
+            "type": "string",
+            "example": "EXPO-2026-Q4",
+            "maxLength": 40
+          },
+          "customer_id": {
+            "type": "string",
+            "description": "id ลูกค้าเดิมจาก `GET /crm/customers` — เว้นว่างถ้ายังไม่มีในทะเบียน"
+          },
+          "contact_position": {
+            "type": "string",
+            "example": "ผู้จัดการฝ่ายไอที",
+            "maxLength": 255
+          },
+          "name_en": {
+            "type": "string",
+            "example": "Example Co., Ltd.",
+            "maxLength": 255
+          },
+          "tax_id": {
+            "type": "string",
+            "example": "0000000000000",
+            "description": "เลขประจำตัวผู้เสียภาษี 13 หลัก",
+            "maxLength": 20
+          },
+          "industry": {
+            "type": "string",
+            "example": "การผลิต",
+            "maxLength": 120
+          },
+          "company_size": {
+            "type": "string",
+            "example": "ขนาดกลาง (51–200 คน)",
+            "maxLength": 60
+          },
+          "employee_count": {
+            "type": "integer",
+            "example": 120,
+            "minimum": 0
+          },
+          "product_group": {
+            "type": "string",
+            "example": "ERP",
+            "maxLength": 120
+          },
+          "sub_product": {
+            "type": "string",
+            "example": "Finance",
+            "maxLength": 120
+          },
+          "project_revenue": {
+            "type": "number",
+            "example": 1500000,
+            "description": "มูลค่าโครงการที่คาด (บาท)",
+            "minimum": 0
+          },
+          "address_line": {
+            "type": "string",
+            "example": "99/9 ถนนตัวอย่าง",
+            "maxLength": 500
+          },
+          "district": {
+            "type": "string",
+            "example": "บางรัก",
+            "maxLength": 120
+          },
+          "province": {
+            "type": "string",
+            "example": "กรุงเทพมหานคร",
+            "maxLength": 120
+          },
+          "postal_code": {
+            "type": "string",
+            "example": "10500",
+            "maxLength": 10
+          },
+          "country": {
+            "type": "string",
+            "example": "TH",
+            "description": "รหัสประเทศ 2 ตัวอักษร (ISO 3166-1)",
+            "maxLength": 2
+          },
+          "discovery_need": {
+            "type": "string",
+            "example": "ระบบโทรศัพท์สาขาเก่า ต่อสายไม่ได้ช่วงเย็น",
+            "description": "ความต้องการ / Pain Point",
+            "maxLength": 4000
+          },
+          "discovery_budget": {
+            "type": "object",
+            "example": 800000,
+            "description": "งบประมาณ (บาท)",
+            "minimum": 0
+          },
+          "discovery_budget_note": {
+            "type": "string",
+            "example": "ตั้งงบไว้ในปีงบ 2570",
+            "description": "หมายเหตุงบ — ใช้แทนตัวเลขได้เมื่อลูกค้าไม่เปิดเผย",
+            "maxLength": 500
+          },
+          "discovery_decision_maker": {
+            "type": "string",
+            "example": "คุณสมชาย · ผู้อำนวยการฝ่ายไอที",
+            "maxLength": 255
+          },
+          "discovery_timeframe": {
+            "type": "object",
+            "example": "2026-12-31",
+            "description": "คาดว่าจะตัดสินใจภายใน (วันที่)",
+            "format": "date-time"
+          },
+          "intake_data": {
+            "type": "object",
+            "description": "ข้อมูลที่ช่องทางเก็บมาแต่ไม่มีช่องใน Lead — JSON object ใดก็ได้ ไม่เกิน 16 KB. แก้ภายหลังด้วย `PATCH …/leads/{id}/intake-data`",
+            "example": {
+              "budget_range": "1-3M",
+              "interested_in": [
+                "CCTV",
+                "Network"
+              ]
+            },
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "CreateLeadStatusDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "pattern": "^[a-z][a-z0-9_]{0,29}$",
+            "type": "string"
+          },
+          "name_th": {
+            "maxLength": 60,
+            "type": "string",
+            "minLength": 1
+          },
+          "color": {
+            "maxLength": 20,
+            "type": "string"
+          },
+          "is_default": {
+            "type": "boolean"
+          },
+          "sort_order": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "code",
+          "name_th"
+        ]
+      },
+      "DisqualifyLeadDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "maxLength": 500,
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "ImportLeadRowDto": {
+        "type": "object",
+        "properties": {
+          "row_no": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "name": {
+            "maxLength": 255,
+            "type": "string",
+            "minLength": 1
+          },
+          "contact_name": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "phone": {
+            "maxLength": 50,
+            "type": "string"
+          },
+          "email": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "source_code": {
+            "maxLength": 64,
+            "type": "string"
+          },
+          "campaign_code": {
+            "maxLength": 40,
+            "type": "string"
+          },
+          "note": {
+            "maxLength": 2000,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "row_no"
+        ]
+      },
+      "ImportLeadsDto": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "enum": [
+              "dry_run",
+              "commit"
+            ],
+            "type": "string"
+          },
+          "import_id": {
+            "maxLength": 64,
+            "type": "string",
+            "minLength": 1
+          },
+          "rows": {
+            "maxItems": 500,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImportLeadRowDto"
+            }
+          }
+        },
+        "required": [
+          "import_id",
+          "mode",
+          "rows"
+        ]
+      },
+      "IntakeLeadDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "ชื่อผู้มุ่งหวัง — ชื่อบริษัท หรือชื่อคนถ้ายังไม่รู้บริษัท",
+            "example": "บจก. ตัวอย่าง เทคโนโลยี",
+            "maxLength": 255,
+            "minLength": 1
+          },
+          "source_code": {
+            "type": "string",
+            "description": "ช่องทางที่มา — ไม่ต้องส่งถ้า API key ผูกช่องทางไว้แล้ว (ค่าจาก key ชนะเสมอ). ส่งได้เฉพาะกรณี key ยังไม่ได้ผูก เช่น `website`, `line-oa`, `event-2026-q4`",
+            "example": "website",
+            "maxLength": 64,
+            "minLength": 1
+          },
+          "campaign_code": {
+            "type": "string",
+            "description": "รหัสแคมเปญ (CD-71) เช่นฟอร์มลงทะเบียนงานอีเวนต์ — ต้องเป็นแคมเปญที่เปิดอยู่",
+            "example": "EXPO-2026-Q4",
+            "maxLength": 40
+          },
+          "contact_name": {
+            "type": "string",
+            "description": "ชื่อผู้ติดต่อ",
+            "example": "สมชาย ใจดี",
+            "maxLength": 255
+          },
+          "contact_position": {
+            "type": "string",
+            "description": "ตำแหน่ง/ฝ่ายของผู้ติดต่อ",
+            "example": "ผู้จัดการฝ่ายไอที",
+            "maxLength": 255
+          },
+          "phone": {
+            "type": "string",
+            "description": "เบอร์ติดต่อ",
+            "example": "0812345678",
+            "maxLength": 50
+          },
+          "email": {
+            "type": "string",
+            "example": "somchai@example.co.th",
+            "format": "email"
+          },
+          "note": {
+            "type": "string",
+            "description": "สิ่งที่ผู้มุ่งหวังเขียนมา หรือบริบทที่ช่องทางนั้นเก็บได้",
+            "example": "สนใจระบบ CCTV 3 สาขา ขอให้ติดต่อกลับช่วงบ่าย",
+            "maxLength": 2000
+          },
+          "name_en": {
+            "type": "string",
+            "description": "ชื่อภาษาอังกฤษ",
+            "maxLength": 255
+          },
+          "tax_id": {
+            "type": "string",
+            "description": "เลขประจำตัวผู้เสียภาษี 13 หลัก",
+            "maxLength": 20
+          },
+          "industry": {
+            "type": "string",
+            "example": "ค้าปลีก",
+            "maxLength": 120
+          },
+          "company_size": {
+            "type": "string",
+            "example": "SME",
+            "maxLength": 60
+          },
+          "employee_count": {
+            "type": "integer",
+            "example": 120,
+            "minimum": 0
+          },
+          "product_group": {
+            "type": "string",
+            "description": "กลุ่มสินค้าที่สนใจ",
+            "example": "Security",
+            "maxLength": 120
+          },
+          "sub_product": {
+            "type": "string",
+            "example": "CCTV",
+            "maxLength": 120
+          },
+          "project_revenue": {
+            "type": "number",
+            "description": "มูลค่าโครงการโดยประมาณ",
+            "example": 250000,
+            "minimum": 0
+          },
+          "address_line": {
+            "type": "string",
+            "example": "99/1 ถนนสุขุมวิท",
+            "maxLength": 500
+          },
+          "district": {
+            "type": "string",
+            "example": "คลองเตย",
+            "maxLength": 120
+          },
+          "province": {
+            "type": "string",
+            "example": "กรุงเทพมหานคร",
+            "maxLength": 120
+          },
+          "postal_code": {
+            "type": "string",
+            "example": "10110",
+            "maxLength": 10
+          },
+          "country": {
+            "type": "string",
+            "description": "รหัสประเทศ 2 ตัว — ไม่ส่งถือเป็น TH",
+            "example": "TH",
+            "maxLength": 2
+          },
+          "intake_data": {
+            "type": "object",
+            "description": "ข้อมูลที่ช่องทางเก็บมาแต่ไม่มีช่องใน Lead — JSON object ใดก็ได้ ไม่เกิน 16 KB. แก้ภายหลังด้วย `PATCH …/leads/{id}/intake-data`",
+            "example": {
+              "budget_range": "1-3M",
+              "interested_in": [
+                "CCTV",
+                "Network"
+              ]
+            },
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "IntakeLeadResultDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "id ของ Lead ที่สร้าง — เก็บไว้ถ้าต้องอ้างกลับมาภายหลัง",
+            "example": "6f6bd3a7-7308-4d2e-a4de-75e1f89b6871"
+          },
+          "name": {
+            "type": "string",
+            "example": "บจก. ตัวอย่าง เทคโนโลยี"
+          },
+          "status": {
+            "type": "string",
+            "description": "ขั้นตั้งต้นของบริษัทนั้น — ตั้งได้จากหน้าตั้งค่า ไม่ใช่ค่าคงที่",
+            "example": "new"
+          },
+          "source_code": {
+            "type": "string",
+            "description": "ช่องทางที่ระบบบันทึกให้ใบนี้ — มาจาก API key เว้นแต่ key ยังไม่ผูก",
+            "example": "website"
+          },
+          "owner_user_id": {
+            "type": "object",
+            "description": "เจ้าของใบ — null = ยังไม่มีคนรับ (กองกลาง หรือกองของทีมที่รับของแคมเปญ); ลูกค้าเดิม = ผู้ดูแลลูกค้า",
+            "nullable": true,
+            "example": null
+          },
+          "created_at": {
+            "type": "string",
+            "example": "2026-09-14T09:30:00.000Z"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "created",
+              "customer",
+              "repeat"
+            ],
+            "description": "CD-269 — `created` ใบใหม่ (เข้าทีมที่รับของแคมเปญถ้ามี) · `customer` ตรงกับลูกค้าเดิม ส่งถึงผู้ดูแลลูกค้า · `repeat` คนเดิมลงทะเบียนซ้ำภายใน 30 วัน — ได้ใบเดิมกลับ ไม่สร้างใหม่",
+            "example": "created"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "status",
+          "source_code",
+          "owner_user_id",
+          "created_at",
+          "outcome"
+        ]
+      },
+      "ReorderLeadStatusesDto": {
+        "type": "object",
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 100
+          }
+        },
+        "required": [
+          "ids"
+        ]
+      },
+      "UpdateLeadActivityDto": {
+        "type": "object",
+        "properties": {
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "reached",
+              "no_answer",
+              "interested",
+              "not_interested"
+            ],
+            "nullable": true
+          },
+          "subject": {
+            "maxLength": 255,
+            "type": "string",
+            "minLength": 1
+          },
+          "detail": {
+            "maxLength": 4000,
+            "type": "string"
+          },
+          "due_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "completed": {
+            "type": "boolean"
+          }
+        }
+      },
+      "UpdateLeadDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "บริษัท ตัวอย่าง จำกัด",
+            "description": "ชื่อบริษัทหรือชื่อผู้มุ่งหวัง",
+            "maxLength": 255,
+            "minLength": 1
+          },
+          "contact_name": {
+            "type": "string",
+            "example": "สมชาย ใจดี",
+            "description": "ชื่อผู้ติดต่อ",
+            "maxLength": 255
+          },
+          "phone": {
+            "type": "string",
+            "example": "081-234-5678",
+            "maxLength": 50
+          },
+          "email": {
+            "type": "string",
+            "example": "somchai@example.com",
+            "format": "email"
+          },
+          "note": {
+            "type": "string",
+            "example": "สนใจระบบ ERP สำหรับ 50 ผู้ใช้",
+            "maxLength": 2000
+          },
+          "source_code": {
+            "type": "string",
+            "example": "website",
+            "description": "รหัสแหล่งที่มาตามที่บริษัทตั้งค่าไว้",
+            "maxLength": 64
+          },
+          "campaign_code": {
+            "type": "string",
+            "example": "EXPO-2026-Q4",
+            "maxLength": 40
+          },
+          "customer_id": {
+            "type": "string",
+            "description": "id ลูกค้าเดิมจาก `GET /crm/customers` — เว้นว่างถ้ายังไม่มีในทะเบียน"
+          },
+          "contact_position": {
+            "type": "string",
+            "example": "ผู้จัดการฝ่ายไอที",
+            "maxLength": 255
+          },
+          "name_en": {
+            "type": "string",
+            "example": "Example Co., Ltd.",
+            "maxLength": 255
+          },
+          "tax_id": {
+            "type": "string",
+            "example": "0000000000000",
+            "description": "เลขประจำตัวผู้เสียภาษี 13 หลัก",
+            "maxLength": 20
+          },
+          "industry": {
+            "type": "string",
+            "example": "การผลิต",
+            "maxLength": 120
+          },
+          "company_size": {
+            "type": "string",
+            "example": "ขนาดกลาง (51–200 คน)",
+            "maxLength": 60
+          },
+          "employee_count": {
+            "type": "integer",
+            "example": 120,
+            "minimum": 0
+          },
+          "product_group": {
+            "type": "string",
+            "example": "ERP",
+            "maxLength": 120
+          },
+          "sub_product": {
+            "type": "string",
+            "example": "Finance",
+            "maxLength": 120
+          },
+          "project_revenue": {
+            "type": "number",
+            "example": 1500000,
+            "description": "มูลค่าโครงการที่คาด (บาท)",
+            "minimum": 0
+          },
+          "address_line": {
+            "type": "string",
+            "example": "99/9 ถนนตัวอย่าง",
+            "maxLength": 500
+          },
+          "district": {
+            "type": "string",
+            "example": "บางรัก",
+            "maxLength": 120
+          },
+          "province": {
+            "type": "string",
+            "example": "กรุงเทพมหานคร",
+            "maxLength": 120
+          },
+          "postal_code": {
+            "type": "string",
+            "example": "10500",
+            "maxLength": 10
+          },
+          "country": {
+            "type": "string",
+            "example": "TH",
+            "description": "รหัสประเทศ 2 ตัวอักษร (ISO 3166-1)",
+            "maxLength": 2
+          },
+          "discovery_need": {
+            "type": "string",
+            "example": "ระบบโทรศัพท์สาขาเก่า ต่อสายไม่ได้ช่วงเย็น",
+            "description": "ความต้องการ / Pain Point",
+            "maxLength": 4000
+          },
+          "discovery_budget": {
+            "type": "object",
+            "example": 800000,
+            "description": "งบประมาณ (บาท)",
+            "minimum": 0
+          },
+          "discovery_budget_note": {
+            "type": "string",
+            "example": "ตั้งงบไว้ในปีงบ 2570",
+            "description": "หมายเหตุงบ — ใช้แทนตัวเลขได้เมื่อลูกค้าไม่เปิดเผย",
+            "maxLength": 500
+          },
+          "discovery_decision_maker": {
+            "type": "string",
+            "example": "คุณสมชาย · ผู้อำนวยการฝ่ายไอที",
+            "maxLength": 255
+          },
+          "discovery_timeframe": {
+            "type": "object",
+            "example": "2026-12-31",
+            "description": "คาดว่าจะตัดสินใจภายใน (วันที่)",
+            "format": "date-time"
+          },
+          "intake_data": {
+            "type": "object",
+            "description": "ข้อมูลที่ช่องทางเก็บมาแต่ไม่มีช่องใน Lead — JSON object ใดก็ได้ ไม่เกิน 16 KB. แก้ภายหลังด้วย `PATCH …/leads/{id}/intake-data`",
+            "example": {
+              "budget_range": "1-3M",
+              "interested_in": [
+                "CCTV",
+                "Network"
+              ]
+            },
+            "additionalProperties": true
+          }
+        }
+      },
+      "UpdateLeadIntakeDataDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "description": "key ที่จะเขียน — ค่า null ลบ key นั้นออก",
+            "example": {
+              "budget_range": "3-5M",
+              "old_key": null
+            },
+            "additionalProperties": true
+          },
+          "replace": {
+            "type": "boolean",
+            "description": "true = แทนทั้งก้อน (key ที่ไม่ส่งมาหายไป), ค่าเริ่มต้น merge",
+            "default": false
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "UpdateLeadStatusDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "contacted",
+            "description": "รหัสขั้นจาก `GET /crm/leads/statuses` — ต้องเป็นขั้น kind `open` ขั้น won/lost ตอบ 409",
+            "pattern": "^[a-z][a-z0-9_]{0,29}$"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "UpdateLeadStatusSettingDto": {
+        "type": "object",
+        "properties": {
+          "name_th": {
+            "maxLength": 60,
+            "type": "string",
+            "minLength": 1
+          },
+          "color": {
+            "maxLength": 20,
+            "type": "string"
+          },
+          "is_default": {
+            "type": "boolean"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "sort_order": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        }
+      }
+    }
+  }
+}

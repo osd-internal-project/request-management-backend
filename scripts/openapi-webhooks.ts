@@ -80,7 +80,9 @@ const LEAD: Record<keyof LeadEventPayload, Schema> = {
   },
   opportunity_id: str('โอกาสการขายที่เกิด — lead.converted'),
   opportunity_code: str('เลขที่โอกาสการขาย — lead.converted'),
-  reason: str('เหตุผลที่คัดออก — lead.status_changed จากการคัดออก'),
+  reason: str(
+    'lead.status_changed — เหตุผลที่คัดออก หรือเหตุผลที่ส่งมากับ POST crm/leads/{id}/stage (ถ้ามี)',
+  ),
 };
 const PING = {
   company_id: COMPANY,
@@ -117,11 +119,10 @@ const SCHEMAS = {
   PingEventData: object('PingEventData', PING),
 };
 
+type WebhookEventName = DomainEventName | typeof WEBHOOK_PING;
+
 /** Exhaustive over the catalog: a new event without an entry fails `tsc`. */
-const EVENTS: Record<
-  DomainEventName | typeof WEBHOOK_PING,
-  [keyof typeof SCHEMAS, string]
-> = {
+const EVENTS: Record<WebhookEventName, [keyof typeof SCHEMAS, string]> = {
   'request.submitted': ['RequestEventData', 'ส่งคำขอแล้ว'],
   'request.returned': ['RequestEventData', 'คำขอถูกส่งกลับให้แก้'],
   'request.resubmitted': ['RequestEventData', 'ส่งคำขอที่แก้แล้วอีกครั้ง'],
@@ -138,12 +139,73 @@ const EVENTS: Record<
   'sla.warning': ['SlaEventData', 'ใกล้เกินกำหนด'],
   'sla.breached': ['SlaEventData', 'เกินกำหนดแล้ว'],
   'esign.completed': ['EsignEventData', 'ลงนามครบทุกคน'],
-  'lead.created': ['LeadEventData', 'มี Lead ใหม่ (หน้าจอ, intake, ฟอร์มแคมเปญ)'],
+  'lead.created': ['LeadEventData', 'มี Lead ใหม่ (หน้าจอ, intake, ฟอร์มแคมเปญ, ads, import)'],
   'lead.updated': ['LeadEventData', 'แก้ข้อมูล Lead'],
   'lead.status_changed': ['LeadEventData', 'Lead เปลี่ยนสถานะ (รวมการคัดออก)'],
   'lead.intake_updated': ['LeadEventData', 'แก้ข้อมูล intake (JSON) ของ Lead'],
   'lead.converted': ['LeadEventData', 'Lead ถูกแปลงเป็นโอกาสการขาย'],
   'webhook.ping': ['PingEventData', 'ปุ่ม "ทดสอบ" ในหน้าตั้งค่า webhook'],
+};
+
+const LEAD_EXAMPLE = {
+  company_id: 'osd',
+  lead_id: '8d2f7a4e-1c3b-4e5f-9a6d-0b1c2d3e4f50',
+  name: 'บจก. ตัวอย่าง เทคโนโลยี',
+  source_code: 'web-form',
+};
+
+/** When an event is sent and when it is not; only the events handed to partners so far. */
+const DETAILS: Partial<
+  Record<WebhookEventName, { description: string; data: Record<string, unknown> }>
+> = {
+  'lead.created': {
+    description:
+      'ส่งเมื่อมี Lead ใหม่ทุกช่องทาง: สร้างจากหน้าจอ, `POST crm/leads/intake`, ฟอร์มแคมเปญ, ads, import (หนึ่ง event ต่อหนึ่งแถว) และการเลื่อนบัญชีเป้าหมายเป็น Lead\n\n' +
+      'Lead จาก `crm/leads/intake` เข้ากองกลาง ยังไม่มีเจ้าของ — การแจกหรือรับใบภายหลังไม่มี event',
+    data: { ...LEAD_EXAMPLE, status: 'new' },
+  },
+  'lead.updated': {
+    description:
+      'ส่งเมื่อแก้ข้อมูล Lead (`PATCH crm/leads/{id}` หรือ `PATCH crm/ai/leads/{id}`)\n\n' +
+      '`changed_fields` คือชื่อ field ที่ถูกส่งมาแก้ ไม่มีค่า และอาจมีแม้ค่าไม่เปลี่ยน — ถ้าต้องการค่าใหม่ ให้ GET\n\n' +
+      'การเปลี่ยนเจ้าของและการลงกิจกรรมไม่มี event',
+    data: {
+      ...LEAD_EXAMPLE,
+      status: 'contacted',
+      changed_fields: ['industry', 'employee_count'],
+    },
+  },
+  'lead.status_changed': {
+    description:
+      'ส่งเมื่อสถานะเปลี่ยนจริง จาก `POST crm/leads/{id}/stage`, การเปลี่ยนสถานะบนหน้าจอ หรือการคัดออก\n\n' +
+      '(คัดออกได้ `status` เป็นสถานะปิดแบบ lost ของบริษัท พร้อม `reason`)\n\n' +
+      'ส่งสถานะเดิมซ้ำไม่มี event การแปลงเป็นโอกาสการขายส่ง `lead.converted` แทน',
+    data: { ...LEAD_EXAMPLE, status: 'contacted', previous_status: 'new' },
+  },
+  'lead.intake_updated': {
+    description:
+      'ส่งเมื่อแก้ intake data (JSON) ด้วย `PATCH crm/leads/{id}/intake-data` หรือ `PATCH crm/ai/leads/{id}/intake-data`\n\n' +
+      'ทั้งแบบ merge และ replace — `changed_fields` คือ key ที่ถูกส่งมา ไม่มีค่า',
+    data: { ...LEAD_EXAMPLE, status: 'qualified', changed_fields: ['budget_range'] },
+  },
+  'lead.converted': {
+    description:
+      'ส่งเมื่อ Lead ถูกแปลงเป็นโอกาสการขาย — event เดียว ไม่มี `lead.status_changed` คู่มา\n\n' +
+      '`status` คือสถานะปิดแบบ won ของบริษัท อ่านโอกาสการขายต่อได้จาก `opportunity_id`',
+    data: {
+      ...LEAD_EXAMPLE,
+      status: 'won',
+      previous_status: 'qualified',
+      opportunity_id: '3c9a1f2e-7b4d-4e8a-9c1f-5d6e7f8a9b0c',
+      opportunity_code: 'OPP-2610-0001',
+    },
+  },
+  'webhook.ping': {
+    description:
+      'ส่งเมื่อผู้ดูแลกดปุ่ม **ทดสอบ** ในหน้าตั้งค่า webhook (webhook ต้องเปิดอยู่) ไม่ได้เกิดจากข้อมูลจริง\n\n' +
+      'ตอบ 2xx เพื่อยืนยันว่า URL และการตรวจลายเซ็นใช้ได้',
+    data: { company_id: 'osd', webhook_id: '0f1e2d3c-4b5a-4968-8776-655443322110' },
+  },
 };
 
 const HEADERS = [
@@ -178,6 +240,19 @@ const DESCRIPTION = `ระบบส่ง \`POST\` ไปยัง URL ที�
 
 **ส่งอย่างน้อยหนึ่งครั้ง แบบ best-effort** — event อาจมาซ้ำหรือสลับลำดับ ให้ตัดรายการซ้ำด้วย \`X-Webhook-Id\` ถ้าบริการเคยล่ม ให้ตรวจสอบย้อนหลังด้วย GET ของ API เดิม`;
 
+function exampleOf(event: WebhookEventName): { example?: Schema } {
+  const detail = DETAILS[event];
+  if (!detail) return {};
+  return {
+    example: {
+      id: '5b0c8e9e-6a0f-4c55-9a7e-2f1f0f4b7c11',
+      event,
+      created_at: '2026-10-22T03:15:02.114Z',
+      data: detail.data,
+    },
+  };
+}
+
 /**
  * G-07 — `docs/openapi/external-webhook.json`: the calls this system makes to
  * a partner, as OpenAPI 3.1 `webhooks`. Not cut from the Nest document — these
@@ -190,6 +265,9 @@ export function writeWebhookDocument(version: string): void {
       {
         post: {
           summary,
+          ...(DETAILS[event as WebhookEventName] // Object.entries widens the key to string
+            ? { description: DETAILS[event as WebhookEventName]?.description }
+            : {}),
           operationId: `webhook_${event.replace(/\./g, '_')}`,
           parameters: HEADERS,
           requestBody: {
@@ -206,6 +284,7 @@ export function writeWebhookDocument(version: string): void {
                     data: { $ref: `#/components/schemas/${schema}` },
                   },
                 },
+                ...exampleOf(event as WebhookEventName), // Object.entries widens the key to string
               },
             },
           },

@@ -1,0 +1,11 @@
+{
+  "method": "POST",
+  "path": "/api/v1/request/requests/<requestNo>/actions/receive",
+  "headers": {
+    "Authorization": "Bearer <rfk_key>",
+    "X-User-Token": "<token:nongnuchc>",
+    "Content-Type": "application/json",
+    "Idempotency-Key": "uat-bs01-<วันที่>-receive"
+  },
+  "body": {}
+}

@@ -209,3 +209,9 @@ export {
 export { AgentRecordsModule } from './agent-records/agent-records.module';
 export { AgentRecordsService } from './agent-records/agent-records.service';
 export { CompleteAgentRecordDto } from './agent-records/dto/agent-record.dto';
+// Company documents (settings) — external systems list and download them
+export { DocumentsModule } from './documents/documents.module';
+export { DocumentsService } from './documents/documents.service';
+export { DocumentFilesService } from './documents/document-files.service';
+export { DocumentsQueryDto } from './documents/documents.dto';
+export { documentStream } from './documents/document-stream';

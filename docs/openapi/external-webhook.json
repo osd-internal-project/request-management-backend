@@ -1800,7 +1800,8 @@
     },
     "lead.created": {
       "post": {
-        "summary": "มี Lead ใหม่ (หน้าจอ, intake, ฟอร์มแคมเปญ)",
+        "summary": "มี Lead ใหม่ (หน้าจอ, intake, ฟอร์มแคมเปญ, ads, import)",
+        "description": "ส่งเมื่อมี Lead ใหม่ทุกช่องทาง: สร้างจากหน้าจอ, `POST crm/leads/intake`, ฟอร์มแคมเปญ, ads, import (หนึ่ง event ต่อหนึ่งแถว) และการเลื่อนบัญชีเป้าหมายเป็น Lead\n\nLead จาก `crm/leads/intake` เข้ากองกลาง ยังไม่มีเจ้าของ — การแจกหรือรับใบภายหลังไม่มี event",
         "operationId": "webhook_lead_created",
         "parameters": [
           {
@@ -1896,6 +1897,18 @@
                     "$ref": "#/components/schemas/LeadEventData"
                   }
                 }
+              },
+              "example": {
+                "id": "5b0c8e9e-6a0f-4c55-9a7e-2f1f0f4b7c11",
+                "event": "lead.created",
+                "created_at": "2026-10-22T03:15:02.114Z",
+                "data": {
+                  "company_id": "osd",
+                  "lead_id": "8d2f7a4e-1c3b-4e5f-9a6d-0b1c2d3e4f50",
+                  "name": "บจก. ตัวอย่าง เทคโนโลยี",
+                  "source_code": "web-form",
+                  "status": "new"
+                }
               }
             }
           }
@@ -1913,6 +1926,7 @@
     "lead.updated": {
       "post": {
         "summary": "แก้ข้อมูล Lead",
+        "description": "ส่งเมื่อแก้ข้อมูล Lead (`PATCH crm/leads/{id}` หรือ `PATCH crm/ai/leads/{id}`)\n\n`changed_fields` คือชื่อ field ที่ถูกส่งมาแก้ ไม่มีค่า และอาจมีแม้ค่าไม่เปลี่ยน — ถ้าต้องการค่าใหม่ ให้ GET\n\nการเปลี่ยนเจ้าของและการลงกิจกรรมไม่มี event",
         "operationId": "webhook_lead_updated",
         "parameters": [
           {
@@ -2008,6 +2022,22 @@
                     "$ref": "#/components/schemas/LeadEventData"
                   }
                 }
+              },
+              "example": {
+                "id": "5b0c8e9e-6a0f-4c55-9a7e-2f1f0f4b7c11",
+                "event": "lead.updated",
+                "created_at": "2026-10-22T03:15:02.114Z",
+                "data": {
+                  "company_id": "osd",
+                  "lead_id": "8d2f7a4e-1c3b-4e5f-9a6d-0b1c2d3e4f50",
+                  "name": "บจก. ตัวอย่าง เทคโนโลยี",
+                  "source_code": "web-form",
+                  "status": "contacted",
+                  "changed_fields": [
+                    "industry",
+                    "employee_count"
+                  ]
+                }
               }
             }
           }
@@ -2025,6 +2055,7 @@
     "lead.status_changed": {
       "post": {
         "summary": "Lead เปลี่ยนสถานะ (รวมการคัดออก)",
+        "description": "ส่งเมื่อสถานะเปลี่ยนจริง จาก `POST crm/leads/{id}/stage`, การเปลี่ยนสถานะบนหน้าจอ หรือการคัดออก\n\n(คัดออกได้ `status` เป็นสถานะปิดแบบ lost ของบริษัท พร้อม `reason`)\n\nส่งสถานะเดิมซ้ำไม่มี event การแปลงเป็นโอกาสการขายส่ง `lead.converted` แทน",
         "operationId": "webhook_lead_status_changed",
         "parameters": [
           {
@@ -2120,6 +2151,19 @@
                     "$ref": "#/components/schemas/LeadEventData"
                   }
                 }
+              },
+              "example": {
+                "id": "5b0c8e9e-6a0f-4c55-9a7e-2f1f0f4b7c11",
+                "event": "lead.status_changed",
+                "created_at": "2026-10-22T03:15:02.114Z",
+                "data": {
+                  "company_id": "osd",
+                  "lead_id": "8d2f7a4e-1c3b-4e5f-9a6d-0b1c2d3e4f50",
+                  "name": "บจก. ตัวอย่าง เทคโนโลยี",
+                  "source_code": "web-form",
+                  "status": "contacted",
+                  "previous_status": "new"
+                }
               }
             }
           }
@@ -2137,6 +2181,7 @@
     "lead.intake_updated": {
       "post": {
         "summary": "แก้ข้อมูล intake (JSON) ของ Lead",
+        "description": "ส่งเมื่อแก้ intake data (JSON) ด้วย `PATCH crm/leads/{id}/intake-data` หรือ `PATCH crm/ai/leads/{id}/intake-data`\n\nทั้งแบบ merge และ replace — `changed_fields` คือ key ที่ถูกส่งมา ไม่มีค่า",
         "operationId": "webhook_lead_intake_updated",
         "parameters": [
           {
@@ -2232,6 +2277,21 @@
                     "$ref": "#/components/schemas/LeadEventData"
                   }
                 }
+              },
+              "example": {
+                "id": "5b0c8e9e-6a0f-4c55-9a7e-2f1f0f4b7c11",
+                "event": "lead.intake_updated",
+                "created_at": "2026-10-22T03:15:02.114Z",
+                "data": {
+                  "company_id": "osd",
+                  "lead_id": "8d2f7a4e-1c3b-4e5f-9a6d-0b1c2d3e4f50",
+                  "name": "บจก. ตัวอย่าง เทคโนโลยี",
+                  "source_code": "web-form",
+                  "status": "qualified",
+                  "changed_fields": [
+                    "budget_range"
+                  ]
+                }
               }
             }
           }
@@ -2249,6 +2309,7 @@
     "lead.converted": {
       "post": {
         "summary": "Lead ถูกแปลงเป็นโอกาสการขาย",
+        "description": "ส่งเมื่อ Lead ถูกแปลงเป็นโอกาสการขาย — event เดียว ไม่มี `lead.status_changed` คู่มา\n\n`status` คือสถานะปิดแบบ won ของบริษัท อ่านโอกาสการขายต่อได้จาก `opportunity_id`",
         "operationId": "webhook_lead_converted",
         "parameters": [
           {
@@ -2344,6 +2405,21 @@
                     "$ref": "#/components/schemas/LeadEventData"
                   }
                 }
+              },
+              "example": {
+                "id": "5b0c8e9e-6a0f-4c55-9a7e-2f1f0f4b7c11",
+                "event": "lead.converted",
+                "created_at": "2026-10-22T03:15:02.114Z",
+                "data": {
+                  "company_id": "osd",
+                  "lead_id": "8d2f7a4e-1c3b-4e5f-9a6d-0b1c2d3e4f50",
+                  "name": "บจก. ตัวอย่าง เทคโนโลยี",
+                  "source_code": "web-form",
+                  "status": "won",
+                  "previous_status": "qualified",
+                  "opportunity_id": "3c9a1f2e-7b4d-4e8a-9c1f-5d6e7f8a9b0c",
+                  "opportunity_code": "OPP-2610-0001"
+                }
               }
             }
           }
@@ -2361,6 +2437,7 @@
     "webhook.ping": {
       "post": {
         "summary": "ปุ่ม \"ทดสอบ\" ในหน้าตั้งค่า webhook",
+        "description": "ส่งเมื่อผู้ดูแลกดปุ่ม **ทดสอบ** ในหน้าตั้งค่า webhook (webhook ต้องเปิดอยู่) ไม่ได้เกิดจากข้อมูลจริง\n\nตอบ 2xx เพื่อยืนยันว่า URL และการตรวจลายเซ็นใช้ได้",
         "operationId": "webhook_webhook_ping",
         "parameters": [
           {
@@ -2455,6 +2532,15 @@
                   "data": {
                     "$ref": "#/components/schemas/PingEventData"
                   }
+                }
+              },
+              "example": {
+                "id": "5b0c8e9e-6a0f-4c55-9a7e-2f1f0f4b7c11",
+                "event": "webhook.ping",
+                "created_at": "2026-10-22T03:15:02.114Z",
+                "data": {
+                  "company_id": "osd",
+                  "webhook_id": "0f1e2d3c-4b5a-4968-8776-655443322110"
                 }
               }
             }
@@ -2719,7 +2805,7 @@
           },
           "reason": {
             "type": "string",
-            "description": "เหตุผลที่คัดออก — lead.status_changed จากการคัดออก"
+            "description": "lead.status_changed — เหตุผลที่คัดออก หรือเหตุผลที่ส่งมากับ POST crm/leads/{id}/stage (ถ้ามี)"
           }
         }
       },

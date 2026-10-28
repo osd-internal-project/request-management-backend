@@ -1,0 +1,8 @@
+{
+  "method": "GET",
+  "path": "/api/v1/request/requests/<requestNo>",
+  "headers": {
+    "Authorization": "Bearer <rfk_key>",
+    "X-User-Token": "<token:nongnuchc>"
+  }
+}

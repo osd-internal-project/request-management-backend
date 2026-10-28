@@ -9315,3 +9315,28 @@ model IntegrationEndpoint {
   @@index([integrationId])
   @@map("integration_endpoints")
 }
+
+/// เอกสารบริษัท (หน้าตั้งค่า) — ไฟล์ที่ระบบภายนอกดึงไปใช้ผ่าน External API.
+/// kind: dated = มีวันที่ออกเอกสาร (issueDate บังคับ) · general = เอกสารทั่วไป.
+/// ไม่ลบจริง: archivedAt คือเลิกใช้ (ไม่แสดงใน External API).
+model CompanyDocument {
+  id          String    @id @default(uuid())
+  companyId   String
+  kind        String
+  title       String
+  description String?
+  issueDate   DateTime? @db.Date
+  fileName    String
+  mimeType    String
+  sizeBytes   Int
+  storageKey  String
+  uploadedBy  String
+  createdAt   DateTime  @default(now())
+  updatedBy   String?
+  updatedAt   DateTime  @updatedAt
+  archivedAt  DateTime?
+  archivedBy  String?
+
+  @@index([companyId, kind, archivedAt])
+  @@map("company_documents")
+}

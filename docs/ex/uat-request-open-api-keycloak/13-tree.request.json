@@ -1,0 +1,8 @@
+{
+  "method": "GET",
+  "path": "/api/v1/request/requests/<requestNo>/tree",
+  "headers": {
+    "Authorization": "Bearer <rfk_key>",
+    "X-User-Token": "<token:tawankornw>"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "method": "POST",
+  "path": "/api/v1/request/requests/<requestNo>/actions/hold",
+  "headers": {
+    "Authorization": "Bearer <rfk_key>",
+    "X-User-Token": "<token:wanatpornj>",
+    "Content-Type": "application/json",
+    "Idempotency-Key": "uat-bs01-<วันที่>-hold"
+  },
+  "body": {
+    "reason": "รอยืนยัน lead time กล้องจาก vendor"
+  }
+}
