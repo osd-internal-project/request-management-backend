@@ -17631,6 +17631,11 @@
       "DisqualifyLeadDto": {
         "type": "object",
         "properties": {
+          "status": {
+            "type": "string",
+            "example": "lost",
+            "maxLength": 30
+          },
           "reason": {
             "maxLength": 500,
             "type": "string",

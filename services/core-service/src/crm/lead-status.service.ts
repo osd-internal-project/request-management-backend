@@ -30,9 +30,11 @@ export interface LeadStatusRow {
 }
 
 /**
- * ชุดตั้งต้นของบริษัทใหม่ — เท่ากับที่ migration seed ให้บริษัทเดิมทุกประการ.
- * สามแถวที่ `isSystem` คือปลายทางที่โค้ดต้องมีเสมอ (ตั้งต้น / แปลงแล้ว / คัดออก);
- * `cannot_contact`, `contacted`, `qualified` เป็นขั้นธรรมดา ลบหรือเปลี่ยนชื่อได้.
+ * ชุดตั้งต้นของบริษัทใหม่ — เท่ากับที่ migration seed ให้บริษัทเดิมทุกประการ
+ * (ชุดเก้าขั้นตามรายการสถานะของฝ่ายขาย 28 ต.ค. 2569).
+ * สามแถวที่ `isSystem` คือปลายทางที่โค้ดต้องมีเสมอ (ตั้งต้น / Won / Disqualified);
+ * ที่เหลือเป็นขั้นธรรมดา ลบหรือเปลี่ยนชื่อได้ — รวม `lost` ซึ่งเป็นปลายทางชนิด
+ * `lost` ตัวที่สอง เลือกได้ตอนปิด Lead (`LeadsService.disqualify`).
  */
 export const DEFAULT_LEAD_STATUSES: readonly Omit<
   LeadStatusRow,
@@ -40,7 +42,7 @@ export const DEFAULT_LEAD_STATUSES: readonly Omit<
 >[] = [
   {
     code: 'new',
-    nameTh: 'ใหม่',
+    nameTh: 'ลูกค้าใหม่ (New)',
     kind: 'open',
     color: 'blue',
     isDefault: true,
@@ -50,7 +52,7 @@ export const DEFAULT_LEAD_STATUSES: readonly Omit<
   },
   {
     code: 'cannot_contact',
-    nameTh: 'ติดต่อไม่ได้',
+    nameTh: 'ติดต่อไม่ได้ (Cannot Contact)',
     kind: 'open',
     color: 'orange',
     isDefault: false,
@@ -60,7 +62,7 @@ export const DEFAULT_LEAD_STATUSES: readonly Omit<
   },
   {
     code: 'contacted',
-    nameTh: 'ติดต่อแล้ว',
+    nameTh: 'ติดต่อได้ ยังไม่ qualify (Contacted)',
     kind: 'open',
     color: 'cyan',
     isDefault: false,
@@ -70,7 +72,7 @@ export const DEFAULT_LEAD_STATUSES: readonly Omit<
   },
   {
     code: 'qualified',
-    nameTh: 'ผ่านคัดกรอง',
+    nameTh: 'Qualified (Qualified)',
     kind: 'open',
     color: 'green',
     isDefault: false,
@@ -79,8 +81,28 @@ export const DEFAULT_LEAD_STATUSES: readonly Omit<
     sortOrder: 40,
   },
   {
+    code: 'proposal',
+    nameTh: 'Proposal (Proposal Stage)',
+    kind: 'open',
+    color: 'geekblue',
+    isDefault: false,
+    isSystem: false,
+    active: true,
+    sortOrder: 43,
+  },
+  {
+    code: 'negotiation',
+    nameTh: 'Negotiation (Negotiation)',
+    kind: 'open',
+    color: 'gold',
+    isDefault: false,
+    isSystem: false,
+    active: true,
+    sortOrder: 46,
+  },
+  {
     code: 'converted',
-    nameTh: 'แปลงเป็นโอกาสการขายแล้ว',
+    nameTh: 'Won (Won Lead)',
     kind: 'won',
     color: 'purple',
     isDefault: false,
@@ -89,8 +111,18 @@ export const DEFAULT_LEAD_STATUSES: readonly Omit<
     sortOrder: 50,
   },
   {
+    code: 'lost',
+    nameTh: 'Lost (Lost Lead)',
+    kind: 'lost',
+    color: 'volcano',
+    isDefault: false,
+    isSystem: false,
+    active: true,
+    sortOrder: 55,
+  },
+  {
     code: 'disqualified',
-    nameTh: 'คัดออก',
+    nameTh: 'Disqualified (Disqualified)',
     kind: 'lost',
     color: 'red',
     isDefault: false,
@@ -177,13 +209,18 @@ export class LeadStatusService {
     return preferred.code;
   }
 
-  /** ปลายทางของ convert (`won`) / disqualify (`lost`) — มีอย่างละหนึ่งเสมอ. */
+  /**
+   * ปลายทางตั้งต้นของ convert (`won`) / disqualify (`lost`) — ชนิดเดียวกันมีได้
+   * หลายขั้น (Lost กับ Disqualified) จึงเลือกแถวระบบก่อน ไม่ขึ้นกับลำดับที่ตั้งไว้.
+   */
   async closingCode(
     companyId: string,
     kind: Exclude<LeadStatusKind, 'open'>,
   ): Promise<string> {
     const rows = await this.listAll(companyId);
-    const found = rows.find((row) => row.kind === kind);
+    const found =
+      rows.find((row) => row.kind === kind && row.isSystem) ??
+      rows.find((row) => row.kind === kind);
 
     if (!found) {
       throw new AppError(

@@ -6266,7 +6266,7 @@
     },
     "/api/v1/leads/{id}/disqualify": {
       "post": {
-        "description": "ปิดด้วยสถานะ kind lost — ไม่มี DELETE ในโมดูลนี้",
+        "description": "ปิดด้วยสถานะ kind lost (`status` เลือกได้ เช่น lost / disqualified) — ไม่มี DELETE ในโมดูลนี้",
         "operationId": "LeadsController_disqualify",
         "parameters": [
           {
@@ -48112,6 +48112,11 @@
       "DisqualifyLeadDto": {
         "type": "object",
         "properties": {
+          "status": {
+            "type": "string",
+            "example": "lost",
+            "maxLength": 30
+          },
           "reason": {
             "maxLength": 500,
             "type": "string",

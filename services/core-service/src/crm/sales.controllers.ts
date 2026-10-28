@@ -251,7 +251,8 @@ export class LeadsController {
   /** คัดออกพร้อมเหตุผล — ไม่มี DELETE. */
   @ApiOperation({
     summary: 'คัด Lead ออกพร้อมเหตุผล',
-    description: 'ปิดด้วยสถานะ kind lost — ไม่มี DELETE ในโมดูลนี้',
+    description:
+      'ปิดด้วยสถานะ kind lost (`status` เลือกได้ เช่น lost / disqualified) — ไม่มี DELETE ในโมดูลนี้',
   })
   @Post(':id/disqualify')
   @Permissions('crm.sales.manage')

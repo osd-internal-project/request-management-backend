@@ -242,7 +242,10 @@ describe('CRM Lead — convert โดยไม่ต้องมีลูกค�
       defaultCode: jest.fn(() => Promise.resolve('new')),
       closingCode: jest.fn((_companyId: string, kind: string) =>
         Promise.resolve(
-          rows.find((row) => row.kind === kind)?.code ?? 'converted',
+          (
+            rows.find((row) => row.kind === kind && row.isSystem) ??
+            rows.find((row) => row.kind === kind)
+          )?.code ?? 'converted',
         ),
       ),
     };

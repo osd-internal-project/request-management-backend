@@ -359,7 +359,10 @@ describe('CRM Lead — แปลงเป็นโอกาสการขาย
       defaultCode: jest.fn(() => Promise.resolve('new')),
       closingCode: jest.fn((_companyId: string, kind: string) =>
         Promise.resolve(
-          rows.find((row) => row.kind === kind)?.code ?? 'converted',
+          (
+            rows.find((row) => row.kind === kind && row.isSystem) ??
+            rows.find((row) => row.kind === kind)
+          )?.code ?? 'converted',
         ),
       ),
     };
@@ -495,6 +498,41 @@ describe('CRM Lead — แปลงเป็นโอกาสการขาย
         principal(),
       ),
     ).rejects.toMatchObject({ code: 'CONFLICT' });
+  });
+
+  it('disqualify: ว่าง = ปลายทางระบบ (disqualified); ระบุ lost ได้; ขั้น open ใช้ไม่ได้', async () => {
+    const plain = leadHarness({ status: 'negotiation' });
+    await plain.service.disqualify(
+      'lead-1',
+      { reason: 'ไม่ตรงกลุ่ม' },
+      principal(),
+    );
+    expect(plain.leads.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: 'disqualified' }),
+      }),
+    );
+
+    const lost = leadHarness({ status: 'proposal' });
+    await lost.service.disqualify(
+      'lead-1',
+      { reason: 'แพ้คู่แข่ง', status: 'lost' },
+      principal(),
+    );
+    expect(lost.leads.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: 'lost' }),
+      }),
+    );
+
+    const wrong = leadHarness({ status: 'new' });
+    await expect(
+      wrong.service.disqualify(
+        'lead-1',
+        { reason: 'x', status: 'qualified' },
+        principal(),
+      ),
+    ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
   });
 
   it('convert สร้างโอกาสการขายผ่าน OpportunitiesService แล้วปิด Lead เป็น converted พร้อมชี้โอกาสการขาย', async () => {
