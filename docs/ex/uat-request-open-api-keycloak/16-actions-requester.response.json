@@ -1,0 +1,39 @@
+{
+  "status": 200,
+  "body": {
+    "request_id": "2abdbb37-3882-485b-b66d-6970d60189dd",
+    "request_no": "REQ-OSD-BS-01-26100004",
+    "status": "approved",
+    "actions": [
+      {
+        "action": "cancel",
+        "fields": [
+          {
+            "name": "reason",
+            "required": true
+          }
+        ]
+      },
+      {
+        "action": "close",
+        "fields": [
+          {
+            "name": "note",
+            "required": false
+          }
+        ]
+      },
+      {
+        "action": "comment",
+        "fields": [
+          {
+            "name": "body",
+            "required": true
+          }
+        ]
+      }
+    ],
+    "flow_moves": null,
+    "can_create_child": true
+  }
+}

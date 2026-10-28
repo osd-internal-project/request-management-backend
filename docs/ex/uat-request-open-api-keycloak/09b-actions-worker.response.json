@@ -1,0 +1,63 @@
+{
+  "status": 200,
+  "body": {
+    "request_id": "2abdbb37-3882-485b-b66d-6970d60189dd",
+    "request_no": "REQ-OSD-BS-01-26100004",
+    "status": "in_progress",
+    "actions": [
+      {
+        "action": "assign",
+        "fields": [
+          {
+            "name": "assignee_user_id",
+            "required": true
+          }
+        ]
+      },
+      {
+        "action": "hold",
+        "fields": [
+          {
+            "name": "reason",
+            "required": true
+          }
+        ]
+      },
+      {
+        "action": "complete",
+        "fields": [
+          {
+            "name": "receiver_form_data",
+            "required": true,
+            "source": "receiver_form_schema"
+          }
+        ]
+      },
+      {
+        "action": "return",
+        "fields": [
+          {
+            "name": "reason_code",
+            "required": true,
+            "source": "return_reason"
+          },
+          {
+            "name": "note",
+            "required": false
+          }
+        ]
+      },
+      {
+        "action": "comment",
+        "fields": [
+          {
+            "name": "body",
+            "required": true
+          }
+        ]
+      }
+    ],
+    "flow_moves": null,
+    "can_create_child": true
+  }
+}

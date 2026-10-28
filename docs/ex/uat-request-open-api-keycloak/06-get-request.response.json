@@ -1,0 +1,561 @@
+{
+  "status": 200,
+  "body": {
+    "id": "0970798f-c959-471a-b146-e5866d358553",
+    "requestNo": "REQ-OSD-BS-01-26100003",
+    "requestTypeId": "6db5295c-b8a7-42e6-af9b-2294a206ee72",
+    "typeCode": "BS-01",
+    "companyId": "42142ccf-d4ca-4d15-821c-489da9758f4f",
+    "requesterId": "ef74f358-c19a-4b15-869b-7eb9c0e4f871",
+    "requesterOrgUnitId": "b122758c-86a5-41d5-958e-1e955d023f51",
+    "receiverUserId": "d320b28b-8e5c-4c9d-ac8b-f9b426e92798",
+    "assigneeUserId": null,
+    "receiverOrgUnitId": null,
+    "ancestorIds": [],
+    "parentRequestId": null,
+    "parentStepCode": null,
+    "flowVersionId": "1803e0fc-7f6d-4031-b632-185a0d419ab6",
+    "currentStepCode": "RECEIVE",
+    "stepFormData": {},
+    "stepHolderUserId": null,
+    "closedAt": null,
+    "status": "submitted",
+    "formData": {
+      "subject": "ทดสอบ Aiyara แชต — ขอเปิด SO",
+      "objective": "ทดสอบเปิดคำขอด้วยช่อง subject/objective อย่างเดียว"
+    },
+    "receiverFormData": {},
+    "severity": null,
+    "refType": null,
+    "refId": null,
+    "typeSnapshot": {
+      "code": "BS-01",
+      "name": "ขอเปิด Request",
+      "slaHours": 8,
+      "formSchema": {
+        "type": "object",
+        "required": [
+          "subject",
+          "objective",
+          "customer_name",
+          "priority",
+          "source_channel",
+          "project_name"
+        ],
+        "properties": {
+          "amount": {
+            "type": "number",
+            "title": "มูลค่า (บาท)",
+            "minimum": 0,
+            "x-order": 7
+          },
+          "remark": {
+            "type": "string",
+            "title": "หมายเหตุ",
+            "x-order": 15,
+            "x-multiline": true
+          },
+          "subject": {
+            "type": "string",
+            "title": "เรื่องที่ขอ",
+            "x-order": 1,
+            "maxLength": 200
+          },
+          "priority": {
+            "enum": [
+              "LOW",
+              "NORMAL",
+              "HIGH",
+              "URGENT"
+            ],
+            "type": "string",
+            "title": "ความเร่งด่วน",
+            "x-order": 8
+          },
+          "objective": {
+            "type": "string",
+            "title": "วัตถุประสงค์",
+            "x-order": 2,
+            "x-multiline": true
+          },
+          "cost_center": {
+            "type": "string",
+            "title": "ศูนย์ต้นทุน",
+            "x-order": 6
+          },
+          "is_backfill": {
+            "enum": [
+              "Y",
+              "N"
+            ],
+            "type": "string",
+            "title": "บันทึกย้อนหลัง",
+            "x-order": 14
+          },
+          "project_name": {
+            "type": "string",
+            "title": "โครงการ",
+            "x-order": 16
+          },
+          "customer_name": {
+            "type": "string",
+            "title": "ลูกค้า",
+            "x-order": 5
+          },
+          "legacy_doc_no": {
+            "type": "string",
+            "title": "เลขที่เอกสารอ้างอิงเดิม",
+            "x-order": 12
+          },
+          "needed_by_date": {
+            "type": "string",
+            "title": "วันที่ต้องการได้รับ",
+            "format": "date",
+            "x-order": 10
+          },
+          "result_summary": {
+            "type": "string",
+            "title": "สรุปผลการดำเนินการ",
+            "x-order": 11,
+            "x-multiline": true
+          },
+          "source_channel": {
+            "enum": [
+              "EMAIL",
+              "LINE",
+              "PAPER",
+              "VERBAL",
+              "MEETING",
+              "SYSTEM",
+              "FORM"
+            ],
+            "type": "string",
+            "title": "ช่องทางที่รับเรื่อง",
+            "x-order": 9
+          },
+          "expected_outcome": {
+            "type": "string",
+            "title": "ผลลัพธ์ที่คาดหวัง",
+            "x-order": 4
+          },
+          "source_request_id": {
+            "type": "string",
+            "title": "เลขที่คำขอในไฟล์ต้นทาง",
+            "x-order": 13
+          },
+          "requirement_detail": {
+            "type": "string",
+            "title": "ความต้องการ / สิ่งที่ต้องการ",
+            "x-order": 3,
+            "x-multiline": true
+          }
+        }
+      },
+      "requiredDocs": [],
+      "approvalPolicy": {
+        "mode": "standard_chain",
+        "amount_field": "amount",
+        "source_category": "งานขาย & ลูกค้า",
+        "source_workflow": "A"
+      },
+      "subRequestTypes": [],
+      "receiverOrgUnitId": null,
+      "returnReasonCodes": [],
+      "receiverFormSchema": {
+        "type": "object",
+        "required": [],
+        "properties": {
+          "summary": {
+            "type": "string",
+            "title": "สรุปผลการเนินการ",
+            "x-order": 1,
+            "x-multiline": true
+          }
+        }
+      }
+    },
+    "source": "USER",
+    "channel": null,
+    "contactName": null,
+    "contactEmail": null,
+    "contactPhone": null,
+    "contactCompany": null,
+    "contactTaxId": null,
+    "contactLineUserId": null,
+    "statusTokenHash": null,
+    "submittedAt": "2026-10-28T02:32:22.060Z",
+    "dueAt": null,
+    "completedAt": null,
+    "cancelledAt": null,
+    "cancelReason": null,
+    "createdAt": "2026-10-28T02:32:21.929Z",
+    "createdBy": "ef74f358-c19a-4b15-869b-7eb9c0e4f871",
+    "updatedAt": "2026-10-28T02:32:22.122Z",
+    "updatedBy": "ef74f358-c19a-4b15-869b-7eb9c0e4f871",
+    "requestType": {
+      "id": "6db5295c-b8a7-42e6-af9b-2294a206ee72",
+      "code": "BS-01",
+      "name": "ขอเปิด Request",
+      "receiverOrgUnitId": null,
+      "receiverUserId": null,
+      "formSchema": {
+        "type": "object",
+        "required": [
+          "subject",
+          "objective",
+          "customer_name",
+          "priority",
+          "source_channel",
+          "project_name"
+        ],
+        "properties": {
+          "amount": {
+            "type": "number",
+            "title": "มูลค่า (บาท)",
+            "minimum": 0,
+            "x-order": 7
+          },
+          "remark": {
+            "type": "string",
+            "title": "หมายเหตุ",
+            "x-order": 15,
+            "x-multiline": true
+          },
+          "subject": {
+            "type": "string",
+            "title": "เรื่องที่ขอ",
+            "x-order": 1,
+            "maxLength": 200
+          },
+          "priority": {
+            "enum": [
+              "LOW",
+              "NORMAL",
+              "HIGH",
+              "URGENT"
+            ],
+            "type": "string",
+            "title": "ความเร่งด่วน",
+            "x-order": 8
+          },
+          "objective": {
+            "type": "string",
+            "title": "วัตถุประสงค์",
+            "x-order": 2,
+            "x-multiline": true
+          },
+          "cost_center": {
+            "type": "string",
+            "title": "ศูนย์ต้นทุน",
+            "x-order": 6
+          },
+          "is_backfill": {
+            "enum": [
+              "Y",
+              "N"
+            ],
+            "type": "string",
+            "title": "บันทึกย้อนหลัง",
+            "x-order": 14
+          },
+          "project_name": {
+            "type": "string",
+            "title": "โครงการ",
+            "x-order": 16
+          },
+          "customer_name": {
+            "type": "string",
+            "title": "ลูกค้า",
+            "x-order": 5
+          },
+          "legacy_doc_no": {
+            "type": "string",
+            "title": "เลขที่เอกสารอ้างอิงเดิม",
+            "x-order": 12
+          },
+          "needed_by_date": {
+            "type": "string",
+            "title": "วันที่ต้องการได้รับ",
+            "format": "date",
+            "x-order": 10
+          },
+          "result_summary": {
+            "type": "string",
+            "title": "สรุปผลการดำเนินการ",
+            "x-order": 11,
+            "x-multiline": true
+          },
+          "source_channel": {
+            "enum": [
+              "EMAIL",
+              "LINE",
+              "PAPER",
+              "VERBAL",
+              "MEETING",
+              "SYSTEM",
+              "FORM"
+            ],
+            "type": "string",
+            "title": "ช่องทางที่รับเรื่อง",
+            "x-order": 9
+          },
+          "expected_outcome": {
+            "type": "string",
+            "title": "ผลลัพธ์ที่คาดหวัง",
+            "x-order": 4
+          },
+          "source_request_id": {
+            "type": "string",
+            "title": "เลขที่คำขอในไฟล์ต้นทาง",
+            "x-order": 13
+          },
+          "requirement_detail": {
+            "type": "string",
+            "title": "ความต้องการ / สิ่งที่ต้องการ",
+            "x-order": 3,
+            "x-multiline": true
+          }
+        }
+      },
+      "receiverFormSchema": {
+        "type": "object",
+        "required": [],
+        "properties": {
+          "summary": {
+            "type": "string",
+            "title": "สรุปผลการเนินการ",
+            "x-order": 1,
+            "x-multiline": true
+          }
+        }
+      },
+      "requiredDocs": [],
+      "returnReasonCodes": [],
+      "subRequestTypes": [],
+      "approvalPolicy": {
+        "mode": "standard_chain",
+        "amount_field": "amount",
+        "source_category": "งานขาย & ลูกค้า",
+        "source_workflow": "A"
+      },
+      "slaHours": 8,
+      "slaCoverage": "H8X5",
+      "refRequired": false,
+      "active": true,
+      "createdAt": "2026-08-28T07:15:33.727Z",
+      "createdBy": "import",
+      "updatedAt": "2026-10-28T02:18:51.570Z",
+      "updatedBy": "faeebacf-f66d-455a-8366-ff2e5313e22a"
+    },
+    "attachments": [],
+    "flowVersion": {
+      "id": "1803e0fc-7f6d-4031-b632-185a0d419ab6",
+      "version": 2,
+      "schemaVersion": 2,
+      "steps": [
+        {
+          "code": "REQUEST",
+          "name": "ยื่นคำขอ",
+          "sortOrder": 1,
+          "formSchema": {
+            "type": "object",
+            "required": [
+              "subject",
+              "objective"
+            ],
+            "properties": {
+              "subject": {
+                "type": "string",
+                "title": "เรื่องที่ขอ",
+                "x-order": 1,
+                "maxLength": 200
+              },
+              "objective": {
+                "type": "string",
+                "title": "วัตถุประสงค์",
+                "x-order": 2,
+                "x-multiline": true
+              }
+            }
+          },
+          "subRequestTypes": [],
+          "requiresApproval": false,
+          "scopeStatus": "draft",
+          "requiredDocs": []
+        },
+        {
+          "code": "RECEIVE",
+          "name": "รับเรื่อง",
+          "sortOrder": 2,
+          "formSchema": null,
+          "subRequestTypes": [],
+          "requiresApproval": false,
+          "scopeStatus": "submitted",
+          "requiredDocs": []
+        },
+        {
+          "code": "WORK",
+          "name": "ดำเนินการ",
+          "sortOrder": 3,
+          "formSchema": {
+            "type": "object",
+            "required": [],
+            "properties": {
+              "summary": {
+                "type": "string",
+                "title": "สรุปผลการเนินการ",
+                "x-order": 1,
+                "x-multiline": true
+              }
+            }
+          },
+          "subRequestTypes": [],
+          "requiresApproval": false,
+          "scopeStatus": "in_progress",
+          "requiredDocs": []
+        },
+        {
+          "code": "CONFIRM",
+          "name": "ผู้ขอยืนยันปิดงาน",
+          "sortOrder": 4,
+          "formSchema": null,
+          "subRequestTypes": [],
+          "requiresApproval": false,
+          "scopeStatus": "approved",
+          "requiredDocs": []
+        }
+      ]
+    },
+    "stepRuns": [
+      {
+        "id": "55cfa5f2-59be-4900-9dbe-033456435aec",
+        "requestId": "0970798f-c959-471a-b146-e5866d358553",
+        "stepCode": "REQUEST",
+        "enteredAt": "2026-10-28T02:32:21.947Z",
+        "enteredBy": "ef74f358-c19a-4b15-869b-7eb9c0e4f871",
+        "heldBy": "ef74f358-c19a-4b15-869b-7eb9c0e4f871",
+        "leftAt": "2026-10-28T02:32:22.111Z",
+        "outcome": "forward"
+      },
+      {
+        "id": "7fb02021-565c-4392-aa97-40efb6a8450c",
+        "requestId": "0970798f-c959-471a-b146-e5866d358553",
+        "stepCode": "RECEIVE",
+        "enteredAt": "2026-10-28T02:32:22.129Z",
+        "enteredBy": "ef74f358-c19a-4b15-869b-7eb9c0e4f871",
+        "heldBy": null,
+        "leftAt": null,
+        "outcome": null
+      }
+    ],
+    "requester": {
+      "id": "ef74f358-c19a-4b15-869b-7eb9c0e4f871",
+      "displayName": "นางธวัลกร วงศ์ประเทศ",
+      "position": "Senior Business Support Officer",
+      "email": "tawankornw@osd.co.th",
+      "extension": "<redacted>",
+      "phone": "<redacted>",
+      "orgUnit": {
+        "name": "BSD"
+      }
+    },
+    "receiver": {
+      "id": "d320b28b-8e5c-4c9d-ac8b-f9b426e92798",
+      "displayName": "นางสาวนงนุช จันทิมา",
+      "position": "Administarator Business Support",
+      "email": "nongnuchc@osd.co.th",
+      "extension": "<redacted>",
+      "phone": "<redacted>",
+      "orgUnit": {
+        "name": "BSD"
+      }
+    },
+    "assignee": null,
+    "slaClock": {
+      "state": "paused",
+      "dueAt": "2026-10-28T02:32:22.060Z",
+      "breachedAt": null,
+      "responseDueAt": null,
+      "respondedAt": null,
+      "responseBreachedAt": null
+    },
+    "approvalCases": [],
+    "events": [
+      {
+        "id": "1975e569-82fd-4a75-92d5-571578aa15e4",
+        "requestId": "0970798f-c959-471a-b146-e5866d358553",
+        "seq": 1,
+        "type": "request.step.entered",
+        "actorId": "ef74f358-c19a-4b15-869b-7eb9c0e4f871",
+        "actorLabel": "นางธวัลกร วงศ์ประเทศ",
+        "fromStatus": null,
+        "toStatus": null,
+        "data": {
+          "name": "ยื่นคำขอ",
+          "step": "REQUEST",
+          "scope": "draft"
+        },
+        "createdAt": "2026-10-28T02:32:21.956Z",
+        "actor": {
+          "displayName": "นางธวัลกร วงศ์ประเทศ"
+        }
+      },
+      {
+        "id": "1499a955-c3b8-4f6a-97e1-ec7269ecc243",
+        "requestId": "0970798f-c959-471a-b146-e5866d358553",
+        "seq": 2,
+        "type": "request.submitted",
+        "actorId": "ef74f358-c19a-4b15-869b-7eb9c0e4f871",
+        "actorLabel": "นางธวัลกร วงศ์ประเทศ",
+        "fromStatus": "draft",
+        "toStatus": null,
+        "data": {
+          "requestNo": "REQ-OSD-BS-01-26100003"
+        },
+        "createdAt": "2026-10-28T02:32:22.081Z",
+        "actor": {
+          "displayName": "นางธวัลกร วงศ์ประเทศ"
+        }
+      },
+      {
+        "id": "e6546bfa-7e7a-4c23-9800-c1a38c068af6",
+        "requestId": "0970798f-c959-471a-b146-e5866d358553",
+        "seq": 3,
+        "type": "request.step.left",
+        "actorId": "ef74f358-c19a-4b15-869b-7eb9c0e4f871",
+        "actorLabel": "นางธวัลกร วงศ์ประเทศ",
+        "fromStatus": null,
+        "toStatus": null,
+        "data": {
+          "name": "ยื่นคำขอ",
+          "step": "REQUEST",
+          "outcome": "forward"
+        },
+        "createdAt": "2026-10-28T02:32:22.119Z",
+        "actor": {
+          "displayName": "นางธวัลกร วงศ์ประเทศ"
+        }
+      },
+      {
+        "id": "4d45e917-e5e2-45dc-8999-640bd2211f3d",
+        "requestId": "0970798f-c959-471a-b146-e5866d358553",
+        "seq": 4,
+        "type": "request.step.entered",
+        "actorId": "ef74f358-c19a-4b15-869b-7eb9c0e4f871",
+        "actorLabel": "นางธวัลกร วงศ์ประเทศ",
+        "fromStatus": null,
+        "toStatus": null,
+        "data": {
+          "name": "รับเรื่อง",
+          "step": "RECEIVE",
+          "scope": "submitted"
+        },
+        "createdAt": "2026-10-28T02:32:22.135Z",
+        "actor": {
+          "displayName": "นางธวัลกร วงศ์ประเทศ"
+        }
+      }
+    ],
+    "comments": []
+  }
+}
