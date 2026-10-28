@@ -1455,6 +1455,22 @@ export class RequestsService {
     await this.assertNoOpenChildren(id);
 
     return this.transactions.execute(async (prisma) => {
+      // `completed` is closable only once accepted without a check; a type
+      // with a matrix whose case failed to open must not be closed past it.
+      if (before.status === 'completed') {
+        const accepted = await prisma.requestEvent.findFirst({
+          where: { requestId: id, type: 'request.accepted' },
+          select: { id: true },
+        });
+        if (!accepted) {
+          throw new AppError(
+            'REQ_STATE_INVALID',
+            'คำขอนี้ยังรอการอนุมัติผลงาน จึงยังปิดไม่ได้',
+            [{ field: 'status', reason: 'completed → closed' }],
+          );
+        }
+      }
+
       const updated = await prisma.request.update({
         where: { id },
         data: {
@@ -1739,20 +1755,28 @@ export class RequestsService {
     // that is, all of them until somebody publishes one.
     if (!stage.recordsAcceptance) return completed;
 
+    // No matrix: nobody approves, so the status stays `completed` for the
+    // requester to close. A skipped ladder has a case on record, so it reads `approved`.
+    const toStatus = reason === 'no_approval_matrix' ? 'completed' : 'approved';
+
     const accepted = await this.transactions.execute(async (prisma) => {
-      const updated = await prisma.request.update({
-        where: { id },
-        data: { status: 'approved', updatedBy: actor.userId },
-      });
+      const updated =
+        toStatus === 'approved'
+          ? await prisma.request.update({
+              where: { id },
+              data: { status: 'approved', updatedBy: actor.userId },
+            })
+          : completed;
 
       await this.recordEvent(prisma, {
         requestId: id,
         // No approver was involved — the type has no matrix, so accepting
         // the delivered result is the system's own step, not a person's.
+        // `close` from `completed` requires this event.
         type: 'request.accepted',
         actor,
         fromStatus: 'completed',
-        toStatus: 'approved',
+        toStatus,
         data: { reason },
       });
 

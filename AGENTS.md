@@ -234,7 +234,9 @@ be justified by citing §7.1 or §8.1:
 3. **A type with no approval matrix skips the check entirely.** The absence of a
    matrix is configuration, not a gap — `selectTier` throwing
    `APV_MATRIX_NOT_FOUND` is the wrong answer for those types, which is why
-   `complete` asks `hasPublishedMatrix` first.
+   `complete` asks `hasPublishedMatrix` first. Such a request stays `completed`
+   and the requester closes it from there — never `approved`, since nobody
+   approved it (REQ-OSD-BS-01-26100006, 28 Oct 2026).
 4. **A type may publish a step flow** (PO, 28 Sep 2026). Steps live inside
    `in_progress`; `advance` moves between them, and a step with an exit ladder
    (`request:<CODE>:step:<STEP>`) waits in `pending_approval`, which is why

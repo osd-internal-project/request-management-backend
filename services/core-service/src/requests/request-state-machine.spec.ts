@@ -17,9 +17,8 @@ describe('request lifecycle (ticket model)', () => {
       expect(canTransition('draft', 'submitted')).toBe(true);
       expect(canTransition('submitted', 'in_progress')).toBe(true);
       expect(canTransition('in_progress', 'completed')).toBe(true);
-      // No matrix for the type — the result stands as delivered.
-      expect(canTransition('completed', 'approved')).toBe(true);
-      expect(canTransition('approved', 'closed')).toBe(true);
+      // No matrix for the type — nobody approves, the requester closes.
+      expect(canTransition('completed', 'closed')).toBe(true);
     });
 
     it('walks a request whose type is checked before closing', () => {
@@ -119,7 +118,6 @@ describe('request lifecycle (ticket model)', () => {
         'returned',
         'in_progress',
         'on_hold',
-        'completed',
         'pending_approval',
       ];
 
