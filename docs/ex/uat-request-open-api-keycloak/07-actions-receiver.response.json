@@ -1,0 +1,48 @@
+{
+  "status": 200,
+  "body": {
+    "request_id": "2abdbb37-3882-485b-b66d-6970d60189dd",
+    "request_no": "REQ-OSD-BS-01-26100004",
+    "status": "submitted",
+    "actions": [
+      {
+        "action": "receive",
+        "fields": []
+      },
+      {
+        "action": "assign",
+        "fields": [
+          {
+            "name": "assignee_user_id",
+            "required": true
+          }
+        ]
+      },
+      {
+        "action": "return",
+        "fields": [
+          {
+            "name": "reason_code",
+            "required": true,
+            "source": "return_reason"
+          },
+          {
+            "name": "note",
+            "required": false
+          }
+        ]
+      },
+      {
+        "action": "comment",
+        "fields": [
+          {
+            "name": "body",
+            "required": true
+          }
+        ]
+      }
+    ],
+    "flow_moves": null,
+    "can_create_child": true
+  }
+}

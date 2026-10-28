@@ -423,3 +423,79 @@ describe('step flow — advance through the external API', () => {
     ).rejects.toEqual(expect.objectContaining({ code: 'FORBIDDEN' }));
   });
 });
+
+describe('the comment list a chat can draw as a table', () => {
+  const REF = 'f7f7609e-9317-454e-875d-ec543bc4caf0';
+
+  const withComments = {
+    id: REF,
+    comments: [
+      {
+        body: 'รับเรื่องแล้ว',
+        createdAt: new Date('2026-10-28T02:00:00Z'),
+        author: { displayName: 'สมชาย' },
+      },
+      {
+        body: 'ส่งงานแล้ว',
+        createdAt: new Date('2026-10-28T05:00:00Z'),
+        author: { displayName: 'สมหญิง' },
+      },
+    ],
+  };
+
+  it('puts the newest first, with the author as a plain name', async () => {
+    const { requests, service } = build();
+
+    requests.findOne.mockResolvedValue(withComments);
+
+    expect(await service.commentsOf(REF, principal())).toEqual({
+      data: [
+        {
+          author: 'สมหญิง',
+          body: 'ส่งงานแล้ว',
+          createdAt: new Date('2026-10-28T05:00:00Z'),
+        },
+        {
+          author: 'สมชาย',
+          body: 'รับเรื่องแล้ว',
+          createdAt: new Date('2026-10-28T02:00:00Z'),
+        },
+      ],
+      total: 2,
+    });
+  });
+
+  it('answers an empty list for a request nobody has commented on', async () => {
+    const { requests, service } = build();
+
+    requests.findOne.mockResolvedValue({ id: REF, comments: [] });
+
+    expect(await service.commentsOf(REF, principal())).toEqual({
+      data: [],
+      total: 0,
+    });
+  });
+
+  it('reads through the same visibility check, so a hidden request is 404 (SCOPE-03)', async () => {
+    const { requests, service } = build();
+
+    requests.findOne.mockRejectedValue(
+      new AppError('NOT_FOUND', 'ไม่พบคำขอที่ระบุ'),
+    );
+
+    await expect(service.commentsOf(REF, principal())).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
+  });
+
+  it('turns a number from another company into 404 before reading anything', async () => {
+    const { requestRows, requests, service } = build();
+
+    requestRows.findIdByNumber.mockResolvedValue(null);
+
+    await expect(
+      service.commentsOf('REQ-OTHER-01-26100001', principal()),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    expect(requests.findOne).not.toHaveBeenCalled();
+  });
+});

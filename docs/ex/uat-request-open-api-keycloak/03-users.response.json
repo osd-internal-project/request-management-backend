@@ -1,0 +1,23 @@
+{
+  "status": 200,
+  "body": {
+    "data": [
+      {
+        "id": "d320b28b-8e5c-4c9d-ac8b-f9b426e92798",
+        "displayName": "นางสาวนงนุช จันทิมา",
+        "username": "nongnuchc",
+        "email": "nongnuchc@osd.co.th",
+        "position": "Administarator Business Support",
+        "employeeId": "<redacted>",
+        "extension": "<redacted>",
+        "startWork": "<redacted>",
+        "phone": "<redacted>",
+        "orgUnitId": "b122758c-86a5-41d5-958e-1e955d023f51",
+        "orgUnitName": "BSD"
+      }
+    ],
+    "page": 1,
+    "page_size": 5,
+    "total": 1
+  }
+}
