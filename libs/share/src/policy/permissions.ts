@@ -268,6 +268,11 @@ export const PERMISSIONS = {
      * it does not spend per call.
      */
     'admin.chat-widget.manage',
+    /**
+     * Company documents (settings) — upload dated and general documents that
+     * other systems download through `integration.document.read`.
+     */
+    'admin.document.manage',
   ],
   /**
    * AUTH-06: สิทธิ์ของบัญชีบริการ — ออกให้กุญแจ API ที่หน้าจอ API key ไม่ใช่
@@ -346,6 +351,11 @@ export const PERMISSIONS = {
     'integration.smart.call.update',
     /** Vuvagent ปิดงานที่ส่งไป (`PATCH agent-records/:id`) — เฉพาะ record ของบริษัทใน key. */
     'integration.agent.record.update',
+    /**
+     * Company documents — list, read the issue date of, and download the
+     * documents uploaded in settings. Robot-only: no acting person.
+     */
+    'integration.document.read',
   ],
 } as const;
 

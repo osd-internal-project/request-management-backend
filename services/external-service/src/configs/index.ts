@@ -58,6 +58,27 @@ export default () => ({
   mcpTokenAudience: process.env.MCP_TOKEN_AUDIENCE || undefined,
 
   /**
+   * Company documents — the one place this port reads bytes, so a machine can
+   * download what settings uploaded. Same variables as core-service (labs
+   * shares one env file). Unset = no storage: the port still boots, and a
+   * download answers `STORAGE_UNAVAILABLE` (`documents/document-storage.ts`).
+   */
+  storage:
+    process.env.MINIO_ENDPOINT || process.env.STORAGE_MODE === 'memory'
+      ? {
+          mode: process.env.STORAGE_MODE ?? 'minio',
+          minio: {
+            endPoint: process.env.MINIO_ENDPOINT ?? '',
+            port: Number(process.env.MINIO_PORT ?? 9000),
+            useSSL: process.env.MINIO_USE_SSL === 'true',
+            accessKey: process.env.MINIO_ACCESSKEY ?? '',
+            secretKey: process.env.MINIO_SECRETKEY ?? '',
+            bucket: process.env.MINIO_BUCKET ?? '',
+          },
+        }
+      : undefined,
+
+  /**
    * Every background timer in the imported domain, off.
    *
    * This service runs core-service's providers in its own process against the
