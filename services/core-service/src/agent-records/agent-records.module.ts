@@ -3,7 +3,7 @@ import { AccessModule } from '../access/access.module';
 import { LeadRepository } from '../crm/sales.repositories';
 import { AgentRecordRepository } from './agent-record.repository';
 import { AgentRecordsService } from './agent-records.service';
-import { IntegrationEndpointRepository } from './integration-endpoint.repository';
+import { OutboundConnectionRepository } from './outbound-connection.repository';
 import { VuvagentClient } from './vuvagent.client';
 
 /** งานของ AI agent ภายนอก — domain half; external-service imports this for the callback. */
@@ -11,15 +11,16 @@ import { VuvagentClient } from './vuvagent.client';
   imports: [AccessModule],
   providers: [
     AgentRecordRepository,
-    IntegrationEndpointRepository,
+    OutboundConnectionRepository,
     // only to list the leads an agent created for a record
     LeadRepository,
     AgentRecordsService,
     VuvagentClient,
   ],
   exports: [
+    VuvagentClient,
     AgentRecordRepository,
-    IntegrationEndpointRepository,
+    OutboundConnectionRepository,
     AgentRecordsService,
   ],
 })

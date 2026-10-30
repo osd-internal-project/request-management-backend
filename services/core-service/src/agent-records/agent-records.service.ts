@@ -217,6 +217,7 @@ export class AgentRecordsService {
   /**
    * The agent closes its job (external-service, key of the record's company).
    * One conditional update, so two callbacks cannot both finish the same row.
+   * A row the timeout sweep closed (`timedOutAt`) still takes the agent's answer.
    */
   async complete(
     id: string,
@@ -225,8 +226,22 @@ export class AgentRecordsService {
     companyId: string,
   ) {
     return this.transactions.execute(async (tx) => {
+      const before = await tx.agentRecord.findFirst({
+        where: { id, companyId },
+        select: { status: true, timedOutAt: true },
+      });
+      if (!before) {
+        throw new AppError('NOT_FOUND', 'ไม่พบงานของ agent ที่ระบุ');
+      }
       const { count } = await tx.agentRecord.updateMany({
-        where: { id, companyId, status: 'processing' },
+        where: {
+          id,
+          companyId,
+          OR: [
+            { status: 'processing' },
+            { status: 'failed', timedOutAt: { not: null } },
+          ],
+        },
         data: {
           status: dto.status,
           result: dto.result as Prisma.InputJsonObject | undefined,
@@ -234,15 +249,8 @@ export class AgentRecordsService {
         },
       });
       if (count === 0) {
-        const exists = await tx.agentRecord.findFirst({
-          where: { id, companyId },
-          select: { status: true },
-        });
-        if (!exists) {
-          throw new AppError('NOT_FOUND', 'ไม่พบงานของ agent ที่ระบุ');
-        }
         throw new AppError('CONFLICT', 'งานนี้ปิดไปแล้ว', [
-          { field: 'status', reason: exists.status },
+          { field: 'status', reason: before.status },
         ]);
       }
       await this.audit.record(
@@ -252,7 +260,10 @@ export class AgentRecordsService {
           ...auditActor(principal),
           resourceType: 'agent_record',
           resourceId: id,
-          before: { status: 'processing' },
+          before: {
+            status: before.status,
+            timedOutAt: before.timedOutAt?.toISOString() ?? null,
+          },
           after: { status: dto.status, error: dto.error ?? null },
         },
         { prisma: tx },

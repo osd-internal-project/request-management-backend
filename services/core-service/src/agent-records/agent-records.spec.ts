@@ -235,9 +235,16 @@ describe('AgentRecordsService reads', () => {
 
 describe('AgentRecordsService.complete (external callback)', () => {
   const agent = { userId: 'sa-vuvagent', activeCompanyId: 'osd' } as never;
+  const OPEN = [
+    { status: 'processing' },
+    { status: 'failed', timedOutAt: { not: null } },
+  ];
 
-  it("finishes only a processing row of the key's company, audited in the tx", async () => {
+  it("finishes only an open row of the key's company, audited in the tx", async () => {
     const { service, tx, audit } = setup();
+    tx.agentRecord.findFirst
+      .mockResolvedValueOnce({ status: 'processing', timedOutAt: null })
+      .mockResolvedValueOnce({ id: 'rec-1', status: 'done' });
 
     const row = await service.complete(
       'rec-1',
@@ -247,23 +254,47 @@ describe('AgentRecordsService.complete (external callback)', () => {
     );
 
     expect(tx.agentRecord.updateMany).toHaveBeenCalledWith({
-      where: { id: 'rec-1', companyId: 'osd', status: 'processing' },
+      where: { id: 'rec-1', companyId: 'osd', OR: OPEN },
       data: { status: 'done', result: { leads_created: 3 }, error: null },
     });
     expect(audit.record).toHaveBeenCalledWith(
       expect.objectContaining({
         eventType: 'agent.record.done',
         resourceId: 'rec-1',
+        before: { status: 'processing', timedOutAt: null },
       }),
       { prisma: tx },
     );
     expect(row).toEqual({ id: 'rec-1', status: 'done' });
   });
 
+  it('a late done after the timeout sweep still finishes the job', async () => {
+    const { service, tx, audit } = setup();
+    tx.agentRecord.findFirst
+      .mockResolvedValueOnce({
+        status: 'failed',
+        timedOutAt: new Date('2026-10-30T03:30:00Z'),
+      })
+      .mockResolvedValueOnce({ id: 'rec-1', status: 'done' });
+
+    await service.complete('rec-1', { status: 'done' }, agent, 'osd');
+
+    expect(audit.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: 'agent.record.done',
+        before: { status: 'failed', timedOutAt: '2026-10-30T03:30:00.000Z' },
+      }),
+      { prisma: tx },
+    );
+  });
+
   it('a second callback answers 409 and changes nothing', async () => {
     const { service, tx, audit } = setup();
     tx.agentRecord.updateMany.mockResolvedValue({ count: 0 });
-    tx.agentRecord.findFirst.mockResolvedValue({ status: 'done' });
+    tx.agentRecord.findFirst.mockResolvedValue({
+      status: 'done',
+      timedOutAt: null,
+    });
 
     await expect(
       service.complete('rec-1', { status: 'failed' }, agent, 'osd'),
@@ -271,9 +302,8 @@ describe('AgentRecordsService.complete (external callback)', () => {
     expect(audit.record).not.toHaveBeenCalled();
   });
 
-  it("another company's record answers 404", async () => {
+  it("another company's record answers 404 before any write", async () => {
     const { service, tx } = setup();
-    tx.agentRecord.updateMany.mockResolvedValue({ count: 0 });
     tx.agentRecord.findFirst.mockResolvedValue(null);
 
     await expect(
@@ -281,8 +311,9 @@ describe('AgentRecordsService.complete (external callback)', () => {
     ).rejects.toMatchObject({ code: 'NOT_FOUND' });
     expect(tx.agentRecord.findFirst).toHaveBeenCalledWith({
       where: { id: 'rec-1', companyId: 'other-co' },
-      select: { status: true },
+      select: { status: true, timedOutAt: true },
     });
+    expect(tx.agentRecord.updateMany).not.toHaveBeenCalled();
   });
 });
 
