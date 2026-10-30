@@ -210,6 +210,13 @@ export default () => ({
       .filter(Boolean),
   },
 
+  /** งานของ agent ที่ไม่ตอบกลับ — how often the timeout sweep runs (ms); 0 = off. */
+  agentRecord: {
+    timeoutIntervalMs: Number(
+      process.env.AGENT_RECORD_TIMEOUT_INTERVAL_MS ?? 60000,
+    ),
+  },
+
   /** เหตุการณ์ → workflow (admin/workflow-triggers) — how often due starts are sent (ms); 0 = off. */
   workflowTrigger: {
     intervalMs: Number(process.env.WORKFLOW_TRIGGER_INTERVAL_MS ?? 15000),

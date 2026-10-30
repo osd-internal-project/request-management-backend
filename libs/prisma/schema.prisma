@@ -2055,8 +2055,8 @@ model Integration {
 
   apiKeys   ApiKey[]
   webhooks  WebhookSubscription[]
-  /// endpoint ที่ CTD เรียกระบบนี้ต่องาน (`agent_records`)
-  endpoints IntegrationEndpoint[]
+  /// การเชื่อมต่อที่ CTD เรียกระบบนี้ (`agent_records`)
+  connections OutboundConnection[]
 
   @@index([companyId, active])
   @@map("integrations")
@@ -9281,6 +9281,8 @@ model AgentRecord {
   /// สิ่งที่ agent ส่งกลับตอนปิดงาน — JSON ของผู้ส่ง ไม่มี schema ฝั่งเรา
   result    Json?
   error     String?
+  /// set when the sweep closed it for silence; a late callback may still finish it
+  timedOutAt DateTime?
   createdBy String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -9290,20 +9292,22 @@ model AgentRecord {
   @@map("agent_records")
 }
 
-/// endpoint ของระบบภายนอกที่ CTD เรียกเพื่อส่งงานของ agent (27 ต.ค. 2569) —
-/// ตั้งที่แท็บ "Endpoint ที่เราเรียก" ของหน้า Integrations แทน env. หนึ่งงานต่อบริษัท
-/// มีได้ endpoint เดียว; ไม่ลบจริง ปิดด้วย `active=false`.
-model IntegrationEndpoint {
+/// การเชื่อมต่อขาออกไประบบภายนอกหนึ่งระบบของบริษัท (30 ต.ค. 2569) — URL และ key
+/// ตั้งครั้งเดียวต่อ vendor, งานแต่ละงานเลือก endpoint ของตัวเองใน `endpoints`.
+/// สัญญา API ของ vendor (path, header, body) อยู่ในโค้ด เช่น `vuvagent.client.ts`.
+model OutboundConnection {
   id            String   @id @default(uuid())
+  /// บังคับ ต่างจาก `Integration.companyId` — secret ขาออกต้องเป็นของบริษัทเดียว
   companyId     String
   integrationId String
-  /// key จาก `AGENT_ACTIONS` เช่น `lead.find`
-  action        String
-  /// เช่น https://d80g4r2y4zcsb.cloudfront.net — ยิง `POST {baseUrl}/v1/endpoints/{endpointId}`
+  /// `vuvagent` — vendor ของ `AGENT_ACTIONS[action].vendor`
+  vendor        String
+  /// เช่น https://vuvagent.say2us.com — ไม่มี path ของ vendor
   baseUrl       String
-  endpointId    String
-  /// `x-api-key` — ต้องใช้ตัวจริงตอนเรียก จึงเก็บแบบเข้ารหัส (sealSecret) ไม่ใช่ hash
-  apiKeyEnc     String
+  /// key ต้องใช้ตัวจริงตอนเรียก จึงเก็บแบบเข้ารหัส (sealSecret) ไม่ใช่ hash
+  secretEnc     String
+  /// `{ "lead.find": { "endpointId": "ep_…", "timeoutMinutes": 30 } }` — อ่านผ่าน `parseEndpoints`
+  endpoints     Json     @default("{}")
   active        Boolean  @default(true)
   createdBy     String
   createdAt     DateTime @default(now())
@@ -9311,9 +9315,9 @@ model IntegrationEndpoint {
 
   integration Integration @relation(fields: [integrationId], references: [id], onDelete: Restrict)
 
-  @@unique([companyId, action])
+  @@unique([companyId, vendor])
   @@index([integrationId])
-  @@map("integration_endpoints")
+  @@map("outbound_connections")
 }
 
 /// เอกสารบริษัท (หน้าตั้งค่า) — ไฟล์ที่ระบบภายนอกดึงไปใช้ผ่าน External API.
