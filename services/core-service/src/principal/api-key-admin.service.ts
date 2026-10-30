@@ -15,6 +15,7 @@ import { openSecret, sealSecret } from '../pm/config-rules';
 import { ApiKeyRepository } from './api-key.repository';
 import { IntegrationAdminService } from './integration-admin.service';
 import { API_KEY_PREFIX } from './api-key.service';
+import { API_EXAMPLES, type ApiExample } from './api-examples.generated';
 import {
   ApiKeyRowDto,
   IssueApiKeyDto,
@@ -87,6 +88,14 @@ export class ApiKeyAdminService {
     })) as ApiKeyRow[];
 
     return rows.map(toRow);
+  }
+
+  /** Call examples this key may make: every scope a route demands is on the key. */
+  async examples(id: string, actor: Principal): Promise<ApiExample[]> {
+    const { scopes } = await this.owned(id, actor);
+    return API_EXAMPLES.filter((example) =>
+      example.scopes.every((scope) => scopes.includes(scope)),
+    );
   }
 
   async issue(dto: IssueApiKeyDto, actor: Principal): Promise<IssuedApiKeyDto> {

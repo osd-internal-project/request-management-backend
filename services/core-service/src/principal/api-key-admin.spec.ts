@@ -502,4 +502,35 @@ describe('ApiKeyAdminService — ออกกุญแจช่องทาง�
       expect(created).toHaveLength(0);
     });
   });
+
+  describe('ตัวอย่างการเรียกของกุญแจ (30 ต.ค. 2569)', () => {
+    it('คืนเฉพาะ route ที่สิทธิ์ทุกตัวอยู่บนกุญแจ', async () => {
+      const { service } = harness([
+        { id: 'key-1', scopes: ['integration.agent.record.update'] },
+      ]);
+
+      const examples = await service.examples('key-1', admin());
+
+      expect(examples.map((item) => `${item.method} ${item.path}`)).toEqual([
+        'PATCH /agent-records/{id}',
+      ]);
+    });
+
+    it('กุญแจไม่มีสิทธิ์ = ไม่มีตัวอย่าง', async () => {
+      const { service } = harness([{ id: 'key-1', scopes: [] }]);
+
+      await expect(service.examples('key-1', admin())).resolves.toEqual([]);
+    });
+
+    it('SCOPE-03: กุญแจของบริษัทอื่นตอบ 404', async () => {
+      const { service, keys } = harness([]);
+
+      await expect(
+        service.examples('key-1', admin('other-co')),
+      ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+      expect(keys.findFirst).toHaveBeenCalledWith({
+        where: { id: 'key-1', companyId: 'other-co' },
+      });
+    });
+  });
 });

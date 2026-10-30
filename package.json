@@ -63,7 +63,7 @@
     "sop:seed": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/seed-sop-docreq-type.ts",
     "uat:users": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/seed-uat-users.ts",
     "keycloak:provision": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/keycloak-provision.ts",
-    "openapi": "ts-node --project scripts/tsconfig.openapi.json -r tsconfig-paths/register -r dotenv/config scripts/generate-openapi.ts",
+    "openapi": "ts-node --project scripts/tsconfig.openapi.json -r tsconfig-paths/register -r dotenv/config scripts/generate-openapi.ts && yarn examples",
     "flows:convert-v2": "ts-node --project scripts/tsconfig.openapi.json -r tsconfig-paths/register -r dotenv/config scripts/convert-flows-v2.ts",
     "types:delete-inactive": "ts-node --project scripts/tsconfig.openapi.json -r tsconfig-paths/register -r dotenv/config scripts/delete-inactive-types.ts",
     "webhook:receive": "ts-node --project scripts/tsconfig.openapi.json -r tsconfig-paths/register scripts/webhook-receiver-example.ts",
@@ -76,6 +76,7 @@
     "data:import-catalog": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/import-osd-catalog.ts",
     "data:import-users": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/import-users-csv.ts",
   "data:import-requests": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/import-osd-requests.ts",
+    "examples": "ts-node --compiler-options '{\"module\":\"commonjs\"}' scripts/generate-examples.ts",
     "tools": "ts-node --compiler-options '{\"module\":\"commonjs\"}' scripts/generate-tools.ts",
     "crm:gen": "python3 scripts/generate-crm-controllers.py",
     "postman": "ts-node --compiler-options '{\"module\":\"commonjs\"}' scripts/generate-postman.ts"

@@ -46,7 +46,7 @@ function guard(name: Handler, permissions: string[]): () => boolean {
 
 describe('G-07 webhook admin routes need admin.integration.manage', () => {
   it('found the routes', () => {
-    expect(HANDLERS).toHaveLength(9);
+    expect(HANDLERS).toHaveLength(10);
   });
 
   it.each(HANDLERS)('%s', (name) => {
@@ -306,5 +306,29 @@ describe('G-07 WebhookAdminService', () => {
       code: 'NOT_FOUND',
     });
     expect(deliveries.create).not.toHaveBeenCalled();
+  });
+
+  it('examples: the named events only, every event when none is named', () => {
+    const { service } = harness();
+
+    expect(
+      service
+        .examples(['sla.breached', 'request.approved'])
+        .map((item) => item.event),
+    ).toEqual(['request.approved', 'sla.breached']);
+    expect(service.examples([])).toHaveLength(22);
+  });
+
+  it('examples: an unknown event answers 400 VALIDATION_FAILED', async () => {
+    const { service } = harness();
+
+    await expect(
+      Promise.resolve().then(() =>
+        service.examples(['request.approved', 'nope']),
+      ),
+    ).rejects.toMatchObject({
+      code: 'VALIDATION_FAILED',
+      details: [{ field: 'events', reason: 'ไม่รู้จัก event: nope' }],
+    });
   });
 });
