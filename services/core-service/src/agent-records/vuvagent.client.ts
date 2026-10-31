@@ -2,8 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { openSecret } from '../pm/config-rules';
 import { addressProblems } from '../webhook/webhook-rules';
-import { AGENT_ACTIONS, type AgentAction } from './agent-actions';
-import { parseEndpoints } from './outbound-connection';
+import type { AgentAction } from './agent-actions';
 import { OutboundConnectionRepository } from './outbound-connection.repository';
 
 /** Vuvagent only queues the run; a call that hangs is a call that failed. */
@@ -20,10 +19,12 @@ export class VuvagentDispatchError extends Error {
   }
 }
 
+/** One agent: its URL, sealed key and endpoint id. */
 interface ConnectionRow {
+  action: string | null;
   baseUrl: string;
   secretEnc: string;
-  endpoints: unknown;
+  endpointId: string | null;
 }
 
 export interface ConnectionTestResult {
@@ -34,9 +35,9 @@ export interface ConnectionTestResult {
 }
 
 /**
- * ประตูเดียวที่ core ออกไปหา Vuvagent — ส่งงานแล้วจบ. URL และ key มาจากแถว
- * `outbound_connections` ของบริษัท (vendor `vuvagent`), endpoint id ต่องานอยู่ใน
- * `endpoints` ของแถวนั้น (แท็บ "การเชื่อมต่อที่เราเรียก" หน้า Integrations):
+ * ประตูเดียวที่ core ออกไปหา Vuvagent — ส่งงานแล้วจบ. ที่ Vuvagent หนึ่งงานคือหนึ่ง
+ * agent: URL, key และ endpoint id มาจากแถว `outbound_connections` ของบริษัทสำหรับ
+ * งานนั้น (แท็บ "การเชื่อมต่อที่เราเรียก" หน้า Integrations):
  *
  * ```
  * POST {baseUrl}/v1/endpoints/{endpointId}
@@ -60,16 +61,16 @@ export class VuvagentClient {
     body: { agent_record_id: string } & Record<string, unknown>,
   ): Promise<void> {
     const connection = (await this.connections.findFirst({
-      where: { companyId, vendor: AGENT_ACTIONS[action].vendor, active: true },
-      select: { baseUrl: true, secretEnc: true, endpoints: true },
+      where: { companyId, action, active: true },
+      select: { action: true, baseUrl: true, secretEnc: true, endpointId: true },
     })) as ConnectionRow | null;
     if (!connection) {
       throw new VuvagentDispatchError(
         null,
-        `ยังไม่ได้ตั้งการเชื่อมต่อ ${AGENT_ACTIONS[action].vendor} ที่หน้า Integrations`,
+        `ยังไม่ได้ตั้งการเชื่อมต่อของงาน ${action} ที่หน้า Integrations`,
       );
     }
-    const response = await this.post(connection, action, body);
+    const response = await this.post(connection, body);
     if (!response.ok) {
       const detail = await response.text().catch(() => '');
       throw new VuvagentDispatchError(
@@ -83,13 +84,10 @@ export class VuvagentClient {
    * One real call with `connection_test: true`. Vuvagent has no health route,
    * so the playbook should end early on that flag; 401/403 means the key is wrong.
    */
-  async test(
-    connection: ConnectionRow,
-    action: AgentAction,
-  ): Promise<ConnectionTestResult> {
+  async test(connection: ConnectionRow): Promise<ConnectionTestResult> {
     const started = Date.now();
     try {
-      const response = await this.post(connection, action, {
+      const response = await this.post(connection, {
         agent_record_id: null,
         connection_test: true,
       });
@@ -116,14 +114,12 @@ export class VuvagentClient {
 
   private async post(
     connection: ConnectionRow,
-    action: AgentAction,
     body: Record<string, unknown>,
   ): Promise<Response> {
-    const endpoint = parseEndpoints(connection.endpoints)[action];
-    if (!endpoint) {
+    if (!connection.endpointId) {
       throw new VuvagentDispatchError(
         null,
-        `ยังไม่ได้ตั้ง endpoint ของ ${action} ในการเชื่อมต่อที่หน้า Integrations`,
+        `ยังไม่ได้ตั้ง endpoint ของงาน ${connection.action ?? ''} ที่หน้า Integrations`,
       );
     }
 
@@ -135,7 +131,7 @@ export class VuvagentClient {
       );
     }
 
-    const url = `${connection.baseUrl.replace(/\/$/, '')}/v1/endpoints/${encodeURIComponent(endpoint.endpointId)}`;
+    const url = `${connection.baseUrl.replace(/\/$/, '')}/v1/endpoints/${encodeURIComponent(connection.endpointId)}`;
     // checked again at call time: a name that later points inside is refused here
     const problems = await addressProblems(
       url,

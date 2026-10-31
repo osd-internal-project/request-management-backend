@@ -16,7 +16,6 @@ import {
 } from '@nestjs/swagger';
 import { CurrentPrincipal, Permissions } from '@request-management/share';
 import type { Principal } from '@request-management/share';
-import type { AgentAction } from './agent-actions';
 import { OutboundConnectionsAdminService } from './outbound-connections-admin.service';
 import {
   AgentActionInfoDto,
@@ -25,7 +24,6 @@ import {
   ListOutboundConnectionsDto,
   OutboundConnectionKeyDto,
   OutboundConnectionRowDto,
-  TestOutboundConnectionDto,
   UpdateOutboundConnectionDto,
 } from './dto/outbound-connection.dto';
 
@@ -99,12 +97,7 @@ export class OutboundConnectionsAdminController {
     summary: 'ทดสอบการเชื่อมต่อด้วยการเรียกจริง (`connection_test: true`)',
   })
   @ApiOkResponse({ type: ConnectionTestResultDto })
-  test(
-    @Param('id') id: string,
-    @Body() dto: TestOutboundConnectionDto,
-    @CurrentPrincipal() principal: Principal,
-  ) {
-    // `@IsIn(ACTIONS)` on the DTO already narrowed it
-    return this.connections.test(id, dto.action as AgentAction, principal);
+  test(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.connections.test(id, principal);
   }
 }

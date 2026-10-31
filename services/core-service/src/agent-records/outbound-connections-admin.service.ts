@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { Prisma } from '@prisma/client';
 import {
   AppError,
   AuditWriter,
@@ -10,12 +9,11 @@ import {
 import { openSecret, sealSecret } from '../pm/config-rules';
 import { IntegrationAdminService } from '../principal/integration-admin.service';
 import { addressProblems, urlProblems } from '../webhook/webhook-rules';
-import { AGENT_ACTIONS, type AgentAction } from './agent-actions';
-import { parseEndpoints } from './outbound-connection';
+import { AGENT_ACTIONS, isAgentAction, type AgentAction } from './agent-actions';
+import { timeoutMinutesOf } from './outbound-connection';
 import { OutboundConnectionRepository } from './outbound-connection.repository';
 import { VuvagentClient } from './vuvagent.client';
 import type {
-  ActionEndpointDto,
   AgentActionInfoDto,
   ConnectionTestResultDto,
   CreateOutboundConnectionDto,
@@ -28,17 +26,20 @@ interface ConnectionRow {
   companyId: string;
   integrationId: string;
   vendor: string;
+  /** null only on a row the per-action migration could not place; never listed */
+  action: string | null;
   baseUrl: string;
   secretEnc: string;
-  endpoints: unknown;
+  endpointId: string | null;
+  timeoutMinutes: number | null;
   active: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
 
 /**
- * แท็บ "การเชื่อมต่อที่เราเรียก" ของหน้า Integrations (30 ต.ค. 2569) — URL และ key
- * ของ vendor ตั้งครั้งเดียว, งานแต่ละงานเลือก endpoint และ timeout ของตัวเอง.
+ * แท็บ "การเชื่อมต่อที่เราเรียก" ของหน้า Integrations — หนึ่งแถวต่อหนึ่งงาน เพราะที่
+ * Vuvagent หนึ่งงานคือหนึ่ง agent มี URL, key, endpoint และ timeout ของตัวเอง (31 ต.ค. 2569).
  * ผูกบริษัทที่ใช้งานอยู่; ของบริษัทอื่นตอบ 404 (SCOPE-03). key ออกจากระบบเฉพาะ
  * `GET :id/key` และไม่เคยอยู่ใน audit — แบบเดียวกับ webhook secret.
  */
@@ -67,7 +68,11 @@ export class OutboundConnectionsAdminService {
   ): Promise<OutboundConnectionRowDto[]> {
     await this.integrations.owned(integrationId, actor);
     const rows = (await this.connections.findMany({
-      where: { companyId: actor.activeCompanyId, integrationId },
+      where: {
+        companyId: actor.activeCompanyId,
+        integrationId,
+        action: { not: null },
+      },
       orderBy: { createdAt: 'asc' },
     })) as ConnectionRow[];
     return rows.map(toRow);
@@ -82,17 +87,17 @@ export class OutboundConnectionsAdminService {
       actor,
     );
     await this.assertUrl(dto.base_url);
-    const endpoints = toEndpointsJson(dto.endpoints ?? [], dto.vendor);
+    const action = dto.action as AgentAction; // `@IsIn(ACTIONS)` narrowed it
 
     const taken = await this.connections.findFirst({
-      where: { companyId: actor.activeCompanyId, vendor: dto.vendor },
+      where: { companyId: actor.activeCompanyId, action },
       select: { id: true },
     });
     if (taken) {
       throw new AppError(
         'CONFLICT',
-        `บริษัทนี้มีการเชื่อมต่อ ${dto.vendor} แล้ว — แก้ที่แถวเดิม`,
-        [{ field: 'vendor', reason: 'taken' }],
+        `บริษัทนี้มีการเชื่อมต่อของงาน ${action} แล้ว — แก้ที่กล่องเดิม`,
+        [{ field: 'action', reason: 'taken' }],
       );
     }
 
@@ -100,10 +105,12 @@ export class OutboundConnectionsAdminService {
       data: {
         companyId: actor.activeCompanyId,
         integrationId: integration.id,
-        vendor: dto.vendor,
+        vendor: AGENT_ACTIONS[action].vendor,
+        action,
         baseUrl: dto.base_url.trim(),
         secretEnc: this.seal(dto.api_key.trim()),
-        endpoints,
+        endpointId: dto.endpoint_id,
+        timeoutMinutes: dto.timeout_minutes ?? null,
         createdBy: actor.userId,
       },
     })) as ConnectionRow;
@@ -116,7 +123,7 @@ export class OutboundConnectionsAdminService {
     dto: UpdateOutboundConnectionDto,
     actor: Principal,
   ): Promise<OutboundConnectionRowDto> {
-    const found = await this.owned(id, actor);
+    await this.owned(id, actor);
     if (dto.base_url !== undefined) await this.assertUrl(dto.base_url);
 
     const row = (await this.connections.update({
@@ -126,10 +133,11 @@ export class OutboundConnectionsAdminService {
         ...(dto.api_key !== undefined && {
           secretEnc: this.seal(dto.api_key.trim()),
         }),
-        ...(dto.active !== undefined && { active: dto.active }),
-        ...(dto.endpoints !== undefined && {
-          endpoints: toEndpointsJson(dto.endpoints, found.vendor),
+        ...(dto.endpoint_id !== undefined && { endpointId: dto.endpoint_id }),
+        ...(dto.timeout_minutes !== undefined && {
+          timeoutMinutes: dto.timeout_minutes,
         }),
+        ...(dto.active !== undefined && { active: dto.active }),
       },
     })) as ConnectionRow;
     await this.record('updated', row, actor, {
@@ -153,27 +161,16 @@ export class OutboundConnectionsAdminService {
   }
 
   /** Calls the vendor for real — the result is shown, and audited without the key. */
-  async test(
-    id: string,
-    action: AgentAction,
-    actor: Principal,
-  ): Promise<ConnectionTestResultDto> {
+  async test(id: string, actor: Principal): Promise<ConnectionTestResultDto> {
     const found = await this.owned(id, actor);
-    if (AGENT_ACTIONS[action].vendor !== found.vendor) {
-      throw new AppError(
-        'VALIDATION_FAILED',
-        `งาน ${action} ไม่ได้ใช้การเชื่อมต่อ ${found.vendor}`,
-        [{ field: 'action', reason: 'vendor' }],
-      );
-    }
-    const result = await this.vuvagent.test(found, action);
+    const result = await this.vuvagent.test(found);
     await this.record('tested', found, actor, { ok: result.ok });
     return result;
   }
 
   private async owned(id: string, actor: Principal): Promise<ConnectionRow> {
     const found = (await this.connections.findFirst({
-      where: { id, companyId: actor.activeCompanyId },
+      where: { id, companyId: actor.activeCompanyId, action: { not: null } },
     })) as ConnectionRow | null;
     if (!found) throw new AppError('NOT_FOUND', 'ไม่พบการเชื่อมต่อที่ระบุ');
     return found;
@@ -210,8 +207,10 @@ export class OutboundConnectionsAdminService {
       resourceId: row.id,
       after: {
         vendor: row.vendor,
+        action: row.action,
         baseUrl: row.baseUrl,
-        endpoints: row.endpoints as Prisma.InputJsonValue,
+        endpointId: row.endpointId,
+        timeoutMinutes: row.timeoutMinutes,
         active: row.active,
         ...extra,
       },
@@ -229,43 +228,20 @@ export class OutboundConnectionsAdminService {
   }
 }
 
-/** The list the screen sends, stored keyed by action; another vendor's action is refused. */
-function toEndpointsJson(
-  list: ActionEndpointDto[],
-  vendor: string,
-): Prisma.InputJsonObject {
-  const json: Record<string, Prisma.InputJsonObject> = {};
-  for (const item of list) {
-    const action = item.action as AgentAction;
-    if (AGENT_ACTIONS[action].vendor !== vendor) {
-      throw new AppError(
-        'VALIDATION_FAILED',
-        `งาน ${action} ไม่ได้ใช้การเชื่อมต่อ ${vendor}`,
-        [{ field: 'endpoints', reason: action }],
-      );
-    }
-    json[action] = {
-      endpointId: item.endpoint_id,
-      timeoutMinutes: item.timeout_minutes,
-    };
-  }
-  return json;
-}
-
 function toRow(row: ConnectionRow): OutboundConnectionRowDto {
+  // `list`/`owned` read only rows with an action; an unknown one has no default timeout
+  const action = row.action ?? '';
   return {
     id: row.id,
     integration_id: row.integrationId,
     vendor: row.vendor,
+    action,
     base_url: row.baseUrl,
+    endpoint_id: row.endpointId ?? '',
+    timeout_minutes: isAgentAction(action)
+      ? timeoutMinutesOf(action, row.timeoutMinutes)
+      : (row.timeoutMinutes ?? 0),
     active: row.active,
-    endpoints: Object.entries(parseEndpoints(row.endpoints)).map(
-      ([action, endpoint]) => ({
-        action,
-        endpoint_id: endpoint.endpointId,
-        timeout_minutes: endpoint.timeoutMinutes,
-      }),
-    ),
     created_at: row.createdAt.toISOString(),
     updated_at: row.updatedAt.toISOString(),
   };

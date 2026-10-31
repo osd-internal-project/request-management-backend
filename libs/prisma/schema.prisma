@@ -9302,11 +9302,16 @@ model OutboundConnection {
   integrationId String
   /// `vuvagent` — vendor ของ `AGENT_ACTIONS[action].vendor`
   vendor        String
+  /// งานเดียวของแถวนี้ (`lead.find`, …) — ที่ Vuvagent หนึ่งงานคือหนึ่ง agent มี URL และ key ของตัวเอง (31 ต.ค. 2569)
+  action         String?
   /// เช่น https://vuvagent.say2us.com — ไม่มี path ของ vendor
   baseUrl       String
   /// key ต้องใช้ตัวจริงตอนเรียก จึงเก็บแบบเข้ารหัส (sealSecret) ไม่ใช่ hash
   secretEnc     String
-  /// `{ "lead.find": { "endpointId": "ep_…", "timeoutMinutes": 30 } }` — อ่านผ่าน `parseEndpoints`
+  endpointId     String?
+  /// ว่าง = ใช้ `AGENT_ACTIONS[action].defaultTimeoutMinutes`
+  timeoutMinutes Int?
+  /// เลิกใช้แล้ว (ค่าย้ายไป `action`/`endpointId`/`timeoutMinutes`) — ลบใน migration แยกเมื่อ labs ยืนยัน
   endpoints     Json     @default("{}")
   active        Boolean  @default(true)
   createdBy     String
@@ -9315,7 +9320,7 @@ model OutboundConnection {
 
   integration Integration @relation(fields: [integrationId], references: [id], onDelete: Restrict)
 
-  @@unique([companyId, vendor])
+  @@unique([companyId, action])
   @@index([integrationId])
   @@map("outbound_connections")
 }

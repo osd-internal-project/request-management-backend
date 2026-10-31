@@ -13,7 +13,7 @@ import {
 import { backgroundTick } from '../common/background-tick';
 import { AGENT_ACTIONS, type AgentAction } from './agent-actions';
 import { AgentRecordRepository } from './agent-record.repository';
-import { parseEndpoints } from './outbound-connection';
+import { timeoutMinutesOf } from './outbound-connection';
 import { OutboundConnectionRepository } from './outbound-connection.repository';
 
 /** Rows closed per action per tick, so one tick never holds a long transaction. */
@@ -58,17 +58,18 @@ export class AgentRecordTimeoutService
   /** Returns how many records it closed. Running it twice closes nothing new. */
   async sweep(now = new Date()): Promise<number> {
     const rows = (await this.connections.findMany({
-      select: { companyId: true, vendor: true, endpoints: true },
-    })) as { companyId: string; vendor: string; endpoints: unknown }[];
+      where: { action: { not: null } },
+      select: { companyId: true, action: true, timeoutMinutes: true },
+    })) as { companyId: string; action: string; timeoutMinutes: number | null }[];
 
     let closed = 0;
     for (const action of Object.keys(AGENT_ACTIONS) as AgentAction[]) {
       const set = rows
-        .filter((row) => row.vendor === AGENT_ACTIONS[action].vendor)
-        .flatMap((row) => {
-          const minutes = parseEndpoints(row.endpoints)[action]?.timeoutMinutes;
-          return minutes ? [{ companyId: row.companyId, minutes }] : [];
-        });
+        .filter((row) => row.action === action)
+        .map((row) => ({
+          companyId: row.companyId,
+          minutes: timeoutMinutesOf(action, row.timeoutMinutes),
+        }));
       for (const { companyId, minutes } of set) {
         closed += await this.close(action, minutes, now, { companyId });
       }
