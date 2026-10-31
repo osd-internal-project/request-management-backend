@@ -1,5 +1,5 @@
 import { sealSecret } from '../pm/config-rules';
-import { parseEndpoints, splitVuvagentUrl } from './outbound-connection';
+import { splitVuvagentUrl, timeoutMinutesOf } from './outbound-connection';
 import { OutboundConnectionsAdminService } from './outbound-connections-admin.service';
 import { VuvagentClient, VuvagentDispatchError } from './vuvagent.client';
 
@@ -25,9 +25,11 @@ const row = (over: Record<string, unknown> = {}) => ({
   companyId: 'osd',
   integrationId: 'int-1',
   vendor: 'vuvagent',
+  action: 'lead.find',
   baseUrl: 'https://1.1.1.1',
   secretEnc: sealSecret('sk-aily-real', SECRET),
-  endpoints: { 'lead.find': { endpointId: 'ep_192af84b', timeoutMinutes: 45 } },
+  endpointId: 'ep_192af84b',
+  timeoutMinutes: 45,
   active: true,
   createdAt: new Date('2026-10-30T03:00:00Z'),
   updatedAt: new Date('2026-10-30T03:00:00Z'),
@@ -54,16 +56,12 @@ describe('splitVuvagentUrl', () => {
   });
 });
 
-describe('parseEndpoints', () => {
-  it('keeps known actions, defaults a bad timeout, drops the rest', () => {
-    expect(
-      parseEndpoints({
-        'lead.find': { endpointId: 'ep_1', timeoutMinutes: 0 },
-        'gone.action': { endpointId: 'ep_2', timeoutMinutes: 10 },
-      }),
-    ).toEqual({ 'lead.find': { endpointId: 'ep_1', timeoutMinutes: 30 } });
-    expect(parseEndpoints({ 'lead.find': { timeoutMinutes: 10 } })).toEqual({});
-    expect(parseEndpoints(null)).toEqual({});
+describe('timeoutMinutesOf', () => {
+  it("keeps the row's timeout, defaults a missing or out-of-range one", () => {
+    expect(timeoutMinutesOf('lead.find', 45)).toBe(45);
+    expect(timeoutMinutesOf('lead.find', null)).toBe(30);
+    expect(timeoutMinutesOf('lead.find', 0)).toBe(30);
+    expect(timeoutMinutesOf('lead.find', 1441)).toBe(30);
   });
 });
 
@@ -74,7 +72,7 @@ describe('VuvagentClient', () => {
     global.fetch = fetchMock as never;
   });
 
-  it("calls the action's endpoint with the opened key and the job body", async () => {
+  it("calls the action's own agent: its URL, endpoint and opened key", async () => {
     const connections = { findFirst: jest.fn().mockResolvedValue(row()) };
     fetchMock.mockResolvedValue({ ok: true, status: 202 });
     const client = new VuvagentClient(connections as never, config() as never);
@@ -86,7 +84,7 @@ describe('VuvagentClient', () => {
 
     expect(connections.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { companyId: 'osd', vendor: 'vuvagent', active: true },
+        where: { companyId: 'osd', action: 'lead.find', active: true },
       }),
     );
     const [url, init] = fetchMock.mock.calls[0] as [
@@ -110,15 +108,15 @@ describe('VuvagentClient', () => {
     ).rejects.toEqual(
       new VuvagentDispatchError(
         null,
-        'ยังไม่ได้ตั้งการเชื่อมต่อ vuvagent ที่หน้า Integrations',
+        'ยังไม่ได้ตั้งการเชื่อมต่อของงาน lead.find ที่หน้า Integrations',
       ),
     );
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('a connection without this action fails, without calling out', async () => {
+  it('a connection without an endpoint id fails, without calling out', async () => {
     const connections = {
-      findFirst: jest.fn().mockResolvedValue(row({ endpoints: {} })),
+      findFirst: jest.fn().mockResolvedValue(row({ endpointId: null })),
     };
     const client = new VuvagentClient(connections as never, config() as never);
 
@@ -127,7 +125,7 @@ describe('VuvagentClient', () => {
     ).rejects.toEqual(
       new VuvagentDispatchError(
         null,
-        'ยังไม่ได้ตั้ง endpoint ของ lead.find ในการเชื่อมต่อที่หน้า Integrations',
+        'ยังไม่ได้ตั้ง endpoint ของงาน lead.find ที่หน้า Integrations',
       ),
     );
     expect(fetchMock).not.toHaveBeenCalled();
@@ -165,7 +163,7 @@ describe('VuvagentClient', () => {
     fetchMock.mockResolvedValue({ ok: false, status: 401 });
     const client = new VuvagentClient({} as never, config() as never);
 
-    const result = await client.test(row(), 'lead.find');
+    const result = await client.test(row());
 
     const body = JSON.parse(
       (fetchMock.mock.calls[0] as [string, { body: string }])[1].body,
@@ -212,44 +210,54 @@ describe('OutboundConnectionsAdminService', () => {
 
   const create = {
     integration_id: 'int-1',
-    vendor: 'vuvagent',
+    action: 'lead.find',
     base_url: 'https://1.1.1.1',
     api_key: 'sk-aily-real',
-    endpoints: [
-      { action: 'lead.find', endpoint_id: 'ep_192af84b', timeout_minutes: 45 },
-    ],
+    endpoint_id: 'ep_192af84b',
+    timeout_minutes: 45,
   };
 
-  it('stores the key sealed and the endpoints keyed by action; never returns or audits the key', async () => {
+  it("stores one agent per row with its vendor from the action; never returns or audits the key", async () => {
     const { service, connections, audit } = setup();
 
     const result = await service.create(create, actor);
 
     const data = (
-      connections.create.mock.calls[0] as [
-        { data: { secretEnc: string; endpoints: unknown } },
-      ]
+      connections.create.mock.calls[0] as [{ data: Record<string, unknown> }]
     )[0].data;
     expect(data.secretEnc).not.toContain('sk-aily-real');
-    expect(data.endpoints).toEqual({
-      'lead.find': { endpointId: 'ep_192af84b', timeoutMinutes: 45 },
+    expect(data).toMatchObject({
+      vendor: 'vuvagent',
+      action: 'lead.find',
+      endpointId: 'ep_192af84b',
+      timeoutMinutes: 45,
     });
     expect(JSON.stringify(result)).not.toContain('sk-aily');
     expect(JSON.stringify(audit.record.mock.calls)).not.toContain('sk-aily');
     expect(result).toMatchObject({
       vendor: 'vuvagent',
+      action: 'lead.find',
       base_url: 'https://1.1.1.1',
-      endpoints: [
-        {
-          action: 'lead.find',
-          endpoint_id: 'ep_192af84b',
-          timeout_minutes: 45,
-        },
-      ],
+      endpoint_id: 'ep_192af84b',
+      timeout_minutes: 45,
     });
   });
 
-  it('one connection per vendor per company', async () => {
+  it("a row without its own timeout reads the action's default", async () => {
+    const { service, connections } = setup();
+    connections.findMany.mockResolvedValue([row({ timeoutMinutes: null })]);
+
+    const [listed] = await service.list('int-1', actor);
+
+    expect(listed.timeout_minutes).toBe(30);
+    expect(connections.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { companyId: 'osd', integrationId: 'int-1', action: { not: null } },
+      }),
+    );
+  });
+
+  it('one connection per action per company', async () => {
     const { service, connections } = setup();
     connections.findFirst.mockResolvedValue({ id: 'conn-0' });
 
@@ -303,7 +311,7 @@ describe('OutboundConnectionsAdminService', () => {
       code: 'NOT_FOUND',
     });
     expect(connections.findFirst).toHaveBeenLastCalledWith({
-      where: { id: 'conn-9', companyId: 'osd' },
+      where: { id: 'conn-9', companyId: 'osd', action: { not: null } },
     });
   });
 
@@ -311,15 +319,14 @@ describe('OutboundConnectionsAdminService', () => {
     const { service, connections, vuvagent, audit } = setup();
     connections.findFirst.mockResolvedValue(row());
 
-    await expect(service.test('conn-1', 'lead.find', actor)).resolves.toEqual({
+    await expect(service.test('conn-1', actor)).resolves.toEqual({
       ok: true,
       status: 202,
       ms: 12,
       problem: null,
     });
     expect(vuvagent.test).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'conn-1' }),
-      'lead.find',
+      expect.objectContaining({ id: 'conn-1', action: 'lead.find' }),
     );
     expect(audit.record).toHaveBeenCalledWith(
       expect.objectContaining({

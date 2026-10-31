@@ -12,7 +12,11 @@ function setup(
     status: string;
     createdAt: Date;
   }[],
-  connections: { companyId: string; vendor: string; endpoints: unknown }[],
+  connections: {
+    companyId: string;
+    action: string;
+    timeoutMinutes: number | null;
+  }[],
 ) {
   const table = rows.map((row) => ({
     ...row,
@@ -107,13 +111,7 @@ describe('AgentRecordTimeoutService.sweep', () => {
         },
       ],
       [
-        {
-          companyId: 'A',
-          vendor: 'vuvagent',
-          endpoints: {
-            'lead.find': { endpointId: 'ep_1', timeoutMinutes: 60 },
-          },
-        },
+        { companyId: 'A', action: 'lead.find', timeoutMinutes: 60 },
       ],
     );
 

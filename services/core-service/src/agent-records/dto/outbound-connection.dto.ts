@@ -1,8 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
 import {
-  ArrayMaxSize,
-  IsArray,
   IsBoolean,
   IsIn,
   IsInt,
@@ -15,7 +12,6 @@ import {
   MaxLength,
   Min,
   NotContains,
-  ValidateNested,
 } from 'class-validator';
 import { AGENT_ACTIONS, VENDORS } from '../agent-actions';
 import {
@@ -30,36 +26,18 @@ export class ListOutboundConnectionsDto {
   @ApiProperty() @IsUUID() integration_id!: string;
 }
 
-export class ActionEndpointDto {
-  @ApiProperty({ enum: ACTIONS, example: 'lead.find' })
-  @IsIn(ACTIONS)
-  action!: string;
-
-  @ApiProperty({ example: 'ep_192af84bf2f9417cbf9f4097e050d264' })
-  @Matches(ENDPOINT_ID, { message: 'endpoint id ใช้ได้แค่ตัวอักษร ตัวเลข _ -' })
-  @MaxLength(200)
-  endpoint_id!: string;
-
-  @ApiProperty({
-    description: 'ไม่มีผลตอบกลับภายในกี่นาทีจึงปิดงานเป็น failed',
-    minimum: MIN_TIMEOUT_MINUTES,
-    maximum: MAX_TIMEOUT_MINUTES,
-    example: 30,
-  })
-  @IsInt()
-  @Min(MIN_TIMEOUT_MINUTES)
-  @Max(MAX_TIMEOUT_MINUTES)
-  timeout_minutes!: number;
-}
-
 export class CreateOutboundConnectionDto {
   @ApiProperty({ description: 'ระบบภายนอกที่การเชื่อมต่อนี้เป็นของ' })
   @IsUUID()
   integration_id!: string;
 
-  @ApiProperty({ enum: VENDORS, example: 'vuvagent' })
-  @IsIn(VENDORS)
-  vendor!: string;
+  @ApiProperty({
+    enum: ACTIONS,
+    example: 'lead.find',
+    description: 'หนึ่งแถวต่อหนึ่งงาน — ที่ Vuvagent หนึ่งงานคือหนึ่ง agent',
+  })
+  @IsIn(ACTIONS)
+  action!: string;
 
   @ApiProperty({ example: 'https://vuvagent.say2us.com' })
   @IsString()
@@ -72,19 +50,28 @@ export class CreateOutboundConnectionDto {
   })
   base_url!: string;
 
-  @ApiProperty({ description: 'x-api-key ของ vendor' })
+  @ApiProperty({ description: 'x-api-key ของ agent งานนี้' })
   @IsString()
   @IsNotEmpty()
   @MaxLength(500)
   api_key!: string;
 
-  @ApiPropertyOptional({ type: [ActionEndpointDto] })
+  @ApiProperty({ example: 'ep_192af84bf2f9417cbf9f4097e050d264' })
+  @Matches(ENDPOINT_ID, { message: 'endpoint id ใช้ได้แค่ตัวอักษร ตัวเลข _ -' })
+  @MaxLength(200)
+  endpoint_id!: string;
+
+  @ApiPropertyOptional({
+    description: 'ไม่มีผลตอบกลับภายในกี่นาทีจึงปิดงานเป็น failed — ไม่ส่ง = ค่าเริ่มต้นของงาน',
+    minimum: MIN_TIMEOUT_MINUTES,
+    maximum: MAX_TIMEOUT_MINUTES,
+    example: 30,
+  })
   @IsOptional()
-  @IsArray()
-  @ArrayMaxSize(ACTIONS.length)
-  @ValidateNested({ each: true })
-  @Type(() => ActionEndpointDto)
-  endpoints?: ActionEndpointDto[];
+  @IsInt()
+  @Min(MIN_TIMEOUT_MINUTES)
+  @Max(MAX_TIMEOUT_MINUTES)
+  timeout_minutes?: number;
 }
 
 export class UpdateOutboundConnectionDto {
@@ -106,24 +93,24 @@ export class UpdateOutboundConnectionDto {
   @MaxLength(500)
   api_key?: string;
 
-  @ApiPropertyOptional() @IsOptional() @IsBoolean() active?: boolean;
+  @ApiPropertyOptional({ example: 'ep_192af84bf2f9417cbf9f4097e050d264' })
+  @IsOptional()
+  @Matches(ENDPOINT_ID, { message: 'endpoint id ใช้ได้แค่ตัวอักษร ตัวเลข _ -' })
+  @MaxLength(200)
+  endpoint_id?: string;
 
   @ApiPropertyOptional({
-    type: [ActionEndpointDto],
-    description: 'แทนที่ทั้งชุด — งานที่ไม่อยู่ในรายการจะไม่มี endpoint',
+    minimum: MIN_TIMEOUT_MINUTES,
+    maximum: MAX_TIMEOUT_MINUTES,
+    example: 30,
   })
   @IsOptional()
-  @IsArray()
-  @ArrayMaxSize(ACTIONS.length)
-  @ValidateNested({ each: true })
-  @Type(() => ActionEndpointDto)
-  endpoints?: ActionEndpointDto[];
-}
+  @IsInt()
+  @Min(MIN_TIMEOUT_MINUTES)
+  @Max(MAX_TIMEOUT_MINUTES)
+  timeout_minutes?: number;
 
-export class TestOutboundConnectionDto {
-  @ApiProperty({ enum: ACTIONS, example: 'lead.find' })
-  @IsIn(ACTIONS)
-  action!: string;
+  @ApiPropertyOptional() @IsOptional() @IsBoolean() active?: boolean;
 }
 
 /** A row as the screen sees it — never the key. */
@@ -131,9 +118,12 @@ export class OutboundConnectionRowDto {
   @ApiProperty() id!: string;
   @ApiProperty() integration_id!: string;
   @ApiProperty({ enum: VENDORS }) vendor!: string;
+  @ApiProperty({ enum: ACTIONS }) action!: string;
   @ApiProperty() base_url!: string;
+  @ApiProperty() endpoint_id!: string;
+  @ApiProperty({ description: 'ค่าของแถว หรือค่าเริ่มต้นของงานถ้าไม่ได้ตั้ง' })
+  timeout_minutes!: number;
   @ApiProperty() active!: boolean;
-  @ApiProperty({ type: [ActionEndpointDto] }) endpoints!: ActionEndpointDto[];
   @ApiProperty() created_at!: string;
   @ApiProperty() updated_at!: string;
 }
