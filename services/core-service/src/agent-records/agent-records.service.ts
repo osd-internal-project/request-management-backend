@@ -6,9 +6,7 @@ import {
   auditActor,
   paginated,
   PrismaTransactionService,
-  salesAccessSubject,
   toSkipTake,
-  visibleLeadsWhere,
   type Principal,
 } from '@request-management/share';
 import {
@@ -24,7 +22,6 @@ import {
   type Observable,
 } from 'rxjs';
 import { CompanyMemberRepository } from '../access/company-member.repository';
-import { LeadRepository } from '../crm/sales.repositories';
 import {
   readableActions,
   type AgentAction,
@@ -67,7 +64,6 @@ export class AgentRecordsService {
 
   constructor(
     private readonly records: AgentRecordRepository,
-    private readonly leads: LeadRepository,
     private readonly members: CompanyMemberRepository,
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
@@ -119,16 +115,12 @@ export class AgentRecordsService {
       ({ action: string; createdBy: string } & Record<string, unknown>) | null;
     if (!found) throw new AppError('NOT_FOUND', 'ไม่พบงานของ agent ที่ระบุ');
 
-    const [names, leads] = await Promise.all([
-      this.members.displayNamesOf([found.createdBy], actor.activeCompanyId),
-      found.action === 'lead.find' ? this.leadsOf(id, actor) : [],
-    ]);
+    const names = await this.members.displayNamesOf(
+      [found.createdBy],
+      actor.activeCompanyId,
+    );
 
-    return {
-      ...found,
-      createdByName: names.get(found.createdBy) ?? null,
-      leads,
-    };
+    return { ...found, createdByName: names.get(found.createdBy) ?? null };
   }
 
   /** Pushes a row whenever its `updatedAt` moves; completes once all are finished. */
@@ -284,25 +276,5 @@ export class AgentRecordsService {
       where: { id: { in: ids }, ...this.visibleWhere(actor) },
       select: { id: true, status: true, updatedAt: true },
     }) as Promise<AgentRecordStamp[]>;
-  }
-
-  /** Leads the agent created through `crm/leads/intake`, within the caller's own lead scope. */
-  private leadsOf(id: string, actor: Principal) {
-    return this.leads.findMany({
-      where: {
-        AND: [
-          visibleLeadsWhere(salesAccessSubject(actor)),
-          { intakeData: { path: ['agent_record_id'], equals: id } },
-        ],
-      },
-      select: {
-        id: true,
-        name: true,
-        contactName: true,
-        status: true,
-        createdAt: true,
-      },
-      orderBy: { createdAt: 'asc' },
-    });
   }
 }
