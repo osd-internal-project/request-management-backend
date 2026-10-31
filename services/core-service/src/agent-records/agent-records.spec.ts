@@ -57,7 +57,6 @@ function setup() {
   const members = {
     displayNamesOf: jest.fn().mockResolvedValue(new Map([['u-1', 'สมชาย']])),
   };
-  const leads = { findMany: jest.fn().mockResolvedValue([]) };
   const vuvagent = {
     mode: 'mock',
     dispatch: jest.fn().mockResolvedValue(undefined),
@@ -65,13 +64,12 @@ function setup() {
 
   const service = new AgentRecordsService(
     records as never,
-    leads as never,
     members as never,
     audit as never,
     transactions as never,
     vuvagent as never,
   );
-  return { service, records, tx, audit, leads, vuvagent };
+  return { service, records, tx, audit, vuvagent };
 }
 
 describe('AGENT_ACTIONS', () => {
@@ -209,26 +207,23 @@ describe('AgentRecordsService reads', () => {
     });
   });
 
-  it('detail of lead.find lists the leads the agent created, within lead scope', async () => {
-    const { service, records, leads } = setup();
+  it('detail carries the creator name and no lead list', async () => {
+    const { service, records } = setup();
     records.findFirst.mockResolvedValue({
       id: 'rec-1',
       action: 'lead.find',
       createdBy: 'u-1',
+      result: { leads_found: 8, leads_created: 8 },
     });
-    leads.findMany.mockResolvedValue([{ id: 'lead-1', name: 'บจก. ก' }]);
 
     const detail = await service.findOne('rec-1', seller);
 
-    const [[args]] = leads.findMany.mock.calls as [
-      [{ where: { AND: unknown[] } }],
-    ];
-    expect(args.where.AND[1]).toEqual({
-      intakeData: { path: ['agent_record_id'], equals: 'rec-1' },
-    });
-    expect(detail).toMatchObject({
+    expect(detail).toEqual({
+      id: 'rec-1',
+      action: 'lead.find',
+      createdBy: 'u-1',
+      result: { leads_found: 8, leads_created: 8 },
       createdByName: 'สมชาย',
-      leads: [{ id: 'lead-1', name: 'บจก. ก' }],
     });
   });
 });

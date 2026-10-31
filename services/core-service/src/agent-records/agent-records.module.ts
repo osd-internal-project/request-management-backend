@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { AccessModule } from '../access/access.module';
-import { LeadRepository } from '../crm/sales.repositories';
 import { AgentRecordRepository } from './agent-record.repository';
 import { AgentRecordsService } from './agent-records.service';
 import { OutboundConnectionRepository } from './outbound-connection.repository';
@@ -12,8 +11,6 @@ import { VuvagentClient } from './vuvagent.client';
   providers: [
     AgentRecordRepository,
     OutboundConnectionRepository,
-    // only to list the leads an agent created for a record
-    LeadRepository,
     AgentRecordsService,
     VuvagentClient,
   ],
