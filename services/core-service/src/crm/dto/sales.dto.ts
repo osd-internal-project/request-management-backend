@@ -303,18 +303,6 @@ export class UpdateLeadIntakeDataDto {
   replace?: boolean;
 }
 
-/** ผลวิจัยของ agent `lead.research` — แทนทั้งก้อน ไม่ merge. */
-export class ReplaceLeadDataDto {
-  @ApiProperty({
-    description: 'JSON ทั้งก้อนที่จะเก็บใน `data` ของ Lead',
-    example: { summary: '…', product_fit: { fit_score: 4 } },
-    type: 'object',
-    additionalProperties: true,
-  })
-  @IsObject()
-  data!: Record<string, unknown>;
-}
-
 /**
  * เลื่อนขั้นใน pipeline จากหน้ารายละเอียด — ถอยกลับได้ (ติดต่อไม่ได้ → ติดต่อแล้ว).
  * รับได้เฉพาะขั้นระหว่างทาง (`kind = open`); ปลายทางต้องผ่าน convert/disqualify

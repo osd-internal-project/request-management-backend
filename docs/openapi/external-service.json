@@ -10561,57 +10561,6 @@
         ]
       }
     },
-    "/api/v1/crm/ai/leads/{id}/data": {
-      "put": {
-        "operationId": "ExternalLeadAiController_replaceData",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "X-Company-Id",
-            "in": "header",
-            "required": false,
-            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ReplaceLeadDataDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "เขียนผลวิจัยของ agent `lead.research` ลง `data` — แทนทั้งก้อน",
-        "tags": [
-          "crm-ai"
-        ],
-        "x-permission": [
-          "integration.crm.lead.update"
-        ]
-      }
-    },
     "/api/v1/crm/ai/leads/{id}/convert": {
       "post": {
         "description": "Lead ในกองกลาง (ยังไม่มีเจ้าของ) ตอบ 409 — มอบหมายก่อน",
@@ -19208,25 +19157,6 @@
         },
         "required": [
           "stage"
-        ]
-      },
-      "ReplaceLeadDataDto": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "type": "object",
-            "description": "JSON ทั้งก้อนที่จะเก็บใน `data` ของ Lead",
-            "example": {
-              "summary": "…",
-              "product_fit": {
-                "fit_score": 4
-              }
-            },
-            "additionalProperties": true
-          }
-        },
-        "required": [
-          "data"
         ]
       },
       "OpenCaseDto": {
