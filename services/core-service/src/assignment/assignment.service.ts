@@ -236,11 +236,25 @@ export class AssignmentService {
       orderBy: { createdAt: 'desc' },
       take: HISTORY_PAGE,
     })) as AssignmentRow[];
+    const leadIds = rows.filter((row) => row.resourceType === 'lead').map((row) => row.resourceId);
+    const leadNames = new Map(
+      leadIds.length === 0
+        ? []
+        : (
+            (await this.leads.findMany({
+              where: { companyId: actor.activeCompanyId, id: { in: leadIds } },
+              select: { id: true, name: true },
+            })) as { id: string; name: string }[]
+          ).map((lead) => [lead.id, lead.name] as const),
+    );
     return rows.map((row) => ({
       id: row.id,
       role: row.role,
       resource_type: row.resourceType,
       resource_id: row.resourceId,
+      resource_label: leadNames.has(row.resourceId)
+        ? `Lead ${leadNames.get(row.resourceId)}`
+        : `${row.resourceType} ${row.resourceId}`,
       user_id: row.userId,
       rule_id: row.ruleId,
       org_unit_id: row.orgUnitId,
@@ -285,8 +299,10 @@ export class AssignmentService {
     }
 
     let criteria: Criteria = { ...(dto.criteria ?? {}) };
+    let subject = `${dto.resource_type} ${dto.resource_id}`;
     if (dto.resource_type === 'lead') {
       const lead = await this.requireLead(companyId, dto.resource_id);
+      subject = `Lead ${lead.name}`;
       if (lead.ownerUserId) {
         const owner = await this.refs.person(companyId, lead.ownerUserId);
         return {
@@ -352,7 +368,7 @@ export class AssignmentService {
       'workflow.assigned',
       {
         role: ASSIGNMENT_ROLES[dto.role].label,
-        subject: `${dto.resource_type} ${dto.resource_id}`,
+        subject,
         reason: pick.rule
           ? `ตรงกฎ ${pick.rule.name}`
           : 'ไม่ตรงกฎในตารางทีม — ส่งคนรับสำรอง',
@@ -495,6 +511,7 @@ export class AssignmentService {
       where: { id, companyId },
       select: {
         id: true,
+        name: true,
         ownerUserId: true,
         industry: true,
         productGroup: true,
@@ -509,6 +526,7 @@ export class AssignmentService {
 
 interface LeadCriteriaRow {
   id: string;
+  name: string;
   ownerUserId: string | null;
   industry: string | null;
   productGroup: string | null;
