@@ -34,7 +34,6 @@ import {
   CreateLeadDto,
   DisqualifyLeadDto,
   ListLeadsQueryDto,
-  ReplaceLeadDataDto,
   UpdateLeadActivityDto,
   UpdateLeadDto,
   UpdateLeadIntakeDataDto,
@@ -111,8 +110,6 @@ function leadColumns(
 }
 
 const MAX_INTAKE_BYTES = 16 * 1024;
-/** One research run in Thai measured ~16 KB (THG, 2 Nov 2026) — headroom for richer ones. */
-const MAX_DATA_BYTES = 64 * 1024;
 
 /**
  * An intake object split into the keys to write and the keys to drop (`null`).
@@ -520,36 +517,6 @@ export class LeadsService {
       where: { id },
       select: { id: true, intakeData: true, updatedAt: true },
     });
-  }
-
-  /** Replace `data` (the `lead.research` agent's findings) on an open lead. */
-  async replaceData(id: string, dto: ReplaceLeadDataDto, actor: Principal) {
-    if (Buffer.byteLength(JSON.stringify(dto.data)) > MAX_DATA_BYTES) {
-      throw new AppError('VALIDATION_FAILED', 'data ใหญ่เกิน 64 KB', [
-        { field: 'data', reason: 'too_large' },
-      ]);
-    }
-    await this.requireOpen(id, actor);
-    const row = (await this.leads.update({
-      where: { id },
-      data: {
-        data: dto.data as Prisma.InputJsonValue,
-        updatedBy: actor.userId,
-      },
-      select: { id: true, data: true, updatedAt: true },
-    })) as { id: string };
-
-    await this.audit.record({
-      eventType: 'crm.lead.data_updated',
-      companyId: actor.activeCompanyId,
-      ...auditActor(actor),
-      resourceType: 'lead',
-      resourceId: id,
-      // key names only — the values are the agent's and may hold anything
-      after: { keys: Object.keys(dto.data) },
-    });
-
-    return row;
   }
 
   /**

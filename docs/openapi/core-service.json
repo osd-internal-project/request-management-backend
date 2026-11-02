@@ -13493,7 +13493,7 @@
     },
     "/api/v1/leads/{id}/research": {
       "post": {
-        "description": "สร้างงาน `lead.research` แล้วส่งให้ Vuvagent — ตอบ record ทันที; agent เขียนผลลง `data` ของ Lead เอง",
+        "description": "สร้างงาน `lead.research` แล้วส่งให้ Vuvagent — ตอบ record ทันที; agent เขียนผลลง `intakeData.research` ของ Lead เอง",
         "operationId": "LeadFindController_research",
         "parameters": [
           {

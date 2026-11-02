@@ -2788,10 +2788,6 @@ model Lead {
   /// ของผู้ส่ง ไม่มี schema ฝั่งเรา; แก้ผ่าน `PATCH …/intake-data` แบบ merge (22 ต.ค. 2569).
   intakeData Json?
 
-  /// ผลวิจัยจาก agent `lead.research` — Vuvagent เขียนเองผ่าน `PUT crm/ai/leads/:id/data`
-  /// แทนทั้งก้อน; JSON ของผู้ส่ง ไม่มี schema ฝั่งเรา (2 พ.ย. 2569).
-  data Json?
-
   /// รหัสสถานะ — อ้าง `lead_statuses.code` ของบริษัทเดียวกัน. เก็บเป็น text
   /// ไม่ใช่ enum เพราะรายการสถานะแก้ได้จากหน้าตั้งค่าโดยไม่ต้อง migrate; ความ
   /// ถูกต้องบังคับที่ `LeadStatusService` (และการลบสถานะที่ยังมี Lead ใช้อยู่

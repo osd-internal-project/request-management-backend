@@ -94,7 +94,7 @@ export class LeadFindController {
     summary: 'ให้ agent วิจัย Lead นี้',
     description:
       'สร้างงาน `lead.research` แล้วส่งให้ Vuvagent — ตอบ record ทันที; ' +
-      'agent เขียนผลลง `data` ของ Lead เอง',
+      'agent เขียนผลลง `intakeData.research` ของ Lead เอง',
   })
   @Post(':id/research')
   @Permissions(AGENT_ACTIONS['lead.research'].start)

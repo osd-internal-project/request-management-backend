@@ -26,7 +26,7 @@ export const AGENT_ACTIONS = {
     defaultTimeoutMinutes: 30,
     payloadFields: ['agent_record_id', 'topic'],
   },
-  /** the agent writes what it finds to `leads.data` itself */
+  /** the agent merges what it finds into `intakeData.research` itself */
   'lead.research': {
     read: 'crm.sales.read',
     start: 'crm.sales.manage',

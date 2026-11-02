@@ -645,42 +645,6 @@ describe('CRM Lead — แปลงเป็นโอกาสการขาย
     ).rejects.toMatchObject({ code: 'CONFLICT' });
   });
 
-  it('data: แทนทั้งก้อน — audit เก็บแค่ชื่อ key; เกิน 64 KB = 422; Lead ปิดแล้ว = 409', async () => {
-    const open = leadHarness({ status: 'new' });
-
-    await open.service.replaceData(
-      'lead-1',
-      { data: { summary: 'x', product_fit: { fit_score: 4 } } },
-      principal(),
-    );
-
-    expect(open.leads.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: 'lead-1' },
-        data: expect.objectContaining({
-          data: { summary: 'x', product_fit: { fit_score: 4 } },
-        }),
-      }),
-    );
-    const audit = open.audits.find(
-      (a) => a.eventType === 'crm.lead.data_updated',
-    ) as unknown as { after: unknown };
-    expect(audit.after).toEqual({ keys: ['summary', 'product_fit'] });
-
-    await expect(
-      open.service.replaceData(
-        'lead-1',
-        { data: { blob: 'x'.repeat(65 * 1024) } },
-        principal(),
-      ),
-    ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
-
-    const closed = leadHarness({ status: 'converted' });
-    await expect(
-      closed.service.replaceData('lead-1', { data: { a: 1 } }, principal()),
-    ).rejects.toMatchObject({ code: 'CONFLICT' });
-  });
-
   it('AI (service account) convert: โอกาสการขายไปอยู่กับเจ้าของ Lead; ใบกองกลาง = 409', async () => {
     const robot = {
       ...principal([
