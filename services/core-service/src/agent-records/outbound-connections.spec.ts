@@ -345,6 +345,12 @@ describe('OutboundConnectionsAdminService', () => {
         payload_fields: ['agent_record_id', 'topic'],
         default_timeout_minutes: 30,
       },
+      {
+        action: 'lead.research',
+        vendor: 'vuvagent',
+        payload_fields: ['agent_record_id', 'lead_id', 'focus'],
+        default_timeout_minutes: 30,
+      },
     ]);
   });
 });

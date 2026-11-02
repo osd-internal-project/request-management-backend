@@ -13334,7 +13334,8 @@
             "schema": {
               "type": "string",
               "enum": [
-                "lead.find"
+                "lead.find",
+                "lead.research"
               ]
             }
           },
@@ -13482,6 +13483,58 @@
           }
         ],
         "summary": "ให้ agent หา Lead ตามหัวข้อ",
+        "tags": [
+          "leads"
+        ],
+        "x-permission": [
+          "crm.sales.manage"
+        ]
+      }
+    },
+    "/api/v1/leads/{id}/research": {
+      "post": {
+        "description": "สร้างงาน `lead.research` แล้วส่งให้ Vuvagent — ตอบ record ทันที; agent เขียนผลลง `data` ของ Lead เอง",
+        "operationId": "LeadFindController_research",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResearchLeadDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ให้ agent วิจัย Lead นี้",
         "tags": [
           "leads"
         ],
@@ -50918,6 +50971,17 @@
           "topic"
         ]
       },
+      "ResearchLeadDto": {
+        "type": "object",
+        "properties": {
+          "focus": {
+            "type": "string",
+            "description": "เรื่องที่อยากให้ agent เน้น — ว่างได้",
+            "example": "ช่องทางบริการลูกค้าและผู้ตัดสินใจ",
+            "maxLength": 500
+          }
+        }
+      },
       "OutboundConnectionRowDto": {
         "type": "object",
         "properties": {
@@ -50936,7 +51000,8 @@
           "action": {
             "type": "string",
             "enum": [
-              "lead.find"
+              "lead.find",
+              "lead.research"
             ]
           },
           "base_url": {
@@ -51017,7 +51082,8 @@
           "action": {
             "type": "string",
             "enum": [
-              "lead.find"
+              "lead.find",
+              "lead.research"
             ],
             "example": "lead.find",
             "description": "หนึ่งแถวต่อหนึ่งงาน — ที่ Vuvagent หนึ่งงานคือหนึ่ง agent"

@@ -1638,6 +1638,17 @@ export const API_EXAMPLES: readonly ApiExample[] = [
     body: { title: 'ERP สำหรับบริษัท ตัวอย่าง จำกัด', amount: 1500000 },
   },
   {
+    operationId: 'ExternalLeadAiController_replaceData',
+    tag: 'crm-ai',
+    summary: 'เขียนผลวิจัยของ agent `lead.research` ลง `data` — แทนทั้งก้อน',
+    method: 'PUT',
+    path: '/crm/ai/leads/{id}/data',
+    scopes: ['integration.crm.lead.update'],
+    actingUser: false,
+    query: {},
+    body: { data: { summary: '…', product_fit: { fit_score: 4 } } },
+  },
+  {
     operationId: 'ExternalLeadAiController_updateIntakeData',
     tag: 'crm-ai',
     summary: 'แก้ข้อมูล intake (JSON) — merge ทีละ key, null = ลบ key',

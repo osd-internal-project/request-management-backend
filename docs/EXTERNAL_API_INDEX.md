@@ -167,6 +167,7 @@
 | GET | `/crm/ai/leads/{id}` | อ่าน Lead (ทั้งบริษัทของ key) — อีเมล/เบอร์ ต้องมี contact.read | integration.crm.lead.read |  |
 | PATCH | `/crm/ai/leads/{id}` | แก้ข้อมูล Lead — ส่งเฉพาะ field ที่เปลี่ยน | integration.crm.lead.update |  |
 | PATCH | `/crm/ai/leads/{id}/intake-data` | แก้ข้อมูล intake (JSON) — merge ทีละ key, null = ลบ key | integration.crm.lead.update |  |
+| PUT | `/crm/ai/leads/{id}/data` | เขียนผลวิจัยของ agent `lead.research` ลง `data` — แทนทั้งก้อน | integration.crm.lead.update |  |
 | POST | `/crm/ai/leads/{id}/convert` | แปลง Lead เป็นโอกาสการขาย — ไปอยู่กับเจ้าของ Lead | integration.crm.lead.convert |  |
 
 ## delivery — การส่งมอบของโครงการ — แผนส่งมอบ งวดวางบิล และการส่งต่อทีมบริการ
