@@ -1233,6 +1233,27 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
       reason: { label: 'เหตุผลที่ตีกลับ', sample: 'ยังไม่ระบุวันเริ่มติดตั้ง' },
     },
   },
+  {
+    eventType: 'workflow.assigned',
+    label: 'ได้รับงานจากตารางทีม (ถึงผู้ได้รับ)',
+    title: 'คุณได้รับงาน{{role}}: {{subject}}',
+    body: '{{reason}}',
+    variables: {
+      role: { label: 'บทบาท', sample: 'พนักงานขาย' },
+      subject: { label: 'งาน', sample: 'Lead บริษัท ลูกค้า จำกัด' },
+      reason: { label: 'ที่มา', sample: 'ตรงกฎ ลูกค้าธนาคาร → ทีมขายองค์กร' },
+    },
+  },
+  {
+    eventType: 'workflow.notice',
+    label: 'แจ้งเตือนจาก workflow',
+    title: '{{title}}',
+    body: '{{body}}',
+    variables: {
+      title: { label: 'หัวเรื่อง', sample: 'NDA ของ OPP-OSD-0012 ลงนามครบแล้ว' },
+      body: { label: 'รายละเอียด', sample: 'เริ่มขอเอกสารลับจากลูกค้าได้' },
+    },
+  },
 ];
 
 const BY_EVENT = new Map(

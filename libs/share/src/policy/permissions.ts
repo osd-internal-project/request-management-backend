@@ -341,6 +341,8 @@ export const PERMISSIONS = {
     'integration.crm.lead.contact.read',
     /** OSD Workflow เขียน/อ่าน process log ทีละขั้น; ผู้ทำงานเป็นข้อมูล ไม่ได้ยืนยันตัว. */
     'integration.process.log',
+    /** OSD Workflow ถามตารางทีมว่าใครได้งาน (ตั้งเจ้าของ Lead ให้ด้วย) และแจ้งเตือนคนในบริษัท. */
+    'integration.process.dispatch',
     /** CD-265 — AI CARE / AI SMART อ่านบทความที่เผยแพร่ให้ลูกค้า. */
     'integration.kb.read',
     /** CD-280 — channel connector / AI CARE คุยกับลูกค้า (เดิม `integration.care.manage`). */
