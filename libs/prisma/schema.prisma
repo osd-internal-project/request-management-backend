@@ -2788,6 +2788,10 @@ model Lead {
   /// ของผู้ส่ง ไม่มี schema ฝั่งเรา; แก้ผ่าน `PATCH …/intake-data` แบบ merge (22 ต.ค. 2569).
   intakeData Json?
 
+  /// ผลวิจัยจาก agent `lead.research` — Vuvagent เขียนเองผ่าน `PUT crm/ai/leads/:id/data`
+  /// แทนทั้งก้อน; JSON ของผู้ส่ง ไม่มี schema ฝั่งเรา (2 พ.ย. 2569).
+  data Json?
+
   /// รหัสสถานะ — อ้าง `lead_statuses.code` ของบริษัทเดียวกัน. เก็บเป็น text
   /// ไม่ใช่ enum เพราะรายการสถานะแก้ได้จากหน้าตั้งค่าโดยไม่ต้อง migrate; ความ
   /// ถูกต้องบังคับที่ `LeadStatusService` (และการลบสถานะที่ยังมี Lead ใช้อยู่
@@ -9348,4 +9352,68 @@ model CompanyDocument {
 
   @@index([companyId, kind, archivedAt])
   @@map("company_documents")
+}
+
+/// ตารางทีม (เส้นทาง Lead ถึงบริการ Phase 0, 2 พ.ย. 2569) — งานของบทบาทหนึ่งที่
+/// ตรงเงื่อนไขไปทีมไหน. ทีมคือ `OrgUnit` เดิม (สมาชิก = `users.orgUnitId`)
+/// ไม่มีทะเบียนสมาชิกซ้ำ. กฎแรกตามลำดับที่ตรงชนะ. ไม่ลบจริง ปิดด้วย `active=false`.
+model AssignmentRule {
+  id         String   @id @default(uuid())
+  companyId  String
+  /// sales | presales | pricing | legal | pm | support (`ASSIGNMENT_ROLES`)
+  role       String
+  name       String
+  orgUnitId  String
+  /// ช่อง → ค่าที่รับ เช่น `{"industry":["ธนาคาร"]}` · ว่าง = รับทุกงาน
+  conditions Json     @default("{}")
+  sortOrder  Int      @default(0)
+  active     Boolean  @default(true)
+  createdBy  String
+  createdAt  DateTime @default(now())
+  updatedBy  String?
+  updatedAt  DateTime @updatedAt
+
+  @@index([companyId, role, active])
+  @@map("assignment_rules")
+}
+
+/// ค่าต่อบทบาท: คนรับสำรองเมื่อไม่ตรงกฎใด หรือทีมที่ตรงไม่มีคนว่าง (เช่น Sales
+/// Manager) และประเภทคำขอที่นับเป็น "งานเปิด" ของบทบาท (presales/pricing/legal/support).
+model AssignmentRoleSetting {
+  id             String   @id @default(uuid())
+  companyId      String
+  role           String
+  fallbackUserId String?
+  /// ประเภทคำขอที่นับงานเปิด เช่น `["SOL"]` — sales/pm นับจาก Lead/ดีล/โครงการ
+  loadTypeCodes  String[] @default([])
+  updatedBy      String
+  updatedAt      DateTime @updatedAt
+
+  @@unique([companyId, role])
+  @@map("assignment_role_settings")
+}
+
+/// ประวัติการจัดคน — ใครได้งานไหนเพราะอะไร. ใช้เป็นคิววนด้วย: งานเปิดเท่ากัน
+/// → คนที่ได้งานล่าสุดนานที่สุดก่อน.
+model Assignment {
+  id           String   @id @default(uuid())
+  companyId    String
+  role         String
+  resourceType String
+  resourceId   String
+  userId       String
+  ruleId       String?
+  orgUnitId    String?
+  /// matched (ตรงกฎ) | fallback (ส่งคนรับสำรอง)
+  reason       String
+  criteria     Json     @default("{}")
+  /// ผู้เรียกส่งซ้ำได้ (Flowable retry) — key เดิมได้ผลเดิม
+  requestKey   String?
+  createdBy    String
+  createdAt    DateTime @default(now())
+
+  @@unique([companyId, requestKey])
+  @@index([companyId, role, userId, createdAt])
+  @@index([companyId, resourceType, resourceId])
+  @@map("assignments")
 }

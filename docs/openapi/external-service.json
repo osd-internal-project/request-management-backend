@@ -1458,6 +1458,117 @@
         ]
       }
     },
+    "/api/v1/request/requests/{ref}/comments": {
+      "get": {
+        "operationId": "RequestController_comments",
+        "parameters": [
+          {
+            "name": "X-User-Token",
+            "in": "header",
+            "description": "Keycloak access token ของผู้ใช้ (ออกให้ client ที่ผูกกับระบบภายนอกนี้) — วิธีหลัก",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acting-User",
+            "in": "header",
+            "description": "อีเมลของผู้ใช้ — เฉพาะระบบภายนอกที่เปิดโหมดเดิมไว้ ส่งพร้อม X-User-Token ไม่ได้",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ref",
+            "required": true,
+            "in": "path",
+            "description": "เลขที่คำขอ หรือ uuid ก็ได้ — คนอ่านเลขที่จากอีเมลแล้วพิมพ์ ไม่ใช่ uuid",
+            "schema": {
+              "example": "REQ-OSD-PS01-26090003",
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ความเห็นพร้อมชื่อคนเขียน",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalCommentListDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDATION_FAILED` — ขาด header `X-Acting-User` หรือ body ผิดรูป",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED` — token หมดอายุ/ไม่ถูกต้อง หรือ API key ถูกเพิกถอนแล้ว",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`FORBIDDEN` เมื่อ token ไม่ใช่บัญชีบริการ หรือขาดสิทธิ์ `integration.request.create`; `COMPANY_FORBIDDEN` เมื่อคนที่สวมสิทธิ์ ไม่ได้อยู่บริษัทนั้น",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NOT_FOUND` — ไม่พบคำขอ หรืออีเมลใน `X-Acting-User` ไม่มีในระบบ/ยังไม่เคยเข้าสู่ระบบ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ความเห็นทั้งหมดในคำขอใบนี้ ใหม่สุดก่อน",
+        "tags": [
+          "external"
+        ],
+        "x-permission": [
+          "integration.request.read"
+        ],
+        "x-acting-permission": [
+          "request.read"
+        ]
+      }
+    },
     "/api/v1/request/intake": {
       "post": {
         "description": "ไม่ต้องส่ง `X-Acting-User` — คำขอนี้มี `source: \"system\"` และ timeline บันทึกบัญชีบริการ ถ้าต้องการให้ timeline เป็นชื่อคน ใช้ `POST /api/v1/request/requests` พร้อม `X-Acting-User` แทน",
@@ -10450,6 +10561,57 @@
         ]
       }
     },
+    "/api/v1/crm/ai/leads/{id}/data": {
+      "put": {
+        "operationId": "ExternalLeadAiController_replaceData",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplaceLeadDataDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เขียนผลวิจัยของ agent `lead.research` ลง `data` — แทนทั้งก้อน",
+        "tags": [
+          "crm-ai"
+        ],
+        "x-permission": [
+          "integration.crm.lead.update"
+        ]
+      }
+    },
     "/api/v1/crm/ai/leads/{id}/convert": {
       "post": {
         "description": "Lead ในกองกลาง (ยังไม่มีเจ้าของ) ตอบ 409 — มอบหมายก่อน",
@@ -14931,6 +15093,101 @@
         ]
       }
     },
+    "/api/v1/process/assignments": {
+      "post": {
+        "description": "กฎแรกที่ตรงและมีคนว่างชนะ · คนลาเต็มวันถูกข้าม · งานเปิดน้อยสุดก่อน เท่ากันวนคิว · ไม่ตรงกฎ → คนรับสำรองของบทบาท · Lead ที่มีเจ้าของแล้วตอบ `kept` ไม่เปลี่ยน · ส่ง `request_key` เดิมซ้ำได้ผลเดิม · `user_email` ใช้เป็น `X-Acting-User` ต่อได้ · Lead ต้องใช้กุญแจที่มี `integration.crm.lead.read` ด้วย",
+        "operationId": "ExternalAssignmentController_assign",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignWorkDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssignmentResultDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ถามตารางทีมว่าใครได้งานนี้ — Lead ตั้งเจ้าของให้ด้วย",
+        "tags": [
+          "process"
+        ],
+        "x-permission": [
+          "integration.process.dispatch"
+        ]
+      }
+    },
+    "/api/v1/process/notifications": {
+      "post": {
+        "description": "ลิงก์ไปเอกสารด้วย `resource_type` + `resource_id` เท่านั้น ไม่รับ URL อิสระ",
+        "operationId": "ExternalAssignmentController_notify",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotifyUserDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แจ้งเตือนคนในบริษัท (ในระบบ + อีเมล/Teams ตามที่ผู้รับตั้งไว้)",
+        "tags": [
+          "process"
+        ],
+        "x-permission": [
+          "integration.process.dispatch"
+        ]
+      }
+    },
     "/api/v1/agent-records/{id}": {
       "patch": {
         "description": "ไม่ต้องส่ง `X-Acting-User` · ปิดได้ครั้งเดียว ยิงซ้ำได้ 409 · lead ที่หาได้ส่งทาง `POST crm/leads/intake` พร้อม `intake_data.agent_record_id`",
@@ -16203,6 +16460,49 @@
         "required": [
           "parent",
           "descendants"
+        ]
+      },
+      "ExternalCommentRowDto": {
+        "type": "object",
+        "properties": {
+          "author": {
+            "type": "string",
+            "description": "ชื่อคนเขียน",
+            "example": "สมชาย ใจดี"
+          },
+          "body": {
+            "type": "string",
+            "example": "รับเรื่องแล้ว กำลังจัดทำ Solution Design"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-09-04T04:30:55.987Z"
+          }
+        },
+        "required": [
+          "author",
+          "body",
+          "createdAt"
+        ]
+      },
+      "ExternalCommentListDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExternalCommentRowDto"
+            }
+          },
+          "total": {
+            "type": "number",
+            "example": 2
+          }
+        },
+        "required": [
+          "data",
+          "total"
         ]
       },
       "CreateIntegrationRequestDto": {
@@ -18910,6 +19210,25 @@
           "stage"
         ]
       },
+      "ReplaceLeadDataDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "description": "JSON ทั้งก้อนที่จะเก็บใน `data` ของ Lead",
+            "example": {
+              "summary": "…",
+              "product_fit": {
+                "fit_score": 4
+              }
+            },
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
       "OpenCaseDto": {
         "type": "object",
         "properties": {
@@ -19923,6 +20242,145 @@
           "project_url",
           "acceptance_no",
           "acceptance_status"
+        ]
+      },
+      "AssignWorkDto": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "sales",
+              "presales",
+              "pricing",
+              "legal",
+              "pm",
+              "support"
+            ],
+            "example": "sales"
+          },
+          "resource_type": {
+            "type": "string",
+            "description": "ชนิดเอกสาร — `lead` ตั้งเจ้าของ Lead ให้ด้วย · ชนิดอื่นตอบคนที่เลือกเท่านั้น",
+            "example": "lead",
+            "maxLength": 40,
+            "minLength": 1
+          },
+          "resource_id": {
+            "type": "string",
+            "example": "30a07f22-…",
+            "maxLength": 80,
+            "minLength": 1
+          },
+          "criteria": {
+            "type": "object",
+            "description": "ค่าที่ใช้จับคู่กฎ เช่น `{\"industry\":\"ธนาคาร\"}` · `lead` ไม่ส่งก็ได้ อ่านจาก Lead เอง"
+          },
+          "request_key": {
+            "type": "string",
+            "description": "ส่งซ้ำด้วย key เดิมได้ผลเดิม (เช่น instance id + node id)",
+            "maxLength": 200,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "resource_id",
+          "resource_type",
+          "role"
+        ]
+      },
+      "AssignmentResultDto": {
+        "type": "object",
+        "properties": {
+          "assignment_id": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string"
+          },
+          "user_email": {
+            "type": "string",
+            "nullable": true
+          },
+          "user_name": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "matched",
+              "fallback",
+              "kept"
+            ]
+          },
+          "rule_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "org_unit_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "applied": {
+            "type": "boolean",
+            "description": "ตั้งเจ้าของบนเอกสารแล้ว (lead)"
+          },
+          "replayed": {
+            "type": "boolean",
+            "description": "ตอบจากการเรียกครั้งก่อนด้วย request_key เดิม"
+          }
+        },
+        "required": [
+          "assignment_id",
+          "user_id",
+          "user_email",
+          "user_name",
+          "reason",
+          "rule_id",
+          "org_unit_id",
+          "applied",
+          "replayed"
+        ]
+      },
+      "NotifyUserDto": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "ผู้รับ (`users.id` ของบริษัทนี้)",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string",
+            "example": "NDA ของ OPP-OSD-0012 ลงนามครบแล้ว",
+            "maxLength": 200,
+            "minLength": 1
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "resource_type": {
+            "type": "string",
+            "description": "เอกสารที่แจ้งเตือนพาไป (ชนิดเดียวกับ `assign`: lead, opportunity, request, project)",
+            "example": "opportunity",
+            "enum": [
+              "lead",
+              "opportunity",
+              "request",
+              "project"
+            ]
+          },
+          "resource_id": {
+            "type": "string",
+            "example": "8c1f…",
+            "maxLength": 80,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "title",
+          "user_id"
         ]
       },
       "CompleteAgentRecordDto": {

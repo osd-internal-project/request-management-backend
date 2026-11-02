@@ -21,6 +21,7 @@ import { AgentRecordsService } from './agent-records.service';
 import {
   FindLeadsDto,
   ListAgentRecordsDto,
+  ResearchLeadDto,
   StreamAgentRecordsDto,
 } from './dto/agent-record.dto';
 
@@ -87,5 +88,21 @@ export class LeadFindController {
   @Permissions(AGENT_ACTIONS['lead.find'].start)
   find(@Body() dto: FindLeadsDto, @CurrentPrincipal() principal: Principal) {
     return this.records.findLeads(dto, principal);
+  }
+
+  @ApiOperation({
+    summary: 'ให้ agent วิจัย Lead นี้',
+    description:
+      'สร้างงาน `lead.research` แล้วส่งให้ Vuvagent — ตอบ record ทันที; ' +
+      'agent เขียนผลลง `data` ของ Lead เอง',
+  })
+  @Post(':id/research')
+  @Permissions(AGENT_ACTIONS['lead.research'].start)
+  research(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ResearchLeadDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.records.researchLead(id, dto, principal);
   }
 }

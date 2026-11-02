@@ -167,6 +167,7 @@
 | GET | `/crm/ai/leads/{id}` | อ่าน Lead (ทั้งบริษัทของ key) — อีเมล/เบอร์ ต้องมี contact.read | integration.crm.lead.read |  |
 | PATCH | `/crm/ai/leads/{id}` | แก้ข้อมูล Lead — ส่งเฉพาะ field ที่เปลี่ยน | integration.crm.lead.update |  |
 | PATCH | `/crm/ai/leads/{id}/intake-data` | แก้ข้อมูล intake (JSON) — merge ทีละ key, null = ลบ key | integration.crm.lead.update |  |
+| PUT | `/crm/ai/leads/{id}/data` | เขียนผลวิจัยของ agent `lead.research` ลง `data` — แทนทั้งก้อน | integration.crm.lead.update |  |
 | POST | `/crm/ai/leads/{id}/convert` | แปลง Lead เป็นโอกาสการขาย — ไปอยู่กับเจ้าของ Lead | integration.crm.lead.convert |  |
 
 ## delivery — การส่งมอบของโครงการ — แผนส่งมอบ งวดวางบิล และการส่งต่อทีมบริการ
@@ -258,6 +259,8 @@
 | GET | `/process/logs` | อ่านบันทึกย้อนหลัง เช่น ทั้งหมดของ instance หนึ่ง | integration.process.log |  |
 | POST | `/process/logs` | บันทึกหนึ่งเหตุการณ์ของกระบวนการ 7 ขั้น | integration.process.log |  |
 | GET | `/process/refs` | เลขเอกสารและลิงก์หน้าจอ CTD ของดีลทั้งสาย (Lead → โครงการ) | integration.process.log |  |
+| POST | `/process/assignments` | ถามตารางทีมว่าใครได้งานนี้ — Lead ตั้งเจ้าของให้ด้วย | integration.process.dispatch |  |
+| POST | `/process/notifications` | แจ้งเตือนคนในบริษัท (ในระบบ + อีเมล/Teams ตามที่ผู้รับตั้งไว้) | integration.process.dispatch |  |
 
 ## request — คำขอ (Platform Request) ตั้งแต่เปิดจนปิด สำหรับระบบภายนอก เช่น chatbot
 
@@ -273,6 +276,7 @@
 | GET | `/request/requests/{ref}/actions` | ตอนนี้ผู้ใช้รายนี้ทำอะไรกับคำขอใบนี้ได้บ้าง | integration.request.read | request.read |
 | POST | `/request/requests/{ref}/actions/{action}` | สั่งทำหนึ่ง action กับคำขอใบนี้ |  |  |
 | GET | `/request/requests/{ref}/tree` | ใบนี้ ใบพ่อ และทุกใบลูกที่แตกออกไป | integration.request.read | request.read |
+| GET | `/request/requests/{ref}/comments` | ความเห็นทั้งหมดในคำขอใบนี้ ใหม่สุดก่อน | integration.request.read | request.read |
 | POST | `/request/intake` | ระบบภายนอกยื่นคำขอในนามตัวเอง — ไม่มีคนเป็นผู้ยื่น (REQ-10) | integration.request.create |  |
 | GET | `/request/intake/web-forms/{slug}` | แบบฟอร์มสาธารณะ: ข้อความและประเภทคำขอที่เปิดรับ (CD-66) | integration.request.intake |  |
 | POST | `/request/intake/web-forms/{slug}` | ลูกค้ายื่นคำขอผ่านแบบฟอร์มสาธารณะ (CD-66) | integration.request.intake |  |

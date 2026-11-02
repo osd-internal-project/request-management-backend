@@ -61,6 +61,7 @@ function setup() {
     mode: 'mock',
     dispatch: jest.fn().mockResolvedValue(undefined),
   };
+  const leads = { findOne: jest.fn().mockResolvedValue({ id: 'lead-1' }) };
 
   const service = new AgentRecordsService(
     records as never,
@@ -68,8 +69,9 @@ function setup() {
     audit as never,
     transactions as never,
     vuvagent as never,
+    leads as never,
   );
-  return { service, records, tx, audit, vuvagent };
+  return { service, records, tx, audit, vuvagent, leads };
 }
 
 describe('AGENT_ACTIONS', () => {
@@ -80,8 +82,8 @@ describe('AGENT_ACTIONS', () => {
     }
   });
 
-  it('a caller without crm.sales.read can read no lead.find record', () => {
-    expect(readableActions(seller)).toEqual(['lead.find']);
+  it('a caller without crm.sales.read can read no lead record', () => {
+    expect(readableActions(seller)).toEqual(['lead.find', 'lead.research']);
     expect(readableActions(outsider)).toEqual([]);
   });
 });
@@ -92,6 +94,15 @@ describe('route gates', () => {
       Reflect.getMetadata(
         PERMISSIONS_KEY,
         handler(LeadFindController.prototype, 'find'),
+      ),
+    ).toEqual(['crm.sales.manage']);
+  });
+
+  it('research needs the start right of lead.research', () => {
+    expect(
+      Reflect.getMetadata(
+        PERMISSIONS_KEY,
+        handler(LeadFindController.prototype, 'research'),
       ),
     ).toEqual(['crm.sales.manage']);
   });
@@ -156,6 +167,52 @@ describe('AgentRecordsService.findLeads', () => {
   });
 });
 
+describe('AgentRecordsService.researchLead', () => {
+  it('hands the agent the record id, lead id and trimmed focus', async () => {
+    const { service, tx, vuvagent, leads } = setup();
+
+    await service.researchLead('lead-1', { focus: ' ผู้ตัดสินใจ ' }, seller);
+
+    expect(leads.findOne).toHaveBeenCalledWith('lead-1', seller);
+    expect(tx.agentRecord.create).toHaveBeenCalledWith({
+      data: {
+        companyId: 'osd',
+        action: 'lead.research',
+        input: { lead_id: 'lead-1', focus: 'ผู้ตัดสินใจ' },
+        createdBy: 'u-1',
+      },
+    });
+    expect(vuvagent.dispatch).toHaveBeenCalledWith('osd', 'lead.research', {
+      agent_record_id: 'rec-1',
+      lead_id: 'lead-1',
+      focus: 'ผู้ตัดสินใจ',
+    });
+  });
+
+  it('no focus sends an empty one', async () => {
+    const { service, vuvagent } = setup();
+
+    await service.researchLead('lead-1', {}, seller);
+
+    expect(vuvagent.dispatch).toHaveBeenCalledWith('osd', 'lead.research', {
+      agent_record_id: 'rec-1',
+      lead_id: 'lead-1',
+      focus: '',
+    });
+  });
+
+  it('a lead the caller cannot see creates nothing and sends nothing', async () => {
+    const { service, tx, vuvagent, leads } = setup();
+    leads.findOne.mockRejectedValue(new Error('NOT_FOUND'));
+
+    await expect(
+      service.researchLead('other-company-lead', {}, seller),
+    ).rejects.toThrow('NOT_FOUND');
+    expect(tx.agentRecord.create).not.toHaveBeenCalled();
+    expect(vuvagent.dispatch).not.toHaveBeenCalled();
+  });
+});
+
 describe('AgentRecordsService reads', () => {
   it('list pins the company and the readable actions, and pages', async () => {
     const { service, records } = setup();
@@ -170,7 +227,7 @@ describe('AgentRecordsService reads', () => {
 
     const where = {
       AND: [
-        { companyId: 'osd', action: { in: ['lead.find'] } },
+        { companyId: 'osd', action: { in: ['lead.find', 'lead.research'] } },
         { status: 'done' },
       ],
     };
@@ -342,7 +399,7 @@ describe('AgentRecordsService.watch', () => {
         where: {
           id: { in: ['rec-1'] },
           companyId: 'osd',
-          action: { in: ['lead.find'] },
+          action: { in: ['lead.find', 'lead.research'] },
         },
       }),
     );

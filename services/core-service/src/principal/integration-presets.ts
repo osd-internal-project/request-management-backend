@@ -51,6 +51,7 @@ export const INTEGRATION_PRESETS: readonly IntegrationPreset[] = [
     modes: ['app'],
     scopes: [
       'integration.process.log',
+      'integration.process.dispatch',
       'integration.crm.lead.read',
       'integration.crm.lead.stage',
       'integration.request.intake',

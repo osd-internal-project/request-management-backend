@@ -22,6 +22,7 @@ import {
   type Observable,
 } from 'rxjs';
 import { CompanyMemberRepository } from '../access/company-member.repository';
+import { LeadsService } from '../crm/leads.service';
 import {
   readableActions,
   type AgentAction,
@@ -32,6 +33,7 @@ import type {
   CompleteAgentRecordDto,
   FindLeadsDto,
   ListAgentRecordsDto,
+  ResearchLeadDto,
 } from './dto/agent-record.dto';
 import { VuvagentClient, VuvagentDispatchError } from './vuvagent.client';
 
@@ -68,10 +70,21 @@ export class AgentRecordsService {
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
     private readonly vuvagent: VuvagentClient,
+    private readonly leads: LeadsService,
   ) {}
 
   findLeads(dto: FindLeadsDto, actor: Principal) {
     return this.start('lead.find', { topic: dto.topic.trim() }, actor);
+  }
+
+  /** A lead the caller cannot see answers 404 before anything is created. */
+  async researchLead(leadId: string, dto: ResearchLeadDto, actor: Principal) {
+    await this.leads.findOne(leadId, actor);
+    return this.start(
+      'lead.research',
+      { lead_id: leadId, focus: dto.focus?.trim() ?? '' },
+      actor,
+    );
   }
 
   async list(actor: Principal, query: ListAgentRecordsDto) {

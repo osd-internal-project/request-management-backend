@@ -455,6 +455,18 @@ The caller is the engine; whoever completed a human task travels as
 `actor_email`, recorded, never authenticated. A ninth is again a decision to
 state here.
 
+**The ninth: `process/assignments` and `process/notifications` (2 Nov 2026,
+user decision).** OSD Workflow asks the company's team table (`admin/
+assignment-rules`, teams are `OrgUnit`s) who gets a piece of work, under its
+own scope `integration.process.dispatch`, and tells one of the company's people
+that something happened. The answer is data — matching rule, leave, open work,
+queue — never a process decision; for a Lead it also writes the owner through
+`LeadsService.assign`, and a Lead that already has one keeps it. A notice links
+to a document by type and id, never to a URL the caller supplies. Closing a
+request is **not** here: the workflow completes it through `requests/:ref/
+actions/complete` acting as the assignee, so REQ-08 still holds. A tenth is
+again a decision to state here.
+
 **The ninth: `crm/ai/leads/*` (22 Oct 2026, user decision).** An AI agent works
 leads for the company, not for a person, so there is no person's scope to borrow.
 Its rows are every lead of the key's company: `integration.crm.lead.read` sets

@@ -1,5 +1,5 @@
 import { ActsAsCompany } from '../auth/acts-as-company.decorator';
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Put } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   AppError,
@@ -11,6 +11,7 @@ import {
   ConvertLeadDto,
   CurrentApiKey,
   LeadsService,
+  ReplaceLeadDataDto,
   UpdateLeadDto,
   UpdateLeadIntakeDataDto,
   type ApiKeyContext,
@@ -97,6 +98,21 @@ export class ExternalLeadAiController {
   ) {
     requireCompanyKey(key);
     return this.leads.updateIntakeData(id, dto, actor);
+  }
+
+  @Put(':id/data')
+  @Permissions('integration.crm.lead.update')
+  @ApiOperation({
+    summary: 'เขียนผลวิจัยของ agent `lead.research` ลง `data` — แทนทั้งก้อน',
+  })
+  replaceData(
+    @Param('id') id: string,
+    @Body() dto: ReplaceLeadDataDto,
+    @CurrentPrincipal() actor: Principal,
+    @CurrentApiKey() key: ApiKeyContext | undefined,
+  ) {
+    requireCompanyKey(key);
+    return this.leads.replaceData(id, dto, actor);
   }
 
   @Post(':id/convert')

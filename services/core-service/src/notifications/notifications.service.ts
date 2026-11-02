@@ -1858,6 +1858,28 @@ export class NotificationsService {
   }
 
   /**
+   * เส้นทาง Lead ถึงบริการ Phase 0 — the team table gave someone work
+   * (`workflow.assigned`), or a workflow step tells someone something
+   * (`workflow.notice`). The resource is what the notice opens.
+   */
+  async workflowNotice(
+    userId: string,
+    companyId: string,
+    eventType: 'workflow.assigned' | 'workflow.notice',
+    values: Record<string, string>,
+    resource: { type: string; id: string } | null,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType,
+      values,
+      resourceType: resource?.type ?? null,
+      resourceId: resource?.id ?? null,
+    });
+  }
+
+  /**
    * CD-54 — the wording for one event in one company: the company's own if
    * it saved one, else the standard. An event the catalog does not declare
    * throws — wording must not live only inside a caller again.
@@ -1886,8 +1908,8 @@ export class NotificationsService {
     companyId: string;
     eventType: string;
     values: Record<string, string>;
-    resourceType: string;
-    resourceId: string;
+    resourceType: string | null;
+    resourceId: string | null;
   }): Promise<void> {
     const { values, ...rest } = event;
     try {

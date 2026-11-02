@@ -31,6 +31,7 @@ function setup() {
     findOne: jest.fn(() => Promise.resolve({ ...LEAD })),
     update: jest.fn(() => Promise.resolve({})),
     updateIntakeData: jest.fn(() => Promise.resolve({})),
+    replaceData: jest.fn(() => Promise.resolve({})),
     convert: jest.fn(() => Promise.resolve({})),
   };
   return {
@@ -86,6 +87,23 @@ describe('crm/ai/leads — AI acting for the company', () => {
     ).toThrow('API key ที่ผูกบริษัท');
     expect(leads.findOne).not.toHaveBeenCalled();
     expect(leads.convert).not.toHaveBeenCalled();
+    expect(() =>
+      controller.replaceData('lead-1', { data: {} }, actor, unbound),
+    ).toThrow('API key ที่ผูกบริษัท');
+    expect(leads.replaceData).not.toHaveBeenCalled();
+  });
+
+  it('data is handed to the screen service as the company robot', async () => {
+    const { controller, leads } = setup();
+    const actor = robot(['integration.crm.lead.update']);
+
+    await controller.replaceData('lead-1', { data: { a: 1 } }, actor, BOUND);
+
+    expect(leads.replaceData).toHaveBeenCalledWith(
+      'lead-1',
+      { data: { a: 1 } },
+      actor,
+    );
   });
 
   it('each route asks for its own scope and admits service accounts only', () => {
@@ -101,6 +119,7 @@ describe('crm/ai/leads — AI acting for the company', () => {
     expect(gate('findOne')).toEqual(['integration.crm.lead.read']);
     expect(gate('update')).toEqual(['integration.crm.lead.update']);
     expect(gate('updateIntakeData')).toEqual(['integration.crm.lead.update']);
+    expect(gate('replaceData')).toEqual(['integration.crm.lead.update']);
     expect(gate('convert')).toEqual(['integration.crm.lead.convert']);
     expect(
       Reflect.getMetadata(SERVICE_ACCOUNT_ONLY_KEY, ExternalLeadAiController),

@@ -26,6 +26,14 @@ export const AGENT_ACTIONS = {
     defaultTimeoutMinutes: 30,
     payloadFields: ['agent_record_id', 'topic'],
   },
+  /** the agent writes what it finds to `leads.data` itself */
+  'lead.research': {
+    read: 'crm.sales.read',
+    start: 'crm.sales.manage',
+    vendor: 'vuvagent',
+    defaultTimeoutMinutes: 30,
+    payloadFields: ['agent_record_id', 'lead_id', 'focus'],
+  },
 } as const satisfies Record<string, AgentActionSpec>;
 
 export type AgentAction = keyof typeof AGENT_ACTIONS;

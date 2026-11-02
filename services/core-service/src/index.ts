@@ -194,6 +194,14 @@ export { WorkflowTriggerModule } from './workflow-trigger/workflow-trigger.modul
 // End-to-End process log — OSD Workflow writes it through external-service
 export { ProcessLogModule } from './process-log/process-log.module';
 export { ProcessLogService } from './process-log/process-log.service';
+// ตารางทีม — OSD Workflow asks who gets a piece of work, and tells people things
+export { AssignmentModule } from './assignment/assignment.module';
+export { AssignmentService } from './assignment/assignment.service';
+export {
+  AssignWorkDto,
+  AssignmentResultDto,
+  NotifyUserDto,
+} from './assignment/dto/assignment.dto';
 export { ProcessRefsService } from './process-log/process-refs.service';
 export {
   ProcessRefsDto,
