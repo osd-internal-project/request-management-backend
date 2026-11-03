@@ -23,7 +23,7 @@ const seller = {
   activeCompanyId: 'osd',
   ledUnitIds: [],
   scopedUnitIds: [],
-  permissions: ['crm.sales.read', 'crm.sales.manage'],
+  permissions: ['crm.lead.read', 'crm.lead.manage'],
 } as never;
 
 const outsider = {
@@ -82,7 +82,7 @@ describe('AGENT_ACTIONS', () => {
     }
   });
 
-  it('a caller without crm.sales.read can read no lead record', () => {
+  it('a caller without crm.lead.read can read no lead record', () => {
     expect(readableActions(seller)).toEqual(['lead.find', 'lead.research']);
     expect(readableActions(outsider)).toEqual([]);
   });
@@ -95,7 +95,7 @@ describe('route gates', () => {
         PERMISSIONS_KEY,
         handler(LeadFindController.prototype, 'find'),
       ),
-    ).toEqual(['crm.sales.manage']);
+    ).toEqual(['crm.lead.manage']);
   });
 
   it('research needs the start right of lead.research', () => {
@@ -104,7 +104,7 @@ describe('route gates', () => {
         PERMISSIONS_KEY,
         handler(LeadFindController.prototype, 'research'),
       ),
-    ).toEqual(['crm.sales.manage']);
+    ).toEqual(['crm.lead.manage']);
   });
 
   it('reads are authenticated and filtered per action in the service', () => {

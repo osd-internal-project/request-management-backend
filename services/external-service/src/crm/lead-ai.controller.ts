@@ -45,7 +45,7 @@ export class ExternalLeadAiController {
   constructor(private readonly leads: LeadsService) {}
 
   @Get(':id')
-  @Permissions('integration.crm.lead.read')
+  @Permissions('integration.crm.lead.read.all')
   @ApiOperation({
     summary: 'อ่าน Lead (ทั้งบริษัทของ key) — อีเมล/เบอร์ ต้องมี contact.read',
     description:

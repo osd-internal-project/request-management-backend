@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
+  AnyPermission,
   CurrentPrincipal,
   Permissions,
   SensitiveResource,
@@ -93,7 +94,7 @@ export class LeadsController {
       'หน้าจอเป็นคนกรอง active เอง. โค้ดตั้งได้ต่อบริษัท ไม่ใช่ enum',
   })
   @Get('statuses')
-  @Permissions('crm.sales.read')
+  @Permissions('crm.lead.read')
   listStatuses(@CurrentPrincipal() principal: Principal) {
     return this.statuses.listAll(principal.activeCompanyId);
   }
@@ -104,7 +105,7 @@ export class LeadsController {
       'view=mine|all|unassigned — unassigned คือกองกลางที่ยังไม่มีเจ้าของ',
   })
   @Get()
-  @Permissions('crm.sales.read')
+  @Permissions('crm.lead.read')
   list(
     @CurrentPrincipal() principal: Principal,
     @Query() query: ListLeadsQueryDto,
@@ -118,7 +119,7 @@ export class LeadsController {
     description: 'mode=dry_run ตอบรายงานเต็มโดยไม่เขียนอะไรลงฐานข้อมูล',
   })
   @Post('import')
-  @Permissions('crm.sales.manage')
+  @Permissions('crm.lead.manage')
   import(
     @Body() dto: ImportLeadsDto,
     @CurrentPrincipal() principal: Principal,
@@ -130,7 +131,7 @@ export class LeadsController {
     summary: 'สร้าง Lead',
   })
   @Post()
-  @Permissions('crm.sales.manage')
+  @Permissions('crm.lead.manage')
   create(@Body() dto: CreateLeadDto, @CurrentPrincipal() principal: Principal) {
     return this.leads.create(dto, principal);
   }
@@ -141,7 +142,7 @@ export class LeadsController {
     description: 'นอกขอบเขตที่มองเห็นตอบ 404 ไม่ใช่ 403 (SCOPE-03)',
   })
   @Get(':id')
-  @Permissions('crm.sales.read')
+  @Permissions('crm.lead.read')
   findOne(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
     return this.leads.findOne(id, principal);
   }
@@ -151,7 +152,7 @@ export class LeadsController {
     description: 'Lead ที่ปิดแล้ว (kind won/lost) แก้ไม่ได้',
   })
   @Patch(':id')
-  @Permissions('crm.sales.manage')
+  @Permissions('crm.lead.manage')
   update(
     @Param('id') id: string,
     @Body() dto: UpdateLeadDto,
@@ -163,7 +164,7 @@ export class LeadsController {
   /**
    * รับใบจากกองกลาง หรือแจกให้คนอื่น — `owner_user_id` ว่าง = รับเอง.
    *
-   * `crm.sales.manage` ตัวเดียวกับการแก้ Lead: คนที่แก้ใบนั้นได้คือคนที่รับไป
+   * `crm.lead.manage` ตัวเดียวกับการแก้ Lead: คนที่แก้ใบนั้นได้คือคนที่รับไป
    * ดูแลได้ และการมอบหมายไม่ได้เปิดอะไรที่กว้างกว่านั้น. ใบที่มีเจ้าของแล้วจะ
    * "รับ" ซ้ำไม่ได้ — ต้องระบุปลายทางชัดเจนว่าโอนให้ใคร (`LeadsService.assign`).
    */
@@ -174,7 +175,7 @@ export class LeadsController {
       'ใบที่มีเจ้าของแล้วต้องระบุปลายทางว่าโอนให้ใคร',
   })
   @Patch(':id/owner')
-  @Permissions('crm.sales.manage')
+  @Permissions('crm.lead.manage')
   assign(
     @Param('id') id: string,
     @Body() dto: AssignLeadDto,
@@ -191,7 +192,7 @@ export class LeadsController {
       'ถูกปฏิเสธด้วย 409 ให้ใช้ convert หรือ disqualify แทน',
   })
   @Patch(':id/status')
-  @Permissions('crm.sales.manage')
+  @Permissions('crm.lead.manage')
   setStatus(
     @Param('id') id: string,
     @Body() dto: UpdateLeadStatusDto,
@@ -207,7 +208,7 @@ export class LeadsController {
       'ไม่เกิน 16 KB · Lead ที่ปิดแล้วตอบ 409',
   })
   @Patch(':id/intake-data')
-  @Permissions('crm.sales.manage')
+  @Permissions('crm.lead.manage')
   updateIntakeData(
     @Param('id') id: string,
     @Body() dto: UpdateLeadIntakeDataDto,
@@ -224,7 +225,7 @@ export class LeadsController {
       'outcome (reached · no_answer · interested · not_interested) ใช้กับการติดต่อเท่านั้น',
   })
   @Post(':id/activities')
-  @Permissions('crm.sales.manage')
+  @Permissions('crm.lead.manage')
   addActivity(
     @Param('id') id: string,
     @Body() dto: CreateLeadActivityDto,
@@ -238,7 +239,7 @@ export class LeadsController {
     summary: 'แก้กิจกรรม หรือติ๊กเสร็จ',
   })
   @Patch(':id/activities/:activityId')
-  @Permissions('crm.sales.manage')
+  @Permissions('crm.lead.manage')
   updateActivity(
     @Param('id') id: string,
     @Param('activityId') activityId: string,
@@ -255,7 +256,7 @@ export class LeadsController {
       'ปิดด้วยสถานะ kind lost (`status` เลือกได้ เช่น lost / disqualified) — ไม่มี DELETE ในโมดูลนี้',
   })
   @Post(':id/disqualify')
-  @Permissions('crm.sales.manage')
+  @Permissions('crm.lead.manage')
   disqualify(
     @Param('id') id: string,
     @Body() dto: DisqualifyLeadDto,
@@ -274,7 +275,7 @@ export class LeadsController {
       'บนโอกาสการขาย',
   })
   @Post(':id/convert')
-  @Permissions('crm.sales.manage')
+  @Permissions('crm.lead.manage')
   convert(
     @Param('id') id: string,
     @Body() dto: ConvertLeadDto,
@@ -733,7 +734,8 @@ export class CampaignsController {
       'จำนวน Lead · แปลงเป็นโอกาส · ชนะ · ยอดขาย · ต้นทุนต่อ Lead — นับเฉพาะ Lead ที่ผู้เรียกเห็นได้',
   })
   @Get()
-  @Permissions('crm.sales.read')
+  // ฟอร์ม Lead เลือกแคมเปญจากรายการนี้; ยอดนับเฉพาะ Lead ที่ผู้เรียกเห็น
+  @AnyPermission('crm.sales.read', 'crm.lead.read')
   list(
     @CurrentPrincipal() principal: Principal,
     @Query() query: ListCampaignsQueryDto,
@@ -769,7 +771,7 @@ export class CampaignsController {
 
 /**
  * CD-85 บริษัทเป้าหมายของแกน Getter — เล็งไว้ จัดลำดับ แล้ว "เริ่มเข้าหา" เป็น
- * Lead. สิทธิ์เดียวกับ Lead: อ่าน `crm.sales.read`, ทำรายการ `crm.sales.manage`.
+ * Lead. สิทธิ์เดียวกับ Lead: อ่าน `crm.lead.read`, ทำรายการ `crm.lead.manage`.
  */
 @ApiTags('target-accounts')
 @ApiBearerAuth()
@@ -783,7 +785,7 @@ export class TargetAccountsController {
       'เรียงตามลำดับความสำคัญ (high ก่อน) แล้วเก่าก่อน · view=mine|all|unassigned',
   })
   @Get()
-  @Permissions('crm.sales.read')
+  @Permissions('crm.lead.read')
   list(
     @CurrentPrincipal() principal: Principal,
     @Query() query: ListTargetAccountsQueryDto,
@@ -793,7 +795,7 @@ export class TargetAccountsController {
 
   @ApiOperation({ summary: 'เพิ่มบริษัทเป้าหมาย' })
   @Post()
-  @Permissions('crm.sales.manage')
+  @Permissions('crm.lead.manage')
   create(
     @Body() dto: CreateTargetAccountDto,
     @CurrentPrincipal() principal: Principal,
@@ -803,7 +805,7 @@ export class TargetAccountsController {
 
   @ApiOperation({ summary: 'แก้ไขบริษัทเป้าหมาย / ลำดับ / ผู้รับผิดชอบ' })
   @Patch(':id')
-  @Permissions('crm.sales.manage')
+  @Permissions('crm.lead.manage')
   update(
     @Param('id') id: string,
     @Body() dto: UpdateTargetAccountDto,
@@ -818,7 +820,7 @@ export class TargetAccountsController {
       'ข้อมูลบริษัทไหลไปที่ Lead แล้วงานเดินบน Lead ต่อ · ตอบ lead_id',
   })
   @Post(':id/approach')
-  @Permissions('crm.sales.manage')
+  @Permissions('crm.lead.manage')
   approach(
     @Param('id') id: string,
     @Body() dto: ApproachTargetAccountDto,
@@ -829,7 +831,7 @@ export class TargetAccountsController {
 
   @ApiOperation({ summary: 'ตัดบริษัทเป้าหมายออกพร้อมเหตุผล' })
   @Post(':id/drop')
-  @Permissions('crm.sales.manage')
+  @Permissions('crm.lead.manage')
   drop(
     @Param('id') id: string,
     @Body() dto: DropTargetAccountDto,
@@ -840,7 +842,7 @@ export class TargetAccountsController {
 
   @ApiOperation({ summary: 'นำบริษัทที่ตัดออกกลับมาเล็งใหม่' })
   @Post(':id/reopen')
-  @Permissions('crm.sales.manage')
+  @Permissions('crm.lead.manage')
   reopen(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
     return this.targets.reopen(id, principal);
   }

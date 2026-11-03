@@ -26,8 +26,8 @@
 | แก้ข้อมูล Lead | `PATCH crm/ai/leads/{id}` | `integration.crm.lead.update` |
 | แก้ intake data (JSON) | `PATCH crm/ai/leads/{id}/intake-data` | `integration.crm.lead.update` |
 | แปลงเป็นโอกาสการขาย | `POST crm/ai/leads/{id}/convert` | `integration.crm.lead.convert` |
-| อ่าน Lead | `GET crm/ai/leads/{id}` | `integration.crm.lead.read` |
-| อ่าน email/เบอร์ของ Lead | (route เดียวกับบรรทัดบน) | `integration.crm.lead.read` + `integration.crm.lead.contact.read` |
+| อ่าน Lead | `GET crm/ai/leads/{id}` | `integration.crm.lead.read.all` |
+| อ่าน email/เบอร์ของ Lead | (route เดียวกับบรรทัดบน) | `integration.crm.lead.read.all` + `integration.crm.lead.contact.read` |
 
 ค่าที่ใช้ในทุกคำสั่งข้างล่าง (แทนค่าของคุณเอง)
 

@@ -193,7 +193,10 @@ interface Registry {
         ids.bob,
         companyA,
         ALL_PERMISSIONS.filter(
-          (p) => p !== 'crm.sales.read.all' && p !== 'crm.customer.read.all',
+          (p) =>
+            p !== 'crm.sales.read.all' &&
+            p !== 'crm.lead.read.all' &&
+            p !== 'crm.customer.read.all',
         ),
       );
       carol = principal(ids.carol, companyB, ALL_PERMISSIONS);

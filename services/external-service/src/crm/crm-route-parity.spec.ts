@@ -113,7 +113,7 @@ function stripComments(source: string): string {
 function routesIn(file: string, dir: string, decorator: string): Route[] {
   const source = stripComments(readFileSync(join(dir, file), 'utf8'));
   const pattern = new RegExp(
-    `@(Get|Post|Patch|Put|Delete)\\((?:'([^']*)')?\\)[\\s\\S]{0,400}?@${decorator}\\('([\\w.]+)'\\)`,
+    `@(Get|Post|Patch|Put|Delete)\\((?:'([^']*)')?\\)[\\s\\S]{0,400}?@${decorator}\\('([\\w.]+)'[,)]`,
     'g',
   );
 
@@ -150,7 +150,9 @@ function index(dir: string, decorator: string): Map<string, Route[]> {
 }
 
 describe('the external CRM surface corresponds to the screens', () => {
-  const core = index(CORE_CRM, 'Permissions');
+  // core's `@AnyPermission` widens a screen route; its first entry is the one the
+  // external twin keeps, since `@ActingPermissions` requires every entry
+  const core = index(CORE_CRM, '(?:Permissions|AnyPermission)');
   const external = index(EXTERNAL_CRM, 'ActingPermissions');
 
   it('covers the same controllers', () => {

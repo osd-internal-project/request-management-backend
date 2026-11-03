@@ -288,12 +288,12 @@ describe('ApiKeyAdminService — ออกกุญแจช่องทาง�
 
       await service.updateScopes(
         'key-1',
-        { scopes: ['integration.crm.lead.read'] },
+        { scopes: ['integration.crm.lead.read.all'] },
         admin(),
       );
 
       expect(keys.update.mock.calls[0][0].data).toEqual({
-        scopes: ['integration.crm.lead.read'],
+        scopes: ['integration.crm.lead.read.all'],
       });
     });
 
@@ -302,14 +302,14 @@ describe('ApiKeyAdminService — ออกกุญแจช่องทาง�
 
       await service.updateScopes(
         'key-1',
-        { scopes: ['integration.crm.lead.read'] },
+        { scopes: ['integration.crm.lead.read.all'] },
         admin(),
       );
 
       expect(audits[0]).toMatchObject({
         eventType: 'admin.api_key.scopes_changed',
         before: { scopes: ['integration.crm.lead.create'] },
-        after: { scopes: ['integration.crm.lead.read'] },
+        after: { scopes: ['integration.crm.lead.read.all'] },
       });
     });
 
@@ -332,13 +332,13 @@ describe('ApiKeyAdminService — ออกกุญแจช่องทาง�
       await service.updateScopes(
         'key-1',
         {
-          scopes: ['integration.crm.lead.read', 'integration.crm.lead.read'],
+          scopes: ['integration.crm.lead.read.all', 'integration.crm.lead.read.all'],
         },
         admin(),
       );
 
       expect(keys.update.mock.calls[0][0].data.scopes).toEqual([
-        'integration.crm.lead.read',
+        'integration.crm.lead.read.all',
       ]);
     });
 
@@ -350,7 +350,7 @@ describe('ApiKeyAdminService — ออกกุญแจช่องทาง�
       await expect(
         service.updateScopes(
           'key-1',
-          { scopes: ['integration.crm.lead.read'] },
+          { scopes: ['integration.crm.lead.read.all'] },
           admin(),
         ),
       ).rejects.toMatchObject({ code: 'UNPROCESSABLE' });
@@ -363,7 +363,7 @@ describe('ApiKeyAdminService — ออกกุญแจช่องทาง�
       await expect(
         service.updateScopes(
           'key-x',
-          { scopes: ['integration.crm.lead.read'] },
+          { scopes: ['integration.crm.lead.read.all'] },
           admin(),
         ),
       ).rejects.toMatchObject({ code: 'NOT_FOUND' });

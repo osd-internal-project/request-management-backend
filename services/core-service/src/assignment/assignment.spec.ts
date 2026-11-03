@@ -9,7 +9,7 @@ const actor = {
   userId: 'svc-workflow',
   activeCompanyId: 'osd',
   isServiceAccount: true,
-  permissions: ['integration.process.dispatch', 'integration.crm.lead.read'],
+  permissions: ['integration.process.dispatch', 'integration.crm.lead.read.all'],
 } as never;
 
 const person = (id: string) => ({
@@ -42,6 +42,7 @@ function build(opts: {
   leave?: string[];
   lead?: Record<string, unknown> | null;
   earlier?: Record<string, unknown> | null;
+  history?: Record<string, unknown>[];
 }) {
   const members = opts.members ?? {};
   const people = Object.values(members).flat();
@@ -56,6 +57,7 @@ function build(opts: {
   };
   const assignments = {
     findFirst: jest.fn(async () => opts.earlier ?? null),
+    findMany: jest.fn(async () => opts.history ?? []),
     lastAssigned: jest.fn(
       async () => new Map(Object.entries(opts.last ?? {})),
     ),
@@ -85,6 +87,7 @@ function build(opts: {
       opts.lead === undefined
         ? {
             id: 'lead-1',
+            name: 'ธนาคารกรุงทอง',
             ownerUserId: null,
             industry: 'ธนาคาร',
             productGroup: null,
@@ -93,6 +96,7 @@ function build(opts: {
           }
         : opts.lead,
     ),
+    findMany: jest.fn(async () => [{ id: 'lead-1', name: 'ธนาคารกรุงทอง' }]),
   };
   const leadsService = { assign: jest.fn(async () => ({})) };
   const availability = {
@@ -201,7 +205,7 @@ describe('AssignmentService.assign', () => {
       'u2',
       'osd',
       'workflow.assigned',
-      expect.any(Object),
+      expect.objectContaining({ subject: 'Lead ธนาคารกรุงทอง' }),
       { type: 'lead', id: 'lead-1' },
     );
   });
@@ -357,5 +361,26 @@ describe('AssignmentService.notify', () => {
     await expect(
       service.notify({ user_id: 'u1', title: 'x', resource_type: 'lead' }, actor),
     ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+  });
+
+  it('history names a Lead by its name, other work by type and id', async () => {
+    const row = (resourceType: string, resourceId: string) => ({
+      id: `a-${resourceId}`,
+      role: 'sales',
+      resourceType,
+      resourceId,
+      userId: 'u1',
+      ruleId: null,
+      orgUnitId: null,
+      reason: 'fallback',
+      criteria: {},
+      createdAt: new Date('2026-11-02T09:00:00Z'),
+    });
+    const { service } = build({ history: [row('lead', 'lead-1'), row('request', 'req-9')] });
+    const out = await service.history(actor);
+    expect(out.map((r) => r.resource_label)).toEqual([
+      'Lead ธนาคารกรุงทอง',
+      'request req-9',
+    ]);
   });
 });

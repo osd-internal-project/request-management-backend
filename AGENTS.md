@@ -149,6 +149,7 @@ that hands one account a company list it has no roles in.
 |---|---|
 | Shared guards, error catalog, pagination, scope maths | `libs/share/src/` |
 | The permission catalog (declared in code) | `libs/share/src/policy/permissions.ts` |
+| How a new permission is named and split out | `docs/permission-taxonomy.md` |
 | One Prisma schema for every service | `libs/prisma/schema.prisma` |
 | Identity, org, roles, policy, audit | `services/user-service/src/` |
 | Request, approval, SLA, notification, CRM | `services/core-service/src/` |

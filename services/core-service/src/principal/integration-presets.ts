@@ -21,7 +21,7 @@ export const INTEGRATION_PRESETS: readonly IntegrationPreset[] = [
     name: 'AI ทำงาน Lead แทนบริษัท',
     modes: ['app'],
     scopes: [
-      'integration.crm.lead.read',
+      'integration.crm.lead.read.all',
       'integration.crm.lead.update',
       'integration.crm.lead.convert',
     ],
@@ -42,6 +42,7 @@ export const INTEGRATION_PRESETS: readonly IntegrationPreset[] = [
       'integration.approval.decide',
       'integration.crm.customer.read',
       'integration.crm.sales.read',
+      'integration.crm.lead.read',
       'integration.assistant.read',
     ],
   },
@@ -52,7 +53,7 @@ export const INTEGRATION_PRESETS: readonly IntegrationPreset[] = [
     scopes: [
       'integration.process.log',
       'integration.process.dispatch',
-      'integration.crm.lead.read',
+      'integration.crm.lead.read.all',
       'integration.crm.lead.stage',
       'integration.request.intake',
       'integration.approval.create',

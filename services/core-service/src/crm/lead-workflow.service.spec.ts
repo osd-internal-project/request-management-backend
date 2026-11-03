@@ -21,7 +21,7 @@ function status(over: Partial<LeadStatusRow> = {}): LeadStatusRow {
 /** service account ของ workflow — ถือ integration.* และอ่านได้ทั้งบริษัท. */
 function robot(
   permissions: string[] = [
-    'integration.crm.lead.read',
+    'integration.crm.lead.read.all',
     'integration.crm.lead.stage',
     'crm.sales.read.all',
   ],
@@ -345,10 +345,10 @@ describe('LeadWorkflowService — หน้าต่างที่ workflow eng
     expect(leads.update).not.toHaveBeenCalled();
   });
 
-  it('SCOPE-03: key ที่ถือ integration.crm.lead.read เห็นทั้งบริษัท แต่ไม่ข้ามบริษัท (22 ต.ค. 2569)', async () => {
+  it('SCOPE-03: key ที่ถือ integration.crm.lead.read.all เห็นทั้งบริษัท แต่ไม่ข้ามบริษัท (22 ต.ค. 2569)', async () => {
     const { service, whereUsed } = harness();
 
-    await service.facts('lead-1', robot(['integration.crm.lead.read']));
+    await service.facts('lead-1', robot(['integration.crm.lead.read.all']));
 
     // เครื่องทำงานแทนบริษัท ไม่มีขอบเขตของคนให้ยืม — เดิมแคบเป็นเจ้าของ/ผู้สร้าง
     // จนใบที่เซลล์รับไปแล้วตอบ 404
