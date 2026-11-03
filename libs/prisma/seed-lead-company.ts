@@ -144,6 +144,8 @@ async function main(): Promise<void> {
   console.log('  org units:   ROOT → SALES');
   console.log(`  role:        ${ROLE.code} — ${ROLE.permissions.join(', ')}`);
   console.log(`  connections: ${connections} copied from ${SOURCE_COMPANY}`);
+  // the company switcher lists memberships only (AGENTS.md "Adding a company?")
+  console.log('  next:        UAT_SEED_ALLOW=1 yarn uat:seed <admin> so the UAT admin sees this company');
 }
 
 main()
