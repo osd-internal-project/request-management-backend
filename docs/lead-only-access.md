@@ -56,6 +56,7 @@ A01/A02 ไม่มี twin บน Open API — สั่งจากหน้�
 
 ## 4. agent ของบริษัทนี้
 
-connection `lead.find` / `lead.research` คัดลอกจาก `OSD_DEMO` (URL, endpoint, key ของ Vuvagent เดียวกัน). core ส่งงานถึง Vuvagent ได้
-แต่ endpoint เดิมของ Vuvagent เรียกกลับด้วย key ของ `OSD_DEMO` ซึ่งผูกบริษัท — อ่าน Lead (A03) และปิดงาน (A04) ของ `OSD_LEAD` จะได้ 404
-จนกว่าฝั่ง Vuvagent จะมี endpoint ที่ใช้ key ของ `OSD_LEAD`. ไม่อย่างนั้น record ค้าง `processing` จนหมดเวลา (30 นาที) แล้วเป็น `failed`.
+ระบบภายนอก "Lead API" (key ที่ Vuvagent ใช้, webhook `lead.*` → Vuvagent, connection `lead.find` / `lead.research`) ย้ายจาก `OSD_DEMO`
+มาที่ `OSD_LEAD` เมื่อ 3 พ.ย. 2569 — บริษัทของงาน agent ตัดสินจาก key (`remote-principal.guard.ts`) ไม่ใช่จากสิ่งที่ Vuvagent ส่งมา
+ตั้งแต่นั้น `OSD_DEMO` ไม่มี AI หา/ค้นข้อมูล Lead; Lead intake ผ่าน key `osd_vuvagent` ยังลง `OSD_DEMO`.
+ย้อนกลับ = เปลี่ยน `companyId` ของ integration, key, webhook และ connection ของ "Lead API" กลับเป็น `OSD_DEMO`.

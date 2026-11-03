@@ -52,6 +52,12 @@ async function upsertUnit(
 }
 
 async function copyAgentConnections(companyId: string): Promise<number> {
+  // "Lead API" itself was moved here from OSD_DEMO (3 พ.ย. 2569) — keep what is set up
+  const existing = await prisma.outboundConnection.count({
+    where: { companyId, action: { in: AGENT_ACTIONS } },
+  });
+  if (existing) return 0;
+
   const source = await prisma.company.findUnique({ where: { code: SOURCE_COMPANY } });
   if (!source) throw new Error(`No company "${SOURCE_COMPANY}" to copy the agent from.`);
 
