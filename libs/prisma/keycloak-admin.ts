@@ -276,9 +276,13 @@ export async function ensureKeycloakUser(
   // 409 means someone created it between the lookup and now — fall through to
   // the second lookup rather than failing the whole run.
   if (!response.ok && response.status !== 409) {
+    // 400 is the realm refusing the account itself (password policy, email), not a missing role
+    const detail = (await response.text().catch(() => '')).slice(0, 300);
     throw new Error(
-      `Could not create "${account.username}" (HTTP ${response.status}). ` +
-        'The service account needs the realm-management role manage-users.',
+      `Could not create "${account.username}" (HTTP ${response.status}) ${detail}`.trim() +
+        (response.status === 403
+          ? '\nThe service account needs the realm-management role manage-users.'
+          : ''),
     );
   }
 
