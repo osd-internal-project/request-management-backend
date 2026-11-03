@@ -5399,10 +5399,10 @@
           "crm"
         ],
         "x-permission": [
-          "integration.crm.sales.read"
+          "integration.crm.lead.read"
         ],
         "x-acting-permission": [
-          "crm.sales.read"
+          "crm.lead.read"
         ]
       }
     },
@@ -5545,10 +5545,10 @@
           "crm"
         ],
         "x-permission": [
-          "integration.crm.sales.read"
+          "integration.crm.lead.read"
         ],
         "x-acting-permission": [
-          "crm.sales.read"
+          "crm.lead.read"
         ]
       },
       "post": {
@@ -5607,10 +5607,10 @@
           "crm"
         ],
         "x-permission": [
-          "integration.crm.sales.manage"
+          "integration.crm.lead.manage"
         ],
         "x-acting-permission": [
-          "crm.sales.manage"
+          "crm.lead.manage"
         ]
       }
     },
@@ -5672,10 +5672,10 @@
           "crm"
         ],
         "x-permission": [
-          "integration.crm.sales.manage"
+          "integration.crm.lead.manage"
         ],
         "x-acting-permission": [
-          "crm.sales.manage"
+          "crm.lead.manage"
         ]
       }
     },
@@ -5735,10 +5735,10 @@
           "crm"
         ],
         "x-permission": [
-          "integration.crm.sales.read"
+          "integration.crm.lead.read"
         ],
         "x-acting-permission": [
-          "crm.sales.read"
+          "crm.lead.read"
         ]
       },
       "patch": {
@@ -5806,10 +5806,10 @@
           "crm"
         ],
         "x-permission": [
-          "integration.crm.sales.manage"
+          "integration.crm.lead.manage"
         ],
         "x-acting-permission": [
-          "crm.sales.manage"
+          "crm.lead.manage"
         ]
       }
     },
@@ -5879,10 +5879,10 @@
           "crm"
         ],
         "x-permission": [
-          "integration.crm.sales.manage"
+          "integration.crm.lead.manage"
         ],
         "x-acting-permission": [
-          "crm.sales.manage"
+          "crm.lead.manage"
         ]
       }
     },
@@ -5952,10 +5952,10 @@
           "crm"
         ],
         "x-permission": [
-          "integration.crm.sales.manage"
+          "integration.crm.lead.manage"
         ],
         "x-acting-permission": [
-          "crm.sales.manage"
+          "crm.lead.manage"
         ]
       }
     },
@@ -6025,10 +6025,10 @@
           "crm"
         ],
         "x-permission": [
-          "integration.crm.sales.manage"
+          "integration.crm.lead.manage"
         ],
         "x-acting-permission": [
-          "crm.sales.manage"
+          "crm.lead.manage"
         ]
       }
     },
@@ -6098,10 +6098,10 @@
           "crm"
         ],
         "x-permission": [
-          "integration.crm.sales.manage"
+          "integration.crm.lead.manage"
         ],
         "x-acting-permission": [
-          "crm.sales.manage"
+          "crm.lead.manage"
         ]
       }
     },
@@ -6178,10 +6178,10 @@
           "crm"
         ],
         "x-permission": [
-          "integration.crm.sales.manage"
+          "integration.crm.lead.manage"
         ],
         "x-acting-permission": [
-          "crm.sales.manage"
+          "crm.lead.manage"
         ]
       }
     },
@@ -6251,10 +6251,10 @@
           "crm"
         ],
         "x-permission": [
-          "integration.crm.sales.manage"
+          "integration.crm.lead.manage"
         ],
         "x-acting-permission": [
-          "crm.sales.manage"
+          "crm.lead.manage"
         ]
       }
     },
@@ -6324,10 +6324,10 @@
           "crm"
         ],
         "x-permission": [
-          "integration.crm.sales.manage"
+          "integration.crm.lead.manage"
         ],
         "x-acting-permission": [
-          "crm.sales.manage"
+          "crm.lead.manage"
         ]
       }
     },
@@ -8955,10 +8955,10 @@
           "crm"
         ],
         "x-permission": [
-          "integration.crm.sales.read"
+          "integration.crm.lead.read"
         ],
         "x-acting-permission": [
-          "crm.sales.read"
+          "crm.lead.read"
         ]
       },
       "post": {
@@ -9017,10 +9017,10 @@
           "crm"
         ],
         "x-permission": [
-          "integration.crm.sales.manage"
+          "integration.crm.lead.manage"
         ],
         "x-acting-permission": [
-          "crm.sales.manage"
+          "crm.lead.manage"
         ]
       }
     },
@@ -9089,10 +9089,10 @@
           "crm"
         ],
         "x-permission": [
-          "integration.crm.sales.manage"
+          "integration.crm.lead.manage"
         ],
         "x-acting-permission": [
-          "crm.sales.manage"
+          "crm.lead.manage"
         ]
       }
     },
@@ -9162,10 +9162,10 @@
           "crm"
         ],
         "x-permission": [
-          "integration.crm.sales.manage"
+          "integration.crm.lead.manage"
         ],
         "x-acting-permission": [
-          "crm.sales.manage"
+          "crm.lead.manage"
         ]
       }
     },
@@ -9234,10 +9234,10 @@
           "crm"
         ],
         "x-permission": [
-          "integration.crm.sales.manage"
+          "integration.crm.lead.manage"
         ],
         "x-acting-permission": [
-          "crm.sales.manage"
+          "crm.lead.manage"
         ]
       }
     },
@@ -9296,10 +9296,10 @@
           "crm"
         ],
         "x-permission": [
-          "integration.crm.sales.manage"
+          "integration.crm.lead.manage"
         ],
         "x-acting-permission": [
-          "crm.sales.manage"
+          "crm.lead.manage"
         ]
       }
     },
@@ -10364,7 +10364,7 @@
           "crm-workflow"
         ],
         "x-permission": [
-          "integration.crm.lead.read"
+          "integration.crm.lead.read.all"
         ]
       }
     },
@@ -10457,7 +10457,7 @@
           "crm-ai"
         ],
         "x-permission": [
-          "integration.crm.lead.read"
+          "integration.crm.lead.read.all"
         ]
       },
       "patch": {
@@ -15044,7 +15044,7 @@
     },
     "/api/v1/process/assignments": {
       "post": {
-        "description": "กฎแรกที่ตรงและมีคนว่างชนะ · คนลาเต็มวันถูกข้าม · งานเปิดน้อยสุดก่อน เท่ากันวนคิว · ไม่ตรงกฎ → คนรับสำรองของบทบาท · Lead ที่มีเจ้าของแล้วตอบ `kept` ไม่เปลี่ยน · ส่ง `request_key` เดิมซ้ำได้ผลเดิม · `user_email` ใช้เป็น `X-Acting-User` ต่อได้ · Lead ต้องใช้กุญแจที่มี `integration.crm.lead.read` ด้วย",
+        "description": "กฎแรกที่ตรงและมีคนว่างชนะ · คนลาเต็มวันถูกข้าม · งานเปิดน้อยสุดก่อน เท่ากันวนคิว · ไม่ตรงกฎ → คนรับสำรองของบทบาท · Lead ที่มีเจ้าของแล้วตอบ `kept` ไม่เปลี่ยน · ส่ง `request_key` เดิมซ้ำได้ผลเดิม · `user_email` ใช้เป็น `X-Acting-User` ต่อได้ · Lead ต้องใช้กุญแจที่มี `integration.crm.lead.read.all` ด้วย",
         "operationId": "ExternalAssignmentController_assign",
         "parameters": [
           {

@@ -59,7 +59,7 @@ API ของหน้าเว็บ
 | ขั้นในสายงาน | สิทธิ์กุญแจ | เปิดอะไร |
 |---|---|---|
 | รับ Lead จากเว็บฟอร์ม/อีเวนต์ | `integration.crm.lead.create` | `POST crm/leads/intake` (ไม่มีคน) |
-| workflow engine | `integration.crm.lead.read`, `integration.crm.lead.stage` | อ่าน facts / บันทึกขั้นของ Lead |
+| workflow engine | `integration.crm.lead.read.all`, `integration.crm.lead.stage` | อ่าน facts / บันทึกขั้นของ Lead |
 | งานขาย | `integration.crm.sales.read`, `integration.crm.sales.manage` | Lead, ดีล, ใบเสนอราคา, ใบสั่งขาย |
 | ทะเบียนลูกค้า | `integration.crm.customer.read`, `integration.crm.customer.manage` | ลูกค้า ผู้ติดต่อ สถานที่ |
 | ตั้งค่า CRM | `integration.crm.admin.manage` | `crm/admin/*` |

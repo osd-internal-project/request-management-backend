@@ -20,16 +20,16 @@ interface AgentActionSpec {
  */
 export const AGENT_ACTIONS = {
   'lead.find': {
-    read: 'crm.sales.read',
-    start: 'crm.sales.manage',
+    read: 'crm.lead.read',
+    start: 'crm.lead.manage',
     vendor: 'vuvagent',
     defaultTimeoutMinutes: 30,
     payloadFields: ['agent_record_id', 'topic'],
   },
   /** the agent merges what it finds into `intakeData.research` itself */
   'lead.research': {
-    read: 'crm.sales.read',
-    start: 'crm.sales.manage',
+    read: 'crm.lead.read',
+    start: 'crm.lead.manage',
     vendor: 'vuvagent',
     defaultTimeoutMinutes: 30,
     payloadFields: ['agent_record_id', 'lead_id', 'focus'],

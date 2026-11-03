@@ -9,7 +9,7 @@ const actor = {
   userId: 'svc-workflow',
   activeCompanyId: 'osd',
   isServiceAccount: true,
-  permissions: ['integration.process.dispatch', 'integration.crm.lead.read'],
+  permissions: ['integration.process.dispatch', 'integration.crm.lead.read.all'],
 } as never;
 
 const person = (id: string) => ({

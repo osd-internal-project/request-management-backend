@@ -30,7 +30,7 @@ import {
  * กองกลางจนกว่าจะมีคนกด `PATCH /leads/{id}/owner`.
  *
  * **แยกจาก `LeadWorkflowController` ทั้งที่ prefix เดียวกัน** ด้วยเหตุผลที่
- * ไฟล์นั้นเขียนไว้: คนละผู้เรียก คนละสิทธิ์ คนละสัญญา. `integration.crm.lead.read`
+ * ไฟล์นั้นเขียนไว้: คนละผู้เรียก คนละสิทธิ์ คนละสัญญา. `integration.crm.lead.read.all`
  * / `.stage` เป็นของ workflow engine ส่วน `integration.crm.lead.create` เป็นของ
  * ช่องทางรับ Lead — รวมไว้ controller เดียวเมื่อไร วันหนึ่งเว็บฟอร์มจะเลื่อนขั้น
  * Lead ได้.

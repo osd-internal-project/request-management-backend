@@ -195,7 +195,7 @@ export class LeadWorkflowService {
   /**
    * SCOPE-02/03 — ผ่านตัวกรองเดียวกับทุกหน้าจอ (non-negotiable ข้อ 2) และ
    * มองไม่เห็น = 404 ไม่ใช่ 403 (ข้อ 3). key ของ workflow ถือ
-   * `integration.crm.lead.read` จึงเห็นทั้งบริษัท (`readsAllLeads`) — key ที่ออก
+   * `integration.crm.lead.read.all` จึงเห็นทั้งบริษัท (`readsAllLeads`) — key ที่ออก
    * จากหน้าจอถือ `crm.sales.read.all` ไม่ได้ เพราะเป็นสิทธิ์ของคน.
    */
   private async requireVisible(id: string, actor: Principal) {

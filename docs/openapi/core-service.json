@@ -6058,7 +6058,7 @@
           "leads"
         ],
         "x-permission": [
-          "crm.sales.read"
+          "crm.lead.read"
         ]
       }
     },
@@ -6183,7 +6183,7 @@
           "leads"
         ],
         "x-permission": [
-          "crm.sales.read"
+          "crm.lead.read"
         ]
       },
       "post": {
@@ -6224,7 +6224,7 @@
           "leads"
         ],
         "x-permission": [
-          "crm.sales.manage"
+          "crm.lead.manage"
         ]
       }
     },
@@ -6268,7 +6268,7 @@
           "leads"
         ],
         "x-permission": [
-          "crm.sales.manage"
+          "crm.lead.manage"
         ]
       }
     },
@@ -6310,7 +6310,7 @@
           "leads"
         ],
         "x-permission": [
-          "crm.sales.read"
+          "crm.lead.read"
         ]
       },
       "patch": {
@@ -6360,7 +6360,7 @@
           "leads"
         ],
         "x-permission": [
-          "crm.sales.manage"
+          "crm.lead.manage"
         ]
       }
     },
@@ -6412,7 +6412,7 @@
           "leads"
         ],
         "x-permission": [
-          "crm.sales.manage"
+          "crm.lead.manage"
         ]
       }
     },
@@ -6464,7 +6464,7 @@
           "leads"
         ],
         "x-permission": [
-          "crm.sales.manage"
+          "crm.lead.manage"
         ]
       }
     },
@@ -6516,7 +6516,7 @@
           "leads"
         ],
         "x-permission": [
-          "crm.sales.manage"
+          "crm.lead.manage"
         ]
       }
     },
@@ -6568,7 +6568,7 @@
           "leads"
         ],
         "x-permission": [
-          "crm.sales.manage"
+          "crm.lead.manage"
         ]
       }
     },
@@ -6627,7 +6627,7 @@
           "leads"
         ],
         "x-permission": [
-          "crm.sales.manage"
+          "crm.lead.manage"
         ]
       }
     },
@@ -6679,7 +6679,7 @@
           "leads"
         ],
         "x-permission": [
-          "crm.sales.manage"
+          "crm.lead.manage"
         ]
       }
     },
@@ -6731,7 +6731,7 @@
           "leads"
         ],
         "x-permission": [
-          "crm.sales.manage"
+          "crm.lead.manage"
         ]
       }
     },
@@ -8478,9 +8478,6 @@
         "summary": "แคมเปญพร้อมผล",
         "tags": [
           "campaigns"
-        ],
-        "x-permission": [
-          "crm.sales.read"
         ]
       },
       "post": {
@@ -8690,7 +8687,7 @@
           "target-accounts"
         ],
         "x-permission": [
-          "crm.sales.read"
+          "crm.lead.read"
         ]
       },
       "post": {
@@ -8731,7 +8728,7 @@
           "target-accounts"
         ],
         "x-permission": [
-          "crm.sales.manage"
+          "crm.lead.manage"
         ]
       }
     },
@@ -8782,7 +8779,7 @@
           "target-accounts"
         ],
         "x-permission": [
-          "crm.sales.manage"
+          "crm.lead.manage"
         ]
       }
     },
@@ -8834,7 +8831,7 @@
           "target-accounts"
         ],
         "x-permission": [
-          "crm.sales.manage"
+          "crm.lead.manage"
         ]
       }
     },
@@ -8885,7 +8882,7 @@
           "target-accounts"
         ],
         "x-permission": [
-          "crm.sales.manage"
+          "crm.lead.manage"
         ]
       }
     },
@@ -8926,7 +8923,7 @@
           "target-accounts"
         ],
         "x-permission": [
-          "crm.sales.manage"
+          "crm.lead.manage"
         ]
       }
     },
@@ -13487,7 +13484,7 @@
           "leads"
         ],
         "x-permission": [
-          "crm.sales.manage"
+          "crm.lead.manage"
         ]
       }
     },
@@ -13539,7 +13536,7 @@
           "leads"
         ],
         "x-permission": [
-          "crm.sales.manage"
+          "crm.lead.manage"
         ]
       }
     },
@@ -46707,7 +46704,7 @@
             "description": "ชุดสิทธิ์ใหม่ทั้งชุด — แทนที่ของเดิม ไม่ใช่เพิ่มเข้าไป",
             "example": [
               "integration.crm.lead.create",
-              "integration.crm.lead.read"
+              "integration.crm.lead.read.all"
             ],
             "type": "array",
             "items": {

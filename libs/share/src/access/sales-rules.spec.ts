@@ -89,10 +89,17 @@ describe('SCOPE-02 visibleLeadsWhere', () => {
     expect(where.OR).toContainEqual({ ownerUserId: null });
   });
 
-  it('crm.sales.read.all needs no pool branch — the company is already visible', () => {
-    expect(visibleLeadsWhere(subject({ readsAllSales: true }))).toEqual({
-      companyId: OSD,
-    });
+  it('crm.lead.read.all needs no pool branch — the company is already visible', () => {
+    expect(
+      visibleLeadsWhere(subject({ readsAllLeadsInCompany: true })),
+    ).toEqual({ companyId: OSD });
+  });
+
+  it('crm.sales.read.all alone no longer widens leads (crm.lead.* split)', () => {
+    const where = visibleLeadsWhere(subject({ readsAllSales: true }));
+
+    expect(where.OR).toContainEqual({ ownerUserId: ME });
+    expect(where.OR).toContainEqual({ ownerUserId: null });
   });
 
   it('a lead-reading machine (AI, workflow) sees the whole company, still pinned to it', () => {
@@ -127,12 +134,12 @@ describe('salesAccessSubject', () => {
     ).toBe(true);
   });
 
-  it('integration.crm.lead.read → readsAllLeads; a person never holds it', () => {
+  it('integration.crm.lead.read.all → readsAllLeads; a person never holds it', () => {
     expect(salesAccessSubject(principal).readsAllLeads).toBe(false);
     expect(
       salesAccessSubject({
         ...principal,
-        permissions: ['integration.crm.lead.read'] as Permission[],
+        permissions: ['integration.crm.lead.read.all'] as Permission[],
         isServiceAccount: true,
       }).readsAllLeads,
     ).toBe(true);
@@ -144,7 +151,7 @@ describe('salesAccessSubject', () => {
       ...principal,
       permissions: [
         'crm.sales.read',
-        'integration.crm.lead.read',
+        'integration.crm.lead.read.all',
       ] as Permission[],
       isServiceAccount: false,
     });
@@ -153,7 +160,7 @@ describe('salesAccessSubject', () => {
     expect(
       salesAccessSubject({
         ...principal,
-        permissions: ['integration.crm.lead.read'] as Permission[],
+        permissions: ['integration.crm.lead.read.all'] as Permission[],
       }).readsAllLeads,
     ).toBe(false);
   });

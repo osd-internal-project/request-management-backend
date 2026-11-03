@@ -37,7 +37,7 @@ export class ExternalAssignmentController {
       'กฎแรกที่ตรงและมีคนว่างชนะ · คนลาเต็มวันถูกข้าม · งานเปิดน้อยสุดก่อน เท่ากันวนคิว · ' +
       'ไม่ตรงกฎ → คนรับสำรองของบทบาท · Lead ที่มีเจ้าของแล้วตอบ `kept` ไม่เปลี่ยน · ' +
       'ส่ง `request_key` เดิมซ้ำได้ผลเดิม · `user_email` ใช้เป็น `X-Acting-User` ต่อได้ · ' +
-      'Lead ต้องใช้กุญแจที่มี `integration.crm.lead.read` ด้วย',
+      'Lead ต้องใช้กุญแจที่มี `integration.crm.lead.read.all` ด้วย',
   })
   @ApiCreatedResponse({ type: AssignmentResultDto })
   assign(@Body() dto: AssignWorkDto, @CurrentPrincipal() principal: Principal) {

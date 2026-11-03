@@ -384,10 +384,10 @@
       "path": "/api/v1/crm/leads"
     },
     "x-acting-permission": [
-      "crm.sales.read"
+      "crm.lead.read"
     ],
     "x-permission": [
-      "integration.crm.sales.read"
+      "integration.crm.lead.read"
     ],
     "x-sensitive-resource": ""
   },
@@ -410,10 +410,10 @@
       "path": "/api/v1/crm/leads/{id}"
     },
     "x-acting-permission": [
-      "crm.sales.read"
+      "crm.lead.read"
     ],
     "x-permission": [
-      "integration.crm.sales.read"
+      "integration.crm.lead.read"
     ],
     "x-sensitive-resource": ""
   },
@@ -429,10 +429,10 @@
       "path": "/api/v1/crm/leads/statuses"
     },
     "x-acting-permission": [
-      "crm.sales.read"
+      "crm.lead.read"
     ],
     "x-permission": [
-      "integration.crm.sales.read"
+      "integration.crm.lead.read"
     ],
     "x-sensitive-resource": ""
   },
@@ -704,10 +704,10 @@
       "path": "/api/v1/crm/leads/{id}/owner"
     },
     "x-acting-permission": [
-      "crm.sales.manage"
+      "crm.lead.manage"
     ],
     "x-permission": [
-      "integration.crm.sales.manage"
+      "integration.crm.lead.manage"
     ],
     "x-sensitive-resource": ""
   },
@@ -737,10 +737,10 @@
       "path": "/api/v1/crm/leads/{id}/status"
     },
     "x-acting-permission": [
-      "crm.sales.manage"
+      "crm.lead.manage"
     ],
     "x-permission": [
-      "integration.crm.sales.manage"
+      "integration.crm.lead.manage"
     ],
     "x-sensitive-resource": ""
   },
@@ -917,10 +917,10 @@
       "path": "/api/v1/crm/leads"
     },
     "x-acting-permission": [
-      "crm.sales.manage"
+      "crm.lead.manage"
     ],
     "x-permission": [
-      "integration.crm.sales.manage"
+      "integration.crm.lead.manage"
     ],
     "x-sensitive-resource": ""
   },
@@ -985,10 +985,10 @@
       "path": "/api/v1/crm/leads/{id}/activities"
     },
     "x-acting-permission": [
-      "crm.sales.manage"
+      "crm.lead.manage"
     ],
     "x-permission": [
-      "integration.crm.sales.manage"
+      "integration.crm.lead.manage"
     ],
     "x-sensitive-resource": ""
   },
@@ -1027,10 +1027,10 @@
       "path": "/api/v1/crm/leads/{id}/convert"
     },
     "x-acting-permission": [
-      "crm.sales.manage"
+      "crm.lead.manage"
     ],
     "x-permission": [
-      "integration.crm.sales.manage"
+      "integration.crm.lead.manage"
     ],
     "x-sensitive-resource": ""
   },
