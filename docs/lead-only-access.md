@@ -58,5 +58,9 @@ A01/A02 ไม่มี twin บน Open API — สั่งจากหน้�
 
 ระบบภายนอก "Lead API" (key ที่ Vuvagent ใช้, webhook `lead.*` → Vuvagent, connection `lead.find` / `lead.research`) ย้ายจาก `OSD_DEMO`
 มาที่ `OSD_LEAD` เมื่อ 3 พ.ย. 2569 — บริษัทของงาน agent ตัดสินจาก key (`remote-principal.guard.ts`) ไม่ใช่จากสิ่งที่ Vuvagent ส่งมา
-ตั้งแต่นั้น `OSD_DEMO` ไม่มี AI หา/ค้นข้อมูล Lead; Lead intake ผ่าน key `osd_vuvagent` ยังลง `OSD_DEMO`.
-ย้อนกลับ = เปลี่ยน `companyId` ของ integration, key, webhook และ connection ของ "Lead API" กลับเป็น `OSD_DEMO`.
+agent `lead.find` ของ Vuvagent สร้าง Lead ด้วย key ของ "osd_vuvagent" (`crm/leads/intake`) และปิดงานด้วย key ของ "Lead API" —
+คนละ key ในงานเดียว จึงย้าย "osd_vuvagent" (integration, key 2 ใบ, webhook `lead.*`) มาด้วยในวันเดียวกัน.
+ทั้งสองไม่มี scope `integration.request.*` / `process.*` / `approval.*` และไม่มี event ของ request — request workflow ของ
+`OSD_DEMO` (integration `osd-workflow`) ไม่เกี่ยว. ตั้งแต่นั้น `OSD_DEMO` ไม่มี AI หา/ค้นข้อมูล Lead และไม่มี webhook `lead.*` ไป Vuvagent.
+`OSD_LEAD` มี webhook `lead.*` ไป URL เดียวกันสองตัว (หนึ่งตัวต่อ integration) — Vuvagent ได้ event ละสองครั้ง เหมือนตอนอยู่ใน demo.
+ย้อนกลับ = เปลี่ยน `companyId` ของ integration, key, webhook และ connection ของทั้งสอง integration กลับเป็น `OSD_DEMO`.
