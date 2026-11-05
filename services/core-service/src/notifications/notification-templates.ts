@@ -620,6 +620,18 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
     },
   },
   {
+    eventType: 'crm.email.received',
+    label: 'ลูกค้าตอบอีเมลของงานขาย (ถึงเจ้าของ Lead/ดีล)',
+    title: 'ลูกค้าตอบอีเมล ({{intent}}): {{party}}',
+    body: '{{subject}} — จาก {{sender}}',
+    variables: {
+      intent: { label: 'ผลจัดประเภท', sample: 'สนใจ' },
+      party: { label: 'Lead/ดีล', sample: 'บริษัท กขค จำกัด' },
+      subject: { label: 'หัวเรื่อง', sample: 'RE: ขอบคุณที่สนใจบริการของเรา' },
+      sender: { label: 'ผู้ส่ง', sample: 'somchai@example.co.th' },
+    },
+  },
+  {
     eventType: 'care.handover',
     label: 'บทสนทนา AI CARE ส่งต่อถึงคน (ถึงทีมบริการ หรือเวรเมื่อนอกเวลา)',
     title: 'ลูกค้ารอเจ้าหน้าที่: {{sender}} ({{channel}})',
@@ -1250,7 +1262,10 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
     title: '{{title}}',
     body: '{{body}}',
     variables: {
-      title: { label: 'หัวเรื่อง', sample: 'NDA ของ OPP-OSD-0012 ลงนามครบแล้ว' },
+      title: {
+        label: 'หัวเรื่อง',
+        sample: 'NDA ของ OPP-OSD-0012 ลงนามครบแล้ว',
+      },
       body: { label: 'รายละเอียด', sample: 'เริ่มขอเอกสารลับจากลูกค้าได้' },
     },
   },

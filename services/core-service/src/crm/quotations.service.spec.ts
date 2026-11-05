@@ -89,6 +89,10 @@ function harness(
     /** CD-206 — SAP costs stored for the products. */
     vendorCosts?: Record<string, unknown>[];
     costMaxAgeDays?: number;
+    /** 5 พ.ย. 2569 — CRM setting: standard prices need no approval. */
+    autoApproveStandardPrice?: boolean;
+    /** Products the SAP catalog describes (createAtStandardPrice). */
+    products?: Map<string, { name: string; unit: string | null }>;
   } = {},
 ) {
   const audits: { eventType: string; after?: Record<string, unknown> }[] = [];
@@ -119,10 +123,21 @@ function harness(
   };
 
   // CD-27 — the SAP catalog check; individual tests make it reject.
-  const catalog = { assertKnownCodes: jest.fn(() => Promise.resolve()) };
+  const catalog = {
+    assertKnownCodes: jest.fn(() => Promise.resolve()),
+    describe: jest.fn(() => Promise.resolve(options.products ?? new Map())),
+  };
   // CD-195 — standard prices a line may name (none by default).
   const prices = {
-    findMany: jest.fn(() => Promise.resolve(options.prices ?? [])),
+    // a row that names its scope is returned only to a query for that scope
+    findMany: jest.fn((args?: { where?: { scope?: string } }) =>
+      Promise.resolve(
+        ((options.prices ?? []) as { scope?: string }[]).filter(
+          (row) =>
+            !args?.where?.scope || !row.scope || row.scope === args.where.scope,
+        ),
+      ),
+    ),
   };
   // CD-197 — the groups the deal's customer sits in.
   const segmentAssignments = {
@@ -148,6 +163,7 @@ function harness(
           vatPct: 7,
           quotationApprovalTypeCode: 'PRA',
           minMarginByWorkType: options.minMarginByWorkType ?? {},
+          autoApproveStandardPrice: options.autoApproveStandardPrice ?? false,
         }),
       ),
     } as never,
@@ -1134,5 +1150,182 @@ describe('CD-206 ต้นทุนจากคู่ค้า', () => {
       { form_data: Record<string, unknown> },
     ];
     expect(dto.form_data.stale_cost).toBe('no');
+  });
+});
+
+describe('งานขายอัตโนมัติ (5 พ.ย. 2569) — ราคามาตรฐานไม่ต้องอนุมัติ', () => {
+  const standardLine = {
+    lineNo: 1,
+    productCode: 'CLOUD-BK-100',
+    priceId: 'price-1',
+    unitPrice: D(1000),
+    discountPct: D(0),
+  };
+  const standardRow = {
+    discountTotal: D(0),
+    lines: [standardLine],
+  };
+  const inEffect = [{ id: 'price-1', unitPrice: D(1000) }];
+
+  it('every line at its standard price, no discount: approved at once, no PRA', async () => {
+    const { service, tx, requestsService, audits, prices } = harness({
+      autoApproveStandardPrice: true,
+      row: standardRow,
+      prices: inEffect,
+    });
+
+    await service.submit('qt-1', {}, principal(), 'Bearer t');
+
+    expect(requestsService.create).not.toHaveBeenCalled();
+    expect(tx.quotation.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: 'approved',
+          approvalRequired: false,
+        }) as unknown,
+      }),
+    );
+    expect(audits.map((a) => a.eventType)).toContain('crm.quotation.approved');
+    // only standard-scope rows in effect count
+    expect(prices.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          scope: 'standard',
+          id: { in: ['price-1'] },
+        }) as unknown,
+      }),
+    );
+  });
+
+  it.each([
+    [
+      'a discount on a line',
+      { lines: [{ ...standardLine, discountPct: D(5) }] },
+      inEffect,
+    ],
+    [
+      'a line with no price-list row',
+      { lines: [{ ...standardLine, priceId: null }] },
+      inEffect,
+    ],
+    [
+      'a price other than the list’s',
+      standardRow,
+      [{ id: 'price-1', unitPrice: D(900) }],
+    ],
+    [
+      'a special (segment) price',
+      standardRow,
+      [{ id: 'price-1', unitPrice: D(1000), scope: 'segment' }],
+    ],
+  ])('%s still goes to PRA', async (_label, row, rows) => {
+    const { service, requestsService } = harness({
+      autoApproveStandardPrice: true,
+      row,
+      prices: rows,
+    });
+    await service.submit('qt-1', {}, principal(), 'Bearer t');
+    expect(requestsService.create).toHaveBeenCalled();
+  });
+
+  it('the CRM setting off = every quotation goes to PRA, as CD-201', async () => {
+    const { service, requestsService } = harness({
+      autoApproveStandardPrice: false,
+      row: standardRow,
+      prices: inEffect,
+    });
+    await service.submit('qt-1', {}, principal(), 'Bearer t');
+    expect(requestsService.create).toHaveBeenCalled();
+  });
+
+  it('createAtStandardPrice refuses a product with no standard price before writing anything', async () => {
+    const { service, quotations } = harness({
+      products: new Map([
+        ['CLOUD-BK-100', { name: 'Cloud Backup', unit: 'ชุด' }],
+      ]),
+      prices: [],
+    });
+    (
+      service as unknown as { requireOpenOpportunity: unknown }
+    ).requireOpenOpportunity = jest.fn(() =>
+      Promise.resolve({ id: 'opp-1', currency: 'THB' }),
+    );
+
+    await expect(
+      service.createAtStandardPrice(
+        'opp-1',
+        [
+          { product_code: 'CLOUD-BK-100', quantity: 1 },
+          { product_code: 'NOT-SOLD', quantity: 1 },
+        ],
+        principal(),
+      ),
+    ).rejects.toMatchObject({
+      code: 'CRM_QUOTATION_UNPRICED',
+      details: [
+        { field: 'items[0].product_code', reason: 'no_standard_price' },
+        { field: 'items[1].product_code', reason: 'unknown_product' },
+      ],
+    });
+    expect(quotations.create).not.toHaveBeenCalled();
+  });
+
+  it('createAtStandardPrice drafts lines from the price list, then submits', async () => {
+    const { service } = harness({
+      products: new Map([
+        ['CLOUD-BK-100', { name: 'Cloud Backup 100 GB', unit: 'ชุด' }],
+      ]),
+      prices: [
+        {
+          id: 'price-new',
+          productCode: 'CLOUD-BK-100',
+          unitPrice: D(1200),
+          priceModel: 'monthly',
+        },
+        {
+          id: 'price-old',
+          productCode: 'CLOUD-BK-100',
+          unitPrice: D(1000),
+          priceModel: 'monthly',
+        },
+      ],
+    });
+    const internals = service as unknown as Record<string, jest.Mock>;
+    internals.requireOpenOpportunity = jest.fn(() =>
+      Promise.resolve({ id: 'opp-1', currency: 'THB' }),
+    );
+    const create = jest.fn(() => Promise.resolve({ id: 'qt-9' }));
+    const submit = jest.fn(() =>
+      Promise.resolve({ id: 'qt-9', status: 'approved' }),
+    );
+    internals.createForOpportunity = create;
+    internals.submit = submit;
+
+    const result = await service.createAtStandardPrice(
+      'opp-1',
+      [{ product_code: 'CLOUD-BK-100', quantity: 2 }],
+      principal(),
+    );
+
+    expect(create).toHaveBeenCalledWith(
+      'opp-1',
+      {
+        lines: [
+          {
+            product_code: 'CLOUD-BK-100',
+            description: 'Cloud Backup 100 GB',
+            quantity: 2,
+            unit: 'ชุด',
+            unit_price: 1200,
+            price_id: 'price-new',
+            price_model: 'monthly',
+            term_months: 12,
+          },
+        ],
+      },
+      expect.anything(),
+    );
+    expect(submit).toHaveBeenCalledWith('qt-9', {}, expect.anything());
+    expect(result).toMatchObject({ status: 'approved' });
   });
 });

@@ -489,6 +489,25 @@ another company's id answers 404, a finished one 409. The leads it finds arrive
 through `crm/leads/intake` with `intake_data.agent_record_id`, not through this route.
 An eleventh is again a decision to state here.
 
+**The eleventh: `crm/ai` sales — `leads/:id/emails`, `emails/:id`,
+`opportunities/:id/quotations`, `quotations/:id/email|accept` (5 Nov 2026,
+user decision).** OSD Workflow sells for the company from a qualified Lead to
+the customer's confirmation: a thank-you (and proposal) email, the customer's
+answer classified into `EMAIL_INTENTS` and announced as `crm.email.received`
+(a trigger filters on the intent), a quotation drafted from the standard price
+list and submitted — at standard prices it is approved at once
+(`autoApproveStandardPrice`, a CRM setting, default on; off = PRA as CD-201) —
+the PDF sent in the customer's own thread, and the confirmation or PO
+recorded. Scopes `integration.crm.email.send|read`,
+`integration.crm.quotation.create|accept`, and `integration.crm.sales.read.all`
+(the deals and quotations of the key's company, machine only, like
+`lead.read.all`). The deal stays its owner's; the recipient is always the
+Lead's or deal's own address, never one the caller names; the mailbox
+(`MAIL_MODE`, one mailbox) is read only for messages in threads the system
+opened. A product with no standard price answers 422
+`CRM_QUOTATION_UNPRICED` so the workflow hands the deal to the salesperson.
+`docs/sales-email-flow.md`. A twelfth is again a decision to state here.
+
 **core-service's one public business surface: e-signature (CD-14, 30 Sep
 2026).** `EsignPublicController` — `esign/public/:token/*` (a signer's link:
 view, one-time code, document, sign, decline) and `esign/verify/:code*` (the

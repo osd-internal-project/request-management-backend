@@ -60,6 +60,21 @@ export const INTEGRATION_PRESETS: readonly IntegrationPreset[] = [
     ],
   },
   {
+    code: 'workflow-sales',
+    name: 'OSD Workflow — งานขายอัตโนมัติ (อีเมล/ใบเสนอราคา)',
+    modes: ['app'],
+    scopes: [
+      'integration.process.log',
+      'integration.crm.lead.read.all',
+      'integration.crm.lead.convert',
+      'integration.crm.sales.read.all',
+      'integration.crm.email.send',
+      'integration.crm.email.read',
+      'integration.crm.quotation.create',
+      'integration.crm.quotation.accept',
+    ],
+  },
+  {
     code: 'customer-care',
     name: 'ช่องทางคุยกับลูกค้า (AI CARE)',
     modes: ['app'],

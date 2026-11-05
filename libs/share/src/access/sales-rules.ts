@@ -40,7 +40,10 @@ export function salesAccessSubject(principal: {
     activeCompanyId: principal.activeCompanyId,
     ledUnitIds: principal.ledUnitIds,
     scopedUnitIds: principal.scopedUnitIds,
-    readsAllSales: principal.permissions.includes('crm.sales.read.all'),
+    readsAllSales:
+      principal.permissions.includes('crm.sales.read.all') ||
+      (principal.isServiceAccount === true &&
+        principal.permissions.includes('integration.crm.sales.read.all')),
     readsAllLeadsInCompany: principal.permissions.includes('crm.lead.read.all'),
     readsAllLeads:
       principal.isServiceAccount === true &&

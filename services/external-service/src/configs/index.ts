@@ -192,6 +192,28 @@ export default () => ({
    * (`<PUBLIC_WEB_URL>/pages/opportunities/<id>`). Unset = paths only.
    */
   publicWebUrl: process.env.PUBLIC_WEB_URL,
+  /**
+   * งานขายอัตโนมัติ (5 พ.ย. 2569) — อีเมลจาก mailbox ของบริษัทผ่าน Microsoft Graph.
+   * off (ค่าตั้งต้น) = ส่งไม่ได้ · mock = ไม่ออกนอกเครื่อง (จำลองคำตอบได้จากหน้า admin)
+   * · graph = ของจริง: App ใน Entra ID (Mail.Send + Mail.ReadWrite แบบ Application,
+   * admin consent, Application Access Policy จำกัดเฉพาะ mailbox นี้).
+   * MAIL_MAILBOX = shared mailbox (ระหว่างรอ IT ใช้ mailbox ของผู้พัฒนาได้).
+   */
+  mail: {
+    mode: process.env.MAIL_MODE ?? 'off',
+    mailbox: process.env.MAIL_MAILBOX ?? '',
+    /** ชื่อผู้ส่งที่ลูกค้าเห็น; ว่าง = ชื่อของ mailbox. */
+    senderName: process.env.MAIL_SENDER_NAME ?? '',
+    graph: {
+      tenantId: process.env.MAIL_GRAPH_TENANT_ID,
+      clientId: process.env.MAIL_GRAPH_CLIENT_ID,
+      clientSecret: process.env.MAIL_GRAPH_CLIENT_SECRET,
+    },
+    /** อ่าน inbox หาคำตอบทุกกี่ ms; 0 = ปิด. */
+    pollIntervalMs: 0,
+    /** ตอนเริ่ม ย้อนดู inbox กี่ชั่วโมง. */
+    pollLookbackHours: Number(process.env.MAIL_POLL_LOOKBACK_HOURS ?? 24),
+  },
   teams: {
     mode: process.env.TEAMS_MODE ?? 'off',
     bot: {

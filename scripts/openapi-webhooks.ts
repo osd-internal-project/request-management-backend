@@ -4,6 +4,7 @@ import type {
   DomainEventName,
   EsignEventPayload,
   LeadEventPayload,
+  CrmEmailEventPayload,
   RequestEventPayload,
   SlaEventPayload,
   StepEventPayload,
@@ -64,6 +65,16 @@ const STEP: Record<keyof StepEventPayload, Schema> = {
   step_code: str('ขั้นที่คำขอเพิ่งเข้า'),
   status: str('สถานะของคำขอ'),
 };
+const CRM_EMAIL: Record<keyof CrmEmailEventPayload, Schema> = {
+  company_id: COMPANY,
+  email_id: str('อีเมลขาเข้า — อ่านด้วย GET /api/v1/crm/ai/emails/{email_id}'),
+  lead_id: nullableStr('Lead ของเธรด'),
+  opportunity_id: nullableStr('โอกาสการขายของเธรด (หลังแปลงแล้ว)'),
+  quotation_id: nullableStr('ใบเสนอราคาที่ส่งในเธรดนี้'),
+  intent: str(
+    'ผลจัดประเภท: interested | needs_info | not_interested | confirmed | purchase_order | unclear',
+  ),
+};
 const LEAD: Record<keyof LeadEventPayload, Schema> = {
   company_id: COMPANY,
   lead_id: str(
@@ -116,6 +127,7 @@ const SCHEMAS = {
   EsignEventData: object('EsignEventData', ESIGN),
   StepEventData: object('StepEventData', STEP),
   LeadEventData: object('LeadEventData', LEAD),
+  CrmEmailEventData: object('CrmEmailEventData', CRM_EMAIL),
   PingEventData: object('PingEventData', PING),
 };
 
@@ -144,6 +156,7 @@ const EVENTS: Record<WebhookEventName, [keyof typeof SCHEMAS, string]> = {
   'lead.status_changed': ['LeadEventData', 'Lead เปลี่ยนสถานะ (รวมการคัดออก)'],
   'lead.intake_updated': ['LeadEventData', 'แก้ข้อมูล intake (JSON) ของ Lead'],
   'lead.converted': ['LeadEventData', 'Lead ถูกแปลงเป็นโอกาสการขาย'],
+  'crm.email.received': ['CrmEmailEventData', 'ลูกค้าตอบอีเมลของงานขาย (พร้อมผลจัดประเภท)'],
   'webhook.ping': ['PingEventData', 'ปุ่ม "ทดสอบ" ในหน้าตั้งค่า webhook'],
 };
 

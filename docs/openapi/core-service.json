@@ -969,6 +969,140 @@
         ]
       }
     },
+    "/api/v1/leads/{id}/emails": {
+      "get": {
+        "operationId": "SalesMailController_listForLead",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "อีเมลของ Lead (รวมของดีลที่แปลงแล้ว)",
+        "tags": [
+          "sales-mail"
+        ],
+        "x-permission": [
+          "crm.lead.read"
+        ]
+      }
+    },
+    "/api/v1/opportunities/{id}/emails": {
+      "get": {
+        "operationId": "SalesMailController_listForOpportunity",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "อีเมลของโอกาสการขาย (รวมของ Lead ต้นทาง)",
+        "tags": [
+          "sales-mail"
+        ],
+        "x-permission": [
+          "crm.sales.read"
+        ]
+      }
+    },
+    "/api/v1/sales-emails/{id}/simulate-reply": {
+      "post": {
+        "description": "ผ่านทางเดียวกับอีเมลจริง: จัดประเภท → กิจกรรม → แจ้งเจ้าของ → event crm.email.received",
+        "operationId": "SalesMailController_simulateReply",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SimulateReplyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "จำลองว่าลูกค้าตอบอีเมลนี้ (MAIL_MODE=mock เท่านั้น)",
+        "tags": [
+          "sales-mail"
+        ],
+        "x-permission": [
+          "admin.integration.manage"
+        ]
+      }
+    },
     "/api/v1/admin/assignment-rules/roles": {
       "get": {
         "operationId": "AssignmentAdminController_roles",
@@ -45975,10 +46109,11 @@
             "type": "string",
             "enum": [
               "request_type",
-              "lead_status"
+              "lead_status",
+              "email_intent"
             ],
             "nullable": true,
-            "description": "`request_type` = รหัสประเภทคำขอ (ตัวพิมพ์ใหญ่ เช่น SOL) · `lead_status` = รหัสสถานะ Lead (ตัวพิมพ์เล็ก เช่น qualified) · null = กรองไม่ได้"
+            "description": "`request_type` = รหัสประเภทคำขอ (ตัวพิมพ์ใหญ่ เช่น SOL) · `lead_status` = รหัสสถานะ Lead (ตัวพิมพ์เล็ก เช่น qualified) · `email_intent` = ผลจัดประเภทคำตอบอีเมล (interested, needs_info, not_interested, confirmed, purchase_order, unclear) · null = กรองไม่ได้"
           }
         },
         "required": [
@@ -46385,6 +46520,34 @@
           "total",
           "page",
           "page_size"
+        ]
+      },
+      "SimulateReplyDto": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "example": "สนใจครับ รบกวนส่งใบเสนอราคาให้ด้วย",
+            "maxLength": 20000,
+            "minLength": 1
+          },
+          "attachment_names": {
+            "example": [
+              "PO-2026-0153.pdf"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 5
+          },
+          "from": {
+            "type": "string",
+            "format": "email"
+          }
+        },
+        "required": [
+          "text"
         ]
       },
       "CreateAssignmentRuleDto": {
@@ -48250,6 +48413,9 @@
           "quotation_approval_type_code": {
             "pattern": "^[A-Z0-9_-]{1,20}$",
             "type": "string"
+          },
+          "auto_approve_standard_price": {
+            "type": "boolean"
           },
           "target_approval_type_code": {
             "pattern": "^([A-Z0-9_-]{1,20})?$",

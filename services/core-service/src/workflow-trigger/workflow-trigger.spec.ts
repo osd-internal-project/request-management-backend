@@ -111,6 +111,59 @@ describe('workflow trigger rules', () => {
     });
   });
 
+  it('crm.email.received starts once per reply, filtered by what the reply means (5 พ.ย. 2569)', () => {
+    expect(
+      startOf({
+        name: 'crm.email.received',
+        payload: {
+          company_id: 'osd',
+          email_id: 'e-1',
+          lead_id: 'l-1',
+          opportunity_id: null,
+          quotation_id: null,
+          intent: 'interested',
+        },
+      }),
+    ).toEqual({
+      resourceType: 'crm_email',
+      resourceId: 'e-1',
+      variables: {
+        emailId: 'e-1',
+        intent: 'interested',
+        leadId: 'l-1',
+        opportunityId: '-',
+        quotationId: '-',
+        companyId: 'osd',
+      },
+    });
+    expect(
+      matchesEvent('crm.email.received', ['confirmed', 'purchase_order'], {
+        intent: 'purchase_order',
+      }),
+    ).toBe(true);
+    expect(
+      matchesEvent('crm.email.received', ['confirmed'], {
+        intent: 'interested',
+      }),
+    ).toBe(false);
+    expect(
+      triggerProblems({ eventKey: 'crm.email.received', typeCodes: ['maybe'] }),
+    ).toEqual([
+      {
+        field: 'type_codes',
+        reason: expect.stringContaining(
+          'ผลจัดประเภทอีเมลไม่ถูกต้อง: maybe',
+        ) as unknown,
+      },
+    ]);
+    expect(
+      triggerProblems({
+        eventKey: 'crm.email.received',
+        typeCodes: ['confirmed'],
+      }),
+    ).toEqual([]);
+  });
+
   it('a lead-status trigger counts only the statuses it names; none = every move', () => {
     const moved = (status: string) => ({ lead_id: 'l-1', status });
     expect(

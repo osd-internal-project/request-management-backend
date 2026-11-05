@@ -352,6 +352,19 @@ export const PERMISSIONS = {
     'integration.crm.lead.convert',
     /** อีเมล/โทรศัพท์ของ Lead — ข้อมูลส่วนบุคคล แยกจาก `lead.read` และไม่อยู่ใน webhook. */
     'integration.crm.lead.contact.read',
+    /**
+     * งานขายอัตโนมัติ (5 พ.ย. 2569) — OSD Workflow / AI ในนามบริษัท:
+     * `sales.read.all` = ดีลและใบเสนอราคาทั้งบริษัทของ key (`readsAllSales`),
+     * `email.send` = ส่งอีเมลจาก mailbox บริษัทถึงผู้ติดต่อของ Lead/ดีล,
+     * `email.read` = อ่านอีเมลในเธรดและผลจัดประเภทคำตอบ,
+     * `quotation.create` = ร่าง+ยื่นใบเสนอราคาจากราคามาตรฐาน,
+     * `quotation.accept` = บันทึกว่าลูกค้ายืนยัน/ออก PO. ดีลยังเป็นของเจ้าของเสมอ.
+     */
+    'integration.crm.sales.read.all',
+    'integration.crm.email.send',
+    'integration.crm.email.read',
+    'integration.crm.quotation.create',
+    'integration.crm.quotation.accept',
     /** OSD Workflow เขียน/อ่าน process log ทีละขั้น; ผู้ทำงานเป็นข้อมูล ไม่ได้ยืนยันตัว. */
     'integration.process.log',
     /** OSD Workflow ถามตารางทีมว่าใครได้งาน (ตั้งเจ้าของ Lead ให้ด้วย) และแจ้งเตือนคนในบริษัท. */
