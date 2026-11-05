@@ -56,6 +56,15 @@ export { SensitiveReadAuditRecorder } from './policy/sensitive-read.recorder';
 
 // --- CRM ------------------------------------------------------------------
 export { CrmModule } from './crm/crm.module';
+// งานขายอัตโนมัติ (5 พ.ย. 2569) — sales mailbox for OSD Workflow's routes
+export { MailModule } from './mail/mail.module';
+export { SalesMailService } from './mail/sales-mail.service';
+export {
+  AcceptQuotationByEmailDto,
+  CreateStandardQuotationDto,
+  SendLeadEmailDto,
+  SendQuotationEmailDto,
+} from './mail/dto/sales-mail.dto';
 export { CustomersService } from './crm/customers.service';
 export { CustomerImportService } from './crm/customer-import.service';
 export { CrmAdminService } from './crm/crm-admin.service';

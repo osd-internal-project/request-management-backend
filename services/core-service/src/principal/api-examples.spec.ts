@@ -53,7 +53,7 @@ describe('generated call examples', () => {
   });
 
   it('has a body for every webhook event', () => {
-    expect(WEBHOOK_EXAMPLES).toHaveLength(22);
+    expect(WEBHOOK_EXAMPLES).toHaveLength(23);
     expect(
       WEBHOOK_EXAMPLES.find((item) => item.event === 'request.submitted')?.body,
     ).toMatchObject({

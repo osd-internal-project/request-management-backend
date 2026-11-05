@@ -316,7 +316,7 @@ describe('G-07 WebhookAdminService', () => {
         .examples(['sla.breached', 'request.approved'])
         .map((item) => item.event),
     ).toEqual(['request.approved', 'sla.breached']);
-    expect(service.examples([])).toHaveLength(22);
+    expect(service.examples([])).toHaveLength(23);
   });
 
   it('examples: an unknown event answers 400 VALIDATION_FAILED', async () => {

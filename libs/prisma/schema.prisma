@@ -2436,6 +2436,9 @@ model CrmCompanyConfig {
   vatPct                    Float  @default(7)
   /// CD-201 ประเภทคำขออนุมัติราคาที่ทุกใบเสนอราคายื่น — ต้องเปิดให้บริษัทนี้ใช้อยู่.
   quotationApprovalTypeCode String @default("PRA")
+  /// 5 พ.ย. 2569 (ผู้ใช้): ใบที่ทุกบรรทัดใช้ราคามาตรฐาน (CD-194) ไม่มีส่วนลด/แก้ราคา
+  /// margin ไม่ต่ำกว่าเกณฑ์ และต้นทุนไม่เก่า อนุมัติทันทีไม่ยื่น PRA. false = ยื่นทุกใบ (CD-201).
+  autoApproveStandardPrice  Boolean @default(true)
   /// CD-202 margin ขั้นต่ำต่อประเภทงาน {service: 20, ...} — ประเภทที่ไม่ระบุใช้ minMarginPct.
   minMarginByWorkType       Json   @default("{}")
   /// CD-206 ต้นทุนคู่ค้าจาก SAP ที่เก่ากว่านี้ (วัน) ถูกเตือนก่อนนำไปคิดราคา.
@@ -9412,4 +9415,82 @@ model Assignment {
   @@index([companyId, role, userId, createdAt])
   @@index([companyId, resourceType, resourceId])
   @@map("assignments")
+}
+
+/// อีเมลของงานขาย (5 พ.ย. 2569) — ส่งจาก mailbox ของบริษัท (Microsoft Graph) และ
+/// คำตอบของลูกค้าที่อยู่ในเธรดเดียวกัน. เก็บเฉพาะข้อความในเธรดที่ระบบเปิดเอง:
+/// อีเมลอื่นใน mailbox ไม่ถูกอ่านเนื้อหาและไม่ถูกบันทึก. ไม่มีเส้นลบ.
+model CrmEmail {
+  id            String  @id @default(uuid())
+  companyId     String
+  leadId        String?
+  opportunityId String?
+  quotationId   String?
+
+  /// out = ระบบส่ง · in = ลูกค้าตอบเข้ามา
+  direction String
+  /// out: lead_intro | quotation · in: reply
+  purpose   String
+  /// sent | failed | received
+  status    String
+
+  mailbox      String
+  fromAddress  String
+  toAddresses  String[] @default([])
+  ccAddresses  String[] @default([])
+  subject      String
+  /// ข้อความ (ไม่รวมข้อความเดิมที่อ้างถึง สำหรับขาเข้า) ตัดที่ 20,000 ตัวอักษร
+  bodyText     String   @default("")
+  /// [{ name, contentType, size }] — ไม่เก็บเนื้อไฟล์
+  attachments  Json     @default("[]")
+
+  /// Graph message id / RFC 5322 Message-ID / Graph conversationId (เธรด)
+  graphMessageId    String?
+  internetMessageId String?
+  conversationId    String?
+  /// อีเมลของระบบที่ข้อความนี้ตอบกลับ
+  replyToEmailId    String?
+
+  /// ขาเข้า: interested | needs_info | not_interested | confirmed | purchase_order | unclear
+  intent       String?
+  intentReason String?
+  /// llm | rules
+  intentSource String?
+
+  error      String?
+  sentBy     String?
+  occurredAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  @@unique([companyId, internetMessageId])
+  @@index([companyId, leadId, occurredAt])
+  @@index([companyId, opportunityId, occurredAt])
+  @@index([conversationId])
+  @@map("crm_emails")
+}
+
+/// mailbox ของงานขายต่อบริษัท (5 พ.ย. 2569) — ตั้งบนหน้า admin แทน env.
+/// ไม่มีแถว = ใช้ MAIL_* จาก env. client secret เข้ารหัสด้วย CONFIG_SECRET_KEY
+/// และไม่ถูกส่งกลับจาก API.
+model MailSetting {
+  id        String @id @default(uuid())
+  companyId String @unique
+
+  /// off | mock | graph
+  mode       String @default("off")
+  mailbox    String @default("")
+  senderName String @default("")
+  tenantId   String @default("")
+  clientId   String @default("")
+  clientSecretEnc String?
+
+  lastTestAt    DateTime?
+  lastTestOk    Boolean?
+  lastTestError String?
+
+  updatedBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("mail_settings")
 }

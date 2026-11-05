@@ -732,6 +732,14 @@ export class UpdateCrmConfigDto {
   quotation_approval_type_code?: string;
 
   /**
+   * 5 พ.ย. 2569 — ใบที่ใช้ราคามาตรฐานล้วน (ไม่มีส่วนลด/แก้ราคา, margin ผ่าน,
+   * ต้นทุนไม่เก่า) อนุมัติทันทีไม่ยื่น PRA. false = ยื่นทุกใบ (CD-201).
+   */
+  @IsOptional()
+  @IsBoolean()
+  auto_approve_standard_price?: boolean;
+
+  /**
    * CD-82: รหัสประเภทคำขอที่ใช้ขออนุมัติการปรับเป้าขายของงวดที่เริ่มแล้ว.
    * ส่ง `""` = ล้าง (ปรับเป้าระหว่างงวดไม่ได้จนกว่าจะตั้ง).
    */

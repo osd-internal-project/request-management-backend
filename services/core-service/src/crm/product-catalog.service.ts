@@ -253,6 +253,19 @@ export class ProductCatalogService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
+  /** Name and sales unit of each code the company sells, for a drafted line. */
+  async describe(
+    companyId: string,
+    codes: readonly string[],
+  ): Promise<Map<string, { name: string; unit: string | null }>> {
+    if (!codes.length) return new Map();
+    const rows = (await this.products.findMany({
+      where: { companyId, code: { in: [...codes] }, active: true },
+      select: { code: true, name: true, unit: true },
+    })) as { code: string; name: string; unit: string | null }[];
+    return new Map(rows.map((row) => [row.code, row]));
+  }
+
   /**
    * รหัสบนบรรทัดต้องอยู่ในรายการสินค้าจาก SAP และยังขายอยู่. บรรทัดไม่มีรหัส
    * (บริการ/ค่าแรง) ผ่าน; บริษัทที่ยังไม่เคย sync ผ่านทั้งหมด.

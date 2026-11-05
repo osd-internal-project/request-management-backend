@@ -409,6 +409,11 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     PricingExceptionsService,
     VendorCostService,
     QuotationPrintService,
+    // งานขายอัตโนมัติ (MailModule) — the email rows hang off these
+    LeadRepository,
+    LeadActivityRepository,
+    OpportunityRepository,
+    OpportunityActivityRepository,
     ErpSyncAdminService,
     // CD-242 — service billing shares the SAP queue and its customer push.
     IntegrationSyncJobRepository,

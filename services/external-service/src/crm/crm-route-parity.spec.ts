@@ -41,11 +41,15 @@ const robotFor = (permission: string) => `integration.${permission}`;
  * here wholesale rather than being generated, so they have no screen route to
  * correspond to. `crm/ai/leads` (22 ต.ค. 2569) is an AI agent acting for the
  * company: same LeadsService, its own `integration.crm.lead.*` gates.
+ * `crm/ai` sales (5 พ.ย. 2569) is OSD Workflow selling for the company —
+ * emails, the standard-price quotation, the customer's confirmation — under
+ * `integration.crm.email.*` / `integration.crm.quotation.*`.
  */
 const ROBOT_ONLY = [
   'lead-intake.controller.ts',
   'lead-workflow.controller.ts',
   'lead-ai.controller.ts',
+  'sales-ai.controller.ts',
 ];
 
 /**

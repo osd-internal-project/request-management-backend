@@ -765,6 +765,35 @@ export class NotificationsService {
 
   /** CD-266 — a knowledge gap to fill (assigned), or past its due day. */
   /** CD-283 — a customer waits for a person (first notice, or still waiting). */
+  /** งานขายอัตโนมัติ — a customer answered the system's email. */
+  async salesEmailReceived(
+    userId: string,
+    companyId: string,
+    email: {
+      id: string;
+      intentLabel: string;
+      party: string;
+      subject: string;
+      sender: string;
+      resourceType: 'lead' | 'opportunity';
+      resourceId: string;
+    },
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'crm.email.received',
+      values: {
+        intent: email.intentLabel,
+        party: email.party.slice(0, 120),
+        subject: email.subject.slice(0, 160),
+        sender: email.sender.slice(0, 120),
+      },
+      resourceType: email.resourceType,
+      resourceId: email.resourceId,
+    });
+  }
+
   async careHandover(
     userId: string,
     companyId: string,

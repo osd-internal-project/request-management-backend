@@ -31,6 +31,11 @@ export const LLM_TASKS: readonly LlmTaskSpec[] = [
     label: 'AI SMART — สรุปบทสนทนาการโทรให้ทีมขาย',
   },
   { key: 'care.reply', kind: 'chat', label: 'AI CARE — ตอบลูกค้าเบื้องต้น' },
+  {
+    key: 'crm.email.intent',
+    kind: 'chat',
+    label: 'งานขาย — จัดประเภทคำตอบอีเมลของลูกค้า',
+  },
   { key: 'summary', kind: 'chat', label: 'สรุปข้อความทั่วไป' },
 ];
 

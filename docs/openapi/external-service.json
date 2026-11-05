@@ -10613,6 +10613,260 @@
         ]
       }
     },
+    "/api/v1/crm/ai/leads/{id}/emails": {
+      "post": {
+        "description": "ผู้รับ = อีเมลบน Lead · ส่งจาก mailbox ของบริษัท (MAIL_MAILBOX) · คำตอบของลูกค้าในเธรดนี้กลายเป็น event `crm.email.received`",
+        "operationId": "ExternalSalesAiController_sendLeadEmail",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendLeadEmailDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ส่งอีเมลขอบคุณ (+ proposal) ถึงผู้ติดต่อของ Lead",
+        "tags": [
+          "crm-ai"
+        ],
+        "x-permission": [
+          "integration.crm.email.send",
+          "integration.crm.lead.read.all"
+        ]
+      }
+    },
+    "/api/v1/crm/ai/emails/{id}": {
+      "get": {
+        "operationId": "ExternalSalesAiController_findEmail",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "อ่านอีเมลหนึ่งฉบับ — ผลจัดประเภท (intent) และข้อความ",
+        "tags": [
+          "crm-ai"
+        ],
+        "x-permission": [
+          "integration.crm.email.read",
+          "integration.crm.lead.read.all"
+        ]
+      }
+    },
+    "/api/v1/crm/ai/opportunities/{id}/quotations": {
+      "post": {
+        "description": "`items` ว่าง = ใช้สินค้าบน Lead (`intake_data.products` หรือ `subProduct`). ราคามาตรฐานล้วนได้ `approved` ทันที (ตั้งค่า CRM) · สินค้าไม่มีราคามาตรฐาน = 422 `CRM_QUOTATION_UNPRICED` (ส่งงานให้พนักงานขาย)",
+        "operationId": "ExternalSalesAiController_createQuotation",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateStandardQuotationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ร่าง + ยื่นใบเสนอราคาจากราคามาตรฐาน",
+        "tags": [
+          "crm-ai"
+        ],
+        "x-permission": [
+          "integration.crm.quotation.create",
+          "integration.crm.sales.read.all"
+        ]
+      }
+    },
+    "/api/v1/crm/ai/quotations/{id}/email": {
+      "post": {
+        "description": "เฉพาะใบที่ `approved` · ผู้รับ = อีเมลผู้มุ่งหวังบนดีล หรือของ Lead",
+        "operationId": "ExternalSalesAiController_sendQuotation",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendQuotationEmailDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ส่งใบเสนอราคา (PDF) ให้ลูกค้าในเธรดเดิม แล้วเปลี่ยนเป็น \"ส่งแล้ว\"",
+        "tags": [
+          "crm-ai"
+        ],
+        "x-permission": [
+          "integration.crm.email.send",
+          "integration.crm.sales.read.all"
+        ]
+      }
+    },
+    "/api/v1/crm/ai/quotations/{id}/accept": {
+      "post": {
+        "description": "เฉพาะใบที่ `sent` · เลข PO และอีเมลอ้างอิงเก็บในหมายเหตุการตอบรับ",
+        "operationId": "ExternalSalesAiController_accept",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptQuotationByEmailDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "บันทึกว่าลูกค้ายืนยันใบเสนอราคา / ออก PO — งานของเซลล์จบที่นี่",
+        "tags": [
+          "crm-ai"
+        ],
+        "x-permission": [
+          "integration.crm.quotation.accept",
+          "integration.crm.sales.read.all"
+        ]
+      }
+    },
     "/api/v1/approval/cases": {
       "post": {
         "description": "ไม่ต้องส่ง `X-Acting-User` และส่งมาก็ไม่มีผล — เคสนี้เปิดโดยระบบ ไม่ใช่โดยคน ชื่อที่บันทึกใน audit จึงเป็นบัญชีบริการ",
@@ -17233,6 +17487,9 @@
             "pattern": "^[A-Z0-9_-]{1,20}$",
             "type": "string"
           },
+          "auto_approve_standard_price": {
+            "type": "boolean"
+          },
           "target_approval_type_code": {
             "pattern": "^([A-Z0-9_-]{1,20})?$",
             "type": "string"
@@ -19158,6 +19415,155 @@
         "required": [
           "stage"
         ]
+      },
+      "MailAttachmentDto": {
+        "type": "object",
+        "properties": {
+          "file_name": {
+            "type": "string",
+            "example": "proposal.pdf",
+            "maxLength": 120,
+            "minLength": 1
+          },
+          "content_type": {
+            "type": "string",
+            "example": "application/pdf",
+            "pattern": "^[\\w.+-]+\\/[\\w.+-]+$"
+          },
+          "content_base64": {
+            "type": "string",
+            "description": "เนื้อไฟล์เป็น base64 — รวมทุกไฟล์ไม่เกิน 3 MB"
+          }
+        },
+        "required": [
+          "content_base64",
+          "content_type",
+          "file_name"
+        ]
+      },
+      "SendLeadEmailDto": {
+        "type": "object",
+        "properties": {
+          "subject": {
+            "type": "string",
+            "example": "ขอบคุณที่สนใจบริการ Cloud Backup",
+            "description": "ว่าง = \"ขอบคุณที่สนใจบริการของเรา — <ชื่อ Lead>\"",
+            "maxLength": 200
+          },
+          "body": {
+            "type": "string",
+            "example": "เรียน คุณสมชาย\n\nขอบคุณที่สนใจบริการ Cloud Backup ของเรา บริษัทได้แนบข้อเสนอเบื้องต้นมาพร้อมนี้\n\nหากสนใจรับใบเสนอราคา ตอบกลับอีเมลนี้ได้เลย",
+            "description": "ข้อความธรรมดา (เว้นบรรทัดว่าง = ขึ้นย่อหน้าใหม่) — ระบบแปลงเป็น HTML ให้",
+            "maxLength": 20000,
+            "minLength": 1
+          },
+          "signature": {
+            "type": "string",
+            "example": "ฝ่ายขาย บริษัท โอเอสดี จำกัด\n02-000-0000",
+            "maxLength": 1000
+          },
+          "attachments": {
+            "description": "เช่น proposal — ไม่เกิน 5 ไฟล์",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MailAttachmentDto"
+            },
+            "maxItems": 5
+          }
+        },
+        "required": [
+          "body"
+        ]
+      },
+      "StandardQuotationItemDto": {
+        "type": "object",
+        "properties": {
+          "product_code": {
+            "type": "string",
+            "example": "CLOUD-BK-100",
+            "description": "รหัสสินค้า (SAP ItemCode)",
+            "maxLength": 50,
+            "minLength": 1
+          },
+          "quantity": {
+            "type": "number",
+            "example": 1,
+            "maximum": 1000000,
+            "minimum": 0.0001
+          },
+          "term_months": {
+            "type": "integer",
+            "example": 12,
+            "description": "ราคารายเดือน: จำนวนเดือน (ค่าตั้งต้น 12)",
+            "maximum": 120,
+            "minimum": 1
+          }
+        },
+        "required": [
+          "product_code",
+          "quantity"
+        ]
+      },
+      "CreateStandardQuotationDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StandardQuotationItemDto"
+            },
+            "maxItems": 50
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "SendQuotationEmailDto": {
+        "type": "object",
+        "properties": {
+          "subject": {
+            "type": "string",
+            "description": "ว่าง = \"RE: <หัวเรื่องเดิมของเธรด>\"",
+            "maxLength": 200
+          },
+          "body": {
+            "type": "string",
+            "description": "ว่าง = ข้อความมาตรฐานของระบบ",
+            "maxLength": 20000
+          },
+          "signature": {
+            "type": "string",
+            "maxLength": 1000
+          }
+        }
+      },
+      "AcceptQuotationByEmailDto": {
+        "type": "object",
+        "properties": {
+          "email_id": {
+            "type": "string",
+            "description": "อีเมลขาเข้าที่ลูกค้ายืนยัน (เก็บไว้ในหมายเหตุ)",
+            "maxLength": 64
+          },
+          "po_no": {
+            "type": "string",
+            "example": "PO-2026-0153",
+            "maxLength": 100
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 800
+          }
+        }
       },
       "OpenCaseDto": {
         "type": "object",
