@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import {
   AppError,
   AuditWriter,
@@ -23,12 +23,13 @@ import {
 } from '../crm/sales.repositories';
 import { CrmEmailRepository } from './crm-email.repository';
 import {
-  MAIL_CLIENT,
   type InboundMail,
   type MailAttachment,
   type MailClient,
+  type MailMode,
   type SentMail,
 } from './mail-client';
+import { MailClientsService } from './mail-clients.service';
 import {
   EMAIL_INTENT_LABELS,
   MAX_BODY_CHARS,
@@ -113,7 +114,7 @@ export class SalesMailService {
   private readonly logger = new Logger(SalesMailService.name);
 
   constructor(
-    @Optional() @Inject(MAIL_CLIENT) private readonly mail: MailClient | null,
+    private readonly clients: MailClientsService,
     private readonly emails: CrmEmailRepository,
     private readonly leads: LeadRepository,
     private readonly opportunities: OpportunityRepository,
@@ -127,15 +128,15 @@ export class SalesMailService {
     private readonly audit: AuditWriter,
   ) {}
 
-  get mode(): 'off' | 'mock' | 'graph' {
-    return this.mail?.mode ?? 'off';
+  async modeOf(companyId: string): Promise<MailMode> {
+    return (await this.clients.forCompany(companyId)).mode;
   }
 
   // --- sending -------------------------------------------------------------
 
   async sendLeadIntro(leadId: string, input: SalesMailInput, actor: Principal) {
-    const mail = this.requireMailbox();
     const lead = await this.requireLead(leadId, actor);
+    const mail = await this.requireMailbox(lead.companyId);
     if (!looksLikeEmail(lead.email)) {
       throw new AppError(
         'CRM_EMAIL_UNAVAILABLE',
@@ -169,7 +170,6 @@ export class SalesMailService {
     input: Partial<SalesMailInput>,
     actor: Principal,
   ) {
-    const mail = this.requireMailbox();
     const quotation = (await this.quotations.findOne(
       quotationId,
       actor,
@@ -201,6 +201,7 @@ export class SalesMailService {
       prospectEmail: string | null;
     } | null;
     if (!opportunity) throw new AppError('NOT_FOUND', 'ไม่พบโอกาสการขาย');
+    const mail = await this.requireMailbox(opportunity.companyId);
     const lead = (await this.leads.findFirst({
       where: { convertedOpportunityId: opportunity.id },
       select: { id: true, email: true },
@@ -349,14 +350,20 @@ export class SalesMailService {
    * A customer's message. Null when it is not in a thread the system opened,
    * is one of our own (sent from this mailbox), or was stored already.
    */
-  async ingest(message: InboundMail): Promise<CrmEmailRow | null> {
+  async ingest(
+    message: InboundMail,
+    mailbox: string,
+  ): Promise<CrmEmailRow | null> {
     if (!message.conversationId) return null;
-    const mailbox = this.mail?.mailbox ?? '';
     if (normalizeAddress(message.from) === normalizeAddress(mailbox)) {
       return null;
     }
+    // a thread this mailbox opened — another company's mailbox is not ours to read
     const origin = (await this.emails.findFirst({
-      where: { conversationId: message.conversationId },
+      where: {
+        conversationId: message.conversationId,
+        mailbox: { equals: mailbox, mode: 'insensitive' },
+      },
       orderBy: { occurredAt: 'desc' },
     })) as CrmEmailRow | null;
     if (!origin) return null;
@@ -456,14 +463,15 @@ export class SalesMailService {
     input: { text: string; attachmentNames?: string[]; from?: string },
     actor: Principal,
   ) {
-    if (this.mode !== 'mock') {
+    const origin = await this.requireVisibleEmail(emailId, actor);
+    const mode = await this.modeOf(origin.companyId);
+    if (mode !== 'mock') {
       throw new AppError(
         'CRM_EMAIL_UNAVAILABLE',
-        'จำลองคำตอบได้เฉพาะ MAIL_MODE=mock',
-        [{ field: 'mail_mode', reason: this.mode }],
+        'จำลองคำตอบได้เฉพาะเมื่อตั้งระบบอีเมลเป็นโหมดจำลอง (mock)',
+        [{ field: 'mail_mode', reason: mode }],
       );
     }
-    const origin = await this.requireVisibleEmail(emailId, actor);
     if (origin.direction !== 'out' || !origin.conversationId) {
       throw new AppError(
         'VALIDATION_FAILED',
@@ -471,25 +479,28 @@ export class SalesMailService {
         [{ field: 'email_id', reason: 'not_outbound' }],
       );
     }
-    const row = await this.ingest({
-      graphMessageId: `mock-in-${Date.now()}`,
-      internetMessageId: `<sim-${Date.now()}-${Math.random().toString(36).slice(2)}@mock.mail>`,
-      conversationId: origin.conversationId,
-      receivedAt: new Date(),
-      from:
-        input.from?.trim() || origin.toAddresses[0] || 'customer@example.com',
-      to: [origin.mailbox],
-      cc: [],
-      subject: replySubject(origin.subject),
-      text: input.text,
-      attachments: (input.attachmentNames ?? []).map((name) => ({
-        name,
-        contentType: name.toLowerCase().endsWith('.pdf')
-          ? 'application/pdf'
-          : 'application/octet-stream',
-        size: 0,
-      })),
-    });
+    const row = await this.ingest(
+      {
+        graphMessageId: `mock-in-${Date.now()}`,
+        internetMessageId: `<sim-${Date.now()}-${Math.random().toString(36).slice(2)}@mock.mail>`,
+        conversationId: origin.conversationId,
+        receivedAt: new Date(),
+        from:
+          input.from?.trim() || origin.toAddresses[0] || 'customer@example.com',
+        to: [origin.mailbox],
+        cc: [],
+        subject: replySubject(origin.subject),
+        text: input.text,
+        attachments: (input.attachmentNames ?? []).map((name) => ({
+          name,
+          contentType: name.toLowerCase().endsWith('.pdf')
+            ? 'application/pdf'
+            : 'application/octet-stream',
+          size: 0,
+        })),
+      },
+      origin.mailbox,
+    );
     if (!row) throw new AppError('CONFLICT', 'บันทึกคำตอบจำลองไม่ได้');
     return this.view(row);
   }
@@ -510,7 +521,10 @@ export class SalesMailService {
       },
       orderBy: { occurredAt: 'asc' },
     })) as CrmEmailRow[];
-    return { mode: this.mode, items: rows.map((row) => this.view(row)) };
+    return {
+      mode: await this.modeOf(actor.activeCompanyId),
+      items: rows.map((row) => this.view(row)),
+    };
   }
 
   async listForOpportunity(opportunityId: string, actor: Principal) {
@@ -536,7 +550,10 @@ export class SalesMailService {
       },
       orderBy: { occurredAt: 'asc' },
     })) as CrmEmailRow[];
-    return { mode: this.mode, items: rows.map((row) => this.view(row)) };
+    return {
+      mode: await this.modeOf(actor.activeCompanyId),
+      items: rows.map((row) => this.view(row)),
+    };
   }
 
   async findOne(id: string, actor: Principal) {
@@ -545,15 +562,17 @@ export class SalesMailService {
 
   // --- internals -----------------------------------------------------------
 
-  private requireMailbox(): MailClient {
-    if (!this.mail) {
+  private async requireMailbox(companyId: string): Promise<MailClient> {
+    const resolved = await this.clients.forCompany(companyId);
+    if (!resolved.client) {
       throw new AppError(
         'CRM_EMAIL_UNAVAILABLE',
-        'ยังไม่ได้เปิดระบบอีเมล (MAIL_MODE=off)',
-        [{ field: 'mail_mode', reason: 'off' }],
+        resolved.problem ??
+          'ยังไม่ได้เปิดระบบอีเมล — ตั้งค่าได้ที่ ตั้งค่า → อีเมลงานขาย',
+        [{ field: 'mail_mode', reason: resolved.mode }],
       );
     }
-    return this.mail;
+    return resolved.client;
   }
 
   private async requireLead(

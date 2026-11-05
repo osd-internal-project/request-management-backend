@@ -1,4 +1,3 @@
-import { ConfigService } from '@nestjs/config';
 import { GraphMailClient } from './graph-mail.client';
 import { MailError } from './mail-client';
 
@@ -12,13 +11,12 @@ type Call = {
 function client(
   responses: ((call: Call) => { status: number; body?: unknown })[],
 ) {
-  const config = new ConfigService({
-    mail: {
-      mailbox: 'sales@osd.co.th',
-      graph: { tenantId: 't-1', clientId: 'c-1', clientSecret: 's-1' },
-    },
+  const graph = new GraphMailClient({
+    mailbox: 'sales@osd.co.th',
+    tenantId: 't-1',
+    clientId: 'c-1',
+    clientSecret: 's-1',
   });
-  const graph = new GraphMailClient(config);
   const calls: Call[] = [];
   let i = 0;
   graph.useFetch((url, init) => {

@@ -502,9 +502,9 @@ recorded. Scopes `integration.crm.email.send|read`,
 `integration.crm.quotation.create|accept`, and `integration.crm.sales.read.all`
 (the deals and quotations of the key's company, machine only, like
 `lead.read.all`). The deal stays its owner's; the recipient is always the
-Lead's or deal's own address, never one the caller names; the mailbox
-(`MAIL_MODE`, one mailbox) is read only for messages in threads the system
-opened. A product with no standard price answers 422
+Lead's or deal's own address, never one the caller names; each company's
+mailbox (`mail_settings`, set on screen with the secret sealed; env `MAIL_*`
+for a company with no row) is read only for messages in threads it opened. A product with no standard price answers 422
 `CRM_QUOTATION_UNPRICED` so the workflow hands the deal to the salesperson.
 `docs/sales-email-flow.md`. A twelfth is again a decision to state here.
 

@@ -60,12 +60,20 @@ mock หรือ LLM ตอบไม่เป็น JSON → กฎคำสำ
 
 ## ตั้งค่า
 
+**หน้าจอ (แนะนำ):** ตั้งค่า → อีเมลงานขาย (`/pages/admin/mail-settings`, สิทธิ์
+`admin.integration.manage`) — ต่อบริษัท: โหมด (ปิด / จำลอง / ส่งจริง), mailbox, tenant id,
+client id, client secret (เข้ารหัสด้วย `CONFIG_SECRET_KEY` ไม่แสดงกลับ เว้นว่าง = ใช้ค่าเดิม)
+และปุ่ม "ส่งอีเมลทดสอบ" ที่ใช้ค่าที่กรอกได้ก่อนบันทึก. บันทึกแล้วมีผลทันที ไม่ต้อง restart.
+API: `GET/PUT admin/mail-settings`, `POST admin/mail-settings/test` (core).
+
+**env (ค่าสำรอง):** บริษัทที่ยังไม่เคยบันทึกบนหน้าจอใช้ค่านี้ —
 ```
 MAIL_MODE=off|mock|graph        # ตั้งให้ตรงกันทั้ง core และ external
 MAIL_MAILBOX=sales@osd.co.th
 MAIL_GRAPH_TENANT_ID / MAIL_GRAPH_CLIENT_ID / MAIL_GRAPH_CLIENT_SECRET
-MAIL_POLL_INTERVAL_MS=60000     # core เท่านั้น
+MAIL_POLL_INTERVAL_MS=60000     # core เท่านั้น (อ่าน inbox ของทุก mailbox ที่ส่งจริง)
 ```
+external-service ต้องมี `CONFIG_SECRET_KEY` ตัวเดียวกับ core (เพื่อถอดรหัส secret ตอนส่ง)
 
 ฝั่ง IT (Entra ID):
 1. App registrations → New → ได้ tenant id + client id; Certificates & secrets → client secret
@@ -86,6 +94,7 @@ MAIL_POLL_INTERVAL_MS=60000     # core เท่านั้น
 
 ## ข้อมูล
 
+`mail_settings` (migration `20261105110000_mail_settings`) — หนึ่งแถวต่อบริษัท.
 `crm_emails` (migration `20261105100000_crm_emails`): ทุกฉบับที่ส่ง (รวมที่ล้มเหลว + เหตุผล)
 และคำตอบของลูกค้าในเธรด — ไม่เก็บเนื้อไฟล์แนบ (ชื่อ/ชนิด/ขนาดเท่านั้น) ไม่มีเส้นลบ
 หน้าจอ: `GET leads/:id/emails`, `GET opportunities/:id/emails` (core)

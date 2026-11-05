@@ -1103,6 +1103,125 @@
         ]
       }
     },
+    "/api/v1/admin/mail-settings": {
+      "get": {
+        "description": "`source` = company (ตั้งบนหน้าจอ) หรือ env (ยังไม่เคยตั้ง ใช้ MAIL_*)",
+        "operationId": "MailSettingsController_get",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ค่าที่ใช้อยู่ของบริษัทนี้ (secret ไม่แสดงกลับ)",
+        "tags": [
+          "mail-settings"
+        ],
+        "x-permission": [
+          "admin.integration.manage"
+        ]
+      },
+      "put": {
+        "operationId": "MailSettingsController_update",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMailSettingsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "บันทึก — client secret ว่าง = ใช้ค่าเดิม",
+        "tags": [
+          "mail-settings"
+        ],
+        "x-permission": [
+          "admin.integration.manage"
+        ]
+      }
+    },
+    "/api/v1/admin/mail-settings/test": {
+      "post": {
+        "description": "ผู้รับตั้งต้น = อีเมลของผู้กด · ผลล่าสุดเก็บไว้ถ้าบันทึกค่าแล้ว",
+        "operationId": "MailSettingsController_test",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestMailSettingsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ส่งอีเมลทดสอบด้วยค่าที่กรอก (ยังไม่ต้องบันทึก)",
+        "tags": [
+          "mail-settings"
+        ],
+        "x-permission": [
+          "admin.integration.manage"
+        ]
+      }
+    },
     "/api/v1/admin/assignment-rules/roles": {
       "get": {
         "operationId": "AssignmentAdminController_roles",
@@ -46548,6 +46667,97 @@
         },
         "required": [
           "text"
+        ]
+      },
+      "UpdateMailSettingsDto": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "off",
+              "mock",
+              "graph"
+            ],
+            "description": "off = ปิด · mock = จำลอง ไม่ส่งจริง · graph = ส่งจริงผ่าน Microsoft Graph"
+          },
+          "mailbox": {
+            "type": "string",
+            "example": "sales@osd.co.th",
+            "maxLength": 200,
+            "format": "email"
+          },
+          "sender_name": {
+            "type": "string",
+            "example": "ฝ่ายขาย OSD",
+            "maxLength": 100
+          },
+          "tenant_id": {
+            "type": "string",
+            "description": "Directory (tenant) ID ของ Entra ID",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+          },
+          "client_id": {
+            "type": "string",
+            "description": "Application (client) ID ของ App",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "ว่าง/ไม่ส่ง = ใช้ secret เดิม · เก็บแบบเข้ารหัส ไม่แสดงกลับ",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "TestMailSettingsDto": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "off",
+              "mock",
+              "graph"
+            ],
+            "description": "off = ปิด · mock = จำลอง ไม่ส่งจริง · graph = ส่งจริงผ่าน Microsoft Graph"
+          },
+          "mailbox": {
+            "type": "string",
+            "example": "sales@osd.co.th",
+            "maxLength": 200,
+            "format": "email"
+          },
+          "sender_name": {
+            "type": "string",
+            "example": "ฝ่ายขาย OSD",
+            "maxLength": 100
+          },
+          "tenant_id": {
+            "type": "string",
+            "description": "Directory (tenant) ID ของ Entra ID",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+          },
+          "client_id": {
+            "type": "string",
+            "description": "Application (client) ID ของ App",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "ว่าง/ไม่ส่ง = ใช้ secret เดิม · เก็บแบบเข้ารหัส ไม่แสดงกลับ",
+            "maxLength": 500
+          },
+          "to": {
+            "type": "string",
+            "description": "ผู้รับ — ว่าง = อีเมลของผู้กดทดสอบ",
+            "format": "email"
+          }
+        },
+        "required": [
+          "mode"
         ]
       },
       "CreateAssignmentRuleDto": {

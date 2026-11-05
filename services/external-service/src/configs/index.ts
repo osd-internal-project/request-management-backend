@@ -199,6 +199,14 @@ export default () => ({
    * admin consent, Application Access Policy จำกัดเฉพาะ mailbox นี้).
    * MAIL_MAILBOX = shared mailbox (ระหว่างรอ IT ใช้ mailbox ของผู้พัฒนาได้).
    */
+  /** The key stored secrets (a company's mailbox) are encrypted with — same as core. */
+  projectConfig: {
+    secret:
+      process.env.CONFIG_SECRET_KEY ??
+      (process.env.NODE_ENV === 'production'
+        ? undefined
+        : 'dev-project-config-secret'),
+  },
   mail: {
     mode: process.env.MAIL_MODE ?? 'off',
     mailbox: process.env.MAIL_MAILBOX ?? '',

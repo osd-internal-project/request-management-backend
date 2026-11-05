@@ -62,7 +62,15 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       scopedUnitIds: [],
     } as unknown as Principal;
     service = new SalesMailService(
-      mail,
+      {
+        forCompany: () =>
+          Promise.resolve({
+            client: mail,
+            mode: 'mock',
+            source: 'env',
+            problem: null,
+          }),
+      } as never,
       new CrmEmailRepository(prisma as never),
       new LeadRepository(prisma as never),
       new OpportunityRepository(prisma as never),
@@ -115,14 +123,14 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
         { name: 'spec.pdf', contentType: 'application/pdf', size: 10 },
       ],
     };
-    const stored = await service.ingest(reply);
+    const stored = await service.ingest(reply, 'sales@osd.co.th');
     expect(stored).toMatchObject({
       intent: 'interested',
       leadId,
       replyToEmailId: out.id,
     });
     expect(await service.alreadyStored(reply.internetMessageId)).toBe(true);
-    expect(await service.ingest(reply)).toBeNull();
+    expect(await service.ingest(reply, 'sales@osd.co.th')).toBeNull();
     expect(events.emit).toHaveBeenCalledTimes(1);
 
     const listed = await service.listForLead(leadId, actor);

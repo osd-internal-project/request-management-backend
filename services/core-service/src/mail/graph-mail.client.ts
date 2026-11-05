@@ -1,5 +1,3 @@
-import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import {
   MailError,
   type InboundMail,
@@ -13,6 +11,11 @@ export interface GraphMailSettings {
   readonly tenantId?: string;
   readonly clientId?: string;
   readonly clientSecret?: string;
+}
+
+/** One mailbox and the app registration allowed into it. */
+export interface GraphMailbox extends GraphMailSettings {
+  readonly mailbox: string;
 }
 
 type Fetch = (url: string, init?: RequestInit) => Promise<Response>;
@@ -48,13 +51,12 @@ interface GraphMessage {
  * Needs `Mail.Send` + `Mail.ReadWrite` (Application, admin consent), held to
  * this one mailbox by an Application Access Policy.
  */
-@Injectable()
 export class GraphMailClient implements MailClient {
   readonly mode = 'graph' as const;
   private token: { value: string; expiresAt: number } | null = null;
   private fetcher: Fetch = (url, init) => fetch(url, init);
 
-  constructor(private readonly config: ConfigService) {}
+  constructor(private readonly target: GraphMailbox) {}
 
   /** Tests swap the network. */
   useFetch(fetcher: Fetch): void {
@@ -77,11 +79,11 @@ export class GraphMailClient implements MailClient {
   }
 
   get mailbox(): string {
-    return this.config.get<string>('mail.mailbox') ?? '';
+    return this.target.mailbox;
   }
 
   private get settings(): GraphMailSettings {
-    return this.config.get<GraphMailSettings>('mail.graph') ?? {};
+    return this.target;
   }
 
   private get base(): string {

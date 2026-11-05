@@ -81,8 +81,18 @@ function harness(
   const events = { emit: jest.fn() };
   const audit = { record: jest.fn() };
 
+  const clients = {
+    forCompany: jest.fn(() =>
+      Promise.resolve({
+        client: mail,
+        mode: mail?.mode ?? 'off',
+        source: 'env',
+        problem: null,
+      }),
+    ),
+  };
   const service = new SalesMailService(
-    mail,
+    clients as never,
     emails as never,
     leads as never,
     opportunities as never,
@@ -252,14 +262,17 @@ describe('SalesMailService (5 พ.ย. 2569)', () => {
     it('a message outside the system’s threads is not stored (the rest of the mailbox stays unread)', async () => {
       const h = harness();
       h.emails.findFirst.mockResolvedValueOnce(null);
-      expect(await h.service.ingest(inbound())).toBeNull();
+      expect(await h.service.ingest(inbound(), 'sales@osd.co.th')).toBeNull();
       expect(h.emails.create).not.toHaveBeenCalled();
     });
 
     it('our own message in the thread is not a reply', async () => {
       const h = harness();
       expect(
-        await h.service.ingest(inbound({ from: 'SALES@osd.co.th' })),
+        await h.service.ingest(
+          inbound({ from: 'SALES@osd.co.th' }),
+          'sales@osd.co.th',
+        ),
       ).toBeNull();
     });
 
@@ -267,14 +280,14 @@ describe('SalesMailService (5 พ.ย. 2569)', () => {
       const h = harness();
       h.emails.findFirst.mockResolvedValueOnce(outboundOrigin);
       h.emails.count.mockResolvedValueOnce(1);
-      expect(await h.service.ingest(inbound())).toBeNull();
+      expect(await h.service.ingest(inbound(), 'sales@osd.co.th')).toBeNull();
       expect(h.emails.create).not.toHaveBeenCalled();
     });
 
     it('classifies, logs, notifies the owner and emits crm.email.received', async () => {
       const h = harness();
       h.emails.findFirst.mockResolvedValueOnce(outboundOrigin);
-      const row = await h.service.ingest(inbound());
+      const row = await h.service.ingest(inbound(), 'sales@osd.co.th');
 
       expect(row).toMatchObject({
         direction: 'in',
@@ -319,6 +332,7 @@ describe('SalesMailService (5 พ.ย. 2569)', () => {
       });
       const row = await h.service.ingest(
         inbound({ text: 'ยืนยันตามใบเสนอราคาครับ' }),
+        'sales@osd.co.th',
       );
       expect(row).toMatchObject({ intent: 'confirmed', quotationId: 'qt-1' });
       // converted: the activity goes on the deal
@@ -332,7 +346,9 @@ describe('SalesMailService (5 พ.ย. 2569)', () => {
         llmAnswer: '{"intent":"needs_info","reason":"ถามเรื่อง SLA"}',
       });
       real.emails.findFirst.mockResolvedValueOnce(outboundOrigin);
-      expect(await real.service.ingest(inbound())).toMatchObject({
+      expect(
+        await real.service.ingest(inbound(), 'sales@osd.co.th'),
+      ).toMatchObject({
         intent: 'needs_info',
         intentSource: 'llm',
         intentReason: 'ถามเรื่อง SLA',
@@ -345,7 +361,9 @@ describe('SalesMailService (5 พ.ย. 2569)', () => {
 
       const noisy = harness({ llmMode: 'gateway', llmAnswer: 'I think yes' });
       noisy.emails.findFirst.mockResolvedValueOnce(outboundOrigin);
-      expect(await noisy.service.ingest(inbound())).toMatchObject({
+      expect(
+        await noisy.service.ingest(inbound(), 'sales@osd.co.th'),
+      ).toMatchObject({
         intent: 'interested',
         intentSource: 'rules',
       });
@@ -500,6 +518,7 @@ describe('SalesMailService (5 พ.ย. 2569)', () => {
       read: jest.fn(),
     };
     const h = harness({ mail: graphLike });
+    h.emails.findFirst.mockResolvedValueOnce(outboundOrigin);
     await expect(
       h.service.simulateReply('email-1', { text: 'สนใจ' }, machine),
     ).rejects.toMatchObject({ code: 'CRM_EMAIL_UNAVAILABLE' });

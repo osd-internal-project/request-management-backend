@@ -9468,3 +9468,29 @@ model CrmEmail {
   @@index([conversationId])
   @@map("crm_emails")
 }
+
+/// mailbox ของงานขายต่อบริษัท (5 พ.ย. 2569) — ตั้งบนหน้า admin แทน env.
+/// ไม่มีแถว = ใช้ MAIL_* จาก env. client secret เข้ารหัสด้วย CONFIG_SECRET_KEY
+/// และไม่ถูกส่งกลับจาก API.
+model MailSetting {
+  id        String @id @default(uuid())
+  companyId String @unique
+
+  /// off | mock | graph
+  mode       String @default("off")
+  mailbox    String @default("")
+  senderName String @default("")
+  tenantId   String @default("")
+  clientId   String @default("")
+  clientSecretEnc String?
+
+  lastTestAt    DateTime?
+  lastTestOk    Boolean?
+  lastTestError String?
+
+  updatedBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("mail_settings")
+}

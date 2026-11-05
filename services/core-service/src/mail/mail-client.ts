@@ -9,8 +9,6 @@
  *                             (MAIL_MAILBOX: the shared mailbox, or a
  *                             developer's own while IT sets that up).
  */
-export const MAIL_CLIENT = 'MAIL_CLIENT';
-
 export type MailMode = 'off' | 'mock' | 'graph';
 
 export interface MailAttachment {
