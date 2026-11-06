@@ -1686,9 +1686,7 @@ export const API_EXAMPLES: readonly ApiExample[] = [
     ],
     actingUser: false,
     query: {},
-    body: {
-      items: [{ product_code: 'CLOUD-BK-100', quantity: 1, term_months: 12 }],
-    },
+    body: {},
   },
   {
     operationId: 'ExternalSalesAiController_accept',
