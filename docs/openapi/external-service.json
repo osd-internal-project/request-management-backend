@@ -19508,6 +19508,7 @@
         "type": "object",
         "properties": {
           "items": {
+            "description": "ไม่ส่ง/ว่าง = ใช้สินค้าบน Lead (`intake_data.products` หรือ `subProduct`)",
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/StandardQuotationItemDto"
@@ -19522,10 +19523,7 @@
             "type": "string",
             "maxLength": 2000
           }
-        },
-        "required": [
-          "items"
-        ]
+        }
       },
       "SendQuotationEmailDto": {
         "type": "object",

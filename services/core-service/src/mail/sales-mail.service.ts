@@ -390,6 +390,17 @@ export class SalesMailService {
       (row) => row.purpose === 'quotation' && row.status === 'sent',
     );
     const text = message.text.slice(0, MAX_BODY_CHARS);
+    // the Lead may have become a deal since the thread began (stage 1 converts)
+    const opportunityId =
+      origin.opportunityId ??
+      (origin.leadId
+        ? ((
+            (await this.leads.findFirst({
+              where: { id: origin.leadId },
+              select: { convertedOpportunityId: true },
+            })) as { convertedOpportunityId: string | null } | null
+          )?.convertedOpportunityId ?? null)
+        : null);
     const classified = await this.classify(origin.companyId, {
       subject: message.subject,
       text,
@@ -401,7 +412,7 @@ export class SalesMailService {
       data: {
         companyId: origin.companyId,
         leadId: origin.leadId,
-        opportunityId: origin.opportunityId,
+        opportunityId,
         quotationId: quoted?.quotationId ?? origin.quotationId,
         direction: 'in',
         purpose: 'reply',

@@ -124,12 +124,17 @@ export class StandardQuotationItemDto {
 
 /** ร่าง + ยื่นใบเสนอราคาจากราคามาตรฐาน — ราคามาตรฐานล้วนได้ `approved` ทันที. */
 export class CreateStandardQuotationDto {
-  @ApiProperty({ type: [StandardQuotationItemDto] })
+  @ApiPropertyOptional({
+    type: [StandardQuotationItemDto],
+    description:
+      'ไม่ส่ง/ว่าง = ใช้สินค้าบน Lead (`intake_data.products` หรือ `subProduct`)',
+  })
+  @IsOptional()
   @IsArray()
   @ArrayMaxSize(50)
   @ValidateNested({ each: true })
   @Type(() => StandardQuotationItemDto)
-  items!: StandardQuotationItemDto[];
+  items?: StandardQuotationItemDto[];
 
   @ApiPropertyOptional()
   @IsOptional()

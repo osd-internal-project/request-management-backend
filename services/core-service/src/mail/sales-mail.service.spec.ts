@@ -316,6 +316,28 @@ describe('SalesMailService (5 พ.ย. 2569)', () => {
       });
     });
 
+    it('a Lead converted after the thread began: the reply carries its deal', async () => {
+      const h = harness();
+      h.emails.findFirst.mockResolvedValueOnce(outboundOrigin);
+      h.leads.findFirst.mockResolvedValueOnce({
+        ...lead,
+        convertedOpportunityId: 'opp-9',
+      });
+      h.opportunities.findFirst.mockResolvedValueOnce({
+        ownerUserId: 'u-sales',
+        title: 'ดีล กขค',
+      });
+      const row = await h.service.ingest(inbound(), 'sales@osd.co.th');
+      expect(row).toMatchObject({ leadId: 'lead-1', opportunityId: 'opp-9' });
+      expect(h.events.emit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          payload: expect.objectContaining({
+            opportunity_id: 'opp-9',
+          }) as unknown,
+        }),
+      );
+    });
+
     it('after a quotation went out, "ยืนยัน" confirms it and the event names that quotation', async () => {
       const h = harness();
       h.emails.findFirst.mockResolvedValueOnce({
