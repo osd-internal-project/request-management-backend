@@ -61,6 +61,7 @@
     "petty-claim:seed": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/seed-petty-cash-claim-type.ts",
     "disbursement-flow:seed": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/seed-disbursement-flows.ts",
     "sop:seed": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/seed-sop-docreq-type.ts",
+    "pm:mock": "ts-node --compiler-options '{\"module\":\"commonjs\"}' libs/prisma/seed-pm-mock.ts",
     "uat:users": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/seed-uat-users.ts",
     "keycloak:provision": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/keycloak-provision.ts",
     "openapi": "ts-node --project scripts/tsconfig.openapi.json -r tsconfig-paths/register -r dotenv/config scripts/generate-openapi.ts",
