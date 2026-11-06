@@ -147,6 +147,16 @@ export const ErrorCatalog = {
    */
   CRM_QUOTATION_APPROVAL_UNAVAILABLE: HttpStatus.UNPROCESSABLE_ENTITY,
   /**
+   * งานขายอัตโนมัติ — a product asked for has no standard price in effect (or
+   * is not sold): the quotation is not drafted, and the workflow hands it to
+   * the salesperson. `details` names each product.
+   */
+  CRM_QUOTATION_UNPRICED: HttpStatus.UNPROCESSABLE_ENTITY,
+  /** The mailbox is off (MAIL_MODE), or the Lead/deal has no address to send to. */
+  CRM_EMAIL_UNAVAILABLE: HttpStatus.CONFLICT,
+  /** The mailbox refused or could not be reached — recorded as a failed email. */
+  CRM_EMAIL_SEND_FAILED: HttpStatus.BAD_GATEWAY,
+  /**
    * CD-82: changing the target of a month that has already started needs an
    * approval request, and CRM settings name no request type for it (or the
    * type is not open to this company). Configuration, not a code fault.

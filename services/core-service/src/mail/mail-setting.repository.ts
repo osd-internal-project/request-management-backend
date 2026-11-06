@@ -5,16 +5,16 @@ import {
   TQueryClient,
 } from '@request-management/share';
 
-/** Where CTD sends each agent job of a company — one endpoint per action. */
+/** One row per company; nothing deletes it — mode `off` switches it off. */
 @Injectable()
-export class IntegrationEndpointRepository extends BaseRepository<
-  PrismaService['integrationEndpoint']
+export class MailSettingRepository extends BaseRepository<
+  PrismaService['mailSetting']
 > {
   constructor(prisma: PrismaService) {
     super(prisma);
   }
 
   protected delegate(client: TQueryClient) {
-    return client.integrationEndpoint;
+    return client.mailSetting;
   }
 }

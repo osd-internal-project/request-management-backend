@@ -310,3 +310,23 @@ curl -s -X POST "$BASE/request/requests/$REQUEST_NO/actions/close" \
   -H "Content-Type: application/json" \
   -d '{"note": "ทดสอบ"}'
 ```
+
+## 3. ผลยิงจริง 2026-10-28 (`*.response.json`)
+
+ยิงที่ UAT `http://192.168.31.52:3503/api/v1` ด้วย `X-Acting-User` (อีเมล) แทน `X-User-Token`
+ไฟล์ `*.response.json` = `{status, body}` ซึ่งปิดเบอร์โทร เบอร์ภายใน รหัสพนักงาน และวันเริ่มงานเป็น `<redacted>` ไว้
+
+**รอบแรก (`REQ-OSD-BS-01-26100003`)** BS-01 ยังมี flow `RECEIVE → WORK → CONFIRM` ผู้ทำจึงไม่มี `complete` และผู้ขอ `close` ไม่ได้ (409 `REQ_STEP_INVALID`) ต้องใช้ `advance` แทน
+หลังจากนั้นลบ flow ของ BS-01 ออกจาก DB แล้ว (สำรองไว้ที่ `~/db-backups/bs01-flows-2026-10-28.json`)
+
+**รอบสอง (`REQ-OSD-BS-01-26100004`, ไม่มี flow)** ไฟล์ 04, 07–09b, 14, 16, 17 มาจากรอบนี้ ส่วน 01–03, 05, 06, 10–13, 15, 18, N1, N2 มาจากรอบแรก (shape เหมือนกัน)
+
+| ขั้น | คาด | ได้จริง |
+|---|---|---|
+| 01 `q=SO` | มี BS-01 | ไม่มี เพราะชื่อเปลี่ยนเป็น "ขอเปิด Request" ใช้ `q=BS-01` แทน |
+| 02 | `ref_required = true` | `ref_required = false` · `receiver_candidates = []` |
+| 04 | ต้องกรอก 6 ช่องบังคับ | ส่งแค่ `subject` + `objective` ก็ได้ 201 `submitted` |
+| 09 | assignee = ผู้ทำ | `assigneeUserId` ถูกต้อง แต่ response ของ action ไม่มี `assignee` / `receiver` / `requester` เลย ต้องอ่านใบใหม่ด้วย 06 |
+| 14 | `complete` → `approved` | ตรงตามคาด · `receiverFormData.summary` ถูกเก็บ |
+| 16 / 17 | มี `close` → `closed` | ตรงตามคาด |
+| N1 / N2 | 403 | 403 `FORBIDDEN` ตรงตามคาด |

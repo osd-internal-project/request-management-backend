@@ -198,10 +198,7 @@ describe('sub-request checklist: complete waits for the required items', () => {
 
     await service.complete('req-1', principal(), 'Bearer token');
 
-    expect(updates.map((update) => update.status)).toEqual([
-      'completed',
-      'approved',
-    ]);
+    expect(updates.map((update) => update.status)).toEqual(['completed']);
   });
 
   /** REQ-01: a checklist added to the type after submit does not reach this request. */

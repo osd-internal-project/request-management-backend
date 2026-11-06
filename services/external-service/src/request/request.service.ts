@@ -284,6 +284,22 @@ export class RequestApiService {
   }
 
   /**
+   * The notes on one request, newest first, with the author as a plain name.
+   *
+   * Read through {@link findByRef}, so who may see them is who may open it.
+   */
+  async commentsOf(ref: string, actor: Principal) {
+    const request = await this.findByRef(ref, actor);
+    const data = [...request.comments].reverse().map((comment) => ({
+      author: comment.author.displayName,
+      body: comment.body,
+      createdAt: comment.createdAt,
+    }));
+
+    return { data, total: data.length };
+  }
+
+  /**
    * What this person may do with this request right now (steps 8 and 14).
    *
    * The list is the flow's answer, not a menu written for one use case — see

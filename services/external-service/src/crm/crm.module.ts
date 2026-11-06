@@ -1,5 +1,8 @@
 import { Module } from '@nestjs/common';
-import { CrmModule as CoreCrmModule } from '@request-management/core-service';
+import {
+  CrmModule as CoreCrmModule,
+  MailModule,
+} from '@request-management/core-service';
 import { AuthModule } from '../auth/auth.module';
 import { ExternalCustomersController } from './customers.controller';
 import { ExternalCrmAdminController } from './crm-admin.controller';
@@ -15,6 +18,7 @@ import {
 import { ExternalLeadIntakeController } from './lead-intake.controller';
 import { ExternalLeadWorkflowController } from './lead-workflow.controller';
 import { ExternalLeadAiController } from './lead-ai.controller';
+import { ExternalSalesAiController } from './sales-ai.controller';
 
 /**
  * `api/v1/crm/*` — CRM as an external system sees it.
@@ -42,7 +46,7 @@ import { ExternalLeadAiController } from './lead-ai.controller';
  * which is now actually declared rather than commented out.
  */
 @Module({
-  imports: [CoreCrmModule, AuthModule],
+  imports: [CoreCrmModule, MailModule, AuthModule],
   controllers: [
     ExternalCustomersController,
     ExternalCrmAdminController,
@@ -56,6 +60,7 @@ import { ExternalLeadAiController } from './lead-ai.controller';
     ExternalLeadIntakeController,
     ExternalLeadWorkflowController,
     ExternalLeadAiController,
+    ExternalSalesAiController,
   ],
 })
 export class CrmModule {}

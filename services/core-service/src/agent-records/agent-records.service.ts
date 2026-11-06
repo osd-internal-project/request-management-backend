@@ -6,9 +6,7 @@ import {
   auditActor,
   paginated,
   PrismaTransactionService,
-  salesAccessSubject,
   toSkipTake,
-  visibleLeadsWhere,
   type Principal,
 } from '@request-management/share';
 import {
@@ -24,7 +22,7 @@ import {
   type Observable,
 } from 'rxjs';
 import { CompanyMemberRepository } from '../access/company-member.repository';
-import { LeadRepository } from '../crm/sales.repositories';
+import { LeadsService } from '../crm/leads.service';
 import {
   readableActions,
   type AgentAction,
@@ -35,6 +33,7 @@ import type {
   CompleteAgentRecordDto,
   FindLeadsDto,
   ListAgentRecordsDto,
+  ResearchLeadDto,
 } from './dto/agent-record.dto';
 import { VuvagentClient, VuvagentDispatchError } from './vuvagent.client';
 
@@ -67,15 +66,25 @@ export class AgentRecordsService {
 
   constructor(
     private readonly records: AgentRecordRepository,
-    private readonly leads: LeadRepository,
     private readonly members: CompanyMemberRepository,
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
     private readonly vuvagent: VuvagentClient,
+    private readonly leads: LeadsService,
   ) {}
 
   findLeads(dto: FindLeadsDto, actor: Principal) {
     return this.start('lead.find', { topic: dto.topic.trim() }, actor);
+  }
+
+  /** A lead the caller cannot see answers 404 before anything is created. */
+  async researchLead(leadId: string, dto: ResearchLeadDto, actor: Principal) {
+    await this.leads.findOne(leadId, actor);
+    return this.start(
+      'lead.research',
+      { lead_id: leadId, focus: dto.focus?.trim() ?? '' },
+      actor,
+    );
   }
 
   async list(actor: Principal, query: ListAgentRecordsDto) {
@@ -119,16 +128,12 @@ export class AgentRecordsService {
       ({ action: string; createdBy: string } & Record<string, unknown>) | null;
     if (!found) throw new AppError('NOT_FOUND', 'ไม่พบงานของ agent ที่ระบุ');
 
-    const [names, leads] = await Promise.all([
-      this.members.displayNamesOf([found.createdBy], actor.activeCompanyId),
-      found.action === 'lead.find' ? this.leadsOf(id, actor) : [],
-    ]);
+    const names = await this.members.displayNamesOf(
+      [found.createdBy],
+      actor.activeCompanyId,
+    );
 
-    return {
-      ...found,
-      createdByName: names.get(found.createdBy) ?? null,
-      leads,
-    };
+    return { ...found, createdByName: names.get(found.createdBy) ?? null };
   }
 
   /** Pushes a row whenever its `updatedAt` moves; completes once all are finished. */
@@ -217,6 +222,7 @@ export class AgentRecordsService {
   /**
    * The agent closes its job (external-service, key of the record's company).
    * One conditional update, so two callbacks cannot both finish the same row.
+   * A row the timeout sweep closed (`timedOutAt`) still takes the agent's answer.
    */
   async complete(
     id: string,
@@ -225,8 +231,22 @@ export class AgentRecordsService {
     companyId: string,
   ) {
     return this.transactions.execute(async (tx) => {
+      const before = await tx.agentRecord.findFirst({
+        where: { id, companyId },
+        select: { status: true, timedOutAt: true },
+      });
+      if (!before) {
+        throw new AppError('NOT_FOUND', 'ไม่พบงานของ agent ที่ระบุ');
+      }
       const { count } = await tx.agentRecord.updateMany({
-        where: { id, companyId, status: 'processing' },
+        where: {
+          id,
+          companyId,
+          OR: [
+            { status: 'processing' },
+            { status: 'failed', timedOutAt: { not: null } },
+          ],
+        },
         data: {
           status: dto.status,
           result: dto.result as Prisma.InputJsonObject | undefined,
@@ -234,15 +254,8 @@ export class AgentRecordsService {
         },
       });
       if (count === 0) {
-        const exists = await tx.agentRecord.findFirst({
-          where: { id, companyId },
-          select: { status: true },
-        });
-        if (!exists) {
-          throw new AppError('NOT_FOUND', 'ไม่พบงานของ agent ที่ระบุ');
-        }
         throw new AppError('CONFLICT', 'งานนี้ปิดไปแล้ว', [
-          { field: 'status', reason: exists.status },
+          { field: 'status', reason: before.status },
         ]);
       }
       await this.audit.record(
@@ -252,7 +265,10 @@ export class AgentRecordsService {
           ...auditActor(principal),
           resourceType: 'agent_record',
           resourceId: id,
-          before: { status: 'processing' },
+          before: {
+            status: before.status,
+            timedOutAt: before.timedOutAt?.toISOString() ?? null,
+          },
           after: { status: dto.status, error: dto.error ?? null },
         },
         { prisma: tx },
@@ -273,25 +289,5 @@ export class AgentRecordsService {
       where: { id: { in: ids }, ...this.visibleWhere(actor) },
       select: { id: true, status: true, updatedAt: true },
     }) as Promise<AgentRecordStamp[]>;
-  }
-
-  /** Leads the agent created through `crm/leads/intake`, within the caller's own lead scope. */
-  private leadsOf(id: string, actor: Principal) {
-    return this.leads.findMany({
-      where: {
-        AND: [
-          visibleLeadsWhere(salesAccessSubject(actor)),
-          { intakeData: { path: ['agent_record_id'], equals: id } },
-        ],
-      },
-      select: {
-        id: true,
-        name: true,
-        contactName: true,
-        status: true,
-        createdAt: true,
-      },
-      orderBy: { createdAt: 'asc' },
-    });
   }
 }

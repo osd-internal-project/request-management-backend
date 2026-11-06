@@ -648,7 +648,7 @@ describe('CRM Lead — แปลงเป็นโอกาสการขาย
   it('AI (service account) convert: โอกาสการขายไปอยู่กับเจ้าของ Lead; ใบกองกลาง = 409', async () => {
     const robot = {
       ...principal([
-        'integration.crm.lead.read',
+        'integration.crm.lead.read.all',
         'integration.crm.lead.convert',
       ]),
       userId: 'svc-ai',

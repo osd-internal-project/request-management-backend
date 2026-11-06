@@ -213,6 +213,7 @@ export class CrmAdminService {
         quotationValidityDays: 30,
         vatPct: 7,
         quotationApprovalTypeCode: 'PRA',
+        autoApproveStandardPrice: true,
         minMarginByWorkType: {},
         deliveryDocuments: documentsByType({}),
         costMaxAgeDays: 90,
@@ -410,6 +411,7 @@ export class CrmAdminService {
               vatPct: dto.vat_pct ?? 7,
               quotationApprovalTypeCode:
                 dto.quotation_approval_type_code ?? 'PRA',
+              autoApproveStandardPrice: dto.auto_approve_standard_price ?? true,
               minMarginByWorkType: minMargins ?? {},
               deliveryDocuments: deliveryDocuments ?? {},
               costMaxAgeDays: dto.cost_max_age_days ?? 90,
@@ -487,6 +489,7 @@ export class CrmAdminService {
               quotationValidityDays: dto.quotation_validity_days,
               vatPct: dto.vat_pct,
               quotationApprovalTypeCode: dto.quotation_approval_type_code,
+              autoApproveStandardPrice: dto.auto_approve_standard_price,
               minMarginByWorkType: minMargins,
               deliveryDocuments,
               costMaxAgeDays: dto.cost_max_age_days,

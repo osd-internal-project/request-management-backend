@@ -2434,6 +2434,118 @@
         }
       }
     },
+    "crm.email.received": {
+      "post": {
+        "summary": "ลูกค้าตอบอีเมลของงานขาย (พร้อมผลจัดประเภท)",
+        "operationId": "webhook_crm_email_received",
+        "parameters": [
+          {
+            "name": "X-Webhook-Id",
+            "in": "header",
+            "required": true,
+            "description": "id ของ event — ส่งซ้ำได้ ใช้ตัดรายการซ้ำ (ค่าเดียวกับ body.id)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Event",
+            "in": "header",
+            "required": true,
+            "description": "ชื่อ event",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Timestamp",
+            "in": "header",
+            "required": true,
+            "description": "วินาที unix ตอนส่ง — ปฏิเสธถ้าห่างจากเวลาปัจจุบันเกิน 5 นาที",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Webhook-Signature",
+            "in": "header",
+            "required": true,
+            "description": "`sha256=` + hex(HMAC-SHA256(secret, `{X-Webhook-Timestamp}.{raw body}`))",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "webhook-id",
+            "in": "header",
+            "required": true,
+            "description": "Standard Webhooks — ค่าเดียวกับ X-Webhook-Id",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "webhook-timestamp",
+            "in": "header",
+            "required": true,
+            "description": "Standard Webhooks — ค่าเดียวกับ X-Webhook-Timestamp",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "webhook-signature",
+            "in": "header",
+            "required": true,
+            "description": "Standard Webhooks — `v1,` + base64(HMAC-SHA256(base64-decode(secret หลัง `whsec_`), `{webhook-id}.{webhook-timestamp}.{raw body}`))",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "event",
+                  "created_at",
+                  "data"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "event": {
+                    "type": "string",
+                    "const": "crm.email.received"
+                  },
+                  "created_at": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "data": {
+                    "$ref": "#/components/schemas/CrmEmailEventData"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "2XX": {
+            "description": "รับแล้ว — ไม่ส่งซ้ำ"
+          },
+          "default": {
+            "description": "อย่างอื่นทั้งหมด — ส่งซ้ำตามรอบ"
+          }
+        }
+      }
+    },
     "webhook.ping": {
       "post": {
         "summary": "ปุ่ม \"ทดสอบ\" ในหน้าตั้งค่า webhook",
@@ -2806,6 +2918,52 @@
           "reason": {
             "type": "string",
             "description": "lead.status_changed — เหตุผลที่คัดออก หรือเหตุผลที่ส่งมากับ POST crm/leads/{id}/stage (ถ้ามี)"
+          }
+        }
+      },
+      "CrmEmailEventData": {
+        "title": "CrmEmailEventData",
+        "type": "object",
+        "required": [
+          "company_id",
+          "email_id",
+          "lead_id",
+          "quotation_id",
+          "intent"
+        ],
+        "properties": {
+          "company_id": {
+            "type": "string",
+            "description": "บริษัทที่เกิดเหตุการณ์"
+          },
+          "email_id": {
+            "type": "string",
+            "description": "อีเมลขาเข้า — อ่านด้วย GET /api/v1/crm/ai/emails/{email_id}"
+          },
+          "lead_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Lead ของเธรด"
+          },
+          "opportunity_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "โอกาสการขายของเธรด (หลังแปลงแล้ว)"
+          },
+          "quotation_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "ใบเสนอราคาที่ส่งในเธรดนี้"
+          },
+          "intent": {
+            "type": "string",
+            "description": "ผลจัดประเภท: interested | needs_info | not_interested | confirmed | purchase_order | unclear"
           }
         }
       },

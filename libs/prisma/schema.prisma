@@ -2055,8 +2055,8 @@ model Integration {
 
   apiKeys   ApiKey[]
   webhooks  WebhookSubscription[]
-  /// endpoint ที่ CTD เรียกระบบนี้ต่องาน (`agent_records`)
-  endpoints IntegrationEndpoint[]
+  /// การเชื่อมต่อที่ CTD เรียกระบบนี้ (`agent_records`)
+  connections OutboundConnection[]
 
   @@index([companyId, active])
   @@map("integrations")
@@ -2436,6 +2436,9 @@ model CrmCompanyConfig {
   vatPct                    Float  @default(7)
   /// CD-201 ประเภทคำขออนุมัติราคาที่ทุกใบเสนอราคายื่น — ต้องเปิดให้บริษัทนี้ใช้อยู่.
   quotationApprovalTypeCode String @default("PRA")
+  /// 5 พ.ย. 2569 (ผู้ใช้): ใบที่ทุกบรรทัดใช้ราคามาตรฐาน (CD-194) ไม่มีส่วนลด/แก้ราคา
+  /// margin ไม่ต่ำกว่าเกณฑ์ และต้นทุนไม่เก่า อนุมัติทันทีไม่ยื่น PRA. false = ยื่นทุกใบ (CD-201).
+  autoApproveStandardPrice  Boolean @default(true)
   /// CD-202 margin ขั้นต่ำต่อประเภทงาน {service: 20, ...} — ประเภทที่ไม่ระบุใช้ minMarginPct.
   minMarginByWorkType       Json   @default("{}")
   /// CD-206 ต้นทุนคู่ค้าจาก SAP ที่เก่ากว่านี้ (วัน) ถูกเตือนก่อนนำไปคิดราคา.
@@ -9281,6 +9284,8 @@ model AgentRecord {
   /// สิ่งที่ agent ส่งกลับตอนปิดงาน — JSON ของผู้ส่ง ไม่มี schema ฝั่งเรา
   result    Json?
   error     String?
+  /// set when the sweep closed it for silence; a late callback may still finish it
+  timedOutAt DateTime?
   createdBy String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -9290,20 +9295,27 @@ model AgentRecord {
   @@map("agent_records")
 }
 
-/// endpoint ของระบบภายนอกที่ CTD เรียกเพื่อส่งงานของ agent (27 ต.ค. 2569) —
-/// ตั้งที่แท็บ "Endpoint ที่เราเรียก" ของหน้า Integrations แทน env. หนึ่งงานต่อบริษัท
-/// มีได้ endpoint เดียว; ไม่ลบจริง ปิดด้วย `active=false`.
-model IntegrationEndpoint {
+/// การเชื่อมต่อขาออกไประบบภายนอกหนึ่งระบบของบริษัท (30 ต.ค. 2569) — URL และ key
+/// ตั้งครั้งเดียวต่อ vendor, งานแต่ละงานเลือก endpoint ของตัวเองใน `endpoints`.
+/// สัญญา API ของ vendor (path, header, body) อยู่ในโค้ด เช่น `vuvagent.client.ts`.
+model OutboundConnection {
   id            String   @id @default(uuid())
+  /// บังคับ ต่างจาก `Integration.companyId` — secret ขาออกต้องเป็นของบริษัทเดียว
   companyId     String
   integrationId String
-  /// key จาก `AGENT_ACTIONS` เช่น `lead.find`
-  action        String
-  /// เช่น https://d80g4r2y4zcsb.cloudfront.net — ยิง `POST {baseUrl}/v1/endpoints/{endpointId}`
+  /// `vuvagent` — vendor ของ `AGENT_ACTIONS[action].vendor`
+  vendor        String
+  /// งานเดียวของแถวนี้ (`lead.find`, …) — ที่ Vuvagent หนึ่งงานคือหนึ่ง agent มี URL และ key ของตัวเอง (31 ต.ค. 2569)
+  action         String?
+  /// เช่น https://vuvagent.say2us.com — ไม่มี path ของ vendor
   baseUrl       String
-  endpointId    String
-  /// `x-api-key` — ต้องใช้ตัวจริงตอนเรียก จึงเก็บแบบเข้ารหัส (sealSecret) ไม่ใช่ hash
-  apiKeyEnc     String
+  /// key ต้องใช้ตัวจริงตอนเรียก จึงเก็บแบบเข้ารหัส (sealSecret) ไม่ใช่ hash
+  secretEnc     String
+  endpointId     String?
+  /// ว่าง = ใช้ `AGENT_ACTIONS[action].defaultTimeoutMinutes`
+  timeoutMinutes Int?
+  /// เลิกใช้แล้ว (ค่าย้ายไป `action`/`endpointId`/`timeoutMinutes`) — ลบใน migration แยกเมื่อ labs ยืนยัน
+  endpoints     Json     @default("{}")
   active        Boolean  @default(true)
   createdBy     String
   createdAt     DateTime @default(now())
@@ -9313,7 +9325,7 @@ model IntegrationEndpoint {
 
   @@unique([companyId, action])
   @@index([integrationId])
-  @@map("integration_endpoints")
+  @@map("outbound_connections")
 }
 
 /// เอกสารบริษัท (หน้าตั้งค่า) — ไฟล์ที่ระบบภายนอกดึงไปใช้ผ่าน External API.
@@ -9339,4 +9351,146 @@ model CompanyDocument {
 
   @@index([companyId, kind, archivedAt])
   @@map("company_documents")
+}
+
+/// ตารางทีม (เส้นทาง Lead ถึงบริการ Phase 0, 2 พ.ย. 2569) — งานของบทบาทหนึ่งที่
+/// ตรงเงื่อนไขไปทีมไหน. ทีมคือ `OrgUnit` เดิม (สมาชิก = `users.orgUnitId`)
+/// ไม่มีทะเบียนสมาชิกซ้ำ. กฎแรกตามลำดับที่ตรงชนะ. ไม่ลบจริง ปิดด้วย `active=false`.
+model AssignmentRule {
+  id         String   @id @default(uuid())
+  companyId  String
+  /// sales | presales | pricing | legal | pm | support (`ASSIGNMENT_ROLES`)
+  role       String
+  name       String
+  orgUnitId  String
+  /// ช่อง → ค่าที่รับ เช่น `{"industry":["ธนาคาร"]}` · ว่าง = รับทุกงาน
+  conditions Json     @default("{}")
+  sortOrder  Int      @default(0)
+  active     Boolean  @default(true)
+  createdBy  String
+  createdAt  DateTime @default(now())
+  updatedBy  String?
+  updatedAt  DateTime @updatedAt
+
+  @@index([companyId, role, active])
+  @@map("assignment_rules")
+}
+
+/// ค่าต่อบทบาท: คนรับสำรองเมื่อไม่ตรงกฎใด หรือทีมที่ตรงไม่มีคนว่าง (เช่น Sales
+/// Manager) และประเภทคำขอที่นับเป็น "งานเปิด" ของบทบาท (presales/pricing/legal/support).
+model AssignmentRoleSetting {
+  id             String   @id @default(uuid())
+  companyId      String
+  role           String
+  fallbackUserId String?
+  /// ประเภทคำขอที่นับงานเปิด เช่น `["SOL"]` — sales/pm นับจาก Lead/ดีล/โครงการ
+  loadTypeCodes  String[] @default([])
+  updatedBy      String
+  updatedAt      DateTime @updatedAt
+
+  @@unique([companyId, role])
+  @@map("assignment_role_settings")
+}
+
+/// ประวัติการจัดคน — ใครได้งานไหนเพราะอะไร. ใช้เป็นคิววนด้วย: งานเปิดเท่ากัน
+/// → คนที่ได้งานล่าสุดนานที่สุดก่อน.
+model Assignment {
+  id           String   @id @default(uuid())
+  companyId    String
+  role         String
+  resourceType String
+  resourceId   String
+  userId       String
+  ruleId       String?
+  orgUnitId    String?
+  /// matched (ตรงกฎ) | fallback (ส่งคนรับสำรอง)
+  reason       String
+  criteria     Json     @default("{}")
+  /// ผู้เรียกส่งซ้ำได้ (Flowable retry) — key เดิมได้ผลเดิม
+  requestKey   String?
+  createdBy    String
+  createdAt    DateTime @default(now())
+
+  @@unique([companyId, requestKey])
+  @@index([companyId, role, userId, createdAt])
+  @@index([companyId, resourceType, resourceId])
+  @@map("assignments")
+}
+
+/// อีเมลของงานขาย (5 พ.ย. 2569) — ส่งจาก mailbox ของบริษัท (Microsoft Graph) และ
+/// คำตอบของลูกค้าที่อยู่ในเธรดเดียวกัน. เก็บเฉพาะข้อความในเธรดที่ระบบเปิดเอง:
+/// อีเมลอื่นใน mailbox ไม่ถูกอ่านเนื้อหาและไม่ถูกบันทึก. ไม่มีเส้นลบ.
+model CrmEmail {
+  id            String  @id @default(uuid())
+  companyId     String
+  leadId        String?
+  opportunityId String?
+  quotationId   String?
+
+  /// out = ระบบส่ง · in = ลูกค้าตอบเข้ามา
+  direction String
+  /// out: lead_intro | quotation · in: reply
+  purpose   String
+  /// sent | failed | received
+  status    String
+
+  mailbox      String
+  fromAddress  String
+  toAddresses  String[] @default([])
+  ccAddresses  String[] @default([])
+  subject      String
+  /// ข้อความ (ไม่รวมข้อความเดิมที่อ้างถึง สำหรับขาเข้า) ตัดที่ 20,000 ตัวอักษร
+  bodyText     String   @default("")
+  /// [{ name, contentType, size }] — ไม่เก็บเนื้อไฟล์
+  attachments  Json     @default("[]")
+
+  /// Graph message id / RFC 5322 Message-ID / Graph conversationId (เธรด)
+  graphMessageId    String?
+  internetMessageId String?
+  conversationId    String?
+  /// อีเมลของระบบที่ข้อความนี้ตอบกลับ
+  replyToEmailId    String?
+
+  /// ขาเข้า: interested | needs_info | not_interested | confirmed | purchase_order | unclear
+  intent       String?
+  intentReason String?
+  /// llm | rules
+  intentSource String?
+
+  error      String?
+  sentBy     String?
+  occurredAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  @@unique([companyId, internetMessageId])
+  @@index([companyId, leadId, occurredAt])
+  @@index([companyId, opportunityId, occurredAt])
+  @@index([conversationId])
+  @@map("crm_emails")
+}
+
+/// mailbox ของงานขายต่อบริษัท (5 พ.ย. 2569) — ตั้งบนหน้า admin แทน env.
+/// ไม่มีแถว = ใช้ MAIL_* จาก env. client secret เข้ารหัสด้วย CONFIG_SECRET_KEY
+/// และไม่ถูกส่งกลับจาก API.
+model MailSetting {
+  id        String @id @default(uuid())
+  companyId String @unique
+
+  /// off | mock | graph
+  mode       String @default("off")
+  mailbox    String @default("")
+  senderName String @default("")
+  tenantId   String @default("")
+  clientId   String @default("")
+  clientSecretEnc String?
+
+  lastTestAt    DateTime?
+  lastTestOk    Boolean?
+  lastTestError String?
+
+  updatedBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("mail_settings")
 }

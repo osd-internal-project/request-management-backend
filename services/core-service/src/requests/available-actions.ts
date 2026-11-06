@@ -309,7 +309,8 @@ export const ACTIONS: readonly ActionSpec[] = [
   },
   {
     action: 'close',
-    from: ['approved'],
+    // `completed`: a type without a matrix is never approved (requests.service `close`).
+    from: ['approved', 'completed'],
     to: ['closed'],
     authority: 'requester',
     scopePermission: null,

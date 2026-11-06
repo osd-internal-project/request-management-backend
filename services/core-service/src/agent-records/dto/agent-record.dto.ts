@@ -29,6 +29,18 @@ export class FindLeadsDto {
   topic!: string;
 }
 
+export class ResearchLeadDto {
+  @ApiPropertyOptional({
+    description: 'เรื่องที่อยากให้ agent เน้น — ว่างได้',
+    example: 'ช่องทางบริการลูกค้าและผู้ตัดสินใจ',
+    maxLength: 500,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  focus?: string;
+}
+
 export class ListAgentRecordsDto extends PageQueryDto {
   @ApiPropertyOptional({ enum: AGENT_RECORD_STATUSES })
   @IsOptional()

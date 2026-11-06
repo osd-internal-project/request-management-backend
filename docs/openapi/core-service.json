@@ -34,6 +34,49 @@
         ]
       }
     },
+    "/api/v1/admin/webhooks/examples": {
+      "get": {
+        "operationId": "WebhookAdminController_examples",
+        "parameters": [
+          {
+            "name": "events",
+            "required": false,
+            "in": "query",
+            "description": "ชื่อ event คั่นด้วย `,` — ไม่ส่ง = ทุก event",
+            "schema": {
+              "example": "request.approved,sla.breached",
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "`WebhookExample[]`"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ตัวอย่าง body ที่ส่งไปให้ปลายทาง ต่อ event — สร้างจาก OpenAPI",
+        "tags": [
+          "admin/webhooks"
+        ],
+        "x-permission": [
+          "admin.integration.manage"
+        ]
+      }
+    },
     "/api/v1/admin/webhooks": {
       "get": {
         "operationId": "WebhookAdminController_list",
@@ -926,6 +969,542 @@
         ]
       }
     },
+    "/api/v1/leads/{id}/emails": {
+      "get": {
+        "operationId": "SalesMailController_listForLead",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "อีเมลของ Lead (รวมของดีลที่แปลงแล้ว)",
+        "tags": [
+          "sales-mail"
+        ],
+        "x-permission": [
+          "crm.lead.read"
+        ]
+      }
+    },
+    "/api/v1/opportunities/{id}/emails": {
+      "get": {
+        "operationId": "SalesMailController_listForOpportunity",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "อีเมลของโอกาสการขาย (รวมของ Lead ต้นทาง)",
+        "tags": [
+          "sales-mail"
+        ],
+        "x-permission": [
+          "crm.sales.read"
+        ]
+      }
+    },
+    "/api/v1/sales-emails/{id}/simulate-reply": {
+      "post": {
+        "description": "ผ่านทางเดียวกับอีเมลจริง: จัดประเภท → กิจกรรม → แจ้งเจ้าของ → event crm.email.received",
+        "operationId": "SalesMailController_simulateReply",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SimulateReplyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "จำลองว่าลูกค้าตอบอีเมลนี้ (MAIL_MODE=mock เท่านั้น)",
+        "tags": [
+          "sales-mail"
+        ],
+        "x-permission": [
+          "admin.integration.manage"
+        ]
+      }
+    },
+    "/api/v1/admin/mail-settings": {
+      "get": {
+        "description": "`source` = company (ตั้งบนหน้าจอ) หรือ env (ยังไม่เคยตั้ง ใช้ MAIL_*)",
+        "operationId": "MailSettingsController_get",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ค่าที่ใช้อยู่ของบริษัทนี้ (secret ไม่แสดงกลับ)",
+        "tags": [
+          "mail-settings"
+        ],
+        "x-permission": [
+          "admin.integration.manage"
+        ]
+      },
+      "put": {
+        "operationId": "MailSettingsController_update",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMailSettingsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "บันทึก — client secret ว่าง = ใช้ค่าเดิม",
+        "tags": [
+          "mail-settings"
+        ],
+        "x-permission": [
+          "admin.integration.manage"
+        ]
+      }
+    },
+    "/api/v1/admin/mail-settings/test": {
+      "post": {
+        "description": "ผู้รับตั้งต้น = อีเมลของผู้กด · ผลล่าสุดเก็บไว้ถ้าบันทึกค่าแล้ว",
+        "operationId": "MailSettingsController_test",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestMailSettingsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ส่งอีเมลทดสอบด้วยค่าที่กรอก (ยังไม่ต้องบันทึก)",
+        "tags": [
+          "mail-settings"
+        ],
+        "x-permission": [
+          "admin.integration.manage"
+        ]
+      }
+    },
+    "/api/v1/admin/assignment-rules/roles": {
+      "get": {
+        "operationId": "AssignmentAdminController_roles",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "บทบาทและช่องที่ใช้เป็นเงื่อนไขได้",
+        "tags": [
+          "admin/assignment-rules"
+        ],
+        "x-permission": [
+          "admin.org.manage"
+        ]
+      }
+    },
+    "/api/v1/admin/assignment-rules": {
+      "get": {
+        "operationId": "AssignmentAdminController_list",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "กฎทั้งหมดของบริษัท + ค่าต่อบทบาท (คนรับสำรอง, ประเภทคำขอที่นับงาน)",
+        "tags": [
+          "admin/assignment-rules"
+        ],
+        "x-permission": [
+          "admin.org.manage"
+        ]
+      },
+      "post": {
+        "operationId": "AssignmentAdminController_create",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAssignmentRuleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เพิ่มกฎ: บทบาท + เงื่อนไข → ทีม",
+        "tags": [
+          "admin/assignment-rules"
+        ],
+        "x-permission": [
+          "admin.org.manage"
+        ]
+      }
+    },
+    "/api/v1/admin/assignment-rules/roles/{role}": {
+      "patch": {
+        "operationId": "AssignmentAdminController_updateRole",
+        "parameters": [
+          {
+            "name": "role",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAssignmentRoleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ตั้งคนรับสำรอง / ประเภทคำขอที่นับงานเปิดของบทบาท",
+        "tags": [
+          "admin/assignment-rules"
+        ],
+        "x-permission": [
+          "admin.org.manage"
+        ]
+      }
+    },
+    "/api/v1/admin/assignment-rules/history": {
+      "get": {
+        "operationId": "AssignmentAdminController_history",
+        "parameters": [
+          {
+            "name": "role",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "การจัดคน 100 รายการล่าสุด",
+        "tags": [
+          "admin/assignment-rules"
+        ],
+        "x-permission": [
+          "admin.org.manage"
+        ]
+      }
+    },
+    "/api/v1/admin/assignment-rules/preview": {
+      "post": {
+        "operationId": "AssignmentAdminController_preview",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ลองจับคู่ — ตอบคนที่จะได้งาน ไม่บันทึก ไม่แจ้งเตือน",
+        "tags": [
+          "admin/assignment-rules"
+        ],
+        "x-permission": [
+          "admin.org.manage"
+        ]
+      }
+    },
+    "/api/v1/admin/assignment-rules/{id}": {
+      "patch": {
+        "operationId": "AssignmentAdminController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAssignmentRuleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แก้กฎ หรือปิด (active=false) — ไม่ลบจริง",
+        "tags": [
+          "admin/assignment-rules"
+        ],
+        "x-permission": [
+          "admin.org.manage"
+        ]
+      }
+    },
     "/api/v1/admin/api-keys/scopes": {
       "get": {
         "operationId": "ApiKeyAdminController_scopes",
@@ -1102,6 +1681,47 @@
           }
         ],
         "summary": "ดูค่าเต็มของกุญแจ — ทุกครั้งที่ดูลง audit",
+        "tags": [
+          "admin/api-keys"
+        ],
+        "x-permission": [
+          "admin.integration.manage"
+        ]
+      }
+    },
+    "/api/v1/admin/api-keys/{id}/examples": {
+      "get": {
+        "operationId": "ApiKeyAdminController_examples",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "`ApiExample[]` เรียงตาม tag แล้ว path"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ตัวอย่างการเรียกทุก route ที่กุญแจนี้มีสิทธิ์ — สร้างจาก OpenAPI",
         "tags": [
           "admin/api-keys"
         ],
@@ -5691,7 +6311,7 @@
           "leads"
         ],
         "x-permission": [
-          "crm.sales.read"
+          "crm.lead.read"
         ]
       }
     },
@@ -5816,7 +6436,7 @@
           "leads"
         ],
         "x-permission": [
-          "crm.sales.read"
+          "crm.lead.read"
         ]
       },
       "post": {
@@ -5857,7 +6477,7 @@
           "leads"
         ],
         "x-permission": [
-          "crm.sales.manage"
+          "crm.lead.manage"
         ]
       }
     },
@@ -5901,7 +6521,7 @@
           "leads"
         ],
         "x-permission": [
-          "crm.sales.manage"
+          "crm.lead.manage"
         ]
       }
     },
@@ -5943,7 +6563,7 @@
           "leads"
         ],
         "x-permission": [
-          "crm.sales.read"
+          "crm.lead.read"
         ]
       },
       "patch": {
@@ -5993,7 +6613,7 @@
           "leads"
         ],
         "x-permission": [
-          "crm.sales.manage"
+          "crm.lead.manage"
         ]
       }
     },
@@ -6045,7 +6665,7 @@
           "leads"
         ],
         "x-permission": [
-          "crm.sales.manage"
+          "crm.lead.manage"
         ]
       }
     },
@@ -6097,7 +6717,7 @@
           "leads"
         ],
         "x-permission": [
-          "crm.sales.manage"
+          "crm.lead.manage"
         ]
       }
     },
@@ -6149,7 +6769,7 @@
           "leads"
         ],
         "x-permission": [
-          "crm.sales.manage"
+          "crm.lead.manage"
         ]
       }
     },
@@ -6201,7 +6821,7 @@
           "leads"
         ],
         "x-permission": [
-          "crm.sales.manage"
+          "crm.lead.manage"
         ]
       }
     },
@@ -6260,7 +6880,7 @@
           "leads"
         ],
         "x-permission": [
-          "crm.sales.manage"
+          "crm.lead.manage"
         ]
       }
     },
@@ -6312,7 +6932,7 @@
           "leads"
         ],
         "x-permission": [
-          "crm.sales.manage"
+          "crm.lead.manage"
         ]
       }
     },
@@ -6364,7 +6984,7 @@
           "leads"
         ],
         "x-permission": [
-          "crm.sales.manage"
+          "crm.lead.manage"
         ]
       }
     },
@@ -8111,9 +8731,6 @@
         "summary": "แคมเปญพร้อมผล",
         "tags": [
           "campaigns"
-        ],
-        "x-permission": [
-          "crm.sales.read"
         ]
       },
       "post": {
@@ -8323,7 +8940,7 @@
           "target-accounts"
         ],
         "x-permission": [
-          "crm.sales.read"
+          "crm.lead.read"
         ]
       },
       "post": {
@@ -8364,7 +8981,7 @@
           "target-accounts"
         ],
         "x-permission": [
-          "crm.sales.manage"
+          "crm.lead.manage"
         ]
       }
     },
@@ -8415,7 +9032,7 @@
           "target-accounts"
         ],
         "x-permission": [
-          "crm.sales.manage"
+          "crm.lead.manage"
         ]
       }
     },
@@ -8467,7 +9084,7 @@
           "target-accounts"
         ],
         "x-permission": [
-          "crm.sales.manage"
+          "crm.lead.manage"
         ]
       }
     },
@@ -8518,7 +9135,7 @@
           "target-accounts"
         ],
         "x-permission": [
-          "crm.sales.manage"
+          "crm.lead.manage"
         ]
       }
     },
@@ -8559,7 +9176,7 @@
           "target-accounts"
         ],
         "x-permission": [
-          "crm.sales.manage"
+          "crm.lead.manage"
         ]
       }
     },
@@ -12967,7 +13584,8 @@
             "schema": {
               "type": "string",
               "enum": [
-                "lead.find"
+                "lead.find",
+                "lead.research"
               ]
             }
           },
@@ -13119,13 +13737,65 @@
           "leads"
         ],
         "x-permission": [
-          "crm.sales.manage"
+          "crm.lead.manage"
         ]
       }
     },
-    "/api/v1/admin/integration-endpoints": {
+    "/api/v1/leads/{id}/research": {
+      "post": {
+        "description": "สร้างงาน `lead.research` แล้วส่งให้ Vuvagent — ตอบ record ทันที; agent เขียนผลลง `intakeData.research` ของ Lead เอง",
+        "operationId": "LeadFindController_research",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResearchLeadDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ให้ agent วิจัย Lead นี้",
+        "tags": [
+          "leads"
+        ],
+        "x-permission": [
+          "crm.lead.manage"
+        ]
+      }
+    },
+    "/api/v1/admin/outbound-connections": {
       "get": {
-        "operationId": "IntegrationEndpointsAdminController_list",
+        "operationId": "OutboundConnectionsAdminController_list",
         "parameters": [
           {
             "name": "integration_id",
@@ -13153,7 +13823,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/IntegrationEndpointRowDto"
+                    "$ref": "#/components/schemas/OutboundConnectionRowDto"
                   }
                 }
               }
@@ -13165,16 +13835,16 @@
             "bearer": []
           }
         ],
-        "summary": "endpoint ของระบบภายนอกหนึ่งระบบ — ไม่มี key ในคำตอบ",
+        "summary": "การเชื่อมต่อของระบบภายนอกหนึ่งระบบ — ไม่มี key ในคำตอบ",
         "tags": [
-          "admin/integration-endpoints"
+          "admin/outbound-connections"
         ],
         "x-permission": [
           "admin.integration.manage"
         ]
       },
       "post": {
-        "operationId": "IntegrationEndpointsAdminController_create",
+        "operationId": "OutboundConnectionsAdminController_create",
         "parameters": [
           {
             "name": "X-Company-Id",
@@ -13191,7 +13861,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateIntegrationEndpointDto"
+                "$ref": "#/components/schemas/CreateOutboundConnectionDto"
               }
             }
           }
@@ -13202,7 +13872,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/IntegrationEndpointRowDto"
+                  "$ref": "#/components/schemas/OutboundConnectionRowDto"
                 }
               }
             }
@@ -13213,18 +13883,61 @@
             "bearer": []
           }
         ],
-        "summary": "เพิ่ม endpoint ของงานหนึ่ง — งานละหนึ่ง endpoint ต่อบริษัท",
+        "summary": "เพิ่มการเชื่อมต่อ — vendor ละหนึ่งแถวต่อบริษัท",
         "tags": [
-          "admin/integration-endpoints"
+          "admin/outbound-connections"
         ],
         "x-permission": [
           "admin.integration.manage"
         ]
       }
     },
-    "/api/v1/admin/integration-endpoints/{id}": {
+    "/api/v1/admin/outbound-connections/actions": {
+      "get": {
+        "operationId": "OutboundConnectionsAdminController_actions",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AgentActionInfoDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "งานที่ส่งให้ agent ได้ — vendor, ข้อมูลที่ส่ง, timeout เริ่มต้น",
+        "tags": [
+          "admin/outbound-connections"
+        ],
+        "x-permission": [
+          "admin.integration.manage"
+        ]
+      }
+    },
+    "/api/v1/admin/outbound-connections/{id}": {
       "patch": {
-        "operationId": "IntegrationEndpointsAdminController_update",
+        "operationId": "OutboundConnectionsAdminController_update",
         "parameters": [
           {
             "name": "id",
@@ -13249,7 +13962,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpdateIntegrationEndpointDto"
+                "$ref": "#/components/schemas/UpdateOutboundConnectionDto"
               }
             }
           }
@@ -13260,7 +13973,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/IntegrationEndpointRowDto"
+                  "$ref": "#/components/schemas/OutboundConnectionRowDto"
                 }
               }
             }
@@ -13271,18 +13984,18 @@
             "bearer": []
           }
         ],
-        "summary": "แก้ URL, endpoint id, key หรือเปิด/ปิด",
+        "summary": "แก้ URL, key, เปิด/ปิด หรือ endpoint ของงาน (ส่งทั้งชุด)",
         "tags": [
-          "admin/integration-endpoints"
+          "admin/outbound-connections"
         ],
         "x-permission": [
           "admin.integration.manage"
         ]
       }
     },
-    "/api/v1/admin/integration-endpoints/{id}/key": {
+    "/api/v1/admin/outbound-connections/{id}/key": {
       "get": {
-        "operationId": "IntegrationEndpointsAdminController_revealKey",
+        "operationId": "OutboundConnectionsAdminController_revealKey",
         "parameters": [
           {
             "name": "id",
@@ -13308,7 +14021,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/IntegrationEndpointKeyDto"
+                  "$ref": "#/components/schemas/OutboundConnectionKeyDto"
                 }
               }
             }
@@ -13321,7 +14034,55 @@
         ],
         "summary": "ดู x-api-key ปัจจุบัน — ทุกครั้งที่ดูลง audit",
         "tags": [
-          "admin/integration-endpoints"
+          "admin/outbound-connections"
+        ],
+        "x-permission": [
+          "admin.integration.manage"
+        ]
+      }
+    },
+    "/api/v1/admin/outbound-connections/{id}/test": {
+      "post": {
+        "operationId": "OutboundConnectionsAdminController_test",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionTestResultDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ทดสอบการเชื่อมต่อด้วยการเรียกจริง (`connection_test: true`)",
+        "tags": [
+          "admin/outbound-connections"
         ],
         "x-permission": [
           "admin.integration.manage"
@@ -45467,10 +46228,11 @@
             "type": "string",
             "enum": [
               "request_type",
-              "lead_status"
+              "lead_status",
+              "email_intent"
             ],
             "nullable": true,
-            "description": "`request_type` = รหัสประเภทคำขอ (ตัวพิมพ์ใหญ่ เช่น SOL) · `lead_status` = รหัสสถานะ Lead (ตัวพิมพ์เล็ก เช่น qualified) · null = กรองไม่ได้"
+            "description": "`request_type` = รหัสประเภทคำขอ (ตัวพิมพ์ใหญ่ เช่น SOL) · `lead_status` = รหัสสถานะ Lead (ตัวพิมพ์เล็ก เช่น qualified) · `email_intent` = ผลจัดประเภทคำตอบอีเมล (interested, needs_info, not_interested, confirmed, purchase_order, unclear) · null = กรองไม่ได้"
           }
         },
         "required": [
@@ -45879,6 +46641,220 @@
           "page_size"
         ]
       },
+      "SimulateReplyDto": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "example": "สนใจครับ รบกวนส่งใบเสนอราคาให้ด้วย",
+            "maxLength": 20000,
+            "minLength": 1
+          },
+          "attachment_names": {
+            "example": [
+              "PO-2026-0153.pdf"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 5
+          },
+          "from": {
+            "type": "string",
+            "format": "email"
+          }
+        },
+        "required": [
+          "text"
+        ]
+      },
+      "UpdateMailSettingsDto": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "off",
+              "mock",
+              "graph"
+            ],
+            "description": "off = ปิด · mock = จำลอง ไม่ส่งจริง · graph = ส่งจริงผ่าน Microsoft Graph"
+          },
+          "mailbox": {
+            "type": "string",
+            "example": "sales@osd.co.th",
+            "maxLength": 200,
+            "format": "email"
+          },
+          "sender_name": {
+            "type": "string",
+            "example": "ฝ่ายขาย OSD",
+            "maxLength": 100
+          },
+          "tenant_id": {
+            "type": "string",
+            "description": "Directory (tenant) ID ของ Entra ID",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+          },
+          "client_id": {
+            "type": "string",
+            "description": "Application (client) ID ของ App",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "ว่าง/ไม่ส่ง = ใช้ secret เดิม · เก็บแบบเข้ารหัส ไม่แสดงกลับ",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "TestMailSettingsDto": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "off",
+              "mock",
+              "graph"
+            ],
+            "description": "off = ปิด · mock = จำลอง ไม่ส่งจริง · graph = ส่งจริงผ่าน Microsoft Graph"
+          },
+          "mailbox": {
+            "type": "string",
+            "example": "sales@osd.co.th",
+            "maxLength": 200,
+            "format": "email"
+          },
+          "sender_name": {
+            "type": "string",
+            "example": "ฝ่ายขาย OSD",
+            "maxLength": 100
+          },
+          "tenant_id": {
+            "type": "string",
+            "description": "Directory (tenant) ID ของ Entra ID",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+          },
+          "client_id": {
+            "type": "string",
+            "description": "Application (client) ID ของ App",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "ว่าง/ไม่ส่ง = ใช้ secret เดิม · เก็บแบบเข้ารหัส ไม่แสดงกลับ",
+            "maxLength": 500
+          },
+          "to": {
+            "type": "string",
+            "description": "ผู้รับ — ว่าง = อีเมลของผู้กดทดสอบ",
+            "format": "email"
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "CreateAssignmentRuleDto": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "sales",
+              "presales",
+              "pricing",
+              "legal",
+              "pm",
+              "support"
+            ],
+            "example": "sales"
+          },
+          "name": {
+            "type": "string",
+            "example": "ลูกค้าธนาคาร → ทีมขายองค์กร",
+            "maxLength": 120,
+            "minLength": 1
+          },
+          "org_unit_id": {
+            "type": "string",
+            "description": "ทีมจากผังองค์กร (`org_units.id`)",
+            "minLength": 1
+          },
+          "conditions": {
+            "type": "object",
+            "description": "ช่อง → ค่าที่รับ จาก `GET admin/assignment-rules/roles` · ว่าง = รับทุกงาน",
+            "example": {
+              "industry": [
+                "ธนาคาร"
+              ],
+              "productGroup": [
+                "Network"
+              ]
+            }
+          },
+          "sort_order": {
+            "type": "integer",
+            "description": "น้อยตรวจก่อน",
+            "example": 10,
+            "maximum": 100000,
+            "minimum": 0
+          }
+        },
+        "required": [
+          "name",
+          "org_unit_id",
+          "role"
+        ]
+      },
+      "UpdateAssignmentRoleDto": {
+        "type": "object",
+        "properties": {
+          "fallback_user_id": {
+            "type": "object",
+            "description": "คนรับเมื่อไม่ตรงกฎใด (เช่น Sales Manager) · null = ล้าง",
+            "nullable": true
+          },
+          "load_type_codes": {
+            "description": "ประเภทคำขอที่นับเป็นงานเปิดของบทบาท เช่น [\"SOL\"]",
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 50
+          }
+        }
+      },
+      "UpdateAssignmentRuleDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1
+          },
+          "org_unit_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "conditions": {
+            "type": "object"
+          },
+          "sort_order": {
+            "type": "integer",
+            "maximum": 100000,
+            "minimum": 0
+          },
+          "active": {
+            "type": "boolean"
+          }
+        }
+      },
       "ApiKeyScopeDto": {
         "type": "object",
         "properties": {
@@ -46101,7 +47077,7 @@
             "description": "ชุดสิทธิ์ใหม่ทั้งชุด — แทนที่ของเดิม ไม่ใช่เพิ่มเข้าไป",
             "example": [
               "integration.crm.lead.create",
-              "integration.crm.lead.read"
+              "integration.crm.lead.read.all"
             ],
             "type": "array",
             "items": {
@@ -46155,7 +47131,7 @@
           "webhook_count": {
             "type": "number"
           },
-          "endpoint_count": {
+          "connection_count": {
             "type": "number"
           },
           "created_at": {
@@ -46175,7 +47151,7 @@
           "active",
           "api_key_count",
           "webhook_count",
-          "endpoint_count",
+          "connection_count",
           "created_at",
           "created_by"
         ]
@@ -47647,6 +48623,9 @@
           "quotation_approval_type_code": {
             "pattern": "^[A-Z0-9_-]{1,20}$",
             "type": "string"
+          },
+          "auto_approve_standard_price": {
+            "type": "boolean"
           },
           "target_approval_type_code": {
             "pattern": "^([A-Z0-9_-]{1,20})?$",
@@ -50365,7 +51344,18 @@
           "topic"
         ]
       },
-      "IntegrationEndpointRowDto": {
+      "ResearchLeadDto": {
+        "type": "object",
+        "properties": {
+          "focus": {
+            "type": "string",
+            "description": "เรื่องที่อยากให้ agent เน้น — ว่างได้",
+            "example": "ช่องทางบริการลูกค้าและผู้ตัดสินใจ",
+            "maxLength": 500
+          }
+        }
+      },
+      "OutboundConnectionRowDto": {
         "type": "object",
         "properties": {
           "id": {
@@ -50374,14 +51364,28 @@
           "integration_id": {
             "type": "string"
           },
+          "vendor": {
+            "type": "string",
+            "enum": [
+              "vuvagent"
+            ]
+          },
           "action": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "lead.find",
+              "lead.research"
+            ]
           },
           "base_url": {
             "type": "string"
           },
           "endpoint_id": {
             "type": "string"
+          },
+          "timeout_minutes": {
+            "type": "number",
+            "description": "ค่าของแถว หรือค่าเริ่มต้นของงานถ้าไม่ได้ตั้ง"
           },
           "active": {
             "type": "boolean"
@@ -50396,31 +51400,76 @@
         "required": [
           "id",
           "integration_id",
+          "vendor",
           "action",
           "base_url",
           "endpoint_id",
+          "timeout_minutes",
           "active",
           "created_at",
           "updated_at"
         ]
       },
-      "CreateIntegrationEndpointDto": {
+      "AgentActionInfoDto": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "example": "lead.find"
+          },
+          "vendor": {
+            "type": "string",
+            "enum": [
+              "vuvagent"
+            ]
+          },
+          "payload_fields": {
+            "example": [
+              "agent_record_id",
+              "topic"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "default_timeout_minutes": {
+            "type": "number",
+            "example": 30
+          }
+        },
+        "required": [
+          "action",
+          "vendor",
+          "payload_fields",
+          "default_timeout_minutes"
+        ]
+      },
+      "CreateOutboundConnectionDto": {
         "type": "object",
         "properties": {
           "integration_id": {
             "type": "string",
-            "description": "ระบบภายนอกที่ endpoint นี้เป็นของ"
+            "description": "ระบบภายนอกที่การเชื่อมต่อนี้เป็นของ"
           },
           "action": {
             "type": "string",
             "enum": [
-              "lead.find"
+              "lead.find",
+              "lead.research"
             ],
-            "example": "lead.find"
+            "example": "lead.find",
+            "description": "หนึ่งแถวต่อหนึ่งงาน — ที่ Vuvagent หนึ่งงานคือหนึ่ง agent"
           },
           "base_url": {
             "type": "string",
-            "example": "https://d80g4r2y4zcsb.cloudfront.net",
+            "example": "https://vuvagent.say2us.com",
+            "maxLength": 500,
+            "minLength": 1
+          },
+          "api_key": {
+            "type": "string",
+            "description": "x-api-key ของ agent งานนี้",
             "maxLength": 500,
             "minLength": 1
           },
@@ -50430,11 +51479,12 @@
             "maxLength": 200,
             "pattern": "^[A-Za-z0-9_-]+$"
           },
-          "api_key": {
-            "type": "string",
-            "description": "`x-api-key` ของปลายทาง — เก็บแบบเข้ารหัส",
-            "maxLength": 500,
-            "minLength": 1
+          "timeout_minutes": {
+            "type": "integer",
+            "description": "ไม่มีผลตอบกลับภายในกี่นาทีจึงปิดงานเป็น failed — ไม่ส่ง = ค่าเริ่มต้นของงาน",
+            "minimum": 1,
+            "maximum": 1440,
+            "example": 30
           }
         },
         "required": [
@@ -50445,18 +51495,14 @@
           "integration_id"
         ]
       },
-      "UpdateIntegrationEndpointDto": {
+      "UpdateOutboundConnectionDto": {
         "type": "object",
         "properties": {
           "base_url": {
             "type": "string",
+            "example": "https://vuvagent.say2us.com",
             "maxLength": 500,
             "minLength": 1
-          },
-          "endpoint_id": {
-            "type": "string",
-            "maxLength": 200,
-            "pattern": "^[A-Za-z0-9_-]+$"
           },
           "api_key": {
             "type": "string",
@@ -50464,12 +51510,24 @@
             "maxLength": 500,
             "minLength": 1
           },
+          "endpoint_id": {
+            "type": "string",
+            "example": "ep_192af84bf2f9417cbf9f4097e050d264",
+            "maxLength": 200,
+            "pattern": "^[A-Za-z0-9_-]+$"
+          },
+          "timeout_minutes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1440,
+            "example": 30
+          },
           "active": {
             "type": "boolean"
           }
         }
       },
-      "IntegrationEndpointKeyDto": {
+      "OutboundConnectionKeyDto": {
         "type": "object",
         "properties": {
           "api_key": {
@@ -50478,6 +51536,31 @@
         },
         "required": [
           "api_key"
+        ]
+      },
+      "ConnectionTestResultDto": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "number",
+            "nullable": true
+          },
+          "ms": {
+            "type": "number"
+          },
+          "problem": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "ok",
+          "status",
+          "ms",
+          "problem"
         ]
       },
       "StartSolutionDto": {

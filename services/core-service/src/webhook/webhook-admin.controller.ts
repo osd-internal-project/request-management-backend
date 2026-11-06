@@ -1,9 +1,18 @@
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
 import { CurrentPrincipal, Permissions } from '@request-management/share';
@@ -30,6 +39,27 @@ export class WebhookAdminController {
   @ApiOperation({ summary: 'event ที่สมัครรับได้ — มาจาก event catalog' })
   events() {
     return this.webhooks.events();
+  }
+
+  @Get('examples')
+  @Permissions('admin.integration.manage')
+  @ApiOperation({
+    summary: 'ตัวอย่าง body ที่ส่งไปให้ปลายทาง ต่อ event — สร้างจาก OpenAPI',
+  })
+  @ApiQuery({
+    name: 'events',
+    required: false,
+    description: 'ชื่อ event คั่นด้วย `,` — ไม่ส่ง = ทุก event',
+    example: 'request.approved,sla.breached',
+  })
+  @ApiOkResponse({ description: '`WebhookExample[]`' })
+  examples(@Query('events') events?: string) {
+    return this.webhooks.examples(
+      (events ?? '')
+        .split(',')
+        .map((event) => event.trim())
+        .filter(Boolean),
+    );
   }
 
   @Get()

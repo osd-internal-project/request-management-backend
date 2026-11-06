@@ -149,6 +149,7 @@ that hands one account a company list it has no roles in.
 |---|---|
 | Shared guards, error catalog, pagination, scope maths | `libs/share/src/` |
 | The permission catalog (declared in code) | `libs/share/src/policy/permissions.ts` |
+| How a new permission is named and split out | `docs/permission-taxonomy.md` |
 | One Prisma schema for every service | `libs/prisma/schema.prisma` |
 | Identity, org, roles, policy, audit | `services/user-service/src/` |
 | Request, approval, SLA, notification, CRM | `services/core-service/src/` |
@@ -234,7 +235,9 @@ be justified by citing §7.1 or §8.1:
 3. **A type with no approval matrix skips the check entirely.** The absence of a
    matrix is configuration, not a gap — `selectTier` throwing
    `APV_MATRIX_NOT_FOUND` is the wrong answer for those types, which is why
-   `complete` asks `hasPublishedMatrix` first.
+   `complete` asks `hasPublishedMatrix` first. Such a request stays `completed`
+   and the requester closes it from there — never `approved`, since nobody
+   approved it (REQ-OSD-BS-01-26100006, 28 Oct 2026).
 4. **A type may publish a step flow** (PO, 28 Sep 2026). Steps live inside
    `in_progress`; `advance` moves between them, and a step with an exit ladder
    (`request:<CODE>:step:<STEP>`) waits in `pending_approval`, which is why
@@ -453,6 +456,18 @@ The caller is the engine; whoever completed a human task travels as
 `actor_email`, recorded, never authenticated. A ninth is again a decision to
 state here.
 
+**The ninth: `process/assignments` and `process/notifications` (2 Nov 2026,
+user decision).** OSD Workflow asks the company's team table (`admin/
+assignment-rules`, teams are `OrgUnit`s) who gets a piece of work, under its
+own scope `integration.process.dispatch`, and tells one of the company's people
+that something happened. The answer is data — matching rule, leave, open work,
+queue — never a process decision; for a Lead it also writes the owner through
+`LeadsService.assign`, and a Lead that already has one keeps it. A notice links
+to a document by type and id, never to a URL the caller supplies. Closing a
+request is **not** here: the workflow completes it through `requests/:ref/
+actions/complete` acting as the assignee, so REQ-08 still holds. A tenth is
+again a decision to state here.
+
 **The ninth: `crm/ai/leads/*` (22 Oct 2026, user decision).** An AI agent works
 leads for the company, not for a person, so there is no person's scope to borrow.
 Its rows are every lead of the key's company: `integration.crm.lead.read` sets
@@ -473,6 +488,25 @@ only moves a record of the key's company from `processing` to `done`/`failed`, o
 another company's id answers 404, a finished one 409. The leads it finds arrive
 through `crm/leads/intake` with `intake_data.agent_record_id`, not through this route.
 An eleventh is again a decision to state here.
+
+**The eleventh: `crm/ai` sales — `leads/:id/emails`, `emails/:id`,
+`opportunities/:id/quotations`, `quotations/:id/email|accept` (5 Nov 2026,
+user decision).** OSD Workflow sells for the company from a qualified Lead to
+the customer's confirmation: a thank-you (and proposal) email, the customer's
+answer classified into `EMAIL_INTENTS` and announced as `crm.email.received`
+(a trigger filters on the intent), a quotation drafted from the standard price
+list and submitted — at standard prices it is approved at once
+(`autoApproveStandardPrice`, a CRM setting, default on; off = PRA as CD-201) —
+the PDF sent in the customer's own thread, and the confirmation or PO
+recorded. Scopes `integration.crm.email.send|read`,
+`integration.crm.quotation.create|accept`, and `integration.crm.sales.read.all`
+(the deals and quotations of the key's company, machine only, like
+`lead.read.all`). The deal stays its owner's; the recipient is always the
+Lead's or deal's own address, never one the caller names; each company's
+mailbox (`mail_settings`, set on screen with the secret sealed; env `MAIL_*`
+for a company with no row) is read only for messages in threads it opened. A product with no standard price answers 422
+`CRM_QUOTATION_UNPRICED` so the workflow hands the deal to the salesperson.
+`docs/sales-email-flow.md`. A twelfth is again a decision to state here.
 
 **core-service's one public business surface: e-signature (CD-14, 30 Sep
 2026).** `EsignPublicController` — `esign/public/:token/*` (a signer's link:

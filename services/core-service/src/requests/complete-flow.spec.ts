@@ -54,6 +54,7 @@ function serviceWith(options: {
   hasMatrix: boolean;
   openChildren?: { id: string; requestNo: string | null }[];
   request?: Record<string, unknown>;
+  accepted?: boolean;
 }) {
   const updates: Record<string, unknown>[] = [];
 
@@ -67,7 +68,9 @@ function serviceWith(options: {
     // `nextRequestEventSeq` locks the row, then reads the last seq.
     $queryRaw: jest.fn(() => Promise.resolve([])),
     requestEvent: {
-      findFirst: jest.fn(() => Promise.resolve(null)),
+      findFirst: jest.fn(() =>
+        Promise.resolve(options.accepted ? { id: 'event-1' } : null),
+      ),
       create: jest.fn(() => Promise.resolve({})),
     },
     approvalCase: { update: jest.fn(() => Promise.resolve({})) },
@@ -122,16 +125,43 @@ describe('completing a request decides whether the result is checked', () => {
    * Eighteen of OSD's forty types are Pattern C — "คำขอนี้ไม่มีชั้นอนุมัติ".
    * Before this branch existed they could not be finished at all.
    */
-  it('accepts the result outright when the type has no approval matrix', async () => {
+  it('stays completed when the type has no approval matrix — nobody approved it', async () => {
     const { service, updates, openCase } = serviceWith({ hasMatrix: false });
 
-    await service.complete('req-1', principal(), 'Bearer token');
+    const result = await service.complete('req-1', principal(), 'Bearer token');
 
-    expect(updates.map((update) => update.status)).toEqual([
-      'completed',
-      'approved',
-    ]);
+    expect(updates.map((update) => update.status)).toEqual(['completed']);
+    expect(result).toMatchObject({ status: 'completed' });
     expect(openCase).not.toHaveBeenCalled();
+  });
+
+  it('lets the requester close a completed result accepted without a check', async () => {
+    const { service, updates } = serviceWith({
+      hasMatrix: false,
+      accepted: true,
+      request: inProgressRequest({ status: 'completed' }),
+    });
+
+    await service.close('req-1', principal(REQUESTER));
+
+    expect(updates.map((update) => update.status)).toEqual(['closed']);
+  });
+
+  it('refuses to close a completed result still owed an approval', async () => {
+    expect.assertions(2);
+
+    const { service, updates } = serviceWith({
+      hasMatrix: true,
+      accepted: false,
+      request: inProgressRequest({ status: 'completed' }),
+    });
+
+    try {
+      await service.close('req-1', principal(REQUESTER));
+    } catch (error) {
+      expect((error as AppError).code).toBe('REQ_STATE_INVALID');
+    }
+    expect(updates).toHaveLength(0);
   });
 
   it('opens a case and waits for the check when the type has one', async () => {

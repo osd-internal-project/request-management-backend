@@ -7,6 +7,7 @@
  * its data and hands over the ids; the workflow decides what to do with it.
  */
 import { DOMAIN_EVENTS, type DomainEvent } from '../events/event-catalog';
+import { EMAIL_INTENTS } from '../mail/mail-rules';
 
 export { nextAttemptDelayMs } from '../webhook/webhook-rules';
 
@@ -38,7 +39,7 @@ interface TriggerEventSpec {
  * lead status codes from CRM settings (`qualified`) — configuration, so the
  * screen offers whatever codes exist and nothing here names one.
  */
-export type TriggerFilterKind = 'request_type' | 'lead_status';
+export type TriggerFilterKind = 'request_type' | 'lead_status' | 'email_intent';
 
 interface TriggerFilter {
   kind: TriggerFilterKind;
@@ -59,6 +60,13 @@ const LEAD_STATUS_FILTER: TriggerFilter = {
   kind: 'lead_status',
   field: 'status',
   pattern: /^[a-z][a-z0-9_]{0,29}$/,
+};
+
+/** What a customer's reply was classified as — `EMAIL_INTENTS`, fixed in code. */
+const EMAIL_INTENT_FILTER: TriggerFilter = {
+  kind: 'email_intent',
+  field: 'intent',
+  pattern: new RegExp(`^(${EMAIL_INTENTS.join('|')})$`),
 };
 
 /** `-` is what a workflow template reads as "none" (see process-refs.dto). */
@@ -131,6 +139,33 @@ export const WORKFLOW_TRIGGER_EVENTS: Readonly<
       leadId: text(p.lead_id),
       opportunityId: text(p.opportunity_id),
       opportunityNo: text(p.opportunity_code),
+      companyId: text(p.company_id),
+    }),
+  },
+  /*
+    5 พ.ย. 2569 — งานขายอัตโนมัติ: ลูกค้าตอบอีเมลที่ระบบส่ง. resource คืออีเมล
+    ขาเข้าแต่ละฉบับ ทุกคำตอบจึงเริ่ม workflow ได้ (unique key ของ workflow_starts
+    คือ resource ต่อ trigger) — กรองด้วยผลจัดประเภท เช่น interested / confirmed.
+  */
+  [DOMAIN_EVENTS.crmEmailReceived]: {
+    label: 'ลูกค้าตอบอีเมล',
+    resourceType: 'crm_email',
+    variables: [
+      'emailId',
+      'intent',
+      'leadId',
+      'opportunityId',
+      'quotationId',
+      'companyId',
+    ],
+    filter: EMAIL_INTENT_FILTER,
+    resourceIdOf: (p) => String(p.email_id),
+    variablesOf: (p) => ({
+      emailId: text(p.email_id),
+      intent: text(p.intent),
+      leadId: text(p.lead_id),
+      opportunityId: text(p.opportunity_id),
+      quotationId: text(p.quotation_id),
       companyId: text(p.company_id),
     }),
   },
@@ -238,7 +273,8 @@ export function triggerProblems(input: {
   if (spec && !spec.filter && codes.length > 0) {
     problems.push({
       field: 'type_codes',
-      reason: 'เหตุการณ์นี้กรองไม่ได้ — กรองได้เฉพาะประเภทคำขอหรือสถานะ Lead',
+      reason:
+        'เหตุการณ์นี้กรองไม่ได้ — กรองได้เฉพาะประเภทคำขอ สถานะ Lead หรือผลจัดประเภทอีเมล',
     });
   }
   const filter = spec?.filter;
@@ -249,7 +285,9 @@ export function triggerProblems(input: {
       reason:
         filter.kind === 'lead_status'
           ? `รหัสสถานะ Lead ไม่ถูกต้อง: ${bad.join(', ')} (ตัวพิมพ์เล็ก เช่น qualified)`
-          : `รหัสประเภทคำขอไม่ถูกต้อง: ${bad.join(', ')}`,
+          : filter.kind === 'email_intent'
+            ? `ผลจัดประเภทอีเมลไม่ถูกต้อง: ${bad.join(', ')} (ใช้ได้: ${EMAIL_INTENTS.join(', ')})`
+            : `รหัสประเภทคำขอไม่ถูกต้อง: ${bad.join(', ')}`,
     });
   }
   if (input.channelId !== undefined && !CHANNEL_ID.test(input.channelId)) {

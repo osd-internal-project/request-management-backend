@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { openSecret } from '../pm/config-rules';
 import { addressProblems } from '../webhook/webhook-rules';
 import type { AgentAction } from './agent-actions';
-import { IntegrationEndpointRepository } from './integration-endpoint.repository';
+import { OutboundConnectionRepository } from './outbound-connection.repository';
 
 /** Vuvagent only queues the run; a call that hangs is a call that failed. */
 const DISPATCH_TIMEOUT_MS = 15_000;
@@ -19,15 +19,25 @@ export class VuvagentDispatchError extends Error {
   }
 }
 
-interface EndpointRow {
+/** One agent: its URL, sealed key and endpoint id. */
+interface ConnectionRow {
+  action: string | null;
   baseUrl: string;
-  endpointId: string;
-  apiKeyEnc: string;
+  secretEnc: string;
+  endpointId: string | null;
+}
+
+export interface ConnectionTestResult {
+  ok: boolean;
+  status: number | null;
+  ms: number;
+  problem: string | null;
 }
 
 /**
- * ประตูเดียวที่ core ออกไปหา Vuvagent — ส่งงานแล้วจบ. ปลายทางมาจากแถว
- * `integration_endpoints` ของบริษัท (แท็บ "Endpoint ที่เราเรียก" หน้า Integrations):
+ * ประตูเดียวที่ core ออกไปหา Vuvagent — ส่งงานแล้วจบ. ที่ Vuvagent หนึ่งงานคือหนึ่ง
+ * agent: URL, key และ endpoint id มาจากแถว `outbound_connections` ของบริษัทสำหรับ
+ * งานนั้น (แท็บ "การเชื่อมต่อที่เราเรียก" หน้า Integrations):
  *
  * ```
  * POST {baseUrl}/v1/endpoints/{endpointId}
@@ -41,7 +51,7 @@ interface EndpointRow {
 @Injectable()
 export class VuvagentClient {
   constructor(
-    private readonly endpoints: IntegrationEndpointRepository,
+    private readonly connections: OutboundConnectionRepository,
     private readonly config: ConfigService,
   ) {}
 
@@ -50,18 +60,70 @@ export class VuvagentClient {
     action: AgentAction,
     body: { agent_record_id: string } & Record<string, unknown>,
   ): Promise<void> {
-    const endpoint = (await this.endpoints.findFirst({
+    const connection = (await this.connections.findFirst({
       where: { companyId, action, active: true },
-      select: { baseUrl: true, endpointId: true, apiKeyEnc: true },
-    })) as EndpointRow | null;
-    if (!endpoint) {
+      select: { action: true, baseUrl: true, secretEnc: true, endpointId: true },
+    })) as ConnectionRow | null;
+    if (!connection) {
       throw new VuvagentDispatchError(
         null,
-        `ยังไม่ได้ตั้ง endpoint ของ ${action} ที่หน้า Integrations`,
+        `ยังไม่ได้ตั้งการเชื่อมต่อของงาน ${action} ที่หน้า Integrations`,
+      );
+    }
+    const response = await this.post(connection, body);
+    if (!response.ok) {
+      const detail = await response.text().catch(() => '');
+      throw new VuvagentDispatchError(
+        response.status,
+        `HTTP ${response.status} ${detail}`.trim().slice(0, 300),
+      );
+    }
+  }
+
+  /**
+   * One real call with `connection_test: true`. Vuvagent has no health route,
+   * so the playbook should end early on that flag; 401/403 means the key is wrong.
+   */
+  async test(connection: ConnectionRow): Promise<ConnectionTestResult> {
+    const started = Date.now();
+    try {
+      const response = await this.post(connection, {
+        agent_record_id: null,
+        connection_test: true,
+      });
+      return {
+        ok: response.ok,
+        status: response.status,
+        ms: Date.now() - started,
+        problem: response.ok
+          ? null
+          : response.status === 401 || response.status === 403
+            ? 'Vuvagent ไม่รับ key นี้'
+            : `HTTP ${response.status}`,
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        status:
+          error instanceof VuvagentDispatchError ? error.statusCode : null,
+        ms: Date.now() - started,
+        problem: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  private async post(
+    connection: ConnectionRow,
+    body: Record<string, unknown>,
+  ): Promise<Response> {
+    if (!connection.endpointId) {
+      throw new VuvagentDispatchError(
+        null,
+        `ยังไม่ได้ตั้ง endpoint ของงาน ${connection.action ?? ''} ที่หน้า Integrations`,
       );
     }
 
-    const apiKey = openSecret(endpoint.apiKeyEnc, this.sealKey());
+    const apiKey = openSecret(connection.secretEnc, this.sealKey());
     if (apiKey === null) {
       throw new VuvagentDispatchError(
         null,
@@ -69,7 +131,7 @@ export class VuvagentClient {
       );
     }
 
-    const url = `${endpoint.baseUrl.replace(/\/$/, '')}/v1/endpoints/${encodeURIComponent(endpoint.endpointId)}`;
+    const url = `${connection.baseUrl.replace(/\/$/, '')}/v1/endpoints/${encodeURIComponent(connection.endpointId)}`;
     // checked again at call time: a name that later points inside is refused here
     const problems = await addressProblems(
       url,
@@ -79,7 +141,7 @@ export class VuvagentClient {
       throw new VuvagentDispatchError(null, problems.join(', '));
     }
 
-    const response = await fetch(url, {
+    return fetch(url, {
       method: 'POST',
       signal: AbortSignal.timeout(DISPATCH_TIMEOUT_MS),
       headers: { 'content-type': 'application/json', 'x-api-key': apiKey },
@@ -87,14 +149,6 @@ export class VuvagentClient {
     }).catch((cause: unknown) => {
       throw new VuvagentDispatchError(null, String(cause));
     });
-
-    if (!response.ok) {
-      const detail = await response.text().catch(() => '');
-      throw new VuvagentDispatchError(
-        response.status,
-        `HTTP ${response.status} ${detail}`.trim().slice(0, 300),
-      );
-    }
   }
 
   private sealKey(): string {

@@ -25,7 +25,7 @@ export class ExternalLeadWorkflowController {
   constructor(private readonly workflow: LeadWorkflowService) {}
 
   @Get(':id/facts')
-  @Permissions('integration.crm.lead.read')
+  @Permissions('integration.crm.lead.read.all')
   @ApiOperation({
     summary: 'ข้อเท็จจริงของ Lead สำหรับ Decision node — สถานะ + จำนวนกิจกรรม',
   })

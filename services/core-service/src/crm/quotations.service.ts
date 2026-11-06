@@ -65,6 +65,7 @@ const CONFIG_DEFAULTS = {
   vatPct: 7,
   quotationApprovalTypeCode: 'PRA',
   minMarginByWorkType: {} as Record<string, number>,
+  autoApproveStandardPrice: true,
 };
 
 /** Versions that may be replaced by a new one. */
@@ -626,6 +627,38 @@ export class QuotationsService {
         `margin ต่ำกว่าเกณฑ์: ${belowText} — ต้องระบุเหตุผลเพื่อขออนุมัติ`,
         [{ field: 'reason', reason: 'required_when_margin_below_minimum' }],
       );
+    }
+
+    // 5 พ.ย. 2569 (ผู้ใช้): ราคามาตรฐานล้วน — ไม่มีส่วนลด ไม่แก้ราคา margin
+    // ผ่านเกณฑ์ ต้นทุนไม่เก่า — อนุมัติทันที ไม่ยื่น PRA (ปิดได้ที่ตั้งค่า CRM).
+    if (
+      config.autoApproveStandardPrice &&
+      !marginBelow &&
+      !overridden.length &&
+      !staleCosts.length &&
+      (await this.allAtStandardPrice(found))
+    ) {
+      await this.transition(found, actor, {
+        from: ['draft'],
+        data: {
+          status: 'approved',
+          submittedAt: now,
+          approvedAt: now,
+          minMarginPct: config.minMarginPct,
+          approvalRequired: false,
+        },
+        eventType: 'crm.quotation.approved',
+        auditAfter: {
+          marginPct: marginPct?.toFixed(2) ?? null,
+          minMarginPct: config.minMarginPct,
+          approvedBy: 'standard_price',
+        },
+        timeline: {
+          eventType: 'quotation.approved',
+          summary: `ใบเสนอราคา ${label(found)} อนุมัติอัตโนมัติ (ราคามาตรฐาน)`,
+        },
+      });
+      return this.findOne(id, actor);
     }
 
     let request: { id: string };
@@ -1315,6 +1348,141 @@ export class QuotationsService {
   }
 
   /** CD-195 — a line's standard price must still be in effect on submit. */
+  /**
+   * Every line is a product at its standard price (CD-194) in effect today,
+   * at that price, with no discount — what needs nobody's approval.
+   */
+  private async allAtStandardPrice(found: QuotationForAction) {
+    if (!found.lines.length) return false;
+    if (
+      found.lines.some((line) => !line.priceId || !line.discountPct.isZero())
+    ) {
+      return false;
+    }
+    const today = startOfToday();
+    const rows = (await this.prices.findMany({
+      where: {
+        id: { in: found.lines.map((line) => line.priceId!) },
+        companyId: found.companyId,
+        currency: found.currency,
+        scope: 'standard',
+        deletedAt: null,
+        validFrom: { lte: today },
+        OR: [{ validTo: null }, { validTo: { gte: today } }],
+      },
+      select: { id: true, unitPrice: true },
+    })) as { id: string; unitPrice: Prisma.Decimal }[];
+    const price = new Map(rows.map((row) => [row.id, row.unitPrice]));
+    return found.lines.every((line) => {
+      const standard = price.get(line.priceId!);
+      return !!standard && standard.equals(line.unitPrice);
+    });
+  }
+
+  /**
+   * งานขายอัตโนมัติ (5 พ.ย. 2569) — a quotation drafted from the standard
+   * price list and submitted at once: at standard prices it comes back
+   * `approved`, ready to send. Any product with no standard price in effect
+   * stops it before anything is written (`CRM_QUOTATION_UNPRICED`), so the
+   * workflow can hand the deal to the salesperson instead.
+   */
+  async createAtStandardPrice(
+    opportunityId: string,
+    items: readonly {
+      product_code: string;
+      quantity: number;
+      term_months?: number;
+    }[],
+    actor: Principal,
+    options: { title?: string; note?: string } = {},
+  ) {
+    const opportunity = await this.requireOpenOpportunity(opportunityId, actor);
+    const codes = [...new Set(items.map((item) => item.product_code.trim()))];
+    const today = startOfToday();
+    const [products, prices] = await Promise.all([
+      this.catalog.describe(actor.activeCompanyId, codes),
+      this.prices.findMany({
+        where: {
+          companyId: actor.activeCompanyId,
+          productCode: { in: codes },
+          currency: opportunity.currency,
+          scope: 'standard',
+          deletedAt: null,
+          validFrom: { lte: today },
+          OR: [{ validTo: null }, { validTo: { gte: today } }],
+        },
+        orderBy: { validFrom: 'desc' },
+        select: {
+          id: true,
+          productCode: true,
+          unitPrice: true,
+          priceModel: true,
+        },
+      }) as Promise<
+        {
+          id: string;
+          productCode: string;
+          unitPrice: Prisma.Decimal;
+          priceModel: string;
+        }[]
+      >,
+    ]);
+    // the newest in effect wins when two overlap
+    const priceOf = new Map<string, (typeof prices)[number]>();
+    for (const row of prices) {
+      if (!priceOf.has(row.productCode)) priceOf.set(row.productCode, row);
+    }
+
+    const missing = items
+      .map((item, index) => ({ item, index }))
+      .filter(
+        ({ item }) =>
+          !priceOf.has(item.product_code.trim()) ||
+          !products.has(item.product_code.trim()),
+      );
+    if (missing.length) {
+      throw new AppError(
+        'CRM_QUOTATION_UNPRICED',
+        `ไม่มีราคามาตรฐานที่มีผลวันนี้สำหรับ ${missing.map(({ item }) => item.product_code).join(', ')} — ให้พนักงานขายทำใบเสนอราคาเอง`,
+        missing.map(({ item, index }) => ({
+          field: `items[${index}].product_code`,
+          reason: products.has(item.product_code.trim())
+            ? 'no_standard_price'
+            : 'unknown_product',
+        })),
+      );
+    }
+
+    const lines = items.map((item): QuotationLineDto => {
+      const code = item.product_code.trim();
+      const price = priceOf.get(code)!;
+      const product = products.get(code)!;
+      return {
+        product_code: code,
+        description: product.name,
+        quantity: item.quantity,
+        ...(product.unit ? { unit: product.unit } : {}),
+        unit_price: Number(price.unitPrice.toFixed(2)),
+        price_id: price.id,
+        price_model: price.priceModel as QuotationLineDto['price_model'],
+        ...(price.priceModel === 'monthly'
+          ? { term_months: item.term_months ?? 12 }
+          : {}),
+      };
+    });
+
+    const created = (await this.createForOpportunity(
+      opportunity.id,
+      {
+        lines,
+        ...(options.title ? { title: options.title } : {}),
+        ...(options.note ? { note: options.note } : {}),
+      },
+      actor,
+    )) as unknown as { id: string };
+    return this.submit(created.id, {}, actor);
+  }
+
   private async assertPricesInEffect(found: QuotationForAction) {
     const ids = [
       ...new Set(found.lines.map((line) => line.priceId).filter(Boolean)),
@@ -1405,6 +1573,7 @@ export class QuotationsService {
         vatPct: true,
         quotationApprovalTypeCode: true,
         minMarginByWorkType: true,
+        autoApproveStandardPrice: true,
       },
     })) as
       | (Omit<typeof CONFIG_DEFAULTS, 'minMarginByWorkType'> & {

@@ -93,7 +93,7 @@ export class IssueApiKeyDto {
 export class UpdateApiKeyScopesDto {
   @ApiProperty({
     description: 'ชุดสิทธิ์ใหม่ทั้งชุด — แทนที่ของเดิม ไม่ใช่เพิ่มเข้าไป',
-    example: ['integration.crm.lead.create', 'integration.crm.lead.read'],
+    example: ['integration.crm.lead.create', 'integration.crm.lead.read.all'],
     type: [String],
   })
   @IsArray()

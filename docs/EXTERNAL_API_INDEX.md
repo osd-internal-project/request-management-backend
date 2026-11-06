@@ -98,19 +98,19 @@
 | PUT | `/crm/admin/trade-terms` |  | integration.admin.crm.manage | admin.crm.manage |
 | GET | `/crm/admin/handover-items` |  | integration.admin.crm.manage | admin.crm.manage |
 | PUT | `/crm/admin/handover-items` |  | integration.admin.crm.manage | admin.crm.manage |
-| GET | `/crm/leads/statuses` | ขั้นของ Lead ทั้งชุด | integration.crm.sales.read | crm.sales.read |
-| GET | `/crm/leads` | ค้นรายชื่อ Lead | integration.crm.sales.read | crm.sales.read |
-| POST | `/crm/leads` | สร้าง Lead | integration.crm.sales.manage | crm.sales.manage |
-| POST | `/crm/leads/import` | นำเข้า Lead จาก Excel | integration.crm.sales.manage | crm.sales.manage |
-| GET | `/crm/leads/{id}` | รายละเอียด Lead พร้อมกิจกรรม | integration.crm.sales.read | crm.sales.read |
-| PATCH | `/crm/leads/{id}` | แก้ข้อมูล Lead | integration.crm.sales.manage | crm.sales.manage |
-| PATCH | `/crm/leads/{id}/owner` | รับ Lead หรือแจกให้คนอื่น | integration.crm.sales.manage | crm.sales.manage |
-| PATCH | `/crm/leads/{id}/status` | เลื่อนขั้น Lead ในไปป์ไลน์ | integration.crm.sales.manage | crm.sales.manage |
-| PATCH | `/crm/leads/{id}/intake-data` | แก้ข้อมูล intake (JSON) ของ Lead | integration.crm.sales.manage | crm.sales.manage |
-| POST | `/crm/leads/{id}/activities` | ลงกิจกรรมของ Lead | integration.crm.sales.manage | crm.sales.manage |
-| PATCH | `/crm/leads/{id}/activities/{activityId}` | แก้กิจกรรม หรือติ๊กเสร็จ | integration.crm.sales.manage | crm.sales.manage |
-| POST | `/crm/leads/{id}/disqualify` | คัด Lead ออกพร้อมเหตุผล | integration.crm.sales.manage | crm.sales.manage |
-| POST | `/crm/leads/{id}/convert` | แปลง Lead เป็นโอกาสการขาย | integration.crm.sales.manage | crm.sales.manage |
+| GET | `/crm/leads/statuses` | ขั้นของ Lead ทั้งชุด | integration.crm.lead.read | crm.lead.read |
+| GET | `/crm/leads` | ค้นรายชื่อ Lead | integration.crm.lead.read | crm.lead.read |
+| POST | `/crm/leads` | สร้าง Lead | integration.crm.lead.manage | crm.lead.manage |
+| POST | `/crm/leads/import` | นำเข้า Lead จาก Excel | integration.crm.lead.manage | crm.lead.manage |
+| GET | `/crm/leads/{id}` | รายละเอียด Lead พร้อมกิจกรรม | integration.crm.lead.read | crm.lead.read |
+| PATCH | `/crm/leads/{id}` | แก้ข้อมูล Lead | integration.crm.lead.manage | crm.lead.manage |
+| PATCH | `/crm/leads/{id}/owner` | รับ Lead หรือแจกให้คนอื่น | integration.crm.lead.manage | crm.lead.manage |
+| PATCH | `/crm/leads/{id}/status` | เลื่อนขั้น Lead ในไปป์ไลน์ | integration.crm.lead.manage | crm.lead.manage |
+| PATCH | `/crm/leads/{id}/intake-data` | แก้ข้อมูล intake (JSON) ของ Lead | integration.crm.lead.manage | crm.lead.manage |
+| POST | `/crm/leads/{id}/activities` | ลงกิจกรรมของ Lead | integration.crm.lead.manage | crm.lead.manage |
+| PATCH | `/crm/leads/{id}/activities/{activityId}` | แก้กิจกรรม หรือติ๊กเสร็จ | integration.crm.lead.manage | crm.lead.manage |
+| POST | `/crm/leads/{id}/disqualify` | คัด Lead ออกพร้อมเหตุผล | integration.crm.lead.manage | crm.lead.manage |
+| POST | `/crm/leads/{id}/convert` | แปลง Lead เป็นโอกาสการขาย | integration.crm.lead.manage | crm.lead.manage |
 | GET | `/crm/opportunities` | ค้นโอกาสการขาย | integration.crm.sales.read | crm.sales.read |
 | POST | `/crm/opportunities` | สร้างโอกาสการขาย | integration.crm.sales.manage | crm.sales.manage |
 | GET | `/crm/opportunities/summary` | ยอดรวมต่อขั้นของโอกาสการขาย | integration.crm.sales.read | crm.sales.read |
@@ -142,12 +142,12 @@
 | GET | `/crm/campaigns` | แคมเปญพร้อมผล | integration.crm.sales.read | crm.sales.read |
 | POST | `/crm/campaigns` | สร้างแคมเปญ | integration.crm.campaign.manage | crm.campaign.manage |
 | PATCH | `/crm/campaigns/{id}` | แก้ไข / ปิดแคมเปญ | integration.crm.campaign.manage | crm.campaign.manage |
-| GET | `/crm/target-accounts` | บริษัทเป้าหมาย | integration.crm.sales.read | crm.sales.read |
-| POST | `/crm/target-accounts` | เพิ่มบริษัทเป้าหมาย | integration.crm.sales.manage | crm.sales.manage |
-| PATCH | `/crm/target-accounts/{id}` | แก้ไขบริษัทเป้าหมาย / ลำดับ / ผู้รับผิดชอบ | integration.crm.sales.manage | crm.sales.manage |
-| POST | `/crm/target-accounts/{id}/approach` | เริ่มเข้าหา — สร้าง Lead จากบริษัทเป้าหมาย | integration.crm.sales.manage | crm.sales.manage |
-| POST | `/crm/target-accounts/{id}/drop` | ตัดบริษัทเป้าหมายออกพร้อมเหตุผล | integration.crm.sales.manage | crm.sales.manage |
-| POST | `/crm/target-accounts/{id}/reopen` | นำบริษัทที่ตัดออกกลับมาเล็งใหม่ | integration.crm.sales.manage | crm.sales.manage |
+| GET | `/crm/target-accounts` | บริษัทเป้าหมาย | integration.crm.lead.read | crm.lead.read |
+| POST | `/crm/target-accounts` | เพิ่มบริษัทเป้าหมาย | integration.crm.lead.manage | crm.lead.manage |
+| PATCH | `/crm/target-accounts/{id}` | แก้ไขบริษัทเป้าหมาย / ลำดับ / ผู้รับผิดชอบ | integration.crm.lead.manage | crm.lead.manage |
+| POST | `/crm/target-accounts/{id}/approach` | เริ่มเข้าหา — สร้าง Lead จากบริษัทเป้าหมาย | integration.crm.lead.manage | crm.lead.manage |
+| POST | `/crm/target-accounts/{id}/drop` | ตัดบริษัทเป้าหมายออกพร้อมเหตุผล | integration.crm.lead.manage | crm.lead.manage |
+| POST | `/crm/target-accounts/{id}/reopen` | นำบริษัทที่ตัดออกกลับมาเล็งใหม่ | integration.crm.lead.manage | crm.lead.manage |
 | GET | `/crm/quotations` | ค้นใบเสนอราคา | integration.crm.sales.read | crm.sales.read |
 | GET | `/crm/quotations/{id}` | รายละเอียดใบเสนอราคา | integration.crm.sales.read | crm.sales.read |
 | PATCH | `/crm/quotations/{id}` | แก้ใบเสนอราคา | integration.crm.sales.manage | crm.sales.manage |
@@ -162,12 +162,17 @@
 | GET | `/crm/leads/forms/{token}` | CD-269 หัวฟอร์มสาธารณะของแคมเปญ (ชื่อแคมเปญ + ข้อความแนะนำ) | integration.crm.lead.create |  |
 | POST | `/crm/leads/forms/{token}` | CD-269 ส่งฟอร์มสาธารณะของแคมเปญ — คัดกรองเหมือน intake | integration.crm.lead.create |  |
 | POST | `/crm/leads/ads/{platform}` | CD-269 Lead Ads (facebook \| tiktok) — ตัวแปลงข้อมูลฟอร์มโฆษณา | integration.crm.lead.create |  |
-| GET | `/crm/leads/{id}/facts` | ข้อเท็จจริงของ Lead สำหรับ Decision node — สถานะ + จำนวนกิจกรรม | integration.crm.lead.read |  |
+| GET | `/crm/leads/{id}/facts` | ข้อเท็จจริงของ Lead สำหรับ Decision node — สถานะ + จำนวนกิจกรรม | integration.crm.lead.read.all |  |
 | POST | `/crm/leads/{id}/stage` | บันทึกขั้นที่ workflow ตัดสินใจแล้ว — core ไม่ตัดสินว่าเลื่อนได้ไหม | integration.crm.lead.stage |  |
-| GET | `/crm/ai/leads/{id}` | อ่าน Lead (ทั้งบริษัทของ key) — อีเมล/เบอร์ ต้องมี contact.read | integration.crm.lead.read |  |
+| GET | `/crm/ai/leads/{id}` | อ่าน Lead (ทั้งบริษัทของ key) — อีเมล/เบอร์ ต้องมี contact.read | integration.crm.lead.read.all |  |
 | PATCH | `/crm/ai/leads/{id}` | แก้ข้อมูล Lead — ส่งเฉพาะ field ที่เปลี่ยน | integration.crm.lead.update |  |
 | PATCH | `/crm/ai/leads/{id}/intake-data` | แก้ข้อมูล intake (JSON) — merge ทีละ key, null = ลบ key | integration.crm.lead.update |  |
 | POST | `/crm/ai/leads/{id}/convert` | แปลง Lead เป็นโอกาสการขาย — ไปอยู่กับเจ้าของ Lead | integration.crm.lead.convert |  |
+| POST | `/crm/ai/leads/{id}/emails` | ส่งอีเมลขอบคุณ (+ proposal) ถึงผู้ติดต่อของ Lead | integration.crm.email.send, integration.crm.lead.read.all |  |
+| GET | `/crm/ai/emails/{id}` | อ่านอีเมลหนึ่งฉบับ — ผลจัดประเภท (intent) และข้อความ | integration.crm.email.read, integration.crm.lead.read.all |  |
+| POST | `/crm/ai/opportunities/{id}/quotations` | ร่าง + ยื่นใบเสนอราคาจากราคามาตรฐาน | integration.crm.quotation.create, integration.crm.sales.read.all |  |
+| POST | `/crm/ai/quotations/{id}/email` | ส่งใบเสนอราคา (PDF) ให้ลูกค้าในเธรดเดิม แล้วเปลี่ยนเป็น "ส่งแล้ว" | integration.crm.email.send, integration.crm.sales.read.all |  |
+| POST | `/crm/ai/quotations/{id}/accept` | บันทึกว่าลูกค้ายืนยันใบเสนอราคา / ออก PO — งานของเซลล์จบที่นี่ | integration.crm.quotation.accept, integration.crm.sales.read.all |  |
 
 ## delivery — การส่งมอบของโครงการ — แผนส่งมอบ งวดวางบิล และการส่งต่อทีมบริการ
 
@@ -258,6 +263,8 @@
 | GET | `/process/logs` | อ่านบันทึกย้อนหลัง เช่น ทั้งหมดของ instance หนึ่ง | integration.process.log |  |
 | POST | `/process/logs` | บันทึกหนึ่งเหตุการณ์ของกระบวนการ 7 ขั้น | integration.process.log |  |
 | GET | `/process/refs` | เลขเอกสารและลิงก์หน้าจอ CTD ของดีลทั้งสาย (Lead → โครงการ) | integration.process.log |  |
+| POST | `/process/assignments` | ถามตารางทีมว่าใครได้งานนี้ — Lead ตั้งเจ้าของให้ด้วย | integration.process.dispatch |  |
+| POST | `/process/notifications` | แจ้งเตือนคนในบริษัท (ในระบบ + อีเมล/Teams ตามที่ผู้รับตั้งไว้) | integration.process.dispatch |  |
 
 ## request — คำขอ (Platform Request) ตั้งแต่เปิดจนปิด สำหรับระบบภายนอก เช่น chatbot
 
@@ -273,6 +280,7 @@
 | GET | `/request/requests/{ref}/actions` | ตอนนี้ผู้ใช้รายนี้ทำอะไรกับคำขอใบนี้ได้บ้าง | integration.request.read | request.read |
 | POST | `/request/requests/{ref}/actions/{action}` | สั่งทำหนึ่ง action กับคำขอใบนี้ |  |  |
 | GET | `/request/requests/{ref}/tree` | ใบนี้ ใบพ่อ และทุกใบลูกที่แตกออกไป | integration.request.read | request.read |
+| GET | `/request/requests/{ref}/comments` | ความเห็นทั้งหมดในคำขอใบนี้ ใหม่สุดก่อน | integration.request.read | request.read |
 | POST | `/request/intake` | ระบบภายนอกยื่นคำขอในนามตัวเอง — ไม่มีคนเป็นผู้ยื่น (REQ-10) | integration.request.create |  |
 | GET | `/request/intake/web-forms/{slug}` | แบบฟอร์มสาธารณะ: ข้อความและประเภทคำขอที่เปิดรับ (CD-66) | integration.request.intake |  |
 | POST | `/request/intake/web-forms/{slug}` | ลูกค้ายื่นคำขอผ่านแบบฟอร์มสาธารณะ (CD-66) | integration.request.intake |  |

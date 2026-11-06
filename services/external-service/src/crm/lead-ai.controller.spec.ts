@@ -45,7 +45,7 @@ describe('crm/ai/leads — AI acting for the company', () => {
 
     const lead = await controller.findOne(
       'lead-1',
-      robot(['integration.crm.lead.read']),
+      robot(['integration.crm.lead.read.all']),
       BOUND,
     );
 
@@ -64,7 +64,7 @@ describe('crm/ai/leads — AI acting for the company', () => {
 
     const lead = await controller.findOne(
       'lead-1',
-      robot(['integration.crm.lead.read', 'integration.crm.lead.contact.read']),
+      robot(['integration.crm.lead.read.all', 'integration.crm.lead.contact.read']),
       BOUND,
     );
 
@@ -73,7 +73,7 @@ describe('crm/ai/leads — AI acting for the company', () => {
 
   it('a key bound to no company is refused before any read or write', async () => {
     const { controller, leads } = setup();
-    const actor = robot(['integration.crm.lead.read']);
+    const actor = robot(['integration.crm.lead.read.all']);
 
     await expect(
       controller.findOne('lead-1', actor, undefined),
@@ -98,7 +98,7 @@ describe('crm/ai/leads — AI acting for the company', () => {
         )?.value as object,
       ) as string[];
 
-    expect(gate('findOne')).toEqual(['integration.crm.lead.read']);
+    expect(gate('findOne')).toEqual(['integration.crm.lead.read.all']);
     expect(gate('update')).toEqual(['integration.crm.lead.update']);
     expect(gate('updateIntakeData')).toEqual(['integration.crm.lead.update']);
     expect(gate('convert')).toEqual(['integration.crm.lead.convert']);

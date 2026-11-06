@@ -786,6 +786,27 @@ export class ExternalCommentDto {
   author!: ExternalPersonDto;
 }
 
+/** One note in a request's comment list — flat, so a table can draw it as is. */
+export class ExternalCommentRowDto {
+  @ApiProperty({ description: 'ชื่อคนเขียน', example: 'สมชาย ใจดี' })
+  author!: string;
+
+  @ApiProperty({ example: 'รับเรื่องแล้ว กำลังจัดทำ Solution Design' })
+  body!: string;
+
+  @ApiProperty({ format: 'date-time', example: '2026-09-04T04:30:55.987Z' })
+  createdAt!: string;
+}
+
+/** Every comment on one request, newest first. */
+export class ExternalCommentListDto {
+  @ApiProperty({ type: [ExternalCommentRowDto] })
+  data!: ExternalCommentRowDto[];
+
+  @ApiProperty({ example: 2 })
+  total!: number;
+}
+
 /** A request as it appears inside a family tree — trimmed to what draws a row. */
 export class ExternalTreeNodeDto {
   @ApiProperty({ example: '4d10cf13-8428-4bbd-941c-d189818cb9f7' })

@@ -1,0 +1,210 @@
+{
+  "status": 201,
+  "body": {
+    "id": "2abdbb37-3882-485b-b66d-6970d60189dd",
+    "requestNo": "REQ-OSD-BS-01-26100004",
+    "requestTypeId": "6db5295c-b8a7-42e6-af9b-2294a206ee72",
+    "typeCode": "BS-01",
+    "companyId": "42142ccf-d4ca-4d15-821c-489da9758f4f",
+    "requesterId": "ef74f358-c19a-4b15-869b-7eb9c0e4f871",
+    "requesterOrgUnitId": "b122758c-86a5-41d5-958e-1e955d023f51",
+    "receiverUserId": "d320b28b-8e5c-4c9d-ac8b-f9b426e92798",
+    "assigneeUserId": null,
+    "receiverOrgUnitId": null,
+    "ancestorIds": [],
+    "parentRequestId": null,
+    "parentStepCode": null,
+    "flowVersionId": null,
+    "currentStepCode": null,
+    "stepFormData": {},
+    "stepHolderUserId": null,
+    "closedAt": null,
+    "status": "submitted",
+    "formData": {
+      "subject": "ทดสอบ Aiyara แชต รอบ 2 — ขอเปิด SO",
+      "objective": "ยืนยันว่า BS-01 ไม่มี flow แล้ว ใช้ complete/close ได้"
+    },
+    "receiverFormData": {},
+    "severity": null,
+    "refType": null,
+    "refId": null,
+    "typeSnapshot": {
+      "code": "BS-01",
+      "name": "ขอเปิด Request",
+      "slaHours": 8,
+      "formSchema": {
+        "type": "object",
+        "required": [
+          "subject",
+          "objective"
+        ],
+        "properties": {
+          "subject": {
+            "type": "string",
+            "title": "เรื่องที่ขอ",
+            "x-order": 1,
+            "maxLength": 200
+          },
+          "objective": {
+            "type": "string",
+            "title": "วัตถุประสงค์",
+            "x-order": 2,
+            "x-multiline": true
+          }
+        }
+      },
+      "requiredDocs": [],
+      "approvalPolicy": {
+        "mode": "standard_chain",
+        "amount_field": "amount",
+        "source_category": "งานขาย & ลูกค้า",
+        "source_workflow": "A"
+      },
+      "subRequestTypes": [],
+      "receiverOrgUnitId": null,
+      "returnReasonCodes": [],
+      "receiverFormSchema": {
+        "type": "object",
+        "required": [],
+        "properties": {
+          "summary": {
+            "type": "string",
+            "title": "สรุปผลการเนินการ",
+            "x-order": 1,
+            "x-multiline": true
+          }
+        }
+      }
+    },
+    "source": "USER",
+    "channel": null,
+    "contactName": null,
+    "contactEmail": null,
+    "contactPhone": null,
+    "contactCompany": null,
+    "contactTaxId": null,
+    "contactLineUserId": null,
+    "statusTokenHash": null,
+    "submittedAt": "2026-10-28T02:58:15.447Z",
+    "dueAt": null,
+    "completedAt": null,
+    "cancelledAt": null,
+    "cancelReason": null,
+    "createdAt": "2026-10-28T02:58:15.311Z",
+    "createdBy": "ef74f358-c19a-4b15-869b-7eb9c0e4f871",
+    "updatedAt": "2026-10-28T02:58:15.495Z",
+    "updatedBy": "ef74f358-c19a-4b15-869b-7eb9c0e4f871",
+    "requestType": {
+      "id": "6db5295c-b8a7-42e6-af9b-2294a206ee72",
+      "code": "BS-01",
+      "name": "ขอเปิด Request",
+      "receiverOrgUnitId": null,
+      "receiverUserId": null,
+      "formSchema": {
+        "type": "object",
+        "required": [
+          "subject",
+          "objective"
+        ],
+        "properties": {
+          "subject": {
+            "type": "string",
+            "title": "เรื่องที่ขอ",
+            "x-order": 1,
+            "maxLength": 200
+          },
+          "objective": {
+            "type": "string",
+            "title": "วัตถุประสงค์",
+            "x-order": 2,
+            "x-multiline": true
+          }
+        }
+      },
+      "receiverFormSchema": {
+        "type": "object",
+        "required": [],
+        "properties": {
+          "summary": {
+            "type": "string",
+            "title": "สรุปผลการเนินการ",
+            "x-order": 1,
+            "x-multiline": true
+          }
+        }
+      },
+      "requiredDocs": [],
+      "returnReasonCodes": [],
+      "subRequestTypes": [],
+      "approvalPolicy": {
+        "mode": "standard_chain",
+        "amount_field": "amount",
+        "source_category": "งานขาย & ลูกค้า",
+        "source_workflow": "A"
+      },
+      "slaHours": 8,
+      "slaCoverage": "H8X5",
+      "refRequired": false,
+      "active": true,
+      "createdAt": "2026-08-28T07:15:33.727Z",
+      "createdBy": "import",
+      "updatedAt": "2026-10-28T02:44:56.304Z",
+      "updatedBy": "faeebacf-f66d-455a-8366-ff2e5313e22a"
+    },
+    "attachments": [],
+    "flowVersion": null,
+    "stepRuns": [],
+    "requester": {
+      "id": "ef74f358-c19a-4b15-869b-7eb9c0e4f871",
+      "displayName": "นางธวัลกร วงศ์ประเทศ",
+      "position": "Senior Business Support Officer",
+      "email": "tawankornw@osd.co.th",
+      "extension": "<redacted>",
+      "phone": "<redacted>",
+      "orgUnit": {
+        "name": "BSD"
+      }
+    },
+    "receiver": {
+      "id": "d320b28b-8e5c-4c9d-ac8b-f9b426e92798",
+      "displayName": "นางสาวนงนุช จันทิมา",
+      "position": "Administarator Business Support",
+      "email": "nongnuchc@osd.co.th",
+      "extension": "<redacted>",
+      "phone": "<redacted>",
+      "orgUnit": {
+        "name": "BSD"
+      }
+    },
+    "assignee": null,
+    "slaClock": {
+      "state": "paused",
+      "dueAt": "2026-10-28T02:58:15.447Z",
+      "breachedAt": null,
+      "responseDueAt": null,
+      "respondedAt": null,
+      "responseBreachedAt": null
+    },
+    "approvalCases": [],
+    "events": [
+      {
+        "id": "a5ef5e46-a51b-426b-94c9-db42bcd7f636",
+        "requestId": "2abdbb37-3882-485b-b66d-6970d60189dd",
+        "seq": 1,
+        "type": "request.submitted",
+        "actorId": "ef74f358-c19a-4b15-869b-7eb9c0e4f871",
+        "actorLabel": "นางธวัลกร วงศ์ประเทศ",
+        "fromStatus": "draft",
+        "toStatus": "submitted",
+        "data": {
+          "requestNo": "REQ-OSD-BS-01-26100004"
+        },
+        "createdAt": "2026-10-28T02:58:15.471Z",
+        "actor": {
+          "displayName": "นางธวัลกร วงศ์ประเทศ"
+        }
+      }
+    ],
+    "comments": []
+  }
+}

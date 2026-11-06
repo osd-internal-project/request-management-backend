@@ -765,6 +765,35 @@ export class NotificationsService {
 
   /** CD-266 — a knowledge gap to fill (assigned), or past its due day. */
   /** CD-283 — a customer waits for a person (first notice, or still waiting). */
+  /** งานขายอัตโนมัติ — a customer answered the system's email. */
+  async salesEmailReceived(
+    userId: string,
+    companyId: string,
+    email: {
+      id: string;
+      intentLabel: string;
+      party: string;
+      subject: string;
+      sender: string;
+      resourceType: 'lead' | 'opportunity';
+      resourceId: string;
+    },
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType: 'crm.email.received',
+      values: {
+        intent: email.intentLabel,
+        party: email.party.slice(0, 120),
+        subject: email.subject.slice(0, 160),
+        sender: email.sender.slice(0, 120),
+      },
+      resourceType: email.resourceType,
+      resourceId: email.resourceId,
+    });
+  }
+
   async careHandover(
     userId: string,
     companyId: string,
@@ -1858,6 +1887,28 @@ export class NotificationsService {
   }
 
   /**
+   * เส้นทาง Lead ถึงบริการ Phase 0 — the team table gave someone work
+   * (`workflow.assigned`), or a workflow step tells someone something
+   * (`workflow.notice`). The resource is what the notice opens.
+   */
+  async workflowNotice(
+    userId: string,
+    companyId: string,
+    eventType: 'workflow.assigned' | 'workflow.notice',
+    values: Record<string, string>,
+    resource: { type: string; id: string } | null,
+  ): Promise<void> {
+    await this.emit({
+      userId,
+      companyId,
+      eventType,
+      values,
+      resourceType: resource?.type ?? null,
+      resourceId: resource?.id ?? null,
+    });
+  }
+
+  /**
    * CD-54 — the wording for one event in one company: the company's own if
    * it saved one, else the standard. An event the catalog does not declare
    * throws — wording must not live only inside a caller again.
@@ -1886,8 +1937,8 @@ export class NotificationsService {
     companyId: string;
     eventType: string;
     values: Record<string, string>;
-    resourceType: string;
-    resourceId: string;
+    resourceType: string | null;
+    resourceId: string | null;
   }): Promise<void> {
     const { values, ...rest } = event;
     try {

@@ -232,7 +232,7 @@ external สี่ตัวถูก generate จาก `scripts/generate-crm-co
 | route | สิทธิ์เครื่อง | ทำไมไม่มี `X-Acting-User` |
 |---|---|---|
 | `POST /crm/leads/intake` | `integration.crm.lead.create` | เว็บฟอร์มลูกค้า — ใบที่เข้ามาไม่มีเจ้าของ รอพนักงานขายกดรับ |
-| `GET /crm/leads/{id}/facts` | `integration.crm.lead.read` | workflow engine อ่านข้อเท็จจริง |
+| `GET /crm/leads/{id}/facts` | `integration.crm.lead.read.all` | workflow engine อ่านข้อเท็จจริง |
 | `POST /crm/leads/{id}/stage` | `integration.crm.lead.stage` | workflow engine บันทึกขั้นที่ตัดสินแล้ว |
 
 `sourceOf()` ใน `lead-intake.service.ts` เอา `sourceCode` **จาก API key** ก่อน body
@@ -255,7 +255,7 @@ external สี่ตัวถูก generate จาก `scripts/generate-crm-co
 ของบัญชีบริการ (AUTH-06) — ออกให้กุญแจ API ที่หน้า **กุญแจ API**
 (`admin.integration.manage`) ส่วนหน้า Role แสดงเป็น `type: service` และ **ติ๊กให้
 role ของคนได้** ตั้งแต่ 17 ก.ย. 2569 ไม่มี seed role ไหนถืออยู่:
-`integration.crm.lead.read` · `integration.crm.lead.stage` ·
+`integration.crm.lead.read.all` · `integration.crm.lead.stage` ·
 `integration.crm.lead.create` · `integration.crm.customer.read` ·
 `integration.crm.customer.manage` · `integration.crm.sales.read` ·
 `integration.crm.sales.manage` · `integration.crm.admin.manage`

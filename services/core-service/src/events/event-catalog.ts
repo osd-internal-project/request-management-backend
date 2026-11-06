@@ -59,6 +59,12 @@ export const DOMAIN_EVENTS = {
   leadStatusChanged: 'lead.status_changed',
   leadIntakeUpdated: 'lead.intake_updated',
   leadConverted: 'lead.converted',
+  /**
+   * งานขายอัตโนมัติ (5 พ.ย. 2569) — a customer answered an email the system
+   * sent; `intent` is what the reply was classified as. One event per message,
+   * so a workflow trigger starts once per reply.
+   */
+  crmEmailReceived: 'crm.email.received',
 } as const;
 
 export type DomainEventName =
@@ -123,6 +129,15 @@ export interface LeadEventPayload extends BasePayload {
   reason?: string;
 }
 
+export interface CrmEmailEventPayload extends BasePayload {
+  email_id: string;
+  lead_id: string | null;
+  opportunity_id: string | null;
+  quotation_id: string | null;
+  /** one of `EMAIL_INTENTS` */
+  intent: string;
+}
+
 /** Discriminated by name so a subscriber cannot read the wrong shape. */
 export type DomainEvent =
   | { name: 'request.submitted'; payload: RequestEventPayload }
@@ -145,4 +160,5 @@ export type DomainEvent =
   | { name: 'lead.updated'; payload: LeadEventPayload }
   | { name: 'lead.status_changed'; payload: LeadEventPayload }
   | { name: 'lead.intake_updated'; payload: LeadEventPayload }
-  | { name: 'lead.converted'; payload: LeadEventPayload };
+  | { name: 'lead.converted'; payload: LeadEventPayload }
+  | { name: 'crm.email.received'; payload: CrmEmailEventPayload };

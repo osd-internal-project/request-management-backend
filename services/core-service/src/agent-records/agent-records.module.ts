@@ -1,25 +1,24 @@
 import { Module } from '@nestjs/common';
 import { AccessModule } from '../access/access.module';
-import { LeadRepository } from '../crm/sales.repositories';
+import { CrmModule } from '../crm/crm.module';
 import { AgentRecordRepository } from './agent-record.repository';
 import { AgentRecordsService } from './agent-records.service';
-import { IntegrationEndpointRepository } from './integration-endpoint.repository';
+import { OutboundConnectionRepository } from './outbound-connection.repository';
 import { VuvagentClient } from './vuvagent.client';
 
 /** งานของ AI agent ภายนอก — domain half; external-service imports this for the callback. */
 @Module({
-  imports: [AccessModule],
+  imports: [AccessModule, CrmModule],
   providers: [
     AgentRecordRepository,
-    IntegrationEndpointRepository,
-    // only to list the leads an agent created for a record
-    LeadRepository,
+    OutboundConnectionRepository,
     AgentRecordsService,
     VuvagentClient,
   ],
   exports: [
+    VuvagentClient,
     AgentRecordRepository,
-    IntegrationEndpointRepository,
+    OutboundConnectionRepository,
     AgentRecordsService,
   ],
 })

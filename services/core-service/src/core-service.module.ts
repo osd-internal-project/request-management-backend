@@ -36,6 +36,8 @@ import { SupportHttpModule } from './support/support-http.module';
 import { WebhookHttpModule } from './webhook/webhook-http.module';
 import { WorkflowTriggerHttpModule } from './workflow-trigger/workflow-trigger-http.module';
 import { ProcessLogHttpModule } from './process-log/process-log-http.module';
+import { MailHttpModule } from './mail/mail-http.module';
+import { AssignmentHttpModule } from './assignment/assignment-http.module';
 import { CareHttpModule } from './care/care-http.module';
 import { DeliveryHttpModule } from './delivery/delivery-http.module';
 import { DisbursementHttpModule } from './disbursement/disbursement-http.module';
@@ -65,6 +67,9 @@ import configs from './configs';
     // เหตุการณ์ใน CTD → เริ่ม workflow บน OSD Workflow (หน้า admin/workflow-triggers)
     WorkflowTriggerHttpModule,
     ProcessLogHttpModule,
+    MailHttpModule,
+    // ตารางทีม — ใครได้งานของแต่ละบทบาท (เส้นทาง Lead ถึงบริการ Phase 0)
+    AssignmentHttpModule,
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: ['.env'],

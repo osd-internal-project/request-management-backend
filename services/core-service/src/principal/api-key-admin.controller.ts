@@ -85,6 +85,16 @@ export class ApiKeyAdminController {
     return this.keys.reveal(id, principal);
   }
 
+  @Get(':id/examples')
+  @Permissions('admin.integration.manage')
+  @ApiOperation({
+    summary: 'ตัวอย่างการเรียกทุก route ที่กุญแจนี้มีสิทธิ์ — สร้างจาก OpenAPI',
+  })
+  @ApiOkResponse({ description: '`ApiExample[]` เรียงตาม tag แล้ว path' })
+  examples(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    return this.keys.examples(id, principal);
+  }
+
   @Post(':id/rotate')
   @Permissions('admin.integration.manage')
   @ApiOperation({

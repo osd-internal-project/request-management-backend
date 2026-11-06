@@ -486,9 +486,10 @@ function routingGap(
   );
 
   const listed = [
-    ...(new RegExp(`${constant} = \\[([^\\]]*)\\]`).exec(table)?.[1] ?? '').matchAll(
-      /'([^']*)'|"([^"]*)"/g,
-    ),
+    // comments go first: the apostrophe in "HR's" opened a bogus string
+    ...(new RegExp(`${constant} = \\[([^\\]]*)\\]`).exec(table)?.[1] ?? '')
+      .replace(/\/\/.*$/gm, '')
+      .matchAll(/'([^']*)'|"([^"]*)"/g),
   ].map((match) => match[1] ?? match[2]);
 
   const unlisted = declared

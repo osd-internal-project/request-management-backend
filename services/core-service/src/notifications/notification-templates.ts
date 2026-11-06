@@ -620,6 +620,18 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
     },
   },
   {
+    eventType: 'crm.email.received',
+    label: 'ลูกค้าตอบอีเมลของงานขาย (ถึงเจ้าของ Lead/ดีล)',
+    title: 'ลูกค้าตอบอีเมล ({{intent}}): {{party}}',
+    body: '{{subject}} — จาก {{sender}}',
+    variables: {
+      intent: { label: 'ผลจัดประเภท', sample: 'สนใจ' },
+      party: { label: 'Lead/ดีล', sample: 'บริษัท กขค จำกัด' },
+      subject: { label: 'หัวเรื่อง', sample: 'RE: ขอบคุณที่สนใจบริการของเรา' },
+      sender: { label: 'ผู้ส่ง', sample: 'somchai@example.co.th' },
+    },
+  },
+  {
     eventType: 'care.handover',
     label: 'บทสนทนา AI CARE ส่งต่อถึงคน (ถึงทีมบริการ หรือเวรเมื่อนอกเวลา)',
     title: 'ลูกค้ารอเจ้าหน้าที่: {{sender}} ({{channel}})',
@@ -1231,6 +1243,30 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
     variables: {
       ...HANDOVER_VARIABLES,
       reason: { label: 'เหตุผลที่ตีกลับ', sample: 'ยังไม่ระบุวันเริ่มติดตั้ง' },
+    },
+  },
+  {
+    eventType: 'workflow.assigned',
+    label: 'ได้รับงานจากตารางทีม (ถึงผู้ได้รับ)',
+    title: 'คุณได้รับงาน{{role}}: {{subject}}',
+    body: '{{reason}}',
+    variables: {
+      role: { label: 'บทบาท', sample: 'พนักงานขาย' },
+      subject: { label: 'งาน', sample: 'Lead บริษัท ลูกค้า จำกัด' },
+      reason: { label: 'ที่มา', sample: 'ตรงกฎ ลูกค้าธนาคาร → ทีมขายองค์กร' },
+    },
+  },
+  {
+    eventType: 'workflow.notice',
+    label: 'แจ้งเตือนจาก workflow',
+    title: '{{title}}',
+    body: '{{body}}',
+    variables: {
+      title: {
+        label: 'หัวเรื่อง',
+        sample: 'NDA ของ OPP-OSD-0012 ลงนามครบแล้ว',
+      },
+      body: { label: 'รายละเอียด', sample: 'เริ่มขอเอกสารลับจากลูกค้าได้' },
     },
   },
 ];

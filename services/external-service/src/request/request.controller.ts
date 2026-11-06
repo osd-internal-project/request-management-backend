@@ -51,6 +51,7 @@ import {
 import {
   ExternalActionsDto,
   ExternalCommentDto,
+  ExternalCommentListDto,
   ExternalRequestDto,
   ExternalRequestPageDto,
   ExternalSummaryDto,
@@ -443,5 +444,20 @@ export class RequestController {
   @ActingPermissions('request.read')
   tree(@Param('ref') ref: string, @CurrentPrincipal() principal: Principal) {
     return this.requests.treeOf(ref, principal);
+  }
+
+  /** Every note left on this request, newest first. */
+  @ApiOperation({ summary: 'ความเห็นทั้งหมดในคำขอใบนี้ ใหม่สุดก่อน' })
+  @ApiOkResponse({
+    description: 'ความเห็นพร้อมชื่อคนเขียน',
+    type: ExternalCommentListDto,
+  })
+  @ApiExternalReadErrors()
+  @ApiParam(REF_PARAM)
+  @Get('requests/:ref/comments')
+  @Permissions('integration.request.read')
+  @ActingPermissions('request.read')
+  comments(@Param('ref') ref: string, @CurrentPrincipal() principal: Principal) {
+    return this.requests.commentsOf(ref, principal);
   }
 }

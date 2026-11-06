@@ -55,11 +55,20 @@ export const PERMISSIONS = {
      */
     'crm.customer.financial.read',
 
-    /** Lead + โอกาสการขาย (ดีล) — read within own/team scope. */
+    /**
+     * Lead, บริษัทเป้าหมาย และงาน AI agent ของ Lead — แยกจาก `crm.sales.*` เพื่อให้
+     * role ที่ทำได้แค่ Lead มีได้ (`docs/permission-taxonomy.md`).
+     */
+    'crm.lead.read',
+    /** Lead ทั้งบริษัท — หัวหน้าขาย/ผู้บริหาร. */
+    'crm.lead.read.all',
+    /** สร้าง/แก้/ปิด/แปลง Lead และสั่งงาน agent ของ Lead. */
+    'crm.lead.manage',
+    /** โอกาสการขาย (ดีล) ใบเสนอราคา ใบสั่งขาย — read within own/team scope. */
     'crm.sales.read',
     /** ทั้งบริษัท — หัวหน้าขาย/ผู้บริหาร. */
     'crm.sales.read.all',
-    /** สร้าง/แก้/ปิดดีล และจัดการ Lead. */
+    /** สร้าง/แก้/ปิดดีล. */
     'crm.sales.manage',
     /**
      * CD-82: ตั้งเป้ายอดขายรายเดือนของพนักงาน/ทีม/ฝ่ายในบริษัท. ปรับเป้าของงวดที่
@@ -299,6 +308,8 @@ export const PERMISSIONS = {
     'integration.crm.customer.financial.read',
     'integration.crm.sales.read',
     'integration.crm.sales.manage',
+    'integration.crm.lead.read',
+    'integration.crm.lead.manage',
     'integration.crm.campaign.manage',
     'integration.crm.target.manage',
     'integration.admin.crm.manage',
@@ -328,8 +339,10 @@ export const PERMISSIONS = {
     /**
      * workflow engine อ่านข้อเท็จจริงของ Lead ทุกใบในบริษัทของ key
      * (`readsAllLeads`) — รวม `GET crm/ai/leads/{id}` ที่ไม่มีข้อมูลติดต่อ.
+     * ชื่อเดิม `integration.crm.lead.read` จนถึง 3 พ.ย. 2569 ซึ่งตอนนี้เป็น twin
+     * ของ `crm.lead.read` (คน) — `.read.all` = ทั้งบริษัท ตาม `docs/permission-taxonomy.md`.
      */
-    'integration.crm.lead.read',
+    'integration.crm.lead.read.all',
     /** workflow engine ส่งผลการเลื่อนขั้นที่ตัดสินแล้วกลับมา (`lwf-0001`). */
     'integration.crm.lead.stage',
     /** ระบบภายนอกยิง Lead เข้ากองกลาง — เพิ่มได้อย่างเดียว อ่าน/แปลงไม่ได้. */
@@ -339,8 +352,23 @@ export const PERMISSIONS = {
     'integration.crm.lead.convert',
     /** อีเมล/โทรศัพท์ของ Lead — ข้อมูลส่วนบุคคล แยกจาก `lead.read` และไม่อยู่ใน webhook. */
     'integration.crm.lead.contact.read',
+    /**
+     * งานขายอัตโนมัติ (5 พ.ย. 2569) — OSD Workflow / AI ในนามบริษัท:
+     * `sales.read.all` = ดีลและใบเสนอราคาทั้งบริษัทของ key (`readsAllSales`),
+     * `email.send` = ส่งอีเมลจาก mailbox บริษัทถึงผู้ติดต่อของ Lead/ดีล,
+     * `email.read` = อ่านอีเมลในเธรดและผลจัดประเภทคำตอบ,
+     * `quotation.create` = ร่าง+ยื่นใบเสนอราคาจากราคามาตรฐาน,
+     * `quotation.accept` = บันทึกว่าลูกค้ายืนยัน/ออก PO. ดีลยังเป็นของเจ้าของเสมอ.
+     */
+    'integration.crm.sales.read.all',
+    'integration.crm.email.send',
+    'integration.crm.email.read',
+    'integration.crm.quotation.create',
+    'integration.crm.quotation.accept',
     /** OSD Workflow เขียน/อ่าน process log ทีละขั้น; ผู้ทำงานเป็นข้อมูล ไม่ได้ยืนยันตัว. */
     'integration.process.log',
+    /** OSD Workflow ถามตารางทีมว่าใครได้งาน (ตั้งเจ้าของ Lead ให้ด้วย) และแจ้งเตือนคนในบริษัท. */
+    'integration.process.dispatch',
     /** CD-265 — AI CARE / AI SMART อ่านบทความที่เผยแพร่ให้ลูกค้า. */
     'integration.kb.read',
     /** CD-280 — channel connector / AI CARE คุยกับลูกค้า (เดิม `integration.care.manage`). */

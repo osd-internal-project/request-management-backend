@@ -106,6 +106,28 @@ export default () => ({
    * CD-51 — Microsoft Teams notifications (a bot's 1:1 chat per person).
    * off (default) = no Teams channel · mock = log only · botframework = real.
    */
+  /**
+   * งานขายอัตโนมัติ (5 พ.ย. 2569) — อีเมลจาก mailbox ของบริษัทผ่าน Microsoft Graph.
+   * off (ค่าตั้งต้น) = ส่งไม่ได้ · mock = ไม่ออกนอกเครื่อง (จำลองคำตอบได้จากหน้า admin)
+   * · graph = ของจริง: App ใน Entra ID (Mail.Send + Mail.ReadWrite แบบ Application,
+   * admin consent, Application Access Policy จำกัดเฉพาะ mailbox นี้).
+   * MAIL_MAILBOX = shared mailbox (ระหว่างรอ IT ใช้ mailbox ของผู้พัฒนาได้).
+   */
+  mail: {
+    mode: process.env.MAIL_MODE ?? 'off',
+    mailbox: process.env.MAIL_MAILBOX ?? '',
+    /** ชื่อผู้ส่งที่ลูกค้าเห็น; ว่าง = ชื่อของ mailbox. */
+    senderName: process.env.MAIL_SENDER_NAME ?? '',
+    graph: {
+      tenantId: process.env.MAIL_GRAPH_TENANT_ID,
+      clientId: process.env.MAIL_GRAPH_CLIENT_ID,
+      clientSecret: process.env.MAIL_GRAPH_CLIENT_SECRET,
+    },
+    /** อ่าน inbox หาคำตอบทุกกี่ ms; 0 = ปิด. */
+    pollIntervalMs: Number(process.env.MAIL_POLL_INTERVAL_MS ?? 60000),
+    /** ตอนเริ่ม ย้อนดู inbox กี่ชั่วโมง. */
+    pollLookbackHours: Number(process.env.MAIL_POLL_LOOKBACK_HOURS ?? 24),
+  },
   teams: {
     mode: process.env.TEAMS_MODE ?? 'off',
     bot: {
@@ -208,6 +230,13 @@ export default () => ({
       .split(',')
       .map((host) => host.trim().toLowerCase())
       .filter(Boolean),
+  },
+
+  /** งานของ agent ที่ไม่ตอบกลับ — how often the timeout sweep runs (ms); 0 = off. */
+  agentRecord: {
+    timeoutIntervalMs: Number(
+      process.env.AGENT_RECORD_TIMEOUT_INTERVAL_MS ?? 60000,
+    ),
   },
 
   /** เหตุการณ์ → workflow (admin/workflow-triggers) — how often due starts are sent (ms); 0 = off. */

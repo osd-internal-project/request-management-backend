@@ -2,7 +2,8 @@
  * Who may see which leads and opportunities — one place, shared by both (they carry
  * the same ownership columns). Mirrors `customer-rules.ts`: owner, author, or
  * a book sitting in a unit the caller leads/was granted; whole-company reading
- * is `crm.sales.read.all`. SCOPE-02/03 contract as everywhere else.
+ * is `crm.sales.read.all` for deals and `crm.lead.read.all` for leads.
+ * SCOPE-02/03 contract as everywhere else.
  */
 import type { Permission } from '../policy/permissions';
 import { reachableUnitIds, type AccessWhere } from './access-rules';
@@ -13,8 +14,10 @@ export interface SalesAccessSubject {
   readonly ledUnitIds: readonly string[];
   readonly scopedUnitIds: readonly string[];
   readonly readsAllSales: boolean;
+  /** `crm.lead.read.all` — a person reading every lead of the company. */
+  readonly readsAllLeadsInCompany?: boolean;
   /**
-   * A machine holding `integration.crm.lead.read` (workflow engine, AI agent)
+   * A machine holding `integration.crm.lead.read.all` (workflow engine, AI agent)
    * reads every lead of its key's company: it acts for the company, not for a
    * person, so there is no person's scope to borrow (22 ต.ค. 2569). Leads only.
    *
@@ -37,10 +40,14 @@ export function salesAccessSubject(principal: {
     activeCompanyId: principal.activeCompanyId,
     ledUnitIds: principal.ledUnitIds,
     scopedUnitIds: principal.scopedUnitIds,
-    readsAllSales: principal.permissions.includes('crm.sales.read.all'),
+    readsAllSales:
+      principal.permissions.includes('crm.sales.read.all') ||
+      (principal.isServiceAccount === true &&
+        principal.permissions.includes('integration.crm.sales.read.all')),
+    readsAllLeadsInCompany: principal.permissions.includes('crm.lead.read.all'),
     readsAllLeads:
       principal.isServiceAccount === true &&
-      principal.permissions.includes('integration.crm.lead.read'),
+      principal.permissions.includes('integration.crm.lead.read.all'),
   };
 }
 
@@ -53,6 +60,10 @@ export function visibleSalesWhere(subject: SalesAccessSubject): AccessWhere {
 
   if (subject.readsAllSales) return company;
 
+  return { ...company, OR: ownBranches(subject) };
+}
+
+function ownBranches(subject: SalesAccessSubject): AccessWhere[] {
   const branches: AccessWhere[] = [
     { ownerUserId: subject.userId },
     { createdBy: subject.userId },
@@ -63,7 +74,7 @@ export function visibleSalesWhere(subject: SalesAccessSubject): AccessWhere {
     branches.push({ ownerOrgUnitId: { in: units } });
   }
 
-  return { ...company, OR: branches };
+  return branches;
 }
 
 /**
@@ -74,11 +85,8 @@ export function visibleSalesWhere(subject: SalesAccessSubject): AccessWhere {
  * ทั้ง query ถ้าส่ง null ไป.
  */
 export function visibleLeadsWhere(subject: SalesAccessSubject): AccessWhere {
-  if (subject.readsAllLeads) return { companyId: subject.activeCompanyId };
-  const where = visibleSalesWhere(subject);
-  const branches = where.OR as AccessWhere[] | undefined;
+  const company = { companyId: subject.activeCompanyId };
+  if (subject.readsAllLeads || subject.readsAllLeadsInCompany) return company;
 
-  if (!branches) return where; // crm.sales.read.all — ทั้งบริษัทอยู่แล้ว
-
-  return { ...where, OR: [...branches, { ownerUserId: null }] };
+  return { ...company, OR: [...ownBranches(subject), { ownerUserId: null }] };
 }

@@ -10,6 +10,10 @@ import {
 import { openSecret, sealSecret } from '../pm/config-rules';
 import { IntegrationAdminService } from '../principal/integration-admin.service';
 import {
+  WEBHOOK_EXAMPLES,
+  type WebhookExample,
+} from '../principal/api-examples.generated';
+import {
   WebhookDeliveryRepository,
   WebhookSubscriptionRepository,
 } from './webhook.repository';
@@ -61,6 +65,20 @@ export class WebhookAdminService {
 
   events() {
     return WEBHOOK_EVENTS.map((code) => ({ code }));
+  }
+
+  /** Delivery bodies for the named events; none named = every event. */
+  examples(events: readonly string[]): WebhookExample[] {
+    if (!events.length) return [...WEBHOOK_EXAMPLES];
+    const problems = eventProblems(events);
+    if (problems.length) {
+      throw new AppError(
+        'VALIDATION_FAILED',
+        problems.join(' · '),
+        problems.map((reason) => ({ field: 'events', reason })),
+      );
+    }
+    return WEBHOOK_EXAMPLES.filter((example) => events.includes(example.event));
   }
 
   async list(actor: Principal): Promise<WebhookRowDto[]> {

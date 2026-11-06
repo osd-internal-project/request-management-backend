@@ -155,6 +155,17 @@ describe('authority matches the handler, role by role', () => {
     );
   });
 
+  it('lets the requester close a completed result that needed no approval', () => {
+    const completed = request({ status: 'completed' });
+
+    expect(names(availableActions(completed, actor(REQUESTER)))).toContain(
+      'close',
+    );
+    expect(names(availableActions(completed, actor(RECEIVER)))).not.toContain(
+      'close',
+    );
+  });
+
   /*
     An approved request is finished being worked on but is not closed, so it
     is still cancellable per the transition table — while `complete`, `hold`

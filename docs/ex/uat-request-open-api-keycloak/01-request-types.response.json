@@ -1,0 +1,12 @@
+{
+  "status": 200,
+  "body": [
+    {
+      "code": "BS-01",
+      "name": "ขอเปิด Request",
+      "sla_hours": 8,
+      "receiver_org_unit": null,
+      "ref_required": false
+    }
+  ]
+}
