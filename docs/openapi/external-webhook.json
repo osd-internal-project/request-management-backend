@@ -2963,7 +2963,7 @@
           },
           "intent": {
             "type": "string",
-            "description": "ผลจัดประเภท: interested | needs_info | not_interested | confirmed | purchase_order | unclear"
+            "description": "ผลจัดประเภท: interested | needs_info | not_interested | confirmed | negotiation | purchase_order | unclear"
           }
         }
       },

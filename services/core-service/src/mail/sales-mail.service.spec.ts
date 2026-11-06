@@ -65,6 +65,7 @@ function harness(
   };
   const opportunities = {
     findFirst: jest.fn(),
+    update: jest.fn(() => Promise.resolve({})),
     count: jest.fn(() => Promise.resolve(1)),
   };
   const leadActivities = { create: jest.fn(() => Promise.resolve({})) };
@@ -362,6 +363,61 @@ describe('SalesMailService (5 พ.ย. 2569)', () => {
       expect(h.leadActivities.create).not.toHaveBeenCalled();
     });
 
+    it('"ขอส่วนลด" moves the deal to negotiating and tells the owner what to do (6 พ.ย. 2569)', async () => {
+      const h = harness();
+      h.emails.findFirst.mockResolvedValueOnce({
+        ...outboundOrigin,
+        opportunityId: 'opp-1',
+      });
+      h.emails.findMany.mockResolvedValueOnce([
+        { quotationId: 'qt-1', purpose: 'quotation', status: 'sent' },
+      ] as never);
+      h.opportunities.findFirst
+        .mockResolvedValueOnce({
+          id: 'opp-1',
+          companyId: 'co-1',
+          stage: 'proposing',
+          amount: 1000,
+        })
+        .mockResolvedValueOnce({ ownerUserId: 'u-sales', title: 'ดีล กขค' });
+      const row = await h.service.ingest(
+        inbound({ text: 'ขอส่วนลดหน่อยครับ' }),
+        'sales@osd.co.th',
+      );
+      expect(row).toMatchObject({ intent: 'negotiation' });
+      expect(h.opportunities.update).toHaveBeenCalledWith({
+        where: { id: 'opp-1' },
+        data: { stage: 'negotiating', updatedBy: null },
+      });
+      expect(h.notifications.salesEmailReceived).toHaveBeenCalledWith(
+        'u-sales',
+        'co-1',
+        expect.objectContaining({
+          intentLabel: 'ขอต่อรอง/ส่วนลด',
+          nextStep: expect.stringContaining('คำขอส่วนลด') as unknown,
+        }),
+      );
+    });
+
+    it('a deal already won or lost is never moved by an email', async () => {
+      const h = harness();
+      h.emails.findFirst.mockResolvedValueOnce({
+        ...outboundOrigin,
+        opportunityId: 'opp-1',
+      });
+      h.opportunities.findFirst.mockResolvedValueOnce({
+        id: 'opp-1',
+        companyId: 'co-1',
+        stage: 'won',
+        amount: 1000,
+      });
+      await h.service.ingest(
+        inbound({ text: 'ขอส่วนลดเพิ่มครับ' }),
+        'sales@osd.co.th',
+      );
+      expect(h.opportunities.update).not.toHaveBeenCalled();
+    });
+
     it('uses the LLM when it is real, and the rules when it answers nonsense', async () => {
       const real = harness({
         llmMode: 'gateway',
@@ -489,9 +545,28 @@ describe('SalesMailService (5 พ.ย. 2569)', () => {
         direction: 'in',
       });
       h.print.printView.mockResolvedValueOnce(view);
-      h.quotations.send.mockResolvedValueOnce({ ...quotation, status: 'sent' });
+      h.quotations.send.mockResolvedValueOnce({
+        ...quotation,
+        status: 'sent',
+        netTotal: 1000,
+      });
+      h.opportunities.findFirst.mockResolvedValueOnce({
+        id: 'opp-1',
+        companyId: 'co-1',
+        stage: 'qualifying',
+        amount: null,
+      });
 
       const result = await h.service.sendQuotation('qt-1', {}, machine);
+
+      // a price is on the table: proposing, worth the quotation (6 พ.ย. 2569)
+      expect(h.opportunities.update).toHaveBeenCalledWith({
+        where: { id: 'opp-1' },
+        data: expect.objectContaining({
+          stage: 'proposing',
+          amount: 1000,
+        }) as unknown,
+      });
 
       const sent = mail.sent[0];
       expect(sent.replyToGraphId).toBe('g-in-1');

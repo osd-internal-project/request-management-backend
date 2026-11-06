@@ -623,9 +623,13 @@ export const NOTIFICATION_TEMPLATES: readonly TemplateDefinition[] = [
     eventType: 'crm.email.received',
     label: 'ลูกค้าตอบอีเมลของงานขาย (ถึงเจ้าของ Lead/ดีล)',
     title: 'ลูกค้าตอบอีเมล ({{intent}}): {{party}}',
-    body: '{{subject}} — จาก {{sender}}',
+    body: '{{subject}} — จาก {{sender}} · {{next_step}}',
     variables: {
       intent: { label: 'ผลจัดประเภท', sample: 'สนใจ' },
+      next_step: {
+        label: 'สิ่งที่ต้องทำต่อ',
+        sample: 'ลูกค้ายืนยันแล้ว — เปิดใบสั่งขายเพื่อปิดการขาย',
+      },
       party: { label: 'Lead/ดีล', sample: 'บริษัท กขค จำกัด' },
       subject: { label: 'หัวเรื่อง', sample: 'RE: ขอบคุณที่สนใจบริการของเรา' },
       sender: { label: 'ผู้ส่ง', sample: 'somchai@example.co.th' },
