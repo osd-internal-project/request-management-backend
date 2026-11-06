@@ -62,5 +62,9 @@ agent `lead.find` ของ Vuvagent สร้าง Lead ด้วย key ข�
 คนละ key ในงานเดียว จึงย้าย "osd_vuvagent" (integration, key 2 ใบ, webhook `lead.*`) มาด้วยในวันเดียวกัน.
 ทั้งสองไม่มี scope `integration.request.*` / `process.*` / `approval.*` และไม่มี event ของ request — request workflow ของ
 `OSD_DEMO` (integration `osd-workflow`) ไม่เกี่ยว. ตั้งแต่นั้น `OSD_DEMO` ไม่มี AI หา/ค้นข้อมูล Lead และไม่มี webhook `lead.*` ไป Vuvagent.
-`OSD_LEAD` มี webhook `lead.*` ไป URL เดียวกันสองตัว (หนึ่งตัวต่อ integration) — Vuvagent ได้ event ละสองครั้ง เหมือนตอนอยู่ใน demo.
 ย้อนกลับ = เปลี่ยน `companyId` ของ integration, key, webhook และ connection ของทั้งสอง integration กลับเป็น `OSD_DEMO`.
+
+4 พ.ย. 2569: รวม key ของ "osd_vuvagent" (`rfk_RqZHNPUm` ที่ใช้งาน กับ `rfk_YlYzApn-` ที่เพิกถอนแล้ว) ไว้ใต้ "Lead API" โดยแก้แค่ `api_keys.integrationId`
+ตัว key, scopes และบริษัทเหมือนเดิม Vuvagent จึงไม่ต้องเปลี่ยนอะไร. ปิด webhook `lead-webhook` ที่ซ้ำ (Vuvagent ได้ event ครั้งเดียวแล้ว)
+และตั้ง "osd_vuvagent" เป็น inactive. Lead API เปิดแค่ mode `app` และไม่รับ acting user ซึ่งตรงกับการใช้งานจริง (124 calls ก่อนย้ายเป็น `app` ทั้งหมด ไม่มี acting user).
+ย้อนกลับ = ตั้ง `integrationId` ของสอง key กลับเป็น osd_vuvagent (`f793b44b-…`) แล้วเปิด integration และ webhook นั้นกลับเป็น active.

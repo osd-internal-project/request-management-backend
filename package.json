@@ -78,6 +78,7 @@
     "data:import-catalog": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/import-osd-catalog.ts",
     "data:import-users": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/import-users-csv.ts",
   "data:import-requests": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/import-osd-requests.ts",
+    "data:import-bs01-backdata": "TS_NODE_PROJECT=services/run-number-service/tsconfig.json ts-node --transpile-only -r tsconfig-paths/register -r dotenv/config libs/prisma/import-bs01-backdata.ts",
     "examples": "ts-node --compiler-options '{\"module\":\"commonjs\"}' scripts/generate-examples.ts",
     "tools": "ts-node --compiler-options '{\"module\":\"commonjs\"}' scripts/generate-tools.ts",
     "crm:gen": "python3 scripts/generate-crm-controllers.py",
