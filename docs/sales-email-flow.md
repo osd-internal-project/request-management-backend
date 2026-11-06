@@ -27,8 +27,11 @@ Vuvagent กรอก Product/Segment → Lead "qualified"
             POST crm/ai/opportunities/{oppId}/quotations → approved (ราคามาตรฐาน)
                  422 CRM_QUOTATION_UNPRICED → human task ให้เจ้าของ Lead
             POST crm/ai/quotations/{qtId}/email          → PDF ในเธรดเดิม + sent
+                 ดีล qualifying → proposing, มูลค่าดีล = ยอดสุทธิใบเสนอราคา (ถ้ายังว่าง)
        [confirmed | purchase_order] → workflow ctd-sales-close            (ข้อ 6)
             POST crm/ai/quotations/{quotationId}/accept  {email_id, po_no?}
+            ดีลไม่ปิดชนะเอง — ชนะ = เซลล์เปิดใบสั่งขาย (PO 10 ก.ย.); แจ้งเตือนบอกให้เปิดใบสั่งขาย
+       [negotiation] → ดีล → negotiating + แจ้งเจ้าของให้ทำคำขอส่วนลด (CD-80) หรือออกฉบับใหม่
        [needs_info | unclear] → human task ให้เจ้าของตอบเอง
        [not_interested]       → จบ (เจ้าของตัดสินว่าจะ disqualify)
 ```
@@ -53,10 +56,12 @@ Vuvagent กรอก Product/Segment → Lead "qualified"
 ### ผลจัดประเภท (`EMAIL_INTENTS`)
 
 `interested` · `needs_info` · `not_interested` · `confirmed` (ได้เฉพาะหลังส่งใบเสนอราคาในเธรดแล้ว)
-· `purchase_order` (ไฟล์ชื่อ PO หรือข้อความกล่าวถึง PO) · `unclear`
+· `negotiation` (ขอส่วนลด/ต่อรองราคาหรือเงื่อนไข — "ยืนยันถ้าลดให้" ก็นับเป็นต่อรอง) · `purchase_order` (ไฟล์ชื่อ PO หรือข้อความกล่าวถึง PO) · `unclear`
 
 `LLM_MODE=gateway` ใช้ LLM (task `crm.email.intent` ตั้ง model/quota ได้ที่หน้าตั้งค่า LLM);
 mock หรือ LLM ตอบไม่เป็น JSON → กฎคำสำคัญใน `mail-rules.ts` (`intent_source` บอกว่ามาจากทางไหน)
+
+แจ้งเตือนเจ้าของ (`crm.email.received`) มี `{{next_step}}` บอกสิ่งที่ต้องทำต่อตามผลจัดประเภท
 
 ## ตั้งค่า
 

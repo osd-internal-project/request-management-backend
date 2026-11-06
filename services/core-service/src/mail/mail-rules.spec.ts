@@ -27,6 +27,8 @@ describe('sales email rules (5 พ.ย. 2569)', () => {
       ['ขอสอบถามว่ารองรับ VPN ไหม', 'needs_info'],
       ['ขอบคุณครับ ตอนนี้ยังไม่สนใจ', 'not_interested'],
       ['ไม่มีอะไรครับ', 'unclear'],
+      ['ขอส่วนลดหน่อย', 'negotiation'],
+      ['ราคาแพงไปนิด ลดได้ไหมครับ', 'negotiation'],
     ])('%s → %s', (text, intent) => {
       expect(intentByRules(reply(text)).intent).toBe(intent);
     });
@@ -39,6 +41,14 @@ describe('sales email rules (5 พ.ย. 2569)', () => {
         intentByRules(reply('ยืนยันตามนี้ครับ', { quotationSent: true }))
           .intent,
       ).toBe('confirmed');
+    });
+
+    it('a confirmation on a price condition is negotiation, not a yes (6 พ.ย. 2569)', () => {
+      expect(
+        intentByRules(
+          reply('ยืนยันได้เลยถ้าลดให้ 10%', { quotationSent: true }),
+        ).intent,
+      ).toBe('negotiation');
     });
 
     it('a PO beats everything — by file name or by text', () => {

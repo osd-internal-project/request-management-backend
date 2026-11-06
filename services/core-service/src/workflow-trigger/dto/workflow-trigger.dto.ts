@@ -154,7 +154,7 @@ export class WorkflowTriggerEventDto {
     enum: ['request_type', 'lead_status', 'email_intent'],
     nullable: true,
     description:
-      '`request_type` = รหัสประเภทคำขอ (ตัวพิมพ์ใหญ่ เช่น SOL) · `lead_status` = รหัสสถานะ Lead (ตัวพิมพ์เล็ก เช่น qualified) · `email_intent` = ผลจัดประเภทคำตอบอีเมล (interested, needs_info, not_interested, confirmed, purchase_order, unclear) · null = กรองไม่ได้',
+      '`request_type` = รหัสประเภทคำขอ (ตัวพิมพ์ใหญ่ เช่น SOL) · `lead_status` = รหัสสถานะ Lead (ตัวพิมพ์เล็ก เช่น qualified) · `email_intent` = ผลจัดประเภทคำตอบอีเมล (interested, needs_info, not_interested, confirmed, negotiation, purchase_order, unclear) · null = กรองไม่ได้',
   })
   filter_kind!: 'request_type' | 'lead_status' | 'email_intent' | null;
 }

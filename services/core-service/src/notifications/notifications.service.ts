@@ -772,6 +772,7 @@ export class NotificationsService {
     email: {
       id: string;
       intentLabel: string;
+      nextStep: string;
       party: string;
       subject: string;
       sender: string;
@@ -785,6 +786,7 @@ export class NotificationsService {
       eventType: 'crm.email.received',
       values: {
         intent: email.intentLabel,
+        next_step: email.nextStep.slice(0, 160),
         party: email.party.slice(0, 120),
         subject: email.subject.slice(0, 160),
         sender: email.sender.slice(0, 120),

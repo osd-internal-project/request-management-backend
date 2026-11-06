@@ -16,6 +16,8 @@ export const EMAIL_INTENTS = [
   'not_interested',
   /** confirms the quotation */
   'confirmed',
+  /** asks for a discount or other terms — the salesperson negotiates */
+  'negotiation',
   /** sends or states a purchase order */
   'purchase_order',
   /** none of the above with any confidence — a person reads it */
@@ -28,8 +30,21 @@ export const EMAIL_INTENT_LABELS: Record<EmailIntent, string> = {
   needs_info: 'ขอข้อมูลเพิ่ม',
   not_interested: 'ไม่สนใจ',
   confirmed: 'ยืนยันใบเสนอราคา',
+  negotiation: 'ขอต่อรอง/ส่วนลด',
   purchase_order: 'ส่ง PO',
   unclear: 'ไม่ชัดเจน',
+};
+
+/** What the owner is told to do next — the line in their notification. */
+export const EMAIL_NEXT_STEPS: Record<EmailIntent, string> = {
+  interested:
+    'เตรียมใบเสนอราคา (ถ้าเปิดงานขายอัตโนมัติ ระบบทำจากราคามาตรฐานให้)',
+  needs_info: 'ตอบคำถามลูกค้าในเธรดเดิม',
+  not_interested: 'พิจารณาปิดดีล/ตัด Lead',
+  confirmed: 'ลูกค้ายืนยันแล้ว — เปิดใบสั่งขายเพื่อปิดการขาย',
+  negotiation: 'ลูกค้าขอต่อรอง — ทำคำขอส่วนลดหรือออกใบเสนอราคาฉบับใหม่',
+  purchase_order: 'ลูกค้าส่ง PO — ตรวจ PO แล้วเปิดใบสั่งขาย',
+  unclear: 'อ่านแล้วตอบลูกค้าเอง',
 };
 
 export const isEmailIntent = (value: unknown): value is EmailIntent =>
@@ -61,6 +76,8 @@ const CONFIRM =
   /(ยืนยัน|ตกลง(สั่ง|ซื้อ|ตาม)|อนุมัติ(ใบเสนอราคา|ราคา)|รับข้อเสนอ|accept|approved?|confirm|go ahead)/i;
 const NOT_INTERESTED =
   /(ไม่สนใจ|ยังไม่สนใจ|ไม่ต้องการ|ขอยกเลิก|ไม่ต้องส่ง|unsubscribe|not interested|no longer)/i;
+const NEGOTIATION =
+  /(ส่วนลด|ลดราคา|ลดได้|ลดให้|ขอลด|ต่อรอง|ราคาพิเศษ|แพงไป|แพงเกิน|เกินงบ|ผ่อน|เครดิตเทอม|discount|negotiat|better price|lower price|best price)/i;
 const NEEDS_INFO =
   /(สอบถาม|ขอข้อมูล|ขอรายละเอียด|รายละเอียดเพิ่ม|\?|อย่างไร|ไหม|มั้ย|หรือเปล่า|question|more (info|details))/i;
 const INTERESTED =
@@ -81,6 +98,13 @@ export function intentByRules(input: IntentInput): IntentResult {
   }
   if (NOT_INTERESTED.test(text)) {
     return { intent: 'not_interested', reason: 'ข้อความปฏิเสธ' };
+  }
+  // "ยืนยันถ้าลดให้" is not a yes: a condition on price goes to a person
+  if (NEGOTIATION.test(text)) {
+    return {
+      intent: 'negotiation',
+      reason: 'ข้อความขอส่วนลดหรือต่อรองเงื่อนไข',
+    };
   }
   if (input.quotationSent && CONFIRM.test(text)) {
     return { intent: 'confirmed', reason: 'ข้อความยืนยันหลังได้ใบเสนอราคา' };
@@ -110,6 +134,7 @@ export function intentPrompt(input: IntentInput): {
       input.quotationSent
         ? '- confirmed: accepts / confirms the quotation already sent'
         : '- confirmed: (not possible yet — no quotation was sent)',
+      '- negotiation: asks for a discount, a lower price or other terms (payment, credit), even if it would confirm on that condition',
       '- purchase_order: sends or states a purchase order (PO)',
       '- unclear: auto-replies, out-of-office, or anything else',
       'reason: one short sentence in Thai.',

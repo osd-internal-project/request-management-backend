@@ -32,6 +32,7 @@ import {
 import { MailClientsService } from './mail-clients.service';
 import {
   EMAIL_INTENT_LABELS,
+  EMAIL_NEXT_STEPS,
   MAX_BODY_CHARS,
   intentByRules,
   intentPrompt,
@@ -283,6 +284,12 @@ export class SalesMailService {
     await this.logActivity(row, actor);
     // the mail went: now the version is locked as sent
     const sent = await this.quotations.send(quotation.id, actor);
+    // the deal now has a price on the table (6 พ.ย. 2569, user decision)
+    await this.advanceDeal(opportunity.id, ['qualifying'], 'proposing', {
+      amount: (sent as unknown as { netTotal?: unknown }).netTotal ?? null,
+      reason: `ส่งใบเสนอราคา ${label} ทางอีเมล`,
+      actor,
+    });
     return { email: this.view(row), quotation: sent };
   }
 
@@ -450,6 +457,14 @@ export class SalesMailService {
       },
     });
     await this.logActivity(row, null);
+    if (row.intent === 'negotiation' && row.opportunityId) {
+      await this.advanceDeal(
+        row.opportunityId,
+        ['qualifying', 'proposing'],
+        'negotiating',
+        { amount: null, reason: 'ลูกค้าขอต่อรองทางอีเมล', actor: null },
+      );
+    }
     await this.notifyOwner(row);
     await this.events.emit({
       name: DOMAIN_EVENTS.crmEmailReceived,
@@ -788,6 +803,54 @@ export class SalesMailService {
     }
   }
 
+  /**
+   * Moves an open deal forward when the email flow says so — only from the
+   * stages named, never backwards, never to won/lost (won = a sale order,
+   * PO 10 ก.ย. 2569). A deal amount someone already set is kept.
+   */
+  private async advanceDeal(
+    opportunityId: string,
+    from: readonly string[],
+    to: 'proposing' | 'negotiating',
+    change: { amount: unknown; reason: string; actor: Principal | null },
+  ) {
+    const deal = (await this.opportunities.findFirst({
+      where: { id: opportunityId },
+      select: { id: true, companyId: true, stage: true, amount: true },
+    })) as {
+      id: string;
+      companyId: string;
+      stage: string;
+      amount: unknown;
+    } | null;
+    if (!deal || !from.includes(deal.stage)) return;
+    const amount =
+      deal.amount === null && change.amount !== null
+        ? change.amount
+        : undefined;
+    await this.opportunities.update({
+      where: { id: deal.id },
+      data: {
+        stage: to,
+        ...(amount !== undefined ? { amount: amount as never } : {}),
+        updatedBy: change.actor?.userId ?? null,
+      },
+    });
+    await this.audit.record({
+      eventType: 'crm.opportunity.stage_changed',
+      companyId: deal.companyId,
+      ...(change.actor ? auditActor(change.actor) : { actorId: null }),
+      resourceType: 'opportunity',
+      resourceId: deal.id,
+      before: { stage: deal.stage },
+      after: {
+        stage: to,
+        ...(amount !== undefined ? { amount: amount as never } : {}),
+        reason: change.reason,
+      },
+    });
+  }
+
   private async notifyOwner(row: CrmEmailRow) {
     const target = row.opportunityId
       ? ((await this.opportunities.findFirst({
@@ -808,6 +871,7 @@ export class SalesMailService {
         id: row.id,
         intentLabel:
           EMAIL_INTENT_LABELS[(row.intent ?? 'unclear') as EmailIntent],
+        nextStep: EMAIL_NEXT_STEPS[(row.intent ?? 'unclear') as EmailIntent],
         party: 'title' in target ? target.title : target.name,
         subject: row.subject,
         sender: row.fromAddress,

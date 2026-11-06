@@ -72,7 +72,7 @@ const CRM_EMAIL: Record<keyof CrmEmailEventPayload, Schema> = {
   opportunity_id: nullableStr('โอกาสการขายของเธรด (หลังแปลงแล้ว)'),
   quotation_id: nullableStr('ใบเสนอราคาที่ส่งในเธรดนี้'),
   intent: str(
-    'ผลจัดประเภท: interested | needs_info | not_interested | confirmed | purchase_order | unclear',
+    'ผลจัดประเภท: interested | needs_info | not_interested | confirmed | negotiation | purchase_order | unclear',
   ),
 };
 const LEAD: Record<keyof LeadEventPayload, Schema> = {
