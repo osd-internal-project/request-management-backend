@@ -14,6 +14,7 @@ import { LlmService } from '../llm/llm.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { QuotationPrintService } from '../crm/quotation-print.service';
 import { QuotationsService } from '../crm/quotations.service';
+import { LeadFilesService } from '../crm/lead-files.service';
 import { quotationPdf } from '../crm/quotation-pdf';
 import {
   LeadActivityRepository,
@@ -53,6 +54,8 @@ export interface SalesMailInput {
   body: string;
   signature?: string;
   attachments?: MailAttachment[];
+  /** attach the newest proposal on the Lead; none = refused, nothing sent */
+  attachProposal?: boolean;
 }
 
 export interface CrmEmailRow {
@@ -95,7 +98,8 @@ interface LeadForMail {
 
 /** Most attachments a caller may send, and their total (Graph caps a request near 4 MB). */
 const MAX_ATTACHMENTS = 5;
-const MAX_ATTACHMENT_BYTES = 3 * 1024 * 1024;
+/** Large files go up in chunks (GraphMailClient.attach); Exchange caps a message near 35 MB. */
+const MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024;
 
 /**
  * งานขายอัตโนมัติ (5 พ.ย. 2569) — the sales emails of a Lead and its deal:
@@ -122,6 +126,7 @@ export class SalesMailService {
     private readonly leadActivities: LeadActivityRepository,
     private readonly opportunityActivities: OpportunityActivityRepository,
     private readonly quotations: QuotationsService,
+    private readonly leadFiles: LeadFilesService,
     private readonly print: QuotationPrintService,
     private readonly llm: LlmService,
     private readonly notifications: NotificationsService,
@@ -145,7 +150,23 @@ export class SalesMailService {
         [{ field: 'email', reason: 'missing' }],
       );
     }
-    assertAttachments(input.attachments);
+    const attachments = [...(input.attachments ?? [])];
+    if (input.attachProposal) {
+      const proposal = await this.leadFiles.latestProposal(lead.id);
+      if (!proposal) {
+        throw new AppError(
+          'CRM_EMAIL_UNAVAILABLE',
+          'Lead นี้ยังไม่มีไฟล์ proposal — วางไฟล์ (ประเภท proposal) บน Lead ก่อนส่ง',
+          [{ field: 'proposal', reason: 'missing' }],
+        );
+      }
+      attachments.push({
+        name: safeFileName(proposal.fileName),
+        contentType: proposal.mimeType,
+        contentBase64: proposal.content.toString('base64'),
+      });
+    }
+    assertAttachments(attachments);
     const subject =
       input.subject?.trim() || `ขอบคุณที่สนใจบริการของเรา — ${lead.name}`;
 
@@ -159,7 +180,7 @@ export class SalesMailService {
       subject,
       body: input.body,
       signature: input.signature,
-      attachments: input.attachments ?? [],
+      attachments,
       replyTo: null,
     });
     await this.logActivity(row, actor);
@@ -959,7 +980,7 @@ function assertAttachments(files: readonly MailAttachment[] | undefined) {
     0,
   );
   if (bytes > MAX_ATTACHMENT_BYTES) {
-    throw new AppError('VALIDATION_FAILED', 'ไฟล์แนบรวมกันต้องไม่เกิน 3 MB', [
+    throw new AppError('VALIDATION_FAILED', 'ไฟล์แนบรวมกันต้องไม่เกิน 20 MB', [
       { field: 'attachments', reason: 'too_large' },
     ]);
   }

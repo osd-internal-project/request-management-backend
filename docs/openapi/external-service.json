@@ -10561,6 +10561,114 @@
         ]
       }
     },
+    "/api/v1/crm/ai/leads/{id}/files": {
+      "get": {
+        "operationId": "ExternalLeadAiController_listFiles",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ไฟล์บน Lead (ล่าสุดก่อน)",
+        "tags": [
+          "crm-ai"
+        ],
+        "x-permission": [
+          "integration.crm.lead.read.all"
+        ]
+      },
+      "post": {
+        "description": "kind=proposal = ไฟล์ที่อีเมลขอบคุณแนบไป (`POST crm/ai/leads/:id/emails` attach_proposal) — ใช้ฉบับล่าสุด",
+        "operationId": "ExternalLeadAiController_uploadFile",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "proposal",
+                      "other"
+                    ],
+                    "description": "proposal = ไฟล์ที่แนบไปกับอีเมลขอบคุณ (ใช้ฉบับล่าสุด)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "วางไฟล์บน Lead (PDF/Word/PowerPoint/Excel/รูป ≤ 20 MB)",
+        "tags": [
+          "crm-ai"
+        ],
+        "x-permission": [
+          "integration.crm.lead.update"
+        ]
+      }
+    },
     "/api/v1/crm/ai/leads/{id}/convert": {
       "post": {
         "description": "Lead ในกองกลาง (ยังไม่มีเจ้าของ) ตอบ 409 — มอบหมายก่อน",
@@ -19432,7 +19540,7 @@
           },
           "content_base64": {
             "type": "string",
-            "description": "เนื้อไฟล์เป็น base64 — รวมทุกไฟล์ไม่เกิน 3 MB"
+            "description": "เนื้อไฟล์เป็น base64 — รวมทุกไฟล์ไม่เกิน 20 MB"
           }
         },
         "required": [
@@ -19469,6 +19577,11 @@
               "$ref": "#/components/schemas/MailAttachmentDto"
             },
             "maxItems": 5
+          },
+          "attach_proposal": {
+            "type": "boolean",
+            "example": true,
+            "description": "แนบไฟล์ proposal ล่าสุดบน Lead (`POST crm/ai/leads/:id/files` kind=proposal) — ไม่มีไฟล์ = 409 CRM_EMAIL_UNAVAILABLE (field proposal) ไม่ส่งอีเมล · รับ \"true\"/\"false\" จาก workflow ได้"
           }
         },
         "required": [

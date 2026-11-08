@@ -558,3 +558,17 @@ export class PricingExceptionRepository extends BaseRepository<
     return client.pricingException;
   }
 }
+
+/** ไฟล์บน Lead (6 พ.ย. 2569) — proposal ที่แนบไปกับอีเมลขอบคุณ. */
+@Injectable()
+export class LeadFileRepository extends BaseRepository<
+  PrismaService['leadFile']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.leadFile;
+  }
+}

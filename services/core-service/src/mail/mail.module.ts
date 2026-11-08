@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { CrmModule } from '../crm/crm.module';
+import { LeadFilesModule } from '../crm/lead-files.module';
 import { EventsModule } from '../events/events.module';
 import { LlmModule } from '../llm/llm.module';
 import { NotificationsModule } from '../notifications/notifications.module';
@@ -16,7 +17,13 @@ import { SalesMailService } from './sales-mail.service';
  * missing values still refuses to boot.
  */
 @Module({
-  imports: [CrmModule, LlmModule, NotificationsModule, EventsModule],
+  imports: [
+    CrmModule,
+    LeadFilesModule,
+    LlmModule,
+    NotificationsModule,
+    EventsModule,
+  ],
   providers: [
     CrmEmailRepository,
     MailSettingRepository,

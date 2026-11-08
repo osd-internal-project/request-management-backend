@@ -63,6 +63,7 @@ export class ExternalSalesAiController {
           contentType: file.content_type,
           contentBase64: file.content_base64,
         })),
+        attachProposal: dto.attach_proposal === true,
       },
       actor,
     );

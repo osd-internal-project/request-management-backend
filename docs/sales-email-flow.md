@@ -17,9 +17,11 @@
 ## เส้นทาง
 
 ```
-Vuvagent กรอก Product/Segment → Lead "qualified"
-  └ trigger lead.status_changed [qualified] → workflow ctd-sales-s1
-       POST crm/ai/leads/{leadId}/emails            ขอบคุณ + proposal (ข้อ 3)
+Vuvagent กรอก Product/Segment + วาง proposal  POST crm/ai/leads/{id}/files kind=proposal
+เซลล์ย้าย Lead เป็น "Negotiation" (6 พ.ย.: เดิม qualified)
+  └ trigger lead.status_changed [negotiation] → workflow ctd-sales-intro
+       POST crm/ai/leads/{leadId}/emails {attach_proposal: true}  ขอบคุณ + proposal (ข้อ 3)
+            ไม่มี proposal บน Lead → 409 → human task ให้เจ้าของ
 ลูกค้าตอบ → core อ่าน inbox (เฉพาะเธรดที่ระบบเปิด) → จัดประเภท → กิจกรรม + แจ้งเจ้าของ
   └ event crm.email.received {intent}                                   (ข้อ 4)
        [interested]  → workflow ctd-sales-quote                          (ข้อ 5)
@@ -43,7 +45,9 @@ Vuvagent กรอก Product/Segment → Lead "qualified"
 
 | route | scope | หมายเหตุ |
 |---|---|---|
-| `POST crm/ai/leads/:id/emails` | `crm.email.send` + `crm.lead.read.all` | body: `subject?`, `body` (ข้อความธรรมดา), `signature?`, `attachments?[{file_name, content_type, content_base64}]` ≤ 5 ไฟล์ / 3 MB · ผู้รับ = อีเมลบน Lead |
+| `POST crm/ai/leads/:id/emails` | `crm.email.send` + `crm.lead.read.all` | body: `subject?`, `body` (ข้อความธรรมดา), `signature?`, `attachments?[{file_name, content_type, content_base64}]` ≤ 5 ไฟล์ / 20 MB, `attach_proposal?` (แนบ proposal ล่าสุดบน Lead; ไม่มี = 409 field `proposal`) · ผู้รับ = อีเมลบน Lead |
+| `POST crm/ai/leads/:id/files` | `crm.lead.update` | multipart `file` + `kind` (`proposal` \| `other`) ≤ 20 MB — Vuvagent วาง proposal ให้ Lead |
+| `GET crm/ai/leads/:id/files` | `crm.lead.read.all` | รายการไฟล์บน Lead (ล่าสุดก่อน) |
 | `GET crm/ai/emails/:id` | `crm.email.read` + `crm.lead.read.all` | `intent`, `intent_label`, `intent_reason`, `body_text`, `attachments` |
 | `POST crm/ai/opportunities/:id/quotations` | `crm.quotation.create` + `crm.sales.read.all` | `items?[{product_code, quantity, term_months?}]` — ว่าง = `intake_data.products` หรือ `subProduct` ของ Lead |
 | `POST crm/ai/quotations/:id/email` | `crm.email.send` + `crm.sales.read.all` | เฉพาะ `approved`; ตอบข้อความล่าสุดของลูกค้า แนบ PDF แล้วเป็น `sent` |

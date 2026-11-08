@@ -208,6 +208,51 @@ describe('GraphMailClient (MAIL_MODE=graph)', () => {
     );
   });
 
+  it('a file over 3 MB goes up through an upload session in chunks, without our token (6 พ.ย. 2569)', async () => {
+    const big = Buffer.alloc(4 * 1024 * 1024, 7);
+    const { graph, calls } = client([
+      () => ({ status: 201, body: { id: 'm-9', conversationId: 'c-9' } }),
+      () => ({
+        status: 201,
+        body: { uploadUrl: 'https://outlook.office.com/upload/abc' },
+      }),
+      () => ({ status: 200, body: {} }),
+      () => ({ status: 201, body: {} }),
+      () => ({ status: 202 }),
+    ]);
+    await graph.send({
+      to: ['customer@example.com'],
+      subject: 'ขอบคุณ',
+      html: '<p>hi</p>',
+      attachments: [
+        {
+          name: 'proposal.pdf',
+          contentType: 'application/pdf',
+          contentBase64: big.toString('base64'),
+        },
+      ],
+    });
+    const draft = calls[1];
+    expect(draft.body).toMatchObject({ attachments: [] });
+    expect(calls[2].url).toMatch(
+      /\/messages\/m-9\/attachments\/createUploadSession$/,
+    );
+    expect(calls[2].body).toMatchObject({
+      AttachmentItem: {
+        attachmentType: 'file',
+        name: 'proposal.pdf',
+        size: big.length,
+      },
+    });
+    const puts = calls.filter((c) => c.method === 'PUT');
+    expect(puts.map((c) => c.headers['content-range'])).toEqual([
+      `bytes 0-${3276800 - 1}/${big.length}`,
+      `bytes 3276800-${big.length - 1}/${big.length}`,
+    ]);
+    expect(puts[0].headers.authorization).toBeUndefined();
+    expect(calls[calls.length - 1].url).toMatch(/\/messages\/m-9\/send$/);
+  });
+
   it('a refusal is a MailError with the status', async () => {
     const { graph } = client([
       () => ({ status: 403, body: { error: 'denied' } }),

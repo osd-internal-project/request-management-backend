@@ -58,6 +58,12 @@ export { SensitiveReadAuditRecorder } from './policy/sensitive-read.recorder';
 export { CrmModule } from './crm/crm.module';
 // งานขายอัตโนมัติ (5 พ.ย. 2569) — sales mailbox for OSD Workflow's routes
 export { MailModule } from './mail/mail.module';
+export { LeadFilesModule } from './crm/lead-files.module';
+export {
+  LeadFilesService,
+  MAX_LEAD_FILE_BYTES,
+} from './crm/lead-files.service';
+export { LEAD_FILE_BODY, LEAD_FILE_UPLOAD } from './crm/lead-files.controller';
 export { SalesMailService } from './mail/sales-mail.service';
 export {
   AcceptQuotationByEmailDto,

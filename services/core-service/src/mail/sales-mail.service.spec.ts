@@ -72,6 +72,19 @@ function harness(
   const opportunityActivities = { create: jest.fn(() => Promise.resolve({})) };
   const quotations = { findOne: jest.fn(), send: jest.fn() };
   const print = { printView: jest.fn() };
+  const leadFiles = {
+    latestProposal: jest.fn(() =>
+      Promise.resolve(
+        null as null | {
+          id: string;
+          fileName: string;
+          mimeType: string;
+          sizeBytes: number;
+          content: Buffer;
+        },
+      ),
+    ),
+  };
   const llm = {
     mode: options.llmMode ?? 'mock',
     chat: jest.fn(() =>
@@ -100,6 +113,7 @@ function harness(
     leadActivities as never,
     opportunityActivities as never,
     quotations as never,
+    leadFiles as never,
     print as never,
     llm as never,
     notifications as never,
@@ -116,6 +130,7 @@ function harness(
     leadActivities,
     opportunityActivities,
     quotations,
+    leadFiles,
     print,
     llm,
     notifications,
@@ -221,6 +236,50 @@ describe('SalesMailService (5 พ.ย. 2569)', () => {
       );
     });
 
+    it('attach_proposal attaches the newest proposal on the Lead (6 พ.ย. 2569)', async () => {
+      const h = harness();
+      h.leadFiles.latestProposal.mockResolvedValueOnce({
+        id: 'f-1',
+        fileName: 'Proposal กขค.pdf',
+        mimeType: 'application/pdf',
+        sizeBytes: 3,
+        content: Buffer.from('ABC'),
+      });
+      const view = await h.service.sendLeadIntro(
+        'lead-1',
+        { body: 'ขอบคุณครับ', attachProposal: true },
+        machine,
+      );
+      expect(h.leadFiles.latestProposal).toHaveBeenCalledWith('lead-1');
+      const sent = (h.mail as MockMailClient).sent[0];
+      expect(sent.attachments).toEqual([
+        {
+          name: 'Proposal กขค.pdf',
+          contentType: 'application/pdf',
+          contentBase64: 'QUJD',
+        },
+      ]);
+      expect(view.attachments).toEqual([
+        { name: 'Proposal กขค.pdf', contentType: 'application/pdf', size: 3 },
+      ]);
+    });
+
+    it('attach_proposal with no proposal on the Lead sends nothing and says why', async () => {
+      const h = harness();
+      await expect(
+        h.service.sendLeadIntro(
+          'lead-1',
+          { body: 'ขอบคุณครับ', attachProposal: true },
+          machine,
+        ),
+      ).rejects.toMatchObject({
+        code: 'CRM_EMAIL_UNAVAILABLE',
+        details: [{ field: 'proposal', reason: 'missing' }],
+      });
+      expect((h.mail as MockMailClient).sent).toHaveLength(0);
+      expect(h.emails.create).not.toHaveBeenCalled();
+    });
+
     it('a refused send is kept as a failed row and answered CRM_EMAIL_SEND_FAILED', async () => {
       const broken: MailClient = {
         mode: 'graph',
@@ -237,7 +296,7 @@ describe('SalesMailService (5 พ.ย. 2569)', () => {
       expect(h.leadActivities.create).not.toHaveBeenCalled();
     });
 
-    it('refuses more than 3 MB of attachments before sending', async () => {
+    it('refuses more than 20 MB of attachments before sending', async () => {
       const h = harness();
       await expect(
         h.service.sendLeadIntro(
@@ -248,7 +307,7 @@ describe('SalesMailService (5 พ.ย. 2569)', () => {
               {
                 name: 'big.pdf',
                 contentType: 'application/pdf',
-                contentBase64: 'A'.repeat(5_000_000),
+                contentBase64: 'A'.repeat(28_000_000),
               },
             ],
           },

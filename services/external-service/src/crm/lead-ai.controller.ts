@@ -1,6 +1,21 @@
 import { ActsAsCompany } from '../auth/acts-as-company.decorator';
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import {
   AppError,
   CurrentPrincipal,
@@ -10,6 +25,9 @@ import type { Principal } from '@request-management/share';
 import {
   ConvertLeadDto,
   CurrentApiKey,
+  LEAD_FILE_BODY,
+  LEAD_FILE_UPLOAD,
+  LeadFilesService,
   LeadsService,
   UpdateLeadDto,
   UpdateLeadIntakeDataDto,
@@ -42,7 +60,10 @@ const CONTACT_FIELDS = [
 @Controller('crm/ai/leads')
 @ActsAsCompany()
 export class ExternalLeadAiController {
-  constructor(private readonly leads: LeadsService) {}
+  constructor(
+    private readonly leads: LeadsService,
+    private readonly files: LeadFilesService,
+  ) {}
 
   @Get(':id')
   @Permissions('integration.crm.lead.read.all')
@@ -97,6 +118,39 @@ export class ExternalLeadAiController {
   ) {
     requireCompanyKey(key);
     return this.leads.updateIntakeData(id, dto, actor);
+  }
+
+  @Get(':id/files')
+  @Permissions('integration.crm.lead.read.all')
+  @ApiOperation({ summary: 'ไฟล์บน Lead (ล่าสุดก่อน)' })
+  listFiles(
+    @Param('id') id: string,
+    @CurrentPrincipal() actor: Principal,
+    @CurrentApiKey() key: ApiKeyContext | undefined,
+  ) {
+    requireCompanyKey(key);
+    return this.files.list(id, actor);
+  }
+
+  @Post(':id/files')
+  @Permissions('integration.crm.lead.update')
+  @ApiOperation({
+    summary: 'วางไฟล์บน Lead (PDF/Word/PowerPoint/Excel/รูป ≤ 20 MB)',
+    description:
+      'kind=proposal = ไฟล์ที่อีเมลขอบคุณแนบไป (`POST crm/ai/leads/:id/emails` attach_proposal) — ใช้ฉบับล่าสุด',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody(LEAD_FILE_BODY)
+  @UseInterceptors(LEAD_FILE_UPLOAD)
+  uploadFile(
+    @Param('id') id: string,
+    @Body('kind') kind: string | undefined,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @CurrentPrincipal() actor: Principal,
+    @CurrentApiKey() key: ApiKeyContext | undefined,
+  ) {
+    requireCompanyKey(key);
+    return this.files.upload(id, kind, file, actor);
   }
 
   @Post(':id/convert')

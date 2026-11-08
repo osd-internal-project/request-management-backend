@@ -34,7 +34,7 @@ function setup() {
     convert: jest.fn(() => Promise.resolve({})),
   };
   return {
-    controller: new ExternalLeadAiController(leads as never),
+    controller: new ExternalLeadAiController(leads as never, {} as never),
     leads,
   };
 }
@@ -64,7 +64,10 @@ describe('crm/ai/leads — AI acting for the company', () => {
 
     const lead = await controller.findOne(
       'lead-1',
-      robot(['integration.crm.lead.read.all', 'integration.crm.lead.contact.read']),
+      robot([
+        'integration.crm.lead.read.all',
+        'integration.crm.lead.contact.read',
+      ]),
       BOUND,
     );
 
