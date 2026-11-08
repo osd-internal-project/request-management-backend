@@ -95,6 +95,13 @@ export class GraphMailClient implements MailClient {
       toRecipients: mail.to.map(address),
       ccRecipients: (mail.cc ?? []).map(address),
     };
+    const files = mail.attachments ?? [];
+    const small = files.filter(
+      (file) => base64Bytes(file) <= INLINE_ATTACHMENT_BYTES,
+    );
+    const large = files.filter(
+      (file) => base64Bytes(file) > INLINE_ATTACHMENT_BYTES,
+    );
     let draft: GraphMessage;
     if (mail.replyToGraphId) {
       draft = await this.call<GraphMessage>(
@@ -108,27 +115,72 @@ export class GraphMailClient implements MailClient {
         `/messages/${encodeURIComponent(draft.id)}`,
         { ...recipients, body: { contentType: 'HTML', content: mail.html } },
       );
-      for (const file of mail.attachments ?? []) {
-        await this.call(
-          'POST',
-          `/messages/${encodeURIComponent(draft.id)}/attachments`,
-          fileAttachment(file),
-        );
-      }
+      for (const file of small) await this.attach(draft.id, file);
     } else {
       draft = await this.call<GraphMessage>('POST', '/messages', {
         subject: mail.subject,
         body: { contentType: 'HTML', content: mail.html },
         ...recipients,
-        attachments: (mail.attachments ?? []).map(fileAttachment),
+        attachments: small.map(fileAttachment),
       });
     }
+    for (const file of large) await this.attach(draft.id, file);
     await this.call('POST', `/messages/${encodeURIComponent(draft.id)}/send`);
     return {
       graphMessageId: draft.id,
       internetMessageId: draft.internetMessageId ?? null,
       conversationId: draft.conversationId ?? null,
     };
+  }
+
+  /**
+   * One file onto a draft. Graph takes ≤ 3 MB in a single request; a bigger
+   * file (a proposal deck) goes through an upload session in chunks.
+   */
+  private async attach(
+    draftId: string,
+    file: { name: string; contentType: string; contentBase64: string },
+  ): Promise<void> {
+    const bytes = Buffer.from(file.contentBase64, 'base64');
+    const path = `/messages/${encodeURIComponent(draftId)}/attachments`;
+    if (bytes.length <= INLINE_ATTACHMENT_BYTES) {
+      await this.call('POST', path, fileAttachment(file));
+      return;
+    }
+    const session = await this.call<{ uploadUrl: string }>(
+      'POST',
+      `${path}/createUploadSession`,
+      {
+        AttachmentItem: {
+          attachmentType: 'file',
+          name: file.name,
+          size: bytes.length,
+          contentType: file.contentType,
+        },
+      },
+    );
+    // the upload URL carries its own token: no authorization header
+    for (let start = 0; start < bytes.length; start += UPLOAD_CHUNK_BYTES) {
+      const chunk = bytes.subarray(start, start + UPLOAD_CHUNK_BYTES);
+      const end = start + chunk.length - 1;
+      const response = await this.fetcher(session.uploadUrl, {
+        method: 'PUT',
+        headers: {
+          'content-type': 'application/octet-stream',
+          'content-length': String(chunk.length),
+          'content-range': `bytes ${start}-${end}/${bytes.length}`,
+        },
+        body: chunk,
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+      });
+      if (!response.ok) {
+        const detail = await response.text().catch(() => '');
+        throw new MailError(
+          `Graph upload ${file.name} ${start}-${end} → ${response.status} ${detail.slice(0, 300)}`,
+          response.status,
+        );
+      }
+    }
   }
 
   async listInbox(since: Date): Promise<InboxRef[]> {
@@ -265,6 +317,14 @@ export class GraphMailClient implements MailClient {
     return token.access_token;
   }
 }
+
+/** Graph's limit for an attachment sent in one request. */
+const INLINE_ATTACHMENT_BYTES = 3 * 1024 * 1024;
+/** A multiple of 320 KiB, under Graph's 4 MB per PUT. */
+const UPLOAD_CHUNK_BYTES = 10 * 320 * 1024;
+
+const base64Bytes = (file: { contentBase64: string }) =>
+  Math.floor((file.contentBase64.length * 3) / 4);
 
 const address = (value: string) => ({ emailAddress: { address: value } });
 

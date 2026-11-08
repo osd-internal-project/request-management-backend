@@ -1,9 +1,10 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   IsArray,
   IsBase64,
+  IsBoolean,
   IsEmail,
   IsInt,
   IsNotEmpty,
@@ -29,7 +30,9 @@ export class MailAttachmentDto {
   @Matches(/^[\w.+-]+\/[\w.+-]+$/)
   content_type!: string;
 
-  @ApiProperty({ description: 'เนื้อไฟล์เป็น base64 — รวมทุกไฟล์ไม่เกิน 3 MB' })
+  @ApiProperty({
+    description: 'เนื้อไฟล์เป็น base64 — รวมทุกไฟล์ไม่เกิน 20 MB',
+  })
   @IsBase64()
   content_base64!: string;
 }
@@ -72,6 +75,19 @@ export class SendLeadEmailDto {
   @ValidateNested({ each: true })
   @Type(() => MailAttachmentDto)
   attachments?: MailAttachmentDto[];
+
+  @ApiPropertyOptional({
+    example: true,
+    description:
+      'แนบไฟล์ proposal ล่าสุดบน Lead (`POST crm/ai/leads/:id/files` kind=proposal) — ' +
+      'ไม่มีไฟล์ = 409 CRM_EMAIL_UNAVAILABLE (field proposal) ไม่ส่งอีเมล · รับ "true"/"false" จาก workflow ได้',
+  })
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    value === 'true' ? true : value === 'false' || value === '' ? false : value,
+  )
+  @IsBoolean()
+  attach_proposal?: boolean;
 }
 
 /** ส่งใบเสนอราคาที่อนุมัติแล้วเป็น PDF ตอบในเธรดเดิมของลูกค้า แล้วเปลี่ยนเป็น "ส่งแล้ว". */

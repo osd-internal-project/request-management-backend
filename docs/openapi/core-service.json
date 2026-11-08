@@ -1222,6 +1222,209 @@
         ]
       }
     },
+    "/api/v1/leads/{id}/files": {
+      "get": {
+        "operationId": "LeadFilesController_list",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ไฟล์บน Lead (ล่าสุดก่อน)",
+        "tags": [
+          "leads"
+        ],
+        "x-permission": [
+          "crm.lead.read"
+        ]
+      },
+      "post": {
+        "operationId": "LeadFilesController_upload",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "proposal",
+                      "other"
+                    ],
+                    "description": "proposal = ไฟล์ที่แนบไปกับอีเมลขอบคุณ (ใช้ฉบับล่าสุด)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "วางไฟล์บน Lead (PDF/Word/PowerPoint/Excel/รูป ≤ 20 MB)",
+        "tags": [
+          "leads"
+        ],
+        "x-permission": [
+          "crm.lead.manage"
+        ]
+      }
+    },
+    "/api/v1/leads/{id}/files/{fileId}": {
+      "get": {
+        "operationId": "LeadFilesController_download",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fileId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ดาวน์โหลดไฟล์บน Lead",
+        "tags": [
+          "leads"
+        ],
+        "x-permission": [
+          "crm.lead.read"
+        ]
+      },
+      "delete": {
+        "operationId": "LeadFilesController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fileId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "นำไฟล์ออกจาก Lead",
+        "tags": [
+          "leads"
+        ],
+        "x-permission": [
+          "crm.lead.manage"
+        ]
+      }
+    },
     "/api/v1/admin/assignment-rules/roles": {
       "get": {
         "operationId": "AssignmentAdminController_roles",

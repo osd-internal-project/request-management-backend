@@ -476,7 +476,8 @@ and these routes refuse a key bound to no company. Only the machine's own
 principal reads all: a person it acts for through `X-Acting-User` or MCP keeps
 their own rows, even with the scope in their list — `mcp-scope.e2e-spec.ts`
 caught that leak on 22 Oct 2026. Its abilities are one scope per
-use case — `lead.update` (detail + intake data), `lead.convert` (the deal goes to the
+use case — `lead.update` (detail + intake data, and files: `crm/ai/leads/:id/files`, where
+Vuvagent puts the proposal the thank-you email attaches, 6 Nov 2026), `lead.convert` (the deal goes to the
 lead's owner; a pool lead answers 409), `lead.contact.read` (email/phone, never in a
 webhook payload). Create and status stay on `crm/leads/intake` and `:id/stage`. A
 tenth is again a decision to state here.
@@ -498,7 +499,8 @@ answer classified into `EMAIL_INTENTS` and announced as `crm.email.received`
 list and submitted — at standard prices it is approved at once
 (`autoApproveStandardPrice`, a CRM setting, default on; off = PRA as CD-201) —
 the PDF sent in the customer's own thread, and the confirmation or PO
-recorded. Scopes `integration.crm.email.send|read`,
+recorded. The thank-you may attach the newest `proposal` file on the Lead
+(`attach_proposal`; none = 409, nothing sent). Scopes `integration.crm.email.send|read`,
 `integration.crm.quotation.create|accept`, and `integration.crm.sales.read.all`
 (the deals and quotations of the key's company, machine only, like
 `lead.read.all`). The deal stays its owner's; the recipient is always the

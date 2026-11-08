@@ -2843,6 +2843,7 @@ model Lead {
   convertedOpportunity Opportunity?   @relation(fields: [convertedOpportunityId], references: [id])
   campaign             Campaign?      @relation(fields: [campaignId], references: [id])
   activities           LeadActivity[]
+  files                LeadFile[]
   targetAccount        TargetAccount?
 
   @@index([companyId, status])
@@ -2880,6 +2881,32 @@ model LeadActivity {
   @@index([leadId, dueAt])
   @@index([companyId, createdAt])
   @@map("lead_activities")
+}
+
+/// ไฟล์บน Lead (6 พ.ย. 2569) — proposal ที่ Vuvagent หรือเซลล์วางไว้ ระบบแนบไปกับอีเมลขอบคุณ.
+/// ไฟล์อยู่ใน object storage; แถวนี้เขียนหลังไฟล์ขึ้นแล้ว. ลบ = soft delete.
+model LeadFile {
+  id          String @id @default(uuid())
+  companyId   String
+  leadId      String
+  /// proposal | other
+  kind        String @default("other")
+  fileName    String
+  mimeType    String
+  sizeBytes   Int
+  storageKey  String
+  /// user | agent — ใครวาง (agent = API key ของ AI)
+  source      String @default("user")
+  uploadedBy  String?
+  uploadedAt  DateTime @default(now())
+  deletedAt   DateTime?
+  deletedBy   String?
+
+  lead Lead @relation(fields: [leadId], references: [id])
+
+  @@index([leadId, kind, uploadedAt])
+  @@index([companyId])
+  @@map("lead_files")
 }
 
 /// CRM โอกาสการขาย (Opportunity) — ขั้น มูลค่า ความน่าจะเป็น วันคาดปิด. `opportunityCode`

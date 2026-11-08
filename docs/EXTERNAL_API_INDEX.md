@@ -167,6 +167,8 @@
 | GET | `/crm/ai/leads/{id}` | อ่าน Lead (ทั้งบริษัทของ key) — อีเมล/เบอร์ ต้องมี contact.read | integration.crm.lead.read.all |  |
 | PATCH | `/crm/ai/leads/{id}` | แก้ข้อมูล Lead — ส่งเฉพาะ field ที่เปลี่ยน | integration.crm.lead.update |  |
 | PATCH | `/crm/ai/leads/{id}/intake-data` | แก้ข้อมูล intake (JSON) — merge ทีละ key, null = ลบ key | integration.crm.lead.update |  |
+| GET | `/crm/ai/leads/{id}/files` | ไฟล์บน Lead (ล่าสุดก่อน) | integration.crm.lead.read.all |  |
+| POST | `/crm/ai/leads/{id}/files` | วางไฟล์บน Lead (PDF/Word/PowerPoint/Excel/รูป ≤ 20 MB) | integration.crm.lead.update |  |
 | POST | `/crm/ai/leads/{id}/convert` | แปลง Lead เป็นโอกาสการขาย — ไปอยู่กับเจ้าของ Lead | integration.crm.lead.convert |  |
 | POST | `/crm/ai/leads/{id}/emails` | ส่งอีเมลขอบคุณ (+ proposal) ถึงผู้ติดต่อของ Lead | integration.crm.email.send, integration.crm.lead.read.all |  |
 | GET | `/crm/ai/emails/{id}` | อ่านอีเมลหนึ่งฉบับ — ผลจัดประเภท (intent) และข้อความ | integration.crm.email.read, integration.crm.lead.read.all |  |

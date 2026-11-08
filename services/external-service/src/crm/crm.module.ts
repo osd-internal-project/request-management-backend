@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import {
   CrmModule as CoreCrmModule,
+  LeadFilesModule,
   MailModule,
 } from '@request-management/core-service';
 import { AuthModule } from '../auth/auth.module';
@@ -46,7 +47,7 @@ import { ExternalSalesAiController } from './sales-ai.controller';
  * which is now actually declared rather than commented out.
  */
 @Module({
-  imports: [CoreCrmModule, MailModule, AuthModule],
+  imports: [CoreCrmModule, LeadFilesModule, MailModule, AuthModule],
   controllers: [
     ExternalCustomersController,
     ExternalCrmAdminController,

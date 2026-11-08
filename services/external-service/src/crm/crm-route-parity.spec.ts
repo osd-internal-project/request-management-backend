@@ -80,9 +80,14 @@ const ROBOT_ONLY = [
  * `vendor-cost` (CD-206) — pricing work done by the approvers and the Pricing
  * team on their own screens; each controller says so, and they were missing
  * from this list since they landed (2 Oct 2026), which failed this spec.
+ *
+ * `lead-files` (6 Nov 2026) — files on a Lead for the screens; the machine
+ * that puts a proposal there (Vuvagent) has its own robot-only routes,
+ * `crm/ai/leads/:id/files` in `lead-ai.controller.ts`.
  */
 const SCREEN_ONLY = [
   'activity-photos.controller.ts',
+  'lead-files.controller.ts',
   'handovers.controller.ts',
   'customer-approval.controller.ts',
   'keeper.controller.ts',
