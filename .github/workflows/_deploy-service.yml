@@ -148,6 +148,9 @@ jobs:
             SETS+=(--set-string "${chart_key}=${secret_value}")
           done <<< "$SET_SECRETS"
 
+          # uat: no --atomic. A rollback deletes the failing pod and its logs, and a UAT failure has to be debuggable.
+          if [ "$ENV_NAME" = "uat" ]; then WAIT_FLAG=(--wait); else WAIT_FLAG=(--atomic); fi
+
           echo "🚀 Helm upgrade ${REL} (env: ${ENV_NAME})"
           echo "📦 Image: ${IMG}:${VER}"
 
@@ -157,7 +160,7 @@ jobs:
             --set image.tag="$VER" \
             "${SETS[@]}" \
             --namespace "$NS" \
-            --atomic \
+            "${WAIT_FLAG[@]}" \
             --timeout "${{ inputs.helm_timeout }}" \
             --history-max 10
 
