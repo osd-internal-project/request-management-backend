@@ -7,6 +7,15 @@ import { OutboundConnectionRepository } from './outbound-connection.repository';
 
 /** Vuvagent only queues the run; a call that hangs is a call that failed. */
 const DISPATCH_TIMEOUT_MS = 15_000;
+const DOWNLOAD_TIMEOUT_MS = 30_000;
+const DOCX_MIME =
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
+export interface DownloadedFile {
+  fileName: string;
+  mimeType: string;
+  buffer: Buffer;
+}
 
 /** A dispatch Vuvagent refused (`statusCode`) or that never reached it (null). */
 export class VuvagentDispatchError extends Error {
@@ -60,16 +69,7 @@ export class VuvagentClient {
     action: AgentAction,
     body: { agent_record_id: string } & Record<string, unknown>,
   ): Promise<void> {
-    const connection = (await this.connections.findFirst({
-      where: { companyId, action, active: true },
-      select: { action: true, baseUrl: true, secretEnc: true, endpointId: true },
-    })) as ConnectionRow | null;
-    if (!connection) {
-      throw new VuvagentDispatchError(
-        null,
-        `ยังไม่ได้ตั้งการเชื่อมต่อของงาน ${action} ที่หน้า Integrations`,
-      );
-    }
+    const connection = await this.connectionOf(companyId, action);
     const response = await this.post(connection, body);
     if (!response.ok) {
       const detail = await response.text().catch(() => '');
@@ -110,6 +110,87 @@ export class VuvagentClient {
         problem: error instanceof Error ? error.message : String(error),
       };
     }
+  }
+
+  /**
+   * A file the agent links to in its answer (the proposal .docx, a link that
+   * expires). Only from the connection's own origin, so a callback cannot make
+   * CTD fetch an address of its choosing.
+   */
+  async download(
+    companyId: string,
+    action: AgentAction,
+    url: string,
+    maxBytes: number,
+  ): Promise<DownloadedFile> {
+    const connection = await this.connectionOf(companyId, action);
+    let target: URL;
+    try {
+      target = new URL(url);
+    } catch {
+      throw new VuvagentDispatchError(null, `ลิงก์ไฟล์ไม่ถูกต้อง: ${url}`);
+    }
+    if (target.origin !== new URL(connection.baseUrl).origin) {
+      throw new VuvagentDispatchError(
+        null,
+        `ลิงก์ไฟล์ไม่ได้อยู่ที่ ${connection.baseUrl}`,
+      );
+    }
+    const problems = await addressProblems(
+      target.href,
+      this.config.get<string[]>('webhook.privateHosts') ?? [],
+    );
+    if (problems.length) {
+      throw new VuvagentDispatchError(null, problems.join(', '));
+    }
+
+    const response = await fetch(target, {
+      signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS),
+    }).catch((cause: unknown) => {
+      throw new VuvagentDispatchError(null, String(cause));
+    });
+    if (!response.ok) {
+      throw new VuvagentDispatchError(
+        response.status,
+        `ดาวน์โหลดไฟล์ไม่ได้: HTTP ${response.status}`,
+      );
+    }
+    if (Number(response.headers.get('content-length') ?? 0) > maxBytes) {
+      throw new VuvagentDispatchError(null, 'ไฟล์ใหญ่เกินที่รับได้');
+    }
+    const buffer = Buffer.from(await response.arrayBuffer());
+    if (buffer.length > maxBytes) {
+      throw new VuvagentDispatchError(null, 'ไฟล์ใหญ่เกินที่รับได้');
+    }
+
+    const type = response.headers.get('content-type')?.split(';')[0].trim();
+    return {
+      fileName:
+        /filename="?([^";]+)"?/i.exec(
+          response.headers.get('content-disposition') ?? '',
+        )?.[1] ?? 'proposal.docx',
+      // Vuvagent's links only ever carry a .docx; a generic type means that
+      mimeType:
+        !type || type === 'application/octet-stream' ? DOCX_MIME : type,
+      buffer,
+    };
+  }
+
+  private async connectionOf(
+    companyId: string,
+    action: AgentAction,
+  ): Promise<ConnectionRow> {
+    const connection = (await this.connections.findFirst({
+      where: { companyId, action, active: true },
+      select: { action: true, baseUrl: true, secretEnc: true, endpointId: true },
+    })) as ConnectionRow | null;
+    if (!connection) {
+      throw new VuvagentDispatchError(
+        null,
+        `ยังไม่ได้ตั้งการเชื่อมต่อของงาน ${action} ที่หน้า Integrations`,
+      );
+    }
+    return connection;
   }
 
   private async post(

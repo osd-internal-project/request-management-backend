@@ -13788,7 +13788,9 @@
               "type": "string",
               "enum": [
                 "lead.find",
-                "lead.research"
+                "lead.research",
+                "lead.suggest_products",
+                "lead.write_proposal"
               ]
             }
           },
@@ -13988,6 +13990,100 @@
           }
         ],
         "summary": "ให้ agent วิจัย Lead นี้",
+        "tags": [
+          "leads"
+        ],
+        "x-permission": [
+          "crm.lead.manage"
+        ]
+      }
+    },
+    "/api/v1/leads/{id}/suggest-products": {
+      "post": {
+        "description": "สร้างงาน `lead.suggest_products` แล้วส่งให้ Vuvagent — ตอบ record ทันที; ผล `products[]` อยู่ใน record และ `intakeData.product_suggestions`",
+        "operationId": "LeadFindController_suggestProducts",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ให้ agent แนะนำสินค้าสำหรับ Lead นี้",
+        "tags": [
+          "leads"
+        ],
+        "x-permission": [
+          "crm.lead.manage"
+        ]
+      }
+    },
+    "/api/v1/leads/{id}/proposal": {
+      "post": {
+        "description": "สร้างงาน `lead.write_proposal` แล้วส่งให้ Vuvagent — ตอบ record ทันที; เมื่อเสร็จ CTD เก็บ .docx เป็นไฟล์ Lead `kind=proposal`",
+        "operationId": "LeadFindController_writeProposal",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WriteProposalDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ให้ agent เขียน proposal ของสินค้าที่เลือก",
         "tags": [
           "leads"
         ],
@@ -51558,6 +51654,21 @@
           }
         }
       },
+      "WriteProposalDto": {
+        "type": "object",
+        "properties": {
+          "product": {
+            "type": "string",
+            "description": "สินค้าหนึ่งตัวจากผลแนะนำ (`lead.suggest_products`) — ส่งตามที่ได้มาทุกตัวอักษร",
+            "example": "D-DEBT",
+            "maxLength": 100,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "product"
+        ]
+      },
       "OutboundConnectionRowDto": {
         "type": "object",
         "properties": {
@@ -51577,7 +51688,9 @@
             "type": "string",
             "enum": [
               "lead.find",
-              "lead.research"
+              "lead.research",
+              "lead.suggest_products",
+              "lead.write_proposal"
             ]
           },
           "base_url": {
@@ -51659,7 +51772,9 @@
             "type": "string",
             "enum": [
               "lead.find",
-              "lead.research"
+              "lead.research",
+              "lead.suggest_products",
+              "lead.write_proposal"
             ],
             "example": "lead.find",
             "description": "หนึ่งแถวต่อหนึ่งงาน — ที่ Vuvagent หนึ่งงานคือหนึ่ง agent"
