@@ -25,6 +25,16 @@ on:
         description: 'Existing tag to deploy (skips the build). Promote sit → prod, or roll back.'
         required: false
         type: string
+  workflow_call:
+    inputs:
+      deploy_env:
+        required: false
+        type: string
+        default: uat
+      image_tag:
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: write          # only for the deployment tag at the end

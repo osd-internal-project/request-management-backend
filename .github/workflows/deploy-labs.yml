@@ -1,305 +1,55 @@
-# Builds all four services, pushes them to Huawei SWR (ap-southeast-2), and restarts
-# the labs stack on the VM.
-#
-# The deploy half runs on a self-hosted runner on that VM. Preparing the machine
-# is a one-time job documented in docs/labs-server-setup.md. With no self-hosted
-# runner online for this repo the deploy job sits in `Queued` and never errors.
-name: Labs deploy
+# UAT gate. This file keeps the name deploy-labs.yml on purpose: workflow_dispatch only works for a
+# workflow file that exists on the default branch, and this is the one main already has. GitHub runs the
+# version found on the branch you pick under "Use workflow from", so on deploy-osd-uat it is this one.
+# It is never merged: main keeps the real labs workflow.
+name: Deploy UAT
 
 on:
-  push:
-    branches: [deploys/labs]
   workflow_dispatch:
+    inputs:
+      service:
+        description: 'Service to deploy'
+        required: true
+        type: choice
+        options:
+          - run-number
+          - user
+          - core
+          - external
+      image_tag:
+        description: 'Existing tag to deploy (skips the build)'
+        required: false
+        type: string
 
-env:
-  REGISTRY: swr.ap-southeast-2.myhuaweicloud.com
-  # Set the `HUAWEI_SWR_ORG` repository variable if the organisation in this
-  # region is not `osd-internal`. Kept out of the steps so one edit moves every
-  # image ref.
-  SWR_ORG: ${{ vars.HUAWEI_SWR_ORG || 'osd-internal' }}
-
-# A newer push to the branch makes the previous deploy irrelevant.
-concurrency:
-  group: labs-deploy-${{ github.ref }}
-  cancel-in-progress: true
+permissions:
+  contents: write
 
 jobs:
-  # A workflow's `run:` is only a string to YAML, so a file can be valid YAML and
-  # still hand the runner a script bash refuses. That shipped once: a `flock`
-  # block landed between `for REPO in \` and its list, and nothing caught it
-  # until the deploy job failed on the self-hosted runner — after a full image
-  # build. Seconds here, one wasted build cycle otherwise.
-  lint-workflows:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Check workflow shell syntax
-        run: |
-          set -euo pipefail
-          python3 scripts/check-workflow-shell.py
-          # Not reached by the checker above — that one parses `run:` bodies out
-          # of the workflows, and this script is a file of its own. Same
-          # argument for checking it here: seconds now against a wasted image
-          # build when the deploy job trips over it on the self-hosted runner.
-          bash -n scripts/check-labs-env.sh
-
-  # A job of its own so both services and the deploy agree on one tag. A matrix
-  # job cannot publish outputs — each leg would overwrite the others, and which
-  # one lands is undefined.
-  version:
-    needs: lint-workflows
-    runs-on: ubuntu-latest
-    outputs:
-      tag: ${{ steps.pkg.outputs.tag }}
-
-    steps:
-      - uses: actions/checkout@v4
-
-      # The tag carries the commit, so it can never be pushed over. A tag of the
-      # package.json version alone is reused whenever someone forgets to bump
-      # it, and the deploy then silently ships the previous build.
-      - name: Read Package Info
-        id: pkg
-        run: |
-          VER=$(jq -r .version package.json)
-          SHA=$(git rev-parse --short=7 HEAD)
-          echo "tag=${VER}-${SHA}" >> "$GITHUB_OUTPUT"
-          echo "📦 ${VER} → tag ${VER}-${SHA}"
-
-  build-and-push:
-    needs: version
-    runs-on: ubuntu-latest
-
-    strategy:
-      # One service failing to build must not hide whether the others did.
-      fail-fast: false
-      matrix:
-        service:
-          [user-service, core-service, external-service, run-number-service]
-
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      # Build context is the repo root: every workspace manifest has to be in
-      # it before yarn can link the workspaces. See the header of the Dockerfile.
-      - name: Build Docker Image
-        run: |
-          docker build --platform linux/amd64 \
-            -t request-management-${{ matrix.service }}:${{ needs.version.outputs.tag }} \
-            -f services/${{ matrix.service }}/Dockerfile .
-
-      # --password-stdin, not -p: with -p the login key is visible in the
-      # runner's process list and docker prints a warning about it.
-      - name: Login to Huawei Cloud SWR
-        run: |
-          echo "${{ secrets.HUAWEI_REGISTRY_PASSWORD }}" \
-            | docker login -u "${{ secrets.HUAWEI_REGISTRY_USERNAME }}" \
-                --password-stdin "${{ env.REGISTRY }}"
-
-      - name: Tag and Push Docker Image
-        run: |
-          LOCAL=request-management-${{ matrix.service }}:${{ needs.version.outputs.tag }}
-          REMOTE=${{ env.REGISTRY }}/${{ env.SWR_ORG }}/${LOCAL}
-          docker tag "${LOCAL}" "${REMOTE}"
-          docker push "${REMOTE}"
-          echo "- \`${REMOTE}\`" >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Cleanup Docker Images
-        if: always()
-        run: |
-          LOCAL=request-management-${{ matrix.service }}:${{ needs.version.outputs.tag }}
-          docker rmi "${LOCAL}" || true
-          docker rmi "${{ env.REGISTRY }}/${{ env.SWR_ORG }}/${LOCAL}" || true
-          docker image prune -f
-
-  deploy:
-    needs: [version, build-and-push]
-    # The labs VM, matched by its `labs-vm` custom label.
-    #
-    # This repo now has two self-hosted runners, so the bare `self-hosted`
-    # label matches both — a deploy could land on whichever is idle, and the
-    # env files live on one machine only (/etc/request-management/). `labs-vm`
-    # is applied to that runner (worker-02) in its settings; provisioning the
-    # machine itself is covered in docs/labs-server-setup.md.
-    runs-on: [self-hosted, labs-vm]
-
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      # `env_file:` failure prints one message for five different causes. The
-      # file being absent and the file being present but unreadable by this
-      # user both come out as "no such file or directory" — a frontend deploy
-      # died that way and a re-run passed, which is what a message that does
-      # not describe the failure looks like from the outside.
-      #
-      # compose reads the env file as THIS step's user, so a check that runs
-      # here answers exactly the question compose asks a few steps later.
-      #
-      # Placed before the registry login rather than merely before Pull and
-      # Start: a deploy that cannot possibly work should not first log in to a
-      # registry and `docker rm -f` a running container.
-      - name: Check Labs Env File
-        env:
-          # `config` interpolates the image refs. Without a tag it warns on
-          # every run, and a step that always warns is a step people stop
-          # reading.
-          IMAGE_TAG: ${{ needs.version.outputs.tag }}
-        run: |
-          set -euo pipefail
-          bash scripts/check-labs-env.sh /etc/request-management/.backend.env
-          # The script proves the file is readable; this proves compose agrees.
-          # `config` walks the same env_file resolution as `up` but touches
-          # neither the registry nor a container, so it is the cheapest
-          # possible rehearsal of the step that actually failed.
-          docker compose -f infra/labs/docker-compose.yml config --quiet
-
-      # A different machine from the build job, with its own docker credentials.
-      - name: Login to Huawei Cloud SWR
-        run: |
-          echo "${{ secrets.HUAWEI_REGISTRY_PASSWORD }}" \
-            | docker login -u "${{ secrets.HUAWEI_REGISTRY_USERNAME }}" \
-                --password-stdin "${{ env.REGISTRY }}"
-
-      # The compose file declares rm-net as `external: true`, which means "this
-      # already exists, do not create it" — so without this step the deploy dies
-      # on `network rm-net declared as external, but could not be found`.
-      #
-      # `inspect || create` rather than `create || true`: the latter would also
-      # swallow a real failure, such as the docker daemon being down.
-      - name: Ensure Shared Network
-        run: |
-          docker network inspect rm-net >/dev/null 2>&1 \
-            || docker network create rm-net
-
-      # The compose file pins `container_name:`, so compose cannot rename its way
-      # out of a clash: it recreates only containers its own project owns, and a
-      # name held by anything else fails the deploy with "container name is
-      # already in use" — which is what killed the 14 Sep 2026 run. The usual
-      # source is a container started by hand with `docker run`, or one left by
-      # an older project name (before `name:` was added it defaulted to `labs`).
-      #
-      # The label is checked rather than removing the names outright: containers
-      # this project owns must be left to compose, so that an `up` with nothing
-      # to change stays a no-op instead of becoming downtime.
-      - name: Remove Conflicting Containers
-        env:
-          PROJECT: request-management-labs
-        run: |
-          set -euo pipefail
-          for NAME in rm-user rm-core rm-external rm-runnumber; do
-            # Anchored: the name filter is a substring regex, so a bare `rm-user`
-            # would also match `rm-user-old`.
-            ID=$(docker ps -aq --filter "name=^/${NAME}$")
-            [ -n "${ID}" ] || continue
-            OWNER=$(docker inspect -f \
-              '{{index .Config.Labels "com.docker.compose.project"}}' "${ID}")
-            if [ "${OWNER}" != "${PROJECT}" ]; then
-              echo "⚠️  ${NAME} belongs to '${OWNER:-<no project>}' — removing"
-              docker rm -f "${ID}"
-            else
-              echo "✓ ${NAME} belongs to ${PROJECT} — left to compose"
-            fi
-          done
-
-      # --wait blocks until both healthchecks pass, so a container that starts
-      # and immediately fails its check fails the deploy rather than being
-      # reported as shipped.
-      #
-      # --remove-orphans clears containers of services that have since been taken
-      # out of the compose file; without it they keep running against nothing.
-      - name: Pull and Start
-        env:
-          IMAGE_TAG: ${{ needs.version.outputs.tag }}
-        run: |
-          set -euo pipefail
-          # Both repos deploy to this one VM and their images share base layers.
-          # A GitHub `concurrency` group is per-repository, so it cannot see the
-          # other repo's deploy — the mutex has to live on the machine. Without
-          # it, one job's `docker image prune` collects a layer the other has
-          # just committed but not yet referenced, and the pull dies on
-          # `rename .../ingest/... no such file or directory`.
-          #
-          # The lock is held on fd 9 for the life of this step's shell, so the
-          # script below needs no re-quoting. -w 600 fails loudly rather than
-          # queueing behind a stuck deploy until GitHub cancels the run.
-          exec 9>/var/tmp/rm-labs-deploy.lock
-          flock -w 600 9
-          docker compose -f infra/labs/docker-compose.yml \
-            up -d --pull always --remove-orphans --wait --wait-timeout 180
-
-      # Runs only when something above went red, so nothing in it may go red
-      # itself: a failing debug step replaces the real error in the UI with its
-      # own. Hence `|| true` on every command — and it is not defensive
-      # padding. `compose ps` re-reads the compose file, so it is itself one of
-      # the things that fails when the env file cannot be resolved, and under
-      # the default `bash -e` shell that aborted this step before the logs
-      # section ever ran.
-      - name: Debug on Failure
-        if: failure()
-        run: |
-          echo "====== ENV FILE ======"
-          # Re-run the preflight in report-only mode. If the env file is the
-          # problem, this names it — including the case where the guard passed
-          # at the top of the job and something changed the file mid-run.
-          bash scripts/check-labs-env.sh /etc/request-management/.backend.env || true
-          echo "====== COMPOSE RESOLUTION ======"
-          # Prints the error `up` died on, without pulling anything.
-          docker compose -f infra/labs/docker-compose.yml config --quiet || true
-          echo "====== CONTAINERS ======"
-          # -a, so a container that started and exited is listed rather than
-          # silently absent. "No containers" and "one container, exit 1" are
-          # different failures and plain `ps` shows neither of them clearly.
-          docker compose -f infra/labs/docker-compose.yml ps -a || true
-          if [ -z "$(docker compose -f infra/labs/docker-compose.yml ps -aq 2>/dev/null)" ]; then
-            echo "compose created no container at all — it failed before starting"
-            echo "anything, so the LOGS section below is empty by definition."
-            echo "The cause is in the two sections above, not in this stack's code."
-          fi
-          echo "====== LOGS ======"
-          docker compose -f infra/labs/docker-compose.yml logs --tail=50 --no-color || true
-
-      # Old tags accumulate on the VM — every deploy leaves the previous image
-      # behind, and nothing else reclaims it. Keeping a fixed number of tags per
-      # repository rather than an age: `until=168h` both let a busy week fill the
-      # disk and, on a quiet one, `-a` swept every image no container happened to
-      # be using — including ones belonging to other stacks on this VM.
-      #
-      # Two tags of rollback headroom stay on the machine. Anything older has to
-      # be pulled from SWR again, where nothing is deleted.
-      - name: Prune Old Images
-        if: always()
-        env:
-          KEEP: 3
-        run: |
-          set -euo pipefail
-          # The same machine-wide lock Pull and Start takes. This is the step
-          # that deletes layers, so it must never run while the other repo's
-          # deploy is pulling — that race is what produced
-          # `rename .../ingest/... no such file or directory`.
-          exec 9>/var/tmp/rm-labs-deploy.lock
-          flock -w 600 9
-          for REPO in \
-            "${{ env.REGISTRY }}/${{ env.SWR_ORG }}/request-management-user-service" \
-            "${{ env.REGISTRY }}/${{ env.SWR_ORG }}/request-management-core-service" \
-            "${{ env.REGISTRY }}/${{ env.SWR_ORG }}/request-management-external-service" \
-            "${{ env.REGISTRY }}/${{ env.SWR_ORG }}/request-management-run-number-service"; do
-            echo "=== ${REPO}"
-            # CreatedAt is fixed-width and single-timezone on one host, so sorting
-            # it as text sorts it by time.
-            docker images "${REPO}" --format '{{.CreatedAt}}\t{{.Repository}}:{{.Tag}}' \
-              | sort -r \
-              | tail -n +$((KEEP + 1)) \
-              | cut -f2 \
-              | while read -r REF; do
-                  echo "🗑  ${REF}"
-                  # An image a container still holds refuses to be removed; the
-                  # running one is the newest, so it is inside KEEP regardless.
-                  docker rmi "${REF}" || true
-                done
-          done
-          # Dangling layers only — no -a, so nothing else on the VM is touched.
-          docker image prune -f
+  run-number:
+    if: inputs.service == 'run-number'
+    uses: ./.github/workflows/deploy-run-number.yml
+    with:
+      deploy_env: uat
+      image_tag: ${{ inputs.image_tag }}
+    secrets: inherit
+  user:
+    if: inputs.service == 'user'
+    uses: ./.github/workflows/deploy-user.yml
+    with:
+      deploy_env: uat
+      image_tag: ${{ inputs.image_tag }}
+    secrets: inherit
+  core:
+    if: inputs.service == 'core'
+    uses: ./.github/workflows/deploy-core.yml
+    with:
+      deploy_env: uat
+      image_tag: ${{ inputs.image_tag }}
+    secrets: inherit
+  external:
+    if: inputs.service == 'external'
+    uses: ./.github/workflows/deploy-external.yml
+    with:
+      deploy_env: uat
+      image_tag: ${{ inputs.image_tag }}
+    secrets: inherit
