@@ -488,6 +488,9 @@ own scope `integration.agent.record.update`. Nobody at the other end is a user. 
 only moves a record of the key's company from `processing` to `done`/`failed`, once:
 another company's id answers 404, a finished one 409. The leads it finds arrive
 through `crm/leads/intake` with `intake_data.agent_record_id`, not through this route.
+Closing a `lead.write_proposal` record makes CTD fetch its `proposal_url` — only from the
+connection's own host, after commit — into a `kind=proposal` Lead file (9 Nov 2026,
+`docs/lead-proposal.md`).
 An eleventh is again a decision to state here.
 
 **The eleventh: `crm/ai` sales — `leads/:id/emails`, `emails/:id`,

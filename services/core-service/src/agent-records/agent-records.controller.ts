@@ -23,6 +23,7 @@ import {
   ListAgentRecordsDto,
   ResearchLeadDto,
   StreamAgentRecordsDto,
+  WriteProposalDto,
 } from './dto/agent-record.dto';
 
 /**
@@ -104,5 +105,36 @@ export class LeadFindController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.records.researchLead(id, dto, principal);
+  }
+
+  @ApiOperation({
+    summary: 'ให้ agent แนะนำสินค้าสำหรับ Lead นี้',
+    description:
+      'สร้างงาน `lead.suggest_products` แล้วส่งให้ Vuvagent — ตอบ record ทันที; ' +
+      'ผล `products[]` อยู่ใน record และ `intakeData.product_suggestions`',
+  })
+  @Post(':id/suggest-products')
+  @Permissions(AGENT_ACTIONS['lead.suggest_products'].start)
+  suggestProducts(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.records.suggestProducts(id, principal);
+  }
+
+  @ApiOperation({
+    summary: 'ให้ agent เขียน proposal ของสินค้าที่เลือก',
+    description:
+      'สร้างงาน `lead.write_proposal` แล้วส่งให้ Vuvagent — ตอบ record ทันที; ' +
+      'เมื่อเสร็จ CTD เก็บ .docx เป็นไฟล์ Lead `kind=proposal`',
+  })
+  @Post(':id/proposal')
+  @Permissions(AGENT_ACTIONS['lead.write_proposal'].start)
+  writeProposal(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: WriteProposalDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.records.writeProposal(id, dto, principal);
   }
 }

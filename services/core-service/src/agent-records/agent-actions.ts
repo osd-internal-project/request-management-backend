@@ -34,6 +34,22 @@ export const AGENT_ACTIONS = {
     defaultTimeoutMinutes: 30,
     payloadFields: ['agent_record_id', 'lead_id', 'focus'],
   },
+  /** Proposal Writer step 1; the agent also merges `intakeData.product_suggestions` */
+  'lead.suggest_products': {
+    read: 'crm.lead.read',
+    start: 'crm.lead.manage',
+    vendor: 'vuvagent',
+    defaultTimeoutMinutes: 10,
+    payloadFields: ['agent_record_id', 'lead_id'],
+  },
+  /** Proposal Writer step 2; closing it makes CTD fetch the .docx (docs/lead-proposal.md) */
+  'lead.write_proposal': {
+    read: 'crm.lead.read',
+    start: 'crm.lead.manage',
+    vendor: 'vuvagent',
+    defaultTimeoutMinutes: 30,
+    payloadFields: ['agent_record_id', 'lead_id', 'product'],
+  },
 } as const satisfies Record<string, AgentActionSpec>;
 
 export type AgentAction = keyof typeof AGENT_ACTIONS;
