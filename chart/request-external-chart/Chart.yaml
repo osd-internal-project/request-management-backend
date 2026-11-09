@@ -1,0 +1,6 @@
+apiVersion: v2
+name: request-external-service
+description: Helm chart for request-management external-service
+type: application
+version: 1.0.0
+appVersion: "1.0.0"

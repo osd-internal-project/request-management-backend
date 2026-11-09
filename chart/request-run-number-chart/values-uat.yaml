@@ -1,0 +1,14 @@
+# UAT (cluster kube-osd-uat). Everything environment specific lives here; values.yaml holds the defaults.
+namespace: request-management
+
+replicaCount: 1
+
+# Helm merges maps key by key, so the WHOLE map is written here: a partial one silently keeps a value from values.yaml.
+configmap:
+  NODE_ENV: "production"
+  RUN_NUMBER_SERVICE_PORT: "3004"
+  USER_SERVICE_URL: "http://request-user-service.request-management.svc.cluster.local:8884/api/v1"
+
+autoscaling:
+  enabled: false
+

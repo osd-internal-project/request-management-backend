@@ -1,0 +1,38 @@
+{{- if and .Values.ingress .Values.ingress.enabled }}
+{{- $root := . }}
+{{- $rules := .Values.ingress.rules | default (list (dict "name" "" "path" .Values.ingress.path "annotations" dict)) }}
+{{- range $rules }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $root.Values.ingressName }}{{ if .name }}-{{ .name }}{{ end }}
+  namespace: {{ $root.Values.namespace }}
+  labels:
+    app: {{ $root.Values.appName }}
+  annotations:
+    {{- toYaml $root.Values.ingress.annotations | nindent 4 }}
+    {{- with .annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  ingressClassName: {{ $root.Values.ingress.className }}
+  {{- if and $root.Values.ingress.tls $root.Values.ingress.tls.enabled }}
+  tls:
+  - hosts:
+    - {{ $root.Values.ingress.host }}
+    secretName: {{ $root.Values.ingress.tls.secretName }}
+  {{- end }}
+  rules:
+  - host: {{ $root.Values.ingress.host }}
+    http:
+      paths:
+      - path: {{ .path }}
+        pathType: {{ $root.Values.ingress.pathType }}
+        backend:
+          service:
+            name: {{ $root.Values.appName }}
+            port:
+              number: {{ $root.Values.service.port }}
+{{- end }}
+{{- end }}

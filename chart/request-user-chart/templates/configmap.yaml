@@ -1,0 +1,13 @@
+{{- if .Values.configmap }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.configmapName }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.appName }}
+data:
+  {{- range $key, $value := .Values.configmap }}
+  {{ $key }}: {{ $value | quote }}
+  {{- end }}
+{{- end }}

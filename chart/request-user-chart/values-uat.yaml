@@ -1,0 +1,24 @@
+# UAT (cluster kube-osd-uat). Everything environment specific lives here; values.yaml holds the defaults.
+namespace: request-management
+
+replicaCount: 1
+
+# Helm merges maps key by key, so the WHOLE map is written here: a partial one silently keeps a value from values.yaml.
+configmap:
+  NODE_ENV: "production"
+  USER_SERVICE_PORT: "3001"
+  KEYCLOAK_BASE_URL: "https://auth-events-uat.osd.co.th"
+  KEYCLOAK_REALM: "enterprise-request-uat"
+  KEYCLOAK_CLIENT_ID: "request-form"
+  KEYCLOAK_REDIRECT_URI: "https://ctd-uat.osd.co.th/api/auth/callback"
+  KEYCLOAK_POST_LOGOUT_REDIRECT_URI: "https://ctd-uat.osd.co.th/"
+  INTEGRATION_CLIENT_ID: "request-integration"
+
+autoscaling:
+  enabled: false
+
+hostAliases:
+  # Resolve the shared UAT Keycloak host through the in-cluster Traefik (ClusterIP), not public DNS / WAF.
+  - ip: "100.96.0.228"
+    hostnames:
+      - "auth-events-uat.osd.co.th"

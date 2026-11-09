@@ -1,0 +1,6 @@
+apiVersion: v2
+name: request-run-number-service
+description: Helm chart for request-management run-number-service
+type: application
+version: 1.0.0
+appVersion: "1.0.0"

@@ -1,0 +1,72 @@
+# Permissions for the GitHub Actions runner to deploy to the uat namespace.
+# Replaces the cluster-admin kubeconfig. Applied once by a cluster admin:
+#   kubectl apply -f k8s/uat/cicd-rbac.yaml
+#
+# The ServiceAccount can only act inside request-management (no namespace
+# creation, nothing cluster-wide), so Helm must not use --create-namespace.
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cicd-deployer
+  namespace: request-management
+---
+# Long-lived token for the ServiceAccount. Never print it
+# (kubectl describe secret shows it for this Secret type).
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cicd-deployer-token
+  namespace: request-management
+  annotations:
+    kubernetes.io/service-account.name: cicd-deployer
+type: kubernetes.io/service-account-token
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: cicd-deployer
+  namespace: request-management
+rules:
+  # Helm stores releases as Secrets; the workflow also creates huawei-swr-secret.
+  - apiGroups: ['']
+    resources: [secrets, configmaps, services]
+    verbs: [get, list, watch, create, update, patch, delete]
+  # Prisma migration runs as a Helm pre-install/pre-upgrade hook Job.
+  - apiGroups: [batch]
+    resources: [jobs]
+    verbs: [get, list, watch, create, update, patch, delete]
+  # Rollout checks and failure diagnostics.
+  - apiGroups: ['']
+    resources: [pods, pods/log, events]
+    verbs: [get, list, watch]
+  - apiGroups: [apps]
+    resources: [deployments]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [apps]
+    resources: [replicasets]
+    verbs: [get, list, watch]
+  - apiGroups: [autoscaling]
+    resources: [horizontalpodautoscalers]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [networking.k8s.io]
+    resources: [ingresses, networkpolicies]
+    verbs: [get, list, watch, create, update, patch, delete]
+  # API chart's strip-/api Middleware (Traefik).
+  - apiGroups: [traefik.io]
+    resources: [middlewares]
+    verbs: [get, list, watch, create, update, patch, delete]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: cicd-deployer
+  namespace: request-management
+subjects:
+  - kind: ServiceAccount
+    name: cicd-deployer
+    namespace: request-management
+roleRef:
+  kind: Role
+  name: cicd-deployer
+  apiGroup: rbac.authorization.k8s.io
