@@ -9,7 +9,7 @@ configmap:
   MINIO_ENDPOINT: "obs.ap-southeast-2.myhuaweicloud.com"
   MINIO_PORT: "443"
   MINIO_USE_SSL: "true"
-  MINIO_BUCKET: "aiyara"
+  MINIO_BUCKET: "aiyara-chat-uat"
   NODE_ENV: "production"
   EXTERNAL_SERVICE_PORT: "3003"
   USER_SERVICE_URL: "http://request-user-service.request-management.svc.cluster.local:8884/api/v1"
