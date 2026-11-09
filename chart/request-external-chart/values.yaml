@@ -32,6 +32,11 @@ ingress:
   enabled: false
 
 configmap:
+  STORAGE_MODE: "minio"
+  MINIO_ENDPOINT: "obs.ap-southeast-2.myhuaweicloud.com"
+  MINIO_PORT: "443"
+  MINIO_USE_SSL: "true"
+  MINIO_BUCKET: "aiyara"
   NODE_ENV: "production"
   EXTERNAL_SERVICE_PORT: "3003"
   USER_SERVICE_URL: "http://request-user-service.request-management.svc.cluster.local:8884/api/v1"
@@ -45,6 +50,8 @@ configmap:
 
 # Committed file: every value stays empty. Real values arrive as --set-string secrets.X from the pipeline.
 secrets:
+  MINIO_ACCESSKEY: ""
+  MINIO_SECRETKEY: ""
   DATABASE_URL: ""
   INTEGRATION_CLIENT_SECRET: ""
 

@@ -87,5 +87,7 @@ jobs:
       # block (see _deploy-service.yml's set_secrets description).
       set_secrets: |
         secrets.DATABASE_URL=DATABASE_URL
+        secrets.MINIO_ACCESSKEY=MINIO_ACCESSKEY
+        secrets.MINIO_SECRETKEY=MINIO_SECRETKEY
         secrets.INTEGRATION_CLIENT_SECRET=INTEGRATION_CLIENT_SECRET
     secrets: inherit

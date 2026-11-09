@@ -5,6 +5,11 @@ replicaCount: 1
 
 # Helm merges maps key by key, so the WHOLE map is written here: a partial one silently keeps a value from values.yaml.
 configmap:
+  STORAGE_MODE: "minio"
+  MINIO_ENDPOINT: "obs.ap-southeast-2.myhuaweicloud.com"
+  MINIO_PORT: "443"
+  MINIO_USE_SSL: "true"
+  MINIO_BUCKET: "aiyara"
   NODE_ENV: "production"
   CORE_SERVICE_PORT: "3002"
   USER_SERVICE_URL: "http://request-user-service.request-management.svc.cluster.local:8884/api/v1"
