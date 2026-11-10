@@ -30,6 +30,7 @@ export class VuvagentDispatchError extends Error {
 
 /** One agent: its URL, sealed key and endpoint id. */
 interface ConnectionRow {
+  companyId: string;
   action: string | null;
   baseUrl: string;
   secretEnc: string;
@@ -51,6 +52,7 @@ export interface ConnectionTestResult {
  * ```
  * POST {baseUrl}/v1/endpoints/{endpointId}
  *   x-api-key: sk-aily-…
+ *   x-organization-id: {companyId ของ CTD}
  *   {"agent_record_id": "…", "topic": "…"}
  * → 202 {"sessionId": "…"}
  * ```
@@ -182,7 +184,13 @@ export class VuvagentClient {
   ): Promise<ConnectionRow> {
     const connection = (await this.connections.findFirst({
       where: { companyId, action, active: true },
-      select: { action: true, baseUrl: true, secretEnc: true, endpointId: true },
+      select: {
+        companyId: true,
+        action: true,
+        baseUrl: true,
+        secretEnc: true,
+        endpointId: true,
+      },
     })) as ConnectionRow | null;
     if (!connection) {
       throw new VuvagentDispatchError(
@@ -225,7 +233,11 @@ export class VuvagentClient {
     return fetch(url, {
       method: 'POST',
       signal: AbortSignal.timeout(DISPATCH_TIMEOUT_MS),
-      headers: { 'content-type': 'application/json', 'x-api-key': apiKey },
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': apiKey,
+        'x-organization-id': connection.companyId,
+      },
       body: JSON.stringify(body),
     }).catch((cause: unknown) => {
       throw new VuvagentDispatchError(null, String(cause));
