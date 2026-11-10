@@ -70,10 +70,12 @@ jobs:
 
   build-and-push:
     needs: version
-    runs-on: ubuntu-latest
+    # Built on the labs VM, next to SWR ap-southeast-2 (Bangkok): from a US
+    # GitHub runner the ~400MB node_modules layer stalled mid-push (#103–#107).
+    runs-on: [self-hosted, labs-vm]
 
     # A stuck SWR push otherwise holds the run for the 6-hour default.
-    timeout-minutes: 20
+    # timeout-minutes: 20
 
     strategy:
       # One service failing to build must not hide whether the others did.
