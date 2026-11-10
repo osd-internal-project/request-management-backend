@@ -52,8 +52,7 @@ export interface ConnectionTestResult {
  * ```
  * POST {baseUrl}/v1/endpoints/{endpointId}
  *   x-api-key: sk-aily-…
- *   x-organization-id: {companyId ของ CTD}
- *   {"agent_record_id": "…", "topic": "…"}
+ *   {"agent_record_id": "…", "organization_id": "{companyId}", "topic": "…"}
  * → 202 {"sessionId": "…"}
  * ```
  *
@@ -233,12 +232,8 @@ export class VuvagentClient {
     return fetch(url, {
       method: 'POST',
       signal: AbortSignal.timeout(DISPATCH_TIMEOUT_MS),
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': apiKey,
-        'x-organization-id': connection.companyId,
-      },
-      body: JSON.stringify(body),
+      headers: { 'content-type': 'application/json', 'x-api-key': apiKey },
+      body: JSON.stringify({ ...body, organization_id: connection.companyId }),
     }).catch((cause: unknown) => {
       throw new VuvagentDispatchError(null, String(cause));
     });
