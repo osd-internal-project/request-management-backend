@@ -1,6 +1,6 @@
 {
   "name": "request-management-backend",
-  "version": "1.5.24",
+  "version": "1.5.25",
   "description": "npm workspaces monorepo: user-service and core-service, versioned independently.",
   "private": true,
   "license": "UNLICENSED",
@@ -50,6 +50,7 @@
     "org:flatten-positions": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/flatten-positions.ts",
     "uat:seed": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/seed-uat.ts",
     "lead-company:seed": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/seed-lead-company.ts",
+    "call-log:seed": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/seed-call-log-type.ts",
     "presales:seed": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/seed-presales-type.ts",
     "user:add": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/add-user.ts",
     "apikey:issue": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/api-key.ts issue",
