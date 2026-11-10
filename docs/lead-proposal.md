@@ -11,7 +11,8 @@ Vuvagent มี agent "Proposal Writer" หนึ่งตัวที่เป�
 |---|---|
 | ขั้นตอนบนหน้าจอ | 2 ปุ่ม: แนะนำสินค้า แล้ว sale เลือกสินค้าเพื่อเขียน proposal (ไม่ให้ AI เลือกเอง) |
 | ไฟล์ .docx | CTD ดาวน์โหลดเองตอนได้ callback เพราะ `proposal_url` หมดอายุใน 7 วัน แล้วเก็บเป็นไฟล์ Lead `kind=proposal` |
-| ตำแหน่ง UI | การ์ด Proposal ใหม่บนหน้า Lead ข้างการ์ด Research |
+| ตำแหน่ง UI | การ์ด Proposal ใน column กลาง (tab รายละเอียด) ใต้การ์ด Research |
+| เลือกสินค้า | sale เลือกได้ 1 ตัวแล้วกดบันทึก (`intakeData.selected_product`) ก่อนจึงเขียน proposal ได้ (10 พ.ย. 2569) |
 
 ## เส้นทาง
 
@@ -25,9 +26,10 @@ Sale เปิดหน้า Lead (การ์ด Proposal)
  │         PATCH crm/ai/leads/:id/intake-data  {product_suggestions: {products, agent_record_id}}
  │     ◄── PATCH agent-records/A  {status: done, result: {lead_id, products[]}}
  │
- ├─2 การ์ดแสดง products[] (product + reason) ตัวละ 1 ปุ่ม
+ ├─2 การ์ดแสดง products[] (product + reason) เป็นตัวเลือก (เลือกได้ 1 ตัว)
+ │     กด "บันทึกสินค้าที่เลือก"   PATCH leads/{id}/intake-data {data: {selected_product}}
  │
- ├─3 กด "เขียน proposal: D-DEBT"   POST leads/{id}/proposal {product}
+ ├─3 กด "เขียน proposal" ของสินค้าที่บันทึกไว้ (D-DEBT)   POST leads/{id}/proposal {product}
  │     record B: lead.write_proposal, processing
  │     ──► POST {baseUrl}/v1/endpoints/ep_d85e…  {agent_record_id: B, lead_id, product}  → 202
  │         Vuvagent เขียน .docx                                                     (2–6 นาที)
@@ -38,7 +40,7 @@ Sale เปิดหน้า Lead (การ์ด Proposal)
        → อีเมลขอบคุณ `attach_proposal` ใช้ไฟล์ proposal ล่าสุด (sales-email-flow.md)
 ```
 
-กดสินค้าตัวอื่น = record ใหม่และไฟล์ใหม่ ไฟล์เก่ายังอยู่ และอีเมลจะใช้ไฟล์ล่าสุด
+เลือกและบันทึกสินค้าตัวอื่นแล้วกดเขียน = record ใหม่และไฟล์ใหม่ ไฟล์เก่ายังอยู่ และอีเมลจะใช้ไฟล์ล่าสุด
 การลองใหม่ก็คือกดใหม่ ระบบสร้าง `agent_record_id` ใหม่ทุกครั้งตามที่สเปกกำหนด
 
 ## Action (`AGENT_ACTIONS`)
