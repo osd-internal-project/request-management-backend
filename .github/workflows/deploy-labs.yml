@@ -70,9 +70,10 @@ jobs:
 
   build-and-push:
     needs: version
-    # Built on the labs VM, next to SWR ap-southeast-2 (Bangkok): from a US
-    # GitHub runner the ~400MB node_modules layer stalled mid-push (#103–#107).
-    runs-on: [self-hosted, labs-vm]
+    # Built on the UAT runner: from a US GitHub runner the ~400MB node_modules
+    # layer stalled mid-push to SWR (#103–#107), and containers on the labs VM
+    # cannot resolve DNS (#108).
+    runs-on: [self-hosted, kube-osd-uat]
 
     # A stuck SWR push otherwise holds the run for the 6-hour default.
     # timeout-minutes: 20
