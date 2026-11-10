@@ -59,6 +59,8 @@ afterwards.
 
 **A "general request" diagram or example is the real flowless lifecycle (`REQUEST_TRANSITIONS`, e.g. BS-01), never an invented template.** A v2 template that no type uses, and FI05 curls offered for "curl แบบ uat-disbursement-open-api … ของ request ทั่วไป", were both rejected (27 Oct 2026): "แบบ X" means X's format, not X's content.
 
+**A curl asked for is one that fires as-is: real domain, real ids and `form_data` read from the type's `formSchema`, the route the caller's integration mode allows — and no header or field the route does not need, unless its purpose and the cost of leaving it out are stated.** DCRQ001 curls with an invented form, `localhost`, and an unexplained `Idempotency-Key: $(uuidgen)` were rejected (9 Nov 2026).
+
 **A gap in `source/` is reported, never filled.** The petty-cash fund and top-ups were invented from
 general accounting and shipped as if specified. Label every requirement `source` or `proposed` before
 asking or building on it.
@@ -74,6 +76,8 @@ work (pay, clear, close) is never added as steps of the request. Disbursement v1
 **A plan for a request-linked module states the system, not the user's words.** Before proposing,
 audit the gaps: rights, visibility, money, timers, notifications, external/MCP, live data, and the
 dynamic form (read `formData` through `x-bind`, never fixed keys). Then show a "now → new" table.
+
+**The item-by-item list of what a data change will touch goes in the plan file, not only in chat** (10 Nov 2026).
 
 **Never run `prisma format` on `schema.prisma`.** It realigns every model in the
 file (a 160-line addition became 773 changed lines). Format only the block you add.

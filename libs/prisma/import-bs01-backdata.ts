@@ -80,7 +80,8 @@ async function main(): Promise<void> {
     where: { companyId: company.id },
     select: { id: true, name: true },
   });
-  const unitId = new Map(units.map((u) => [u.name, u.id]));
+  // Keyed on the abbreviation: a unit is named `FAC` or `FAC · Finance & Accounting`.
+  const unitId = new Map(units.map((u) => [u.name.split(' · ')[0], u.id]));
 
   const existing = await prisma.request.findMany({
     where: { companyId: company.id, typeCode: TYPE_CODE, createdBy: ACTOR },

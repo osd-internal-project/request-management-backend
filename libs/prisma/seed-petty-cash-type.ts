@@ -271,7 +271,11 @@ async function seedPettyCashType(): Promise<void> {
   const receiverUnit = await prisma.orgUnit.findFirst({
     where: {
       companyId: company.id,
-      OR: [{ code: RECEIVER_UNIT_CODE }, { name: RECEIVER_UNIT_CODE }],
+      OR: [
+        { code: RECEIVER_UNIT_CODE },
+        { name: RECEIVER_UNIT_CODE },
+        { name: { startsWith: `${RECEIVER_UNIT_CODE} · ` } },
+      ],
     },
   });
 

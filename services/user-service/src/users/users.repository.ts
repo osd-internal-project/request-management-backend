@@ -102,11 +102,18 @@ export class UsersRepository extends BaseRepository<PrismaService['user']> {
       (await this.findUnique({ where: { username: claims.username } }, option));
 
     if (existing) {
+      // A Thai name comes from the HR register; the shared id24 realm only holds the English one.
+      const keepThaiName = /[฀-๿]/.test(existing.displayName);
+
       return this.update(
         {
           where: { id: existing.id },
           // Re-key onto the current subject id when the realm has changed.
-          data: { ...profile, keycloakId: claims.keycloakId },
+          data: {
+            ...profile,
+            displayName: keepThaiName ? existing.displayName : profile.displayName,
+            keycloakId: claims.keycloakId,
+          },
         },
         option,
       );
