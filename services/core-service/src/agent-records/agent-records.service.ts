@@ -117,6 +117,9 @@ export class AgentRecordsService {
     const filters: Prisma.AgentRecordWhereInput = {};
     if (query.status) filters.status = query.status;
     if (query.action) filters.action = query.action;
+    if (query.lead_id) {
+      filters.input = { path: ['lead_id'], equals: query.lead_id };
+    }
     // filters narrow inside the readable set, never widen it
     const where: Prisma.AgentRecordWhereInput = {
       AND: [this.visibleWhere(actor), filters],

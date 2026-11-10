@@ -64,6 +64,11 @@ export class ListAgentRecordsDto extends PageQueryDto {
   @IsOptional()
   @IsIn(Object.keys(AGENT_ACTIONS))
   action?: string;
+
+  @ApiPropertyOptional({ description: 'งานของ Lead นี้ (`input.lead_id`)' })
+  @IsOptional()
+  @IsUUID('4')
+  lead_id?: string;
 }
 
 export class StreamAgentRecordsDto {
