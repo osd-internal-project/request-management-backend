@@ -93,10 +93,11 @@ describe('VuvagentClient', () => {
     ];
     expect(url).toBe('https://1.1.1.1/v1/endpoints/ep_192af84b');
     expect(init.headers['x-api-key']).toBe('sk-aily-real');
-    expect(init.headers['x-organization-id']).toBe('osd');
+    expect(init.headers['x-organization-id']).toBeUndefined();
     expect(JSON.parse(init.body)).toEqual({
       agent_record_id: 'rec-1',
       topic: 'โลจิสติกส์',
+      organization_id: 'osd',
     });
   });
 
@@ -169,15 +170,11 @@ describe('VuvagentClient', () => {
     const body = JSON.parse(
       (fetchMock.mock.calls[0] as [string, { body: string }])[1].body,
     ) as unknown;
-    expect(body).toEqual({ agent_record_id: null, connection_test: true });
-    expect(
-      (
-        fetchMock.mock.calls[0] as [
-          string,
-          { headers: Record<string, string> },
-        ]
-      )[1].headers['x-organization-id'],
-    ).toBe('osd');
+    expect(body).toEqual({
+      agent_record_id: null,
+      connection_test: true,
+      organization_id: 'osd',
+    });
     expect(result).toMatchObject({
       ok: false,
       status: 401,
