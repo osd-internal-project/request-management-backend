@@ -90,3 +90,4 @@ key ที่ Vuvagent ใช้ตอนเรียกกลับคือ ke
 
 - **Header ของ key:** สเปกใหม่เขียน `Authorization: Bearer` แต่ `VuvagentClient` ส่ง `x-api-key` (ใช้ได้กับ `lead.find`
   และ `lead.research`) ให้ลองปุ่ม "ทดสอบ" ของแถวใหม่ก่อน ถ้าได้ 401 ค่อยส่งทั้งสอง header ซึ่งจะกระทบ action เดิมด้วย
+- **Header ของบริษัท:** ทุกการเรียก agent (รวมปุ่ม "ทดสอบ") ส่ง `x-organization-id` = `companyId` ของ CTD (10 พ.ย. 2569)
