@@ -112,6 +112,8 @@ export const PERMISSIONS = {
   ],
   user: ['user.read'],
   notification: ['notification.read'],
+  /** The phone workspace panel beside the content, for call-center agents. */
+  phone: ['phone.workspace.use'],
   audit: ['audit.read'],
   /**
    * CD-13 Legal (CD-161 คลังสัญญา, user decision 29 ก.ย. 2569) — the contract
