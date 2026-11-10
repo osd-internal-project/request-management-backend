@@ -72,9 +72,15 @@ jobs:
     needs: version
     runs-on: ubuntu-latest
 
+    # A stuck SWR push otherwise holds the run for the 6-hour default.
+    timeout-minutes: 20
+
     strategy:
       # One service failing to build must not hide whether the others did.
       fail-fast: false
+      # One push to SWR at a time: with all four in parallel, core and external
+      # sat in "pushing layers" for 30+ minutes while the other two finished.
+      max-parallel: 1
       matrix:
         service:
           [user-service, core-service, external-service, run-number-service]
