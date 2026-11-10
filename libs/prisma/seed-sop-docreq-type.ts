@@ -111,13 +111,15 @@ async function restrictToRequesterUnits(
       OR: [
         { code: { in: REQUESTER_UNIT_CODES } },
         { name: { in: REQUESTER_UNIT_CODES } },
+        ...REQUESTER_UNIT_CODES.map((code) => ({ name: { startsWith: `${code} · ` } })),
       ],
     },
     select: { id: true, code: true, name: true },
   });
 
+  // `FAC · Finance & Accounting` still answers to `FAC`.
   const labels = found.map((unit) =>
-    REQUESTER_UNIT_CODES.includes(unit.code) ? unit.code : unit.name,
+    REQUESTER_UNIT_CODES.includes(unit.code) ? unit.code : unit.name.split(' · ')[0],
   );
   const missing = REQUESTER_UNIT_CODES.filter((code) => !labels.includes(code));
   if (missing.length) {
