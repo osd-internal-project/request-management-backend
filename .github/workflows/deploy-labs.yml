@@ -91,6 +91,18 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      # Read-only: how this VM resolves names (#110 timed out on 127.0.0.53).
+      - name: DNS Diagnostics
+        run: |
+          resolvectl status 2>&1 | grep -E "Current DNS|DNS Servers|Fallback" || true
+          grep -v '^#' /etc/resolv.conf || true
+          for S in "" 1.1.1.1 8.8.8.8 192.168.31.1; do
+            if [ -n "$S" ]; then R=$(dig +short +time=2 +tries=1 github.com @"$S" 2>&1 | head -1)
+            else R=$(dig +short +time=2 +tries=1 github.com 2>&1 | head -1); fi
+            echo "dig github.com ${S:-via-resolver}: ${R:-NO ANSWER}"
+          done
+          ping -c2 -W2 1.1.1.1 2>&1 | tail -1 || true
+
       # --password-stdin, not -p: with -p the login key is visible in the
       # runner's process list and docker prints a warning about it.
       - name: Login to Huawei Cloud SWR
