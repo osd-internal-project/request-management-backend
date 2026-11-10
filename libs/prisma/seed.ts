@@ -308,7 +308,8 @@ const SEED_ROLES: {
     code: 'admin',
     name: 'ผู้ดูแลระบบ',
     description: 'ทีมที่ดูแลการตั้งค่า — ไม่มีสิทธิ์อนุมัติแทนใคร',
-    permissions: adminPermissions(),
+    // The admin who sets up the softphone also checks the phone workspace.
+    permissions: [...adminPermissions(), 'phone.workspace.use'],
   },
   {
     // CD-132 — the team that receives "ขอ Solution" requests and designs the
