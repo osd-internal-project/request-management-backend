@@ -83,14 +83,6 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # Build context is the repo root: every workspace manifest has to be in
-      # it before yarn can link the workspaces. See the header of the Dockerfile.
-      - name: Build Docker Image
-        run: |
-          docker build --platform linux/amd64 \
-            -t request-management-${{ matrix.service }}:${{ needs.version.outputs.tag }} \
-            -f services/${{ matrix.service }}/Dockerfile .
-
       # --password-stdin, not -p: with -p the login key is visible in the
       # runner's process list and docker prints a warning about it.
       - name: Login to Huawei Cloud SWR
@@ -99,21 +91,26 @@ jobs:
             | docker login -u "${{ secrets.HUAWEI_REGISTRY_USERNAME }}" \
                 --password-stdin "${{ env.REGISTRY }}"
 
-      - name: Tag and Push Docker Image
-        run: |
-          LOCAL=request-management-${{ matrix.service }}:${{ needs.version.outputs.tag }}
-          REMOTE=${{ env.REGISTRY }}/${{ env.SWR_ORG }}/${LOCAL}
-          docker tag "${LOCAL}" "${REMOTE}"
-          docker push "${REMOTE}"
-          echo "- \`${REMOTE}\`" >> "$GITHUB_STEP_SUMMARY"
+      - uses: docker/setup-buildx-action@v3
 
-      - name: Cleanup Docker Images
-        if: always()
-        run: |
-          LOCAL=request-management-${{ matrix.service }}:${{ needs.version.outputs.tag }}
-          docker rmi "${LOCAL}" || true
-          docker rmi "${{ env.REGISTRY }}/${{ env.SWR_ORG }}/${LOCAL}" || true
-          docker image prune -f
+      # Pushed from buildx with a GitHub Actions layer cache: an unchanged
+      # `yarn install` layer keeps its digest, so SWR answers "already exists"
+      # instead of taking the whole node_modules again from a US runner.
+      # Build context is the repo root: every workspace manifest has to be in
+      # it before yarn can link the workspaces. See the header of the Dockerfile.
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: services/${{ matrix.service }}/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.SWR_ORG }}/request-management-${{ matrix.service }}:${{ needs.version.outputs.tag }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+      - name: Record Image
+        run: echo "- \`${{ env.REGISTRY }}/${{ env.SWR_ORG }}/request-management-${{ matrix.service }}:${{ needs.version.outputs.tag }}\`" >> "$GITHUB_STEP_SUMMARY"
 
   deploy:
     needs: [version, build-and-push]
