@@ -278,6 +278,11 @@ export const PERMISSIONS = {
      */
     'admin.chat-widget.manage',
     /**
+     * Each user's softphone extension and SIP password. Apart from the chat
+     * widget: it hands out credentials to a phone line, not a URL.
+     */
+    'admin.softphone.manage',
+    /**
      * Company documents (settings) — upload dated and general documents that
      * other systems download through `integration.document.read`.
      */
