@@ -1,11 +1,20 @@
 # Build from the repo root so every workspace manifest is in the context:
 #   docker build -t request-management/run-number-service -f services/run-number-service/Dockerfile .
 
+# Release commits change only the root "version". Pinning it here lets COPY
+# --from below match by content, so the yarn install layers stay cached and SWR
+# already holds them instead of taking node_modules again on every bump.
+FROM node:22-alpine AS manifest
+WORKDIR /app
+COPY package.json ./
+RUN node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));p.version='0.0.0';fs.writeFileSync('package.json',JSON.stringify(p,null,2)+'\n')"
+
 FROM node:22-alpine AS builder
 WORKDIR /app
 
 # yarn needs every workspace manifest present before it can link them.
-COPY package.json yarn.lock ./
+COPY --from=manifest /app/package.json ./
+COPY yarn.lock ./
 COPY libs/prisma/package.json ./libs/prisma/
 COPY libs/share/package.json ./libs/share/
 COPY services/user-service/package.json ./services/user-service/
@@ -36,7 +45,8 @@ FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
-COPY package.json yarn.lock ./
+COPY --from=manifest /app/package.json ./
+COPY yarn.lock ./
 COPY libs/prisma/package.json ./libs/prisma/
 COPY libs/share/package.json ./libs/share/
 COPY services/user-service/package.json ./services/user-service/
