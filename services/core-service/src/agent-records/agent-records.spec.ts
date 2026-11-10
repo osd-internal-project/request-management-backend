@@ -298,6 +298,29 @@ describe('AgentRecordsService reads', () => {
     });
   });
 
+  it('list narrows to one lead through input.lead_id, inside the readable set', async () => {
+    const { service, records } = setup();
+    await service.list(seller, {
+      page: 1,
+      page_size: 10,
+      status: 'processing',
+      lead_id: 'lead-1',
+    });
+    expect(records.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          AND: [
+            { companyId: 'osd', action: { in: ['lead.find', 'lead.research', 'lead.suggest_products', 'lead.write_proposal'] } },
+            {
+              status: 'processing',
+              input: { path: ['lead_id'], equals: 'lead-1' },
+            },
+          ],
+        },
+      }),
+    );
+  });
+
   it('list for a caller with no readable action matches nothing', async () => {
     const { service, records } = setup();
     await service.list(outsider, { page: 1, page_size: 20 });
