@@ -776,7 +776,9 @@ export class LeadsService {
   /**
    * แปลงเป็นโอกาสการขาย — spec: "แปลงเป็นโอกาสการขายโดยข้อมูลไหลต่อทั้งหมด". The
    * opportunity is created through OpportunitiesService (same code path as a hand-made
-   * opportunity), then the lead points at it and closes at the company's `won` status.
+   * opportunity), then the lead points at it. The lead keeps its open status: it
+   * closes as `won` only when the customer accepts the quotation or a sale order
+   * is opened (`LeadClosingService`, user decision 11 Nov 2026).
    *
    * ด่านเดียวที่เหลือที่นี่คือ "Lead ต้องยังเปิดอยู่" (`requireOpen`) ซึ่งเป็น
    * integrity ไม่ใช่ process. เงื่อนไขว่าแปลงได้จากขั้นไหน อยู่บน workflow
@@ -784,6 +786,15 @@ export class LeadsService {
    */
   async convert(id: string, dto: ConvertLeadDto, actor: Principal) {
     const lead = await this.requireOpen(id, actor);
+
+    // converting no longer closes the lead, so "already a deal" is asked here
+    if (lead.convertedOpportunityId) {
+      throw new AppError(
+        'CONFLICT',
+        'Lead นี้แปลงเป็นโอกาสการขายแล้ว — ทำงานต่อที่โอกาสการขายเดิม',
+        [{ field: 'converted_opportunity_id', reason: 'converted' }],
+      );
+    }
 
     // opportunity.ownerUserId is a person; a service account has no User row
     if (actor.isServiceAccount && !lead.ownerUserId) {
@@ -824,14 +835,9 @@ export class LeadsService {
         : { fromLeadId: id },
     );
 
-    const status = await this.statuses.closingCode(
-      actor.activeCompanyId,
-      'won',
-    );
     await this.leads.update({
       where: { id },
       data: {
-        status,
         convertedOpportunityId: opportunity.id,
         customerId: customerId ?? null,
         updatedBy: actor.userId,
@@ -860,9 +866,8 @@ export class LeadsService {
       name: 'lead.converted',
       payload: leadEvent(
         actor.activeCompanyId,
-        { ...lead, status },
+        lead,
         {
-          previous_status: lead.status,
           opportunity_id: opportunity.id,
           opportunity_code: opportunity.opportunityCode,
         },
@@ -909,6 +914,7 @@ export class LeadsService {
       ownerOrgUnitId: string | null;
       sourceCode: string | null;
       customerId: string | null;
+      convertedOpportunityId: string | null;
       taxId: string | null;
       contactName: string | null;
       phone: string | null;

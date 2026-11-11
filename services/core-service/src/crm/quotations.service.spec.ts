@@ -148,6 +148,7 @@ function harness(
     rowsFor: jest.fn(() => Promise.resolve(options.vendorCosts ?? [])),
     maxAgeDays: jest.fn(() => Promise.resolve(options.costMaxAgeDays ?? 90)),
   };
+  const leadClosing = { wonByOpportunity: jest.fn(() => Promise.resolve()) };
   const service = new QuotationsService(
     quotations as never,
     {
@@ -186,10 +187,12 @@ function harness(
     prices as never,
     segmentAssignments as never,
     vendorCosts as never,
+    leadClosing as never,
   );
 
   return {
     service,
+    leadClosing,
     quotations,
     tx,
     requestsService,
@@ -381,6 +384,25 @@ describe('CD-76 ใบเสนอราคา — ล็อกฉบับแ�
       service.update('qt-1', { title: 'แก้ชื่อ' }, principal()),
     ).rejects.toMatchObject({ code: 'CRM_QUOTATION_STATE_INVALID' });
     expect(quotations.update).not.toHaveBeenCalled();
+  });
+
+  it('ลูกค้ายอมรับใบเสนอราคา (ยืนยัน/PO) → Lead ต้นทางของดีลปิดเป็น won; ใบที่ยังไม่ได้ส่งไม่ปิด', async () => {
+    const sent = harness({ row: { status: 'sent' } });
+
+    await sent.service.accept('qt-1', {}, principal());
+
+    expect(sent.leadClosing.wonByOpportunity).toHaveBeenCalledWith(
+      'opp-1',
+      'quotation_accepted',
+      expect.objectContaining({ activeCompanyId: 'osd' }),
+    );
+
+    const draft = harness({ row: { status: 'approved' } });
+
+    await expect(
+      draft.service.accept('qt-1', {}, principal()),
+    ).rejects.toMatchObject({ code: 'CRM_QUOTATION_STATE_INVALID' });
+    expect(draft.leadClosing.wonByOpportunity).not.toHaveBeenCalled();
   });
 
   it('ส่งใบที่หมดอายุแล้วไม่ได้', async () => {
