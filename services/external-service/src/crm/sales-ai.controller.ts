@@ -11,6 +11,7 @@ import {
   CreateStandardQuotationDto,
   CurrentApiKey,
   QuotationsService,
+  SalesAutomationService,
   SalesMailService,
   SendLeadEmailDto,
   SendQuotationEmailDto,
@@ -36,7 +37,29 @@ export class ExternalSalesAiController {
   constructor(
     private readonly mail: SalesMailService,
     private readonly quotations: QuotationsService,
+    private readonly automation: SalesAutomationService,
   ) {}
+
+  /**
+   * A refusal is kept for the Lead/deal page ("why the workflow stopped",
+   * 11 พ.ย. 2569) and a success clears the same action's earlier refusals.
+   * The caller still gets the refusal itself.
+   */
+  private async track<T>(
+    target: { leadId?: string; opportunityId?: string; quotationId?: string },
+    action: string,
+    actor: Principal,
+    work: () => Promise<T>,
+  ): Promise<T> {
+    try {
+      const result = await work();
+      await this.automation.resolve(target, action, actor);
+      return result;
+    } catch (error) {
+      await this.automation.record(target, action, error, actor);
+      throw error;
+    }
+  }
 
   @Post('leads/:id/emails')
   @Permissions('integration.crm.email.send', 'integration.crm.lead.read.all')
@@ -52,20 +75,22 @@ export class ExternalSalesAiController {
     @CurrentApiKey() key: ApiKeyContext | undefined,
   ) {
     requireCompanyKey(key);
-    return this.mail.sendLeadIntro(
-      id,
-      {
-        subject: dto.subject,
-        body: dto.body,
-        signature: dto.signature,
-        attachments: (dto.attachments ?? []).map((file) => ({
-          name: file.file_name,
-          contentType: file.content_type,
-          contentBase64: file.content_base64,
-        })),
-        attachProposal: dto.attach_proposal === true,
-      },
-      actor,
+    return this.track({ leadId: id }, 'send_lead_email', actor, () =>
+      this.mail.sendLeadIntro(
+        id,
+        {
+          subject: dto.subject,
+          body: dto.body,
+          signature: dto.signature,
+          attachments: (dto.attachments ?? []).map((file) => ({
+            name: file.file_name,
+            contentType: file.content_type,
+            contentBase64: file.content_base64,
+          })),
+          attachProposal: dto.attach_proposal === true,
+        },
+        actor,
+      ),
     );
   }
 
@@ -100,7 +125,12 @@ export class ExternalSalesAiController {
     @CurrentApiKey() key: ApiKeyContext | undefined,
   ) {
     requireCompanyKey(key);
-    return this.mail.standardQuotation(id, dto, actor);
+    return this.track(
+      { opportunityId: id },
+      'create_standard_quotation',
+      actor,
+      () => this.mail.standardQuotation(id, dto, actor),
+    );
   }
 
   @Post('quotations/:id/email')
@@ -118,7 +148,9 @@ export class ExternalSalesAiController {
     @CurrentApiKey() key: ApiKeyContext | undefined,
   ) {
     requireCompanyKey(key);
-    return this.mail.sendQuotation(id, dto, actor);
+    return this.track({ quotationId: id }, 'send_quotation_email', actor, () =>
+      this.mail.sendQuotation(id, dto, actor),
+    );
   }
 
   @Post('quotations/:id/accept')
@@ -145,7 +177,9 @@ export class ExternalSalesAiController {
     ]
       .filter(Boolean)
       .join(' · ');
-    return this.quotations.accept(id, { note }, actor);
+    return this.track({ quotationId: id }, 'accept_quotation', actor, () =>
+      this.quotations.accept(id, { note }, actor),
+    );
   }
 }
 

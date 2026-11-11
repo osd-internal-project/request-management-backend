@@ -33,9 +33,15 @@ function setup() {
     updateIntakeData: jest.fn(() => Promise.resolve({})),
     convert: jest.fn(() => Promise.resolve({})),
   };
+  const automation = { record: jest.fn(), resolve: jest.fn() };
   return {
-    controller: new ExternalLeadAiController(leads as never, {} as never),
+    controller: new ExternalLeadAiController(
+      leads as never,
+      {} as never,
+      automation as never,
+    ),
     leads,
+    automation,
   };
 }
 
@@ -74,6 +80,28 @@ describe('crm/ai/leads — AI acting for the company', () => {
     expect(lead).toMatchObject({ email: 'buyer@example.com' });
   });
 
+  it('a refused convert is kept for the Lead page; a later one clears it (11 พ.ย. 2569)', async () => {
+    const { controller, leads, automation } = setup();
+    const actor = robot(['integration.crm.lead.convert']);
+    const refusal = new Error('unowned');
+    leads.convert.mockRejectedValueOnce(refusal);
+    await expect(controller.convert('lead-1', {}, actor, BOUND)).rejects.toBe(
+      refusal,
+    );
+    expect(automation.record).toHaveBeenCalledWith(
+      { leadId: 'lead-1' },
+      'convert_lead',
+      refusal,
+      actor,
+    );
+    await controller.convert('lead-1', {}, actor, BOUND);
+    expect(automation.resolve).toHaveBeenCalledWith(
+      { leadId: 'lead-1' },
+      'convert_lead',
+      actor,
+    );
+  });
+
   it('a key bound to no company is refused before any read or write', async () => {
     const { controller, leads } = setup();
     const actor = robot(['integration.crm.lead.read.all']);
@@ -84,9 +112,9 @@ describe('crm/ai/leads — AI acting for the company', () => {
       code: 'FORBIDDEN',
     });
     const unbound = { companyId: null } as unknown as ApiKeyContext;
-    expect(() =>
-      controller.convert('lead-1', {} as never, actor, unbound),
-    ).toThrow('API key ที่ผูกบริษัท');
+    expect(() => controller.convert('lead-1', {}, actor, unbound)).toThrow(
+      'API key ที่ผูกบริษัท',
+    );
     expect(leads.findOne).not.toHaveBeenCalled();
     expect(leads.convert).not.toHaveBeenCalled();
   });

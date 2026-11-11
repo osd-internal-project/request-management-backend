@@ -412,6 +412,8 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     VendorCostService,
     QuotationPrintService,
     // งานขายอัตโนมัติ (MailModule) — the email rows hang off these
+    // the sales-automation checklist reads a deal's quotations (11 พ.ย. 2569)
+    QuotationRepository,
     LeadRepository,
     LeadActivityRepository,
     OpportunityRepository,

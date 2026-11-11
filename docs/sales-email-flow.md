@@ -109,3 +109,19 @@ external-service ต้องมี `CONFIG_SECRET_KEY` ตัวเดียว
 `crm_emails` (migration `20261105100000_crm_emails`): ทุกฉบับที่ส่ง (รวมที่ล้มเหลว + เหตุผล)
 และคำตอบของลูกค้าในเธรด — ไม่เก็บเนื้อไฟล์แนบ (ชื่อ/ชนิด/ขนาดเท่านั้น) ไม่มีเส้นลบ
 หน้าจอ: `GET leads/:id/emails`, `GET opportunities/:id/emails` (core)
+
+## หน้าจอบอกว่า workflow ติดเพราะอะไร (11 พ.ย. 2569)
+
+การ์ด **งานขายอัตโนมัติ** บนหน้า Lead และหน้าโอกาสการขาย (`GET leads/:id/sales-automation`,
+`GET opportunities/:id/sales-automation`; ซ่อนเมื่อบริษัทไม่มี trigger งานขายเลย) แสดงสองอย่าง:
+
+1. **checklist สด** ต่อขั้น — ค่าพื้นฐาน (อีเมลงานขายของบริษัท, อีเมลผู้ติดต่อ), intro (trigger
+   `lead.status_changed`·negotiation, ไฟล์ proposal), quote (trigger `crm.email.received`·interested,
+   ผู้รับผิดชอบ, สินค้าที่มีราคามาตรฐานมีผลวันนี้), close (trigger confirmed/purchase_order,
+   ใบเสนอราคาที่ส่งแล้ว) และผลการเริ่ม workflow ล่าสุดจาก `workflow_starts` (`dead` = เริ่มไม่สำเร็จ)
+2. **ครั้งที่ติดจริง** — ทุกครั้งที่ route `crm/ai/*` ของ workflow ตอบ `AppError` (ยกเว้น 404/403)
+   external-service เก็บลง `sales_automation_issues` พร้อม action/code/details; action เดิมสำเร็จ
+   ภายหลัง = ใส่ `resolvedAt`. หน้าจอแสดงครั้งล่าสุดต่อ action ที่ยังไม่แก้ + วิธีแก้ (`hintFor`, ตาม code)
+
+หมายเหตุ: workflow ของ trigger หนึ่งเริ่มได้ครั้งเดียวต่อ Lead/อีเมล — แก้ข้อมูลแล้วต้องให้ผู้ดูแล
+workflow (งาน `WORKFLOW_OPERATOR`) ทำต่อ หรือเซลล์ทำเอง; ย้ายสถานะซ้ำไม่เริ่มใหม่
