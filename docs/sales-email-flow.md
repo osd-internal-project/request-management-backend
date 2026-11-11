@@ -26,12 +26,14 @@ Vuvagent กรอก Product/Segment + วาง proposal  POST crm/ai/leads/{i
   └ event crm.email.received {intent}                                   (ข้อ 4)
        [interested]  → workflow ctd-sales-quote                          (ข้อ 5)
             POST crm/ai/leads/{leadId}/convert           → opportunityId
+                 Lead ยังอยู่ขั้นเดิม (ไม่เป็น Won) — แปลงซ้ำ = 409
             POST crm/ai/opportunities/{oppId}/quotations → approved (ราคามาตรฐาน)
                  422 CRM_QUOTATION_UNPRICED → human task ให้เจ้าของ Lead
             POST crm/ai/quotations/{qtId}/email          → PDF ในเธรดเดิม + sent
                  ดีล qualifying → proposing, มูลค่าดีล = ยอดสุทธิใบเสนอราคา (ถ้ายังว่าง)
        [confirmed | purchase_order] → workflow ctd-sales-close            (ข้อ 6)
             POST crm/ai/quotations/{quotationId}/accept  {email_id, po_no?}
+            Lead → Won ที่นี่ (ผู้ใช้ตัดสิน 11 พ.ย. 2569: Won = ลูกค้ายืนยัน/ส่ง PO หรือเปิดใบสั่งขาย)
             ดีลไม่ปิดชนะเอง — ชนะ = เซลล์เปิดใบสั่งขาย (PO 10 ก.ย.); แจ้งเตือนบอกให้เปิดใบสั่งขาย
        [negotiation] → ดีล → negotiating + แจ้งเจ้าของให้ทำคำขอส่วนลด (CD-80) หรือออกฉบับใหม่
        [needs_info | unclear] → human task ให้เจ้าของตอบเอง

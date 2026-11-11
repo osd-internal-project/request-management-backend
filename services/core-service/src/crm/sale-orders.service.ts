@@ -18,6 +18,7 @@ import {
   SALE_ORDER_LIST_SELECT,
   SaleOrderRepository,
 } from './sales.repositories';
+import { LeadClosingService } from './lead-closing.service';
 import { RunNumberClient } from '../run-number/run-number.client';
 import { CustomerRepository } from './customer.repository';
 import { CustomersService } from './customers.service';
@@ -62,6 +63,7 @@ export class SaleOrdersService {
     private readonly quotations: QuotationRepository,
     private readonly erpSync: SaleOrderErpSyncService,
     private readonly catalog: ProductCatalogService,
+    private readonly leadClosing: LeadClosingService,
   ) {}
 
   async list(actor: Principal, query: ListSaleOrdersQueryDto) {
@@ -317,6 +319,13 @@ export class SaleOrdersService {
 
     // CD-88: SAP is called AFTER the commit — the user never waits on it.
     if (created.lineCount) this.erpSync.kickCreate(created.id);
+
+    // the sale is real now — the Lead this deal came from closes as won
+    await this.leadClosing.wonByOpportunity(
+      opportunity.id,
+      'sale_order_opened',
+      actor,
+    );
 
     const saleOrder = await this.findOne(created.id, actor);
     return {

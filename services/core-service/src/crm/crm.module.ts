@@ -100,6 +100,7 @@ import { VendorCostService } from './vendor-cost.service';
 import { ApprovalsModule } from '../approvals/approvals.module';
 import { LeadsService } from './leads.service';
 import { LeadStatusService } from './lead-status.service';
+import { LeadClosingService } from './lead-closing.service';
 import { OpportunitiesService } from './opportunities.service';
 import { OpportunityActivitiesService } from './opportunity-activities.service';
 import { NegotiationsService } from './negotiations.service';
@@ -265,6 +266,7 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     VendorCostRepository,
     LeadsService,
     LeadStatusService,
+    LeadClosingService,
     LeadImportService,
     LeadIntakeService,
     // CD-269 — one screening for every Lead from outside
