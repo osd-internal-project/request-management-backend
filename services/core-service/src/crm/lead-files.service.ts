@@ -232,6 +232,17 @@ export class LeadFilesService {
     // the row stays (no hard deletes); the bytes stay too, for the audit trail
   }
 
+  /** The newest proposal on a Lead without its bytes — for the checklist. */
+  async proposalMeta(
+    leadId: string,
+  ): Promise<{ fileName: string; uploadedAt: Date } | null> {
+    return await this.files.findFirst({
+      where: { leadId, kind: 'proposal', deletedAt: null },
+      orderBy: { uploadedAt: 'desc' },
+      select: { fileName: true, uploadedAt: true },
+    });
+  }
+
   /**
    * The newest proposal on a Lead, read whole — for the email. The caller has
    * already proved it may see the Lead. null = none uploaded.

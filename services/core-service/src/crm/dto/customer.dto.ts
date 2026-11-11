@@ -693,6 +693,11 @@ export class UpdateCrmConfigDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(100)
+  letterhead_fax?: string;
+
+  @IsOptional()
+  @IsString()
   @MaxLength(255)
   letterhead_email?: string;
 

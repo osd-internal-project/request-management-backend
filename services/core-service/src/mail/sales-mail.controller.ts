@@ -3,6 +3,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentPrincipal, Permissions } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import { SimulateReplyDto } from './dto/sales-mail.dto';
+import { SalesAutomationService } from './sales-automation.service';
 import { SalesMailService } from './sales-mail.service';
 
 /** อีเมลของงานขายบนหน้าจอ — ประวัติเธรดของ Lead/ดีล + จำลองคำตอบ (mock). */
@@ -10,7 +11,36 @@ import { SalesMailService } from './sales-mail.service';
 @ApiBearerAuth()
 @Controller()
 export class SalesMailController {
-  constructor(private readonly mail: SalesMailService) {}
+  constructor(
+    private readonly mail: SalesMailService,
+    private readonly automation: SalesAutomationService,
+  ) {}
+
+  @ApiOperation({
+    summary:
+      'งานขายอัตโนมัติของ Lead — สิ่งที่แต่ละ workflow ต้องมี + เหตุที่ติดขัดล่าสุด',
+  })
+  @Get('leads/:id/sales-automation')
+  @Permissions('crm.lead.read')
+  automationForLead(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.automation.forLead(id, principal);
+  }
+
+  @ApiOperation({
+    summary:
+      'งานขายอัตโนมัติของโอกาสการขาย — สิ่งที่แต่ละ workflow ต้องมี + เหตุที่ติดขัดล่าสุด',
+  })
+  @Get('opportunities/:id/sales-automation')
+  @Permissions('crm.sales.read')
+  automationForOpportunity(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.automation.forOpportunity(id, principal);
+  }
 
   @ApiOperation({ summary: 'อีเมลของ Lead (รวมของดีลที่แปลงแล้ว)' })
   @Get('leads/:id/emails')

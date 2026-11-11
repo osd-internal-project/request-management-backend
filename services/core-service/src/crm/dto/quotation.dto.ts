@@ -146,6 +146,30 @@ export class CreateQuotationDto {
   @MaxLength(500)
   payment_terms?: string;
 
+  /** แบบฟอร์มใบเสนอราคา — Delivery Time */
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  delivery_time?: string;
+
+  /** แบบฟอร์มใบเสนอราคา — Warranty */
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  warranty?: string;
+
+  /** โทรสารของลูกค้าที่พิมพ์บนใบ */
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  customer_fax?: string;
+
+  /** มือถือของผู้เสนอราคาที่พิมพ์บนใบ */
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  seller_mobile?: string;
+
   @IsOptional()
   @IsString()
   @MaxLength(4000)

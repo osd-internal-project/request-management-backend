@@ -27,6 +27,7 @@ import {
   Patch,
   Post,
   Query,
+  StreamableFile,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -108,6 +109,22 @@ export class ExternalQuotationsController {
   @ActingPermissions('crm.sales.read')
   printView(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
     return this.print.printView(id, principal);
+  }
+
+  @ApiOperation({
+    summary: 'ใบเสนอราคาเป็นไฟล์ PDF ตามแบบฟอร์มบริษัท',
+    description:
+      'ไฟล์เดียวกับที่แนบอีเมลถึงลูกค้า — ไม่มีต้นทุนและ margin; ใบที่ยังไม่อนุมัติมีลายน้ำ "ร่าง"',
+  })
+  @Get(':id/pdf')
+  @Permissions('integration.crm.sales.read')
+  @ActingPermissions('crm.sales.read')
+  async pdf(@Param('id') id: string, @CurrentPrincipal() principal: Principal) {
+    const file = await this.print.pdf(id, principal);
+    return new StreamableFile(file.content, {
+      type: 'application/pdf',
+      disposition: `inline; filename*=UTF-8''${encodeURIComponent(file.fileName)}`,
+    });
   }
 
   @ApiOperation({

@@ -10,6 +10,12 @@ import { MailSettingRepository } from './mail-setting.repository';
 import { MailSettingsService } from './mail-settings.service';
 import { SalesMailPollerService } from './sales-mail-poller.service';
 import { SalesMailService } from './sales-mail.service';
+import { SalesAutomationIssueRepository } from './sales-automation-issue.repository';
+import { SalesAutomationService } from './sales-automation.service';
+import {
+  WorkflowStartRepository,
+  WorkflowTriggerRepository,
+} from '../workflow-trigger/workflow-trigger.repository';
 
 /**
  * งานขายอัตโนมัติ (5 พ.ย. 2569) — the sales mailbox, per company: set on the
@@ -31,7 +37,13 @@ import { SalesMailService } from './sales-mail.service';
     MailSettingsService,
     SalesMailService,
     SalesMailPollerService,
+    // why a sales workflow did not run (11 พ.ย. 2569) — reads the trigger
+    // tables directly rather than importing the dispatcher's module
+    SalesAutomationIssueRepository,
+    SalesAutomationService,
+    WorkflowTriggerRepository,
+    WorkflowStartRepository,
   ],
-  exports: [SalesMailService, MailSettingsService],
+  exports: [SalesMailService, MailSettingsService, SalesAutomationService],
 })
 export class MailModule {}
