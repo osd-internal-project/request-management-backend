@@ -19,6 +19,7 @@ import {
   QUOTATION_LIST_SELECT,
   QuotationRepository,
 } from './sales.repositories';
+import { LeadClosingService } from './lead-closing.service';
 import { ProductCatalogService } from './product-catalog.service';
 import { ProductPriceRepository } from './product.repositories';
 import { CustomerSegmentAssignmentRepository } from './segment.repositories';
@@ -113,6 +114,7 @@ export class QuotationsService {
     private readonly prices: ProductPriceRepository,
     private readonly segmentAssignments: CustomerSegmentAssignmentRepository,
     private readonly vendorCosts: VendorCostService,
+    private readonly leadClosing: LeadClosingService,
   ) {}
 
   async list(actor: Principal, query: ListQuotationsQueryDto) {
@@ -813,6 +815,13 @@ export class QuotationsService {
         summary: `ลูกค้ายอมรับใบเสนอราคา ${label(found)}`,
       },
     });
+
+    // the customer confirmed (or sent a PO) — the Lead this deal came from closes as won
+    await this.leadClosing.wonByOpportunity(
+      found.opportunityId,
+      'quotation_accepted',
+      actor,
+    );
 
     return this.findOne(id, actor);
   }

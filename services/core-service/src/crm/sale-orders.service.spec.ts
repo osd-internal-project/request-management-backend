@@ -406,6 +406,9 @@ describe('CRM ใบสั่งขาย — จุดเดียวที่�
     };
     const erpSync = { kickCreate: jest.fn(), kickCancel: jest.fn() };
     const catalog = { assertKnownCodes: jest.fn(() => Promise.resolve()) };
+    const leadClosing = {
+      wonByOpportunity: jest.fn(() => Promise.resolve()),
+    };
 
     const service = new SaleOrdersService(
       saleOrders as never,
@@ -424,10 +427,12 @@ describe('CRM ใบสั่งขาย — จุดเดียวที่�
       quotations as never,
       erpSync as never,
       catalog as never,
+      leadClosing as never,
     );
 
     return {
       service,
+      leadClosing,
       erpSync,
       catalog,
       saleOrders,
@@ -449,6 +454,13 @@ describe('CRM ใบสั่งขาย — จุดเดียวที่�
       { note: 'ลูกค้ายืนยันทางอีเมล' },
       principal(),
     )) as { customerCreated: boolean };
+
+    // 11 พ.ย. 2569 — เปิดใบสั่งขาย = การขายเกิดจริง: Lead ต้นทางปิดเป็น won
+    expect(h.leadClosing.wonByOpportunity).toHaveBeenCalledWith(
+      'opportunity-1',
+      'sale_order_opened',
+      expect.anything(),
+    );
 
     // ลูกค้าเกิดที่นี่ — ผ่าน CustomersService.create ทางเดียวกับหน้าจอ
     expect(h.customersService.create).toHaveBeenCalledTimes(1);
