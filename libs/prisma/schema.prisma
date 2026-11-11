@@ -2580,6 +2580,7 @@ model CrmCompanyConfig {
   letterheadBranch  String?
   letterheadAddress String?
   letterheadPhone   String?
+  letterheadFax     String?
   letterheadEmail   String?
   letterheadWebsite String?
   /// data URL (png/jpeg/webp base64) — เล็กพอเก็บในแถวได้ (จำกัด ~375KB).
@@ -3378,6 +3379,11 @@ model Quotation {
   currency     String          @default("THB")
   validUntil   DateTime?
   paymentTerms String?
+  /// แบบฟอร์มใบเสนอราคาของบริษัท (11 พ.ย. 2569) — พิมพ์ลงเอกสารเท่านั้น
+  deliveryTime String?
+  warranty     String?
+  partyFax     String?
+  sellerMobile String?
   note         String?
 
   /// ผลรวม จำนวน × ราคาต่อหน่วย ก่อนส่วนลด.

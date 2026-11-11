@@ -368,6 +368,10 @@ export class QuotationsService {
               ? new Date(dto.valid_until)
               : defaultValidUntil(config.quotationValidityDays),
             paymentTerms: dto.payment_terms?.trim() || null,
+            deliveryTime: dto.delivery_time?.trim() || null,
+            warranty: dto.warranty?.trim() || null,
+            partyFax: dto.customer_fax?.trim() || null,
+            sellerMobile: dto.seller_mobile?.trim() || null,
             note: dto.note?.trim() || null,
             ...totalsData(totals),
             ownerUserId: opportunity.ownerUserId,
@@ -483,6 +487,18 @@ export class QuotationsService {
               : {}),
             ...(dto.payment_terms !== undefined
               ? { paymentTerms: dto.payment_terms.trim() || null }
+              : {}),
+            ...(dto.delivery_time !== undefined
+              ? { deliveryTime: dto.delivery_time.trim() || null }
+              : {}),
+            ...(dto.warranty !== undefined
+              ? { warranty: dto.warranty.trim() || null }
+              : {}),
+            ...(dto.customer_fax !== undefined
+              ? { partyFax: dto.customer_fax.trim() || null }
+              : {}),
+            ...(dto.seller_mobile !== undefined
+              ? { sellerMobile: dto.seller_mobile.trim() || null }
               : {}),
             ...(dto.note !== undefined
               ? { note: dto.note.trim() || null }
@@ -938,6 +954,10 @@ export class QuotationsService {
             currency: found.currency,
             validUntil: defaultValidUntil(config.quotationValidityDays),
             paymentTerms: found.paymentTerms,
+            deliveryTime: found.deliveryTime,
+            warranty: found.warranty,
+            partyFax: found.partyFax,
+            sellerMobile: found.sellerMobile,
             note: found.note,
             subtotal: found.subtotal,
             discountTotal: found.discountTotal,
@@ -1610,6 +1630,10 @@ interface QuotationForAction {
   currency: string;
   validUntil: Date | null;
   paymentTerms: string | null;
+  deliveryTime: string | null;
+  warranty: string | null;
+  partyFax: string | null;
+  sellerMobile: string | null;
   note: string | null;
   subtotal: Prisma.Decimal;
   discountTotal: Prisma.Decimal;
