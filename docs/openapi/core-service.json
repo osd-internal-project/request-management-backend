@@ -46252,6 +46252,88 @@
           "admin.bi.manage"
         ]
       }
+    },
+    "/api/v1/leads/{id}/sales-automation": {
+      "get": {
+        "operationId": "SalesMailController_automationForLead",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "งานขายอัตโนมัติของ Lead — สิ่งที่แต่ละ workflow ต้องมี + เหตุที่ติดขัดล่าสุด",
+        "tags": [
+          "sales-mail"
+        ],
+        "x-permission": [
+          "crm.lead.read"
+        ]
+      }
+    },
+    "/api/v1/opportunities/{id}/sales-automation": {
+      "get": {
+        "operationId": "SalesMailController_automationForOpportunity",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "งานขายอัตโนมัติของโอกาสการขาย — สิ่งที่แต่ละ workflow ต้องมี + เหตุที่ติดขัดล่าสุด",
+        "tags": [
+          "sales-mail"
+        ],
+        "x-permission": [
+          "crm.sales.read"
+        ]
+      }
     }
   },
   "info": {

@@ -2911,6 +2911,31 @@ model LeadFile {
   @@map("lead_files")
 }
 
+/// งานขายอัตโนมัติติดขัด (11 พ.ย. 2569) — หนึ่งแถวต่อครั้งที่ OSD Workflow เรียก `crm/ai/*`
+/// แล้ว CTD ปฏิเสธ (ขาดเจ้าของ/proposal/ราคามาตรฐาน …) ให้หน้า Lead/ดีลบอกเหตุผล.
+/// ไม่ลบ: action เดิมสำเร็จภายหลัง = ใส่ resolvedAt.
+model SalesAutomationIssue {
+  id            String    @id @default(uuid())
+  companyId     String
+  leadId        String?
+  opportunityId String?
+  /// intro | quote | close
+  step          String
+  /// action ของ plugin เช่น send_lead_email, convert_lead, create_standard_quotation
+  action        String
+  /// AppError code เช่น CRM_EMAIL_UNAVAILABLE
+  code          String
+  message       String
+  details       Json      @default("[]")
+  occurredAt    DateTime  @default(now())
+  resolvedAt    DateTime?
+
+  @@index([leadId, resolvedAt])
+  @@index([opportunityId, resolvedAt])
+  @@index([companyId, occurredAt])
+  @@map("sales_automation_issues")
+}
+
 /// CRM โอกาสการขาย (Opportunity) — ขั้น มูลค่า ความน่าจะเป็น วันคาดปิด. `opportunityCode`
 /// is what requests reference (`ref_type=opportunity`, e.g. the D-501 the request
 /// form always suggested). Won/lost are closed states; reopening is a later

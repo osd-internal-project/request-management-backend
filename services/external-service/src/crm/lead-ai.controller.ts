@@ -29,6 +29,7 @@ import {
   LEAD_FILE_UPLOAD,
   LeadFilesService,
   LeadsService,
+  SalesAutomationService,
   UpdateLeadDto,
   UpdateLeadIntakeDataDto,
   type ApiKeyContext,
@@ -63,6 +64,7 @@ export class ExternalLeadAiController {
   constructor(
     private readonly leads: LeadsService,
     private readonly files: LeadFilesService,
+    private readonly automation: SalesAutomationService,
   ) {}
 
   @Get(':id')
@@ -159,14 +161,27 @@ export class ExternalLeadAiController {
     summary: 'แปลง Lead เป็นโอกาสการขาย — ไปอยู่กับเจ้าของ Lead',
     description: 'Lead ในกองกลาง (ยังไม่มีเจ้าของ) ตอบ 409 — มอบหมายก่อน',
   })
-  convert(
+  async convert(
     @Param('id') id: string,
     @Body() dto: ConvertLeadDto,
     @CurrentPrincipal() actor: Principal,
     @CurrentApiKey() key: ApiKeyContext | undefined,
   ) {
     requireCompanyKey(key);
-    return this.leads.convert(id, dto, actor);
+    // why the sales workflow stopped shows on the Lead page (11 พ.ย. 2569)
+    try {
+      const deal = await this.leads.convert(id, dto, actor);
+      await this.automation.resolve({ leadId: id }, 'convert_lead', actor);
+      return deal;
+    } catch (error) {
+      await this.automation.record(
+        { leadId: id },
+        'convert_lead',
+        error,
+        actor,
+      );
+      throw error;
+    }
   }
 }
 
