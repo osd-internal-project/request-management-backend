@@ -16,6 +16,7 @@ import { DomainEventsService } from '../events/domain-events.service';
 import type { LeadEventPayload } from '../events/event-catalog';
 import { LeadStatusService } from './lead-status.service';
 import { LeadActivityRepository, LeadRepository } from './sales.repositories';
+import { contactsOf, type LeadContactRow } from './lead-contact-rules';
 import { CampaignsService } from './campaigns.service';
 import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
 import { OpportunitiesService } from './opportunities.service';
@@ -138,7 +139,7 @@ export interface LeadEventRow {
 }
 
 /** The webhook payload of a lead event — identity and state only, no contact data. */
-function leadEvent(
+export function leadEvent(
   companyId: string,
   row: LeadEventRow,
   extra: Partial<LeadEventPayload> = {},
@@ -218,6 +219,19 @@ export class LeadsService {
         { contactName: { contains: q, mode: 'insensitive' } },
         { phone: { contains: q } },
         { email: { contains: q, mode: 'insensitive' } },
+        // ผู้ติดต่อเพิ่มเติม — ค้นเจอด้วยชื่อ/เบอร์/อีเมลของคนที่ไม่ใช่ผู้ติดต่อหลักด้วย
+        {
+          contacts: {
+            some: {
+              active: true,
+              OR: [
+                { name: { contains: q, mode: 'insensitive' } },
+                { phone: { contains: q } },
+                { email: { contains: q, mode: 'insensitive' } },
+              ],
+            },
+          },
+        },
       ];
     }
 
@@ -293,6 +307,7 @@ export class LeadsService {
         },
         campaign: { select: { id: true, code: true, name: true } },
         activities: { orderBy: { createdAt: 'desc' } },
+        contacts: { where: { active: true }, orderBy: { createdAt: 'asc' } },
         targetAccount: {
           select: { id: true, name: true, priority: true, status: true },
         },
@@ -300,6 +315,11 @@ export class LeadsService {
     })) as
       | ({
           ownerUserId: string | null;
+          contactName: string | null;
+          contactPosition: string | null;
+          phone: string | null;
+          email: string | null;
+          contacts: LeadContactRow[];
           activities: {
             createdBy: string;
             completedBy: string | null;
@@ -347,6 +367,8 @@ export class LeadsService {
             displayName: nameOf.get(found.ownerUserId) ?? found.ownerUserId,
           }
         : null,
+      /** ผู้ติดต่อทั้งหมด — หลัก (สี่คอลัมน์บน Lead) ก่อน แล้วตามด้วยคนที่เพิ่มทีหลัง. */
+      contacts: contactsOf(found, found.contacts ?? []),
       activities: found.activities.map((activity) => ({
         ...activity,
         createdByName: nameOf.get(activity.createdBy) ?? activity.createdBy,
@@ -900,7 +922,7 @@ export class LeadsService {
   }
 
   /** Visible AND still workable (anything but converted/disqualified). SCOPE-03: unseen = 404. */
-  private async requireOpen(id: string, actor: Principal) {
+  async requireOpen(id: string, actor: Principal) {
     const found = (await this.leads.findFirst({
       where: {
         id,
@@ -917,6 +939,7 @@ export class LeadsService {
       convertedOpportunityId: string | null;
       taxId: string | null;
       contactName: string | null;
+      contactPosition: string | null;
       phone: string | null;
       email: string | null;
     } | null;

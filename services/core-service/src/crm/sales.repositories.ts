@@ -572,3 +572,17 @@ export class LeadFileRepository extends BaseRepository<
     return client.leadFile;
   }
 }
+
+/** ผู้ติดต่อเพิ่มเติมของ Lead (12 พ.ย. 2569) — ผู้ติดต่อหลักอยู่บน `leads`. */
+@Injectable()
+export class LeadContactRepository extends BaseRepository<
+  PrismaService['leadContact']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.leadContact;
+  }
+}
