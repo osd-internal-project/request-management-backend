@@ -748,8 +748,10 @@ export class ProjectsService {
     actor: Principal,
     mineOnly: boolean,
   ): Prisma.ProjectWhereInput {
-    if (!mineOnly && hasPermission(actor, 'pm.project.read')) return {};
+    const company = { companyId: actor.activeCompanyId };
+    if (!mineOnly && hasPermission(actor, 'pm.project.read')) return company;
     return {
+      ...company,
       OR: [
         { managerUserId: actor.userId },
         { members: { some: { userId: actor.userId } } },
