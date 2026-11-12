@@ -112,9 +112,9 @@ describe('crm/ai/leads — AI acting for the company', () => {
       code: 'FORBIDDEN',
     });
     const unbound = { companyId: null } as unknown as ApiKeyContext;
-    expect(() => controller.convert('lead-1', {}, actor, unbound)).toThrow(
-      'API key ที่ผูกบริษัท',
-    );
+    await expect(
+      controller.convert('lead-1', {}, actor, unbound),
+    ).rejects.toThrow('API key ที่ผูกบริษัท');
     expect(leads.findOne).not.toHaveBeenCalled();
     expect(leads.convert).not.toHaveBeenCalled();
   });
