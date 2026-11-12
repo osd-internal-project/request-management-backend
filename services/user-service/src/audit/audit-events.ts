@@ -43,6 +43,9 @@ export const AuditEvent = {
   IDENTITY_ROLE_REVOKED: 'identity.role.revoked',
   IDENTITY_GROUP_JOINED: 'identity.group.joined',
   IDENTITY_GROUP_LEFT: 'identity.group.left',
+  // A login matched by username took over a row under a new Keycloak subject
+  // (the id24 realm move). Kept visible because the same path is a takeover.
+  IDENTITY_RELINKED: 'identity.relinked',
 } as const;
 
 export type AuditEventType = (typeof AuditEvent)[keyof typeof AuditEvent];

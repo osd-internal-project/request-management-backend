@@ -68,3 +68,26 @@ describe('upsertFromClaims — อีเมล', () => {
     });
   });
 });
+
+describe('upsertFromClaims — ผูก id ใหม่ (identity.relinked)', () => {
+  it('จับด้วย username แล้วได้ sub ใหม่ → บอก id เดิมกลับไปให้ลง audit', async () => {
+    const repo = new UsersRepository({} as PrismaService);
+    jest.spyOn(repo, 'findByKeycloakId').mockResolvedValue(null);
+    jest
+      .spyOn(repo, 'findUnique')
+      .mockResolvedValue({ id: 'u1', displayName: 'Old', keycloakId: 'kc-old' } as User);
+    jest.spyOn(repo, 'update').mockResolvedValue({ id: 'u1' } as User);
+
+    await expect(repo.upsertFromClaims(claims)).resolves.toMatchObject({
+      relinkedFrom: 'kc-old',
+    });
+  });
+
+  it('sub เดิม → ไม่ใช่การผูกใหม่', async () => {
+    const { repo } = repositoryWith({ id: 'u1', displayName: 'Old', keycloakId: 'kc-1' });
+
+    await expect(repo.upsertFromClaims(claims)).resolves.toMatchObject({
+      relinkedFrom: null,
+    });
+  });
+});

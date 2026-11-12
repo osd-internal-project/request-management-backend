@@ -33,7 +33,11 @@ describe('a suspended person gets no principal', () => {
     };
 
     return new PrincipalService(
-      { upsertFromClaims: jest.fn().mockResolvedValue(user) } as never,
+      {
+        upsertFromClaims: jest
+          .fn()
+          .mockResolvedValue({ user, relinkedFrom: null }),
+      } as never,
       org as never,
       { rolesForUser: jest.fn().mockResolvedValue([]) } as never,
       {
@@ -41,6 +45,7 @@ describe('a suspended person gets no principal', () => {
         listAllSensitiveFieldKeys: jest.fn().mockResolvedValue([]),
       } as never,
       { get: () => 'request-form' } as never,
+      { record: jest.fn() } as never,
     );
   }
 
@@ -60,5 +65,50 @@ describe('a suspended person gets no principal', () => {
     await expect(serviceFor('ACTIVE').resolve(payload)).resolves.toMatchObject({
       userId: 'u-1',
     });
+  });
+});
+
+describe('identity.relinked — a username match that takes a row is on the record', () => {
+  it('writes an audit row with the old and new Keycloak subject', async () => {
+    const user = {
+      id: 'u-1',
+      keycloakId: 'kc-new',
+      username: 'somchai',
+      displayName: 'Somchai',
+      email: null,
+      orgUnitId: null,
+      supervisorUserId: null,
+      lastCompanyId: null,
+      primaryCompanyId: 'osd',
+      keycloakRoles: [],
+      status: 'ACTIVE',
+    };
+    const audit = { record: jest.fn().mockResolvedValue(undefined) };
+    const service = new PrincipalService(
+      {
+        upsertFromClaims: jest
+          .fn()
+          .mockResolvedValue({ user, relinkedFrom: 'kc-old' }),
+      } as never,
+      { companiesForUser: jest.fn().mockResolvedValue([]) } as never,
+      {} as never,
+      {} as never,
+      { get: () => 'request-form' } as never,
+      audit as never,
+    );
+
+    await service.resolve({
+      sub: 'kc-new',
+      preferred_username: 'somchai',
+    } as unknown as KeycloakJwtPayload);
+
+    expect(audit.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: 'identity.relinked',
+        resourceId: 'u-1',
+        before: { keycloakId: 'kc-old' },
+        after: { keycloakId: 'kc-new' },
+      }),
+    );
   });
 });

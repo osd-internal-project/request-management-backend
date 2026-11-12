@@ -97,3 +97,54 @@ describe('SCOPE-02 opening one case needs a reason, not just approval.decide', (
     expect(where.OR[2]).toHaveProperty('request');
   });
 });
+
+describe('SCOPE-02 the decided-case history follows the same reach', () => {
+  function historyWith(permissions: string[]) {
+    const search = jest.fn<Promise<unknown[]>, [Record<string, unknown>, unknown]>(
+      () => Promise.resolve([]),
+    );
+    const service = new ApprovalsService(
+      { search, countWhere: jest.fn(() => Promise.resolve(0)) } as never,
+      { delegatorsFor: jest.fn(() => Promise.resolve([])) } as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
+    const actor = {
+      userId: 'user-x',
+      activeCompanyId: OSD,
+      permissions,
+      scopeGrants: [],
+      ledUnitIds: [],
+    } as unknown as Principal;
+    return { service, search, actor };
+  }
+
+  it('approval.history.read alone: only cases the person can open', async () => {
+    const { service, search, actor } = historyWith(['approval.history.read']);
+
+    await service.history(actor, {} as never);
+
+    expect(search.mock.calls[0][0]).toHaveProperty('OR');
+  });
+
+  it('approval.history.read.all: the whole company', async () => {
+    const { service, search, actor } = historyWith([
+      'approval.history.read',
+      'approval.history.read.all',
+    ]);
+
+    await service.history(actor, {} as never);
+
+    expect(search.mock.calls[0][0]).toEqual({
+      companyId: OSD,
+      status: { not: 'pending' },
+    });
+  });
+});

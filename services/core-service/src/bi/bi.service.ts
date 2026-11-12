@@ -190,7 +190,8 @@ export class BiService {
             title: dto.title.trim(),
             metabaseDashboardId: dto.metabase_dashboard_id,
             sortOrder: dto.sort_order ?? 0,
-            lockCompany: dto.lock_company ?? false,
+            // Unlocked shows every company's rows; opting out has to be deliberate.
+            lockCompany: dto.lock_company ?? true,
             createdBy: actor.userId,
             audiences: {
               create: orgUnitIds.map((orgUnitId) => ({ orgUnitId })),

@@ -8,8 +8,8 @@ import {
   decidableStepWhere,
   PrismaTransactionService,
   paginated,
+  reachableCaseWhere,
   toSkipTake,
-  visibleRequestsWhere,
 } from '@request-management/share';
 import type { PageQueryDto, Principal } from '@request-management/share';
 import { Prisma } from '@prisma/client';
@@ -1499,6 +1499,14 @@ export class ApprovalsService {
    * delegations without reaching into the delegation table themselves — the
    * "อนุมัติ" tab has to count the same rows this module lets them decide.
    */
+  /** SCOPE-02 — the cases one person may open; `reachableCaseWhere` is the rule. */
+  private async reachable(
+    actor: Principal,
+  ): Promise<Prisma.ApprovalCaseWhereInput> {
+    const subject = accessSubject(actor, await this.coveringFor(actor));
+    return reachableCaseWhere(subject) as Prisma.ApprovalCaseWhereInput;
+  }
+
   coveringFor(actor: Principal): Promise<string[]> {
     return this.delegations.delegatorsFor(
       actor.activeCompanyId,
@@ -1560,25 +1568,9 @@ export class ApprovalsService {
       throw new AppError('NOT_FOUND', 'ไม่พบรายการอนุมัติที่ระบุ');
     }
 
-    /*
-      SCOPE-02: holding `approval.decide` is not a licence to open every case.
-      The case is open to whoever a step names (now or when it was decided)
-      and to whoever may see the request behind it — the inbox's own rule.
-    */
-    const subject = accessSubject(actor, await this.coveringFor(actor));
     const reachable = await this.cases.countWhere({
       id: caseId,
-      OR: [
-        {
-          steps: {
-            some: decidableStepWhere(subject) as Prisma.ApprovalStepWhereInput,
-          },
-        },
-        { steps: { some: { decidedByUserId: actor.userId } } },
-        {
-          request: visibleRequestsWhere(subject) as Prisma.RequestWhereInput,
-        },
-      ],
+      ...(await this.reachable(actor)),
     });
     if (reachable === 0) {
       throw new AppError('NOT_FOUND', 'ไม่พบรายการอนุมัติที่ระบุ');
@@ -1595,6 +1587,9 @@ export class ApprovalsService {
       companyId: actor.activeCompanyId,
       status: { not: 'pending' },
       ...(subjectType ? { subjectType } : {}),
+      ...(actor.permissions.includes('approval.history.read.all')
+        ? {}
+        : await this.reachable(actor)),
     };
 
     const [rows, total] = await Promise.all([

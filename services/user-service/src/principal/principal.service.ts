@@ -8,6 +8,8 @@ import {
   PrincipalCompany,
 } from '@request-management/share';
 import type { User } from '@prisma/client';
+import { AuditService } from '../audit/audit.service';
+import { AuditEvent } from '../audit/audit-events';
 import { OrgService } from '../org/org.service';
 import { PolicyService } from '../policy/policy.service';
 import { RolesService } from '../roles/roles.service';
@@ -57,6 +59,7 @@ export class PrincipalService {
     private readonly roles: RolesService,
     private readonly policy: PolicyService,
     private readonly config: ConfigService,
+    private readonly audit: AuditService,
   ) {}
 
   async resolve(
@@ -243,11 +246,11 @@ export class PrincipalService {
   }
 
   /** AUTH-04: create the local profile on first login, from token claims only. */
-  private provision(
+  private async provision(
     payload: KeycloakJwtPayload,
     keycloakRoles: readonly string[],
   ): Promise<User> {
-    return this.users.upsertFromClaims({
+    const { user, relinkedFrom } = await this.users.upsertFromClaims({
       keycloakRoles,
       keycloakId: payload.sub,
       username: payload.preferred_username,
@@ -262,6 +265,21 @@ export class PrincipalService {
           ? payload['family_name']
           : null,
     });
+
+    if (relinkedFrom) {
+      await this.audit.record({
+        eventType: AuditEvent.IDENTITY_RELINKED,
+        companyId: user.primaryCompanyId,
+        actorId: user.id,
+        actorUsername: user.username,
+        resourceType: 'user',
+        resourceId: user.id,
+        before: { keycloakId: relinkedFrom },
+        after: { keycloakId: user.keycloakId },
+      });
+    }
+
+    return user;
   }
 
   private pendingPrincipal(

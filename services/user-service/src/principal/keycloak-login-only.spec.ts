@@ -31,7 +31,7 @@ describe('Keycloak login only — token roles grant nothing', () => {
   */
   function serviceWith(manualRoles: unknown[] = []) {
     const users = {
-      upsertFromClaims: jest.fn().mockResolvedValue(USER),
+      upsertFromClaims: jest.fn().mockResolvedValue({ user: USER, relinkedFrom: null }),
       findActiveByEmail: jest.fn().mockResolvedValue(USER),
     };
     const org = {
@@ -66,6 +66,7 @@ describe('Keycloak login only — token roles grant nothing', () => {
       roles as never,
       policy as never,
       config as never,
+      { record: jest.fn() } as never,
     );
 
     return { service, roles };
@@ -150,6 +151,7 @@ describe('internal/principal/resolve-by-email — through the real PolicyGuard',
       {} as never,
       {} as never,
       config as never,
+      { record: jest.fn() } as never,
     );
     return { service };
   }
