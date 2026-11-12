@@ -84,7 +84,7 @@ export class UsersRepository extends BaseRepository<PrismaService['user']> {
   async upsertFromClaims(
     claims: KeycloakUserClaims,
     option?: TxOption,
-  ): Promise<User> {
+  ): Promise<{ user: User; relinkedFrom: string | null }> {
     const now = new Date();
 
     const profile = {
@@ -105,7 +105,7 @@ export class UsersRepository extends BaseRepository<PrismaService['user']> {
       // A Thai name comes from the HR register; the shared id24 realm only holds the English one.
       const keepThaiName = /[฀-๿]/.test(existing.displayName);
 
-      return this.update(
+      const user = await this.update(
         {
           where: { id: existing.id },
           // Re-key onto the current subject id when the realm has changed.
@@ -120,9 +120,12 @@ export class UsersRepository extends BaseRepository<PrismaService['user']> {
         },
         option,
       );
+      const relinkedFrom =
+        existing.keycloakId === claims.keycloakId ? null : existing.keycloakId;
+      return { user, relinkedFrom };
     }
 
-    return this.create(
+    const user = await this.create(
       {
         data: {
           ...profile,
@@ -132,6 +135,7 @@ export class UsersRepository extends BaseRepository<PrismaService['user']> {
       },
       option,
     );
+    return { user, relinkedFrom: null };
   }
 
   /** Members of one org unit, with the supervisor A3 prints beside each name. */

@@ -29,7 +29,12 @@ export const PERMISSIONS = {
     /** SCOPE-04: unmasks margin, discount, and other flagged fields. */
     'request.sensitive.read',
   ],
-  approval: ['approval.decide', 'approval.delegate', 'approval.history.read'],
+  approval: [
+    'approval.decide',
+    'approval.delegate',
+    'approval.history.read',
+    'approval.history.read.all',
+  ],
   crm: [
     'crm.customer.read',
     /**
