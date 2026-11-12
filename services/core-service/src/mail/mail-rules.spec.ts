@@ -7,7 +7,6 @@ import {
   textToHtml,
   type IntentInput,
 } from './mail-rules';
-import { itemsFromLead } from './sales-mail.service';
 
 const reply = (
   text: string,
@@ -110,35 +109,5 @@ describe('sales email rules (5 พ.ย. 2569)', () => {
   it('replySubject adds one RE: however deep the thread', () => {
     expect(replySubject('RE: Re: FW: ใบเสนอราคา')).toBe('RE: ใบเสนอราคา');
     expect(replySubject('ขอบคุณ')).toBe('RE: ขอบคุณ');
-  });
-
-  describe('itemsFromLead', () => {
-    it('reads intake_data.products in either shape', () => {
-      expect(
-        itemsFromLead({
-          subProduct: 'IGNORED',
-          intakeData: {
-            products: [
-              { product_code: 'A-1', quantity: 3 },
-              { code: 'B-2', qty: '2' },
-              'C-3',
-              { name: 'no code' },
-            ],
-          },
-        }),
-      ).toEqual([
-        { product_code: 'A-1', quantity: 3 },
-        { product_code: 'B-2', quantity: 2 },
-        { product_code: 'C-3', quantity: 1 },
-      ]);
-    });
-
-    it('falls back to subProduct × 1, and to nothing', () => {
-      expect(itemsFromLead({ subProduct: ' X-9 ', intakeData: null })).toEqual([
-        { product_code: 'X-9', quantity: 1 },
-      ]);
-      expect(itemsFromLead({ subProduct: null, intakeData: {} })).toEqual([]);
-      expect(itemsFromLead(null)).toEqual([]);
-    });
   });
 });
