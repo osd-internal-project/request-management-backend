@@ -1,6 +1,7 @@
 import {
   ageInDays,
   bestVendorCost,
+  cleanManualCost,
   costIsStale,
   thaiToday,
   vendorCostSource,
@@ -80,5 +81,69 @@ describe('CD-206 ต้นทุนคู่ค้า', () => {
     expect(
       vendorCostSource(row({ source: 'special_price', docNo: null })),
     ).toBe('SAP: ราคาพิเศษผู้ขาย · ผู้ขาย 1');
+  });
+
+  describe('ต้นทุนที่กรอกเอง (ยังไม่มี ERP)', () => {
+    const input = {
+      product_code: ' ATOM ',
+      vendor_name: 'ผู้ขาย ก',
+      unit_cost: 1500.005,
+      cost_date: '2026-11-01',
+    };
+
+    it('ไม่ใส่รหัสผู้ขาย = ใช้ชื่อ; สกุลเงินเริ่มที่ THB', () => {
+      expect(cleanManualCost(input, '2026-11-12')).toEqual({
+        ok: true,
+        value: {
+          productCode: 'ATOM',
+          vendorCode: 'ผู้ขาย ก',
+          vendorName: 'ผู้ขาย ก',
+          unitCost: 1500.01,
+          currency: 'THB',
+          costDate: '2026-11-01',
+          validTo: null,
+          docNo: null,
+        },
+      });
+    });
+
+    it('ปฏิเสธวันที่อนาคต วันสิ้นสุดก่อนวันที่ของต้นทุน และต้นทุนติดลบ', () => {
+      const result = cleanManualCost(
+        { ...input, unit_cost: -1, cost_date: '2026-11-13' },
+        '2026-11-12',
+      );
+      expect(result).toEqual({
+        ok: false,
+        problems: [
+          { field: 'unit_cost', reason: 'not_negative_number' },
+          { field: 'cost_date', reason: 'not_after_today' },
+        ],
+      });
+      expect(
+        cleanManualCost({ ...input, valid_to: '2026-10-31' }, '2026-11-12'),
+      ).toMatchObject({
+        ok: false,
+        problems: [{ field: 'valid_to', reason: 'before_cost_date' }],
+      });
+    });
+
+    it('ใช้เป็นต้นทุนของบรรทัดได้ และหมดอายุตามวันสิ้นสุด', () => {
+      const manual = row({
+        source: 'manual',
+        docNo: 'Q-77',
+        costDate: '2026-09-20',
+        validTo: '2026-10-31',
+      });
+      expect(bestVendorCost([row({}), manual], 'THB', '2026-10-02')).toBe(
+        manual,
+      );
+      expect(
+        bestVendorCost([row({}), manual], 'THB', '2026-11-01')?.source,
+      ).toBe('purchase_order');
+      expect(vendorCostSource(manual)).toBe('กรอกเอง Q-77 · ผู้ขาย 1');
+      expect(vendorCostSource({ ...manual, docNo: null })).toBe(
+        'กรอกเอง · ผู้ขาย 1',
+      );
+    });
   });
 });

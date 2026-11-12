@@ -23,11 +23,16 @@ import {
   VendorCostRepository,
 } from './product.repositories';
 import { CrmConfigRepository } from './segment.repositories';
+import { ProductCatalogService } from './product-catalog.service';
 import {
   ageInDays,
   bestVendorCost,
+  cleanManualCost,
   costIsStale,
+  MANUAL_SOURCE,
   thaiToday,
+  type ManualCost,
+  type ManualCostInput,
   type VendorCostRow,
 } from './vendor-costs';
 
@@ -39,6 +44,7 @@ const LOOKUP_LIMIT = 100;
 const LIST_LIMIT = 500;
 
 interface StoredCost {
+  id: string;
   productCode: string;
   vendorCode: string;
   vendorName: string | null;
@@ -59,6 +65,10 @@ interface StoredCost {
  *
  * A cost older than the company's limit (CRM settings, default 90 days) is
  * marked stale wherever it shows — warned, never blocked.
+ *
+ * A company with no ERP connected yet types its costs in (source `manual`,
+ * 12 Nov 2026): the same table, read by the same rule, never written by the
+ * sync — so connecting SAP later adds rows beside them instead of replacing.
  */
 @Injectable()
 export class VendorCostService implements OnModuleInit, OnModuleDestroy {
@@ -74,6 +84,7 @@ export class VendorCostService implements OnModuleInit, OnModuleDestroy {
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
     private readonly config: ConfigService,
+    private readonly catalog: ProductCatalogService,
   ) {}
 
   onModuleInit(): void {
@@ -220,7 +231,10 @@ export class VendorCostService implements OnModuleInit, OnModuleDestroy {
       take: LIST_LIMIT,
     })) as StoredCost[];
     const today = thaiToday();
-    let items = stored.map((row) => view(plain(row), maxAgeDays, today));
+    let items = stored.map((row) => ({
+      id: row.id,
+      ...view(plain(row), maxAgeDays, today),
+    }));
     if (query.stale === 'true') items = items.filter((item) => item.stale);
     const syncedAt = stored.reduce<Date | null>(
       (latest, row) =>
@@ -228,6 +242,180 @@ export class VendorCostService implements OnModuleInit, OnModuleDestroy {
       null,
     );
     return { maxAgeDays, syncedAt, items };
+  }
+
+  // --- typed-in costs ---------------------------------------------------------
+
+  /** One typed-in cost per product and supplier; a second one is an edit. */
+  async createManual(input: ManualCostInput, actor: Principal) {
+    const companyId = actor.activeCompanyId;
+    const value = this.cleanManual(input);
+    await this.catalog.assertCodes(companyId, [
+      { code: value.productCode, field: 'product_code' },
+    ]);
+    const id = await this.transactions.execute(async (prisma) => {
+      await this.assertNoTwin(companyId, value, null, prisma);
+      const row = (await this.costs.create(
+        {
+          data: {
+            companyId,
+            source: MANUAL_SOURCE,
+            ...columns(value),
+            syncedAt: new Date(),
+          },
+          select: { id: true },
+        },
+        { prisma },
+      )) as { id: string };
+      await this.audit.record(
+        {
+          eventType: 'pricing.vendor_cost.created',
+          companyId,
+          ...auditActor(actor),
+          resourceType: 'vendor_cost',
+          resourceId: row.id,
+          after: { ...value },
+        },
+        { prisma },
+      );
+      return row.id;
+    });
+    return this.one(companyId, id);
+  }
+
+  /** A partial edit keeps what it does not name. SAP's rows are not editable. */
+  async updateManual(id: string, input: ManualCostInput, actor: Principal) {
+    const companyId = actor.activeCompanyId;
+    const before = await this.requireManual(companyId, id);
+    const value = this.cleanManual({
+      product_code: before.productCode,
+      vendor_code: before.vendorCode,
+      vendor_name: before.vendorName,
+      unit_cost: before.unitCost,
+      currency: before.currency,
+      cost_date: before.costDate,
+      valid_to: before.validTo,
+      doc_no: before.docNo,
+      ...Object.fromEntries(
+        Object.entries(input).filter(([, sent]) => sent !== undefined),
+      ),
+    });
+    if (value.productCode !== before.productCode) {
+      await this.catalog.assertCodes(companyId, [
+        { code: value.productCode, field: 'product_code' },
+      ]);
+    }
+    await this.transactions.execute(async (prisma) => {
+      await this.assertNoTwin(companyId, value, id, prisma);
+      await this.costs.update(
+        { where: { id }, data: { ...columns(value), syncedAt: new Date() } },
+        { prisma },
+      );
+      await this.audit.record(
+        {
+          eventType: 'pricing.vendor_cost.updated',
+          companyId,
+          ...auditActor(actor),
+          resourceType: 'vendor_cost',
+          resourceId: id,
+          before: { ...before },
+          after: { ...value },
+        },
+        { prisma },
+      );
+    });
+    return this.one(companyId, id);
+  }
+
+  /**
+   * Removes a typed-in cost. This table is a reference copy, not a
+   * transaction — quotation lines keep the cost and source they were priced
+   * on — and the audit entry keeps what was removed.
+   */
+  async removeManual(id: string, actor: Principal) {
+    const companyId = actor.activeCompanyId;
+    const before = await this.requireManual(companyId, id);
+    await this.transactions.execute(async (prisma) => {
+      await this.costs.delete({ where: { id } }, { prisma });
+      await this.audit.record(
+        {
+          eventType: 'pricing.vendor_cost.deleted',
+          companyId,
+          ...auditActor(actor),
+          resourceType: 'vendor_cost',
+          resourceId: id,
+          before: { ...before },
+        },
+        { prisma },
+      );
+    });
+    return { id };
+  }
+
+  private cleanManual(input: ManualCostInput): ManualCost {
+    const cleaned = cleanManualCost(input, thaiToday());
+    if (!cleaned.ok) {
+      throw new AppError(
+        'VALIDATION_FAILED',
+        'ข้อมูลต้นทุนไม่ถูกต้อง',
+        cleaned.problems,
+      );
+    }
+    return cleaned.value;
+  }
+
+  /** Another company's row, or one SAP wrote, answers 404 / 409. */
+  private async requireManual(companyId: string, id: string) {
+    const found = (await this.costs.findFirst({
+      where: { id, companyId },
+    })) as StoredCost | null;
+    if (!found) throw new AppError('NOT_FOUND', 'ไม่พบต้นทุนรายการนี้');
+    if (found.source !== MANUAL_SOURCE) {
+      throw new AppError(
+        'CONFLICT',
+        'ต้นทุนรายการนี้มาจาก SAP — แก้ที่ SAP แล้วดึงใหม่',
+      );
+    }
+    return plain(found);
+  }
+
+  private async assertNoTwin(
+    companyId: string,
+    value: ManualCost,
+    exceptId: string | null,
+    prisma: Prisma.TransactionClient,
+  ) {
+    const twin = (await this.costs.findFirst(
+      {
+        where: {
+          companyId,
+          productCode: value.productCode,
+          vendorCode: value.vendorCode,
+          source: MANUAL_SOURCE,
+          ...(exceptId ? { id: { not: exceptId } } : {}),
+        },
+        select: { id: true },
+      },
+      { prisma },
+    )) as { id: string } | null;
+    if (twin) {
+      throw new AppError(
+        'CONFLICT',
+        `มีต้นทุนที่กรอกเองของ ${value.productCode} จากผู้ขาย ${value.vendorName} อยู่แล้ว — แก้รายการเดิม`,
+        [{ field: 'vendor_name', reason: 'duplicate' }],
+      );
+    }
+  }
+
+  private async one(companyId: string, id: string) {
+    const row = (await this.costs.findFirst({
+      where: { id, companyId },
+    })) as StoredCost;
+    const today = thaiToday();
+    return {
+      id: row.id,
+      ...view(plain(row), await this.maxAgeDays(companyId), today),
+    };
   }
 
   /** For the quotation: every stored cost of these products, as plain rows. */
@@ -247,6 +435,19 @@ export class VendorCostService implements OnModuleInit, OnModuleDestroy {
     })) as { costMaxAgeDays: number } | null;
     return found?.costMaxAgeDays ?? 90;
   }
+}
+
+function columns(value: ManualCost) {
+  return {
+    productCode: value.productCode,
+    vendorCode: value.vendorCode,
+    vendorName: value.vendorName,
+    unitCost: value.unitCost,
+    currency: value.currency,
+    docNo: value.docNo,
+    costDate: new Date(`${value.costDate}T00:00:00Z`),
+    validTo: value.validTo ? new Date(`${value.validTo}T00:00:00Z`) : null,
+  };
 }
 
 function day(value: Date): string {
