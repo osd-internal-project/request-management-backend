@@ -41,4 +41,13 @@ describe('SCOPE-02 a request page asks for its work order', () => {
     await expect(service.ofRequest(actor, 'req-1')).resolves.toBeNull();
     expect(requests.findOne).toHaveBeenCalledWith('req-1', actor);
   });
+
+  it('a company key reading as the company is not held to one person’s requests', async () => {
+    const { service, requests, orders } = serviceWith(false);
+    const machine = { ...actor, isServiceAccount: true } as Principal;
+
+    await expect(service.ofRequest(machine, 'req-1')).resolves.toBeNull();
+    expect(requests.findOne).not.toHaveBeenCalled();
+    expect(orders.findFirst).toHaveBeenCalled();
+  });
 });
