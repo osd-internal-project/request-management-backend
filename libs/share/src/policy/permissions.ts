@@ -301,6 +301,22 @@ export const PERMISSIONS = {
     'admin.document.manage',
   ],
   /**
+   * P5 ระดับระบบ — ถือได้เฉพาะ role `level = SYSTEM` ผ่าน `SystemUserRole` และตรวจด้วย
+   * `@SystemPermissions` เท่านั้น ไม่ปนกับสิทธิ์ของบริษัท และไม่มีคู่ `integration.*`.
+   */
+  system: [
+    'system.user.read',
+    /** ปิด/เปิดผู้ใช้ และเพิ่ม/ถอดบริษัทที่สังกัด — admin บริษัททำได้แค่ "เอาออกจากบริษัท". */
+    'system.user.manage',
+    'system.company.manage',
+    /** role กลาง (template) และ role ระบบ รวมการผูก role ระบบให้คน. */
+    'system.role.manage',
+    'system.integration.manage',
+    'system.audit.read',
+    /** อ่านข้อมูลบริษัทที่ไม่ได้เป็นสมาชิก (P6). */
+    'system.tenant.read',
+  ],
+  /**
    * AUTH-06: สิทธิ์ของบัญชีบริการ — ออกให้กุญแจ API ที่หน้าจอ API key ไม่ใช่
    * สิทธิ์ที่คนทำงานประจำวันควรถือ. หน้า Role ยังแสดงและติ๊กได้ (ทุกสิทธิ์ที่มี
    * ในระบบต้องมองเห็นจากที่เดียว) แต่ขึ้นเป็น `type: 'service'` เพื่อให้รู้ว่า
@@ -495,6 +511,13 @@ export const ACTING_SCOPES: readonly Permission[] = ALL_PERMISSIONS.filter(
     code.startsWith('integration.') &&
     isPermission(code.slice('integration.'.length)),
 );
+
+/** ระดับที่ role ต้องเป็นจึงถือสิทธิ์นี้ได้ — ตรงกับ enum `RoleLevel`. */
+export type PermissionLevel = 'COMPANY' | 'SYSTEM';
+
+export function permissionLevel(permission: Permission): PermissionLevel {
+  return permissionModule(permission) === 'system' ? 'SYSTEM' : 'COMPANY';
+}
 
 export function permissionType(permission: Permission): PermissionType {
   return permissionModule(permission) === 'integration' ? 'service' : 'human';

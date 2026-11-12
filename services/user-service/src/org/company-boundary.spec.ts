@@ -196,6 +196,7 @@ function role(companyId: string | null): Role {
     name: 'Sales',
     active: true,
     isSystem: false,
+    level: 'COMPANY',
   } as Role;
 }
 
@@ -302,5 +303,17 @@ describe('ROLE-04 roles stay inside the admin company', () => {
       expect.objectContaining({ userId: 'user-1', roleId: 'role-1', companyId: OSD }),
       expect.anything(),
     );
+  });
+
+  it('P5 — a system role is not bindable from a company screen (404)', async () => {
+    const { service, grant } = rolesService({
+      role: { ...role(null), level: 'SYSTEM' } as Role,
+      userCompanies: [OSD],
+    });
+
+    await expect(
+      service.grantRole('user-1', 'role-1', OSD, adminOf(OSD)),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    expect(grant).not.toHaveBeenCalled();
   });
 });

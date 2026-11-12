@@ -28,6 +28,12 @@ enum UserStatus {
   SUSPENDED
 }
 
+/// COMPANY = role ของบริษัท (หรือ template เมื่อ companyId null) · SYSTEM = role ระดับระบบ ถือได้แค่ `system.*`
+enum RoleLevel {
+  COMPANY
+  SYSTEM
+}
+
 /// The five levels of the chart: บริษัท → ฝ่าย → แผนก → ทีม → ตำแหน่ง.
 ///
 /// **The order is declared in `libs/share/src/org/org-levels.ts`, not here.**
@@ -389,6 +395,7 @@ model Company {
   roles                   Role[]
   userRoles               UserRole[]
   keycloakMappings        KeycloakRoleMapping[]
+  hrSkills                HrSkill[]
   requestTypes            RequestTypeCompany[]
   requests                Request[]
   docNumberConfigs        DocNumberConfig[]
@@ -447,6 +454,10 @@ model User {
   firstName   String?
   lastName    String?
   status      UserStatus @default(ACTIVE)
+  /// ปิดได้เฉพาะ system admin (`/system/users`); สามช่องนี้ว่างเมื่อเปิดใช้อีกครั้ง
+  suspendedAt   DateTime?
+  suspendedBy   String?
+  suspendReason String?
 
   primaryCompanyId String?
   primaryCompany   Company? @relation("PrimaryCompany", fields: [primaryCompanyId], references: [id])
@@ -525,6 +536,7 @@ model User {
 
   companies               UserCompany[]
   roles                   UserRole[]               @relation("RoleHolder")
+  systemRoles             SystemUserRole[]         @relation("SystemRoleHolder")
   grantedRoles            UserRole[]               @relation("RoleGranter")
   managedUnits            OrgUnit[]                @relation("OrgUnitManager")
   requests                Request[]                @relation("Requester")
@@ -755,6 +767,9 @@ model Role {
   /// their group or from a scope grant ticked to allow it.
   visibilityLevel OrgUnitKind?
 
+  /// SYSTEM ต้องมี companyId = null (CHECK `roles_system_has_no_company`)
+  level RoleLevel @default(COMPANY)
+
   createdAt DateTime @default(now())
   createdBy String?
   updatedAt DateTime @updatedAt
@@ -763,6 +778,7 @@ model Role {
   company          Company?              @relation(fields: [companyId], references: [id])
   permissions      RolePermission[]
   users            UserRole[]
+  systemUsers      SystemUserRole[]
   scopeRules       ScopeRule[]
   keycloakMappings KeycloakRoleMapping[]
 
@@ -817,6 +833,21 @@ model UserRole {
   @@unique([userId, roleId, companyId])
   @@index([companyId, userId])
   @@map("user_roles")
+}
+
+/// role ระดับระบบ ไม่ผูกบริษัท — ให้ `Principal.systemPermissions` แยกจากสิทธิ์บริษัท
+model SystemUserRole {
+  id              String   @id @default(uuid())
+  userId          String
+  roleId          String
+  grantedByUserId String?
+  grantedAt       DateTime @default(now())
+
+  user User @relation("SystemRoleHolder", fields: [userId], references: [id])
+  role Role @relation(fields: [roleId], references: [id])
+
+  @@unique([userId, roleId])
+  @@map("system_user_roles")
 }
 
 /// ROLE-03: "Keycloak role → role in this system", per company. Re-evaluated
@@ -6932,9 +6963,12 @@ model HrEmployee {
   @@map("hr_employees")
 }
 
-/// CD-229 รายการทักษะที่ HR ดูแล — ใช้ร่วมทุกบริษัท.
+/// CD-229 รายการทักษะที่ HR ดูแล — `companyId` null = ทักษะกลาง (แก้ได้เฉพาะ system admin).
+///
+/// `code` คง unique ทั้งระบบ: ทักษะติดตัวคนข้ามบริษัท รหัสเดียวต้องหมายถึงทักษะเดียว
 model HrSkill {
   id        String   @id @default(uuid())
+  companyId String?
   code      String   @unique
   name      String
   category  String   @default("")
@@ -6943,8 +6977,10 @@ model HrSkill {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  company Company?      @relation(fields: [companyId], references: [id], onDelete: Restrict)
   holders HrUserSkill[]
 
+  @@index([companyId])
   @@map("hr_skills")
 }
 

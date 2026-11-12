@@ -67,6 +67,7 @@ const SCOPE_DB = process.env.EXTERNAL_SMOKE_DB_URL;
         sensitiveFieldsAll: [],
         isServiceAccount: true,
         pendingOrgAssignment: false,
+        systemPermissions: [],
       } as unknown as Principal;
     }
 

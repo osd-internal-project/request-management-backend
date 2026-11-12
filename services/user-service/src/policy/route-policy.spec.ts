@@ -7,6 +7,7 @@ import {
   AUTHENTICATED_KEY,
   PERMISSIONS_KEY,
   PUBLIC_KEY,
+  SYSTEM_PERMISSIONS_KEY,
 } from '@request-management/share';
 
 /**
@@ -18,6 +19,7 @@ const POLICY_KEYS = [
   PERMISSIONS_KEY,
   ANY_PERMISSION_KEY,
   AUTHENTICATED_KEY,
+  SYSTEM_PERMISSIONS_KEY,
 ];
 
 function controllerFiles(dir: string): string[] {
@@ -64,5 +66,28 @@ function routesWithoutPolicy(): string[] {
 describe('ROLE-01 — every user-service route declares an access policy', () => {
   it('has no route that PolicyGuard would refuse for lack of a policy', () => {
     expect(routesWithoutPolicy()).toEqual([]);
+  });
+});
+
+describe('P5 — every /system route is gated on system.*', () => {
+  it('declares @SystemPermissions on each SystemController handler', () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { SystemController } = require('../system/system.controller') as {
+      SystemController: { prototype: object; name: string };
+    };
+    const reflector = new Reflector();
+    const ungated = Object.getOwnPropertyNames(SystemController.prototype)
+      .filter((name) => name !== 'constructor')
+      .filter((name) => {
+        const handler: unknown = Reflect.get(SystemController.prototype, name);
+        if (typeof handler !== 'function') return false;
+        const declared = reflector.get<string[] | undefined>(
+          SYSTEM_PERMISSIONS_KEY,
+          handler,
+        );
+        return !declared?.every((code) => code.startsWith('system.'));
+      });
+
+    expect(ungated).toEqual([]);
   });
 });

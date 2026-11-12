@@ -485,6 +485,35 @@ export class OrgService {
   }
 
   /** §11.2 `PATCH /admin/users/{id}/org`. */
+  /**
+   * Q6: a company admin takes a person out of **their** company — grants,
+   * membership and placement there. Suspending the account is `/system` only.
+   */
+  async removeFromCompany(userId: string, actor: Principal): Promise<void> {
+    const companyId = actor.activeCompanyId;
+    if (userId === actor.userId) {
+      throw new AppError('UNPROCESSABLE', 'เอาตัวเองออกจากบริษัทไม่ได้');
+    }
+    await this.requireUserInCompany(userId, companyId);
+
+    await this.transactions.execute(async (prisma) => {
+      const option = { prisma };
+      await this.memberships.detachFromCompany(userId, companyId, option);
+      await this.audit.record(
+        {
+          eventType: AuditEvent.ORG_USER_REMOVED,
+          companyId,
+          actorId: actor.userId,
+          actorUsername: actor.username,
+          resourceType: 'user',
+          resourceId: userId,
+          before: { companyId },
+        },
+        option,
+      );
+    });
+  }
+
   async assignUser(
     userId: string,
     dto: AssignUserOrgDto,

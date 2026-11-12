@@ -39,7 +39,10 @@ describe('a suspended person gets no principal', () => {
           .mockResolvedValue({ user, relinkedFrom: null }),
       } as never,
       org as never,
-      { rolesForUser: jest.fn().mockResolvedValue([]) } as never,
+      {
+        rolesForUser: jest.fn().mockResolvedValue([]),
+        systemPermissionsOf: jest.fn().mockResolvedValue([]),
+      } as never,
       {
         resolveVisibleSensitiveFields: jest.fn().mockResolvedValue([]),
         listAllSensitiveFieldKeys: jest.fn().mockResolvedValue([]),
@@ -91,7 +94,7 @@ describe('identity.relinked — a username match that takes a row is on the reco
           .mockResolvedValue({ user, relinkedFrom: 'kc-old' }),
       } as never,
       { companiesForUser: jest.fn().mockResolvedValue([]) } as never,
-      {} as never,
+      { systemPermissionsOf: jest.fn().mockResolvedValue([]) } as never,
       {} as never,
       { get: () => 'request-form' } as never,
       audit as never,

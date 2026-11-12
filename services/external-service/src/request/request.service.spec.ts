@@ -13,6 +13,7 @@ function principal(overrides: Partial<Principal> = {}): Principal {
     permissions: ['request.create', 'request.read'],
     isServiceAccount: false,
     pendingOrgAssignment: false,
+    systemPermissions: [],
     ...overrides,
     // Only the fields these paths read. Double cast because a partial principal
     // no longer overlaps the full one enough for a single one.

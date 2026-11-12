@@ -21,9 +21,11 @@ import { PrismaClient } from '@prisma/client';
 import {
   ALL_PERMISSIONS,
   Permission,
+  permissionLevel,
   permissionModule,
   permissionType,
 } from '../share/src/policy/permissions';
+import { ensureSystemAdminRole, SYSTEM_ADMIN_ROLE_CODE } from './system-role';
 
 const prisma = new PrismaClient();
 
@@ -55,6 +57,7 @@ function adminPermissions(): Permission[] {
   return ALL_PERMISSIONS.filter(
     (code) =>
       permissionType(code) === 'human' &&
+      permissionLevel(code) === 'COMPANY' &&
       !ADMIN_READ_EXCLUSIONS.includes(code) &&
       (code.startsWith('admin.') ||
         code.endsWith('.read') ||
@@ -574,33 +577,36 @@ async function seedCompanies() {
   return saved;
 }
 
+/**
+ * Create-only (P5): a role that already exists is the admins' now — re-seeding
+ * used to rename it back and wipe the permissions they ticked. A change to
+ * `SEED_ROLES` for a live database therefore ships as a migration (see P1b).
+ */
 async function seedRoles(companyId: string) {
   for (const role of SEED_ROLES) {
-    const saved = await prisma.role.upsert({
+    const exists = await prisma.role.findUnique({
       where: { companyId_code: { companyId, code: role.code } },
-      update: {
-        name: role.name,
-        description: role.description,
-        isSystem: true,
-        visibilityLevel: role.visibilityLevel ?? null,
-      },
-      create: {
+      select: { id: true },
+    });
+    if (exists) continue;
+
+    await prisma.role.create({
+      data: {
         companyId,
         code: role.code,
         name: role.name,
         description: role.description,
         isSystem: true,
         visibilityLevel: role.visibilityLevel ?? null,
+        permissions: {
+          createMany: {
+            data: role.permissions.map((permissionCode) => ({
+              permissionCode,
+            })),
+            skipDuplicates: true,
+          },
+        },
       },
-    });
-
-    await prisma.rolePermission.deleteMany({ where: { roleId: saved.id } });
-    await prisma.rolePermission.createMany({
-      data: role.permissions.map((permissionCode) => ({
-        roleId: saved.id,
-        permissionCode,
-      })),
-      skipDuplicates: true,
     });
 
     /*
@@ -619,6 +625,7 @@ async function seedRoles(companyId: string) {
 
   console.log(`  roles: ${SEED_ROLES.length}`);
 }
+
 
 /** The tree from mockup A3. */
 async function seedOrgTree(companyId: string) {
@@ -2345,6 +2352,8 @@ async function main() {
     await seedHrLeaveTypes(company.id);
   }
 
+  await ensureSystemAdminRole(prisma);
+  console.log(`  system role: ${SYSTEM_ADMIN_ROLE_CODE}`);
   await seedOrgTree(demo.id);
   await seedSensitiveFields();
   await seedRequestTypes(demo.id, companies);

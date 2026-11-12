@@ -24,6 +24,7 @@ function harness(
   options: {
     level?: unknown;
     skills?: { id: string }[];
+    skillRow?: { id: string; companyId: string | null } | null;
     subordinates?: string[];
     profile?: Record<string, unknown>;
   } = {},
@@ -35,6 +36,13 @@ function harness(
       upsert: jest.fn(() => Promise.resolve({})),
       updateMany: jest.fn(() => Promise.resolve({ count: 0 })),
     },
+  };
+  const skillRepo = {
+    findMany: jest.fn(() => Promise.resolve(options.skills ?? [{ id: 'S1' }])),
+    findFirst: jest.fn(() => Promise.resolve(options.skillRow ?? null)),
+    findUnique: jest.fn(() => Promise.resolve(null)),
+    create: jest.fn(() => Promise.resolve({})),
+    update: jest.fn(() => Promise.resolve({})),
   };
   const service = new EmployeesService(
     {
@@ -69,11 +77,7 @@ function harness(
         ),
       ),
     } as never,
-    {
-      findMany: jest.fn(() =>
-        Promise.resolve(options.skills ?? [{ id: 'S1' }]),
-      ),
-    } as never,
+    skillRepo as never,
     { findMany: jest.fn(() => Promise.resolve([])) } as never,
     {
       subordinatesOf: jest.fn(() =>
@@ -83,7 +87,7 @@ function harness(
     audit as never,
     { execute: (fn: (prisma: unknown) => Promise<unknown>) => fn(tx) } as never,
   );
-  return { service, tx, audit };
+  return { service, tx, audit, skillRepo };
 }
 
 describe('CD-229 ทะเบียนพนักงาน', () => {
@@ -224,5 +228,50 @@ describe('CD-230 สิทธิ์และการปกปิดข้อม
       (await resigned.service.staff(actor('pm', ['pm.project.manage']), {}))
         .items,
     ).toHaveLength(0);
+  });
+});
+
+describe('P5 Q5 — ทักษะแยกต่อบริษัท', () => {
+  const hr = actor('hr', ['hr.employee.manage']);
+
+  it('รายการ = ทักษะกลาง + ของบริษัทที่ active', async () => {
+    const { service, skillRepo } = harness();
+    await service.skillCatalog(hr);
+    expect(skillRepo.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { OR: [{ companyId: null }, { companyId: 'osd' }] },
+      }),
+    );
+  });
+
+  it('ทักษะใหม่ผูกบริษัทที่ active', async () => {
+    const { service, skillRepo } = harness();
+    await service
+      .saveSkill(hr, null, { code: 'py', name: 'Python' })
+      .catch(() => undefined);
+    expect(skillRepo.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ companyId: 'osd', code: 'PY' }),
+    });
+  });
+
+  it('ทักษะกลางแก้ได้เฉพาะ system admin', async () => {
+    const central = { id: 'S1', companyId: null };
+    const { service, skillRepo } = harness({ skillRow: central });
+    await expect(
+      service.saveSkill({ ...hr, systemPermissions: [] } as Principal, 'S1', {
+        name: 'x',
+      }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    expect(skillRepo.update).not.toHaveBeenCalled();
+  });
+
+  it('ทักษะของบริษัทอื่น = 404', async () => {
+    const { service, skillRepo } = harness({ skillRow: null });
+    await expect(
+      service.saveSkill(hr, 'S-other', { name: 'x' }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    expect(skillRepo.findFirst).toHaveBeenCalledWith({
+      where: { id: 'S-other', OR: [{ companyId: null }, { companyId: 'osd' }] },
+    });
   });
 });

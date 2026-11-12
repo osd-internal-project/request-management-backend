@@ -155,7 +155,10 @@ export class PrincipalService {
     user: User,
     requestedCompanyId?: string,
   ): Promise<Principal> {
-    const memberships = await this.org.companiesForUser(user.id);
+    const [memberships, systemPermissions] = await Promise.all([
+      this.org.companiesForUser(user.id),
+      this.roles.systemPermissionsOf(user.id),
+    ]);
     const companies: PrincipalCompany[] = memberships.map((membership) => ({
       id: membership.company.id,
       name: membership.company.name,
@@ -174,7 +177,7 @@ export class PrincipalService {
     // principal that can read /auth/me and nothing else, so the frontend can
     // render the "waiting for assignment" state instead of a broken shell.
     if (!activeCompanyId) {
-      return this.pendingPrincipal(user, companies);
+      return this.pendingPrincipal(user, companies, systemPermissions);
     }
 
     // Keycloak is login only: roles come from grants made in this app, never from token roles.
@@ -233,6 +236,7 @@ export class PrincipalService {
       scopedByPermission: scoped.byPermission,
       roles: userRoles.map((userRole) => userRole.role.code),
       permissions,
+      systemPermissions,
       sensitiveFieldsVisible,
       sensitiveFieldsAll,
       /*
@@ -285,6 +289,7 @@ export class PrincipalService {
   private pendingPrincipal(
     user: User,
     companies: readonly PrincipalCompany[],
+    systemPermissions: readonly Permission[],
   ): Principal {
     return {
       userId: user.id,
@@ -305,6 +310,7 @@ export class PrincipalService {
       scopedByPermission: {},
       roles: [],
       permissions: [] as Permission[],
+      systemPermissions,
       sensitiveFieldsVisible: [],
       sensitiveFieldsAll: [],
       // A `User` row is always a person — see `principalFor`.
@@ -355,6 +361,7 @@ export class PrincipalService {
       sensitiveFieldsAll,
       isServiceAccount: true,
       pendingOrgAssignment: false,
+      systemPermissions: [],
     };
   }
 

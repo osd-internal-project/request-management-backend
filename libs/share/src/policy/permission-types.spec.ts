@@ -1,6 +1,7 @@
 import { AppError } from '../errors';
 import {
   assertHumanPermissions,
+  assertPermissionsFitLevel,
   assertServicePermissions,
 } from './permission-types';
 
@@ -88,5 +89,34 @@ describe('AUTH-06 แยกสิทธิ์ของคนกับของ�
     expect(() =>
       assertServicePermissions(['ไม่มีจริง.อะไรสักอย่าง']),
     ).not.toThrow();
+  });
+});
+
+describe('P5 — role ระดับไหนถือสิทธิ์ระดับนั้น', () => {
+  it('role ระบบถือได้แค่ system.*', () => {
+    expect(() =>
+      assertPermissionsFitLevel('SYSTEM', ['system.user.read']),
+    ).not.toThrow();
+    const error = caught(() =>
+      assertPermissionsFitLevel('SYSTEM', ['system.user.read', 'user.read']),
+    );
+    expect(error.code).toBe('UNPROCESSABLE');
+    expect(error.details).toEqual([
+      { field: 'permissions', reason: 'user.read' },
+    ]);
+  });
+
+  it('role บริษัทถือ system.* ไม่ได้', () => {
+    expect(() =>
+      assertPermissionsFitLevel('COMPANY', ['user.read']),
+    ).not.toThrow();
+    expect(
+      caught(() =>
+        assertPermissionsFitLevel('COMPANY', [
+          'user.read',
+          'system.tenant.read',
+        ]),
+      ).details,
+    ).toEqual([{ field: 'permissions', reason: 'system.tenant.read' }]);
   });
 });

@@ -107,6 +107,8 @@ export interface Principal {
 
   readonly roles: readonly string[];
   readonly permissions: readonly Permission[];
+  /** `system.*` จาก `SystemUserRole` — แยกจาก `permissions` ไม่ union, ตรวจด้วย `@SystemPermissions`. */
+  readonly systemPermissions: readonly Permission[];
   /** Sensitive fields this caller may see unmasked (SCOPE-04). */
   readonly sensitiveFieldsVisible: readonly string[];
   /**

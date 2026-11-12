@@ -865,6 +865,7 @@ export class PmPlanService implements OnModuleInit, OnModuleDestroy {
       sensitiveFieldsAll: [],
       isServiceAccount: false,
       pendingOrgAssignment: false,
+      systemPermissions: [],
     } as unknown as Principal;
   }
 
