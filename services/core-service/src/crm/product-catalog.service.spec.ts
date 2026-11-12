@@ -1,7 +1,13 @@
 import { ProductCatalogService } from './product-catalog.service';
 import type { ErpItem } from '../erp/erp-client';
 
-type Row = { code: string; name: string; unit: string | null; active: boolean };
+type Row = {
+  code: string;
+  name: string;
+  unit: string | null;
+  active: boolean;
+  source?: string;
+};
 
 function harness(options: { existing?: Row[]; sap?: ErpItem[] } = {}) {
   const rows: Row[] = [...(options.existing ?? [])];
@@ -19,6 +25,18 @@ function harness(options: { existing?: Row[]; sap?: ErpItem[] } = {}) {
         ),
     ),
     count: jest.fn(() => Promise.resolve(rows.length)),
+    findFirst: jest.fn((args: { where: { code: { equals: string } } }) =>
+      Promise.resolve(
+        rows.find(
+          (row) =>
+            row.code.toLowerCase() === args.where.code.equals.toLowerCase(),
+        ) ?? null,
+      ),
+    ),
+    create: jest.fn((args: { data: Row }) => {
+      rows.push({ ...args.data, active: true });
+      return Promise.resolve({ id: 'p1', ...args.data, active: true });
+    }),
     createMany: jest.fn((args: { data: Row[] }) => {
       rows.push(...args.data);
       return Promise.resolve({ count: args.data.length });
@@ -138,5 +156,65 @@ describe('CD-27 รายการสินค้าจาก SAP', () => {
     await expect(
       h.service.assertKnownCodes('osd', [{ product_code: 'ANYTHING' }]),
     ).resolves.toBeUndefined();
+  });
+
+  describe('สินค้าที่กรอกเอง (ยังไม่มี ERP)', () => {
+    const actor = { activeCompanyId: 'osd', userId: 'u1' } as never;
+
+    it('sync ไม่ปิดสินค้าที่กรอกเอง; SAP มีรหัสเดียวกันเมื่อไร SAP เป็นเจ้าของแทน', async () => {
+      const { service, rows } = harness({
+        existing: [
+          {
+            code: 'ATOM',
+            name: 'ATOM',
+            unit: null,
+            active: true,
+            source: 'manual',
+          },
+          {
+            code: 'VUVA',
+            name: 'พิมพ์เอง',
+            unit: null,
+            active: true,
+            source: 'manual',
+          },
+        ],
+        sap: [
+          { code: 'VUVA', name: 'Vuvagent', unit: 'license', active: true },
+        ],
+      });
+
+      const result = await service.syncCompany(OSD);
+
+      expect(result.deactivated).toBe(0);
+      expect(rows.find((row) => row.code === 'ATOM')).toMatchObject({
+        active: true,
+        source: 'manual',
+      });
+      expect(rows.find((row) => row.code === 'VUVA')).toMatchObject({
+        name: 'Vuvagent',
+        source: 'sap',
+      });
+    });
+
+    it('เพิ่มสินค้าเอง: เก็บเป็น manual; รหัสซ้ำ (ไม่สนตัวพิมพ์) = CONFLICT; ไม่มีชื่อ = VALIDATION_FAILED', async () => {
+      const { service, rows } = harness();
+
+      await expect(
+        service.createManual({ code: ' ATOM ', name: 'ATOM Platform' }, actor),
+      ).resolves.toMatchObject({
+        code: 'ATOM',
+        name: 'ATOM Platform',
+        unit: null,
+      });
+      expect(rows[0]).toMatchObject({ code: 'ATOM', source: 'manual' });
+
+      await expect(
+        service.createManual({ code: 'atom', name: 'อีกตัว' }, actor),
+      ).rejects.toMatchObject({ code: 'CONFLICT' });
+      await expect(
+        service.createManual({ code: 'A B', name: '' }, actor),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+    });
   });
 });

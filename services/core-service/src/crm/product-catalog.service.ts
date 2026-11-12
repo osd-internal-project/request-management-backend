@@ -17,6 +17,14 @@ import { backgroundTick } from '../common/background-tick';
 /** How long after boot the first sync runs — out of the way of startup. */
 const FIRST_SYNC_DELAY_MS = 15_000;
 const SEARCH_LIMIT = 50;
+/** A product typed in here, not read from SAP. */
+export const MANUAL_PRODUCT = 'manual';
+
+export interface ManualProductInput {
+  code?: unknown;
+  name?: unknown;
+  unit?: unknown;
+}
 
 export interface CatalogSyncResult {
   total: number;
@@ -33,6 +41,7 @@ interface ProductRow {
   /** CD-200 */
   groupCode?: string | null;
   groupName?: string | null;
+  source?: string;
 }
 
 /**
@@ -45,6 +54,8 @@ interface ProductRow {
  *   - รหัสบนบรรทัดใบเสนอราคาต้องเป็นรหัสที่ SAP รู้จักและยังขายอยู่ — ไม่งั้น
  *     ใบสั่งขายที่ตามมาจะถูก SAP ปฏิเสธตอนส่ง. ตรวจเมื่อบริษัทนั้น sync แล้ว
  *     อย่างน้อยครั้งหนึ่งเท่านั้น (ยังไม่เคย sync = ยังไม่มีอะไรให้เทียบ).
+ *   - ยังไม่มี ERP (12 พ.ย. 2026): ฝ่ายราคาเพิ่มสินค้าเองได้ (`source = manual`).
+ *     รอบ sync ไม่ปิดรายการเหล่านี้; วันที่ SAP มีรหัสเดียวกัน SAP เป็นเจ้าของแทน.
  */
 @Injectable()
 export class ProductCatalogService implements OnModuleInit, OnModuleDestroy {
@@ -115,6 +126,7 @@ export class ProductCatalogService implements OnModuleInit, OnModuleDestroy {
         active: true,
         groupCode: true,
         groupName: true,
+        source: true,
       },
     })) as ProductRow[];
 
@@ -134,6 +146,8 @@ export class ProductCatalogService implements OnModuleInit, OnModuleDestroy {
         row.name !== item.name ||
         row.unit !== item.unit ||
         row.active !== item.active ||
+        // SAP now lists a code somebody typed in — SAP owns it from here.
+        row.source === MANUAL_PRODUCT ||
         (row.groupCode ?? null) !== (item.groupCode ?? null) ||
         (row.groupName ?? null) !== (item.groupName ?? null)
       ) {
@@ -145,6 +159,7 @@ export class ProductCatalogService implements OnModuleInit, OnModuleDestroy {
             active: item.active,
             groupCode: item.groupCode ?? null,
             groupName: item.groupName ?? null,
+            source: 'sap',
             syncedAt: now,
           },
         });
@@ -175,7 +190,10 @@ export class ProductCatalogService implements OnModuleInit, OnModuleDestroy {
     });
 
     const gone = existing
-      .filter((row) => row.active && !seen.has(row.code))
+      .filter(
+        (row) =>
+          row.active && row.source !== MANUAL_PRODUCT && !seen.has(row.code),
+      )
       .map((row) => row.code);
     if (gone.length) {
       await this.products.updateMany({
@@ -211,6 +229,66 @@ export class ProductCatalogService implements OnModuleInit, OnModuleDestroy {
       after: { ...result },
     });
     return result;
+  }
+
+  /**
+   * เพิ่มสินค้าเองขณะยังไม่มี ERP. รหัสซ้ำ (แม้เลิกขายแล้ว) ถูกปฏิเสธ — รหัสเป็น
+   * สิ่งที่ราคา ต้นทุน และบรรทัดเอกสารอ้างถึง.
+   */
+  async createManual(input: ManualProductInput, actor: Principal) {
+    const text = (value: unknown) =>
+      typeof value === 'string' ? value.trim() : '';
+    const code = text(input.code);
+    const name = text(input.name);
+    const unit = text(input.unit) || null;
+    const problems = [
+      ...(code && !/\s/.test(code)
+        ? []
+        : [{ field: 'code', reason: 'required_no_spaces' }]),
+      ...(name ? [] : [{ field: 'name', reason: 'required' }]),
+    ];
+    if (problems.length) {
+      throw new AppError(
+        'VALIDATION_FAILED',
+        'ต้องมีรหัสสินค้า (ไม่มีช่องว่าง) และชื่อสินค้า',
+        problems,
+      );
+    }
+    const companyId = actor.activeCompanyId;
+    const taken = (await this.products.findFirst({
+      where: { companyId, code: { equals: code, mode: 'insensitive' } },
+      select: { code: true, active: true },
+    })) as { code: string; active: boolean } | null;
+    if (taken) {
+      throw new AppError(
+        'CONFLICT',
+        taken.active
+          ? `มีสินค้ารหัส ${taken.code} อยู่แล้ว`
+          : `รหัส ${taken.code} เคยใช้กับสินค้าที่เลิกขายแล้ว — ใช้รหัสอื่น`,
+        [{ field: 'code', reason: 'duplicate' }],
+      );
+    }
+    const created = (await this.products.create({
+      data: {
+        companyId,
+        code,
+        name,
+        unit,
+        source: MANUAL_PRODUCT,
+        syncedAt: new Date(),
+      },
+      select: { id: true, code: true, name: true, unit: true, active: true },
+    })) as { id: string; code: string; name: string; unit: string | null };
+    await this.audit.record({
+      eventType: 'catalog.product.created',
+      companyId,
+      ...auditActor(actor),
+      resourceType: 'product',
+      resourceId: created.id,
+      after: { code, name, unit, source: MANUAL_PRODUCT },
+    });
+    const { id: _id, ...product } = created;
+    return product;
   }
 
   /** สรุปสำหรับหน้าผู้ดูแล — มีกี่รายการ ขายได้กี่รายการ sync ล่าสุดเมื่อไร. */

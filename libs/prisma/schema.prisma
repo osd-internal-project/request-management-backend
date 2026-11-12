@@ -3571,6 +3571,9 @@ model Product {
   groupCode String?
   groupName String?
   active    Boolean @default(true)
+  /// sap | manual — `manual` = กรอกเองขณะยังไม่มี ERP; รอบ sync ไม่ปิดรายการนี้
+  /// และเมื่อ SAP มีรหัสเดียวกัน SAP เป็นเจ้าของแทน (กลับเป็น `sap`).
+  source    String  @default("sap")
 
   /// รอบ sync ล่าสุดที่เห็นรายการนี้ใน SAP.
   syncedAt  DateTime
