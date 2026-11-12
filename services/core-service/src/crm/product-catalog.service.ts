@@ -20,6 +20,26 @@ const SEARCH_LIMIT = 50;
 /** A product typed in here, not read from SAP. */
 export const MANUAL_PRODUCT = 'manual';
 
+const MANUAL_VIEW = {
+  id: true,
+  code: true,
+  name: true,
+  unit: true,
+  active: true,
+} as const;
+
+export interface ManualProductView {
+  id: string;
+  code: string;
+  name: string;
+  unit: string | null;
+  active: boolean;
+}
+
+function text(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
 export interface ManualProductInput {
   code?: unknown;
   name?: unknown;
@@ -232,21 +252,147 @@ export class ProductCatalogService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * เพิ่มสินค้าเองขณะยังไม่มี ERP. รหัสซ้ำ (แม้เลิกขายแล้ว) ถูกปฏิเสธ — รหัสเป็น
-   * สิ่งที่ราคา ต้นทุน และบรรทัดเอกสารอ้างถึง.
+   * เพิ่มสินค้าเองขณะยังไม่มี ERP. รหัสซ้ำถูกปฏิเสธ — รหัสเป็นสิ่งที่ราคา ต้นทุน
+   * และบรรทัดเอกสารอ้างถึง. ข้อยกเว้นเดียว: รหัสของสินค้ากรอกเองที่ถูกลบไปแล้ว
+   * เพิ่มซ้ำได้ = เปิดแถวเดิมกลับมาด้วยชื่อใหม่.
    */
   async createManual(input: ManualProductInput, actor: Principal) {
-    const text = (value: unknown) =>
-      typeof value === 'string' ? value.trim() : '';
     const code = text(input.code);
-    const name = text(input.name);
-    const unit = text(input.unit) || null;
-    const problems = [
+    const { name, unit } = this.cleanNameUnit(input, [
       ...(code && !/\s/.test(code)
         ? []
         : [{ field: 'code', reason: 'required_no_spaces' }]),
-      ...(name ? [] : [{ field: 'name', reason: 'required' }]),
-    ];
+    ]);
+    const companyId = actor.activeCompanyId;
+    const taken = (await this.products.findFirst({
+      where: { companyId, code: { equals: code, mode: 'insensitive' } },
+      select: { id: true, code: true, active: true, source: true },
+    })) as {
+      id: string;
+      code: string;
+      active: boolean;
+      source: string;
+    } | null;
+    if (taken && (taken.active || taken.source !== MANUAL_PRODUCT)) {
+      throw new AppError(
+        'CONFLICT',
+        taken.active
+          ? `มีสินค้ารหัส ${taken.code} อยู่แล้ว`
+          : `รหัส ${taken.code} เคยใช้กับสินค้าจาก SAP ที่เลิกขายแล้ว — ใช้รหัสอื่น`,
+        [{ field: 'code', reason: 'duplicate' }],
+      );
+    }
+    const saved = (
+      taken
+        ? await this.products.update({
+            where: { id: taken.id },
+            data: { name, unit, active: true, syncedAt: new Date() },
+            select: MANUAL_VIEW,
+          })
+        : await this.products.create({
+            data: {
+              companyId,
+              code,
+              name,
+              unit,
+              source: MANUAL_PRODUCT,
+              syncedAt: new Date(),
+            },
+            select: MANUAL_VIEW,
+          })
+    ) as ManualProductView;
+    await this.audit.record({
+      eventType: taken ? 'catalog.product.restored' : 'catalog.product.created',
+      companyId,
+      ...auditActor(actor),
+      resourceType: 'product',
+      resourceId: saved.id,
+      after: { code: saved.code, name, unit, source: MANUAL_PRODUCT },
+    });
+    return saved;
+  }
+
+  /** สินค้าที่กรอกเองและยังขายอยู่ — สำหรับหน้าจัดการ. */
+  listManual(actor: Principal) {
+    return this.products.findMany({
+      where: {
+        companyId: actor.activeCompanyId,
+        source: MANUAL_PRODUCT,
+        active: true,
+      },
+      select: MANUAL_VIEW,
+      orderBy: { code: 'asc' },
+    }) as Promise<ManualProductView[]>;
+  }
+
+  /** แก้ชื่อ/หน่วยของสินค้าที่กรอกเอง. รหัสแก้ไม่ได้ — ลบแล้วเพิ่มใหม่. */
+  async updateManual(id: string, input: ManualProductInput, actor: Principal) {
+    const before = await this.requireManual(actor.activeCompanyId, id);
+    const { name, unit } = this.cleanNameUnit(
+      {
+        name: input.name === undefined ? before.name : input.name,
+        unit: input.unit === undefined ? before.unit : input.unit,
+      },
+      [],
+    );
+    const saved = (await this.products.update({
+      where: { id },
+      data: { name, unit },
+      select: MANUAL_VIEW,
+    })) as ManualProductView;
+    await this.audit.record({
+      eventType: 'catalog.product.updated',
+      companyId: actor.activeCompanyId,
+      ...auditActor(actor),
+      resourceType: 'product',
+      resourceId: id,
+      before: { name: before.name, unit: before.unit },
+      after: { name, unit },
+    });
+    return saved;
+  }
+
+  /**
+   * "ลบ" สินค้าที่กรอกเอง = เลิกขาย (`active = false`) เหมือนสินค้าที่หายจาก SAP:
+   * ราคา ต้นทุน และบรรทัดเอกสารเก่ายังอ้างรหัสนี้ จึงไม่ลบแถว. หายจากช่องค้น
+   * และใช้กับเอกสารใหม่ไม่ได้ทันที.
+   */
+  async removeManual(id: string, actor: Principal) {
+    const before = await this.requireManual(actor.activeCompanyId, id);
+    await this.products.update({ where: { id }, data: { active: false } });
+    await this.audit.record({
+      eventType: 'catalog.product.removed',
+      companyId: actor.activeCompanyId,
+      ...auditActor(actor),
+      resourceType: 'product',
+      resourceId: id,
+      before: { code: before.code, name: before.name, unit: before.unit },
+    });
+    return { id };
+  }
+
+  /** บริษัทอื่น/ลบไปแล้ว = 404; สินค้าจาก SAP = 409 (SAP เป็นเจ้าของ). */
+  private async requireManual(companyId: string, id: string) {
+    const found = (await this.products.findFirst({
+      where: { id, companyId, active: true },
+      select: { ...MANUAL_VIEW, source: true },
+    })) as (ManualProductView & { source: string }) | null;
+    if (!found) throw new AppError('NOT_FOUND', 'ไม่พบสินค้านี้');
+    if (found.source !== MANUAL_PRODUCT) {
+      throw new AppError(
+        'CONFLICT',
+        `สินค้า ${found.code} มาจาก SAP — แก้ที่ SAP แล้วดึงใหม่`,
+      );
+    }
+    return found;
+  }
+
+  private cleanNameUnit(
+    input: { name?: unknown; unit?: unknown },
+    problems: { field: string; reason: string }[],
+  ) {
+    const name = text(input.name);
+    if (!name) problems.push({ field: 'name', reason: 'required' });
     if (problems.length) {
       throw new AppError(
         'VALIDATION_FAILED',
@@ -254,41 +400,7 @@ export class ProductCatalogService implements OnModuleInit, OnModuleDestroy {
         problems,
       );
     }
-    const companyId = actor.activeCompanyId;
-    const taken = (await this.products.findFirst({
-      where: { companyId, code: { equals: code, mode: 'insensitive' } },
-      select: { code: true, active: true },
-    })) as { code: string; active: boolean } | null;
-    if (taken) {
-      throw new AppError(
-        'CONFLICT',
-        taken.active
-          ? `มีสินค้ารหัส ${taken.code} อยู่แล้ว`
-          : `รหัส ${taken.code} เคยใช้กับสินค้าที่เลิกขายแล้ว — ใช้รหัสอื่น`,
-        [{ field: 'code', reason: 'duplicate' }],
-      );
-    }
-    const created = (await this.products.create({
-      data: {
-        companyId,
-        code,
-        name,
-        unit,
-        source: MANUAL_PRODUCT,
-        syncedAt: new Date(),
-      },
-      select: { id: true, code: true, name: true, unit: true, active: true },
-    })) as { id: string; code: string; name: string; unit: string | null };
-    await this.audit.record({
-      eventType: 'catalog.product.created',
-      companyId,
-      ...auditActor(actor),
-      resourceType: 'product',
-      resourceId: created.id,
-      after: { code, name, unit, source: MANUAL_PRODUCT },
-    });
-    const { id: _id, ...product } = created;
-    return product;
+    return { name, unit: text(input.unit) || null };
   }
 
   /** สรุปสำหรับหน้าผู้ดูแล — มีกี่รายการ ขายได้กี่รายการ sync ล่าสุดเมื่อไร. */
