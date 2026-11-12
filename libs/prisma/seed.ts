@@ -300,6 +300,7 @@ const SEED_ROLES: {
       'crm.customer.read',
       'crm.customer.read.all',
       'legal.contract.read',
+      'legal.contract.read.all',
       'legal.contract.manage',
       // CD-14 — sends the approved contract for signing
       'esign.manage',
@@ -409,6 +410,7 @@ const SEED_ROLES: {
       'service.asset.manage',
       // CD-280 — AI CARE conversations
       'service.care.manage',
+      'service.care.read.all',
     ],
   },
   {

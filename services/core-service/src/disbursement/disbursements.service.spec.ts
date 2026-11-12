@@ -117,6 +117,7 @@ function harness(
     notifications as never,
     { record: jest.fn(() => Promise.resolve()) } as never,
     { execute: jest.fn((work: (p: unknown) => unknown) => work(tx)) } as never,
+    { coveringFor: jest.fn(() => Promise.resolve([])) } as never,
   );
   return { service, tx, requestRows, requests, notifications };
 }
@@ -528,13 +529,15 @@ describe('disbursement — who sees it', () => {
   it('anyone else sees their own, plus those whose request they may open', async () => {
     const head = { ...requester, userId: 'head-1' } as unknown as Principal;
     const { service, requestRows } = harness(null);
-    await expect(service.visibleWhere(head)).resolves.toEqual({
-      companyId: 'osd',
-      OR: [{ requesterId: 'head-1' }, { requestId: { in: ['req-1'] } }],
-    });
-    expect(requestRows.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ select: { id: true } }),
-    );
+    const where = (await service.visibleWhere(head)) as {
+      companyId: string;
+      OR: [unknown, { request: { companyId: string } }];
+    };
+    expect(where.companyId).toBe('osd');
+    expect(where.OR[0]).toEqual({ requesterId: 'head-1' });
+    // the request's own rule, one query — no list of every visible request id
+    expect(where.OR[1].request).toMatchObject({ companyId: 'osd' });
+    expect(requestRows.findMany).not.toHaveBeenCalled();
   });
 
   it('"mine" narrows even accounting to their own', async () => {

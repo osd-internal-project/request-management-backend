@@ -9,6 +9,7 @@ import {
   AppError,
   AuditWriter,
   hasPermission,
+  ownedBranches,
   type Principal,
 } from '@request-management/share';
 import { backgroundTick } from '../common/background-tick';
@@ -85,6 +86,7 @@ import {
 } from './care.repositories';
 
 const MANAGE = 'service.care.manage';
+const READ_ALL = 'service.care.read.all';
 const SWEEP_MS = 15 * 60 * 1000;
 /** Messages a channel or AI gets back as the conversation so far. */
 const HISTORY = 20;
@@ -530,7 +532,7 @@ export class CareService implements OnModuleInit, OnModuleDestroy {
           : undefined;
     const rows = (await this.conversations.findMany({
       where: {
-        companyId: actor.activeCompanyId,
+        ...this.visible(actor),
         ...(filter.queue === 'waiting'
           ? { status: 'waiting_human' }
           : filter.queue === 'mine'
@@ -569,7 +571,7 @@ export class CareService implements OnModuleInit, OnModuleDestroy {
 
   async detail(actor: Principal, id: string) {
     this.manage(actor);
-    const conversation = await this.mine(actor.activeCompanyId, id);
+    const conversation = await this.mineFor(actor, id);
     const [context, messages, contacts] = await Promise.all([
       this.context(conversation, { staff: true }),
       this.messages.findMany({
@@ -634,7 +636,7 @@ export class CareService implements OnModuleInit, OnModuleDestroy {
   /** Take the conversation (from the queue, or from AI CARE). */
   async take(actor: Principal, id: string) {
     this.manage(actor);
-    const conversation = await this.mine(actor.activeCompanyId, id);
+    const conversation = await this.mineFor(actor, id);
     await this.takeOver(actor, conversation);
     return this.detail(actor, id);
   }
@@ -642,7 +644,7 @@ export class CareService implements OnModuleInit, OnModuleDestroy {
   /** Answer the customer — taking the conversation if nobody holds it. */
   async agentReply(actor: Principal, id: string, text: string) {
     this.manage(actor);
-    const conversation = await this.mine(actor.activeCompanyId, id);
+    const conversation = await this.mineFor(actor, id);
     if (conversation.agentUserId !== actor.userId)
       await this.takeOver(actor, conversation);
     await this.delivery.send({
@@ -657,7 +659,7 @@ export class CareService implements OnModuleInit, OnModuleDestroy {
   /** Hand it to a colleague on the service team. */
   async transfer(actor: Principal, id: string, toUserId: string) {
     this.manage(actor);
-    const conversation = await this.mine(actor.activeCompanyId, id);
+    const conversation = await this.mineFor(actor, id);
     if (conversation.status === 'closed')
       throw new AppError('CONFLICT', 'บทสนทนานี้ปิดแล้ว');
     const team = await this.staff.holdersOf(actor.activeCompanyId, MANAGE);
@@ -695,7 +697,7 @@ export class CareService implements OnModuleInit, OnModuleDestroy {
   /** Give it back to AI CARE: it answers again from the next message. */
   async release(actor: Principal, id: string) {
     this.manage(actor);
-    const conversation = await this.mine(actor.activeCompanyId, id);
+    const conversation = await this.mineFor(actor, id);
     if (conversation.status === 'closed' || conversation.status === 'open')
       throw new AppError('CONFLICT', 'บทสนทนานี้ไม่ได้อยู่กับเจ้าหน้าที่');
     await this.conversations.update({
@@ -780,7 +782,7 @@ export class CareService implements OnModuleInit, OnModuleDestroy {
   /** A staff member confirms who the sender is — remembered for next time. */
   async verify(actor: Principal, id: string, contactId: string) {
     this.manage(actor);
-    const conversation = await this.mine(actor.activeCompanyId, id);
+    const conversation = await this.mineFor(actor, id);
     const owner = await this.contactOwner(actor.activeCompanyId, contactId);
     await this.conversations.update({
       where: { id },
@@ -848,7 +850,7 @@ export class CareService implements OnModuleInit, OnModuleDestroy {
 
   async close(actor: Principal, id: string, outcome: string) {
     this.manage(actor);
-    const conversation = await this.mine(actor.activeCompanyId, id);
+    const conversation = await this.mineFor(actor, id);
     if (conversation.status === 'closed')
       throw new AppError('CONFLICT', 'บทสนทนานี้ปิดแล้ว');
     await this.end(id, outcome, actor.userId, new Date());
@@ -1290,6 +1292,36 @@ export class CareService implements OnModuleInit, OnModuleDestroy {
   private async mine(companyId: string, id: string) {
     const row = (await this.conversations.findFirst({
       where: { id, companyId },
+    })) as ConversationRow | null;
+    if (!row) throw new AppError('NOT_FOUND', 'ไม่พบบทสนทนา');
+    return row;
+  }
+
+  /**
+   * Q9 — the agent holding it, a person granted to the viewer, or the agent's
+   * current unit within the viewer's reach; chats waiting for a person stay in
+   * everyone's queue, since everyone here may take one.
+   */
+  private visible(actor: Principal) {
+    const company = { companyId: actor.activeCompanyId };
+    if (actor.isServiceAccount || hasPermission(actor, READ_ALL)) return company;
+
+    return {
+      ...company,
+      OR: [
+        ...ownedBranches(actor, {
+          users: ['agentUserId'],
+          ownerRelation: 'agent',
+        }),
+        { agentUserId: null },
+      ],
+    };
+  }
+
+  /** SCOPE-02 — out of reach answers 404, as another company's would. */
+  private async mineFor(actor: Principal, id: string) {
+    const row = (await this.conversations.findFirst({
+      where: { id, ...this.visible(actor) },
     })) as ConversationRow | null;
     if (!row) throw new AppError('NOT_FOUND', 'ไม่พบบทสนทนา');
     return row;
