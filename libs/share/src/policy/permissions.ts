@@ -126,7 +126,11 @@ export const PERMISSIONS = {
    * contracts with other counterparties. Confidential ones are seen by
    * `manage`, their owner/creator and their access list only.
    */
-  legal: ['legal.contract.read', 'legal.contract.manage'],
+  legal: [
+    'legal.contract.read',
+    'legal.contract.read.all',
+    'legal.contract.manage',
+  ],
   /**
    * CD-14 ระบบลงนามอิเล็กทรอนิกส์ — `esign.manage` sends documents for
    * signing, follows and cancels them, and keeps the signature layouts.

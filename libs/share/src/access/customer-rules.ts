@@ -13,14 +13,11 @@
  * `request.read.all`.
  */
 import type { Permission } from '../policy/permissions';
-import { reachableUnitIds, type AccessWhere } from './access-rules';
+import type { AccessWhere } from './access-rules';
+import { visibleOwnedWhere, type OwnedSubject } from './owned-rules';
 
 /** Everything customer visibility depends on. */
-export interface CustomerAccessSubject {
-  readonly userId: string;
-  readonly activeCompanyId: string;
-  readonly ledUnitIds: readonly string[];
-  readonly scopedUnitIds: readonly string[];
+export interface CustomerAccessSubject extends OwnedSubject {
   /** `crm.customer.read.all` — every customer in the active company. */
   readonly readsAllCustomers: boolean;
 }
@@ -32,18 +29,17 @@ export interface CustomerAccessSubject {
  * Takes the minimal principal shape rather than the full `Principal` so specs
  * can hand it a stub without casting.
  */
-export function customerAccessSubject(principal: {
-  readonly userId: string;
-  readonly activeCompanyId: string;
-  readonly ledUnitIds: readonly string[];
-  readonly scopedUnitIds: readonly string[];
-  readonly permissions: readonly Permission[];
-}): CustomerAccessSubject {
+export function customerAccessSubject(
+  principal: OwnedSubject & { readonly permissions: readonly Permission[] },
+): CustomerAccessSubject {
   return {
     userId: principal.userId,
     activeCompanyId: principal.activeCompanyId,
     ledUnitIds: principal.ledUnitIds,
     scopedUnitIds: principal.scopedUnitIds,
+    // Q4/Q9: the role's visibility level and per-person grants count here too.
+    levelUnitIds: principal.levelUnitIds ?? [],
+    scopedUserIds: principal.scopedUserIds ?? [],
     readsAllCustomers: principal.permissions.includes('crm.customer.read.all'),
   };
 }
@@ -65,19 +61,9 @@ export function customerAccessSubject(principal: {
 export function visibleCustomersWhere(
   subject: CustomerAccessSubject,
 ): AccessWhere {
-  const company = { companyId: subject.activeCompanyId };
-
-  if (subject.readsAllCustomers) return company;
-
-  const branches: AccessWhere[] = [
-    { accountOwnerUserId: subject.userId },
-    { createdBy: subject.userId },
-  ];
-
-  const units = reachableUnitIds(subject);
-  if (units.length) {
-    branches.push({ ownerOrgUnitId: { in: units } });
-  }
-
-  return { ...company, OR: branches };
+  return visibleOwnedWhere(
+    subject,
+    { users: ['accountOwnerUserId', 'createdBy'], unit: 'ownerOrgUnitId' },
+    subject.readsAllCustomers,
+  );
 }

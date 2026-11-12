@@ -6,13 +6,10 @@
  * SCOPE-02/03 contract as everywhere else.
  */
 import type { Permission } from '../policy/permissions';
-import { reachableUnitIds, type AccessWhere } from './access-rules';
+import type { AccessWhere } from './access-rules';
+import { ownedBranches, type OwnedSubject } from './owned-rules';
 
-export interface SalesAccessSubject {
-  readonly userId: string;
-  readonly activeCompanyId: string;
-  readonly ledUnitIds: readonly string[];
-  readonly scopedUnitIds: readonly string[];
+export interface SalesAccessSubject extends OwnedSubject {
   readonly readsAllSales: boolean;
   /** `crm.lead.read.all` — a person reading every lead of the company. */
   readonly readsAllLeadsInCompany?: boolean;
@@ -27,19 +24,20 @@ export interface SalesAccessSubject {
   readonly readsAllLeads?: boolean;
 }
 
-export function salesAccessSubject(principal: {
-  readonly userId: string;
-  readonly activeCompanyId: string;
-  readonly ledUnitIds: readonly string[];
-  readonly scopedUnitIds: readonly string[];
-  readonly permissions: readonly Permission[];
-  readonly isServiceAccount?: boolean;
-}): SalesAccessSubject {
+export function salesAccessSubject(
+  principal: OwnedSubject & {
+    readonly permissions: readonly Permission[];
+    readonly isServiceAccount?: boolean;
+  },
+): SalesAccessSubject {
   return {
     userId: principal.userId,
     activeCompanyId: principal.activeCompanyId,
     ledUnitIds: principal.ledUnitIds,
     scopedUnitIds: principal.scopedUnitIds,
+    // Q4/Q9: the role's visibility level and per-person grants count here too.
+    levelUnitIds: principal.levelUnitIds ?? [],
+    scopedUserIds: principal.scopedUserIds ?? [],
     readsAllSales:
       principal.permissions.includes('crm.sales.read.all') ||
       (principal.isServiceAccount === true &&
@@ -64,17 +62,10 @@ export function visibleSalesWhere(subject: SalesAccessSubject): AccessWhere {
 }
 
 function ownBranches(subject: SalesAccessSubject): AccessWhere[] {
-  const branches: AccessWhere[] = [
-    { ownerUserId: subject.userId },
-    { createdBy: subject.userId },
-  ];
-
-  const units = reachableUnitIds(subject);
-  if (units.length) {
-    branches.push({ ownerOrgUnitId: { in: units } });
-  }
-
-  return branches;
+  return ownedBranches(subject, {
+    users: ['ownerUserId', 'createdBy'],
+    unit: 'ownerOrgUnitId',
+  });
 }
 
 /**
