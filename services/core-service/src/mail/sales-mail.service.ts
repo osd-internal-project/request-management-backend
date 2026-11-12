@@ -14,6 +14,7 @@ import { LlmService } from '../llm/llm.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { QuotationPrintService } from '../crm/quotation-print.service';
 import { QuotationsService } from '../crm/quotations.service';
+import { ProductBundlesService } from '../crm/product-bundles.service';
 import { LeadFilesService } from '../crm/lead-files.service';
 import { quotationPdf } from '../crm/quotation-pdf';
 import {
@@ -126,6 +127,7 @@ export class SalesMailService {
     private readonly leadActivities: LeadActivityRepository,
     private readonly opportunityActivities: OpportunityActivityRepository,
     private readonly quotations: QuotationsService,
+    private readonly bundles: ProductBundlesService,
     private readonly leadFiles: LeadFilesService,
     private readonly print: QuotationPrintService,
     private readonly llm: LlmService,
@@ -316,8 +318,9 @@ export class SalesMailService {
 
   /**
    * The quotation the workflow asks for. Items given = those; none = what the
-   * Lead behind the deal recorded: `intake_data.products`
-   * (`[{ product_code | code, quantity | qty }]`), else its `subProduct` × 1.
+   * Lead behind the deal asks for (`ProductBundlesService.itemsForLead`): its
+   * own list `intake_data.products`, else the mandatory items of the bundle
+   * of its product (12 พ.ย. 2569), else its `subProduct` × 1.
    */
   async standardQuotation(
     opportunityId: string,
@@ -341,7 +344,8 @@ export class SalesMailService {
         },
         select: { subProduct: true, intakeData: true },
       })) as { subProduct: string | null; intakeData: unknown } | null;
-      items = itemsFromLead(lead);
+      items = (await this.bundles.itemsForLead(actor.activeCompanyId, lead))
+        .items;
     }
     if (!items.length) {
       throw new AppError(
@@ -931,39 +935,6 @@ export class SalesMailService {
       occurred_at: row.occurredAt.toISOString(),
     };
   }
-}
-
-/** What Vuvagent / the salesperson recorded on the Lead as wanted. */
-export function itemsFromLead(
-  lead: { subProduct: string | null; intakeData: unknown } | null,
-): { product_code: string; quantity: number }[] {
-  if (!lead) return [];
-  const data =
-    lead.intakeData && typeof lead.intakeData === 'object'
-      ? (lead.intakeData as Record<string, unknown>)
-      : {};
-  const listed = Array.isArray(data.products) ? data.products : [];
-  const items = listed.flatMap((entry) => {
-    if (typeof entry === 'string' && entry.trim()) {
-      return [{ product_code: entry.trim(), quantity: 1 }];
-    }
-    if (!entry || typeof entry !== 'object') return [];
-    const row = entry as Record<string, unknown>;
-    const code = row.product_code ?? row.code;
-    const quantity = Number(row.quantity ?? row.qty ?? 1);
-    return typeof code === 'string' && code.trim()
-      ? [
-          {
-            product_code: code.trim(),
-            quantity: Number.isFinite(quantity) && quantity > 0 ? quantity : 1,
-          },
-        ]
-      : [];
-  });
-  if (items.length) return items;
-  return lead.subProduct?.trim()
-    ? [{ product_code: lead.subProduct.trim(), quantity: 1 }]
-    : [];
 }
 
 function assertAttachments(files: readonly MailAttachment[] | undefined) {

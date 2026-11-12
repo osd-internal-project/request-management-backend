@@ -13924,6 +13924,48 @@
           "pricing.price.read"
         ],
         "x-sensitive-resource": "quotation"
+      },
+      "post": {
+        "operationId": "VendorCostController_create",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManualVendorCostDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เพิ่มต้นทุนคู่ค้าที่กรอกเอง (ยังไม่มี ERP หรือ SAP ไม่มีรายการนี้)",
+        "tags": [
+          "pricing"
+        ],
+        "x-permission": [
+          "pricing.price.manage"
+        ],
+        "x-sensitive-resource": "quotation"
       }
     },
     "/api/v1/pricing/vendor-costs/lookup": {
@@ -14005,6 +14047,98 @@
           }
         ],
         "summary": "CD-206 ดึงต้นทุนคู่ค้าจาก SAP ตอนนี้",
+        "tags": [
+          "pricing"
+        ],
+        "x-permission": [
+          "pricing.price.manage"
+        ],
+        "x-sensitive-resource": "quotation"
+      }
+    },
+    "/api/v1/pricing/vendor-costs/{id}": {
+      "patch": {
+        "operationId": "VendorCostController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateManualVendorCostDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แก้ต้นทุนคู่ค้าที่กรอกเอง (ของ SAP แก้ไม่ได้)",
+        "tags": [
+          "pricing"
+        ],
+        "x-permission": [
+          "pricing.price.manage"
+        ],
+        "x-sensitive-resource": "quotation"
+      },
+      "delete": {
+        "operationId": "VendorCostController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ลบต้นทุนคู่ค้าที่กรอกเอง (ของ SAP ลบไม่ได้)",
         "tags": [
           "pricing"
         ],
@@ -18526,6 +18660,209 @@
         ],
         "x-permission": [
           "pricing.price.read"
+        ]
+      }
+    },
+    "/api/v1/pricing/product-bundles": {
+      "get": {
+        "operationId": "ProductBundlesController_list",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ชุดรายการของ product ทั้งหมดของบริษัท",
+        "tags": [
+          "pricing"
+        ]
+      },
+      "post": {
+        "operationId": "ProductBundlesController_create",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveProductBundleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เพิ่มชุดรายการของ product",
+        "tags": [
+          "pricing"
+        ],
+        "x-permission": [
+          "pricing.price.manage"
+        ]
+      }
+    },
+    "/api/v1/pricing/product-bundles/match": {
+      "get": {
+        "operationId": "ProductBundlesController_match",
+        "parameters": [
+          {
+            "name": "name",
+            "required": true,
+            "in": "query",
+            "description": "ชื่อ product บน Lead",
+            "schema": {
+              "example": "D-DEBT",
+              "type": "string",
+              "maxLength": 120,
+              "minLength": 1
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ชุดรายการที่ใช้กับ product ชื่อนี้ (เฉพาะที่เปิดใช้) — หน้า Lead ใช้แสดง item ที่จะเข้าใบเสนอราคา",
+        "tags": [
+          "pricing"
+        ]
+      }
+    },
+    "/api/v1/pricing/product-bundles/{id}": {
+      "patch": {
+        "operationId": "ProductBundlesController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProductBundleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แก้ชุดรายการ — ส่ง items มา = แทนทั้งรายการ",
+        "tags": [
+          "pricing"
+        ],
+        "x-permission": [
+          "pricing.price.manage"
+        ]
+      },
+      "delete": {
+        "operationId": "ProductBundlesController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ลบชุดรายการ (soft delete)",
+        "tags": [
+          "pricing"
+        ],
+        "x-permission": [
+          "pricing.price.manage"
         ]
       }
     },
@@ -52223,6 +52560,110 @@
           "caps"
         ]
       },
+      "ManualVendorCostDto": {
+        "type": "object",
+        "properties": {
+          "product_code": {
+            "type": "string",
+            "example": "ATOM",
+            "maxLength": 100,
+            "minLength": 1
+          },
+          "vendor_name": {
+            "type": "string",
+            "example": "บริษัท ผู้ขาย จำกัด",
+            "maxLength": 200,
+            "minLength": 1
+          },
+          "vendor_code": {
+            "type": "string",
+            "description": "ไม่ใส่ = ใช้ชื่อผู้ขาย",
+            "maxLength": 100
+          },
+          "unit_cost": {
+            "type": "number",
+            "example": 1500,
+            "minimum": 0
+          },
+          "currency": {
+            "type": "string",
+            "example": "THB"
+          },
+          "cost_date": {
+            "type": "string",
+            "example": "2026-11-12",
+            "description": "ไม่เกินวันนี้",
+            "format": "date-time"
+          },
+          "valid_to": {
+            "type": "object",
+            "example": "2026-12-31",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "doc_no": {
+            "type": "object",
+            "description": "เลขใบเสนอราคาของผู้ขาย",
+            "nullable": true,
+            "maxLength": 100
+          }
+        },
+        "required": [
+          "cost_date",
+          "product_code",
+          "unit_cost",
+          "vendor_name"
+        ]
+      },
+      "UpdateManualVendorCostDto": {
+        "type": "object",
+        "properties": {
+          "product_code": {
+            "type": "string",
+            "example": "ATOM",
+            "maxLength": 100,
+            "minLength": 1
+          },
+          "vendor_name": {
+            "type": "string",
+            "example": "บริษัท ผู้ขาย จำกัด",
+            "maxLength": 200,
+            "minLength": 1
+          },
+          "vendor_code": {
+            "type": "string",
+            "description": "ไม่ใส่ = ใช้ชื่อผู้ขาย",
+            "maxLength": 100
+          },
+          "unit_cost": {
+            "type": "number",
+            "example": 1500,
+            "minimum": 0
+          },
+          "currency": {
+            "type": "string",
+            "example": "THB"
+          },
+          "cost_date": {
+            "type": "string",
+            "example": "2026-11-12",
+            "description": "ไม่เกินวันนี้",
+            "format": "date-time"
+          },
+          "valid_to": {
+            "type": "object",
+            "example": "2026-12-31",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "doc_no": {
+            "type": "object",
+            "description": "เลขใบเสนอราคาของผู้ขาย",
+            "nullable": true,
+            "maxLength": 100
+          }
+        }
+      },
       "FindLeadsDto": {
         "type": "object",
         "properties": {
@@ -53631,6 +54072,99 @@
           },
           "active": {
             "type": "boolean"
+          }
+        }
+      },
+      "ProductBundleItemDto": {
+        "type": "object",
+        "properties": {
+          "product_code": {
+            "type": "string",
+            "example": "IP-PHONE",
+            "description": "รหัสสินค้า (SAP ItemCode)",
+            "maxLength": 50,
+            "minLength": 1
+          },
+          "quantity": {
+            "type": "number",
+            "example": 1,
+            "maximum": 1000000,
+            "minimum": 0.0001
+          },
+          "term_months": {
+            "type": "object",
+            "example": 12,
+            "nullable": true,
+            "description": "ราคารายเดือน: จำนวนเดือน (ว่าง = 12)",
+            "maximum": 120,
+            "minimum": 1
+          },
+          "optional": {
+            "type": "boolean",
+            "default": false,
+            "description": "`false` = เข้าใบเสนอราคาเสมอ; `true` = item เสริมที่พนักงานขายเลือกเองบน Lead"
+          }
+        },
+        "required": [
+          "product_code",
+          "quantity"
+        ]
+      },
+      "SaveProductBundleDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "D-DEBT",
+            "description": "ชื่อ product ตามที่พนักงานขายเลือกบน Lead (ไม่สนตัวพิมพ์) — ไม่ซ้ำในบริษัท",
+            "maxLength": 120,
+            "minLength": 1
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "active": {
+            "type": "boolean",
+            "default": true
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProductBundleItemDto"
+            },
+            "maxItems": 50,
+            "minItems": 1
+          }
+        },
+        "required": [
+          "items",
+          "name"
+        ]
+      },
+      "UpdateProductBundleDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "items": {
+            "description": "ส่งมา = แทนทั้งรายการ",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProductBundleItemDto"
+            },
+            "maxItems": 50,
+            "minItems": 1
           }
         }
       },
