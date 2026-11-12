@@ -52,3 +52,19 @@ describe('upsertFromClaims — ชื่อที่แสดง', () => {
     });
   });
 });
+
+describe('upsertFromClaims — อีเมล', () => {
+  it('token ไม่มี email ไม่ล้างอีเมลเดิม (X-Acting-User ยังหาคนนี้เจอ)', async () => {
+    const { repo, update } = repositoryWith({
+      id: 'u1',
+      displayName: 'Old Name',
+      email: 'taksapongk@osd.co.th',
+    });
+
+    await repo.upsertFromClaims({ ...claims, email: null });
+
+    expect(update.mock.calls[0][0].data).toMatchObject({
+      email: 'taksapongk@osd.co.th',
+    });
+  });
+});

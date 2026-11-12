@@ -1,8 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import {
   AppError,
+  assertCompanyMember,
   canHoldMembers,
   childKindOf,
+  isCompanyMember,
   isValidChildOf,
   parentKindOf,
   PrismaTransactionService,
@@ -283,6 +285,11 @@ export class OrgService {
   }
 
   async createUnit(dto: CreateOrgUnitDto, actor: Principal): Promise<OrgUnit> {
+    assertCompanyMember(actor, dto.company_id);
+    if (dto.manager_user_id) {
+      await this.requireUserInCompany(dto.manager_user_id, dto.company_id);
+    }
+
     return this.transactions.execute(async (prisma) => {
       const option = { prisma };
 
@@ -340,8 +347,11 @@ export class OrgService {
       const option = { prisma };
 
       const before = await this.orgUnits.findById(id, option);
-      if (!before) {
+      if (!before || !isCompanyMember(actor, before.companyId)) {
         throw new AppError('NOT_FOUND', 'ไม่พบหน่วยงานที่ระบุ');
+      }
+      if (dto.manager_user_id) {
+        await this.requireUserInCompany(dto.manager_user_id, before.companyId);
       }
 
       if (dto.parent_id !== undefined && dto.parent_id !== before.parentId) {
@@ -426,7 +436,7 @@ export class OrgService {
       const option = { prisma };
 
       const before = await this.orgUnits.findById(id, option);
-      if (!before) {
+      if (!before || !isCompanyMember(actor, before.companyId)) {
         throw new AppError('NOT_FOUND', 'ไม่พบหน่วยงานที่ระบุ');
       }
 
@@ -484,24 +494,66 @@ export class OrgService {
       const option = { prisma };
 
       const before = await this.users.findById(userId, option);
-      if (!before) {
+      const current = before
+        ? await this.memberships.companyIdsOf(userId, option)
+        : [];
+      // Somebody with no company yet is the รอจัดสังกัด queue every admin works.
+      const reachable =
+        current.length === 0 ||
+        current.some((companyId) => isCompanyMember(actor, companyId));
+      if (!before || !reachable) {
         throw new AppError('NOT_FOUND', 'ไม่พบผู้ใช้ที่ระบุ');
       }
 
+      for (const companyId of dto.companies ?? []) {
+        assertCompanyMember(actor, companyId);
+      }
+      if (dto.primary_company_id) {
+        assertCompanyMember(actor, dto.primary_company_id);
+      }
+
+      // Memberships in companies this admin is not part of stay as they are.
+      const companies = dto.companies?.length
+        ? [
+            ...new Set([
+              ...current.filter((id) => !isCompanyMember(actor, id)),
+              ...dto.companies,
+            ]),
+          ]
+        : current;
+      const ownCompanies = companies.filter((id) => isCompanyMember(actor, id));
+
+      if (
+        dto.primary_company_id &&
+        !companies.includes(dto.primary_company_id)
+      ) {
+        throw new AppError(
+          'VALIDATION_FAILED',
+          'บริษัทหลักต้องเป็นบริษัทที่ผู้ใช้สังกัด',
+          [{ field: 'primary_company_id', reason: dto.primary_company_id }],
+        );
+      }
+
       if (dto.org_unit_id) {
-        await this.assertCanHoldMembers(dto.org_unit_id, option);
+        await this.assertCanHoldMembers(dto.org_unit_id, ownCompanies, option);
+      }
+      if (dto.supervisor_user_id) {
+        await this.requireUserInAnyCompany(
+          dto.supervisor_user_id,
+          ownCompanies,
+        );
       }
 
       if (dto.companies?.length) {
         const primary =
           dto.primary_company_id ??
-          (dto.companies.includes(before.primaryCompanyId ?? '')
+          (companies.includes(before.primaryCompanyId ?? '')
             ? before.primaryCompanyId
             : dto.companies[0]);
 
         await this.memberships.replaceForUser(
           userId,
-          dto.companies,
+          companies,
           primary ?? null,
           option,
         );
@@ -845,6 +897,25 @@ export class OrgService {
    * a company that is not their primary one, and a grant naming them there is
    * legitimate. Same 404-not-403 rule as {@link requireUnitInCompany}.
    */
+  /** The supervisor must work in one of the companies being assigned. */
+  private async requireUserInAnyCompany(
+    userId: string,
+    companyIds: readonly string[],
+  ) {
+    const user = await this.users.findFirst({
+      where: {
+        id: userId,
+        companies: { some: { companyId: { in: [...companyIds] } } },
+      },
+    });
+
+    if (!user) {
+      throw new AppError('NOT_FOUND', 'ไม่พบผู้ใช้ที่ระบุ', [
+        { field: 'supervisor_user_id', reason: userId },
+      ]);
+    }
+  }
+
   private async requireUserInCompany(userId: string, companyId: string) {
     const user = await this.users.findFirst({
       where: { id: userId, companies: { some: { companyId } } },
@@ -1087,11 +1158,12 @@ export class OrgService {
    */
   private async assertCanHoldMembers(
     orgUnitId: string,
+    companyIds: readonly string[],
     option?: TxOption,
   ): Promise<void> {
     const unit = await this.orgUnits.findById(orgUnitId, option);
 
-    if (!unit) {
+    if (!unit || !companyIds.includes(unit.companyId)) {
       throw new AppError('NOT_FOUND', 'ไม่พบหน่วยงานที่ระบุ', [
         { field: 'org_unit_id', reason: orgUnitId },
       ]);

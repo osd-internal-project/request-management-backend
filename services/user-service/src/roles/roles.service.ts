@@ -5,6 +5,7 @@ import {
   assertCompanyMember,
   assertHumanPermissions,
   assertSeparationOfDuties,
+  isCompanyMember,
   Permission,
   permissionModule,
   permissionType,
@@ -18,6 +19,7 @@ import type {
 } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { AuditEvent } from '../audit/audit-events';
+import { UserCompanyRepository } from '../org/user-company.repository';
 import { KeycloakRoleMappingRepository } from './keycloak-role-mapping.repository';
 import { PermissionRepository } from './permission.repository';
 import {
@@ -62,6 +64,7 @@ export class RolesService implements OnModuleInit {
     private readonly mappings: KeycloakRoleMappingRepository,
     private readonly audit: AuditService,
     private readonly transactions: PrismaTransactionService,
+    private readonly memberships: UserCompanyRepository,
   ) {}
 
   /** Keeps the `permissions` table in step with the code catalog. */
@@ -149,10 +152,10 @@ export class RolesService implements OnModuleInit {
     dto: CreateRoleDto,
     actor: Principal,
   ): Promise<RoleWithPermissions> {
-    // An absent company means a role every company shares, so this validates
-    // only what was named — without it an admin could define a role inside a
-    // company they have no membership in.
-    if (dto.company_id) assertCompanyMember(actor, dto.company_id);
+    // A role shared by every company is the system scope's to create, so an
+    // absent company means the one the admin is working in.
+    const companyId = dto.company_id ?? actor.activeCompanyId;
+    assertCompanyMember(actor, companyId);
 
     assertSeparationOfDuties(dto.permissions);
     assertHumanPermissions(dto.permissions);
@@ -162,7 +165,7 @@ export class RolesService implements OnModuleInit {
 
       const role = await this.roles.createRole(
         {
-          companyId: dto.company_id ?? null,
+          companyId,
           code: dto.code,
           name: dto.name,
           description: dto.description,
@@ -177,7 +180,7 @@ export class RolesService implements OnModuleInit {
       await this.audit.record(
         {
           eventType: AuditEvent.ROLE_CREATED,
-          companyId: dto.company_id ?? actor.activeCompanyId,
+          companyId,
           actorId: actor.userId,
           actorUsername: actor.username,
           resourceType: 'role',
@@ -204,7 +207,9 @@ export class RolesService implements OnModuleInit {
       const option = { prisma };
 
       const before = await this.roles.findById(id, option);
-      if (!before) {
+      // SCOPE-03: another company's role, or one every company shares, is not
+      // this admin's to see — 404 rather than 403.
+      if (!before || !isCompanyMember(actor, before.companyId)) {
         throw new AppError('NOT_FOUND', 'ไม่พบบทบาทที่ระบุ');
       }
       if (dto.permissions) {
@@ -289,8 +294,15 @@ export class RolesService implements OnModuleInit {
       const option = { prisma };
 
       const role = await this.roles.findById(roleId, option);
-      if (!role || !role.active) {
+      // A shared role may be bound in any company; a company's own role only there.
+      const roleFits = role?.companyId === null || role?.companyId === companyId;
+      if (!role || !role.active || !roleFits) {
         throw new AppError('NOT_FOUND', 'ไม่พบบทบาทที่ใช้งานอยู่');
+      }
+
+      const userCompanies = await this.memberships.companyIdsOf(userId, option);
+      if (!userCompanies.includes(companyId)) {
+        throw new AppError('NOT_FOUND', 'ไม่พบผู้ใช้ที่ระบุ');
       }
 
       await this.userRoles.grant(

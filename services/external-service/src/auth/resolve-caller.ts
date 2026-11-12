@@ -62,7 +62,10 @@ export async function resolveCaller(
 
   const key = getApiKey(request);
   const policy = key?.integration;
-  const company = headerOf(request, COMPANY_HEADER) || undefined;
+  // A key bound to a company speaks for that company; the header only matters
+  // for an unbound key (RemotePrincipalGuard has already refused a mismatch).
+  const company =
+    key?.companyId ?? (headerOf(request, COMPANY_HEADER) || undefined);
 
   if (userToken) {
     return fromUserToken(
@@ -110,6 +113,12 @@ export async function resolveCaller(
     company,
     key?.scopes ?? [],
   );
+
+  // Same rule as X-User-Token: a person outside the key's company is not found.
+  if (key?.companyId && actingUser.activeCompanyId !== key.companyId) {
+    throw new AppError('NOT_FOUND', 'ไม่พบผู้ใช้ในบริษัทของ API key นี้');
+  }
+
   return assertPlaced(actingUser, ACTING_USER_HEADER, email);
 }
 

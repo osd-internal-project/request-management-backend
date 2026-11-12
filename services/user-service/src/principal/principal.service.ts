@@ -81,6 +81,12 @@ export class PrincipalService {
 
     const user = await this.provision(payload, keycloakRoles);
 
+    // Keycloak still authenticates a suspended person — the realm is shared, so
+    // switching them off there is not ours to do. This is where it bites.
+    if (user.status === 'SUSPENDED') {
+      throw new AppError('USER_SUSPENDED', 'บัญชีนี้ถูกปิดการใช้งาน');
+    }
+
     return this.principalFor(user, requestedCompanyId);
   }
 

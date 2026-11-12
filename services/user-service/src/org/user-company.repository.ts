@@ -36,6 +36,15 @@ export class UserCompanyRepository extends BaseRepository<
     ) as Promise<MembershipWithCompany[]>;
   }
 
+  /** Every company the user belongs to, active or not. */
+  async companyIdsOf(userId: string, option?: TxOption): Promise<string[]> {
+    const rows = await this.findMany(
+      { where: { userId }, select: { companyId: true } },
+      option,
+    );
+    return rows.map((row) => row.companyId);
+  }
+
   /** Replaces a user's memberships wholesale; the caller supplies the tx. */
   async replaceForUser(
     userId: string,

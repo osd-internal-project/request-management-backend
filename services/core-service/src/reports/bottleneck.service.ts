@@ -3,7 +3,7 @@ import {
   accessSubject,
   visibleRequestsWhere,
   PrismaService,
-  resolveTargetCompany,
+  requireActiveCompany,
 } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import type { Prisma } from '@prisma/client';
@@ -44,7 +44,7 @@ export class BottleneckService {
     query: BottleneckQueryDto,
     actor: Principal,
   ): Promise<BottleneckRow[]> {
-    const companyId = resolveTargetCompany(actor, query.company_id);
+    const companyId = requireActiveCompany(actor, query.company_id);
 
     const from = query.from ? new Date(query.from) : null;
     const to = query.to ? new Date(query.to) : null;

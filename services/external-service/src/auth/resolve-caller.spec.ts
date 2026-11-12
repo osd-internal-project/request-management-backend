@@ -86,6 +86,29 @@ describe('resolveCaller', () => {
     ).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
 
+  it('X-Acting-User: a person outside the key’s company is 404, and the lookup asks for the key’s company', async () => {
+    const principals = principalsReturning();
+    await expect(
+      resolveCaller(
+        requestWith(
+          { [ACTING_USER_HEADER]: 'sales@osd.co.th' },
+          {
+            companyId: 'osd-demo',
+            integration: { ...DELEGATED, allowActingUser: true },
+          },
+        ),
+        MACHINE,
+        principals as never,
+      ),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    expect(principals.resolveActingUser).toHaveBeenCalledWith(
+      '',
+      'sales@osd.co.th',
+      'osd-demo',
+      ['integration.request.read'],
+    );
+  });
+
   it('refuses a user token when the integration does not act for people', async () => {
     const principals = principalsReturning();
     await expect(

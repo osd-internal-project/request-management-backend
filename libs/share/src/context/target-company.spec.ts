@@ -1,6 +1,11 @@
 import { AppError } from '../errors/app-error';
 import type { Principal } from './principal';
-import { assertCompanyMember, resolveTargetCompany } from './target-company';
+import {
+  assertCompanyMember,
+  isCompanyMember,
+  requireActiveCompany,
+  resolveTargetCompany,
+} from './target-company';
 
 const OSD = 'company-osd';
 const BCO = 'company-bco';
@@ -79,5 +84,26 @@ describe('assertCompanyMember', () => {
 
   it('throws for one they do not', () => {
     expect(() => assertCompanyMember(principal(), OUTSIDER)).toThrow(AppError);
+  });
+});
+
+describe('requireActiveCompany — reads judged by the active company’s rights', () => {
+  it('answers the active company when none is named', () => {
+    expect(requireActiveCompany(principal(), undefined)).toBe(OSD);
+  });
+
+  it('refuses another company even when the caller belongs to it', () => {
+    expect(() => requireActiveCompany(principal(), BCO)).toThrow(AppError);
+  });
+});
+
+describe('isCompanyMember — what an admin write may touch', () => {
+  it('a member company: yes; another company: no', () => {
+    expect(isCompanyMember(principal(), BCO)).toBe(true);
+    expect(isCompanyMember(principal(), OUTSIDER)).toBe(false);
+  });
+
+  it('a row shared by every company is never a company admin’s', () => {
+    expect(isCompanyMember(principal(), null)).toBe(false);
   });
 });
