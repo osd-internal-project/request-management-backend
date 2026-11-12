@@ -77,6 +77,7 @@ export { CustomerImportService } from './crm/customer-import.service';
 export { CrmAdminService } from './crm/crm-admin.service';
 export { LeadsService } from './crm/leads.service';
 export { LeadImportService } from './crm/lead-import.service';
+export { LeadContactsService } from './crm/lead-contacts.service';
 export { LeadStatusService } from './crm/lead-status.service';
 export { LeadIntakeService } from './crm/lead-intake.service';
 // CD-269 — a campaign's public form and the Lead Ads webhook

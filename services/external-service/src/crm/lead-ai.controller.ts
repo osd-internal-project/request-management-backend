@@ -72,7 +72,7 @@ export class ExternalLeadAiController {
   @ApiOperation({
     summary: 'อ่าน Lead (ทั้งบริษัทของ key) — อีเมล/เบอร์ ต้องมี contact.read',
     description:
-      '`email` `phone` `contactName` `contactPosition` เป็น null ถ้า key ไม่มี ' +
+      '`email` `phone` `contactName` `contactPosition` เป็น null และ `contacts` ว่าง ถ้า key ไม่มี ' +
       '`integration.crm.lead.contact.read`',
   })
   async findOne(
@@ -91,6 +91,8 @@ export class ExternalLeadAiController {
     return {
       ...lead,
       ...Object.fromEntries(CONTACT_FIELDS.map((field) => [field, null])),
+      // every contact after the first is the same personal data
+      contacts: [],
     };
   }
 

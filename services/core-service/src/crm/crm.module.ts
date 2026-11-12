@@ -60,6 +60,7 @@ import {
   OpportunityProductRepository,
   OpportunityRepository,
   LeadActivityRepository,
+  LeadContactRepository,
   LeadRepository,
   OpportunityActivityRepository,
   NegotiationRoundRepository,
@@ -175,6 +176,7 @@ import { SalesTargetApprovalSyncService } from './sales-target-approval-sync.ser
 import { OpportunityStaleMonitorService } from './opportunity-stale-monitor.service';
 import { SaleOrdersService } from './sale-orders.service';
 import { LeadImportService } from './lead-import.service';
+import { LeadContactsService } from './lead-contacts.service';
 import { LeadIntakeService } from './lead-intake.service';
 import { CampaignLeadIntakeService } from './campaign-lead-intake.service';
 import { CampaignEventsService } from './campaign-events.service';
@@ -268,6 +270,8 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     LeadStatusService,
     LeadClosingService,
     LeadImportService,
+    LeadContactsService,
+    LeadContactRepository,
     LeadIntakeService,
     // CD-269 — one screening for every Lead from outside
     CampaignLeadIntakeService,
@@ -369,6 +373,7 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     LeadStatusService,
     LeadsService,
     LeadImportService,
+    LeadContactsService,
     LeadIntakeService,
     CampaignLeadIntakeService,
     CampaignEventsService,

@@ -2847,6 +2847,7 @@ model Lead {
   campaign             Campaign?      @relation(fields: [campaignId], references: [id])
   activities           LeadActivity[]
   files                LeadFile[]
+  contacts             LeadContact[]
   targetAccount        TargetAccount?
 
   @@index([companyId, status])
@@ -2935,6 +2936,35 @@ model SalesAutomationIssue {
   @@index([opportunityId, resolvedAt])
   @@index([companyId, occurredAt])
   @@map("sales_automation_issues")
+}
+
+/// ผู้ติดต่อเพิ่มเติมของ Lead (12 พ.ย. 2569). ผู้ติดต่อ **หลัก** ยังอยู่บน `leads`
+/// (`contactName` / `contactPosition` / `phone` / `email`) เพราะอีเมลขาย ใบเสนอราคา
+/// intake และ API ภายนอกอ่านจากตรงนั้น — ตารางนี้เก็บคนที่สองเป็นต้นไป จึงไม่มี
+/// ข้อมูลชุดเดียวกันสองที่ให้ drift. ตั้งคนอื่นเป็นหลัก = สลับค่ากับ `leads`.
+/// ลบ = `active = false`.
+model LeadContact {
+  id        String @id @default(uuid())
+  companyId String
+  leadId    String
+
+  name     String
+  position String?
+  phone    String?
+  email    String?
+
+  active Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  createdBy String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  lead Lead @relation(fields: [leadId], references: [id])
+
+  @@index([leadId, active])
+  @@index([companyId])
+  @@map("lead_contacts")
 }
 
 /// CRM โอกาสการขาย (Opportunity) — ขั้น มูลค่า ความน่าจะเป็น วันคาดปิด. `opportunityCode`

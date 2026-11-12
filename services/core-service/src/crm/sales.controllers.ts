@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Headers,
   Param,
@@ -17,6 +18,7 @@ import {
 } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import { LeadsService } from './leads.service';
+import { LeadContactsService } from './lead-contacts.service';
 import { LeadStatusService } from './lead-status.service';
 import { LeadImportService } from './lead-import.service';
 import { OpportunitiesService } from './opportunities.service';
@@ -51,6 +53,7 @@ import {
   CreateLeadDto,
   DisqualifyLeadDto,
   ImportLeadsDto,
+  LeadContactDto,
   ListOpportunitiesQueryDto,
   ListCampaignsQueryDto,
   ListLeadsQueryDto,
@@ -77,6 +80,7 @@ export class LeadsController {
     private readonly leads: LeadsService,
     private readonly importer: LeadImportService,
     private readonly statuses: LeadStatusService,
+    private readonly contacts: LeadContactsService,
   ) {}
 
   /**
@@ -247,6 +251,56 @@ export class LeadsController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.leads.updateActivity(id, activityId, dto, principal);
+  }
+
+  /** ผู้ติดต่อของ Lead — คนแรกเป็นผู้ติดต่อหลัก คนถัดไปเป็นผู้ติดต่อเพิ่มเติม. */
+  @ApiOperation({
+    summary: 'เพิ่มผู้ติดต่อของ Lead',
+    description:
+      'Lead ที่ยังไม่มีผู้ติดต่อ: คนนี้เป็นผู้ติดต่อหลัก. is_primary=true = ' +
+      'ตั้งเป็นหลักแทนคนเดิม. ตอบรายชื่อผู้ติดต่อทั้งหมดหลังแก้',
+  })
+  @Post(':id/contacts')
+  @Permissions('crm.lead.manage')
+  addContact(
+    @Param('id') id: string,
+    @Body() dto: LeadContactDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.contacts.add(id, dto, principal);
+  }
+
+  @ApiOperation({
+    summary: 'แก้ผู้ติดต่อของ Lead',
+    description:
+      'contactId = `primary` คือผู้ติดต่อหลัก. เขียนทั้งชุด — field ที่ไม่ส่ง = ว่าง. ' +
+      'is_primary=true = ตั้งคนนี้เป็นผู้ติดต่อหลัก',
+  })
+  @Patch(':id/contacts/:contactId')
+  @Permissions('crm.lead.manage')
+  updateContact(
+    @Param('id') id: string,
+    @Param('contactId') contactId: string,
+    @Body() dto: LeadContactDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.contacts.update(id, contactId, dto, principal);
+  }
+
+  /** Soft delete — แถวยังอยู่ (`active = false`). */
+  @ApiOperation({
+    summary: 'ลบผู้ติดต่อของ Lead',
+    description:
+      'ลบผู้ติดต่อหลัก (`primary`): คนที่เพิ่มไว้ก่อนสุดขึ้นมาเป็นหลักแทน',
+  })
+  @Delete(':id/contacts/:contactId')
+  @Permissions('crm.lead.manage')
+  removeContact(
+    @Param('id') id: string,
+    @Param('contactId') contactId: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.contacts.remove(id, contactId, principal);
   }
 
   /** คัดออกพร้อมเหตุผล — ไม่มี DELETE. */

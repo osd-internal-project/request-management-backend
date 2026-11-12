@@ -969,6 +969,88 @@
         ]
       }
     },
+    "/api/v1/leads/{id}/sales-automation": {
+      "get": {
+        "operationId": "SalesMailController_automationForLead",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "งานขายอัตโนมัติของ Lead — สิ่งที่แต่ละ workflow ต้องมี + เหตุที่ติดขัดล่าสุด",
+        "tags": [
+          "sales-mail"
+        ],
+        "x-permission": [
+          "crm.lead.read"
+        ]
+      }
+    },
+    "/api/v1/opportunities/{id}/sales-automation": {
+      "get": {
+        "operationId": "SalesMailController_automationForOpportunity",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "งานขายอัตโนมัติของโอกาสการขาย — สิ่งที่แต่ละ workflow ต้องมี + เหตุที่ติดขัดล่าสุด",
+        "tags": [
+          "sales-mail"
+        ],
+        "x-permission": [
+          "crm.sales.read"
+        ]
+      }
+    },
     "/api/v1/leads/{id}/emails": {
       "get": {
         "operationId": "SalesMailController_listForLead",
@@ -7087,6 +7169,166 @@
         ]
       }
     },
+    "/api/v1/leads/{id}/contacts": {
+      "post": {
+        "description": "Lead ที่ยังไม่มีผู้ติดต่อ: คนนี้เป็นผู้ติดต่อหลัก. is_primary=true = ตั้งเป็นหลักแทนคนเดิม. ตอบรายชื่อผู้ติดต่อทั้งหมดหลังแก้",
+        "operationId": "LeadsController_addContact",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LeadContactDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เพิ่มผู้ติดต่อของ Lead",
+        "tags": [
+          "leads"
+        ],
+        "x-permission": [
+          "crm.lead.manage"
+        ]
+      }
+    },
+    "/api/v1/leads/{id}/contacts/{contactId}": {
+      "patch": {
+        "description": "contactId = `primary` คือผู้ติดต่อหลัก. เขียนทั้งชุด — field ที่ไม่ส่ง = ว่าง. is_primary=true = ตั้งคนนี้เป็นผู้ติดต่อหลัก",
+        "operationId": "LeadsController_updateContact",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "contactId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LeadContactDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แก้ผู้ติดต่อของ Lead",
+        "tags": [
+          "leads"
+        ],
+        "x-permission": [
+          "crm.lead.manage"
+        ]
+      },
+      "delete": {
+        "description": "ลบผู้ติดต่อหลัก (`primary`): คนที่เพิ่มไว้ก่อนสุดขึ้นมาเป็นหลักแทน",
+        "operationId": "LeadsController_removeContact",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "contactId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ลบผู้ติดต่อของ Lead",
+        "tags": [
+          "leads"
+        ],
+        "x-permission": [
+          "crm.lead.manage"
+        ]
+      }
+    },
     "/api/v1/leads/{id}/disqualify": {
       "post": {
         "description": "ปิดด้วยสถานะ kind lost (`status` เลือกได้ เช่น lost / disqualified) — ไม่มี DELETE ในโมดูลนี้",
@@ -9658,6 +9900,49 @@
           }
         ],
         "summary": "ใบเสนอราคาฉบับพิมพ์ส่งลูกค้า",
+        "tags": [
+          "quotations"
+        ],
+        "x-permission": [
+          "crm.sales.read"
+        ],
+        "x-sensitive-resource": "quotation"
+      }
+    },
+    "/api/v1/quotations/{id}/pdf": {
+      "get": {
+        "description": "ไฟล์เดียวกับที่แนบอีเมลถึงลูกค้า — ไม่มีต้นทุนและ margin; ใบที่ยังไม่อนุมัติมีลายน้ำ \"ร่าง\"",
+        "operationId": "QuotationsController_pdf",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ใบเสนอราคาเป็นไฟล์ PDF ตามแบบฟอร์มบริษัท",
         "tags": [
           "quotations"
         ],
@@ -13792,6 +14077,15 @@
                 "lead.suggest_products",
                 "lead.write_proposal"
               ]
+            }
+          },
+          {
+            "name": "lead_id",
+            "required": false,
+            "in": "query",
+            "description": "งานของ Lead นี้ (`input.lead_id`)",
+            "schema": {
+              "type": "string"
             }
           },
           {
@@ -42628,6 +42922,243 @@
         ]
       }
     },
+    "/api/v1/softphone/runtime": {
+      "get": {
+        "operationId": "SoftphoneController_runtime",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เลขต่อของผู้ใช้เอง (พร้อมรหัส SIP) · ไม่มี = enabled:false",
+        "tags": [
+          "softphone"
+        ]
+      }
+    },
+    "/api/v1/softphone/call-logs": {
+      "post": {
+        "operationId": "SoftphoneController_logCall",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCallLogDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "บันทึกสายเข้าที่รับแล้วเป็นคำขอ CALL_LOG (ซ้ำ call_id = ตัวเดิม)",
+        "tags": [
+          "softphone"
+        ],
+        "x-permission": [
+          "request.create"
+        ]
+      }
+    },
+    "/api/v1/softphone/extensions": {
+      "get": {
+        "operationId": "SoftphoneController_list",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เลขต่อทั้งหมดของบริษัท (ไม่มีรหัส SIP)",
+        "tags": [
+          "softphone"
+        ],
+        "x-permission": [
+          "admin.softphone.manage"
+        ]
+      },
+      "post": {
+        "operationId": "SoftphoneController_create",
+        "parameters": [
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveSoftphoneExtensionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เพิ่มเลขต่อให้ผู้ใช้",
+        "tags": [
+          "softphone"
+        ],
+        "x-permission": [
+          "admin.softphone.manage"
+        ]
+      }
+    },
+    "/api/v1/softphone/extensions/{id}": {
+      "put": {
+        "operationId": "SoftphoneController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveSoftphoneExtensionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "แก้เลขต่อ (รหัสว่าง = คงรหัสเดิม)",
+        "tags": [
+          "softphone"
+        ],
+        "x-permission": [
+          "admin.softphone.manage"
+        ]
+      },
+      "delete": {
+        "operationId": "SoftphoneController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ลบเลขต่อ",
+        "tags": [
+          "softphone"
+        ],
+        "x-permission": [
+          "admin.softphone.manage"
+        ]
+      }
+    },
     "/api/v1/admin/documents": {
       "get": {
         "operationId": "DocumentsController_list",
@@ -46252,88 +46783,6 @@
           "admin.bi.manage"
         ]
       }
-    },
-    "/api/v1/leads/{id}/sales-automation": {
-      "get": {
-        "operationId": "SalesMailController_automationForLead",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "X-Company-Id",
-            "in": "header",
-            "required": false,
-            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "งานขายอัตโนมัติของ Lead — สิ่งที่แต่ละ workflow ต้องมี + เหตุที่ติดขัดล่าสุด",
-        "tags": [
-          "sales-mail"
-        ],
-        "x-permission": [
-          "crm.lead.read"
-        ]
-      }
-    },
-    "/api/v1/opportunities/{id}/sales-automation": {
-      "get": {
-        "operationId": "SalesMailController_automationForOpportunity",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "X-Company-Id",
-            "in": "header",
-            "required": false,
-            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "งานขายอัตโนมัติของโอกาสการขาย — สิ่งที่แต่ละ workflow ต้องมี + เหตุที่ติดขัดล่าสุด",
-        "tags": [
-          "sales-mail"
-        ],
-        "x-permission": [
-          "crm.sales.read"
-        ]
-      }
     }
   },
   "info": {
@@ -48979,6 +49428,10 @@
             "maxLength": 100,
             "type": "string"
           },
+          "letterhead_fax": {
+            "maxLength": 100,
+            "type": "string"
+          },
           "letterhead_email": {
             "maxLength": 255,
             "type": "string"
@@ -49847,6 +50300,34 @@
           }
         }
       },
+      "LeadContactDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "maxLength": 255,
+            "type": "string",
+            "minLength": 1
+          },
+          "position": {
+            "maxLength": 120,
+            "type": "string"
+          },
+          "phone": {
+            "maxLength": 50,
+            "type": "string"
+          },
+          "email": {
+            "format": "email",
+            "type": "string"
+          },
+          "is_primary": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
       "DisqualifyLeadDto": {
         "type": "object",
         "properties": {
@@ -50163,6 +50644,22 @@
           },
           "payment_terms": {
             "maxLength": 500,
+            "type": "string"
+          },
+          "delivery_time": {
+            "maxLength": 500,
+            "type": "string"
+          },
+          "warranty": {
+            "maxLength": 500,
+            "type": "string"
+          },
+          "customer_fax": {
+            "maxLength": 50,
+            "type": "string"
+          },
+          "seller_mobile": {
+            "maxLength": 50,
             "type": "string"
           },
           "note": {
@@ -50664,6 +51161,22 @@
           },
           "payment_terms": {
             "maxLength": 500,
+            "type": "string"
+          },
+          "delivery_time": {
+            "maxLength": 500,
+            "type": "string"
+          },
+          "warranty": {
+            "maxLength": 500,
+            "type": "string"
+          },
+          "customer_fax": {
+            "maxLength": 50,
+            "type": "string"
+          },
+          "seller_mobile": {
+            "maxLength": 50,
             "type": "string"
           },
           "note": {
@@ -57937,6 +58450,77 @@
         },
         "required": [
           "widget_ids"
+        ]
+      },
+      "CreateCallLogDto": {
+        "type": "object",
+        "properties": {
+          "call_id": {
+            "type": "string",
+            "description": "id ของสายจาก softphone (ใช้กันบันทึกซ้ำ)",
+            "maxLength": 100,
+            "minLength": 1
+          },
+          "phone": {
+            "type": "string",
+            "example": "0812345678",
+            "description": "เบอร์ผู้โทร",
+            "maxLength": 50
+          },
+          "answered_at": {
+            "type": "string",
+            "example": "2026-11-10T03:00:00.000Z"
+          },
+          "ended_at": {
+            "type": "string",
+            "example": "2026-11-10T03:04:12.000Z"
+          }
+        },
+        "required": [
+          "answered_at",
+          "call_id",
+          "ended_at",
+          "phone"
+        ]
+      },
+      "SaveSoftphoneExtensionDto": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "users.id ของผู้ใช้ในบริษัทนี้"
+          },
+          "extension": {
+            "type": "string",
+            "example": "1023",
+            "description": "SIP username (เลขต่อ)",
+            "maxLength": 64
+          },
+          "password": {
+            "type": "string",
+            "description": "รหัส SIP · ต้องมีตอนเพิ่ม · ว่าง = คงรหัสเดิม",
+            "maxLength": 255
+          },
+          "wss_url": {
+            "type": "string",
+            "example": "wss://pbx.example.com:8089/ws",
+            "maxLength": 255
+          },
+          "sip_server": {
+            "type": "string",
+            "example": "10.0.0.5",
+            "maxLength": 255
+          },
+          "active": {
+            "type": "boolean",
+            "default": true
+          }
+        },
+        "required": [
+          "extension",
+          "sip_server",
+          "user_id",
+          "wss_url"
         ]
       },
       "CreateDocumentDto": {
