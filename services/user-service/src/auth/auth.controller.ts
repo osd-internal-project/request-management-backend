@@ -46,6 +46,8 @@ interface MeResponse {
   active_company_id: string;
   roles: string[];
   permissions: string[];
+  /** P5 `system.*` — gates the "ระบบ" menu; the backend re-checks on every `/system` call. */
+  system_permissions: string[];
   /**
    * Whether this person heads any group. The menu hides "งานทั้งหมด" without
    * it — a page that can only ever be empty reads as one that failed to load.
@@ -85,6 +87,7 @@ function present(principal: Principal): MeResponse {
     active_company_id: principal.activeCompanyId,
     roles: [...principal.roles],
     permissions: [...principal.permissions],
+    system_permissions: [...principal.systemPermissions],
     leads_units: principal.ledUnitIds.length > 0,
     sensitive_fields_visible: [...principal.sensitiveFieldsVisible],
     sensitive_fields_all: [...principal.sensitiveFieldsAll],

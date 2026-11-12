@@ -38,6 +38,7 @@ function principalWith(
     sensitiveFieldsAll: [],
     isServiceAccount,
     pendingOrgAssignment: false,
+    systemPermissions: [],
   };
 }
 

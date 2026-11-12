@@ -37,6 +37,7 @@ function principalWith(visible: string[]): Principal {
     ],
     isServiceAccount: false,
     pendingOrgAssignment: false,
+    systemPermissions: [],
   };
 }
 

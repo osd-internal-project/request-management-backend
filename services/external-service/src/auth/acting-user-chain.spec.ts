@@ -38,6 +38,7 @@ describe('X-Acting-User through the real guard chain (Open API + MCP)', () => {
     companies: [{ id: 'osd' }],
     isServiceAccount: false,
     pendingOrgAssignment: false,
+    systemPermissions: [],
     permissions: ['request.read', 'request.create'],
   } as unknown as Principal;
 

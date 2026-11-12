@@ -24,6 +24,7 @@ describe('resolveCaller', () => {
     activeCompanyId: 'osd',
     isServiceAccount: false,
     pendingOrgAssignment: false,
+    systemPermissions: [],
   } as unknown as Principal;
   const DELEGATED = {
     id: 'int-1',

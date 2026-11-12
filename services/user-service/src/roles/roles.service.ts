@@ -4,9 +4,12 @@ import {
   AppError,
   assertCompanyMember,
   assertHumanPermissions,
+  assertPermissionsFitLevel,
   assertSeparationOfDuties,
   isCompanyMember,
+  isPermission,
   Permission,
+  permissionLevel,
   permissionModule,
   permissionType,
   Principal,
@@ -159,6 +162,7 @@ export class RolesService implements OnModuleInit {
 
     assertSeparationOfDuties(dto.permissions);
     assertHumanPermissions(dto.permissions);
+    assertPermissionsFitLevel('COMPANY', dto.permissions);
 
     return this.transactions.execute(async (prisma) => {
       const option = { prisma };
@@ -215,6 +219,7 @@ export class RolesService implements OnModuleInit {
       if (dto.permissions) {
         assertSeparationOfDuties(dto.permissions);
         assertHumanPermissions(dto.permissions);
+        assertPermissionsFitLevel('COMPANY', dto.permissions);
       }
 
       // ROLE-02: a role with holders can be switched off but never removed,
@@ -295,7 +300,9 @@ export class RolesService implements OnModuleInit {
 
       const role = await this.roles.findById(roleId, option);
       // A shared role may be bound in any company; a company's own role only there.
-      const roleFits = role?.companyId === null || role?.companyId === companyId;
+      const roleFits =
+        role?.level === 'COMPANY' &&
+        (role.companyId === null || role.companyId === companyId);
       if (!role || !role.active || !roleFits) {
         throw new AppError('NOT_FOUND', 'ไม่พบบทบาทที่ใช้งานอยู่');
       }
@@ -501,6 +508,15 @@ export class RolesService implements OnModuleInit {
   }
 
   /** Flattens a user's roles in one company into a permission set. */
+  /** สิทธิ์ระดับระบบของคน — กรองด้วย catalog อีกชั้นเผื่อแถวเก่าที่ถือรหัสผิดระดับ. */
+  async systemPermissionsOf(userId: string): Promise<Permission[]> {
+    const codes = await this.roles.systemPermissionCodesOf(userId);
+    return codes.filter(
+      (code): code is Permission =>
+        isPermission(code) && permissionLevel(code) === 'SYSTEM',
+    );
+  }
+
   static permissionsOf(userRoles: readonly UserRoleWithRole[]): Permission[] {
     const codes = new Set<string>();
 

@@ -394,6 +394,7 @@ export class SmartHandoffService {
       sensitiveFieldsAll: [],
       isServiceAccount: false,
       pendingOrgAssignment: false,
+      systemPermissions: [],
     } as unknown as Principal;
   }
 }

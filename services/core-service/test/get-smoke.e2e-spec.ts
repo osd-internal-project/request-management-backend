@@ -98,6 +98,7 @@ function adminOf(company: {
     sensitiveFieldsAll: [],
     isServiceAccount: false,
     pendingOrgAssignment: false,
+    systemPermissions: [],
   };
 }
 

@@ -55,6 +55,7 @@ function principal(
     sensitiveFieldsAll: [],
     isServiceAccount: false,
     pendingOrgAssignment: false,
+    systemPermissions: [],
   } as unknown as Principal;
 }
 

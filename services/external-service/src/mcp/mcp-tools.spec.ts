@@ -22,6 +22,7 @@ function actor(
     permissions,
     isServiceAccount: false,
     pendingOrgAssignment: false,
+    systemPermissions: [],
     sensitiveFieldsAll: sensitive.all ?? [],
     sensitiveFieldsVisible: sensitive.visible ?? [],
   } as unknown as Principal;

@@ -27,7 +27,7 @@ const ROUTE = /@(Get|Post|Patch|Put|Delete)\(/g;
 // `AnyPermission` counts: it declares access just as explicitly as the rest.
 // Leaving it out silently reclassified two guarded routes as open the day it
 // was introduced — which is precisely what this file exists to catch.
-const GUARD = /@(Permissions|AnyPermission|Public|Authenticated)\(/g;
+const GUARD = /@(Permissions|AnyPermission|SystemPermissions|Public|Authenticated)\(/g;
 
 /**
  * Source with comments removed.
@@ -71,7 +71,7 @@ function hasClassLevelGuard(source: string): boolean {
   const firstRoute = source.search(/@(Get|Post|Patch|Put|Delete)\(/);
   if (firstRoute === -1) return false;
 
-  return /@(Permissions|AnyPermission|Public|Authenticated)\(/.test(
+  return /@(Permissions|AnyPermission|SystemPermissions|Public|Authenticated)\(/.test(
     source.slice(0, firstRoute),
   );
 }

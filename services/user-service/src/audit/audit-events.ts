@@ -46,6 +46,16 @@ export const AuditEvent = {
   // A login matched by username took over a row under a new Keycloak subject
   // (the id24 realm move). Kept visible because the same path is a takeover.
   IDENTITY_RELINKED: 'identity.relinked',
+
+  // P5 — ระดับระบบ (companyId null ใน audit ยกเว้นงานที่ลงบริษัทเดียว)
+  ORG_USER_REMOVED: 'org.user.removed',
+  SYSTEM_USER_SUSPENDED: 'system.user.suspended',
+  SYSTEM_USER_REACTIVATED: 'system.user.reactivated',
+  SYSTEM_USER_COMPANIES_REPLACED: 'system.user.companies.replaced',
+  SYSTEM_COMPANY_CREATED: 'system.company.created',
+  SYSTEM_COMPANY_UPDATED: 'system.company.updated',
+  SYSTEM_ROLE_GRANTED: 'system.role.granted',
+  SYSTEM_ROLE_REVOKED: 'system.role.revoked',
 } as const;
 
 export type AuditEventType = (typeof AuditEvent)[keyof typeof AuditEvent];

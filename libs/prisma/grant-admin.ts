@@ -13,6 +13,7 @@
  * identities, Keycloak owns them.
  */
 import { PrismaClient, Prisma } from '@prisma/client';
+import { ensureSystemAdminRole, SYSTEM_ADMIN_ROLE_CODE } from './system-role';
 
 const prisma = new PrismaClient();
 
@@ -110,7 +111,15 @@ async function grantAdmin(username: string): Promise<void> {
       );
     }
 
-    // 4. The first admin grant is itself auditable (ROLE-05).
+    // 4. P5: the system role too — `/system/*` is where companies and users are kept.
+    const systemRoleId = await ensureSystemAdminRole(tx);
+    await tx.systemUserRole.upsert({
+      where: { userId_roleId: { userId: user.id, roleId: systemRoleId } },
+      update: {},
+      create: { userId: user.id, roleId: systemRoleId },
+    });
+
+    // 5. The first admin grant is itself auditable (ROLE-05).
     await tx.auditLog.create({
       data: {
         eventType: 'role.granted',
@@ -122,11 +131,13 @@ async function grantAdmin(username: string): Promise<void> {
           username,
           role: ADMIN_ROLE_CODE,
           companies: granted,
+          systemRole: SYSTEM_ADMIN_ROLE_CODE,
         } as Prisma.InputJsonValue,
       },
     });
 
     console.log(`  ${username} → ${ADMIN_ROLE_CODE} in ${granted.join(', ')}`);
+    console.log(`  ${username} → ${SYSTEM_ADMIN_ROLE_CODE} (system)`);
     console.log(`  primary company: ${primary.code}`);
     console.log(
       `  org unit: ${rootUnit ? rootUnit.name : '(none — seed the org tree)'}`,

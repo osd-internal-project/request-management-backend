@@ -6,6 +6,7 @@ import {
   AUTHENTICATED_KEY,
   PERMISSIONS_KEY,
   PUBLIC_KEY,
+  SYSTEM_PERMISSIONS_KEY,
 } from './policy.decorators';
 import type { AppError } from '../errors/app-error';
 import type { Principal } from '../context/principal';
@@ -13,7 +14,11 @@ import type { Principal } from '../context/principal';
 /** The metadata a controller would have declared, keyed as the guard reads it. */
 type Declared = Partial<Record<string, unknown>>;
 
-function guardFor(declared: Declared, permissions: string[]) {
+function guardFor(
+  declared: Declared,
+  permissions: string[],
+  systemPermissions: string[] = [],
+) {
   const reflector = {
     getAllAndOverride: (key: string) => declared[key],
   } as unknown as Reflector;
@@ -22,6 +27,7 @@ function guardFor(declared: Declared, permissions: string[]) {
     userId: 'user-1',
     activeCompanyId: 'company-osd',
     permissions,
+    systemPermissions,
     isServiceAccount: false,
   } as unknown as Principal;
 
@@ -46,6 +52,19 @@ describe('PolicyGuard decides what a declaration means', () => {
 
     expect(guardFor(both, ['user.read', 'admin.org.manage'])()).toBe(true);
     expect(guardFor(both, ['user.read'])).toThrow(
+      expect.objectContaining({ code: 'FORBIDDEN' }),
+    );
+  });
+
+  it('P5 — `@SystemPermissions` reads systemPermissions, never company permissions', () => {
+    const system = { [SYSTEM_PERMISSIONS_KEY]: ['system.user.manage'] };
+
+    expect(guardFor(system, [], ['system.user.manage'])()).toBe(true);
+    // A company role that somehow carried the code still does not open it.
+    expect(guardFor(system, ['system.user.manage'], [])).toThrow(
+      expect.objectContaining({ code: 'FORBIDDEN' }),
+    );
+    expect(guardFor(system, [], ['system.user.read'])).toThrow(
       expect.objectContaining({ code: 'FORBIDDEN' }),
     );
   });

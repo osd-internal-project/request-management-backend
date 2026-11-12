@@ -195,6 +195,16 @@ export class OrgController {
     return this.orgService.listUnassignedUsers();
   }
 
+  @Delete('users/:id/membership')
+  @HttpCode(204)
+  @Permissions('admin.org.manage')
+  removeFromCompany(
+    @Param('id') id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.orgService.removeFromCompany(id, principal);
+  }
+
   @Patch('users/:id/org')
   @Permissions('admin.org.manage')
   assignUser(

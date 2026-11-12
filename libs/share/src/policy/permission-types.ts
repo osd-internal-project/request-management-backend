@@ -1,5 +1,10 @@
 import { AppError } from '../errors';
-import { isPermission, permissionType } from './permissions';
+import {
+  isPermission,
+  PermissionLevel,
+  permissionLevel,
+  permissionType,
+} from './permissions';
 
 /**
  * แยกสิทธิ์ของคนกับสิทธิ์ของเครื่องออกจากกัน (AUTH-06).
@@ -57,5 +62,29 @@ export function assertServicePermissions(permissions: readonly string[]): void {
     `กุญแจ API ถือสิทธิ์ของผู้ใช้ไม่ได้: ${human.join(', ')} — ` +
       'สิ่งที่คนทำได้ตัดสินจาก X-Acting-User ไม่ใช่จากกุญแจ',
     human.map((permission) => ({ field: 'scopes', reason: permission })),
+  );
+}
+
+/**
+ * role ระดับไหนถือสิทธิ์ระดับนั้นเท่านั้น: SYSTEM ถือแค่ `system.*`, COMPANY ห้ามถือ `system.*`.
+ *
+ * @throws AppError `UNPROCESSABLE` ระบุสิทธิ์ที่ผิดระดับ
+ */
+export function assertPermissionsFitLevel(
+  level: PermissionLevel,
+  permissions: readonly string[],
+): void {
+  const wrong = permissions.filter(
+    (permission) =>
+      isPermission(permission) && permissionLevel(permission) !== level,
+  );
+  if (!wrong.length) return;
+
+  throw new AppError(
+    'UNPROCESSABLE',
+    level === 'SYSTEM'
+      ? `role ระดับระบบถือได้เฉพาะสิทธิ์ system.*: ${wrong.join(', ')}`
+      : `role ของบริษัทถือสิทธิ์ระดับระบบไม่ได้: ${wrong.join(', ')}`,
+    wrong.map((permission) => ({ field: 'permissions', reason: permission })),
   );
 }

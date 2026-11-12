@@ -38,6 +38,7 @@ function principal(overrides: Partial<Principal> = {}): Principal {
     sensitiveFieldsAll: [],
     isServiceAccount: false,
     pendingOrgAssignment: false,
+    systemPermissions: [],
     ...overrides,
   };
 }

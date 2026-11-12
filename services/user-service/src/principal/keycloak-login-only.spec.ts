@@ -55,6 +55,7 @@ describe('Keycloak login only — token roles grant nothing', () => {
     };
     const roles = {
       rolesForUser: jest.fn().mockResolvedValue(manualRoles),
+      systemPermissionsOf: jest.fn().mockResolvedValue([]),
     };
     const policy = {
       resolveVisibleSensitiveFields: jest.fn().mockResolvedValue([]),
