@@ -2,6 +2,7 @@ import { ProductCatalogService } from './product-catalog.service';
 import type { ErpItem } from '../erp/erp-client';
 
 type Row = {
+  id?: string;
   code: string;
   name: string;
   unit: string | null;
@@ -25,17 +26,26 @@ function harness(options: { existing?: Row[]; sap?: ErpItem[] } = {}) {
         ),
     ),
     count: jest.fn(() => Promise.resolve(rows.length)),
-    findFirst: jest.fn((args: { where: { code: { equals: string } } }) =>
-      Promise.resolve(
-        rows.find(
-          (row) =>
-            row.code.toLowerCase() === args.where.code.equals.toLowerCase(),
-        ) ?? null,
-      ),
+    findFirst: jest.fn(
+      (args: {
+        where: { id?: string; active?: boolean; code?: { equals: string } };
+      }) =>
+        Promise.resolve(
+          rows.find(
+            (row) =>
+              (!args.where.id || row.id === args.where.id) &&
+              (args.where.active === undefined ||
+                row.active === args.where.active) &&
+              (!args.where.code ||
+                row.code.toLowerCase() ===
+                  args.where.code.equals.toLowerCase()),
+          ) ?? null,
+        ),
     ),
     create: jest.fn((args: { data: Row }) => {
-      rows.push({ ...args.data, active: true });
-      return Promise.resolve({ id: 'p1', ...args.data, active: true });
+      const row = { ...args.data, id: `p${rows.length + 1}`, active: true };
+      rows.push(row);
+      return Promise.resolve(row);
     }),
     createMany: jest.fn((args: { data: Row[] }) => {
       rows.push(...args.data);
@@ -43,10 +53,14 @@ function harness(options: { existing?: Row[]; sap?: ErpItem[] } = {}) {
     }),
     update: jest.fn(
       (args: {
-        where: { companyId_code: { code: string } };
+        where: { id?: string; companyId_code?: { code: string } };
         data: Partial<Row>;
       }) => {
-        const row = rows.find((r) => r.code === args.where.companyId_code.code);
+        const row = rows.find((r) =>
+          args.where.id
+            ? r.id === args.where.id
+            : r.code === args.where.companyId_code?.code,
+        );
         Object.assign(row ?? {}, args.data);
         return Promise.resolve(row);
       },
@@ -215,6 +229,59 @@ describe('CD-27 รายการสินค้าจาก SAP', () => {
       await expect(
         service.createManual({ code: 'A B', name: '' }, actor),
       ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+    });
+
+    it('แก้ชื่อ/หน่วยได้; ลบ = เลิกขาย แถวยังอยู่; เพิ่มรหัสเดิมซ้ำ = เปิดแถวเดิมกลับมา', async () => {
+      const { service, rows } = harness();
+      const made = await service.createManual(
+        { code: 'ATOM', name: 'พิมพ์ผิด', unit: 'ชุด' },
+        actor,
+      );
+
+      await expect(
+        service.updateManual(made.id, { name: 'ATOM Platform' }, actor),
+      ).resolves.toMatchObject({ name: 'ATOM Platform', unit: 'ชุด' });
+      await expect(
+        service.updateManual(made.id, { name: ' ' }, actor),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+
+      await service.removeManual(made.id, actor);
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({ code: 'ATOM', active: false });
+      await expect(
+        service.updateManual(made.id, { name: 'x' }, actor),
+      ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+
+      await service.createManual({ code: 'atom', name: 'กลับมา' }, actor);
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({
+        code: 'ATOM',
+        name: 'กลับมา',
+        unit: null,
+        active: true,
+      });
+    });
+
+    it('สินค้าจาก SAP แก้และลบจากที่นี่ไม่ได้ (409)', async () => {
+      const { service } = harness({
+        existing: [
+          {
+            id: 's1',
+            code: 'IP-PHONE',
+            name: 'IP Phone',
+            unit: null,
+            active: true,
+            source: 'sap',
+          },
+        ],
+      });
+
+      await expect(
+        service.updateManual('s1', { name: 'x' }, actor),
+      ).rejects.toMatchObject({ code: 'CONFLICT' });
+      await expect(service.removeManual('s1', actor)).rejects.toMatchObject({
+        code: 'CONFLICT',
+      });
     });
   });
 });

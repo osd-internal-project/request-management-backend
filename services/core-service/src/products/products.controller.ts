@@ -1,4 +1,14 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -58,6 +68,21 @@ export class CreateProductDto {
   unit?: string;
 }
 
+export class UpdateProductDto {
+  @ApiPropertyOptional({ example: 'ATOM Platform' })
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(200)
+  name?: string;
+
+  @ApiPropertyOptional({ example: 'license', description: 'ว่าง = ไม่มีหน่วย' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  unit?: string;
+}
+
 /**
  * CD-27 — รายการสินค้าจาก SAP สำหรับช่องเลือกสินค้าบนบรรทัดใบเสนอราคา.
  * อ่านจากสำเนาที่ Connect the Dot เท่านั้น — ใช้ได้แม้ SAP ล่ม. อยู่นอก `crm/`
@@ -100,5 +125,40 @@ export class ProductsController {
     @CurrentPrincipal() principal: Principal,
   ) {
     return this.catalog.createManual(body, principal);
+  }
+
+  @Get('manual')
+  @Permissions('pricing.price.manage')
+  @ApiOperation({
+    summary: 'สินค้าที่กรอกเอง (ยังขายอยู่) ของบริษัทที่ทำงานอยู่',
+  })
+  listManual(@CurrentPrincipal() principal: Principal) {
+    return this.catalog.listManual(principal);
+  }
+
+  @Patch(':id')
+  @Permissions('pricing.price.manage')
+  @ApiOperation({
+    summary: 'แก้ชื่อ/หน่วยของสินค้าที่กรอกเอง (รหัสแก้ไม่ได้; ของ SAP = 409)',
+  })
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: UpdateProductDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.catalog.updateManual(id, body, principal);
+  }
+
+  @Delete(':id')
+  @Permissions('pricing.price.manage')
+  @ApiOperation({
+    summary:
+      'ลบสินค้าที่กรอกเอง = เลิกขาย (แถวยังอยู่ เอกสารเก่ายังอ้างรหัสได้; ของ SAP = 409)',
+  })
+  remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.catalog.removeManual(id, principal);
   }
 }
