@@ -1,8 +1,25 @@
-import { Controller, Get, Query } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiProperty,
+  ApiPropertyOptional,
+  ApiTags,
+} from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsBoolean, IsOptional, IsString, MaxLength } from 'class-validator';
-import { AnyPermission, CurrentPrincipal } from '@request-management/share';
+import {
+  IsBoolean,
+  IsOptional,
+  IsString,
+  Matches,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
+import {
+  AnyPermission,
+  CurrentPrincipal,
+  Permissions,
+} from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import { ProductCatalogService } from '../crm/product-catalog.service';
 
@@ -18,6 +35,27 @@ export class SearchProductsQueryDto {
   @Transform(({ value }) => value === true || value === 'true')
   @IsBoolean()
   include_inactive?: boolean;
+}
+
+export class CreateProductDto {
+  @ApiProperty({ example: 'ATOM', description: 'ไม่มีช่องว่าง' })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(50)
+  @Matches(/^\S+$/, { message: 'รหัสสินค้าต้องไม่มีช่องว่าง' })
+  code!: string;
+
+  @ApiProperty({ example: 'ATOM Platform' })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(200)
+  name!: string;
+
+  @ApiPropertyOptional({ example: 'license' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  unit?: string;
 }
 
 /**
@@ -45,5 +83,22 @@ export class ProductsController {
       search: query.search,
       includeInactive: query.include_inactive,
     });
+  }
+
+  /**
+   * ยังไม่มี ERP — ฝ่ายราคาเพิ่มสินค้าเองเพื่อตั้งราคามาตรฐานและต้นทุนได้.
+   * ใช้สิทธิ์เดียวกับการตั้งราคา: สินค้าที่ไม่มีราคาก็ขายไม่ได้อยู่ดี.
+   */
+  @Post()
+  @Permissions('pricing.price.manage')
+  @ApiOperation({
+    summary:
+      'เพิ่มสินค้า/บริการเอง (ยังไม่มี ERP) — รอบ sync จาก SAP ไม่ปิดรายการนี้',
+  })
+  create(
+    @Body() body: CreateProductDto,
+    @CurrentPrincipal() principal: Principal,
+  ) {
+    return this.catalog.createManual(body, principal);
   }
 }
