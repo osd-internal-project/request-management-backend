@@ -185,6 +185,8 @@ export class CustomersService {
         // digit at a time. Without the permission only the whole number
         // matches, which is no more than check-duplicate already answers.
         taxIdHidden(actor) ? { taxId: q } : { taxId: { contains: q } },
+        { contacts: { some: { active: true, OR: contactMatch(q) } } },
+        { locations: { some: { active: true, OR: locationMatch(q) } } },
       ];
     }
 
@@ -1529,6 +1531,36 @@ function pick(
  * for the responses whose shape it cannot reach. A field no rule declares is
  * not sensitive, so an environment without the rule masks nothing.
  */
+/** ผู้ติดต่อที่ตรงคำค้น — ชื่อ อีเมล LINE id หรือเบอร์ (ทั้งแบบที่พิมพ์มาและแบบตัวเลขล้วน). */
+function contactMatch(q: string): Prisma.CustomerContactWhereInput[] {
+  const text = { contains: q, mode: 'insensitive' as const };
+  const match: Prisma.CustomerContactWhereInput[] = [
+    { name: text },
+    { email: text },
+    { lineId: text },
+    { phone: { contains: q } },
+  ];
+  // `+66 90-191-1919` → `0901911919`, the way phones are typed in on screen.
+  // shortcut: a phone stored with dashes won't match the digits-only form; normalise on save if such rows appear.
+  const digits = q.replace(/\D/g, '').replace(/^66(?=\d{8,9}$)/, '0');
+  if (digits.length >= 6 && digits !== q) {
+    match.push({ phone: { contains: digits } });
+  }
+  return match;
+}
+
+function locationMatch(q: string): Prisma.CustomerLocationWhereInput[] {
+  const text = { contains: q, mode: 'insensitive' as const };
+  return [
+    { line1: text },
+    { line2: text },
+    { subDistrict: text },
+    { district: text },
+    { province: text },
+    { postalCode: { contains: q } },
+  ];
+}
+
 function taxIdHidden(actor: Principal): boolean {
   return (
     actor.sensitiveFieldsAll.includes(CUSTOMER_TAX_ID) &&

@@ -829,6 +829,49 @@ describe('CM-08 เลขผู้เสียภาษีไม่หลุด�
 
     expect(taxIdClause(h.customers.search)).toEqual({ contains: '31012' });
   });
+
+  function searchOr(search: jest.Mock): Record<string, unknown>[] {
+    const [[where]] = search.mock.calls as [
+      { AND: [unknown, { OR: Record<string, unknown>[] }] },
+    ][];
+    return where.AND[1].OR;
+  }
+
+  it('ค้นรายการ: เบอร์ +66 ที่มีขีด ค้นผู้ติดต่อด้วยเลข 0 นำหน้าแบบตัวเลขล้วน', async () => {
+    const h = harness({});
+
+    await h.service.list(principal(), { search: '+66 90-191-1919' } as never);
+
+    expect(searchOr(h.customers.search)).toContainEqual({
+      contacts: {
+        some: {
+          active: true,
+          OR: expect.arrayContaining([
+            { phone: { contains: '+66 90-191-1919' } },
+            { phone: { contains: '0901911919' } },
+            { lineId: { contains: '+66 90-191-1919', mode: 'insensitive' } },
+          ]) as unknown,
+        },
+      },
+    });
+  });
+
+  it('ค้นรายการ: ค้นจังหวัดของที่อยู่ที่ยังใช้งาน', async () => {
+    const h = harness({});
+
+    await h.service.list(principal(), { search: 'กรุงเทพ' } as never);
+
+    expect(searchOr(h.customers.search)).toContainEqual({
+      locations: {
+        some: {
+          active: true,
+          OR: expect.arrayContaining([
+            { province: { contains: 'กรุงเทพ', mode: 'insensitive' } },
+          ]) as unknown,
+        },
+      },
+    });
+  });
 });
 
 /**
