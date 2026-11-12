@@ -618,3 +618,6 @@ The domain rules most at risk of drifting are written and unit-tested:
 - `services/core-service/src/approvals/approval-chain.ts` (§8.1)
 - `services/core-service/src/crm/customer-state-machine.ts` (CM-04)
 - `services/core-service/src/crm/quotation-math.ts` (CD-76)
+
+- Before adding config rows through the web or API, read-only query the DB first (target user, company, existing rows, role permissions) so the write path is chosen from facts, not discovered by a 403.
+- Before a plan relies on a step outside this machine (server shell, another admin, console access), confirm with the user that someone can actually do it; plan only on access already proven.
