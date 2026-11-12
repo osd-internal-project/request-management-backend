@@ -31,26 +31,50 @@ export function resolveTargetCompany(
 }
 
 /**
- * The membership check on its own, for callers where an absent `company_id`
- * means something other than "my active company" — `createRole` treats it as
- * "a role shared by every company", which must keep meaning that.
+ * For reads filtered by the caller's own rights (reports, dashboards): those
+ * rights were resolved for the active company only, so another company — even
+ * one the caller belongs to — cannot be judged here. Switch company instead.
  */
-export function assertCompanyMember(
+export function requireActiveCompany(
   principal: Principal,
-  requested: string,
-): void {
+  requested: string | undefined,
+): string {
+  if (requested && requested !== principal.activeCompanyId) {
+    throw new AppError(
+      'COMPANY_FORBIDDEN',
+      'รายงานนี้ดูได้เฉพาะบริษัทที่กำลังทำงานอยู่ — สลับบริษัทก่อน',
+      [{ field: 'company_id', reason: requested }],
+    );
+  }
+  return principal.activeCompanyId;
+}
+
+/**
+ * Whether an administration write may touch a row owned by `companyId`.
+ * `null` (a row shared by every company) is never a company admin's to edit —
+ * that belongs to the system scope.
+ */
+export function isCompanyMember(
+  principal: Principal,
+  companyId: string | null,
+): boolean {
+  if (companyId === null) return false;
   /**
    * A service account has no membership to check — see `CompanyGuard` for why
    * membership is the wrong test for an integration. Its boundary is the
    * client grant, already enforced by `PolicyGuard`.
    */
-  if (principal.isServiceAccount) return;
+  if (principal.isServiceAccount) return true;
 
-  const isMember = principal.companies.some(
-    (company) => company.id === requested,
-  );
+  return principal.companies.some((company) => company.id === companyId);
+}
 
-  if (!isMember) {
+/** The membership check on its own, answering 403 rather than 404. */
+export function assertCompanyMember(
+  principal: Principal,
+  requested: string,
+): void {
+  if (!isCompanyMember(principal, requested)) {
     throw new AppError(
       'COMPANY_FORBIDDEN',
       'ไม่มีสิทธิ์เข้าถึงข้อมูลของบริษัทนี้',

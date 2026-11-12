@@ -4,7 +4,7 @@ import {
   accessSubject,
   visibleRequestsWhere,
   PrismaService,
-  resolveTargetCompany,
+  requireActiveCompany,
 } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import type { Prisma, SlaState } from '@prisma/client';
@@ -86,7 +86,7 @@ export class SlaComplianceService {
     actor: Principal,
     now: Date = new Date(),
   ): Promise<SlaComplianceReport> {
-    const companyId = resolveTargetCompany(actor, query.company_id);
+    const companyId = requireActiveCompany(actor, query.company_id);
     const groupBy: SlaGroupBy = query.group_by ?? 'team';
     const { from, to } = periodOf(query, now);
 

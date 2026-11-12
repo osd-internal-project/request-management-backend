@@ -9,6 +9,7 @@ import {
   PrismaTransactionService,
   paginated,
   toSkipTake,
+  visibleRequestsWhere,
 } from '@request-management/share';
 import type { PageQueryDto, Principal } from '@request-management/share';
 import { Prisma } from '@prisma/client';
@@ -1556,6 +1557,30 @@ export class ApprovalsService {
 
     // SCOPE-03 again: a case in another company is "not found".
     if (!found || found.companyId !== actor.activeCompanyId) {
+      throw new AppError('NOT_FOUND', 'ไม่พบรายการอนุมัติที่ระบุ');
+    }
+
+    /*
+      SCOPE-02: holding `approval.decide` is not a licence to open every case.
+      The case is open to whoever a step names (now or when it was decided)
+      and to whoever may see the request behind it — the inbox's own rule.
+    */
+    const subject = accessSubject(actor, await this.coveringFor(actor));
+    const reachable = await this.cases.countWhere({
+      id: caseId,
+      OR: [
+        {
+          steps: {
+            some: decidableStepWhere(subject) as Prisma.ApprovalStepWhereInput,
+          },
+        },
+        { steps: { some: { decidedByUserId: actor.userId } } },
+        {
+          request: visibleRequestsWhere(subject) as Prisma.RequestWhereInput,
+        },
+      ],
+    });
+    if (reachable === 0) {
       throw new AppError('NOT_FOUND', 'ไม่พบรายการอนุมัติที่ระบุ');
     }
 

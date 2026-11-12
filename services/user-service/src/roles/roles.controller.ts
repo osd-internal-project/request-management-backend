@@ -108,7 +108,7 @@ export class RolesController {
     return this.rolesService.grantRole(
       userId,
       dto.role_id,
-      dto.company_id,
+      resolveTargetCompany(principal, dto.company_id),
       principal,
     );
   }

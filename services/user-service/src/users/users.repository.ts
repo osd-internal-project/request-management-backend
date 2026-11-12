@@ -112,6 +112,9 @@ export class UsersRepository extends BaseRepository<PrismaService['user']> {
           data: {
             ...profile,
             displayName: keepThaiName ? existing.displayName : profile.displayName,
+            // A token without the claim says nothing about the address; keep it
+            // so `X-Acting-User` and the directory still find this person.
+            email: profile.email ?? existing.email,
             keycloakId: claims.keycloakId,
           },
         },

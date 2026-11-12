@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { KeycloakAdminModule } from '../keycloak-admin/keycloak-admin.module';
+import { UserCompanyRepository } from '../org/user-company.repository';
 import { PrismaTransactionService } from '@request-management/share';
 import { KeycloakRoleMappingRepository } from './keycloak-role-mapping.repository';
 import { PermissionRepository } from './permission.repository';
@@ -18,6 +19,7 @@ import { UserRoleRepository } from './user-role.repository';
     PermissionRepository,
     KeycloakRoleMappingRepository,
     PrismaTransactionService,
+    UserCompanyRepository,
   ],
   exports: [RolesService],
 })

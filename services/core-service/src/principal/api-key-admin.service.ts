@@ -108,37 +108,45 @@ export class ApiKeyAdminService {
       ? new Date(Date.now() + dto.expires_in_days * 86_400_000)
       : null;
 
-    const { key, row } = await this.mint(
-      {
-        name: dto.name.trim(),
-        sourceCode: dto.source_code,
-        scopes,
-        expiresAt,
-        integrationId,
-      },
-      actor,
-    );
-    const prefix = row.prefix;
+    // The key and its audit row commit together: a key with no record of who
+    // issued it must never exist (SUP-04).
+    const { key, row } = await this.transactions.execute(async (prisma) => {
+      const minted = await this.mint(
+        {
+          name: dto.name.trim(),
+          sourceCode: dto.source_code,
+          scopes,
+          expiresAt,
+          integrationId,
+        },
+        actor,
+        { prisma },
+      );
 
-    /*
-      บันทึกว่าใครออกกุญแจอะไรให้ช่องทางไหน — **ไม่เคยบันทึกตัวกุญแจ**. audit
-      เป็น append-only และอ่านได้จากหน้าจอ audit; กุญแจที่หลุดลงไปในนั้นคือกุญแจ
-      ที่เพิกถอนไม่ได้จริง เพราะสำเนายังอยู่ในบันทึกที่ลบไม่ได้ตลอดไป.
-    */
-    await this.audit.record({
-      eventType: 'admin.api_key.issued',
-      companyId: actor.activeCompanyId,
-      ...auditActor(actor),
-      resourceType: 'api_key',
-      resourceId: row.id,
-      after: {
-        prefix,
-        name: row.name,
-        sourceCode: row.sourceCode,
-        scopes,
-        expiresAt: expiresAt?.toISOString() ?? null,
-        integrationId,
-      },
+      /*
+        บันทึกว่าใครออกกุญแจอะไรให้ช่องทางไหน — **ไม่เคยบันทึกตัวกุญแจ**. audit
+        เป็น append-only และอ่านได้จากหน้าจอ audit; กุญแจที่หลุดลงไปในนั้นคือกุญแจ
+        ที่เพิกถอนไม่ได้จริง เพราะสำเนายังอยู่ในบันทึกที่ลบไม่ได้ตลอดไป.
+      */
+      await this.audit.record(
+        {
+          eventType: 'admin.api_key.issued',
+          companyId: actor.activeCompanyId,
+          ...auditActor(actor),
+          resourceType: 'api_key',
+          resourceId: minted.row.id,
+          after: {
+            prefix: minted.row.prefix,
+            name: minted.row.name,
+            sourceCode: minted.row.sourceCode,
+            scopes,
+            expiresAt: expiresAt?.toISOString() ?? null,
+            integrationId,
+          },
+        },
+        { prisma },
+      );
+      return minted;
     });
 
     return { ...toRow(row), key };
@@ -258,19 +266,29 @@ export class ApiKeyAdminService {
 
     const scopes = assertIssuable(dto.scopes);
 
-    const row = (await this.keys.update({
-      where: { id },
-      data: { scopes },
-    })) as ApiKeyRow;
+    const row = await this.transactions.execute(async (prisma) => {
+      const updated = (await this.keys.update(
+        { where: { id }, data: { scopes } },
+        { prisma },
+      )) as ApiKeyRow;
 
-    await this.audit.record({
-      eventType: 'admin.api_key.scopes_changed',
-      companyId: actor.activeCompanyId,
-      ...auditActor(actor),
-      resourceType: 'api_key',
-      resourceId: id,
-      before: { prefix: found.prefix, name: found.name, scopes: found.scopes },
-      after: { prefix: found.prefix, name: found.name, scopes },
+      await this.audit.record(
+        {
+          eventType: 'admin.api_key.scopes_changed',
+          companyId: actor.activeCompanyId,
+          ...auditActor(actor),
+          resourceType: 'api_key',
+          resourceId: id,
+          before: {
+            prefix: found.prefix,
+            name: found.name,
+            scopes: found.scopes,
+          },
+          after: { prefix: found.prefix, name: found.name, scopes },
+        },
+        { prisma },
+      );
+      return updated;
     });
 
     return toRow(row);
@@ -288,23 +306,32 @@ export class ApiKeyAdminService {
 
     if (found.revokedAt) return toRow(found);
 
-    const row = (await this.keys.update({
-      where: { id },
-      data: {
-        active: false,
-        revokedAt: new Date(),
-        revokedBy: actor.userId,
-      },
-    })) as ApiKeyRow;
+    const row = await this.transactions.execute(async (prisma) => {
+      const revoked = (await this.keys.update(
+        {
+          where: { id },
+          data: {
+            active: false,
+            revokedAt: new Date(),
+            revokedBy: actor.userId,
+          },
+        },
+        { prisma },
+      )) as ApiKeyRow;
 
-    await this.audit.record({
-      eventType: 'admin.api_key.revoked',
-      companyId: actor.activeCompanyId,
-      ...auditActor(actor),
-      resourceType: 'api_key',
-      resourceId: id,
-      before: { prefix: found.prefix, name: found.name, active: true },
-      after: { prefix: found.prefix, name: found.name, active: false },
+      await this.audit.record(
+        {
+          eventType: 'admin.api_key.revoked',
+          companyId: actor.activeCompanyId,
+          ...auditActor(actor),
+          resourceType: 'api_key',
+          resourceId: id,
+          before: { prefix: found.prefix, name: found.name, active: true },
+          after: { prefix: found.prefix, name: found.name, active: false },
+        },
+        { prisma },
+      );
+      return revoked;
     });
 
     return toRow(row);
