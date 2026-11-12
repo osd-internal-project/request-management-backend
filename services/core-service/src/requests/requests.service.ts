@@ -944,6 +944,12 @@ export class RequestsService {
     }
     const companyId = resolveTargetCompany(actor, dto.company_id);
     const type = await this.requireType(dto.type_code, companyId);
+    // SCOPE-02 — the requester's group at submit, as the screen path snapshots it;
+    // null left the request reachable only by the people named on it.
+    const requesterOrgUnitId = await this.orgUnits.unitOfMember(
+      dto.requester_user_id,
+      companyId,
+    );
 
     const created = await this.requests.create({
       data: {
@@ -951,7 +957,7 @@ export class RequestsService {
         typeCode: type.code,
         companyId,
         requesterId: dto.requester_user_id,
-        requesterOrgUnitId: null,
+        requesterOrgUnitId,
         formData: applyComputedFields(
           type.formSchema,
           dto.form_data ?? {},
@@ -1016,6 +1022,10 @@ export class RequestsService {
   ): Promise<{ detail: RequestDetail; statusToken: string }> {
     const type = await this.requireType(input.typeCode, input.companyId);
     const statusToken = randomBytes(24).toString('base64url');
+    const requesterOrgUnitId = await this.orgUnits.unitOfMember(
+      input.requesterUserId,
+      input.companyId,
+    );
 
     const created = await this.requests.create({
       data: {
@@ -1023,7 +1033,7 @@ export class RequestsService {
         typeCode: type.code,
         companyId: input.companyId,
         requesterId: input.requesterUserId,
-        requesterOrgUnitId: null,
+        requesterOrgUnitId,
         formData: applyComputedFields(
           type.formSchema,
           input.formData,
