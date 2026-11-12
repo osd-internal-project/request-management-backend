@@ -421,7 +421,9 @@ function servicePaths(service: string): string[] {
         if (!segments.length) continue;
 
         paths.add(
-          '/' + (segments[0] === 'admin' ? segments.slice(0, 2) : [segments[0]]).join('/'),
+          '/' +
+            // `/system/*` is split across services by domain, like `/admin/*` (P8).
+            (['admin', 'system'].includes(segments[0]) ? segments.slice(0, 2) : [segments[0]]).join('/'),
         );
       }
     }

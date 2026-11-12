@@ -10,6 +10,7 @@ import {
   PUBLIC_KEY,
   SERVICE_ACCOUNT_ALLOWED_KEY,
   SERVICE_ACCOUNT_ONLY_KEY,
+  ANY_SYSTEM_PERMISSION_KEY,
   SYSTEM_PERMISSIONS_KEY,
 } from './policy.decorators';
 
@@ -93,6 +94,27 @@ export class PolicyGuard implements CanActivate {
       }
 
       return true;
+    }
+
+    const anySystem = this.reflector.getAllAndOverride<Permission[]>(
+      ANY_SYSTEM_PERMISSION_KEY,
+      targets,
+    );
+
+    if (anySystem?.length) {
+      if (
+        anySystem.some((permission) =>
+          principal.systemPermissions.includes(permission),
+        )
+      )
+        return true;
+
+      throw new AppError('FORBIDDEN', 'ไม่มีสิทธิ์ระดับระบบสำหรับส่วนนี้', [
+        {
+          field: 'permission',
+          reason: `ต้องมีอย่างใดอย่างหนึ่ง: ${anySystem.join(', ')}`,
+        },
+      ]);
     }
 
     const required = this.reflector.getAllAndOverride<Permission[]>(

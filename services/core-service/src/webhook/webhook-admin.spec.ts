@@ -1,3 +1,4 @@
+import { keyringFromEnv } from '@request-management/share';
 import type { ExecutionContext } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
@@ -60,7 +61,7 @@ describe('G-07 webhook admin routes need admin.integration.manage', () => {
   });
 });
 
-const KEY = 'test-config-key';
+const KEY = keyringFromEnv({ CONFIG_SECRET_KEY: 'test-config-key' });
 
 function admin(companyId = 'osd'): Principal {
   return {

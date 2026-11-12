@@ -1,3 +1,4 @@
+import type { SecretKeyring } from '@request-management/share';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -221,8 +222,8 @@ export class OutboundConnectionsAdminService {
     return sealSecret(secret, this.sealKey());
   }
 
-  private sealKey(): string {
-    const key = this.config.get<string>('projectConfig.secret');
+  private sealKey(): SecretKeyring {
+    const key = this.config.get<SecretKeyring>('projectConfig.secret');
     if (!key) throw new Error('CONFIG_SECRET_KEY is not set');
     return key;
   }

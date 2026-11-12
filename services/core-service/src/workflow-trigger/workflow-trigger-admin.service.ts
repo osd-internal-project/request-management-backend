@@ -1,3 +1,4 @@
+import type { SecretKeyring } from '@request-management/share';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'node:crypto';
@@ -298,7 +299,7 @@ export class WorkflowTriggerAdminService {
   }
 
   private seal(key: string): string {
-    const secret = this.config.get<string>('projectConfig.secret');
+    const secret = this.config.get<SecretKeyring>('projectConfig.secret');
     if (!secret) throw new Error('CONFIG_SECRET_KEY is not set');
     return sealSecret(key.trim(), secret);
   }

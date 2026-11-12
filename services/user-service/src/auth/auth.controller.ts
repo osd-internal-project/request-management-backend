@@ -14,6 +14,7 @@ import {
   Authenticated,
   CurrentPrincipal,
   Public,
+  enteredAsSystem,
 } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import type { Request } from 'express';
@@ -42,12 +43,15 @@ interface MeResponse {
     name: string;
     doc_prefix: string;
     is_primary: boolean;
+    via?: 'system';
   }[];
   active_company_id: string;
   roles: string[];
   permissions: string[];
   /** P5 `system.*` — gates the "ระบบ" menu; the backend re-checks on every `/system` call. */
   system_permissions: string[];
+  /** P6: `system` = working in a company through the system plane, with its admin role. */
+  tenant_access: 'member' | 'system';
   /**
    * Whether this person heads any group. The menu hides "งานทั้งหมด" without
    * it — a page that can only ever be empty reads as one that failed to load.
@@ -83,7 +87,9 @@ function present(principal: Principal): MeResponse {
       name: company.name,
       doc_prefix: company.docPrefix,
       is_primary: company.isPrimary,
+      ...(company.via ? { via: company.via } : {}),
     })),
+    tenant_access: enteredAsSystem(principal) ? 'system' : 'member',
     active_company_id: principal.activeCompanyId,
     roles: [...principal.roles],
     permissions: [...principal.permissions],
@@ -178,25 +184,22 @@ export class AuthController {
     @CurrentPrincipal() principal: Principal,
     @Req() request: Request & { user?: unknown },
   ): Promise<MeResponse> {
-    const target = principal.companies.find(
-      (company) => company.id === dto.company_id,
+    // Re-resolve rather than patching the id: roles, scopes, and visible
+    // sensitive fields are all per company (ROLE-04), so they must be
+    // recomputed, not carried over from the previous one. Resolving first
+    // is also what admits a company entered through the system plane (P6).
+    const switched = await this.principals.resolve(
+      request.user as Parameters<PrincipalService['resolve']>[0],
+      dto.company_id,
     );
 
-    if (!target) {
+    if (switched.activeCompanyId !== dto.company_id) {
       throw new AppError(
         'COMPANY_FORBIDDEN',
         'ไม่มีสิทธิ์เข้าถึงข้อมูลของบริษัทนี้',
         [{ field: 'company_id', reason: dto.company_id }],
       );
     }
-
-    // Re-resolve rather than patching the id: roles, scopes, and visible
-    // sensitive fields are all per company (ROLE-04), so they must be
-    // recomputed, not carried over from the previous one.
-    const switched = await this.principals.resolve(
-      request.user as Parameters<PrincipalService['resolve']>[0],
-      dto.company_id,
-    );
 
     // จำไว้ให้ login ครั้งถัดไปเข้าบริษัทนี้ — cookie ฝั่ง frontend ถูกลบตอน logout
     // จึงจำข้ามรอบ login ไม่ได้ด้วยตัวเอง
@@ -206,7 +209,9 @@ export class AuthController {
     );
 
     await this.audit.record({
-      eventType: AuditEvent.COMPANY_SWITCHED,
+      eventType: enteredAsSystem(switched)
+        ? AuditEvent.SYSTEM_TENANT_ENTERED
+        : AuditEvent.COMPANY_SWITCHED,
       companyId: dto.company_id,
       actorId: principal.userId,
       actorUsername: principal.username,

@@ -1,3 +1,4 @@
+import type { SecretKeyring } from '@request-management/share';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { SoftphoneExtension } from '@prisma/client';
@@ -293,8 +294,8 @@ export class SoftphoneService {
     );
   }
 
-  private sealKey(): string {
-    const key = this.config.get<string>('projectConfig.secret');
+  private sealKey(): SecretKeyring {
+    const key = this.config.get<SecretKeyring>('projectConfig.secret');
     if (!key) throw new Error('CONFIG_SECRET_KEY is not set');
     return key;
   }

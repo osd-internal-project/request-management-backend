@@ -1,3 +1,4 @@
+import type { SecretKeyring } from '@request-management/share';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -569,8 +570,8 @@ export class ConfigsService {
     };
   }
 
-  private secret(): string {
-    const secret = this.config.get<string>('projectConfig.secret');
+  private secret(): SecretKeyring {
+    const secret = this.config.get<SecretKeyring>('projectConfig.secret');
     if (!secret) throw new Error('CONFIG_SECRET_KEY is not set');
     return secret;
   }

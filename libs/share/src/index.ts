@@ -11,3 +11,4 @@ export * from './run-number';
 export * from './storage';
 export * from './audit/audit-writer.service';
 export * from './audit/audit.module';
+export * from './secrets';

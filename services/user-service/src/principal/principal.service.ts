@@ -165,6 +165,12 @@ export class PrincipalService {
       docPrefix: membership.company.docPrefix,
       isPrimary: membership.isPrimary,
     }));
+    const entered = await this.enteredCompany(
+      companies,
+      requestedCompanyId ?? user.lastCompanyId ?? undefined,
+      systemPermissions,
+    );
+    if (entered) companies.push(entered);
 
     const activeCompanyId = pickActiveCompany(
       companies,
@@ -180,9 +186,22 @@ export class PrincipalService {
       return this.pendingPrincipal(user, companies, systemPermissions);
     }
 
+    if (entered && activeCompanyId === entered.id) {
+      return this.enteredPrincipal(
+        user,
+        companies,
+        entered.id,
+        systemPermissions,
+      );
+    }
+
     // Keycloak is login only: roles come from grants made in this app, never from token roles.
     const userRoles = await this.roles.rolesForUser(user.id, activeCompanyId);
-    const permissions = RolesService.permissionsOf(userRoles);
+    const permissions = await this.roles.effectivePermissions(
+      user.id,
+      activeCompanyId,
+      userRoles,
+    );
 
     /*
       The levels the caller's roles carry, as they stand right now. Read off
@@ -284,6 +303,74 @@ export class PrincipalService {
     }
 
     return user;
+  }
+
+  /**
+   * P6 (Q2): a company the person is not a member of, opened through
+   * `system.tenant.read`. Only an active company, and only when asked for.
+   */
+  private async enteredCompany(
+    companies: readonly PrincipalCompany[],
+    candidate: string | undefined,
+    systemPermissions: readonly Permission[],
+  ): Promise<PrincipalCompany | null> {
+    if (!candidate || !systemPermissions.includes('system.tenant.read')) {
+      return null;
+    }
+    if (companies.some((company) => company.id === candidate)) return null;
+
+    const company = await this.org.findCompany(candidate);
+    if (!company?.active) return null;
+    return {
+      id: company.id,
+      name: company.name,
+      docPrefix: company.docPrefix,
+      isPrimary: false,
+      via: 'system',
+    };
+  }
+
+  /**
+   * Acting in an entered company with its `admin` role — the SCOPE-03
+   * exception in AGENTS.md. The person's own unit belongs to another
+   * company, so nothing on that company's chart is theirs.
+   */
+  private async enteredPrincipal(
+    user: User,
+    companies: readonly PrincipalCompany[],
+    companyId: string,
+    systemPermissions: readonly Permission[],
+  ): Promise<Principal> {
+    const permissions = await this.roles.adminPermissionsOf(companyId);
+    const [sensitiveFieldsVisible, sensitiveFieldsAll] = await Promise.all([
+      this.policy.resolveVisibleSensitiveFields(permissions),
+      this.policy.listAllSensitiveFieldKeys(),
+    ]);
+    return {
+      userId: user.id,
+      keycloakId: user.keycloakId,
+      username: user.username,
+      displayName: user.displayName,
+      email: user.email,
+      companies,
+      activeCompanyId: companyId,
+      orgUnitId: null,
+      supervisorUserId: null,
+      ledUnitIds: [],
+      levelUnitIds: [],
+      scopedUnitIds: [],
+      scopedActUnitIds: [],
+      scopedUserIds: [],
+      scopedActUserIds: [],
+      scopedByPermission: {},
+      roles: ['admin'],
+      permissions,
+      systemPermissions,
+      sensitiveFieldsVisible,
+      sensitiveFieldsAll,
+      isServiceAccount: false,
+      pendingOrgAssignment: false,
+    };
   }
 
   private pendingPrincipal(

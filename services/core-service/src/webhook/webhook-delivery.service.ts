@@ -1,3 +1,4 @@
+import type { SecretKeyring } from '@request-management/share';
 import {
   Injectable,
   Logger,
@@ -121,7 +122,7 @@ export class WebhookDeliveryService implements OnModuleInit, OnModuleDestroy {
     }
     const secret = openSecret(
       sub.secretEnc,
-      this.config.get<string>('projectConfig.secret') ?? '',
+      this.config.get<SecretKeyring>('projectConfig.secret'),
     );
     if (secret === null) {
       await this.finish(

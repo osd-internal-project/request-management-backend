@@ -65,10 +65,16 @@ function orgService(options: {
     } as never,
     {
       findById: jest.fn(() =>
-        Promise.resolve({ id: 'user-1', orgUnitId: null, primaryCompanyId: null }),
+        Promise.resolve({
+          id: 'user-1',
+          orgUnitId: null,
+          primaryCompanyId: null,
+        }),
       ),
       findFirst: jest.fn(() =>
-        Promise.resolve(options.supervisorFound === false ? null : { id: 'sup' }),
+        Promise.resolve(
+          options.supervisorFound === false ? null : { id: 'sup' },
+        ),
       ),
       assignOrg,
     } as never,
@@ -188,7 +194,9 @@ describe('SCOPE-03 an admin writes only inside companies they belong to', () => 
   });
 });
 
-function role(companyId: string | null): Role {
+type RoleRow = Role & { permissions: { permissionCode: string }[] };
+
+function role(companyId: string | null): RoleRow {
   return {
     id: 'role-1',
     companyId,
@@ -197,10 +205,15 @@ function role(companyId: string | null): Role {
     active: true,
     isSystem: false,
     level: 'COMPANY',
-  } as Role;
+    permissions: [],
+  } as unknown as RoleRow;
 }
 
-function rolesService(options: { role?: Role | null; userCompanies?: string[] }) {
+function rolesService(options: {
+  role?: RoleRow | null;
+  userCompanies?: string[];
+  heldPermissions?: string[];
+}) {
   const grant = jest.fn(() => Promise.resolve());
   const createRole = jest.fn((data: object) =>
     Promise.resolve({ id: 'new', ...data }),
@@ -214,7 +227,22 @@ function rolesService(options: { role?: Role | null; userCompanies?: string[] })
       updateRole,
       countUsers: jest.fn(() => Promise.resolve(0)),
     } as never,
-    { grant } as never,
+    {
+      grant,
+      findForUserInCompany: jest.fn(() =>
+        Promise.resolve([
+          {
+            role: {
+              permissions: (options.heldPermissions ?? []).map(
+                (permissionCode) => ({
+                  permissionCode,
+                }),
+              ),
+            },
+          },
+        ]),
+      ),
+    } as never,
     {} as never,
     {} as never,
     audit as never,
@@ -222,6 +250,7 @@ function rolesService(options: { role?: Role | null; userCompanies?: string[] })
     {
       companyIdsOf: jest.fn(() => Promise.resolve(options.userCompanies ?? [])),
     } as never,
+    { listLive: jest.fn().mockResolvedValue([]) } as never,
   );
 
   return { service, grant, createRole, updateRole };
@@ -300,14 +329,34 @@ describe('ROLE-04 roles stay inside the admin company', () => {
     await service.grantRole('user-1', 'role-1', OSD, adminOf(OSD));
 
     expect(grant).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: 'user-1', roleId: 'role-1', companyId: OSD }),
+      expect.objectContaining({
+        userId: 'user-1',
+        roleId: 'role-1',
+        companyId: OSD,
+      }),
       expect.anything(),
     );
   });
 
+  it('P7 — §5.4 is judged on what the person ends up holding (422)', async () => {
+    const { service, grant } = rolesService({
+      role: {
+        ...role(OSD),
+        permissions: [{ permissionCode: 'approval.decide' }],
+      } as RoleRow,
+      userCompanies: [OSD],
+      heldPermissions: ['admin.org.manage'],
+    });
+
+    await expect(
+      service.grantRole('user-1', 'role-1', OSD, adminOf(OSD)),
+    ).rejects.toMatchObject({ code: 'UNPROCESSABLE' });
+    expect(grant).not.toHaveBeenCalled();
+  });
+
   it('P5 — a system role is not bindable from a company screen (404)', async () => {
     const { service, grant } = rolesService({
-      role: { ...role(null), level: 'SYSTEM' } as Role,
+      role: { ...role(null), level: 'SYSTEM' } as RoleRow,
       userCompanies: [OSD],
     });
 

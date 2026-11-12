@@ -1,3 +1,4 @@
+import type { SecretKeyring } from '@request-management/share';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { openSecret } from '../pm/config-rules';
@@ -239,8 +240,8 @@ export class VuvagentClient {
     });
   }
 
-  private sealKey(): string {
-    const key = this.config.get<string>('projectConfig.secret');
+  private sealKey(): SecretKeyring {
+    const key = this.config.get<SecretKeyring>('projectConfig.secret');
     if (!key)
       throw new VuvagentDispatchError(null, 'CONFIG_SECRET_KEY is not set');
     return key;

@@ -93,12 +93,15 @@ say so explicitly in the PR rather than doing it quietly.
    frontend is convenience, never control. (ROLE-01)
 
 2. **Row visibility goes through one filter.** Lists, single reads, and
-   dashboard counts all build their `where` with `buildScopeWhere`. A screen
+   dashboard counts all build their `where` with the module's rule in
+   `libs/share/src/access/` (`visibleRequestsWhere`, `visibleOwnedWhere`,
+   `visibleSalesWhere`/`visibleLeadsWhere`, `visibleCustomersWhere`,
+   `visibleUsersWhere`). A screen
    that writes its own visibility condition is how a summary number and the
    rows behind it start disagreeing. (SCOPE-02)
 
 3. **The company boundary is absolute.** Every query is pinned to the active
-   company except scope `all`. Out-of-scope reads answer **404, not 403** — the
+   company. The one way across is declared below (system tenant access, P6). Out-of-scope reads answer **404, not 403** — the
    spec does not want existence disclosed. (SCOPE-03)
 
 4. **No hard deletes of transactional data.** Status columns and soft-delete
@@ -135,6 +138,24 @@ It is contained rather than excused:
   Saving it from the Roles page answers 422, which is the intended outcome.
 - it must not exist in production. If you find it there, delete the role row;
   nothing else depends on it.
+
+### The second declared exception: system tenant access (P6, user decision 12 พ.ย. 2569)
+
+SCOPE-03 says the company boundary is absolute. A person holding the system permission
+`system.tenant.read` (granted only through a `SystemUserRole`, never a company role) may
+enter any **active** company they are not a member of, from the company switcher, and
+**read and write** there. It is contained rather than excused:
+
+- they act with exactly that company's `admin` role — never their own grants, never
+  `approval.decide` or `request.sensitive.read` (§5.4 keeps them out of `admin`)
+- `PrincipalService.principalFor` is the one place that admits it: the entered company
+  joins `principal.companies` with `via: 'system'`, so `CompanyGuard`, `isCompanyMember`
+  and every module rule keep working unchanged; `enteredAsSystem(principal)` tells the two apart
+- every switch in writes `system.tenant.entered` (one row per entry, Q3); each write
+  afterwards carries the person as actor like any other
+- no chart position there: `orgUnitId` and every led/scoped unit list are empty
+
+A second way across the boundary is a decision to state here, like this one.
 
 **Adding a company? Re-run `yarn uat:seed`.** The role, the `UserRole` grant and
 the `UserCompany` membership are all per company (ROLE-04), and `uat:seed` writes
@@ -359,7 +380,9 @@ the Prisma failure went unnoticed.
    asks the key for `integration.request.read`, and `scope-rule.spec.ts` fails
    otherwise. Never add a scope named after a use case — a use case is a preset
    in `integration-presets.ts` that ticks existing scopes, not a new right.
-2. Filter every read through `buildScopeWhere`.
+2. Filter every read through the module's rule in `libs/share/src/access/` —
+   a new module states its owner columns once in `visibleOwnedWhere` (see
+   `docs/system-plane.md`).
 3. If it changes state, make it transactional and accept `Idempotency-Key`.
 4. Write the audit entry inside the same transaction as the change.
 5. Add a test named for the requirement code, plus a negative case for a user

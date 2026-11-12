@@ -34,6 +34,12 @@ enum RoleLevel {
   SYSTEM
 }
 
+/// P7: per-person change to what their roles give, in one company
+enum PermissionEffect {
+  GRANT
+  REVOKE
+}
+
 /// The five levels of the chart: บริษัท → ฝ่าย → แผนก → ทีม → ตำแหน่ง.
 ///
 /// **The order is declared in `libs/share/src/org/org-levels.ts`, not here.**
@@ -396,6 +402,7 @@ model Company {
   userRoles               UserRole[]
   keycloakMappings        KeycloakRoleMapping[]
   hrSkills                HrSkill[]
+  permissionOverrides     UserPermissionOverride[]
   requestTypes            RequestTypeCompany[]
   requests                Request[]
   docNumberConfigs        DocNumberConfig[]
@@ -537,6 +544,7 @@ model User {
   companies               UserCompany[]
   roles                   UserRole[]               @relation("RoleHolder")
   systemRoles             SystemUserRole[]         @relation("SystemRoleHolder")
+  permissionOverrides     UserPermissionOverride[] @relation("OverrideHolder")
   grantedRoles            UserRole[]               @relation("RoleGranter")
   managedUnits            OrgUnit[]                @relation("OrgUnitManager")
   requests                Request[]                @relation("Requester")
@@ -796,7 +804,8 @@ model Permission {
   type        String  @default("human")
   description String?
 
-  roles RolePermission[]
+  roles     RolePermission[]
+  overrides UserPermissionOverride[]
 
   @@index([module])
   @@index([type])
@@ -848,6 +857,31 @@ model SystemUserRole {
 
   @@unique([userId, roleId])
   @@map("system_user_roles")
+}
+
+/// P7: GRANT/REVOKE for one person in one company; what they hold = (roles ∪ GRANT) − REVOKE.
+///
+/// A row is live while `revokedAt` is null and `expiresAt` is null or ahead. At most one live
+/// row per (user, company, permission): partial unique index in the migration.
+model UserPermissionOverride {
+  id              String           @id @default(uuid())
+  userId          String
+  companyId       String
+  permissionCode  String
+  effect          PermissionEffect
+  reason          String
+  expiresAt       DateTime?
+  grantedByUserId String
+  createdAt       DateTime         @default(now())
+  revokedAt       DateTime?
+  revokedBy       String?
+
+  user       User       @relation("OverrideHolder", fields: [userId], references: [id])
+  company    Company    @relation(fields: [companyId], references: [id])
+  permission Permission @relation(fields: [permissionCode], references: [code])
+
+  @@index([companyId, userId])
+  @@map("user_permission_overrides")
 }
 
 /// ROLE-03: "Keycloak role → role in this system", per company. Re-evaluated

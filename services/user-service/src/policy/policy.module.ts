@@ -5,14 +5,12 @@ import {
   PolicyController,
 } from './policy.controller';
 import { PolicyService } from './policy.service';
-import { ScopeRuleRepository } from './scope-rule.repository';
 import { SensitiveFieldRuleRepository } from './sensitive-field-rule.repository';
 
 @Module({
   controllers: [PolicyController, InternalPolicyController],
   providers: [
     PolicyService,
-    ScopeRuleRepository,
     SensitiveFieldRuleRepository,
     PrismaTransactionService,
   ],
