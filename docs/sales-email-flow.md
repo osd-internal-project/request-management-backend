@@ -51,13 +51,14 @@ Vuvagent กรอก Product/Segment + วาง proposal  POST crm/ai/leads/{i
 | `POST crm/ai/leads/:id/files` | `crm.lead.update` | multipart `file` + `kind` (`proposal` \| `other`) ≤ 20 MB — Vuvagent วาง proposal ให้ Lead |
 | `GET crm/ai/leads/:id/files` | `crm.lead.read.all` | รายการไฟล์บน Lead (ล่าสุดก่อน) |
 | `GET crm/ai/emails/:id` | `crm.email.read` + `crm.lead.read.all` | `intent`, `intent_label`, `intent_reason`, `body_text`, `attachments` |
-| `POST crm/ai/opportunities/:id/quotations` | `crm.quotation.create` + `crm.sales.read.all` | `items?[{product_code, quantity, term_months?}]` — ว่าง = `intake_data.products` หรือ `subProduct` ของ Lead |
+| `POST crm/ai/opportunities/:id/quotations` | `crm.quotation.create` + `crm.sales.read.all` | `items?[{product_code, quantity, term_months?}]` — ว่าง = รายการของ Lead ตามลำดับใน [`product-bundles.md`](./product-bundles.md) |
 | `POST crm/ai/quotations/:id/email` | `crm.email.send` + `crm.sales.read.all` | เฉพาะ `approved`; ตอบข้อความล่าสุดของลูกค้า แนบ PDF แล้วเป็น `sent` |
 | `POST crm/ai/quotations/:id/accept` | `crm.quotation.accept` + `crm.sales.read.all` | `email_id?`, `po_no?`, `note?` → `accepted` |
 
 (ทุก scope ขึ้นต้นด้วย `integration.`) preset ในหน้า API key: **OSD Workflow — งานขายอัตโนมัติ**
 
 `intake_data.products` ที่ Vuvagent ควรเขียน: `[{"product_code": "<SAP ItemCode>", "quantity": 1}]`
+(ใส่ `term_months` ได้สำหรับราคารายเดือน) — ไม่เขียนก็ได้ถ้า product ของ Lead มีชุดรายการ (12 พ.ย. 2569)
 
 ### ผลจัดประเภท (`EMAIL_INTENTS`)
 

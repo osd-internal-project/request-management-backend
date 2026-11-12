@@ -113,6 +113,7 @@ function harness(
     leadActivities as never,
     opportunityActivities as never,
     quotations as never,
+    {} as never,
     leadFiles as never,
     print as never,
     llm as never,

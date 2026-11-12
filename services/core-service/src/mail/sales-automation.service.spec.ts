@@ -1,3 +1,4 @@
+import { ProductBundlesService } from '../crm/product-bundles.service';
 import { AppError } from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import { hintFor, SalesAutomationService } from './sales-automation.service';
@@ -58,6 +59,7 @@ function harness(
     priced?: string[];
     issues?: object[];
     starts?: object[];
+    bundles?: object[];
   } = {},
 ) {
   const lead = options.lead === undefined ? LEAD : options.lead;
@@ -107,12 +109,23 @@ function harness(
   const starts = {
     findMany: jest.fn(() => Promise.resolve(options.starts ?? [])),
   };
+  // the real lookup over a canned bundle list
+  const bundles = new ProductBundlesService(
+    {
+      findMany: jest.fn(() => Promise.resolve(options.bundles ?? [])),
+    } as never,
+    {} as never,
+    quotations as never,
+    {} as never,
+    {} as never,
+  );
   const service = new SalesAutomationService(
     issues as never,
     leads as never,
     opportunities as never,
     quotationRows as never,
     quotations as never,
+    bundles,
     leadFiles as never,
     emails as never,
     clients as never,
@@ -254,13 +267,54 @@ describe('SalesAutomationService — why a sales workflow stopped (11 พ.ย. 2
       });
     });
 
+    it("a product with a bundle is checked on the bundle's mandatory items", async () => {
+      const view = await harness({
+        lead: {
+          ...LEAD,
+          subProduct: 'IP-PHONE',
+          intakeData: { selected_product: 'd-debt' },
+        },
+        priced: ['DD-LICENSE'],
+        bundles: [
+          {
+            id: 'bundle-1',
+            name: 'D-DEBT',
+            note: '',
+            active: true,
+            updatedAt: new Date(),
+            items: [
+              {
+                lineNo: 1,
+                productCode: 'DD-LICENSE',
+                quantity: 1,
+                termMonths: 12,
+                optional: false,
+              },
+              {
+                lineNo: 2,
+                productCode: 'DD-TRAINING',
+                quantity: 1,
+                termMonths: null,
+                optional: true,
+              },
+            ],
+          },
+        ],
+      }).service.forLead('lead-1', seller);
+      // the optional item has no price, and is not asked about
+      expect(checkOf(view, 'quote', 'products')).toMatchObject({
+        ok: true,
+        detail: 'ชุดรายการของ D-DEBT: DD-LICENSE',
+      });
+    });
+
     it('a Lead with no product says so before any price is looked up', async () => {
       const view = await harness({
         lead: { ...LEAD, subProduct: null },
       }).service.forLead('lead-1', seller);
       expect(checkOf(view, 'quote', 'products')).toMatchObject({
         ok: false,
-        detail: expect.stringContaining('Sub Product') as unknown,
+        detail: expect.stringContaining('ชุดรายการ') as unknown,
       });
     });
 
@@ -364,7 +418,7 @@ describe('SalesAutomationService — why a sales workflow stopped (11 พ.ย. 2
         code: 'CRM_QUOTATION_UNPRICED',
         details: [{ field: 'items', reason: 'no_products' }],
       },
-      'Sub Product',
+      'ชุดรายการ',
     ],
     [
       {
