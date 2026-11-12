@@ -197,6 +197,7 @@ export const PERMISSIONS = {
     'service.asset.read',
     'service.asset.manage',
     'service.care.manage',
+    'service.care.read.all',
   ],
   /**
    * CD-20 Delivery — the delivery team's plans of what goes where and when

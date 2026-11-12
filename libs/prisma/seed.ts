@@ -410,6 +410,7 @@ const SEED_ROLES: {
       'service.asset.manage',
       // CD-280 — AI CARE conversations
       'service.care.manage',
+      'service.care.read.all',
     ],
   },
   {
