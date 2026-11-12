@@ -146,6 +146,57 @@ describe('resolveCaller', () => {
     ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
   });
 
+  describe('a company key with no person', () => {
+    const APP = { ...DELEGATED, modes: ['app'] };
+    const COMPANY_MACHINE = {
+      isServiceAccount: true,
+      activeCompanyId: 'osd',
+      permissions: [
+        'integration.crm.customer.read',
+        'integration.request.read',
+      ],
+    } as unknown as Principal;
+    const get = (key: { companyId?: string | null; integration?: object }) =>
+      Object.assign(requestWith({}, key), { method: 'GET' });
+
+    it('reads as the company: person permission plus its read.all', async () => {
+      const caller = await resolveCaller(
+        get({ companyId: 'osd', integration: APP }),
+        COMPANY_MACHINE,
+        principalsReturning() as never,
+      );
+
+      expect(caller.permissions).toEqual(
+        expect.arrayContaining([
+          'crm.customer.read',
+          'crm.customer.read.all',
+          'request.read',
+          'request.read.all',
+        ]),
+      );
+      expect(caller.activeCompanyId).toBe('osd');
+      expect(caller.isServiceAccount).toBe(true);
+    });
+
+    it.each([
+      [
+        'a write',
+        Object.assign(requestWith({}, { companyId: 'osd', integration: APP }), {
+          method: 'POST',
+        }),
+      ],
+      ['a key bound to no company', get({ companyId: null, integration: APP })],
+      [
+        'an integration with app mode off',
+        get({ companyId: 'osd', integration: DELEGATED }),
+      ],
+    ])('still needs a person for %s', async (_case, request) => {
+      await expect(
+        resolveCaller(request, COMPANY_MACHINE, principalsReturning() as never),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+    });
+  });
+
   it('reads azp, and nothing from a malformed token', () => {
     expect(tokenClientId(TOKEN)).toBe('aiyara-web');
     expect(tokenClientId('not-a-jwt')).toBeNull();

@@ -31,7 +31,9 @@ describe('Keycloak login only — token roles grant nothing', () => {
   */
   function serviceWith(manualRoles: unknown[] = []) {
     const users = {
-      upsertFromClaims: jest.fn().mockResolvedValue({ user: USER, relinkedFrom: null }),
+      upsertFromClaims: jest
+        .fn()
+        .mockResolvedValue({ user: USER, relinkedFrom: null }),
       findActiveByEmail: jest.fn().mockResolvedValue(USER),
     };
     const org = {
@@ -149,12 +151,26 @@ describe('internal/principal/resolve-by-email — through the real PolicyGuard',
       {} as never,
       {} as never,
       {} as never,
-      {} as never,
+      {
+        resolveVisibleSensitiveFields: jest.fn().mockResolvedValue([]),
+        listAllSensitiveFieldKeys: jest
+          .fn()
+          .mockResolvedValue(['customer.taxId']),
+      } as never,
       config as never,
       { record: jest.fn() } as never,
     );
     return { service };
   }
+
+  it('masks a machine like anyone without the sensitive permission', async () => {
+    const machine = await serviceAccount('service-account-request-form', [
+      'integration.crm.customer.read',
+    ]);
+
+    expect(machine.sensitiveFieldsAll).toEqual(['customer.taxId']);
+    expect(machine.sensitiveFieldsVisible).toEqual([]);
+  });
 
   const guard = new PolicyGuard(new Reflector());
 
