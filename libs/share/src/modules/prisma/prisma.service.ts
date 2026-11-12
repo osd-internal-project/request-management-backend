@@ -5,6 +5,7 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
+import { tenantGuardExtension, tenantGuardMode } from './tenant-guard';
 
 /**
  * Thin wrapper around PrismaClient, shared by every app in apps/*.
@@ -21,6 +22,16 @@ export class PrismaService
   implements OnModuleInit, OnModuleDestroy
 {
   private readonly logger = new Logger(PrismaService.name);
+
+  constructor() {
+    super();
+    const mode = tenantGuardMode(process.env.TENANT_GUARD);
+    if (mode === 'off') return;
+
+    // Returned from the constructor so every injected PrismaService, and every
+    // transaction client it opens, passes through the guard (H3).
+    return this.$extends(tenantGuardExtension(mode)) as unknown as PrismaService;
+  }
 
   async onModuleInit() {
     try {
