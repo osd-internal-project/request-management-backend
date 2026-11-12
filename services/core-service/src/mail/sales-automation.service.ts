@@ -22,7 +22,7 @@ import { CrmEmailRepository } from './crm-email.repository';
 import { MailClientsService } from './mail-clients.service';
 import { looksLikeEmail } from './mail-rules';
 import { SalesAutomationIssueRepository } from './sales-automation-issue.repository';
-import { itemsFromLead } from './sales-mail.service';
+import { ProductBundlesService } from '../crm/product-bundles.service';
 
 /** The three workflows of the sales flow, plus what all of them need. */
 export const SALES_STEPS = ['base', 'intro', 'quote', 'close'] as const;
@@ -133,6 +133,7 @@ export class SalesAutomationService {
     private readonly opportunities: OpportunityRepository,
     private readonly quotationRows: QuotationRepository,
     private readonly quotations: QuotationsService,
+    private readonly bundles: ProductBundlesService,
     private readonly leadFiles: LeadFilesService,
     private readonly emails: CrmEmailRepository,
     private readonly clients: MailClientsService,
@@ -418,13 +419,17 @@ export class SalesAutomationService {
     lead: LeadRow | null,
     deal: DealRow | null,
   ): Promise<Check> {
-    const items = itemsFromLead(lead);
+    const { items, source, product } = await this.bundles.itemsForLead(
+      companyId,
+      lead,
+    );
     if (!items.length) {
       return {
         key: 'products',
         ok: false,
         label: 'สินค้าที่มีราคามาตรฐาน',
-        detail: 'ยังไม่มีสินค้าบน Lead — ใส่ Sub Product (รหัสสินค้า)',
+        detail:
+          'ยังไม่มีรายการสินค้าบน Lead — เลือก product ที่มีชุดรายการ หรือใส่รายการสินค้าบน Lead',
       };
     }
     const codes = [...new Set(items.map((item) => item.product_code.trim()))];
@@ -442,7 +447,9 @@ export class SalesAutomationService {
       label: 'สินค้าที่มีราคามาตรฐาน',
       detail: missing.length
         ? `ไม่มีราคามาตรฐานที่มีผลวันนี้: ${missing.join(', ')}`
-        : codes.join(', '),
+        : source === 'bundle'
+          ? `ชุดรายการของ ${product}: ${codes.join(', ')}`
+          : codes.join(', '),
     };
   }
 
@@ -636,7 +643,7 @@ export function hintFor(issue: {
       return 'ตรวจค่าอีเมลงานขาย (Microsoft Graph) แล้วกดส่งอีเมลทดสอบ';
     case 'CRM_QUOTATION_UNPRICED':
       return has('items', 'no_products')
-        ? 'ใส่สินค้า (Sub Product) บน Lead'
+        ? 'เลือก product ที่มีชุดรายการ หรือใส่รายการสินค้าบน Lead'
         : 'เพิ่มราคามาตรฐานของสินค้านี้ หรือให้พนักงานขายทำใบเสนอราคาเอง';
     case 'CONFLICT':
       if (has('owner_user_id', 'unowned')) return 'กำหนดผู้รับผิดชอบ Lead';

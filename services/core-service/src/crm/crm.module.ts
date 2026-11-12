@@ -33,8 +33,10 @@ import { SaleOrderErpSyncService } from './sale-order-erp-sync.service';
 import { ErpMockRetirementService } from './erp-mock-retirement.service';
 import { ErpSyncAdminService } from './erp-sync-admin.service';
 import { ProductCatalogService } from './product-catalog.service';
+import { ProductBundlesService } from './product-bundles.service';
 import {
   CompanyRepository,
+  ProductBundleRepository,
   ProductPriceRepository,
   VendorCostRepository,
   ProductRepository,
@@ -232,6 +234,9 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     ProductPriceRepository,
     CompanyRepository,
     ProductCatalogService,
+    // ชุดรายการของ product (12 พ.ย. 2569)
+    ProductBundleRepository,
+    ProductBundlesService,
     IntegrationSyncJobRepository,
     KycProductRuleRepository,
     KycCallbackService,
@@ -428,6 +433,8 @@ import { LeadWorkflowSyncService } from './lead-workflow-sync.service';
     IntegrationSyncJobRepository,
     CustomerErpSyncService,
     ProductCatalogService,
+    // ชุดรายการของ product — Pricing's screen and the sales automation
+    ProductBundlesService,
   ],
 })
 export class CrmModule {}

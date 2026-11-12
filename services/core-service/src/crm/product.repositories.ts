@@ -76,3 +76,17 @@ export class VendorCostRepository extends BaseRepository<
     return client.vendorCost;
   }
 }
+
+/** ชุดรายการของ product (12 พ.ย. 2569) — items are written through the bundle. */
+@Injectable()
+export class ProductBundleRepository extends BaseRepository<
+  PrismaService['productBundle']
+> {
+  constructor(prisma: PrismaService) {
+    super(prisma);
+  }
+
+  protected delegate(client: TQueryClient) {
+    return client.productBundle;
+  }
+}

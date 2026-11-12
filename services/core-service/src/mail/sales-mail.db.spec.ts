@@ -79,6 +79,7 @@ const DB_URL = process.env.CORE_DB_TEST_URL;
       {} as never,
       {} as never,
       {} as never,
+      {} as never,
       { mode: 'mock' } as never,
       { salesEmailReceived: jest.fn() } as never,
       events as never,

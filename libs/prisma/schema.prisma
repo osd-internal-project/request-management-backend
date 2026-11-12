@@ -6174,6 +6174,48 @@ model MarkupRule {
   @@map("markup_rules")
 }
 
+/// ชุดรายการของ product (12 พ.ย. 2569) — "ลูกค้าสนใจ product นี้ ต้องดึง item
+/// อะไรเข้าใบเสนอราคา". `name` คือชื่อ product ที่พนักงานขายเลือกบน Lead
+/// (`intakeData.selected_product`, ไม่มีจึงใช้ `subProduct`) เทียบแบบไม่สนตัวพิมพ์;
+/// ไม่ซ้ำกันในบริษัทเดียวกันระหว่างแถวที่ยังไม่ลบ (ตรวจใน service เพราะ soft delete).
+model ProductBundle {
+  id        String  @id @default(uuid())
+  companyId String
+  name      String
+  note      String  @default("")
+  active    Boolean @default(true)
+
+  createdBy String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  updatedBy String?
+  deletedAt DateTime?
+
+  items ProductBundleItem[]
+
+  @@index([companyId, active])
+  @@map("product_bundles")
+}
+
+/// item หนึ่งบรรทัดของชุด — `productCode` คือรหัสสินค้า SAP (`products.code`).
+/// `optional = false` เข้าใบเสนอราคาเสมอ; `true` คือ item เสริมที่พนักงานขาย
+/// เลือกเพิ่มเองบน Lead. แก้ชุด = เขียนบรรทัดใหม่ทั้งชุด.
+model ProductBundleItem {
+  id          String  @id @default(uuid())
+  bundleId    String
+  lineNo      Int
+  productCode String
+  quantity    Decimal @default(1) @db.Decimal(14, 4)
+  /// ราคารายเดือน: จำนวนเดือน — ว่าง = ค่าตั้งต้นของใบเสนอราคา (12).
+  termMonths  Int?
+  optional    Boolean @default(false)
+
+  bundle ProductBundle @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+
+  @@index([bundleId, lineNo])
+  @@map("product_bundle_items")
+}
+
 /// CD-191 — closing a project: the request that asks the project's
 /// executives to close it (CrmConfig.projectCloseTypeCode). Approved, the
 /// project becomes `closed`; rejected, it can be fixed and asked again.
