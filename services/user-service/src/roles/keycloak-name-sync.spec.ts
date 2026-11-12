@@ -54,6 +54,7 @@ function serviceWith(mappings: KeycloakRoleMapping[]) {
     } as never,
     {} as never,
     {} as never,
+    { listLive: jest.fn().mockResolvedValue([]) } as never,
   );
 
   return { service, mappingWrites, roleWrites, audits };

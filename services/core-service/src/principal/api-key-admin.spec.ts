@@ -1,3 +1,4 @@
+import { keyringFromEnv } from '@request-management/share';
 import { createHash } from 'node:crypto';
 import { ConfigService } from '@nestjs/config';
 import type { Principal } from '@request-management/share';
@@ -11,7 +12,7 @@ import { API_KEY_PREFIX } from './api-key.service';
  * ออกครั้งเดียว, ฐานข้อมูลเก็บแค่ hash, audit ไม่เคยเห็นตัวกุญแจ, และกุญแจผูก
  * กับบริษัทของคนออกเสมอ.
  */
-const SEAL_KEY = 'test-config-key';
+const SEAL_KEY = keyringFromEnv({ CONFIG_SECRET_KEY: 'test-config-key' });
 
 describe('ApiKeyAdminService — ออกกุญแจช่องทางจากหน้าจอผู้ดูแล', () => {
   function admin(companyId = 'osd'): Principal {
@@ -332,7 +333,10 @@ describe('ApiKeyAdminService — ออกกุญแจช่องทาง�
       await service.updateScopes(
         'key-1',
         {
-          scopes: ['integration.crm.lead.read.all', 'integration.crm.lead.read.all'],
+          scopes: [
+            'integration.crm.lead.read.all',
+            'integration.crm.lead.read.all',
+          ],
         },
         admin(),
       );
@@ -395,6 +399,7 @@ describe('ApiKeyAdminService — ออกกุญแจช่องทาง�
     expect(integrations.createForKey).toHaveBeenCalledWith(
       'เว็บไซต์ osd.co.th',
       expect.anything(),
+      'osd',
     );
     expect(created[0].integrationId).toBe('int-new');
     expect(issued.integration_id).toBe('int-new');

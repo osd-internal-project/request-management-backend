@@ -5,67 +5,22 @@ import {
   PrismaTransactionService,
   TxOption,
 } from '@request-management/share';
-import type { ScopeLevel, ScopeRule, SensitiveFieldRule } from '@prisma/client';
+import type { SensitiveFieldRule } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { AuditEvent } from '../audit/audit-events';
-import { ScopeRuleRepository } from './scope-rule.repository';
 import { SensitiveFieldRuleRepository } from './sensitive-field-rule.repository';
-import {
-  ReplaceScopeRulesDto,
-  ReplaceSensitiveFieldRulesDto,
-} from './dto/policy.dto';
-
-/** Narrowest first — used to pick the widest scope a user's roles grant. */
-const SCOPE_RANK: Readonly<Record<ScopeLevel, number>> = {
-  own: 0,
-  team: 1,
-  department: 2,
-  company: 3,
-  all: 4,
-};
+import { ReplaceSensitiveFieldRulesDto } from './dto/policy.dto';
 
 @Injectable()
 export class PolicyService {
   constructor(
-    private readonly scopeRules: ScopeRuleRepository,
     private readonly sensitiveFields: SensitiveFieldRuleRepository,
     private readonly audit: AuditService,
     private readonly transactions: PrismaTransactionService,
   ) {}
 
-  listScopeRules(): Promise<ScopeRule[]> {
-    return this.scopeRules.findAll();
-  }
-
   listSensitiveFieldRules(): Promise<SensitiveFieldRule[]> {
     return this.sensitiveFields.findAll();
-  }
-
-  /**
-   * Resolves a user's effective scope per resource.
-   *
-   * Roles union, and for scope the **widest wins**: a person who is both a
-   * salesperson (`own`) and a team lead (`team`) sees the team. Narrowing
-   * instead would make adding a role reduce what someone can see, which is
-   * not how anyone expects roles to behave.
-   */
-  async resolveScopes(
-    roleIds: readonly string[],
-    option?: TxOption,
-  ): Promise<Record<string, ScopeLevel>> {
-    const rules = await this.scopeRules.findForRoles(roleIds, option);
-    const resolved: Record<string, ScopeLevel> = {};
-
-    for (const rule of rules) {
-      const current = resolved[rule.resource];
-      const candidate = rule.scope;
-
-      if (!current || SCOPE_RANK[candidate] > SCOPE_RANK[current]) {
-        resolved[rule.resource] = candidate;
-      }
-    }
-
-    return resolved;
   }
 
   /**
@@ -89,49 +44,6 @@ export class PolicyService {
         permissions.includes(rule.visibleToPermission as Permission),
       )
       .map((rule) => `${rule.resource}.${rule.field}`);
-  }
-
-  async replaceScopeRules(
-    dto: ReplaceScopeRulesDto,
-    actor: Principal,
-  ): Promise<ScopeRule[]> {
-    return this.transactions.execute(async (prisma) => {
-      const option = { prisma };
-
-      const before = await this.scopeRules.findAll(option);
-      const after = await this.scopeRules.upsertMany(
-        dto.rules.map((rule) => ({
-          roleId: rule.role_id,
-          resource: rule.resource,
-          scope: rule.scope,
-        })),
-        actor.userId,
-        option,
-      );
-
-      await this.audit.record(
-        {
-          eventType: AuditEvent.SCOPE_RULE_UPDATED,
-          companyId: actor.activeCompanyId,
-          actorId: actor.userId,
-          actorUsername: actor.username,
-          resourceType: 'scope_rule',
-          before: before.map((r) => ({
-            roleId: r.roleId,
-            resource: r.resource,
-            scope: r.scope,
-          })),
-          after: after.map((r) => ({
-            roleId: r.roleId,
-            resource: r.resource,
-            scope: r.scope,
-          })),
-        },
-        option,
-      );
-
-      return after;
-    });
   }
 
   async replaceSensitiveFieldRules(

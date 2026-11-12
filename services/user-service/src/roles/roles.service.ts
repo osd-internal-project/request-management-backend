@@ -25,6 +25,9 @@ import { AuditEvent } from '../audit/audit-events';
 import { UserCompanyRepository } from '../org/user-company.repository';
 import { KeycloakRoleMappingRepository } from './keycloak-role-mapping.repository';
 import { PermissionRepository } from './permission.repository';
+import { PermissionOverrideRepository } from './permission-override.repository';
+import { applyOverrides, isLive } from './permission-overrides';
+import type { CreatePermissionOverrideDto } from './dto/role.dto';
 import {
   RoleRepository,
   RoleWithHolderCount,
@@ -68,6 +71,7 @@ export class RolesService implements OnModuleInit {
     private readonly audit: AuditService,
     private readonly transactions: PrismaTransactionService,
     private readonly memberships: UserCompanyRepository,
+    private readonly overrides: PermissionOverrideRepository,
   ) {}
 
   /** Keeps the `permissions` table in step with the code catalog. */
@@ -312,6 +316,22 @@ export class RolesService implements OnModuleInit {
         throw new AppError('NOT_FOUND', 'ไม่พบผู้ใช้ที่ระบุ');
       }
 
+      // P7: §5.4 is about what the person ends up holding, not one role at a time.
+      const [current, overrides] = await Promise.all([
+        this.userRoles.findForUserInCompany(userId, companyId, option),
+        this.overrides.listLive(userId, companyId, option),
+      ]);
+      assertSeparationOfDuties(
+        applyOverrides(
+          [
+            ...RolesService.permissionsOf(current),
+            ...role.permissions.map((p) => p.permissionCode as Permission),
+          ],
+          overrides,
+          new Date(),
+        ),
+      );
+
       await this.userRoles.grant(
         { userId, roleId, companyId, grantedByUserId: actor.userId },
         option,
@@ -508,6 +528,144 @@ export class RolesService implements OnModuleInit {
   }
 
   /** Flattens a user's roles in one company into a permission set. */
+  /** P7: what a person holds in one company after their overrides. */
+  async effectivePermissions(
+    userId: string,
+    companyId: string,
+    userRoles: readonly UserRoleWithRole[],
+  ): Promise<Permission[]> {
+    const overrides = await this.overrides.listLive(userId, companyId);
+    return applyOverrides(
+      RolesService.permissionsOf(userRoles),
+      overrides,
+      new Date(),
+    );
+  }
+
+  async listOverrides(userId: string, actor: Principal) {
+    await this.requireMemberOfActive(userId, actor.activeCompanyId);
+    const [rows, userRoles] = await Promise.all([
+      this.overrides.listLive(userId, actor.activeCompanyId),
+      this.userRoles.findForUserInCompany(userId, actor.activeCompanyId),
+    ]);
+    const now = new Date();
+    const fromRoles = RolesService.permissionsOf(userRoles);
+    const effective = applyOverrides(fromRoles, rows, now);
+    return {
+      overrides: rows.map((row) => ({ ...row, live: isLive(row, now) })),
+      from_roles: fromRoles.length,
+      effective: effective.length,
+    };
+  }
+
+  /** Replaces any live row for the same permission; SoD judged on the result (422). */
+  async createOverride(
+    userId: string,
+    dto: CreatePermissionOverrideDto,
+    actor: Principal,
+  ) {
+    const companyId = actor.activeCompanyId;
+    assertHumanPermissions([dto.permission_code]);
+    assertPermissionsFitLevel('COMPANY', [dto.permission_code]);
+    const expiresAt = dto.expires_at ? new Date(dto.expires_at) : null;
+    if (expiresAt && expiresAt <= new Date()) {
+      throw new AppError('VALIDATION_FAILED', 'วันหมดอายุต้องเป็นวันในอนาคต', [
+        { field: 'expires_at', reason: 'past' },
+      ]);
+    }
+
+    return this.transactions.execute(async (prisma) => {
+      const option = { prisma };
+      await this.requireMemberOfActive(userId, companyId, option);
+
+      const [userRoles, live] = await Promise.all([
+        this.userRoles.findForUserInCompany(userId, companyId, option),
+        this.overrides.listLive(userId, companyId, option),
+      ]);
+      const next = [
+        ...live.filter((row) => row.permissionCode !== dto.permission_code),
+        {
+          permissionCode: dto.permission_code,
+          effect: dto.effect,
+          expiresAt,
+          revokedAt: null,
+        },
+      ];
+      assertSeparationOfDuties(
+        applyOverrides(RolesService.permissionsOf(userRoles), next, new Date()),
+      );
+
+      const where = { userId, companyId, permissionCode: dto.permission_code };
+      await this.overrides.closeLive(where, actor.userId, option);
+      const created = await this.overrides.insert(
+        {
+          ...where,
+          effect: dto.effect,
+          reason: dto.reason.trim(),
+          expiresAt,
+          grantedByUserId: actor.userId,
+        },
+        option,
+      );
+      await this.audit.record(
+        {
+          eventType: AuditEvent.PERMISSION_OVERRIDE_SET,
+          companyId,
+          actorId: actor.userId,
+          actorUsername: actor.username,
+          resourceType: 'user',
+          resourceId: userId,
+          after: {
+            permission: dto.permission_code,
+            effect: dto.effect,
+            reason: created.reason,
+            expiresAt,
+          },
+        },
+        option,
+      );
+      return created;
+    });
+  }
+
+  async revokeOverride(userId: string, overrideId: string, actor: Principal) {
+    const companyId = actor.activeCompanyId;
+    await this.transactions.execute(async (prisma) => {
+      const option = { prisma };
+      const { count } = await this.overrides.revoke(
+        overrideId,
+        { userId, companyId },
+        actor.userId,
+        option,
+      );
+      // Another company's row, or one already closed: 404 either way (SCOPE-03).
+      if (!count) throw new AppError('NOT_FOUND', 'ไม่พบสิทธิ์รายคนที่ระบุ');
+      await this.audit.record(
+        {
+          eventType: AuditEvent.PERMISSION_OVERRIDE_REVOKED,
+          companyId,
+          actorId: actor.userId,
+          actorUsername: actor.username,
+          resourceType: 'user',
+          resourceId: userId,
+          before: { overrideId },
+        },
+        option,
+      );
+    });
+  }
+
+  private async requireMemberOfActive(
+    userId: string,
+    companyId: string,
+    option?: TxOption,
+  ) {
+    const companies = await this.memberships.companyIdsOf(userId, option);
+    if (!companies.includes(companyId)) {
+      throw new AppError('NOT_FOUND', 'ไม่พบผู้ใช้ที่ระบุ');
+    }
+  }
+
   /** สิทธิ์ระดับระบบของคน — กรองด้วย catalog อีกชั้นเผื่อแถวเก่าที่ถือรหัสผิดระดับ. */
   async systemPermissionsOf(userId: string): Promise<Permission[]> {
     const codes = await this.roles.systemPermissionCodesOf(userId);
@@ -515,6 +673,11 @@ export class RolesService implements OnModuleInit {
       (code): code is Permission =>
         isPermission(code) && permissionLevel(code) === 'SYSTEM',
     );
+  }
+
+  async adminPermissionsOf(companyId: string): Promise<Permission[]> {
+    const codes = await this.roles.adminPermissionCodesOf(companyId);
+    return codes.filter(isPermission);
   }
 
   static permissionsOf(userRoles: readonly UserRoleWithRole[]): Permission[] {

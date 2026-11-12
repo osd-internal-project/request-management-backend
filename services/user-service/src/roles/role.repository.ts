@@ -128,6 +128,15 @@ export class RoleRepository extends BaseRepository<PrismaService['role']> {
     return rows.map((row) => row.permissionCode);
   }
 
+  /** What a system admin acts with in a company they entered (P6): its `admin` role. */
+  async adminPermissionCodesOf(companyId: string): Promise<string[]> {
+    const role = await this.prisma.role.findFirst({
+      where: { companyId, code: 'admin', level: 'COMPANY', active: true },
+      select: { permissions: { select: { permissionCode: true } } },
+    });
+    return role?.permissions.map((row) => row.permissionCode) ?? [];
+  }
+
   countUsers(roleId: string, option?: TxOption): Promise<number> {
     const client = option?.prisma ?? this.prisma;
     return client.userRole.count({ where: { roleId } });

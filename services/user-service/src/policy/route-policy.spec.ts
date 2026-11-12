@@ -7,6 +7,7 @@ import {
   AUTHENTICATED_KEY,
   PERMISSIONS_KEY,
   PUBLIC_KEY,
+  ANY_SYSTEM_PERMISSION_KEY,
   SYSTEM_PERMISSIONS_KEY,
 } from '@request-management/share';
 
@@ -20,6 +21,7 @@ const POLICY_KEYS = [
   ANY_PERMISSION_KEY,
   AUTHENTICATED_KEY,
   SYSTEM_PERMISSIONS_KEY,
+  ANY_SYSTEM_PERMISSION_KEY,
 ];
 
 function controllerFiles(dir: string): string[] {
@@ -81,10 +83,15 @@ describe('P5 — every /system route is gated on system.*', () => {
       .filter((name) => {
         const handler: unknown = Reflect.get(SystemController.prototype, name);
         if (typeof handler !== 'function') return false;
-        const declared = reflector.get<string[] | undefined>(
-          SYSTEM_PERMISSIONS_KEY,
-          handler,
-        );
+        const declared =
+          reflector.get<string[] | undefined>(
+            SYSTEM_PERMISSIONS_KEY,
+            handler,
+          ) ??
+          reflector.get<string[] | undefined>(
+            ANY_SYSTEM_PERMISSION_KEY,
+            handler,
+          );
         return !declared?.every((code) => code.startsWith('system.'));
       });
 

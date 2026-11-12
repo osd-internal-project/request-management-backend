@@ -1,9 +1,10 @@
+import { keyringFromEnv } from '@request-management/share';
 import { sealSecret } from '../pm/config-rules';
 import { splitVuvagentUrl, timeoutMinutesOf } from './outbound-connection';
 import { OutboundConnectionsAdminService } from './outbound-connections-admin.service';
 import { VuvagentClient, VuvagentDispatchError } from './vuvagent.client';
 
-const SECRET = 'test-config-secret';
+const SECRET = keyringFromEnv({ CONFIG_SECRET_KEY: 'test-config-secret' });
 const actor = {
   userId: 'admin-1',
   activeCompanyId: 'osd',

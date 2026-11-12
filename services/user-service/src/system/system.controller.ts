@@ -11,7 +11,11 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { CurrentPrincipal, SystemPermissions } from '@request-management/share';
+import {
+  AnySystemPermission,
+  CurrentPrincipal,
+  SystemPermissions,
+} from '@request-management/share';
 import type { Principal } from '@request-management/share';
 import {
   CreateCompanyDto,
@@ -24,6 +28,8 @@ import {
   UpdateCompanyDto,
   UpdateSharedRoleDto,
 } from './dto/system.dto';
+import { AuditService } from '../audit/audit.service';
+import { QuerySystemAuditLogDto } from '../audit/dto/query-audit-log.dto';
 import { SystemService } from './system.service';
 
 /** P5 — the only routes that cross companies; every one is gated on `system.*`. */
@@ -31,7 +37,17 @@ import { SystemService } from './system.service';
 @ApiBearerAuth()
 @Controller('system')
 export class SystemController {
-  constructor(private readonly system: SystemService) {}
+  constructor(
+    private readonly system: SystemService,
+    private readonly audit: AuditService,
+  ) {}
+
+  /** P8 — the audit of every company, or of one with `company_id`. */
+  @Get('audit')
+  @SystemPermissions('system.audit.read')
+  searchAudit(@Query() query: QuerySystemAuditLogDto) {
+    return this.audit.search(query, query.company_id);
+  }
 
   @Get('users')
   @SystemPermissions('system.user.read')
@@ -120,9 +136,13 @@ export class SystemController {
     return this.system.revokeSystemRole(id, roleId, principal);
   }
 
-  /** Read by the users screen's company filter as well, hence `system.user.read`. */
+  /** Read by the users screen's filter and by the company switcher (P6). */
   @Get('companies')
-  @SystemPermissions('system.user.read')
+  @AnySystemPermission(
+    'system.user.read',
+    'system.tenant.read',
+    'system.company.manage',
+  )
   listCompanies() {
     return this.system.listCompanies();
   }

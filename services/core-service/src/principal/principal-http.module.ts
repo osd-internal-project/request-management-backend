@@ -2,6 +2,10 @@ import { Module } from '@nestjs/common';
 import { PrincipalModule } from './principal.module';
 import { ApiKeyAdminController } from './api-key-admin.controller';
 import { IntegrationAdminController } from './integration-admin.controller';
+import {
+  SystemIntegrationsController,
+  SystemKeysController,
+} from './system-keys.controller';
 
 /**
  * The screen-facing routes of {@link PrincipalModule} — the admin screen that
@@ -13,6 +17,11 @@ import { IntegrationAdminController } from './integration-admin.controller';
  */
 @Module({
   imports: [PrincipalModule],
-  controllers: [ApiKeyAdminController, IntegrationAdminController],
+  controllers: [
+    ApiKeyAdminController,
+    IntegrationAdminController,
+    SystemKeysController,
+    SystemIntegrationsController,
+  ],
 })
 export class PrincipalHttpModule {}

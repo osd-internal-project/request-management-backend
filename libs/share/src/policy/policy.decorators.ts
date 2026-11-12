@@ -10,6 +10,7 @@ export const SERVICE_ACCOUNT_ALLOWED_KEY = 'ctd:service-account-allowed';
 export const ACTING_PERMISSIONS_KEY = 'ctd:acting-permissions';
 export const INTERNAL_SERVICE_KEY = 'ctd:internal-service';
 export const SYSTEM_PERMISSIONS_KEY = 'ctd:system-permissions';
+export const ANY_SYSTEM_PERMISSION_KEY = 'ctd:any-system-permission';
 
 /**
  * Declares the permissions an endpoint requires. The caller must hold **all**
@@ -118,3 +119,7 @@ export const ActingPermissions = (...permissions: Permission[]) =>
 /** ต้องถือสิทธิ์ระดับระบบทุกตัว — ตรวจกับ `principal.systemPermissions` ไม่ใช่สิทธิ์ของบริษัท. */
 export const SystemPermissions = (...permissions: Permission[]) =>
   SetMetadata(SYSTEM_PERMISSIONS_KEY, permissions);
+
+/** Any one of these system permissions — e.g. the company list the users screen and the switcher both read. */
+export const AnySystemPermission = (...permissions: Permission[]) =>
+  SetMetadata(ANY_SYSTEM_PERMISSION_KEY, permissions);

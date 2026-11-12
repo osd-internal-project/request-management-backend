@@ -1,3 +1,4 @@
+import { keyringFromEnv } from '@request-management/share';
 import { parseCompanyDbs } from '../erp/sap-b1.config';
 
 export default () => ({
@@ -90,11 +91,7 @@ export default () => ({
   },
   /** CD-217 — the key project configuration secrets are encrypted with. */
   projectConfig: {
-    secret:
-      process.env.CONFIG_SECRET_KEY ??
-      (process.env.NODE_ENV === 'production'
-        ? undefined
-        : 'dev-project-config-secret'),
+    secret: keyringFromEnv(process.env),
   },
   reservePhone: {
     mode: process.env.RESERVE_PHONE_MODE ?? 'mock',

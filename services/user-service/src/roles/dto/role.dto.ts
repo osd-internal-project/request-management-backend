@@ -5,11 +5,13 @@ import {
   ArrayNotEmpty,
   IsArray,
   IsBoolean,
+  IsDateString,
   IsEnum,
   IsIn,
   IsNotEmpty,
   IsOptional,
   IsString,
+  MaxLength,
   ValidateNested,
 } from 'class-validator';
 
@@ -121,4 +123,22 @@ export class GrantRolesDto {
   @ValidateNested({ each: true })
   @Type(() => GrantRoleDto)
   grants: GrantRoleDto[];
+}
+
+/** P7: one per-person change; `reason` is required so the audit says why. */
+export class CreatePermissionOverrideDto {
+  @IsIn(PERMISSION_VALUES)
+  permission_code: string;
+
+  @IsIn(['GRANT', 'REVOKE'])
+  effect: 'GRANT' | 'REVOKE';
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(500)
+  reason: string;
+
+  @IsOptional()
+  @IsDateString()
+  expires_at?: string;
 }

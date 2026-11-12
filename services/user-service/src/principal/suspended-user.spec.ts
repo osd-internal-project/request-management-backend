@@ -1,3 +1,4 @@
+import { RolesService } from '../roles/roles.service';
 import type { KeycloakJwtPayload } from '../auth/strategies/jwt.strategy';
 import { PrincipalService } from './principal.service';
 
@@ -19,7 +20,10 @@ describe('a suspended person gets no principal', () => {
     };
     const org = {
       companiesForUser: jest.fn().mockResolvedValue([
-        { company: { id: 'osd', name: 'OSD', docPrefix: 'OSD' }, isPrimary: true },
+        {
+          company: { id: 'osd', name: 'OSD', docPrefix: 'OSD' },
+          isPrimary: true,
+        },
       ]),
       ledUnitIdsOf: jest.fn().mockResolvedValue([]),
       levelUnitIdsOf: jest.fn().mockResolvedValue([]),
@@ -41,6 +45,13 @@ describe('a suspended person gets no principal', () => {
       org as never,
       {
         rolesForUser: jest.fn().mockResolvedValue([]),
+        effectivePermissions: jest.fn(
+          (
+            _u: string,
+            _c: string,
+            held: Parameters<typeof RolesService.permissionsOf>[0],
+          ) => Promise.resolve(RolesService.permissionsOf(held)),
+        ),
         systemPermissionsOf: jest.fn().mockResolvedValue([]),
       } as never,
       {
@@ -58,7 +69,9 @@ describe('a suspended person gets no principal', () => {
   } as unknown as KeycloakJwtPayload;
 
   it('answers USER_SUSPENDED (403) for a suspended account', async () => {
-    await expect(serviceFor('SUSPENDED').resolve(payload)).rejects.toMatchObject({
+    await expect(
+      serviceFor('SUSPENDED').resolve(payload),
+    ).rejects.toMatchObject({
       code: 'USER_SUSPENDED',
       httpStatus: 403,
     });

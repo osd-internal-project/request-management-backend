@@ -33,7 +33,6 @@ export const AuditEvent = {
   ORG_USER_ASSIGNED: 'org.user.assigned',
 
   // SCOPE-01 / SCOPE-04 / SCOPE-05
-  SCOPE_RULE_UPDATED: 'scope.rule.updated',
   SENSITIVE_FIELD_RULE_UPDATED: 'scope.sensitive_field_rule.updated',
   SENSITIVE_FIELD_READ: 'scope.sensitive_field.read',
 
@@ -56,6 +55,11 @@ export const AuditEvent = {
   SYSTEM_COMPANY_UPDATED: 'system.company.updated',
   SYSTEM_ROLE_GRANTED: 'system.role.granted',
   SYSTEM_ROLE_REVOKED: 'system.role.revoked',
+  // P6 — one row per switch into a company the system admin is not a member of (Q3)
+  SYSTEM_TENANT_ENTERED: 'system.tenant.entered',
+  // P7
+  PERMISSION_OVERRIDE_SET: 'role.permission_override.set',
+  PERMISSION_OVERRIDE_REVOKED: 'role.permission_override.revoked',
 } as const;
 
 export type AuditEventType = (typeof AuditEvent)[keyof typeof AuditEvent];

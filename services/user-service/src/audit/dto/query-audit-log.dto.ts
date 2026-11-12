@@ -27,3 +27,10 @@ export class QueryAuditLogDto extends PageQueryDto {
   @IsISO8601()
   to?: string;
 }
+
+/** `/system/audit` only: narrow the whole system's log to one company. */
+export class QuerySystemAuditLogDto extends QueryAuditLogDto {
+  @IsOptional()
+  @IsString()
+  company_id?: string;
+}

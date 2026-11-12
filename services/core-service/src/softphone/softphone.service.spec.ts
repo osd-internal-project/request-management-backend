@@ -1,3 +1,4 @@
+import { keyringFromEnv } from '@request-management/share';
 import type { ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { PERMISSIONS_KEY, PolicyGuard } from '@request-management/share';
@@ -6,7 +7,7 @@ import { openSecret, sealSecret } from '../pm/config-rules';
 import { SoftphoneController } from './softphone.controller';
 import { SoftphoneService } from './softphone.service';
 
-const KEY = 'test-config-secret';
+const KEY = keyringFromEnv({ CONFIG_SECRET_KEY: 'test-config-secret' });
 
 const agent = {
   userId: 'u-agent',
@@ -108,7 +109,7 @@ describe('runtime — the caller’s own line', () => {
 
   it('is disabled, not broken, when the key changed', async () => {
     const { service } = harness({
-      existing: row({ passwordSealed: sealSecret('s3cret', 'other-key') }),
+      existing: row({ passwordSealed: sealSecret('s3cret', keyringFromEnv({ CONFIG_SECRET_KEY: 'other-key' })) }),
     });
     await expect(service.runtime(agent)).resolves.toEqual({
       enabled: false,

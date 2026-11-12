@@ -1,3 +1,4 @@
+import { RolesService } from '../roles/roles.service';
 import { ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { AppError, PolicyGuard, setPrincipal } from '@request-management/share';
@@ -55,6 +56,13 @@ describe('Keycloak login only — token roles grant nothing', () => {
     };
     const roles = {
       rolesForUser: jest.fn().mockResolvedValue(manualRoles),
+      effectivePermissions: jest.fn(
+        (
+          _u: string,
+          _c: string,
+          held: Parameters<typeof RolesService.permissionsOf>[0],
+        ) => Promise.resolve(RolesService.permissionsOf(held)),
+      ),
       systemPermissionsOf: jest.fn().mockResolvedValue([]),
     };
     const policy = {

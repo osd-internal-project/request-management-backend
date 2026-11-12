@@ -1,3 +1,4 @@
+import { keyringFromEnv } from '@request-management/share';
 import { createHmac } from 'node:crypto';
 import { ConfigService } from '@nestjs/config';
 
@@ -11,7 +12,7 @@ import type {
   WebhookSubscriptionRepository,
 } from './webhook.repository';
 
-const KEY = 'test-config-key';
+const KEY = keyringFromEnv({ CONFIG_SECRET_KEY: 'test-config-key' });
 const SECRET = 'whsec_test';
 
 function setup(overrides: { active?: boolean; secretEnc?: string } = {}) {

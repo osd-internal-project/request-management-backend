@@ -1,6 +1,6 @@
 {
   "name": "request-management-backend",
-  "version": "1.5.40",
+  "version": "1.5.41",
   "description": "npm workspaces monorepo: user-service and core-service, versioned independently.",
   "private": true,
   "license": "UNLICENSED",
@@ -44,6 +44,7 @@
     "postinstall": "yarn prisma:generate",
     "prisma:seed": "ts-node --compiler-options '{\"module\":\"commonjs\"}' libs/prisma/seed.ts",
     "admin:grant": "ts-node --compiler-options '{\"module\":\"commonjs\"}' libs/prisma/grant-admin.ts",
+    "secrets:reseal": "ts-node --compiler-options '{\"module\":\"commonjs\"}' libs/prisma/reseal-secrets.ts",
     "matrix:clear-legacy": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/clear-legacy-matrices.ts",
     "org:adopt": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/adopt-org-chart.ts",
     "org:clear": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -r dotenv/config libs/prisma/clear-org-tree.ts",

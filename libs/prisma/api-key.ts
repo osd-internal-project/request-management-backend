@@ -18,17 +18,19 @@
  * เป็นงานประจำของคนดูแล CRM ไม่ใช่ของคนที่ ssh เข้าเครื่องได้ และการต้องรอ dev
  * มารันคำสั่งให้ จบลงด้วยการใช้กุญแจใบเดิมซ้ำทุกช่องทาง ซึ่งแย่กว่าปัญหาเดิม.
  *
- * ข้อกังวลอีกข้อ — ค่าเต็มต้องถึงมือคนเดียว ไม่ใช่ไปนอนใน proxy log — ยังจริงอยู่
- * และถูกกันไว้ที่หน้าจอนั้นแทน (คืนค่าครั้งเดียว ไม่มี endpoint อ่านกลับ ไม่ลง
- * audit). ดู `ApiKeyAdminService`.
+ * ข้อกังวลอีกข้อ — ค่าเต็มต้องถึงมือคนเดียว ไม่ใช่ไปนอนใน proxy log — ยังจริงอยู่:
+ * ค่าเต็มไม่ลง audit; ดูย้อนหลังได้เฉพาะผู้ดูแลผ่าน `keyEnc` (ลง audit ทุกครั้งที่ดู).
+ * ดู `ApiKeyAdminService`.
  *
  * สคริปต์นี้ยังอยู่สำหรับสิ่งที่หน้าจอตั้งใจทำไม่ได้: กุญแจที่ **ไม่ผูกบริษัท**
  * (แชตบอตที่ทำงานข้ามบริษัทด้วยใบเดียว) และงานกู้สถานการณ์ตอนหน้าจอเข้าไม่ได้.
  *
- * **The key is printed once and cannot be recovered.** Only its sha256 is
- * stored, which is what makes a leak of the table harmless — and what makes
- * "I lost it" mean "issue a new one and revoke the old", not "look it up".
+ * The key is printed once. Since P8 it is also sealed into `keyEnc` (when the
+ * service's CONFIG_SECRET_KEY is in the environment), so `/system/api-keys`
+ * can reveal it, and issue/revoke write the same audit rows as the screen.
  */
+import { keyringFromEnv } from '../share/src/secrets/keyring';
+import { sealSecret } from '../../services/core-service/src/pm/config-rules';
 import { PrismaClient } from '@prisma/client';
 import { createHash, randomBytes } from 'node:crypto';
 
@@ -152,17 +154,41 @@ async function issue(name: string, options: IssueOptions): Promise<void> {
       ? null
       : new Date(Date.now() + options.days * 86_400_000);
 
-  await prisma.apiKey.create({
-    data: {
-      name,
-      prefix,
-      keyHash,
-      expiresAt,
-      companyId: options.companyId ?? null,
-      sourceCode: options.sourceCode ?? null,
-      scopes: options.scopes,
-      createdBy: process.env.USER ?? 'cli',
-    },
+  // P8: sealed only under a configured key — the dev fallback would make it unrevealable.
+  const configured =
+    process.env.CONFIG_SECRET_KEY || process.env.CONFIG_SECRET_KEYS;
+  await prisma.$transaction(async (tx) => {
+    const created = await tx.apiKey.create({
+      data: {
+        name,
+        prefix,
+        keyHash,
+        keyEnc: configured
+          ? sealSecret(key, keyringFromEnv(process.env))
+          : null,
+        expiresAt,
+        companyId: options.companyId ?? null,
+        sourceCode: options.sourceCode ?? null,
+        scopes: options.scopes,
+        createdBy: process.env.USER ?? 'cli',
+      },
+    });
+    // Same event as the screen, so `/system/audit` shows every key however it was made.
+    await tx.auditLog.create({
+      data: {
+        eventType: 'admin.api_key.issued',
+        companyId: options.companyId ?? null,
+        actorUsername: `apikey:issue (cli, ${process.env.USER ?? 'unknown'})`,
+        resourceType: 'api_key',
+        resourceId: created.id,
+        after: {
+          prefix,
+          name,
+          scopes: options.scopes,
+          expiresAt: expiresAt?.toISOString() ?? null,
+        },
+      },
+    });
   });
 
   console.log(`\n  ${name}`);
@@ -202,14 +228,26 @@ async function revoke(prefix: string): Promise<void> {
     return;
   }
 
-  await prisma.apiKey.update({
-    where: { prefix },
-    data: {
-      active: false,
-      revokedAt: new Date(),
-      revokedBy: process.env.USER ?? 'cli',
-    },
-  });
+  await prisma.$transaction([
+    prisma.apiKey.update({
+      where: { prefix },
+      data: {
+        active: false,
+        revokedAt: new Date(),
+        revokedBy: process.env.USER ?? 'cli',
+      },
+    }),
+    prisma.auditLog.create({
+      data: {
+        eventType: 'admin.api_key.revoked',
+        companyId: key.companyId,
+        actorUsername: `apikey:revoke (cli, ${process.env.USER ?? 'unknown'})`,
+        resourceType: 'api_key',
+        resourceId: key.id,
+        before: { prefix, name: key.name },
+      },
+    }),
+  ]);
 
   console.log(`  เพิกถอน ${prefix} (${key.name}) แล้ว`);
   // Immediate, and measured rather than assumed: the key is looked up in this
@@ -255,7 +293,12 @@ async function list(): Promise<void> {
  */
 function parseIssueArgs(argv: string[]): {
   name: string;
-  values: { days?: string; company?: string; source?: string; scope?: string[] };
+  values: {
+    days?: string;
+    company?: string;
+    source?: string;
+    scope?: string[];
+  };
 } {
   const values: {
     days?: string;

@@ -1,3 +1,4 @@
+import type { SecretKeyring } from '@request-management/share';
 import {
   Inject,
   Injectable,
@@ -146,7 +147,7 @@ export class WorkflowTriggerDispatchService
     }
     const channelKey = openSecret(
       trigger.channelKeyEnc,
-      this.config.get<string>('projectConfig.secret') ?? '',
+      this.config.get<SecretKeyring>('projectConfig.secret'),
     );
     if (channelKey === null) {
       await this.dead(
