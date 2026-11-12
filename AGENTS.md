@@ -517,6 +517,15 @@ for a company with no row) is read only for messages in threads it opened. A pro
 `CRM_QUOTATION_UNPRICED` so the workflow hands the deal to the salesperson.
 `docs/sales-email-flow.md`. A twelfth is again a decision to state here.
 
+**The twelfth: every GET in the company's name (12 Nov 2026, user decision).** A key
+bound to a company, whose integration has `app` mode on (or has no integration), may call
+any GET of an `@ActsForPerson` controller with no person header. `resolveCaller` then keeps
+the machine as the caller (`companyPrincipal`): each `integration.X` scope also grants `X`, and each
+`X.read` its `X.read.all`, so every module's own rule answers the whole key's company — SCOPE-03 still
+pins it. Masking still applies: user-service gives a service account the full `sensitiveFieldsAll`, and
+no machine scope unmasks one. Writes still need a person (400), and "mine" reads (`assistant/*`) come back
+empty. A thirteenth is again a decision to state here.
+
 **core-service's one public business surface: e-signature (CD-14, 30 Sep
 2026).** `EsignPublicController` — `esign/public/:token/*` (a signer's link:
 view, one-time code, document, sign, decline) and `esign/verify/:code*` (the

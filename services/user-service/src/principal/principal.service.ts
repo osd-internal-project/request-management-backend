@@ -318,11 +318,19 @@ export class PrincipalService {
    * Permissions are the forwarded API key `scopes`, and only on the integration
    * client's own token: token roles grant nothing, and the realm is shared.
    */
-  private serviceAccountPrincipal(
+  private async serviceAccountPrincipal(
     payload: KeycloakJwtPayload,
     keyScopes: readonly string[],
-  ): Principal {
+  ): Promise<Principal> {
     const username = payload.preferred_username ?? 'service-account';
+    const permissions = this.isIntegrationClient(username)
+      ? keyScopes.filter(isPermission)
+      : [];
+    // A key reading as its company (no person) must still be masked (SCOPE-04).
+    const [sensitiveFieldsVisible, sensitiveFieldsAll] = await Promise.all([
+      this.policy.resolveVisibleSensitiveFields(permissions),
+      this.policy.listAllSensitiveFieldKeys(),
+    ]);
 
     return {
       userId: payload.sub,
@@ -342,11 +350,9 @@ export class PrincipalService {
       scopedActUserIds: [],
       scopedByPermission: {},
       roles: [],
-      permissions: this.isIntegrationClient(username)
-        ? keyScopes.filter(isPermission)
-        : [],
-      sensitiveFieldsVisible: [],
-      sensitiveFieldsAll: [],
+      permissions,
+      sensitiveFieldsVisible,
+      sensitiveFieldsAll,
       isServiceAccount: true,
       pendingOrgAssignment: false,
     };

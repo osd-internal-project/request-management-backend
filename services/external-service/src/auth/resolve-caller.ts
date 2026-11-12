@@ -1,6 +1,7 @@
 import {
   AppError,
   COMPANY_HEADER,
+  isPermission,
   type Principal,
   type RequestWithPrincipal,
 } from '@request-management/share';
@@ -75,6 +76,16 @@ export async function resolveCaller(
       company,
       principals,
     );
+  }
+
+  // A company key reads without a person (user decision 12 พ.ย. 2569, AGENTS.md "The twelfth").
+  if (
+    !email &&
+    request.method === 'GET' &&
+    key?.companyId &&
+    (!policy || policy.modes.includes('app'))
+  ) {
+    return companyPrincipal(caller);
   }
 
   if (!email) {
@@ -160,6 +171,22 @@ async function fromUserToken(
   }
 
   return assertPlaced(person, USER_TOKEN_HEADER, person.email ?? person.userId);
+}
+
+/**
+ * The key reading as its company: each `integration.X` scope also grants `X`, so the
+ * route's `@ActingPermissions` passes, and each `X.read` its `X.read.all`, so every
+ * module's own rule answers the whole company (still pinned to the key's company).
+ */
+export function companyPrincipal(machine: Principal): Principal {
+  const granted = new Set<string>(machine.permissions);
+  for (const scope of machine.permissions) {
+    if (!scope.startsWith('integration.')) continue;
+    const person = scope.slice('integration.'.length);
+    granted.add(person);
+    if (person.endsWith('.read')) granted.add(`${person}.all`);
+  }
+  return { ...machine, permissions: [...granted].filter(isPermission) };
 }
 
 function assertPlaced(
