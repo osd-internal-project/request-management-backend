@@ -1119,6 +1119,8 @@ model Request {
   comments      RequestComment[]
   returnReasons RequestReturnReason[]
   approvalCases ApprovalCase[]
+  /// P3 — the disbursement this request opened, so its visibility follows the request
+  disbursement  Disbursement?         @relation("DisbursementRequest")
   slaClock      SlaClock?
   flowVersion   RequestFlowVersion?   @relation(fields: [flowVersionId], references: [id])
   stepRuns      RequestStepRun[]
@@ -8727,6 +8729,8 @@ model Disbursement {
   docNo           String
   kind            String
   requestId       String    @unique
+  /// P3 — read visibility is the request's own rule, in one query (was an IN list)
+  request         Request   @relation("DisbursementRequest", fields: [requestId], references: [id])
   requestNo       String?
   requesterId     String
   orgUnitId       String?

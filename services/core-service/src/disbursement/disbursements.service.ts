@@ -11,6 +11,7 @@ import {
   PrismaTransactionService,
   toSkipTake,
 } from '@request-management/share';
+import { ApprovalsService } from '../approvals/approvals.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { RequestRepository } from '../requests/request.repository';
 import { RequestsService } from '../requests/requests.service';
@@ -95,6 +96,7 @@ export class DisbursementsService {
     private readonly notifications: NotificationsService,
     private readonly audit: AuditWriter,
     private readonly transactions: PrismaTransactionService,
+    private readonly approvals: ApprovalsService,
   ) {}
 
   async list(actor: Principal, query: ListDisbursementsQueryDto) {
@@ -697,14 +699,14 @@ export class DisbursementsService {
     const company = { companyId: actor.activeCompanyId };
     if (scope === 'mine') return { ...company, requesterId: actor.userId };
     if (actor.permissions.includes(READ_ANY) || actor.permissions.includes(PAY)) return company;
-    const typeCodes = await this.sync.typeCodes(actor.activeCompanyId);
-    const requests = (await this.requestRows.findMany({
-      where: { AND: [visibleRequestsWhere(accessSubject(actor)), { typeCode: { in: typeCodes } }] },
-      select: { id: true },
-    })) as { id: string }[];
+    // The request's own rule, delegation included, as a relation filter.
+    const subject = accessSubject(actor, await this.approvals.coveringFor(actor));
     return {
       ...company,
-      OR: [{ requesterId: actor.userId }, { requestId: { in: requests.map((r) => r.id) } }],
+      OR: [
+        { requesterId: actor.userId },
+        { request: visibleRequestsWhere(subject) as Prisma.RequestWhereInput },
+      ],
     };
   }
 
