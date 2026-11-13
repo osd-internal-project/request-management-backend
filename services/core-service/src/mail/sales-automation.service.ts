@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import {
   AppError,
+  AuditWriter,
+  auditActor,
   Principal,
   salesAccessSubject,
   visibleLeadsWhere,
@@ -14,6 +16,7 @@ import {
   QuotationRepository,
 } from '../crm/sales.repositories';
 import { DOMAIN_EVENTS } from '../events/event-catalog';
+import { startOf } from '../workflow-trigger/workflow-trigger-rules';
 import {
   WorkflowStartRepository,
   WorkflowTriggerRepository,
@@ -56,6 +59,25 @@ export interface StepView {
   label: string;
   ok: boolean;
   checks: Check[];
+  /** a person may start this step's workflow again from the card */
+  can_start: boolean;
+  /** why not, when everything it needs is there but it still cannot start */
+  start_note: string | null;
+}
+
+/** The steps a person can start by hand: each one is a workflow of its own. */
+export const STARTABLE_STEPS = ['intro', 'quote', 'close'] as const;
+export type StartableStep = (typeof STARTABLE_STEPS)[number];
+
+/** What starting a step by hand would queue — worked out with the checklist. */
+interface Launch {
+  triggers: { id: string }[];
+  eventKey: string;
+  resourceType: 'lead' | 'crm_email';
+  /** documents a start of this step may be about, newest first */
+  resourceIds: string[];
+  /** the one a first start uses, when no trigger has started for any of them */
+  fallbackId: string | null;
 }
 
 interface LeadRow {
@@ -87,6 +109,7 @@ interface IssueRow {
 }
 
 interface StartRow {
+  id: string;
   triggerId: string;
   resourceId: string;
   status: string;
@@ -139,6 +162,7 @@ export class SalesAutomationService {
     private readonly clients: MailClientsService,
     private readonly triggers: WorkflowTriggerRepository,
     private readonly starts: WorkflowStartRepository,
+    private readonly audit: AuditWriter,
   ) {}
 
   // --- written by external-service -----------------------------------------
@@ -212,7 +236,7 @@ export class SalesAutomationService {
 
   // --- read by the screens -------------------------------------------------
 
-  async forLead(leadId: string, actor: Principal) {
+  private async aboutLead(leadId: string, actor: Principal) {
     const lead = (await this.leads.findFirst({
       where: {
         id: leadId,
@@ -227,10 +251,171 @@ export class SalesAutomationService {
           select: DEAL_SELECT,
         })) as DealRow | null)
       : null;
-    return this.status(lead.companyId, lead, deal);
+    return { companyId: lead.companyId, lead, deal };
+  }
+
+  async forLead(leadId: string, actor: Principal) {
+    const { companyId, lead, deal } = await this.aboutLead(leadId, actor);
+    return (await this.status(companyId, lead, deal)).view;
   }
 
   async forOpportunity(opportunityId: string, actor: Principal) {
+    const { companyId, lead, deal } = await this.aboutOpportunity(
+      opportunityId,
+      actor,
+    );
+    return (await this.status(companyId, lead, deal)).view;
+  }
+
+  /**
+   * เริ่ม workflow ของขั้นนี้อีกครั้ง (13 พ.ย. 2569, ผู้ใช้สั่ง): a run that hit
+   * a refusal ends at a person, and a document starts a trigger's workflow
+   * once — so after the data is fixed nothing would pick the work up again.
+   * The person puts the step's start back on the queue (same row, same
+   * variables); with no earlier start, one is made for the Lead or for the
+   * customer's last matching reply. Allowed only when the checklist passes.
+   */
+  async startForLead(leadId: string, stepKey: StartableStep, actor: Principal) {
+    const about = await this.aboutLead(leadId, actor);
+    await this.start(about, stepKey, actor, 'lead', leadId);
+    return (await this.status(about.companyId, about.lead, about.deal)).view;
+  }
+
+  async startForOpportunity(
+    opportunityId: string,
+    stepKey: StartableStep,
+    actor: Principal,
+  ) {
+    const about = await this.aboutOpportunity(opportunityId, actor);
+    await this.start(about, stepKey, actor, 'opportunity', opportunityId);
+    return (await this.status(about.companyId, about.lead, about.deal)).view;
+  }
+
+  private async start(
+    about: { companyId: string; lead: LeadRow | null; deal: DealRow | null },
+    stepKey: StartableStep,
+    actor: Principal,
+    resourceType: string,
+    resourceId: string,
+  ): Promise<void> {
+    const { companyId, lead, deal } = about;
+    const { view, launches, starts } = await this.status(companyId, lead, deal);
+    const found = view.steps.find((one) => one.key === stepKey);
+    const launch = launches[stepKey];
+    if (!found || !launch || !found.can_start) {
+      throw new AppError(
+        'UNPROCESSABLE',
+        found?.start_note ??
+          'ยังเริ่มขั้นนี้ไม่ได้ — แก้รายการที่ยังไม่ผ่านให้ครบก่อน',
+      );
+    }
+    const candidates = new Set(launch.resourceIds);
+    let queued = 0;
+    for (const trigger of launch.triggers) {
+      const last = starts.find(
+        (row) => row.triggerId === trigger.id && candidates.has(row.resourceId),
+      );
+      if (last) {
+        // only a start that is over goes back; one in flight is left alone
+        const { count } = await this.starts.updateMany({
+          where: { id: last.id, status: { in: ['started', 'dead'] } },
+          data: {
+            status: 'pending',
+            attempts: 0,
+            nextAttemptAt: new Date(),
+            lastStatusCode: null,
+            lastError: null,
+          },
+        });
+        queued += count;
+        continue;
+      }
+      if (!launch.fallbackId) continue;
+      const first = await this.firstStart(companyId, launch, lead);
+      if (!first) continue;
+      const { count } = await this.starts.createMany({
+        data: [
+          {
+            triggerId: trigger.id,
+            companyId,
+            eventKey: launch.eventKey,
+            resourceType: first.resourceType,
+            resourceId: first.resourceId,
+            variables: first.variables,
+          },
+        ],
+        skipDuplicates: true,
+      });
+      queued += count;
+    }
+    if (queued === 0) {
+      throw new AppError('CONFLICT', 'ขั้นนี้กำลังเริ่มอยู่แล้ว');
+    }
+    await this.audit.record({
+      eventType: 'crm.sales_automation.step_started',
+      companyId,
+      ...auditActor(actor),
+      resourceType,
+      resourceId,
+      after: { step: stepKey, starts: queued },
+    });
+  }
+
+  /** The variables of a start nobody made before — as the event would send them. */
+  private async firstStart(
+    companyId: string,
+    launch: Launch,
+    lead: LeadRow | null,
+  ) {
+    if (launch.resourceType === 'lead') {
+      if (!lead) return null;
+      const row = (await this.leads.findFirst({
+        where: { id: lead.id, companyId },
+        select: { id: true, name: true, status: true },
+      })) as { id: string; name: string; status: string } | null;
+      if (!row) return null;
+      return startOf({
+        name: DOMAIN_EVENTS.leadStatusChanged,
+        payload: {
+          company_id: companyId,
+          lead_id: row.id,
+          name: row.name,
+          status: row.status,
+          previous_status: row.status,
+        } as never,
+      });
+    }
+    const email = (await this.emails.findFirst({
+      where: { id: launch.fallbackId!, companyId, direction: 'in' },
+      select: {
+        id: true,
+        leadId: true,
+        opportunityId: true,
+        quotationId: true,
+        intent: true,
+      },
+    })) as {
+      id: string;
+      leadId: string | null;
+      opportunityId: string | null;
+      quotationId: string | null;
+      intent: string | null;
+    } | null;
+    if (!email) return null;
+    return startOf({
+      name: DOMAIN_EVENTS.crmEmailReceived,
+      payload: {
+        company_id: companyId,
+        email_id: email.id,
+        lead_id: email.leadId,
+        opportunity_id: email.opportunityId,
+        quotation_id: email.quotationId,
+        intent: email.intent ?? 'unclear',
+      } as never,
+    });
+  }
+
+  private async aboutOpportunity(opportunityId: string, actor: Principal) {
     const deal = (await this.opportunities.findFirst({
       where: {
         id: opportunityId,
@@ -243,7 +428,7 @@ export class SalesAutomationService {
       where: { convertedOpportunityId: deal.id, companyId: deal.companyId },
       select: LEAD_SELECT,
     })) as LeadRow | null;
-    return this.status(deal.companyId, lead, deal);
+    return { companyId: deal.companyId, lead, deal };
   }
 
   private async status(
@@ -287,17 +472,35 @@ export class SalesAutomationService {
       'purchase_order',
     );
 
+    const replies = await this.replies(lead, deal);
+    const emailIds = replies.map((row) => row.id);
     const [mail, issues, starts] = await Promise.all([
       this.clients.forCompany(companyId),
       this.openIssues(companyId, lead?.id ?? null, deal?.id ?? null),
       this.startsFor(
         lead,
-        deal,
+        emailIds,
         [...introTriggers, ...quoteTriggers, ...closeTriggers].map(
           (trigger) => trigger.id,
         ),
       ),
     ]);
+    const launches: Partial<Record<SalesStep, Launch>> = {
+      quote: replyLaunch(quoteTriggers, replies, ['interested']),
+      close: replyLaunch(closeTriggers, replies, [
+        'confirmed',
+        'purchase_order',
+      ]),
+    };
+    if (lead) {
+      launches.intro = {
+        triggers: introTriggers,
+        eventKey: DOMAIN_EVENTS.leadStatusChanged,
+        resourceType: 'lead',
+        resourceIds: [lead.id],
+        fallbackId: lead.id,
+      };
+    }
     const address = deal?.prospectEmail ?? lead?.email ?? null;
 
     const steps: StepView[] = [
@@ -353,7 +556,6 @@ export class SalesAutomationService {
       },
       await this.productCheck(companyId, lead, deal),
     ];
-    const emailIds = await this.emailIds(lead, deal);
     quoteChecks.push(...startCheck(starts, quoteTriggers, emailIds));
     steps.push(
       step('quote', 'ใบเสนอราคาอัตโนมัติ (เมื่อลูกค้าตอบว่าสนใจ)', quoteChecks),
@@ -392,7 +594,13 @@ export class SalesAutomationService {
       ),
     );
 
-    return {
+    const baseOk = steps[0].ok;
+    for (const one of steps) {
+      const launch = launches[one.key];
+      if (launch) Object.assign(one, startable(one, launch, starts, baseOk));
+    }
+
+    const view = {
       /** the company runs the sales workflows at all — no trigger = hide the card */
       in_use: triggers.some(
         (trigger) =>
@@ -412,6 +620,7 @@ export class SalesAutomationService {
       })),
       steps,
     };
+    return { view, launches, starts };
   }
 
   private async productCheck(
@@ -487,12 +696,13 @@ export class SalesAutomationService {
     });
   }
 
-  private async emailIds(
+  /** The customer's replies on the Lead and its deal, newest first. */
+  private async replies(
     lead: LeadRow | null,
     deal: DealRow | null,
-  ): Promise<string[]> {
+  ): Promise<{ id: string; intent: string | null }[]> {
     if (!lead && !deal) return [];
-    const rows = (await this.emails.findMany({
+    return (await this.emails.findMany({
       where: {
         direction: 'in',
         OR: [
@@ -502,26 +712,23 @@ export class SalesAutomationService {
       },
       orderBy: { occurredAt: 'desc' },
       take: 20,
-      select: { id: true },
-    })) as { id: string }[];
-    return rows.map((row) => row.id);
+      select: { id: true, intent: true },
+    })) as { id: string; intent: string | null }[];
   }
 
   private async startsFor(
     lead: LeadRow | null,
-    deal: DealRow | null,
+    emailIds: string[],
     triggerIds: string[],
   ): Promise<StartRow[]> {
     if (!triggerIds.length) return [];
-    const resourceIds = [
-      ...(lead ? [lead.id] : []),
-      ...(await this.emailIds(lead, deal)),
-    ];
+    const resourceIds = [...(lead ? [lead.id] : []), ...emailIds];
     if (!resourceIds.length) return [];
     return await this.starts.findMany({
       where: { triggerId: { in: triggerIds }, resourceId: { in: resourceIds } },
       orderBy: { createdAt: 'desc' },
       select: {
+        id: true,
         triggerId: true,
         resourceId: true,
         status: true,
@@ -569,7 +776,63 @@ export class SalesAutomationService {
 }
 
 function step(key: SalesStep, label: string, checks: Check[]): StepView {
-  return { key, label, ok: checks.every((check) => check.ok), checks };
+  return {
+    key,
+    label,
+    ok: checks.every((check) => check.ok),
+    checks,
+    can_start: false,
+    start_note: null,
+  };
+}
+
+/** A step a customer's reply starts: about the reply with one of these intents. */
+function replyLaunch(
+  triggers: { id: string }[],
+  replies: readonly { id: string; intent: string | null }[],
+  intents: readonly string[],
+): Launch {
+  return {
+    triggers,
+    eventKey: DOMAIN_EVENTS.crmEmailReceived,
+    resourceType: 'crm_email',
+    resourceIds: replies.map((row) => row.id),
+    fallbackId:
+      replies.find((row) => row.intent && intents.includes(row.intent))?.id ??
+      null,
+  };
+}
+
+/**
+ * May a person start the step now? Everything it needs must be there (a start
+ * that died is not a need — starting again is the cure), nothing of it may be
+ * on its way already, and there must be a document to start it about.
+ */
+function startable(
+  view: StepView,
+  launch: Launch,
+  starts: readonly StartRow[],
+  baseOk: boolean,
+): Pick<StepView, 'can_start' | 'start_note'> {
+  const ready =
+    baseOk &&
+    launch.triggers.length > 0 &&
+    view.checks.every((check) => check.ok || check.key === 'start');
+  if (!ready) return { can_start: false, start_note: null };
+  const ids = new Set(launch.triggers.map((trigger) => trigger.id));
+  const resources = new Set(launch.resourceIds);
+  const mine = starts.filter(
+    (row) => ids.has(row.triggerId) && resources.has(row.resourceId),
+  );
+  if (mine.some((row) => row.status === 'pending' || row.status === 'sending'))
+    return { can_start: false, start_note: 'กำลังเริ่มอยู่ — รอสักครู่' };
+  if (mine.length === 0 && !launch.fallbackId) {
+    return {
+      can_start: false,
+      start_note: 'ยังไม่มีอีเมลตอบจากลูกค้าที่เข้าเงื่อนไขของขั้นนี้',
+    };
+  }
+  return { can_start: true, start_note: null };
 }
 
 function triggerCheck(

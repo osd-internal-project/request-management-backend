@@ -26,6 +26,8 @@ const seller = {
 
 const LEAD = {
   id: 'lead-1',
+  name: 'บริษัท สมชาย จำกัด',
+  status: 'negotiation',
   companyId: 'co-1',
   email: 'somchai@example.com',
   ownerUserId: 'u-sales',
@@ -60,6 +62,7 @@ function harness(
     issues?: object[];
     starts?: object[];
     bundles?: object[];
+    replies?: object[];
   } = {},
 ) {
   const lead = options.lead === undefined ? LEAD : options.lead;
@@ -95,8 +98,18 @@ function harness(
       ),
     ),
   };
+  const replies = options.replies ?? [{ id: 'email-1', intent: 'interested' }];
   const emails = {
-    findMany: jest.fn(() => Promise.resolve([{ id: 'email-1' }])),
+    findMany: jest.fn(() => Promise.resolve(replies)),
+    findFirst: jest.fn(() =>
+      Promise.resolve({
+        id: 'email-1',
+        leadId: 'lead-1',
+        opportunityId: null,
+        quotationId: null,
+        intent: 'interested',
+      }),
+    ),
   };
   const clients = {
     forCompany: jest.fn(() =>
@@ -108,7 +121,10 @@ function harness(
   };
   const starts = {
     findMany: jest.fn(() => Promise.resolve(options.starts ?? [])),
+    updateMany: jest.fn(() => Promise.resolve({ count: 1 })),
+    createMany: jest.fn(() => Promise.resolve({ count: 1 })),
   };
+  const audit = { record: jest.fn(() => Promise.resolve()) };
   // the real lookup over a canned bundle list
   const bundles = new ProductBundlesService(
     {
@@ -131,8 +147,17 @@ function harness(
     clients as never,
     triggers as never,
     starts as never,
+    audit as never,
   );
-  return { service, issues, leads, opportunities, quotationRows };
+  return {
+    service,
+    issues,
+    leads,
+    opportunities,
+    quotationRows,
+    starts,
+    audit,
+  };
 }
 
 const stepOf = (
@@ -377,6 +402,169 @@ describe('SalesAutomationService — why a sales workflow stopped (11 พ.ย. 2
       await expect(
         harness({ lead: null }).service.forLead('lead-x', seller),
       ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    });
+  });
+
+  describe('start a step again from the card (13 พ.ย. 2569)', () => {
+    const started = (
+      triggerId: string,
+      resourceId: string,
+      status: string,
+    ) => ({
+      id: `s-${triggerId}`,
+      triggerId,
+      resourceId,
+      status,
+      lastError: null,
+      startedAt: new Date('2026-11-12T03:53:45Z'),
+      createdAt: new Date('2026-11-12T03:53:40Z'),
+    });
+
+    it('a step whose needs are met can start; one still missing something cannot', async () => {
+      const ready = await harness().service.forLead('lead-1', seller);
+      expect(stepOf(ready, 'intro').can_start).toBe(true);
+      expect(stepOf(ready, 'quote').can_start).toBe(true);
+      // no close trigger
+      expect(stepOf(ready, 'close').can_start).toBe(false);
+      expect(stepOf(ready, 'base').can_start).toBe(false);
+
+      const missing = await harness({ proposal: null }).service.forLead(
+        'lead-1',
+        seller,
+      );
+      expect(stepOf(missing, 'intro').can_start).toBe(false);
+      expect(stepOf(missing, 'quote').can_start).toBe(true);
+
+      // the mailbox is what every step needs
+      const off = await harness({
+        mail: { mode: 'off', problem: null },
+      }).service.forLead('lead-1', seller);
+      expect(stepOf(off, 'quote').can_start).toBe(false);
+    });
+
+    it('the run that ended goes back on the queue: same row, same variables', async () => {
+      const h = harness({
+        starts: [started('t-intro', 'lead-1', 'started')],
+      });
+      await h.service.startForLead('lead-1', 'intro', seller);
+      expect(h.starts.updateMany).toHaveBeenCalledWith({
+        where: { id: 's-t-intro', status: { in: ['started', 'dead'] } },
+        data: expect.objectContaining({
+          status: 'pending',
+          attempts: 0,
+          lastError: null,
+        }) as unknown,
+      });
+      expect(h.starts.createMany).not.toHaveBeenCalled();
+      expect(h.audit.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventType: 'crm.sales_automation.step_started',
+          resourceType: 'lead',
+          resourceId: 'lead-1',
+          actorId: 'u-sales',
+          after: { step: 'intro', starts: 1 },
+        }),
+      );
+    });
+
+    it('a start that died can be started again once the rest is there', async () => {
+      const h = harness({ starts: [started('t-intro', 'lead-1', 'dead')] });
+      const view = await h.service.forLead('lead-1', seller);
+      expect(stepOf(view, 'intro')).toMatchObject({
+        ok: false,
+        can_start: true,
+      });
+    });
+
+    it('never started before: a start is made as the event would have', async () => {
+      const h = harness();
+      await h.service.startForLead('lead-1', 'intro', seller);
+      expect(h.starts.createMany).toHaveBeenCalledWith({
+        data: [
+          {
+            triggerId: 't-intro',
+            companyId: 'co-1',
+            eventKey: 'lead.status_changed',
+            resourceType: 'lead',
+            resourceId: 'lead-1',
+            variables: {
+              leadId: 'lead-1',
+              leadName: 'บริษัท สมชาย จำกัด',
+              status: 'negotiation',
+              previousStatus: 'negotiation',
+              companyId: 'co-1',
+            },
+          },
+        ],
+        skipDuplicates: true,
+      });
+
+      await h.service.startForLead('lead-1', 'quote', seller);
+      expect(h.starts.createMany).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          data: [
+            expect.objectContaining({
+              triggerId: 't-quote',
+              eventKey: 'crm.email.received',
+              resourceType: 'crm_email',
+              resourceId: 'email-1',
+              variables: expect.objectContaining({
+                emailId: 'email-1',
+                intent: 'interested',
+                leadId: 'lead-1',
+              }) as unknown,
+            }),
+          ],
+        }),
+      );
+    });
+
+    it('the quotation step needs a reply that says interested', async () => {
+      const h = harness({ replies: [{ id: 'email-9', intent: 'needs_info' }] });
+      const view = await h.service.forLead('lead-1', seller);
+      expect(stepOf(view, 'quote')).toMatchObject({
+        can_start: false,
+        start_note: expect.stringContaining('อีเมลตอบจากลูกค้า') as unknown,
+      });
+      await expect(
+        h.service.startForLead('lead-1', 'quote', seller),
+      ).rejects.toMatchObject({ code: 'UNPROCESSABLE' });
+      expect(h.starts.createMany).not.toHaveBeenCalled();
+    });
+
+    it('refuses while something is missing or a start is on its way', async () => {
+      const missing = harness({ proposal: null });
+      await expect(
+        missing.service.startForLead('lead-1', 'intro', seller),
+      ).rejects.toMatchObject({ code: 'UNPROCESSABLE' });
+      expect(missing.starts.updateMany).not.toHaveBeenCalled();
+      expect(missing.audit.record).not.toHaveBeenCalled();
+
+      const flying = harness({
+        starts: [started('t-intro', 'lead-1', 'pending')],
+      });
+      const view = await flying.service.forLead('lead-1', seller);
+      expect(stepOf(view, 'intro').can_start).toBe(false);
+      await expect(
+        flying.service.startForLead('lead-1', 'intro', seller),
+      ).rejects.toMatchObject({ code: 'UNPROCESSABLE' });
+    });
+
+    it('two people press at once: the second gets a conflict, nothing is queued twice', async () => {
+      const h = harness({ starts: [started('t-intro', 'lead-1', 'started')] });
+      h.starts.updateMany.mockResolvedValueOnce({ count: 0 });
+      await expect(
+        h.service.startForLead('lead-1', 'intro', seller),
+      ).rejects.toMatchObject({ code: 'CONFLICT' });
+      expect(h.audit.record).not.toHaveBeenCalled();
+    });
+
+    it('a Lead out of reach is 404 before anything is queued', async () => {
+      const h = harness({ lead: null });
+      await expect(
+        h.service.startForLead('lead-x', 'intro', seller),
+      ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+      expect(h.starts.updateMany).not.toHaveBeenCalled();
     });
   });
 
