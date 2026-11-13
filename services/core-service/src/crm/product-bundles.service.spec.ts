@@ -217,6 +217,27 @@ describe('ProductBundlesService — ชุดรายการของ product
       });
     });
 
+    it('the bundle picked on the Lead wins over the product name', async () => {
+      const out = await harness().service.itemsForLead('company-1', {
+        subProduct: 'Dcallcenter',
+        intakeData: { selected_product: 'ATOM', selected_bundle: ' d-debt ' },
+      });
+      expect(out).toMatchObject({ source: 'bundle', product: 'D-DEBT' });
+    });
+
+    it('says which bundle name it did not find', async () => {
+      const out = await harness().service.itemsForLead('company-1', {
+        subProduct: 'Dcallcenter',
+        intakeData: { selected_product: 'ATOM' },
+      });
+      expect(out).toEqual({
+        source: 'sub_product',
+        product: 'ATOM',
+        bundle_not_found: 'ATOM',
+        items: [{ product_code: 'Dcallcenter', quantity: 1 }],
+      });
+    });
+
     it('else Sub Product as one item code, else nothing', async () => {
       const { service } = harness();
       expect(
@@ -227,6 +248,7 @@ describe('ProductBundlesService — ชุดรายการของ product
       ).toEqual({
         source: 'sub_product',
         product: 'IP-PHONE',
+        bundle_not_found: 'IP-PHONE',
         items: [{ product_code: 'IP-PHONE', quantity: 1 }],
       });
       expect(await service.itemsForLead('company-1', null)).toEqual({

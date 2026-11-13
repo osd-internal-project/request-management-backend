@@ -1,6 +1,7 @@
 # System plane (P5–P9)
 
 Who acts above a company, and how a new module gets row visibility for free.
+For administrators, in Thai: [`admin-access-guide.md`](./admin-access-guide.md).
 Plans: `~/.claude/plans/skill-pstack-crystalline-thacker.md` (parent),
 `claude-plans-skill-pstack-crystalline-t-jazzy-patterson.md` (P5–P9).
 

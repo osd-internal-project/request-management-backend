@@ -186,6 +186,16 @@ export function productNameOfLead(lead: LeadProducts | null): string | null {
   return lead?.subProduct?.trim() || null;
 }
 
+/**
+ * The bundle the salesperson picked for this Lead by name
+ * (`intake_data.selected_bundle`, 13 พ.ย. 2569) — a product sold in several
+ * sizes has one bundle per size, so the product name alone cannot choose.
+ */
+export function bundleNameOfLead(lead: LeadProducts | null): string | null {
+  const picked = intakeOf(lead).selected_bundle;
+  return typeof picked === 'string' && picked.trim() ? picked.trim() : null;
+}
+
 /** What a bundle puts on a quotation by itself — its mandatory items. */
 export function mandatoryItems(
   items: readonly BundleItemState[],

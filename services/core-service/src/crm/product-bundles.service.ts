@@ -11,6 +11,7 @@ import { ProductBundleRepository } from './product.repositories';
 import { QuotationsService } from './quotations.service';
 import {
   bundleKey,
+  bundleNameOfLead,
   cleanBundle,
   listedItemsOfLead,
   mandatoryItems,
@@ -61,6 +62,11 @@ export interface LeadItems {
   source: LeadItemsSource;
   /** The product looked up, when there was one to look up. */
   product: string | null;
+  /**
+   * The name a bundle was looked up by and not found — the checklist says so
+   * instead of blaming the price list (13 พ.ย. 2569).
+   */
+  bundle_not_found?: string;
   items: QuotationItem[];
 }
 
@@ -91,6 +97,12 @@ export class ProductBundlesService {
     if (!row) return { bundle: null };
     const [bundle] = await this.views(actor.activeCompanyId, [row]);
     return { bundle };
+  }
+
+  /** The bundles a salesperson can pick for a Lead — active ones, by name. */
+  async options(actor: Principal) {
+    const rows = await this.rows(actor.activeCompanyId, false);
+    return { names: rows.map((row) => row.name) };
   }
 
   async create(input: BundleInput, actor: Principal) {
@@ -202,7 +214,9 @@ export class ProductBundlesService {
   /**
    * What a quotation for this Lead carries, in the order asked:
    * the Lead's own list (`intake_data.products`); else the mandatory items of
-   * the bundle of its product; else its Sub Product read as one item code.
+   * the bundle picked on the Lead (`intake_data.selected_bundle`), else of
+   * the bundle named after its product; else its Sub Product read as one
+   * item code.
    */
   async itemsForLead(
     companyId: string,
@@ -211,24 +225,34 @@ export class ProductBundlesService {
     const product = productNameOfLead(lead);
     const listed = listedItemsOfLead(lead);
     if (listed.length) return { source: 'lead', product, items: listed };
-    if (product) {
-      const bundle = await this.byName(companyId, product);
-      if (bundle) {
-        return {
-          source: 'bundle',
-          product: bundle.name,
-          items: mandatoryItems(stateOf(bundle).items),
-        };
+    const names = [bundleNameOfLead(lead), product].filter(
+      (name): name is string => !!name,
+    );
+    if (names.length) {
+      const rows = await this.rows(companyId, false);
+      for (const name of names) {
+        const bundle = rows.find(
+          (row) => bundleKey(row.name) === bundleKey(name),
+        );
+        if (bundle) {
+          return {
+            source: 'bundle',
+            product: bundle.name,
+            items: mandatoryItems(stateOf(bundle).items),
+          };
+        }
       }
     }
     const code = lead?.subProduct?.trim();
+    const missed = names.length ? { bundle_not_found: names[0] } : {};
     return code
       ? {
           source: 'sub_product',
           product,
+          ...missed,
           items: [{ product_code: code, quantity: 1 }],
         }
-      : { source: 'none', product, items: [] };
+      : { source: 'none', product, ...missed, items: [] };
   }
 
   // --- helpers ---------------------------------------------------------------

@@ -419,17 +419,20 @@ export class SalesAutomationService {
     lead: LeadRow | null,
     deal: DealRow | null,
   ): Promise<Check> {
-    const { items, source, product } = await this.bundles.itemsForLead(
-      companyId,
-      lead,
-    );
+    const {
+      items,
+      source,
+      product,
+      bundle_not_found: notFound,
+    } = await this.bundles.itemsForLead(companyId, lead);
     if (!items.length) {
       return {
         key: 'products',
         ok: false,
         label: 'สินค้าที่มีราคามาตรฐาน',
-        detail:
-          'ยังไม่มีรายการสินค้าบน Lead — เลือก product ที่มีชุดรายการ หรือใส่รายการสินค้าบน Lead',
+        detail: notFound
+          ? `ไม่พบชุดรายการชื่อ "${notFound}" — เลือกชุดรายการบนการ์ด "รายการในใบเสนอราคา" ของ Lead`
+          : 'ยังไม่มีรายการสินค้าบน Lead — เลือก product ที่มีชุดรายการ หรือใส่รายการสินค้าบน Lead',
       };
     }
     const codes = [...new Set(items.map((item) => item.product_code.trim()))];
@@ -446,7 +449,11 @@ export class SalesAutomationService {
       ok: missing.length === 0,
       label: 'สินค้าที่มีราคามาตรฐาน',
       detail: missing.length
-        ? `ไม่มีราคามาตรฐานที่มีผลวันนี้: ${missing.join(', ')}`
+        ? notFound && source === 'sub_product'
+          ? // not a pricing gap: no bundle carries that name, so the Sub
+            // Product was read as an item code (13 พ.ย. 2569)
+            `ไม่พบชุดรายการชื่อ "${notFound}" จึงใช้ Sub Product "${missing.join(', ')}" เป็นรหัสสินค้า ซึ่งไม่มีราคามาตรฐาน — เลือกชุดรายการบนการ์ด "รายการในใบเสนอราคา" ของ Lead`
+          : `ไม่มีราคามาตรฐานที่มีผลวันนี้: ${missing.join(', ')}`
         : source === 'bundle'
           ? `ชุดรายการของ ${product}: ${codes.join(', ')}`
           : codes.join(', '),

@@ -18,6 +18,7 @@ How to work a plan and report a checklist is in `~/.claude/AGENTS.md` and is not
 restated here. What is recorded here is why those rules exist, because every one of
 them was broken in this repo in a single sprint:
 
+- Chat prose is Thai from the first message, including text between tool calls in long multi-phase runs — P6–P9 (13 พ.ย. 2569) drifted to English mid-task and the user had to point at the rule.
 - The plan file was rewritten mid-sprint, so a remembered plan was a stale plan.
 - Phase 6 was built before Phase 1 — and the screens that stalled were exactly the ones
   Phase 1 was supposed to supply.
