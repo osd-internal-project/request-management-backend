@@ -539,6 +539,12 @@ Lead's or deal's own address, never one the caller names; each company's
 mailbox (`mail_settings`, set on screen with the secret sealed; env `MAIL_*`
 for a company with no row) is read only for messages in threads it opened. A product with no standard price answers 422
 `CRM_QUOTATION_UNPRICED` so the workflow hands the deal to the salesperson.
+Before quoting (13 Nov 2026, user decision), `emails/:id/assessment` reads the customer's reply
+for the product, the quantity and the answers to that product's own questions
+(`product_bundles.requirements`), keeps them on the Lead, and `emails/:id/requirement-request`
+asks for what is missing in the same thread — to whoever wrote that message, never an address the
+caller names. A product with no bundle or no standard price is not quoted and not asked about: the
+Lead's owner is told to go to Pricing or Pre-Sales.
 `docs/sales-email-flow.md`. A twelfth is again a decision to state here.
 
 **The twelfth: every GET in the company's name (12 Nov 2026, user decision).** A key

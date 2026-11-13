@@ -213,6 +213,7 @@ describe('ProductBundlesService — ชุดรายการของ product
       expect(out).toEqual({
         source: 'bundle',
         product: 'D-DEBT',
+        requirements: [],
         items: [{ product_code: 'DD-LICENSE', quantity: 2, term_months: 12 }],
       });
     });

@@ -16,8 +16,11 @@ import {
   listedItemsOfLead,
   mandatoryItems,
   productNameOfLead,
+  requirementsOf,
+  requirementsOfLead,
   type BundleInput,
   type BundleItemState,
+  type BundleRequirement,
   type CleanBundle,
   type QuotationItem,
 } from './product-bundle-rules';
@@ -27,6 +30,7 @@ interface BundleRow {
   name: string;
   note: string;
   active: boolean;
+  requirements: unknown;
   updatedAt: Date;
   items: {
     lineNo: number;
@@ -34,6 +38,7 @@ interface BundleRow {
     quantity: unknown;
     termMonths: number | null;
     optional: boolean;
+    fixedQuantity: boolean;
   }[];
 }
 
@@ -42,6 +47,7 @@ const BUNDLE_SELECT = {
   name: true,
   note: true,
   active: true,
+  requirements: true,
   updatedAt: true,
   items: {
     select: {
@@ -50,6 +56,7 @@ const BUNDLE_SELECT = {
       quantity: true,
       termMonths: true,
       optional: true,
+      fixedQuantity: true,
     },
     orderBy: { lineNo: 'asc' },
   },
@@ -67,6 +74,8 @@ export interface LeadItems {
    * instead of blaming the price list (13 พ.ย. 2569).
    */
   bundle_not_found?: string;
+  /** The matched bundle's questions for the customer (13 พ.ย. 2569). */
+  requirements?: BundleRequirement[];
   items: QuotationItem[];
 }
 
@@ -99,6 +108,11 @@ export class ProductBundlesService {
     return { bundle };
   }
 
+  /** Active bundle names of a company — the products a reply may name. */
+  async namesOf(companyId: string): Promise<string[]> {
+    return (await this.rows(companyId, false)).map((row) => row.name);
+  }
+
   /** The bundles a salesperson can pick for a Lead — active ones, by name. */
   async options(actor: Principal) {
     const rows = await this.rows(actor.activeCompanyId, false);
@@ -115,6 +129,7 @@ export class ProductBundlesService {
             name: value.name,
             note: value.note,
             active: value.active,
+            requirements: value.requirements,
             createdBy: actor.userId,
             items: { create: itemRows(value.items) },
           },
@@ -149,6 +164,7 @@ export class ProductBundlesService {
         note: input.note ?? before.note,
         active: input.active ?? before.active,
         items: input.items ?? before.items,
+        requirements: input.requirements ?? before.requirements,
       },
       id,
     );
@@ -160,6 +176,7 @@ export class ProductBundlesService {
             name: value.name,
             note: value.note,
             active: value.active,
+            requirements: value.requirements,
             updatedBy: actor.userId,
             ...(input.items !== undefined
               ? { items: { deleteMany: {}, create: itemRows(value.items) } }
@@ -222,12 +239,19 @@ export class ProductBundlesService {
     companyId: string,
     lead: { subProduct: string | null; intakeData: unknown } | null,
   ): Promise<LeadItems> {
-    const product = productNameOfLead(lead);
+    const told = requirementsOfLead(lead);
+    const product = productNameOfLead(lead) ?? told.product;
     const listed = listedItemsOfLead(lead);
     if (listed.length) return { source: 'lead', product, items: listed };
-    const names = [bundleNameOfLead(lead), product].filter(
-      (name): name is string => !!name,
-    );
+    // how many the customer asked for by email (13 พ.ย. 2569); unknown = one
+    const units = told.quantity ?? 1;
+    const names = [
+      ...new Set(
+        [bundleNameOfLead(lead), product, told.product].filter(
+          (name): name is string => !!name,
+        ),
+      ),
+    ];
     if (names.length) {
       const rows = await this.rows(companyId, false);
       for (const name of names) {
@@ -238,7 +262,8 @@ export class ProductBundlesService {
           return {
             source: 'bundle',
             product: bundle.name,
-            items: mandatoryItems(stateOf(bundle).items),
+            requirements: requirementsOf(bundle.requirements),
+            items: mandatoryItems(stateOf(bundle).items, units),
           };
         }
       }
@@ -250,7 +275,7 @@ export class ProductBundlesService {
           source: 'sub_product',
           product,
           ...missed,
-          items: [{ product_code: code, quantity: 1 }],
+          items: [{ product_code: code, quantity: units }],
         }
       : { source: 'none', product, ...missed, items: [] };
   }
@@ -333,6 +358,7 @@ export class ProductBundlesService {
       name: row.name,
       note: row.note,
       active: row.active,
+      requirements: requirementsOf(row.requirements),
       updatedAt: row.updatedAt,
       items: row.items.map((item) => {
         const product = products.get(item.productCode);
@@ -344,6 +370,7 @@ export class ProductBundlesService {
           quantity: Number(item.quantity),
           termMonths: item.termMonths,
           optional: item.optional,
+          fixedQuantity: item.fixedQuantity,
           /** null = no standard price in effect: the automation stops there. */
           unitPrice: price ? Number(price.unitPrice) : null,
           priceModel: price?.priceModel ?? null,
@@ -362,7 +389,9 @@ const stateOf = (row: BundleRow) => ({
     quantity: Number(item.quantity),
     termMonths: item.termMonths,
     optional: item.optional,
+    fixedQuantity: item.fixedQuantity,
   })),
+  requirements: requirementsOf(row.requirements),
 });
 
 const itemRows = (items: readonly BundleItemState[]) =>
@@ -372,4 +401,5 @@ const itemRows = (items: readonly BundleItemState[]) =>
     quantity: item.quantity,
     termMonths: item.termMonths,
     optional: item.optional,
+    fixedQuantity: item.fixedQuantity,
   }));

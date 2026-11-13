@@ -111,6 +111,24 @@ export class SendQuotationEmailDto {
   signature?: string;
 }
 
+/** อีเมลถาม requirement ที่ยังขาด — ตอบในเธรดเดิมของลูกค้า (13 พ.ย. 2569). */
+export class SendRequirementRequestDto {
+  @ApiPropertyOptional({
+    description:
+      'ย่อหน้าเปิด — ว่าง = ข้อความมาตรฐานของระบบ · รายการคำถามระบบเติมให้เสมอ',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  intro?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  signature?: string;
+}
+
 export class StandardQuotationItemDto {
   @ApiProperty({
     example: 'CLOUD-BK-100',

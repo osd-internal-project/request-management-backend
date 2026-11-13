@@ -51,6 +51,46 @@ export class ProductBundleItemDto {
   @IsOptional()
   @IsBoolean()
   optional?: boolean;
+
+  @ApiPropertyOptional({
+    default: false,
+    description:
+      '`true` = จำนวนคงที่ ไม่คูณตามจำนวนที่ลูกค้าขอ (เช่น ค่าติดตั้งครั้งเดียว)',
+  })
+  @IsOptional()
+  @IsBoolean()
+  fixed_quantity?: boolean;
+}
+
+/** สิ่งที่ต้องรู้จากลูกค้าก่อนออกใบเสนอราคาของ product (13 พ.ย. 2569). */
+export class ProductBundleRequirementDto {
+  @ApiPropertyOptional({
+    example: 'site',
+    description:
+      'a-z 0-9 _ · ว่าง = ระบบตั้งให้ (q1, q2 …) · `quantity` สงวนไว้',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  key?: string;
+
+  @ApiProperty({ example: 'สถานที่ติดตั้ง (จังหวัด/สาขา)' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(300)
+  question!: string;
+
+  @ApiPropertyOptional({
+    type: [String],
+    example: ['ติดตั้งที่', 'สาขา', 'จังหวัด'],
+    description:
+      'คำที่ถ้าพบในคำตอบของลูกค้า ถือว่าตอบข้อนี้แล้ว (ใช้เมื่อไม่มี LLM อ่าน)',
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(10)
+  @IsString({ each: true })
+  hints?: string[];
 }
 
 export class SaveProductBundleDto {
@@ -82,6 +122,14 @@ export class SaveProductBundleDto {
   @ValidateNested({ each: true })
   @Type(() => ProductBundleItemDto)
   items!: ProductBundleItemDto[];
+
+  @ApiPropertyOptional({ type: [ProductBundleRequirementDto] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(15)
+  @ValidateNested({ each: true })
+  @Type(() => ProductBundleRequirementDto)
+  requirements?: ProductBundleRequirementDto[];
 }
 
 export class UpdateProductBundleDto {
@@ -114,6 +162,17 @@ export class UpdateProductBundleDto {
   @ValidateNested({ each: true })
   @Type(() => ProductBundleItemDto)
   items?: ProductBundleItemDto[];
+
+  @ApiPropertyOptional({
+    type: [ProductBundleRequirementDto],
+    description: 'ส่งมา = แทนทั้งรายการ',
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(15)
+  @ValidateNested({ each: true })
+  @Type(() => ProductBundleRequirementDto)
+  requirements?: ProductBundleRequirementDto[];
 }
 
 export class MatchProductBundleQueryDto {

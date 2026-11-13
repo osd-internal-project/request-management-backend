@@ -1884,7 +1884,7 @@
             "name": "search",
             "required": false,
             "in": "query",
-            "description": "ค้นจากชื่อไทย ชื่ออังกฤษ รหัสลูกค้า หรือเลขผู้เสียภาษี",
+            "description": "ค้นจากชื่อไทย ชื่ออังกฤษ รหัสลูกค้า เลขผู้เสียภาษี หรือผู้ติดต่อ (ชื่อ อีเมล เบอร์ LINE id) หรือที่อยู่ (ถนน แขวง เขต จังหวัด รหัสไปรษณีย์)",
             "schema": {
               "example": "ตัวอย่าง",
               "type": "string"
@@ -11103,6 +11103,102 @@
         ]
       }
     },
+    "/api/v1/crm/ai/emails/{id}/assessment": {
+      "post": {
+        "description": "อ่าน product / จำนวน / คำตอบของคำถามประจำ product (หน้า ชุดรายการของ Product) จากอีเมลขาเข้า รวมกับที่ลูกค้าเคยตอบ แล้วเก็บบน Lead (`intake_data.requirements`) · `outcome`: `ready` ออกใบเสนอราคาได้ · `ask` ยังขาด (`missing`) ให้ส่ง `emails/:id/requirement-request` · `no_solution` product ไม่มีชุดรายการ/ราคามาตรฐาน — พนักงานขายขอราคาจาก Pricing หรือ Solution จาก Pre-Sales · `handover` ถามครบ 2 ครั้งแล้วยังไม่ครบ — พนักงานขายติดต่อเอง (สองอย่างหลังแจ้งเจ้าของ Lead แล้ว)",
+        "operationId": "ExternalSalesAiController_assess",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ประเมินคำตอบของลูกค้าก่อนออกใบเสนอราคา — requirement ครบหรือยัง",
+        "tags": [
+          "crm-ai"
+        ],
+        "x-permission": [
+          "integration.crm.email.read",
+          "integration.crm.lead.read.all"
+        ]
+      }
+    },
+    "/api/v1/crm/ai/emails/{id}/requirement-request": {
+      "post": {
+        "description": "ถามเฉพาะข้อที่ `assessment` ล่าสุดตอบว่าขาด (`outcome = ask`; อย่างอื่น = 409) · ผู้รับ = ผู้ส่งอีเมลฉบับนั้น · คำตอบของลูกค้ากลับมาเป็น `crm.email.received` (interested) ให้ประเมินใหม่",
+        "operationId": "ExternalSalesAiController_requestRequirements",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendRequirementRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "ส่งอีเมลถาม requirement ที่ยังขาด ตอบในเธรดเดิมของลูกค้า",
+        "tags": [
+          "crm-ai"
+        ],
+        "x-permission": [
+          "integration.crm.email.send",
+          "integration.crm.lead.read.all"
+        ]
+      }
+    },
     "/api/v1/crm/ai/opportunities/{id}/quotations": {
       "post": {
         "description": "`items` ว่าง = ใช้สินค้าบน Lead (`intake_data.products` หรือ `subProduct`). ราคามาตรฐานล้วนได้ `approved` ทันที (ตั้งค่า CRM) · สินค้าไม่มีราคามาตรฐาน = 422 `CRM_QUOTATION_UNPRICED` (ส่งงานให้พนักงานขาย)",
@@ -19938,6 +20034,20 @@
         "required": [
           "body"
         ]
+      },
+      "SendRequirementRequestDto": {
+        "type": "object",
+        "properties": {
+          "intro": {
+            "type": "string",
+            "description": "ย่อหน้าเปิด — ว่าง = ข้อความมาตรฐานของระบบ · รายการคำถามระบบเติมให้เสมอ",
+            "maxLength": 2000
+          },
+          "signature": {
+            "type": "string",
+            "maxLength": 1000
+          }
+        }
       },
       "StandardQuotationItemDto": {
         "type": "object",

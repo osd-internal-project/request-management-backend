@@ -4,7 +4,17 @@ import {
   listedItemsOfLead,
   mandatoryItems,
   productNameOfLead,
+  requirementsOfLead,
+  type BundleItemState,
 } from './product-bundle-rules';
+
+const line: BundleItemState = {
+  productCode: 'X',
+  quantity: 1,
+  termMonths: null,
+  optional: false,
+  fixedQuantity: false,
+};
 
 describe('product bundle rules', () => {
   it('bundleKey ignores case and stray spaces', () => {
@@ -32,9 +42,17 @@ describe('product bundle rules', () => {
               quantity: 2,
               termMonths: null,
               optional: false,
+              fixedQuantity: false,
             },
-            { productCode: 'B-2', quantity: 1, termMonths: 24, optional: true },
+            {
+              productCode: 'B-2',
+              quantity: 1,
+              termMonths: 24,
+              optional: true,
+              fixedQuantity: false,
+            },
           ],
+          requirements: [],
         },
       });
     });
@@ -117,13 +135,82 @@ describe('product bundle rules', () => {
   it('mandatoryItems leaves the optional ones out', () => {
     expect(
       mandatoryItems([
-        { productCode: 'A-1', quantity: 2, termMonths: null, optional: false },
-        { productCode: 'B-2', quantity: 1, termMonths: 24, optional: true },
-        { productCode: 'C-3', quantity: 1, termMonths: 36, optional: false },
+        { ...line, productCode: 'A-1', quantity: 2 },
+        { ...line, productCode: 'B-2', termMonths: 24, optional: true },
+        { ...line, productCode: 'C-3', termMonths: 36 },
       ]),
     ).toEqual([
       { product_code: 'A-1', quantity: 2 },
       { product_code: 'C-3', quantity: 1, term_months: 36 },
     ]);
+  });
+
+  it('mandatoryItems multiplies by what the customer asked for, except fixed lines (13 พ.ย. 2569)', () => {
+    expect(
+      mandatoryItems(
+        [
+          { ...line, productCode: 'PHONE', quantity: 1 },
+          { ...line, productCode: 'CABLE', quantity: 2 },
+          { ...line, productCode: 'INSTALL', fixedQuantity: true },
+        ],
+        50,
+      ),
+    ).toEqual([
+      { product_code: 'PHONE', quantity: 50 },
+      { product_code: 'CABLE', quantity: 100 },
+      { product_code: 'INSTALL', quantity: 1 },
+    ]);
+  });
+
+  it('cleanBundle keeps the product’s questions, keys them and refuses a reserved or repeated key', () => {
+    const items = [{ productCode: 'A-1', quantity: 1 }];
+    const ok = cleanBundle({
+      name: 'IP-PHONE',
+      items,
+      requirements: [
+        { question: ' สถานที่ติดตั้ง ', hints: ['ติดตั้งที่', ' สาขา ', 'x'] },
+        { key: 'term', question: 'ระยะสัญญา' },
+      ],
+    });
+    expect(ok.ok && ok.value.requirements).toEqual([
+      { key: 'q1', question: 'สถานที่ติดตั้ง', hints: ['ติดตั้งที่', 'สาขา'] },
+      { key: 'term', question: 'ระยะสัญญา', hints: [] },
+    ]);
+    const bad = cleanBundle({
+      name: 'IP-PHONE',
+      items,
+      requirements: [
+        { key: 'quantity', question: 'กี่เครื่อง' },
+        { key: 'a', question: '' },
+      ],
+    });
+    expect(!bad.ok && bad.problems).toEqual([
+      { field: 'requirements[0].key', reason: 'duplicate' },
+      { field: 'requirements[1].question', reason: 'required' },
+    ]);
+  });
+
+  it('requirementsOfLead reads what the customer told so far, dropping junk', () => {
+    expect(
+      requirementsOfLead({
+        subProduct: null,
+        intakeData: {
+          requirements: {
+            product: ' IP-PHONE ',
+            quantity: '50',
+            answers: { site: 'ระยอง', empty: ' ', n: 3 },
+          },
+        },
+      }),
+    ).toEqual({
+      product: 'IP-PHONE',
+      quantity: 50,
+      answers: { site: 'ระยอง' },
+    });
+    expect(requirementsOfLead({ subProduct: null, intakeData: null })).toEqual({
+      product: null,
+      quantity: null,
+      answers: {},
+    });
   });
 });

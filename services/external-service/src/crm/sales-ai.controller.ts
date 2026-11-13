@@ -15,6 +15,7 @@ import {
   SalesMailService,
   SendLeadEmailDto,
   SendQuotationEmailDto,
+  SendRequirementRequestDto,
   type ApiKeyContext,
 } from '@request-management/core-service';
 import { ActsAsCompany } from '../auth/acts-as-company.decorator';
@@ -106,6 +107,65 @@ export class ExternalSalesAiController {
   ) {
     requireCompanyKey(key);
     return this.mail.findOne(id, actor);
+  }
+
+  @Post('emails/:id/assessment')
+  @Permissions('integration.crm.email.read', 'integration.crm.lead.read.all')
+  @ApiOperation({
+    summary: 'ประเมินคำตอบของลูกค้าก่อนออกใบเสนอราคา — requirement ครบหรือยัง',
+    description:
+      'อ่าน product / จำนวน / คำตอบของคำถามประจำ product (หน้า ชุดรายการของ Product) จากอีเมลขาเข้า ' +
+      'รวมกับที่ลูกค้าเคยตอบ แล้วเก็บบน Lead (`intake_data.requirements`) · `outcome`: ' +
+      '`ready` ออกใบเสนอราคาได้ · `ask` ยังขาด (`missing`) ให้ส่ง `emails/:id/requirement-request` · ' +
+      '`no_solution` product ไม่มีชุดรายการ/ราคามาตรฐาน — พนักงานขายขอราคาจาก Pricing หรือ Solution จาก Pre-Sales · ' +
+      '`handover` ถามครบ 2 ครั้งแล้วยังไม่ครบ — พนักงานขายติดต่อเอง (สองอย่างหลังแจ้งเจ้าของ Lead แล้ว)',
+  })
+  async assess(
+    @Param('id') id: string,
+    @CurrentPrincipal() actor: Principal,
+    @CurrentApiKey() key: ApiKeyContext | undefined,
+  ) {
+    requireCompanyKey(key);
+    const result = await this.mail.assessReply(id, actor);
+    const target = { leadId: result.lead_id };
+    if (result.outcome === 'no_solution' || result.outcome === 'handover') {
+      // not a refusal to the caller, but the Lead page should say why it stopped
+      await this.automation.record(
+        target,
+        'assess_reply',
+        new AppError('CRM_QUOTATION_UNPRICED', result.reason, [
+          { field: 'requirements', reason: result.outcome },
+        ]),
+        actor,
+      );
+    } else {
+      await this.automation.resolve(target, 'assess_reply', actor);
+    }
+    return result;
+  }
+
+  @Post('emails/:id/requirement-request')
+  @Permissions('integration.crm.email.send', 'integration.crm.lead.read.all')
+  @ApiOperation({
+    summary: 'ส่งอีเมลถาม requirement ที่ยังขาด ตอบในเธรดเดิมของลูกค้า',
+    description:
+      'ถามเฉพาะข้อที่ `assessment` ล่าสุดตอบว่าขาด (`outcome = ask`; อย่างอื่น = 409) · ผู้รับ = ผู้ส่งอีเมลฉบับนั้น · ' +
+      'คำตอบของลูกค้ากลับมาเป็น `crm.email.received` (interested) ให้ประเมินใหม่',
+  })
+  async requestRequirements(
+    @Param('id') id: string,
+    @Body() dto: SendRequirementRequestDto,
+    @CurrentPrincipal() actor: Principal,
+    @CurrentApiKey() key: ApiKeyContext | undefined,
+  ) {
+    requireCompanyKey(key);
+    const email = await this.mail.findOne(id, actor);
+    return this.track(
+      { leadId: email.lead_id ?? undefined },
+      'send_requirement_email',
+      actor,
+      () => this.mail.sendRequirementRequest(id, dto, actor),
+    );
   }
 
   @Post('opportunities/:id/quotations')
