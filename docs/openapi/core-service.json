@@ -1051,6 +1051,106 @@
         ]
       }
     },
+    "/api/v1/leads/{id}/sales-automation/{step}/start": {
+      "post": {
+        "description": "step = intro | quote | close · เริ่มได้เมื่อรายการของขั้นนั้นผ่านครบ — อีเมล/ใบเสนอราคาอาจถูกส่งซ้ำ",
+        "operationId": "SalesMailController_startForLead",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "step",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เริ่ม workflow งานขายของขั้นนี้อีกครั้ง (หลังแก้ข้อมูลครบแล้ว)",
+        "tags": [
+          "sales-mail"
+        ],
+        "x-permission": [
+          "crm.lead.manage"
+        ]
+      }
+    },
+    "/api/v1/opportunities/{id}/sales-automation/{step}/start": {
+      "post": {
+        "description": "step = intro | quote | close",
+        "operationId": "SalesMailController_startForOpportunity",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "step",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Company-Id",
+            "in": "header",
+            "required": false,
+            "description": "บริษัทที่คำขอนี้ทำงานอยู่ (§11.1) — ว่าง = บริษัทหลัก",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "เริ่ม workflow งานขายของขั้นนี้อีกครั้ง จากหน้าโอกาสการขาย",
+        "tags": [
+          "sales-mail"
+        ],
+        "x-permission": [
+          "crm.sales.manage"
+        ]
+      }
+    },
     "/api/v1/leads/{id}/emails": {
       "get": {
         "operationId": "SalesMailController_listForLead",

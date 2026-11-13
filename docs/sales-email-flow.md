@@ -124,5 +124,18 @@ external-service ต้องมี `CONFIG_SECRET_KEY` ตัวเดียว
    external-service เก็บลง `sales_automation_issues` พร้อม action/code/details; action เดิมสำเร็จ
    ภายหลัง = ใส่ `resolvedAt`. หน้าจอแสดงครั้งล่าสุดต่อ action ที่ยังไม่แก้ + วิธีแก้ (`hintFor`, ตาม code)
 
-หมายเหตุ: workflow ของ trigger หนึ่งเริ่มได้ครั้งเดียวต่อ Lead/อีเมล — แก้ข้อมูลแล้วต้องให้ผู้ดูแล
-workflow (งาน `WORKFLOW_OPERATOR`) ทำต่อ หรือเซลล์ทำเอง; ย้ายสถานะซ้ำไม่เริ่มใหม่
+หมายเหตุ: workflow ของ trigger หนึ่งเริ่มเองได้ครั้งเดียวต่อ Lead/อีเมล — ย้ายสถานะซ้ำไม่เริ่มใหม่
+
+### ปุ่ม "เริ่ม" ต่อขั้น (13 พ.ย. 2569)
+
+รอบที่ติดจบที่งานของคนแล้วปิด ไม่มีอะไรปลุกมันอีก หลังแก้ข้อมูลครบ คนจึงสั่งเริ่มขั้นนั้นใหม่เองจากการ์ด:
+`POST leads/:id/sales-automation/:step/start` (`crm.lead.manage`) และ
+`POST opportunities/:id/sales-automation/:step/start` (`crm.sales.manage`), `step` = `intro | quote | close`
+
+- กดได้เมื่อ checklist ตอบ `can_start` — ค่าพื้นฐานผ่าน, ทุกรายการของขั้นผ่าน (ไม่นับผลการเริ่มที่ `dead`),
+  และไม่มีรายการที่ `pending`/`sending` อยู่; ไม่ผ่าน = 422
+- มีแถว `workflow_starts` ของขั้นนั้นอยู่แล้ว → แถวเดิมกลับเป็น `pending` (ตัวแปรชุดเดิม) รอบถัดไปของ
+  dispatcher เปิด instance ใหม่; ไม่เคยเริ่ม → สร้างแถวใหม่: intro ใช้ Lead (สถานะปัจจุบัน ไม่กรองตาม
+  สถานะของ trigger เพราะคนสั่งเอง), quote/close ใช้อีเมลตอบล่าสุดที่ intent ตรง — ไม่มีอีเมลแบบนั้น = เริ่มไม่ได้
+- workflow ทำขั้นนั้นใหม่ตั้งแต่ต้น: รอบก่อนส่งอีเมลไปแล้วลูกค้าจะได้ซ้ำ (หน้าจอถามยืนยันก่อน)
+- audit `crm.sales_automation.step_started`
