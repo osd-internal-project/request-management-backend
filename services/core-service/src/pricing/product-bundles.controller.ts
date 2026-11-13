@@ -66,6 +66,21 @@ export class ProductBundlesController {
     return this.bundles.match(actor, query.name);
   }
 
+  @ApiOperation({
+    summary:
+      'ชื่อชุดรายการที่เปิดใช้ — หน้า Lead ใช้ให้พนักงานขายเลือกชุดของ Lead นั้น',
+  })
+  @Get('options')
+  @AnyPermission(
+    'crm.lead.read',
+    'crm.sales.read',
+    'pricing.price.read',
+    'pricing.price.manage',
+  )
+  options(@CurrentPrincipal() actor: Principal) {
+    return this.bundles.options(actor);
+  }
+
   @ApiOperation({ summary: 'เพิ่มชุดรายการของ product' })
   @Post()
   @Permissions('pricing.price.manage')
