@@ -34,6 +34,8 @@ export type SalesStep = (typeof SALES_STEPS)[number];
 /** Which workflow each plugin action belongs to — what the screen groups by. */
 export const ACTION_STEP: Record<string, Exclude<SalesStep, 'base'>> = {
   send_lead_email: 'intro',
+  assess_reply: 'quote',
+  send_requirement_email: 'quote',
   convert_lead: 'quote',
   create_standard_quotation: 'quote',
   send_quotation_email: 'quote',
@@ -912,6 +914,10 @@ export function hintFor(issue: {
     case 'CRM_EMAIL_SEND_FAILED':
       return 'ตรวจค่าอีเมลงานขาย (Microsoft Graph) แล้วกดส่งอีเมลทดสอบ';
     case 'CRM_QUOTATION_UNPRICED':
+      if (has('requirements', 'no_solution'))
+        return 'ขอราคาจาก Pricing หรือขอ Solution จาก Pre-Sales — ได้ราคา/ชุดรายการแล้วกด "เริ่ม" ขั้นนี้ใหม่';
+      if (has('requirements', 'handover'))
+        return 'ลูกค้ายังให้ข้อมูลไม่ครบหลังถามแล้ว — ติดต่อลูกค้าเอง เติมข้อมูลบน Lead แล้วทำใบเสนอราคา';
       return has('items', 'no_products')
         ? 'เลือก product ที่มีชุดรายการ หรือใส่รายการสินค้าบน Lead'
         : 'เพิ่มราคามาตรฐานของสินค้านี้ หรือให้พนักงานขายทำใบเสนอราคาเอง';

@@ -12,6 +12,8 @@
 | ผู้ส่ง | shared mailbox ของบริษัท; ระหว่างรอ IT ใช้ mailbox M365 ของผู้พัฒนา (`MAIL_MAILBOX`) |
 | ระบบอีเมล | Microsoft 365 → Microsoft Graph |
 | สินค้า/ราคา | สินค้าบน Lead จับคู่กับราคามาตรฐาน (CD-194); ไม่มีราคา → งานกลับไปที่พนักงานขาย |
+| requirement ก่อนเสนอราคา (13 พ.ย.) | "ครบ" = รู้ product + จำนวน + ตอบครบตามคำถามประจำ product (ตั้งบนหน้าชุดรายการ); ขาด → ระบบส่งอีเมลถามเอง |
+| ไม่มี solution ในระบบ (13 พ.ย.) | ส่งงานให้พนักงานขาย — ขอราคาจาก Pricing หรือ Solution จาก Pre-Sales เอง แล้วกด "เริ่ม" ขั้นใบเสนอราคา |
 | ใครเรียก Graph | CTD (token, secret, แนบ PDF, ประวัติบน Lead) — OSD Workflow เรียก CTD ผ่าน plugin |
 
 ## เส้นทาง
@@ -25,6 +27,12 @@ Vuvagent กรอก Product/Segment + วาง proposal  POST crm/ai/leads/{i
 ลูกค้าตอบ → core อ่าน inbox (เฉพาะเธรดที่ระบบเปิด) → จัดประเภท → กิจกรรม + แจ้งเจ้าของ
   └ event crm.email.received {intent}                                   (ข้อ 4)
        [interested]  → workflow ctd-sales-quote                          (ข้อ 5)
+            POST crm/ai/emails/{emailId}/assessment      → outcome (13 พ.ย. — ดูหัวข้อถัดไป)
+                 ask         → POST crm/ai/emails/{emailId}/requirement-request แล้วจบ
+                               (คำตอบของลูกค้า = อีเมลใหม่ → รอบใหม่ของ workflow เดิม)
+                 no_solution → human task: เซลล์ขอราคาจาก Pricing / Solution จาก Pre-Sales
+                 handover    → human task: เซลล์ติดต่อลูกค้าเอง
+                 ready       ↓
             POST crm/ai/leads/{leadId}/convert           → opportunityId
                  Lead ยังอยู่ขั้นเดิม (ไม่เป็น Won) — แปลงซ้ำ = 409
             POST crm/ai/opportunities/{oppId}/quotations → approved (ราคามาตรฐาน)
@@ -43,6 +51,34 @@ Vuvagent กรอก Product/Segment + วาง proposal  POST crm/ai/leads/{i
 แยกเป็นสาม workflow เพราะแต่ละคำตอบของลูกค้าคือ event ใหม่หนึ่งครั้ง (resource =
 อีเมลขาเข้าแต่ละฉบับ) — ไม่ต้องใช้ "Wait for signal" และ instance ไม่ค้างรอเป็นสัปดาห์
 
+## requirement ก่อนออกใบเสนอราคา (13 พ.ย. 2569, ผู้ใช้ตัดสิน)
+
+เดิมลูกค้าตอบว่าสนใจ ระบบออกใบเสนอราคาทันที ตอนนี้ `assessment` อ่านคำตอบก่อน
+(`mail/requirement-rules.ts`, pure + เทสต์):
+
+| ต้องรู้ | มาจากไหน |
+|---|---|
+| product | ที่พนักงานขายเลือกบน Lead (`selected_bundle` / `selected_product` / Sub Product) — ไม่มีจึงใช้ชื่อชุดรายการที่ลูกค้าเอ่ยในอีเมล |
+| จำนวน | ตัวเลข + หน่วยในอีเมล ("50 เครื่อง", "จำนวน 20") — ไม่ต้องถามถ้า Lead มีรายการของตัวเอง (`intake_data.products`) |
+| คำถามประจำ product | `product_bundles.requirements` `[{key, question, hints[]}]` ตั้งบนหน้า "ชุดรายการของ Product" |
+
+- คำตอบสะสมบน Lead ที่ `intake_data.requirements` (`product`, `quantity`, `answers{key}`, `outcome`,
+  `missing[]`, `reason`, `email_id`) — อีเมลฉบับถัดไปเติมจากที่รู้แล้ว ไม่ถามซ้ำ
+- `LLM_MODE=gateway`: LLM อ่าน (task `crm.email.requirements`); mock/ตอบไม่เป็น JSON → กฎ:
+  ข้อที่มี `hints` ถือว่าตอบเมื่อพบคำใดคำหนึ่ง; ข้อที่ไม่มี `hints` ถูกถามหนึ่งครั้ง แล้วข้อความ
+  ที่ลูกค้าตอบอีเมลถามถือเป็นคำตอบ (คนอ่านต่อได้ ลูกค้าไม่ถูกถามซ้ำ)
+- ลำดับตัดสิน (`decide`): ไม่รู้ product → ถาม (แนบชื่อชุดรายการที่มี); product ไม่มีรายการ หรือ item
+  ไม่มีราคามาตรฐาน → `no_solution` **ก่อน** ถาม requirement (ไม่ซักลูกค้าเรื่องของที่ยังตั้งราคาไม่ได้);
+  ขาดข้อใด → `ask`; ถามไปแล้ว 2 ครั้ง (`MAX_REQUIREMENT_ASKS`) ยังขาด → `handover`; ครบ → `ready`
+- `no_solution` / `handover`: แจ้งเตือนเจ้าของ Lead + แถวใน `sales_automation_issues`
+  (code `CRM_QUOTATION_UNPRICED`, field `requirements`) ให้การ์ดงานขายอัตโนมัติบอกเหตุผล —
+  แก้แล้วกด "เริ่ม" ขั้นใบเสนอราคา ระบบประเมินใหม่จากข้อมูลปัจจุบัน
+- อีเมลถาม: purpose `requirement_request`, ตอบข้อความของลูกค้าในเธรดเดิม; คำตอบที่กฎอ่านไม่ออก
+  ("50 เครื่อง ที่ระยอง") ในเธรดที่ฉบับล่าสุดของเราเป็นอีเมลถาม ถูกจัดเป็น `interested` (ไม่ใช่ `unclear`)
+- จำนวนที่ลูกค้าขอคูณ item ของชุด (จำนวนในชุด = ของ 1 หน่วย) ยกเว้น item ที่ตั้ง "จำนวนคงที่"
+  (`fixedQuantity`) — ดู [`product-bundles.md`](./product-bundles.md)
+- ยังไม่ทำ: ระบบไม่เปิดคำขอ Solution/ราคาให้เอง (ผู้ใช้เลือกให้เซลล์ทำ)
+
 ## API (external-service, `@ActsAsCompany`, key ผูกบริษัท)
 
 | route | scope | หมายเหตุ |
@@ -51,6 +87,8 @@ Vuvagent กรอก Product/Segment + วาง proposal  POST crm/ai/leads/{i
 | `POST crm/ai/leads/:id/files` | `crm.lead.update` | multipart `file` + `kind` (`proposal` \| `other`) ≤ 20 MB — Vuvagent วาง proposal ให้ Lead |
 | `GET crm/ai/leads/:id/files` | `crm.lead.read.all` | รายการไฟล์บน Lead (ล่าสุดก่อน) |
 | `GET crm/ai/emails/:id` | `crm.email.read` + `crm.lead.read.all` | `intent`, `intent_label`, `intent_reason`, `body_text`, `attachments` |
+| `POST crm/ai/emails/:id/assessment` | `crm.email.read` + `crm.lead.read.all` | อีเมลขาเข้าของ Lead → `outcome` (`ready` \| `ask` \| `no_solution` \| `handover`), `reason`, `product`, `quantity`, `answers`, `missing[{key, question}]`, `asks_sent` · เก็บผลบน Lead |
+| `POST crm/ai/emails/:id/requirement-request` | `crm.email.send` + `crm.lead.read.all` | body `intro?`, `signature?` · ถามเฉพาะ `missing` ของการประเมินล่าสุด (ไม่ใช่ `ask` = 409) · ผู้รับ = ผู้ส่งอีเมลฉบับนั้น |
 | `POST crm/ai/opportunities/:id/quotations` | `crm.quotation.create` + `crm.sales.read.all` | `items?[{product_code, quantity, term_months?}]` — ว่าง = รายการของ Lead ตามลำดับใน [`product-bundles.md`](./product-bundles.md) |
 | `POST crm/ai/quotations/:id/email` | `crm.email.send` + `crm.sales.read.all` | เฉพาะ `approved`; ตอบข้อความล่าสุดของลูกค้า แนบ PDF แล้วเป็น `sent` |
 | `POST crm/ai/quotations/:id/accept` | `crm.quotation.accept` + `crm.sales.read.all` | `email_id?`, `po_no?`, `note?` → `accepted` |

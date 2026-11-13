@@ -71,6 +71,7 @@ export {
   CreateStandardQuotationDto,
   SendLeadEmailDto,
   SendQuotationEmailDto,
+  SendRequirementRequestDto,
 } from './mail/dto/sales-mail.dto';
 export { CustomersService } from './crm/customers.service';
 export { CustomerImportService } from './crm/customer-import.service';

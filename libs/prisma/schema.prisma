@@ -6255,6 +6255,9 @@ model ProductBundle {
   name      String
   note      String  @default("")
   active    Boolean @default(true)
+  /// 13 พ.ย. 2569 — สิ่งที่ต้องรู้จากลูกค้าก่อนออกใบเสนอราคาของ product นี้:
+  /// [{ key, question, hints[] }] — งานขายอัตโนมัติถามข้อที่ยังไม่มีคำตอบทางอีเมล
+  requirements Json @default("[]")
 
   createdBy String
   createdAt DateTime  @default(now())
@@ -6280,6 +6283,8 @@ model ProductBundleItem {
   /// ราคารายเดือน: จำนวนเดือน — ว่าง = ค่าตั้งต้นของใบเสนอราคา (12).
   termMonths  Int?
   optional    Boolean @default(false)
+  /// `true` = จำนวนคงที่ ไม่คูณตามจำนวนที่ลูกค้าขอ (เช่น ค่าติดตั้งครั้งเดียว)
+  fixedQuantity Boolean @default(false)
 
   bundle ProductBundle @relation(fields: [bundleId], references: [id], onDelete: Cascade)
 
@@ -9664,7 +9669,7 @@ model CrmEmail {
 
   /// out = ระบบส่ง · in = ลูกค้าตอบเข้ามา
   direction String
-  /// out: lead_intro | quotation · in: reply
+  /// out: lead_intro | quotation | requirement_request · in: reply
   purpose   String
   /// sent | failed | received
   status    String

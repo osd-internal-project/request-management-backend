@@ -10,6 +10,9 @@
 export const MAX_BUNDLE_ITEMS = 50;
 export const MAX_BUNDLE_QUANTITY = 1_000_000;
 export const MAX_TERM_MONTHS = 120;
+export const MAX_BUNDLE_REQUIREMENTS = 15;
+/** The key of the one question every product has: how many. */
+export const QUANTITY_KEY = 'quantity';
 
 export interface QuotationItem {
   product_code: string;
@@ -23,6 +26,19 @@ export type BundleItemState = {
   quantity: number;
   termMonths: number | null;
   optional: boolean;
+  /** stays as written however many the customer asks for (a one-off fee) */
+  fixedQuantity: boolean;
+};
+
+/**
+ * Something to know from the customer before quoting this product
+ * (13 พ.ย. 2569). `hints` are words whose presence in a reply counts as an
+ * answer when no LLM reads it.
+ */
+export type BundleRequirement = {
+  key: string;
+  question: string;
+  hints: string[];
 };
 
 export interface BundleInput {
@@ -30,6 +46,7 @@ export interface BundleInput {
   note?: unknown;
   active?: unknown;
   items?: unknown;
+  requirements?: unknown;
 }
 
 export interface CleanBundle {
@@ -37,6 +54,7 @@ export interface CleanBundle {
   note: string;
   active: boolean;
   items: BundleItemState[];
+  requirements: BundleRequirement[];
 }
 
 interface Problem {
@@ -118,12 +136,15 @@ export function cleanBundle(
       quantity,
       termMonths: term,
       optional: row.optional === true,
+      fixedQuantity: row.fixedQuantity === true,
     });
   });
   if (items.length && items.every((item) => item.optional)) {
     // a bundle of nothing but extras would quote an empty document
     problems.push({ field: 'items', reason: 'no_mandatory_item' });
   }
+
+  const requirements = cleanRequirements(input.requirements, problems);
 
   if (problems.length) return { ok: false, problems };
   return {
@@ -133,8 +154,88 @@ export function cleanBundle(
       note: typeof input.note === 'string' ? input.note.trim() : '',
       active: input.active !== false,
       items,
+      requirements,
     },
   };
+}
+
+/** A key for a question with none given: `q1`, `q2` … by position. */
+const REQUIREMENT_KEY = /^[a-z0-9_]{1,40}$/;
+
+function cleanRequirements(
+  input: unknown,
+  problems: Problem[],
+): BundleRequirement[] {
+  const rows = Array.isArray(input) ? input : [];
+  if (rows.length > MAX_BUNDLE_REQUIREMENTS) {
+    problems.push({ field: 'requirements', reason: 'too_many' });
+  }
+  const seen = new Set<string>([QUANTITY_KEY]);
+  return rows.map((raw, index) => {
+    const row = (raw && typeof raw === 'object' ? raw : {}) as Record<
+      string,
+      unknown
+    >;
+    const question =
+      typeof row.question === 'string'
+        ? row.question.trim().replace(/\s+/g, ' ')
+        : '';
+    if (!question) {
+      problems.push({
+        field: `requirements[${index}].question`,
+        reason: 'required',
+      });
+    } else if (question.length > 300) {
+      problems.push({
+        field: `requirements[${index}].question`,
+        reason: 'too_long',
+      });
+    }
+    let key = typeof row.key === 'string' ? row.key.trim().toLowerCase() : '';
+    if (!key) {
+      let n = index + 1;
+      while (seen.has(`q${n}`)) n += 1;
+      key = `q${n}`;
+    } else if (!REQUIREMENT_KEY.test(key)) {
+      problems.push({
+        field: `requirements[${index}].key`,
+        reason: 'invalid',
+      });
+    } else if (seen.has(key)) {
+      problems.push({
+        field: `requirements[${index}].key`,
+        reason: 'duplicate',
+      });
+    }
+    seen.add(key);
+    const hints = (Array.isArray(row.hints) ? row.hints : [])
+      .filter((hint): hint is string => typeof hint === 'string')
+      .map((hint) => hint.trim().toLowerCase())
+      .filter((hint) => hint.length >= 2 && hint.length <= 40)
+      .slice(0, 10);
+    return { key, question, hints: [...new Set(hints)] };
+  });
+}
+
+/** Stored requirements read back — anything malformed is dropped. */
+export function requirementsOf(stored: unknown): BundleRequirement[] {
+  if (!Array.isArray(stored)) return [];
+  return stored.flatMap((raw): BundleRequirement[] => {
+    if (!raw || typeof raw !== 'object') return [];
+    const row = raw as Record<string, unknown>;
+    if (typeof row.key !== 'string' || typeof row.question !== 'string') {
+      return [];
+    }
+    return [
+      {
+        key: row.key,
+        question: row.question,
+        hints: Array.isArray(row.hints)
+          ? row.hints.filter((h): h is string => typeof h === 'string')
+          : [],
+      },
+    ];
+  });
 }
 
 interface LeadProducts {
@@ -196,15 +297,61 @@ export function bundleNameOfLead(lead: LeadProducts | null): string | null {
   return typeof picked === 'string' && picked.trim() ? picked.trim() : null;
 }
 
-/** What a bundle puts on a quotation by itself — its mandatory items. */
+/**
+ * What the customer told the sales automation so far
+ * (`intake_data.requirements`, 13 พ.ย. 2569): the product they named, how
+ * many, and their answers to the product's questions by key.
+ */
+export interface LeadRequirements {
+  product: string | null;
+  quantity: number | null;
+  answers: Record<string, string>;
+}
+
+export function requirementsOfLead(
+  lead: LeadProducts | null,
+): LeadRequirements {
+  const raw = intakeOf(lead).requirements;
+  const row = (raw && typeof raw === 'object' ? raw : {}) as Record<
+    string,
+    unknown
+  >;
+  const quantity = Number(row.quantity);
+  const answers: Record<string, string> = {};
+  if (row.answers && typeof row.answers === 'object') {
+    for (const [key, value] of Object.entries(row.answers)) {
+      if (typeof value === 'string' && value.trim()) answers[key] = value;
+    }
+  }
+  return {
+    product:
+      typeof row.product === 'string' && row.product.trim()
+        ? row.product.trim()
+        : null,
+    quantity:
+      Number.isFinite(quantity) &&
+      quantity > 0 &&
+      quantity <= MAX_BUNDLE_QUANTITY
+        ? quantity
+        : null,
+    answers,
+  };
+}
+
+/**
+ * What a bundle puts on a quotation by itself — its mandatory items, written
+ * for one unit: `units` (how many the customer asked for) multiplies every
+ * line except those marked `fixedQuantity`.
+ */
 export function mandatoryItems(
   items: readonly BundleItemState[],
+  units = 1,
 ): QuotationItem[] {
   return items
     .filter((item) => !item.optional)
     .map((item) => ({
       product_code: item.productCode,
-      quantity: item.quantity,
+      quantity: item.fixedQuantity ? item.quantity : item.quantity * units,
       ...(item.termMonths ? { term_months: item.termMonths } : {}),
     }));
 }

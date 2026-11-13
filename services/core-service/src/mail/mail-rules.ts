@@ -38,7 +38,7 @@ export const EMAIL_INTENT_LABELS: Record<EmailIntent, string> = {
 /** What the owner is told to do next — the line in their notification. */
 export const EMAIL_NEXT_STEPS: Record<EmailIntent, string> = {
   interested:
-    'เตรียมใบเสนอราคา (ถ้าเปิดงานขายอัตโนมัติ ระบบทำจากราคามาตรฐานให้)',
+    'เตรียมใบเสนอราคา (ถ้าเปิดงานขายอัตโนมัติ ระบบตรวจ requirement แล้วถามลูกค้าเพิ่มหรือทำใบเสนอราคาจากราคามาตรฐานให้)',
   needs_info: 'ตอบคำถามลูกค้าในเธรดเดิม',
   not_interested: 'พิจารณาปิดดีล/ตัด Lead',
   confirmed: 'ลูกค้ายืนยันแล้ว — เปิดใบสั่งขายเพื่อปิดการขาย',
