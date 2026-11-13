@@ -29,6 +29,7 @@ const items = (rows: readonly ProductBundleItemDto[]) =>
     quantity: row.quantity,
     termMonths: row.term_months ?? null,
     optional: row.optional ?? false,
+    fixedQuantity: row.fixed_quantity ?? false,
   }));
 
 /**
@@ -94,6 +95,7 @@ export class ProductBundlesController {
         note: dto.note,
         active: dto.active,
         items: items(dto.items),
+        requirements: dto.requirements ?? [],
       },
       actor,
     );
@@ -114,6 +116,9 @@ export class ProductBundlesController {
         ...(dto.note !== undefined ? { note: dto.note } : {}),
         ...(dto.active !== undefined ? { active: dto.active } : {}),
         ...(dto.items !== undefined ? { items: items(dto.items) } : {}),
+        ...(dto.requirements !== undefined
+          ? { requirements: dto.requirements }
+          : {}),
       },
       actor,
     );

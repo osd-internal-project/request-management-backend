@@ -9,7 +9,16 @@
 | ตาราง | เก็บอะไร |
 |---|---|
 | `product_bundles` | หนึ่งแถวต่อ product ต่อบริษัท: `name`, `note`, `active`, soft delete |
-| `product_bundle_items` | item ของชุด: `productCode` (SAP ItemCode), `quantity`, `termMonths?`, `optional` |
+| `product_bundle_items` | item ของชุด: `productCode` (SAP ItemCode), `quantity`, `termMonths?`, `optional`, `fixedQuantity` |
+
+13 พ.ย. 2569 (migration `20261113110000_bundle_requirements`):
+
+- `product_bundles.requirements` — `[{key, question, hints[]}]` สิ่งที่ต้องรู้จากลูกค้าก่อนออกใบเสนอราคา
+  งานขายอัตโนมัติถามข้อที่ยังไม่มีคำตอบทางอีเมล (`sales-email-flow.md` หัวข้อ requirement); ไม่เกิน 15 ข้อ,
+  `key` ว่าง = ระบบตั้ง `q1…`, `quantity` สงวนไว้ (ระบบถามจำนวนเองเสมอ)
+- `fixedQuantity` — จำนวนในชุดคือของ **1 หน่วย**: จำนวนที่ลูกค้าขอ (`intake_data.requirements.quantity`)
+  คูณทุก item ยกเว้นที่ตั้ง `fixedQuantity = true` (เช่น ค่าติดตั้งครั้งเดียว). Lead ที่ลูกค้ายังไม่บอกจำนวน = คูณ 1
+  (เท่าพฤติกรรมเดิม); Lead ที่มีรายการของตัวเอง (`intake_data.products`) ไม่ถูกคูณ
 
 - `name` คือชื่อ product ตามที่พนักงานขายเลือกบน Lead — เทียบแบบไม่สนตัวพิมพ์/ช่องว่าง
   (`bundleKey`) และไม่ซ้ำในบริษัทเดียวกัน (409)
