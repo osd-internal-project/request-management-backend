@@ -19,6 +19,9 @@ describe('H3 tenant guard — which calls forget the company', () => {
     ['RequestComment', 'findMany', { where: { request: { companyId: 'osd' } } }, false],
     ['Request', 'findUnique', { where: { id: 'r-1' } }, false],
     ['Request', 'create', { data: {} }, false],
+    // ระดับระบบที่ตั้งใจข้ามบริษัท: key มีอยู่ ค่า undefined (14 พ.ย. 2569)
+    ['Integration', 'findFirst', { where: { id: 'i-1', companyId: undefined } }, false],
+    ['Integration', 'findFirst', { where: { id: 'i-1' } }, true],
     ['User', 'findMany', {}, false],
   ])('%s.%s %j → %s', (model, operation, args, expected) => {
     expect(lacksCompanyScope(model, operation, args)).toBe(expected);

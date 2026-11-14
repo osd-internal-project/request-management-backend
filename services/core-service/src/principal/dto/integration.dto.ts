@@ -8,6 +8,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsUUID,
   Matches,
   MaxLength,
 } from 'class-validator';
@@ -113,6 +114,17 @@ export class UpdateIntegrationDto {
   @IsOptional()
   @IsBoolean()
   active?: boolean;
+
+  @ApiPropertyOptional({
+    description:
+      'integration กลางเท่านั้น: บริษัทที่ key กลางส่ง `X-Company-Id` มาได้ — ว่าง = ทุกบริษัท',
+    type: [String],
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(200)
+  @IsUUID('all', { each: true })
+  allowed_company_ids?: string[];
 }
 
 export class IntegrationRowDto {
@@ -123,6 +135,10 @@ export class IntegrationRowDto {
   modes!: string[];
   @ApiProperty() allow_acting_user!: boolean;
   @ApiProperty({ type: [String] }) keycloak_client_ids!: string[];
+  @ApiProperty({ nullable: true, description: 'NULL = ระบบภายนอกกลาง' })
+  company_id!: string | null;
+  @ApiProperty({ type: [String], description: 'ว่าง = ทุกบริษัท' })
+  allowed_company_ids!: string[];
   @ApiProperty() active!: boolean;
   @ApiProperty() api_key_count!: number;
   @ApiProperty() webhook_count!: number;

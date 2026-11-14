@@ -56,6 +56,8 @@ export interface IntegrationPolicy {
   readonly modes: readonly string[];
   readonly allowActingUser: boolean;
   readonly keycloakClientIds: readonly string[];
+  /** integration กลางเท่านั้น: บริษัทที่ส่ง `X-Company-Id` มาได้ — ว่าง = ทุกบริษัท */
+  readonly allowedCompanyIds: readonly string[];
 }
 
 /** The exchange's answer: a usable bearer, plus what the key it came from says. */
@@ -175,6 +177,7 @@ export class ApiKeyService {
             modes: key.integration.modes,
             allowActingUser: key.integration.allowActingUser,
             keycloakClientIds: key.integration.keycloakClientIds,
+            allowedCompanyIds: key.integration.allowedCompanyIds ?? [],
           },
         }),
       },

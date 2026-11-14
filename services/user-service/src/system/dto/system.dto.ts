@@ -13,6 +13,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsUUID,
   Matches,
   MaxLength,
 } from 'class-validator';
@@ -83,6 +84,11 @@ export class CreateCompanyDto {
     message: 'doc_prefix ใช้ A-Z 0-9 ยาว 2–10 ตัว',
   })
   doc_prefix: string;
+
+  /** ผู้ดูแลคนแรก — ได้สมาชิก + role `admin` ของบริษัทใหม่ (ไม่บังคับ) */
+  @IsOptional()
+  @IsUUID()
+  admin_user_id?: string;
 }
 
 export class UpdateCompanyDto {
@@ -90,6 +96,14 @@ export class UpdateCompanyDto {
   @IsString()
   @IsNotEmpty()
   name?: string;
+
+  /** มีผลกับเลขเอกสารที่ออกหลังจากนี้ — เลขเดิมไม่เปลี่ยน */
+  @IsOptional()
+  @IsString()
+  @Matches(/^[A-Z0-9]{2,10}$/, {
+    message: 'doc_prefix ใช้ A-Z 0-9 ยาว 2–10 ตัว',
+  })
+  doc_prefix?: string;
 
   @IsOptional()
   @IsBoolean()

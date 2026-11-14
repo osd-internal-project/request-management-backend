@@ -8,6 +8,7 @@ import {
   Principal,
   toSkipTake,
 } from '@request-management/share';
+import { CompanyRepository } from '../crm/product.repositories';
 import { IntegrationRepository } from './integration.repository';
 import { IntegrationCallRepository } from './integration-call.repository';
 import {
@@ -25,6 +26,7 @@ interface IntegrationRow {
   modes: string[];
   allowActingUser: boolean;
   keycloakClientIds: string[];
+  allowedCompanyIds: string[];
   active: boolean;
   createdAt: Date;
   createdBy: string;
@@ -60,7 +62,37 @@ export class IntegrationAdminService {
     private readonly integrations: IntegrationRepository,
     private readonly audit: AuditWriter,
     private readonly calls: IntegrationCallRepository,
+    private readonly companies: CompanyRepository,
   ) {}
+
+  /**
+   * หน้า hub ระบบ (14 พ.ย. 2569): integration ของทุกบริษัทและของกลาง.
+   * `company` = uuid ของบริษัท, `system` = ของกลาง, ไม่ส่ง = ทั้งหมด
+   */
+  async listAcrossCompanies(company?: string): Promise<IntegrationRowDto[]> {
+    // undefined = ทุกบริษัท; key ต้องมีให้ tenant guard เห็นว่าเลือกแล้ว
+    const where = {
+      companyId:
+        company === undefined ? undefined : company === 'system' ? null : company,
+    };
+    const rows = (await this.integrations.findMany({
+      where,
+      include: WITH_COUNTS,
+      orderBy: [{ companyId: 'asc' }, { createdAt: 'desc' }],
+    })) as IntegrationRow[];
+    return rows.map(toRow);
+  }
+
+  /** บริษัทเจ้าของแถว — ให้ route ของระบบเรียก service เดิมด้วย owner ที่ถูกต้อง */
+  async ownerOf(id: string): Promise<string | null> {
+    const found = (await this.integrations.findFirst({
+      // ระดับระบบ: ทุกบริษัทโดยตั้งใจ — key ต้องมีให้ tenant guard เห็นว่าเลือกแล้ว
+      where: { id, companyId: undefined },
+      select: { companyId: true },
+    })) as { companyId: string | null } | null;
+    if (!found) throw new AppError('NOT_FOUND', 'ไม่พบระบบภายนอกที่ระบุ');
+    return found.companyId;
+  }
 
   async list(
     actor: Principal,
@@ -110,6 +142,7 @@ export class IntegrationAdminService {
     owner: string | null = actor.activeCompanyId,
   ): Promise<IntegrationRowDto> {
     const found = await this.owned(id, actor, owner);
+    const allowedCompanyIds = await this.allowedCompaniesOf(dto, owner);
     const row = (await this.integrations.update({
       where: { id },
       data: {
@@ -124,6 +157,7 @@ export class IntegrationAdminService {
           ? [...new Set(dto.keycloak_client_ids)]
           : undefined,
         active: dto.active,
+        allowedCompanyIds,
       },
       include: WITH_COUNTS,
     })) as IntegrationRow;
@@ -187,8 +221,43 @@ export class IntegrationAdminService {
     actor: Principal,
     owner: string | null = actor.activeCompanyId,
   ): Promise<string> {
-    const row = await this.create({ name, modes: ['app', 'delegated'] }, actor);
+    // owner ต้องส่งต่อ ไม่งั้น key ระบบได้ integration ของบริษัทที่ผู้ดูแลเปิดอยู่
+    const row = await this.create(
+      { name, modes: ['app', 'delegated'] },
+      actor,
+      owner,
+    );
     return row.id;
+  }
+
+  /** `allowed_company_ids` ตั้งได้เฉพาะ integration กลาง และต้องเป็นบริษัทที่ใช้งานอยู่ */
+  private async allowedCompaniesOf(
+    dto: UpdateIntegrationDto,
+    owner: string | null,
+  ): Promise<string[] | undefined> {
+    if (dto.allowed_company_ids === undefined) return undefined;
+    if (owner !== null) {
+      throw new AppError(
+        'VALIDATION_FAILED',
+        'จำกัดบริษัทได้เฉพาะระบบภายนอกกลาง',
+        [{ field: 'allowed_company_ids', reason: 'company_owned' }],
+      );
+    }
+    const ids = [...new Set(dto.allowed_company_ids)];
+    const found = (await this.companies.findMany({
+      where: { id: { in: ids }, active: true },
+      select: { id: true },
+    })) as { id: string }[];
+    const known = new Set(found.map((row) => row.id));
+    const unknown = ids.filter((id) => !known.has(id));
+    if (unknown.length) {
+      throw new AppError(
+        'VALIDATION_FAILED',
+        'มีบริษัทที่ไม่พบหรือปิดใช้งานแล้ว',
+        unknown.map((id) => ({ field: 'allowed_company_ids', reason: id })),
+      );
+    }
+    return ids;
   }
 }
 
@@ -200,6 +269,8 @@ function toRow(row: IntegrationRow): IntegrationRowDto {
     modes: row.modes,
     allow_acting_user: row.allowActingUser,
     keycloak_client_ids: row.keycloakClientIds,
+    company_id: row.companyId,
+    allowed_company_ids: row.allowedCompanyIds ?? [],
     active: row.active,
     api_key_count: row._count?.apiKeys ?? 0,
     webhook_count: row._count?.webhooks ?? 0,
@@ -229,6 +300,7 @@ function summary(row: IntegrationRow) {
     modes: row.modes,
     allowActingUser: row.allowActingUser,
     keycloakClientIds: row.keycloakClientIds,
+    allowedCompanyIds: row.allowedCompanyIds ?? [],
     active: row.active,
   };
 }

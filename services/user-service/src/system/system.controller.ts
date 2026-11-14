@@ -42,11 +42,13 @@ export class SystemController {
     private readonly audit: AuditService,
   ) {}
 
-  /** P8 — the audit of every company, or of one with `company_id`. */
+  /** P8 — every company, one with `company_id`, or `company_id=system` for rows no company owns. */
   @Get('audit')
   @SystemPermissions('system.audit.read')
   searchAudit(@Query() query: QuerySystemAuditLogDto) {
-    return this.audit.search(query, query.company_id);
+    const companyId =
+      query.company_id === 'system' ? null : query.company_id || undefined;
+    return this.audit.search(query, companyId);
   }
 
   @Get('users')
@@ -145,6 +147,13 @@ export class SystemController {
   )
   listCompanies() {
     return this.system.listCompanies();
+  }
+
+  /** ภาพรวมของบริษัทเดียว + ผู้ดูแล — ไม่มีข้อมูลงาน (คำขอ ลูกค้า) */
+  @Get('companies/:id')
+  @SystemPermissions('system.company.manage')
+  getCompany(@Param('id') id: string) {
+    return this.system.getCompany(id);
   }
 
   @Post('companies')

@@ -66,6 +66,12 @@ describe('timeoutMinutesOf', () => {
   });
 });
 
+/** ไม่มีแถวกลาง — ตอบเฉพาะการหาแถวของบริษัท (แบบเดิม) */
+const legacyOnly = (value: unknown) =>
+  jest.fn((args: { where: { companyId: string | null } }) =>
+    Promise.resolve(args.where.companyId === null ? null : value),
+  );
+
 describe('VuvagentClient', () => {
   const fetchMock = jest.fn();
   beforeEach(() => {
@@ -74,7 +80,7 @@ describe('VuvagentClient', () => {
   });
 
   it("calls the action's own agent: its URL, endpoint and opened key", async () => {
-    const connections = { findFirst: jest.fn().mockResolvedValue(row()) };
+    const connections = { findFirst: legacyOnly(row()) };
     fetchMock.mockResolvedValue({ ok: true, status: 202 });
     const client = new VuvagentClient(connections as never, config() as never);
 
@@ -102,6 +108,50 @@ describe('VuvagentClient', () => {
     });
   });
 
+  describe('การเชื่อมต่อกลาง (14 พ.ย. 2569)', () => {
+    const shared = (allowedCompanyIds: string[]) =>
+      row({ companyId: null, integration: { allowedCompanyIds } });
+
+    it('ใช้แถวกลาง และส่งบริษัทของงานทั้งใน header และ body', async () => {
+      const connections = {
+        findFirst: jest.fn().mockResolvedValue(shared(['osd', 'lex'])),
+      };
+      fetchMock.mockResolvedValue({ ok: true, status: 202 });
+      const client = new VuvagentClient(connections as never, config() as never);
+
+      await client.dispatch('lex', 'lead.find', { agent_record_id: 'rec-9' });
+
+      expect(connections.findFirst).toHaveBeenCalledTimes(1);
+      const [, init] = fetchMock.mock.calls[0] as [
+        string,
+        { headers: Record<string, string>; body: string },
+      ];
+      expect(init.headers['X-Company-Id']).toBe('lex');
+      expect(JSON.parse(init.body)).toMatchObject({ organization_id: 'lex' });
+    });
+
+    it('บริษัทนอก list ถูกปฏิเสธโดยไม่เรียกออก', async () => {
+      const connections = {
+        findFirst: jest.fn().mockResolvedValue(shared(['osd'])),
+      };
+      const client = new VuvagentClient(connections as never, config() as never);
+
+      await expect(
+        client.dispatch('lex', 'lead.find', { agent_record_id: 'rec-9' }),
+      ).rejects.toBeInstanceOf(VuvagentDispatchError);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('list ว่าง = ทุกบริษัท', async () => {
+      const connections = { findFirst: jest.fn().mockResolvedValue(shared([])) };
+      fetchMock.mockResolvedValue({ ok: true, status: 202 });
+      const client = new VuvagentClient(connections as never, config() as never);
+
+      await client.dispatch('any', 'lead.find', { agent_record_id: 'rec-9' });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it('no active connection fails with where to set it, without calling out', async () => {
     const connections = { findFirst: jest.fn().mockResolvedValue(null) };
     const client = new VuvagentClient(connections as never, config() as never);
@@ -119,7 +169,7 @@ describe('VuvagentClient', () => {
 
   it('a connection without an endpoint id fails, without calling out', async () => {
     const connections = {
-      findFirst: jest.fn().mockResolvedValue(row({ endpointId: null })),
+      findFirst: legacyOnly(row({ endpointId: null })),
     };
     const client = new VuvagentClient(connections as never, config() as never);
 
@@ -136,9 +186,7 @@ describe('VuvagentClient', () => {
 
   it('a private address is refused at call time', async () => {
     const connections = {
-      findFirst: jest
-        .fn()
-        .mockResolvedValue(row({ baseUrl: 'https://192.168.1.10' })),
+      findFirst: legacyOnly(row({ baseUrl: 'https://192.168.1.10' })),
     };
     const client = new VuvagentClient(connections as never, config() as never);
 
@@ -149,7 +197,7 @@ describe('VuvagentClient', () => {
   });
 
   it('a refusal carries the status', async () => {
-    const connections = { findFirst: jest.fn().mockResolvedValue(row()) };
+    const connections = { findFirst: legacyOnly(row()) };
     fetchMock.mockResolvedValue({
       ok: false,
       status: 401,
@@ -223,6 +271,26 @@ describe('OutboundConnectionsAdminService', () => {
     endpoint_id: 'ep_192af84b',
     timeout_minutes: 45,
   };
+
+  it('shared row (owner null): stored and audited with no company, a second one per action refused', async () => {
+    const { service, connections, integrations, audit } = setup();
+
+    await service.create(create, actor, null);
+
+    expect(integrations.owned).toHaveBeenCalledWith('int-1', actor, null);
+    const data = (
+      connections.create.mock.calls[0] as [{ data: Record<string, unknown> }]
+    )[0].data;
+    expect(data.companyId).toBeNull();
+    expect(
+      (audit.record.mock.calls[0] as [{ companyId: unknown }])[0].companyId,
+    ).toBeNull();
+
+    connections.findFirst.mockResolvedValueOnce({ id: 'conn-1' });
+    await expect(service.create(create, actor, null)).rejects.toMatchObject({
+      code: 'CONFLICT',
+    });
+  });
 
   it("stores one agent per row with its vendor from the action; never returns or audits the key", async () => {
     const { service, connections, audit } = setup();
@@ -377,9 +445,7 @@ describe('OutboundConnectionsAdminService', () => {
 describe('VuvagentClient.download', () => {
   const fetchMock = jest.fn();
   const connections = {
-    findFirst: jest
-      .fn()
-      .mockResolvedValue(row({ action: 'lead.write_proposal' })),
+    findFirst: legacyOnly(row({ action: 'lead.write_proposal' })),
   };
   const headers = (values: Record<string, string>) => ({
     get: (name: string) => values[name.toLowerCase()] ?? null,

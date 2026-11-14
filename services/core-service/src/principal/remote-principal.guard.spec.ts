@@ -98,6 +98,47 @@ describe('RemotePrincipalGuard — API key ตัดสินบริษัท�
     ).rejects.toMatchObject({ code: 'COMPANY_FORBIDDEN' });
   });
 
+  describe('กุญแจกลาง + allowedCompanyIds (14 พ.ย. 2569)', () => {
+    const sharedKey = (allowedCompanyIds: string[]) => ({
+      ...channelKey,
+      companyId: null,
+      integration: {
+        id: 'int-1',
+        modes: ['app'],
+        allowActingUser: false,
+        keycloakClientIds: [],
+        allowedCompanyIds,
+      },
+    });
+
+    it('list ว่าง = ทุกบริษัทเหมือนเดิม', async () => {
+      const { guard, resolve } = guardWith(sharedKey([]));
+      await guard.canActivate(contextFor(request({ [COMPANY_HEADER]: 'any-co' })));
+      expect(resolve).toHaveBeenCalledWith('Bearer minted', 'any-co');
+    });
+
+    it('บริษัทใน list = ผ่านด้วยบริษัทนั้น', async () => {
+      const { guard, resolve } = guardWith(sharedKey(['osd', 'lex']));
+      await guard.canActivate(contextFor(request({ [COMPANY_HEADER]: 'lex' })));
+      expect(resolve).toHaveBeenCalledWith('Bearer minted', 'lex');
+    });
+
+    it('บริษัทนอก list = COMPANY_FORBIDDEN', async () => {
+      const { guard, resolve } = guardWith(sharedKey(['osd']));
+      await expect(
+        guard.canActivate(contextFor(request({ [COMPANY_HEADER]: 'lex' }))),
+      ).rejects.toMatchObject({ code: 'COMPANY_FORBIDDEN' });
+      expect(resolve).not.toHaveBeenCalled();
+    });
+
+    it('ไม่ส่ง X-Company-Id = VALIDATION_FAILED ไม่ใช่ตกไปบริษัทหลัก', async () => {
+      const { guard } = guardWith(sharedKey(['osd']));
+      await expect(
+        guard.canActivate(contextFor(request({}))),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+    });
+  });
+
   it('scopes คือสิทธิ์ — กุญแจเว็บฟอร์มเปิดได้แค่ Lead', async () => {
     const { guard } = guardWith(channelKey);
     const call = request({});
