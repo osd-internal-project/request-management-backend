@@ -1,0 +1,15 @@
+{{- if and .Values.ingress .Values.ingress.enabled .Values.ingress.stripPrefix }}
+# Name is referenced by the ingress annotation router.middlewares:
+# <namespace>-request-external-strip@kubernetescrd
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: request-external-strip
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.appName }}
+spec:
+  stripPrefix:
+    prefixes:
+      - {{ .Values.ingress.stripPrefix }}
+{{- end }}

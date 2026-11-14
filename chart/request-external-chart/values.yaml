@@ -27,9 +27,23 @@ service:
   port: 8886
   targetPort: 3003
 
-# No public ingress: nothing outside the cluster calls this service directly.
+# Public at https://<host>/external-api/* for machine clients (API keys, LINE
+# webhook, MCP). The frontend still calls the service in-cluster. stripPrefix
+# drops /external-api so the app sees /api/v1/..., same as nginx on dev.
 ingress:
-  enabled: false
+  enabled: true
+  className: traefik
+  host: ctd-uat.osd.co.th
+  path: /external-api
+  pathType: Prefix
+  stripPrefix: /external-api
+  tls:
+    enabled: true
+    secretName: request-tls
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/router.middlewares: request-management-request-external-strip@kubernetescrd
 
 configmap:
   STORAGE_MODE: "minio"
