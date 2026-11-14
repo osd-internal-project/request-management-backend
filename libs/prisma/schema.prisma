@@ -2118,6 +2118,9 @@ model Integration {
   allowActingUser   Boolean  @default(false)
   /// `azp` ของ Keycloak token ที่ยอมรับใน X-User-Token
   keycloakClientIds String[] @default([])
+  /// ใช้กับ integration กลาง (`companyId` NULL) เท่านั้น: บริษัทที่ key กลางส่ง `X-Company-Id` มาได้
+  /// ว่าง = ทุกบริษัท (พฤติกรรมเดิมก่อน 14 พ.ย. 2569)
+  allowedCompanyIds String[] @default([])
   active            Boolean  @default(true)
   createdBy         String
   createdAt         DateTime @default(now())
@@ -9540,8 +9543,10 @@ model AgentRecord {
 /// สัญญา API ของ vendor (path, header, body) อยู่ในโค้ด เช่น `vuvagent.client.ts`.
 model OutboundConnection {
   id            String   @id @default(uuid())
-  /// บังคับ ต่างจาก `Integration.companyId` — secret ขาออกต้องเป็นของบริษัทเดียว
-  companyId     String
+  /// NULL = การเชื่อมต่อกลาง (14 พ.ย. 2569) ใช้กับทุกบริษัทใน `Integration.allowedCompanyIds`;
+  /// CTD ส่งบริษัทของงานไปใน `X-Company-Id` และ `organization_id`. NULL ไม่ซ้ำกันใน unique ข้างล่าง
+  /// การกันซ้ำของแถวกลางจึงอยู่ที่ `OutboundConnectionsAdminService.create`
+  companyId     String?
   integrationId String
   /// `vuvagent` — vendor ของ `AGENT_ACTIONS[action].vendor`
   vendor        String

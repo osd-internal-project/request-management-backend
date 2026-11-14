@@ -6,3 +6,4 @@ export * from './separation-of-duties';
 export * from './permission-types';
 export * from './sensitive-field.masker';
 export * from './sensitive-field.interceptor';
+export * from './admin-role';

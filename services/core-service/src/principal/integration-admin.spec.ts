@@ -58,11 +58,19 @@ describe('IntegrationAdminService', () => {
       ]),
       count: jest.fn().mockResolvedValue(1),
     };
+    const companies = {
+      findMany: jest.fn((args: { where: { id: { in: string[] } } }) =>
+        Promise.resolve(
+          args.where.id.in.filter((id) => id !== 'gone').map((id) => ({ id })),
+        ),
+      ),
+    };
     return {
       service: new IntegrationAdminService(
         integrations as never,
         audit as never,
         calls as never,
+        companies as never,
       ),
       integrations,
       audit,
@@ -154,6 +162,73 @@ describe('IntegrationAdminService', () => {
         duration_ms: 12,
       },
     ]);
+  });
+
+  describe('system hub (14 พ.ย. 2569)', () => {
+    const shared = '00000000-0000-0000-0000-00000000000a';
+
+    it('lists every company, one company, or only shared rows', async () => {
+      const { service, integrations } = harness();
+      await service.listAcrossCompanies();
+      await service.listAcrossCompanies('osd');
+      await service.listAcrossCompanies('system');
+      const wheres = (
+        integrations.findMany.mock.calls as [{ where: unknown }][]
+      ).map(([args]) => args.where);
+      expect(wheres).toEqual([
+        { companyId: undefined },
+        { companyId: 'osd' },
+        { companyId: null },
+      ]);
+    });
+
+    it('sets allowed companies on a shared integration', async () => {
+      const { service, integrations, audit } = harness();
+      integrations.findFirst.mockResolvedValueOnce({ id: 'int-1', companyId: null } as never);
+
+      const out = await service.update(
+        'int-1',
+        { allowed_company_ids: [shared, shared] },
+        admin(),
+        null,
+      );
+
+      expect(out.allowed_company_ids).toEqual([shared]);
+      const entry = (audit.record.mock.calls[0] as [{ after: unknown }])[0];
+      expect(entry.after).toMatchObject({ allowedCompanyIds: [shared] });
+    });
+
+    it('refuses allowed companies on a company-owned integration', async () => {
+      const { service, integrations } = harness({ name: 'x' });
+      await expect(
+        service.update('int-1', { allowed_company_ids: [shared] }, admin()),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+      expect(integrations.update).not.toHaveBeenCalled();
+    });
+
+    it('refuses a company that is missing or closed', async () => {
+      const { service, integrations } = harness();
+      integrations.findFirst.mockResolvedValueOnce({ id: 'int-1', companyId: null } as never);
+      await expect(
+        service.update('int-1', { allowed_company_ids: ['gone'] }, admin(), null),
+      ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+    });
+
+    it('a key issued without an integration gets a shared one, not the admin’s company', async () => {
+      const { service, integrations } = harness();
+      await service.createForKey('chatbot', admin('osd'), null);
+      const data = (
+        integrations.create.mock.calls[0] as [{ data: Record<string, unknown> }]
+      )[0].data;
+      expect(data.companyId).toBeNull();
+    });
+
+    it('ownerOf answers 404 for an unknown row', async () => {
+      const { service } = harness();
+      await expect(service.ownerOf('nope')).rejects.toMatchObject({
+        code: 'NOT_FOUND',
+      });
+    });
   });
 
   it('another company’s integration answers 404 and reads no calls (SCOPE-03)', async () => {

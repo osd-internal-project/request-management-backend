@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import {
   BaseRepository,
+  COMPANY_ADMIN_ROLE_CODE,
   PrismaService,
   TQueryClient,
   TxOption,
@@ -127,9 +128,107 @@ export class SystemRepository extends BaseRepository<PrismaService['user']> {
         code: true,
         name: true,
         docPrefix: true,
+        baseCurrency: true,
         active: true,
         createdAt: true,
-        _count: { select: { users: true } },
+        _count: { select: { users: true, orgUnits: true } },
+      },
+    });
+  }
+
+  /** สมาชิกที่บัญชีถูกปิด ต่อบริษัท — ตัวเลขระดับองค์กร ไม่แตะข้อมูลงาน */
+  suspendedMembersByCompany() {
+    return this.prisma.userCompany.groupBy({
+      by: ['companyId'],
+      // ระดับระบบ: ทุกบริษัทโดยตั้งใจ — key ต้องมีให้ tenant guard เห็นว่าเลือกแล้ว
+      where: { companyId: undefined, user: { status: 'SUSPENDED' } },
+      _count: { _all: true },
+    });
+  }
+
+  /** ผู้ถือ role ผู้ดูแลของแต่ละบริษัท */
+  adminHolders(companyId?: string) {
+    return this.prisma.userRole.findMany({
+      where: {
+        role: { code: COMPANY_ADMIN_ROLE_CODE, level: 'COMPANY' },
+        // undefined = ทุกบริษัท (ภาพรวมระบบ); key ต้องมีให้ tenant guard เห็นว่าเลือกแล้ว
+        companyId,
+      },
+      select: {
+        companyId: true,
+        user: {
+          select: { id: true, displayName: true, email: true, status: true },
+        },
+      },
+    });
+  }
+
+  findCompanyRole(companyId: string, code: string, option?: TxOption) {
+    const client = option?.prisma ?? this.prisma;
+    return client.role.findUnique({
+      where: { companyId_code: { companyId, code } },
+      select: { id: true },
+    });
+  }
+
+  /** ตั้งต้นบริษัทใหม่: role ผู้ดูแล + หน่วยงานราก (ภายใน transaction ของผู้เรียก) */
+  async bootstrapCompany(
+    company: { id: string; code: string; name: string },
+    permissions: readonly string[],
+    actorId: string,
+    option: TxOption,
+  ) {
+    const client = option.prisma ?? this.prisma;
+    const role = await client.role.create({
+      data: {
+        companyId: company.id,
+        code: COMPANY_ADMIN_ROLE_CODE,
+        name: 'ผู้ดูแลระบบ',
+        description: 'ทีมที่ดูแลการตั้งค่า — ไม่มีสิทธิ์อนุมัติแทนใคร',
+        isSystem: true,
+        level: 'COMPANY',
+        createdBy: actorId,
+        permissions: {
+          create: permissions.map((permissionCode) => ({ permissionCode })),
+        },
+      },
+      select: { id: true },
+    });
+    const root = await client.orgUnit.create({
+      data: {
+        companyId: company.id,
+        code: company.code,
+        name: company.name,
+        kind: 'COMPANY',
+      },
+      select: { id: true },
+    });
+    return { roleId: role.id, rootUnitId: root.id };
+  }
+
+  /** ให้คนหนึ่งเป็นผู้ดูแลบริษัท: สมาชิก + role (MANUAL) — ไม่แตะบริษัทหลักของเขา */
+  async addCompanyAdmin(
+    userId: string,
+    companyId: string,
+    roleId: string,
+    grantedBy: string,
+    option: TxOption,
+  ) {
+    const client = option.prisma ?? this.prisma;
+    await client.userCompany.upsert({
+      where: { userId_companyId: { userId, companyId } },
+      update: {},
+      create: { userId, companyId, isPrimary: false },
+    });
+    await client.userRole.upsert({
+      where: { userId_roleId_companyId: { userId, roleId, companyId } },
+      update: {},
+      create: {
+        userId,
+        roleId,
+        companyId,
+        source: 'MANUAL',
+        grantedByUserId: grantedBy,
       },
     });
   }

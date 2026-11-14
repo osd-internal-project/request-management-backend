@@ -207,3 +207,94 @@ describe('P5 SystemService', () => {
     expect(memberships.detachFromCompany).not.toHaveBeenCalled();
   });
 });
+
+describe('company bootstrap + overview (14 พ.ย. 2569)', () => {
+  function companies(user: Record<string, unknown> | null = null) {
+    const system = {
+      findCompanyByCode: jest.fn(() => Promise.resolve(null)),
+      createCompany: jest.fn(() =>
+        Promise.resolve({ id: 'co-new', code: 'NEWCO', name: 'New Co' }),
+      ),
+      bootstrapCompany: jest.fn(() =>
+        Promise.resolve({ roleId: 'role-admin', rootUnitId: 'unit-root' }),
+      ),
+      findUser: jest.fn(() => Promise.resolve(user)),
+      addCompanyAdmin: jest.fn(() => Promise.resolve()),
+      listCompanies: jest.fn(() =>
+        Promise.resolve([
+          { id: 'co-a', code: 'A', _count: { users: 3, orgUnits: 2 } },
+          { id: 'co-b', code: 'B', _count: { users: 1, orgUnits: 1 } },
+        ]),
+      ),
+      suspendedMembersByCompany: jest.fn(() =>
+        Promise.resolve([{ companyId: 'co-a', _count: { _all: 1 } }]),
+      ),
+      adminHolders: jest.fn(() =>
+        Promise.resolve([
+          { companyId: 'co-a', user: { id: 'u1' } },
+          { companyId: 'co-a', user: { id: 'u2' } },
+        ]),
+      ),
+    };
+    const audit = { record: jest.fn(() => Promise.resolve()) };
+    const service = new SystemService(
+      system as never,
+      {} as never,
+      {} as RolesService,
+      {} as never,
+      audit as never,
+      tx as never,
+    );
+    return { service, system, audit };
+  }
+  const dto = { code: 'NEWCO', name: ' New Co ', doc_prefix: 'NC' };
+
+  it('creates the admin role (no approval right) and a root unit with the company', async () => {
+    const { service, system } = companies();
+    await service.createCompany(dto, SYSADMIN);
+
+    const [, permissions] = system.bootstrapCompany.mock.calls[0] as unknown as [
+      unknown,
+      string[],
+    ];
+    expect(permissions).toContain('admin.integration.manage');
+    expect(permissions).not.toContain('approval.decide');
+    expect(permissions).not.toContain('request.sensitive.read');
+    expect(system.addCompanyAdmin).not.toHaveBeenCalled();
+  });
+
+  it('makes the named person the first admin', async () => {
+    const { service, system } = companies({ id: 'u9', status: 'ACTIVE' });
+    await service.createCompany({ ...dto, admin_user_id: 'u9' }, SYSADMIN);
+    expect(system.addCompanyAdmin).toHaveBeenCalledWith(
+      'u9',
+      'co-new',
+      'role-admin',
+      'sys-1',
+      expect.anything(),
+    );
+  });
+
+  it('refuses a suspended first admin', async () => {
+    const { service, system } = companies({ id: 'u9', status: 'SUSPENDED' });
+    await expect(
+      service.createCompany({ ...dto, admin_user_id: 'u9' }, SYSADMIN),
+    ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+    expect(system.addCompanyAdmin).not.toHaveBeenCalled();
+  });
+
+  it('overview counts suspended members and admins per company', async () => {
+    const { service } = companies();
+    const rows = await service.listCompanies();
+    expect(
+      rows.map(({ code, suspendedMembers, adminCount }) => ({
+        code,
+        suspendedMembers,
+        adminCount,
+      })),
+    ).toEqual([
+      { code: 'A', suspendedMembers: 1, adminCount: 2 },
+      { code: 'B', suspendedMembers: 0, adminCount: 0 },
+    ]);
+  });
+});

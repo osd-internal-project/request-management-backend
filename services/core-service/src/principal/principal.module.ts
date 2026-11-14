@@ -9,6 +9,7 @@ import { IntegrationAdminService } from './integration-admin.service';
 import { IntegrationRepository } from './integration.repository';
 import { IntegrationCallRepository } from './integration-call.repository';
 import { IntegrationCallLogService } from './integration-call-log.service';
+import { CompanyRepository } from '../crm/product.repositories';
 
 @Global()
 @Module({
@@ -20,6 +21,7 @@ import { IntegrationCallLogService } from './integration-call-log.service';
     IntegrationAdminService,
     IntegrationCallRepository,
     IntegrationCallLogService,
+    CompanyRepository,
     RemotePrincipalService,
     ApprovalContextClient,
     RemotePrincipalGuard,

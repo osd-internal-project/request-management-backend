@@ -95,7 +95,10 @@ export class RemotePrincipalGuard implements CanActivate {
     const header = request.headers[COMPANY_HEADER];
     const requested = typeof header === 'string' ? header : undefined;
 
-    if (!key?.companyId) return requested;
+    if (!key?.companyId) {
+      this.assertAllowedCompany(key, requested);
+      return requested;
+    }
 
     if (requested && requested !== key.companyId) {
       throw new AppError(
@@ -113,6 +116,32 @@ export class RemotePrincipalGuard implements CanActivate {
     */
     request.headers[COMPANY_HEADER] = key.companyId;
     return key.companyId;
+  }
+
+  /**
+   * key กลางของ integration ที่จำกัดบริษัทไว้ (14 พ.ย. 2569): ต้องระบุบริษัท และบริษัทนั้นต้องอยู่ใน list.
+   * ไม่ส่ง header จะไม่ปล่อยไปใช้บริษัทหลักของบัญชีบริการ เพราะบริษัทนั้นอาจไม่อยู่ใน list
+   */
+  private assertAllowedCompany(
+    key: ApiKeyContext | undefined,
+    requested: string | undefined,
+  ): void {
+    const allowed = key?.integration?.allowedCompanyIds ?? [];
+    if (!allowed.length) return;
+    if (!requested) {
+      throw new AppError(
+        'VALIDATION_FAILED',
+        'API key กลางนี้ต้องส่ง X-Company-Id ของบริษัทที่ทำงานแทน',
+        [{ field: 'X-Company-Id', reason: 'required' }],
+      );
+    }
+    if (!allowed.includes(requested)) {
+      throw new AppError(
+        'COMPANY_FORBIDDEN',
+        'API key นี้ไม่ได้รับอนุญาตให้ทำงานแทนบริษัทนี้',
+        [{ field: 'X-Company-Id', reason: requested }],
+      );
+    }
   }
 
   /**
