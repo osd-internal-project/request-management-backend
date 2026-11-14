@@ -54,6 +54,7 @@ secrets:
   MINIO_SECRETKEY: ""
   DATABASE_URL: ""
   INTEGRATION_CLIENT_SECRET: ""
+  CONFIG_SECRET_KEY: ""
 
 # The runtime image has no Prisma CLI, so there is no migration hook. Apply migrations by hand:
 #   DATABASE_URL=<url> yarn prisma:migrate:deploy

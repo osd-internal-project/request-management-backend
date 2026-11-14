@@ -53,7 +53,7 @@ jobs:
   resolve-tag:
     runs-on: ubuntu-latest
     needs: [build]
-    if: always()
+    if: ${{ !failure() && !cancelled() }}  # skipped build OK; failed/cancelled build must not deploy
     outputs:
       image_tag: ${{ steps.r.outputs.image_tag }}
     steps:
@@ -90,4 +90,5 @@ jobs:
         secrets.MINIO_ACCESSKEY=MINIO_ACCESSKEY
         secrets.MINIO_SECRETKEY=MINIO_SECRETKEY
         secrets.INTEGRATION_CLIENT_SECRET=INTEGRATION_CLIENT_SECRET
+        secrets.CONFIG_SECRET_KEY=CONFIG_SECRET_KEY
     secrets: inherit
